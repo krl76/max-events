@@ -1,0 +1,105 @@
+name: "🐞 Bug report"
+description: "Сообщить об ошибке в работе MAX Events"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо за отчёт! Заполните форму максимально подробно — это ускорит диагностику.
+        Проверьте, пожалуйста, что такого issue ещё нет в [открытых тикетах](../issues?q=is%3Aissue+is%3Aopen+label%3Abug).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: "Что произошло"
+      description: "Краткое описание проблемы одним-двумя предложениями."
+      placeholder: "Например: при записи на событие кнопка остаётся в состоянии загрузки, запись не создаётся."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Шаги воспроизведения"
+      description: "Последовательность действий, приводящая к проблеме."
+      placeholder: |
+        1. Открыть страницу ...
+        2. Нажать ...
+        3. Увидеть ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Ожидаемое поведение"
+      description: "Что должно было произойти вместо этого."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: "Фактическое поведение"
+      description: "Что произошло на самом деле, включая тексты ошибок."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: "Компонент"
+      description: "Где воспроизводится проблема."
+      options:
+        - "Мини-апп (app-miniapp)"
+        - "Backend (svc-backend)"
+        - "API-контракты (packages/api-contracts)"
+        - "Инфраструктура / dev-фундамент"
+        - "Другое / не знаю"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: "Окружение"
+      options:
+        - "Local dev (docker-compose.dev)"
+        - "Клиент MAX (iOS/Android/Desktop)"
+        - "Прод / стенд"
+        - "Не знаю / не применимо"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: "Критичность"
+      description: "Оцените влияние на пользователя."
+      options:
+        - "Блокирует работу (Critical)"
+        - "Существенная, есть обходной путь (Major)"
+        - "Заметная, не блокирует (Minor)"
+        - "Косметическая (Trivial)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Логи, скриншоты"
+      description: |
+        Приложите вывод консоли, скриншоты.
+        ⚠️ Не вставляйте секреты, токены и креденшелы — только отредактированные фрагменты.
+      placeholder: "ошибка из консоли браузера / логов сервиса ..."
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: "Версия / коммит"
+      description: "Хэш коммита или версия сборки, на которой воспроизведено (если известно)."
+      placeholder: "например, 09a62856"
+    validations:
+      required: false

@@ -1,0 +1,50 @@
+name: "✨ Feature request"
+description: "Предложить улучшение или новую функциональность"
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Задача пользователя"
+      description: "Какую проблему/потребность решаем? От лица пользователя или организатора."
+      placeholder: "Например: как участник я хочу видеть, кто из друзей идёт на событие, чтобы ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Предлагаемое решение"
+      description: "Как это должно работать."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Альтернативы"
+      description: "Какие варианты рассматривались и почему отклонены."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: "Компонент"
+      options:
+        - "Мини-апп (app-miniapp)"
+        - "Backend (svc-backend)"
+        - "API-контракты (packages/api-contracts)"
+        - "Инфраструктура / dev-фундамент"
+        - "Процессы / документация"
+        - "Другое / не знаю"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: "Дополнительный контекст"
+      description: "Ссылки, скриншоты, приоритет (P0–P4 по README)."
+    validations:
+      required: false
