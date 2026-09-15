@@ -12,21 +12,23 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { validateEnv } from "./config/env";
+import { RedisModule } from "./redis/redis.module";
 import { HealthModule } from "./health/health.module";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: "postgres" as const,
-        url: config.get<string>("DATABASE_URL", "postgres://max_events:max_events@localhost:5443/max_events"),
+        url: config.getOrThrow<string>("DATABASE_URL"),
         autoLoadEntities: true,
-        // ponytail: synchronize пока схема не устоялась; перейти на миграции перед первым реальным деплоем
-        synchronize: true,
+        synchronize: false,
       }),
     }),
+    RedisModule,
     HealthModule,
   ],
 })
