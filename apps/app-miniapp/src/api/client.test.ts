@@ -1,0 +1,131 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ApiClient } from "./client";
+import type { Event } from "@max-events/api-contracts";
+
+function mockFetchOnce(ok: boolean, status: number, body: unknown): void {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok,
+      status,
+      json: () => Promise.resolve(body),
+    }),
+  );
+}
+
+/** Stub fetch capturing the RequestInit (second arg) of the last call. */
+function mockFetchCaptured(body: unknown): () => RequestInit | undefined {
+  let lastInit: RequestInit | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+      lastInit = init;
+      return { ok: true, status: 201, json: () => Promise.resolve(body) };
+    }),
+  );
+  return () => lastInit;
+}
+
+const validEvent: Event = {
+  id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+  title: "Concert",
+  description: "",
+  category: "afisha",
+  city: "Moscow",
+  placeId: null,
+  startsAt: "2026-09-11T10:00:00.000Z",
+  endsAt: null,
+  isPaid: false,
+  priceRub: null,
+  paymentUrl: null,
+  capacity: null,
+};
+
+describe("ApiClient", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("parses a valid GET response into the contract type", async () => {
+    mockFetchOnce(true, 200, validEvent);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    const event = await client.getEvent(validEvent.id);
+
+    expect(event).toEqual(validEvent);
+    expect(event.id).toBe(validEvent.id);
+  });
+
+  it("throws ApiError with status on HTTP error response", async () => {
+    mockFetchOnce(false, 500, { message: "boom" });
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await expect(client.getEvent(validEvent.id)).rejects.toMatchObject({
+      name: "ApiError",
+      status: 500,
+    });
+  });
+
+  it("throws ApiError on invalid payload body", async () => {
+    mockFetchOnce(true, 200, { id: "not-a-uuid", title: "x" });
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await expect(client.getEvent(validEvent.id)).rejects.toMatchObject({
+      name: "ApiError",
+    });
+  });
+
+  it("throws ApiError on network failure", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await expect(client.getEvent(validEvent.id)).rejects.toMatchObject({
+      name: "ApiError",
+    });
+  });
+
+  it("sends content-type application/json on a POST with body", async () => {
+    const getInit = mockFetchCaptured(validEvent);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await client.createEvent({
+      title: "Concert",
+      description: "",
+      category: "afisha",
+      city: "Moscow",
+      placeId: null,
+      startsAt: "2026-09-11T10:00:00.000Z",
+      endsAt: null,
+      isPaid: false,
+      priceRub: null,
+      paymentUrl: null,
+      capacity: null,
+    });
+
+    const init = getInit();
+    expect(init?.method).toBe("POST");
+    expect(JSON.parse(String(init?.body))).toEqual({
+      title: "Concert",
+      description: "",
+      category: "afisha",
+      city: "Moscow",
+      placeId: null,
+      startsAt: "2026-09-11T10:00:00.000Z",
+      endsAt: null,
+      isPaid: false,
+      priceRub: null,
+      paymentUrl: null,
+      capacity: null,
+    });
+    expect(init?.headers).toMatchObject({ "content-type": "application/json" });
+  });
+
+  it("omits content-type header on GET without body", async () => {
+    const getInit = mockFetchCaptured(validEvent);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await client.getEvent(validEvent.id);
+
+    expect(getInit()?.headers).not.toMatchObject({ "content-type": "application/json" });
+  });
+});
