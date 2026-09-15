@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+build/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Logs
+/logs/
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.*
+!.env*.example
+
+# Temp/runtime
+tmp/
+temp/
+.tmp/
+
+# Test artifacts
+test-results/
+.last-run.json
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.sw?
+
+# OS
+.DS_Store
+
+# Alternative lockfiles (bun.lock is tracked)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Playwright / MCP profiles
+.playwright-mcp/
+mcp-profile/
+
+# Профили воркеров OpenCode — локальная конфигурация, не коммитим
+.opencode/agent/
+
+.turbo/cache/
+backups/

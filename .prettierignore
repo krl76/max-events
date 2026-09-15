@@ -1,0 +1,18 @@
+# Сторонние скиллы (устанавливаются через skills CLI, хеши в skills-lock.json) — не форматировать
+.claude/
+.agents/skills/brainstorming/
+.agents/skills/find-skills/
+.agents/skills/grace-ask/
+.agents/skills/grace-cli/
+.agents/skills/grace-execute/
+.agents/skills/grace-fix/
+.agents/skills/grace-init/
+.agents/skills/grace-plan/
+.agents/skills/grace-reviewer/
+.agents/skills/grace-spec/
+.agents/skills/grace-status/
+.agents/skills/grace-verification/
+.agents/skills/receiving-code-review/
+.agents/skills/systematic-debugging/
+.agents/skills/verification-before-completion/
+.agents/skills/writing-skills/
