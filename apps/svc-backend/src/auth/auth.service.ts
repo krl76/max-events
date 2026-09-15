@@ -9,7 +9,7 @@
 // - AuthService - initData validation + user upsert entrypoint shared by guard and login endpoint
 // END_MODULE_MAP
 
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { UserEntity } from "../users/user.entity";
 import { UsersService } from "../users/users.service";
@@ -17,10 +17,16 @@ import { validateInitData } from "./max-init-data";
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @Inject(ConfigService) private readonly config: ConfigService,
     @Inject(UsersService) private readonly users: UsersService,
-  ) {}
+  ) {
+    if (!this.config.get<string>("MAX_BOT_TOKEN")) {
+      this.logger.warn("MAX_BOT_TOKEN is not set: every initData authentication will be rejected (fail-closed)");
+    }
+  }
 
   async authenticate(initData: string): Promise<UserEntity | null> {
     const botToken = this.config.get<string>("MAX_BOT_TOKEN");

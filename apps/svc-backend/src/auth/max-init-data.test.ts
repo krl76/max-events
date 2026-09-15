@@ -86,6 +86,13 @@ describe("validateInitData", () => {
     expect(validateInitData(`${initData}&${hash}`, BOT_TOKEN, NOW)).toBeNull();
   });
 
+  it("rejects a hash that is not exactly 64 lowercase hex chars (no silent hex truncation)", () => {
+    const withHash = (hash: string) => validInitData().replace(/hash=[0-9a-f]{64}/, `hash=${encodeURIComponent(hash)}`);
+    expect(validateInitData(withHash("z".repeat(64)), BOT_TOKEN, NOW)).toBeNull();
+    expect(validateInitData(withHash("a".repeat(63)), BOT_TOKEN, NOW)).toBeNull();
+    expect(validateInitData(withHash("A".repeat(64)), BOT_TOKEN, NOW)).toBeNull();
+  });
+
   it("rejects initData without a user payload", () => {
     const initData = buildInitData({ auth_date: String(NOW), query_id: "q-1" });
     expect(validateInitData(initData, BOT_TOKEN, NOW)).toBeNull();

@@ -12,7 +12,7 @@
 
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { QueryFailedError, Repository } from "typeorm";
 import type { User } from "@max-events/api-contracts";
 import type { MaxInitDataUser } from "../auth/max-init-data";
 import { UserEntity } from "./user.entity";
@@ -33,7 +33,15 @@ export class UsersService {
     };
     const existing = await this.users.findOneBy({ maxUserId });
     if (!existing) {
-      return this.users.save(this.users.create({ maxUserId, ...fields }));
+      try {
+        return await this.users.save(this.users.create({ maxUserId, ...fields }));
+      } catch (error) {
+        // Concurrent first sign-in lost the insert race: the winner's row is now visible.
+        if (error instanceof QueryFailedError && error.driverError?.code === "23505") {
+          return this.users.findOneByOrFail({ maxUserId });
+        }
+        throw error;
+      }
     }
     if (existing.firstName !== fields.firstName || existing.lastName !== fields.lastName || existing.avatarUrl !== fields.avatarUrl) {
       return this.users.save(this.users.merge(existing, fields));

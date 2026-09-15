@@ -1,18 +1,39 @@
 import { describe, expect, it } from "vitest";
-import type { Repository } from "typeorm";
+import { QueryFailedError, type Repository } from "typeorm";
 import type { MaxInitDataUser } from "../auth/max-init-data";
 import { UserEntity } from "./user.entity";
 import { toUserDto, UsersService } from "./users.service";
 
+const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+function uniqueViolation(): QueryFailedError {
+  return new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate key value"), { code: "23505" }));
+}
+
 function createRepo(initial: UserEntity[] = []) {
   const store: UserEntity[] = [...initial];
+  const find = (where: { maxUserId: string }) => store.find((user) => user.maxUserId === where.maxUserId) ?? null;
   return {
     store,
-    findOneBy: async (where: { maxUserId: string }) => store.find((user) => user.maxUserId === where.maxUserId) ?? null,
+    // Deferred reads/writes emulate driver I/O so concurrent upserts interleave like real queries.
+    findOneBy: async (where: { maxUserId: string }) => {
+      await tick();
+      return find(where);
+    },
+    findOneByOrFail: async (where: { maxUserId: string }) => {
+      await tick();
+      const found = find(where);
+      if (!found) throw new Error("UserEntity not found");
+      return found;
+    },
     create: (fields: Partial<UserEntity>) => ({ ...fields }) as UserEntity,
     merge: (target: UserEntity, fields: Partial<UserEntity>) => Object.assign(target, fields),
     save: async (entity: UserEntity) => {
-      if (!store.includes(entity)) store.push(entity);
+      await tick();
+      if (!store.includes(entity)) {
+        if (store.some((user) => user.maxUserId === entity.maxUserId)) throw uniqueViolation();
+        store.push(entity);
+      }
       return entity;
     },
   };
@@ -53,6 +74,24 @@ describe("UsersService.upsertFromMax", () => {
     expect(updated.firstName).toBe("Maxim");
     expect(updated.avatarUrl).toBe("https://example.com/a.png");
     expect(updated).toBe(first);
+  });
+
+  it("survives a create-create race: concurrent first sign-ins both succeed and store one record", async () => {
+    const { repo, service } = createService();
+    const [a, b] = await Promise.all([service.upsertFromMax(maxUser), service.upsertFromMax(maxUser)]);
+    expect(repo.store).toHaveLength(1);
+    expect(b).toBe(a);
+    expect(a.maxUserId).toBe("67890");
+  });
+
+  it("rethrows driver errors other than a unique violation", async () => {
+    const repo = createRepo();
+    const boom = new QueryFailedError("INSERT", [], Object.assign(new Error("connection lost"), { code: "08006" }));
+    repo.save = async () => {
+      throw boom;
+    };
+    const service = new UsersService(repo as unknown as Repository<UserEntity>);
+    await expect(service.upsertFromMax(maxUser)).rejects.toBe(boom);
   });
 });
 

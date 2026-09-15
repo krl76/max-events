@@ -20,6 +20,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
+// ponytail: 24h replay window is fine for read-only MVP; shrink TTL or add query_id anti-replay when write/booking operations appear
 export const MAX_AUTH_DATE_AGE_SECONDS = 24 * 60 * 60;
 const CLOCK_SKEW_SECONDS = 60;
 
@@ -58,7 +59,9 @@ export function validateInitData(initData: string, botToken: string, nowSeconds:
 
   const hashPairs = pairs.filter(([key]) => key === "hash");
   if (hashPairs.length !== 1) return null;
-  const received = Buffer.from(hashPairs[0][1], "hex");
+  const hashHex = hashPairs[0][1];
+  if (!/^[0-9a-f]{64}$/.test(hashHex)) return null;
+  const received = Buffer.from(hashHex, "hex");
 
   const dataCheckString = pairs
     .filter(([key]) => key !== "hash")
