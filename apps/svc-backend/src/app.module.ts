@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Root NestJS module wiring config, Postgres (TypeORM) and feature modules.
-// SCOPE: Global ConfigModule, TypeOrmModule from DATABASE_URL, HealthModule.
-// DEPENDS: @nestjs/config, @nestjs/typeorm, health/health.module
+// SCOPE: Global ConfigModule, TypeOrmModule from DATABASE_URL, Auth/Users/Health modules.
+// DEPENDS: @nestjs/config, @nestjs/typeorm, auth/auth.module, users/users.module, health/health.module
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -15,6 +15,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { validateEnv } from "./config/env";
 import { RedisModule } from "./redis/redis.module";
 import { HealthModule } from "./health/health.module";
+import { AuthModule } from "./auth/auth.module";
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { HealthModule } from "./health/health.module";
     }),
     RedisModule,
     HealthModule,
+    AuthModule,
   ],
 })
 export class AppModule {}
