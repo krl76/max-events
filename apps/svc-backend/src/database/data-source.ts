@@ -12,12 +12,13 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { validateEnv } from "../config/env";
+import { UserEntity } from "../users/user.entity";
 
 const env = validateEnv();
 
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: env.DATABASE_URL,
-  entities: [],
+  entities: [UserEntity],
   migrations: ["src/database/migrations/*.ts"],
 });
