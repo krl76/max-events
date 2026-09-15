@@ -8,32 +8,42 @@
 // START_MODULE_MAP
 // - EventCategorySchema - event category enum
 // - EventCategory - event category type
-// - EventSchema - full event schema with defaults
+// - EventSchema - full event schema with defaults and paid/free payment link invariant
 // - Event - full event type
 // - CreateEventSchema - event creation payload (no id)
 // - CreateEvent - event creation payload type
 // END_MODULE_MAP
 
 import { z } from "zod";
+import { IdSchema, TimestampSchema } from "./primitives.js";
 
 export const EventCategorySchema = z.enum(["afisha", "volunteering", "tourism", "sport"]);
 export type EventCategory = z.infer<typeof EventCategorySchema>;
 
-export const EventSchema = z.object({
-  id: z.string().uuid(),
+const EventObjectSchema = z.object({
+  id: IdSchema,
   title: z.string().min(1).max(200),
   description: z.string().max(5000).default(""),
   category: EventCategorySchema,
   city: z.string().min(1),
-  placeId: z.string().uuid().nullable().default(null),
-  startsAt: z.string().datetime({ offset: true }),
-  endsAt: z.string().datetime({ offset: true }).nullable().default(null),
+  placeId: IdSchema.nullable().default(null),
+  startsAt: TimestampSchema,
+  endsAt: TimestampSchema.nullable().default(null),
   isPaid: z.boolean().default(false),
   priceRub: z.number().int().nonnegative().nullable().default(null),
   paymentUrl: z.string().url().nullable().default(null),
   capacity: z.number().int().positive().nullable().default(null),
 });
+
+const hasValidPaymentLink = (data: { isPaid: boolean; paymentUrl: string | null }) => (data.isPaid ? data.paymentUrl !== null : data.paymentUrl === null);
+
+const paymentLinkInvariant = {
+  message: "paid events require paymentUrl, free events must not have one",
+  path: ["paymentUrl"],
+};
+
+export const EventSchema = EventObjectSchema.refine(hasValidPaymentLink, paymentLinkInvariant);
 export type Event = z.infer<typeof EventSchema>;
 
-export const CreateEventSchema = EventSchema.omit({ id: true });
+export const CreateEventSchema = EventObjectSchema.omit({ id: true }).refine(hasValidPaymentLink, paymentLinkInvariant);
 export type CreateEvent = z.infer<typeof CreateEventSchema>;
