@@ -20,11 +20,38 @@ describe("EventSchema", () => {
     const result = EventSchema.safeParse({ ...validEvent, isPaid: true, priceRub: -100 });
     expect(result.success).toBe(false);
   });
+
+  it("requires paymentUrl for paid events", () => {
+    const parsed = EventSchema.parse({
+      ...validEvent,
+      isPaid: true,
+      priceRub: 1500,
+      paymentUrl: "https://organizer.example.com/pay",
+    });
+    expect(parsed.paymentUrl).toBe("https://organizer.example.com/pay");
+    expect(EventSchema.safeParse({ ...validEvent, isPaid: true }).success).toBe(false);
+  });
+
+  it("rejects paymentUrl on free events", () => {
+    expect(EventSchema.safeParse({ ...validEvent, isPaid: false, paymentUrl: "https://organizer.example.com/pay" }).success).toBe(false);
+  });
 });
 
 describe("CreateEventSchema", () => {
   it("does not require id", () => {
     const { id: _id, ...withoutId } = validEvent;
     expect(CreateEventSchema.safeParse(withoutId).success).toBe(true);
+  });
+
+  it("keeps the paid/free payment link invariant", () => {
+    const { id: _id, ...withoutId } = validEvent;
+    expect(
+      CreateEventSchema.safeParse({
+        ...withoutId,
+        isPaid: true,
+        paymentUrl: "https://organizer.example.com/pay",
+      }).success,
+    ).toBe(true);
+    expect(CreateEventSchema.safeParse({ ...withoutId, isPaid: true }).success).toBe(false);
   });
 });
