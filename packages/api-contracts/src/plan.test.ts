@@ -1,0 +1,73 @@
+import { describe, expect, it } from "vitest";
+import { CreatePlanSchema, PlanCardSchema, PlanSchema } from "./plan.js";
+import type { Event } from "./event.js";
+import type { Friend } from "./friends.js";
+
+const event: Event = {
+  id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90",
+  title: "The Weekend Tribute",
+  description: "",
+  category: "afisha",
+  city: "Москва",
+  placeId: null,
+  startsAt: "2026-09-20T20:00:00+03:00",
+  endsAt: null,
+  isPaid: true,
+  priceRub: 850,
+  paymentUrl: "https://example.com/pay",
+  capacity: null,
+};
+
+const friend: Friend = { id: "018f3c5a-0000-7000-8000-000000000001", name: "Дима", avatarUrl: null };
+
+const plan = {
+  id: "018f3c5a-0000-7000-8000-000000000020",
+  eventId: event.id,
+  participants: [
+    { friend: { ...friend, name: "Дима" }, status: "confirmed" },
+    { friend: { ...friend, name: "Катя" }, status: "confirmed" },
+    { friend: { ...friend, name: "Андрей" }, status: "invited" },
+  ],
+  meetingPoint: "у метро",
+  meetingAt: "2026-09-20T18:20:00+03:00",
+  createdAt: "2026-09-11T10:00:00+03:00",
+  updatedAt: "2026-09-11T12:00:00+03:00",
+} as const;
+
+describe("PlanSchema", () => {
+  it("accepts a plan with event link, participants, meeting point and time", () => {
+    expect(PlanSchema.parse(plan)).toEqual(plan);
+  });
+
+  it("rejects an unknown participant status", () => {
+    expect(PlanSchema.safeParse({ ...plan, participants: [{ friend, status: "maybe" }] }).success).toBe(false);
+  });
+
+  it("round-trips through JSON", () => {
+    const parsed = PlanSchema.parse(plan);
+    expect(PlanSchema.parse(JSON.parse(JSON.stringify(parsed)))).toEqual(parsed);
+  });
+});
+
+describe("CreatePlanSchema", () => {
+  it("accepts a creation payload without id/timestamps", () => {
+    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...payload } = plan;
+    expect(CreatePlanSchema.parse(payload)).toEqual(payload);
+  });
+
+  it("strips an extra id from the payload", () => {
+    const parsed = CreatePlanSchema.parse(plan);
+    expect(parsed).not.toHaveProperty("id");
+  });
+});
+
+describe("PlanCardSchema", () => {
+  it("accepts the README card: The Weekend Tribute. Ты + 3 друга. Сбор 18:20 у метро. 850 м от тебя", () => {
+    const card = { plan, event, distanceMeters: 850 };
+    expect(PlanCardSchema.parse(card)).toEqual(card);
+  });
+
+  it("rejects a negative distance", () => {
+    expect(PlanCardSchema.safeParse({ plan, event, distanceMeters: -1 }).success).toBe(false);
+  });
+});
