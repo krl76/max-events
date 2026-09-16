@@ -41,13 +41,22 @@
 // - ApiClient.getToday - GET /today: "What to do today?" digest (summary + typed-label cards)
 // - ApiClient.listPlans - GET /plans: plan cards (plan + event + distance to the meeting point)
 // - ApiClient.getPlan - GET /plans/:id: single plan card
-// - ListSummary - lists screen aggregate: list + item count + id of the item saving the checked event (null when not saved)
+// - ListSummary - lists screen aggregate: list + item count + id of the item saving the checked event (null when not saved) + participants (shared collections, mock)
 // - ApiClient.listLists - GET /lists?userId=[&eventId=]: preset lists with counters
-// - ListItemCard - list screen aggregate: list item enriched with its event
+// - ListItemCard - list screen aggregate: list item enriched with its event and the participant who added it (null outside shared collections)
 // - ApiClient.getListItems - GET /lists/:id/items
+// - ListScreen - one-list aggregate: list + participants + item cards (shared collections surface)
+// - ApiClient.getList - GET /lists/:id
 // - AddListItem - save-to-list payload (owner user + saved event)
 // - ApiClient.addListItem - POST /lists/:id/items with { userId, eventId }
 // - ApiClient.removeListItem - DELETE /lists/:id/items/:itemId
+// - FeedPost - impression post aggregate: author, event, text, like counter/state, comments (mock surface)
+// - FeedComment - post comment attributed to its author
+// - CreateFeedPost - impression publication payload (author, event, text)
+// - ApiClient.listFeedPosts - GET /feed[?eventId=]: posts newest first, one event for the wall
+// - ApiClient.createFeedPost - POST /feed
+// - ApiClient.toggleFeedLike - POST /feed/:id/like?userId= (like/unlike toggle)
+// - ApiClient.addFeedComment - POST /feed/:id/comments with { userId, text }
 // - EventRating - event page rating aggregate: RatingSummary + per-category averages
 // - ApiClient.getEventRating - GET /events/:id/rating
 // - CreateMicroEvent - micro-event creation payload (author, what/when/where, limit)
@@ -64,8 +73,8 @@
 // - ApiClient.createReport - POST /reports
 // END_MODULE_MAP
 
-import { AchievementSchema, AuthResponseSchema, BookingSchema, CheckInSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Review, ReviewCategoryScores, TodayResponse, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, BookingSchema, CheckInSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, Friend, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Review, ReviewCategoryScores, TodayResponse, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -279,11 +288,12 @@ const PlanCardArraySchema: ZodSchema<PlanCard[]> = {
   },
 };
 
-/** Lists screen aggregate: a preset or custom list, its item count and the id of the item saving the checked event (null when not saved). */
+/** Lists screen aggregate: a preset or custom list, its item count, the id of the item saving the checked event (null when not saved) and the participants of a shared collection (empty for personal lists). */
 export interface ListSummary {
   list: List;
   itemsCount: number;
   savedItemId: string | null;
+  participants: Friend[];
 }
 
 const ListSummaryArraySchema: ZodSchema<ListSummary[]> = {
@@ -295,16 +305,25 @@ const ListSummaryArraySchema: ZodSchema<ListSummary[]> = {
       const raw = entry as Record<string, unknown>;
       const list = ListSchema.safeParse(raw.list);
       if (!list.success || typeof raw.itemsCount !== "number" || (raw.savedItemId !== null && typeof raw.savedItemId !== "string")) return { success: false as const, error: "invalid list summary" };
-      summaries.push({ list: list.data, itemsCount: raw.itemsCount, savedItemId: raw.savedItemId });
+      const participants: Friend[] = [];
+      if (Array.isArray(raw.participants)) {
+        for (const participant of raw.participants) {
+          const parsed = FriendSchema.safeParse(participant);
+          if (!parsed.success) return { success: false as const, error: "invalid list summary" };
+          participants.push(parsed.data);
+        }
+      }
+      summaries.push({ list: list.data, itemsCount: raw.itemsCount, savedItemId: raw.savedItemId, participants });
     }
     return { success: true as const, data: summaries };
   },
 };
 
-/** List screen aggregate: a list item enriched with its event. */
+/** List screen aggregate: a list item enriched with its event and the participant who added it (null outside shared collections). */
 export interface ListItemCard {
   item: ListItem;
   event: Event;
+  addedBy: Friend | null;
 }
 
 const ListItemCardArraySchema: ZodSchema<ListItemCard[]> = {
@@ -317,9 +336,39 @@ const ListItemCardArraySchema: ZodSchema<ListItemCard[]> = {
       const item = ListItemSchema.safeParse(raw.item);
       const event = EventSchema.safeParse(raw.event);
       if (!item.success || !event.success) return { success: false as const, error: "invalid list item card" };
-      cards.push({ item: item.data, event: event.data });
+      if (raw.addedBy === undefined || raw.addedBy === null) {
+        cards.push({ item: item.data, event: event.data, addedBy: null });
+        continue;
+      }
+      const addedBy = FriendSchema.safeParse(raw.addedBy);
+      if (!addedBy.success) return { success: false as const, error: "invalid list item card" };
+      cards.push({ item: item.data, event: event.data, addedBy: addedBy.data });
     }
     return { success: true as const, data: cards };
+  },
+};
+
+/** One-list aggregate: the list itself, its participants (shared collections) and its item cards. */
+export interface ListScreen {
+  list: List;
+  participants: Friend[];
+  items: ListItemCard[];
+}
+
+const ListScreenSchema: ZodSchema<ListScreen> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a list screen payload" };
+    const raw = data as Record<string, unknown>;
+    const list = ListSchema.safeParse(raw.list);
+    const items = ListItemCardArraySchema.safeParse(raw.items);
+    if (!list.success || !items.success || !Array.isArray(raw.participants)) return { success: false as const, error: "invalid list screen payload" };
+    const participants: Friend[] = [];
+    for (const participant of raw.participants) {
+      const parsed = FriendSchema.safeParse(participant);
+      if (!parsed.success) return { success: false as const, error: "invalid list screen payload" };
+      participants.push(parsed.data);
+    }
+    return { success: true as const, data: { list: list.data, participants, items: items.data } };
   },
 };
 
@@ -419,6 +468,64 @@ export interface Report {
   reason: ReportReason;
   createdAt: string;
 }
+
+/** Feed comment attributed to its author (mock surface while the backend impressions endpoints do not exist yet). */
+export interface FeedComment {
+  id: string;
+  author: Friend;
+  text: string;
+}
+
+/** Impression post aggregate: author, event, text, like counter/state and comments; the photo is a CSS placeholder. */
+export interface FeedPost {
+  id: string;
+  author: Friend;
+  eventId: string;
+  text: string;
+  likesCount: number;
+  likedByMe: boolean;
+  comments: FeedComment[];
+}
+
+/** Impression publication payload: the author, the event the post is about and the text. */
+export interface CreateFeedPost {
+  userId: string;
+  eventId: string;
+  text: string;
+}
+
+const FeedPostEntitySchema: ZodSchema<FeedPost> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a feed post" };
+    const raw = data as Record<string, unknown>;
+    const author = FriendSchema.safeParse(raw.author);
+    if (!author.success || typeof raw.id !== "string" || typeof raw.eventId !== "string" || typeof raw.text !== "string" || typeof raw.likesCount !== "number" || typeof raw.likedByMe !== "boolean" || !Array.isArray(raw.comments)) {
+      return { success: false as const, error: "invalid feed post" };
+    }
+    const comments: FeedComment[] = [];
+    for (const entry of raw.comments) {
+      if (typeof entry !== "object" || entry === null) return { success: false as const, error: "invalid feed post" };
+      const comment = entry as Record<string, unknown>;
+      const commentAuthor = FriendSchema.safeParse(comment.author);
+      if (!commentAuthor.success || typeof comment.id !== "string" || typeof comment.text !== "string") return { success: false as const, error: "invalid feed post" };
+      comments.push({ id: comment.id, author: commentAuthor.data, text: comment.text });
+    }
+    return { success: true as const, data: { id: raw.id, author: author.data, eventId: raw.eventId, text: raw.text, likesCount: raw.likesCount, likedByMe: raw.likedByMe, comments } };
+  },
+};
+
+const FeedPostArraySchema: ZodSchema<FeedPost[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of feed posts" };
+    const posts: FeedPost[] = [];
+    for (const item of data) {
+      const parsed = FeedPostEntitySchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      posts.push(parsed.data);
+    }
+    return { success: true as const, data: posts };
+  },
+};
 
 const ReviewEntitySchema: ZodSchema<Review> = {
   safeParse(data: unknown) {
@@ -641,6 +748,26 @@ export class ApiClient {
 
   removeListItem(listId: string, itemId: string): Promise<ListItem> {
     return this.request(`/lists/${listId}/items/${itemId}`, ListItemEntitySchema, { method: "DELETE" });
+  }
+
+  getList(listId: string): Promise<ListScreen> {
+    return this.request(`/lists/${listId}`, ListScreenSchema);
+  }
+
+  listFeedPosts(eventId?: string): Promise<FeedPost[]> {
+    return this.request(`/feed${eventId !== undefined ? `?eventId=${encodeURIComponent(eventId)}` : ""}`, FeedPostArraySchema);
+  }
+
+  createFeedPost(payload: CreateFeedPost): Promise<FeedPost> {
+    return this.request("/feed", FeedPostEntitySchema, { body: payload });
+  }
+
+  toggleFeedLike(postId: string, userId: string): Promise<FeedPost> {
+    return this.request(`/feed/${postId}/like?userId=${encodeURIComponent(userId)}`, FeedPostEntitySchema, { method: "POST" });
+  }
+
+  addFeedComment(postId: string, payload: { userId: string; text: string }): Promise<FeedPost> {
+    return this.request(`/feed/${postId}/comments`, FeedPostEntitySchema, { body: payload });
   }
 
   getEventRating(eventId: string): Promise<EventRating> {

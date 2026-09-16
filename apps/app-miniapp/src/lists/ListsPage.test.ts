@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ListPresetSchema } from "@max-events/api-contracts";
-import { listItemsLabel, ListsView, ListView } from "./ListsPage";
+import { collectionShareText, listItemsLabel, ListsView, ListView, shareCollection } from "./ListsPage";
 import { SaveToList, SaveToListView } from "../event/SaveToList";
 import type { ListItemCard, ListSummary } from "../api/client";
-import type { List } from "@max-events/api-contracts";
+import type { Friend, List } from "@max-events/api-contracts";
 import { mockEvents } from "../api/mock";
 
 const list: List = {
@@ -17,12 +17,14 @@ const list: List = {
   updatedAt: "2026-09-11T10:00:00+03:00",
 };
 
+const anna: Friend = { id: "a0000000-0000-4000-8000-0000000000b1", name: "Анна Соколова", avatarUrl: null };
+
 function summary(overrides: Partial<ListSummary> = {}): ListSummary {
-  return { list, itemsCount: 2, savedItemId: null, ...overrides };
+  return { list, itemsCount: 2, savedItemId: null, participants: [], ...overrides };
 }
 
 const item = { id: "71000000-0000-4000-8000-000000000001", listId: list.id, eventId: mockEvents[0].id, placeId: null, addedAt: "2026-09-11T11:00:00+03:00" } as const;
-const card: ListItemCard = { item, event: mockEvents[0] };
+const card: ListItemCard = { item, event: mockEvents[0], addedBy: null };
 
 describe("listItemsLabel", () => {
   it("pluralizes the counter and collapses the empty list", () => {
@@ -45,9 +47,42 @@ describe("ListsView", () => {
     expect((html.match(/app-card--link/g) ?? []).length).toBe(2);
   });
 
+  it("marks a shared collection with the badge and its participants", () => {
+    const html = renderToStaticMarkup(createElement(ListsView, { state: { status: "ready", summaries: [summary({ list: { ...list, preset: null, title: "Идеи на выходные" }, participants: [anna] })] }, onOpen: () => {} }));
+
+    expect(html).toContain("Совместная");
+    expect(html).toContain("Идеи на выходные");
+    expect(html).toContain("Анна Соколова");
+    expect(renderToStaticMarkup(createElement(ListsView, { state: { status: "ready", summaries: [summary()] }, onOpen: () => {} }))).not.toContain("Совместная");
+  });
+
   it("renders the loading and error states", () => {
     expect(renderToStaticMarkup(createElement(ListsView, { state: { status: "loading" }, onOpen: () => {} }))).toContain("Загрузка…");
     expect(renderToStaticMarkup(createElement(ListsView, { state: { status: "error" }, onOpen: () => {} }))).toContain("Не удалось загрузить списки.");
+  });
+});
+
+describe("shared collection screen", () => {
+  it("builds the share text from the list title and item titles", () => {
+    expect(collectionShareText({ ...list, title: "Идеи на выходные" }, [card, { ...card, event: mockEvents[1] }])).toBe(`Совместная коллекция «Идеи на выходные»: ${mockEvents[0].title}, ${mockEvents[1].title}`);
+  });
+
+  it("sends the built text through the given share channel", async () => {
+    const shared: string[] = [];
+    const channel = await shareCollection(list, [card], async (text) => {
+      shared.push(text);
+      return "bridge";
+    });
+
+    expect(channel).toBe("bridge");
+    expect(shared).toEqual([collectionShareText(list, [card])]);
+  });
+
+  it("attributes items to their authors on the shared screen", () => {
+    const html = renderToStaticMarkup(createElement(ListView, { state: { status: "ready", cards: [{ ...card, addedBy: anna }] }, onOpenEvent: () => {}, showAuthors: true }));
+
+    expect(html).toContain("Добавил: Анна Соколова");
+    expect(renderToStaticMarkup(createElement(ListView, { state: { status: "ready", cards: [{ ...card, addedBy: anna }] }, onOpenEvent: () => {} }))).not.toContain("Добавил:");
   });
 });
 

@@ -1197,3 +1197,52 @@
   background: var(--app-surface);
   color: var(--app-accent);
 }
+
+/* Лента впечатлений: автор поста, лайк, комментарии; стены событий и форма публикации
+ * переиспользуют карточки ленты, микро-хедер, стили отзывов и сбора компании */
+.app-feed-author {
+  align-items: center;
+  color: var(--app-text);
+  display: flex;
+  font-weight: var(--app-font-weight-title);
+  gap: var(--app-space-s);
+}
+
+.app-feed-like {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--app-text-tertiary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--app-font-weight-title);
+  padding: 0;
+}
+
+.app-feed-like[aria-pressed="true"] {
+  color: var(--app-danger);
+}
+
+.app-feed-comments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-feed-comment {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-feed-comment-author {
+  color: var(--app-text);
+  font-weight: var(--app-font-weight-title);
+}
+
+.app-feed-comment-form {
+  display: flex;
+  gap: var(--app-space-s);
+}

@@ -14,6 +14,11 @@
 // - createMockMicroEvent - create a micro event, author counts as the first participant (mock POST)
 // - joinMockMicroEvent - join with the counter, idempotent (mock POST /join)
 // - leaveMockMicroEvent - leave with the counter, idempotent (mock DELETE /join)
+// - resetMockFeed - restore seeded impression posts (test isolation)
+// - feedPosts - impression posts newest first, optionally only one event (the event wall)
+// - toggleMockFeedLike - like/unlike toggle with the counter, idempotent per state (mock POST)
+// - addMockFeedComment - append a comment attributed to its author (mock POST)
+// - createMockFeedPost - publish an impression post as its author (mock POST)
 // - mockDemoUser - demo user returned by mock auth outside MAX (VITE_USE_MOCK=1)
 // - mockFriendIds - friend user ids of the demo user (social counters fixtures)
 // - mockFriends - friend fixtures for the "Your people are going" feed
@@ -26,8 +31,11 @@
 // - planCard - single plan card by plan id (or null)
 // - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt)
 // - LIST_PRESET_TITLES - ru titles of the six preset lists (mock seeds them as List.title)
-// - listSummaries - preset lists of a user with item counters and the saved-item id for the checked event
-// - listItemCards - items of one list enriched with their events, newest first (mock)
+// - SHARED_LIST_ID - id of the seeded shared collection of the demo user and the first friend
+// - SHARED_COLLECTION_TITLE - ru title of the seeded shared collection
+// - listSummaries - preset lists of a user with item counters, the saved-item id for the checked event and shared-collection participants
+// - listItemCards - items of one list enriched with their events and the participant who added them, newest first (mock)
+// - listScreen - one-list aggregate: list + participants + item cards (shared collections surface)
 // - addMockListItem - in-memory list membership, idempotent (mock POST)
 // - removeMockListItem - in-memory list membership removal (mock DELETE)
 // - resetMockLists - clear in-memory lists (test isolation)
@@ -48,12 +56,12 @@
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists, /api/reviews, /api/reports, /api/micro-events and /api/today, return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events and /api/today, return a restore function
 // END_MODULE_MAP
 
 import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, Review, TodayEventCard, TodayResponse, User, VisitStats } from "@max-events/api-contracts";
 import { CreateBookingSchema, EventCategorySchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
-import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
+import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
 
@@ -252,22 +260,38 @@ const MOCK_LIST_SEED: [ListPreset, number][] = [
 
 const mockLists = new Map<string, List[]>();
 const mockListItems: ListItem[] = [];
+const mockListItemAuthors = new Map<string, Friend>();
 let mockListSeq = 0;
 let mockListItemSeq = 0;
 
 export function resetMockLists(): void {
   mockLists.clear();
   mockListItems.length = 0;
+  mockListItemAuthors.clear();
   mockListSeq = 0;
   mockListItemSeq = 0;
 }
 
-function listItem(listId: string, eventId: string): ListItem {
+/** The seeded shared collection of the demo user and the first friend; both add items, «Отправить в чат» shares it. */
+export const SHARED_LIST_ID = "70000000-0000-4000-8000-0000000000c0";
+export const SHARED_COLLECTION_TITLE = "Совместное: идеи на выходные";
+
+const SHARED_LIST_PARTICIPANTS = (): Friend[] => [{ id: mockDemoUser.id, name: "Демо", avatarUrl: null }, mockFriends[0]];
+
+/** Seeded shared-collection items: [mockEvents index, author friend index] (the demo user is index -1). */
+const MOCK_SHARED_LIST_SEED: [number, number][] = [
+  [6, -1],
+  [7, 0],
+];
+
+function listItem(listId: string, eventId: string, addedBy: Friend | null = null): ListItem {
   mockListItemSeq += 1;
-  return { id: `71000000-0000-4000-8000-${String(mockListItemSeq).padStart(12, "0")}`, listId, eventId, placeId: null, addedAt: PLACE_STAMP };
+  const item: ListItem = { id: `71000000-0000-4000-8000-${String(mockListItemSeq).padStart(12, "0")}`, listId, eventId, placeId: null, addedAt: PLACE_STAMP };
+  if (addedBy !== null) mockListItemAuthors.set(item.id, addedBy);
+  return item;
 }
 
-/** The six preset lists of a user, created with their seed items on first request. */
+/** The six preset lists of a user plus the shared collection for its participants, created with their seed items on first request. */
 function listsFor(userId: string): List[] {
   let lists = mockLists.get(userId);
   if (lists) return lists;
@@ -278,6 +302,14 @@ function listsFor(userId: string): List[] {
   for (const [preset, eventIndex] of MOCK_LIST_SEED) {
     const list = lists.find((candidate) => candidate.preset === preset);
     if (list) mockListItems.push(listItem(list.id, mockEvents[eventIndex].id));
+  }
+  if (userId === mockDemoUser.id || userId === mockFriendIds[0]) {
+    lists.push({ id: SHARED_LIST_ID, userId, preset: null, title: SHARED_COLLECTION_TITLE, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP });
+    if (!mockListItems.some((item) => item.listId === SHARED_LIST_ID)) {
+      for (const [eventIndex, authorIndex] of MOCK_SHARED_LIST_SEED) {
+        mockListItems.push(listItem(SHARED_LIST_ID, mockEvents[eventIndex].id, authorIndex === -1 ? SHARED_LIST_PARTICIPANTS()[0] : mockFriends[authorIndex]));
+      }
+    }
   }
   mockLists.set(userId, lists);
   return lists;
@@ -291,33 +323,40 @@ function findList(listId: string): List | undefined {
   return undefined;
 }
 
-/** Preset lists of a user with item counters; savedItemId points at the item saving eventId (null when not saved). */
+/** Preset lists of a user with item counters, shared-collection participants; savedItemId points at the item saving eventId (null when not saved). */
 export function listSummaries(userId: string, eventId: string | null): ListSummary[] {
   return listsFor(userId).map((list) => {
     const items = mockListItems.filter((item) => item.listId === list.id);
-    return { list, itemsCount: items.length, savedItemId: items.find((item) => item.eventId === eventId)?.id ?? null };
+    return { list, itemsCount: items.length, savedItemId: items.find((item) => item.eventId === eventId)?.id ?? null, participants: list.id === SHARED_LIST_ID ? SHARED_LIST_PARTICIPANTS() : [] };
   });
 }
 
-/** Items of one list enriched with their events, newest first; null for an unknown list. */
+/** Items of one list enriched with their events and the participant who added them (null outside shared collections), newest first; null for an unknown list. */
 export function listItemCards(listId: string): ListItemCard[] | null {
   if (!findList(listId)) return null;
   return mockListItems
     .filter((item) => item.listId === listId && item.eventId !== null)
     .flatMap((item) => {
       const event = mockEvents.find((candidate) => candidate.id === item.eventId);
-      return event ? [{ item, event }] : [];
+      return event ? [{ item, event, addedBy: mockListItemAuthors.get(item.id) ?? null }] : [];
     })
     .reverse();
 }
 
-/** Adds an event to a list, idempotent; "no_list"/"no_event" map to 404 in the interceptor. */
+/** One-list aggregate for the list screen: the list, its participants (shared collections) and its item cards; null for an unknown list. */
+export function listScreen(listId: string): { list: List; participants: Friend[]; items: ListItemCard[] } | null {
+  const list = findList(listId);
+  if (!list) return null;
+  return { list, participants: list.id === SHARED_LIST_ID ? SHARED_LIST_PARTICIPANTS() : [], items: listItemCards(listId) ?? [] };
+}
+
+/** Adds an event to a list, idempotent, attributed to the adding user; "no_list"/"no_event" map to 404 in the interceptor. */
 export function addMockListItem(listId: string, payload: AddListItem): ListItem | "no_list" | "no_event" {
   if (!findList(listId)) return "no_list";
   if (!mockEvents.some((event) => event.id === payload.eventId)) return "no_event";
   const existing = mockListItems.find((item) => item.listId === listId && item.eventId === payload.eventId);
   if (existing) return existing;
-  const item = listItem(listId, payload.eventId);
+  const item = listItem(listId, payload.eventId, mockUserAsFriend(payload.userId));
   mockListItems.push(item);
   return item;
 }
@@ -475,6 +514,91 @@ export function leaveMockMicroEvent(id: string, userId: string): MicroEvent | nu
   if (!target) return null;
   if (mockMicroMemberships.delete(`${userId}:${id}`)) target.participantsCount -= 1;
   return target;
+}
+
+type FeedSeed = { author: number; event: number; text: string; likes: number; comments?: { author: number; text: string }[] };
+
+/** Seeded impression posts (Instagram-style feed); the photo is a CSS placeholder, authors are friends. */
+const MOCK_FEED_SEED: FeedSeed[] = [
+  { author: 0, event: 1, text: "Выставка впечатляет — очередь к картине на входе.", likes: 3, comments: [{ author: 1, text: "Тоже иду на выходных!" }] },
+  { author: 1, event: 5, text: "Матч был огонь, трибуны горели до финального свистка.", likes: 1 },
+  { author: 2, event: 11, text: "Гастрофестиваль: обязательно попробуйте сырные ряды.", likes: 2, comments: [{ author: 0, text: "Скинь фото сырной лавки" }] },
+];
+
+const mockFeedPosts: FeedPost[] = [];
+const mockFeedLikes = new Set<string>();
+let mockFeedSeq = 0;
+let mockFeedCommentSeq = 0;
+
+function seedMockFeed(): void {
+  mockFeedPosts.length = 0;
+  mockFeedLikes.clear();
+  mockFeedCommentSeq = 0;
+  MOCK_FEED_SEED.forEach((seed, index) => {
+    mockFeedSeq = index + 1;
+    mockFeedPosts.push({
+      id: `30000000-0000-4000-8000-${String(mockFeedSeq).padStart(12, "0")}`,
+      author: mockFriends[seed.author],
+      eventId: mockEvents[seed.event].id,
+      text: seed.text,
+      likesCount: seed.likes,
+      likedByMe: false,
+      comments: (seed.comments ?? []).map((comment) => {
+        mockFeedCommentSeq += 1;
+        return { id: `31000000-0000-4000-8000-${String(mockFeedCommentSeq).padStart(12, "0")}`, author: mockFriends[comment.author], text: comment.text };
+      }),
+    });
+  });
+}
+seedMockFeed();
+
+export function resetMockFeed(): void {
+  seedMockFeed();
+}
+
+function mockUserAsFriend(userId: string): FeedPost["author"] {
+  return mockFriends.find((friend) => friend.id === userId) ?? { id: userId, name: "Демо", avatarUrl: null };
+}
+
+/** Impression posts newest first; with an eventId — only the posts of that event (the event wall). */
+export function feedPosts(eventId: string | null): FeedPost[] {
+  return [...mockFeedPosts].reverse().filter((post) => eventId === null || post.eventId === eventId);
+}
+
+/** Likes/unlikes a post as the user; the returned post carries the new counter and state; null for an unknown post. */
+export function toggleMockFeedLike(postId: string, userId: string): FeedPost | null {
+  const post = mockFeedPosts.find((item) => item.id === postId);
+  if (!post) return null;
+  const key = `${userId}:${postId}`;
+  if (mockFeedLikes.has(key)) {
+    mockFeedLikes.delete(key);
+    post.likesCount -= 1;
+    post.likedByMe = false;
+  } else {
+    mockFeedLikes.add(key);
+    post.likesCount += 1;
+    post.likedByMe = true;
+  }
+  return post;
+}
+
+/** Appends a comment attributed to its author; null for an unknown post (mock 404). */
+export function addMockFeedComment(postId: string, payload: { userId: string; text: string }): FeedPost | null {
+  const post = mockFeedPosts.find((item) => item.id === postId);
+  if (!post) return null;
+  mockFeedCommentSeq += 1;
+  const comment: FeedComment = { id: `31000000-0000-4000-8000-${String(mockFeedCommentSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), text: payload.text };
+  post.comments.push(comment);
+  return post;
+}
+
+/** Publishes an impression post as its author; null for an unknown event (mock 404). */
+export function createMockFeedPost(payload: CreateFeedPost): FeedPost | null {
+  if (!mockEvents.some((event) => event.id === payload.eventId)) return null;
+  mockFeedSeq += 1;
+  const post: FeedPost = { id: `30000000-0000-4000-8000-${String(mockFeedSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), eventId: payload.eventId, text: payload.text, likesCount: 0, likedByMe: false, comments: [] };
+  mockFeedPosts.push(post);
+  return post;
 }
 
 /** Friends feed grouped by friend: every friend with the events they attend, soonest event first, groups by soonest event. */
@@ -802,6 +926,11 @@ export function installMockApi(): () => void {
       const found = planCard(plan[1]);
       return found ? Response.json(found) : new Response(null, { status: 404 });
     }
+    const listById = /^\/api\/lists\/([^/]+)$/.exec(url.pathname);
+    if (listById) {
+      const screen = listScreen(listById[1]);
+      return screen ? Response.json(screen) : new Response(null, { status: 404 });
+    }
     if (url.pathname === "/api/lists") {
       return Response.json(listSummaries(url.searchParams.get("userId") ?? "", url.searchParams.get("eventId")));
     }
@@ -854,6 +983,29 @@ export function installMockApi(): () => void {
       if (userId === "") return new Response(null, { status: 400 });
       const result = leaveMockMicroEvent(microJoin[1], userId);
       return result === null ? new Response(null, { status: 404 }) : Response.json(result);
+    }
+    if (url.pathname === "/api/feed" && init?.method === "POST") {
+      const payload = parseBookingBody(init) as CreateFeedPost | undefined;
+      if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || payload.userId === "" || typeof payload.eventId !== "string" || typeof payload.text !== "string" || payload.text.trim() === "") return new Response(null, { status: 400 });
+      const post = createMockFeedPost(payload);
+      return post ? Response.json(post) : new Response(null, { status: 404 });
+    }
+    if (url.pathname === "/api/feed") {
+      return Response.json(feedPosts(url.searchParams.get("eventId")));
+    }
+    const feedLike = /^\/api\/feed\/([^/]+)\/like$/.exec(url.pathname);
+    if (feedLike && init?.method === "POST") {
+      const userId = url.searchParams.get("userId") ?? "";
+      if (userId === "") return new Response(null, { status: 400 });
+      const post = toggleMockFeedLike(feedLike[1], userId);
+      return post ? Response.json(post) : new Response(null, { status: 404 });
+    }
+    const feedComment = /^\/api\/feed\/([^/]+)\/comments$/.exec(url.pathname);
+    if (feedComment && init?.method === "POST") {
+      const payload = parseBookingBody(init) as { userId?: string; text?: string } | undefined;
+      if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || payload.userId === "" || typeof payload.text !== "string" || payload.text.trim() === "") return new Response(null, { status: 400 });
+      const post = addMockFeedComment(feedComment[1], { userId: payload.userId, text: payload.text });
+      return post ? Response.json(post) : new Response(null, { status: 404 });
     }
     return real(input, init);
   };
