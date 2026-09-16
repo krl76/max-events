@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
 import type { ParticipationStatus } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
+import type { FriendsService } from "../friends/friends.service";
 import { ParticipationEntity } from "./participation.entity";
 import { ParticipationsService } from "./participations.service";
 
@@ -51,12 +52,14 @@ function createEventRepo() {
   };
 }
 
-function createService(initial: ParticipationEntity[] = []) {
+function createService(initial: ParticipationEntity[] = [], friendIds: string[] = []) {
   const participations = createParticipationRepo(initial);
   const events = createEventRepo();
+  const friends = { friendIds: async () => new Set(friendIds) } as unknown as FriendsService;
   const service = new ParticipationsService(
     participations as unknown as Repository<ParticipationEntity>,
     events as unknown as Repository<EventEntity>,
+    friends,
   );
   return { participations, service };
 }
@@ -95,6 +98,14 @@ describe("ParticipationsService", () => {
       "looking_for_after_event_company",
     ];
     for (const status of statuses) expect(stats.counts[status]).toBeGreaterThanOrEqual(0);
+  });
+
+  it("counts friends on the event and ignores non-friends", async () => {
+    const { service } = createService([], [otherUserId]);
+    await service.set(userId, eventId, "going");
+    await service.set(otherUserId, eventId, "looking_for_company");
+    await service.set("00000000-0000-4000-8000-00000000000c", eventId, "going");
+    await expect(service.stats(userId, eventId)).resolves.toMatchObject({ friendsCount: 1, myStatus: "going" });
   });
 
   it("clears myStatus after delete and 404s a second delete", async () => {

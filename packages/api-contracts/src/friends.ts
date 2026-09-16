@@ -19,6 +19,8 @@
 // - FriendActivityByFriend - grouped-by-friend type
 // - FriendActivityByEventSchema - feed grouped by event (event with attending friends)
 // - FriendActivityByEvent - grouped-by-event type
+// - EventFriendsSummarySchema - friends on one event plus going / looking_for_company counts
+// - EventFriendsSummary - friends-on-event summary type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -63,3 +65,10 @@ export const FriendActivityByEventSchema = z.object({
   friends: z.array(EventFriendSchema),
 });
 export type FriendActivityByEvent = z.infer<typeof FriendActivityByEventSchema>;
+
+export const EventFriendsSummarySchema = z.object({
+  friends: z.array(EventFriendSchema),
+  going: z.number().int().nonnegative(),
+  lookingForCompany: z.number().int().nonnegative(),
+});
+export type EventFriendsSummary = z.infer<typeof EventFriendsSummarySchema>;

@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Thin MAX Bot API wrapper — create a group chat and send a direct message.
-// SCOPE: POST /chats and POST /messages with Authorization token from env; never throws to callers; token is not logged.
+// PURPOSE: Thin MAX Bot API wrapper — create a group chat, send a DM, and optionally list friends.
+// SCOPE: POST /chats and POST /messages with Authorization token from env; listFriends is a documented no-op (no public MAX friends method); never throws to callers; token is not logged.
 // DEPENDS: none (injectable fetch)
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - MaxBotClient - createChat(title), sendMessage(maxUserId, text)
+// - MaxBotClient - createChat(title), sendMessage(maxUserId, text), listFriends(maxUserId)
 // - MAX_BOT_API_BASE_URL - documented Bot API host
 // END_MODULE_MAP
 
@@ -42,6 +42,10 @@ export class MaxBotClient {
     } catch {
       return null;
     }
+  }
+
+  async listFriends(_maxUserId: string): Promise<string[] | null> {
+    return null;
   }
 
   async sendMessage(maxUserId: string, text: string): Promise<boolean> {

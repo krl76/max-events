@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Persist one participation status per user per event and aggregate per-event counters.
-// SCOPE: set/replace, delete, get current user row, stats (six status counts + myStatus); friendsCount is 0.
-// DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../events/event.entity, ./participation.entity
+// SCOPE: set/replace, delete, get current user row, stats (six status counts + myStatus + friendsCount from the friend graph).
+// DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../events/event.entity, ../friends/friends.service, ./participation.entity
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -10,11 +10,12 @@
 // - toParticipationDto - map ParticipationEntity to the api-contracts Participation shape
 // END_MODULE_MAP
 
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import type { Participation, ParticipationCounts, ParticipationStats, ParticipationStatus } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
+import { FriendsService } from "../friends/friends.service";
 import { ParticipationEntity } from "./participation.entity";
 
 const EMPTY_COUNTS: ParticipationCounts = {
@@ -33,6 +34,7 @@ export class ParticipationsService {
     private readonly participations: Repository<ParticipationEntity>,
     @InjectRepository(EventEntity)
     private readonly events: Repository<EventEntity>,
+    @Inject(FriendsService) private readonly friends: FriendsService,
   ) {}
 
   async set(userId: string, eventId: string, status: ParticipationStatus): Promise<Participation> {
@@ -67,7 +69,9 @@ export class ParticipationsService {
     const counts = { ...EMPTY_COUNTS };
     for (const row of rows) counts[row.status] += 1;
     const mine = rows.find((row) => row.userId === userId);
-    return { counts, friendsCount: 0, myStatus: mine?.status ?? null };
+    const friendIds = await this.friends.friendIds(userId);
+    const friendsCount = rows.filter((row) => row.userId !== userId && friendIds.has(row.userId)).length;
+    return { counts, friendsCount, myStatus: mine?.status ?? null };
   }
 
   private async assertEvent(eventId: string): Promise<void> {

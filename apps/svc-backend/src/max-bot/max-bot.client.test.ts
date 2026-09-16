@@ -51,6 +51,18 @@ describe("MaxBotClient.createChat", () => {
   });
 });
 
+describe("MaxBotClient.listFriends", () => {
+  it("returns null without HTTP because MAX has no public friends list method", async () => {
+    let called = 0;
+    const client = new MaxBotClient(token, MAX_BOT_API_BASE_URL, async () => {
+      called += 1;
+      return jsonResponse(200, {});
+    });
+    await expect(client.listFriends("67890")).resolves.toBeNull();
+    expect(called).toBe(0);
+  });
+});
+
 describe("MaxBotClient.sendMessage", () => {
   it("returns false when the bot token is missing and does not call HTTP", async () => {
     let called = 0;

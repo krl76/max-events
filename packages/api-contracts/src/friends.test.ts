@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FriendActivityByEventSchema, FriendActivityByFriendSchema, FriendActivitySchema, FriendSchema } from "./friends.js";
+import { EventFriendsSummarySchema, FriendActivityByEventSchema, FriendActivityByFriendSchema, FriendActivitySchema, FriendSchema } from "./friends.js";
 import type { Event } from "./event.js";
 
 const friend = {
@@ -59,5 +59,17 @@ describe("grouped feed schemas", () => {
       friends: [{ friend, participationStatus: "looking_for_company" }],
     };
     expect(FriendActivityByEventSchema.parse(byEvent)).toMatchObject(byEvent);
+  });
+});
+
+describe("EventFriendsSummarySchema", () => {
+  it("counts going and looking_for_company separately from the friends list", () => {
+    const summary = {
+      friends: [{ friend, participationStatus: "looking_for_company" as const }],
+      going: 0,
+      lookingForCompany: 1,
+    };
+    expect(EventFriendsSummarySchema.parse(summary)).toMatchObject(summary);
+    expect(EventFriendsSummarySchema.safeParse({ friends: [], going: -1, lookingForCompany: 0 }).success).toBe(false);
   });
 });

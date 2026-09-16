@@ -14,6 +14,7 @@ import { DataSource } from "typeorm";
 import { validateEnv } from "../config/env";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
+import { FriendshipEntity } from "../friends/friendship.entity";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { ProfileEntity } from "../users/profile.entity";
@@ -24,6 +25,6 @@ const env = validateEnv();
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: env.DATABASE_URL,
-  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity],
+  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity],
   migrations: ["src/database/migrations/*.ts"],
 });
