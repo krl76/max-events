@@ -10,10 +10,12 @@ describe("preset list fixtures", () => {
 
   it("seed the six README presets with ru titles for a user on demand", () => {
     const summaries = listSummaries(DEMO_USER_ID, null);
+    const presets = summaries.filter((summary) => summary.list.preset !== null);
 
-    expect(summaries.map((summary) => summary.list.preset)).toEqual(ListPresetSchema.options);
-    expect(summaries.map((summary) => summary.list.title)).toEqual(Object.values(LIST_PRESET_TITLES));
-    expect(summaries.every((summary) => ListSchema.safeParse(summary.list).success)).toBe(true);
+    expect(presets.map((summary) => summary.list.preset)).toEqual(ListPresetSchema.options);
+    expect(presets.map((summary) => summary.list.title)).toEqual(Object.values(LIST_PRESET_TITLES));
+    expect(presets.every((summary) => ListSchema.safeParse(summary.list).success)).toBe(true);
+    expect(presets.every((summary) => summary.participants.length === 0)).toBe(true);
   });
 
   it("preseed want_to_go and favorites with known events and valid items", () => {
@@ -49,9 +51,10 @@ describe("lists mock endpoints", () => {
     restore = installMockApi();
 
     const summaries = await new ApiClient("/api").listLists(DEMO_USER_ID);
+    const presets = summaries.filter((summary) => summary.list.preset !== null);
 
-    expect(summaries.map((summary) => summary.list.preset)).toEqual(ListPresetSchema.options);
-    expect(summaries.find((summary) => summary.list.preset === "want_to_go")!.itemsCount).toBe(1);
+    expect(presets.map((summary) => summary.list.preset)).toEqual(ListPresetSchema.options);
+    expect(presets.find((summary) => summary.list.preset === "want_to_go")!.itemsCount).toBe(1);
   });
 
   it("add an event to a list, mark it as saved and stay idempotent", async () => {
