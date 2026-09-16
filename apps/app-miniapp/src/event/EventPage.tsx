@@ -9,7 +9,7 @@
 // - DEMO_USER_ID - fallback booking owner outside the MAX client (mock/dev mode)
 // - EventDetailsState - union of details fetch states (loading / error / ready)
 // - EventDetailsView - presentational: media, title, meta rows, description, booking CTA, buy button
-// - EventPage - route container: resolves the user id, wires booking actions and the payment link
+// - EventPage - route container: resolves the user id, wires booking actions and the payment link, entry to the gathering flow
 // - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
 // - ParticipationView - presentational: status chip selector, clear button, status counters and friends count
 // - ParticipationSection - container: loads participation stats via apiClient and wires set/clear actions
@@ -21,6 +21,7 @@ import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { ParticipationStatusSchema, type ParticipationStatus } from "@max-events/api-contracts";
 import { openExternalLink } from "../max/bridge";
+import { useRoute } from "../routing/router";
 
 export const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
@@ -226,6 +227,7 @@ export function ParticipationSection({ eventId, userId }: { eventId: string; use
 export function EventPage({ id }: { id: string }) {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
+  const { navigate } = useRoute();
   const [state, refetch] = useEventDetails(id, userId);
 
   const book = useCallback(() => {
@@ -242,6 +244,13 @@ export function EventPage({ id }: { id: string }) {
   return (
     <>
       <EventDetailsView details={state.details} onBook={book} onCancel={cancel} onBuy={openExternalLink} />
+      <section className="app-event">
+        <div className="app-event-body">
+          <button type="button" className="app-event-cta" onClick={() => navigate({ name: "gathering-new", eventId: id })}>
+            Собрать компанию
+          </button>
+        </div>
+      </section>
       <ParticipationSection eventId={id} userId={userId} />
     </>
   );
