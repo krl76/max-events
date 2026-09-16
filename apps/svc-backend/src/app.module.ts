@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Root NestJS module wiring config, Postgres (TypeORM) and feature modules.
-// SCOPE: Global ConfigModule, TypeOrmModule from DATABASE_URL, Auth/Users/Health/Places/Events/Bookings/Calendar/Reminders/Participations/Friends modules.
-// DEPENDS: @nestjs/config, @nestjs/typeorm, auth/auth.module, health/health.module, places/places.module, events/events.module, bookings/bookings.module, calendar/calendar.module, reminders/reminders.module, participations/participations.module, friends/friends.module
+// SCOPE: Global ConfigModule, TypeOrmModule from DATABASE_URL, Auth/Users/Health/Places/Events/Bookings/Calendar/Reminders/Participations/Friends/Whereto modules.
+// DEPENDS: @nestjs/config, @nestjs/typeorm, auth/auth.module, health/health.module, places/places.module, events/events.module, bookings/bookings.module, calendar/calendar.module, reminders/reminders.module, participations/participations.module, friends/friends.module, whereto/whereto.module
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -23,6 +23,7 @@ import { CalendarModule } from "./calendar/calendar.module";
 import { RemindersModule } from "./reminders/reminders.module";
 import { ParticipationsModule } from "./participations/participations.module";
 import { FriendsModule } from "./friends/friends.module";
+import { WheretoModule } from "./whereto/whereto.module";
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { FriendsModule } from "./friends/friends.module";
     RemindersModule,
     ParticipationsModule,
     FriendsModule,
+    WheretoModule,
   ],
 })
 export class AppModule {}
