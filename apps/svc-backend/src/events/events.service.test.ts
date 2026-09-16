@@ -172,6 +172,7 @@ describe("toEventDto", () => {
       priceRub: null,
       paymentUrl: null,
       capacity: null,
+      bookedCount: 0,
       published: true,
       createdAt: new Date("2026-09-01T07:00:00Z"),
       updatedAt: new Date("2026-09-01T07:00:00Z"),

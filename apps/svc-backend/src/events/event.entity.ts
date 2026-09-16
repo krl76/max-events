@@ -51,6 +51,9 @@ export class EventEntity {
   @Column({ type: "int", nullable: true })
   capacity!: number | null;
 
+  @Column({ type: "int", default: 0 })
+  bookedCount!: number;
+
   @Column({ type: "boolean", default: true })
   published!: boolean;
 

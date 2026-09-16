@@ -38,7 +38,7 @@ export class EventsService {
   async create(payload: CreateEvent): Promise<Event> {
     await assertPlaceBound(this.places, payload.placeId);
     assertTimeRange(payload.startsAt, payload.endsAt);
-    const saved = await this.events.save(this.events.create({ ...toColumns(payload), published: true }));
+    const saved = await this.events.save(this.events.create({ ...toColumns(payload), published: true, bookedCount: 0 }));
     return toEventDto(saved);
   }
 
