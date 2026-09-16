@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Base mini-app layout: MAX UI theme classes, header, content, bottom tabbar.
-// SCOPE: Theme application via MAX UI CSS classes, tab navigation between home/profile; children render routed pages.
+// SCOPE: Theme application via MAX UI CSS classes, tab navigation between home/calendar/profile; children render routed pages.
 // DEPENDS: ../routing/router.js, ../max/bridge.js (webApp), ./theme.css, @maxhub/max-ui/dist/styles.css (imported in main.tsx)
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -31,6 +31,9 @@ export function Layout({ children }: { children: ReactNode }) {
       <nav className="app-tabbar">
         <button type="button" aria-current={route.name === "home" ? "page" : undefined} onClick={() => navigate({ name: "home" })}>
           Лента
+        </button>
+        <button type="button" aria-current={route.name === "calendar" ? "page" : undefined} onClick={() => navigate({ name: "calendar" })}>
+          Календарь
         </button>
         <button type="button" aria-current={route.name === "profile" ? "page" : undefined} onClick={() => navigate({ name: "profile" })}>
           Профиль

@@ -197,6 +197,81 @@ describe("ApiClient.listEvents", () => {
   });
 });
 
+describe("ApiClient.profile", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const profile = { userId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", city: "Москва", interests: ["бег"] };
+
+  it("patches the profile with method PATCH, a JSON body and content-type", async () => {
+    const getInit = mockFetchCaptured(profile);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    const saved = await client.updateProfile(profile.userId, { city: "Казань" });
+
+    expect(saved).toEqual(profile);
+    expect(getInit()?.method).toBe("PATCH");
+    expect(JSON.parse(String(getInit()?.body))).toEqual({ city: "Казань" });
+    expect(getInit()?.headers).toMatchObject({ "content-type": "application/json" });
+  });
+
+  it("rejects an invalid profile payload", async () => {
+    mockFetchOnce(true, 200, { userId: "not-a-uuid", city: "Москва" });
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await expect(client.updateProfile(profile.userId, { interests: [] })).rejects.toMatchObject({ name: "ApiError" });
+  });
+});
+
+describe("ApiClient.listCalendar", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("requests /bookings with the userId query param", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        urls.push(url);
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+      }),
+    );
+    const client = new ApiClient("http://localhost:3100/api");
+
+    const entries = await client.listCalendar("u-1");
+
+    expect(entries).toEqual([]);
+    expect(urls[0]).toBe("http://localhost:3100/api/bookings?userId=u-1");
+  });
+
+  it("parses a valid calendar entry payload", async () => {
+    const event = validEvent;
+    const booking = {
+      id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6e",
+      userId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+      eventId: event.id,
+      status: "active",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+    mockFetchOnce(true, 200, [{ booking, event, place: null }]);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    const entries = await client.listCalendar("u-1");
+
+    expect(entries).toEqual([{ booking, event, place: null }]);
+  });
+
+  it("rejects a payload with an invalid entry", async () => {
+    mockFetchOnce(true, 200, [{ booking: {}, event: {}, place: null }]);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await expect(client.listCalendar("u-1")).rejects.toMatchObject({ name: "ApiError" });
+  });
+});
+
 describe("event filter serialization", () => {
   it("serializes set filters into a query string", () => {
     expect(serializeEventFilters({ category: "sport", city: "Москва", date: "2026-09-20" })).toBe("category=sport&city=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0&date=2026-09-20");
