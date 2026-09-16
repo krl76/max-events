@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock API layer for the catalog and event page while backend endpoints (M2/M3) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers) and in-memory bookings, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters), @max-events/api-contracts (Event, Place, User, Booking, CreateBookingSchema)
+// PURPOSE: Mock API layer for the catalog, event page, profile and calendar while backend endpoints (M2/M3/M4) do not exist yet.
+// SCOPE: In-memory Moscow fixtures (events/places/organizers), in-memory bookings and profiles, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// DEPENDS: ./client.js (parseEventFilters, EventFilters), @max-events/api-contracts (Event, Place, User, Booking, Profile, CreateBookingSchema, UpdateProfileSchema)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -11,11 +11,13 @@
 // - mockOrganizers - demo organizer fixture for event details
 // - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt)
 // - resetMockBookings - clear in-memory bookings (test isolation)
-// - installMockApi - intercept global fetch for /api/events and /api/bookings, return a restore function
+// - resetMockProfiles - clear in-memory profiles (test isolation)
+// - calendarEntries - active bookings of a user enriched with event and place
+// - installMockApi - intercept global fetch for /api/events, /api/bookings and /api/users/:id/profile, return a restore function
 // END_MODULE_MAP
 
-import type { Booking, Event, Place, User } from "@max-events/api-contracts";
-import { CreateBookingSchema } from "@max-events/api-contracts";
+import type { Booking, Event, Place, Profile, User } from "@max-events/api-contracts";
+import { CreateBookingSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, type EventFilters } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -59,6 +61,28 @@ let mockBookingSeq = 0;
 export function resetMockBookings(): void {
   mockBookings.length = 0;
   mockBookingSeq = 0;
+}
+
+/** Active bookings of a user, enriched with their event and place. */
+export function calendarEntries(userId: string): { booking: Booking; event: Event; place: Place | null }[] {
+  const entries: { booking: Booking; event: Event; place: Place | null }[] = [];
+  for (const booking of mockBookings) {
+    if (booking.userId !== userId || booking.status !== "active") continue;
+    const event = mockEvents.find((item) => item.id === booking.eventId);
+    if (!event) continue;
+    entries.push({ booking, event, place: mockPlaces.find((item) => item.id === event.placeId) ?? null });
+  }
+  return entries;
+}
+
+const mockProfiles = new Map<string, Profile>();
+
+export function resetMockProfiles(): void {
+  mockProfiles.clear();
+}
+
+function profileFor(userId: string): Profile {
+  return mockProfiles.get(userId) ?? { userId, city: "Москва", interests: [] };
 }
 
 function remainingSeats(eventId: string): number | null {
@@ -107,6 +131,17 @@ export function installMockApi(): () => void {
       const found = mockEvents.find((item) => item.id === byId[1]);
       return found ? Response.json(found) : new Response(null, { status: 404 });
     }
+    const profile = /^\/api\/users\/([^/]+)\/profile$/.exec(url.pathname);
+    if (profile && init?.method === "PATCH") {
+      const parsed = UpdateProfileSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const updated: Profile = { ...profileFor(profile[1]), ...parsed.data };
+      mockProfiles.set(profile[1], updated);
+      return Response.json(updated);
+    }
+    if (profile) {
+      return Response.json(profileFor(profile[1]));
+    }
     if (url.pathname === "/api/bookings" && init?.method === "POST") {
       const parsed = CreateBookingSchema.safeParse(parseBookingBody(init));
       if (!parsed.success) return new Response(null, { status: 400 });
@@ -119,6 +154,9 @@ export function installMockApi(): () => void {
       const booking: Booking = { id: `e0000000-0000-4000-8000-${String(mockBookingSeq).padStart(12, "0")}`, userId: parsed.data.userId, eventId: parsed.data.eventId, status: "active", createdAt: now, updatedAt: now };
       mockBookings.push(booking);
       return Response.json(booking);
+    }
+    if (url.pathname === "/api/bookings") {
+      return Response.json(calendarEntries(url.searchParams.get("userId") ?? ""));
     }
     const cancel = /^\/api\/bookings\/([^/]+)$/.exec(url.pathname);
     if (cancel && init?.method === "DELETE") {

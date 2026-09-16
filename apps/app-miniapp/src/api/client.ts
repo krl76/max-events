@@ -18,10 +18,14 @@
 // - ApiClient.getEventDetails - GET /events/:id/details?userId=
 // - ApiClient.createBooking - POST /bookings
 // - ApiClient.cancelBooking - DELETE /bookings/:id
+// - ApiClient.getProfile - GET /users/:id/profile
+// - ApiClient.updateProfile - PATCH /users/:id/profile
+// - CalendarEntry - calendar item: active booking enriched with its event and place
+// - ApiClient.listCalendar - GET /bookings?userId=
 // END_MODULE_MAP
 
 import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, PlaceSchema, ProfileSchema, UserSchema } from "@max-events/api-contracts";
-import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, Place, Profile, User } from "@max-events/api-contracts";
+import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, Place, Profile, UpdateProfile, User } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -41,9 +45,9 @@ export class ApiError extends Error {
 }
 
 interface MethodOptions {
-  /** HTTP method for non-GET requests without a body (e.g. DELETE); POST when a body is sent. */
-  method?: "DELETE";
-  /** JSON body for POST requests; serialized and sent as application/json. */
+  /** HTTP method for requests without a body (DELETE) or overriding POST for body payloads (PATCH). */
+  method?: "DELETE" | "PATCH";
+  /** JSON body for POST/PATCH requests; serialized and sent as application/json. */
   body?: unknown;
 }
 
@@ -113,6 +117,38 @@ const EventDetailsSchema: ZodSchema<EventDetails> = {
   },
 };
 
+/** Calendar item: active booking enriched with its event and place. */
+export interface CalendarEntry {
+  booking: Booking;
+  event: Event;
+  place: Place | null;
+}
+
+const CalendarEntrySchema: ZodSchema<CalendarEntry> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a calendar entry" };
+    const raw = data as Record<string, unknown>;
+    const booking = BookingSchema.safeParse(raw.booking);
+    const event = EventSchema.safeParse(raw.event);
+    const place = raw.place === null ? { success: true as const, data: null } : PlaceSchema.safeParse(raw.place);
+    if (!booking.success || !event.success || !place.success) return { success: false as const, error: "invalid calendar entry" };
+    return { success: true as const, data: { booking: booking.data, event: event.data, place: place.data } };
+  },
+};
+
+const CalendarEntryArraySchema: ZodSchema<CalendarEntry[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of calendar entries" };
+    const entries: CalendarEntry[] = [];
+    for (const item of data) {
+      const parsed = CalendarEntrySchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      entries.push(parsed.data);
+    }
+    return { success: true as const, data: entries };
+  },
+};
+
 export class ApiClient {
   constructor(private readonly baseUrl: string = DEFAULT_BASE_URL) {}
 
@@ -128,7 +164,7 @@ export class ApiClient {
     let response: Response;
     try {
       response = await fetch(`${this.baseUrl}${path}`, {
-        method: options.body !== undefined ? "POST" : (options.method ?? "GET"),
+        method: options.method ?? (options.body !== undefined ? "POST" : "GET"),
         headers,
         body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
       });
@@ -171,6 +207,10 @@ export class ApiClient {
     return this.request(`/users/${userId}/profile`, ProfileSchema);
   }
 
+  updateProfile(userId: string, payload: UpdateProfile): Promise<Profile> {
+    return this.request(`/users/${userId}/profile`, ProfileSchema, { method: "PATCH", body: payload });
+  }
+
   getPlace(id: string): Promise<Place> {
     return this.request(`/places/${id}`, PlaceSchema);
   }
@@ -185,6 +225,10 @@ export class ApiClient {
 
   cancelBooking(bookingId: string): Promise<Booking> {
     return this.request(`/bookings/${bookingId}`, BookingSchema, { method: "DELETE" });
+  }
+
+  listCalendar(userId: string): Promise<CalendarEntry[]> {
+    return this.request(`/bookings?userId=${encodeURIComponent(userId)}`, CalendarEntryArraySchema);
   }
 }
 
