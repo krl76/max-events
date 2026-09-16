@@ -1,22 +1,28 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Catalog screen: filter bar (category/date/city), event card feed, loading/empty/error states.
-// SCOPE: Data via apiClient.listEvents (mock or live backend); filters sync with window.location query params.
-// DEPENDS: ../api/client.js (apiClient, parseEventFilters, serializeEventFilters), @max-events/api-contracts (EventCategorySchema), ../ui/theme.css
+// PURPOSE: Catalog screen: filter bar (category/date/city), «Список ↔ Карта» switch, event card feed or map, loading/empty/error states.
+// SCOPE: Data via apiClient (mock or live backend); filters sync with window.location query params; map internals live in MapScreen.
+// DEPENDS: ../api/client.js (apiClient, parseEventFilters, serializeEventFilters), @max-events/api-contracts (EventCategorySchema), ../routing/router.js (useRoute), ./MapScreen.js, ./format.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - CatalogState - union of catalog fetch states (loading / error / ready)
 // - CATEGORY_LABELS - ru labels per event category (reused by the event page)
-// - formatStartsAt - ru "day month, hh:mm" formatting (reused by the event page)
-// - CatalogView - presentational: filter bar + state-driven body (skeleton, error, empty, cards)
+// - formatStartsAt - ru "day month, hh:mm" formatting (re-exported from ./format.js, reused by the event page)
+// - CatalogViewName - "list" | "map" view switch on the catalog route
+// - CatalogView - presentational: filter bar + segmented «Список ↔ Карта» toggle + state-driven body (skeleton, error, empty, cards or map)
 // - CatalogPage - filters from window.location on mount; fetches via useCatalog and writes filter changes back to the URL
 // END_MODULE_MAP
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Event, EventCategory } from "@max-events/api-contracts";
 import { EventCategorySchema } from "@max-events/api-contracts";
 import { apiClient, parseEventFilters, serializeEventFilters, type EventFilters } from "../api/client";
+import { useRoute } from "../routing/router";
+import { formatStartsAt } from "./format";
+import { MapScreen } from "./MapScreen";
+
+export { formatStartsAt };
 
 const CATEGORIES: readonly EventCategory[] = EventCategorySchema.options;
 
@@ -51,8 +57,19 @@ function useCatalog(filters: EventFilters): CatalogState {
   return state;
 }
 
-export function formatStartsAt(startsAt: string): string {
-  return new Date(startsAt).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+export type CatalogViewName = "list" | "map";
+
+function ViewToggle({ view, onView }: { view: CatalogViewName; onView: (view: CatalogViewName) => void }) {
+  return (
+    <div className="app-view-toggle" role="group" aria-label="Вид каталога">
+      <button type="button" className="app-filters-chip" aria-pressed={view === "list"} onClick={() => onView("list")}>
+        Список
+      </button>
+      <button type="button" className="app-filters-chip" aria-pressed={view === "map"} onClick={() => onView("map")}>
+        Карта
+      </button>
+    </div>
+  );
 }
 
 function EventCard({ event }: { event: Event }) {
@@ -130,34 +147,47 @@ interface CatalogViewProps {
   state: CatalogState;
   filters: EventFilters;
   onFilters: (filters: EventFilters) => void;
+  view?: CatalogViewName;
+  onView?: (view: CatalogViewName) => void;
+  onOpenEvent?: (id: string) => void;
 }
 
-export function CatalogView({ state, filters, onFilters }: CatalogViewProps) {
+export function CatalogView({ state, filters, onFilters, view = "list", onView, onOpenEvent }: CatalogViewProps) {
   return (
     <>
       <FilterBar filters={filters} onFilters={onFilters} />
-      {state.status === "loading" && (
+      {onView !== undefined && <ViewToggle view={view} onView={onView} />}
+      {view === "map" && state.status === "ready" ? (
+        <MapScreen events={state.events} onOpenEvent={onOpenEvent ?? (() => {})} />
+      ) : (
         <>
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
+          {state.status === "loading" && (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          )}
+          {state.status === "error" && <p className="app-state app-state--error">Не удалось загрузить события. Попробуйте изменить фильтры.</p>}
+          {state.status === "ready" && state.events.length === 0 && <p className="app-state">Ничего не найдено. Попробуйте изменить фильтры.</p>}
+          {state.status === "ready" && state.events.map((item) => <EventCard key={item.id} event={item} />)}
         </>
       )}
-      {state.status === "error" && <p className="app-state app-state--error">Не удалось загрузить события. Попробуйте изменить фильтры.</p>}
-      {state.status === "ready" && state.events.length === 0 && <p className="app-state">Ничего не найдено. Попробуйте изменить фильтры.</p>}
-      {state.status === "ready" && state.events.map((item) => <EventCard key={item.id} event={item} />)}
     </>
   );
 }
 
 export function CatalogPage() {
   const [filters, setFilters] = useState<EventFilters>(() => parseEventFilters(window.location.search));
+  const [view, setView] = useState<CatalogViewName>("list");
   const catalog = useCatalog(filters);
+  const { navigate } = useRoute();
+  const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
 
   useEffect(() => {
     const query = serializeEventFilters(filters);
     window.history.replaceState(null, "", query ? `/?${query}` : "/");
   }, [filters]);
 
-  return <CatalogView state={catalog} filters={filters} onFilters={setFilters} />;
+  return <CatalogView state={catalog} filters={filters} onFilters={setFilters} view={view} onView={setView} onOpenEvent={openEvent} />;
 }

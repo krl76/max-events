@@ -47,4 +47,20 @@ describe("CatalogView", () => {
     expect(html).toContain("Спорт");
     expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
   });
+
+  it("renders the list/map toggle and marks the active view", () => {
+    const listHtml = renderToStaticMarkup(createElement(CatalogView, { state: { status: "loading" }, filters: {}, onFilters: () => {}, view: "list", onView: () => {} }));
+    const mapHtml = renderToStaticMarkup(createElement(CatalogView, { state: { status: "loading" }, filters: {}, onFilters: () => {}, view: "map", onView: () => {} }));
+
+    expect(listHtml).toContain("app-view-toggle");
+    expect(listHtml).toContain('aria-pressed="true">Список');
+    expect(mapHtml).toContain('aria-pressed="true">Карта');
+  });
+
+  it("renders the map screen instead of cards in map view", () => {
+    const html = renderToStaticMarkup(createElement(CatalogView, { state: { status: "ready", events: mockEvents }, filters: {}, onFilters: () => {}, view: "map", onOpenEvent: () => {} }));
+
+    expect(html).toContain("Загружаем карту");
+    expect(html).not.toContain("app-card-title");
+  });
 });
