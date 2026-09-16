@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiClient } from "./client";
+import { ApiClient, parseEventFilters, serializeEventFilters } from "./client";
 import type { Event } from "@max-events/api-contracts";
 
 function mockFetchOnce(ok: boolean, status: number, body: unknown): void {
@@ -147,5 +147,76 @@ describe("ApiClient", () => {
     expect(response.user).toEqual(user);
     expect(getInit()?.method).toBe("POST");
     expect(JSON.parse(String(getInit()?.body))).toEqual({ initData: "user=%7B%22id%22%3A1%7D" });
+  });
+});
+
+describe("ApiClient.listEvents", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function mockFetchCaptureUrls(): string[] {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        urls.push(url);
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+      }),
+    );
+    return urls;
+  }
+
+  it("requests /events with the serialized filter params", async () => {
+    const urls = mockFetchCaptureUrls();
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await client.listEvents({ category: "sport", city: "Москва", date: "2026-09-20" });
+
+    const url = new URL(urls[0]);
+    expect(url.pathname).toBe("/api/events");
+    expect(url.searchParams.get("category")).toBe("sport");
+    expect(url.searchParams.get("city")).toBe("Москва");
+    expect(url.searchParams.get("date")).toBe("2026-09-20");
+  });
+
+  it("requests /events without a query when filters are empty", async () => {
+    const urls = mockFetchCaptureUrls();
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await client.listEvents({});
+
+    expect(urls[0]).toBe("http://localhost:3100/api/events");
+  });
+
+  it("rejects with ApiError when the list payload is not an array", async () => {
+    mockFetchOnce(true, 200, { items: [] });
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await expect(client.listEvents()).rejects.toMatchObject({ name: "ApiError" });
+  });
+});
+
+describe("event filter serialization", () => {
+  it("serializes set filters into a query string", () => {
+    expect(serializeEventFilters({ category: "sport", city: "Москва", date: "2026-09-20" })).toBe("category=sport&city=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0&date=2026-09-20");
+  });
+
+  it("omits empty filters from the query string", () => {
+    expect(serializeEventFilters({})).toBe("");
+    expect(serializeEventFilters({ city: "" })).toBe("");
+  });
+
+  it("parses valid filter params", () => {
+    expect(parseEventFilters("?category=sport&city=Москва&date=2026-09-20")).toEqual({
+      category: "sport",
+      city: "Москва",
+      date: "2026-09-20",
+    });
+  });
+
+  it("drops unknown category values and malformed dates, trims the city", () => {
+    expect(parseEventFilters("?category=everything&date=yesterday&city=  Тула ")).toEqual({ city: "Тула" });
+    expect(parseEventFilters("")).toEqual({});
   });
 });

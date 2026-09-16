@@ -10,10 +10,14 @@
 // - ApiClient - configurable fetch wrapper with typed methods
 // - apiClient - default singleton instance
 // - ApiClient.login - POST /auth/login with raw MAX initData
+// - EventFilters - optional catalog list filters (category/city/date)
+// - ApiClient.listEvents - GET /events with serialized filters
+// - serializeEventFilters - filters -> query string ("" when empty)
+// - parseEventFilters - query string -> filters, invalid values dropped
 // END_MODULE_MAP
 
-import { AuthResponseSchema, BookingSchema, EventSchema, PlaceSchema, ProfileSchema, UserSchema } from "@max-events/api-contracts";
-import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, Place, Profile, User } from "@max-events/api-contracts";
+import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, PlaceSchema, ProfileSchema, UserSchema } from "@max-events/api-contracts";
+import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, Place, Profile, User } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -36,6 +40,46 @@ interface MethodOptions {
   /** JSON body for POST requests; serialized and sent as application/json. */
   body?: unknown;
 }
+
+/** Catalog list filters; a missing or empty value means "no filter". */
+export interface EventFilters {
+  category?: EventCategory;
+  city?: string;
+  /** ISO date (YYYY-MM-DD) of the event start day. */
+  date?: string;
+}
+
+export function serializeEventFilters(filters: EventFilters): string {
+  const params = new URLSearchParams();
+  if (filters.category) params.set("category", filters.category);
+  if (filters.city) params.set("city", filters.city);
+  if (filters.date) params.set("date", filters.date);
+  return params.toString();
+}
+
+export function parseEventFilters(search: string): EventFilters {
+  const params = new URLSearchParams(search);
+  const category = EventCategorySchema.safeParse(params.get("category"));
+  const date = params.get("date");
+  return {
+    category: category.success ? category.data : undefined,
+    city: params.get("city")?.trim() || undefined,
+    date: date !== null && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
+  };
+}
+
+const EventArraySchema: ZodSchema<Event[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of events" };
+    const events: Event[] = [];
+    for (const item of data) {
+      const parsed = EventSchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      events.push(parsed.data);
+    }
+    return { success: true as const, data: events };
+  },
+};
 
 export class ApiClient {
   constructor(private readonly baseUrl: string = DEFAULT_BASE_URL) {}
@@ -68,6 +112,11 @@ export class ApiClient {
       throw new ApiError(response.status, `API ${path} returned invalid payload`);
     }
     return parsed.data;
+  }
+
+  listEvents(filters: EventFilters = {}): Promise<Event[]> {
+    const query = serializeEventFilters(filters);
+    return this.request(`/events${query ? `?${query}` : ""}`, EventArraySchema);
   }
 
   getEvent(id: string): Promise<Event> {

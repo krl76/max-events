@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Placeholder pages (home feed, event, profile) for the shell routing.
 // SCOPE: Static placeholders driven by theme tokens; real data arrives in later feed/event tasks.
-// DEPENDS: ../auth/AuthContext.js, ../routing/router.js
+// DEPENDS: ../auth/AuthContext.js, ../routing/router.js, ../catalog/CatalogPage.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - HomePage - Instagram-style feed placeholder
+// - HomePage - catalog screen (CatalogPage) rendered on the home route
 // - EventPage - large media placeholder for event-<id> deep links
 // - ProfilePage - profile placeholder reflecting auth state
 // - RoutedPages - current page by route
@@ -14,21 +14,10 @@
 
 import { useAuth } from "../auth/AuthContext";
 import { useRoute } from "../routing/router";
+import { CatalogPage } from "../catalog/CatalogPage";
 
 export function HomePage() {
-  return (
-    <>
-      {[1, 2, 3].map((n) => (
-        <article className="app-card" key={n}>
-          <div className="app-card-media" />
-          <div className="app-card-body">
-            <span className="app-card-title">Событие {n}</span>
-            <span className="app-card-subtitle">Афиша скоро появится</span>
-          </div>
-        </article>
-      ))}
-    </>
-  );
+  return <CatalogPage />;
 }
 
 export function EventPage({ id }: { id: string }) {
