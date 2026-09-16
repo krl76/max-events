@@ -14,6 +14,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from "@nes
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { CreateEventSchema, EventSchema, type CreateEvent, type Event, type EventCategory } from "@max-events/api-contracts";
+import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
 import { EventEntity } from "./event.entity";
 
@@ -33,13 +34,23 @@ export class EventsService {
     @InjectRepository(EventEntity)
     private readonly events: Repository<EventEntity>,
     @Inject(PlacesService) private readonly places: PlacesService,
+    @Inject(MaxBotClient) private readonly bot: MaxBotClient,
   ) {}
 
   async create(payload: CreateEvent): Promise<Event> {
     await assertPlaceBound(this.places, payload.placeId);
     assertTimeRange(payload.startsAt, payload.endsAt);
-    const saved = await this.events.save(this.events.create({ ...toColumns(payload), published: true, bookedCount: 0 }));
-    return toEventDto(saved);
+    const saved = await this.events.save(this.events.create({ ...toColumns(payload), published: true, bookedCount: 0, chatLink: null, chatSyncPending: true }));
+    let chat: Awaited<ReturnType<MaxBotClient["createChat"]>> = null;
+    try {
+      chat = await this.bot.createChat(saved.title);
+    } catch {
+      chat = null;
+    }
+    if (!chat) return toEventDto(saved);
+    saved.chatLink = chat.link;
+    saved.chatSyncPending = false;
+    return toEventDto(await this.events.save(saved));
   }
 
   async getById(id: string): Promise<Event> {
@@ -87,6 +98,7 @@ export function toEventDto(event: EventEntity): Event {
     priceRub: event.priceRub,
     paymentUrl: event.paymentUrl,
     capacity: event.capacity,
+    chatLink: event.chatLink,
   };
 }
 

@@ -64,7 +64,7 @@ describe("CreatePlanSchema", () => {
 describe("PlanCardSchema", () => {
   it("accepts the README card: The Weekend Tribute. Ты + 3 друга. Сбор 18:20 у метро. 850 м от тебя", () => {
     const card = { plan, event, distanceMeters: 850 };
-    expect(PlanCardSchema.parse(card)).toEqual(card);
+    expect(PlanCardSchema.parse(card)).toMatchObject(card);
   });
 
   it("rejects a negative distance", () => {

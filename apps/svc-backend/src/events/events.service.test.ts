@@ -2,6 +2,7 @@ import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
 import { CreateEventSchema, type CreateEvent, type Place } from "@max-events/api-contracts";
+import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
 import { EventEntity } from "./event.entity";
 import { EventsService, toEventDto } from "./events.service";
@@ -58,7 +59,7 @@ function createRepo(initial: EventEntity[] = []) {
   };
 }
 
-function createService(options: { placeIds?: string[]; store?: EventEntity[] } = {}) {
+function createService(options: { placeIds?: string[]; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat"> } = {}) {
   const knownPlaces = new Set(options.placeIds ?? []);
   const places = {
     getById: async (id: string) => {
@@ -67,7 +68,8 @@ function createService(options: { placeIds?: string[]; store?: EventEntity[] } =
     },
   } as unknown as PlacesService;
   const repo = createRepo(options.store ?? []);
-  const service = new EventsService(repo as unknown as Repository<EventEntity>, places);
+  const bot = options.bot ?? { createChat: async () => null };
+  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient);
   return { repo, service };
 }
 
@@ -81,6 +83,27 @@ describe("EventsService", () => {
     expect(created.paymentUrl).toBeNull();
     expect(created.placeId).toBeNull();
     expect(created.startsAt).toBe("2026-09-12T16:00:00.000Z");
+    expect(created.chatLink).toBeNull();
+    expect(repo.store[0]?.chatSyncPending).toBe(true);
+  });
+
+  it("stores a chat invite link when the bot succeeds and keeps the event if the bot fails", async () => {
+    const ok = createService({ bot: { createChat: async () => ({ chatId: 7, link: "https://max.ru/join/abc" }) } });
+    const withChat = await ok.service.create(payload);
+    expect(withChat.chatLink).toBe("https://max.ru/join/abc");
+    expect(ok.repo.store[0]?.chatSyncPending).toBe(false);
+
+    const down = createService({
+      bot: {
+        createChat: async () => {
+          throw new Error("bot down");
+        },
+      },
+    });
+    const fallback = await down.service.create(CreateEventSchema.parse({ ...payload, title: "Без чата" }));
+    expect(fallback.title).toBe("Без чата");
+    expect(fallback.chatLink).toBeNull();
+    expect(down.repo.store[0]?.chatSyncPending).toBe(true);
   });
 
   it("stores a paid event with a payment link and rejects an unknown placeId", async () => {
@@ -174,6 +197,8 @@ describe("toEventDto", () => {
       capacity: null,
       bookedCount: 0,
       published: true,
+      chatLink: null,
+      chatSyncPending: true,
       createdAt: new Date("2026-09-01T07:00:00Z"),
       updatedAt: new Date("2026-09-01T07:00:00Z"),
     };

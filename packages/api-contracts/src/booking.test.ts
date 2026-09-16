@@ -42,6 +42,8 @@ describe("BookingWithSeatsSchema", () => {
   it("round-trips a booking with remaining seats and allows unlimited capacity as null", () => {
     const withSeats = { ...validBooking, status: "active" as const, freeSeats: 3 };
     expect(BookingWithSeatsSchema.parse(withSeats).freeSeats).toBe(3);
+    expect(BookingWithSeatsSchema.parse(withSeats).chatLink).toBeNull();
+    expect(BookingWithSeatsSchema.parse({ ...withSeats, freeSeats: null, chatLink: "https://max.ru/join/abc" }).chatLink).toBe("https://max.ru/join/abc");
     expect(BookingWithSeatsSchema.parse({ ...withSeats, freeSeats: null }).freeSeats).toBeNull();
     expect(BookingWithSeatsSchema.safeParse({ ...withSeats, freeSeats: -1 }).success).toBe(false);
   });

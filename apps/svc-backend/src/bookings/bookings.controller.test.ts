@@ -15,6 +15,7 @@ const booking: BookingWithSeats = {
   createdAt: "2026-09-01T07:00:00.000Z",
   updatedAt: "2026-09-01T07:00:00.000Z",
   freeSeats: 0,
+  chatLink: null,
 };
 
 function createController() {

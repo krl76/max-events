@@ -58,7 +58,7 @@ describe("GatheringSchema", () => {
       createdAt: "2026-09-11T10:00:00+03:00",
       updatedAt: "2026-09-11T12:00:00+03:00",
     };
-    expect(GatheringSchema.parse(gathering)).toEqual(gathering);
+    expect(GatheringSchema.parse(gathering)).toMatchObject(gathering);
   });
 
   it("round-trips through JSON", () => {

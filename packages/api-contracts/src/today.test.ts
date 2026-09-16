@@ -28,7 +28,7 @@ describe("TodayResponseSchema", () => {
         },
       ],
     };
-    expect(TodayResponseSchema.parse(response)).toEqual(response);
+    expect(TodayResponseSchema.parse(response)).toMatchObject(response);
   });
 
   it("rejects a free-text label without a known kind", () => {

@@ -25,6 +25,8 @@ function event(id: string, startsAt: string, placeId: string | null = null): Eve
     capacity: null,
     bookedCount: 1,
     published: true,
+    chatLink: null,
+    chatSyncPending: false,
     createdAt: new Date("2026-09-01T07:00:00Z"),
     updatedAt: new Date("2026-09-01T07:00:00Z"),
   };

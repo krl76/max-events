@@ -57,6 +57,12 @@ export class EventEntity {
   @Column({ type: "boolean", default: true })
   published!: boolean;
 
+  @Column({ type: "varchar", nullable: true })
+  chatLink!: string | null;
+
+  @Column({ type: "boolean", default: true })
+  chatSyncPending!: boolean;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

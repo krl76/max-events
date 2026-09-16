@@ -42,5 +42,6 @@ export type CreateBooking = z.infer<typeof CreateBookingSchema>;
 
 export const BookingWithSeatsSchema = BookingSchema.extend({
   freeSeats: z.number().int().nonnegative().nullable(),
+  chatLink: z.string().nullable().default(null),
 });
 export type BookingWithSeats = z.infer<typeof BookingWithSeatsSchema>;

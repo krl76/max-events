@@ -30,6 +30,8 @@ function seedEvent(overrides: Partial<EventEntity> = {}): EventEntity {
     capacity: 1,
     bookedCount: 0,
     published: true,
+    chatLink: null,
+    chatSyncPending: true,
     createdAt: new Date("2026-09-01T07:00:00Z"),
     updatedAt: new Date("2026-09-01T07:00:00Z"),
     ...overrides,
@@ -164,6 +166,15 @@ describe("BookingsService", () => {
     expect(rejected).toHaveLength(7);
     expect(events[0]?.bookedCount).toBe(1);
     expect((fulfilled[0] as PromiseFulfilledResult<{ freeSeats: number | null }>).value.freeSeats).toBe(0);
+  });
+
+  it("returns the event chat link on booking and again after cancel plus re-book", async () => {
+    const { service } = createService(seedEvent({ capacity: 1, chatLink: "https://max.ru/join/abc", chatSyncPending: false }));
+    const first = await service.create(userA, eventId);
+    expect(first.chatLink).toBe("https://max.ru/join/abc");
+    await service.cancel(userA, first.id);
+    const again = await service.create(userA, eventId);
+    expect(again.chatLink).toBe("https://max.ru/join/abc");
   });
 
   it("treats null capacity as unlimited seats", async () => {

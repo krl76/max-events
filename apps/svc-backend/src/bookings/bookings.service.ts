@@ -37,7 +37,7 @@ export class BookingsService {
         const booking = await manager.save(BookingEntity, manager.create(BookingEntity, { userId, eventId, status: "active" }));
         event.bookedCount += 1;
         await manager.save(EventEntity, event);
-        return toBookingDto(booking, freeSeats(event));
+        return toBookingDto(booking, event);
       });
     } catch (error) {
       throw translateUniqueViolation(error);
@@ -55,18 +55,18 @@ export class BookingsService {
 
       const locked = await manager.findOne(BookingEntity, { where: { id: bookingId }, lock: { mode: "pessimistic_write" } });
       if (!locked) throw new NotFoundException("Booking not found");
-      if (locked.status === "cancelled") return toBookingDto(locked, freeSeats(event));
+      if (locked.status === "cancelled") return toBookingDto(locked, event);
 
       locked.status = "cancelled";
       event.bookedCount = Math.max(0, event.bookedCount - 1);
       const saved = await manager.save(BookingEntity, locked);
       await manager.save(EventEntity, event);
-      return toBookingDto(saved, freeSeats(event));
+      return toBookingDto(saved, event);
     });
   }
 }
 
-export function toBookingDto(booking: BookingEntity, seats: number | null): BookingWithSeats {
+export function toBookingDto(booking: BookingEntity, event: EventEntity): BookingWithSeats {
   return {
     id: booking.id,
     userId: booking.userId,
@@ -74,7 +74,8 @@ export function toBookingDto(booking: BookingEntity, seats: number | null): Book
     status: booking.status,
     createdAt: booking.createdAt.toISOString(),
     updatedAt: booking.updatedAt.toISOString(),
-    freeSeats: seats,
+    freeSeats: freeSeats(event),
+    chatLink: event.chatLink,
   };
 }
 
