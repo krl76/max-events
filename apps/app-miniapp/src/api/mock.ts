@@ -18,10 +18,11 @@
 // - resetMockParticipations - restore seeded participations (test isolation)
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
-// - installMockApi - intercept global fetch for /api/events, /api/events/:id/participation, /api/bookings, /api/users/:id/profile and /api/friends/activity, return a restore function
+// - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
+// - installMockApi - intercept global fetch for /api/events, /api/events/:id/participation, /api/bookings, /api/users/:id/profile, /api/friends/activity and /api/today, return a restore function
 // END_MODULE_MAP
 
-import type { Booking, Event, Friend, FriendActivityByFriend, Participation, ParticipationStatus, Place, Profile, User } from "@max-events/api-contracts";
+import type { Booking, Event, Friend, FriendActivityByFriend, Participation, ParticipationStatus, Place, Profile, TodayEventCard, TodayResponse, User } from "@max-events/api-contracts";
 import { CreateBookingSchema, ParticipationStatusSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, type EventFilters, type ParticipationStats } from "./client";
 
@@ -158,6 +159,35 @@ export function calendarEntries(userId: string): { booking: Booking; event: Even
   return entries;
 }
 
+/** "What to do today?" digest: curated cards from fixtures; the showcase friends (Анна → выставка, Катя → фестиваль) back the friends counter. */
+export function todayPicks(): TodayResponse {
+  const cards: TodayEventCard[] = [
+    {
+      event: mockEvents[1],
+      labels: [
+        { kind: "distance", minutes: 15 },
+        { kind: "friend_attending", friendName: "Анна" },
+      ],
+    },
+    {
+      event: mockEvents[11],
+      labels: [
+        { kind: "distance", minutes: 20 },
+        { kind: "friend_attending", friendName: "Катя" },
+      ],
+    },
+    { event: mockEvents[9], labels: [{ kind: "free_entry" }, { kind: "spots_left", count: remainingSeats(mockEvents[9].id) ?? 0 }] },
+  ];
+  return {
+    summary: {
+      nearbyCount: mockEvents.length,
+      suitableCount: cards.length,
+      withFriendsCount: cards.filter((card) => card.labels.some((label) => label.kind === "friend_attending")).length,
+    },
+    cards,
+  };
+}
+
 const mockProfiles = new Map<string, Profile>();
 
 export function resetMockProfiles(): void {
@@ -203,6 +233,9 @@ export function installMockApi(): () => void {
     const url = new URL(input, "http://mock.local");
     if (url.pathname === "/api/friends/activity") {
       return Response.json(friendActivityByFriend());
+    }
+    if (url.pathname === "/api/today") {
+      return Response.json(todayPicks());
     }
     if (url.pathname === "/api/events") {
       return Response.json(filterMockEvents(mockEvents, parseEventFilters(url.search)));

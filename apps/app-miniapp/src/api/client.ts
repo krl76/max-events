@@ -27,10 +27,11 @@
 // - CalendarEntry - calendar item: active booking enriched with its event and place
 // - ApiClient.listCalendar - GET /bookings?userId=
 // - ApiClient.getFriendsActivity - GET /friends/activity?userId=
+// - ApiClient.getToday - GET /today: "What to do today?" digest (summary + typed-label cards)
 // END_MODULE_MAP
 
-import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, ProfileSchema, UserSchema } from "@max-events/api-contracts";
-import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, Participation, ParticipationStatus, Place, Profile, UpdateProfile, User } from "@max-events/api-contracts";
+import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, ProfileSchema, TodayResponseSchema, UserSchema } from "@max-events/api-contracts";
+import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, Participation, ParticipationStatus, Place, Profile, TodayResponse, UpdateProfile, User } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -287,6 +288,10 @@ export class ApiClient {
 
   getFriendsActivity(userId: string): Promise<FriendActivityByFriend[]> {
     return this.request(`/friends/activity?userId=${encodeURIComponent(userId)}`, FriendActivityArraySchema);
+  }
+
+  getToday(): Promise<TodayResponse> {
+    return this.request("/today", TodayResponseSchema);
   }
 }
 

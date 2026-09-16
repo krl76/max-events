@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EventSchema, FriendSchema, PlaceSchema } from "@max-events/api-contracts";
+import { EventSchema, FriendSchema, PlaceSchema, TodayResponseSchema } from "@max-events/api-contracts";
 import type { Event, ParticipationStatus } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { calendarEntries, filterMockEvents, friendActivityByFriend, installMockApi, mockEvents, mockFriendIds, mockFriends, mockOrganizers, mockPlaces, participationStats, resetMockBookings, resetMockParticipations, resetMockProfiles } from "./mock";
+import { calendarEntries, filterMockEvents, friendActivityByFriend, installMockApi, mockEvents, mockFriendIds, mockFriends, mockOrganizers, mockPlaces, participationStats, resetMockBookings, resetMockParticipations, resetMockProfiles, todayPicks } from "./mock";
 
 const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
@@ -431,5 +431,27 @@ describe("friends feed mock endpoint", () => {
 
     expect(groups).toEqual(friendActivityByFriend());
     expect(groups[0].events[0].participationStatus).toBe("going");
+  });
+});
+
+describe("today mock endpoint", () => {
+  it("todayPicks passes the today contract and mirrors the README digest numbers", () => {
+    expect(TodayResponseSchema.safeParse(todayPicks())).toMatchObject({ success: true });
+    expect(todayPicks().summary).toEqual({ nearbyCount: mockEvents.length, suitableCount: 3, withFriendsCount: 2 });
+  });
+
+  it("curated cards exercise all four label kinds and reference existing events", () => {
+    const kinds = new Set(todayPicks().cards.flatMap((card) => card.labels.map((label) => label.kind)));
+    expect([...kinds].sort()).toEqual(["distance", "free_entry", "friend_attending", "spots_left"]);
+    expect(todayPicks().cards.every((card) => mockEvents.includes(card.event))).toBe(true);
+  });
+
+  it("serves the digest through the typed client", async () => {
+    const restore = installMockApi();
+    try {
+      expect(await new ApiClient("/api").getToday()).toEqual(todayPicks());
+    } finally {
+      restore();
+    }
   });
 });
