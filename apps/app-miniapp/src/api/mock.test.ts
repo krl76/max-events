@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EventSchema, PlaceSchema } from "@max-events/api-contracts";
+import { EventSchema, FriendSchema, PlaceSchema } from "@max-events/api-contracts";
 import type { Event, ParticipationStatus } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { calendarEntries, filterMockEvents, installMockApi, mockEvents, mockFriendIds, mockOrganizers, mockPlaces, participationStats, resetMockBookings, resetMockParticipations, resetMockProfiles } from "./mock";
+import { calendarEntries, filterMockEvents, friendActivityByFriend, installMockApi, mockEvents, mockFriendIds, mockFriends, mockOrganizers, mockPlaces, participationStats, resetMockBookings, resetMockParticipations, resetMockProfiles } from "./mock";
 
 const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
@@ -235,7 +235,7 @@ describe("participation mock endpoints", () => {
   it("keeps statuses per user and per event", async () => {
     restore = installMockApi();
     const api = client();
-    const other = mockEvents[5];
+    const other = mockEvents[10];
 
     await api.setParticipationStatus(showcase.id, DEMO_USER_ID, "going");
     await api.setParticipationStatus(other.id, DEMO_USER_ID, "looking_for_travel_buddy");
@@ -253,7 +253,7 @@ describe("participation mock endpoints", () => {
   it("counts a friend's participation into the friends counter but not my own status", async () => {
     restore = installMockApi();
     const api = client();
-    const friendless = mockEvents[5];
+    const friendless = mockEvents[10];
 
     const before = await api.getParticipationStats(friendless.id, DEMO_USER_ID);
     expect(before.friendsCount).toBe(0);
@@ -387,5 +387,49 @@ describe("calendar mock endpoint", () => {
     await api.createBooking({ userId: DEMO_USER_ID, eventId: target.id });
 
     expect(await api.listCalendar(DEMO_USER_ID)).toEqual(calendarEntries(DEMO_USER_ID));
+  });
+});
+
+describe("friends feed mock endpoint", () => {
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+    resetMockParticipations();
+  });
+
+  it("every friend fixture passes the friend contract and mirrors mockFriendIds", () => {
+    for (const friend of mockFriends) {
+      expect(FriendSchema.safeParse(friend)).toMatchObject({ success: true });
+    }
+    expect(mockFriends.map((friend) => friend.id)).toEqual(mockFriendIds);
+  });
+
+  it("groups seeded participations by friend, soonest event first", () => {
+    const groups = friendActivityByFriend();
+
+    expect(groups).toHaveLength(mockFriends.length);
+    expect(groups[0].friend.name).toBe("Анна Соколова");
+    expect(groups[0].events[0].event.id).toBe(mockEvents[1].id);
+    const soonest = groups.map((group) => group.events[0].event.startsAt);
+    expect([...soonest].sort((a, b) => a.localeCompare(b))).toEqual(soonest);
+  });
+
+  it("renders the README showcase: Анна → выставка, Дима → матч, Катя → фестиваль", () => {
+    const byName = new Map(friendActivityByFriend().map((group) => [group.friend.name, group]));
+
+    expect(byName.get("Анна Соколова")!.events.some(({ event }) => event.id === mockEvents[1].id)).toBe(true);
+    expect(byName.get("Дима Кузнецов")!.events.some(({ event }) => event.id === mockEvents[5].id)).toBe(true);
+    expect(byName.get("Катя Орлова")!.events.some(({ event }) => event.id === mockEvents[11].id)).toBe(true);
+  });
+
+  it("serves the friends feed through the typed client", async () => {
+    restore = installMockApi();
+
+    const groups = await new ApiClient("/api").getFriendsActivity(DEMO_USER_ID);
+
+    expect(groups).toEqual(friendActivityByFriend());
+    expect(groups[0].events[0].participationStatus).toBe("going");
   });
 });
