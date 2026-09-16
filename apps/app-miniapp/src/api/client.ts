@@ -12,6 +12,7 @@
 // - ApiClient.login - POST /auth/login with raw MAX initData
 // - EventFilters - optional catalog list filters (category/city/date)
 // - ApiClient.listEvents - GET /events with serialized filters
+// - ApiClient.listPlaces - GET /places: venues for the catalog map markers
 // - serializeEventFilters - filters -> query string ("" when empty)
 // - parseEventFilters - query string -> filters, invalid values dropped
 // - EventDetails - event page aggregate: event, place, organizer, free seats, own active booking
@@ -94,6 +95,19 @@ const EventArraySchema: ZodSchema<Event[]> = {
       events.push(parsed.data);
     }
     return { success: true as const, data: events };
+  },
+};
+
+const PlaceArraySchema: ZodSchema<Place[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of places" };
+    const places: Place[] = [];
+    for (const item of data) {
+      const parsed = PlaceSchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      places.push(parsed.data);
+    }
+    return { success: true as const, data: places };
   },
 };
 
@@ -228,6 +242,10 @@ export class ApiClient {
   listEvents(filters: EventFilters = {}): Promise<Event[]> {
     const query = serializeEventFilters(filters);
     return this.request(`/events${query ? `?${query}` : ""}`, EventArraySchema);
+  }
+
+  listPlaces(): Promise<Place[]> {
+    return this.request("/places", PlaceArraySchema);
   }
 
   getEvent(id: string): Promise<Event> {

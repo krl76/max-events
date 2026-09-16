@@ -19,7 +19,7 @@
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
-// - installMockApi - intercept global fetch for /api/events, /api/events/:id/participation, /api/bookings, /api/users/:id/profile, /api/friends/activity and /api/today, return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/participation, /api/bookings, /api/users/:id/profile, /api/friends/activity and /api/today, return a restore function
 // END_MODULE_MAP
 
 import type { Booking, Event, Friend, FriendActivityByFriend, Participation, ParticipationStatus, Place, Profile, TodayEventCard, TodayResponse, User } from "@max-events/api-contracts";
@@ -236,6 +236,9 @@ export function installMockApi(): () => void {
     }
     if (url.pathname === "/api/today") {
       return Response.json(todayPicks());
+    }
+    if (url.pathname === "/api/places") {
+      return Response.json(mockPlaces);
     }
     if (url.pathname === "/api/events") {
       return Response.json(filterMockEvents(mockEvents, parseEventFilters(url.search)));

@@ -185,6 +185,63 @@
   white-space: nowrap;
 }
 
+/* Каталог: переключение «Список ↔ Карта» */
+.app-view-toggle {
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+/* Каталог: карта (Leaflet + OSM), пины и карточки-попапы */
+.app-map {
+  border-radius: var(--app-radius-card);
+  height: 420px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.app-map .leaflet-popup-content-wrapper {
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  font: inherit;
+}
+
+.app-map-pin {
+  background: var(--app-accent);
+  border: 2px solid var(--app-accent-contrast);
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.app-map-popup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+}
+
+.app-map-popup-title {
+  color: var(--app-text);
+  font-size: var(--app-font-size-body);
+  font-weight: var(--app-font-weight-title);
+}
+
+.app-map-popup-subtitle {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-map-popup-open {
+  align-self: flex-start;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: var(--app-font-weight-title);
+  padding: var(--app-space-s) var(--app-space-m);
+}
+
 /* Каталог: скелетон загрузки */
 @keyframes app-skeleton-pulse {
   50% {
