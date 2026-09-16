@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock API layer for the catalog, event page, profile and calendar while backend endpoints (M2/M3/M4) do not exist yet.
+// PURPOSE: Mock API layer for the catalog, event page, profile, calendar and friends feed while backend endpoints (M2/M3/M4/M5) do not exist yet.
 // SCOPE: In-memory Moscow fixtures (events/places/organizers), in-memory bookings and profiles, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
 // DEPENDS: ./client.js (parseEventFilters, EventFilters), @max-events/api-contracts (Event, Place, User, Booking, Profile, CreateBookingSchema, UpdateProfileSchema)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
@@ -10,16 +10,18 @@
 // - mockEvents - 11 Moscow event fixtures (all four categories, paid and free)
 // - mockOrganizers - demo organizer fixture for event details
 // - mockFriendIds - friend user ids of the demo user (social counters fixtures)
+// - mockFriends - friend fixtures for the "Your people are going" feed
+// - friendActivityByFriend - friend participations grouped by friend (feed payload)
 // - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt)
 // - resetMockBookings - clear in-memory bookings (test isolation)
 // - resetMockProfiles - clear in-memory profiles (test isolation)
 // - resetMockParticipations - restore seeded participations (test isolation)
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
-// - installMockApi - intercept global fetch for /api/events, /api/events/:id/participation, /api/bookings and /api/users/:id/profile, return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/events/:id/participation, /api/bookings, /api/users/:id/profile and /api/friends/activity, return a restore function
 // END_MODULE_MAP
 
-import type { Booking, Event, Participation, ParticipationStatus, Place, Profile, User } from "@max-events/api-contracts";
+import type { Booking, Event, Friend, FriendActivityByFriend, Participation, ParticipationStatus, Place, Profile, User } from "@max-events/api-contracts";
 import { CreateBookingSchema, ParticipationStatusSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, type EventFilters, type ParticipationStats } from "./client";
 
@@ -49,6 +51,7 @@ export const mockEvents: Event[] = [
   event({ id: "c0000009-0000-4000-8000-000000000009", title: "Гастрогид по «Депо»", category: "tourism", city: "Москва", startsAt: "2026-10-04T13:00:00+03:00", placeId: mockPlaces[3].id, isPaid: true, priceRub: 1200, paymentUrl: "https://tickets.example.com/gastro-depo", capacity: 25 }),
   event({ id: "c000000a-0000-4000-8000-00000000000a", title: "Йога на рассвете в парке", category: "sport", city: "Москва", startsAt: "2026-09-13T08:00:00+03:00", placeId: mockPlaces[0].id, isPaid: false, priceRub: null, capacity: 50 }),
   event({ id: "c000000b-0000-4000-8000-00000000000b", title: "Кинопоказ под открытым небом", category: "afisha", city: "Москва", startsAt: "2026-09-18T21:00:00+03:00", placeId: mockPlaces[0].id, isPaid: false, priceRub: null }),
+  event({ id: "c000000c-0000-4000-8000-00000000000c", title: "Гастрофестиваль в «Депо»", category: "afisha", city: "Москва", startsAt: "2026-09-27T12:00:00+03:00", endsAt: "2026-09-27T22:00:00+03:00", placeId: mockPlaces[3].id, isPaid: true, priceRub: 700, paymentUrl: "https://tickets.example.com/gastro-festival" }),
 ];
 
 export function filterMockEvents(events: Event[], filters: EventFilters): Event[] {
@@ -60,7 +63,18 @@ export const mockOrganizers: User[] = [{ id: "d0000001-0000-4000-8000-0000000000
 
 export const mockFriendIds: string[] = ["a0000000-0000-4000-8000-0000000000b1", "a0000000-0000-4000-8000-0000000000b2", "a0000000-0000-4000-8000-0000000000b3", "a0000000-0000-4000-8000-0000000000b4", "a0000000-0000-4000-8000-0000000000b5", "a0000000-0000-4000-8000-0000000000b6", "a0000000-0000-4000-8000-0000000000b7"];
 
-/** Friend participations seed: [friendIndex, eventIndex, status]. The showcase event has 7 friends, 4 of them looking for company. */
+/** Friend fixtures for the friends feed; avatarUrl is null so the UI renders initials avatars. */
+export const mockFriends: Friend[] = [
+  { id: mockFriendIds[0], name: "Анна Соколова", avatarUrl: null },
+  { id: mockFriendIds[1], name: "Дима Кузнецов", avatarUrl: null },
+  { id: mockFriendIds[2], name: "Катя Орлова", avatarUrl: null },
+  { id: mockFriendIds[3], name: "Пётр Новиков", avatarUrl: null },
+  { id: mockFriendIds[4], name: "Мария Белова", avatarUrl: null },
+  { id: mockFriendIds[5], name: "Игорь Фомин", avatarUrl: null },
+  { id: mockFriendIds[6], name: "Лена Гусева", avatarUrl: null },
+];
+
+/** Friend participations seed: [friendIndex, eventIndex, status]. The showcase event has 7 friends, 4 of them looking for company. The showcase friends from README: Анна → выставка, Дима → матч, Катя → фестиваль. */
 const MOCK_PARTICIPATION_SEED: [number, number, ParticipationStatus][] = [
   [0, 0, "wants_to_go"],
   [1, 0, "wants_to_go"],
@@ -72,6 +86,12 @@ const MOCK_PARTICIPATION_SEED: [number, number, ParticipationStatus][] = [
   [0, 2, "going"],
   [1, 3, "looking_for_company"],
   [2, 4, "probably_going"],
+  [0, 1, "going"],
+  [1, 5, "going"],
+  [2, 11, "going"],
+  [3, 3, "looking_for_company"],
+  [4, 7, "probably_going"],
+  [5, 6, "looking_for_travel_buddy"],
 ];
 
 const mockParticipations = new Map<string, Participation>();
@@ -89,6 +109,21 @@ seedMockParticipations();
 
 export function resetMockParticipations(): void {
   seedMockParticipations();
+}
+
+/** Friends feed grouped by friend: every friend with the events they attend, soonest event first, groups by soonest event. */
+export function friendActivityByFriend(): FriendActivityByFriend[] {
+  const byFriend = new Map<string, FriendActivityByFriend>();
+  for (const friend of mockFriends) byFriend.set(friend.id, { friend, events: [] });
+  for (const record of mockParticipations.values()) {
+    const group = byFriend.get(record.userId);
+    const event = mockEvents.find((item) => item.id === record.eventId);
+    if (!group || !event) continue;
+    group.events.push({ event, participationStatus: record.status });
+  }
+  const groups = [...byFriend.values()].filter((group) => group.events.length > 0);
+  for (const group of groups) group.events.sort((a, b) => a.event.startsAt.localeCompare(b.event.startsAt));
+  return groups.sort((a, b) => a.events[0].event.startsAt.localeCompare(b.events[0].event.startsAt));
 }
 
 export function participationStats(eventId: string, userId: string): ParticipationStats {
@@ -166,6 +201,9 @@ export function installMockApi(): () => void {
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     if (input instanceof Request) return real(input, init);
     const url = new URL(input, "http://mock.local");
+    if (url.pathname === "/api/friends/activity") {
+      return Response.json(friendActivityByFriend());
+    }
     if (url.pathname === "/api/events") {
       return Response.json(filterMockEvents(mockEvents, parseEventFilters(url.search)));
     }
