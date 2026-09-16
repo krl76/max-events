@@ -715,3 +715,134 @@
   padding: var(--app-space-s) var(--app-space-m);
   white-space: nowrap;
 }
+
+/* Сбор компании: выбор друзей со свободностью, время встречи, экран статуса */
+.app-gathering {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+}
+
+.app-gathering-title {
+  color: var(--app-text);
+  font-size: var(--app-font-size-title);
+  font-weight: var(--app-font-weight-title);
+  margin: 0;
+}
+
+.app-gathering-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: 0;
+}
+
+.app-gathering-friends {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+}
+
+.app-gathering-friend {
+  align-items: center;
+  background: var(--app-surface);
+  border: 1px solid transparent;
+  border-radius: var(--app-radius-media);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 2px;
+  padding: var(--app-space-s) var(--app-space-m);
+}
+
+.app-gathering-friend[aria-pressed="true"] {
+  background: var(--app-accent);
+  border-color: var(--app-accent);
+}
+
+.app-gathering-friend[aria-pressed="true"] .app-gathering-friend-name {
+  color: var(--app-accent-contrast);
+}
+
+.app-gathering-friend-name {
+  color: var(--app-text);
+  font-size: var(--app-font-size-body);
+  font-weight: var(--app-font-weight-title);
+}
+
+.app-gathering-friend-status {
+  font-size: var(--app-font-size-description);
+}
+
+.app-gathering-friend-status--free,
+.app-gathering-friend-status--accepted {
+  color: var(--app-accent);
+}
+
+.app-gathering-friend-status--busy {
+  color: var(--app-danger);
+}
+
+.app-gathering-friend-status--considering {
+  color: var(--app-text-secondary);
+}
+
+.app-gathering-friend-status--unknown {
+  color: var(--app-text-tertiary);
+}
+
+.app-gathering-time {
+  color: var(--app-text-secondary);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--app-font-size-description);
+  gap: var(--app-space-s);
+}
+
+.app-gathering-time-input {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-text);
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  padding: var(--app-space-s) var(--app-space-m);
+}
+
+.app-gathering-launch {
+  align-self: flex-start;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-title);
+  font-weight: var(--app-font-weight-title);
+  padding: var(--app-space-m) var(--app-space-l);
+}
+
+.app-gathering-launch:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.app-gathering-invitees {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-gathering-invitee {
+  align-items: center;
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+  padding: var(--app-space-m) var(--app-space-l);
+}

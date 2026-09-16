@@ -28,11 +28,15 @@
 // - CalendarEntry - calendar item: active booking enriched with its event and place
 // - ApiClient.listCalendar - GET /bookings?userId=
 // - ApiClient.getFriendsActivity - GET /friends/activity?userId=
+// - ApiClient.getFriendAvailability - GET /friends/availability: free/busy/unknown per friend
+// - CreateGathering - gathering launch payload (event + friend ids + proposed meeting time)
+// - ApiClient.createGathering - POST /gatherings
+// - ApiClient.getGathering - GET /gatherings/:id
 // - ApiClient.getToday - GET /today: "What to do today?" digest (summary + typed-label cards)
 // END_MODULE_MAP
 
-import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, ProfileSchema, TodayResponseSchema, UserSchema } from "@max-events/api-contracts";
-import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, Participation, ParticipationStatus, Place, Profile, TodayResponse, UpdateProfile, User } from "@max-events/api-contracts";
+import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, GatheringSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, ProfileSchema, TodayResponseSchema, UserSchema } from "@max-events/api-contracts";
+import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, FriendAvailability, Gathering, Participation, ParticipationStatus, Place, Profile, TodayResponse, UpdateProfile, User } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -206,6 +210,32 @@ const FriendActivityArraySchema: ZodSchema<FriendActivityByFriend[]> = {
   },
 };
 
+const FriendAvailabilityArraySchema: ZodSchema<FriendAvailability[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of friend availability" };
+    const entries: FriendAvailability[] = [];
+    for (const item of data) {
+      const parsed = FriendAvailabilitySchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      entries.push(parsed.data);
+    }
+    return { success: true as const, data: entries };
+  },
+};
+
+const GatheringEntitySchema: ZodSchema<Gathering> = {
+  safeParse(data: unknown) {
+    return GatheringSchema.safeParse(data);
+  },
+};
+
+/** Gathering launch payload: event, invited friends, proposed meeting time. */
+export interface CreateGathering {
+  eventId: string;
+  friendIds: string[];
+  proposedMeetingAt: string;
+}
+
 export class ApiClient {
   constructor(private readonly baseUrl: string = DEFAULT_BASE_URL) {}
 
@@ -306,6 +336,18 @@ export class ApiClient {
 
   getFriendsActivity(userId: string): Promise<FriendActivityByFriend[]> {
     return this.request(`/friends/activity?userId=${encodeURIComponent(userId)}`, FriendActivityArraySchema);
+  }
+
+  getFriendAvailability(): Promise<FriendAvailability[]> {
+    return this.request("/friends/availability", FriendAvailabilityArraySchema);
+  }
+
+  createGathering(payload: CreateGathering): Promise<Gathering> {
+    return this.request("/gatherings", GatheringEntitySchema, { body: payload });
+  }
+
+  getGathering(id: string): Promise<Gathering> {
+    return this.request(`/gatherings/${id}`, GatheringEntitySchema);
   }
 
   getToday(): Promise<TodayResponse> {

@@ -18,6 +18,8 @@ import { CalendarPage } from "../calendar/CalendarPage";
 import { ProfilePage } from "../profile/ProfilePage";
 import { WheretoPage } from "../whereto/WheretoPage";
 import { TodaySection } from "../today/TodaySection";
+import { GatheringFlowPage } from "../gathering/GatheringFlowPage";
+import { GatheringStatusPage } from "../gathering/GatheringStatusPage";
 
 export function HomePage() {
   const { navigate } = useRoute();
@@ -40,5 +42,7 @@ export function RoutedPages() {
   if (route.name === "calendar") return <CalendarPage />;
   if (route.name === "profile") return <ProfilePage />;
   if (route.name === "whereto") return <WheretoPage />;
+  if (route.name === "gathering-new") return <GatheringFlowPage eventId={route.eventId} />;
+  if (route.name === "gathering") return <GatheringStatusPage id={route.id} />;
   return <HomePage />;
 }

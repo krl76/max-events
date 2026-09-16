@@ -12,6 +12,9 @@
 // - mockFriendIds - friend user ids of the demo user (social counters fixtures)
 // - mockFriends - friend fixtures for the "Your people are going" feed
 // - friendActivityByFriend - friend participations grouped by friend (feed payload)
+// - friendAvailability - per-friend free/busy/unknown for the gathering flow (mock)
+// - createMockGathering - in-memory gathering with deterministic invitee responses (mock POST)
+// - resetMockGatherings - clear in-memory gatherings (test isolation)
 // - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt)
 // - resetMockBookings - clear in-memory bookings (test isolation)
 // - resetMockProfiles - clear in-memory profiles (test isolation)
@@ -19,12 +22,12 @@
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/participation, /api/bookings, /api/users/:id/profile, /api/friends/activity and /api/today, return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/participation, /api/bookings, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings and /api/today, return a restore function
 // END_MODULE_MAP
 
-import type { Booking, Event, Friend, FriendActivityByFriend, Participation, ParticipationStatus, Place, Profile, TodayEventCard, TodayResponse, User } from "@max-events/api-contracts";
-import { CreateBookingSchema, ParticipationStatusSchema, UpdateProfileSchema } from "@max-events/api-contracts";
-import { parseEventFilters, type EventFilters, type ParticipationStats } from "./client";
+import type { Booking, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, Participation, ParticipationStatus, Place, Profile, TodayEventCard, TodayResponse, User } from "@max-events/api-contracts";
+import { CreateBookingSchema, ParticipationStatusSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import { parseEventFilters, type CreateGathering, type EventFilters, type ParticipationStats } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
 
@@ -110,6 +113,47 @@ seedMockParticipations();
 
 export function resetMockParticipations(): void {
   seedMockParticipations();
+}
+
+/** Mock availability per friend (by mockFriends index); the backend P1-6-b does not exist yet. */
+const MOCK_AVAILABILITY: FriendAvailability["availability"][] = ["free", "busy", "unknown", "free", "free", "busy", "unknown"];
+
+export function friendAvailability(): FriendAvailability[] {
+  return mockFriends.map((friend, index) => ({ friend, availability: MOCK_AVAILABILITY[index] }));
+}
+
+/** Deterministic invitee answer per friend (by mockFriends index): Дима accepted, Катя considering, Андрей-like busy mix. */
+const MOCK_INVITEE_RESPONSE: InviteeResponse[] = ["accepted", "accepted", "considering", "busy", "accepted", "considering", "busy"];
+
+const mockGatherings = new Map<string, Gathering>();
+let mockGatheringSeq = 0;
+
+export function resetMockGatherings(): void {
+  mockGatherings.clear();
+  mockGatheringSeq = 0;
+}
+
+/** Creates an in-memory gathering: known event, known friends, valid proposed time, deterministic per-fixture responses. */
+export function createMockGathering(payload: CreateGathering): Gathering | null {
+  const event = mockEvents.find((item) => item.id === payload.eventId);
+  if (!event || payload.friendIds.length === 0 || !payload.friendIds.every((id) => mockFriendIds.includes(id))) return null;
+  if (!TimestampSchema.safeParse(payload.proposedMeetingAt).success) return null;
+  const now = new Date().toISOString();
+  mockGatheringSeq += 1;
+  const gathering: Gathering = {
+    id: `d0000000-0000-4000-8000-${String(mockGatheringSeq).padStart(12, "0")}`,
+    event,
+    invitees: payload.friendIds.map((id) => {
+      const index = mockFriendIds.indexOf(id);
+      return { friend: mockFriends[index], response: MOCK_INVITEE_RESPONSE[index] };
+    }),
+    proposedMeetingAt: payload.proposedMeetingAt,
+    status: "awaiting_responses",
+    createdAt: now,
+    updatedAt: now,
+  };
+  mockGatherings.set(gathering.id, gathering);
+  return gathering;
 }
 
 /** Friends feed grouped by friend: every friend with the events they attend, soonest event first, groups by soonest event. */
@@ -313,6 +357,21 @@ export function installMockApi(): () => void {
       booking.status = "cancelled";
       booking.updatedAt = new Date().toISOString();
       return Response.json(booking);
+    }
+    if (url.pathname === "/api/friends/availability") {
+      return Response.json(friendAvailability());
+    }
+    if (url.pathname === "/api/gatherings" && init?.method === "POST") {
+      const payload = parseBookingBody(init) as CreateGathering | undefined;
+      if (typeof payload !== "object" || payload === null || !Array.isArray(payload.friendIds)) return new Response(null, { status: 400 });
+      if (!mockEvents.some((item) => item.id === payload.eventId)) return new Response(null, { status: 404 });
+      const gathering = createMockGathering(payload);
+      return gathering ? Response.json(gathering) : new Response(null, { status: 400 });
+    }
+    const gathering = /^\/api\/gatherings\/([^/]+)$/.exec(url.pathname);
+    if (gathering) {
+      const found = mockGatherings.get(gathering[1]);
+      return found ? Response.json(found) : new Response(null, { status: 404 });
     }
     return real(input, init);
   };
