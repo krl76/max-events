@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Thin MAX Bot API wrapper — create a group chat and read its invite link.
-// SCOPE: POST /chats with Authorization token from env; never throws to callers (null on any failure); token is not logged.
+// PURPOSE: Thin MAX Bot API wrapper — create a group chat and send a direct message.
+// SCOPE: POST /chats and POST /messages with Authorization token from env; never throws to callers; token is not logged.
 // DEPENDS: none (injectable fetch)
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - MaxBotClient - createChat(title) -> { chatId, link } or null
+// - MaxBotClient - createChat(title), sendMessage(maxUserId, text)
 // - MAX_BOT_API_BASE_URL - documented Bot API host
 // END_MODULE_MAP
 
@@ -41,6 +41,21 @@ export class MaxBotClient {
       return parseChat(await response.json());
     } catch {
       return null;
+    }
+  }
+
+  async sendMessage(maxUserId: string, text: string): Promise<boolean> {
+    if (!this.token) return false;
+    try {
+      const url = `${this.baseUrl}/messages?user_id=${encodeURIComponent(maxUserId)}`;
+      const response = await this.fetchImpl(url, {
+        method: "POST",
+        headers: { Authorization: this.token, "content-type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      return response.ok;
+    } catch {
+      return false;
     }
   }
 }

@@ -32,4 +32,7 @@ export class BookingEntity {
 
   @UpdateDateColumn({ type: "timestamptz" })
   updatedAt!: Date;
+
+  @Column({ type: "timestamptz", nullable: true })
+  reminderSentAt!: Date | null;
 }

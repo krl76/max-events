@@ -40,6 +40,7 @@ function booking(id: string, eventId: string, status: "active" | "cancelled" = "
     status,
     createdAt: new Date("2026-09-01T07:00:00Z"),
     updatedAt: new Date("2026-09-01T07:00:00Z"),
+    reminderSentAt: null,
   };
 }
 

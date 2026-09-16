@@ -92,6 +92,7 @@ function createDataSource(event: EventEntity) {
             booking.createdAt ??= now();
             booking.updatedAt ??= now();
             booking.status = (booking.status ?? "active") as BookingStatus;
+            booking.reminderSentAt ??= null;
             bookings.push(booking);
           } else {
             booking.updatedAt = now();
