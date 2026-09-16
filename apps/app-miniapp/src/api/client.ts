@@ -35,10 +35,17 @@
 // - ApiClient.getToday - GET /today: "What to do today?" digest (summary + typed-label cards)
 // - ApiClient.listPlans - GET /plans: plan cards (plan + event + distance to the meeting point)
 // - ApiClient.getPlan - GET /plans/:id: single plan card
+// - ListSummary - lists screen aggregate: list + item count + id of the item saving the checked event (null when not saved)
+// - ApiClient.listLists - GET /lists?userId=[&eventId=]: preset lists with counters
+// - ListItemCard - list screen aggregate: list item enriched with its event
+// - ApiClient.getListItems - GET /lists/:id/items
+// - AddListItem - save-to-list payload (owner user + saved event)
+// - ApiClient.addListItem - POST /lists/:id/items with { userId, eventId }
+// - ApiClient.removeListItem - DELETE /lists/:id/items/:itemId
 // END_MODULE_MAP
 
-import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, GatheringSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, TodayResponseSchema, UserSchema } from "@max-events/api-contracts";
-import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, FriendAvailability, Gathering, Participation, ParticipationStatus, Place, PlanCard, Profile, TodayResponse, UpdateProfile, User } from "@max-events/api-contracts";
+import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, GatheringSchema, ListItemSchema, ListSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, TodayResponseSchema, UserSchema } from "@max-events/api-contracts";
+import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, Participation, ParticipationStatus, Place, PlanCard, Profile, TodayResponse, UpdateProfile, User } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -250,11 +257,67 @@ const PlanCardArraySchema: ZodSchema<PlanCard[]> = {
   },
 };
 
+/** Lists screen aggregate: a preset or custom list, its item count and the id of the item saving the checked event (null when not saved). */
+export interface ListSummary {
+  list: List;
+  itemsCount: number;
+  savedItemId: string | null;
+}
+
+const ListSummaryArraySchema: ZodSchema<ListSummary[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of list summaries" };
+    const summaries: ListSummary[] = [];
+    for (const entry of data) {
+      if (typeof entry !== "object" || entry === null) return { success: false as const, error: "expected a list summary" };
+      const raw = entry as Record<string, unknown>;
+      const list = ListSchema.safeParse(raw.list);
+      if (!list.success || typeof raw.itemsCount !== "number" || (raw.savedItemId !== null && typeof raw.savedItemId !== "string")) return { success: false as const, error: "invalid list summary" };
+      summaries.push({ list: list.data, itemsCount: raw.itemsCount, savedItemId: raw.savedItemId });
+    }
+    return { success: true as const, data: summaries };
+  },
+};
+
+/** List screen aggregate: a list item enriched with its event. */
+export interface ListItemCard {
+  item: ListItem;
+  event: Event;
+}
+
+const ListItemCardArraySchema: ZodSchema<ListItemCard[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of list item cards" };
+    const cards: ListItemCard[] = [];
+    for (const entry of data) {
+      if (typeof entry !== "object" || entry === null) return { success: false as const, error: "expected a list item card" };
+      const raw = entry as Record<string, unknown>;
+      const item = ListItemSchema.safeParse(raw.item);
+      const event = EventSchema.safeParse(raw.event);
+      if (!item.success || !event.success) return { success: false as const, error: "invalid list item card" };
+      cards.push({ item: item.data, event: event.data });
+    }
+    return { success: true as const, data: cards };
+  },
+};
+
+const ListItemEntitySchema: ZodSchema<ListItem> = {
+  safeParse(data: unknown) {
+    return ListItemSchema.safeParse(data);
+  },
+};
+
 /** Gathering launch payload: event, invited friends, proposed meeting time. */
 export interface CreateGathering {
   eventId: string;
   friendIds: string[];
   proposedMeetingAt: string;
+}
+
+/** Save-to-list payload: the owner user and the saved event. */
+export interface AddListItem {
+  userId: string;
+  eventId: string;
 }
 
 export class ApiClient {
@@ -381,6 +444,24 @@ export class ApiClient {
 
   getPlan(id: string): Promise<PlanCard> {
     return this.request(`/plans/${id}`, PlanCardEntitySchema);
+  }
+
+  listLists(userId: string, eventId?: string): Promise<ListSummary[]> {
+    const query = new URLSearchParams({ userId });
+    if (eventId !== undefined) query.set("eventId", eventId);
+    return this.request(`/lists?${query.toString()}`, ListSummaryArraySchema);
+  }
+
+  getListItems(listId: string): Promise<ListItemCard[]> {
+    return this.request(`/lists/${listId}/items`, ListItemCardArraySchema);
+  }
+
+  addListItem(listId: string, payload: AddListItem): Promise<ListItem> {
+    return this.request(`/lists/${listId}/items`, ListItemEntitySchema, { body: payload });
+  }
+
+  removeListItem(listId: string, itemId: string): Promise<ListItem> {
+    return this.request(`/lists/${listId}/items/${itemId}`, ListItemEntitySchema, { method: "DELETE" });
   }
 }
 
