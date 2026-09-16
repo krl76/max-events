@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Event details page: full event fields, booking button states (book / booked / sold out), external payment link.
-// SCOPE: Data via apiClient.getEventDetails (mock or live), booking create/cancel through apiClient, payment via openExternalLink; no navigation logic.
-// DEPENDS: ../api/client.js (apiClient, EventDetails), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../ui/theme.css
+// PURPOSE: Event details page: full event fields, booking button states (book / booked / sold out), external payment link, participation status selector and counters.
+// SCOPE: Data via apiClient.getEventDetails (mock or live), booking create/cancel through apiClient, payment via openExternalLink, participation stats/status write via apiClient; no navigation logic.
+// DEPENDS: ../api/client.js (apiClient, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -10,12 +10,16 @@
 // - EventDetailsState - union of details fetch states (loading / error / ready)
 // - EventDetailsView - presentational: media, title, meta rows, description, booking CTA, buy button
 // - EventPage - route container: resolves the user id, wires booking actions and the payment link
+// - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
+// - ParticipationView - presentational: status chip selector, clear button, status counters and friends count
+// - ParticipationSection - container: loads participation stats via apiClient and wires set/clear actions
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
-import { apiClient, type EventDetails } from "../api/client";
+import { apiClient, type EventDetails, type ParticipationStats } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { ParticipationStatusSchema, type ParticipationStatus } from "@max-events/api-contracts";
 import { openExternalLink } from "../max/bridge";
 
 export const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
@@ -130,6 +134,95 @@ export function EventDetailsView({ details, onBook, onCancel, onBuy }: EventDeta
   );
 }
 
+export const PARTICIPATION_STATUS_LABELS: Record<ParticipationStatus, string> = {
+  wants_to_go: "Хочу пойти",
+  probably_going: "Скорее всего пойду",
+  going: "Иду",
+  looking_for_company: "Ищу компанию",
+  looking_for_travel_buddy: "Ищу попутчика",
+  looking_for_after_event_company: "Ищу, с кем продолжить после события",
+};
+
+const PARTICIPATION_COUNTER_LABELS: Record<ParticipationStatus, string> = {
+  wants_to_go: "Хотят пойти",
+  probably_going: "Скорее всего пойдут",
+  going: "Идут",
+  looking_for_company: "Ищут компанию",
+  looking_for_travel_buddy: "Ищут попутчика",
+  looking_for_after_event_company: "Ищут, с кем продолжить после события",
+};
+
+const PARTICIPATION_STATUSES = ParticipationStatusSchema.options;
+
+interface ParticipationViewProps {
+  stats: ParticipationStats;
+  onSet: (status: ParticipationStatus) => void;
+  onClear: () => void;
+}
+
+export function ParticipationView({ stats, onSet, onClear }: ParticipationViewProps) {
+  return (
+    <section className="app-event">
+      <div className="app-event-body">
+        <h2 className="app-participation-title">Твой статус</h2>
+        <div className="app-participation-chips">
+          {PARTICIPATION_STATUSES.map((status) => (
+            <button key={status} type="button" className="app-participation-chip" aria-pressed={stats.myStatus === status} onClick={() => onSet(status)}>
+              {PARTICIPATION_STATUS_LABELS[status]}
+            </button>
+          ))}
+        </div>
+        {stats.myStatus !== null && (
+          <button type="button" className="app-participation-clear" onClick={onClear}>
+            Снять статус
+          </button>
+        )}
+        <ul className="app-participation-counters">
+          {PARTICIPATION_STATUSES.filter((status) => stats.counts[status] > 0).map((status) => (
+            <li key={status}>
+              {PARTICIPATION_COUNTER_LABELS[status]}: {stats.counts[status]}
+            </li>
+          ))}
+          {stats.friendsCount > 0 && <li>Твои знакомые: {stats.friendsCount}</li>}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+export function ParticipationSection({ eventId, userId }: { eventId: string; userId: string }) {
+  const [stats, setStats] = useState<ParticipationStats | null>(null);
+  const [failed, setFailed] = useState(false);
+  const load = useCallback(() => {
+    apiClient.getParticipationStats(eventId, userId).then(
+      (next) => {
+        setStats(next);
+        setFailed(false);
+      },
+      () => setFailed(true),
+    );
+  }, [eventId, userId]);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const setStatus = useCallback(
+    (status: ParticipationStatus) => {
+      apiClient.setParticipationStatus(eventId, userId, status).then(load, load);
+    },
+    [eventId, userId, load],
+  );
+
+  const clear = useCallback(() => {
+    apiClient.deleteParticipation(eventId, userId).then(load, load);
+  }, [eventId, userId, load]);
+
+  if (stats === null) {
+    return <p className={`app-state${failed ? " app-state--error" : ""}`}>{failed ? "Не удалось загрузить статусы." : "Загрузка…"}</p>;
+  }
+  return <ParticipationView stats={stats} onSet={setStatus} onClear={clear} />;
+}
+
 export function EventPage({ id }: { id: string }) {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
@@ -146,5 +239,10 @@ export function EventPage({ id }: { id: string }) {
 
   if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
   if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить событие.</p>;
-  return <EventDetailsView details={state.details} onBook={book} onCancel={cancel} onBuy={openExternalLink} />;
+  return (
+    <>
+      <EventDetailsView details={state.details} onBook={book} onCancel={cancel} onBuy={openExternalLink} />
+      <ParticipationSection eventId={id} userId={userId} />
+    </>
+  );
 }

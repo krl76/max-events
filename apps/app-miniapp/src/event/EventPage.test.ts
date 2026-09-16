@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { EventDetailsView } from "./EventPage";
-import type { EventDetails } from "../api/client";
+import { EventDetailsView, PARTICIPATION_STATUS_LABELS, ParticipationView } from "./EventPage";
+import type { EventDetails, ParticipationStats } from "../api/client";
 import { mockEvents, mockOrganizers, mockPlaces } from "../api/mock";
-import type { Event, Place } from "@max-events/api-contracts";
+import type { Event, ParticipationStatus, Place } from "@max-events/api-contracts";
 
 const paid = mockEvents[0];
 const free = mockEvents.find((item) => item.priceRub === null && item.capacity !== null && item.placeId !== null)!;
@@ -86,5 +86,55 @@ describe("payment link button", () => {
     const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), onBook: () => {}, onCancel: () => {}, onBuy: () => {} }));
 
     expect(html).not.toContain("Купить билет");
+  });
+});
+
+const ZERO_COUNTS: Record<ParticipationStatus, number> = { wants_to_go: 0, probably_going: 0, going: 0, looking_for_company: 0, looking_for_travel_buddy: 0, looking_for_after_event_company: 0 };
+
+function statsFor(overrides: Partial<ParticipationStats> = {}): ParticipationStats {
+  return { counts: { ...ZERO_COUNTS }, friendsCount: 0, myStatus: null, ...overrides };
+}
+
+describe("ParticipationView", () => {
+  const props = { onSet: () => {}, onClear: () => {} };
+
+  it("renders all six status chips with the contract labels", () => {
+    const html = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor(), ...props }));
+
+    for (const label of Object.values(PARTICIPATION_STATUS_LABELS)) {
+      expect(html).toContain(label);
+    }
+  });
+
+  it("marks exactly the chosen status and offers clearing it", () => {
+    const html = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor({ myStatus: "going" }), ...props }));
+
+    expect(html).toContain('aria-pressed="true"');
+    expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
+    expect(html).toContain("Снять статус");
+  });
+
+  it("hides the selection and the clear button without my status", () => {
+    const html = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor(), ...props }));
+
+    expect(html).not.toContain('aria-pressed="true"');
+    expect(html).not.toContain("Снять статус");
+  });
+
+  it("renders only non-zero status counters and the friends line", () => {
+    const html = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor({ counts: { ...ZERO_COUNTS, looking_for_company: 4, going: 2 }, friendsCount: 7 }), ...props }));
+
+    expect(html).toContain("Идут: 2");
+    expect(html).toContain("Ищут компанию: 4");
+    expect(html).toContain("Твои знакомые: 7");
+    expect(html).not.toContain("Хотят пойти:");
+    expect(html).not.toContain("Ищут попутчика:");
+  });
+
+  it("hides zero counters and the friends line on an empty event", () => {
+    const html = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor(), ...props }));
+
+    expect(html).not.toContain("Ищут компанию:");
+    expect(html).not.toContain("Твои знакомые");
   });
 });

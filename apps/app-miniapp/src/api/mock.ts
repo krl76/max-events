@@ -9,16 +9,19 @@
 // - mockPlaces - 4 Moscow venue fixtures
 // - mockEvents - 11 Moscow event fixtures (all four categories, paid and free)
 // - mockOrganizers - demo organizer fixture for event details
+// - mockFriendIds - friend user ids of the demo user (social counters fixtures)
 // - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt)
 // - resetMockBookings - clear in-memory bookings (test isolation)
 // - resetMockProfiles - clear in-memory profiles (test isolation)
+// - resetMockParticipations - restore seeded participations (test isolation)
+// - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
-// - installMockApi - intercept global fetch for /api/events, /api/bookings and /api/users/:id/profile, return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/events/:id/participation, /api/bookings and /api/users/:id/profile, return a restore function
 // END_MODULE_MAP
 
-import type { Booking, Event, Place, Profile, User } from "@max-events/api-contracts";
-import { CreateBookingSchema, UpdateProfileSchema } from "@max-events/api-contracts";
-import { parseEventFilters, type EventFilters } from "./client";
+import type { Booking, Event, Participation, ParticipationStatus, Place, Profile, User } from "@max-events/api-contracts";
+import { CreateBookingSchema, ParticipationStatusSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import { parseEventFilters, type EventFilters, type ParticipationStats } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
 
@@ -54,6 +57,51 @@ export function filterMockEvents(events: Event[], filters: EventFilters): Event[
 }
 
 export const mockOrganizers: User[] = [{ id: "d0000001-0000-4000-8000-000000000001", maxUserId: "organizer-1", firstName: "Анна", lastName: "Соколова", avatarUrl: null, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP }];
+
+export const mockFriendIds: string[] = ["a0000000-0000-4000-8000-0000000000b1", "a0000000-0000-4000-8000-0000000000b2", "a0000000-0000-4000-8000-0000000000b3", "a0000000-0000-4000-8000-0000000000b4", "a0000000-0000-4000-8000-0000000000b5", "a0000000-0000-4000-8000-0000000000b6", "a0000000-0000-4000-8000-0000000000b7"];
+
+/** Friend participations seed: [friendIndex, eventIndex, status]. The showcase event has 7 friends, 4 of them looking for company. */
+const MOCK_PARTICIPATION_SEED: [number, number, ParticipationStatus][] = [
+  [0, 0, "wants_to_go"],
+  [1, 0, "wants_to_go"],
+  [2, 0, "going"],
+  [3, 0, "looking_for_company"],
+  [4, 0, "looking_for_company"],
+  [5, 0, "looking_for_company"],
+  [6, 0, "looking_for_company"],
+  [0, 2, "going"],
+  [1, 3, "looking_for_company"],
+  [2, 4, "probably_going"],
+];
+
+const mockParticipations = new Map<string, Participation>();
+let mockParticipationSeq = 0;
+
+function seedMockParticipations(): void {
+  mockParticipations.clear();
+  mockParticipationSeq = 0;
+  for (const [friend, eventItem, status] of MOCK_PARTICIPATION_SEED) {
+    mockParticipationSeq += 1;
+    mockParticipations.set(`${mockFriendIds[friend]}:${mockEvents[eventItem].id}`, { id: `f0000000-0000-4000-8000-${String(mockParticipationSeq).padStart(12, "0")}`, userId: mockFriendIds[friend], eventId: mockEvents[eventItem].id, status, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP });
+  }
+}
+seedMockParticipations();
+
+export function resetMockParticipations(): void {
+  seedMockParticipations();
+}
+
+export function participationStats(eventId: string, userId: string): ParticipationStats {
+  const counts: Record<ParticipationStatus, number> = { wants_to_go: 0, probably_going: 0, going: 0, looking_for_company: 0, looking_for_travel_buddy: 0, looking_for_after_event_company: 0 };
+  let friendsCount = 0;
+  for (const record of mockParticipations.values()) {
+    if (record.eventId !== eventId) continue;
+    counts[record.status] += 1;
+    if (record.userId !== userId && mockFriendIds.includes(record.userId)) friendsCount += 1;
+  }
+  const mine = mockParticipations.get(`${userId}:${eventId}`);
+  return { counts, friendsCount, myStatus: mine?.status ?? null };
+}
 
 const mockBookings: Booking[] = [];
 let mockBookingSeq = 0;
@@ -105,7 +153,7 @@ function eventDetails(eventId: string, userId: string): object | null {
   };
 }
 
-function parseBookingBody(init?: RequestInit): unknown {
+function parseBookingBody(init?: RequestInit): Record<string, unknown> | undefined {
   try {
     return JSON.parse(typeof init?.body === "string" ? init.body : "null");
   } catch {
@@ -130,6 +178,32 @@ export function installMockApi(): () => void {
     if (byId) {
       const found = mockEvents.find((item) => item.id === byId[1]);
       return found ? Response.json(found) : new Response(null, { status: 404 });
+    }
+    const stats = /^\/api\/events\/([^/]+)\/participation\/stats$/.exec(url.pathname);
+    if (stats) {
+      if (!mockEvents.some((item) => item.id === stats[1])) return new Response(null, { status: 404 });
+      return Response.json(participationStats(stats[1], url.searchParams.get("userId") ?? ""));
+    }
+    const participation = /^\/api\/events\/([^/]+)\/participation$/.exec(url.pathname);
+    if (participation && init?.method === "PUT") {
+      const userId = url.searchParams.get("userId") ?? "";
+      const parsed = ParticipationStatusSchema.safeParse(parseBookingBody(init)?.status);
+      if (!parsed.success || userId === "") return new Response(null, { status: 400 });
+      if (!mockEvents.some((item) => item.id === participation[1])) return new Response(null, { status: 404 });
+      const now = new Date().toISOString();
+      const key = `${userId}:${participation[1]}`;
+      const existing = mockParticipations.get(key);
+      mockParticipationSeq += 1;
+      const record: Participation = existing ? { ...existing, status: parsed.data, updatedAt: now } : { id: `f0000000-0000-4000-8000-${String(mockParticipationSeq).padStart(12, "0")}`, userId, eventId: participation[1], status: parsed.data, createdAt: now, updatedAt: now };
+      mockParticipations.set(key, record);
+      return Response.json(record);
+    }
+    if (participation && init?.method === "DELETE") {
+      const key = `${url.searchParams.get("userId") ?? ""}:${participation[1]}`;
+      const existing = mockParticipations.get(key);
+      if (!existing) return new Response(null, { status: 404 });
+      mockParticipations.delete(key);
+      return Response.json(existing);
     }
     const profile = /^\/api\/users\/([^/]+)\/profile$/.exec(url.pathname);
     if (profile && init?.method === "PATCH") {

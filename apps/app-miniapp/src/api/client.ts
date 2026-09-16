@@ -16,6 +16,10 @@
 // - parseEventFilters - query string -> filters, invalid values dropped
 // - EventDetails - event page aggregate: event, place, organizer, free seats, own active booking
 // - ApiClient.getEventDetails - GET /events/:id/details?userId=
+// - ParticipationStats - event page social aggregate: per-status counters, friends count, own status
+// - ApiClient.getParticipationStats - GET /events/:id/participation/stats?userId=
+// - ApiClient.setParticipationStatus - PUT /events/:id/participation?userId= with { status }
+// - ApiClient.deleteParticipation - DELETE /events/:id/participation?userId=
 // - ApiClient.createBooking - POST /bookings
 // - ApiClient.cancelBooking - DELETE /bookings/:id
 // - ApiClient.getProfile - GET /users/:id/profile
@@ -24,8 +28,8 @@
 // - ApiClient.listCalendar - GET /bookings?userId=
 // END_MODULE_MAP
 
-import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, PlaceSchema, ProfileSchema, UserSchema } from "@max-events/api-contracts";
-import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, Place, Profile, UpdateProfile, User } from "@max-events/api-contracts";
+import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, ProfileSchema, UserSchema } from "@max-events/api-contracts";
+import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, Participation, ParticipationStatus, Place, Profile, UpdateProfile, User } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -45,8 +49,8 @@ export class ApiError extends Error {
 }
 
 interface MethodOptions {
-  /** HTTP method for requests without a body (DELETE) or overriding POST for body payloads (PATCH). */
-  method?: "DELETE" | "PATCH";
+  /** HTTP method for requests without a body (DELETE) or overriding POST for body payloads (PATCH/PUT). */
+  method?: "DELETE" | "PATCH" | "PUT";
   /** JSON body for POST/PATCH requests; serialized and sent as application/json. */
   body?: unknown;
 }
@@ -114,6 +118,30 @@ const EventDetailsSchema: ZodSchema<EventDetails> = {
       success: true as const,
       data: { event: event.data, place: place.data, organizer: organizer.data, remainingSeats: raw.remainingSeats, activeBookingId: raw.activeBookingId },
     };
+  },
+};
+
+/** Social block aggregate for the event page: per-status counters, friends on the event, own status. */
+export interface ParticipationStats {
+  counts: Record<ParticipationStatus, number>;
+  friendsCount: number;
+  myStatus: ParticipationStatus | null;
+}
+
+const ParticipationStatsSchema: ZodSchema<ParticipationStats> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a participation stats object" };
+    const raw = data as Record<string, unknown>;
+    if (typeof raw.counts !== "object" || raw.counts === null || typeof raw.friendsCount !== "number") return { success: false as const, error: "invalid participation stats" };
+    const counts = { wants_to_go: 0, probably_going: 0, going: 0, looking_for_company: 0, looking_for_travel_buddy: 0, looking_for_after_event_company: 0 } as Record<ParticipationStatus, number>;
+    for (const [status, value] of Object.entries(raw.counts)) {
+      const parsed = ParticipationStatusSchema.safeParse(status);
+      if (!parsed.success || typeof value !== "number") return { success: false as const, error: "invalid participation stats" };
+      counts[parsed.data] = value;
+    }
+    const myStatus = raw.myStatus === null ? { success: true as const, data: null } : ParticipationStatusSchema.safeParse(raw.myStatus);
+    if (!myStatus.success) return { success: false as const, error: "invalid participation stats" };
+    return { success: true as const, data: { counts, friendsCount: raw.friendsCount, myStatus: myStatus.data } };
   },
 };
 
@@ -193,6 +221,18 @@ export class ApiClient {
 
   getEventDetails(id: string, userId: string): Promise<EventDetails> {
     return this.request(`/events/${id}/details?userId=${encodeURIComponent(userId)}`, EventDetailsSchema);
+  }
+
+  getParticipationStats(eventId: string, userId: string): Promise<ParticipationStats> {
+    return this.request(`/events/${eventId}/participation/stats?userId=${encodeURIComponent(userId)}`, ParticipationStatsSchema);
+  }
+
+  setParticipationStatus(eventId: string, userId: string, status: ParticipationStatus): Promise<Participation> {
+    return this.request(`/events/${eventId}/participation?userId=${encodeURIComponent(userId)}`, ParticipationSchema, { method: "PUT", body: { status } });
+  }
+
+  deleteParticipation(eventId: string, userId: string): Promise<Participation> {
+    return this.request(`/events/${eventId}/participation?userId=${encodeURIComponent(userId)}`, ParticipationSchema, { method: "DELETE" });
   }
 
   createEvent(payload: CreateEvent): Promise<Event> {
