@@ -978,3 +978,79 @@
   color: var(--app-accent);
   font-size: var(--app-font-size-description);
 }
+
+/* Достижения: сетка «штампов» (Instagram-награды), выданные отмечены градиентом */
+.app-achievements {
+  display: grid;
+  gap: var(--app-space-m);
+  grid-template-columns: repeat(3, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-achievement {
+  align-items: center;
+  background: var(--app-card);
+  border-radius: var(--app-radius-card);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  padding: var(--app-space-m);
+  text-align: center;
+}
+
+.app-achievement-stamp {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 50%;
+  color: var(--app-text-tertiary);
+  display: flex;
+  font-size: 0.875rem;
+  font-weight: var(--app-font-weight-title);
+  height: 52px;
+  justify-content: center;
+  width: 52px;
+}
+
+.app-achievement--granted .app-achievement-stamp {
+  background: var(--app-media-gradient);
+  color: var(--app-accent-contrast);
+}
+
+.app-achievement-title {
+  color: var(--app-text);
+  font-size: var(--app-font-size-description);
+  font-weight: var(--app-font-weight-title);
+}
+
+.app-achievement-progress {
+  color: var(--app-text-tertiary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-achievement-bar {
+  background: var(--app-surface);
+  border-radius: 999px;
+  height: 4px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.app-achievement-bar-fill {
+  background: var(--app-accent);
+  display: block;
+  height: 100%;
+}
+
+/* «Мой город»: сводка числами (переиспользует строку статистики профиля) + карта впечатлений */
+.app-mycity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+}
+
+.app-mycity-summary {
+  width: 100%;
+}

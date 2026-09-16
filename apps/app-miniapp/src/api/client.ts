@@ -23,6 +23,12 @@
 // - ApiClient.deleteParticipation - DELETE /events/:id/participation?userId=
 // - ApiClient.createBooking - POST /bookings
 // - ApiClient.cancelBooking - DELETE /bookings/:id
+// - CreateCheckIn - check-in payload (user + exactly one of event/place)
+// - ApiClient.createCheckIn - POST /check-ins
+// - ApiClient.getVisitStats - GET /users/:id/visit-stats: VisitStats
+// - ApiClient.getAchievements - GET /users/:id/achievements: Achievement[]
+// - MyCityPayload - my-city screen aggregate: summary counters + memory points
+// - ApiClient.getMyCity - GET /users/:id/my-city
 // - ApiClient.getProfile - GET /users/:id/profile
 // - ApiClient.updateProfile - PATCH /users/:id/profile
 // - CalendarEntry - calendar item: active booking enriched with its event and place
@@ -44,8 +50,8 @@
 // - ApiClient.removeListItem - DELETE /lists/:id/items/:itemId
 // END_MODULE_MAP
 
-import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, GatheringSchema, ListItemSchema, ListSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, TodayResponseSchema, UserSchema } from "@max-events/api-contracts";
-import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, Participation, ParticipationStatus, Place, PlanCard, Profile, TodayResponse, UpdateProfile, User } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, BookingSchema, CheckInSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, TodayResponseSchema, UserSchema, VisitStatsSchema } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, MemoryPoint, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, TodayResponse, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -131,6 +137,7 @@ export interface EventDetails {
   organizer: User;
   remainingSeats: number | null;
   activeBookingId: string | null;
+  checkInId: string | null;
 }
 
 const EventDetailsSchema: ZodSchema<EventDetails> = {
@@ -143,9 +150,10 @@ const EventDetailsSchema: ZodSchema<EventDetails> = {
     if (!event.success || !organizer.success || !place.success) return { success: false as const, error: "invalid event details" };
     if (raw.remainingSeats !== null && typeof raw.remainingSeats !== "number") return { success: false as const, error: "invalid event details" };
     if (raw.activeBookingId !== null && typeof raw.activeBookingId !== "string") return { success: false as const, error: "invalid event details" };
+    if (raw.checkInId !== null && typeof raw.checkInId !== "string") return { success: false as const, error: "invalid event details" };
     return {
       success: true as const,
-      data: { event: event.data, place: place.data, organizer: organizer.data, remainingSeats: raw.remainingSeats, activeBookingId: raw.activeBookingId },
+      data: { event: event.data, place: place.data, organizer: organizer.data, remainingSeats: raw.remainingSeats, activeBookingId: raw.activeBookingId, checkInId: raw.checkInId },
     };
   },
 };
@@ -307,6 +315,48 @@ const ListItemEntitySchema: ZodSchema<ListItem> = {
   },
 };
 
+const AchievementArraySchema: ZodSchema<Achievement[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of achievements" };
+    const achievements: Achievement[] = [];
+    for (const item of data) {
+      const parsed = AchievementSchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      achievements.push(parsed.data);
+    }
+    return { success: true as const, data: achievements };
+  },
+};
+
+/** My-city screen aggregate: summary counters and the personal memory points. */
+export interface MyCityPayload {
+  summary: MyCitySummary;
+  points: MemoryPoint[];
+}
+
+const MyCityPayloadSchema: ZodSchema<MyCityPayload> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a my-city payload" };
+    const raw = data as Record<string, unknown>;
+    const summary = MyCitySummarySchema.safeParse(raw.summary);
+    if (!summary.success || !Array.isArray(raw.points)) return { success: false as const, error: "invalid my-city payload" };
+    const points: MemoryPoint[] = [];
+    for (const item of raw.points) {
+      const parsed = MemoryPointSchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      points.push(parsed.data);
+    }
+    return { success: true as const, data: { summary: summary.data, points } };
+  },
+};
+
+/** Check-in payload: the user plus exactly one of eventId/placeId. */
+export interface CreateCheckIn {
+  userId: string;
+  eventId?: string;
+  placeId?: string;
+}
+
 /** Gathering launch payload: event, invited friends, proposed meeting time. */
 export interface CreateGathering {
   eventId: string;
@@ -412,6 +462,22 @@ export class ApiClient {
 
   cancelBooking(bookingId: string): Promise<Booking> {
     return this.request(`/bookings/${bookingId}`, BookingSchema, { method: "DELETE" });
+  }
+
+  createCheckIn(payload: CreateCheckIn): Promise<CheckIn> {
+    return this.request("/check-ins", CheckInSchema, { body: payload });
+  }
+
+  getVisitStats(userId: string): Promise<VisitStats> {
+    return this.request(`/users/${userId}/visit-stats`, VisitStatsSchema);
+  }
+
+  getAchievements(userId: string): Promise<Achievement[]> {
+    return this.request(`/users/${userId}/achievements`, AchievementArraySchema);
+  }
+
+  getMyCity(userId: string): Promise<MyCityPayload> {
+    return this.request(`/users/${userId}/my-city`, MyCityPayloadSchema);
   }
 
   listCalendar(userId: string): Promise<CalendarEntry[]> {
