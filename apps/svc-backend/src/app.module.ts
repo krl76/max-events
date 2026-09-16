@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Root NestJS module wiring config, Postgres (TypeORM) and feature modules.
-// SCOPE: Global ConfigModule, TypeOrmModule from DATABASE_URL, Auth/Users/Health/Places/Events/Bookings modules.
-// DEPENDS: @nestjs/config, @nestjs/typeorm, auth/auth.module, health/health.module, places/places.module, events/events.module, bookings/bookings.module
+// SCOPE: Global ConfigModule, TypeOrmModule from DATABASE_URL, Auth/Users/Health/Places/Events/Bookings/Calendar modules.
+// DEPENDS: @nestjs/config, @nestjs/typeorm, auth/auth.module, health/health.module, places/places.module, events/events.module, bookings/bookings.module, calendar/calendar.module
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -19,6 +19,7 @@ import { AuthModule } from "./auth/auth.module";
 import { PlacesModule } from "./places/places.module";
 import { EventsModule } from "./events/events.module";
 import { BookingsModule } from "./bookings/bookings.module";
+import { CalendarModule } from "./calendar/calendar.module";
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { BookingsModule } from "./bookings/bookings.module";
     PlacesModule,
     EventsModule,
     BookingsModule,
+    CalendarModule,
   ],
 })
 export class AppModule {}
