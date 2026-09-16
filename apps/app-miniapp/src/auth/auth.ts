@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - AuthState - loading | authenticated | unavailable | error
-// - authenticate - resolve AuthState from a nullable WebApp and a login function
+// - authenticate - resolve AuthState from a nullable WebApp and a login function (a non-null mock user short-circuits to authenticated — demo/QA mode)
 // - LoginFn - injectable login dependency of authenticate
 // END_MODULE_MAP
 
@@ -18,7 +18,8 @@ export type AuthState = { status: "loading" } | { status: "authenticated"; user:
 
 export type LoginFn = (payload: { initData: string }) => Promise<{ user: User }>;
 
-export async function authenticate(app: Pick<MaxWebApp, "initData"> | null, login: LoginFn): Promise<AuthState> {
+export async function authenticate(app: Pick<MaxWebApp, "initData"> | null, login: LoginFn, mockUser: User | null = null): Promise<AuthState> {
+  if (mockUser) return { status: "authenticated", user: mockUser };
   if (!app?.initData) return { status: "unavailable" };
   try {
     const { user } = await login({ initData: app.initData });

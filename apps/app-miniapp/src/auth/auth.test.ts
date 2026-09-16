@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { authenticate, type LoginFn } from "./auth";
+import { mockDemoUser } from "../api/mock";
 const okLogin: LoginFn = async () => ({
   user: {
     id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
@@ -32,6 +33,20 @@ describe("authenticate", () => {
   it("is unavailable outside MAX without calling login", async () => {
     const login = vi.fn(okLogin);
     const state = await authenticate(null, login);
+    expect(state).toEqual({ status: "unavailable" });
+    expect(login).not.toHaveBeenCalled();
+  });
+
+  it("authenticates the demo user in mock mode even outside MAX", async () => {
+    const login = vi.fn(okLogin);
+    const state = await authenticate(null, login, mockDemoUser);
+    expect(state).toEqual({ status: "authenticated", user: mockDemoUser });
+    expect(login).not.toHaveBeenCalled();
+  });
+
+  it("stays unavailable outside MAX when mock mode is off", async () => {
+    const login = vi.fn(okLogin);
+    const state = await authenticate(null, login, null);
     expect(state).toEqual({ status: "unavailable" });
     expect(login).not.toHaveBeenCalled();
   });

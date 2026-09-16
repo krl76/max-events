@@ -10,8 +10,8 @@
 // - CATEGORY_LABELS - ru labels per event category (reused by the event page)
 // - formatStartsAt - ru "day month, hh:mm" formatting (re-exported from ./format.js, reused by the event page)
 // - CatalogViewName - "list" | "map" view switch on the catalog route
-// - CatalogView - presentational: filter bar + segmented «Список ↔ Карта» toggle + state-driven body (skeleton, error, empty, cards or map)
-// - CatalogPage - filters from window.location on mount; fetches via useCatalog and writes filter changes back to the URL
+// - CatalogView - presentational: filter bar + segmented «Список ↔ Карта» toggle + state-driven body (skeleton, error, empty, clickable event cards or map)
+// - CatalogPage - filters from window.location on mount; view is controlled by the parent (HomePage hides the today block in map view); fetches via useCatalog and writes filter changes back to the URL
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
@@ -72,9 +72,9 @@ function ViewToggle({ view, onView }: { view: CatalogViewName; onView: (view: Ca
   );
 }
 
-function EventCard({ event }: { event: Event }) {
+function EventCard({ event, onOpen }: { event: Event; onOpen?: (id: string) => void }) {
   return (
-    <article className="app-card">
+    <button type="button" className="app-card app-card--link" onClick={() => onOpen?.(event.id)}>
       <div className="app-card-media" />
       <div className="app-card-body">
         <span className="app-card-title">{event.title}</span>
@@ -85,7 +85,7 @@ function EventCard({ event }: { event: Event }) {
           {event.city} · {event.priceRub === null ? "Бесплатно" : `${event.priceRub} ₽`}
         </span>
       </div>
-    </article>
+    </button>
   );
 }
 
@@ -170,16 +170,15 @@ export function CatalogView({ state, filters, onFilters, view = "list", onView, 
           )}
           {state.status === "error" && <p className="app-state app-state--error">Не удалось загрузить события. Попробуйте изменить фильтры.</p>}
           {state.status === "ready" && state.events.length === 0 && <p className="app-state">Ничего не найдено. Попробуйте изменить фильтры.</p>}
-          {state.status === "ready" && state.events.map((item) => <EventCard key={item.id} event={item} />)}
+          {state.status === "ready" && state.events.map((item) => <EventCard key={item.id} event={item} onOpen={onOpenEvent} />)}
         </>
       )}
     </>
   );
 }
 
-export function CatalogPage() {
+export function CatalogPage({ view, onView }: { view: CatalogViewName; onView: (view: CatalogViewName) => void }) {
   const [filters, setFilters] = useState<EventFilters>(() => parseEventFilters(window.location.search));
-  const [view, setView] = useState<CatalogViewName>("list");
   const catalog = useCatalog(filters);
   const { navigate } = useRoute();
   const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
@@ -189,5 +188,5 @@ export function CatalogPage() {
     window.history.replaceState(null, "", query ? `/?${query}` : "/");
   }, [filters]);
 
-  return <CatalogView state={catalog} filters={filters} onFilters={setFilters} view={view} onView={setView} onOpenEvent={openEvent} />;
+  return <CatalogView state={catalog} filters={filters} onFilters={setFilters} view={view} onView={onView} onOpenEvent={openEvent} />;
 }

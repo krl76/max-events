@@ -20,6 +20,15 @@ describe("CatalogView", () => {
     expect(html.match(/app-card-title/g)).toHaveLength(2);
   });
 
+  it("renders event cards as clickable buttons navigating to the event route", () => {
+    const state: CatalogState = { status: "ready", events: [free, paid] };
+    const html = renderToStaticMarkup(createElement(CatalogView, { state, filters: {}, onFilters: () => {}, onOpenEvent: () => {} }));
+
+    expect(html.match(/app-card--link/g)).toHaveLength(2);
+    expect(html.match(/<button[^>]*class="app-card app-card--link"/g)).toHaveLength(2);
+    expect(html).not.toContain("<article");
+  });
+
   it("renders skeleton cards while loading", () => {
     const html = renderToStaticMarkup(createElement(CatalogView, { state: { status: "loading" }, filters: {}, onFilters: () => {} }));
 
