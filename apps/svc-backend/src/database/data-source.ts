@@ -12,6 +12,7 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { validateEnv } from "../config/env";
+import { PlaceEntity } from "../places/place.entity";
 import { UserEntity } from "../users/user.entity";
 
 const env = validateEnv();
@@ -19,6 +20,6 @@ const env = validateEnv();
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: env.DATABASE_URL,
-  entities: [UserEntity],
+  entities: [UserEntity, PlaceEntity],
   migrations: ["src/database/migrations/*.ts"],
 });
