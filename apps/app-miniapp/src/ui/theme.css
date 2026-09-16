@@ -523,3 +523,107 @@
   font-weight: var(--app-font-weight-title);
   padding: var(--app-space-s) var(--app-space-m);
 }
+
+/* Визард «Куда пойдём?»: главная CTA, шаги и подборка */
+.app-whereto-cta {
+  background: var(--app-media-gradient);
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-title);
+  font-weight: var(--app-font-weight-title);
+  padding: var(--app-space-l);
+  text-align: left;
+  width: 100%;
+}
+
+.app-whereto-title {
+  color: var(--app-text);
+  font-size: var(--app-font-size-title);
+  font-weight: var(--app-font-weight-title);
+  margin: 0;
+}
+
+.app-whereto-hint {
+  color: var(--app-text-tertiary);
+  font-size: var(--app-font-size-description);
+  margin: 0;
+}
+
+.app-whereto-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+}
+
+.app-whereto-option {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  font-weight: var(--app-font-weight-title);
+  padding: var(--app-space-l);
+  text-align: left;
+}
+
+.app-whereto-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+}
+
+.app-whereto-chips-label {
+  color: var(--app-text-tertiary);
+  font-size: var(--app-font-size-description);
+  width: 100%;
+}
+
+.app-whereto-show {
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--app-font-weight-title);
+  padding: var(--app-space-m) var(--app-space-l);
+}
+
+.app-whereto-show:disabled {
+  background: var(--app-surface);
+  color: var(--app-text-tertiary);
+  cursor: default;
+}
+
+.app-whereto-restart {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--app-accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  padding: var(--app-space-s) 0;
+}
+
+.app-whereto-share-hint {
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.app-card--link {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}

@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Minimal state-based router (home / event / friends / calendar / profile) with deep-link resolution from start_param.
+// PURPOSE: Minimal state-based router (home / event / friends / calendar / profile / whereto) with deep-link resolution from start_param.
 // SCOPE: Route type, start_param parsing, RouteProvider + useRoute; no URL/history integration.
 // DEPENDS: ../max/bridge.js (getStartParam, webApp)
 // LINKS: M-APP-MINIAPP, DF-MAX-IDENTITY
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - Route - home | event(id) | friends | calendar | profile
+// - Route - home | event(id) | friends | calendar | profile | whereto
 // - routeFromStartParam - map start_param (event-*) to a Route, home fallback
 // - RouteProvider - holds the current route, initial route from start_param
 // - useRoute - current route + navigate
@@ -15,7 +15,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { getStartParam, webApp } from "../max/bridge";
 
-export type Route = { name: "home" } | { name: "event"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" };
+export type Route = { name: "home" } | { name: "event"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "whereto" };
 
 export function routeFromStartParam(startParam: string | null): Route {
   if (startParam?.startsWith("event-")) {
