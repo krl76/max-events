@@ -9,10 +9,11 @@
 // - ApiError - unified API error with HTTP status
 // - ApiClient - configurable fetch wrapper with typed methods
 // - apiClient - default singleton instance
+// - ApiClient.login - POST /auth/login with raw MAX initData
 // END_MODULE_MAP
 
-import { BookingSchema, EventSchema, PlaceSchema, ProfileSchema, UserSchema } from "@max-events/api-contracts";
-import type { Booking, CreateBooking, CreateEvent, CreatePlace, Event, Place, Profile, User } from "@max-events/api-contracts";
+import { AuthResponseSchema, BookingSchema, EventSchema, PlaceSchema, ProfileSchema, UserSchema } from "@max-events/api-contracts";
+import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, Place, Profile, User } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -38,6 +39,10 @@ interface MethodOptions {
 
 export class ApiClient {
   constructor(private readonly baseUrl: string = DEFAULT_BASE_URL) {}
+
+  login(payload: AuthRequest): Promise<AuthResponse> {
+    return this.request("/auth/login", AuthResponseSchema, { body: payload });
+  }
 
   private async request<T>(path: string, schema: ZodSchema<T>, options: MethodOptions = {}): Promise<T> {
     const headers: Record<string, string> = { accept: "application/json" };

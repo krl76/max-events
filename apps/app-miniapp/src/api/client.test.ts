@@ -128,4 +128,24 @@ describe("ApiClient", () => {
 
     expect(getInit()?.headers).not.toMatchObject({ "content-type": "application/json" });
   });
+
+  it("logs in via POST /auth/login and returns the authenticated user", async () => {
+    const user = {
+      id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+      maxUserId: "1001",
+      firstName: "Иван",
+      lastName: null,
+      avatarUrl: null,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+    const getInit = mockFetchCaptured({ user });
+    const client = new ApiClient("http://localhost:3100/api");
+
+    const response = await client.login({ initData: "user=%7B%22id%22%3A1%7D" });
+
+    expect(response.user).toEqual(user);
+    expect(getInit()?.method).toBe("POST");
+    expect(JSON.parse(String(getInit()?.body))).toEqual({ initData: "user=%7B%22id%22%3A1%7D" });
+  });
 });
