@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed and shared plans while backend endpoints (M2/M3/M4/M5) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers), in-memory bookings, profiles and plan cards, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, CreateBookingSchema, UpdateProfileSchema)
+// SCOPE: In-memory Moscow fixtures (events/places/organizers), in-memory bookings, profiles, plan cards and preset lists, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CreateBookingSchema, UpdateProfileSchema)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -20,18 +20,24 @@
 // - planCards - plan fixtures sorted by the soonest meeting first
 // - planCard - single plan card by plan id (or null)
 // - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt)
+// - LIST_PRESET_TITLES - ru titles of the six preset lists (mock seeds them as List.title)
+// - listSummaries - preset lists of a user with item counters and the saved-item id for the checked event
+// - listItemCards - items of one list enriched with their events, newest first (mock)
+// - addMockListItem - in-memory list membership, idempotent (mock POST)
+// - removeMockListItem - in-memory list membership removal (mock DELETE)
+// - resetMockLists - clear in-memory lists (test isolation)
 // - resetMockBookings - clear in-memory bookings (test isolation)
 // - resetMockProfiles - clear in-memory profiles (test isolation)
 // - resetMockParticipations - restore seeded participations (test isolation)
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/participation, /api/bookings, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans and /api/today, return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/participation, /api/bookings, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists and /api/today, return a restore function
 // END_MODULE_MAP
 
-import type { Booking, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, Participation, ParticipationStatus, Place, PlanCard, Profile, TodayEventCard, TodayResponse, User } from "@max-events/api-contracts";
-import { CreateBookingSchema, ParticipationStatusSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
-import { parseEventFilters, type CreateGathering, type EventFilters, type ParticipationStats } from "./client";
+import type { Booking, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, Participation, ParticipationStatus, Place, PlanCard, Profile, TodayEventCard, TodayResponse, User } from "@max-events/api-contracts";
+import { CreateBookingSchema, ListPresetSchema, ParticipationStatusSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import { parseEventFilters, type AddListItem, type CreateGathering, type EventFilters, type ListItemCard, type ListSummary, type ParticipationStats } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
 
@@ -208,6 +214,101 @@ export function planCards(): PlanCard[] {
 /** Single plan card by plan id, or null. */
 export function planCard(id: string): PlanCard | null {
   return mockPlans.find((card) => card.plan.id === id) ?? null;
+}
+
+/** Preset list titles per ListPreset; the lists UI renders List.title as-is. */
+export const LIST_PRESET_TITLES: Record<ListPreset, string> = {
+  want_to_go: "Хочу сходить",
+  favorites: "Избранное",
+  weekend: "На выходные",
+  with_children: "С детьми",
+  with_friends: "С друзьями",
+  try_later: "Попробовать потом",
+};
+
+/** Preset list items seeded on list creation: [preset, mockEvents index]. */
+const MOCK_LIST_SEED: [ListPreset, number][] = [
+  ["want_to_go", 0],
+  ["favorites", 1],
+];
+
+const mockLists = new Map<string, List[]>();
+const mockListItems: ListItem[] = [];
+let mockListSeq = 0;
+let mockListItemSeq = 0;
+
+export function resetMockLists(): void {
+  mockLists.clear();
+  mockListItems.length = 0;
+  mockListSeq = 0;
+  mockListItemSeq = 0;
+}
+
+function listItem(listId: string, eventId: string): ListItem {
+  mockListItemSeq += 1;
+  return { id: `71000000-0000-4000-8000-${String(mockListItemSeq).padStart(12, "0")}`, listId, eventId, placeId: null, addedAt: PLACE_STAMP };
+}
+
+/** The six preset lists of a user, created with their seed items on first request. */
+function listsFor(userId: string): List[] {
+  let lists = mockLists.get(userId);
+  if (lists) return lists;
+  lists = ListPresetSchema.options.map((preset) => {
+    mockListSeq += 1;
+    return { id: `70000000-0000-4000-8000-${String(mockListSeq).padStart(12, "0")}`, userId, preset, title: LIST_PRESET_TITLES[preset], createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
+  });
+  for (const [preset, eventIndex] of MOCK_LIST_SEED) {
+    const list = lists.find((candidate) => candidate.preset === preset);
+    if (list) mockListItems.push(listItem(list.id, mockEvents[eventIndex].id));
+  }
+  mockLists.set(userId, lists);
+  return lists;
+}
+
+function findList(listId: string): List | undefined {
+  for (const lists of mockLists.values()) {
+    const found = lists.find((list) => list.id === listId);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/** Preset lists of a user with item counters; savedItemId points at the item saving eventId (null when not saved). */
+export function listSummaries(userId: string, eventId: string | null): ListSummary[] {
+  return listsFor(userId).map((list) => {
+    const items = mockListItems.filter((item) => item.listId === list.id);
+    return { list, itemsCount: items.length, savedItemId: items.find((item) => item.eventId === eventId)?.id ?? null };
+  });
+}
+
+/** Items of one list enriched with their events, newest first; null for an unknown list. */
+export function listItemCards(listId: string): ListItemCard[] | null {
+  if (!findList(listId)) return null;
+  return mockListItems
+    .filter((item) => item.listId === listId && item.eventId !== null)
+    .flatMap((item) => {
+      const event = mockEvents.find((candidate) => candidate.id === item.eventId);
+      return event ? [{ item, event }] : [];
+    })
+    .reverse();
+}
+
+/** Adds an event to a list, idempotent; "no_list"/"no_event" map to 404 in the interceptor. */
+export function addMockListItem(listId: string, payload: AddListItem): ListItem | "no_list" | "no_event" {
+  if (!findList(listId)) return "no_list";
+  if (!mockEvents.some((event) => event.id === payload.eventId)) return "no_event";
+  const existing = mockListItems.find((item) => item.listId === listId && item.eventId === payload.eventId);
+  if (existing) return existing;
+  const item = listItem(listId, payload.eventId);
+  mockListItems.push(item);
+  return item;
+}
+
+/** Removes an item from a list; null when the list or the item is unknown. */
+export function removeMockListItem(listId: string, itemId: string): ListItem | null {
+  const index = mockListItems.findIndex((item) => item.listId === listId && item.id === itemId);
+  if (index === -1) return null;
+  return mockListItems.splice(index, 1)[0];
 }
 
 /** Friends feed grouped by friend: every friend with the events they attend, soonest event first, groups by soonest event. */
@@ -434,6 +535,25 @@ export function installMockApi(): () => void {
     if (plan) {
       const found = planCard(plan[1]);
       return found ? Response.json(found) : new Response(null, { status: 404 });
+    }
+    if (url.pathname === "/api/lists") {
+      return Response.json(listSummaries(url.searchParams.get("userId") ?? "", url.searchParams.get("eventId")));
+    }
+    const listItems = /^\/api\/lists\/([^/]+)\/items$/.exec(url.pathname);
+    if (listItems && init?.method === "POST") {
+      const payload = parseBookingBody(init) as AddListItem | undefined;
+      if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || payload.userId === "" || typeof payload.eventId !== "string") return new Response(null, { status: 400 });
+      const result = addMockListItem(listItems[1], payload);
+      return result === "no_list" || result === "no_event" ? new Response(null, { status: 404 }) : Response.json(result);
+    }
+    if (listItems) {
+      const cards = listItemCards(listItems[1]);
+      return cards ? Response.json(cards) : new Response(null, { status: 404 });
+    }
+    const listItemRemove = /^\/api\/lists\/([^/]+)\/items\/([^/]+)$/.exec(url.pathname);
+    if (listItemRemove && init?.method === "DELETE") {
+      const removed = removeMockListItem(listItemRemove[1], listItemRemove[2]);
+      return removed ? Response.json(removed) : new Response(null, { status: 404 });
     }
     return real(input, init);
   };

@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Event details page: full event fields, booking button states (book / booked / sold out), external payment link, participation status selector and counters.
 // SCOPE: Data via apiClient.getEventDetails (mock or live), booking create/cancel through apiClient, payment via openExternalLink, participation stats/status write via apiClient; no navigation logic.
-// DEPENDS: ../api/client.js (apiClient, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./SaveToList.js (SaveToList), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -22,6 +22,7 @@ import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { ParticipationStatusSchema, type ParticipationStatus } from "@max-events/api-contracts";
 import { openExternalLink } from "../max/bridge";
 import { useRoute } from "../routing/router";
+import { SaveToList } from "./SaveToList";
 
 export const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
@@ -244,6 +245,7 @@ export function EventPage({ id }: { id: string }) {
   return (
     <>
       <EventDetailsView details={state.details} onBook={book} onCancel={cancel} onBuy={openExternalLink} />
+      <SaveToList eventId={id} userId={userId} />
       <section className="app-event">
         <div className="app-event-body">
           <button type="button" className="app-event-cta" onClick={() => navigate({ name: "gathering-new", eventId: id })}>
