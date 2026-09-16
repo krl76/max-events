@@ -60,6 +60,14 @@
   padding: 0 var(--app-space-l) calc(var(--app-space-l) + 56px);
 }
 
+/* Содержимое скролл-контейнера живёт обычным потоком: прямые flex-элементы не сжимаются
+ * ниже контента (у карточек .app-card overflow: hidden -> автоматический минимум 0, иначе
+ * flex схлопывает их в высоту 0 при переполнении), растягивается только карта (.app-map,
+ * её правило ниже по файлу переопределяет flex-shrink обратно). */
+.app-content > * {
+  flex-shrink: 0;
+}
+
 .app-tabbar {
   align-items: center;
   background: var(--app-card);
