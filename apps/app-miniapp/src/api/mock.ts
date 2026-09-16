@@ -1,14 +1,19 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews and reports while backend endpoints (M2–M5, P2) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers), in-memory bookings, check-ins, profiles, plan cards, preset lists, seeded reviews with rating aggregates and deduplicated reports, achievements and my-city derived from check-ins, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, Review, CreateBookingSchema, ReviewSchema, UpdateProfileSchema)
+// PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports and UGC micro-events while backend endpoints (M2–M5, P2) do not exist yet.
+// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow), in-memory bookings, check-ins, profiles, plan cards, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, CreateBookingSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - mockPlaces - 4 Moscow venue fixtures
-// - mockEvents - 11 Moscow event fixtures (all four categories, paid and free)
+// - mockEvents - Moscow event fixtures (all four categories, paid and free, incl. two past events for the review flow)
 // - mockOrganizers - demo organizer fixture for event details
+// - resetMockMicroEvents - restore seeded micro-events (test isolation)
+// - microEvents - open micro-events soonest first
+// - createMockMicroEvent - create a micro event, author counts as the first participant (mock POST)
+// - joinMockMicroEvent - join with the counter, idempotent (mock POST /join)
+// - leaveMockMicroEvent - leave with the counter, idempotent (mock DELETE /join)
 // - mockDemoUser - demo user returned by mock auth outside MAX (VITE_USE_MOCK=1)
 // - mockFriendIds - friend user ids of the demo user (social counters fixtures)
 // - mockFriends - friend fixtures for the "Your people are going" feed
@@ -43,12 +48,12 @@
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists, /api/reviews, /api/reports and /api/today, return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists, /api/reviews, /api/reports, /api/micro-events and /api/today, return a restore function
 // END_MODULE_MAP
 
-import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, MemoryPoint, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, Review, TodayEventCard, TodayResponse, User, VisitStats } from "@max-events/api-contracts";
-import { CreateBookingSchema, EventCategorySchema, ListPresetSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
-import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateGathering, type CreateReport, type CreateReview, type EventFilters, type EventRating, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
+import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, Review, TodayEventCard, TodayResponse, User, VisitStats } from "@max-events/api-contracts";
+import { CreateBookingSchema, EventCategorySchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
 
@@ -77,6 +82,8 @@ export const mockEvents: Event[] = [
   event({ id: "c000000a-0000-4000-8000-00000000000a", title: "Йога на рассвете в парке", category: "sport", city: "Москва", startsAt: "2026-09-13T08:00:00+03:00", placeId: mockPlaces[0].id, isPaid: false, priceRub: null, capacity: 50 }),
   event({ id: "c000000b-0000-4000-8000-00000000000b", title: "Кинопоказ под открытым небом", category: "afisha", city: "Москва", startsAt: "2026-09-18T21:00:00+03:00", placeId: mockPlaces[0].id, isPaid: false, priceRub: null }),
   event({ id: "c000000c-0000-4000-8000-00000000000c", title: "Гастрофестиваль в «Депо»", category: "afisha", city: "Москва", startsAt: "2026-09-27T12:00:00+03:00", endsAt: "2026-09-27T22:00:00+03:00", placeId: mockPlaces[3].id, isPaid: true, priceRub: 700, paymentUrl: "https://tickets.example.com/gastro-festival" }),
+  event({ id: "c000000d-0000-4000-8000-00000000000d", title: "Прогулка-знакомство по Парку Горького", category: "tourism", city: "Москва", startsAt: "2026-09-05T10:00:00+03:00", placeId: mockPlaces[0].id, isPaid: false, priceRub: null }),
+  event({ id: "c000000e-0000-4000-8000-00000000000e", title: "Открытая репетиция камерного оркестра", category: "afisha", city: "Москва", startsAt: "2026-09-08T19:00:00+03:00", isPaid: false, priceRub: null }),
 ];
 
 export function filterMockEvents(events: Event[], filters: EventFilters): Event[] {
@@ -397,6 +404,79 @@ export function createMockReport(payload: CreateReport): Report | "duplicate" | 
   return report;
 }
 
+type MicroEventSeed = Omit<MicroEvent, "createdAt">;
+
+const MICRO_EVENT_SEED: MicroEventSeed[] = [
+  { id: "20000000-0000-4000-8000-000000000001", authorId: mockFriendIds[0], title: "Играем в баскетбол", startsAt: "2026-09-19T19:00:00+03:00", locationText: "Стритбол-площадка у Парка Горького", placeId: null, participantsLimit: 6, participantsCount: 3, status: "open" },
+  { id: "20000000-0000-4000-8000-000000000002", authorId: mockFriendIds[1], title: "Прогулка по Парку Горького", startsAt: "2026-09-20T14:00:00+03:00", locationText: null, placeId: mockPlaces[0].id, participantsLimit: 4, participantsCount: 2, status: "open" },
+];
+
+const mockMicroEvents: MicroEvent[] = [];
+const mockMicroMemberships = new Set<string>();
+let mockMicroSeq = 0;
+
+function seedMockMicroEvents(): void {
+  mockMicroEvents.length = 0;
+  mockMicroMemberships.clear();
+  mockMicroSeq = MICRO_EVENT_SEED.length;
+  for (const seed of MICRO_EVENT_SEED) mockMicroEvents.push({ ...seed, createdAt: PLACE_STAMP });
+}
+seedMockMicroEvents();
+
+export function resetMockMicroEvents(): void {
+  seedMockMicroEvents();
+}
+
+/** Open micro events soonest first. */
+export function microEvents(): MicroEvent[] {
+  return [...mockMicroEvents].filter((item) => item.status === "open").sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+}
+
+/** Creates a micro event from the UGC form; the author counts as the first participant; "no_place"/"invalid" map to 404/400 in the interceptor. */
+export function createMockMicroEvent(payload: CreateMicroEvent): MicroEvent | "no_place" | "invalid" {
+  if (payload.userId === "") return "invalid";
+  const placeId = payload.placeId ?? null;
+  if (placeId !== null && !mockPlaces.some((item) => item.id === placeId)) return "no_place";
+  mockMicroSeq += 1;
+  const candidate: MicroEvent = {
+    id: `20000000-0000-4000-8000-${String(mockMicroSeq).padStart(12, "0")}`,
+    authorId: payload.userId,
+    title: payload.title,
+    startsAt: payload.startsAt,
+    locationText: payload.locationText ?? null,
+    placeId,
+    participantsLimit: payload.participantsLimit,
+    participantsCount: 1,
+    status: "open",
+    createdAt: new Date().toISOString(),
+  };
+  if (!MicroEventSchema.safeParse(candidate).success) return "invalid";
+  mockMicroEvents.push(candidate);
+  mockMicroMemberships.add(`${payload.userId}:${candidate.id}`);
+  return candidate;
+}
+
+/** Joins an open micro event; already-joined is idempotent, a full or cancelled one — "full"/"closed" (mock 409). */
+export function joinMockMicroEvent(id: string, userId: string): MicroEvent | null | "full" | "closed" {
+  const target = mockMicroEvents.find((item) => item.id === id);
+  if (!target) return null;
+  const key = `${userId}:${id}`;
+  if (target.status === "cancelled") return "closed";
+  if (mockMicroMemberships.has(key)) return target;
+  if (target.participantsCount >= target.participantsLimit) return "full";
+  target.participantsCount += 1;
+  mockMicroMemberships.add(key);
+  return target;
+}
+
+/** Leaves a micro event; not-joined is idempotent, an unknown one — null (mock 404). */
+export function leaveMockMicroEvent(id: string, userId: string): MicroEvent | null {
+  const target = mockMicroEvents.find((item) => item.id === id);
+  if (!target) return null;
+  if (mockMicroMemberships.delete(`${userId}:${id}`)) target.participantsCount -= 1;
+  return target;
+}
+
 /** Friends feed grouped by friend: every friend with the events they attend, soonest event first, groups by soonest event. */
 export function friendActivityByFriend(): FriendActivityByFriend[] {
   const byFriend = new Map<string, FriendActivityByFriend>();
@@ -426,6 +506,13 @@ export function participationStats(eventId: string, userId: string): Participati
 
 const mockBookings: Booking[] = [];
 let mockBookingSeq = 0;
+
+/** Module-load seed: active booking of the demo user on a past fixture event, so the post-event review flow ("Как прошло?") is reachable in the demo; test resets clear it. */
+function seedMockBookings(): void {
+  mockBookingSeq += 1;
+  mockBookings.push({ id: `e0000000-0000-4000-8000-${String(mockBookingSeq).padStart(12, "0")}`, userId: mockDemoUser.id, eventId: "c000000d-0000-4000-8000-00000000000d", status: "active", createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP });
+}
+seedMockBookings();
 
 export function resetMockBookings(): void {
   mockBookings.length = 0;
@@ -745,6 +832,28 @@ export function installMockApi(): () => void {
       if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || typeof payload.eventId !== "string" || typeof payload.reason !== "string") return new Response(null, { status: 400 });
       const result = createMockReport(payload as CreateReport);
       return result === "no_target" ? new Response(null, { status: 404 }) : result === "invalid" ? new Response(null, { status: 400 }) : result === "duplicate" ? new Response(null, { status: 409 }) : Response.json(result);
+    }
+    if (url.pathname === "/api/micro-events" && init?.method === "POST") {
+      const payload = parseBookingBody(init) as CreateMicroEvent | undefined;
+      if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || typeof payload.title !== "string" || typeof payload.startsAt !== "string" || typeof payload.participantsLimit !== "number") return new Response(null, { status: 400 });
+      const result = createMockMicroEvent(payload);
+      return result === "no_place" ? new Response(null, { status: 404 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
+    }
+    if (url.pathname === "/api/micro-events") {
+      return Response.json(microEvents());
+    }
+    const microJoin = /^\/api\/micro-events\/([^/]+)\/join$/.exec(url.pathname);
+    if (microJoin && init?.method === "POST") {
+      const userId = url.searchParams.get("userId") ?? "";
+      if (userId === "") return new Response(null, { status: 400 });
+      const result = joinMockMicroEvent(microJoin[1], userId);
+      return result === null ? new Response(null, { status: 404 }) : result === "full" || result === "closed" ? new Response(null, { status: 409 }) : Response.json(result);
+    }
+    if (microJoin && init?.method === "DELETE") {
+      const userId = url.searchParams.get("userId") ?? "";
+      if (userId === "") return new Response(null, { status: 400 });
+      const result = leaveMockMicroEvent(microJoin[1], userId);
+      return result === null ? new Response(null, { status: 404 }) : Response.json(result);
     }
     return real(input, init);
   };

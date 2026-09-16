@@ -50,6 +50,11 @@
 // - ApiClient.removeListItem - DELETE /lists/:id/items/:itemId
 // - EventRating - event page rating aggregate: RatingSummary + per-category averages
 // - ApiClient.getEventRating - GET /events/:id/rating
+// - CreateMicroEvent - micro-event creation payload (author, what/when/where, limit)
+// - ApiClient.listMicroEvents - GET /micro-events
+// - ApiClient.createMicroEvent - POST /micro-events
+// - ApiClient.joinMicroEvent - POST /micro-events/:id/join?userId=
+// - ApiClient.leaveMicroEvent - DELETE /micro-events/:id/join?userId=
 // - CreateReview - review submission payload (user + event + scores)
 // - ApiClient.createReview - POST /reviews
 // - REPORT_REASONS - report reason presets
@@ -59,8 +64,8 @@
 // - ApiClient.createReport - POST /reports
 // END_MODULE_MAP
 
-import { AchievementSchema, AuthResponseSchema, BookingSchema, CheckInSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, MemoryPoint, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Review, ReviewCategoryScores, TodayResponse, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, BookingSchema, CheckInSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Review, ReviewCategoryScores, TodayResponse, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -80,8 +85,8 @@ export class ApiError extends Error {
 }
 
 interface MethodOptions {
-  /** HTTP method for requests without a body (DELETE) or overriding POST for body payloads (PATCH/PUT). */
-  method?: "DELETE" | "PATCH" | "PUT";
+  /** HTTP method for requests without a body (DELETE) or overriding the POST default for body payloads (PATCH/PUT). */
+  method?: "DELETE" | "PATCH" | "PUT" | "POST";
   /** JSON body for POST/PATCH requests; serialized and sent as application/json. */
   body?: unknown;
 }
@@ -449,6 +454,35 @@ const ReportEntitySchema: ZodSchema<Report> = {
   },
 };
 
+const MicroEventEntitySchema: ZodSchema<MicroEvent> = {
+  safeParse(data: unknown) {
+    return MicroEventSchema.safeParse(data);
+  },
+};
+
+const MicroEventArraySchema: ZodSchema<MicroEvent[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of micro-events" };
+    const items: MicroEvent[] = [];
+    for (const item of data) {
+      const parsed = MicroEventSchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      items.push(parsed.data);
+    }
+    return { success: true as const, data: items };
+  },
+};
+
+/** Micro-event creation payload: the author plus what/when/where (exactly one of locationText/placeId) and the participant limit. */
+export interface CreateMicroEvent {
+  userId: string;
+  title: string;
+  startsAt: string;
+  locationText?: string;
+  placeId?: string;
+  participantsLimit: number;
+}
+
 export class ApiClient {
   constructor(private readonly baseUrl: string = DEFAULT_BASE_URL) {}
 
@@ -619,6 +653,22 @@ export class ApiClient {
 
   createReport(payload: CreateReport): Promise<Report> {
     return this.request("/reports", ReportEntitySchema, { body: payload });
+  }
+
+  listMicroEvents(): Promise<MicroEvent[]> {
+    return this.request("/micro-events", MicroEventArraySchema);
+  }
+
+  createMicroEvent(payload: CreateMicroEvent): Promise<MicroEvent> {
+    return this.request("/micro-events", MicroEventEntitySchema, { body: payload });
+  }
+
+  joinMicroEvent(id: string, userId: string): Promise<MicroEvent> {
+    return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventEntitySchema, { method: "POST" });
+  }
+
+  leaveMicroEvent(id: string, userId: string): Promise<MicroEvent> {
+    return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventEntitySchema, { method: "DELETE" });
   }
 }
 

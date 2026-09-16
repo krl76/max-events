@@ -1158,3 +1158,42 @@
 .app-mycity-summary {
   width: 100%;
 }
+
+/* Микро-события (UGC): заголовок секции с кнопкой создания, бейдж карточки,
+ * состояние «вы участвуете»; карточки и форма переиспользуют стили ленты и сбора компании */
+.app-micro-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+}
+
+.app-micro-add {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: 50%;
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 1.25rem;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+
+.app-micro-badge {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-media);
+  color: var(--app-accent);
+  font-size: var(--app-font-size-description);
+  font-weight: var(--app-font-weight-title);
+  padding: 1px var(--app-space-s);
+}
+
+.app-micro-join--joined {
+  background: var(--app-surface);
+  color: var(--app-accent);
+}

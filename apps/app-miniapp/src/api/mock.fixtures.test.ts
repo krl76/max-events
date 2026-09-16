@@ -24,6 +24,11 @@ describe("mock fixtures", () => {
     expect(mockPlaces.length).toBeGreaterThanOrEqual(3);
     expect(mockEvents.every((item) => item.city === "Москва")).toBe(true);
   });
+
+  it("includes past fixtures so the post-event review flow is reachable in the demo", () => {
+    const now = Date.now();
+    expect(mockEvents.filter((item) => new Date(item.startsAt).getTime() < now).length).toBeGreaterThanOrEqual(1);
+  });
 });
 
 describe("filterMockEvents", () => {
