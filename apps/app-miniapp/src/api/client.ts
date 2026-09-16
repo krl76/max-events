@@ -33,10 +33,12 @@
 // - ApiClient.createGathering - POST /gatherings
 // - ApiClient.getGathering - GET /gatherings/:id
 // - ApiClient.getToday - GET /today: "What to do today?" digest (summary + typed-label cards)
+// - ApiClient.listPlans - GET /plans: plan cards (plan + event + distance to the meeting point)
+// - ApiClient.getPlan - GET /plans/:id: single plan card
 // END_MODULE_MAP
 
-import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, GatheringSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, ProfileSchema, TodayResponseSchema, UserSchema } from "@max-events/api-contracts";
-import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, FriendAvailability, Gathering, Participation, ParticipationStatus, Place, Profile, TodayResponse, UpdateProfile, User } from "@max-events/api-contracts";
+import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, GatheringSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, TodayResponseSchema, UserSchema } from "@max-events/api-contracts";
+import type { AuthRequest, AuthResponse, Booking, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, FriendAvailability, Gathering, Participation, ParticipationStatus, Place, PlanCard, Profile, TodayResponse, UpdateProfile, User } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -229,6 +231,25 @@ const GatheringEntitySchema: ZodSchema<Gathering> = {
   },
 };
 
+const PlanCardEntitySchema: ZodSchema<PlanCard> = {
+  safeParse(data: unknown) {
+    return PlanCardSchema.safeParse(data);
+  },
+};
+
+const PlanCardArraySchema: ZodSchema<PlanCard[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of plan cards" };
+    const cards: PlanCard[] = [];
+    for (const item of data) {
+      const parsed = PlanCardSchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      cards.push(parsed.data);
+    }
+    return { success: true as const, data: cards };
+  },
+};
+
 /** Gathering launch payload: event, invited friends, proposed meeting time. */
 export interface CreateGathering {
   eventId: string;
@@ -352,6 +373,14 @@ export class ApiClient {
 
   getToday(): Promise<TodayResponse> {
     return this.request("/today", TodayResponseSchema);
+  }
+
+  listPlans(): Promise<PlanCard[]> {
+    return this.request("/plans", PlanCardArraySchema);
+  }
+
+  getPlan(id: string): Promise<PlanCard> {
+    return this.request(`/plans/${id}`, PlanCardEntitySchema);
   }
 }
 
