@@ -1,35 +1,23 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Placeholder pages (home feed, event, profile) for the shell routing.
-// SCOPE: Static placeholders driven by theme tokens; real data arrives in later feed/event tasks.
-// DEPENDS: ../auth/AuthContext.js, ../routing/router.js, ../catalog/CatalogPage.js
+// PURPOSE: Page composition for the shell routing (home feed, event, profile).
+// SCOPE: Thin route-to-page mapping; page internals live in their own modules.
+// DEPENDS: ../auth/AuthContext.js, ../routing/router.js, ../catalog/CatalogPage.js, ../event/EventPage.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - HomePage - catalog screen (CatalogPage) rendered on the home route
-// - EventPage - large media placeholder for event-<id> deep links
 // - ProfilePage - profile placeholder reflecting auth state
-// - RoutedPages - current page by route
+// - RoutedPages - current page by route; event-<id> deep links render EventPage from ../event/EventPage.js
 // END_MODULE_MAP
 
 import { useAuth } from "../auth/AuthContext";
 import { useRoute } from "../routing/router";
 import { CatalogPage } from "../catalog/CatalogPage";
+import { EventPage } from "../event/EventPage";
 
 export function HomePage() {
   return <CatalogPage />;
-}
-
-export function EventPage({ id }: { id: string }) {
-  return (
-    <article className="app-card">
-      <div className="app-card-media" />
-      <div className="app-card-body">
-        <span className="app-card-title">Событие {id}</span>
-        <span className="app-card-subtitle">Открыто по deep-link</span>
-      </div>
-    </article>
-  );
 }
 
 export function ProfilePage() {
