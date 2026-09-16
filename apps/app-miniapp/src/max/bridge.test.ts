@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { bridgeHandshake, getStartParam } from "./bridge";
+import { bridgeHandshake, getStartParam, shareResult } from "./bridge";
 
 describe("getStartParam", () => {
   it("returns start_param from initDataUnsafe", () => {
@@ -56,5 +56,33 @@ describe("openExternalLink", () => {
     openExternalLink("https://tickets.example.com/pay");
 
     expect(open).toHaveBeenCalledWith("https://tickets.example.com/pay", "_blank", "noopener,noreferrer");
+  });
+});
+
+describe("shareResult", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("shares through the documented shareMaxContent inside MAX", async () => {
+    const shareMaxContent = vi.fn();
+    vi.stubGlobal("navigator", {});
+
+    expect(await shareResult({ shareMaxContent }, "подборка")).toBe("bridge");
+    expect(shareMaxContent).toHaveBeenCalledWith({ text: "подборка" });
+  });
+
+  it("falls back to the clipboard outside the MAX client", async () => {
+    const writeText = vi.fn();
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+
+    expect(await shareResult(null, "подборка")).toBe("clipboard");
+    expect(writeText).toHaveBeenCalledWith("подборка");
+  });
+
+  it("reports unavailable without bridge and clipboard", async () => {
+    vi.stubGlobal("navigator", {});
+
+    expect(await shareResult(null, "подборка")).toBe("unavailable");
   });
 });
