@@ -14,6 +14,10 @@
 // - ApiClient.listEvents - GET /events with serialized filters
 // - serializeEventFilters - filters -> query string ("" when empty)
 // - parseEventFilters - query string -> filters, invalid values dropped
+// - EventDetails - event page aggregate: event, place, organizer, free seats, own active booking
+// - ApiClient.getEventDetails - GET /events/:id/details?userId=
+// - ApiClient.createBooking - POST /bookings
+// - ApiClient.cancelBooking - DELETE /bookings/:id
 // END_MODULE_MAP
 
 import { AuthResponseSchema, BookingSchema, EventCategorySchema, EventSchema, PlaceSchema, ProfileSchema, UserSchema } from "@max-events/api-contracts";
@@ -37,6 +41,8 @@ export class ApiError extends Error {
 }
 
 interface MethodOptions {
+  /** HTTP method for non-GET requests without a body (e.g. DELETE); POST when a body is sent. */
+  method?: "DELETE";
   /** JSON body for POST requests; serialized and sent as application/json. */
   body?: unknown;
 }
@@ -81,6 +87,32 @@ const EventArraySchema: ZodSchema<Event[]> = {
   },
 };
 
+/** Aggregate for the event page: everything the details screen renders in one request. */
+export interface EventDetails {
+  event: Event;
+  place: Place | null;
+  organizer: User;
+  remainingSeats: number | null;
+  activeBookingId: string | null;
+}
+
+const EventDetailsSchema: ZodSchema<EventDetails> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected an event details object" };
+    const raw = data as Record<string, unknown>;
+    const event = EventSchema.safeParse(raw.event);
+    const organizer = UserSchema.safeParse(raw.organizer);
+    const place = raw.place === null ? { success: true as const, data: null } : PlaceSchema.safeParse(raw.place);
+    if (!event.success || !organizer.success || !place.success) return { success: false as const, error: "invalid event details" };
+    if (raw.remainingSeats !== null && typeof raw.remainingSeats !== "number") return { success: false as const, error: "invalid event details" };
+    if (raw.activeBookingId !== null && typeof raw.activeBookingId !== "string") return { success: false as const, error: "invalid event details" };
+    return {
+      success: true as const,
+      data: { event: event.data, place: place.data, organizer: organizer.data, remainingSeats: raw.remainingSeats, activeBookingId: raw.activeBookingId },
+    };
+  },
+};
+
 export class ApiClient {
   constructor(private readonly baseUrl: string = DEFAULT_BASE_URL) {}
 
@@ -96,7 +128,7 @@ export class ApiClient {
     let response: Response;
     try {
       response = await fetch(`${this.baseUrl}${path}`, {
-        method: options.body !== undefined ? "POST" : "GET",
+        method: options.body !== undefined ? "POST" : (options.method ?? "GET"),
         headers,
         body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
       });
@@ -123,6 +155,10 @@ export class ApiClient {
     return this.request(`/events/${id}`, EventSchema);
   }
 
+  getEventDetails(id: string, userId: string): Promise<EventDetails> {
+    return this.request(`/events/${id}/details?userId=${encodeURIComponent(userId)}`, EventDetailsSchema);
+  }
+
   createEvent(payload: CreateEvent): Promise<Event> {
     return this.request("/events", EventSchema, { body: payload });
   }
@@ -145,6 +181,10 @@ export class ApiClient {
 
   createBooking(payload: CreateBooking): Promise<Booking> {
     return this.request("/bookings", BookingSchema, { body: payload });
+  }
+
+  cancelBooking(bookingId: string): Promise<Booking> {
+    return this.request(`/bookings/${bookingId}`, BookingSchema, { method: "DELETE" });
   }
 }
 

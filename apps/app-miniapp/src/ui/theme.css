@@ -203,3 +203,83 @@
 .app-skeleton-line--short {
   width: 45%;
 }
+
+/* Страница мероприятия: крупное медиа и пост-подача (Instagram-стилистика) */
+.app-event-media {
+  aspect-ratio: 4 / 5;
+  background: var(--app-media-gradient);
+  width: 100%;
+}
+
+.app-event-body {
+  background: var(--app-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+  padding: var(--app-space-l);
+}
+
+.app-event-title {
+  color: var(--app-text);
+  font-size: var(--app-font-size-title);
+  font-weight: var(--app-font-weight-title);
+  margin: 0;
+}
+
+.app-event-meta {
+  margin: 0;
+}
+
+.app-event-meta-row {
+  border-top: 0.5px solid var(--app-divider);
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+  padding: var(--app-space-s) 0;
+}
+
+.app-event-meta-row dt {
+  color: var(--app-text-tertiary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-event-meta-row dd {
+  color: var(--app-text);
+  font-size: var(--app-font-size-description);
+  margin: 0;
+  text-align: right;
+}
+
+.app-event-description {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-body);
+  margin: 0;
+}
+
+.app-event-cta {
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--app-font-weight-title);
+  padding: var(--app-space-m) var(--app-space-l);
+}
+
+.app-event-cta:disabled {
+  background: var(--app-surface);
+  color: var(--app-text-tertiary);
+  cursor: default;
+}
+
+.app-event-cta--booked {
+  background: var(--app-surface);
+  color: var(--app-accent);
+}
+
+.app-event-cta--buy {
+  background: none;
+  border: 0.5px solid var(--app-accent);
+  color: var(--app-accent);
+}

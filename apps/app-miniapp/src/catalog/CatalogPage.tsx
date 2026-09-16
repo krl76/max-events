@@ -7,6 +7,8 @@
 //
 // START_MODULE_MAP
 // - CatalogState - union of catalog fetch states (loading / error / ready)
+// - CATEGORY_LABELS - ru labels per event category (reused by the event page)
+// - formatStartsAt - ru "day month, hh:mm" formatting (reused by the event page)
 // - CatalogView - presentational: filter bar + state-driven body (skeleton, error, empty, cards)
 // - CatalogPage - filters from window.location on mount; fetches via useCatalog and writes filter changes back to the URL
 // END_MODULE_MAP
@@ -18,7 +20,7 @@ import { apiClient, parseEventFilters, serializeEventFilters, type EventFilters 
 
 const CATEGORIES: readonly EventCategory[] = EventCategorySchema.options;
 
-const CATEGORY_LABELS: Record<EventCategory, string> = {
+export const CATEGORY_LABELS: Record<EventCategory, string> = {
   afisha: "Афиша",
   volunteering: "Волонтёрство",
   tourism: "Туризм",
@@ -49,7 +51,7 @@ function useCatalog(filters: EventFilters): CatalogState {
   return state;
 }
 
-function formatStartsAt(startsAt: string): string {
+export function formatStartsAt(startsAt: string): string {
   return new Date(startsAt).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 }
 
