@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Profile screen: MAX avatar and name, Instagram-style stats, city/interests editing through the profile API.
-// SCOPE: Data via apiClient.getProfile/updateProfile/listCalendar (mock or live); stats derived from calendar entries; no navigation logic.
-// DEPENDS: ../api/client.js (apiClient, CalendarEntry), ../auth/AuthContext.js, @max-events/api-contracts (Profile, UpdateProfile, User), ../ui/theme.css
+// PURPOSE: Profile screen: MAX avatar and name, Instagram-style stats, city/interests editing through the profile API, visit statistics block.
+// SCOPE: Data via apiClient.getProfile/updateProfile/listCalendar/getVisitStats (mock or live); stats derived from calendar entries; no navigation logic.
+// DEPENDS: ../api/client.js (apiClient, CalendarEntry), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CATEGORY_LABELS), @max-events/api-contracts (Profile, UpdateProfile, User, VisitStats), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -9,15 +9,17 @@
 // - ProfileStats - counters derived from calendar entries (events, unique places)
 // - profileStats - derive ProfileStats from calendar entries
 // - toProfilePatch - form drafts (city, comma-separated interests) -> UpdateProfile payload
+// - VisitStatsView - presentational: visit counters per event category (hidden hint when empty)
 // - ProfileState - union of profile fetch states (loading / error / ready)
-// - ProfileView - presentational: avatar, name, stats row, profile facts, edit form
-// - ProfilePage - route container: resolves auth, loads profile + stats, wires saving
+// - ProfileView - presentational: avatar, name, stats row, profile facts, visit statistics, edit form
+// - ProfilePage - route container: resolves auth, loads profile + stats + visit stats, wires saving
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
-import type { Profile, UpdateProfile, User } from "@max-events/api-contracts";
+import type { Profile, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
 import { apiClient, type CalendarEntry } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { CATEGORY_LABELS } from "../catalog/CatalogPage";
 
 export interface ProfileStats {
   events: number;
@@ -41,15 +43,37 @@ export function toProfilePatch(cityDraft: string, interestsDraft: string): Updat
 
 export type ProfileState = { status: "loading" } | { status: "error" } | { status: "ready"; profile: Profile };
 
+export function VisitStatsView({ stats }: { stats: VisitStats | null }) {
+  return (
+    <section className="app-visitstats">
+      <h2 className="app-today-heading">Статистика посещений</h2>
+      {stats === null || (stats.eventsCount === 0 && stats.placesCount === 0) ? (
+        <p className="app-today-summary">Пока нет посещений — отметьтесь «Я здесь» на странице события.</p>
+      ) : (
+        <ul className="app-participation-counters">
+          {stats.byCategory
+            .filter((item) => item.count > 0)
+            .map((item) => (
+              <li key={item.category}>
+                {CATEGORY_LABELS[item.category]}: {item.count}
+              </li>
+            ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 interface ProfileViewProps {
   user: User;
   profile: Profile;
   stats: ProfileStats;
+  visitStats: VisitStats | null;
   saving: boolean;
   onSave: (patch: UpdateProfile) => void;
 }
 
-export function ProfileView({ user, profile, stats, saving, onSave }: ProfileViewProps) {
+export function ProfileView({ user, profile, stats, visitStats, saving, onSave }: ProfileViewProps) {
   const [cityDraft, setCityDraft] = useState(profile.city);
   const [interestsDraft, setInterestsDraft] = useState(profile.interests.join(", "));
   useEffect(() => {
@@ -85,6 +109,7 @@ export function ProfileView({ user, profile, stats, saving, onSave }: ProfileVie
           ))}
         </div>
       )}
+      <VisitStatsView stats={visitStats} />
       <form
         className="app-profile-form"
         onSubmit={(submit) => {
@@ -107,14 +132,15 @@ interface ProfileData {
   failed: boolean;
   saving: boolean;
   stats: ProfileStats;
+  visitStats: VisitStats | null;
 }
 
 function useProfileData(userId: string): [ProfileData, (patch: UpdateProfile) => void] {
-  const [data, setData] = useState<ProfileData>({ profile: null, failed: false, saving: false, stats: { events: 0, places: 0 } });
+  const [data, setData] = useState<ProfileData>({ profile: null, failed: false, saving: false, stats: { events: 0, places: 0 }, visitStats: null });
 
   useEffect(() => {
     let alive = true;
-    setData({ profile: null, failed: false, saving: false, stats: { events: 0, places: 0 } });
+    setData({ profile: null, failed: false, saving: false, stats: { events: 0, places: 0 }, visitStats: null });
     apiClient.getProfile(userId).then(
       (profile) => {
         if (alive) setData((current) => ({ ...current, profile }));
@@ -126,6 +152,12 @@ function useProfileData(userId: string): [ProfileData, (patch: UpdateProfile) =>
     apiClient.listCalendar(userId).then(
       (entries) => {
         if (alive) setData((current) => ({ ...current, stats: profileStats(entries) }));
+      },
+      () => {},
+    );
+    apiClient.getVisitStats(userId).then(
+      (visitStats) => {
+        if (alive) setData((current) => ({ ...current, visitStats }));
       },
       () => {},
     );
@@ -153,11 +185,11 @@ function useProfileData(userId: string): [ProfileData, (patch: UpdateProfile) =>
 }
 
 function AuthenticatedProfile({ user }: { user: User }) {
-  const [{ profile, failed, saving, stats }, save] = useProfileData(user.id);
+  const [{ profile, failed, saving, stats, visitStats }, save] = useProfileData(user.id);
 
   if (failed) return <p className="app-state app-state--error">Не удалось загрузить профиль.</p>;
   if (profile === null) return <p className="app-state">Загрузка…</p>;
-  return <ProfileView user={user} profile={profile} stats={stats} saving={saving} onSave={save} />;
+  return <ProfileView user={user} profile={profile} stats={stats} visitStats={visitStats} saving={saving} onSave={save} />;
 }
 
 export function ProfilePage() {

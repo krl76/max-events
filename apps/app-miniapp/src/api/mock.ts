@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed and shared plans while backend endpoints (M2/M3/M4/M5) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers), in-memory bookings, profiles, plan cards and preset lists, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CreateBookingSchema, UpdateProfileSchema)
+// PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements and my-city while backend endpoints (M2–M5, P2) do not exist yet.
+// SCOPE: In-memory Moscow fixtures (events/places/organizers), in-memory bookings, check-ins, profiles, plan cards and preset lists, achievements and my-city derived from check-ins, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, CreateBookingSchema, UpdateProfileSchema)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -27,16 +27,22 @@
 // - removeMockListItem - in-memory list membership removal (mock DELETE)
 // - resetMockLists - clear in-memory lists (test isolation)
 // - resetMockBookings - clear in-memory bookings (test isolation)
+// - resetMockCheckIns - clear in-memory check-ins (test isolation)
 // - resetMockProfiles - clear in-memory profiles (test isolation)
 // - resetMockParticipations - restore seeded participations (test isolation)
+// - checkInFor - check-in of a user for an event, or null (mock state for the event page button)
+// - createMockCheckIn - in-memory check-in for an event or a place, idempotent (mock POST)
+// - visitStatsFor - visit statistics derived from the check-ins of a user
+// - achievementsFor - the four README achievements with progress derived from visit stats
+// - myCityFor - my-city summary and memory points derived from the check-ins of a user
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/participation, /api/bookings, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists and /api/today, return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/participation, /api/bookings, /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists and /api/today, return a restore function
 // END_MODULE_MAP
 
-import type { Booking, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, Participation, ParticipationStatus, Place, PlanCard, Profile, TodayEventCard, TodayResponse, User } from "@max-events/api-contracts";
-import { CreateBookingSchema, ListPresetSchema, ParticipationStatusSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, MemoryPoint, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, TodayEventCard, TodayResponse, User, VisitStats } from "@max-events/api-contracts";
+import { CreateBookingSchema, EventCategorySchema, ListPresetSchema, ParticipationStatusSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, type AddListItem, type CreateGathering, type EventFilters, type ListItemCard, type ListSummary, type ParticipationStats } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -346,6 +352,75 @@ export function resetMockBookings(): void {
   mockBookingSeq = 0;
 }
 
+const mockCheckIns: CheckIn[] = [];
+let mockCheckInSeq = 0;
+
+export function resetMockCheckIns(): void {
+  mockCheckIns.length = 0;
+  mockCheckInSeq = 0;
+}
+
+/** Check-in of a user for an event, or null (mock state for the event page button). */
+export function checkInFor(userId: string, eventId: string): CheckIn | null {
+  return mockCheckIns.find((item) => item.userId === userId && item.eventId === eventId) ?? null;
+}
+
+/** Creates an in-memory check-in for exactly one known event or place, idempotent per target; "no_target"/"invalid" map to 404/400 in the interceptor. */
+export function createMockCheckIn(userId: string, payload: { eventId?: string; placeId?: string }): CheckIn | "no_target" | "invalid" {
+  if (userId === "" || (payload.eventId === undefined) === (payload.placeId === undefined)) return "invalid";
+  const known = payload.eventId !== undefined ? mockEvents.some((item) => item.id === payload.eventId) : mockPlaces.some((item) => item.id === payload.placeId);
+  if (!known) return "no_target";
+  const existing = mockCheckIns.find((item) => item.userId === userId && item.eventId === (payload.eventId ?? null) && item.placeId === (payload.placeId ?? null));
+  if (existing) return existing;
+  mockCheckInSeq += 1;
+  const checkIn: CheckIn = { id: `60000000-0000-4000-8000-${String(mockCheckInSeq).padStart(12, "0")}`, userId, eventId: payload.eventId ?? null, placeId: payload.placeId ?? null, checkedInAt: new Date().toISOString() };
+  mockCheckIns.push(checkIn);
+  return checkIn;
+}
+
+/** Visit statistics derived from the check-ins of a user: events, unique places, per-category counters. */
+export function visitStatsFor(userId: string): VisitStats {
+  const mine = mockCheckIns.filter((item) => item.userId === userId);
+  const placeIds = new Set<string>();
+  const byCategory = new Map<string, number>();
+  for (const item of mine) {
+    const event = item.eventId === null ? undefined : mockEvents.find((candidate) => candidate.id === item.eventId);
+    if (item.placeId !== null) placeIds.add(item.placeId);
+    if (event !== undefined) {
+      if (event.placeId !== null) placeIds.add(event.placeId);
+      byCategory.set(event.category, (byCategory.get(event.category) ?? 0) + 1);
+    }
+  }
+  return { userId, placesCount: placeIds.size, eventsCount: mine.filter((item) => item.eventId !== null).length, byCategory: EventCategorySchema.options.map((category) => ({ category, count: byCategory.get(category) ?? 0 })) };
+}
+
+/** The four README achievements («Исследователь города», «Музыкальный фанат», «Город за выходные», «Волонтер») with progress from visit stats. */
+export function achievementsFor(stats: VisitStats): Achievement[] {
+  const count = (category: string) => stats.byCategory.find((item) => item.category === category)?.count ?? 0;
+  return [
+    { code: "city_explorer", title: "Исследователь города", threshold: 10, progress: Math.min(stats.placesCount, 10), grantedAt: stats.placesCount >= 10 ? PLACE_STAMP : null },
+    { code: "music_fan", title: "Музыкальный фанат", threshold: 5, progress: Math.min(count("afisha"), 5), grantedAt: count("afisha") >= 5 ? PLACE_STAMP : null },
+    { code: "weekend_city", title: "Город за выходные", threshold: 3, progress: Math.min(stats.placesCount, 3), grantedAt: stats.placesCount >= 3 ? PLACE_STAMP : null },
+    { code: "volunteer", title: "Волонтёр", threshold: 5, progress: Math.min(count("volunteering"), 5), grantedAt: count("volunteering") >= 5 ? PLACE_STAMP : null },
+  ];
+}
+
+/** My-city summary and memory points derived from the check-ins of a user. */
+export function myCityFor(userId: string): { summary: MyCitySummary; points: MemoryPoint[] } {
+  const stats = visitStatsFor(userId);
+  // ponytail: fixtures have no district data — districts ≈ unique visited places; backend supplies real districts later
+  const summary: MyCitySummary = { userId, placesCount: stats.placesCount, eventsCount: stats.eventsCount, districtsCount: stats.placesCount };
+  const points = mockCheckIns
+    .filter((item) => item.userId === userId && item.eventId !== null)
+    .flatMap((item) => {
+      const event = mockEvents.find((candidate) => candidate.id === item.eventId)!;
+      const lat = event.placeId === null ? null : (mockPlaces.find((candidate) => candidate.id === event.placeId)?.latitude ?? null);
+      const lng = event.placeId === null ? null : (mockPlaces.find((candidate) => candidate.id === event.placeId)?.longitude ?? null);
+      return lat === null || lng === null ? [] : [{ latitude: lat, longitude: lng, eventId: item.eventId, placeId: null, visitedAt: item.checkedInAt }];
+    });
+  return { summary, points };
+}
+
 /** Active bookings of a user, enriched with their event and place. */
 export function calendarEntries(userId: string): { booking: Booking; event: Event; place: Place | null }[] {
   const entries: { booking: Booking; event: Event; place: Place | null }[] = [];
@@ -414,6 +489,7 @@ function eventDetails(eventId: string, userId: string): object | null {
     organizer: mockOrganizers[0],
     remainingSeats: remainingSeats(eventId),
     activeBookingId: active?.id ?? null,
+    checkInId: checkInFor(userId, eventId)?.id ?? null,
   };
 }
 
@@ -504,6 +580,24 @@ export function installMockApi(): () => void {
     }
     if (url.pathname === "/api/bookings") {
       return Response.json(calendarEntries(url.searchParams.get("userId") ?? ""));
+    }
+    if (url.pathname === "/api/check-ins" && init?.method === "POST") {
+      const payload = parseBookingBody(init) as { userId?: string; eventId?: string; placeId?: string } | undefined;
+      if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string") return new Response(null, { status: 400 });
+      const result = createMockCheckIn(payload.userId, { eventId: payload.eventId, placeId: payload.placeId });
+      return result === "invalid" ? new Response(null, { status: 400 }) : result === "no_target" ? new Response(null, { status: 404 }) : Response.json(result);
+    }
+    const visitStats = /^\/api\/users\/([^/]+)\/visit-stats$/.exec(url.pathname);
+    if (visitStats) {
+      return Response.json(visitStatsFor(visitStats[1]));
+    }
+    const achievements = /^\/api\/users\/([^/]+)\/achievements$/.exec(url.pathname);
+    if (achievements) {
+      return Response.json(achievementsFor(visitStatsFor(achievements[1])));
+    }
+    const myCity = /^\/api\/users\/([^/]+)\/my-city$/.exec(url.pathname);
+    if (myCity) {
+      return Response.json(myCityFor(myCity[1]));
     }
     const cancel = /^\/api\/bookings\/([^/]+)$/.exec(url.pathname);
     if (cancel && init?.method === "DELETE") {

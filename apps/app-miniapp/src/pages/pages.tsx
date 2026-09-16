@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - HomePage - «Куда пойдём?» CTA + today digest (TodaySection) + catalog screen (CatalogPage) on the home route; today block hidden in map view so the map gets the viewport
-// - RoutedPages - current page by route; event-<id> deep links render EventPage, friends/calendar/profile routes render their screens (profile + lists entry), whereto renders the wizard, plans renders the plans list and plan(id) the plan screen, lists renders the saved lists and list(id) one list
+// - RoutedPages - current page by route; event-<id> deep links render EventPage, friends/calendar/profile routes render their screens (profile + achievements/my-city/lists entries), whereto renders the wizard, plans renders the plans list and plan(id) the plan screen, lists renders the saved lists and list(id) one list
 // END_MODULE_MAP
 
 import { useState } from "react";
@@ -24,6 +24,8 @@ import { GatheringStatusPage } from "../gathering/GatheringStatusPage";
 import { PlansPage } from "../plans/PlansPage";
 import { PlanPage } from "../plans/PlanPage";
 import { ListPage, ListsLink, ListsPage } from "../lists/ListsPage";
+import { AchievementsLink, AchievementsPage } from "../profile/AchievementsPage";
+import { MyCityLink, MyCityPage } from "../profile/MyCityPage";
 
 export function HomePage() {
   const { navigate } = useRoute();
@@ -53,11 +55,15 @@ export function RoutedPages() {
     return (
       <>
         <ProfilePage />
+        <AchievementsLink />
+        <MyCityLink />
         <ListsLink />
       </>
     );
   if (route.name === "lists") return <ListsPage />;
   if (route.name === "list") return <ListPage id={route.id} />;
+  if (route.name === "achievements") return <AchievementsPage />;
+  if (route.name === "my-city") return <MyCityPage />;
   if (route.name === "whereto") return <WheretoPage />;
   if (route.name === "gathering-new") return <GatheringFlowPage eventId={route.eventId} />;
   if (route.name === "gathering") return <GatheringStatusPage id={route.id} />;

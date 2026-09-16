@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ProfileView, profileStats, toProfilePatch } from "./ProfilePage";
-import type { Booking, Profile, User } from "@max-events/api-contracts";
+import { ProfileView, VisitStatsView, profileStats, toProfilePatch } from "./ProfilePage";
+import type { Booking, Profile, User, VisitStats } from "@max-events/api-contracts";
 import type { CalendarEntry } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
 
@@ -28,7 +28,7 @@ function entry(overrides: Partial<CalendarEntry> = {}): CalendarEntry {
 }
 
 function renderProfileView(overrides: Partial<Parameters<typeof ProfileView>[0]> = {}): string {
-  const props = { user, profile, stats: { events: 5, places: 3 }, saving: false, onSave: () => {}, ...overrides };
+  const props = { user, profile, stats: { events: 5, places: 3 }, visitStats: null, saving: false, onSave: () => {}, ...overrides };
   return renderToStaticMarkup(createElement(ProfileView, props));
 }
 
@@ -53,6 +53,36 @@ describe("toProfilePatch", () => {
   it("omits the city when the draft is blank and drops empty interests", () => {
     expect(toProfilePatch("   ", "бег")).toEqual({ interests: ["бег"] });
     expect(toProfilePatch("Казань", " , ")).toEqual({ city: "Казань", interests: [] });
+  });
+});
+
+describe("VisitStatsView", () => {
+  const stats: VisitStats = {
+    userId: user.id,
+    placesCount: 2,
+    eventsCount: 3,
+    byCategory: [
+      { category: "afisha", count: 2 },
+      { category: "sport", count: 1 },
+      { category: "volunteering", count: 0 },
+      { category: "tourism", count: 0 },
+    ],
+  };
+
+  it("renders the heading and non-zero per-category counters", () => {
+    const html = renderToStaticMarkup(createElement(VisitStatsView, { stats }));
+
+    expect(html).toContain("Статистика посещений");
+    expect(html).toContain("Афиша: 2");
+    expect(html).toContain("Спорт: 1");
+    expect(html).not.toContain("Волонтёрство:");
+  });
+
+  it("shows the empty hint without visit stats yet", () => {
+    const html = renderToStaticMarkup(createElement(VisitStatsView, { stats: null }));
+
+    expect(html).toContain("Пока нет посещений");
+    expect(html).not.toContain("Афиша:");
   });
 });
 

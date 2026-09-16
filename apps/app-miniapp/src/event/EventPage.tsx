@@ -8,8 +8,8 @@
 // START_MODULE_MAP
 // - DEMO_USER_ID - fallback booking owner outside the MAX client (mock/dev mode)
 // - EventDetailsState - union of details fetch states (loading / error / ready)
-// - EventDetailsView - presentational: media, title, meta rows, description, booking CTA, buy button
-// - EventPage - route container: resolves the user id, wires booking actions and the payment link, entry to the gathering flow
+// - EventDetailsView - presentational: media, title, meta rows, description, booking CTA, check-in button, buy button
+// - EventPage - route container: resolves the user id, wires booking/check-in actions and the payment link, entry to the gathering flow
 // - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
 // - ParticipationView - presentational: status chip selector, clear button, status counters and friends count
 // - ParticipationSection - container: loads participation stats via apiClient and wires set/clear actions
@@ -79,14 +79,30 @@ function BookingCta({ details, onBook, onCancel }: BookingCtaProps) {
   );
 }
 
+function CheckInCta({ checkedIn, onCheckIn }: { checkedIn: boolean; onCheckIn: () => void }) {
+  if (checkedIn) {
+    return (
+      <button type="button" className="app-event-cta app-event-cta--booked" disabled>
+        Вы были здесь
+      </button>
+    );
+  }
+  return (
+    <button type="button" className="app-event-cta" onClick={onCheckIn}>
+      Я здесь
+    </button>
+  );
+}
+
 interface EventDetailsViewProps {
   details: EventDetails;
   onBook: () => void;
   onCancel: () => void;
+  onCheckIn: () => void;
   onBuy: (url: string) => void;
 }
 
-export function EventDetailsView({ details, onBook, onCancel, onBuy }: EventDetailsViewProps) {
+export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy }: EventDetailsViewProps) {
   const { event, place, organizer } = details;
   const paymentUrl = event.isPaid ? event.paymentUrl : null;
   const organizerName = [organizer.firstName, organizer.lastName].filter(Boolean).join(" ");
@@ -126,6 +142,7 @@ export function EventDetailsView({ details, onBook, onCancel, onBuy }: EventDeta
         </dl>
         {event.description !== "" && <p className="app-event-description">{event.description}</p>}
         <BookingCta details={details} onBook={onBook} onCancel={onCancel} />
+        <CheckInCta checkedIn={details.checkInId !== null} onCheckIn={onCheckIn} />
         {paymentUrl !== null && (
           <button type="button" className="app-event-cta app-event-cta--buy" onClick={() => onBuy(paymentUrl)}>
             Купить билет
@@ -240,11 +257,15 @@ export function EventPage({ id }: { id: string }) {
     apiClient.cancelBooking(state.details.activeBookingId).then(refetch, refetch);
   }, [state, refetch]);
 
+  const checkIn = useCallback(() => {
+    apiClient.createCheckIn({ userId, eventId: id }).then(refetch, refetch);
+  }, [userId, id, refetch]);
+
   if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
   if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить событие.</p>;
   return (
     <>
-      <EventDetailsView details={state.details} onBook={book} onCancel={cancel} onBuy={openExternalLink} />
+      <EventDetailsView details={state.details} onBook={book} onCancel={cancel} onCheckIn={checkIn} onBuy={openExternalLink} />
       <SaveToList eventId={id} userId={userId} />
       <section className="app-event">
         <div className="app-event-body">
