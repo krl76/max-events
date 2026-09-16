@@ -627,3 +627,34 @@
   text-align: left;
   width: 100%;
 }
+
+/* Экран «Что делать сегодня?»: сводка числами и контекстные карточки */
+.app-today-heading {
+  color: var(--app-text);
+  font-size: var(--app-font-size-title);
+  font-weight: var(--app-font-weight-title);
+  margin: 0;
+}
+
+.app-today-summary {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: 0;
+}
+
+.app-today-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+}
+
+.app-today-chip {
+  align-self: flex-start;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-media);
+  color: var(--app-accent);
+  font-size: var(--app-font-size-description);
+  font-weight: var(--app-font-weight-title);
+  padding: var(--app-space-s) var(--app-space-m);
+  white-space: nowrap;
+}
