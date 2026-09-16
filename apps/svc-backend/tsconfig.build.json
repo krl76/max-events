@@ -3,7 +3,10 @@
   "compilerOptions": {
     "noEmit": false,
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "paths": {
+      "@max-events/api-contracts": ["../../packages/api-contracts/dist/index.d.ts"]
+    }
   },
   "exclude": ["src/**/*.test.ts"]
 }
