@@ -12,6 +12,7 @@
 // - webApp - nullable WebApp instance (null outside MAX client)
 // - getStartParam - extract start_param from initDataUnsafe
 // - openExternalLink - open link via MAX or browser fallback
+// - bridgeHandshake - call WebApp.ready() once, idempotent
 // END_MODULE_MAP
 
 export interface MaxWebAppUser {
@@ -57,4 +58,11 @@ export function getStartParam(app: Pick<MaxWebApp, "initDataUnsafe"> | null): st
 export function openExternalLink(url: string): void {
   if (webApp) webApp.openLink(url);
   else window.open(url, "_blank", "noopener,noreferrer");
+}
+
+/** Notify the MAX client the app is rendered; idempotent, `alreadySent` comes from a mount ref. */
+export function bridgeHandshake(app: Pick<MaxWebApp, "ready"> | null, alreadySent: boolean): boolean {
+  if (alreadySent || !app) return alreadySent;
+  app.ready();
+  return true;
 }
