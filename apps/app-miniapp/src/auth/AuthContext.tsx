@@ -6,12 +6,13 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - AuthProvider - resolves the auth state on mount and provides it via context
+// - AuthProvider - resolves the auth state on mount and provides it via context; in mock mode (VITE_USE_MOCK=1) resolves a demo user so screens are reachable outside MAX
 // - useAuth - read the current AuthState
 // END_MODULE_MAP
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { apiClient } from "../api/client";
+import { mockDemoUser } from "../api/mock";
 import { webApp } from "../max/bridge";
 import { authenticate, type AuthState } from "./auth";
 
@@ -22,7 +23,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let alive = true;
-    authenticate(webApp, (payload) => apiClient.login(payload)).then((resolved) => {
+    const mockUser = import.meta.env.VITE_USE_MOCK === "1" ? mockDemoUser : null;
+    authenticate(webApp, (payload) => apiClient.login(payload), mockUser).then((resolved) => {
       if (alive) setState(resolved);
     });
     return () => {

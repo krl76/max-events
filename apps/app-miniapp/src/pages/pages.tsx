@@ -6,12 +6,13 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - HomePage - «Куда пойдём?» CTA + today digest (TodaySection) + catalog screen (CatalogPage) on the home route
+// - HomePage - «Куда пойдём?» CTA + today digest (TodaySection) + catalog screen (CatalogPage) on the home route; today block hidden in map view so the map gets the viewport
 // - RoutedPages - current page by route; event-<id> deep links render EventPage, friends/calendar/profile routes render their screens, whereto renders the wizard, plans renders the plans list and plan(id) the plan screen
 // END_MODULE_MAP
 
+import { useState } from "react";
 import { useRoute } from "../routing/router";
-import { CatalogPage } from "../catalog/CatalogPage";
+import { CatalogPage, type CatalogViewName } from "../catalog/CatalogPage";
 import { EventPage } from "../event/EventPage";
 import { FriendsPage } from "../friends/FriendsPage";
 import { CalendarPage } from "../calendar/CalendarPage";
@@ -25,13 +26,18 @@ import { PlanPage } from "../plans/PlanPage";
 
 export function HomePage() {
   const { navigate } = useRoute();
+  const [view, setView] = useState<CatalogViewName>("list");
   return (
     <>
-      <button type="button" className="app-whereto-cta" onClick={() => navigate({ name: "whereto" })}>
-        Куда пойдём?
-      </button>
-      <TodaySection />
-      <CatalogPage />
+      {view === "list" && (
+        <>
+          <button type="button" className="app-whereto-cta" onClick={() => navigate({ name: "whereto" })}>
+            Куда пойдём?
+          </button>
+          <TodaySection />
+        </>
+      )}
+      <CatalogPage view={view} onView={setView} />
     </>
   );
 }

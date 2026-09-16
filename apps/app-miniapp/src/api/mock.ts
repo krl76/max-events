@@ -9,6 +9,7 @@
 // - mockPlaces - 4 Moscow venue fixtures
 // - mockEvents - 11 Moscow event fixtures (all four categories, paid and free)
 // - mockOrganizers - demo organizer fixture for event details
+// - mockDemoUser - demo user returned by mock auth outside MAX (VITE_USE_MOCK=1)
 // - mockFriendIds - friend user ids of the demo user (social counters fixtures)
 // - mockFriends - friend fixtures for the "Your people are going" feed
 // - friendActivityByFriend - friend participations grouped by friend (feed payload)
@@ -67,6 +68,9 @@ export function filterMockEvents(events: Event[], filters: EventFilters): Event[
 }
 
 export const mockOrganizers: User[] = [{ id: "d0000001-0000-4000-8000-000000000001", maxUserId: "organizer-1", firstName: "Анна", lastName: "Соколова", avatarUrl: null, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP }];
+
+/** Demo identity for mock auth outside MAX (VITE_USE_MOCK=1); the id matches the demo user id used by the booking/profile fixtures. */
+export const mockDemoUser: User = { id: "a0000000-0000-4000-8000-000000000001", maxUserId: "demo", firstName: "Демо", lastName: null, avatarUrl: null, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
 
 export const mockFriendIds: string[] = ["a0000000-0000-4000-8000-0000000000b1", "a0000000-0000-4000-8000-0000000000b2", "a0000000-0000-4000-8000-0000000000b3", "a0000000-0000-4000-8000-0000000000b4", "a0000000-0000-4000-8000-0000000000b5", "a0000000-0000-4000-8000-0000000000b6", "a0000000-0000-4000-8000-0000000000b7"];
 
