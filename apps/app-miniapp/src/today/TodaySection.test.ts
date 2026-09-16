@@ -20,7 +20,8 @@ describe("TodayView", () => {
     const html = renderToStaticMarkup(createElement(TodayView, { state: ready, onOpen: () => {} }));
 
     expect(html).toContain("Что делать сегодня?");
-    expect(html).toContain("12 событий рядом, 3 подходят тебе, на 2 идут друзья");
+    const summary = ready.today.summary;
+    expect(html).toContain(`${summary.nearbyCount} событий рядом, ${summary.suitableCount} подходят тебе, на ${summary.withFriendsCount} идут друзья`);
     const kinds = new Set(ready.today.cards.flatMap((card) => card.labels.map((label) => label.kind)));
     expect([...kinds].sort()).toEqual(["distance", "free_entry", "friend_attending", "spots_left"]);
     for (const card of ready.today.cards) {
