@@ -284,6 +284,61 @@
   color: var(--app-accent);
 }
 
+/* Страница мероприятия: статусы участия (селектор + счётчики) */
+.app-participation-title {
+  color: var(--app-text);
+  font-size: var(--app-font-size-title);
+  font-weight: var(--app-font-weight-title);
+  margin: 0;
+}
+
+.app-participation-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+}
+
+.app-participation-chip {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  padding: var(--app-space-s) var(--app-space-m);
+}
+
+.app-participation-chip[aria-pressed="true"] {
+  background: var(--app-accent);
+  color: var(--app-accent-contrast);
+  font-weight: var(--app-font-weight-title);
+}
+
+.app-participation-clear {
+  align-self: flex-start;
+  background: none;
+  border: 0.5px solid var(--app-danger);
+  border-radius: var(--app-radius-media);
+  color: var(--app-danger);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  padding: var(--app-space-s) var(--app-space-m);
+}
+
+.app-participation-counters {
+  border-top: 0.5px solid var(--app-divider);
+  color: var(--app-text-secondary);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--app-font-size-description);
+  gap: var(--app-space-s);
+  list-style: none;
+  margin: 0;
+  padding: var(--app-space-m) 0 0;
+}
+
 /* Профиль: Instagram-подача (аватар, строка статистики, интересы, форма правки) */
 .app-profile {
   display: flex;
