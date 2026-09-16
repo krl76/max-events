@@ -16,6 +16,10 @@
 // - CreatePlan - plan creation payload type
 // - PlanCardSchema - response card with computed distance to the meeting point
 // - PlanCard - plan card type
+// - CreatePlanWriteSchema - HTTP create payload (event + friend ids + meeting)
+// - CreatePlanWrite - HTTP create payload type
+// - PlanParticipantWriteSchema - invitee confirm/decline body
+// - PlanParticipantWrite - invitee confirm/decline body type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -52,3 +56,16 @@ export const PlanCardSchema = z.object({
   distanceMeters: z.number().int().min(0),
 });
 export type PlanCard = z.infer<typeof PlanCardSchema>;
+
+export const CreatePlanWriteSchema = z.object({
+  eventId: IdSchema,
+  participantIds: z.array(IdSchema).default([]),
+  meetingPoint: z.string().min(1).max(300),
+  meetingAt: TimestampSchema,
+});
+export type CreatePlanWrite = z.infer<typeof CreatePlanWriteSchema>;
+
+export const PlanParticipantWriteSchema = z.object({
+  status: z.enum(["confirmed", "declined"]),
+});
+export type PlanParticipantWrite = z.infer<typeof PlanParticipantWriteSchema>;

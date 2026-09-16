@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CreatePlanSchema, PlanCardSchema, PlanSchema } from "./plan.js";
+import { CreatePlanSchema, CreatePlanWriteSchema, PlanCardSchema, PlanParticipantWriteSchema, PlanSchema } from "./plan.js";
 import type { Event } from "./event.js";
 import type { Friend } from "./friends.js";
 
@@ -69,5 +69,20 @@ describe("PlanCardSchema", () => {
 
   it("rejects a negative distance", () => {
     expect(PlanCardSchema.safeParse({ plan, event, distanceMeters: -1 }).success).toBe(false);
+  });
+});
+
+describe("CreatePlanWriteSchema", () => {
+  it("accepts event, meeting and optional participant ids", () => {
+    const payload = { eventId: event.id, participantIds: [friend.id], meetingPoint: "у метро", meetingAt: plan.meetingAt };
+    expect(CreatePlanWriteSchema.parse(payload)).toEqual(payload);
+    expect(CreatePlanWriteSchema.parse({ eventId: event.id, meetingPoint: "у метро", meetingAt: plan.meetingAt }).participantIds).toEqual([]);
+  });
+});
+
+describe("PlanParticipantWriteSchema", () => {
+  it("accepts confirmed or declined", () => {
+    expect(PlanParticipantWriteSchema.parse({ status: "declined" })).toEqual({ status: "declined" });
+    expect(PlanParticipantWriteSchema.safeParse({ status: "invited" }).success).toBe(false);
   });
 });

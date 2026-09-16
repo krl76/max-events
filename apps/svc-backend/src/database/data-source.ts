@@ -17,6 +17,8 @@ import { EventEntity } from "../events/event.entity";
 import { FriendshipEntity } from "../friends/friendship.entity";
 import { GatheringInviteeEntity } from "../gatherings/gathering-invitee.entity";
 import { GatheringEntity } from "../gatherings/gathering.entity";
+import { PlanParticipantEntity } from "../plans/plan-participant.entity";
+import { PlanEntity } from "../plans/plan.entity";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { ProfileEntity } from "../users/profile.entity";
@@ -27,6 +29,6 @@ const env = validateEnv();
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: env.DATABASE_URL,
-  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity],
+  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity],
   migrations: ["src/database/migrations/*.ts"],
 });
