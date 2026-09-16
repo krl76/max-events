@@ -846,3 +846,70 @@
   justify-content: space-between;
   padding: var(--app-space-m) var(--app-space-l);
 }
+
+/* Планы: карточка плана из ленты, экран плана (событие, участники, сбор) */
+.app-plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+}
+
+.app-plan-event {
+  background: none;
+  border: none;
+  color: var(--app-accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-title);
+  font-weight: var(--app-font-weight-title);
+  padding: 0;
+  text-align: left;
+}
+
+.app-plan-meeting {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-body);
+  margin: 0;
+}
+
+.app-plan-participants {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-plan-participant {
+  align-items: center;
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+  padding: var(--app-space-m) var(--app-space-l);
+}
+
+.app-plan-friend-name {
+  color: var(--app-text);
+  font-size: var(--app-font-size-body);
+  font-weight: var(--app-font-weight-title);
+}
+
+.app-plan-friend-status {
+  font-size: var(--app-font-size-description);
+}
+
+.app-plan-friend-status--confirmed {
+  color: var(--app-accent);
+}
+
+.app-plan-friend-status--invited {
+  color: var(--app-text-secondary);
+}
+
+.app-plan-friend-status--declined {
+  color: var(--app-danger);
+}

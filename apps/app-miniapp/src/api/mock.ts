@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock API layer for the catalog, event page, profile, calendar and friends feed while backend endpoints (M2/M3/M4/M5) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers), in-memory bookings and profiles, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters), @max-events/api-contracts (Event, Place, User, Booking, Profile, CreateBookingSchema, UpdateProfileSchema)
+// PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed and shared plans while backend endpoints (M2/M3/M4/M5) do not exist yet.
+// SCOPE: In-memory Moscow fixtures (events/places/organizers), in-memory bookings, profiles and plan cards, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// DEPENDS: ./client.js (parseEventFilters, EventFilters), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, CreateBookingSchema, UpdateProfileSchema)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -15,6 +15,9 @@
 // - friendAvailability - per-friend free/busy/unknown for the gathering flow (mock)
 // - createMockGathering - in-memory gathering with deterministic invitee responses (mock POST)
 // - resetMockGatherings - clear in-memory gatherings (test isolation)
+// - mockPlans - plan card fixtures for the plans list and plan screens (backend P1-7-b does not exist yet)
+// - planCards - plan fixtures sorted by the soonest meeting first
+// - planCard - single plan card by plan id (or null)
 // - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt)
 // - resetMockBookings - clear in-memory bookings (test isolation)
 // - resetMockProfiles - clear in-memory profiles (test isolation)
@@ -22,10 +25,10 @@
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/participation, /api/bookings, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings and /api/today, return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/participation, /api/bookings, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans and /api/today, return a restore function
 // END_MODULE_MAP
 
-import type { Booking, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, Participation, ParticipationStatus, Place, Profile, TodayEventCard, TodayResponse, User } from "@max-events/api-contracts";
+import type { Booking, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, Participation, ParticipationStatus, Place, PlanCard, Profile, TodayEventCard, TodayResponse, User } from "@max-events/api-contracts";
 import { CreateBookingSchema, ParticipationStatusSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, type CreateGathering, type EventFilters, type ParticipationStats } from "./client";
 
@@ -154,6 +157,53 @@ export function createMockGathering(payload: CreateGathering): Gathering | null 
   };
   mockGatherings.set(gathering.id, gathering);
   return gathering;
+}
+
+/** Plans fixtures for the plans list and plan screens (backend P1-7-b does not exist yet); events reference mockEvents, distance is precomputed to the meeting point. */
+export const mockPlans: PlanCard[] = [
+  {
+    plan: {
+      id: "90000000-0000-4000-8000-000000000001",
+      eventId: mockEvents[0].id,
+      participants: [
+        { friend: mockFriends[0], status: "confirmed" },
+        { friend: mockFriends[1], status: "confirmed" },
+        { friend: mockFriends[2], status: "invited" },
+      ],
+      meetingPoint: "у метро Смоленская",
+      meetingAt: "2026-09-19T18:20:00+03:00",
+      createdAt: PLACE_STAMP,
+      updatedAt: PLACE_STAMP,
+    },
+    event: mockEvents[0],
+    distanceMeters: 850,
+  },
+  {
+    plan: {
+      id: "90000000-0000-4000-8000-000000000002",
+      eventId: mockEvents[2].id,
+      participants: [
+        { friend: mockFriends[3], status: "confirmed" },
+        { friend: mockFriends[4], status: "declined" },
+      ],
+      meetingPoint: "у входа в Парк Горького",
+      meetingAt: "2026-09-20T09:30:00+03:00",
+      createdAt: PLACE_STAMP,
+      updatedAt: PLACE_STAMP,
+    },
+    event: mockEvents[2],
+    distanceMeters: 1200,
+  },
+];
+
+/** Plans of the demo user enriched with event and distance, soonest meeting first. */
+export function planCards(): PlanCard[] {
+  return [...mockPlans].sort((a, b) => a.plan.meetingAt.localeCompare(b.plan.meetingAt));
+}
+
+/** Single plan card by plan id, or null. */
+export function planCard(id: string): PlanCard | null {
+  return mockPlans.find((card) => card.plan.id === id) ?? null;
 }
 
 /** Friends feed grouped by friend: every friend with the events they attend, soonest event first, groups by soonest event. */
@@ -371,6 +421,14 @@ export function installMockApi(): () => void {
     const gathering = /^\/api\/gatherings\/([^/]+)$/.exec(url.pathname);
     if (gathering) {
       const found = mockGatherings.get(gathering[1]);
+      return found ? Response.json(found) : new Response(null, { status: 404 });
+    }
+    if (url.pathname === "/api/plans") {
+      return Response.json(planCards());
+    }
+    const plan = /^\/api\/plans\/([^/]+)$/.exec(url.pathname);
+    if (plan) {
+      const found = planCard(plan[1]);
       return found ? Response.json(found) : new Response(null, { status: 404 });
     }
     return real(input, init);
