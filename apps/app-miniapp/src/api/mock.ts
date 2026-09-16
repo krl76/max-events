@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements and my-city while backend endpoints (M2–M5, P2) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers), in-memory bookings, check-ins, profiles, plan cards and preset lists, achievements and my-city derived from check-ins, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, CreateBookingSchema, UpdateProfileSchema)
+// PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews and reports while backend endpoints (M2–M5, P2) do not exist yet.
+// SCOPE: In-memory Moscow fixtures (events/places/organizers), in-memory bookings, check-ins, profiles, plan cards, preset lists, seeded reviews with rating aggregates and deduplicated reports, achievements and my-city derived from check-ins, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, Review, CreateBookingSchema, ReviewSchema, UpdateProfileSchema)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -26,6 +26,11 @@
 // - addMockListItem - in-memory list membership, idempotent (mock POST)
 // - removeMockListItem - in-memory list membership removal (mock DELETE)
 // - resetMockLists - clear in-memory lists (test isolation)
+// - resetMockReviews - restore seeded reviews (test isolation)
+// - eventRating - rating summary and per-category averages for an event from the mock reviews
+// - createMockReview - create or replace the review of a user for an event (mock POST /reviews)
+// - resetMockReports - clear in-memory reports (test isolation)
+// - createMockReport - in-memory deduplicated report (mock POST /reports, duplicate -> 409)
 // - resetMockBookings - clear in-memory bookings (test isolation)
 // - resetMockCheckIns - clear in-memory check-ins (test isolation)
 // - resetMockProfiles - clear in-memory profiles (test isolation)
@@ -38,12 +43,12 @@
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/participation, /api/bookings, /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists and /api/today, return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists, /api/reviews, /api/reports and /api/today, return a restore function
 // END_MODULE_MAP
 
-import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, MemoryPoint, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, TodayEventCard, TodayResponse, User, VisitStats } from "@max-events/api-contracts";
-import { CreateBookingSchema, EventCategorySchema, ListPresetSchema, ParticipationStatusSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
-import { parseEventFilters, type AddListItem, type CreateGathering, type EventFilters, type ListItemCard, type ListSummary, type ParticipationStats } from "./client";
+import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, MemoryPoint, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, Review, TodayEventCard, TodayResponse, User, VisitStats } from "@max-events/api-contracts";
+import { CreateBookingSchema, EventCategorySchema, ListPresetSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateGathering, type CreateReport, type CreateReview, type EventFilters, type EventRating, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
 
@@ -317,6 +322,81 @@ export function removeMockListItem(listId: string, itemId: string): ListItem | n
   return mockListItems.splice(index, 1)[0];
 }
 
+type ReviewSeed = { friend: number; event: number; stars: number; categoryScores?: Review["categoryScores"]; wouldGoAgain: boolean; text?: string };
+
+/** Seeded friend reviews for the showcase event so the page shows an aggregate out of the box. */
+const MOCK_REVIEW_SEED: ReviewSeed[] = [
+  { friend: 0, event: 0, stars: 5, categoryScores: { atmosphere: 5, organization: 5, price: 4, place: 5 }, wouldGoAgain: true, text: "Атмосфера замечательная, обязательно приду снова!" },
+  { friend: 1, event: 0, stars: 4, categoryScores: { atmosphere: 4, organization: 5, price: 3, place: 4 }, wouldGoAgain: true },
+  { friend: 2, event: 0, stars: 5, categoryScores: { atmosphere: 5, organization: 4 }, wouldGoAgain: false, text: "Всё понравилось, но пришлось долго искать вход." },
+];
+
+const mockReviews: Review[] = [];
+let mockReviewSeq = 0;
+
+function seedMockReviews(): void {
+  mockReviews.length = 0;
+  mockReviewSeq = 0;
+  for (const seed of MOCK_REVIEW_SEED) {
+    mockReviewSeq += 1;
+    mockReviews.push({ id: `80000000-0000-4000-8000-${String(mockReviewSeq).padStart(12, "0")}`, userId: mockFriendIds[seed.friend], eventId: mockEvents[seed.event].id, placeId: null, stars: seed.stars, categoryScores: seed.categoryScores ?? {}, wouldGoAgain: seed.wouldGoAgain, photos: [], text: seed.text ?? null, createdAt: PLACE_STAMP });
+  }
+}
+seedMockReviews();
+
+export function resetMockReviews(): void {
+  seedMockReviews();
+}
+
+/** Rating summary and per-category averages for an event from the mock reviews; null for an unknown event. */
+export function eventRating(eventId: string): EventRating | null {
+  if (!mockEvents.some((item) => item.id === eventId)) return null;
+  const reviews = mockReviews.filter((item) => item.eventId === eventId);
+  const averageStars = reviews.length === 0 ? 0 : reviews.reduce((sum, item) => sum + item.stars, 0) / reviews.length;
+  const categoryAverage = (category: keyof Review["categoryScores"]): number | null => {
+    const scores = reviews.flatMap((item) => (item.categoryScores[category] === undefined ? [] : [item.categoryScores[category]!]));
+    return scores.length === 0 ? null : scores.reduce((sum, score) => sum + score, 0) / scores.length;
+  };
+  return {
+    summary: { eventId, placeId: null, averageStars, reviewsCount: reviews.length },
+    categoryAverages: { atmosphere: categoryAverage("atmosphere"), organization: categoryAverage("organization"), price: categoryAverage("price"), place: categoryAverage("place") },
+  };
+}
+
+/** Creates or replaces the review of a user for an event (one review per user and event); "no_event"/"invalid" map to 404/400 in the interceptor. */
+export function createMockReview(payload: CreateReview): Review | "no_event" | "invalid" {
+  if (!mockEvents.some((item) => item.id === payload.eventId)) return "no_event";
+  mockReviewSeq += 1;
+  const review: Review = { id: `80000000-0000-4000-8000-${String(mockReviewSeq).padStart(12, "0")}`, userId: payload.userId, eventId: payload.eventId, placeId: null, stars: payload.stars, categoryScores: payload.categoryScores ?? {}, wouldGoAgain: payload.wouldGoAgain, photos: [], text: payload.text ?? null, createdAt: new Date().toISOString() };
+  if (!ReviewSchema.safeParse(review).success) return "invalid";
+  const existing = mockReviews.findIndex((item) => item.userId === payload.userId && item.eventId === payload.eventId);
+  if (existing !== -1) {
+    mockReviews[existing] = review;
+    return review;
+  }
+  mockReviews.push(review);
+  return review;
+}
+
+const mockReports: Report[] = [];
+let mockReportSeq = 0;
+
+export function resetMockReports(): void {
+  mockReports.length = 0;
+  mockReportSeq = 0;
+}
+
+/** Creates a report; a repeat report of the same user for the same event returns "duplicate" (mock 409), an unknown event or reason — "no_target"/"invalid". */
+export function createMockReport(payload: CreateReport): Report | "duplicate" | "no_target" | "invalid" {
+  if (!mockEvents.some((item) => item.id === payload.eventId)) return "no_target";
+  if (!REPORT_REASONS.includes(payload.reason)) return "invalid";
+  if (mockReports.some((item) => item.userId === payload.userId && item.eventId === payload.eventId)) return "duplicate";
+  mockReportSeq += 1;
+  const report: Report = { id: `81000000-0000-4000-8000-${String(mockReportSeq).padStart(12, "0")}`, userId: payload.userId, eventId: payload.eventId, reason: payload.reason, createdAt: new Date().toISOString() };
+  mockReports.push(report);
+  return report;
+}
+
 /** Friends feed grouped by friend: every friend with the events they attend, soonest event first, groups by soonest event. */
 export function friendActivityByFriend(): FriendActivityByFriend[] {
   const byFriend = new Map<string, FriendActivityByFriend>();
@@ -528,6 +608,11 @@ export function installMockApi(): () => void {
       const found = mockEvents.find((item) => item.id === byId[1]);
       return found ? Response.json(found) : new Response(null, { status: 404 });
     }
+    const rating = /^\/api\/events\/([^/]+)\/rating$/.exec(url.pathname);
+    if (rating) {
+      const payload = eventRating(rating[1]);
+      return payload ? Response.json(payload) : new Response(null, { status: 404 });
+    }
     const stats = /^\/api\/events\/([^/]+)\/participation\/stats$/.exec(url.pathname);
     if (stats) {
       if (!mockEvents.some((item) => item.id === stats[1])) return new Response(null, { status: 404 });
@@ -648,6 +733,18 @@ export function installMockApi(): () => void {
     if (listItemRemove && init?.method === "DELETE") {
       const removed = removeMockListItem(listItemRemove[1], listItemRemove[2]);
       return removed ? Response.json(removed) : new Response(null, { status: 404 });
+    }
+    if (url.pathname === "/api/reviews" && init?.method === "POST") {
+      const payload = parseBookingBody(init) as CreateReview | undefined;
+      if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || typeof payload.eventId !== "string" || typeof payload.stars !== "number" || typeof payload.wouldGoAgain !== "boolean") return new Response(null, { status: 400 });
+      const result = createMockReview(payload);
+      return result === "no_event" ? new Response(null, { status: 404 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
+    }
+    if (url.pathname === "/api/reports" && init?.method === "POST") {
+      const payload = parseBookingBody(init) as CreateReport | undefined;
+      if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || typeof payload.eventId !== "string" || typeof payload.reason !== "string") return new Response(null, { status: 400 });
+      const result = createMockReport(payload as CreateReport);
+      return result === "no_target" ? new Response(null, { status: 404 }) : result === "invalid" ? new Response(null, { status: 400 }) : result === "duplicate" ? new Response(null, { status: 409 }) : Response.json(result);
     }
     return real(input, init);
   };

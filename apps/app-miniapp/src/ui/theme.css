@@ -413,6 +413,110 @@
   padding: var(--app-space-m) 0 0;
 }
 
+/* Отзывы «Как прошло?» и «Пожаловаться» */
+.app-review-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
+}
+
+.app-review-average {
+  color: var(--app-text);
+  font-size: var(--app-font-size-title);
+  font-weight: var(--app-font-weight-title);
+  margin: 0;
+}
+
+.app-review-categories {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-review-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+  margin-bottom: var(--app-space-m);
+}
+
+.app-review-stars {
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+.app-review-star {
+  background: none;
+  border: none;
+  color: var(--app-divider);
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.app-review-star[aria-pressed="true"] {
+  color: var(--app-accent);
+}
+
+.app-review-category {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+}
+
+.app-review-again {
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+.app-review-text {
+  background: var(--app-surface);
+  border: 0.5px solid var(--app-divider);
+  border-radius: var(--app-radius-media);
+  color: var(--app-text);
+  font: inherit;
+  min-height: 72px;
+  padding: var(--app-space-m);
+  resize: vertical;
+}
+
+.app-review-photo {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--app-text-tertiary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  padding: 0;
+}
+
+.app-review-sent {
+  color: var(--app-text-secondary);
+  margin: 0;
+}
+
+.app-report-button {
+  background: none;
+  border: none;
+  color: var(--app-text-tertiary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  padding: 0;
+}
+
+.app-report-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+}
+
 /* Профиль: Instagram-подача (аватар, строка статистики, интересы, форма правки) */
 .app-profile {
   display: flex;

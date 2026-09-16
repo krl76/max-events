@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Event details page: full event fields, booking button states (book / booked / sold out), external payment link, participation status selector and counters.
-// SCOPE: Data via apiClient.getEventDetails (mock or live), booking create/cancel through apiClient, payment via openExternalLink, participation stats/status write via apiClient; no navigation logic.
-// DEPENDS: ../api/client.js (apiClient, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./SaveToList.js (SaveToList), ../ui/theme.css
+// SCOPE: Data via apiClient.getEventDetails (mock or live), booking create/cancel through apiClient, payment via openExternalLink, participation stats/status write via apiClient, post-event review section and report button; no navigation logic.
+// DEPENDS: ../api/client.js (apiClient, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./SaveToList.js (SaveToList), ./ReviewSection.js (ReviewSection), ./ReportButton.js (ReportButton), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -13,6 +13,7 @@
 // - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
 // - ParticipationView - presentational: status chip selector, clear button, status counters and friends count
 // - ParticipationSection - container: loads participation stats via apiClient and wires set/clear actions
+// - ReviewSection, ReportButton - post-event review flow (#144) and the report button (#167), see their files
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
@@ -23,6 +24,8 @@ import { ParticipationStatusSchema, type ParticipationStatus } from "@max-events
 import { openExternalLink } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { SaveToList } from "./SaveToList";
+import { ReviewSection } from "./ReviewSection";
+import { ReportButton } from "./ReportButton";
 
 export const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
@@ -275,6 +278,8 @@ export function EventPage({ id }: { id: string }) {
         </div>
       </section>
       <ParticipationSection eventId={id} userId={userId} />
+      <ReviewSection eventId={id} userId={userId} canReview={state.details.activeBookingId !== null && new Date(state.details.event.startsAt).getTime() < Date.now()} />
+      <ReportButton eventId={id} userId={userId} />
     </>
   );
 }

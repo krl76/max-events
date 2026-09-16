@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Typed fetch wrapper over the backend /api using zod contracts from @max-events/api-contracts.
-// SCOPE: Base URL resolution, typed GET/POST methods per contract, unified ApiError handling.
+// SCOPE: Base URL resolution, typed GET/POST methods per contract, unified ApiError handling; mock-only surfaces (EventRating aggregate, CreateReview, Report) documented here.
 // DEPENDS: @max-events/api-contracts (zod), fetch (global)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -48,10 +48,19 @@
 // - AddListItem - save-to-list payload (owner user + saved event)
 // - ApiClient.addListItem - POST /lists/:id/items with { userId, eventId }
 // - ApiClient.removeListItem - DELETE /lists/:id/items/:itemId
+// - EventRating - event page rating aggregate: RatingSummary + per-category averages
+// - ApiClient.getEventRating - GET /events/:id/rating
+// - CreateReview - review submission payload (user + event + scores)
+// - ApiClient.createReview - POST /reviews
+// - REPORT_REASONS - report reason presets
+// - ReportReason - union of the report reason presets
+// - CreateReport - report submission payload (user + event + reason)
+// - Report - report entity (mock surface)
+// - ApiClient.createReport - POST /reports
 // END_MODULE_MAP
 
-import { AchievementSchema, AuthResponseSchema, BookingSchema, CheckInSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, TodayResponseSchema, UserSchema, VisitStatsSchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, MemoryPoint, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, TodayResponse, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, BookingSchema, CheckInSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, MemoryPoint, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Review, ReviewCategoryScores, TodayResponse, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -370,6 +379,76 @@ export interface AddListItem {
   eventId: string;
 }
 
+/** Rating aggregate for the event page: contract summary plus per-category averages (null when nobody scored that category). */
+export interface EventRating {
+  summary: RatingSummary;
+  categoryAverages: { atmosphere: number | null; organization: number | null; price: number | null; place: number | null };
+}
+
+/** Review submission payload: the author, the event, the scores and the optional text. */
+export interface CreateReview {
+  userId: string;
+  eventId: string;
+  stars: number;
+  categoryScores?: ReviewCategoryScores;
+  wouldGoAgain: boolean;
+  text?: string;
+}
+
+/** Report reason presets offered by the report button. */
+export const REPORT_REASONS = ["spam", "abuse", "inaccurate", "inappropriate", "other"] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
+
+/** Report submission payload: the author, the reported event and the reason. */
+export interface CreateReport {
+  userId: string;
+  eventId: string;
+  reason: ReportReason;
+}
+
+/** Report entity (mock surface while the backend report endpoint does not exist yet). */
+export interface Report {
+  id: string;
+  userId: string;
+  eventId: string;
+  reason: ReportReason;
+  createdAt: string;
+}
+
+const ReviewEntitySchema: ZodSchema<Review> = {
+  safeParse(data: unknown) {
+    return ReviewSchema.safeParse(data);
+  },
+};
+
+const EventRatingSchema: ZodSchema<EventRating> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected an event rating" };
+    const raw = data as Record<string, unknown>;
+    const summary = RatingSummarySchema.safeParse(raw.summary);
+    if (!summary.success || typeof raw.categoryAverages !== "object" || raw.categoryAverages === null) return { success: false as const, error: "invalid event rating" };
+    const averages = raw.categoryAverages as Record<string, unknown>;
+    const categoryAverages = { atmosphere: null, organization: null, price: null, place: null } as EventRating["categoryAverages"];
+    for (const key of ["atmosphere", "organization", "price", "place"] as const) {
+      const value = averages[key];
+      if (value !== undefined && value !== null && typeof value !== "number") return { success: false as const, error: "invalid event rating" };
+      categoryAverages[key] = typeof value === "number" ? value : null;
+    }
+    return { success: true as const, data: { summary: summary.data, categoryAverages } };
+  },
+};
+
+const ReportEntitySchema: ZodSchema<Report> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a report" };
+    const raw = data as Record<string, unknown>;
+    if (typeof raw.id !== "string" || typeof raw.userId !== "string" || typeof raw.eventId !== "string" || typeof raw.createdAt !== "string" || !REPORT_REASONS.includes(raw.reason as ReportReason)) {
+      return { success: false as const, error: "invalid report" };
+    }
+    return { success: true as const, data: { id: raw.id, userId: raw.userId, eventId: raw.eventId, reason: raw.reason as ReportReason, createdAt: raw.createdAt } };
+  },
+};
+
 export class ApiClient {
   constructor(private readonly baseUrl: string = DEFAULT_BASE_URL) {}
 
@@ -528,6 +607,18 @@ export class ApiClient {
 
   removeListItem(listId: string, itemId: string): Promise<ListItem> {
     return this.request(`/lists/${listId}/items/${itemId}`, ListItemEntitySchema, { method: "DELETE" });
+  }
+
+  getEventRating(eventId: string): Promise<EventRating> {
+    return this.request(`/events/${eventId}/rating`, EventRatingSchema);
+  }
+
+  createReview(payload: CreateReview): Promise<Review> {
+    return this.request("/reviews", ReviewEntitySchema, { body: payload });
+  }
+
+  createReport(payload: CreateReport): Promise<Report> {
+    return this.request("/reports", ReportEntitySchema, { body: payload });
   }
 }
 
