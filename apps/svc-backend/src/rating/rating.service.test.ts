@@ -38,11 +38,7 @@ describe("buildOrganizerRating", () => {
     expect(buildOrganizerRating(organizer, [event], few, [], now)).toBeNull();
     expect(few).toHaveLength(MIN_REVIEWS - 1);
 
-    const reviews = [
-      { stars: 5, wouldGoAgain: true, eventId } as ReviewEntity,
-      { stars: 5, wouldGoAgain: true, eventId } as ReviewEntity,
-      { stars: 4, wouldGoAgain: false, eventId } as ReviewEntity,
-    ];
+    const reviews = [{ stars: 5, wouldGoAgain: true, eventId } as ReviewEntity, { stars: 5, wouldGoAgain: true, eventId } as ReviewEntity, { stars: 4, wouldGoAgain: false, eventId } as ReviewEntity];
     const checkIns = [{ eventId, checkedInAt: new Date("2026-09-12T10:05:00Z") } as CheckInEntity];
     const rating = buildOrganizerRating(organizer, [event], reviews, checkIns, now);
     expect(rating?.averageStars).toBeCloseTo(14 / 3);
@@ -55,15 +51,8 @@ describe("buildOrganizerRating", () => {
 
 describe("RatingService.forEvent", () => {
   it("returns null without an organizer and 404 for unpublished events", async () => {
-    const events = createStoreRepo<EventEntity>([
-      { id: eventId, organizerUserId: null, published: true, startsAt: now } as EventEntity,
-      { id: "00000000-0000-4000-8000-0000000000e2", organizerUserId: organizer, published: false, startsAt: now } as EventEntity,
-    ]);
-    const service = new RatingService(
-      events as unknown as Repository<EventEntity>,
-      createStoreRepo<ReviewEntity>() as unknown as Repository<ReviewEntity>,
-      createStoreRepo<CheckInEntity>() as unknown as Repository<CheckInEntity>,
-    );
+    const events = createStoreRepo<EventEntity>([{ id: eventId, organizerUserId: null, published: true, startsAt: now } as EventEntity, { id: "00000000-0000-4000-8000-0000000000e2", organizerUserId: organizer, published: false, startsAt: now } as EventEntity]);
+    const service = new RatingService(events as unknown as Repository<EventEntity>, createStoreRepo<ReviewEntity>() as unknown as Repository<ReviewEntity>, createStoreRepo<CheckInEntity>() as unknown as Repository<CheckInEntity>);
     await expect(service.forEvent(eventId, now)).resolves.toEqual({ rating: null });
     await expect(service.forEvent("00000000-0000-4000-8000-0000000000e2", now)).rejects.toBeInstanceOf(NotFoundException);
   });
