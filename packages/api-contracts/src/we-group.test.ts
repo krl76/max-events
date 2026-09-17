@@ -9,6 +9,7 @@ describe("CreateWeGroupWriteSchema", () => {
     expect(CreateWeGroupWriteSchema.parse({ title: "Поездка в Казань" })).toEqual({ title: "Поездка в Казань", memberIds: [] });
     expect(CreateWeGroupWriteSchema.parse({ title: "Поездка в Казань", memberIds: [memberId] }).memberIds).toEqual([memberId]);
     expect(CreateWeGroupWriteSchema.safeParse({ title: "" }).success).toBe(false);
+    expect(CreateWeGroupWriteSchema.safeParse({ title: "   " }).success).toBe(false);
   });
 });
 

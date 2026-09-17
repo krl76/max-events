@@ -1,6 +1,6 @@
 import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import type { Repository } from "typeorm";
+import { QueryFailedError, type Repository } from "typeorm";
 import { EventEntity } from "../events/event.entity";
 import type { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlaceEntity } from "../places/place.entity";
@@ -13,6 +13,7 @@ const owner = "00000000-0000-4000-8000-00000000000a";
 const member = "00000000-0000-4000-8000-00000000000b";
 const stranger = "00000000-0000-4000-8000-00000000000c";
 const eventId = "00000000-0000-4000-8000-0000000000e1";
+const draftEventId = "00000000-0000-4000-8000-0000000000e2";
 const placeId = "00000000-0000-4000-8000-0000000000p1";
 
 function inValues(value: unknown): unknown[] | undefined {
@@ -37,6 +38,19 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
     find: async (opts: { where?: Record<string, unknown> } = {}) => store.filter((row) => matchesWhere(row as object, opts.where ?? {})),
     findOneBy: async (where: Record<string, string>) => store.find((row) => matchesWhere(row as object, where)) ?? null,
     save: async (entity: T) => {
+      const item = entity as unknown as WeGroupItemEntity;
+      if (item.groupId && (item.eventId || item.placeId)) {
+        const duplicate = store.some((row) => {
+          const other = row as unknown as WeGroupItemEntity;
+          if (other === item || other.groupId !== item.groupId) return false;
+          if (item.eventId && other.eventId === item.eventId) return true;
+          if (item.placeId && other.placeId === item.placeId) return true;
+          return false;
+        });
+        if (duplicate) {
+          throw new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate"), { code: "23505" }));
+        }
+      }
       if (!store.includes(entity)) {
         entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
         (entity as { createdAt?: Date }).createdAt ??= now;
@@ -68,6 +82,26 @@ function createService() {
       capacity: null,
       bookedCount: 0,
       published: true,
+      chatLink: null,
+      chatSyncPending: false,
+      createdAt: now,
+      updatedAt: now,
+    } as EventEntity,
+    {
+      id: draftEventId,
+      title: "Черновик",
+      description: "",
+      category: "afisha",
+      city: "Казань",
+      placeId: null,
+      startsAt: now,
+      endsAt: null,
+      isPaid: false,
+      priceRub: null,
+      paymentUrl: null,
+      capacity: null,
+      bookedCount: 0,
+      published: false,
       chatLink: null,
       chatSyncPending: false,
       createdAt: now,
@@ -118,10 +152,15 @@ describe("WeGroupsService", () => {
   });
 
   it("forbids strangers and missing catalog rows", async () => {
-    const { service } = createService();
+    const { service, groups } = createService();
+    await expect(service.create(owner, { title: "С чужим", memberIds: [stranger] })).rejects.toBeInstanceOf(NotFoundException);
+    expect(groups.store).toHaveLength(0);
     const created = await service.create(owner, { title: "Поездка в Казань", memberIds: [] });
     await expect(service.get(stranger, created.group.id)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(service.addEvent(owner, created.group.id, "00000000-0000-4000-8000-000000000099")).rejects.toBeInstanceOf(NotFoundException);
-    await expect(service.create(owner, { title: "С чужим", memberIds: [stranger] })).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.addEvent(owner, created.group.id, draftEventId)).rejects.toBeInstanceOf(NotFoundException);
+    await service.addEvent(owner, created.group.id, eventId);
+    const dup = await service.addEvent(owner, created.group.id, eventId);
+    expect(dup.events).toHaveLength(1);
   });
 });

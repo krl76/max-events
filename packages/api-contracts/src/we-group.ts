@@ -42,7 +42,7 @@ export const WeGroupSchema = z.object({
 export type WeGroup = z.infer<typeof WeGroupSchema>;
 
 export const CreateWeGroupWriteSchema = z.object({
-  title: z.string().min(1).max(200),
+  title: z.string().trim().min(1).max(200),
   memberIds: z.array(IdSchema).default([]),
 });
 export type CreateWeGroupWrite = z.infer<typeof CreateWeGroupWriteSchema>;

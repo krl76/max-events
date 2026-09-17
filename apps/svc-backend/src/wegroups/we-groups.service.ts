@@ -10,7 +10,7 @@
 // - toWeGroupDto - entity to WeGroup
 // END_MODULE_MAP
 
-import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, QueryFailedError, Repository } from "typeorm";
 import type { CreateWeGroupWrite, WeGroup, WeGroupScreen } from "@max-events/api-contracts";
@@ -39,18 +39,16 @@ export class WeGroupsService {
     const memberIds = [...new Set([ownerUserId, ...payload.memberIds])];
     const users = memberIds.length === 0 ? [] : await this.users.find({ where: { id: In(memberIds) } });
     if (users.length !== memberIds.length) throw new NotFoundException("User not found");
-    const saved = await this.groups.save(this.groups.create({ ownerUserId, title: payload.title.trim(), chatLink: null, status: "active", archivedAt: null }));
+    const title = payload.title.trim();
+    if (!title) throw new BadRequestException("Invalid we-group payload");
+    const saved = await this.groups.save(this.groups.create({ ownerUserId, title, chatLink: null, status: "active", archivedAt: null }));
     for (const userId of memberIds) {
       await this.members.save(this.members.create({ groupId: saved.id, userId }));
     }
-    try {
-      const chat = await this.bot.createChat(saved.title);
-      if (chat) {
-        saved.chatLink = chat.link;
-        await this.groups.save(saved);
-      }
-    } catch {
-      // Creating the group must not fail because MAX chat sync failed.
+    const chat = await this.bot.createChat(saved.title);
+    if (chat) {
+      saved.chatLink = chat.link;
+      await this.groups.save(saved);
     }
     return this.get(ownerUserId, saved.id);
   }
@@ -112,7 +110,7 @@ export class WeGroupsService {
     const group = await this.groups.findOneBy({ id: groupId });
     if (!group) throw new NotFoundException("Group not found");
     const membership = await this.members.findOneBy({ groupId, userId: actorId });
-    if (!membership) throw new ForbiddenException("Not a group member");
+    if (!membership && group.ownerUserId !== actorId) throw new ForbiddenException("Not a group member");
     return group;
   }
 
@@ -123,8 +121,8 @@ export class WeGroupsService {
     const userById = new Map(users.map((row) => [row.id, row]));
     const eventIds = itemRows.map((row) => row.eventId).filter((id): id is string => id !== null);
     const placeIds = itemRows.map((row) => row.placeId).filter((id): id is string => id !== null);
-    const events = eventIds.length === 0 ? [] : await this.events.find({ where: { id: In(eventIds) } });
-    const places = placeIds.length === 0 ? [] : await this.places.find({ where: { id: In(placeIds) } });
+    const events = eventIds.length === 0 ? [] : await this.events.find({ where: { id: In(eventIds), published: true } });
+    const places = placeIds.length === 0 ? [] : await this.places.find({ where: { id: In(placeIds), published: true } });
     return {
       group: toWeGroupDto(group),
       members: memberRows.map((row) => userById.get(row.userId)).filter((row): row is UserEntity => row !== undefined).map(toFriendDto),
