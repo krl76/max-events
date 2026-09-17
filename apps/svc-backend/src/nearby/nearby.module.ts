@@ -13,13 +13,14 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { EventEntity } from "../events/event.entity";
 import { FriendsModule } from "../friends/friends.module";
+import { PromotionModule } from "../promotion/promotion.module";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { NearbyController } from "./nearby.controller";
 import { NearbyService } from "./nearby.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([EventEntity, PlaceEntity, ParticipationEntity]), FriendsModule],
+  imports: [TypeOrmModule.forFeature([EventEntity, PlaceEntity, ParticipationEntity]), FriendsModule, PromotionModule],
   controllers: [NearbyController],
   providers: [NearbyService],
 })

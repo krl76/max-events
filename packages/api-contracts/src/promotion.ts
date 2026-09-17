@@ -18,10 +18,19 @@
 // - CreatePromotionWrite - write type
 // - RecordPromotionPaymentWriteSchema - manual payment stamp
 // - RecordPromotionPaymentWrite - payment write type
+// - PromotionPinSchema - promoted map pin
+// - PromotionPin - pin type
+// - PromotionPlacementsSchema - banners, pins, boosted ids
+// - PromotionPlacements - placements type
+// - TargetedPromotionSchema - visit-history matched campaign
+// - TargetedPromotion - targeted row type
+// - TargetedPromotionsResponseSchema - for-me payload
+// - TargetedPromotionsResponse - for-me type
 // END_MODULE_MAP
 
 import { z } from "zod";
-import { EventCategorySchema } from "./event.js";
+import { EventCategorySchema, EventSchema } from "./event.js";
+import { PlaceSchema } from "./place.js";
 import { IdSchema, TimestampSchema } from "./primitives.js";
 
 export const PromotionTypeSchema = z.enum(["boost", "banner", "pin", "target_collection"]);
@@ -62,7 +71,7 @@ export const CreatePromotionWriteSchema = z
     priceRub: z.number().int().nonnegative(),
     audience: PromotionAudienceSchema.nullable().optional(),
   })
-  .refine((row) => new Date(row.endsAt).getTime() >= new Date(row.startsAt).getTime(), { message: "endsAt must not be before startsAt", path: ["endsAt"] })
+  .refine((row) => new Date(row.endsAt).getTime() > new Date(row.startsAt).getTime(), { message: "endsAt must not be before startsAt", path: ["endsAt"] })
   .refine((row) => row.type !== "target_collection" || row.audience != null, { message: "target_collection requires audience", path: ["audience"] });
 export type CreatePromotionWrite = z.infer<typeof CreatePromotionWriteSchema>;
 
@@ -70,3 +79,28 @@ export const RecordPromotionPaymentWriteSchema = z.object({
   paidAt: TimestampSchema.optional(),
 });
 export type RecordPromotionPaymentWrite = z.infer<typeof RecordPromotionPaymentWriteSchema>;
+
+export const PromotionPinSchema = z.object({
+  event: EventSchema,
+  place: PlaceSchema,
+});
+export type PromotionPin = z.infer<typeof PromotionPinSchema>;
+
+export const PromotionPlacementsSchema = z.object({
+  banners: z.array(EventSchema),
+  pins: z.array(PromotionPinSchema),
+  boostedEventIds: z.array(IdSchema),
+});
+export type PromotionPlacements = z.infer<typeof PromotionPlacementsSchema>;
+
+export const TargetedPromotionSchema = z.object({
+  campaign: PromotionCampaignSchema,
+  event: EventSchema,
+  explanation: z.string().min(1),
+});
+export type TargetedPromotion = z.infer<typeof TargetedPromotionSchema>;
+
+export const TargetedPromotionsResponseSchema = z.object({
+  collections: z.array(TargetedPromotionSchema),
+});
+export type TargetedPromotionsResponse = z.infer<typeof TargetedPromotionsResponseSchema>;

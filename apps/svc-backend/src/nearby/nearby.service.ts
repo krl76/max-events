@@ -22,6 +22,7 @@ import { FriendsService } from "../friends/friends.service";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { toPlaceDto } from "../places/places.service";
 import { PlaceEntity } from "../places/place.entity";
+import { PromotionService } from "../promotion/promotion.service";
 
 const HOUR_MS = 60 * 60 * 1000;
 const MAX_KM = 15;
@@ -68,6 +69,7 @@ export class NearbyService {
     @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
     @InjectRepository(ParticipationEntity) private readonly participations: Repository<ParticipationEntity>,
     @Inject(FriendsService) private readonly friends: FriendsService,
+    @Inject(PromotionService) private readonly promotions: PromotionService,
   ) {}
 
   async timeline(latitude: number, longitude: number, now = new Date()): Promise<NearbyTimeline> {
@@ -122,6 +124,7 @@ export class NearbyService {
     const events = await this.events.find({ where: { published: true, startsAt: Between(now, horizon) } });
     const places = await this.places.find({ where: { published: true } });
     const placeById = new Map(places.map((row) => [row.id, row]));
+    const pinIds = await this.promotions.pinEventIds(now);
     const cards: NearbyCard[] = [];
     for (const event of events) {
       if (!event.placeId) continue;
@@ -131,9 +134,10 @@ export class NearbyService {
       if (!bucket) continue;
       const distanceKm = haversineKm(latitude, longitude, place.latitude, place.longitude);
       if (distanceKm > MAX_KM) continue;
-      cards.push({ event: toEventDto(event), place: toPlaceDto(place), distanceKm: Math.round(distanceKm * 10) / 10, bucket });
+      const promoted = pinIds.has(event.id);
+      cards.push({ event: toEventDto(event, promoted), place: toPlaceDto(place), distanceKm: Math.round(distanceKm * 10) / 10, bucket, promoted });
     }
-    cards.sort((a, b) => a.distanceKm - b.distanceKm || a.event.startsAt.localeCompare(b.event.startsAt));
+    cards.sort((a, b) => Number(b.promoted) - Number(a.promoted) || a.distanceKm - b.distanceKm || a.event.startsAt.localeCompare(b.event.startsAt));
     return cards;
   }
 }

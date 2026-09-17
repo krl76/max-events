@@ -13,7 +13,7 @@ const event = CreateEventSchema.parse({
   city: "Москва",
   startsAt: "2026-09-12T19:00:00+03:00",
 });
-const eventDto = { id: "00000000-0000-4000-8000-0000000000e1", ...event, chatLink: null } as Event;
+const eventDto = { id: "00000000-0000-4000-8000-0000000000e1", ...event, chatLink: null, promoted: false } as Event;
 
 describe("OrganizerController", () => {
   it("creates a draft event and publishes it", async () => {

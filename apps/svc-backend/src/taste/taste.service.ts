@@ -70,7 +70,7 @@ export class TasteService {
       toCategory: suggestion.toCategory,
       afterCount: suggestion.afterCount,
       explanation: formatAfterMeExplanation(suggestion.afterCount, suggestion.fromCategory, suggestion.toCategory),
-      events: upcoming.slice(0, 5).map(toEventDto),
+      events: upcoming.slice(0, 5).map((row) => toEventDto(row)),
     };
     return { suggestions: [item] };
   }

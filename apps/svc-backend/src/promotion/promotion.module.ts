@@ -11,12 +11,16 @@
 
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { CheckInEntity } from "../checkins/check-in.entity";
 import { EventEntity } from "../events/event.entity";
+import { PlaceEntity } from "../places/place.entity";
 import { PromotionCampaignEntity } from "./promotion-campaign.entity";
+import { PromotionsController } from "./promotions.controller";
 import { PromotionService } from "./promotion.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PromotionCampaignEntity, EventEntity])],
+  imports: [TypeOrmModule.forFeature([PromotionCampaignEntity, EventEntity, PlaceEntity, CheckInEntity])],
+  controllers: [PromotionsController],
   providers: [PromotionService],
   exports: [PromotionService],
 })

@@ -4,7 +4,12 @@ import { EventEntity } from "../events/event.entity";
 import type { FriendsService } from "../friends/friends.service";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { PlaceEntity } from "../places/place.entity";
+import type { PromotionService } from "../promotion/promotion.service";
 import { haversineKm, nearbyBucket, NearbyService } from "./nearby.service";
+
+function promotionsStub(pinIds: string[] = []): PromotionService {
+  return { pinEventIds: async () => new Set(pinIds) } as unknown as PromotionService;
+}
 
 const now = new Date("2026-09-12T14:00:00+03:00");
 const placeId = "00000000-0000-4000-8000-0000000000a1";
@@ -61,7 +66,7 @@ describe("NearbyService", () => {
     const near = place(placeId, 55.751, 37.618);
     const far = place(farPlaceId, 59.93, 30.31);
     const events = [event("00000000-0000-4000-8000-0000000000e1", new Date("2026-09-12T14:20:00+03:00"), placeId), event("00000000-0000-4000-8000-0000000000e2", new Date("2026-09-12T19:00:00+03:00"), placeId), event("00000000-0000-4000-8000-0000000000e3", new Date("2026-09-12T14:20:00+03:00"), farPlaceId)];
-    const service = new NearbyService({ find: async () => events } as unknown as Repository<EventEntity>, { find: async () => [near, far] } as unknown as Repository<PlaceEntity>, { find: async () => [] } as unknown as Repository<ParticipationEntity>, { friendIds: async () => new Set() } as unknown as FriendsService);
+    const service = new NearbyService({ find: async () => events } as unknown as Repository<EventEntity>, { find: async () => [near, far] } as unknown as Repository<PlaceEntity>, { find: async () => [] } as unknown as Repository<ParticipationEntity>, { friendIds: async () => new Set() } as unknown as FriendsService, promotionsStub());
     const timeline = await service.timeline(55.75, 37.62, now);
     expect(timeline.now).toHaveLength(1);
     expect(timeline.evening).toHaveLength(1);
@@ -69,11 +74,24 @@ describe("NearbyService", () => {
     expect(timeline.inAnHour).toHaveLength(0);
   });
 
+  it("marks pin-promoted events and sorts them first", async () => {
+    const near = place(placeId, 55.751, 37.618);
+    const closer = place("00000000-0000-4000-8000-0000000000a4", 55.7505, 37.6205);
+    const pinId = "00000000-0000-4000-8000-0000000000e1";
+    const otherId = "00000000-0000-4000-8000-0000000000e2";
+    const events = [event(otherId, new Date("2026-09-12T14:20:00+03:00"), closer.id), event(pinId, new Date("2026-09-12T14:25:00+03:00"), placeId)];
+    const service = new NearbyService({ find: async () => events } as unknown as Repository<EventEntity>, { find: async () => [near, closer] } as unknown as Repository<PlaceEntity>, { find: async () => [] } as unknown as Repository<ParticipationEntity>, { friendIds: async () => new Set() } as unknown as FriendsService, promotionsStub([pinId]));
+    const timeline = await service.timeline(55.75, 37.62, now);
+    expect(timeline.now[0]?.event.id).toBe(pinId);
+    expect(timeline.now[0]?.promoted).toBe(true);
+    expect(timeline.now[1]?.promoted).toBe(false);
+  });
+
   it("builds a relax chain park → event → food inside the free window", async () => {
     const park = place(placeId, 55.751, 37.618, "park");
     const food = place("00000000-0000-4000-8000-0000000000a3", 55.752, 37.619, "food");
     const events = [event("00000000-0000-4000-8000-0000000000e1", new Date("2026-09-12T15:00:00+03:00"), placeId, "afisha")];
-    const service = new NearbyService({ find: async () => events } as unknown as Repository<EventEntity>, { find: async () => [park, food] } as unknown as Repository<PlaceEntity>, { find: async () => [] } as unknown as Repository<ParticipationEntity>, { friendIds: async () => new Set() } as unknown as FriendsService);
+    const service = new NearbyService({ find: async () => events } as unknown as Repository<EventEntity>, { find: async () => [park, food] } as unknown as Repository<PlaceEntity>, { find: async () => [] } as unknown as Repository<ParticipationEntity>, { friendIds: async () => new Set() } as unknown as FriendsService, promotionsStub());
     const options = await service.leisure(55.75, 37.62, 3, "relax", userId, now);
     expect(options).toHaveLength(1);
     expect(options[0]?.stops.map((stop) => stop.kind)).toEqual(["place", "event", "place"]);

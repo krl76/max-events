@@ -42,7 +42,7 @@ export class PlacePageService {
     if (!place || place.published === false) throw new NotFoundException("Place not found");
     const day = moscowDateKey(now);
     const atPlace = await this.events.find({ where: { placeId, published: true } });
-    const todayEvents = atPlace.filter((event) => moscowDateKey(event.startsAt) === day).map(toEventDto);
+    const todayEvents = atPlace.filter((event) => moscowDateKey(event.startsAt) === day).map((row) => toEventDto(row));
     const todayEventIds = todayEvents.map((event) => event.id);
     const friendIds = [...(await this.friends.friendIds(viewerId))];
     const eventIds = atPlace.map((event) => event.id);

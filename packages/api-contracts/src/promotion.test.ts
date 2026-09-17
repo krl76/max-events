@@ -25,6 +25,15 @@ describe("CreatePromotionWriteSchema", () => {
     expect(
       CreatePromotionWriteSchema.safeParse({
         type: "boost",
+        startsAt: "2026-09-12T00:00:00+03:00",
+        endsAt: "2026-09-12T00:00:00+03:00",
+        tariffCode: "boost_week",
+        priceRub: 4900,
+      }).success,
+    ).toBe(false);
+    expect(
+      CreatePromotionWriteSchema.safeParse({
+        type: "boost",
         startsAt: "2026-09-19T00:00:00+03:00",
         endsAt: "2026-09-12T00:00:00+03:00",
         tariffCode: "boost_week",

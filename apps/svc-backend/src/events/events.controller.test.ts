@@ -18,6 +18,7 @@ const event: Event = {
   id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f",
   ...payload,
   chatLink: null,
+  promoted: false,
 };
 
 function createController() {

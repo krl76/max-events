@@ -6,6 +6,7 @@ import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
 import type { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import type { UsersService } from "../users/users.service";
+import type { PromotionService } from "../promotion/promotion.service";
 import type { WaitlistService } from "../waitlist/waitlist.service";
 import { EventEntity } from "./event.entity";
 import { EventsService, toEventDto } from "./events.service";
@@ -63,7 +64,7 @@ function createRepo(initial: EventEntity[] = []) {
   };
 }
 
-function createService(options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean } = {}) {
+function createService(options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean; promotions?: PromotionService } = {}) {
   const knownPlaces = new Set(options.placeIds ?? []);
   const draftPlaces = new Set(options.draftPlaceIds ?? []);
   const chatCalls: string[] = [];
@@ -99,7 +100,8 @@ function createService(options: { placeIds?: string[]; draftPlaceIds?: string[];
     },
   } as unknown as UsersService;
   const waitlist = options.waitlist ?? ({ fillVacancies: async () => undefined } as unknown as WaitlistService);
-  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist);
+  const promotions = options.promotions ?? ({ listActive: async () => [], promotedEventIds: async () => new Set<string>() } as unknown as PromotionService);
+  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist, promotions);
   return { repo, service, waitlist, chatCalls, notifyCalls };
 }
 
@@ -195,6 +197,24 @@ describe("EventsService", () => {
 
     const onDay = await service.list({ date: "2026-09-12" });
     expect(onDay.map((item) => item.title)).toEqual(["Субботник", "Джаз в парке"]);
+  });
+
+  it("lifts a boosted event to the front of the catalog and marks it promoted", async () => {
+    const { repo, service: writer } = createService();
+    await writer.create(payload);
+    await writer.create(CreateEventSchema.parse({ ...payload, title: "Позже", startsAt: "2026-09-20T19:00:00+03:00" }));
+    const later = repo.store.find((row) => row.title === "Позже")!;
+    const { service } = createService({
+      store: repo.store,
+      promotions: {
+        listActive: async () => [{ eventId: later.id }],
+        promotedEventIds: async () => new Set([later.id]),
+      } as unknown as PromotionService,
+    });
+    const listed = await service.list({ city: "Москва" });
+    expect(listed.map((item) => item.title)).toEqual(["Позже", "Джаз в парке"]);
+    expect(listed[0]?.promoted).toBe(true);
+    expect(listed[1]?.promoted).toBe(false);
   });
 
   it("hides drafts from the catalog and forbids a non-organizer from editing", async () => {

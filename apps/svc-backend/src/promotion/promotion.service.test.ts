@@ -1,7 +1,9 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
+import { CheckInEntity } from "../checkins/check-in.entity";
 import { EventEntity } from "../events/event.entity";
+import { PlaceEntity } from "../places/place.entity";
 import { PromotionCampaignEntity } from "./promotion-campaign.entity";
 import { PromotionService } from "./promotion.service";
 
@@ -39,13 +41,30 @@ function seedEvent(overrides: Partial<EventEntity> = {}): EventEntity {
     title: "Джаз в парке",
     organizerUserId: organizer,
     published: true,
+    category: "afisha",
+    city: "Москва",
+    placeId: null,
+    startsAt: new Date("2026-09-20T16:00:00Z"),
+    endsAt: null,
+    isPaid: false,
+    priceRub: null,
+    paymentUrl: null,
+    capacity: null,
+    bookedCount: 0,
+    bookingOpensAt: null,
+    chatLink: null,
+    chatSyncPending: true,
+    createdAt: now,
+    updatedAt: now,
     ...overrides,
   } as EventEntity;
 }
 
-function createService(event: EventEntity = seedEvent()) {
+function createService(event: EventEntity = seedEvent(), extras: { places?: PlaceEntity[]; checkIns?: CheckInEntity[] } = {}) {
   const events = [event];
   const campaigns: PromotionCampaignEntity[] = [];
+  const places = extras.places ?? [];
+  const checkIns = extras.checkIns ?? [];
   let seq = 0;
   const nextId = () => `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
   const campaignsRepo = {
@@ -63,9 +82,21 @@ function createService(event: EventEntity = seedEvent()) {
   };
   const eventsRepo = {
     findOneBy: async (where: { id: string }) => events.find((row) => row.id === where.id) ?? null,
+    find: async (opts: { where?: Record<string, unknown> } = {}) => events.filter((row) => matchesWhere(row, opts.where ?? {})),
   };
-  const service = new PromotionService(campaignsRepo as unknown as Repository<PromotionCampaignEntity>, eventsRepo as unknown as Repository<EventEntity>);
-  return { service, campaigns };
+  const placesRepo = {
+    find: async (opts: { where?: Record<string, unknown> } = {}) => places.filter((row) => matchesWhere(row, opts.where ?? {})),
+  };
+  const checkInsRepo = {
+    find: async (opts: { where?: Record<string, unknown> } = {}) => checkIns.filter((row) => matchesWhere(row, opts.where ?? {})),
+  };
+  const service = new PromotionService(
+    campaignsRepo as unknown as Repository<PromotionCampaignEntity>,
+    eventsRepo as unknown as Repository<EventEntity>,
+    placesRepo as unknown as Repository<PlaceEntity>,
+    checkInsRepo as unknown as Repository<CheckInEntity>,
+  );
+  return { service, campaigns, events };
 }
 
 const week = {
@@ -128,12 +159,57 @@ describe("PromotionService", () => {
 
   it("lists in-window active campaigns by type", async () => {
     const { service } = createService();
-    await service.create(organizer, eventId, week, now);
-    await service.create(organizer, eventId, { ...week, type: "banner", tariffCode: "banner_week", priceRub: 1500 }, now);
+    const boost = await service.create(organizer, eventId, week, now);
+    const banner = await service.create(organizer, eventId, { ...week, type: "banner", tariffCode: "banner_week", priceRub: 1500 }, now);
     await service.create(organizer, eventId, { ...week, startsAt: "2026-09-20T00:00:00.000Z", endsAt: "2026-09-27T00:00:00.000Z", tariffCode: "boost_later" }, now);
+    expect(await service.listActive(now)).toEqual([]);
+    await service.recordPayment(organizer, eventId, boost.id, { paidAt: now.toISOString() }, now);
+    await service.recordPayment(organizer, eventId, banner.id, { paidAt: now.toISOString() }, now);
     const active = await service.listActive(now);
     expect(active.map((row) => row.tariffCode).sort()).toEqual(["banner_week", "boost_week"]);
     const banners = await service.listActive(now, "banner");
     expect(banners.map((row) => row.type)).toEqual(["banner"]);
+  });
+
+  it("expires overdue campaigns on listActive and recordPayment", async () => {
+    const { service, campaigns } = createService();
+    const live = await service.create(organizer, eventId, week, now);
+    await service.recordPayment(organizer, eventId, live.id, { paidAt: now.toISOString() }, now);
+    campaigns.find((row) => row.id === live.id)!.endsAt = new Date("2026-09-12T09:00:00Z");
+    expect(await service.listActive(now)).toEqual([]);
+    expect(campaigns.find((row) => row.id === live.id)?.status).toBe("completed");
+    const other = await service.create(organizer, eventId, { ...week, tariffCode: "boost_2" }, now);
+    campaigns.find((row) => row.id === other.id)!.endsAt = new Date("2026-09-12T09:00:00Z");
+    const paid = await service.recordPayment(organizer, eventId, other.id, {}, now);
+    expect(paid.status).toBe("completed");
+  });
+
+  it("rejects a target collection without audience", async () => {
+    const { service } = createService();
+    await expect(service.create(organizer, eventId, { ...week, type: "target_collection", tariffCode: "target_week", priceRub: 7900 }, now)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("builds banner and pin placements and a visit-history target collection", async () => {
+    const placeId = "00000000-0000-4000-8000-0000000000p1";
+    const event = seedEvent({ placeId, category: "afisha" });
+    const venue = { id: placeId, title: "Парк", address: "x", city: "Москва", category: "park", latitude: 55.75, longitude: 37.62, published: true, createdAt: now, updatedAt: now } as PlaceEntity;
+    const checkIns = [
+      { id: "c1", userId: other, eventId, placeId: null, checkedInAt: new Date("2026-04-01T10:00:00Z") } as CheckInEntity,
+      { id: "c2", userId: other, eventId, placeId: null, checkedInAt: new Date("2026-05-01T10:00:00Z") } as CheckInEntity,
+      { id: "c3", userId: other, eventId, placeId: null, checkedInAt: new Date("2026-06-01T10:00:00Z") } as CheckInEntity,
+    ];
+    const { service } = createService(event, { places: [venue], checkIns });
+    const banner = await service.create(organizer, eventId, { ...week, type: "banner", tariffCode: "banner_week", priceRub: 1500 }, now);
+    const pin = await service.create(organizer, eventId, { ...week, type: "pin", tariffCode: "pin_week", priceRub: 900 }, now);
+    const boost = await service.create(organizer, eventId, week, now);
+    const target = await service.create(organizer, eventId, { ...week, type: "target_collection", tariffCode: "target_week", priceRub: 7900, audience: { minVisits: 3, windowDays: 180, category: "afisha" } }, now);
+    for (const row of [banner, pin, boost, target]) await service.recordPayment(organizer, eventId, row.id, { paidAt: now.toISOString() }, now);
+    const placements = await service.placements(now);
+    expect(placements.banners.map((row) => row.id)).toEqual([eventId]);
+    expect(placements.pins).toHaveLength(1);
+    expect(placements.boostedEventIds).toEqual([eventId]);
+    const mine = await service.targetedFor(other, now);
+    expect(mine.collections).toHaveLength(1);
+    expect(mine.collections[0]?.explanation).toContain("афиша");
   });
 });

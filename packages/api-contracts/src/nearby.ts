@@ -33,6 +33,7 @@ export const NearbyCardSchema = z.object({
   place: PlaceSchema,
   distanceKm: z.number().nonnegative(),
   bucket: NearbyBucketSchema,
+  promoted: z.boolean().default(false),
 });
 export type NearbyCard = z.infer<typeof NearbyCardSchema>;
 

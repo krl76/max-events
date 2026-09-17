@@ -17,6 +17,7 @@ function event(overrides: Partial<Event> & Pick<Event, "id" | "title" | "categor
     paymentUrl: null,
     capacity: null,
     chatLink: null,
+    promoted: false,
     ...overrides,
   };
 }

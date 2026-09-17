@@ -34,6 +34,7 @@ const EventObjectSchema = z.object({
   paymentUrl: z.string().url().nullable().default(null),
   capacity: z.number().int().positive().nullable().default(null),
   chatLink: z.string().nullable().default(null),
+  promoted: z.boolean().default(false),
 });
 
 const hasValidPaymentLink = (data: { isPaid: boolean; paymentUrl: string | null }) => (data.isPaid ? data.paymentUrl !== null : data.paymentUrl === null);
@@ -46,5 +47,5 @@ const paymentLinkInvariant = {
 export const EventSchema = EventObjectSchema.refine(hasValidPaymentLink, paymentLinkInvariant);
 export type Event = z.infer<typeof EventSchema>;
 
-export const CreateEventSchema = EventObjectSchema.omit({ id: true, chatLink: true }).refine(hasValidPaymentLink, paymentLinkInvariant);
+export const CreateEventSchema = EventObjectSchema.omit({ id: true, chatLink: true, promoted: true }).refine(hasValidPaymentLink, paymentLinkInvariant);
 export type CreateEvent = z.infer<typeof CreateEventSchema>;

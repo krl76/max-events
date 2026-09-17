@@ -20,6 +20,7 @@ import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
 import { UsersService } from "../users/users.service";
 import { SubscriptionsService } from "../subscriptions/subscriptions.service";
+import { PromotionService } from "../promotion/promotion.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { EventEntity } from "./event.entity";
 
@@ -43,6 +44,7 @@ export class EventsService {
     @Inject(SubscriptionsService) private readonly subscriptions: SubscriptionsService,
     @Inject(UsersService) private readonly users: UsersService,
     @Inject(WaitlistService) private readonly waitlist: WaitlistService,
+    @Inject(PromotionService) private readonly promotions: PromotionService,
   ) {}
 
   async create(payload: CreateEvent, organizerUserId?: string, options?: { draft?: boolean }): Promise<Event> {
@@ -73,7 +75,8 @@ export class EventsService {
   async getById(id: string): Promise<Event> {
     const found = await this.events.findOneBy({ id });
     if (!found || found.published === false) throw new NotFoundException("Event not found");
-    return toEventDto(found);
+    const promoted = (await this.promotions.promotedEventIds()).has(found.id);
+    return toEventDto(found, promoted);
   }
 
   async update(id: string, patch: Record<string, unknown>, actorId?: string): Promise<Event> {
@@ -108,7 +111,7 @@ export class EventsService {
 
   async listMine(organizerUserId: string): Promise<Event[]> {
     const rows = await this.events.find({ where: { organizerUserId }, order: { startsAt: "ASC", id: "ASC" } });
-    return rows.map(toEventDto);
+    return rows.map((row) => toEventDto(row));
   }
 
   async publish(id: string, actorId: string): Promise<Event> {
@@ -138,16 +141,20 @@ export class EventsService {
     return toEventDto(withChat);
   }
 
-  async list(query: EventListQuery): Promise<Event[]> {
+  async list(query: EventListQuery, now = new Date()): Promise<Event[]> {
     const where: { published: true; city?: string; category?: EventCategory } = { published: true };
     if (query.city) where.city = query.city;
     if (query.category) where.category = query.category;
     const rows = await this.events.find({ where, order: { startsAt: "ASC", id: "ASC" } });
-    return rows.filter((row) => matchesStartWindow(row.startsAt, query)).map(toEventDto);
+    const visible = rows.filter((row) => matchesStartWindow(row.startsAt, query));
+    const [boosts, promoted] = await Promise.all([this.promotions.listActive(now, "boost"), this.promotions.promotedEventIds(now)]);
+    const boosted = new Set(boosts.map((row) => row.eventId));
+    visible.sort((a, b) => Number(boosted.has(b.id)) - Number(boosted.has(a.id)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+    return visible.map((row) => toEventDto(row, promoted.has(row.id)));
   }
 }
 
-export function toEventDto(event: EventEntity): Event {
+export function toEventDto(event: EventEntity, promoted = false): Event {
   return {
     id: event.id,
     title: event.title,
@@ -162,6 +169,7 @@ export function toEventDto(event: EventEntity): Event {
     paymentUrl: event.paymentUrl,
     capacity: event.capacity,
     chatLink: event.chatLink,
+    promoted,
   };
 }
 
