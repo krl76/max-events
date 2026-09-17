@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - toPromoDto - entity to PromoCode
-// - PromoService - CRUD, early access, redeem, booking list, campaigns
+// - PromoService - CRUD, early access, redeem, booking list, campaigns, campaignExistsInTransaction
 // - toCampaignDto - entity to PromoCampaign
 // END_MODULE_MAP
 
@@ -124,6 +124,13 @@ export class PromoService {
     await this.requireOwnedEvent(actorId, eventId);
     const rows = await this.campaigns.find({ where: { eventId }, order: { createdAt: "ASC" } });
     return rows.map(toCampaignDto);
+  }
+
+  async campaignExistsInTransaction(manager: EntityManager, eventId: string, rawCode: string): Promise<boolean> {
+    const code = rawCode.trim().toUpperCase();
+    if (!code) return false;
+    const campaign = await manager.findOne(PromoCampaignEntity, { where: { eventId, code } });
+    return campaign !== null;
   }
 
   async recordFulfillmentInTransaction(manager: EntityManager, event: EventEntity, userId: string, bookingId: string, rawCode: string | undefined, now: Date): Promise<void> {

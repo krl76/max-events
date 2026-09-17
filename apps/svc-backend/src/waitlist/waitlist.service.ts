@@ -11,7 +11,7 @@
 // - toWaitlistDto - entity plus FIFO position
 // END_MODULE_MAP
 
-import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, EntityManager, In, LessThanOrEqual, QueryFailedError, Repository } from "typeorm";
 import type { WaitlistEntry, WaitlistStatus } from "@max-events/api-contracts";
@@ -50,7 +50,11 @@ export class WaitlistService {
       if (duplicate) throw new ConflictException("Already on the waitlist");
       const activeBooking = await manager.findOne(BookingEntity, { where: { userId, eventId, status: "active" } });
       if (activeBooking) throw new ConflictException("Already booked");
-      const saved = await manager.save(WaitlistEntryEntity, manager.create(WaitlistEntryEntity, { userId, eventId, status: "waiting", offeredUntil: null, referralCode: referralCode?.trim().toUpperCase() || null }));
+      const normalizedCode = referralCode?.trim().toUpperCase() || null;
+      if (normalizedCode && !(await this.promo.campaignExistsInTransaction(manager, eventId, normalizedCode))) {
+        throw new BadRequestException("Invalid referral code");
+      }
+      const saved = await manager.save(WaitlistEntryEntity, manager.create(WaitlistEntryEntity, { userId, eventId, status: "waiting", offeredUntil: null, referralCode: normalizedCode }));
       return toWaitlistDto(saved, await positionOf(manager, saved));
     });
   }
@@ -73,7 +77,11 @@ export class WaitlistService {
       const position = await positionOf(manager, entry);
       try {
         const booking = await manager.save(BookingEntity, manager.create(BookingEntity, { userId, eventId: entry.eventId, status: "active" }));
-        await this.promo.recordFulfillmentInTransaction(manager, event, userId, booking.id, entry.referralCode ?? undefined, now);
+        try {
+          await this.promo.recordFulfillmentInTransaction(manager, event, userId, booking.id, entry.referralCode ?? undefined, now);
+        } catch (error) {
+          if (!(error instanceof ForbiddenException)) throw error;
+        }
       } catch (error) {
         if (error instanceof QueryFailedError && error.driverError?.code === "23505") {
           entry.status = "expired";
@@ -136,6 +144,7 @@ export class WaitlistService {
   }
 
   async expireOffers(now = new Date()): Promise<number> {
+    // In-memory single-process lock. A second instance can tick in parallel; the event row-lock is the real mutex.
     if (this.expiring) return 0;
     this.expiring = true;
     try {
@@ -164,6 +173,9 @@ export class WaitlistService {
           // A DM failure must not freeze remaining expiries until the next tick.
         }
       }
+      const waiting = await this.entries.find({ where: { status: "waiting" } });
+      const eventIds = [...new Set(waiting.map((row) => row.eventId))];
+      for (const eventId of eventIds) await this.fillVacancies(eventId, now);
       return expired;
     } finally {
       this.expiring = false;

@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type DataSource, type EntityManager, type Repository } from "typeorm";
 import { BookingEntity } from "../bookings/booking.entity";
@@ -93,13 +93,15 @@ function createHarness(event: EventEntity) {
     find: async (opts: { where: { status?: string } }) =>
       entries.filter((row) => {
         if (opts.where.status && row.status !== opts.where.status) return false;
-        if (row.offeredUntil && row.offeredUntil.getTime() > now.getTime()) return false;
+        if (opts.where.status === "offered" && row.offeredUntil && row.offeredUntil.getTime() > now.getTime()) return false;
         return true;
       }),
   };
   const promoCalls: Array<{ bookingId: string; code?: string }> = [];
   const promo = {
+    campaignExistsInTransaction: async (_manager: unknown, _eventId: string, code: string) => code !== "NOPE" && code !== "OTHER",
     recordFulfillmentInTransaction: async (_manager: unknown, _event: EventEntity, _userId: string, bookingId: string, code?: string) => {
+      if (code === "NOPE" || code === "OTHER" || code === "GONE") throw new ForbiddenException("Invalid referral code");
       promoCalls.push({ bookingId, code });
     },
   };
@@ -258,6 +260,56 @@ describe("WaitlistService.onSeatFreed, confirm and expiry", () => {
     expect(confirmed.status).toBe("confirmed");
     expect(harness.promoCalls[0]?.code).toBe("FRIEND");
     expect(harness.promoCalls[0]?.bookingId).toBe(harness.bookings[0]?.id);
+  });
+
+  it("rejects a typo or foreign referral code on join", async () => {
+    const { service } = createHarness(seedEvent(1, 1));
+    await expect(service.join(userA, eventId, now, "NOPE")).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.join(userA, eventId, now, "OTHER")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("confirms an offer even when a stored referral code is invalid", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    const joined = await harness.service.join(userA, eventId);
+    harness.entries[0]!.referralCode = "NOPE";
+    harness.events[0]!.bookedCount = 0;
+    await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, harness.events[0]!, now);
+    const confirmed = await harness.service.confirm(userA, joined.id, now);
+    expect(confirmed.status).toBe("confirmed");
+    expect(harness.bookings).toHaveLength(1);
+    expect(harness.promoCalls).toHaveLength(0);
+  });
+
+  it("confirms when the stored campaign code is no longer valid", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    const joined = await harness.service.join(userA, eventId, now, "gone");
+    expect(harness.entries[0]?.referralCode).toBe("GONE");
+    harness.events[0]!.bookedCount = 0;
+    await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, harness.events[0]!, now);
+    const confirmed = await harness.service.confirm(userA, joined.id, now);
+    expect(confirmed.status).toBe("confirmed");
+    expect(harness.bookings).toHaveLength(1);
+    expect(harness.promoCalls).toHaveLength(0);
+  });
+
+  it("wakes the waiting queue after bookingOpensAt moves and public booking is open again", async () => {
+    const event = seedEvent(1, 1);
+    const harness = createHarness(event);
+    const first = await harness.service.join(userA, eventId);
+    await harness.service.join(userB, eventId);
+    event.bookedCount = 0;
+    await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, event, now);
+    const firstRow = harness.entries.find((row) => row.id === first.id)!;
+    firstRow.offeredUntil = new Date(now.getTime() - 1);
+    event.bookingOpensAt = new Date("2026-09-20T00:00:00Z");
+    expect(await harness.service.expireOffers(now)).toBe(1);
+    expect(firstRow.status).toBe("expired");
+    expect(harness.entries.find((row) => row.userId === userB)?.status).toBe("waiting");
+    expect(event.bookedCount).toBe(0);
+    event.bookingOpensAt = null;
+    expect(await harness.service.expireOffers(now)).toBe(0);
+    expect(harness.entries.find((row) => row.userId === userB)?.status).toBe("offered");
+    expect(event.bookedCount).toBe(1);
   });
 
   it("does not start a second expireOffers while the first is running", async () => {
