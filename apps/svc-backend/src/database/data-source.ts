@@ -39,12 +39,13 @@ import { PageViewEntity } from "../stats/page-view.entity";
 import { PromoCampaignEntity } from "../promo/promo-campaign.entity";
 import { PromoCodeEntity } from "../promo/promo-code.entity";
 import { PromoFulfillmentEntity } from "../promo/promo-fulfillment.entity";
+import { PromotionCampaignEntity } from "../promotion/promotion-campaign.entity";
 
 const env = validateEnv();
 
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: env.DATABASE_URL,
-  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity, ListEntity, ListItemEntity, SubscriptionEntity, CheckInEntity, UserAchievementEntity, ReviewEntity, WaitlistEntryEntity, FeedPostEntity, FeedLikeEntity, FeedCommentEntity, ReportEntity, MicroEventEntity, MicroEventParticipantEntity, CollectionEntity, CollectionMemberEntity, CollectionItemEntity, ListDigestSendEntity, PageViewEntity, PromoCodeEntity, PromoCampaignEntity, PromoFulfillmentEntity],
+  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity, ListEntity, ListItemEntity, SubscriptionEntity, CheckInEntity, UserAchievementEntity, ReviewEntity, WaitlistEntryEntity, FeedPostEntity, FeedLikeEntity, FeedCommentEntity, ReportEntity, MicroEventEntity, MicroEventParticipantEntity, CollectionEntity, CollectionMemberEntity, CollectionItemEntity, ListDigestSendEntity, PageViewEntity, PromoCodeEntity, PromoCampaignEntity, PromoFulfillmentEntity, PromotionCampaignEntity],
   migrations: ["src/database/migrations/*.ts"],
 });

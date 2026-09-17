@@ -32,3 +32,4 @@ export * from "./people.js";
 export * from "./stats.js";
 export * from "./organizer-rating.js";
 export * from "./promo.js";
+export * from "./promotion.js";

@@ -50,6 +50,7 @@ import { OrganizerModule } from "./organizer/organizer.module";
 import { StatsModule } from "./stats/stats.module";
 import { RatingModule } from "./rating/rating.module";
 import { PromoModule } from "./promo/promo.module";
+import { PromotionModule } from "./promotion/promotion.module";
 
 @Module({
   imports: [
@@ -100,6 +101,7 @@ import { PromoModule } from "./promo/promo.module";
     StatsModule,
     RatingModule,
     PromoModule,
+    PromotionModule,
   ],
 })
 export class AppModule {}

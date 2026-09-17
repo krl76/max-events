@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Nest module for the organizer panel HTTP.
-// SCOPE: OrganizerController; imports EventsModule and PlacesModule.
-// DEPENDS: ../events/events.module, ../places/places.module
+// SCOPE: OrganizerController; imports EventsModule, PlacesModule, PromoModule, PromotionModule.
+// DEPENDS: ../events/events.module, ../places/places.module, ../promo/promo.module, ../promotion/promotion.module
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -13,10 +13,11 @@ import { Module } from "@nestjs/common";
 import { EventsModule } from "../events/events.module";
 import { PlacesModule } from "../places/places.module";
 import { PromoModule } from "../promo/promo.module";
+import { PromotionModule } from "../promotion/promotion.module";
 import { OrganizerController } from "./organizer.controller";
 
 @Module({
-  imports: [EventsModule, PlacesModule, PromoModule],
+  imports: [EventsModule, PlacesModule, PromoModule, PromotionModule],
   controllers: [OrganizerController],
 })
 export class OrganizerModule {}
