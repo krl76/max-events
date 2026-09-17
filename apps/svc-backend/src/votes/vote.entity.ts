@@ -47,6 +47,9 @@ export class VoteOptionEntity {
 
   @Column({ type: "uuid" })
   eventId!: string;
+
+  @Column({ type: "int", default: 0 })
+  position!: number;
 }
 
 @Entity("vote_participants")

@@ -135,6 +135,12 @@ describe("VotesService", () => {
     });
     expect(created.chatLink).toBe("https://max.ru/join/vote");
     expect(created.options.map((row) => row.event.title)).toEqual(["Джаз", "Концерт"]);
+    const reversed = await service.create(hostId, {
+      title: "Куда идем в пятницу?",
+      eventIds: [concertId, jazzId],
+      participantIds: [dimaId],
+    });
+    expect(reversed.options.map((row) => row.event.title)).toEqual(["Концерт", "Джаз"]);
     expect(created.winnerEventId).toBeNull();
     expect(chats[0]).toContain("7:");
     expect(chats[0]).toContain("1. Джаз");
@@ -153,6 +159,7 @@ describe("VotesService", () => {
 
   it("rejects non-friends, unpublished events, strangers, and unknown options", async () => {
     const { service } = createService();
+    await expect(service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [jazzId, concertId], participantIds: [hostId] })).rejects.toBeInstanceOf(BadRequestException);
     await expect(service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [jazzId, concertId], participantIds: [strangerId] })).rejects.toBeInstanceOf(BadRequestException);
     await expect(service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [jazzId, draftId], participantIds: [dimaId] })).rejects.toBeInstanceOf(NotFoundException);
     const created = await service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [jazzId, concertId], participantIds: [dimaId] });

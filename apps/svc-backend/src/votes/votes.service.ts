@@ -52,8 +52,8 @@ export class VotesService {
     const ordered = eventIds.map((id) => byId.get(id)).filter((row): row is EventEntity => Boolean(row && row.published !== false));
     if (ordered.length !== eventIds.length) throw new NotFoundException("Event not found");
     const saved = await this.votes.save(this.votes.create({ hostUserId, title: payload.title, chatLink: null }));
-    for (const event of ordered) {
-      await this.options.save(this.options.create({ voteId: saved.id, eventId: event.id }));
+    for (const [position, event] of ordered.entries()) {
+      await this.options.save(this.options.create({ voteId: saved.id, eventId: event.id, position }));
     }
     for (const userId of participantIds) {
       await this.participants.save(this.participants.create({ voteId: saved.id, userId }));
@@ -125,7 +125,9 @@ export class VotesService {
   }
 
   private async toVote(vote: VoteEntity): Promise<Vote> {
-    const optionRows = await this.options.find({ where: { voteId: vote.id } });
+    const optionRows = (await this.options.find({ where: { voteId: vote.id }, order: { position: "ASC", id: "ASC" } })).sort(
+      (a, b) => a.position - b.position || a.id.localeCompare(b.id),
+    );
     const participantRows = await this.participants.find({ where: { voteId: vote.id } });
     const ballotRows = await this.ballots.find({ where: { voteId: vote.id } });
     const events = await this.events.find();
