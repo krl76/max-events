@@ -41,6 +41,7 @@ import { MicroEventsModule } from "./microevents/micro-events.module";
 import { CollectionsModule } from "./collections/collections.module";
 import { NearbyModule } from "./nearby/nearby.module";
 import { RoutesModule } from "./routes/routes.module";
+import { LeaveNowModule } from "./leave-now/leave-now.module";
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { RoutesModule } from "./routes/routes.module";
     CollectionsModule,
     NearbyModule,
     RoutesModule,
+    LeaveNowModule,
   ],
 })
 export class AppModule {}

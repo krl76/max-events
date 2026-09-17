@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: TypeORM entity for the plans table (host + event + meeting point/time).
-// SCOPE: PlanEntity columns: uuid id, hostUserId, eventId, meetingPoint, meetingAt, optional chatLink, hostReminderSentAt, timestamps.
+// SCOPE: PlanEntity columns: uuid id, hostUserId, eventId, meetingPoint, meetingAt, optional chatLink, reminderSentAt, leaveNowSentAt, timestamps.
 // DEPENDS: typeorm
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -34,6 +34,9 @@ export class PlanEntity {
 
   @Column({ type: "timestamptz", nullable: true })
   reminderSentAt!: Date | null;
+
+  @Column({ type: "timestamptz", nullable: true })
+  leaveNowSentAt!: Date | null;
 
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
