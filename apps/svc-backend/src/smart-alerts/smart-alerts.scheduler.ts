@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: 60s interval that runs weather and friend-left smart alerts while Nest is up.
+// PURPOSE: 60s interval that runs weather, friend-left and list-digest smart alerts while Nest is up.
 // SCOPE: Starts on module init; unit tests that skip AppModule do not run this.
-// DEPENDS: @nestjs/common, ./smart-alerts.service
+// DEPENDS: @nestjs/common, ./smart-alerts.service, ./list-digest.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -11,6 +11,7 @@
 // END_MODULE_MAP
 
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { ListDigestService } from "./list-digest.service";
 import { SmartAlertsService } from "./smart-alerts.service";
 
 export const SMART_ALERT_TICK_INTERVAL_MS = 60_000;
@@ -20,11 +21,14 @@ export class SmartAlertsScheduler implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SmartAlertsScheduler.name);
   private timer: ReturnType<typeof setInterval> | undefined;
 
-  constructor(private readonly alerts: SmartAlertsService) {}
+  constructor(
+    private readonly alerts: SmartAlertsService,
+    private readonly digest: ListDigestService,
+  ) {}
 
   onModuleInit() {
     this.timer = setInterval(() => {
-      void this.alerts.tick().catch((error: unknown) => {
+      void Promise.all([this.alerts.tick(), this.digest.tick()]).catch((error: unknown) => {
         this.logger.warn(`Smart-alert tick failed: ${error instanceof Error ? error.message : "unknown"}`);
       });
     }, SMART_ALERT_TICK_INTERVAL_MS);
