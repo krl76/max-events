@@ -38,16 +38,16 @@ export class PlacesController {
   }
 
   @Patch(":id")
-  async update(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<Place> {
+  async update(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<Place> {
     const parsed = CreatePlaceSchema.partial().safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid place payload");
-    return this.places.update(id, parsed.data);
+    return this.places.update(id, parsed.data, user.id);
   }
 
   @Delete(":id")
   @HttpCode(204)
-  remove(@Param("id", ParseUUIDPipe) id: string): Promise<void> {
-    return this.places.remove(id);
+  remove(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<void> {
+    return this.places.remove(id, user.id);
   }
 }
 

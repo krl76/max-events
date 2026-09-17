@@ -12,7 +12,7 @@
 // - toEventDto - map EventEntity to the api-contracts Event shape
 // END_MODULE_MAP
 
-import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { CreateEventSchema, EventSchema, type CreateEvent, type Event, type EventCategory } from "@max-events/api-contracts";
@@ -45,24 +45,26 @@ export class EventsService {
     @Inject(WaitlistService) private readonly waitlist: WaitlistService,
   ) {}
 
-  async create(payload: CreateEvent, organizerUserId?: string): Promise<Event> {
+  async create(payload: CreateEvent, organizerUserId?: string, options?: { draft?: boolean }): Promise<Event> {
     if (organizerUserId) await this.users.assertCanPublish(organizerUserId);
     await assertPlaceBound(this.places, payload.placeId);
     assertTimeRange(payload.startsAt, payload.endsAt);
     const saved = await this.events.save(
       this.events.create({
         ...toColumns(payload),
-        published: true,
+        published: options?.draft ? false : true,
         bookedCount: 0,
         chatLink: null,
         chatSyncPending: true,
         organizerUserId: organizerUserId ?? null,
       }),
     );
-    try {
-      await this.subscriptions.notifyNewEvent(saved);
-    } catch {
-      // Creating the catalog row must not fail because a subscriber DM failed.
+    if (!options?.draft) {
+      try {
+        await this.subscriptions.notifyNewEvent(saved);
+      } catch {
+        // Creating the catalog row must not fail because a subscriber DM failed.
+      }
     }
     let chat: Awaited<ReturnType<MaxBotClient["createChat"]>> = null;
     try {
@@ -82,9 +84,10 @@ export class EventsService {
     return toEventDto(found);
   }
 
-  async update(id: string, patch: Record<string, unknown>): Promise<Event> {
+  async update(id: string, patch: Record<string, unknown>, actorId?: string): Promise<Event> {
     const existing = await this.events.findOneBy({ id });
     if (!existing) throw new NotFoundException("Event not found");
+    assertOrganizer(existing.organizerUserId, actorId);
     const merged = EventSchema.safeParse({ ...toEventDto(existing), ...pickEventFields(patch) });
     if (!merged.success) throw new BadRequestException("Invalid event payload");
     await assertPlaceBound(this.places, merged.data.placeId);
@@ -104,9 +107,24 @@ export class EventsService {
     await this.events.save(found);
   }
 
-  async remove(id: string): Promise<void> {
-    const result = await this.events.delete({ id });
-    if (!result.affected) throw new NotFoundException("Event not found");
+  async remove(id: string, actorId?: string): Promise<void> {
+    const existing = await this.events.findOneBy({ id });
+    if (!existing) throw new NotFoundException("Event not found");
+    assertOrganizer(existing.organizerUserId, actorId);
+    await this.events.delete({ id });
+  }
+
+  async listMine(organizerUserId: string): Promise<Event[]> {
+    const rows = await this.events.find({ where: { organizerUserId }, order: { startsAt: "ASC", id: "ASC" } });
+    return rows.map(toEventDto);
+  }
+
+  async publish(id: string, actorId: string): Promise<Event> {
+    const existing = await this.events.findOneBy({ id });
+    if (!existing) throw new NotFoundException("Event not found");
+    assertOrganizer(existing.organizerUserId, actorId);
+    existing.published = true;
+    return toEventDto(await this.events.save(existing));
   }
 
   async list(query: EventListQuery): Promise<Event[]> {
@@ -180,6 +198,11 @@ async function assertPlaceBound(places: PlacesService, placeId: string | null): 
     if (error instanceof NotFoundException) throw new BadRequestException("Place not found");
     throw error;
   }
+}
+
+function assertOrganizer(ownerId: string | null, actorId?: string): void {
+  if (!actorId) return;
+  if (!ownerId || ownerId !== actorId) throw new ForbiddenException("Not the organizer");
 }
 
 function assertTimeRange(startsAt: string, endsAt: string | null): void {

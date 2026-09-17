@@ -38,17 +38,17 @@ export class EventsController {
   }
 
   @Patch(":id")
-  async update(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<Event> {
+  async update(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<Event> {
     if (body === null || typeof body !== "object" || Array.isArray(body)) {
       throw new BadRequestException("Invalid event payload");
     }
-    return this.events.update(id, body as Record<string, unknown>);
+    return this.events.update(id, body as Record<string, unknown>, user.id);
   }
 
   @Delete(":id")
   @HttpCode(204)
-  remove(@Param("id", ParseUUIDPipe) id: string): Promise<void> {
-    return this.events.remove(id);
+  remove(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<void> {
+    return this.events.remove(id, user.id);
   }
 }
 

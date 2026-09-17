@@ -11,7 +11,7 @@
 // - toPlaceDto - map PlaceEntity to the api-contracts Place shape
 // END_MODULE_MAP
 
-import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 import type { CreatePlace, Place, PlaceCategory } from "@max-events/api-contracts";
@@ -33,10 +33,10 @@ export class PlacesService {
     @Inject(UsersService) private readonly users: UsersService,
   ) {}
 
-  async create(payload: CreatePlace, organizerUserId?: string): Promise<Place> {
+  async create(payload: CreatePlace, organizerUserId?: string, options?: { draft?: boolean }): Promise<Place> {
     if (organizerUserId) await this.users.assertCanPublish(organizerUserId);
     try {
-      const saved = await this.places.save(this.places.create({ ...payload, published: true }));
+      const saved = await this.places.save(this.places.create({ ...payload, published: options?.draft ? false : true, organizerUserId: organizerUserId ?? null }));
       return toPlaceDto(saved);
     } catch (error) {
       throw translateUniqueViolation(error);
@@ -49,9 +49,10 @@ export class PlacesService {
     return toPlaceDto(found);
   }
 
-  async update(id: string, patch: Partial<CreatePlace>): Promise<Place> {
+  async update(id: string, patch: Partial<CreatePlace>, actorId?: string): Promise<Place> {
     const existing = await this.places.findOneBy({ id });
     if (!existing) throw new NotFoundException("Place not found");
+    assertOrganizer(existing.organizerUserId, actorId);
     try {
       const saved = await this.places.save(this.places.merge(existing, patch));
       return toPlaceDto(saved);
@@ -67,9 +68,24 @@ export class PlacesService {
     await this.places.save(found);
   }
 
-  async remove(id: string): Promise<void> {
-    const result = await this.places.delete({ id });
-    if (!result.affected) throw new NotFoundException("Place not found");
+  async remove(id: string, actorId?: string): Promise<void> {
+    const existing = await this.places.findOneBy({ id });
+    if (!existing) throw new NotFoundException("Place not found");
+    assertOrganizer(existing.organizerUserId, actorId);
+    await this.places.delete({ id });
+  }
+
+  async listMine(organizerUserId: string): Promise<Place[]> {
+    const rows = await this.places.find({ where: { organizerUserId }, order: { title: "ASC", id: "ASC" } });
+    return rows.map(toPlaceDto);
+  }
+
+  async publish(id: string, actorId: string): Promise<Place> {
+    const existing = await this.places.findOneBy({ id });
+    if (!existing) throw new NotFoundException("Place not found");
+    assertOrganizer(existing.organizerUserId, actorId);
+    existing.published = true;
+    return toPlaceDto(await this.places.save(existing));
   }
 
   async list(query: PlaceListQuery): Promise<Place[]> {
@@ -98,6 +114,11 @@ export function toPlaceDto(place: PlaceEntity): Place {
     createdAt: place.createdAt.toISOString(),
     updatedAt: place.updatedAt.toISOString(),
   };
+}
+
+function assertOrganizer(ownerId: string | null, actorId?: string): void {
+  if (!actorId) return;
+  if (!ownerId || ownerId !== actorId) throw new ForbiddenException("Not the organizer");
 }
 
 function translateUniqueViolation(error: unknown): unknown {

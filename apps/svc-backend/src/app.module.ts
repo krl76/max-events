@@ -46,6 +46,7 @@ import { SmartAlertsModule } from "./smart-alerts/smart-alerts.module";
 import { TasteModule } from "./taste/taste.module";
 import { DiscoveryModule } from "./discovery/discovery.module";
 import { PeopleModule } from "./people/people.module";
+import { OrganizerModule } from "./organizer/organizer.module";
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { PeopleModule } from "./people/people.module";
     TasteModule,
     DiscoveryModule,
     PeopleModule,
+    OrganizerModule,
   ],
 })
 export class AppModule {}

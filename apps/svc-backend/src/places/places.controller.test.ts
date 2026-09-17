@@ -81,14 +81,14 @@ describe("PlacesController", () => {
 
   it("rejects an invalid patch payload with 400", async () => {
     const { controller } = createController();
-    await expect(controller.update(place.id, { latitude: 200 })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.update(user, place.id, { latitude: 200 })).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("updates, fetches, and deletes by id", async () => {
     const { calls, controller } = createController();
     await expect(controller.getById(place.id)).resolves.toEqual(place);
-    await expect(controller.update(place.id, { title: "Новое имя" })).resolves.toMatchObject({ title: "Новое имя" });
-    await controller.remove(place.id);
+    await expect(controller.update(user, place.id, { title: "Новое имя" })).resolves.toMatchObject({ title: "Новое имя" });
+    await controller.remove(user, place.id);
     expect(calls.getById).toBe(place.id);
     expect(calls.update).toEqual({ id: place.id, patch: { title: "Новое имя" } });
     expect(calls.remove).toBe(place.id);

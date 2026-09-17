@@ -37,6 +37,9 @@ export class PlaceEntity {
   @Column({ type: "double precision" })
   longitude!: number;
 
+  @Column({ type: "uuid", nullable: true })
+  organizerUserId!: string | null;
+
   @Column({ type: "boolean", default: true })
   published!: boolean;
 

@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
 import { CreateEventSchema, type CreateEvent, type Place } from "@max-events/api-contracts";
@@ -45,11 +45,12 @@ function createRepo(initial: EventEntity[] = []) {
       return entity;
     },
     findOneBy: async (where: { id: string }) => store.find((row) => row.id === where.id) ?? null,
-    find: async (opts: { where?: { published?: boolean; city?: string; category?: string }; order?: { startsAt?: "ASC" | "DESC"; id?: "ASC" | "DESC" } }) => {
+    find: async (opts: { where?: { published?: boolean; city?: string; category?: string; organizerUserId?: string }; order?: { startsAt?: "ASC" | "DESC"; id?: "ASC" | "DESC" } }) => {
       let rows = [...store];
       if (opts.where?.published === true) rows = rows.filter((row) => row.published);
       if (opts.where?.city) rows = rows.filter((row) => row.city === opts.where?.city);
       if (opts.where?.category) rows = rows.filter((row) => row.category === opts.where?.category);
+      if (opts.where?.organizerUserId) rows = rows.filter((row) => row.organizerUserId === opts.where?.organizerUserId);
       rows.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
       return rows;
     },
@@ -171,6 +172,17 @@ describe("EventsService", () => {
 
     const onDay = await service.list({ date: "2026-09-12" });
     expect(onDay.map((item) => item.title)).toEqual(["Субботник", "Джаз в парке"]);
+  });
+
+  it("hides drafts from the catalog and forbids a non-organizer from editing", async () => {
+    const { repo, service } = createService();
+    const draft = await service.create(payload, "00000000-0000-4000-8000-00000000000a", { draft: true });
+    expect(repo.store[0]?.published).toBe(false);
+    expect(await service.list({})).toEqual([]);
+    await expect(service.update(draft.id, { title: "Чужой" }, "00000000-0000-4000-8000-00000000000b")).rejects.toBeInstanceOf(ForbiddenException);
+    const published = await service.publish(draft.id, "00000000-0000-4000-8000-00000000000a");
+    expect(published.title).toBe("Джаз в парке");
+    expect((await service.listMine("00000000-0000-4000-8000-00000000000a")).map((row) => row.id)).toEqual([draft.id]);
   });
 
   it("fills waitlist vacancies when capacity increases", async () => {

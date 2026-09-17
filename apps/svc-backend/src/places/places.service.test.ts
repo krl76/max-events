@@ -164,6 +164,7 @@ describe("toPlaceDto", () => {
       category: "park",
       latitude: 55.7297,
       longitude: 37.6035,
+      organizerUserId: null,
       published: true,
       createdAt: new Date("2026-09-01T07:00:00Z"),
       updatedAt: new Date("2026-09-01T07:00:00Z"),

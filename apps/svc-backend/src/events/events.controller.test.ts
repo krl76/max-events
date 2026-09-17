@@ -81,9 +81,9 @@ describe("EventsController", () => {
   it("updates, fetches, and deletes by id", async () => {
     const { calls, controller } = createController();
     await expect(controller.getById(event.id)).resolves.toEqual(event);
-    await expect(controller.update(event.id, { title: "Новое имя" })).resolves.toMatchObject({ title: "Новое имя" });
-    await expect(controller.update(event.id, "nope")).rejects.toBeInstanceOf(BadRequestException);
-    await controller.remove(event.id);
+    await expect(controller.update(user, event.id, { title: "Новое имя" })).resolves.toMatchObject({ title: "Новое имя" });
+    await expect(controller.update(user, event.id, "nope")).rejects.toBeInstanceOf(BadRequestException);
+    await controller.remove(user, event.id);
     expect(calls.getById).toBe(event.id);
     expect(calls.update).toEqual({ id: event.id, patch: { title: "Новое имя" } });
     expect(calls.remove).toBe(event.id);
