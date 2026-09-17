@@ -27,7 +27,7 @@ import { ListPage, ListsLink, ListsPage } from "../lists/ListsPage";
 import { AchievementsLink, AchievementsPage } from "../profile/AchievementsPage";
 import { MyCityLink, MyCityPage } from "../profile/MyCityPage";
 import { MicroEventCreatePage, MicroSection } from "../micro/MicroEvents";
-import { FeedCreatePage, FeedSection } from "../feed/FeedPage";
+import { FeedCreatePage, FeedSection, StoriesRow } from "../feed/FeedPage";
 
 export function HomePage() {
   const { navigate } = useRoute();
@@ -39,6 +39,7 @@ export function HomePage() {
           <button type="button" className="app-whereto-cta" onClick={() => navigate({ name: "whereto" })}>
             Куда пойдём?
           </button>
+          <StoriesRow />
           <FeedSection onCreate={() => navigate({ name: "feed-new", eventId: null })} />
           <TodaySection />
           <MicroSection onCreate={() => navigate({ name: "micro-new" })} />

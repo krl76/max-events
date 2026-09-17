@@ -6,7 +6,9 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - FeedPostCard - presentational post: media placeholder, author, event title, text, like toggle with counter, comment list and add form
+// - FeedPostCard - presentational Instagram-style post: author header, 4:5 media placeholder, icon actions (like/comment/share), likes line, caption, comments and add form
+// - likesLabel - ru plural line «N отметок „нравится“» for the post likes counter
+// - StoriesRow - decorative stories rail over the home feed (mock friends + own story ring)
 // - FeedState - union of the feed fetch states (loading / error / ready)
 // - FeedSection - container: posts (optionally one event — the wall), like/comment wiring, «+» publish CTA
 // - FeedDraft - publish form draft (event title, text)
@@ -15,14 +17,16 @@
 // - FeedCreatePage - route container: author id, draft state, publish via createFeedPost
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Event } from "@max-events/api-contracts";
 import { apiClient, type FeedPost } from "../api/client";
-import { mockEvents } from "../api/mock";
+import { mockEvents, mockFriends } from "../api/mock";
 import { useAuth } from "../auth/AuthContext";
 import { DEMO_USER_ID } from "../event/EventPage";
+import { shareResult, webApp } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { AppAvatar, AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { ActionIcon } from "../ui/icons";
 import { IconButton } from "@maxhub/max-ui";
 
 interface FeedPostCardProps {
@@ -32,50 +36,73 @@ interface FeedPostCardProps {
   onOpenEvent?: (eventId: string) => void;
 }
 
+export function likesLabel(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  const word = mod10 === 1 && mod100 !== 11 ? "отметка" : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? "отметки" : "отметок";
+  return `${count} ${word} «нравится»`;
+}
+
 export function FeedPostCard({ post, onToggleLike, onAddComment, onOpenEvent }: FeedPostCardProps) {
   const [comment, setComment] = useState("");
+  const commentRef = useRef<HTMLInputElement | null>(null);
   const eventTitle = mockEvents.find((item) => item.id === post.eventId)?.title ?? "";
+  const eventLink = onOpenEvent ? (
+    <button type="button" className="app-plan-event" onClick={() => onOpenEvent(post.eventId)}>
+      {eventTitle}
+    </button>
+  ) : (
+    <span className="app-post-place-text">{eventTitle}</span>
+  );
   return (
-    <article className="app-card">
-      <div className="app-card-media" />
-      <div className="app-card-body">
-        <span className="app-feed-author">
-          <AppAvatar size={36}>{post.author.name[0]}</AppAvatar>
-          {post.author.name}
+    <article className="app-card app-card--post">
+      <header className="app-post-head">
+        <AppAvatar size={36}>{post.author.name[0]}</AppAvatar>
+        <span className="app-post-id">
+          <span className="app-post-author">{post.author.name}</span>
+          {eventTitle !== "" && <span className="app-post-place">{eventLink}</span>}
         </span>
-        {onOpenEvent ? (
-          <button type="button" className="app-plan-event" onClick={() => onOpenEvent(post.eventId)}>
-            {eventTitle}
-          </button>
-        ) : (
-          <span className="app-card-title">{eventTitle}</span>
-        )}
-        <span>{post.text}</span>
-        <button type="button" className="app-feed-like" aria-pressed={post.likedByMe} onClick={onToggleLike}>
-          {post.likedByMe ? "♥" : "♡"} {post.likesCount}
+      </header>
+      <div className="app-card-media" />
+      <div className="app-post-actions">
+        <button type="button" className="app-post-action" aria-pressed={post.likedByMe} aria-label="Нравится" onClick={onToggleLike}>
+          <ActionIcon filled={post.likedByMe} name="heart" />
         </button>
-        <ul className="app-feed-comments">
-          {post.comments.map((item) => (
-            <li key={item.id} className="app-feed-comment">
-              <span className="app-feed-comment-author">{item.author.name}</span> {item.text}
-            </li>
-          ))}
-        </ul>
-        <form
-          className="app-feed-comment-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (comment.trim() === "") return;
-            onAddComment(comment);
-            setComment("");
-          }}
-        >
-          <input className="app-filters-input" placeholder="Добавить комментарий…" value={comment} onChange={(change) => setComment(change.target.value)} />
-          <AppChip disabled={comment.trim() === ""} type="submit">
-            Отправить
-          </AppChip>
-        </form>
+        <button type="button" className="app-post-action" aria-label="Комментировать" onClick={() => commentRef.current?.focus()}>
+          <ActionIcon name="comment" />
+        </button>
+        <button type="button" className="app-post-action" aria-label="Поделиться" onClick={() => void shareResult(webApp, `${post.author.name} — ${eventTitle}: ${post.text}`)}>
+          <ActionIcon name="share" />
+        </button>
+        <span className="app-post-action app-post-action--muted" aria-hidden="true">
+          <ActionIcon name="bookmark" />
+        </span>
       </div>
+      <p className="app-post-likes">{likesLabel(post.likesCount)}</p>
+      <p className="app-post-caption">
+        <span className="app-post-caption-author">{post.author.name}</span> {post.text}
+      </p>
+      <ul className="app-feed-comments">
+        {post.comments.map((item) => (
+          <li key={item.id} className="app-feed-comment">
+            <span className="app-feed-comment-author">{item.author.name}</span> {item.text}
+          </li>
+        ))}
+      </ul>
+      <form
+        className="app-feed-comment-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (comment.trim() === "") return;
+          onAddComment(comment);
+          setComment("");
+        }}
+      >
+        <input ref={commentRef} className="app-filters-input" placeholder="Добавить комментарий…" value={comment} onChange={(change) => setComment(change.target.value)} />
+        <AppChip disabled={comment.trim() === ""} type="submit">
+          Отправить
+        </AppChip>
+      </form>
     </article>
   );
 }
@@ -128,6 +155,27 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
       </div>
       {state.status === "loading" ? null : state.status === "error" ? <p className="app-state app-state--error">Не удалось загрузить впечатления.</p> : state.posts.length === 0 ? <p className="app-state">Пока нет постов — расскажи первым.</p> : state.posts.map((post) => <FeedPostCard key={post.id} post={post} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)}
     </section>
+  );
+}
+
+export function StoriesRow() {
+  return (
+    <div className="app-stories" aria-label="Друзья и планы">
+      <div className="app-story">
+        <span className="app-story-ring app-story-ring--own">
+          <AppAvatar size={58}>Д</AppAvatar>
+        </span>
+        <span className="app-story-name">Твоя история</span>
+      </div>
+      {mockFriends.map((friend) => (
+        <div key={friend.id} className="app-story">
+          <span className="app-story-ring">
+            <AppAvatar size={58}>{friend.name[0]}</AppAvatar>
+          </span>
+          <span className="app-story-name">{friend.name.split(" ")[0]}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 

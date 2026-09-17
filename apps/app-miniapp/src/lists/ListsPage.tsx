@@ -29,6 +29,7 @@ import { formatStartsAt } from "../catalog/CatalogPage";
 import { DEMO_USER_ID } from "../event/EventPage";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
 import { AppButton } from "../ui/primitives";
+import { ActionIcon } from "../ui/icons";
 import { useRoute } from "../routing/router";
 
 export function listItemsLabel(count: number): string {
@@ -67,6 +68,9 @@ export function ListsView({ state, onOpen }: { state: ListsState; onOpen: (listI
             {participants.length > 0 && <span className="app-card-subtitle">{participantsLabel(participants)}</span>}
             <span className="app-card-subtitle">{listItemsLabel(itemsCount)}</span>
           </div>
+          <span className="app-row-chevron" aria-hidden="true">
+            <ActionIcon name="chevron" size={16} strokeWidth={2} />
+          </span>
         </button>
       ))}
     </>
@@ -111,6 +115,9 @@ export function ListView({ state, onOpenEvent, showAuthors = false }: { state: L
             <span className="app-card-subtitle">{formatStartsAt(event.startsAt)}</span>
             {showAuthors && addedBy !== null && <span className="app-card-subtitle">Добавил: {addedBy.name}</span>}
           </div>
+          <span className="app-row-chevron" aria-hidden="true">
+            <ActionIcon name="chevron" size={16} strokeWidth={2} />
+          </span>
         </button>
       ))}
     </>

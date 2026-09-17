@@ -28,7 +28,7 @@ function entry(overrides: Partial<CalendarEntry> = {}): CalendarEntry {
 }
 
 function renderProfileView(overrides: Partial<Parameters<typeof ProfileView>[0]> = {}): string {
-  const props = { user, profile, stats: { events: 5, places: 3 }, visitStats: null, saving: false, onSave: () => {}, ...overrides };
+  const props = { user, profile, stats: { events: 5, places: 3 }, friendsCount: 7, posts: [], visitStats: null, saving: false, onSave: () => {}, ...overrides };
   return renderToStaticMarkup(createElement(ProfileView, props));
 }
 

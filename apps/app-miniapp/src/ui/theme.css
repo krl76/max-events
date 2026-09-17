@@ -1,6 +1,7 @@
 /*
- * Дизайн-токены MAX Events. Стилистика — Instagram (карточная лента, крупные медиа),
- * цвета — мессенджера MAX. Источник палитры: @maxhub/max-ui (официальная дизайн-система MAX),
+ * Дизайн-токены MAX Events. Стилистика — Instagram (плоская лента, хайрлайны, медиа 4:5,
+ * stories-ряд, pill-кнопки, профиль-сетка), цвета — мессенджера MAX.
+ * Источник палитры: @maxhub/max-ui (официальная дизайн-система MAX),
  * классы .MaxUI_colorScheme_light|dark подключаются layout'ом через styles.css библиотеки.
  * MAX Bridge themeParams не существует (сверено с https://dev.max.ru/docs/webapps/bridge):
  * платформа не отдаёт параметры темы, поэтому fallback — light-схема MAX UI.
@@ -10,6 +11,7 @@
 .app-root {
   /* Цвета */
   --app-bg: var(--background-primary, #fff);
+  --app-page: var(--background-secondary, #fafafa);
   --app-surface: var(--background-secondary, #f5f7fa);
   --app-card: var(--background-card, #fff);
   --app-text: var(--text-primary, #060708);
@@ -19,7 +21,15 @@
   --app-accent-contrast: var(--text-primary-inverse-static, #fff);
   --app-danger: var(--button-negative, #ff303c);
   --app-divider: var(--divider-primary, rgba(12, 13, 14, 0.16));
-  --app-media-gradient: var(--gradient-blue, linear-gradient(157deg, #08d7f3 6.38%, #5398ff 85%));
+  --app-hairline: 0.5px solid var(--app-divider);
+
+  /* Медиа-заглушки: пять градиентов MAX-палитры, ротация по nth-child */
+  --app-media-gradient-1: var(--gradient-blue, linear-gradient(157deg, #08d7f3 6.38%, #5398ff 85%));
+  --app-media-gradient-2: var(--gradient-purple, linear-gradient(155deg, #bf97ff 6.6%, #526eff 84.12%));
+  --app-media-gradient-3: var(--gradient-orange, linear-gradient(155deg, #ffc93d 6.6%, #ff832a 84.12%));
+  --app-media-gradient-4: var(--gradient-green, linear-gradient(158deg, #14e1d5 6.15%, #03c722 85.68%));
+  --app-media-gradient-5: var(--gradient-red, linear-gradient(153deg, #ff48b6 0.77%, #ff8a35 93.03%));
+  --app-media-veil: linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04));
 
   /* Типографика */
   --app-font: var(--font, system-ui, -apple-system, "Roboto", sans-serif);
@@ -37,11 +47,11 @@
   --app-space-l: 16px;
   --app-space-xl: 24px;
 
-  /* Elevations: мягкие тени в духе Instagram, не Material-глубокие */
+  /* Elevations: только для модалок/панелей, экраны плоские */
   --app-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
   --app-elevation-2: 0 2px 6px rgba(0, 0, 0, 0.08), 0 10px 28px rgba(0, 0, 0, 0.1);
 
-  background: var(--app-bg);
+  background: var(--app-page);
   color: var(--app-text);
   display: flex;
   flex-direction: column;
@@ -50,18 +60,20 @@
 }
 
 .app-header {
+  background: var(--app-card);
+  border-bottom: var(--app-hairline);
   flex-shrink: 0;
-  font-size: 1.375rem;
+  font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  padding: var(--app-space-l) var(--app-space-l) var(--app-space-m);
+  padding: var(--app-space-m) var(--app-space-l);
 }
 
 .app-content {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: var(--app-space-m);
+  gap: 0;
   min-height: 0;
   overflow-y: auto;
   padding: 0 var(--app-space-l) calc(var(--app-space-l) + 56px);
@@ -119,17 +131,18 @@
   font-weight: 600;
 }
 
-/* Карточная лента, крупные медиа (Instagram-стилистика) */
+/* Плоские блоки вместо карточек с тенями: секции разделяются хайрлайнами */
 .app-card {
   background: var(--app-card);
-  border-radius: var(--app-radius-card);
-  box-shadow: var(--app-elevation-1);
-  overflow: hidden;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .app-card-media {
   aspect-ratio: 4 / 5;
-  background: var(--app-media-gradient);
+  background-image: var(--app-media-veil), var(--app-media-gradient-1);
+  background-position: center;
+  background-size: cover;
   width: 100%;
 }
 
@@ -144,13 +157,13 @@
 
 .app-card-title {
   color: var(--app-text);
-  font-size: var(--app-font-size-body);
+  font-size: 0.875rem;
   font-weight: var(--app-font-weight-title);
 }
 
 .app-card-subtitle {
   color: var(--app-text-tertiary);
-  font-size: var(--app-font-size-description);
+  font-size: 0.75rem;
 }
 
 .app-state {
@@ -163,32 +176,56 @@
   color: var(--app-danger);
 }
 
-/* Чип-примитив (AppChip): фильтры, статусы участия, выбор настроения */
+/* Pill-кнопки (AppButton): primary — акцентная заливка, secondary — светло-серая с тёмным текстом */
+.app-root .app-btn {
+  border-radius: 999px;
+}
+
+.app-root .app-btn--secondary {
+  background: var(--app-surface);
+  border: none;
+  color: var(--app-text);
+}
+
+/* Компактные кнопки внутри строк-карточек: не растягиваются flex-колонкой */
+.app-card-body .app-btn {
+  align-self: flex-start;
+  width: auto;
+}
+
+/* Чип-примитив (AppChip): тонкая обводка, активный — тёмная заливка + белый текст (фильтры IG) */
 .app-chip {
   align-self: flex-start;
-  background: var(--app-surface);
-  border: 0.5px solid transparent;
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
   border-radius: 999px;
-  color: var(--app-text-secondary);
+  color: var(--app-text);
   cursor: pointer;
   font: inherit;
-  font-size: var(--app-font-size-description);
-  padding: var(--app-space-s) var(--app-space-m);
+  font-size: 0.8125rem;
+  padding: 6px 12px;
   white-space: nowrap;
 }
 
+.app-chip:disabled {
+  opacity: 0.45;
+}
+
 .app-chip--on {
-  background: var(--app-accent);
-  border-color: var(--app-accent);
-  color: var(--app-accent-contrast);
+  background: var(--app-text);
+  border-color: var(--app-text);
+  color: var(--app-card);
   font-weight: var(--app-font-weight-title);
 }
 
 /* Каталог: панель фильтров (дата / категория / город) */
 .app-filters {
+  border-top: var(--app-hairline);
   display: flex;
   flex-direction: column;
   gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
+  padding-top: var(--app-space-m);
 }
 
 .app-filters-chips {
@@ -205,13 +242,13 @@
 .app-filters-input {
   background: var(--app-surface);
   border: none;
-  border-radius: var(--app-radius-media);
+  border-radius: 999px;
   color: var(--app-text);
   flex: 1;
   font: inherit;
-  font-size: var(--app-font-size-description);
+  font-size: 0.8125rem;
   min-width: 0;
-  padding: var(--app-space-s) var(--app-space-m);
+  padding: 6px 12px;
 }
 
 .app-filters-reset {
@@ -220,7 +257,7 @@
   color: var(--app-accent);
   cursor: pointer;
   font: inherit;
-  font-size: var(--app-font-size-description);
+  font-size: 0.8125rem;
   padding: var(--app-space-s) 0;
   white-space: nowrap;
 }
@@ -229,11 +266,49 @@
 .app-view-toggle {
   display: flex;
   gap: var(--app-space-s);
+  margin-top: var(--app-space-s);
+}
+
+/* Каталог: строка события — квадратная медиа-плашка + текст (плоско, хайрлайны) */
+.app-card--link {
+  border: none;
+  border-top: var(--app-hairline);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.app-card--link .app-card-media {
+  align-self: flex-start;
+  aspect-ratio: 1;
+  flex: none;
+  width: 96px;
+}
+
+.app-card--link .app-card-body {
+  flex: 1;
+  gap: var(--app-space-xs);
+  padding: var(--app-space-m) var(--app-space-l);
+}
+
+.app-card--link .app-card-title {
+  font-size: 0.9375rem;
+}
+
+.app-row-chevron {
+  align-self: center;
+  color: var(--app-text-tertiary);
+  display: flex;
+  flex: none;
+  padding-right: var(--app-space-l);
 }
 
 /* Каталог: карта (Leaflet + OSM), пины и карточки-попапы; заполняет остаток высоты контента */
 .app-map {
-  border-radius: var(--app-radius-card);
+  border-radius: var(--app-radius-media);
   flex: 1;
   height: auto;
   min-height: 420px;
@@ -242,7 +317,7 @@
 }
 
 .app-map .leaflet-popup-content-wrapper {
-  border-radius: var(--app-radius-card);
+  border-radius: var(--app-radius-media);
   color: var(--app-text);
   font: inherit;
 }
@@ -275,7 +350,7 @@
   align-self: flex-start;
   background: var(--app-accent);
   border: none;
-  border-radius: var(--app-radius-media);
+  border-radius: 999px;
   color: var(--app-accent-contrast);
   cursor: pointer;
   font: inherit;
@@ -294,7 +369,7 @@
 .app-skeleton-line {
   animation: app-skeleton-pulse 1.2s ease-in-out infinite;
   background: var(--app-surface);
-  border-radius: var(--app-radius-media);
+  border-radius: 999px;
   height: 14px;
   width: 70%;
 }
@@ -303,11 +378,14 @@
   width: 45%;
 }
 
-/* Страница мероприятия: крупное медиа и пост-подача (Instagram-стилистика) */
+/* Страница мероприятия: медиа во всю ширину и пост-подача */
 .app-event-media {
   aspect-ratio: 4 / 5;
-  background: var(--app-media-gradient);
-  width: 100%;
+  background-image: var(--app-media-veil), var(--app-media-gradient-2);
+  background-position: center;
+  background-size: cover;
+  margin: 0 calc(-1 * var(--app-space-l));
+  width: calc(100% + 2 * var(--app-space-l));
 }
 
 .app-event-body {
@@ -320,8 +398,9 @@
 
 .app-event-title {
   color: var(--app-text);
-  font-size: var(--app-font-size-title);
-  font-weight: var(--app-font-weight-title);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   margin: 0;
 }
 
@@ -330,23 +409,36 @@
 }
 
 .app-event-meta-row {
-  border-top: 0.5px solid var(--app-divider);
+  border-top: var(--app-hairline);
   display: flex;
   gap: var(--app-space-m);
   justify-content: space-between;
-  padding: var(--app-space-s) 0;
+  padding: 10px 0;
+}
+
+.app-event-meta-row:first-child {
+  border-top: none;
+  padding-top: 0;
 }
 
 .app-event-meta-row dt {
-  color: var(--app-text-tertiary);
-  font-size: var(--app-font-size-description);
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: 0.875rem;
+  gap: var(--app-space-s);
 }
 
 .app-event-meta-row dd {
   color: var(--app-text);
-  font-size: var(--app-font-size-description);
+  font-size: 0.875rem;
   margin: 0;
   text-align: right;
+}
+
+.app-event-meta-ico {
+  color: var(--app-text-tertiary);
+  display: flex;
 }
 
 .app-event-description {
@@ -355,12 +447,28 @@
   margin: 0;
 }
 
+/* Страница мероприятия: sticky-панель действий над таббаром */
+.app-event-actions {
+  background: var(--app-card);
+  border-top: var(--app-hairline);
+  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  margin: var(--app-space-s) calc(-1 * var(--app-space-l)) 0;
+  padding: var(--app-space-m) var(--app-space-l);
+  position: sticky;
+  z-index: 5;
+}
+
 /* Страница мероприятия: статусы участия (селектор + счётчики) */
 .app-participation-title {
   color: var(--app-text);
-  font-size: var(--app-font-size-title);
+  font-size: 0.75rem;
   font-weight: var(--app-font-weight-title);
+  letter-spacing: 0.08em;
   margin: 0;
+  text-transform: uppercase;
 }
 
 .app-participation-chips {
@@ -372,8 +480,8 @@
 .app-participation-clear {
   align-self: flex-start;
   background: none;
-  border: 0.5px solid var(--app-danger);
-  border-radius: var(--app-radius-media);
+  border: 1px solid var(--app-danger);
+  border-radius: 999px;
   color: var(--app-danger);
   cursor: pointer;
   font: inherit;
@@ -382,7 +490,7 @@
 }
 
 .app-participation-counters {
-  border-top: 0.5px solid var(--app-divider);
+  border-top: var(--app-hairline);
   color: var(--app-text-secondary);
   display: flex;
   flex-direction: column;
@@ -456,7 +564,7 @@
 
 .app-review-text {
   background: var(--app-surface);
-  border: 0.5px solid var(--app-divider);
+  border: none;
   border-radius: var(--app-radius-media);
   color: var(--app-text);
   font: inherit;
@@ -497,17 +605,21 @@
   gap: var(--app-space-s);
 }
 
-/* Профиль: Instagram-подача (аватар, строка статистики, интересы, форма правки) */
+/* Профиль: аватар + три счётчика, сетка впечатлений, pill-действия; белая full-bleed секция */
 .app-profile {
+  background: var(--app-card);
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-m);
+  gap: var(--app-space-s);
+  margin: 0 calc(-1 * var(--app-space-l));
+  padding: var(--app-space-s) var(--app-space-l) var(--app-space-m);
 }
 
 .app-profile-header {
   align-items: center;
   display: flex;
-  gap: var(--app-space-l);
+  gap: var(--app-space-xl);
+  padding: var(--app-space-s) 0;
 }
 
 .app-profile-stats {
@@ -525,24 +637,24 @@
 .app-profile-stat-value {
   color: var(--app-text);
   font-size: var(--app-font-size-title);
-  font-weight: var(--app-font-weight-title);
+  font-weight: 700;
 }
 
 .app-profile-stat-label {
   color: var(--app-text-tertiary);
-  font-size: var(--app-font-size-description);
+  font-size: 0.75rem;
 }
 
 .app-profile-name {
   color: var(--app-text);
-  font-size: var(--app-font-size-title);
-  font-weight: var(--app-font-weight-title);
+  font-size: var(--app-font-size-body);
+  font-weight: 700;
   margin: 0;
 }
 
 .app-profile-city {
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-body);
+  color: var(--app-text);
+  font-size: 0.875rem;
   margin: 0;
 }
 
@@ -554,47 +666,98 @@
 
 .app-profile-interest {
   background: var(--app-surface);
-  border-radius: var(--app-radius-media);
+  border-radius: 999px;
   color: var(--app-text-secondary);
-  font-size: var(--app-font-size-description);
-  padding: var(--app-space-s) var(--app-space-m);
+  font-size: 0.75rem;
+  padding: var(--app-space-xs) var(--app-space-s);
+}
+
+/* Сетка впечатлений: 3 колонки, квадратные ячейки, gap 2px, градиентная ротация */
+.app-profile-grid {
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(3, 1fr);
+  margin: var(--app-space-s) calc(-1 * var(--app-space-l)) calc(-1 * var(--app-space-m));
+}
+
+.app-profile-cell {
+  aspect-ratio: 1;
+  background-image: var(--app-media-veil), var(--app-media-gradient-1);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.app-profile-cell:nth-child(5n + 2) {
+  background-image: var(--app-media-veil), var(--app-media-gradient-2);
+}
+
+.app-profile-cell:nth-child(5n + 3) {
+  background-image: var(--app-media-veil), var(--app-media-gradient-3);
+}
+
+.app-profile-cell:nth-child(5n + 4) {
+  background-image: var(--app-media-veil), var(--app-media-gradient-4);
+}
+
+.app-profile-cell:nth-child(5n + 5) {
+  background-image: var(--app-media-veil), var(--app-media-gradient-5);
 }
 
 .app-profile-form {
-  border-top: 0.5px solid var(--app-divider);
+  border-top: var(--app-hairline);
   display: flex;
   flex-direction: column;
   gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
   padding-top: var(--app-space-m);
 }
 
 .app-profile-input {
   background: var(--app-surface);
   border: none;
-  border-radius: var(--app-radius-media);
+  border-radius: 999px;
   color: var(--app-text);
   font: inherit;
   font-size: var(--app-font-size-description);
   padding: var(--app-space-s) var(--app-space-m);
 }
 
-/* Календарь: секции «Запланированные»/«Прошедшие» и карточки брони */
+/* Календарь: секции «Запланированные»/«Прошедшие» и плоские строки брони */
+.app-calendar-section {
+  border-top: var(--app-hairline);
+  margin-top: var(--app-space-m);
+  padding-top: var(--app-space-m);
+}
+
 .app-calendar-heading {
   color: var(--app-text);
-  font-size: var(--app-font-size-title);
+  font-size: 0.75rem;
   font-weight: var(--app-font-weight-title);
-  margin: 0;
+  letter-spacing: 0.08em;
+  margin: 0 0 var(--app-space-s);
+  text-transform: uppercase;
+}
+
+.app-calendar-section .app-card {
+  border-top: var(--app-hairline);
+}
+
+.app-calendar-section .app-card:first-of-type {
+  border-top: none;
 }
 
 .app-calendar-cancel {
   align-self: flex-start;
 }
 
-/* Друзья: лента «Твои люди идут» (Instagram-стилистика) */
+/* Друзья: плоские группы-строки с хайрлайнами */
 .app-friends-group {
+  border-top: var(--app-hairline);
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-s);
+  gap: var(--app-space-xs);
+  padding-top: var(--app-space-m);
 }
 
 .app-friends-person {
@@ -605,34 +768,42 @@
 
 .app-friends-name {
   color: var(--app-text);
-  font-size: var(--app-font-size-title);
+  font-size: 0.875rem;
   font-weight: var(--app-font-weight-title);
+}
+
+.app-friends-group .app-card {
+  border-top: var(--app-hairline);
+  padding: var(--app-space-s) 0;
 }
 
 .app-friends-join {
   align-self: flex-start;
 }
 
-/* Визард «Куда пойдём?»: главная CTA, шаги и подборка */
+/* Визард «Куда пойдём?»: pill-CTA, строки-опции с шевроном */
 .app-whereto-cta {
-  background: var(--app-media-gradient);
+  background: var(--app-accent);
   border: none;
-  border-radius: var(--app-radius-card);
+  border-radius: 999px;
   color: var(--app-accent-contrast);
   cursor: pointer;
   font: inherit;
-  font-size: var(--app-font-size-title);
+  font-size: var(--app-font-size-body);
   font-weight: var(--app-font-weight-title);
-  padding: var(--app-space-l);
-  text-align: left;
+  margin-top: var(--app-space-m);
+  padding: 12px var(--app-space-l);
+  text-align: center;
   width: 100%;
 }
 
 .app-whereto-title {
   color: var(--app-text);
-  font-size: var(--app-font-size-title);
+  font-size: 0.75rem;
   font-weight: var(--app-font-weight-title);
+  letter-spacing: 0.08em;
   margin: 0;
+  text-transform: uppercase;
 }
 
 .app-whereto-hint {
@@ -644,20 +815,30 @@
 .app-whereto-options {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-s);
+  margin-top: var(--app-space-s);
 }
 
 .app-whereto-option {
-  background: var(--app-surface);
+  align-items: center;
+  background: none;
   border: none;
-  border-radius: var(--app-radius-card);
+  border-top: var(--app-hairline);
   color: var(--app-text);
   cursor: pointer;
+  display: flex;
   font: inherit;
-  font-size: var(--app-font-size-body);
+  font-size: 0.875rem;
   font-weight: var(--app-font-weight-title);
-  padding: var(--app-space-l);
+  justify-content: space-between;
+  padding: 14px 0;
   text-align: left;
+}
+
+.app-whereto-option::after {
+  color: var(--app-text-tertiary);
+  content: "›";
+  font-size: 1.25rem;
+  line-height: 1;
 }
 
 .app-whereto-chips {
@@ -691,47 +872,57 @@
   white-space: pre-wrap;
 }
 
-.app-card--link {
-  border: none;
-  cursor: pointer;
-  font: inherit;
-  padding: 0;
-  text-align: left;
-  width: 100%;
+/* Экран «Что делать сегодня?»: секция с хайрлайном, плоские строки, метки-пилюли */
+.app-today {
+  border-top: var(--app-hairline);
+  margin-top: var(--app-space-m);
+  padding-top: var(--app-space-m);
 }
 
-/* Экран «Что делать сегодня?»: сводка числами и контекстные карточки */
 .app-today-heading {
   color: var(--app-text);
-  font-size: var(--app-font-size-title);
+  font-size: 0.75rem;
   font-weight: var(--app-font-weight-title);
-  margin: 0;
+  letter-spacing: 0.08em;
+  margin: 0 0 var(--app-space-s);
+  text-transform: uppercase;
 }
 
 .app-today-summary {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);
-  margin: 0;
+  margin: 0 0 var(--app-space-s);
 }
 
 .app-today-labels {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--app-space-s);
+  gap: var(--app-space-xs);
 }
 
 .app-today-chip {
   align-self: flex-start;
   background: var(--app-surface);
-  border-radius: var(--app-radius-media);
-  color: var(--app-accent);
-  font-size: var(--app-font-size-description);
+  border-radius: 999px;
+  color: var(--app-text-secondary);
+  font-size: 0.75rem;
   font-weight: var(--app-font-weight-title);
-  padding: var(--app-space-s) var(--app-space-m);
+  padding: 2px var(--app-space-s);
   white-space: nowrap;
 }
 
-/* Сбор компании: выбор друзей со свободностью, время встречи, экран статуса */
+.app-today .app-card,
+section[aria-label="Микро-события"] .app-card {
+  border-top: var(--app-hairline);
+  padding: var(--app-space-s) 0;
+}
+
+.app-today .app-card:first-of-type,
+section[aria-label="Микро-события"] .app-card:first-of-type {
+  border-top: none;
+}
+
+/* Сбор компании: выбор друзей-пилюль, время встречи, экран статуса */
 .app-gathering {
   display: flex;
   flex-direction: column;
@@ -740,9 +931,11 @@
 
 .app-gathering-title {
   color: var(--app-text);
-  font-size: var(--app-font-size-title);
+  font-size: 0.75rem;
   font-weight: var(--app-font-weight-title);
+  letter-spacing: 0.08em;
   margin: 0;
+  text-transform: uppercase;
 }
 
 .app-gathering-hint {
@@ -759,9 +952,9 @@
 
 .app-gathering-friend {
   align-items: center;
-  background: var(--app-surface);
-  border: 1px solid transparent;
-  border-radius: var(--app-radius-media);
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: 999px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -817,7 +1010,7 @@
 .app-gathering-time-input {
   background: var(--app-surface);
   border: none;
-  border-radius: var(--app-radius-media);
+  border-radius: 999px;
   color: var(--app-text);
   font: inherit;
   font-size: var(--app-font-size-body);
@@ -827,7 +1020,7 @@
 .app-gathering-invitees {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-s);
+  gap: 0;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -835,16 +1028,20 @@
 
 .app-gathering-invitee {
   align-items: center;
-  background: var(--app-card);
-  border: 1px solid var(--app-divider);
-  border-radius: var(--app-radius-card);
+  background: none;
+  border: none;
+  border-top: var(--app-hairline);
   display: flex;
   gap: var(--app-space-m);
   justify-content: space-between;
-  padding: var(--app-space-m) var(--app-space-l);
+  padding: var(--app-space-m) 0;
 }
 
-/* Планы: карточка плана из ленты, экран плана (событие, участники, сбор) */
+.app-gathering-invitee:first-child {
+  border-top: none;
+}
+
+/* Планы: плоские строки с хайрлайнами */
 .app-plan {
   display: flex;
   flex-direction: column;
@@ -857,7 +1054,7 @@
   color: var(--app-accent);
   cursor: pointer;
   font: inherit;
-  font-size: var(--app-font-size-title);
+  font-size: 0.875rem;
   font-weight: var(--app-font-weight-title);
   padding: 0;
   text-align: left;
@@ -865,14 +1062,14 @@
 
 .app-plan-meeting {
   color: var(--app-text-secondary);
-  font-size: var(--app-font-size-body);
+  font-size: var(--app-font-size-description);
   margin: 0;
 }
 
 .app-plan-participants {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-s);
+  gap: 0;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -880,18 +1077,18 @@
 
 .app-plan-participant {
   align-items: center;
-  background: var(--app-card);
-  border: 1px solid var(--app-divider);
-  border-radius: var(--app-radius-card);
+  background: none;
+  border: none;
+  border-top: var(--app-hairline);
   display: flex;
   gap: var(--app-space-m);
   justify-content: space-between;
-  padding: var(--app-space-m) var(--app-space-l);
+  padding: var(--app-space-m) 0;
 }
 
 .app-plan-friend-name {
   color: var(--app-text);
-  font-size: var(--app-font-size-body);
+  font-size: 0.875rem;
   font-weight: var(--app-font-weight-title);
 }
 
@@ -911,18 +1108,19 @@
   color: var(--app-danger);
 }
 
-/* Списки (сохранённое): ссылка из профиля, выбор списка на странице события */
+/* Списки (сохранённое): pill-вход из профиля, строки с хайрлайнами */
 .app-lists-link {
   background: var(--app-card);
-  border: none;
-  border-radius: var(--app-radius-card);
-  box-shadow: var(--app-elevation-1);
+  border: 1px solid var(--app-divider);
+  border-radius: 999px;
   color: var(--app-text);
   cursor: pointer;
   font: inherit;
+  font-size: 0.875rem;
   font-weight: var(--app-font-weight-title);
-  padding: var(--app-space-m) var(--app-space-l);
-  text-align: left;
+  margin-top: var(--app-space-s);
+  padding: 10px var(--app-space-l);
+  text-align: center;
   width: 100%;
 }
 
@@ -938,7 +1136,7 @@
   align-items: center;
   background: none;
   border: none;
-  border-top: 0.5px solid var(--app-divider);
+  border-top: var(--app-hairline);
   color: var(--app-text);
   cursor: pointer;
   display: flex;
@@ -950,7 +1148,7 @@
 
 .app-lists-row-title {
   color: var(--app-text);
-  font-size: var(--app-font-size-body);
+  font-size: 0.875rem;
   font-weight: var(--app-font-weight-title);
 }
 
@@ -959,31 +1157,31 @@
   font-size: var(--app-font-size-description);
 }
 
-/* Достижения: сетка «штампов» (Instagram-награды), выданные отмечены градиентом */
+/* Достижения: плоская сетка «штампов», выданные — градиентным кольцом MAX */
 .app-achievements {
+  border-top: var(--app-hairline);
   display: grid;
   gap: var(--app-space-m);
   grid-template-columns: repeat(3, 1fr);
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: var(--app-space-m) 0 0;
+  padding: var(--app-space-m) 0 0;
 }
 
 .app-achievement {
   align-items: center;
-  background: var(--app-card);
-  border-radius: var(--app-radius-card);
-  box-shadow: var(--app-elevation-1);
+  background: none;
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-s);
-  padding: var(--app-space-m);
+  gap: var(--app-space-xs);
+  padding: var(--app-space-xs);
   text-align: center;
 }
 
 .app-achievement-stamp {
   align-items: center;
   background: var(--app-surface);
+  border: 1.5px solid var(--app-divider);
   border-radius: 50%;
   color: var(--app-text-tertiary);
   display: flex;
@@ -995,25 +1193,26 @@
 }
 
 .app-achievement--granted .app-achievement-stamp {
-  background: var(--app-media-gradient);
+  background: var(--app-media-gradient-1);
+  border: none;
   color: var(--app-accent-contrast);
 }
 
 .app-achievement-title {
   color: var(--app-text);
-  font-size: var(--app-font-size-description);
+  font-size: 0.75rem;
   font-weight: var(--app-font-weight-title);
 }
 
 .app-achievement-progress {
   color: var(--app-text-tertiary);
-  font-size: var(--app-font-size-description);
+  font-size: 0.75rem;
 }
 
 .app-achievement-bar {
   background: var(--app-surface);
   border-radius: 999px;
-  height: 4px;
+  height: 3px;
   overflow: hidden;
   width: 100%;
 }
@@ -1032,11 +1231,13 @@
 }
 
 .app-mycity-summary {
+  border-top: var(--app-hairline);
+  margin-top: var(--app-space-m);
+  padding-top: var(--app-space-m);
   width: 100%;
 }
 
-/* Микро-события (UGC): заголовок секции с кнопкой создания, бейдж карточки,
- * состояние «вы участвуете»; карточки и форма переиспользуют стили ленты и сбора компании */
+/* Микро-события (UGC): заголовок секции с кнопкой создания, бейдж-пилюля */
 .app-micro-head {
   align-items: center;
   display: flex;
@@ -1046,50 +1247,177 @@
 
 .app-micro-badge {
   background: var(--app-surface);
-  border-radius: var(--app-radius-media);
-  color: var(--app-accent);
-  font-size: var(--app-font-size-description);
+  border-radius: 999px;
+  color: var(--app-text-secondary);
+  font-size: 0.6875rem;
   font-weight: var(--app-font-weight-title);
-  padding: 1px var(--app-space-s);
+  padding: 2px var(--app-space-s);
 }
 
-/* Лента впечатлений: автор поста, лайк, комментарии; стены событий и форма публикации
- * переиспользуют карточки ленты, микро-хедер, стили отзывов и сбора компании */
-.app-feed-author {
-  align-items: center;
-  color: var(--app-text);
+section[aria-label="Микро-события"] {
+  border-top: var(--app-hairline);
+  margin-top: var(--app-space-m);
+  padding-top: var(--app-space-m);
+}
+
+/* Лента впечатлений: stories-ряд, пост в анатомии Instagram, стены событий */
+.app-stories {
   display: flex;
-  font-weight: var(--app-font-weight-title);
-  gap: var(--app-space-s);
+  gap: var(--app-space-m);
+  margin: var(--app-space-s) calc(-1 * var(--app-space-l)) var(--app-space-s);
+  overflow-x: auto;
+  padding: var(--app-space-xs) var(--app-space-l);
+  scrollbar-width: none;
 }
 
-.app-feed-like {
-  align-self: flex-start;
+.app-story {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  gap: 2px;
+  width: 66px;
+}
+
+.app-story-ring {
+  background: var(--app-media-gradient-1);
+  border-radius: 50%;
+  display: flex;
+  padding: 2.5px;
+}
+
+.app-story-ring--own {
+  background: var(--app-divider);
+}
+
+.app-story:nth-child(5n + 2) .app-story-ring {
+  background: var(--app-media-gradient-2);
+}
+
+.app-story:nth-child(5n + 3) .app-story-ring {
+  background: var(--app-media-gradient-3);
+}
+
+.app-story:nth-child(5n + 4) .app-story-ring {
+  background: var(--app-media-gradient-4);
+}
+
+.app-story:nth-child(5n) .app-story-ring {
+  background: var(--app-media-gradient-5);
+}
+
+.app-story-ring > * {
+  border-radius: 50%;
+  box-shadow: 0 0 0 2.5px var(--app-page);
+}
+
+.app-story-name {
+  color: var(--app-text-secondary);
+  font-size: 0.6875rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-card--post {
+  margin: 0 calc(-1 * var(--app-space-l));
+  width: calc(100% + 2 * var(--app-space-l));
+}
+
+.app-card--post + .app-card--post {
+  border-top: 8px solid var(--app-page);
+}
+
+.app-post-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-s);
+  padding: var(--app-space-s) var(--app-space-l);
+}
+
+.app-post-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-post-author {
+  color: var(--app-text);
+  font-size: 0.875rem;
+  font-weight: var(--app-font-weight-title);
+}
+
+.app-post-place {
+  color: var(--app-text-tertiary);
+  font-size: 0.75rem;
+}
+
+.app-post-place-text {
+  color: var(--app-text-tertiary);
+  font-size: 0.75rem;
+}
+
+.app-post-place .app-plan-event {
+  color: inherit;
+  font: inherit;
+}
+
+.app-post-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-l);
+  padding: var(--app-space-xs) var(--app-space-m) 0;
+}
+
+.app-post-action {
   background: none;
   border: none;
-  color: var(--app-text-tertiary);
+  color: var(--app-text);
   cursor: pointer;
-  font: inherit;
-  font-weight: var(--app-font-weight-title);
-  padding: 0;
+  display: flex;
+  padding: var(--app-space-xs);
 }
 
-.app-feed-like[aria-pressed="true"] {
-  color: var(--app-danger);
+.app-post-action[aria-pressed="true"] {
+  color: var(--app-accent);
+}
+
+.app-post-action--muted {
+  color: var(--app-text-tertiary);
+  cursor: default;
+  margin-left: auto;
+}
+
+.app-post-likes {
+  font-size: 0.875rem;
+  font-weight: var(--app-font-weight-title);
+  margin: 0;
+  padding: var(--app-space-xs) var(--app-space-l) 0;
+}
+
+.app-post-caption {
+  font-size: 0.875rem;
+  margin: 0;
+  padding: 2px var(--app-space-l) 0;
+}
+
+.app-post-caption-author {
+  font-weight: var(--app-font-weight-title);
 }
 
 .app-feed-comments {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-s);
+  gap: var(--app-space-xs);
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: var(--app-space-xs) var(--app-space-l) 0;
 }
 
 .app-feed-comment {
   color: var(--app-text-secondary);
-  font-size: var(--app-font-size-description);
+  font-size: 0.8125rem;
 }
 
 .app-feed-comment-author {
@@ -1100,4 +1428,42 @@
 .app-feed-comment-form {
   display: flex;
   gap: var(--app-space-s);
+  padding: var(--app-space-s) var(--app-space-l) var(--app-space-m);
+}
+
+.app-feed-comment-form .app-chip {
+  align-self: center;
+}
+
+/* Ротация градиентов медиа-заглушек: детерминированно по позиции в списке */
+.app-card--post:nth-of-type(5n + 2) .app-card-media {
+  background-image: var(--app-media-veil), var(--app-media-gradient-2);
+}
+
+.app-card--post:nth-of-type(5n + 3) .app-card-media {
+  background-image: var(--app-media-veil), var(--app-media-gradient-3);
+}
+
+.app-card--post:nth-of-type(5n + 4) .app-card-media {
+  background-image: var(--app-media-veil), var(--app-media-gradient-4);
+}
+
+.app-card--post:nth-of-type(5n + 5) .app-card-media {
+  background-image: var(--app-media-veil), var(--app-media-gradient-5);
+}
+
+.app-card--link:nth-of-type(5n + 2) .app-card-media {
+  background-image: var(--app-media-veil), var(--app-media-gradient-2);
+}
+
+.app-card--link:nth-of-type(5n + 3) .app-card-media {
+  background-image: var(--app-media-veil), var(--app-media-gradient-3);
+}
+
+.app-card--link:nth-of-type(5n + 4) .app-card-media {
+  background-image: var(--app-media-veil), var(--app-media-gradient-4);
+}
+
+.app-card--link:nth-of-type(5n + 5) .app-card-media {
+  background-image: var(--app-media-veil), var(--app-media-gradient-5);
 }

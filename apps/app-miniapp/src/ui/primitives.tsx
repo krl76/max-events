@@ -6,7 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - AppButton - MAX Button wrapper; tone primary|secondary|danger|ghost, stretched = full width
+// - AppButton - MAX Button wrapper; tone primary|secondary|danger|ghost, stretched = full width; app-btn classes carry the pill skin in theme.css
 // - AppButtonTone - union of AppButton tones
 // - AppTitle - MAX Typography.Title wrapper, asChild for semantic h1/h2 headings
 // - AppText - MAX Typography.Text wrapper
@@ -27,7 +27,8 @@ const TONE_VARIANT: Record<AppButtonTone, NonNullable<ComponentProps<typeof Butt
 };
 
 export function AppButton({ tone = "primary", stretched = false, className, ...props }: ComponentProps<typeof Button> & { tone?: AppButtonTone; stretched?: boolean }) {
-  return <Button className={className} stretched={stretched} variant={TONE_VARIANT[tone]} {...props} />;
+  const buttonClass = `app-btn app-btn--${tone}${className ? ` ${className}` : ""}`;
+  return <Button className={buttonClass} stretched={stretched} variant={TONE_VARIANT[tone]} {...props} />;
 }
 
 export function AppTitle({ variant = "medium-strong", ...props }: ComponentProps<typeof Typography.Title>) {
