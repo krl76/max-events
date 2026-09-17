@@ -18,16 +18,14 @@ const DAY_MS = 86_400_000;
 
 export function moscowIsoWeekday(date: Date): number {
   const label = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Moscow", weekday: "short" }).format(date);
-  return WEEKDAY_ISO[label] ?? 1;
+  const weekday = WEEKDAY_ISO[label];
+  if (!weekday) throw new Error(`Unknown weekday label: ${label}`);
+  return weekday;
 }
 
 export function nextRecurringAt(from: Date, rule: PlanRecurringRule, after: Date): Date {
-  let cursor = new Date(from.getTime());
-  for (let i = 0; i < 400; i += 1) {
-    cursor = step(cursor, rule);
-    if (cursor.getTime() > after.getTime()) return cursor;
-  }
-  return cursor;
+  if (rule.type === "weekly_weekday") return nextWeeklyFromAfter(from, rule.weekday, after);
+  return nextMonthlyFromAfter(from, rule.nth, rule.weekday, after);
 }
 
 export function upcomingRecurringAts(from: Date, rule: PlanRecurringRule, after: Date, count: number): Date[] {
@@ -40,28 +38,31 @@ export function upcomingRecurringAts(from: Date, rule: PlanRecurringRule, after:
   return out;
 }
 
-function step(from: Date, rule: PlanRecurringRule): Date {
-  if (rule.type === "weekly_weekday") {
-    const delta = (rule.weekday - moscowIsoWeekday(from) + 7) % 7 || 7;
-    return new Date(from.getTime() + delta * DAY_MS);
+function nextWeeklyFromAfter(from: Date, weekday: number, after: Date): Date {
+  let day = new Date(after.getTime());
+  for (let i = 0; i < 14; i += 1) {
+    const ymd = moscowYmd(day);
+    const stamp = moscowStamp(ymd.y, ymd.m, ymd.d, from);
+    if (moscowIsoWeekday(stamp) === weekday && stamp.getTime() > after.getTime()) return stamp;
+    day = new Date(day.getTime() + DAY_MS);
   }
-  return nextMonthlyNth(from, rule.nth, rule.weekday);
+  throw new Error("Could not compute next weekly occurrence");
 }
 
-function nextMonthlyNth(from: Date, nth: number, weekday: number): Date {
-  const parts = moscowYmd(from);
-  let year = parts.y;
-  let month = parts.m;
+function nextMonthlyFromAfter(from: Date, nth: number, weekday: number, after: Date): Date {
+  const start = moscowYmd(after);
+  let year = start.y;
+  let month = start.m;
   for (let i = 0; i < 24; i += 1) {
+    const candidate = nthWeekdayInMonth(year, month, nth, weekday, from);
+    if (candidate && candidate.getTime() > after.getTime()) return candidate;
     month += 1;
     if (month > 12) {
       month = 1;
       year += 1;
     }
-    const candidate = nthWeekdayInMonth(year, month, nth, weekday, from);
-    if (candidate && candidate.getTime() > from.getTime()) return candidate;
   }
-  return new Date(from.getTime() + 28 * DAY_MS);
+  throw new Error("Could not compute next monthly occurrence");
 }
 
 function nthWeekdayInMonth(year: number, month: number, nth: number, weekday: number, template: Date): Date | null {
@@ -89,7 +90,7 @@ function moscowStamp(year: number, month: number, day: number, template: Date): 
 }
 
 function moscowHms(date: Date): { h: number; min: number; s: number } {
-  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(date);
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, hourCycle: "h23" }).formatToParts(date);
   const num = (type: string) => Number(parts.find((part) => part.type === type)?.value);
   return { h: num("hour"), min: num("minute"), s: num("second") };
 }

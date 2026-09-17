@@ -12,12 +12,12 @@
 // - formatPlanReminderText - DM body for the meeting
 // - formatPlanInviteText - invite DM body
 // - settleBalances - greedy debt settlement
-// - PlansService - create, list, get, addParticipant, respond, remove, remindMeeting, budget
+// - PlansService - create, list, get, addParticipant, respond, remove, spawnRecurring, remindMeeting, budget
 // END_MODULE_MAP
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { QueryFailedError, Repository } from "typeorm";
 import type { AutoPlanProposal, CreatePlanExpenseWrite, CreatePlanWrite, Plan, PlanBudget, PlanCard, PlanDebt, PlanParticipantStatus, Place } from "@max-events/api-contracts";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
@@ -124,6 +124,7 @@ export class PlansService {
         recurringRule: payload.recurringRule ?? null,
         seriesId: null,
         sourcePlanId: null,
+        cancelledAt: null,
       }),
     );
     if (payload.recurringRule) {
@@ -158,15 +159,28 @@ export class PlansService {
 
   async spawnRecurring(now = new Date()): Promise<number> {
     const all = await this.plans.find();
-    const templates = all.filter((row) => row.recurringRule && row.seriesId);
+    const templates = all.filter((row) => row.recurringRule && row.seriesId && !row.cancelledAt);
     let created = 0;
     for (const template of templates) {
-      const existing = new Set(all.filter((row) => row.seriesId === template.seriesId).map((row) => row.meetingAt.getTime()));
-      const times = upcomingRecurringAts(template.meetingAt, template.recurringRule!, now, 4);
-      const invitees = await this.participants.find({ where: { planId: template.id } });
-      for (const meetingAt of times) {
-        if (existing.has(meetingAt.getTime())) continue;
-        const copy = await this.plans.save(
+      try {
+        created += await this.spawnSeries(template, all, now);
+      } catch (error) {
+        this.logger.error(`Plan spawn failed for series ${template.seriesId}`, error instanceof Error ? error.stack : String(error));
+      }
+    }
+    return created;
+  }
+
+  private async spawnSeries(template: PlanEntity, all: PlanEntity[], now: Date): Promise<number> {
+    const existing = new Set(all.filter((row) => row.seriesId === template.seriesId).map((row) => row.meetingAt.getTime()));
+    const times = upcomingRecurringAts(template.meetingAt, template.recurringRule!, now, 4);
+    const invitees = (await this.participants.find({ where: { planId: template.id } })).filter((row) => row.status !== "declined");
+    let created = 0;
+    for (const meetingAt of times) {
+      if (existing.has(meetingAt.getTime())) continue;
+      let copy: PlanEntity | undefined;
+      try {
+        copy = await this.plans.save(
           this.plans.create({
             hostUserId: template.hostUserId,
             eventId: template.eventId,
@@ -180,14 +194,26 @@ export class PlansService {
             recurringRule: null,
             seriesId: template.seriesId,
             sourcePlanId: template.id,
+            cancelledAt: null,
           }),
         );
-        existing.add(meetingAt.getTime());
         for (const row of invitees) {
           await this.participants.save(this.participants.create({ planId: copy.id, userId: row.userId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null }));
         }
+        existing.add(meetingAt.getTime());
         created += 1;
         all.push(copy);
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          existing.add(meetingAt.getTime());
+          continue;
+        }
+        if (copy) {
+          const rows = await this.participants.find({ where: { planId: copy.id } });
+          for (const row of rows) await this.participants.delete({ id: row.id });
+          await this.plans.delete({ id: copy.id });
+        }
+        this.logger.error(`Plan spawn failed for series ${template.seriesId} at ${meetingAt.toISOString()}`, error instanceof Error ? error.stack : String(error));
       }
     }
     return created;
@@ -225,6 +251,7 @@ export class PlansService {
     const all = await this.plans.find();
     const mine = [];
     for (const plan of all) {
+      if (plan.cancelledAt) continue;
       if (await this.canView(userId, plan)) mine.push(plan);
     }
     mine.sort((a, b) => a.meetingAt.getTime() - b.meetingAt.getTime() || a.id.localeCompare(b.id));
@@ -238,8 +265,7 @@ export class PlansService {
   }
 
   async get(userId: string, planId: string, origin: GeoOrigin | null = null): Promise<PlanCard> {
-    const plan = await this.plans.findOneBy({ id: planId });
-    if (!plan) throw new NotFoundException("Plan not found");
+    const plan = await this.requireActivePlan(planId);
     if (!(await this.canView(userId, plan))) throw new ForbiddenException("Cannot view another user's plan");
     const event = await this.events.findOneBy({ id: plan.eventId });
     if (!event) throw new NotFoundException("Event not found");
@@ -247,8 +273,7 @@ export class PlansService {
   }
 
   async addParticipant(hostUserId: string, planId: string, userId: string): Promise<PlanCard> {
-    const plan = await this.plans.findOneBy({ id: planId });
-    if (!plan) throw new NotFoundException("Plan not found");
+    const plan = await this.requireActivePlan(planId);
     if (plan.hostUserId !== hostUserId) throw new ForbiddenException("Cannot edit another user's plan");
     if (userId === hostUserId) throw new BadRequestException("Invalid plan payload");
     const allowed = await this.friends.friendIds(hostUserId);
@@ -261,8 +286,7 @@ export class PlansService {
   }
 
   async respond(userId: string, planId: string, status: "confirmed" | "declined"): Promise<PlanCard> {
-    const plan = await this.plans.findOneBy({ id: planId });
-    if (!plan) throw new NotFoundException("Plan not found");
+    await this.requireActivePlan(planId);
     const row = (await this.participants.find({ where: { planId } })).find((item) => item.userId === userId);
     if (!row) throw new ForbiddenException("Cannot respond to this plan");
     row.status = status;
@@ -271,9 +295,13 @@ export class PlansService {
   }
 
   async remove(hostUserId: string, planId: string): Promise<void> {
-    const plan = await this.plans.findOneBy({ id: planId });
-    if (!plan) throw new NotFoundException("Plan not found");
+    const plan = await this.requireActivePlan(planId);
     if (plan.hostUserId !== hostUserId) throw new ForbiddenException("Cannot delete another user's plan");
+    if (plan.seriesId) {
+      plan.cancelledAt = new Date();
+      await this.plans.save(plan);
+      return;
+    }
     const rows = await this.participants.find({ where: { planId } });
     for (const row of rows) await this.participants.delete({ id: row.id });
     await this.plans.delete({ id: planId });
@@ -286,6 +314,7 @@ export class PlansService {
     const users = await this.users.find();
     const participants = await this.participants.find();
     for (const plan of plans) {
+      if (plan.cancelledAt) continue;
       if (!isInReminderWindow(plan.meetingAt, now)) continue;
       const event = events.find((row) => row.id === plan.eventId);
       if (!event) continue;
@@ -333,8 +362,7 @@ export class PlansService {
   }
 
   async addExpense(actorId: string, planId: string, payload: CreatePlanExpenseWrite): Promise<PlanBudget> {
-    const plan = await this.plans.findOneBy({ id: planId });
-    if (!plan) throw new NotFoundException("Plan not found");
+    const plan = await this.requireActivePlan(planId);
     if (!(await this.canSpend(actorId, plan))) throw new ForbiddenException("Cannot edit this plan's budget");
     const party = await this.spendPartyIds(plan);
     if (plan.hostUserId !== actorId && payload.payerUserId !== actorId) {
@@ -357,8 +385,7 @@ export class PlansService {
   }
 
   async getBudget(actorId: string, planId: string): Promise<PlanBudget> {
-    const plan = await this.plans.findOneBy({ id: planId });
-    if (!plan) throw new NotFoundException("Plan not found");
+    const plan = await this.requireActivePlan(planId);
     if (!(await this.canView(actorId, plan))) throw new ForbiddenException("Cannot view another user's plan");
     const rows = await this.expenses.find({ where: { planId }, order: { createdAt: "ASC", id: "ASC" } });
     const party = new Set([...(await this.spendPartyIds(plan))]);
@@ -394,6 +421,12 @@ export class PlansService {
       debts: settleBalances(balances),
       totalRub: rows.reduce((sum, row) => sum + row.amountRub, 0),
     };
+  }
+
+  private async requireActivePlan(planId: string): Promise<PlanEntity> {
+    const plan = await this.plans.findOneBy({ id: planId });
+    if (!plan || plan.cancelledAt) throw new NotFoundException("Plan not found");
+    return plan;
   }
 
   private async spendPartyIds(plan: PlanEntity): Promise<Set<string>> {
@@ -437,4 +470,8 @@ export class PlansService {
     }
     return { plan: planDto, event: toEventDto(event), distanceMeters };
   }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return error instanceof QueryFailedError && error.driverError?.code === "23505";
 }

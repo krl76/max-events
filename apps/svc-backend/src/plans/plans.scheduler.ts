@@ -1,13 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: In-process 60s interval that reminds plan hosts and invitees about the meeting time.
-// SCOPE: Starts on module init, clears on destroy; tests call remindMeeting directly.
+// SCOPE: Starts on module init, clears on destroy; single-flight tick awaits spawn then remind; tests call remindMeeting directly.
 // DEPENDS: @nestjs/common, ./plans.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - PLAN_REMINDER_INTERVAL_MS - scheduler tick interval
-// - PlansScheduler - 60s setInterval around remindMeeting()
+// - PlansScheduler - 60s setInterval around spawnRecurring then remindMeeting
 // END_MODULE_MAP
 
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
@@ -19,18 +19,27 @@ export const PLAN_REMINDER_INTERVAL_MS = 60_000;
 export class PlansScheduler implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PlansScheduler.name);
   private timer: ReturnType<typeof setInterval> | undefined;
+  private ticking = false;
 
   constructor(private readonly plans: PlansService) {}
 
   onModuleInit() {
     this.timer = setInterval(() => {
-      void this.plans.spawnRecurring().catch((error: unknown) => {
-        this.logger.warn(`Plan recurring tick failed: ${error instanceof Error ? error.message : "unknown"}`);
-      });
-      void this.plans.remindMeeting().catch((error: unknown) => {
-        this.logger.warn(`Plan reminder tick failed: ${error instanceof Error ? error.message : "unknown"}`);
-      });
+      void this.tick();
     }, PLAN_REMINDER_INTERVAL_MS);
+  }
+
+  private async tick(): Promise<void> {
+    if (this.ticking) return;
+    this.ticking = true;
+    try {
+      await this.plans.spawnRecurring();
+      await this.plans.remindMeeting();
+    } catch (error: unknown) {
+      this.logger.error("Plan scheduler tick failed", error instanceof Error ? error.stack : String(error));
+    } finally {
+      this.ticking = false;
+    }
   }
 
   onModuleDestroy() {

@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import type { Repository } from "typeorm";
+import { QueryFailedError, type Repository } from "typeorm";
 import type { Friend } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import type { FriendsService } from "../friends/friends.service";
@@ -60,6 +60,17 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
     findOneBy: async (where: Record<string, string>) => store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
     save: async (entity: T) => {
       if (!store.includes(entity)) {
+        const rec = entity as { seriesId?: string | null; meetingAt?: Date };
+        const seriesId = rec.seriesId;
+        const meetingAt = rec.meetingAt;
+        if (seriesId && meetingAt instanceof Date) {
+          const stamp = meetingAt.getTime();
+          const dup = store.find((row) => {
+            const other = row as { seriesId?: string | null; meetingAt?: Date };
+            return other.seriesId === seriesId && other.meetingAt instanceof Date && other.meetingAt.getTime() === stamp;
+          });
+          if (dup) throw new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate"), { code: "23505" }));
+        }
         entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
         (entity as { createdAt?: Date }).createdAt ??= now;
         (entity as { updatedAt?: Date }).updatedAt ??= now;
@@ -114,7 +125,7 @@ function createService() {
   } as unknown as MaxBotClient;
   const expenses = createStoreRepo<PlanExpenseEntity>();
   const service = new PlansService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, userRepo as unknown as Repository<UserEntity>, expenses as unknown as Repository<PlanExpenseEntity>, friends, bot);
-  return { service, messages, plans };
+  return { service, messages, plans, participants };
 }
 
 describe("haversineMeters", () => {
@@ -219,20 +230,172 @@ describe("PlansService", () => {
     expect(shares).toEqual([34, 33, 33]);
   });
 
-  it("spawns the next weekly occurrences from a recurring template", async () => {
+  it("spawns four weekly copies then treats a second spawn as a no-op", async () => {
+    const { service, plans, participants } = createService();
+    const created = await service.create(hostId, {
+      eventId,
+      participantIds: [dimaId],
+      meetingPoint: "корт",
+      meetingAt: "2026-09-10T16:00:00.000Z",
+      recurringRule: { type: "weekly_weekday", weekday: 4 },
+    });
+    const copies = plans.store.filter((row) => row.sourcePlanId === created.plan.id);
+    expect(copies).toHaveLength(4);
+    expect(copies.map((row) => row.meetingAt.toISOString()).sort()).toEqual([
+      new Date("2026-09-17T19:00:00+03:00").toISOString(),
+      new Date("2026-09-24T19:00:00+03:00").toISOString(),
+      new Date("2026-10-01T19:00:00+03:00").toISOString(),
+      new Date("2026-10-08T19:00:00+03:00").toISOString(),
+    ]);
+    expect(copies.every((row) => row.recurringRule === null && row.sourcePlanId === created.plan.id)).toBe(true);
+    for (const copy of copies) {
+      const rows = participants.store.filter((row) => row.planId === copy.id);
+      expect(rows.map((row) => row.userId)).toEqual([dimaId]);
+      expect(rows.every((row) => row.status === "invited")).toBe(true);
+    }
+    expect(plans.store.filter((row) => row.seriesId === created.plan.id)).toHaveLength(5);
+    const second = await service.spawnRecurring(new Date("2026-09-10T16:00:00.000Z"));
+    expect(second).toBe(0);
+    expect(plans.store.filter((row) => row.seriesId === created.plan.id)).toHaveLength(5);
+  });
+
+  it("spawns four monthly first-Saturday copies", async () => {
+    const { service, plans } = createService();
+    const created = await service.create(hostId, {
+      eventId,
+      participantIds: [dimaId],
+      meetingPoint: "парк",
+      meetingAt: "2026-09-05T08:00:00.000Z",
+      recurringRule: { type: "monthly_nth_weekday", nth: 1, weekday: 6 },
+    });
+    const copies = plans.store.filter((row) => row.sourcePlanId === created.plan.id);
+    expect(copies.map((row) => row.meetingAt.toISOString()).sort()).toEqual([
+      new Date("2026-10-03T11:00:00+03:00").toISOString(),
+      new Date("2026-11-07T11:00:00+03:00").toISOString(),
+      new Date("2026-12-05T11:00:00+03:00").toISOString(),
+      new Date("2027-01-02T11:00:00+03:00").toISOString(),
+    ]);
+  });
+
+  it("omits a declined friend from later spawned copies", async () => {
+    const { service, plans, participants } = createService();
+    const created = await service.create(hostId, {
+      eventId,
+      participantIds: [dimaId, katyaId],
+      meetingPoint: "корт",
+      meetingAt: "2026-09-10T16:00:00.000Z",
+      recurringRule: { type: "weekly_weekday", weekday: 4 },
+    });
+    await service.respond(katyaId, created.plan.id, "declined");
+    const added = await service.spawnRecurring(new Date("2026-10-08T16:00:00.000Z"));
+    expect(added).toBe(4);
+    const later = plans.store.filter((row) => row.sourcePlanId === created.plan.id && row.meetingAt.getTime() > Date.parse("2026-10-08T16:00:00.000Z"));
+    expect(later).toHaveLength(4);
+    for (const copy of later) {
+      const rows = participants.store.filter((row) => row.planId === copy.id);
+      expect(rows.map((row) => row.userId)).toEqual([dimaId]);
+    }
+  });
+
+  it("does not recreate a cancelled occurrence", async () => {
     const { service, plans } = createService();
     const created = await service.create(hostId, {
       eventId,
       participantIds: [dimaId],
       meetingPoint: "корт",
-      meetingAt: "2026-09-10T19:00:00.000Z",
+      meetingAt: "2026-09-10T16:00:00.000Z",
       recurringRule: { type: "weekly_weekday", weekday: 4 },
     });
-    expect(created.plan.id).toBeTruthy();
-    expect(plans.store.filter((row) => row.seriesId === created.plan.id).length).toBeGreaterThan(1);
     const copies = plans.store.filter((row) => row.sourcePlanId === created.plan.id);
-    expect(copies.length).toBeGreaterThanOrEqual(1);
-    expect(copies.every((row) => row.recurringRule === null)).toBe(true);
+    const victim = copies[0]!;
+    await service.remove(hostId, victim.id);
+    expect(victim.cancelledAt).toBeInstanceOf(Date);
+    expect(await service.spawnRecurring(new Date("2026-09-10T16:00:00.000Z"))).toBe(0);
+    expect(plans.store.filter((row) => row.sourcePlanId === created.plan.id && row.meetingAt.getTime() === victim.meetingAt.getTime())).toHaveLength(1);
+    const listed = await service.list(hostId);
+    expect(listed.some((card) => card.plan.id === victim.id)).toBe(false);
+    await expect(service.get(hostId, victim.id)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("retries a slot after a participant write fails and keeps other series moving", async () => {
+    const { service, plans, participants } = createService();
+    const created = await service.create(hostId, {
+      eventId,
+      participantIds: [dimaId],
+      meetingPoint: "корт",
+      meetingAt: "2026-09-10T16:00:00.000Z",
+      recurringRule: { type: "weekly_weekday", weekday: 4 },
+    });
+    for (const copy of plans.store.filter((row) => row.sourcePlanId === created.plan.id)) {
+      for (const row of participants.store.filter((item) => item.planId === copy.id)) await participants.delete({ id: row.id });
+      await plans.delete({ id: copy.id });
+    }
+    const broken = await plans.save(
+      plans.create({
+        hostUserId: hostId,
+        eventId,
+        meetingPoint: "корт",
+        meetingAt: new Date("2026-09-10T16:00:00.000Z"),
+        chatLink: null,
+        reminderSentAt: null,
+        leaveNowSentAt: null,
+        weatherAlertSentAt: null,
+        friendLeftBroadcastAt: null,
+        recurringRule: { type: "weekly_weekday", weekday: 99 as 1 },
+        seriesId: "00000000-0000-4000-8000-00000000bad1",
+        sourcePlanId: null,
+        cancelledAt: null,
+      }),
+    );
+    broken.seriesId = broken.id;
+    await plans.save(broken);
+    const originalSave = participants.save.bind(participants);
+    participants.save = async () => {
+      throw new Error("participant write failed");
+    };
+    expect(await service.spawnRecurring(new Date("2026-09-10T16:00:00.000Z"))).toBe(0);
+    expect(plans.store.filter((row) => row.sourcePlanId === created.plan.id)).toHaveLength(0);
+    participants.save = originalSave;
+    expect(await service.spawnRecurring(new Date("2026-09-10T16:00:00.000Z"))).toBe(4);
+    const recovered = plans.store.filter((row) => row.sourcePlanId === created.plan.id);
+    expect(recovered).toHaveLength(4);
+    expect(recovered.every((row) => participants.store.some((item) => item.planId === row.id && item.userId === dimaId))).toBe(true);
+  });
+
+  it("spawns four future Thursdays from a nine-year-old weekly template", async () => {
+    const { service, plans, participants } = createService();
+    const template = await plans.save(
+      plans.create({
+        hostUserId: hostId,
+        eventId,
+        meetingPoint: "корт",
+        meetingAt: new Date("2017-09-07T19:00:00+03:00"),
+        chatLink: null,
+        reminderSentAt: null,
+        leaveNowSentAt: null,
+        weatherAlertSentAt: null,
+        friendLeftBroadcastAt: null,
+        recurringRule: { type: "weekly_weekday", weekday: 4 },
+        seriesId: null,
+        sourcePlanId: null,
+        cancelledAt: null,
+      }),
+    );
+    template.seriesId = template.id;
+    await plans.save(template);
+    await participants.save(participants.create({ planId: template.id, userId: dimaId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null }));
+    const after = new Date("2026-09-12T10:00:00.000Z");
+    expect(await service.spawnRecurring(after)).toBe(4);
+    const copies = plans.store.filter((row) => row.sourcePlanId === template.id);
+    const times = copies.map((row) => row.meetingAt.toISOString()).sort();
+    expect(times).toEqual([
+      new Date("2026-09-17T19:00:00+03:00").toISOString(),
+      new Date("2026-09-24T19:00:00+03:00").toISOString(),
+      new Date("2026-10-01T19:00:00+03:00").toISOString(),
+      new Date("2026-10-08T19:00:00+03:00").toISOString(),
+    ]);
+    expect(new Set(times).size).toBe(4);
+    expect(copies.every((row) => row.meetingAt.getTime() > after.getTime())).toBe(true);
   });
 });
 
