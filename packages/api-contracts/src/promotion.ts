@@ -14,6 +14,8 @@
 // - PromotionAudience - audience type
 // - PromotionCampaignSchema - campaign with period and billing
 // - PromotionCampaign - campaign type
+// - PromotionCampaignPublicSchema - viewer campaign without billing
+// - PromotionCampaignPublic - viewer campaign type
 // - CreatePromotionWriteSchema - organizer create payload
 // - CreatePromotionWrite - write type
 // - RecordPromotionPaymentWriteSchema - manual payment stamp
@@ -62,6 +64,9 @@ export const PromotionCampaignSchema = z.object({
 });
 export type PromotionCampaign = z.infer<typeof PromotionCampaignSchema>;
 
+export const PromotionCampaignPublicSchema = PromotionCampaignSchema.omit({ tariffCode: true, priceRub: true, paidAt: true });
+export type PromotionCampaignPublic = z.infer<typeof PromotionCampaignPublicSchema>;
+
 export const CreatePromotionWriteSchema = z
   .object({
     type: PromotionTypeSchema,
@@ -94,7 +99,7 @@ export const PromotionPlacementsSchema = z.object({
 export type PromotionPlacements = z.infer<typeof PromotionPlacementsSchema>;
 
 export const TargetedPromotionSchema = z.object({
-  campaign: PromotionCampaignSchema,
+  campaign: PromotionCampaignPublicSchema,
   event: EventSchema,
   explanation: z.string().min(1),
 });

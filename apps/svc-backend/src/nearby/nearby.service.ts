@@ -16,7 +16,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Between, In, Repository } from "typeorm";
 import type { LeisureMood, LeisureOption, NearbyBucket, NearbyCard, NearbyTimeline } from "@max-events/api-contracts";
-import { toEventDto } from "../events/events.service";
+import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService } from "../friends/friends.service";
 import { ParticipationEntity } from "../participations/participation.entity";
@@ -135,7 +135,7 @@ export class NearbyService {
       const distanceKm = haversineKm(latitude, longitude, place.latitude, place.longitude);
       if (distanceKm > MAX_KM) continue;
       const promoted = pinIds.has(event.id);
-      cards.push({ event: toEventDto(event, promoted), place: toPlaceDto(place), distanceKm: Math.round(distanceKm * 10) / 10, bucket, promoted });
+      cards.push({ event: toEventDto(event, { promoted }), place: toPlaceDto(place), distanceKm: Math.round(distanceKm * 10) / 10, bucket, promoted });
     }
     cards.sort((a, b) => Number(b.promoted) - Number(a.promoted) || a.distanceKm - b.distanceKm || a.event.startsAt.localeCompare(b.event.startsAt));
     return cards;

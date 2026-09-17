@@ -23,6 +23,9 @@ import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { PromotionService } from "../promotion/promotion.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { EventEntity } from "./event.entity";
+import { toEventDto } from "./event.mapper";
+
+export { toEventDto } from "./event.mapper";
 
 export type EventListQuery = {
   city?: string;
@@ -76,7 +79,7 @@ export class EventsService {
     const found = await this.events.findOneBy({ id });
     if (!found || found.published === false) throw new NotFoundException("Event not found");
     const promoted = (await this.promotions.promotedEventIds()).has(found.id);
-    return toEventDto(found, promoted);
+    return toEventDto(found, { promoted });
   }
 
   async update(id: string, patch: Record<string, unknown>, actorId?: string): Promise<Event> {
@@ -150,27 +153,8 @@ export class EventsService {
     const [boosts, promoted] = await Promise.all([this.promotions.listActive(now, "boost"), this.promotions.promotedEventIds(now)]);
     const boosted = new Set(boosts.map((row) => row.eventId));
     visible.sort((a, b) => Number(boosted.has(b.id)) - Number(boosted.has(a.id)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
-    return visible.map((row) => toEventDto(row, promoted.has(row.id)));
+    return visible.map((row) => toEventDto(row, { promoted: promoted.has(row.id) }));
   }
-}
-
-export function toEventDto(event: EventEntity, promoted = false): Event {
-  return {
-    id: event.id,
-    title: event.title,
-    description: event.description,
-    category: event.category,
-    city: event.city,
-    placeId: event.placeId,
-    startsAt: event.startsAt.toISOString(),
-    endsAt: event.endsAt ? event.endsAt.toISOString() : null,
-    isPaid: event.isPaid,
-    priceRub: event.priceRub,
-    paymentUrl: event.paymentUrl,
-    capacity: event.capacity,
-    chatLink: event.chatLink,
-    promoted,
-  };
 }
 
 export function pickEventFields(patch: Record<string, unknown>): Record<string, unknown> {

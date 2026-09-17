@@ -13,9 +13,9 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
-import type { CreatePromotionWrite, PromotionCampaign, PromotionPlacements, PromotionType, RecordPromotionPaymentWrite, TargetedPromotionsResponse } from "@max-events/api-contracts";
+import type { CreatePromotionWrite, PromotionCampaign, PromotionCampaignPublic, PromotionPlacements, PromotionType, RecordPromotionPaymentWrite, TargetedPromotionsResponse } from "@max-events/api-contracts";
 import { CheckInEntity } from "../checkins/check-in.entity";
-import { toEventDto } from "../events/events.service";
+import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
 import { toPlaceDto } from "../places/places.service";
 import { PlaceEntity } from "../places/place.entity";
@@ -76,10 +76,9 @@ export class PromotionService {
   }
 
   async listActive(now = new Date(), type?: PromotionType): Promise<PromotionCampaign[]> {
-    const where: { status: "active"; type?: PromotionType } = { status: "active" };
-    if (type) where.type = type;
-    const rows = await this.campaigns.find({ where, order: { startsAt: "ASC", id: "ASC" } });
-    await this.expireOverdue(rows, now);
+    const allActive = await this.campaigns.find({ where: { status: "active" }, order: { startsAt: "ASC", id: "ASC" } });
+    await this.expireOverdue(allActive, now);
+    const rows = type ? allActive.filter((row) => row.type === type) : allActive;
     const inWindow = rows.filter((row) => row.status === "active" && row.paidAt != null && row.startsAt.getTime() <= now.getTime() && row.endsAt.getTime() > now.getTime());
     if (inWindow.length === 0) return [];
     const published = await this.events.find({ where: { id: In(inWindow.map((row) => row.eventId)), published: true } });
@@ -110,7 +109,7 @@ export class PromotionService {
     for (const campaign of active) {
       const event = eventById.get(campaign.eventId);
       if (!event) continue;
-      const dto = toEventDto(event, true);
+      const dto = toEventDto(event, { promoted: true });
       if (campaign.type === "banner") banners.push(dto);
       if (campaign.type === "boost") boostedEventIds.push(event.id);
       if (campaign.type === "pin" && event.placeId) {
@@ -143,12 +142,13 @@ export class PromotionService {
         if (!visitedEvent) return false;
         return !audience.category || visitedEvent.category === audience.category;
       });
-      if (visits.length < audience.minVisits) continue;
-      const label = audience.category ? CATEGORY_RU[audience.category] ?? audience.category : "событий";
+      const distinct = new Set(visits.map((row) => row.eventId));
+      if (distinct.size < audience.minVisits) continue;
+      const label = audience.category ? (CATEGORY_RU[audience.category] ?? audience.category) : "событий";
       collections.push({
-        campaign,
-        event: toEventDto(event, true),
-        explanation: `${visits.length} посещений категории «${label}» за ${audience.windowDays} дней`,
+        campaign: toViewerCampaign(campaign),
+        event: toEventDto(event, { promoted: true }),
+        explanation: `${distinct.size} посещений категории «${label}» за ${audience.windowDays} дней`,
       });
     }
     return { collections };
@@ -169,6 +169,20 @@ export class PromotionService {
     if (event.organizerUserId !== actorId) throw new ForbiddenException("Not the organizer");
     return event;
   }
+}
+
+function toViewerCampaign(row: PromotionCampaign): PromotionCampaignPublic {
+  return {
+    id: row.id,
+    eventId: row.eventId,
+    type: row.type,
+    status: row.status,
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
+    audience: row.audience,
+    createdAt: row.createdAt,
+    completedAt: row.completedAt,
+  };
 }
 
 export function toPromotionDto(row: PromotionCampaignEntity): PromotionCampaign {

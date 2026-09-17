@@ -60,8 +60,8 @@ function seedEvent(overrides: Partial<EventEntity> = {}): EventEntity {
   } as EventEntity;
 }
 
-function createService(event: EventEntity = seedEvent(), extras: { places?: PlaceEntity[]; checkIns?: CheckInEntity[] } = {}) {
-  const events = [event];
+function createService(event: EventEntity = seedEvent(), extras: { places?: PlaceEntity[]; checkIns?: CheckInEntity[]; extraEvents?: EventEntity[] } = {}) {
+  const events = [event, ...(extras.extraEvents ?? [])];
   const campaigns: PromotionCampaignEntity[] = [];
   const places = extras.places ?? [];
   const checkIns = extras.checkIns ?? [];
@@ -191,14 +191,18 @@ describe("PromotionService", () => {
 
   it("builds banner and pin placements and a visit-history target collection", async () => {
     const placeId = "00000000-0000-4000-8000-0000000000p1";
+    const visitedA = "00000000-0000-4000-8000-0000000000e2";
+    const visitedB = "00000000-0000-4000-8000-0000000000e3";
+    const visitedC = "00000000-0000-4000-8000-0000000000e4";
     const event = seedEvent({ placeId, category: "afisha" });
     const venue = { id: placeId, title: "Парк", address: "x", city: "Москва", category: "park", latitude: 55.75, longitude: 37.62, published: true, createdAt: now, updatedAt: now } as PlaceEntity;
+    const extraEvents = [seedEvent({ id: visitedA, category: "afisha" }), seedEvent({ id: visitedB, category: "afisha" }), seedEvent({ id: visitedC, category: "afisha" })];
     const checkIns = [
-      { id: "c1", userId: other, eventId, placeId: null, checkedInAt: new Date("2026-04-01T10:00:00Z") } as CheckInEntity,
-      { id: "c2", userId: other, eventId, placeId: null, checkedInAt: new Date("2026-05-01T10:00:00Z") } as CheckInEntity,
-      { id: "c3", userId: other, eventId, placeId: null, checkedInAt: new Date("2026-06-01T10:00:00Z") } as CheckInEntity,
+      { id: "c1", userId: other, eventId: visitedA, placeId: null, checkedInAt: new Date("2026-04-01T10:00:00Z") } as CheckInEntity,
+      { id: "c2", userId: other, eventId: visitedB, placeId: null, checkedInAt: new Date("2026-05-01T10:00:00Z") } as CheckInEntity,
+      { id: "c3", userId: other, eventId: visitedC, placeId: null, checkedInAt: new Date("2026-06-01T10:00:00Z") } as CheckInEntity,
     ];
-    const { service } = createService(event, { places: [venue], checkIns });
+    const { service } = createService(event, { places: [venue], checkIns, extraEvents });
     const banner = await service.create(organizer, eventId, { ...week, type: "banner", tariffCode: "banner_week", priceRub: 1500 }, now);
     const pin = await service.create(organizer, eventId, { ...week, type: "pin", tariffCode: "pin_week", priceRub: 900 }, now);
     const boost = await service.create(organizer, eventId, week, now);
@@ -210,6 +214,39 @@ describe("PromotionService", () => {
     expect(placements.boostedEventIds).toEqual([eventId]);
     const mine = await service.targetedFor(other, now);
     expect(mine.collections).toHaveLength(1);
+    expect(mine.collections[0]?.campaign).not.toHaveProperty("tariffCode");
     expect(mine.collections[0]?.explanation).toContain("афиша");
+  });
+
+  it("does not apply unpublished events, place-only visits, or too few concerts", async () => {
+    const draft = seedEvent({ published: false });
+    const { service: unpublished } = createService(draft);
+    const boost = await unpublished.create(organizer, eventId, week, now);
+    await unpublished.recordPayment(organizer, eventId, boost.id, { paidAt: now.toISOString() }, now);
+    expect(await unpublished.listActive(now)).toEqual([]);
+
+    const placeId = "00000000-0000-4000-8000-0000000000p1";
+    const sportId = "00000000-0000-4000-8000-0000000000e2";
+    const live = seedEvent({ category: "afisha" });
+    const { service } = createService(live, {
+      extraEvents: [seedEvent({ id: sportId, category: "sport" })],
+      checkIns: [
+        { id: "c1", userId: other, eventId: null, placeId, checkedInAt: new Date("2026-04-01T10:00:00Z") } as CheckInEntity,
+        { id: "c2", userId: other, eventId: null, placeId, checkedInAt: new Date("2026-05-01T10:00:00Z") } as CheckInEntity,
+        { id: "c3", userId: other, eventId: sportId, placeId: null, checkedInAt: new Date("2026-06-01T10:00:00Z") } as CheckInEntity,
+      ],
+    });
+    const target = await service.create(organizer, eventId, { ...week, type: "target_collection", tariffCode: "target_week", priceRub: 7900, audience: { minVisits: 3, windowDays: 180, category: "afisha" } }, now);
+    await service.recordPayment(organizer, eventId, target.id, { paidAt: now.toISOString() }, now);
+    expect((await service.targetedFor(other, now)).collections).toEqual([]);
+  });
+
+  it("completes an ended boost even when only pin campaigns are queried", async () => {
+    const { service, campaigns } = createService();
+    const boost = await service.create(organizer, eventId, week, now);
+    await service.recordPayment(organizer, eventId, boost.id, { paidAt: now.toISOString() }, now);
+    campaigns.find((row) => row.id === boost.id)!.endsAt = new Date("2026-09-12T09:00:00Z");
+    expect(await service.listActive(now, "pin")).toEqual([]);
+    expect(campaigns.find((row) => row.id === boost.id)?.status).toBe("completed");
   });
 });
