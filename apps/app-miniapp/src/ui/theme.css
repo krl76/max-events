@@ -8,6 +8,12 @@
  * Все последующие UI-задачи обращаются к переменным --app-* отсюда.
  */
 
+/* Сброс UA-рамки документа: без него мини-апп получает 8px поля и системный
+ * скроллбар документа, которые ломают full-bleed медиа */
+body {
+  margin: 0;
+}
+
 .app-root {
   /* Цвета */
   --app-bg: var(--background-primary, #fff);
@@ -77,6 +83,7 @@
   min-height: 0;
   overflow-y: auto;
   padding: 0 var(--app-space-l) calc(var(--app-space-l) + 56px);
+  scrollbar-width: none;
 }
 
 /* Содержимое скролл-контейнера живёт обычным потоком: прямые flex-элементы не сжимаются
@@ -378,14 +385,17 @@
   width: 45%;
 }
 
-/* Страница мероприятия: медиа во всю ширину и пост-подача */
+/* Страница мероприятия: белая full-bleed секция, как пост и профиль; медиа во всю ширину */
+.app-event {
+  margin: 0 calc(-1 * var(--app-space-l));
+  width: calc(100% + 2 * var(--app-space-l));
+}
+
 .app-event-media {
   aspect-ratio: 4 / 5;
   background-image: var(--app-media-veil), var(--app-media-gradient-2);
   background-position: center;
   background-size: cover;
-  margin: 0 calc(-1 * var(--app-space-l));
-  width: calc(100% + 2 * var(--app-space-l));
 }
 
 .app-event-body {
