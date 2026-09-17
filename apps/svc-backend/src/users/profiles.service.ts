@@ -8,13 +8,14 @@
 // START_MODULE_MAP
 // - ProfilesService - getOrCreate/update against ProfileEntity
 // - toProfileDto - map ProfileEntity to Profile
+// - readAlertPrefs - merge stored toggles onto DEFAULT_SMART_ALERTS
 // - DEFAULT_PROFILE_CITY - city used when a profile is first created
 // END_MODULE_MAP
 
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
-import type { Profile, UpdateProfile } from "@max-events/api-contracts";
+import { DEFAULT_SMART_ALERTS, type Profile, type SmartAlertSettings, type UpdateProfile } from "@max-events/api-contracts";
 import { ProfileEntity } from "./profile.entity";
 
 export const DEFAULT_PROFILE_CITY = "Москва";
@@ -30,7 +31,7 @@ export class ProfilesService {
     const existing = await this.profiles.findOneBy({ userId });
     if (existing) return toProfileDto(existing);
     try {
-      const created = await this.profiles.save(this.profiles.create({ userId, city: DEFAULT_PROFILE_CITY, interests: [] }));
+      const created = await this.profiles.save(this.profiles.create({ userId, city: DEFAULT_PROFILE_CITY, interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS } }));
       return toProfileDto(created);
     } catch (error) {
       if (error instanceof QueryFailedError && error.driverError?.code === "23505") {
@@ -45,6 +46,7 @@ export class ProfilesService {
     const next = {
       city: patch.city ?? current.city,
       interests: patch.interests ?? current.interests,
+      smartAlerts: { ...current.smartAlerts, ...patch.smartAlerts },
     };
     const existing = await this.profiles.findOneByOrFail({ userId });
     const saved = await this.profiles.save(this.profiles.merge(existing, next));
@@ -57,5 +59,10 @@ export function toProfileDto(profile: ProfileEntity): Profile {
     userId: profile.userId,
     city: profile.city,
     interests: [...profile.interests],
+    smartAlerts: readAlertPrefs(profile),
   };
+}
+
+export function readAlertPrefs(profile: ProfileEntity | undefined): SmartAlertSettings {
+  return { ...DEFAULT_SMART_ALERTS, ...(profile?.smartAlerts ?? {}) };
 }

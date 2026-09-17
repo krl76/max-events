@@ -22,6 +22,9 @@ import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlaceEntity } from "../places/place.entity";
 import { PlanParticipantEntity } from "../plans/plan-participant.entity";
 import { PlanEntity } from "../plans/plan.entity";
+import { DEFAULT_SMART_ALERTS, type SmartAlertSettings } from "@max-events/api-contracts";
+import { ProfileEntity } from "../users/profile.entity";
+import { readAlertPrefs } from "../users/profiles.service";
 import { UserEntity } from "../users/user.entity";
 import { isRainy, WeatherClient } from "./weather.client";
 
@@ -49,6 +52,7 @@ export class SmartAlertsService {
     @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @InjectRepository(CheckInEntity) private readonly checkIns: Repository<CheckInEntity>,
+    @InjectRepository(ProfileEntity) private readonly profiles: Repository<ProfileEntity>,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
     @Inject(WeatherClient) private readonly weather: WeatherClient,
   ) {}
@@ -77,6 +81,8 @@ export class SmartAlertsService {
       ]);
       const userById = new Map(userRows.map((row) => [row.id, row]));
       const latestCheckIn = latestCheckInByUser(checkIns);
+      const profileRows = userIds.length === 0 ? [] : await this.profiles.find({ where: { userId: In(userIds) } });
+      const prefsByUser = new Map(profileRows.map((row) => [row.userId, readAlertPrefs(row)]));
 
       for (const plan of upcoming) {
         const event = eventById.get(plan.eventId);
@@ -84,8 +90,8 @@ export class SmartAlertsService {
         const confirmed = participantRows.filter((row) => row.planId === plan.id && row.status === "confirmed");
         const audienceIds = [plan.hostUserId, ...confirmed.map((row) => row.userId)];
         const venue = event.placeId ? placeById.get(event.placeId) : undefined;
-        await this.sendWeather(plan, event, venue, audienceIds, userById, now, result);
-        await this.sendFriendLeft(plan, event, confirmed, audienceIds, userById, latestCheckIn, now, result);
+        await this.sendWeather(plan, event, venue, audienceIds, userById, prefsByUser, now, result);
+        await this.sendFriendLeft(plan, event, confirmed, audienceIds, userById, latestCheckIn, prefsByUser, now, result);
       }
       return result;
     } finally {
@@ -99,6 +105,7 @@ export class SmartAlertsService {
     venue: PlaceEntity | undefined,
     audienceIds: string[],
     userById: Map<string, UserEntity>,
+    prefsByUser: Map<string, SmartAlertSettings>,
     now: Date,
     result: SmartAlertTickResult,
   ): Promise<void> {
@@ -110,6 +117,8 @@ export class SmartAlertsService {
     const text = formatWeatherAlertText(event.title);
     let delivered = 0;
     for (const userId of audienceIds) {
+      const prefs = prefsByUser.get(userId) ?? DEFAULT_SMART_ALERTS;
+      if (!prefs.weather) continue;
       const user = userById.get(userId);
       if (!user) {
         result.failed += 1;
@@ -121,10 +130,8 @@ export class SmartAlertsService {
         delivered += 1;
       } else result.failed += 1;
     }
-    if (delivered > 0) {
-      plan.weatherAlertSentAt = now;
-      await this.plans.save(plan);
-    }
+    plan.weatherAlertSentAt = now;
+    await this.plans.save(plan);
   }
 
   private async sendFriendLeft(
@@ -134,6 +141,7 @@ export class SmartAlertsService {
     audienceIds: string[],
     userById: Map<string, UserEntity>,
     latestCheckIn: Map<string, CheckInEntity>,
+    prefsByUser: Map<string, SmartAlertSettings>,
     now: Date,
     result: SmartAlertTickResult,
   ): Promise<void> {
@@ -166,8 +174,11 @@ export class SmartAlertsService {
       }
       const name = leaverUser.lastName ? `${leaverUser.firstName} ${leaverUser.lastName}` : leaverUser.firstName;
       const text = formatFriendLeftText(event.title, name);
-      const others = audienceIds.filter((id) => id !== leaver.userId);
-      if (others.length === 0) continue;
+      const others = audienceIds.filter((id) => id !== leaver.userId && (prefsByUser.get(id) ?? DEFAULT_SMART_ALERTS).friendLeft);
+      if (others.length === 0) {
+        await leaver.mark();
+        continue;
+      }
       let delivered = 0;
       for (const userId of others) {
         const user = userById.get(userId);

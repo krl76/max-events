@@ -1,12 +1,12 @@
 import { BadRequestException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import type { Profile, UpdateProfile } from "@max-events/api-contracts";
+import { DEFAULT_SMART_ALERTS, type Profile, type UpdateProfile } from "@max-events/api-contracts";
 import { UserEntity } from "./user.entity";
 import { ProfilesController } from "./profiles.controller";
 import type { ProfilesService } from "./profiles.service";
 
 const user = { id: "00000000-0000-4000-8000-00000000000a" } as UserEntity;
-const profile: Profile = { userId: user.id, city: "Москва", interests: [] };
+const profile: Profile = { userId: user.id, city: "Москва", interests: [], smartAlerts: DEFAULT_SMART_ALERTS };
 
 function createController() {
   const calls: { getOrCreate?: string; update?: { userId: string; patch: unknown } } = {};
@@ -35,5 +35,6 @@ describe("ProfilesController", () => {
     await expect(controller.update(user, { city: "" })).rejects.toBeInstanceOf(BadRequestException);
     await expect(controller.update(user, { city: "Казань" })).resolves.toMatchObject({ city: "Казань" });
     expect(calls.update).toEqual({ userId: user.id, patch: { city: "Казань" } });
+    await expect(controller.update(user, { smartAlerts: { weather: false } })).resolves.toMatchObject({ smartAlerts: { weather: false } });
   });
 });

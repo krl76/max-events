@@ -17,13 +17,14 @@ import { MaxBotModule } from "../max-bot/max-bot.module";
 import { PlaceEntity } from "../places/place.entity";
 import { PlanParticipantEntity } from "../plans/plan-participant.entity";
 import { PlanEntity } from "../plans/plan.entity";
+import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 import { SmartAlertsScheduler } from "./smart-alerts.scheduler";
 import { SmartAlertsService } from "./smart-alerts.service";
 import { WeatherClient } from "./weather.client";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, EventEntity, PlaceEntity, UserEntity, CheckInEntity]), MaxBotModule],
+  imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, EventEntity, PlaceEntity, UserEntity, CheckInEntity, ProfileEntity]), MaxBotModule],
   providers: [WeatherClient, SmartAlertsService, SmartAlertsScheduler],
 })
 export class SmartAlertsModule {}

@@ -7,6 +7,7 @@ import { PlaceEntity } from "../places/place.entity";
 import { PlanParticipantEntity } from "../plans/plan-participant.entity";
 import { PlanEntity } from "../plans/plan.entity";
 import { haversineMeters } from "../plans/plans.service";
+import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 import { formatLeaveNowText, LeaveNowService, shouldLeaveNow, walkingMinutes } from "./leave-now.service";
 
@@ -40,7 +41,7 @@ function matchesWhere(row: object, where: Record<string, unknown>): boolean {
   });
 }
 
-function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
+function createStoreRepo<T extends object>(initial: T[] = []) {
   const store = [...initial];
   return {
     store,
@@ -50,7 +51,7 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
   };
 }
 
-function createService(options: { startsInMin: number; dimaStatus?: PlanParticipantEntity["status"]; withOrigin?: boolean } = { startsInMin: travel + 20 }) {
+function createService(options: { startsInMin: number; dimaStatus?: PlanParticipantEntity["status"]; withOrigin?: boolean; hostLeaveNow?: boolean } = { startsInMin: travel + 20 }) {
   const startsAt = new Date(now.getTime() + options.startsInMin * 60_000);
   const meetingAt = new Date(startsAt.getTime() - 20 * 60_000);
   const plans = createStoreRepo<PlanEntity>([
@@ -118,6 +119,11 @@ function createService(options: { startsInMin: number; dimaStatus?: PlanParticip
     places as unknown as Repository<PlaceEntity>,
     users as unknown as Repository<UserEntity>,
     checkIns as unknown as Repository<CheckInEntity>,
+    createStoreRepo<ProfileEntity>(
+      options.hostLeaveNow === false
+        ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: false, weather: true, friendLeft: true, listDigest: true }, updatedAt: now } as ProfileEntity]
+        : [],
+    ) as unknown as Repository<ProfileEntity>,
     bot,
   );
   return { service, sent, plans, participants };
@@ -162,5 +168,14 @@ describe("LeaveNowService.tick", () => {
     const { service, sent } = createService({ startsInMin: travel + 120 });
     await expect(service.tick(now)).resolves.toEqual({ sent: 0, failed: 0 });
     expect(sent).toHaveLength(0);
+  });
+
+  it("skips a user who disabled leaveNow alerts", async () => {
+    const { service, sent, plans } = createService({ startsInMin: travel + 20, hostLeaveNow: false });
+    const result = await service.tick(now);
+    expect(result.sent).toBe(1);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.startsWith("2:")).toBe(true);
+    expect(plans.store[0]?.leaveNowSentAt).toBeNull();
   });
 });

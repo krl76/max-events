@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Zod contracts for User (MAX messenger identity) and Profile (city, interests).
+// PURPOSE: Zod contracts for User (MAX messenger identity) and Profile (city, interests, smart-alert prefs).
 // SCOPE: User/CreateUser/Profile/UpdateProfile schemas and inferred types.
 // DEPENDS: zod, ./primitives.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
@@ -10,9 +10,12 @@
 // - User - full user type
 // - CreateUserSchema - user creation payload (server-side from validated initData)
 // - CreateUser - user creation payload type
-// - ProfileSchema - user profile with default city and interests
+// - SmartAlertSettingsSchema - per-type smart-alert toggles
+// - SmartAlertSettings - smart-alert prefs type
+// - DEFAULT_SMART_ALERTS - all types on
+// - ProfileSchema - user profile with default city, interests and smart alerts
 // - Profile - profile type
-// - UpdateProfileSchema - profile edit payload
+// - UpdateProfileSchema - profile edit payload (nested partial smartAlerts)
 // - UpdateProfile - profile edit type
 // END_MODULE_MAP
 
@@ -33,12 +36,32 @@ export type User = z.infer<typeof UserSchema>;
 export const CreateUserSchema = UserSchema.omit({ id: true, createdAt: true, updatedAt: true });
 export type CreateUser = z.infer<typeof CreateUserSchema>;
 
+export const SmartAlertSettingsSchema = z.object({
+  leaveNow: z.boolean(),
+  weather: z.boolean(),
+  friendLeft: z.boolean(),
+  listDigest: z.boolean(),
+});
+export type SmartAlertSettings = z.infer<typeof SmartAlertSettingsSchema>;
+
+export const DEFAULT_SMART_ALERTS: SmartAlertSettings = {
+  leaveNow: true,
+  weather: true,
+  friendLeft: true,
+  listDigest: true,
+};
+
 export const ProfileSchema = z.object({
   userId: IdSchema,
   city: z.string().min(1),
   interests: z.array(z.string().min(1)).default([]),
+  smartAlerts: SmartAlertSettingsSchema.default({ ...DEFAULT_SMART_ALERTS }),
 });
 export type Profile = z.infer<typeof ProfileSchema>;
 
-export const UpdateProfileSchema = ProfileSchema.omit({ userId: true }).partial();
+export const UpdateProfileSchema = z.object({
+  city: z.string().min(1).optional(),
+  interests: z.array(z.string().min(1)).optional(),
+  smartAlerts: SmartAlertSettingsSchema.partial().optional(),
+});
 export type UpdateProfile = z.infer<typeof UpdateProfileSchema>;

@@ -16,7 +16,7 @@ const user: User = {
   updatedAt: "2026-01-01T00:00:00Z",
 };
 
-const profile: Profile = { userId: user.id, city: "Москва", interests: ["бег", "джаз"] };
+const profile: Profile = { userId: user.id, city: "Москва", interests: ["бег", "джаз"], smartAlerts: { leaveNow: true, weather: true, friendLeft: true, listDigest: true } };
 
 function booking(id: string, eventId: string): Booking {
   return { id, userId: user.id, eventId, status: "active", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" };

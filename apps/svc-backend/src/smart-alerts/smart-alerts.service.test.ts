@@ -6,6 +6,7 @@ import type { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlaceEntity } from "../places/place.entity";
 import { PlanParticipantEntity } from "../plans/plan-participant.entity";
 import { PlanEntity } from "../plans/plan.entity";
+import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 import { formatFriendLeftText, formatWeatherAlertText, SmartAlertsService } from "./smart-alerts.service";
 import type { HourlyPrecip, WeatherClient } from "./weather.client";
@@ -37,7 +38,7 @@ function matchesWhere(row: object, where: Record<string, unknown>): boolean {
   });
 }
 
-function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
+function createStoreRepo<T extends object>(initial: T[] = []) {
   const store = [...initial];
   return {
     store,
@@ -46,7 +47,7 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
   };
 }
 
-function createService(options: { rain?: HourlyPrecip | null; dimaLeft?: boolean; dimaCheckInAtVenue?: boolean; dimaStatus?: PlanParticipantEntity["status"] } = {}) {
+function createService(options: { rain?: HourlyPrecip | null; dimaLeft?: boolean; dimaCheckInAtVenue?: boolean; dimaStatus?: PlanParticipantEntity["status"]; hostWeather?: boolean } = {}) {
   const plans = createStoreRepo<PlanEntity>([
     {
       id: planId,
@@ -104,6 +105,11 @@ function createService(options: { rain?: HourlyPrecip | null; dimaLeft?: boolean
     places as unknown as Repository<PlaceEntity>,
     users as unknown as Repository<UserEntity>,
     checkIns as unknown as Repository<CheckInEntity>,
+    createStoreRepo<ProfileEntity>(
+      options.hostWeather === false
+        ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: true, weather: false, friendLeft: true, listDigest: true }, updatedAt: now } as ProfileEntity]
+        : [],
+    ) as unknown as Repository<ProfileEntity>,
     bot,
     weather,
   );
@@ -146,6 +152,14 @@ describe("SmartAlertsService.tick", () => {
     expect(participants.store[0]?.friendLeftBroadcastAt).toEqual(now);
     const again = await service.tick(now);
     expect(again.sent).toBe(0);
+  });
+
+  it("skips weather DMs for a user who disabled weather alerts", async () => {
+    const { service, sent } = createService({ rain: { precipitationMm: 1.2, precipitationProbability: 70 }, hostWeather: false });
+    const result = await service.tick(now);
+    expect(result.sent).toBe(1);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.startsWith("2:")).toBe(true);
   });
 
   it("treats a venue check-in as left and skips declined members", async () => {

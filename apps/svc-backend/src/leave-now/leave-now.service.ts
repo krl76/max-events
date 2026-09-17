@@ -25,6 +25,9 @@ import { PlaceEntity } from "../places/place.entity";
 import { PlanParticipantEntity } from "../plans/plan-participant.entity";
 import { PlanEntity } from "../plans/plan.entity";
 import { haversineMeters } from "../plans/plans.service";
+import { DEFAULT_SMART_ALERTS } from "@max-events/api-contracts";
+import { ProfileEntity } from "../users/profile.entity";
+import { readAlertPrefs } from "../users/profiles.service";
 import { UserEntity } from "../users/user.entity";
 
 export const WALK_M_PER_MIN = 80;
@@ -58,6 +61,7 @@ export class LeaveNowService {
     @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @InjectRepository(CheckInEntity) private readonly checkIns: Repository<CheckInEntity>,
+    @InjectRepository(ProfileEntity) private readonly profiles: Repository<ProfileEntity>,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
   ) {}
 
@@ -77,6 +81,8 @@ export class LeaveNowService {
       const eventById = new Map(events.map((row) => [row.id, row]));
       const userIds = [...new Set([...upcoming.map((row) => row.hostUserId), ...participantRows.map((row) => row.userId)])];
       const checkIns = userIds.length === 0 ? [] : await this.checkIns.find({ where: { userId: In(userIds) } });
+      const profileRows = userIds.length === 0 ? [] : await this.profiles.find({ where: { userId: In(userIds) } });
+      const prefsByUser = new Map(profileRows.map((row) => [row.userId, readAlertPrefs(row)]));
       const originEventIds = [...new Set(checkIns.map((row) => row.eventId).filter((id): id is string => id !== null))];
       const originEvents = originEventIds.length === 0 ? [] : await this.events.find({ where: { id: In(originEventIds) } });
       const originEventById = new Map(originEvents.map((row) => [row.id, row]));
@@ -127,6 +133,8 @@ export class LeaveNowService {
             result.failed += 1;
             continue;
           }
+          const prefs = prefsByUser.get(recipient.userId) ?? DEFAULT_SMART_ALERTS;
+          if (!prefs.leaveNow) continue;
           const origin = originFromCheckIn(latestCheckIn.get(recipient.userId), originEventById, placeById);
           if (!origin) continue;
           const travel = walkingMinutes(haversineMeters(origin, venue.latitude, venue.longitude));

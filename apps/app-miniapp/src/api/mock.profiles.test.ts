@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { DEFAULT_SMART_ALERTS } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
 import { installMockApi, resetMockProfiles } from "./mock";
 
@@ -18,7 +19,7 @@ describe("profile mock endpoints", () => {
 
     const profile = await new ApiClient("/api").getProfile(DEMO_USER_ID);
 
-    expect(profile).toEqual({ userId: DEMO_USER_ID, city: "Москва", interests: [] });
+    expect(profile).toEqual({ userId: DEMO_USER_ID, city: "Москва", interests: [], smartAlerts: DEFAULT_SMART_ALERTS });
   });
 
   it("applies a PATCH and persists it for the next GET", async () => {
@@ -26,7 +27,7 @@ describe("profile mock endpoints", () => {
     const api = new ApiClient("/api");
 
     const updated = await api.updateProfile(DEMO_USER_ID, { city: "Казань", interests: ["бег", "джаз"] });
-    expect(updated).toEqual({ userId: DEMO_USER_ID, city: "Казань", interests: ["бег", "джаз"] });
+    expect(updated).toEqual({ userId: DEMO_USER_ID, city: "Казань", interests: ["бег", "джаз"], smartAlerts: DEFAULT_SMART_ALERTS });
 
     const reread = await api.getProfile(DEMO_USER_ID);
     expect(reread).toEqual(updated);

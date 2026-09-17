@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { QueryRunner } from "typeorm";
 import { CreateProfiles20260911150000 } from "../database/migrations/20260911150000-CreateProfiles";
+import { AddProfileSmartAlerts20260912100000 } from "../database/migrations/20260912100000-AddProfileSmartAlerts";
 
 describe("CreateProfiles20260911150000", () => {
   it("creates profiles keyed by userId and drops the table on revert", async () => {
@@ -20,5 +21,22 @@ describe("CreateProfiles20260911150000", () => {
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries).toEqual(['DROP TABLE "profiles"']);
+  });
+});
+
+describe("AddProfileSmartAlerts20260912100000", () => {
+  it("adds smartAlerts jsonb and drops it on revert", async () => {
+    const queries: string[] = [];
+    const queryRunner = {
+      query: async (sql: string) => {
+        queries.push(sql);
+      },
+    } as unknown as QueryRunner;
+    const migration = new AddProfileSmartAlerts20260912100000();
+    await migration.up(queryRunner);
+    expect(queries[0]).toContain('ADD COLUMN "smartAlerts" jsonb');
+    queries.length = 0;
+    await migration.down(queryRunner);
+    expect(queries).toEqual([`ALTER TABLE "profiles" DROP COLUMN "smartAlerts"`]);
   });
 });
