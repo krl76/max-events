@@ -87,7 +87,7 @@ describe("ReviewsService.create", () => {
       return null;
     };
     const originalSave = reviews.save;
-    reviews.save = async (entity) => {
+    reviews.save = async (_entity) => {
       reviews.save = originalSave;
       throw new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate"), { code: "23505" }));
     };
