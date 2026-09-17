@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for personal event/place lists ("Хочу сходить", "Избранное", custom).
-// SCOPE: List preset enum, List entity (preset or custom title), List item (event or place + added time).
-// DEPENDS: zod, ./primitives.js
+// SCOPE: List preset enum, List entity (preset or custom title), List item (event or place + added time), list screen aggregates.
+// DEPENDS: zod, ./primitives.js, ./event.js, ./friends.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -12,9 +12,19 @@
 // - List - list type
 // - ListItemSchema - list entry referencing an event or a place with the time it was added
 // - ListItem - list item type
+// - AddListItemWriteSchema - add-event payload
+// - AddListItemWrite - add-event payload type
+// - ListSummarySchema - list with counters and optional saved-item id
+// - ListSummary - list summary type
+// - ListItemCardSchema - list item plus its event
+// - ListItemCard - list item card type
+// - ListScreenSchema - one list with its event cards
+// - ListScreen - list screen type
 // END_MODULE_MAP
 
 import { z } from "zod";
+import { EventSchema } from "./event.js";
+import { FriendSchema } from "./friends.js";
 import { IdSchema, TimestampSchema } from "./primitives.js";
 
 export const ListPresetSchema = z.enum(["want_to_go", "favorites", "weekend", "with_children", "with_friends", "try_later"]);
@@ -43,3 +53,30 @@ export const ListItemSchema = z
     path: ["eventId"],
   });
 export type ListItem = z.infer<typeof ListItemSchema>;
+
+export const AddListItemWriteSchema = z.object({
+  eventId: IdSchema,
+});
+export type AddListItemWrite = z.infer<typeof AddListItemWriteSchema>;
+
+export const ListSummarySchema = z.object({
+  list: ListSchema,
+  itemsCount: z.number().int().nonnegative(),
+  savedItemId: IdSchema.nullable(),
+  participants: z.array(FriendSchema).default([]),
+});
+export type ListSummary = z.infer<typeof ListSummarySchema>;
+
+export const ListItemCardSchema = z.object({
+  item: ListItemSchema,
+  event: EventSchema,
+  addedBy: FriendSchema.nullable().default(null),
+});
+export type ListItemCard = z.infer<typeof ListItemCardSchema>;
+
+export const ListScreenSchema = z.object({
+  list: ListSchema,
+  participants: z.array(FriendSchema).default([]),
+  items: z.array(ListItemCardSchema),
+});
+export type ListScreen = z.infer<typeof ListScreenSchema>;
