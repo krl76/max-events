@@ -37,6 +37,8 @@ export const CreateBookingSchema = BookingSchema.omit({
   status: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  promoCode: z.string().min(1).max(40).nullish(),
 });
 export type CreateBooking = z.infer<typeof CreateBookingSchema>;
 

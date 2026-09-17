@@ -10,14 +10,15 @@
 // - PeopleService - suggest
 // END_MODULE_MAP
 
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, MoreThanOrEqual, Repository } from "typeorm";
 import type { PeopleCandidate, PeopleResponse } from "@max-events/api-contracts";
+import { readPrivacy } from "../users/profiles.service";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
-import { toFriendDto } from "../friends/friends.service";
+import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { haversineKm } from "../nearby/nearby.service";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { PlaceEntity } from "../places/place.entity";
@@ -27,7 +28,7 @@ import { UserEntity } from "../users/user.entity";
 
 export const PEOPLE_MAX_KM = 15;
 const COMPANY: ParticipationEntity["status"][] = ["looking_for_company", "looking_for_travel_buddy", "looking_for_after_event_company"];
-const GOING: ParticipationEntity["status"][] = ["going", "wants_to_go", "looking_for_company"];
+const GOING: ParticipationEntity["status"][] = ["wants_to_go", "probably_going", "going", "looking_for_company", "looking_for_travel_buddy", "looking_for_after_event_company"];
 
 @Injectable()
 export class PeopleService {
@@ -38,6 +39,7 @@ export class PeopleService {
     @InjectRepository(EventEntity) private readonly events: Repository<EventEntity>,
     @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
     @InjectRepository(ParticipationEntity) private readonly participations: Repository<ParticipationEntity>,
+    @Inject(FriendsService) private readonly friends: FriendsService,
   ) {}
 
   async suggest(viewerId: string, origin: { latitude: number; longitude: number } | null, now = new Date()): Promise<PeopleResponse> {
@@ -62,6 +64,8 @@ export class PeopleService {
     const myEventIds = new Set(myParts.map((row) => row.eventId));
     const lookingToday = new Set(parts.filter((row) => COMPANY.includes(row.status) && eventById.has(row.eventId) && moscowDateKey(eventById.get(row.eventId)!.startsAt) === todayKey).map((row) => row.userId));
     const viewerOrigin = origin ?? coordsOf(latest.get(viewerId), originEventById, placeById);
+    if (!viewerOrigin && !mine?.city) return { nearbyCount: 0, lookingForCompanyTodayCount: 0, people: [] };
+    const friendIds = await this.friends.friendIds(viewerId);
     const people: PeopleCandidate[] = [];
     for (const profile of others) {
       const user = userById.get(profile.userId);
@@ -69,9 +73,16 @@ export class PeopleService {
       const sharedInterests = (profile.interests ?? []).filter((interest) => myInterests.has(interest.toLowerCase()));
       const theirParts = parts.filter((row) => row.userId === profile.userId && GOING.includes(row.status));
       const sharedEventId = theirParts.find((row) => myEventIds.has(row.eventId) && eventById.has(row.eventId))?.eventId;
-      const coords = coordsOf(latest.get(profile.userId), originEventById, placeById);
-      const distanceKm = viewerOrigin && coords ? Math.round(haversineKm(viewerOrigin.latitude, viewerOrigin.longitude, coords.latitude, coords.longitude) * 10) / 10 : null;
-      if (distanceKm !== null && distanceKm > PEOPLE_MAX_KM) continue;
+      const privacy = readPrivacy(profile);
+      const canUseVisit = privacy.visitHistory !== "hidden" && friendIds.has(profile.userId);
+      const coords = canUseVisit ? coordsOf(latest.get(profile.userId), originEventById, placeById) : null;
+      let distanceKm: number | null = null;
+      if (coords && viewerOrigin) {
+        distanceKm = Math.round(haversineKm(viewerOrigin.latitude, viewerOrigin.longitude, coords.latitude, coords.longitude) * 10) / 10;
+        if (distanceKm > PEOPLE_MAX_KM) continue;
+      } else if (!mine?.city || profile.city !== mine.city) {
+        continue;
+      }
       if (sharedInterests.length === 0 && !sharedEventId) continue;
       const lookingForCompanyToday = lookingToday.has(profile.userId);
       const context = sharedEventId ? { kind: "shared_event" as const, event: toEventDto(eventById.get(sharedEventId)!), explanation: `вы оба хотите на «${eventById.get(sharedEventId)!.title}»` } : { kind: "shared_interest" as const, interest: sharedInterests[0]!, explanation: `общий интерес: ${sharedInterests[0]}` };

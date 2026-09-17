@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - PlaceListQuery - city/category/limit/offset
-// - PlacesService - CRUD + list against PlaceEntity; GET list is Place[] for the miniapp client
+// - PlacesService - CRUD + list against PlaceEntity; GET list is Place[] for the miniapp client; resolveForEventBind allows own unpublished place as event FK
 // - toPlaceDto - map PlaceEntity to the api-contracts Place shape
 // END_MODULE_MAP
 
@@ -49,6 +49,14 @@ export class PlacesService {
     return toPlaceDto(found);
   }
 
+  async resolveForEventBind(id: string, actorId?: string): Promise<void> {
+    const found = await this.places.findOneBy({ id });
+    if (!found) throw new NotFoundException("Place not found");
+    if (found.published !== false) return;
+    if (actorId && found.organizerUserId === actorId) return;
+    throw new NotFoundException("Place not found");
+  }
+
   async update(id: string, patch: Partial<CreatePlace>, actorId?: string): Promise<Place> {
     const existing = await this.places.findOneBy({ id });
     if (!existing) throw new NotFoundException("Place not found");
@@ -81,6 +89,7 @@ export class PlacesService {
   }
 
   async publish(id: string, actorId: string): Promise<Place> {
+    await this.users.assertCanPublish(actorId);
     const existing = await this.places.findOneBy({ id });
     if (!existing) throw new NotFoundException("Place not found");
     assertOrganizer(existing.organizerUserId, actorId);

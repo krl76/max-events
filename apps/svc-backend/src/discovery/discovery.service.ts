@@ -45,7 +45,11 @@ export class DiscoveryService {
       const unseen = unseenPlaces(ctx.visitsByUser.get(friendId) ?? [], ctx.myPlaceIds, ctx.placeById, ctx.eventById);
       for (const place of unseen) unique.add(place.id);
       if (unseen.length === 0) continue;
-      byFriend.push({ friend: toFriendDto(friend), newPlacesCount: unseen.length, places: unseen.map(toPlaceDto) });
+      byFriend.push({
+        friend: toFriendDto(friend),
+        newPlacesCount: unseen.length,
+        places: privacy.routes === "hidden" ? [] : unseen.map(toPlaceDto),
+      });
     }
     byFriend.sort((a, b) => b.newPlacesCount - a.newPlacesCount || a.friend.name.localeCompare(b.friend.name));
     return { newPlacesCount: unique.size, byFriend };
@@ -79,7 +83,7 @@ export class DiscoveryService {
         }),
       ),
     ];
-    const places = placeIds.length === 0 ? [] : await this.places.find({ where: { id: In(placeIds) } });
+    const places = placeIds.length === 0 ? [] : await this.places.find({ where: { id: In(placeIds), published: true } });
     const placeById = new Map(places.map((row) => [row.id, row]));
     const [users, profiles] = await Promise.all([userIds.length === 0 ? Promise.resolve([] as UserEntity[]) : this.users.find({ where: { id: In(userIds) } }), userIds.length === 0 ? Promise.resolve([] as ProfileEntity[]) : this.profiles.find({ where: { userId: In(userIds) } })]);
     const visitsByUser = new Map<string, CheckInEntity[]>();

@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type DataSource, type EntityManager, type Repository } from "typeorm";
 import { BookingEntity } from "../bookings/booking.entity";
@@ -126,6 +126,13 @@ describe("WaitlistService.join", () => {
     const { service } = createHarness(seedEvent(1, 1, false));
     await expect(service.join(userA, eventId)).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it("rejects joining while public booking has not opened", async () => {
+    const event = seedEvent(1, 1);
+    event.bookingOpensAt = new Date("2026-09-20T00:00:00Z");
+    const { service } = createHarness(event);
+    await expect(service.join(userA, eventId)).rejects.toBeInstanceOf(ForbiddenException);
+  });
 });
 
 describe("WaitlistService.onSeatFreed, confirm and expiry", () => {
@@ -218,6 +225,21 @@ describe("WaitlistService.onSeatFreed, confirm and expiry", () => {
     await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, harness.events[0]!, now);
     harness.events[0]!.published = false;
     await expect(harness.service.confirm(userA, joined.id, now)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("does not offer or confirm a waitlist seat during early access", async () => {
+    const event = seedEvent(1, 1);
+    const harness = createHarness(event);
+    const joined = await harness.service.join(userA, eventId);
+    event.bookingOpensAt = new Date("2026-09-20T00:00:00Z");
+    harness.events[0]!.bookedCount = 0;
+    const offered = await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, event, now);
+    expect(offered).toBeNull();
+    const row = harness.entries.find((item) => item.id === joined.id)!;
+    row.status = "offered";
+    row.offeredUntil = new Date(now.getTime() + 60_000);
+    await expect(harness.service.confirm(userA, joined.id, now)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(harness.bookings).toHaveLength(0);
   });
 
   it("does not start a second expireOffers while the first is running", async () => {

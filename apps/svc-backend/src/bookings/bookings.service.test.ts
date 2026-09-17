@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { QueryFailedError, type DataSource, type EntityManager, type EntityTarget, type FindOneOptions, type ObjectLiteral } from "typeorm";
 import type { BookingStatus } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
+import type { PromoService } from "../promo/promo.service";
 import type { WaitlistService } from "../waitlist/waitlist.service";
 import { BookingEntity } from "./booking.entity";
 import { BookingsService } from "./bookings.service";
@@ -34,6 +35,7 @@ function seedEvent(overrides: Partial<EventEntity> = {}): EventEntity {
     published: true,
     chatLink: null,
     chatSyncPending: true,
+    bookingOpensAt: null,
     createdAt: new Date("2026-09-01T07:00:00Z"),
     updatedAt: new Date("2026-09-01T07:00:00Z"),
     ...overrides,
@@ -114,10 +116,11 @@ function createDataSource(event: EventEntity) {
   return { bookings, dataSource: dataSource as unknown as DataSource, events };
 }
 
-function createService(event: EventEntity = seedEvent()) {
+function createService(event: EventEntity = seedEvent(), promoOverride?: { redeemInTransaction: PromoService["redeemInTransaction"] }) {
   const fake = createDataSource(event);
   const waitlist = { onSeatFreed: async () => null } as unknown as WaitlistService;
-  const service = new BookingsService(fake.dataSource, waitlist);
+  const promo = (promoOverride ?? { redeemInTransaction: async () => null }) as unknown as PromoService;
+  const service = new BookingsService(fake.dataSource, waitlist, promo);
   return { ...fake, service, waitlist };
 }
 
@@ -193,5 +196,21 @@ describe("BookingsService", () => {
     const second = await service.create(userB, eventId);
     expect(first.freeSeats).toBeNull();
     expect(second.freeSeats).toBeNull();
+  });
+
+  it("rejects a booking before bookingOpensAt without a promo code", async () => {
+    const opens = new Date("2026-09-20T00:00:00Z");
+    const promo = {
+      redeemInTransaction: async (_manager: unknown, event: EventEntity, code: string | undefined, now: Date) => {
+        if (event.bookingOpensAt && now.getTime() < event.bookingOpensAt.getTime() && !code) {
+          throw new ForbiddenException("Early access requires a promo code");
+        }
+        return code ? code.toUpperCase() : null;
+      },
+    };
+    const { service } = createService(seedEvent({ bookingOpensAt: opens }), promo);
+    await expect(service.create(userA, eventId, undefined, new Date("2026-09-12T10:00:00Z"))).rejects.toBeInstanceOf(ForbiddenException);
+    const booked = await service.create(userA, eventId, "early", new Date("2026-09-12T10:00:00Z"));
+    expect(booked.status).toBe("active");
   });
 });

@@ -31,3 +31,4 @@ export * from "./discovery.js";
 export * from "./people.js";
 export * from "./stats.js";
 export * from "./organizer-rating.js";
+export * from "./promo.js";

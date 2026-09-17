@@ -33,7 +33,7 @@ export function parseOrigin(query: Record<string, string | undefined>): GeoOrigi
   const latitude = Number(latRaw);
   const longitude = Number(lngRaw);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-    throw new BadRequestException("Invalid today geo query");
+    throw new BadRequestException("Invalid geo query");
   }
   return { latitude, longitude };
 }

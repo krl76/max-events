@@ -60,6 +60,9 @@ export class EventEntity {
   @Column({ type: "boolean", default: true })
   published!: boolean;
 
+  @Column({ type: "timestamptz", nullable: true })
+  bookingOpensAt!: Date | null;
+
   @Column({ type: "varchar", nullable: true })
   chatLink!: string | null;
 

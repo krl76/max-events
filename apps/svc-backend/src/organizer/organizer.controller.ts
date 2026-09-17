@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for the organizer panel — own events/places including drafts, publish.
-// SCOPE: GET /organizer/events, GET /organizer/places, POST create draft, POST publish.
-// DEPENDS: @nestjs/common, ../events, ../places, ../auth
+// SCOPE: GET /organizer/events, GET /organizer/places, POST create draft, POST publish, promocodes and early access.
+// DEPENDS: @nestjs/common, ../events, ../places, ../promo, ../auth
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -10,10 +10,11 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post } from "@nestjs/common";
-import { CreateEventSchema, CreatePlaceSchema, type Event, type Place } from "@max-events/api-contracts";
+import { CreateEventSchema, CreatePlaceSchema, CreatePromoCodeWriteSchema, EarlyAccessWriteSchema, type Event, type OrganizerBookingRow, type Place, type PromoCode } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { EventsService } from "../events/events.service";
 import { PlacesService } from "../places/places.service";
+import { PromoService } from "../promo/promo.service";
 import { UserEntity } from "../users/user.entity";
 
 @Controller("organizer")
@@ -21,6 +22,7 @@ export class OrganizerController {
   constructor(
     @Inject(EventsService) private readonly events: EventsService,
     @Inject(PlacesService) private readonly places: PlacesService,
+    @Inject(PromoService) private readonly promo: PromoService,
   ) {}
 
   @Get("events")
@@ -55,5 +57,29 @@ export class OrganizerController {
   @Post("places/:id/publish")
   publishPlace(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<Place> {
     return this.places.publish(id, user.id);
+  }
+
+  @Post("events/:id/promocodes")
+  async createPromo(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<PromoCode> {
+    const parsed = CreatePromoCodeWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid promo payload");
+    return this.promo.create(user.id, id, parsed.data);
+  }
+
+  @Get("events/:id/promocodes")
+  listPromos(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PromoCode[]> {
+    return this.promo.list(user.id, id);
+  }
+
+  @Post("events/:id/early-access")
+  async earlyAccess(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<{ bookingOpensAt: string }> {
+    const parsed = EarlyAccessWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid early-access payload");
+    return this.promo.setEarlyAccess(user.id, id, new Date(parsed.data.bookingOpensAt));
+  }
+
+  @Get("events/:id/bookings")
+  listBookings(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<OrganizerBookingRow[]> {
+    return this.promo.listBookings(user.id, id);
   }
 }

@@ -15,6 +15,7 @@ import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource, QueryFailedError } from "typeorm";
 import type { BookingStatus, BookingWithSeats } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
+import { PromoService } from "../promo/promo.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { BookingEntity } from "./booking.entity";
 
@@ -23,13 +24,15 @@ export class BookingsService {
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     @Inject(WaitlistService) private readonly waitlist: WaitlistService,
+    @Inject(PromoService) private readonly promo: PromoService,
   ) {}
 
-  async create(userId: string, eventId: string): Promise<BookingWithSeats> {
+  async create(userId: string, eventId: string, promoCode?: string | null, now = new Date()): Promise<BookingWithSeats> {
     try {
       return await this.dataSource.transaction(async (manager) => {
         const event = await manager.findOne(EventEntity, { where: { id: eventId }, lock: { mode: "pessimistic_write" } });
         if (!event || event.published === false) throw new NotFoundException("Event not found");
+        const applied = await this.promo.redeemInTransaction(manager, event, promoCode ?? undefined, now);
 
         const duplicate = await manager.findOne(BookingEntity, { where: { userId, eventId, status: "active" satisfies BookingStatus } });
         if (duplicate) throw new ConflictException("Booking already exists");
@@ -38,7 +41,7 @@ export class BookingsService {
           throw new ConflictException("No seats left");
         }
 
-        const booking = await manager.save(BookingEntity, manager.create(BookingEntity, { userId, eventId, status: "active" }));
+        const booking = await manager.save(BookingEntity, manager.create(BookingEntity, { userId, eventId, status: "active", promoCode: applied }));
         event.bookedCount += 1;
         await manager.save(EventEntity, event);
         return toBookingDto(booking, event);

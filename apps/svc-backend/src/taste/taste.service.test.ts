@@ -4,6 +4,7 @@ import { CheckInEntity } from "../checkins/check-in.entity";
 import { EventEntity } from "../events/event.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { ReviewEntity } from "../reviews/review.entity";
+import { ProfileEntity } from "../users/profile.entity";
 import { buildTasteGraph, formatAfterMeExplanation, strongestAfterMe, TasteService } from "./taste.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
@@ -37,6 +38,7 @@ function createStoreRepo<T extends object>(initial: T[] = []) {
   return {
     store,
     find: async (opts: { where?: Record<string, unknown> } = {}) => store.filter((row) => matchesWhere(row as object, opts.where ?? {})),
+    findOneBy: async (where: Record<string, unknown>) => store.find((row) => matchesWhere(row as object, where)) ?? null,
   };
 }
 
@@ -97,8 +99,29 @@ describe("TasteService", () => {
         createdAt: now,
         updatedAt: now,
       } as EventEntity,
+      {
+        id: "00000000-0000-4000-8000-0000000000e4",
+        title: "Казань",
+        description: "",
+        category: "sport",
+        city: "Казань",
+        placeId: null,
+        startsAt: new Date("2026-09-19T10:00:00Z"),
+        endsAt: null,
+        isPaid: false,
+        priceRub: null,
+        paymentUrl: null,
+        capacity: null,
+        bookedCount: 0,
+        published: true,
+        chatLink: null,
+        chatSyncPending: false,
+        createdAt: now,
+        updatedAt: now,
+      } as EventEntity,
     ]);
-    const service = new TasteService(checkIns as unknown as Repository<CheckInEntity>, events as unknown as Repository<EventEntity>, createStoreRepo<PlaceEntity>() as unknown as Repository<PlaceEntity>, createStoreRepo<ReviewEntity>() as unknown as Repository<ReviewEntity>);
+    const profiles = createStoreRepo<ProfileEntity>([{ userId, city: "Москва", interests: [] } as unknown as ProfileEntity]);
+    const service = new TasteService(checkIns as unknown as Repository<CheckInEntity>, events as unknown as Repository<EventEntity>, createStoreRepo<PlaceEntity>() as unknown as Repository<PlaceEntity>, createStoreRepo<ReviewEntity>() as unknown as Repository<ReviewEntity>, profiles as unknown as Repository<ProfileEntity>);
     const profile = await service.profile(userId, now);
     expect(profile.eventCategories.some((row) => row.category === "afisha" && row.weight === 1)).toBe(true);
     const after = await service.afterMe(userId, now);

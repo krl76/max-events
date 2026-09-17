@@ -12,10 +12,11 @@
 import { Module } from "@nestjs/common";
 import { EventsModule } from "../events/events.module";
 import { PlacesModule } from "../places/places.module";
+import { PromoModule } from "../promo/promo.module";
 import { OrganizerController } from "./organizer.controller";
 
 @Module({
-  imports: [EventsModule, PlacesModule],
+  imports: [EventsModule, PlacesModule, PromoModule],
   controllers: [OrganizerController],
 })
 export class OrganizerModule {}

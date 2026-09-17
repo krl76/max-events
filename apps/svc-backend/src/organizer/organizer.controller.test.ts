@@ -30,12 +30,14 @@ describe("OrganizerController", () => {
       },
     } as unknown as EventsService;
     const places = { listMine: async () => [] as Place[], create: async () => ({ id: "p" }) as Place, publish: async () => ({ id: "p" }) as Place } as unknown as PlacesService;
-    const controller = new OrganizerController(events, places);
+    const promo = { create: async () => ({}), list: async () => [], setEarlyAccess: async () => ({ bookingOpensAt: "" }), listBookings: async () => [] };
+    const controller = new OrganizerController(events, places, promo as never);
     await expect(controller.listEvents(user)).resolves.toEqual([eventDto]);
     await expect(controller.createEventDraft(user, event)).resolves.toEqual(eventDto);
     expect(calls.create).toEqual({ draft: true });
     await expect(controller.publishEvent(user, eventDto.id)).resolves.toEqual(eventDto);
     expect(calls.publish).toBe(eventDto.id);
     await expect(controller.createEventDraft(user, { ...event, title: "" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.createPromo(user, eventDto.id, { code: "" })).rejects.toBeInstanceOf(BadRequestException);
   });
 });

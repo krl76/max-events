@@ -23,6 +23,7 @@ import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { ReviewEntity } from "../reviews/review.entity";
+import { ProfileEntity } from "../users/profile.entity";
 
 export const EVENT_CATEGORY_RU: Record<EventCategory, string> = {
   afisha: "афиша",
@@ -44,6 +45,7 @@ export class TasteService {
     @InjectRepository(EventEntity) private readonly events: Repository<EventEntity>,
     @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
     @InjectRepository(ReviewEntity) private readonly reviews: Repository<ReviewEntity>,
+    @InjectRepository(ProfileEntity) private readonly profiles: Repository<ProfileEntity>,
   ) {}
 
   async profile(userId: string, now = new Date()): Promise<TasteProfile> {
@@ -55,7 +57,13 @@ export class TasteService {
     const graph = await this.loadGraph(userId);
     const suggestion = strongestAfterMe(graph);
     if (!suggestion) return { suggestions: [] };
-    const upcoming = await this.events.find({ where: { published: true, category: suggestion.toCategory, startsAt: MoreThanOrEqual(now) } });
+    const profile = await this.profiles.findOneBy({ userId });
+    const city = profile?.city;
+    const upcoming = city
+      ? await this.events.find({
+          where: { published: true, category: suggestion.toCategory, city, startsAt: MoreThanOrEqual(now) },
+        })
+      : [];
     upcoming.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
     const item: AfterMeSuggestion = {
       fromCategory: suggestion.fromCategory,
@@ -73,7 +81,7 @@ export class TasteService {
     const reviewRows = await this.reviews.find({ where: { userId } });
     for (const row of reviewRows) eventIds.push(row.eventId);
     const uniqueEventIds = [...new Set(eventIds)];
-    const events = uniqueEventIds.length === 0 ? [] : await this.events.find({ where: { id: In(uniqueEventIds) } });
+    const events = uniqueEventIds.length === 0 ? [] : (await this.events.find({ where: { id: In(uniqueEventIds) } })).filter((row) => row.published !== false);
     const eventById = new Map(events.map((row) => [row.id, row]));
     const placeIds = [
       ...new Set(

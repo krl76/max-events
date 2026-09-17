@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
 import type { CreatePlace } from "@max-events/api-contracts";
@@ -141,6 +141,36 @@ describe("PlacesService", () => {
     const page = await service.list({ city: "Москва", limit: 2, offset: 1 });
     expect(page).toHaveLength(2);
     expect(page.map((item) => item.title)).toEqual(["ВДНХ", "Парк Горького"]);
+  });
+
+  it("lets an organizer bind their unpublished place and 404s everyone else", async () => {
+    const owner = "00000000-0000-4000-8000-00000000000a";
+    const { service, repo } = createService();
+    const draft = await service.create(payload, owner, { draft: true });
+    expect(repo.store[0]?.published).toBe(false);
+    await expect(service.getById(draft.id)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.resolveForEventBind(draft.id, owner)).resolves.toBeUndefined();
+    await expect(service.resolveForEventBind(draft.id, "00000000-0000-4000-8000-00000000000b")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("forbids a banned organizer from publishing a draft place", async () => {
+    const owner = "00000000-0000-4000-8000-00000000000a";
+    const { repo } = createService();
+    const users = {
+      assertCanPublish: async () => {
+        throw new ForbiddenException("Organizer is banned from publishing");
+      },
+    } as unknown as UsersService;
+    const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, users);
+    repo.store.push({
+      id: "00000000-0000-4000-8000-0000000000p1",
+      ...payload,
+      organizerUserId: owner,
+      published: false,
+      createdAt: new Date("2026-09-01T07:00:00Z"),
+      updatedAt: new Date("2026-09-01T07:00:00Z"),
+    } as PlaceEntity);
+    await expect(service.publish(repo.store[0]!.id, owner)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("rethrows driver errors other than a unique violation", async () => {

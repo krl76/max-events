@@ -15,11 +15,12 @@ import { CheckInEntity } from "../checkins/check-in.entity";
 import { EventEntity } from "../events/event.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { ReviewEntity } from "../reviews/review.entity";
+import { ProfileEntity } from "../users/profile.entity";
 import { TasteController } from "./taste.controller";
 import { TasteService } from "./taste.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CheckInEntity, EventEntity, PlaceEntity, ReviewEntity])],
+  imports: [TypeOrmModule.forFeature([CheckInEntity, EventEntity, PlaceEntity, ReviewEntity, ProfileEntity])],
   controllers: [TasteController],
   providers: [TasteService],
   exports: [TasteService],

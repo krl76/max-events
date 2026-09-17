@@ -27,6 +27,9 @@ export class BookingEntity {
   @Column({ type: "varchar", default: "active" })
   status!: BookingStatus;
 
+  @Column({ type: "varchar", length: 40, nullable: true })
+  promoCode!: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

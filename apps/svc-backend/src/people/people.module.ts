@@ -17,11 +17,12 @@ import { ParticipationEntity } from "../participations/participation.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
+import { FriendsModule } from "../friends/friends.module";
 import { PeopleController } from "./people.controller";
 import { PeopleService } from "./people.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserEntity, ProfileEntity, CheckInEntity, EventEntity, PlaceEntity, ParticipationEntity])],
+  imports: [TypeOrmModule.forFeature([UserEntity, ProfileEntity, CheckInEntity, EventEntity, PlaceEntity, ParticipationEntity]), FriendsModule],
   controllers: [PeopleController],
   providers: [PeopleService],
 })

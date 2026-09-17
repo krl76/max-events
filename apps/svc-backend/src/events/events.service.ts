@@ -47,7 +47,7 @@ export class EventsService {
 
   async create(payload: CreateEvent, organizerUserId?: string, options?: { draft?: boolean }): Promise<Event> {
     if (organizerUserId) await this.users.assertCanPublish(organizerUserId);
-    await assertPlaceBound(this.places, payload.placeId);
+    await assertPlaceBound(this.places, payload.placeId, organizerUserId);
     assertTimeRange(payload.startsAt, payload.endsAt);
     const saved = await this.events.save(
       this.events.create({
@@ -65,17 +65,9 @@ export class EventsService {
       } catch {
         // Creating the catalog row must not fail because a subscriber DM failed.
       }
+      return toEventDto(await attachChatLink(this.events, this.bot, saved));
     }
-    let chat: Awaited<ReturnType<MaxBotClient["createChat"]>> = null;
-    try {
-      chat = await this.bot.createChat(saved.title);
-    } catch {
-      chat = null;
-    }
-    if (!chat) return toEventDto(saved);
-    saved.chatLink = chat.link;
-    saved.chatSyncPending = false;
-    return toEventDto(await this.events.save(saved));
+    return toEventDto(saved);
   }
 
   async getById(id: string): Promise<Event> {
@@ -90,7 +82,7 @@ export class EventsService {
     assertOrganizer(existing.organizerUserId, actorId);
     const merged = EventSchema.safeParse({ ...toEventDto(existing), ...pickEventFields(patch) });
     if (!merged.success) throw new BadRequestException("Invalid event payload");
-    await assertPlaceBound(this.places, merged.data.placeId);
+    await assertPlaceBound(this.places, merged.data.placeId, actorId);
     assertTimeRange(merged.data.startsAt, merged.data.endsAt);
     const previousCapacity = existing.capacity;
     const saved = await this.events.save(this.events.merge(existing, toColumns(merged.data)));
@@ -120,11 +112,22 @@ export class EventsService {
   }
 
   async publish(id: string, actorId: string): Promise<Event> {
+    await this.users.assertCanPublish(actorId);
     const existing = await this.events.findOneBy({ id });
     if (!existing) throw new NotFoundException("Event not found");
     assertOrganizer(existing.organizerUserId, actorId);
+    const firstPublish = existing.published === false;
     existing.published = true;
-    return toEventDto(await this.events.save(existing));
+    const saved = await this.events.save(existing);
+    const withChat = await attachChatLink(this.events, this.bot, saved);
+    if (firstPublish) {
+      try {
+        await this.subscriptions.notifyNewEvent(withChat);
+      } catch {
+        // Publishing must not fail because a subscriber DM failed.
+      }
+    }
+    return toEventDto(withChat);
   }
 
   async list(query: EventListQuery): Promise<Event[]> {
@@ -190,10 +193,24 @@ function matchesStartWindow(startsAt: Date, query: EventListQuery): boolean {
   return true;
 }
 
-async function assertPlaceBound(places: PlacesService, placeId: string | null): Promise<void> {
+async function attachChatLink(events: Repository<EventEntity>, bot: MaxBotClient, saved: EventEntity): Promise<EventEntity> {
+  if (saved.chatLink) return saved;
+  let chat: Awaited<ReturnType<MaxBotClient["createChat"]>> = null;
+  try {
+    chat = await bot.createChat(saved.title);
+  } catch {
+    chat = null;
+  }
+  if (!chat) return saved;
+  saved.chatLink = chat.link;
+  saved.chatSyncPending = false;
+  return events.save(saved);
+}
+
+async function assertPlaceBound(places: PlacesService, placeId: string | null, actorId?: string): Promise<void> {
   if (!placeId) return;
   try {
-    await places.getById(placeId);
+    await places.resolveForEventBind(placeId, actorId);
   } catch (error) {
     if (error instanceof NotFoundException) throw new BadRequestException("Place not found");
     throw error;

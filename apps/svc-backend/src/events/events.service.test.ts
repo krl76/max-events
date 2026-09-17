@@ -63,21 +63,46 @@ function createRepo(initial: EventEntity[] = []) {
   };
 }
 
-function createService(options: { placeIds?: string[]; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService } = {}) {
+function createService(
+  options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean } = {},
+) {
   const knownPlaces = new Set(options.placeIds ?? []);
+  const draftPlaces = new Set(options.draftPlaceIds ?? []);
+  const chatCalls: string[] = [];
+  const notifyCalls: string[] = [];
+  const innerBot = options.bot ?? { createChat: async () => null };
   const places = {
     getById: async (id: string) => {
       if (!knownPlaces.has(id)) throw new NotFoundException("Place not found");
       return { id } as Place;
     },
+    resolveForEventBind: async (id: string, actorId?: string) => {
+      if (knownPlaces.has(id)) return;
+      if (draftPlaces.has(id) && actorId && actorId === options.ownerId) return;
+      throw new NotFoundException("Place not found");
+    },
   } as unknown as PlacesService;
   const repo = createRepo(options.store ?? []);
-  const bot = options.bot ?? { createChat: async () => null };
-  const subscriptions = { notifyNewEvent: async () => ({ sent: 0, failed: 0 }) } as unknown as SubscriptionsService;
-  const users = { assertCanPublish: async () => undefined } as unknown as UsersService;
+  const bot = {
+    createChat: async (title: string) => {
+      chatCalls.push(title);
+      return innerBot.createChat(title);
+    },
+  };
+  const subscriptions = {
+    notifyNewEvent: async (event: EventEntity) => {
+      notifyCalls.push(event.id);
+      return { sent: 0, failed: 0 };
+    },
+  } as unknown as SubscriptionsService;
+  const users = {
+    assertCanPublish: async () => {
+      if (options.banned) throw new ForbiddenException("Organizer is banned from publishing");
+    },
+  } as unknown as UsersService;
   const waitlist = options.waitlist ?? ({ fillVacancies: async () => undefined } as unknown as WaitlistService);
   const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist);
-  return { repo, service, waitlist };
+  return { repo, service, waitlist, chatCalls, notifyCalls };
 }
 
 describe("EventsService", () => {
@@ -175,14 +200,29 @@ describe("EventsService", () => {
   });
 
   it("hides drafts from the catalog and forbids a non-organizer from editing", async () => {
-    const { repo, service } = createService();
-    const draft = await service.create(payload, "00000000-0000-4000-8000-00000000000a", { draft: true });
+    const { repo, service, chatCalls, notifyCalls } = createService({ bot: { createChat: async () => ({ chatId: 7, link: "https://max.ru/join/draft" }) } });
+    const organizer = "00000000-0000-4000-8000-00000000000a";
+    const draft = await service.create(payload, organizer, { draft: true });
     expect(repo.store[0]?.published).toBe(false);
+    expect(chatCalls).toEqual([]);
+    expect(notifyCalls).toEqual([]);
     expect(await service.list({})).toEqual([]);
     await expect(service.update(draft.id, { title: "Чужой" }, "00000000-0000-4000-8000-00000000000b")).rejects.toBeInstanceOf(ForbiddenException);
-    const published = await service.publish(draft.id, "00000000-0000-4000-8000-00000000000a");
+    const published = await service.publish(draft.id, organizer);
     expect(published.title).toBe("Джаз в парке");
-    expect((await service.listMine("00000000-0000-4000-8000-00000000000a")).map((row) => row.id)).toEqual([draft.id]);
+    expect(published.chatLink).toBe("https://max.ru/join/draft");
+    expect(chatCalls).toEqual([payload.title]);
+    expect(notifyCalls).toEqual([draft.id]);
+    expect((await service.listMine(organizer)).map((row) => row.id)).toEqual([draft.id]);
+  });
+
+  it("lets an organizer bind their own unpublished place and blocks a banned publisher", async () => {
+    const organizer = "00000000-0000-4000-8000-00000000000a";
+    const { service } = createService({ draftPlaceIds: [placeId], ownerId: organizer });
+    const draft = await service.create(CreateEventSchema.parse({ ...payload, placeId }), organizer, { draft: true });
+    expect(draft.placeId).toBe(placeId);
+    const banned = createService({ banned: true });
+    await expect(banned.service.publish(draft.id, organizer)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("fills waitlist vacancies when capacity increases", async () => {
@@ -230,6 +270,7 @@ describe("toEventDto", () => {
       capacity: null,
       bookedCount: 0,
       published: true,
+      bookingOpensAt: null,
       chatLink: null,
       chatSyncPending: true,
       createdAt: new Date("2026-09-01T07:00:00Z"),

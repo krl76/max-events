@@ -49,6 +49,7 @@ import { PeopleModule } from "./people/people.module";
 import { OrganizerModule } from "./organizer/organizer.module";
 import { StatsModule } from "./stats/stats.module";
 import { RatingModule } from "./rating/rating.module";
+import { PromoModule } from "./promo/promo.module";
 
 @Module({
   imports: [
@@ -98,6 +99,7 @@ import { RatingModule } from "./rating/rating.module";
     OrganizerModule,
     StatsModule,
     RatingModule,
+    PromoModule,
   ],
 })
 export class AppModule {}

@@ -40,6 +40,7 @@ export class WaitlistService {
     return this.dataSource.transaction(async (manager) => {
       const event = await manager.findOne(EventEntity, { where: { id: eventId }, lock: { mode: "pessimistic_write" } });
       if (!event || event.published === false) throw new NotFoundException("Event not found");
+      if (publicBookingClosed(event, new Date())) throw new ForbiddenException("Waitlist opens when public booking starts");
       if (event.capacity === null || event.bookedCount < event.capacity) {
         throw new ConflictException("Seats are still available");
       }
@@ -58,6 +59,7 @@ export class WaitlistService {
       if (!peek) throw new NotFoundException("Waitlist entry not found");
       const event = await manager.findOne(EventEntity, { where: { id: peek.eventId }, lock: { mode: "pessimistic_write" } });
       if (!event || event.published === false) throw new NotFoundException("Event not found");
+      if (publicBookingClosed(event, now)) throw new ForbiddenException("Waitlist opens when public booking starts");
       const entry = await manager.findOne(WaitlistEntryEntity, { where: { id: entryId }, lock: { mode: "pessimistic_write" } });
       if (!entry) throw new NotFoundException("Waitlist entry not found");
       if (entry.userId !== userId) throw new ForbiddenException("Cannot confirm another user's offer");
@@ -92,6 +94,7 @@ export class WaitlistService {
   }
 
   async onSeatFreed(manager: EntityManager, event: EventEntity, now = new Date(), reserveSeat = true): Promise<WaitlistEntryEntity | null> {
+    if (publicBookingClosed(event, now)) return null;
     while (true) {
       const next = await manager.findOne(WaitlistEntryEntity, {
         where: { eventId: event.id, status: "waiting" },
@@ -183,6 +186,10 @@ export function toWaitlistDto(row: WaitlistEntryEntity, position: number): Waitl
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+function publicBookingClosed(event: EventEntity, now: Date): boolean {
+  return event.bookingOpensAt != null && now.getTime() < event.bookingOpensAt.getTime();
 }
 
 async function positionOf(manager: EntityManager, row: WaitlistEntryEntity): Promise<number> {
