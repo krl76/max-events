@@ -4,6 +4,7 @@ import type { Repository } from "typeorm";
 import { CreateEventSchema, type CreateEvent, type Place } from "@max-events/api-contracts";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
+import type { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { EventEntity } from "./event.entity";
 import { EventsService, toEventDto } from "./events.service";
 
@@ -69,7 +70,8 @@ function createService(options: { placeIds?: string[]; store?: EventEntity[]; bo
   } as unknown as PlacesService;
   const repo = createRepo(options.store ?? []);
   const bot = options.bot ?? { createChat: async () => null };
-  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient);
+  const subscriptions = { notifyNewEvent: async () => ({ sent: 0, failed: 0 }) } as unknown as SubscriptionsService;
+  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions);
   return { repo, service };
 }
 
@@ -189,6 +191,7 @@ describe("toEventDto", () => {
       category: "afisha",
       city: "Москва",
       placeId: null,
+      organizerUserId: null,
       startsAt: new Date("2026-09-12T16:00:00Z"),
       endsAt: null,
       isPaid: false,

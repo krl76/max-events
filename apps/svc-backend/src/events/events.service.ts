@@ -16,6 +16,7 @@ import { Repository } from "typeorm";
 import { CreateEventSchema, EventSchema, type CreateEvent, type Event, type EventCategory } from "@max-events/api-contracts";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
+import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { EventEntity } from "./event.entity";
 
 export type EventListQuery = {
@@ -35,12 +36,27 @@ export class EventsService {
     private readonly events: Repository<EventEntity>,
     @Inject(PlacesService) private readonly places: PlacesService,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
+    @Inject(SubscriptionsService) private readonly subscriptions: SubscriptionsService,
   ) {}
 
-  async create(payload: CreateEvent): Promise<Event> {
+  async create(payload: CreateEvent, organizerUserId?: string): Promise<Event> {
     await assertPlaceBound(this.places, payload.placeId);
     assertTimeRange(payload.startsAt, payload.endsAt);
-    const saved = await this.events.save(this.events.create({ ...toColumns(payload), published: true, bookedCount: 0, chatLink: null, chatSyncPending: true }));
+    const saved = await this.events.save(
+      this.events.create({
+        ...toColumns(payload),
+        published: true,
+        bookedCount: 0,
+        chatLink: null,
+        chatSyncPending: true,
+        organizerUserId: organizerUserId ?? null,
+      }),
+    );
+    try {
+      await this.subscriptions.notifyNewEvent(saved);
+    } catch {
+      // Creating the catalog row must not fail because a subscriber DM failed.
+    }
     let chat: Awaited<ReturnType<MaxBotClient["createChat"]>> = null;
     try {
       chat = await this.bot.createChat(saved.title);

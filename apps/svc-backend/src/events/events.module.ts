@@ -13,12 +13,13 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { MaxBotModule } from "../max-bot/max-bot.module";
 import { PlacesModule } from "../places/places.module";
+import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 import { EventEntity } from "./event.entity";
 import { EventsController } from "./events.controller";
 import { EventsService } from "./events.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([EventEntity]), PlacesModule, MaxBotModule],
+  imports: [TypeOrmModule.forFeature([EventEntity]), PlacesModule, MaxBotModule, SubscriptionsModule],
   controllers: [EventsController],
   providers: [EventsService],
   exports: [EventsService],

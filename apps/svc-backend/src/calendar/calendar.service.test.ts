@@ -17,6 +17,7 @@ function event(id: string, startsAt: string, placeId: string | null = null): Eve
     category: "afisha",
     city: "Москва",
     placeId,
+    organizerUserId: null,
     startsAt: new Date(startsAt),
     endsAt: null,
     isPaid: false,

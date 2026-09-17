@@ -1,6 +1,7 @@
 import { BadRequestException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { CreateEventSchema, type CreateEvent, type Event } from "@max-events/api-contracts";
+import { UserEntity } from "../users/user.entity";
 import { parseEventListQuery, EventsController } from "./events.controller";
 import type { EventListQuery, EventsService } from "./events.service";
 
@@ -10,6 +11,8 @@ const payload: CreateEvent = CreateEventSchema.parse({
   city: "Москва",
   startsAt: "2026-09-12T19:00:00+03:00",
 });
+
+const user = { id: "00000000-0000-4000-8000-00000000000a" } as UserEntity;
 
 const event: Event = {
   id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f",
@@ -46,13 +49,13 @@ function createController() {
 describe("EventsController", () => {
   it("rejects an invalid create payload with 400", async () => {
     const { controller } = createController();
-    await expect(controller.create({ ...payload, title: "" })).rejects.toBeInstanceOf(BadRequestException);
-    await expect(controller.create({ ...payload, isPaid: true })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.create(user, { ...payload, title: "" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.create(user, { ...payload, isPaid: true })).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("creates an event from a valid payload", async () => {
     const { calls, controller } = createController();
-    await expect(controller.create(payload)).resolves.toEqual(event);
+    await expect(controller.create(user, payload)).resolves.toEqual(event);
     expect(calls.create).toEqual(payload);
   });
 

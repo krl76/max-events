@@ -12,6 +12,7 @@ export * from "./today.js";
 export * from "./gathering.js";
 export * from "./plan.js";
 export * from "./list.js";
+export * from "./subscription.js";
 export * from "./checkin.js";
 export * from "./achievement.js";
 export * from "./mycity.js";

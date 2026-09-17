@@ -33,6 +33,9 @@ export class EventEntity {
   @Column({ type: "uuid", nullable: true })
   placeId!: string | null;
 
+  @Column({ type: "uuid", nullable: true })
+  organizerUserId!: string | null;
+
   @Column({ type: "timestamptz" })
   startsAt!: Date;
 

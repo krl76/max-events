@@ -22,6 +22,7 @@ function seedEvent(overrides: Partial<EventEntity> = {}): EventEntity {
     category: "afisha",
     city: "Москва",
     placeId: null,
+    organizerUserId: null,
     startsAt: new Date("2026-09-12T16:00:00Z"),
     endsAt: null,
     isPaid: false,

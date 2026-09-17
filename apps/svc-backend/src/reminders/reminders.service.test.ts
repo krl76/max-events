@@ -28,6 +28,7 @@ function eventAt(startsAt: Date, title = "Джаз в парке"): EventEntity 
     category: "afisha",
     city: "Москва",
     placeId: null,
+    organizerUserId: null,
     startsAt,
     endsAt: null,
     isPaid: false,

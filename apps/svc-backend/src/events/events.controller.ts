@@ -12,6 +12,8 @@
 
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
 import { CreateEventSchema, EventCategorySchema, TimestampSchema, type Event } from "@max-events/api-contracts";
+import { CurrentUser } from "../auth/auth.guard";
+import { UserEntity } from "../users/user.entity";
 import { EventsService, type EventListQuery } from "./events.service";
 
 @Controller("events")
@@ -19,10 +21,10 @@ export class EventsController {
   constructor(@Inject(EventsService) private readonly events: EventsService) {}
 
   @Post()
-  async create(@Body() body: unknown): Promise<Event> {
+  async create(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<Event> {
     const parsed = CreateEventSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid event payload");
-    return this.events.create(parsed.data);
+    return this.events.create(parsed.data, user.id);
   }
 
   @Get()
