@@ -1,6 +1,7 @@
 import { BadRequestException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import type { CreatePlace, Place } from "@max-events/api-contracts";
+import type { UserEntity } from "../users/user.entity";
 import { parseListQuery, PlacesController } from "./places.controller";
 import type { PlaceListQuery, PlacesService } from "./places.service";
 
@@ -23,7 +24,7 @@ const place: Place = {
 function createController() {
   const calls: { create?: CreatePlace; list?: PlaceListQuery; getById?: string; update?: { id: string; patch: Partial<CreatePlace> }; remove?: string } = {};
   const service = {
-    create: async (body: CreatePlace) => {
+    create: async (body: CreatePlace, _userId?: string) => {
       calls.create = body;
       return place;
     },
@@ -46,16 +47,18 @@ function createController() {
   return { calls, controller: new PlacesController(service) };
 }
 
+const user = { id: "00000000-0000-4000-8000-00000000000a" } as UserEntity;
+
 describe("PlacesController", () => {
   it("rejects an invalid create payload with 400", async () => {
     const { controller } = createController();
-    await expect(controller.create({ ...payload, title: "" })).rejects.toBeInstanceOf(BadRequestException);
-    await expect(controller.create({ ...payload, latitude: 95 })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.create(user, { ...payload, title: "" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.create(user, { ...payload, latitude: 95 })).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("creates a place from a valid payload", async () => {
     const { calls, controller } = createController();
-    await expect(controller.create(payload)).resolves.toEqual(place);
+    await expect(controller.create(user, payload)).resolves.toEqual(place);
     expect(calls.create).toEqual(payload);
   });
 

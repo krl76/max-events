@@ -40,3 +40,17 @@ export const MicroEventSchema = z
     path: ["participantsCount"],
   });
 export type MicroEvent = z.infer<typeof MicroEventSchema>;
+
+export const CreateMicroEventWriteSchema = z
+  .object({
+    title: z.string().min(1).max(200),
+    startsAt: TimestampSchema,
+    locationText: z.string().min(1).max(300).nullable().optional(),
+    placeId: IdSchema.nullable().optional(),
+    participantsLimit: z.number().int().min(1),
+  })
+  .refine((data) => (data.locationText != null) !== (data.placeId != null), {
+    message: "micro-event location must be exactly one of locationText or placeId",
+    path: ["locationText"],
+  });
+export type CreateMicroEventWrite = z.infer<typeof CreateMicroEventWriteSchema>;

@@ -16,6 +16,7 @@ import { Repository } from "typeorm";
 import { CreateEventSchema, EventSchema, type CreateEvent, type Event, type EventCategory } from "@max-events/api-contracts";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
+import { UsersService } from "../users/users.service";
 import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { EventEntity } from "./event.entity";
 
@@ -37,9 +38,11 @@ export class EventsService {
     @Inject(PlacesService) private readonly places: PlacesService,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
     @Inject(SubscriptionsService) private readonly subscriptions: SubscriptionsService,
+    @Inject(UsersService) private readonly users: UsersService,
   ) {}
 
   async create(payload: CreateEvent, organizerUserId?: string): Promise<Event> {
+    if (organizerUserId) await this.users.assertCanPublish(organizerUserId);
     await assertPlaceBound(this.places, payload.placeId);
     assertTimeRange(payload.startsAt, payload.endsAt);
     const saved = await this.events.save(
@@ -71,7 +74,7 @@ export class EventsService {
 
   async getById(id: string): Promise<Event> {
     const found = await this.events.findOneBy({ id });
-    if (!found) throw new NotFoundException("Event not found");
+    if (!found || found.published === false) throw new NotFoundException("Event not found");
     return toEventDto(found);
   }
 
@@ -84,6 +87,13 @@ export class EventsService {
     assertTimeRange(merged.data.startsAt, merged.data.endsAt);
     const saved = await this.events.save(this.events.merge(existing, toColumns(merged.data)));
     return toEventDto(saved);
+  }
+
+  async unpublish(id: string): Promise<void> {
+    const found = await this.events.findOneBy({ id });
+    if (!found) throw new NotFoundException("Event not found");
+    found.published = false;
+    await this.events.save(found);
   }
 
   async remove(id: string): Promise<void> {

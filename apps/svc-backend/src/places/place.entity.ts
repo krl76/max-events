@@ -37,6 +37,9 @@ export class PlaceEntity {
   @Column({ type: "double precision" })
   longitude!: number;
 
+  @Column({ type: "boolean", default: true })
+  published!: boolean;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

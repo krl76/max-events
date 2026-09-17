@@ -11,13 +11,18 @@
 
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { EventsModule } from "../events/events.module";
+import { FeedModule } from "../feed/feed.module";
+import { PlacesModule } from "../places/places.module";
+import { UsersModule } from "../users/users.module";
+import { ModerationService } from "./moderation.service";
 import { ReportEntity } from "./report.entity";
-import { ReportsController } from "./reports.controller";
+import { ModerationController, ReportsController } from "./reports.controller";
 import { ReportsService } from "./reports.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ReportEntity])],
-  controllers: [ReportsController],
-  providers: [ReportsService],
+  imports: [TypeOrmModule.forFeature([ReportEntity]), EventsModule, PlacesModule, FeedModule, UsersModule],
+  controllers: [ReportsController, ModerationController],
+  providers: [ReportsService, ModerationService],
 })
 export class ReportsModule {}

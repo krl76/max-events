@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
 import type { CreatePlace } from "@max-events/api-contracts";
+import type { UsersService } from "../users/users.service";
 import { PlaceEntity } from "./place.entity";
 import { PlacesService, toPlaceDto } from "./places.service";
 
@@ -49,8 +50,9 @@ function createRepo(initial: PlaceEntity[] = []) {
       return entity;
     },
     findOneBy: async (where: { id: string }) => store.find((row) => row.id === where.id) ?? null,
-    find: async (opts: { where?: { city?: string; category?: string }; skip?: number; take?: number; order?: { title?: "ASC" | "DESC"; id?: "ASC" | "DESC" } }) => {
+    find: async (opts: { where?: { published?: boolean; city?: string; category?: string }; skip?: number; take?: number; order?: { title?: "ASC" | "DESC"; id?: "ASC" | "DESC" } }) => {
       let rows = [...store];
+      if (opts.where?.published === true) rows = rows.filter((row) => row.published !== false);
       if (opts.where?.city) rows = rows.filter((row) => row.city === opts.where?.city);
       if (opts.where?.category) rows = rows.filter((row) => row.category === opts.where?.category);
       rows.sort((a, b) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
@@ -69,7 +71,8 @@ function createRepo(initial: PlaceEntity[] = []) {
 
 function createService(store: PlaceEntity[] = []) {
   const repo = createRepo(store);
-  const service = new PlacesService(repo as unknown as Repository<PlaceEntity>);
+  const users = { assertCanPublish: async () => undefined } as unknown as UsersService;
+  const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, users);
   return { repo, service };
 }
 
@@ -146,7 +149,7 @@ describe("PlacesService", () => {
     repo.save = async () => {
       throw boom;
     };
-    const service = new PlacesService(repo as unknown as Repository<PlaceEntity>);
+    const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, { assertCanPublish: async () => undefined } as unknown as UsersService);
     await expect(service.create(payload)).rejects.toBe(boom);
   });
 });
@@ -161,6 +164,7 @@ describe("toPlaceDto", () => {
       category: "park",
       latitude: 55.7297,
       longitude: 37.6035,
+      published: true,
       createdAt: new Date("2026-09-01T07:00:00Z"),
       updatedAt: new Date("2026-09-01T07:00:00Z"),
     };

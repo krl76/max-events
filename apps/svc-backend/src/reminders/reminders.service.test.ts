@@ -64,6 +64,7 @@ function user(): UserEntity {
     firstName: "Max",
     lastName: null,
     avatarUrl: null,
+    bannedFromPublishing: false,
     createdAt: now,
     updatedAt: now,
   };
@@ -112,13 +113,7 @@ function createHarness(options: { bookings: BookingEntity[]; events: EventEntity
     },
   };
 
-  const service = new RemindersService(
-    bookingsRepo as unknown as Repository<BookingEntity>,
-    eventsRepo as unknown as Repository<EventEntity>,
-    usersRepo as unknown as Repository<UserEntity>,
-    dataSource as unknown as DataSource,
-    bot,
-  );
+  const service = new RemindersService(bookingsRepo as unknown as Repository<BookingEntity>, eventsRepo as unknown as Repository<EventEntity>, usersRepo as unknown as Repository<UserEntity>, dataSource as unknown as DataSource, bot);
   return { bookings, sent, service };
 }
 
@@ -141,12 +136,7 @@ describe("RemindersService.tick", () => {
     const tooFar = new Date(now.getTime() + DEFAULT_REMINDER_WINDOW_MS + 60_000);
     const past = new Date(now.getTime() - 60_000);
     const { sent, service } = createHarness({
-      bookings: [
-        booking({ id: "cancelled", status: "cancelled" }),
-        booking({ id: "sent", reminderSentAt: now }),
-        booking({ id: "past", eventId: "e-past" }),
-        booking({ id: "far", eventId: "e-far" }),
-      ],
+      bookings: [booking({ id: "cancelled", status: "cancelled" }), booking({ id: "sent", reminderSentAt: now }), booking({ id: "past", eventId: "e-past" }), booking({ id: "far", eventId: "e-far" })],
       events: [eventAt(inWindow), eventAt(past, "Прошлое"), { ...eventAt(tooFar, "Позже"), id: "e-far" }, { ...eventAt(past, "Прошлое"), id: "e-past" }],
     });
     await expect(service.tick(now)).resolves.toEqual({ sent: 0, failed: 0 });

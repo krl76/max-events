@@ -54,6 +54,7 @@ function place(id: string): PlaceEntity {
     category: "park",
     latitude: 55.73,
     longitude: 37.6,
+    published: true,
     createdAt: new Date("2026-09-01T07:00:00Z"),
     updatedAt: new Date("2026-09-01T07:00:00Z"),
   };
@@ -76,16 +77,7 @@ function createService(bookings: BookingEntity[], events: EventEntity[], places:
 describe("CalendarService", () => {
   it("splits active bookings into upcoming and past by event start and omits cancelled ones", async () => {
     const park = "00000000-0000-4000-8000-0000000000p1";
-    const service = createService(
-      [
-        booking("b-past", "e-past"),
-        booking("b-future", "e-future"),
-        booking("b-cancelled", "e-other", "cancelled"),
-        booking("b-other", "e-future", "active", otherUser),
-      ],
-      [event("e-past", "2026-09-12T16:00:00Z", park), event("e-future", "2026-09-20T16:00:00Z"), event("e-other", "2026-09-22T16:00:00Z")],
-      [place(park)],
-    );
+    const service = createService([booking("b-past", "e-past"), booking("b-future", "e-future"), booking("b-cancelled", "e-other", "cancelled"), booking("b-other", "e-future", "active", otherUser)], [event("e-past", "2026-09-12T16:00:00Z", park), event("e-future", "2026-09-20T16:00:00Z"), event("e-other", "2026-09-22T16:00:00Z")], [place(park)]);
 
     const calendar = await service.list(userId, now);
     expect(calendar.upcoming.map((entry) => entry.booking.id)).toEqual(["b-future"]);

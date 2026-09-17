@@ -5,6 +5,7 @@ import { CreateEventSchema, type CreateEvent, type Place } from "@max-events/api
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
 import type { SubscriptionsService } from "../subscriptions/subscriptions.service";
+import type { UsersService } from "../users/users.service";
 import { EventEntity } from "./event.entity";
 import { EventsService, toEventDto } from "./events.service";
 
@@ -71,7 +72,8 @@ function createService(options: { placeIds?: string[]; store?: EventEntity[]; bo
   const repo = createRepo(options.store ?? []);
   const bot = options.bot ?? { createChat: async () => null };
   const subscriptions = { notifyNewEvent: async () => ({ sent: 0, failed: 0 }) } as unknown as SubscriptionsService;
-  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions);
+  const users = { assertCanPublish: async () => undefined } as unknown as UsersService;
+  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users);
   return { repo, service };
 }
 

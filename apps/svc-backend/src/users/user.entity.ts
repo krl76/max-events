@@ -29,6 +29,9 @@ export class UserEntity {
   @Column({ type: "varchar", nullable: true })
   avatarUrl!: string | null;
 
+  @Column({ type: "boolean", default: false })
+  bannedFromPublishing!: boolean;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

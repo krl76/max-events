@@ -10,7 +10,7 @@
 // - toUserDto - map UserEntity to the api-contracts User shape
 // END_MODULE_MAP
 
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 import type { User } from "@max-events/api-contracts";
@@ -47,6 +47,19 @@ export class UsersService {
       return this.users.save(this.users.merge(existing, fields));
     }
     return existing;
+  }
+
+  async assertCanPublish(userId: string): Promise<void> {
+    const user = await this.users.findOneBy({ id: userId });
+    if (!user) throw new NotFoundException("User not found");
+    if (user.bannedFromPublishing) throw new ForbiddenException("Organizer is banned from publishing");
+  }
+
+  async banFromPublishing(userId: string): Promise<void> {
+    const user = await this.users.findOneBy({ id: userId });
+    if (!user) throw new NotFoundException("User not found");
+    user.bannedFromPublishing = true;
+    await this.users.save(user);
   }
 }
 

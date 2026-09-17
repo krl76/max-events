@@ -10,10 +10,11 @@
 // - toPlaceDto - map PlaceEntity to the api-contracts Place shape
 // END_MODULE_MAP
 
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 import type { CreatePlace, Place, PlaceCategory } from "@max-events/api-contracts";
+import { UsersService } from "../users/users.service";
 import { PlaceEntity } from "./place.entity";
 
 export type PlaceListQuery = {
@@ -28,11 +29,13 @@ export class PlacesService {
   constructor(
     @InjectRepository(PlaceEntity)
     private readonly places: Repository<PlaceEntity>,
+    @Inject(UsersService) private readonly users: UsersService,
   ) {}
 
-  async create(payload: CreatePlace): Promise<Place> {
+  async create(payload: CreatePlace, organizerUserId?: string): Promise<Place> {
+    if (organizerUserId) await this.users.assertCanPublish(organizerUserId);
     try {
-      const saved = await this.places.save(this.places.create(payload));
+      const saved = await this.places.save(this.places.create({ ...payload, published: true }));
       return toPlaceDto(saved);
     } catch (error) {
       throw translateUniqueViolation(error);
@@ -41,7 +44,7 @@ export class PlacesService {
 
   async getById(id: string): Promise<Place> {
     const found = await this.places.findOneBy({ id });
-    if (!found) throw new NotFoundException("Place not found");
+    if (!found || found.published === false) throw new NotFoundException("Place not found");
     return toPlaceDto(found);
   }
 
@@ -56,13 +59,20 @@ export class PlacesService {
     }
   }
 
+  async unpublish(id: string): Promise<void> {
+    const found = await this.places.findOneBy({ id });
+    if (!found) throw new NotFoundException("Place not found");
+    found.published = false;
+    await this.places.save(found);
+  }
+
   async remove(id: string): Promise<void> {
     const result = await this.places.delete({ id });
     if (!result.affected) throw new NotFoundException("Place not found");
   }
 
   async list(query: PlaceListQuery): Promise<Place[]> {
-    const where: { city?: string; category?: PlaceCategory } = {};
+    const where: { published: true; city?: string; category?: PlaceCategory } = { published: true };
     if (query.city) where.city = query.city;
     if (query.category) where.category = query.category;
     const rows = await this.places.find({

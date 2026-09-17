@@ -9,13 +9,14 @@
 // - FeedService - list/create/toggleLike/addComment
 // END_MODULE_MAP
 
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import type { CreateFeedPostWrite, FeedPost } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { toFriendDto } from "../friends/friends.service";
 import { UserEntity } from "../users/user.entity";
+import { UsersService } from "../users/users.service";
 import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "./feed-post.entity";
 
 @Injectable()
@@ -26,18 +27,20 @@ export class FeedService {
     @InjectRepository(FeedCommentEntity) private readonly comments: Repository<FeedCommentEntity>,
     @InjectRepository(EventEntity) private readonly events: Repository<EventEntity>,
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
+    @Inject(UsersService) private readonly publishers: UsersService,
   ) {}
 
   async list(viewerId: string, eventId?: string): Promise<FeedPost[]> {
-    const rows = eventId ? await this.posts.find({ where: { eventId } }) : await this.posts.find();
+    const rows = (eventId ? await this.posts.find({ where: { eventId } }) : await this.posts.find()).filter((row) => row.published !== false);
     rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     return Promise.all(rows.map((row) => this.toDto(row, viewerId)));
   }
 
   async create(userId: string, payload: CreateFeedPostWrite): Promise<FeedPost> {
+    await this.publishers.assertCanPublish(userId);
     const event = await this.events.findOneBy({ id: payload.eventId });
     if (!event) throw new NotFoundException("Event not found");
-    const saved = await this.posts.save(this.posts.create({ authorUserId: userId, eventId: payload.eventId, text: payload.text }));
+    const saved = await this.posts.save(this.posts.create({ authorUserId: userId, eventId: payload.eventId, text: payload.text, published: true }));
     return this.toDto(saved, userId);
   }
 
@@ -55,9 +58,16 @@ export class FeedService {
     return this.toDto(post, userId);
   }
 
-  private async requirePost(id: string): Promise<FeedPostEntity> {
+  async unpublish(id: string): Promise<void> {
     const post = await this.posts.findOneBy({ id });
     if (!post) throw new NotFoundException("Feed post not found");
+    post.published = false;
+    await this.posts.save(post);
+  }
+
+  private async requirePost(id: string): Promise<FeedPostEntity> {
+    const post = await this.posts.findOneBy({ id });
+    if (!post || post.published === false) throw new NotFoundException("Feed post not found");
     return post;
   }
 

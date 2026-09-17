@@ -42,3 +42,14 @@ export const CreateReportWriteSchema = z.object({
   reason: ReportReasonSchema,
 });
 export type CreateReportWrite = z.infer<typeof CreateReportWriteSchema>;
+
+export const UnpublishWriteSchema = z.object({
+  targetType: ReportTargetTypeSchema,
+  targetId: IdSchema,
+});
+export type UnpublishWrite = z.infer<typeof UnpublishWriteSchema>;
+
+export const BanOrganizerWriteSchema = z.object({
+  userId: IdSchema,
+});
+export type BanOrganizerWrite = z.infer<typeof BanOrganizerWriteSchema>;

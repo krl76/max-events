@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
 import { EventEntity } from "../events/event.entity";
 import { UserEntity } from "../users/user.entity";
+import type { UsersService } from "../users/users.service";
 import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "./feed-post.entity";
 import { FeedService } from "./feed.service";
 
@@ -42,7 +43,8 @@ function createService() {
   const comments = createStoreRepo<FeedCommentEntity>();
   const events = createStoreRepo<EventEntity>([{ id: eventId } as EventEntity]);
   const users = createStoreRepo<UserEntity>([{ id: userId, firstName: "Анна", lastName: "Соколова", avatarUrl: null } as UserEntity]);
-  const service = new FeedService(posts as unknown as Repository<FeedPostEntity>, likes as unknown as Repository<FeedLikeEntity>, comments as unknown as Repository<FeedCommentEntity>, events as unknown as Repository<EventEntity>, users as unknown as Repository<UserEntity>);
+  const publishers = { assertCanPublish: async () => undefined } as unknown as UsersService;
+  const service = new FeedService(posts as unknown as Repository<FeedPostEntity>, likes as unknown as Repository<FeedLikeEntity>, comments as unknown as Repository<FeedCommentEntity>, events as unknown as Repository<EventEntity>, users as unknown as Repository<UserEntity>, publishers);
   return { service, likes };
 }
 

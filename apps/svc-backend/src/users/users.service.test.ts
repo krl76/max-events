@@ -103,6 +103,7 @@ describe("toUserDto", () => {
       firstName: "Max",
       lastName: null,
       avatarUrl: null,
+      bannedFromPublishing: false,
       createdAt: new Date("2026-09-01T07:00:00Z"),
       updatedAt: new Date("2026-09-01T07:00:00Z"),
     };

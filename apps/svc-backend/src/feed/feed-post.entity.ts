@@ -28,6 +28,9 @@ export class FeedPostEntity {
   @Column({ type: "varchar", length: 5000 })
   text!: string;
 
+  @Column({ type: "boolean", default: true })
+  published!: boolean;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 }

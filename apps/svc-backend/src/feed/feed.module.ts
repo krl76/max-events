@@ -13,13 +13,15 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { EventEntity } from "../events/event.entity";
 import { UserEntity } from "../users/user.entity";
+import { UsersModule } from "../users/users.module";
 import { FeedController } from "./feed.controller";
 import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "./feed-post.entity";
 import { FeedService } from "./feed.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FeedPostEntity, FeedLikeEntity, FeedCommentEntity, EventEntity, UserEntity])],
+  imports: [TypeOrmModule.forFeature([FeedPostEntity, FeedLikeEntity, FeedCommentEntity, EventEntity, UserEntity]), UsersModule],
   controllers: [FeedController],
   providers: [FeedService],
+  exports: [FeedService],
 })
 export class FeedModule {}

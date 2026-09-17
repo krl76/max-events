@@ -12,6 +12,8 @@
 
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
 import { CreatePlaceSchema, PlaceCategorySchema, type Place } from "@max-events/api-contracts";
+import { CurrentUser } from "../auth/auth.guard";
+import { UserEntity } from "../users/user.entity";
 import { PlacesService, type PlaceListQuery } from "./places.service";
 
 @Controller("places")
@@ -19,10 +21,10 @@ export class PlacesController {
   constructor(@Inject(PlacesService) private readonly places: PlacesService) {}
 
   @Post()
-  async create(@Body() body: unknown): Promise<Place> {
+  async create(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<Place> {
     const parsed = CreatePlaceSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid place payload");
-    return this.places.create(parsed.data);
+    return this.places.create(parsed.data, user.id);
   }
 
   @Get()

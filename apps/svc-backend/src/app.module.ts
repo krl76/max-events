@@ -37,6 +37,8 @@ import { WaitlistModule } from "./waitlist/waitlist.module";
 import { FeedModule } from "./feed/feed.module";
 import { ReportsModule } from "./reports/reports.module";
 import { PlacePageModule } from "./place-page/place-page.module";
+import { MicroEventsModule } from "./microevents/micro-events.module";
+import { CollectionsModule } from "./collections/collections.module";
 
 @Module({
   imports: [
@@ -74,6 +76,8 @@ import { PlacePageModule } from "./place-page/place-page.module";
     FeedModule,
     ReportsModule,
     PlacePageModule,
+    MicroEventsModule,
+    CollectionsModule,
   ],
 })
 export class AppModule {}
