@@ -56,8 +56,11 @@ describe("AddPlanRecurringGuards20260912191000", () => {
     const migration = new AddPlanRecurringGuards20260912191000();
     await migration.up(queryRunner);
     expect(queries[0]).toContain(`ADD COLUMN "cancelledAt"`);
-    expect(queries[1]).toContain(`CREATE UNIQUE INDEX "UQ_plans_series_meeting"`);
-    expect(queries[1]).toContain(`"seriesId", "meetingAt"`);
+    expect(queries[1]).toContain(`DELETE FROM "plans"`);
+    expect(queries[1]).toContain(`GROUP BY q."seriesId", q."meetingAt"`);
+    expect(queries[2]).toContain(`CREATE UNIQUE INDEX "UQ_plans_series_meeting"`);
+    expect(queries[2]).toContain(`"seriesId", "meetingAt"`);
+    expect(queries[2]).toContain(`WHERE "seriesId" IS NOT NULL`);
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries).toEqual([`DROP INDEX "UQ_plans_series_meeting"`, `ALTER TABLE "plans" DROP COLUMN "cancelledAt"`]);
