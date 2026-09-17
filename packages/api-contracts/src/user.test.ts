@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CreateUserSchema, DEFAULT_SMART_ALERTS, ProfileSchema, UpdateProfileSchema, UserSchema } from "./user.js";
+import { CreateUserSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, ProfileSchema, UpdateProfileSchema, UserSchema } from "./user.js";
 
 const validUser = {
   id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f",
@@ -33,6 +33,7 @@ describe("ProfileSchema", () => {
     const parsed = ProfileSchema.parse({ userId: validUser.id, city: "Москва" });
     expect(parsed.interests).toEqual([]);
     expect(parsed.smartAlerts).toEqual(DEFAULT_SMART_ALERTS);
+    expect(parsed.privacy).toEqual(DEFAULT_PRIVACY);
   });
 
   it("rejects a blank city and blank interests", () => {
@@ -45,5 +46,6 @@ describe("UpdateProfileSchema", () => {
   it("accepts partial profile edits without userId", () => {
     expect(UpdateProfileSchema.safeParse({ city: "Казань" }).success).toBe(true);
     expect(UpdateProfileSchema.safeParse({ smartAlerts: { weather: false } }).success).toBe(true);
+    expect(UpdateProfileSchema.safeParse({ privacy: { visitHistory: "hidden" } }).success).toBe(true);
   });
 });

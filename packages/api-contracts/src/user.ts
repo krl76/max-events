@@ -13,9 +13,12 @@
 // - SmartAlertSettingsSchema - per-type smart-alert toggles
 // - SmartAlertSettings - smart-alert prefs type
 // - DEFAULT_SMART_ALERTS - all types on
-// - ProfileSchema - user profile with default city, interests and smart alerts
+// - PrivacySettingsSchema - visit history and route visibility
+// - PrivacySettings - privacy type
+// - DEFAULT_PRIVACY - visible to friends
+// - ProfileSchema - user profile with default city, interests, alerts and privacy
 // - Profile - profile type
-// - UpdateProfileSchema - profile edit payload (nested partial smartAlerts)
+// - UpdateProfileSchema - profile edit payload (nested partial smartAlerts/privacy)
 // - UpdateProfile - profile edit type
 // END_MODULE_MAP
 
@@ -51,11 +54,23 @@ export const DEFAULT_SMART_ALERTS: SmartAlertSettings = {
   listDigest: true,
 };
 
+export const PrivacySettingsSchema = z.object({
+  visitHistory: z.enum(["friends", "hidden"]),
+  routes: z.enum(["friends", "hidden"]),
+});
+export type PrivacySettings = z.infer<typeof PrivacySettingsSchema>;
+
+export const DEFAULT_PRIVACY: PrivacySettings = {
+  visitHistory: "friends",
+  routes: "friends",
+};
+
 export const ProfileSchema = z.object({
   userId: IdSchema,
   city: z.string().min(1),
   interests: z.array(z.string().min(1)).default([]),
   smartAlerts: SmartAlertSettingsSchema.default({ ...DEFAULT_SMART_ALERTS }),
+  privacy: PrivacySettingsSchema.default({ ...DEFAULT_PRIVACY }),
 });
 export type Profile = z.infer<typeof ProfileSchema>;
 
@@ -63,5 +78,6 @@ export const UpdateProfileSchema = z.object({
   city: z.string().min(1).optional(),
   interests: z.array(z.string().min(1)).optional(),
   smartAlerts: SmartAlertSettingsSchema.partial().optional(),
+  privacy: PrivacySettingsSchema.partial().optional(),
 });
 export type UpdateProfile = z.infer<typeof UpdateProfileSchema>;

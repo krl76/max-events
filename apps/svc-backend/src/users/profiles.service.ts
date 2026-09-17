@@ -9,13 +9,14 @@
 // - ProfilesService - getOrCreate/update against ProfileEntity
 // - toProfileDto - map ProfileEntity to Profile
 // - readAlertPrefs - merge stored toggles onto DEFAULT_SMART_ALERTS
+// - readPrivacy - merge stored privacy onto DEFAULT_PRIVACY
 // - DEFAULT_PROFILE_CITY - city used when a profile is first created
 // END_MODULE_MAP
 
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
-import { DEFAULT_SMART_ALERTS, type Profile, type SmartAlertSettings, type UpdateProfile } from "@max-events/api-contracts";
+import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, type PrivacySettings, type Profile, type SmartAlertSettings, type UpdateProfile } from "@max-events/api-contracts";
 import { ProfileEntity } from "./profile.entity";
 
 export const DEFAULT_PROFILE_CITY = "Москва";
@@ -31,7 +32,7 @@ export class ProfilesService {
     const existing = await this.profiles.findOneBy({ userId });
     if (existing) return toProfileDto(existing);
     try {
-      const created = await this.profiles.save(this.profiles.create({ userId, city: DEFAULT_PROFILE_CITY, interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS } }));
+      const created = await this.profiles.save(this.profiles.create({ userId, city: DEFAULT_PROFILE_CITY, interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY } }));
       return toProfileDto(created);
     } catch (error) {
       if (error instanceof QueryFailedError && error.driverError?.code === "23505") {
@@ -47,6 +48,7 @@ export class ProfilesService {
       city: patch.city ?? current.city,
       interests: patch.interests ?? current.interests,
       smartAlerts: { ...current.smartAlerts, ...patch.smartAlerts },
+      privacy: { ...current.privacy, ...patch.privacy },
     };
     const existing = await this.profiles.findOneByOrFail({ userId });
     const saved = await this.profiles.save(this.profiles.merge(existing, next));
@@ -60,9 +62,14 @@ export function toProfileDto(profile: ProfileEntity): Profile {
     city: profile.city,
     interests: [...profile.interests],
     smartAlerts: readAlertPrefs(profile),
+    privacy: readPrivacy(profile),
   };
 }
 
 export function readAlertPrefs(profile: ProfileEntity | undefined): SmartAlertSettings {
   return { ...DEFAULT_SMART_ALERTS, ...(profile?.smartAlerts ?? {}) };
+}
+
+export function readPrivacy(profile: ProfileEntity | undefined): PrivacySettings {
+  return { ...DEFAULT_PRIVACY, ...(profile?.privacy ?? {}) };
 }

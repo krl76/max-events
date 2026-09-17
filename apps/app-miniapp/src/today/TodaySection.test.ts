@@ -12,6 +12,7 @@ describe("todayLabel", () => {
     expect(todayLabel({ kind: "friend_attending", friendName: "Анна" })).toBe("Идет Анна");
     expect(todayLabel({ kind: "free_entry" })).toBe("Свободный вход");
     expect(todayLabel({ kind: "spots_left", count: 12 })).toBe("Осталось 12 мест");
+    expect(todayLabel({ kind: "after_me", fromCategory: "afisha", afterCount: 3 })).toBe("После 3 посещений — тебе зайдёт");
   });
 });
 

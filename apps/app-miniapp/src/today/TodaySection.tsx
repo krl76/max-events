@@ -25,6 +25,7 @@ export function todayLabel(label: TodayCardLabel): string {
   if (label.kind === "distance") return `${label.minutes} минут от тебя`;
   if (label.kind === "friend_attending") return `Идет ${label.friendName}`;
   if (label.kind === "free_entry") return "Свободный вход";
+  if (label.kind === "after_me") return `После ${label.afterCount} посещений — тебе зайдёт`;
   return `Осталось ${label.count} мест`;
 }
 

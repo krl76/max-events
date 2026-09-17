@@ -27,3 +27,5 @@ export * from "./nearby.js";
 export * from "./autoplan.js";
 export * from "./route.js";
 export * from "./taste.js";
+export * from "./discovery.js";
+export * from "./people.js";

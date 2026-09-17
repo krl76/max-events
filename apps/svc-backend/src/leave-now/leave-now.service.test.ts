@@ -121,7 +121,7 @@ function createService(options: { startsInMin: number; dimaStatus?: PlanParticip
     checkIns as unknown as Repository<CheckInEntity>,
     createStoreRepo<ProfileEntity>(
       options.hostLeaveNow === false
-        ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: false, weather: true, friendLeft: true, listDigest: true }, updatedAt: now } as ProfileEntity]
+        ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: false, weather: true, friendLeft: true, listDigest: true }, privacy: { visitHistory: "friends", routes: "friends" }, updatedAt: now } as ProfileEntity]
         : [],
     ) as unknown as Repository<ProfileEntity>,
     bot,

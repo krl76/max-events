@@ -60,7 +60,7 @@
 // END_MODULE_MAP
 
 import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, Review, TodayEventCard, TodayResponse, User, VisitStats } from "@max-events/api-contracts";
-import { CreateBookingSchema, DEFAULT_SMART_ALERTS, EventCategorySchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import { CreateBookingSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -760,7 +760,7 @@ export function resetMockProfiles(): void {
 }
 
 function profileFor(userId: string): Profile {
-  return mockProfiles.get(userId) ?? { userId, city: "Москва", interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS } };
+  return mockProfiles.get(userId) ?? { userId, city: "Москва", interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY } };
 }
 
 function remainingSeats(eventId: string): number | null {
@@ -855,7 +855,7 @@ export function installMockApi(): () => void {
       const parsed = UpdateProfileSchema.safeParse(parseBookingBody(init));
       if (!parsed.success) return new Response(null, { status: 400 });
       const current = profileFor(profile[1]);
-      const updated: Profile = { ...current, ...parsed.data, smartAlerts: { ...current.smartAlerts, ...parsed.data.smartAlerts } };
+      const updated: Profile = { ...current, ...parsed.data, smartAlerts: { ...current.smartAlerts, ...parsed.data.smartAlerts }, privacy: { ...current.privacy, ...parsed.data.privacy } };
       mockProfiles.set(profile[1], updated);
       return Response.json(updated);
     }

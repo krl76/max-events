@@ -1,12 +1,12 @@
 import { BadRequestException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SMART_ALERTS, type Profile, type UpdateProfile } from "@max-events/api-contracts";
+import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, type Profile, type UpdateProfile } from "@max-events/api-contracts";
 import { UserEntity } from "./user.entity";
 import { ProfilesController } from "./profiles.controller";
 import type { ProfilesService } from "./profiles.service";
 
 const user = { id: "00000000-0000-4000-8000-00000000000a" } as UserEntity;
-const profile: Profile = { userId: user.id, city: "Москва", interests: [], smartAlerts: DEFAULT_SMART_ALERTS };
+const profile: Profile = { userId: user.id, city: "Москва", interests: [], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY };
 
 function createController() {
   const calls: { getOrCreate?: string; update?: { userId: string; patch: unknown } } = {};

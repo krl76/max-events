@@ -107,7 +107,7 @@ function createService(options: { rain?: HourlyPrecip | null; dimaLeft?: boolean
     checkIns as unknown as Repository<CheckInEntity>,
     createStoreRepo<ProfileEntity>(
       options.hostWeather === false
-        ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: true, weather: false, friendLeft: true, listDigest: true }, updatedAt: now } as ProfileEntity]
+        ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: true, weather: false, friendLeft: true, listDigest: true }, privacy: { visitHistory: "friends", routes: "friends" }, updatedAt: now } as ProfileEntity]
         : [],
     ) as unknown as Repository<ProfileEntity>,
     bot,

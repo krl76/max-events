@@ -44,6 +44,8 @@ import { RoutesModule } from "./routes/routes.module";
 import { LeaveNowModule } from "./leave-now/leave-now.module";
 import { SmartAlertsModule } from "./smart-alerts/smart-alerts.module";
 import { TasteModule } from "./taste/taste.module";
+import { DiscoveryModule } from "./discovery/discovery.module";
+import { PeopleModule } from "./people/people.module";
 
 @Module({
   imports: [
@@ -88,6 +90,8 @@ import { TasteModule } from "./taste/taste.module";
     LeaveNowModule,
     SmartAlertsModule,
     TasteModule,
+    DiscoveryModule,
+    PeopleModule,
   ],
 })
 export class AppModule {}

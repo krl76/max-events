@@ -11,7 +11,7 @@
 
 import "reflect-metadata";
 import { Column, Entity, PrimaryColumn, UpdateDateColumn } from "typeorm";
-import { DEFAULT_SMART_ALERTS, type SmartAlertSettings } from "@max-events/api-contracts";
+import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, type PrivacySettings, type SmartAlertSettings } from "@max-events/api-contracts";
 
 @Entity("profiles")
 export class ProfileEntity {
@@ -26,6 +26,9 @@ export class ProfileEntity {
 
   @Column({ type: "jsonb", default: DEFAULT_SMART_ALERTS })
   smartAlerts!: SmartAlertSettings;
+
+  @Column({ type: "jsonb", default: DEFAULT_PRIVACY })
+  privacy!: PrivacySettings;
 
   @UpdateDateColumn({ type: "timestamptz" })
   updatedAt!: Date;
