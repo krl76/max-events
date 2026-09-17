@@ -25,12 +25,14 @@
     "test": "turbo run test --concurrency=1",
     "test:quality": "node tools/checks/check-test-quality.mjs",
     "check:secrets": "node tools/security/check-secrets.mjs",
-    "grace:lint": "grace lint --path .",
-    "grace:lint:init": "grace lint --path . --allow-missing-docs",
+    "grace:lint": "bun ./node_modules/@osovv/grace-cli/src/grace.ts lint --path .",
+    "grace:lint:init": "bun ./node_modules/@osovv/grace-cli/src/grace.ts lint --path . --allow-missing-docs",
+    "grace:status": "bun ./node_modules/@osovv/grace-cli/src/grace.ts status --path . --with modules",
     "check": "bun run test:quality && bun run check:secrets && bun run format:check && turbo run lint typecheck test && bun run grace:lint"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@osovv/grace-cli": "^4.1.0",
     "@types/node": "^24.0.0",
     "esbuild": "^0.25.0",
     "eslint": "^9.0.0",

@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - GATHERING_REMINDER_INTERVAL_MS - scheduler tick interval
 // - GatheringsScheduler - 60s setInterval around remindUnanswered()
 // END_MODULE_MAP
 

@@ -6,8 +6,11 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - GeoOrigin - lat/lng origin for distance
+// - PlanRemindResult - sent/failed counts
 // - haversineMeters - distance from origin to a lat/lng
 // - formatPlanReminderText - DM body for the meeting
+// - formatPlanInviteText - invite DM body
 // - PlansService - create, list, get, addParticipant, respond, remove, remindMeeting
 // END_MODULE_MAP
 

@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - PLAN_REMINDER_INTERVAL_MS - scheduler tick interval
 // - PlansScheduler - 60s setInterval around remindMeeting()
 // END_MODULE_MAP
 

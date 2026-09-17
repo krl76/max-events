@@ -7,9 +7,19 @@
 //
 // START_MODULE_MAP
 // - ReportReasonSchema - closed report-reason enum
+// - ReportReason - report reason type
 // - ReportTargetTypeSchema - event/place/feed_post
+// - ReportTargetType - target type
+// - ReportStatusSchema - open/resolved
+// - ReportStatus - status type
 // - ReportSchema - report entity
+// - Report - report type
 // - CreateReportWriteSchema - report submission payload
+// - CreateReportWrite - create payload type
+// - UnpublishWriteSchema - unpublish payload
+// - UnpublishWrite - unpublish type
+// - BanOrganizerWriteSchema - ban payload
+// - BanOrganizerWrite - ban type
 // END_MODULE_MAP
 
 import { z } from "zod";

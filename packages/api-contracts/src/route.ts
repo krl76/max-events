@@ -7,8 +7,17 @@
 //
 // START_MODULE_MAP
 // - RouteStopWriteSchema - eventId xor placeId
+// - RouteStopWrite - stop write type
+// - CreateDayRouteWriteSchema - build/optimize payload
+// - CreateDayRouteWrite - payload type
+// - RoutePointSchema - resolved stop with coordinates
+// - RoutePoint - point type
+// - RouteLegSchema - travel between two points
+// - RouteLeg - leg type
 // - DayRouteSchema - ordered stops plus travel legs
+// - DayRoute - day route type
 // - OptimizeRouteSchema - original vs optimized with savings
+// - OptimizeRoute - optimize result type
 // END_MODULE_MAP
 
 import { z } from "zod";

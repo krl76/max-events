@@ -6,6 +6,8 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - EventListQuery - catalog list filters
+// - pickEventFields - patch keys allowed on update
 // - EventsService - CRUD + list against EventEntity
 // - toEventDto - map EventEntity to the api-contracts Event shape
 // END_MODULE_MAP

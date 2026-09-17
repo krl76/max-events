@@ -7,7 +7,11 @@
 //
 // START_MODULE_MAP
 // - AutoPlanTimelineEntrySchema - one labelled step with timestamp
+// - AutoPlanTimelineEntry - timeline entry type
 // - AutoPlanProposalSchema - saved draft plan plus travel/food/timeline
+// - AutoPlanProposal - autoplan proposal type
+// - CreateAutoPlanWriteSchema - POST /plans/auto payload
+// - CreateAutoPlanWrite - autoplan write type
 // END_MODULE_MAP
 
 import { z } from "zod";

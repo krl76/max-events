@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - ReportsController - create/list/resolve
+// - ModerationController - unpublish and ban
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";

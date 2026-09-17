@@ -6,6 +6,8 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - MaxBotChat - chat id + invite link
+// - MaxBotFetch - injectable fetch for tests
 // - MaxBotClient - createChat(title), sendMessage(maxUserId, text), listFriends(maxUserId)
 // - MAX_BOT_API_BASE_URL - documented Bot API host
 // END_MODULE_MAP

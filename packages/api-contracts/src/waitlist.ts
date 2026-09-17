@@ -7,8 +7,11 @@
 //
 // START_MODULE_MAP
 // - WaitlistStatusSchema - waiting/offered/confirmed/expired/cancelled
+// - WaitlistStatus - waitlist status type
 // - WaitlistEntrySchema - queue row with optional offer deadline
+// - WaitlistEntry - waitlist entry type
 // - JoinWaitlistWriteSchema - join payload (eventId)
+// - JoinWaitlistWrite - join payload type
 // END_MODULE_MAP
 
 import { z } from "zod";

@@ -6,6 +6,8 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - SEED_CITY - default seed city
+// - SeedEventSpec - seed event record shape
 // - SEED_PLACES - Moscow venues
 // - SEED_EVENTS - catalog events keyed by place title and dayOffset
 // END_MODULE_MAP

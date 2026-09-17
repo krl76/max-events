@@ -6,6 +6,9 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - GeoOrigin - lat/lng origin
+// - TodayDigestInput - city, interests, friends, events, places
+// - TodayFriend - friend id+name for digest
 // - walkingMinutes - haversine meters / 80 m per minute
 // - buildTodayDigest - summary + up to 10 labelled cards
 // - TodayService - digest(userId, now, origin)

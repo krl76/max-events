@@ -7,10 +7,17 @@
 //
 // START_MODULE_MAP
 // - NearbyBucketSchema - now / inAnHour / evening / tomorrow
+// - NearbyBucket - bucket type
 // - NearbyCardSchema - event + place + distanceKm
+// - NearbyCard - nearby card type
 // - NearbyTimelineSchema - four-bucket GET /nearby payload
+// - NearbyTimeline - timeline type
 // - LeisureMoodSchema - relax / active / friends
+// - LeisureMood - mood type
+// - LeisureStopSchema - one stop in a leisure chain
+// - LeisureStop - stop type
 // - LeisureOptionSchema - chain of places/events for a free window
+// - LeisureOption - leisure option type
 // END_MODULE_MAP
 
 import { z } from "zod";

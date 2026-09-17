@@ -7,6 +7,10 @@
 //
 // START_MODULE_MAP
 // - eventWindow / windowsOverlap - booking vs gathering event overlap
+// - windowsOverlap - closed interval overlap
+// - GatheringRemindResult - sent/failed counts
+// - formatGatheringInviteText - invite DM body
+// - formatGatheringReminderText - reminder DM body
 // - availabilityOf - free/busy/unknown for one friend
 // - GatheringsService - availability, create, get, respond, remindUnanswered
 // END_MODULE_MAP

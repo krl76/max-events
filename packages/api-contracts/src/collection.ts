@@ -7,9 +7,19 @@
 //
 // START_MODULE_MAP
 // - CollectionSectionSchema - want_to_go / already_been / weekend_ideas
+// - CollectionSection - collection section type
 // - CollectionSchema - shared collection with optional chatLink
+// - Collection - collection type
+// - CreateCollectionWriteSchema - create payload
+// - CreateCollectionWrite - create payload type
+// - AddCollectionMemberWriteSchema - add-member payload
+// - AddCollectionMemberWrite - add-member type
+// - AddCollectionItemWriteSchema - add-item payload
+// - AddCollectionItemWrite - add-item type
 // - CollectionItemSchema - event in a section, attributed to the adder
+// - CollectionItem - collection item type
 // - CollectionScreenSchema - collection + members + items
+// - CollectionScreen - collection screen type
 // END_MODULE_MAP
 
 import { z } from "zod";

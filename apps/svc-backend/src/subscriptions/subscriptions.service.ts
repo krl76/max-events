@@ -6,6 +6,9 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - EventMatchInput - event fields used for matching
+// - SubscriptionNotifyResult - sent/failed counts
+// - toSubscriptionDto - entity to Subscription contract
 // - matchesSubscription - place/organizer/interest match against a new event
 // - formatSubscriptionNotice - DM body
 // - SubscriptionsService - create, list, remove, notifyNewEvent

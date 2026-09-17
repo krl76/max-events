@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - REMINDER_TICK_INTERVAL_MS - scheduler tick interval
 // - RemindersScheduler - 60s setInterval around tick()
 // END_MODULE_MAP
 

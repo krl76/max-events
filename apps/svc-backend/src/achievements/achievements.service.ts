@@ -7,6 +7,8 @@
 //
 // START_MODULE_MAP
 // - ACHIEVEMENT_CATALOG - code, title, threshold, metric
+// - AchievementMetric - catalog metric discriminator
+// - metricValue - resolve a metric from visit stats
 // - achievementsFromStats - derive progress and apply existing grants
 // - AchievementsService - list for CurrentUser, persist new grants
 // END_MODULE_MAP

@@ -6,7 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - main - seed CLI
+// - runSeedCli - initialize DataSource, seed, destroy
 // END_MODULE_MAP
 
 import "reflect-metadata";
@@ -15,7 +15,7 @@ import { PlaceEntity } from "../places/place.entity";
 import { AppDataSource } from "./data-source";
 import { seedDatabase } from "./seed";
 
-async function main() {
+export async function runSeedCli() {
   await AppDataSource.initialize();
   try {
     const result = await seedDatabase(AppDataSource.getRepository(PlaceEntity), AppDataSource.getRepository(EventEntity));
@@ -25,7 +25,7 @@ async function main() {
   }
 }
 
-void main().catch((error: unknown) => {
+void runSeedCli().catch((error: unknown) => {
   process.stderr.write(`${error instanceof Error ? error.message : "seed failed"}\n`);
   process.exit(1);
 });

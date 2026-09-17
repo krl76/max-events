@@ -6,6 +6,8 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - DEFAULT_REMINDER_WINDOW_MS - default look-ahead window
+// - ReminderTickResult - sent/failed counts
 // - RemindersService - tick() reminder cycle
 // - isInReminderWindow - startsAt in [now, now+window)
 // - formatReminderText - DM body

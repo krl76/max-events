@@ -7,6 +7,8 @@
 //
 // START_MODULE_MAP
 // - LIST_PRESET_TITLES - ru titles for the six presets
+// - toListDto - list entity to List contract
+// - toItemDto - item entity to ListItem contract
 // - ListsService - ensure, list, get, items, addEvent, removeItem
 // END_MODULE_MAP
 

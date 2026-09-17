@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - WAITLIST_TICK_INTERVAL_MS - scheduler tick interval
 // - WaitlistScheduler - 60s setInterval around expireOffers()
 // END_MODULE_MAP
 

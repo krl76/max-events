@@ -8,6 +8,7 @@
 // START_MODULE_MAP
 // - ReviewsService - create, eventRating, placeRating
 // - toReviewDto - entity to Review contract
+// - buildRating - average stars and category scores
 // END_MODULE_MAP
 
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";

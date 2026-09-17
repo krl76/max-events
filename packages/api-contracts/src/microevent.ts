@@ -10,6 +10,8 @@
 // - MicroEventStatus - micro-event status type
 // - MicroEventSchema - micro-event entity (title, startsAt, text or place location, limit/count, author)
 // - MicroEvent - micro-event type
+// - CreateMicroEventWriteSchema - create payload
+// - CreateMicroEventWrite - create payload type
 // END_MODULE_MAP
 
 import { z } from "zod";

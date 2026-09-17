@@ -7,6 +7,8 @@
 //
 // START_MODULE_MAP
 // - walkingMinutes - meters at 80 m/min
+// - toDayRoute - points to legs and totals
+// - shortestPermutation - keep start, permute the rest
 // - RoutesService - build and optimize
 // END_MODULE_MAP
 

@@ -7,7 +7,9 @@
 //
 // START_MODULE_MAP
 // - PlaceFriendVisitSchema - friend who visited or is going today
+// - PlaceFriendVisit - friend visit type
 // - PlacePageSchema - aggregated place page
+// - PlacePage - place page type
 // END_MODULE_MAP
 
 import { z } from "zod";

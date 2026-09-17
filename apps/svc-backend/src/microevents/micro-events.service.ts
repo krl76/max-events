@@ -7,7 +7,6 @@
 //
 // START_MODULE_MAP
 // - MicroEventsService - create/list/join/leave
-// - toMicroEventDto - entity plus live participant count
 // END_MODULE_MAP
 
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";

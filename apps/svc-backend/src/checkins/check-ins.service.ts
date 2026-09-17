@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - utcVisitDate - YYYY-MM-DD from a Date
+// - toCheckInDto - entity to CheckIn contract
 // - CheckInsService - create, stats
 // END_MODULE_MAP
 

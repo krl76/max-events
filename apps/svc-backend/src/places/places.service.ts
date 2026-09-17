@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - PlaceListQuery - city/category/limit/offset
 // - PlacesService - CRUD + list against PlaceEntity; GET list is Place[] for the miniapp client
 // - toPlaceDto - map PlaceEntity to the api-contracts Place shape
 // END_MODULE_MAP

@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - haversineKm - great-circle distance
+// - moscowParts - calendar parts in Europe/Moscow
 // - nearbyBucket - exclusive assignment onto the four-segment scale
 // - NearbyService - timeline and leisure
 // END_MODULE_MAP

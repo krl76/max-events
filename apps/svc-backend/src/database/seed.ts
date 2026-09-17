@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - SeedResult - counts returned by seedDatabase
 // - futureStart - UTC midnight of now plus dayOffset at hourUtc
 // - seedDatabase - upsert places by title+address+city and events by title+city+startsAt
 // END_MODULE_MAP

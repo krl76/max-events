@@ -7,9 +7,13 @@
 //
 // START_MODULE_MAP
 // - FeedCommentSchema - comment on a feed post
+// - FeedComment - comment type
 // - FeedPostSchema - impression post with like counter and comments
+// - FeedPost - feed post type
 // - CreateFeedPostWriteSchema - create-post payload
+// - CreateFeedPostWrite - create-post type
 // - AddFeedCommentWriteSchema - add-comment payload
+// - AddFeedCommentWrite - add-comment type
 // END_MODULE_MAP
 
 import { z } from "zod";
