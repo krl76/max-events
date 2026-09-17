@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: TypeORM entity for plan participants (invited friends, not the host).
-// SCOPE: PlanParticipantEntity columns: planId, userId, status, reminderSentAt, leaveNowSentAt; unique (planId, userId).
+// SCOPE: PlanParticipantEntity columns: planId, userId, status, reminderSentAt, leaveNowSentAt, friendLeftBroadcastAt; unique (planId, userId).
 // DEPENDS: typeorm, @max-events/api-contracts (PlanParticipantStatus)
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -33,6 +33,9 @@ export class PlanParticipantEntity {
 
   @Column({ type: "timestamptz", nullable: true })
   leaveNowSentAt!: Date | null;
+
+  @Column({ type: "timestamptz", nullable: true })
+  friendLeftBroadcastAt!: Date | null;
 
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;

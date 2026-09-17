@@ -86,10 +86,12 @@ export class PlansService {
         chatLink: null,
         reminderSentAt: null,
         leaveNowSentAt: null,
+        weatherAlertSentAt: null,
+        friendLeftBroadcastAt: null,
       }),
     );
     for (const userId of ids) {
-      await this.participants.save(this.participants.create({ planId: saved.id, userId, status: "invited", reminderSentAt: null, leaveNowSentAt: null }));
+      await this.participants.save(this.participants.create({ planId: saved.id, userId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null }));
     }
     try {
       const chat = await this.bot.createChat(`План: ${event.title}`);
@@ -175,7 +177,7 @@ export class PlansService {
     if (!allowed.has(userId)) throw new BadRequestException("Invalid plan payload");
     const existing = (await this.participants.find({ where: { planId } })).find((row) => row.userId === userId);
     if (!existing) {
-      await this.participants.save(this.participants.create({ planId, userId, status: "invited", reminderSentAt: null, leaveNowSentAt: null }));
+      await this.participants.save(this.participants.create({ planId, userId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null }));
     }
     return this.get(hostUserId, planId);
   }
