@@ -47,6 +47,7 @@ import { TasteModule } from "./taste/taste.module";
 import { DiscoveryModule } from "./discovery/discovery.module";
 import { PeopleModule } from "./people/people.module";
 import { OrganizerModule } from "./organizer/organizer.module";
+import { StatsModule } from "./stats/stats.module";
 
 @Module({
   imports: [
@@ -94,6 +95,7 @@ import { OrganizerModule } from "./organizer/organizer.module";
     DiscoveryModule,
     PeopleModule,
     OrganizerModule,
+    StatsModule,
   ],
 })
 export class AppModule {}

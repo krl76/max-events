@@ -35,12 +35,13 @@ import { UserEntity } from "../users/user.entity";
 import { CollectionEntity, CollectionItemEntity, CollectionMemberEntity } from "../collections/collection.entity";
 import { MicroEventEntity, MicroEventParticipantEntity } from "../microevents/micro-event.entity";
 import { ListDigestSendEntity } from "../smart-alerts/list-digest.entity";
+import { PageViewEntity } from "../stats/page-view.entity";
 
 const env = validateEnv();
 
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: env.DATABASE_URL,
-  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity, ListEntity, ListItemEntity, SubscriptionEntity, CheckInEntity, UserAchievementEntity, ReviewEntity, WaitlistEntryEntity, FeedPostEntity, FeedLikeEntity, FeedCommentEntity, ReportEntity, MicroEventEntity, MicroEventParticipantEntity, CollectionEntity, CollectionMemberEntity, CollectionItemEntity, ListDigestSendEntity],
+  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity, ListEntity, ListItemEntity, SubscriptionEntity, CheckInEntity, UserAchievementEntity, ReviewEntity, WaitlistEntryEntity, FeedPostEntity, FeedLikeEntity, FeedCommentEntity, ReportEntity, MicroEventEntity, MicroEventParticipantEntity, CollectionEntity, CollectionMemberEntity, CollectionItemEntity, ListDigestSendEntity, PageViewEntity],
   migrations: ["src/database/migrations/*.ts"],
 });

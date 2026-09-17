@@ -29,3 +29,4 @@ export * from "./route.js";
 export * from "./taste.js";
 export * from "./discovery.js";
 export * from "./people.js";
+export * from "./stats.js";
