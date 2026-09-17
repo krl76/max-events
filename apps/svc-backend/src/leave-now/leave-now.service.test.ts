@@ -89,22 +89,9 @@ function createService(options: { startsInMin: number; dimaStatus?: PlanParticip
       published: true,
     } as EventEntity,
   ]);
-  const places = createStoreRepo<PlaceEntity>([
-    { id: venueId, title: "Парк", latitude: venue.latitude, longitude: venue.longitude, published: true } as PlaceEntity,
-    { id: originPlaceId, title: "Дом", latitude: origin.latitude, longitude: origin.longitude, published: true } as PlaceEntity,
-  ]);
-  const users = createStoreRepo<UserEntity>([
-    { id: hostId, maxUserId: "1" } as UserEntity,
-    { id: dimaId, maxUserId: "2" } as UserEntity,
-  ]);
-  const checkIns = createStoreRepo<CheckInEntity>(
-    options.withOrigin === false
-      ? []
-      : [
-          { id: "c1", userId: hostId, eventId: null, placeId: originPlaceId, visitDate: "2026-09-12", checkedInAt: now } as CheckInEntity,
-          { id: "c2", userId: dimaId, eventId: null, placeId: originPlaceId, visitDate: "2026-09-12", checkedInAt: now } as CheckInEntity,
-        ],
-  );
+  const places = createStoreRepo<PlaceEntity>([{ id: venueId, title: "Парк", latitude: venue.latitude, longitude: venue.longitude, published: true } as PlaceEntity, { id: originPlaceId, title: "Дом", latitude: origin.latitude, longitude: origin.longitude, published: true } as PlaceEntity]);
+  const users = createStoreRepo<UserEntity>([{ id: hostId, maxUserId: "1" } as UserEntity, { id: dimaId, maxUserId: "2" } as UserEntity]);
+  const checkIns = createStoreRepo<CheckInEntity>(options.withOrigin === false ? [] : [{ id: "c1", userId: hostId, eventId: null, placeId: originPlaceId, visitDate: "2026-09-12", checkedInAt: now } as CheckInEntity, { id: "c2", userId: dimaId, eventId: null, placeId: originPlaceId, visitDate: "2026-09-12", checkedInAt: now } as CheckInEntity]);
   const sent: string[] = [];
   const bot = {
     sendMessage: async (maxUserId: string, text: string) => {
@@ -112,20 +99,7 @@ function createService(options: { startsInMin: number; dimaStatus?: PlanParticip
       return true;
     },
   } as unknown as MaxBotClient;
-  const service = new LeaveNowService(
-    plans as unknown as Repository<PlanEntity>,
-    participants as unknown as Repository<PlanParticipantEntity>,
-    events as unknown as Repository<EventEntity>,
-    places as unknown as Repository<PlaceEntity>,
-    users as unknown as Repository<UserEntity>,
-    checkIns as unknown as Repository<CheckInEntity>,
-    createStoreRepo<ProfileEntity>(
-      options.hostLeaveNow === false
-        ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: false, weather: true, friendLeft: true, listDigest: true }, privacy: { visitHistory: "friends", routes: "friends" }, updatedAt: now } as ProfileEntity]
-        : [],
-    ) as unknown as Repository<ProfileEntity>,
-    bot,
-  );
+  const service = new LeaveNowService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, checkIns as unknown as Repository<CheckInEntity>, createStoreRepo<ProfileEntity>(options.hostLeaveNow === false ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: false, weather: true, friendLeft: true, listDigest: true }, privacy: { visitHistory: "friends", routes: "friends" }, updatedAt: now } as ProfileEntity] : []) as unknown as Repository<ProfileEntity>, bot);
   return { service, sent, plans, participants };
 }
 

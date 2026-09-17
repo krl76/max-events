@@ -59,7 +59,9 @@ export function weekendWindow(now: Date): WeekendWindow | null {
 }
 
 export function digestFingerprint(eventIds: string[]): string {
-  return createHash("sha256").update([...eventIds].sort().join(",")).digest("hex");
+  return createHash("sha256")
+    .update([...eventIds].sort().join(","))
+    .digest("hex");
 }
 
 export function formatListDigestText(count: number, saturdayCount: number): string {
@@ -102,12 +104,7 @@ export class ListDigestService {
       const listRows = await this.lists.find({ where: { id: In(listIds) } });
       const listById = new Map(listRows.map((row) => [row.id, row]));
       const userIds = [...new Set(listRows.map((row) => row.userId))];
-      const [userRows, profileRows, checkIns, sentRows] = await Promise.all([
-        this.users.find({ where: { id: In(userIds) } }),
-        this.profiles.find({ where: { userId: In(userIds) } }),
-        this.checkIns.find({ where: { userId: In(userIds) } }),
-        this.sends.find({ where: { userId: In(userIds), windowKey: window.windowKey } }),
-      ]);
+      const [userRows, profileRows, checkIns, sentRows] = await Promise.all([this.users.find({ where: { id: In(userIds) } }), this.profiles.find({ where: { userId: In(userIds) } }), this.checkIns.find({ where: { userId: In(userIds) } }), this.sends.find({ where: { userId: In(userIds), windowKey: window.windowKey } })]);
       const userById = new Map(userRows.map((row) => [row.id, row]));
       const prefsByUser = new Map(profileRows.map((row) => [row.userId, readAlertPrefs(row)]));
       const latestCheckIn = latestCheckInByUser(checkIns);
@@ -202,11 +199,7 @@ function latestCheckInByUser(rows: CheckInEntity[]): Map<string, CheckInEntity> 
   return latest;
 }
 
-function originFromCheckIn(
-  row: CheckInEntity | undefined,
-  events: Map<string, EventEntity>,
-  places: Map<string, PlaceEntity>,
-): { latitude: number; longitude: number } | null {
+function originFromCheckIn(row: CheckInEntity | undefined, events: Map<string, EventEntity>, places: Map<string, PlaceEntity>): { latitude: number; longitude: number } | null {
   if (!row) return null;
   const placeId = row.placeId ?? (row.eventId ? events.get(row.eventId)?.placeId : null);
   const place = placeId ? places.get(placeId) : undefined;

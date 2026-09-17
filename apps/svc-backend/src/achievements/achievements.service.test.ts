@@ -44,10 +44,7 @@ describe("achievementsFromStats", () => {
 
   it("caps progress at the threshold and keeps an existing grant", () => {
     const granted = new Date("2026-09-01T00:00:00Z");
-    const list = achievementsFromStats(
-      stats({ placesCount: 12, byCategory: [{ category: "afisha", count: 7 }] }),
-      new Map([["city_explorer", granted]]),
-    );
+    const list = achievementsFromStats(stats({ placesCount: 12, byCategory: [{ category: "afisha", count: 7 }] }), new Map([["city_explorer", granted]]));
     const byCode = new Map(list.map((item) => [item.code, item]));
     expect(byCode.get("city_explorer")?.progress).toBe(10);
     expect(byCode.get("city_explorer")?.grantedAt).toBe(granted.toISOString());

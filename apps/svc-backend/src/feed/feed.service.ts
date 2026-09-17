@@ -89,11 +89,7 @@ export class FeedService {
     if (posts.length === 0) return [];
     const postIds = posts.map((row) => row.id);
     const userIds = [...new Set(posts.flatMap((row) => [row.authorUserId]))];
-    const [authors, likeRows, commentRows] = await Promise.all([
-      this.users.find({ where: { id: In(userIds) } }),
-      this.likes.find({ where: { postId: In(postIds) } }),
-      this.comments.find({ where: { postId: In(postIds) } }),
-    ]);
+    const [authors, likeRows, commentRows] = await Promise.all([this.users.find({ where: { id: In(userIds) } }), this.likes.find({ where: { postId: In(postIds) } }), this.comments.find({ where: { postId: In(postIds) } })]);
     const commentAuthorIds = [...new Set(commentRows.map((row) => row.authorUserId))];
     const commentAuthors = commentAuthorIds.length === 0 ? [] : await this.users.find({ where: { id: In(commentAuthorIds) } });
     const userById = new Map([...authors, ...commentAuthors].map((row) => [row.id, row]));

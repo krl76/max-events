@@ -64,12 +64,7 @@ export class TodayService {
   async digest(userId: string, now = new Date(), origin: GeoOrigin | null = null): Promise<TodayResponse> {
     const profile = await this.profiles.getOrCreate(userId);
     const friendIds = await this.friends.friendIds(userId);
-    const [events, places, participations, friendUsers] = await Promise.all([
-      this.events.find(),
-      this.places.find(),
-      this.participations.find(),
-      this.users.find(),
-    ]);
+    const [events, places, participations, friendUsers] = await Promise.all([this.events.find(), this.places.find(), this.participations.find(), this.users.find()]);
     const friends: TodayFriend[] = friendUsers.filter((row) => friendIds.has(row.id)).map((row) => ({ id: row.id, name: toFriendDto(row).name }));
     const afterMe = (await this.taste.afterMe(userId, now)).suggestions[0] ?? null;
     return buildTodayDigest({
@@ -87,9 +82,7 @@ export class TodayService {
 }
 
 export function buildTodayDigest(input: TodayDigestInput): TodayResponse {
-  const nearby = input.events
-    .filter((row) => row.published && row.city === input.city && row.startsAt.getTime() >= input.now.getTime())
-    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+  const nearby = input.events.filter((row) => row.published && row.city === input.city && row.startsAt.getTime() >= input.now.getTime()).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
   const suitable = nearby.filter((row) => matchesInterests(row, input.interests));
   const friendIds = new Set(input.friends.map((row) => row.id));
   const friendNameById = new Map(input.friends.map((row) => [row.id, firstName(row.name)]));
@@ -102,9 +95,7 @@ export function buildTodayDigest(input: TodayDigestInput): TodayResponse {
     if (!attendingByEvent.has(row.eventId)) attendingByEvent.set(row.eventId, friendNameById.get(row.userId) ?? "друг");
   }
   const placeById = new Map(input.places.map((row) => [row.id, row]));
-  const ranked = input.afterMe
-    ? [...nearby].sort((a, b) => Number(b.category === input.afterMe?.toCategory) - Number(a.category === input.afterMe?.toCategory) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id))
-    : nearby;
+  const ranked = input.afterMe ? [...nearby].sort((a, b) => Number(b.category === input.afterMe?.toCategory) - Number(a.category === input.afterMe?.toCategory) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id)) : nearby;
   const cards: TodayEventCard[] = ranked.slice(0, CARD_LIMIT).map((row) => ({
     event: toEventDto(row),
     labels: cardLabels(row, row.placeId ? placeById.get(row.placeId) : undefined, input.origin, attendingByEvent.get(row.id), input.afterMe),

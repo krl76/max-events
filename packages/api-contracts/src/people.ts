@@ -18,10 +18,7 @@ import { z } from "zod";
 import { EventSchema } from "./event.js";
 import { FriendSchema } from "./friends.js";
 
-export const PeopleMatchContextSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("shared_event"), event: EventSchema, explanation: z.string().min(1) }),
-  z.object({ kind: z.literal("shared_interest"), interest: z.string().min(1), explanation: z.string().min(1) }),
-]);
+export const PeopleMatchContextSchema = z.discriminatedUnion("kind", [z.object({ kind: z.literal("shared_event"), event: EventSchema, explanation: z.string().min(1) }), z.object({ kind: z.literal("shared_interest"), interest: z.string().min(1), explanation: z.string().min(1) })]);
 export type PeopleMatchContext = z.infer<typeof PeopleMatchContextSchema>;
 
 export const PeopleCandidateSchema = z.object({

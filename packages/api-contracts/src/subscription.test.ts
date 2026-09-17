@@ -19,15 +19,11 @@ describe("SubscriptionSchema", () => {
       }).type,
     ).toBe("organizer");
     expect(SubscriptionSchema.parse({ ...base, type: "place", organizerUserId: null, placeId: "018f3c5a-0000-7000-8000-000000000003", interest: null }).type).toBe("place");
-    expect(SubscriptionSchema.parse({ ...base, type: "interest", organizerUserId: null, placeId: null, interest: "электронная музыка" }).interest).toBe(
-      "электронная музыка",
-    );
+    expect(SubscriptionSchema.parse({ ...base, type: "interest", organizerUserId: null, placeId: null, interest: "электронная музыка" }).interest).toBe("электронная музыка");
   });
 
   it("rejects a type/target mismatch", () => {
-    expect(SubscriptionSchema.safeParse({ ...base, type: "place", organizerUserId: "018f3c5a-0000-7000-8000-000000000002", placeId: null, interest: null }).success).toBe(
-      false,
-    );
+    expect(SubscriptionSchema.safeParse({ ...base, type: "place", organizerUserId: "018f3c5a-0000-7000-8000-000000000002", placeId: null, interest: null }).success).toBe(false);
   });
 });
 

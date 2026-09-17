@@ -63,20 +63,12 @@ function createService(options: { eventIds?: string[]; far?: boolean; digestEnab
   const startsAt = new Date("2026-09-12T09:00:00Z");
   const events = ids.map((id) => eventRow(id, placeId, startsAt));
   const lists = createStoreRepo<ListEntity>([{ id: listId, userId, title: "Хочу сходить", preset: "want_to_go" } as ListEntity]);
-  const items = createStoreRepo<ListItemEntity>(ids.map((eventId, index) => ({ id: `item-${index}`, listId, eventId, placeId: null } as ListItemEntity)));
+  const items = createStoreRepo<ListItemEntity>(ids.map((eventId, index) => ({ id: `item-${index}`, listId, eventId, placeId: null }) as ListItemEntity));
   const eventRepo = createStoreRepo<EventEntity>(events);
-  const places = createStoreRepo<PlaceEntity>([
-    { id: nearPlaceId, latitude: 55.747, longitude: 37.584, published: true } as PlaceEntity,
-    { id: farPlaceId, latitude: 59.93, longitude: 30.31, published: true } as PlaceEntity,
-    { id: originPlaceId, latitude: 55.75, longitude: 37.62, published: true } as PlaceEntity,
-  ]);
+  const places = createStoreRepo<PlaceEntity>([{ id: nearPlaceId, latitude: 55.747, longitude: 37.584, published: true } as PlaceEntity, { id: farPlaceId, latitude: 59.93, longitude: 30.31, published: true } as PlaceEntity, { id: originPlaceId, latitude: 55.75, longitude: 37.62, published: true } as PlaceEntity]);
   const users = createStoreRepo<UserEntity>([{ id: userId, maxUserId: "1", firstName: "Саша" } as UserEntity]);
   const checkIns = createStoreRepo<CheckInEntity>([{ id: "c1", userId, eventId: null, placeId: originPlaceId, visitDate: "2026-09-11", checkedInAt: now } as CheckInEntity]);
-  const profiles = createStoreRepo<ProfileEntity>(
-    options.digestEnabled === false
-      ? [{ userId, city: "Москва", interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS, listDigest: false }, privacy: { visitHistory: "friends", routes: "friends" }, updatedAt: now } as ProfileEntity]
-      : [],
-  );
+  const profiles = createStoreRepo<ProfileEntity>(options.digestEnabled === false ? [{ userId, city: "Москва", interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS, listDigest: false }, privacy: { visitHistory: "friends", routes: "friends" }, updatedAt: now } as ProfileEntity] : []);
   const sends = createStoreRepo<ListDigestSendEntity>();
   const sent: string[] = [];
   const bot = {
@@ -85,17 +77,7 @@ function createService(options: { eventIds?: string[]; far?: boolean; digestEnab
       return true;
     },
   } as unknown as MaxBotClient;
-  const service = new ListDigestService(
-    lists as unknown as Repository<ListEntity>,
-    items as unknown as Repository<ListItemEntity>,
-    eventRepo as unknown as Repository<EventEntity>,
-    places as unknown as Repository<PlaceEntity>,
-    users as unknown as Repository<UserEntity>,
-    checkIns as unknown as Repository<CheckInEntity>,
-    profiles as unknown as Repository<ProfileEntity>,
-    sends as unknown as Repository<ListDigestSendEntity>,
-    bot,
-  );
+  const service = new ListDigestService(lists as unknown as Repository<ListEntity>, items as unknown as Repository<ListItemEntity>, eventRepo as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, checkIns as unknown as Repository<CheckInEntity>, profiles as unknown as Repository<ProfileEntity>, sends as unknown as Repository<ListDigestSendEntity>, bot);
   return { service, sent, sends };
 }
 

@@ -90,4 +90,3 @@ export function toParticipationDto(row: ParticipationEntity): Participation {
     updatedAt: row.updatedAt.toISOString(),
   };
 }
-

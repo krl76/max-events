@@ -56,11 +56,7 @@ function createService(initial: ParticipationEntity[] = [], friendIds: string[] 
   const participations = createParticipationRepo(initial);
   const events = createEventRepo();
   const friends = { friendIds: async () => new Set(friendIds) } as unknown as FriendsService;
-  const service = new ParticipationsService(
-    participations as unknown as Repository<ParticipationEntity>,
-    events as unknown as Repository<EventEntity>,
-    friends,
-  );
+  const service = new ParticipationsService(participations as unknown as Repository<ParticipationEntity>, events as unknown as Repository<EventEntity>, friends);
   return { participations, service };
 }
 
@@ -89,14 +85,7 @@ describe("ParticipationsService", () => {
     expect(stats.counts.wants_to_go).toBe(0);
     expect(stats.friendsCount).toBe(0);
     expect(stats.myStatus).toBe("going");
-    const statuses: ParticipationStatus[] = [
-      "wants_to_go",
-      "probably_going",
-      "going",
-      "looking_for_company",
-      "looking_for_travel_buddy",
-      "looking_for_after_event_company",
-    ];
+    const statuses: ParticipationStatus[] = ["wants_to_go", "probably_going", "going", "looking_for_company", "looking_for_travel_buddy", "looking_for_after_event_company"];
     for (const status of statuses) expect(stats.counts[status]).toBeGreaterThanOrEqual(0);
   });
 

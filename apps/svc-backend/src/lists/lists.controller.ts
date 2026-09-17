@@ -49,11 +49,7 @@ export class ListsController {
   }
 
   @Delete(":id/items/:itemId")
-  async remove(
-    @CurrentUser() user: UserEntity,
-    @Param("id", ParseUUIDPipe) id: string,
-    @Param("itemId", ParseUUIDPipe) itemId: string,
-  ): Promise<ListItem> {
+  async remove(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Param("itemId", ParseUUIDPipe) itemId: string): Promise<ListItem> {
     return this.lists.removeItem(user.id, id, itemId);
   }
 }

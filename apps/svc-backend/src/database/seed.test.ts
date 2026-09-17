@@ -14,8 +14,7 @@ function createPlaceRepo(initial: PlaceEntity[] = []) {
   return {
     store,
     create: (fields: Partial<PlaceEntity>) => ({ ...fields }) as PlaceEntity,
-    findOneBy: async (where: { title: string; address: string; city: string }) =>
-      store.find((row) => row.title === where.title && row.address === where.address && row.city === where.city) ?? null,
+    findOneBy: async (where: { title: string; address: string; city: string }) => store.find((row) => row.title === where.title && row.address === where.address && row.city === where.city) ?? null,
     save: async (entity: PlaceEntity) => {
       if (!store.includes(entity)) {
         entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
@@ -34,8 +33,7 @@ function createEventRepo(initial: EventEntity[] = []) {
   return {
     store,
     create: (fields: Partial<EventEntity>) => ({ ...fields }) as EventEntity,
-    findOneBy: async (where: { title: string; city: string; startsAt: Date }) =>
-      store.find((row) => row.title === where.title && row.city === where.city && row.startsAt.getTime() === where.startsAt.getTime()) ?? null,
+    findOneBy: async (where: { title: string; city: string; startsAt: Date }) => store.find((row) => row.title === where.title && row.city === where.city && row.startsAt.getTime() === where.startsAt.getTime()) ?? null,
     save: async (entity: EventEntity) => {
       if (!store.includes(entity)) {
         entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
@@ -72,11 +70,7 @@ describe("seedDatabase", () => {
     expect(places.store).toHaveLength(SEED_PLACES.length);
     expect(events.store).toHaveLength(SEED_EVENTS.length);
 
-    const laterSameUtcDay = await seedDatabase(
-      places as unknown as Repository<PlaceEntity>,
-      events as unknown as Repository<EventEntity>,
-      new Date("2026-09-12T23:59:00Z"),
-    );
+    const laterSameUtcDay = await seedDatabase(places as unknown as Repository<PlaceEntity>, events as unknown as Repository<EventEntity>, new Date("2026-09-12T23:59:00Z"));
     expect(laterSameUtcDay).toEqual({ placesInserted: 0, eventsInserted: 0 });
     expect(events.store).toHaveLength(SEED_EVENTS.length);
   });

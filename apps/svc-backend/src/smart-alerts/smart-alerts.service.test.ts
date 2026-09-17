@@ -79,15 +79,8 @@ function createService(options: { rain?: HourlyPrecip | null; dimaLeft?: boolean
   ]);
   const events = createStoreRepo<EventEntity>([{ id: eventId, title: "The Weekend Tribute", placeId: venueId, startsAt, published: true } as EventEntity]);
   const places = createStoreRepo<PlaceEntity>([{ id: venueId, title: "Парк", latitude: 55.747, longitude: 37.584, published: true } as PlaceEntity]);
-  const users = createStoreRepo<UserEntity>([
-    { id: hostId, maxUserId: "1", firstName: "Саша", lastName: null } as UserEntity,
-    { id: dimaId, maxUserId: "2", firstName: "Дима", lastName: null } as UserEntity,
-  ]);
-  const checkIns = createStoreRepo<CheckInEntity>(
-    options.dimaCheckInAtVenue
-      ? [{ id: "c1", userId: dimaId, eventId, placeId: null, visitDate: null, checkedInAt: now } as CheckInEntity]
-      : [],
-  );
+  const users = createStoreRepo<UserEntity>([{ id: hostId, maxUserId: "1", firstName: "Саша", lastName: null } as UserEntity, { id: dimaId, maxUserId: "2", firstName: "Дима", lastName: null } as UserEntity]);
+  const checkIns = createStoreRepo<CheckInEntity>(options.dimaCheckInAtVenue ? [{ id: "c1", userId: dimaId, eventId, placeId: null, visitDate: null, checkedInAt: now } as CheckInEntity] : []);
   const sent: string[] = [];
   const bot = {
     sendMessage: async (maxUserId: string, text: string) => {
@@ -98,21 +91,7 @@ function createService(options: { rain?: HourlyPrecip | null; dimaLeft?: boolean
   const weather = {
     precipitationAt: async () => options.rain ?? null,
   } as unknown as WeatherClient;
-  const service = new SmartAlertsService(
-    plans as unknown as Repository<PlanEntity>,
-    participants as unknown as Repository<PlanParticipantEntity>,
-    events as unknown as Repository<EventEntity>,
-    places as unknown as Repository<PlaceEntity>,
-    users as unknown as Repository<UserEntity>,
-    checkIns as unknown as Repository<CheckInEntity>,
-    createStoreRepo<ProfileEntity>(
-      options.hostWeather === false
-        ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: true, weather: false, friendLeft: true, listDigest: true }, privacy: { visitHistory: "friends", routes: "friends" }, updatedAt: now } as ProfileEntity]
-        : [],
-    ) as unknown as Repository<ProfileEntity>,
-    bot,
-    weather,
-  );
+  const service = new SmartAlertsService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, checkIns as unknown as Repository<CheckInEntity>, createStoreRepo<ProfileEntity>(options.hostWeather === false ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: true, weather: false, friendLeft: true, listDigest: true }, privacy: { visitHistory: "friends", routes: "friends" }, updatedAt: now } as ProfileEntity] : []) as unknown as Repository<ProfileEntity>, bot, weather);
   return { service, sent, plans, participants };
 }
 

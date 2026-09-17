@@ -23,11 +23,7 @@ import { GatheringsScheduler } from "./gatherings.scheduler";
 import { GatheringsService } from "./gatherings.service";
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([GatheringEntity, GatheringInviteeEntity, BookingEntity, EventEntity, UserEntity]),
-    FriendsModule,
-    MaxBotModule,
-  ],
+  imports: [TypeOrmModule.forFeature([GatheringEntity, GatheringInviteeEntity, BookingEntity, EventEntity, UserEntity]), FriendsModule, MaxBotModule],
   controllers: [FriendAvailabilityController, GatheringsController],
   providers: [GatheringsService, GatheringsScheduler],
 })

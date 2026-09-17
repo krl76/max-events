@@ -46,12 +46,7 @@ export class PeopleService {
     const myInterests = new Set((mine?.interests ?? []).map((row) => row.toLowerCase()));
     const others = profiles.filter((row) => row.userId !== viewerId);
     const userIds = others.map((row) => row.userId);
-    const [users, checkIns, parts, upcoming] = await Promise.all([
-      userIds.length === 0 ? Promise.resolve([] as UserEntity[]) : this.users.find({ where: { id: In([viewerId, ...userIds]) } }),
-      userIds.length === 0 ? Promise.resolve([] as CheckInEntity[]) : this.checkIns.find({ where: { userId: In([viewerId, ...userIds]) } }),
-      this.participations.find(),
-      this.events.find({ where: { published: true, startsAt: MoreThanOrEqual(now) } }),
-    ]);
+    const [users, checkIns, parts, upcoming] = await Promise.all([userIds.length === 0 ? Promise.resolve([] as UserEntity[]) : this.users.find({ where: { id: In([viewerId, ...userIds]) } }), userIds.length === 0 ? Promise.resolve([] as CheckInEntity[]) : this.checkIns.find({ where: { userId: In([viewerId, ...userIds]) } }), this.participations.find(), this.events.find({ where: { published: true, startsAt: MoreThanOrEqual(now) } })]);
     const userById = new Map(users.map((row) => [row.id, row]));
     const latest = latestCheckInByUser(checkIns);
     const originEventIds = [...new Set([...latest.values()].map((row) => row.eventId).filter((id): id is string => id !== null))];
@@ -65,11 +60,7 @@ export class PeopleService {
     const eventById = new Map(upcoming.map((row) => [row.id, row]));
     const myParts = parts.filter((row) => row.userId === viewerId && GOING.includes(row.status));
     const myEventIds = new Set(myParts.map((row) => row.eventId));
-    const lookingToday = new Set(
-      parts
-        .filter((row) => COMPANY.includes(row.status) && eventById.has(row.eventId) && moscowDateKey(eventById.get(row.eventId)!.startsAt) === todayKey)
-        .map((row) => row.userId),
-    );
+    const lookingToday = new Set(parts.filter((row) => COMPANY.includes(row.status) && eventById.has(row.eventId) && moscowDateKey(eventById.get(row.eventId)!.startsAt) === todayKey).map((row) => row.userId));
     const viewerOrigin = origin ?? coordsOf(latest.get(viewerId), originEventById, placeById);
     const people: PeopleCandidate[] = [];
     for (const profile of others) {
@@ -83,9 +74,7 @@ export class PeopleService {
       if (distanceKm !== null && distanceKm > PEOPLE_MAX_KM) continue;
       if (sharedInterests.length === 0 && !sharedEventId) continue;
       const lookingForCompanyToday = lookingToday.has(profile.userId);
-      const context = sharedEventId
-        ? { kind: "shared_event" as const, event: toEventDto(eventById.get(sharedEventId)!), explanation: `вы оба хотите на «${eventById.get(sharedEventId)!.title}»` }
-        : { kind: "shared_interest" as const, interest: sharedInterests[0]!, explanation: `общий интерес: ${sharedInterests[0]}` };
+      const context = sharedEventId ? { kind: "shared_event" as const, event: toEventDto(eventById.get(sharedEventId)!), explanation: `вы оба хотите на «${eventById.get(sharedEventId)!.title}»` } : { kind: "shared_interest" as const, interest: sharedInterests[0]!, explanation: `общий интерес: ${sharedInterests[0]}` };
       people.push({ person: toFriendDto(user), distanceKm, sharedInterests, lookingForCompanyToday, context });
     }
     people.sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99) || a.person.name.localeCompare(b.person.name));
@@ -106,11 +95,7 @@ function latestCheckInByUser(rows: CheckInEntity[]): Map<string, CheckInEntity> 
   return latest;
 }
 
-function coordsOf(
-  row: CheckInEntity | undefined,
-  events: Map<string, EventEntity>,
-  places: Map<string, PlaceEntity>,
-): { latitude: number; longitude: number } | null {
+function coordsOf(row: CheckInEntity | undefined, events: Map<string, EventEntity>, places: Map<string, PlaceEntity>): { latitude: number; longitude: number } | null {
   if (!row) return null;
   const placeId = row.placeId ?? (row.eventId ? events.get(row.eventId)?.placeId : null);
   const place = placeId ? places.get(placeId) : undefined;

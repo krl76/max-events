@@ -74,10 +74,7 @@ export class LeaveNowService {
       if (upcoming.length === 0) return result;
       const eventIds = [...new Set(upcoming.map((row) => row.eventId))];
       const planIds = upcoming.map((row) => row.id);
-      const [events, participantRows] = await Promise.all([
-        this.events.find({ where: { id: In(eventIds) } }),
-        this.participants.find({ where: { planId: In(planIds) } }),
-      ]);
+      const [events, participantRows] = await Promise.all([this.events.find({ where: { id: In(eventIds) } }), this.participants.find({ where: { planId: In(planIds) } })]);
       const eventById = new Map(events.map((row) => [row.id, row]));
       const userIds = [...new Set([...upcoming.map((row) => row.hostUserId), ...participantRows.map((row) => row.userId)])];
       const checkIns = userIds.length === 0 ? [] : await this.checkIns.find({ where: { userId: In(userIds) } });
@@ -86,15 +83,7 @@ export class LeaveNowService {
       const originEventIds = [...new Set(checkIns.map((row) => row.eventId).filter((id): id is string => id !== null))];
       const originEvents = originEventIds.length === 0 ? [] : await this.events.find({ where: { id: In(originEventIds) } });
       const originEventById = new Map(originEvents.map((row) => [row.id, row]));
-      const placeIds = [
-        ...new Set(
-          [
-            ...events.map((row) => row.placeId),
-            ...checkIns.map((row) => row.placeId),
-            ...originEvents.map((row) => row.placeId),
-          ].filter((id): id is string => id !== null),
-        ),
-      ];
+      const placeIds = [...new Set([...events.map((row) => row.placeId), ...checkIns.map((row) => row.placeId), ...originEvents.map((row) => row.placeId)].filter((id): id is string => id !== null))];
       const placeRows = placeIds.length === 0 ? [] : await this.places.find({ where: { id: In(placeIds) } });
       const placeById = new Map(placeRows.map((row) => [row.id, row]));
       const userRows = userIds.length === 0 ? [] : await this.users.find({ where: { id: In(userIds) } });
@@ -171,11 +160,7 @@ function latestCheckInByUser(rows: CheckInEntity[]): Map<string, CheckInEntity> 
   return latest;
 }
 
-function originFromCheckIn(
-  row: CheckInEntity | undefined,
-  events: Map<string, EventEntity>,
-  places: Map<string, PlaceEntity>,
-): { latitude: number; longitude: number } | null {
+function originFromCheckIn(row: CheckInEntity | undefined, events: Map<string, EventEntity>, places: Map<string, PlaceEntity>): { latitude: number; longitude: number } | null {
   if (!row) return null;
   const placeId = row.placeId ?? (row.eventId ? events.get(row.eventId)?.placeId : null);
   const place = placeId ? places.get(placeId) : undefined;

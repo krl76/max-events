@@ -95,9 +95,7 @@ export class ListsService {
   }
 
   private async itemCards(listId: string): Promise<ListItemCard[]> {
-    const rows = (await this.items.find({ where: { listId } }))
-      .filter((row) => row.eventId !== null)
-      .sort((a, b) => b.addedAt.getTime() - a.addedAt.getTime() || b.id.localeCompare(a.id));
+    const rows = (await this.items.find({ where: { listId } })).filter((row) => row.eventId !== null).sort((a, b) => b.addedAt.getTime() - a.addedAt.getTime() || b.id.localeCompare(a.id));
     const events = await this.events.find();
     const eventById = new Map(events.map((row) => [row.id, row]));
     return rows.flatMap((row) => {

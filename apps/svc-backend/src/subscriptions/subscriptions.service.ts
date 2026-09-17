@@ -121,10 +121,7 @@ export class SubscriptionsService {
   }
 }
 
-function sameTarget(
-  row: SubscriptionEntity,
-  fields: { type: SubscriptionEntity["type"]; organizerUserId: string | null; placeId: string | null; interest: string | null },
-): boolean {
+function sameTarget(row: SubscriptionEntity, fields: { type: SubscriptionEntity["type"]; organizerUserId: string | null; placeId: string | null; interest: string | null }): boolean {
   if (row.type !== fields.type) return false;
   if (fields.type === "organizer") return row.organizerUserId === fields.organizerUserId;
   if (fields.type === "place") return row.placeId === fields.placeId;

@@ -59,23 +59,14 @@ describe("buildTodayDigest", () => {
     });
     const digest = buildTodayDigest(input({ events: [...input().events, paid], interests: ["afisha"] }));
     expect(digest.summary).toEqual({ nearbyCount: 2, suitableCount: 2, withFriendsCount: 1 });
-    expect(digest.cards[0].labels).toEqual([
-      { kind: "friend_attending", friendName: "Анна" },
-      { kind: "free_entry" },
-      { kind: "spots_left", count: 12 },
-    ]);
+    expect(digest.cards[0].labels).toEqual([{ kind: "friend_attending", friendName: "Анна" }, { kind: "free_entry" }, { kind: "spots_left", count: 12 }]);
     expect(digest.cards[1].labels.some((label) => label.kind === "free_entry")).toBe(false);
   });
 
   it("excludes other cities, past events and unpublished rows from nearby", () => {
     const digest = buildTodayDigest(
       input({
-        events: [
-          event({ id: "00000000-0000-4000-8000-0000000000e1", title: "Джаз" }),
-          event({ id: "00000000-0000-4000-8000-0000000000e3", title: "Казань", city: "Казань" }),
-          event({ id: "00000000-0000-4000-8000-0000000000e4", title: "Вчера", startsAt: new Date("2026-09-11T18:00:00Z") }),
-          event({ id: "00000000-0000-4000-8000-0000000000e5", title: "Черновик", published: false }),
-        ],
+        events: [event({ id: "00000000-0000-4000-8000-0000000000e1", title: "Джаз" }), event({ id: "00000000-0000-4000-8000-0000000000e3", title: "Казань", city: "Казань" }), event({ id: "00000000-0000-4000-8000-0000000000e4", title: "Вчера", startsAt: new Date("2026-09-11T18:00:00Z") }), event({ id: "00000000-0000-4000-8000-0000000000e5", title: "Черновик", published: false })],
         participations: [],
       }),
     );

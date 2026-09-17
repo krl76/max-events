@@ -40,10 +40,7 @@ export class StatsService {
     const event = await this.events.findOneBy({ id: eventId });
     if (!event) throw new NotFoundException("Event not found");
     if (event.organizerUserId !== actorId) throw new ForbiddenException("Not the organizer");
-    const [viewRows, bookingRows] = await Promise.all([
-      this.views.find({ where: { targetType: "event", targetId: eventId } }),
-      this.bookings.find({ where: { eventId } }),
-    ]);
+    const [viewRows, bookingRows] = await Promise.all([this.views.find({ where: { targetType: "event", targetId: eventId } }), this.bookings.find({ where: { eventId } })]);
     const bookings = bookingRows.length;
     const cancellations = bookingRows.filter((row) => row.status === "cancelled").length;
     const paidBookings = event.isPaid ? bookingRows.filter((row) => row.status === "active").length : 0;

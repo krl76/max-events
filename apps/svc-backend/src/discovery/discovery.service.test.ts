@@ -38,29 +38,11 @@ function place(id: string, title: string): PlaceEntity {
 }
 
 function createService(options: { hidden?: boolean } = {}) {
-  const checkIns = createStoreRepo<CheckInEntity>([
-    { id: "c1", userId: me, eventId: null, placeId: parkId, checkedInAt: now } as CheckInEntity,
-    { id: "c2", userId: anna, eventId: null, placeId: parkId, checkedInAt: now } as CheckInEntity,
-    { id: "c3", userId: anna, eventId: null, placeId: museumId, checkedInAt: now } as CheckInEntity,
-  ]);
-  const users = createStoreRepo<UserEntity>([
-    { id: me, firstName: "Саша", lastName: null, avatarUrl: null } as UserEntity,
-    { id: anna, firstName: "Анна", lastName: null, avatarUrl: null } as UserEntity,
-  ]);
-  const profiles = createStoreRepo<ProfileEntity>(
-    options.hidden
-      ? [{ userId: anna, city: "Москва", interests: [], smartAlerts: { leaveNow: true, weather: true, friendLeft: true, listDigest: true }, privacy: { visitHistory: "hidden", routes: "hidden" }, updatedAt: now } as unknown as ProfileEntity]
-      : [],
-  );
+  const checkIns = createStoreRepo<CheckInEntity>([{ id: "c1", userId: me, eventId: null, placeId: parkId, checkedInAt: now } as CheckInEntity, { id: "c2", userId: anna, eventId: null, placeId: parkId, checkedInAt: now } as CheckInEntity, { id: "c3", userId: anna, eventId: null, placeId: museumId, checkedInAt: now } as CheckInEntity]);
+  const users = createStoreRepo<UserEntity>([{ id: me, firstName: "Саша", lastName: null, avatarUrl: null } as UserEntity, { id: anna, firstName: "Анна", lastName: null, avatarUrl: null } as UserEntity]);
+  const profiles = createStoreRepo<ProfileEntity>(options.hidden ? [{ userId: anna, city: "Москва", interests: [], smartAlerts: { leaveNow: true, weather: true, friendLeft: true, listDigest: true }, privacy: { visitHistory: "hidden", routes: "hidden" }, updatedAt: now } as unknown as ProfileEntity] : []);
   const friends = { friendIds: async () => new Set([anna]) } as unknown as FriendsService;
-  const service = new DiscoveryService(
-    checkIns as unknown as Repository<CheckInEntity>,
-    createStoreRepo<EventEntity>() as unknown as Repository<EventEntity>,
-    createStoreRepo<PlaceEntity>([place(parkId, "Парк"), place(museumId, "Музей")]) as unknown as Repository<PlaceEntity>,
-    users as unknown as Repository<UserEntity>,
-    profiles as unknown as Repository<ProfileEntity>,
-    friends,
-  );
+  const service = new DiscoveryService(checkIns as unknown as Repository<CheckInEntity>, createStoreRepo<EventEntity>() as unknown as Repository<EventEntity>, createStoreRepo<PlaceEntity>([place(parkId, "Парк"), place(museumId, "Музей")]) as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, profiles as unknown as Repository<ProfileEntity>, friends);
   return { service };
 }
 

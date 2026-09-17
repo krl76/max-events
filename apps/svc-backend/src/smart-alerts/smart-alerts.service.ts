@@ -66,19 +66,13 @@ export class SmartAlertsService {
       if (upcoming.length === 0) return result;
       const eventIds = [...new Set(upcoming.map((row) => row.eventId))];
       const planIds = upcoming.map((row) => row.id);
-      const [events, participantRows] = await Promise.all([
-        this.events.find({ where: { id: In(eventIds) } }),
-        this.participants.find({ where: { planId: In(planIds) } }),
-      ]);
+      const [events, participantRows] = await Promise.all([this.events.find({ where: { id: In(eventIds) } }), this.participants.find({ where: { planId: In(planIds) } })]);
       const eventById = new Map(events.map((row) => [row.id, row]));
       const venueIds = [...new Set(events.map((row) => row.placeId).filter((id): id is string => id !== null))];
       const places = venueIds.length === 0 ? [] : await this.places.find({ where: { id: In(venueIds) } });
       const placeById = new Map(places.map((row) => [row.id, row]));
       const userIds = [...new Set([...upcoming.map((row) => row.hostUserId), ...participantRows.map((row) => row.userId)])];
-      const [userRows, checkIns] = await Promise.all([
-        userIds.length === 0 ? Promise.resolve([] as UserEntity[]) : this.users.find({ where: { id: In(userIds) } }),
-        userIds.length === 0 ? Promise.resolve([] as CheckInEntity[]) : this.checkIns.find({ where: { userId: In(userIds) } }),
-      ]);
+      const [userRows, checkIns] = await Promise.all([userIds.length === 0 ? Promise.resolve([] as UserEntity[]) : this.users.find({ where: { id: In(userIds) } }), userIds.length === 0 ? Promise.resolve([] as CheckInEntity[]) : this.checkIns.find({ where: { userId: In(userIds) } })]);
       const userById = new Map(userRows.map((row) => [row.id, row]));
       const latestCheckIn = latestCheckInByUser(checkIns);
       const profileRows = userIds.length === 0 ? [] : await this.profiles.find({ where: { userId: In(userIds) } });
@@ -99,16 +93,7 @@ export class SmartAlertsService {
     }
   }
 
-  private async sendWeather(
-    plan: PlanEntity,
-    event: EventEntity,
-    venue: PlaceEntity | undefined,
-    audienceIds: string[],
-    userById: Map<string, UserEntity>,
-    prefsByUser: Map<string, SmartAlertSettings>,
-    now: Date,
-    result: SmartAlertTickResult,
-  ): Promise<void> {
+  private async sendWeather(plan: PlanEntity, event: EventEntity, venue: PlaceEntity | undefined, audienceIds: string[], userById: Map<string, UserEntity>, prefsByUser: Map<string, SmartAlertSettings>, now: Date, result: SmartAlertTickResult): Promise<void> {
     if (plan.weatherAlertSentAt || !venue) return;
     const until = event.startsAt.getTime() - now.getTime();
     if (until <= 0 || until > WEATHER_WINDOW_MS) return;
@@ -134,17 +119,7 @@ export class SmartAlertsService {
     await this.plans.save(plan);
   }
 
-  private async sendFriendLeft(
-    plan: PlanEntity,
-    event: EventEntity,
-    confirmed: PlanParticipantEntity[],
-    audienceIds: string[],
-    userById: Map<string, UserEntity>,
-    latestCheckIn: Map<string, CheckInEntity>,
-    prefsByUser: Map<string, SmartAlertSettings>,
-    now: Date,
-    result: SmartAlertTickResult,
-  ): Promise<void> {
+  private async sendFriendLeft(plan: PlanEntity, event: EventEntity, confirmed: PlanParticipantEntity[], audienceIds: string[], userById: Map<string, UserEntity>, latestCheckIn: Map<string, CheckInEntity>, prefsByUser: Map<string, SmartAlertSettings>, now: Date, result: SmartAlertTickResult): Promise<void> {
     const leavers: Array<{ userId: string; mark: () => Promise<void> }> = [];
     if (!plan.friendLeftBroadcastAt && hasLeft(plan.leaveNowSentAt, event, latestCheckIn.get(plan.hostUserId))) {
       leavers.push({
