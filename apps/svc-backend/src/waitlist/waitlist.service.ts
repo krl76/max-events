@@ -36,11 +36,11 @@ export class WaitlistService {
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
   ) {}
 
-  async join(userId: string, eventId: string): Promise<WaitlistEntry> {
+  async join(userId: string, eventId: string, now = new Date()): Promise<WaitlistEntry> {
     return this.dataSource.transaction(async (manager) => {
       const event = await manager.findOne(EventEntity, { where: { id: eventId }, lock: { mode: "pessimistic_write" } });
       if (!event || event.published === false) throw new NotFoundException("Event not found");
-      if (publicBookingClosed(event, new Date())) throw new ForbiddenException("Waitlist opens when public booking starts");
+      if (publicBookingClosed(event, now)) throw new ForbiddenException("Waitlist opens when public booking starts");
       if (event.capacity === null || event.bookedCount < event.capacity) {
         throw new ConflictException("Seats are still available");
       }

@@ -27,7 +27,7 @@ export class BookingsService {
     @Inject(PromoService) private readonly promo: PromoService,
   ) {}
 
-  async create(userId: string, eventId: string, promoCode?: string | null, now = new Date()): Promise<BookingWithSeats> {
+  async create(userId: string, eventId: string, promoCode?: string | null, now = new Date(), referralCode?: string | null): Promise<BookingWithSeats> {
     try {
       return await this.dataSource.transaction(async (manager) => {
         const event = await manager.findOne(EventEntity, { where: { id: eventId }, lock: { mode: "pessimistic_write" } });
@@ -42,6 +42,7 @@ export class BookingsService {
         }
 
         const booking = await manager.save(BookingEntity, manager.create(BookingEntity, { userId, eventId, status: "active", promoCode: applied }));
+        await this.promo.recordFulfillmentInTransaction(manager, event, userId, booking.id, referralCode ?? undefined, now);
         event.bookedCount += 1;
         await manager.save(EventEntity, event);
         return toBookingDto(booking, event);
@@ -66,6 +67,7 @@ export class BookingsService {
 
       locked.status = "cancelled";
       event.bookedCount = Math.max(0, event.bookedCount - 1);
+      await this.promo.releaseInTransaction(manager, event, locked.promoCode);
       const saved = await manager.save(BookingEntity, locked);
       await manager.save(EventEntity, event);
       const offered = await this.waitlist.onSeatFreed(manager, event);

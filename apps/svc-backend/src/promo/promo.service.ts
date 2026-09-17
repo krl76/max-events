@@ -1,22 +1,26 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Organizer promocodes and early-access booking window.
-// SCOPE: create/list codes; setBookingOpensAt; redeem inside a booking transaction; list bookings with applied code.
+// PURPOSE: Organizer promocodes, early-access window, and refer-a-friend / special-offer campaigns.
+// SCOPE: create/list codes; setBookingOpensAt; redeem inside a booking transaction; list bookings; campaign fulfillments.
 // DEPENDS: typeorm, @max-events/api-contracts, events/bookings
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - toPromoDto - entity to PromoCode
-// - PromoService - CRUD, early access, redeem, booking list
+// - PromoService - CRUD, early access, redeem, booking list, campaigns
+// - toCampaignDto - entity to PromoCampaign
 // END_MODULE_MAP
 
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { EntityManager, QueryFailedError, Repository } from "typeorm";
-import type { CreatePromoCodeWrite, OrganizerBookingRow, PromoCode } from "@max-events/api-contracts";
+import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, OrganizerBookingRow, PromoCampaign, PromoCode } from "@max-events/api-contracts";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
+import { UserEntity } from "../users/user.entity";
+import { PromoCampaignEntity } from "./promo-campaign.entity";
 import { PromoCodeEntity } from "./promo-code.entity";
+import { PromoFulfillmentEntity } from "./promo-fulfillment.entity";
 
 @Injectable()
 export class PromoService {
@@ -24,6 +28,7 @@ export class PromoService {
     @InjectRepository(PromoCodeEntity) private readonly codes: Repository<PromoCodeEntity>,
     @InjectRepository(EventEntity) private readonly events: Repository<EventEntity>,
     @InjectRepository(BookingEntity) private readonly bookings: Repository<BookingEntity>,
+    @InjectRepository(PromoCampaignEntity) private readonly campaigns: Repository<PromoCampaignEntity>,
   ) {}
 
   async create(actorId: string, eventId: string, payload: CreatePromoCodeWrite): Promise<PromoCode> {
@@ -89,12 +94,100 @@ export class PromoService {
     return code;
   }
 
+  async createCampaign(actorId: string, eventId: string, payload: CreatePromoCampaignWrite): Promise<PromoCampaign> {
+    const event = await this.requireOwnedEvent(actorId, eventId);
+    const code = payload.code.trim().toUpperCase();
+    if (!code || code.length > 40) throw new BadRequestException("Invalid campaign payload");
+    try {
+      const saved = await this.campaigns.save(
+        this.campaigns.create({
+          eventId: event.id,
+          organizerUserId: actorId,
+          type: payload.type,
+          status: "active",
+          code,
+          title: payload.title.trim(),
+          maxFulfillments: payload.maxFulfillments ?? null,
+          fulfillmentCount: 0,
+          completedAt: null,
+        }),
+      );
+      return toCampaignDto(saved);
+    } catch (error) {
+      if (error instanceof QueryFailedError && error.driverError?.code === "23505") throw new ConflictException("Campaign code already exists");
+      throw error;
+    }
+  }
+
+  async listCampaigns(actorId: string, eventId: string): Promise<PromoCampaign[]> {
+    await this.requireOwnedEvent(actorId, eventId);
+    const rows = await this.campaigns.find({ where: { eventId }, order: { createdAt: "ASC" } });
+    return rows.map(toCampaignDto);
+  }
+
+  async recordFulfillmentInTransaction(manager: EntityManager, event: EventEntity, userId: string, bookingId: string, rawCode: string | undefined, now: Date): Promise<void> {
+    const code = rawCode?.trim().toUpperCase();
+    if (!code) return;
+    const campaign = await manager.findOne(PromoCampaignEntity, { where: { eventId: event.id, code }, lock: { mode: "pessimistic_write" } });
+    if (!campaign || campaign.status !== "active") throw new ForbiddenException("Invalid referral code");
+    if (campaign.type === "refer_a_friend") {
+      const user = await manager.findOne(UserEntity, { where: { id: userId } });
+      if (!user || user.createdAt.getTime() < campaign.createdAt.getTime()) return;
+      const prior = await manager.count(BookingEntity, { where: { userId } });
+      if (prior > 1) return;
+    }
+    if (campaign.maxFulfillments !== null && campaign.fulfillmentCount >= campaign.maxFulfillments) {
+      campaign.status = "completed";
+      campaign.completedAt = now;
+      await manager.save(PromoCampaignEntity, campaign);
+      return;
+    }
+    try {
+      await manager.save(
+        PromoFulfillmentEntity,
+        manager.create(PromoFulfillmentEntity, { campaignId: campaign.id, referredUserId: userId, bookingId }),
+      );
+    } catch (error) {
+      if (error instanceof QueryFailedError && error.driverError?.code === "23505") return;
+      throw error;
+    }
+    campaign.fulfillmentCount += 1;
+    if (campaign.maxFulfillments !== null && campaign.fulfillmentCount >= campaign.maxFulfillments) {
+      campaign.status = "completed";
+      campaign.completedAt = now;
+    }
+    await manager.save(PromoCampaignEntity, campaign);
+  }
+
+  async releaseInTransaction(manager: EntityManager, event: EventEntity, code: string | null): Promise<void> {
+    if (!code) return;
+    const row = await manager.findOne(PromoCodeEntity, { where: { eventId: event.id, code }, lock: { mode: "pessimistic_write" } });
+    if (!row) return;
+    row.redeemedCount = Math.max(0, row.redeemedCount - 1);
+    await manager.save(PromoCodeEntity, row);
+  }
+
   private async requireOwnedEvent(actorId: string, eventId: string): Promise<EventEntity> {
     const event = await this.events.findOneBy({ id: eventId });
     if (!event) throw new NotFoundException("Event not found");
     if (event.organizerUserId !== actorId) throw new ForbiddenException("Not the organizer");
     return event;
   }
+}
+
+export function toCampaignDto(row: PromoCampaignEntity): PromoCampaign {
+  return {
+    id: row.id,
+    eventId: row.eventId,
+    type: row.type,
+    status: row.status,
+    code: row.code,
+    title: row.title,
+    maxFulfillments: row.maxFulfillments,
+    fulfillmentCount: row.fulfillmentCount,
+    createdAt: row.createdAt.toISOString(),
+    completedAt: row.completedAt ? row.completedAt.toISOString() : null,
+  };
 }
 
 export function toPromoDto(row: PromoCodeEntity): PromoCode {

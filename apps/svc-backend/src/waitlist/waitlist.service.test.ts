@@ -131,7 +131,7 @@ describe("WaitlistService.join", () => {
     const event = seedEvent(1, 1);
     event.bookingOpensAt = new Date("2026-09-20T00:00:00Z");
     const { service } = createHarness(event);
-    await expect(service.join(userA, eventId)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.join(userA, eventId, now)).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
 

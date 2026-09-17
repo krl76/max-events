@@ -13,11 +13,13 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
+import { PromoCampaignEntity } from "./promo-campaign.entity";
 import { PromoCodeEntity } from "./promo-code.entity";
+import { PromoFulfillmentEntity } from "./promo-fulfillment.entity";
 import { PromoService } from "./promo.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PromoCodeEntity, EventEntity, BookingEntity])],
+  imports: [TypeOrmModule.forFeature([PromoCodeEntity, PromoCampaignEntity, PromoFulfillmentEntity, EventEntity, BookingEntity])],
   providers: [PromoService],
   exports: [PromoService],
 })

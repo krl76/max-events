@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for organizer promocodes and early-access booking window.
-// SCOPE: promo code entity, create write, early-access write, booking list row with applied code.
+// SCOPE: promo code entity, create write, early-access write, booking list row with applied code, refer-a-friend and special-offer campaigns.
 // DEPENDS: zod, ./primitives.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -14,6 +14,14 @@
 // - EarlyAccessWrite - write type
 // - OrganizerBookingRowSchema - booking plus applied promo
 // - OrganizerBookingRow - row type
+// - PromoCampaignTypeSchema - refer-a-friend or special offer
+// - PromoCampaignType - campaign type enum
+// - PromoCampaignStatusSchema - active or completed
+// - PromoCampaignStatus - campaign status type
+// - PromoCampaignSchema - campaign with fulfillment counters
+// - PromoCampaign - campaign type
+// - CreatePromoCampaignWriteSchema - organizer create payload
+// - CreatePromoCampaignWrite - write type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -52,3 +60,31 @@ export const OrganizerBookingRowSchema = z.object({
   createdAt: TimestampSchema,
 });
 export type OrganizerBookingRow = z.infer<typeof OrganizerBookingRowSchema>;
+
+export const PromoCampaignTypeSchema = z.enum(["refer_a_friend", "special_offer"]);
+export type PromoCampaignType = z.infer<typeof PromoCampaignTypeSchema>;
+
+export const PromoCampaignStatusSchema = z.enum(["active", "completed"]);
+export type PromoCampaignStatus = z.infer<typeof PromoCampaignStatusSchema>;
+
+export const PromoCampaignSchema = z.object({
+  id: IdSchema,
+  eventId: IdSchema,
+  type: PromoCampaignTypeSchema,
+  status: PromoCampaignStatusSchema,
+  code: z.string().min(1).max(40),
+  title: z.string().min(1).max(200),
+  maxFulfillments: z.number().int().positive().nullable(),
+  fulfillmentCount: z.number().int().min(0),
+  createdAt: TimestampSchema,
+  completedAt: TimestampSchema.nullable(),
+});
+export type PromoCampaign = z.infer<typeof PromoCampaignSchema>;
+
+export const CreatePromoCampaignWriteSchema = z.object({
+  type: PromoCampaignTypeSchema,
+  code: z.string().min(1).max(40),
+  title: z.string().min(1).max(200),
+  maxFulfillments: z.number().int().positive().nullable().optional(),
+});
+export type CreatePromoCampaignWrite = z.infer<typeof CreatePromoCampaignWriteSchema>;

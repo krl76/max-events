@@ -56,7 +56,7 @@ export class PeopleService {
     const originEventById = new Map(originEvents.map((row) => [row.id, row]));
     const placeIds = [...new Set([...latest.values()].flatMap((row) => (row.placeId ? [row.placeId] : [])))];
     for (const event of originEvents) if (event.placeId) placeIds.push(event.placeId);
-    const placeRows = placeIds.length === 0 ? [] : await this.places.find({ where: { id: In([...new Set(placeIds)]) } });
+    const placeRows = placeIds.length === 0 ? [] : await this.places.find({ where: { id: In([...new Set(placeIds)]), published: true } });
     const placeById = new Map(placeRows.map((row) => [row.id, row]));
     const todayKey = moscowDateKey(now);
     const eventById = new Map(upcoming.map((row) => [row.id, row]));

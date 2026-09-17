@@ -219,6 +219,7 @@ describe("EventsService", () => {
     const { service } = createService({ draftPlaceIds: [placeId], ownerId: organizer });
     const draft = await service.create(CreateEventSchema.parse({ ...payload, placeId }), organizer, { draft: true });
     expect(draft.placeId).toBe(placeId);
+    await expect(service.publish(draft.id, organizer)).rejects.toBeInstanceOf(BadRequestException);
     const banned = createService({ banned: true });
     await expect(banned.service.publish(draft.id, organizer)).rejects.toBeInstanceOf(ForbiddenException);
   });

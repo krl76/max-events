@@ -36,6 +36,7 @@ describe("CreateBookingSchema", () => {
   it("accepts an omitted or null promo code and a bounded code string", () => {
     expect(CreateBookingSchema.parse({ userId, eventId, promoCode: null })).toEqual({ userId, eventId, promoCode: null });
     expect(CreateBookingSchema.parse({ userId, eventId, promoCode: "EARLY" }).promoCode).toBe("EARLY");
+    expect(CreateBookingSchema.parse({ userId, eventId, referralCode: "FRIEND" }).referralCode).toBe("FRIEND");
     expect(CreateBookingSchema.safeParse({ userId, eventId, promoCode: "" }).success).toBe(false);
   });
 

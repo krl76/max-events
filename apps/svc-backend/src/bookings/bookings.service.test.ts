@@ -116,10 +116,15 @@ function createDataSource(event: EventEntity) {
   return { bookings, dataSource: dataSource as unknown as DataSource, events };
 }
 
-function createService(event: EventEntity = seedEvent(), promoOverride?: { redeemInTransaction: PromoService["redeemInTransaction"] }) {
+function createService(event: EventEntity = seedEvent(), promoOverride?: Partial<Pick<PromoService, "redeemInTransaction" | "recordFulfillmentInTransaction">>) {
   const fake = createDataSource(event);
   const waitlist = { onSeatFreed: async () => null } as unknown as WaitlistService;
-  const promo = (promoOverride ?? { redeemInTransaction: async () => null }) as unknown as PromoService;
+  const promo = {
+    redeemInTransaction: async () => null,
+    recordFulfillmentInTransaction: async () => undefined,
+    releaseInTransaction: async () => undefined,
+    ...promoOverride,
+  } as unknown as PromoService;
   const service = new BookingsService(fake.dataSource, waitlist, promo);
   return { ...fake, service, waitlist };
 }

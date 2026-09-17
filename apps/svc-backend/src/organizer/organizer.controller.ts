@@ -10,7 +10,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post } from "@nestjs/common";
-import { CreateEventSchema, CreatePlaceSchema, CreatePromoCodeWriteSchema, EarlyAccessWriteSchema, type Event, type OrganizerBookingRow, type Place, type PromoCode } from "@max-events/api-contracts";
+import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, EarlyAccessWriteSchema, type Event, type OrganizerBookingRow, type Place, type PromoCampaign, type PromoCode } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { EventsService } from "../events/events.service";
 import { PlacesService } from "../places/places.service";
@@ -81,5 +81,17 @@ export class OrganizerController {
   @Get("events/:id/bookings")
   listBookings(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<OrganizerBookingRow[]> {
     return this.promo.listBookings(user.id, id);
+  }
+
+  @Post("events/:id/campaigns")
+  async createCampaign(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<PromoCampaign> {
+    const parsed = CreatePromoCampaignWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid campaign payload");
+    return this.promo.createCampaign(user.id, id, parsed.data);
+  }
+
+  @Get("events/:id/campaigns")
+  listCampaigns(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PromoCampaign[]> {
+    return this.promo.listCampaigns(user.id, id);
   }
 }

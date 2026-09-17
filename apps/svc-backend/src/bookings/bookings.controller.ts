@@ -24,7 +24,7 @@ export class BookingsController {
     const parsed = CreateBookingSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid booking payload");
     if (parsed.data.userId !== user.id) throw new ForbiddenException("Cannot book for another user");
-    return this.bookings.create(user.id, parsed.data.eventId, parsed.data.promoCode);
+    return this.bookings.create(user.id, parsed.data.eventId, parsed.data.promoCode, new Date(), parsed.data.referralCode);
   }
 
   @Delete(":id")

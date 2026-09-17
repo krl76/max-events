@@ -116,6 +116,14 @@ export class EventsService {
     const existing = await this.events.findOneBy({ id });
     if (!existing) throw new NotFoundException("Event not found");
     assertOrganizer(existing.organizerUserId, actorId);
+    if (existing.placeId) {
+      try {
+        await this.places.getById(existing.placeId);
+      } catch (error) {
+        if (error instanceof NotFoundException) throw new BadRequestException("Place must be published");
+        throw error;
+      }
+    }
     const firstPublish = existing.published === false;
     existing.published = true;
     const saved = await this.events.save(existing);
