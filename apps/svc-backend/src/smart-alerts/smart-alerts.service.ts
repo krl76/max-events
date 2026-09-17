@@ -100,7 +100,6 @@ export class SmartAlertsService {
     const hour = await this.weather.precipitationAt(venue.latitude, venue.longitude, event.startsAt);
     if (!hour || !isRainy(hour)) return;
     const text = formatWeatherAlertText(event.title);
-    let delivered = 0;
     for (const userId of audienceIds) {
       const prefs = prefsByUser.get(userId) ?? DEFAULT_SMART_ALERTS;
       if (!prefs.weather) continue;
@@ -112,7 +111,6 @@ export class SmartAlertsService {
       const ok = await this.dm(user, text);
       if (ok) {
         result.sent += 1;
-        delivered += 1;
       } else result.failed += 1;
     }
     plan.weatherAlertSentAt = now;
