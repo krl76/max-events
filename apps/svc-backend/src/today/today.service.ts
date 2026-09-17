@@ -7,7 +7,8 @@
 //
 // START_MODULE_MAP
 // - GeoOrigin - lat/lng origin
-// - TodayDigestInput - city, interests, friends, events, places
+// - TodayDigestInput - city, interests, friends, events, places, optional after-me
+// - AfterMeHint - follow-on category for digest labels
 // - TodayFriend - friend id+name for digest
 // - walkingMinutes - haversine meters / 80 m per minute
 // - buildTodayDigest - summary + up to 10 labelled cards
@@ -23,6 +24,7 @@ import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { PlaceEntity } from "../places/place.entity";
+import { TasteService } from "../taste/taste.service";
 import { ProfilesService } from "../users/profiles.service";
 import { UserEntity } from "../users/user.entity";
 
@@ -33,6 +35,8 @@ export type GeoOrigin = { latitude: number; longitude: number };
 
 export type TodayFriend = { id: string; name: string };
 
+export type AfterMeHint = { fromCategory: string; toCategory: string; afterCount: number };
+
 export type TodayDigestInput = {
   now: Date;
   city: string;
@@ -42,6 +46,7 @@ export type TodayDigestInput = {
   places: PlaceEntity[];
   friends: TodayFriend[];
   participations: Array<{ userId: string; eventId: string; status: string }>;
+  afterMe?: AfterMeHint | null;
 };
 
 @Injectable()
@@ -53,6 +58,7 @@ export class TodayService {
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @Inject(ProfilesService) private readonly profiles: ProfilesService,
     @Inject(FriendsService) private readonly friends: FriendsService,
+    @Inject(TasteService) private readonly taste: TasteService,
   ) {}
 
   async digest(userId: string, now = new Date(), origin: GeoOrigin | null = null): Promise<TodayResponse> {
@@ -65,6 +71,7 @@ export class TodayService {
       this.users.find(),
     ]);
     const friends: TodayFriend[] = friendUsers.filter((row) => friendIds.has(row.id)).map((row) => ({ id: row.id, name: toFriendDto(row).name }));
+    const afterMe = (await this.taste.afterMe(userId, now)).suggestions[0] ?? null;
     return buildTodayDigest({
       now,
       city: profile.city,
@@ -74,6 +81,7 @@ export class TodayService {
       places,
       friends,
       participations: participations.map((row) => ({ userId: row.userId, eventId: row.eventId, status: row.status })),
+      afterMe: afterMe ? { fromCategory: afterMe.fromCategory, toCategory: afterMe.toCategory, afterCount: afterMe.afterCount } : null,
     });
   }
 }
@@ -94,9 +102,12 @@ export function buildTodayDigest(input: TodayDigestInput): TodayResponse {
     if (!attendingByEvent.has(row.eventId)) attendingByEvent.set(row.eventId, friendNameById.get(row.userId) ?? "друг");
   }
   const placeById = new Map(input.places.map((row) => [row.id, row]));
-  const cards: TodayEventCard[] = nearby.slice(0, CARD_LIMIT).map((row) => ({
+  const ranked = input.afterMe
+    ? [...nearby].sort((a, b) => Number(b.category === input.afterMe?.toCategory) - Number(a.category === input.afterMe?.toCategory) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id))
+    : nearby;
+  const cards: TodayEventCard[] = ranked.slice(0, CARD_LIMIT).map((row) => ({
     event: toEventDto(row),
-    labels: cardLabels(row, row.placeId ? placeById.get(row.placeId) : undefined, input.origin, attendingByEvent.get(row.id)),
+    labels: cardLabels(row, row.placeId ? placeById.get(row.placeId) : undefined, input.origin, attendingByEvent.get(row.id), input.afterMe),
   }));
   return {
     summary: {
@@ -124,8 +135,9 @@ function matchesInterests(event: EventEntity, interests: string[]): boolean {
   return interests.some((interest) => haystack.includes(interest.toLowerCase()));
 }
 
-function cardLabels(event: EventEntity, place: PlaceEntity | undefined, origin: GeoOrigin | null, friendName: string | undefined): TodayCardLabel[] {
+function cardLabels(event: EventEntity, place: PlaceEntity | undefined, origin: GeoOrigin | null, friendName: string | undefined, afterMe?: AfterMeHint | null): TodayCardLabel[] {
   const labels: TodayCardLabel[] = [];
+  if (afterMe && event.category === afterMe.toCategory) labels.push({ kind: "after_me", fromCategory: afterMe.fromCategory, afterCount: afterMe.afterCount });
   if (origin && place) labels.push({ kind: "distance", minutes: walkingMinutes(origin, place.latitude, place.longitude) });
   if (friendName) labels.push({ kind: "friend_attending", friendName });
   if (!event.isPaid) labels.push({ kind: "free_entry" });

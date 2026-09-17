@@ -16,12 +16,13 @@ import { FriendsModule } from "../friends/friends.module";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { UserEntity } from "../users/user.entity";
+import { TasteModule } from "../taste/taste.module";
 import { UsersModule } from "../users/users.module";
 import { TodayController } from "./today.controller";
 import { TodayService } from "./today.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([EventEntity, PlaceEntity, ParticipationEntity, UserEntity]), UsersModule, FriendsModule],
+  imports: [TypeOrmModule.forFeature([EventEntity, PlaceEntity, ParticipationEntity, UserEntity]), UsersModule, FriendsModule, TasteModule],
   controllers: [TodayController],
   providers: [TodayService],
 })

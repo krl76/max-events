@@ -43,6 +43,7 @@ import { NearbyModule } from "./nearby/nearby.module";
 import { RoutesModule } from "./routes/routes.module";
 import { LeaveNowModule } from "./leave-now/leave-now.module";
 import { SmartAlertsModule } from "./smart-alerts/smart-alerts.module";
+import { TasteModule } from "./taste/taste.module";
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { SmartAlertsModule } from "./smart-alerts/smart-alerts.module";
     RoutesModule,
     LeaveNowModule,
     SmartAlertsModule,
+    TasteModule,
   ],
 })
 export class AppModule {}

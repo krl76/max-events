@@ -83,6 +83,13 @@ describe("buildTodayDigest", () => {
     expect(digest.cards.map((card) => card.event.title)).toEqual(["Джаз"]);
   });
 
+  it("promotes after-me categories and labels them", () => {
+    const sport = event({ id: "00000000-0000-4000-8000-0000000000e9", title: "Забег", category: "sport", startsAt: new Date("2026-09-14T10:00:00Z") });
+    const digest = buildTodayDigest(input({ events: [...input().events, sport], afterMe: { fromCategory: "afisha", toCategory: "sport", afterCount: 3 } }));
+    expect(digest.cards[0]?.event.title).toBe("Забег");
+    expect(digest.cards[0]?.labels.some((label) => label.kind === "after_me" && label.afterCount === 3)).toBe(true);
+  });
+
   it("adds a walking-distance label when origin and place are present", () => {
     const digest = buildTodayDigest(input({ origin: { latitude: 55.7297, longitude: 37.6014 }, participations: [] }));
     expect(digest.cards[0].labels[0]).toEqual({ kind: "distance", minutes: 0 });

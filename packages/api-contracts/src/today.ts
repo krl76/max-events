@@ -42,6 +42,11 @@ export const TodayCardLabelSchema = z.discriminatedUnion("kind", [
     kind: z.literal("spots_left"),
     count: z.number().int().min(0),
   }),
+  z.object({
+    kind: z.literal("after_me"),
+    fromCategory: z.string().min(1),
+    afterCount: z.number().int().min(0),
+  }),
 ]);
 export type TodayCardLabel = z.infer<typeof TodayCardLabelSchema>;
 
