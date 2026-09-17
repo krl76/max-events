@@ -11,13 +11,14 @@
 // - haversineMeters - distance from origin to a lat/lng
 // - formatPlanReminderText - DM body for the meeting
 // - formatPlanInviteText - invite DM body
-// - PlansService - create, list, get, addParticipant, respond, remove, remindMeeting
+// - settleBalances - greedy debt settlement
+// - PlansService - create, list, get, addParticipant, respond, remove, remindMeeting, budget
 // END_MODULE_MAP
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import type { AutoPlanProposal, CreatePlanWrite, Plan, PlanCard, PlanParticipantStatus, Place } from "@max-events/api-contracts";
+import type { AutoPlanProposal, CreatePlanExpenseWrite, CreatePlanWrite, Plan, PlanBudget, PlanCard, PlanDebt, PlanParticipantStatus, Place } from "@max-events/api-contracts";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
@@ -26,6 +27,7 @@ import { PlaceEntity } from "../places/place.entity";
 import { toPlaceDto } from "../places/places.service";
 import { isInReminderWindow } from "../reminders/reminders.service";
 import { UserEntity } from "../users/user.entity";
+import { PlanExpenseEntity } from "./plan-expense.entity";
 import { PlanParticipantEntity } from "./plan-participant.entity";
 import { PlanEntity } from "./plan.entity";
 
@@ -51,6 +53,35 @@ export function formatPlanReminderText(title: string, meetingPoint: string, meet
   return `Напоминание: сбор «${title}» ${meetingPoint} в ${meetingAt.toISOString()}`;
 }
 
+export function settleBalances(balances: Map<string, number>): PlanDebt[] {
+  const debtors = [...balances.entries()].filter(([, value]) => value < 0).sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]));
+  const creditors = [...balances.entries()].filter(([, value]) => value > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const debts: PlanDebt[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < debtors.length && j < creditors.length) {
+    const pay = Math.min(-debtors[i]![1], creditors[j]![1]);
+    if (pay > 0) debts.push({ fromUserId: debtors[i]![0], toUserId: creditors[j]![0], amountRub: pay });
+    debtors[i]![1] += pay;
+    creditors[j]![1] -= pay;
+    if (debtors[i]![1] === 0) i += 1;
+    if (creditors[j]![1] === 0) j += 1;
+  }
+  return debts;
+}
+
+function toExpenseDto(row: PlanExpenseEntity) {
+  return {
+    id: row.id,
+    planId: row.planId,
+    title: row.title,
+    amountRub: row.amountRub,
+    payerUserId: row.payerUserId,
+    shareUserIds: row.shareUserIds,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
 export function formatPlanInviteText(title: string, meetingPoint: string, meetingAt: Date, chatLink: string | null): string {
   const chat = chatLink ? ` Чат: ${chatLink}` : "";
   return `Тебя зовут в план «${title}». Сбор ${meetingAt.toISOString()} ${meetingPoint}.${chat}`;
@@ -66,6 +97,7 @@ export class PlansService {
     @InjectRepository(EventEntity) private readonly events: Repository<EventEntity>,
     @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
+    @InjectRepository(PlanExpenseEntity) private readonly expenses: Repository<PlanExpenseEntity>,
     @Inject(FriendsService) private readonly friends: FriendsService,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
   ) {}
@@ -252,6 +284,64 @@ export class PlansService {
     }
     await mark();
     return true;
+  }
+
+  async addExpense(actorId: string, planId: string, payload: CreatePlanExpenseWrite): Promise<PlanBudget> {
+    const plan = await this.plans.findOneBy({ id: planId });
+    if (!plan) throw new NotFoundException("Plan not found");
+    if (!(await this.canView(actorId, plan))) throw new ForbiddenException("Cannot view another user's plan");
+    const party = await this.partyIds(plan);
+    if (!party.has(payload.payerUserId) || payload.shareUserIds.some((id) => !party.has(id))) {
+      throw new BadRequestException("Invalid expense payload");
+    }
+    const shareUserIds = [...new Set(payload.shareUserIds)];
+    await this.expenses.save(
+      this.expenses.create({
+        planId,
+        title: payload.title.trim(),
+        amountRub: payload.amountRub,
+        payerUserId: payload.payerUserId,
+        shareUserIds,
+      }),
+    );
+    return this.getBudget(actorId, planId);
+  }
+
+  async getBudget(actorId: string, planId: string): Promise<PlanBudget> {
+    const plan = await this.plans.findOneBy({ id: planId });
+    if (!plan) throw new NotFoundException("Plan not found");
+    if (!(await this.canView(actorId, plan))) throw new ForbiddenException("Cannot view another user's plan");
+    const rows = await this.expenses.find({ where: { planId }, order: { createdAt: "ASC", id: "ASC" } });
+    const party = [...(await this.partyIds(plan))].sort();
+    const paid = new Map(party.map((id) => [id, 0]));
+    const share = new Map(party.map((id) => [id, 0]));
+    for (const row of rows) {
+      paid.set(row.payerUserId, (paid.get(row.payerUserId) ?? 0) + row.amountRub);
+      const ids = [...row.shareUserIds].sort();
+      const n = ids.length;
+      const base = Math.floor(row.amountRub / n);
+      const rem = row.amountRub % n;
+      ids.forEach((id, index) => {
+        share.set(id, (share.get(id) ?? 0) + base + (index < rem ? 1 : 0));
+      });
+    }
+    const balances = new Map(party.map((id) => [id, (paid.get(id) ?? 0) - (share.get(id) ?? 0)]));
+    return {
+      expenses: rows.map(toExpenseDto),
+      perPerson: party.map((userId) => ({
+        userId,
+        paidRub: paid.get(userId) ?? 0,
+        shareRub: share.get(userId) ?? 0,
+        netRub: balances.get(userId) ?? 0,
+      })),
+      debts: settleBalances(balances),
+      totalRub: rows.reduce((sum, row) => sum + row.amountRub, 0),
+    };
+  }
+
+  private async partyIds(plan: PlanEntity): Promise<Set<string>> {
+    const rows = await this.participants.find({ where: { planId: plan.id } });
+    return new Set([plan.hostUserId, ...rows.map((row) => row.userId)]);
   }
 
   private async canView(userId: string, plan: PlanEntity): Promise<boolean> {

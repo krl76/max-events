@@ -11,7 +11,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
-import { CreateAutoPlanWriteSchema, CreatePlanWriteSchema, IdSchema, PlanParticipantWriteSchema, type AutoPlanProposal, type PlanCard } from "@max-events/api-contracts";
+import { CreateAutoPlanWriteSchema, CreatePlanExpenseWriteSchema, CreatePlanWriteSchema, IdSchema, PlanParticipantWriteSchema, type AutoPlanProposal, type PlanBudget, type PlanCard } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { PlansService, type GeoOrigin } from "./plans.service";
@@ -37,6 +37,18 @@ export class PlansController {
     const parsed = CreatePlanWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid plan payload");
     return this.plans.create(user.id, parsed.data);
+  }
+
+  @Get(":id/budget")
+  budget(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PlanBudget> {
+    return this.plans.getBudget(user.id, id);
+  }
+
+  @Post(":id/expenses")
+  async addExpense(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<PlanBudget> {
+    const parsed = CreatePlanExpenseWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid expense payload");
+    return this.plans.addExpense(user.id, id, parsed.data);
   }
 
   @Get(":id")

@@ -7,9 +7,10 @@ import type { FriendsService } from "../friends/friends.service";
 import type { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlaceEntity } from "../places/place.entity";
 import { UserEntity } from "../users/user.entity";
+import { PlanExpenseEntity } from "./plan-expense.entity";
 import { PlanParticipantEntity } from "./plan-participant.entity";
 import { PlanEntity } from "./plan.entity";
-import { haversineMeters, PlansService } from "./plans.service";
+import { haversineMeters, PlansService, settleBalances } from "./plans.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
 const hostId = "00000000-0000-4000-8000-00000000000a";
@@ -111,7 +112,8 @@ function createService() {
       return true;
     },
   } as unknown as MaxBotClient;
-  const service = new PlansService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, userRepo as unknown as Repository<UserEntity>, friends, bot);
+  const expenses = createStoreRepo<PlanExpenseEntity>();
+  const service = new PlansService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, userRepo as unknown as Repository<UserEntity>, expenses as unknown as Repository<PlanExpenseEntity>, friends, bot);
   return { service, messages, plans };
 }
 
@@ -175,5 +177,29 @@ describe("PlansService", () => {
     expect(messages).toHaveLength(2);
     const second = await service.remindMeeting(now);
     expect(second.sent).toBe(0);
+  });
+
+  it("splits expenses and returns per-person totals and debts", async () => {
+    const { service } = createService();
+    const created = await service.create(hostId, { eventId, participantIds: [dimaId, katyaId], meetingPoint: "у метро", meetingAt });
+    await service.addExpense(hostId, created.plan.id, { title: "Билет", amountRub: 850, payerUserId: hostId, shareUserIds: [hostId, dimaId] });
+    await service.addExpense(dimaId, created.plan.id, { title: "Такси", amountRub: 620, payerUserId: dimaId, shareUserIds: [hostId, dimaId] });
+    const budget = await service.addExpense(katyaId, created.plan.id, { title: "Ужин", amountRub: 1200, payerUserId: katyaId, shareUserIds: [hostId, dimaId, katyaId] });
+    expect(budget.totalRub).toBe(2670);
+    const byId = Object.fromEntries(budget.perPerson.map((row) => [row.userId, row]));
+    expect(byId[hostId]?.netRub).toBe(-285);
+    expect(byId[dimaId]?.netRub).toBe(-515);
+    expect(byId[katyaId]?.netRub).toBe(800);
+    expect(budget.debts).toEqual([
+      { fromUserId: dimaId, toUserId: katyaId, amountRub: 515 },
+      { fromUserId: hostId, toUserId: katyaId, amountRub: 285 },
+    ]);
+    await expect(service.addExpense("00000000-0000-4000-8000-0000000000ff", created.plan.id, { title: "Чужой", amountRub: 10, payerUserId: hostId, shareUserIds: [hostId] })).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});
+
+describe("settleBalances", () => {
+  it("nets two-sided debts", () => {
+    expect(settleBalances(new Map([["a", 100], ["b", -100]]))).toEqual([{ fromUserId: "b", toUserId: "a", amountRub: 100 }]);
   });
 });
