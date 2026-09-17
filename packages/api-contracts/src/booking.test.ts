@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BookingSchema, CreateBookingSchema } from "./booking.js";
+import { BookingSchema, BookingWithSeatsSchema, CreateBookingSchema } from "./booking.js";
 
 const userId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f";
 const eventId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90";
@@ -35,5 +35,16 @@ describe("CreateBookingSchema", () => {
 
   it("rejects a non-uuid event reference", () => {
     expect(CreateBookingSchema.safeParse({ userId, eventId: "event-1" }).success).toBe(false);
+  });
+});
+
+describe("BookingWithSeatsSchema", () => {
+  it("round-trips a booking with remaining seats and allows unlimited capacity as null", () => {
+    const withSeats = { ...validBooking, status: "active" as const, freeSeats: 3 };
+    expect(BookingWithSeatsSchema.parse(withSeats).freeSeats).toBe(3);
+    expect(BookingWithSeatsSchema.parse(withSeats).chatLink).toBeNull();
+    expect(BookingWithSeatsSchema.parse({ ...withSeats, freeSeats: null, chatLink: "https://max.ru/join/abc" }).chatLink).toBe("https://max.ru/join/abc");
+    expect(BookingWithSeatsSchema.parse({ ...withSeats, freeSeats: null }).freeSeats).toBeNull();
+    expect(BookingWithSeatsSchema.safeParse({ ...withSeats, freeSeats: -1 }).success).toBe(false);
   });
 });

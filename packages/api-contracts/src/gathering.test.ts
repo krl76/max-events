@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FriendAvailabilitySchema, GatheringSchema, InviteeResponseSchema } from "./gathering.js";
+import { CreateGatheringSchema, FriendAvailabilitySchema, GatheringResponseWriteSchema, GatheringSchema, InviteeResponseSchema } from "./gathering.js";
 import type { Event } from "./event.js";
 import type { Friend } from "./friends.js";
 
@@ -16,6 +16,7 @@ const event: Event = {
   priceRub: null,
   paymentUrl: null,
   capacity: null,
+  chatLink: null,
 };
 
 const friend: Friend = { id: "018f3c5a-0000-7000-8000-000000000001", name: "Дима", avatarUrl: null };
@@ -58,7 +59,7 @@ describe("GatheringSchema", () => {
       createdAt: "2026-09-11T10:00:00+03:00",
       updatedAt: "2026-09-11T12:00:00+03:00",
     };
-    expect(GatheringSchema.parse(gathering)).toEqual(gathering);
+    expect(GatheringSchema.parse(gathering)).toMatchObject(gathering);
   });
 
   it("round-trips through JSON", () => {
@@ -86,5 +87,21 @@ describe("GatheringSchema", () => {
         updatedAt: "2026-09-11T12:00:00+03:00",
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("CreateGatheringSchema", () => {
+  it("requires an event, at least one friend, and a timestamp", () => {
+    const payload = { eventId: event.id, friendIds: [friend.id], proposedMeetingAt: "2026-09-20T18:30:00+03:00" };
+    expect(CreateGatheringSchema.parse(payload)).toEqual(payload);
+    expect(CreateGatheringSchema.safeParse({ ...payload, friendIds: [] }).success).toBe(false);
+    expect(CreateGatheringSchema.safeParse({ ...payload, proposedMeetingAt: "tonight" }).success).toBe(false);
+  });
+});
+
+describe("GatheringResponseWriteSchema", () => {
+  it("accepts an invitee answer", () => {
+    expect(GatheringResponseWriteSchema.parse({ response: "accepted" })).toEqual({ response: "accepted" });
+    expect(GatheringResponseWriteSchema.safeParse({ response: "declined" }).success).toBe(false);
   });
 });

@@ -12,6 +12,8 @@
 // - CategoryVisitCount - category visit counter type
 // - VisitStatsSchema - user visit statistics (places/events totals + per-category counters)
 // - VisitStats - visit stats type
+// - CreateCheckInWriteSchema - write payload with exactly one of eventId or placeId
+// - CreateCheckInWrite - write payload type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -45,3 +47,14 @@ export const VisitStatsSchema = z.object({
   byCategory: z.array(CategoryVisitCountSchema).default([]),
 });
 export type VisitStats = z.infer<typeof VisitStatsSchema>;
+
+export const CreateCheckInWriteSchema = z
+  .object({
+    eventId: IdSchema.optional(),
+    placeId: IdSchema.optional(),
+  })
+  .refine((data) => (data.eventId !== undefined) !== (data.placeId !== undefined), {
+    message: "check-in must reference exactly one of eventId or placeId",
+    path: ["eventId"],
+  });
+export type CreateCheckInWrite = z.infer<typeof CreateCheckInWriteSchema>;

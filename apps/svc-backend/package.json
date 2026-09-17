@@ -11,7 +11,8 @@
     "test": "vitest run --passWithNoTests",
     "migration:generate": "bun --bun typeorm migration:generate -d src/database/data-source.ts",
     "migration:run": "bun --bun typeorm migration:run -d src/database/data-source.ts",
-    "migration:revert": "bun --bun typeorm migration:revert -d src/database/data-source.ts"
+    "migration:revert": "bun --bun typeorm migration:revert -d src/database/data-source.ts",
+    "seed": "tsx src/database/seed-cli.ts"
   },
   "dependencies": {
     "@max-events/api-contracts": "*",

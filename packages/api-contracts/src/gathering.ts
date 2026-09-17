@@ -16,6 +16,10 @@
 // - GatheringStatus - gathering status type
 // - GatheringSchema - gathering entity (event + invitees + proposed meeting time + status)
 // - Gathering - gathering type
+// - CreateGatheringSchema - launch payload (event + friend ids + proposed meeting time)
+// - CreateGathering - launch payload type
+// - GatheringResponseWriteSchema - invitee answer body
+// - GatheringResponseWrite - invitee answer body type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -51,3 +55,15 @@ export const GatheringSchema = z.object({
   updatedAt: TimestampSchema,
 });
 export type Gathering = z.infer<typeof GatheringSchema>;
+
+export const CreateGatheringSchema = z.object({
+  eventId: IdSchema,
+  friendIds: z.array(IdSchema).min(1),
+  proposedMeetingAt: TimestampSchema,
+});
+export type CreateGathering = z.infer<typeof CreateGatheringSchema>;
+
+export const GatheringResponseWriteSchema = z.object({
+  response: InviteeResponseSchema,
+});
+export type GatheringResponseWrite = z.infer<typeof GatheringResponseWriteSchema>;

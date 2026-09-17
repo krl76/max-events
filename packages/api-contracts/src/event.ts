@@ -10,7 +10,7 @@
 // - EventCategory - event category type
 // - EventSchema - full event schema with defaults and paid/free payment link invariant
 // - Event - full event type
-// - CreateEventSchema - event creation payload (no id)
+// - CreateEventSchema - event creation payload (no id, no server-owned chatLink)
 // - CreateEvent - event creation payload type
 // END_MODULE_MAP
 
@@ -33,6 +33,7 @@ const EventObjectSchema = z.object({
   priceRub: z.number().int().nonnegative().nullable().default(null),
   paymentUrl: z.string().url().nullable().default(null),
   capacity: z.number().int().positive().nullable().default(null),
+  chatLink: z.string().nullable().default(null),
 });
 
 const hasValidPaymentLink = (data: { isPaid: boolean; paymentUrl: string | null }) => (data.isPaid ? data.paymentUrl !== null : data.paymentUrl === null);
@@ -45,5 +46,5 @@ const paymentLinkInvariant = {
 export const EventSchema = EventObjectSchema.refine(hasValidPaymentLink, paymentLinkInvariant);
 export type Event = z.infer<typeof EventSchema>;
 
-export const CreateEventSchema = EventObjectSchema.omit({ id: true }).refine(hasValidPaymentLink, paymentLinkInvariant);
+export const CreateEventSchema = EventObjectSchema.omit({ id: true, chatLink: true }).refine(hasValidPaymentLink, paymentLinkInvariant);
 export type CreateEvent = z.infer<typeof CreateEventSchema>;

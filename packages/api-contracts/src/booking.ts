@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for the Booking domain entity (user registration for an event).
-// SCOPE: BookingStatus enum, Booking/CreateBooking schemas and inferred types.
+// SCOPE: BookingStatus enum, Booking/CreateBooking/BookingWithSeats schemas and inferred types.
 // DEPENDS: zod, ./primitives.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -12,6 +12,8 @@
 // - Booking - full booking type
 // - CreateBookingSchema - booking creation payload (user + event)
 // - CreateBooking - booking creation payload type
+// - BookingWithSeatsSchema - booking mutation response with remaining free seats
+// - BookingWithSeats - booking mutation response type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -37,3 +39,9 @@ export const CreateBookingSchema = BookingSchema.omit({
   updatedAt: true,
 });
 export type CreateBooking = z.infer<typeof CreateBookingSchema>;
+
+export const BookingWithSeatsSchema = BookingSchema.extend({
+  freeSeats: z.number().int().nonnegative().nullable(),
+  chatLink: z.string().nullable().default(null),
+});
+export type BookingWithSeats = z.infer<typeof BookingWithSeatsSchema>;

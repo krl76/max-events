@@ -12,6 +12,21 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { validateEnv } from "../config/env";
+import { UserAchievementEntity } from "../achievements/user-achievement.entity";
+import { BookingEntity } from "../bookings/booking.entity";
+import { CheckInEntity } from "../checkins/check-in.entity";
+import { EventEntity } from "../events/event.entity";
+import { FriendshipEntity } from "../friends/friendship.entity";
+import { GatheringInviteeEntity } from "../gatherings/gathering-invitee.entity";
+import { GatheringEntity } from "../gatherings/gathering.entity";
+import { ListItemEntity } from "../lists/list-item.entity";
+import { ListEntity } from "../lists/list.entity";
+import { SubscriptionEntity } from "../subscriptions/subscription.entity";
+import { PlanParticipantEntity } from "../plans/plan-participant.entity";
+import { PlanEntity } from "../plans/plan.entity";
+import { ParticipationEntity } from "../participations/participation.entity";
+import { PlaceEntity } from "../places/place.entity";
+import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 
 const env = validateEnv();
@@ -19,6 +34,6 @@ const env = validateEnv();
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: env.DATABASE_URL,
-  entities: [UserEntity],
+  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity, ListEntity, ListItemEntity, SubscriptionEntity, CheckInEntity, UserAchievementEntity],
   migrations: ["src/database/migrations/*.ts"],
 });

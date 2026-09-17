@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ListPresetSchema, ListItemSchema, ListSchema } from "./list.js";
+import { AddListItemWriteSchema, ListItemCardSchema, ListPresetSchema, ListItemSchema, ListSchema, ListSummarySchema } from "./list.js";
 
 const list = {
   id: "018f3c5a-0000-7000-8000-000000000030",
@@ -63,5 +63,40 @@ describe("ListItemSchema", () => {
 
   it("rejects an item with both event and place", () => {
     expect(ListItemSchema.safeParse({ ...item, placeId: "018f3c5a-0000-7000-8000-000000000099" }).success).toBe(false);
+  });
+});
+
+describe("AddListItemWriteSchema", () => {
+  it("requires an event id", () => {
+    expect(AddListItemWriteSchema.parse({ eventId: item.eventId })).toEqual({ eventId: item.eventId });
+    expect(AddListItemWriteSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("ListSummarySchema", () => {
+  it("accepts a preset summary with a saved item id", () => {
+    const summary = { list, itemsCount: 1, savedItemId: item.id, participants: [] };
+    expect(ListSummarySchema.parse(summary)).toEqual(summary);
+  });
+});
+
+describe("ListItemCardSchema", () => {
+  it("requires an event on the card", () => {
+    const event = {
+      id: item.eventId,
+      title: "Джаз",
+      description: "",
+      category: "afisha" as const,
+      city: "Москва",
+      placeId: null,
+      startsAt: "2026-09-20T18:00:00+03:00",
+      endsAt: null,
+      isPaid: false,
+      priceRub: null,
+      paymentUrl: null,
+      capacity: null,
+      chatLink: null,
+    };
+    expect(ListItemCardSchema.parse({ item, event, addedBy: null })).toMatchObject({ item, addedBy: null });
   });
 });

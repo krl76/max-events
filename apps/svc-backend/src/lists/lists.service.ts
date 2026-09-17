@@ -1,0 +1,127 @@
+// START_MODULE_CONTRACT
+// PURPOSE: Personal event lists — six README presets per user, add/remove events, return lists with events.
+// SCOPE: Lazy ensurePresets; idempotent add by (listId, eventId); GET summaries/items/screen; owner-only.
+// DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../events
+// LINKS: M-SVC-BACKEND
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+// - LIST_PRESET_TITLES - ru titles for the six presets
+// - ListsService - ensure, list, get, items, addEvent, removeItem
+// END_MODULE_MAP
+
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ListPresetSchema, type List, type ListItem, type ListItemCard, type ListPreset, type ListScreen, type ListSummary } from "@max-events/api-contracts";
+import { toEventDto } from "../events/events.service";
+import { EventEntity } from "../events/event.entity";
+import { ListItemEntity } from "./list-item.entity";
+import { ListEntity } from "./list.entity";
+
+export const LIST_PRESET_TITLES: Record<ListPreset, string> = {
+  want_to_go: "Хочу сходить",
+  favorites: "Избранное",
+  weekend: "На выходные",
+  with_children: "С детьми",
+  with_friends: "С друзьями",
+  try_later: "Попробовать потом",
+};
+
+@Injectable()
+export class ListsService {
+  constructor(
+    @InjectRepository(ListEntity) private readonly lists: Repository<ListEntity>,
+    @InjectRepository(ListItemEntity) private readonly items: Repository<ListItemEntity>,
+    @InjectRepository(EventEntity) private readonly events: Repository<EventEntity>,
+  ) {}
+
+  async list(userId: string, eventId: string | null = null): Promise<ListSummary[]> {
+    const presets = await this.ensurePresets(userId);
+    const items = await this.items.find();
+    return presets.map((list) => {
+      const listItems = items.filter((row) => row.listId === list.id);
+      const saved = eventId ? listItems.find((row) => row.eventId === eventId) : undefined;
+      return { list: toListDto(list), itemsCount: listItems.length, savedItemId: saved?.id ?? null, participants: [] };
+    });
+  }
+
+  async get(userId: string, listId: string): Promise<ListScreen> {
+    const list = await this.requireOwnedList(userId, listId);
+    return { list: toListDto(list), participants: [], items: await this.itemCards(list.id) };
+  }
+
+  async itemsFor(userId: string, listId: string): Promise<ListItemCard[]> {
+    await this.requireOwnedList(userId, listId);
+    return this.itemCards(listId);
+  }
+
+  async addEvent(userId: string, listId: string, eventId: string): Promise<ListItem> {
+    await this.requireOwnedList(userId, listId);
+    const event = await this.events.findOneBy({ id: eventId });
+    if (!event) throw new NotFoundException("Event not found");
+    const existing = (await this.items.find({ where: { listId } })).find((row) => row.eventId === eventId);
+    if (existing) return toItemDto(existing);
+    const saved = await this.items.save(this.items.create({ listId, eventId, placeId: null }));
+    return toItemDto(saved);
+  }
+
+  async removeItem(userId: string, listId: string, itemId: string): Promise<ListItem> {
+    await this.requireOwnedList(userId, listId);
+    const item = (await this.items.find({ where: { listId } })).find((row) => row.id === itemId);
+    if (!item) throw new NotFoundException("List item not found");
+    await this.items.delete({ id: item.id });
+    return toItemDto(item);
+  }
+
+  private async ensurePresets(userId: string): Promise<ListEntity[]> {
+    const existing = (await this.lists.find({ where: { userId } })).filter((row) => row.preset !== null);
+    const byPreset = new Map(existing.map((row) => [row.preset, row]));
+    for (const preset of ListPresetSchema.options) {
+      if (byPreset.has(preset)) continue;
+      const saved = await this.lists.save(this.lists.create({ userId, preset, title: LIST_PRESET_TITLES[preset] }));
+      byPreset.set(preset, saved);
+    }
+    return ListPresetSchema.options.map((preset) => byPreset.get(preset)!);
+  }
+
+  private async requireOwnedList(userId: string, listId: string): Promise<ListEntity> {
+    const list = await this.lists.findOneBy({ id: listId });
+    if (!list) throw new NotFoundException("List not found");
+    if (list.userId !== userId) throw new ForbiddenException("Cannot access another user's list");
+    return list;
+  }
+
+  private async itemCards(listId: string): Promise<ListItemCard[]> {
+    const rows = (await this.items.find({ where: { listId } }))
+      .filter((row) => row.eventId !== null)
+      .sort((a, b) => b.addedAt.getTime() - a.addedAt.getTime() || b.id.localeCompare(a.id));
+    const events = await this.events.find();
+    const eventById = new Map(events.map((row) => [row.id, row]));
+    return rows.flatMap((row) => {
+      const event = eventById.get(row.eventId!);
+      return event ? [{ item: toItemDto(row), event: toEventDto(event), addedBy: null }] : [];
+    });
+  }
+}
+
+export function toListDto(list: ListEntity): List {
+  return {
+    id: list.id,
+    userId: list.userId,
+    preset: list.preset,
+    title: list.title,
+    createdAt: list.createdAt.toISOString(),
+    updatedAt: list.updatedAt.toISOString(),
+  };
+}
+
+export function toItemDto(item: ListItemEntity): ListItem {
+  return {
+    id: item.id,
+    listId: item.listId,
+    eventId: item.eventId,
+    placeId: item.placeId,
+    addedAt: item.addedAt.toISOString(),
+  };
+}

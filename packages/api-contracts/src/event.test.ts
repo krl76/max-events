@@ -14,6 +14,7 @@ describe("EventSchema", () => {
     const parsed = EventSchema.parse(validEvent);
     expect(parsed.isPaid).toBe(false);
     expect(parsed.capacity).toBeNull();
+    expect(parsed.chatLink).toBeNull();
   });
 
   it("rejects paid event semantics violation: negative price", () => {

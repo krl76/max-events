@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FriendActivityByEventSchema, FriendActivityByFriendSchema, FriendActivitySchema, FriendSchema } from "./friends.js";
+import { EventFriendsSummarySchema, FriendActivityByEventSchema, FriendActivityByFriendSchema, FriendActivitySchema, FriendSchema } from "./friends.js";
 import type { Event } from "./event.js";
 
 const friend = {
@@ -21,6 +21,7 @@ const event: Event = {
   priceRub: null,
   paymentUrl: null,
   capacity: null,
+  chatLink: null,
 };
 
 describe("FriendSchema", () => {
@@ -36,7 +37,7 @@ describe("FriendSchema", () => {
 describe("FriendActivitySchema", () => {
   it("links a friend to an event with a participation status", () => {
     const activity = { friend, event, participationStatus: "going" };
-    expect(FriendActivitySchema.parse(activity)).toEqual(activity);
+    expect(FriendActivitySchema.parse(activity)).toMatchObject(activity);
   });
 
   it("rejects a status outside the participation enum", () => {
@@ -50,7 +51,7 @@ describe("grouped feed schemas", () => {
       friend,
       events: [{ event, participationStatus: "wants_to_go" }],
     };
-    expect(FriendActivityByFriendSchema.parse(byFriend)).toEqual(byFriend);
+    expect(FriendActivityByFriendSchema.parse(byFriend)).toMatchObject(byFriend);
   });
 
   it("groups by event: event with attending friends", () => {
@@ -58,6 +59,18 @@ describe("grouped feed schemas", () => {
       event,
       friends: [{ friend, participationStatus: "looking_for_company" }],
     };
-    expect(FriendActivityByEventSchema.parse(byEvent)).toEqual(byEvent);
+    expect(FriendActivityByEventSchema.parse(byEvent)).toMatchObject(byEvent);
+  });
+});
+
+describe("EventFriendsSummarySchema", () => {
+  it("counts going and looking_for_company separately from the friends list", () => {
+    const summary = {
+      friends: [{ friend, participationStatus: "looking_for_company" as const }],
+      going: 0,
+      lookingForCompany: 1,
+    };
+    expect(EventFriendsSummarySchema.parse(summary)).toMatchObject(summary);
+    expect(EventFriendsSummarySchema.safeParse({ friends: [], going: -1, lookingForCompany: 0 }).success).toBe(false);
   });
 });

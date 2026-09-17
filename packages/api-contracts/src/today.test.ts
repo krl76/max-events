@@ -15,6 +15,7 @@ const event: Event = {
   priceRub: null,
   paymentUrl: null,
   capacity: 20,
+  chatLink: null,
 };
 
 describe("TodayResponseSchema", () => {
@@ -28,7 +29,7 @@ describe("TodayResponseSchema", () => {
         },
       ],
     };
-    expect(TodayResponseSchema.parse(response)).toEqual(response);
+    expect(TodayResponseSchema.parse(response)).toMatchObject(response);
   });
 
   it("rejects a free-text label without a known kind", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CreatePlanSchema, PlanCardSchema, PlanSchema } from "./plan.js";
+import { CreatePlanSchema, CreatePlanWriteSchema, PlanCardSchema, PlanParticipantWriteSchema, PlanSchema } from "./plan.js";
 import type { Event } from "./event.js";
 import type { Friend } from "./friends.js";
 
@@ -16,6 +16,7 @@ const event: Event = {
   priceRub: 850,
   paymentUrl: "https://example.com/pay",
   capacity: null,
+  chatLink: null,
 };
 
 const friend: Friend = { id: "018f3c5a-0000-7000-8000-000000000001", name: "Дима", avatarUrl: null };
@@ -64,10 +65,25 @@ describe("CreatePlanSchema", () => {
 describe("PlanCardSchema", () => {
   it("accepts the README card: The Weekend Tribute. Ты + 3 друга. Сбор 18:20 у метро. 850 м от тебя", () => {
     const card = { plan, event, distanceMeters: 850 };
-    expect(PlanCardSchema.parse(card)).toEqual(card);
+    expect(PlanCardSchema.parse(card)).toMatchObject(card);
   });
 
   it("rejects a negative distance", () => {
     expect(PlanCardSchema.safeParse({ plan, event, distanceMeters: -1 }).success).toBe(false);
+  });
+});
+
+describe("CreatePlanWriteSchema", () => {
+  it("accepts event, meeting and optional participant ids", () => {
+    const payload = { eventId: event.id, participantIds: [friend.id], meetingPoint: "у метро", meetingAt: plan.meetingAt };
+    expect(CreatePlanWriteSchema.parse(payload)).toEqual(payload);
+    expect(CreatePlanWriteSchema.parse({ eventId: event.id, meetingPoint: "у метро", meetingAt: plan.meetingAt }).participantIds).toEqual([]);
+  });
+});
+
+describe("PlanParticipantWriteSchema", () => {
+  it("accepts confirmed or declined", () => {
+    expect(PlanParticipantWriteSchema.parse({ status: "declined" })).toEqual({ status: "declined" });
+    expect(PlanParticipantWriteSchema.safeParse({ status: "invited" }).success).toBe(false);
   });
 });

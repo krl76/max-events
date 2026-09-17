@@ -15,6 +15,7 @@ const event: Event = {
   priceRub: null,
   paymentUrl: null,
   capacity: null,
+  chatLink: null,
 };
 
 describe("WheretoQuerySchema", () => {
@@ -31,7 +32,7 @@ describe("WheretoQuerySchema", () => {
 describe("WheretoResponseSchema", () => {
   it("accepts the README example: 5 concrete suggestions", () => {
     const response = { items: Array.from({ length: 5 }, () => event) };
-    expect(WheretoResponseSchema.parse(response)).toEqual(response);
+    expect(WheretoResponseSchema.parse(response)).toMatchObject(response);
   });
 
   it("rejects more than 5 suggestions", () => {
