@@ -49,7 +49,7 @@ export class BookingsService {
   }
 
   async cancel(userId: string, bookingId: string): Promise<BookingWithSeats> {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const booking = await manager.findOne(BookingEntity, { where: { id: bookingId } });
       if (!booking) throw new NotFoundException("Booking not found");
       if (booking.userId !== userId) throw new ForbiddenException("Cannot cancel another user's booking");
@@ -59,15 +59,17 @@ export class BookingsService {
 
       const locked = await manager.findOne(BookingEntity, { where: { id: bookingId }, lock: { mode: "pessimistic_write" } });
       if (!locked) throw new NotFoundException("Booking not found");
-      if (locked.status === "cancelled") return toBookingDto(locked, event);
+      if (locked.status === "cancelled") return { dto: toBookingDto(locked, event), offered: null };
 
       locked.status = "cancelled";
       event.bookedCount = Math.max(0, event.bookedCount - 1);
       const saved = await manager.save(BookingEntity, locked);
       await manager.save(EventEntity, event);
-      await this.waitlist.onSeatFreed(manager, event);
-      return toBookingDto(saved, event);
+      const offered = await this.waitlist.onSeatFreed(manager, event);
+      return { dto: toBookingDto(saved, event), offered };
     });
+    if (result.offered) await this.waitlist.notifyOffer(result.offered);
+    return result.dto;
   }
 }
 

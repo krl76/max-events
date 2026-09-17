@@ -39,6 +39,7 @@ import { ReportsModule } from "./reports/reports.module";
 import { PlacePageModule } from "./place-page/place-page.module";
 import { MicroEventsModule } from "./microevents/micro-events.module";
 import { CollectionsModule } from "./collections/collections.module";
+import { NearbyModule } from "./nearby/nearby.module";
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { CollectionsModule } from "./collections/collections.module";
     PlacePageModule,
     MicroEventsModule,
     CollectionsModule,
+    NearbyModule,
   ],
 })
 export class AppModule {}

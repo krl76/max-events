@@ -114,6 +114,7 @@ describe("WaitlistService.onSeatFreed, confirm and expiry", () => {
     expect(offered?.id).toBe(joined.id);
     expect(offered?.status).toBe("offered");
     expect(harness.events[0]!.bookedCount).toBe(1);
+    await harness.service.notifyOffer(offered!);
     expect(harness.sent[0]).toContain("1:");
     expect(harness.sent[0]).toContain("подтверди");
     const confirmed = await harness.service.confirm(userA, joined.id, now);

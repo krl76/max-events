@@ -13,7 +13,7 @@
 
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
-import { DataSource, EntityManager, In, Repository } from "typeorm";
+import { DataSource, EntityManager, In, QueryFailedError, Repository } from "typeorm";
 import type { WaitlistEntry, WaitlistStatus } from "@max-events/api-contracts";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
@@ -60,7 +60,14 @@ export class WaitlistService {
       }
       const event = await manager.findOne(EventEntity, { where: { id: entry.eventId }, lock: { mode: "pessimistic_write" } });
       if (!event) throw new NotFoundException("Event not found");
-      await manager.save(BookingEntity, manager.create(BookingEntity, { userId, eventId: entry.eventId, status: "active" }));
+      try {
+        await manager.save(BookingEntity, manager.create(BookingEntity, { userId, eventId: entry.eventId, status: "active" }));
+      } catch (error) {
+        if (error instanceof QueryFailedError && error.driverError?.code === "23505") {
+          throw new ConflictException("Booking already exists");
+        }
+        throw error;
+      }
       entry.status = "confirmed";
       entry.offeredUntil = null;
       const saved = await manager.save(WaitlistEntryEntity, entry);
@@ -81,9 +88,7 @@ export class WaitlistService {
       event.bookedCount += 1;
       await manager.save(EventEntity, event);
     }
-    const saved = await manager.save(WaitlistEntryEntity, next);
-    await this.notifyOffer(saved);
-    return saved;
+    return manager.save(WaitlistEntryEntity, next);
   }
 
   async expireOffers(now = new Date()): Promise<number> {
@@ -91,26 +96,28 @@ export class WaitlistService {
     let expired = 0;
     for (const entry of due) {
       if (!entry.offeredUntil || entry.offeredUntil.getTime() > now.getTime()) continue;
-      await this.dataSource.transaction(async (manager) => {
+      const offered = await this.dataSource.transaction(async (manager) => {
         const locked = await manager.findOne(WaitlistEntryEntity, { where: { id: entry.id }, lock: { mode: "pessimistic_write" } });
-        if (!locked || locked.status !== "offered") return;
+        if (!locked || locked.status !== "offered") return null;
         locked.status = "expired";
         locked.offeredUntil = null;
         await manager.save(WaitlistEntryEntity, locked);
         const event = await manager.findOne(EventEntity, { where: { id: locked.eventId }, lock: { mode: "pessimistic_write" } });
-        if (!event) return;
-        const offered = await this.onSeatFreed(manager, event, now, false);
-        if (!offered) {
+        if (!event) return null;
+        const next = await this.onSeatFreed(manager, event, now, false);
+        if (!next) {
           event.bookedCount = Math.max(0, event.bookedCount - 1);
           await manager.save(EventEntity, event);
         }
+        expired += 1;
+        return next;
       });
-      expired += 1;
+      if (offered) await this.notifyOffer(offered);
     }
     return expired;
   }
 
-  private async notifyOffer(entry: WaitlistEntryEntity): Promise<void> {
+  async notifyOffer(entry: WaitlistEntryEntity): Promise<void> {
     const user = await this.users.findOneBy({ id: entry.userId });
     if (!user || !entry.offeredUntil) return;
     const deadline = entry.offeredUntil.toISOString();
