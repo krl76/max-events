@@ -74,9 +74,9 @@ describe("FeedCreateView", () => {
   });
 
   it("keeps publish disabled until the draft is ready and shows submitting and failure states", () => {
-    expect((view().match(/disabled/g) ?? []).length).toBe(2);
+    expect((view().match(/disabled=""/g) ?? []).length).toBe(2);
     expect(view({ draft: readyDraft })).toContain("Опубликовать");
-    expect((view({ draft: readyDraft }).match(/disabled/g) ?? []).length).toBe(1);
+    expect((view({ draft: readyDraft }).match(/disabled=""/g) ?? []).length).toBe(1);
     expect(view({ draft: readyDraft, submitting: true })).toContain("Публикуем…");
     expect(view({ draft: readyDraft, failed: true })).toContain("Не удалось опубликовать впечатление.");
   });

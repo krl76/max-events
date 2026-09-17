@@ -20,6 +20,7 @@ import type { Profile, UpdateProfile, User, VisitStats } from "@max-events/api-c
 import { apiClient, type CalendarEntry } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS } from "../catalog/CatalogPage";
+import { AppAvatar, AppButton, AppTitle } from "../ui/primitives";
 
 export interface ProfileStats {
   events: number;
@@ -46,7 +47,9 @@ export type ProfileState = { status: "loading" } | { status: "error" } | { statu
 export function VisitStatsView({ stats }: { stats: VisitStats | null }) {
   return (
     <section className="app-visitstats">
-      <h2 className="app-today-heading">Статистика посещений</h2>
+      <AppTitle asChild>
+        <h2 className="app-today-heading">Статистика посещений</h2>
+      </AppTitle>
       {stats === null || (stats.eventsCount === 0 && stats.placesCount === 0) ? (
         <p className="app-today-summary">Пока нет посещений — отметьтесь «Я здесь» на странице события.</p>
       ) : (
@@ -84,9 +87,9 @@ export function ProfileView({ user, profile, stats, visitStats, saving, onSave }
   return (
     <section className="app-profile">
       <div className="app-profile-header">
-        <span className="app-profile-avatar" aria-hidden="true">
-          {user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img src={user.avatarUrl} alt="" />}
-        </span>
+        <AppAvatar size={76} src={user.avatarUrl}>
+          {user.firstName.charAt(0).toUpperCase()}
+        </AppAvatar>
         <div className="app-profile-stats">
           <span className="app-profile-stat">
             <span className="app-profile-stat-value">{stats.events}</span>
@@ -98,7 +101,9 @@ export function ProfileView({ user, profile, stats, visitStats, saving, onSave }
           </span>
         </div>
       </div>
-      <h1 className="app-profile-name">{[user.firstName, user.lastName].filter(Boolean).join(" ")}</h1>
+      <AppTitle asChild>
+        <h1 className="app-profile-name">{[user.firstName, user.lastName].filter(Boolean).join(" ")}</h1>
+      </AppTitle>
       <p className="app-profile-city">{profile.city}</p>
       {profile.interests.length > 0 && (
         <div className="app-profile-interests">
@@ -119,9 +124,9 @@ export function ProfileView({ user, profile, stats, visitStats, saving, onSave }
       >
         <input className="app-profile-input" type="text" aria-label="Город" value={cityDraft} onChange={(change) => setCityDraft(change.target.value)} />
         <input className="app-profile-input" type="text" aria-label="Интересы" placeholder="Интересы через запятую" value={interestsDraft} onChange={(change) => setInterestsDraft(change.target.value)} />
-        <button type="submit" className="app-profile-save" disabled={saving}>
+        <AppButton disabled={saving} type="submit" stretched>
           {saving ? "Сохранение…" : "Сохранить"}
-        </button>
+        </AppButton>
       </form>
     </section>
   );

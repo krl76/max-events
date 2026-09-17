@@ -22,6 +22,8 @@ import { mockEvents } from "../api/mock";
 import { useAuth } from "../auth/AuthContext";
 import { DEMO_USER_ID } from "../event/EventPage";
 import { useRoute } from "../routing/router";
+import { AppAvatar, AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { IconButton } from "@maxhub/max-ui";
 
 interface FeedPostCardProps {
   post: FeedPost;
@@ -38,7 +40,7 @@ export function FeedPostCard({ post, onToggleLike, onAddComment, onOpenEvent }: 
       <div className="app-card-media" />
       <div className="app-card-body">
         <span className="app-feed-author">
-          <span className="app-friends-avatar">{post.author.name[0]}</span>
+          <AppAvatar size={36}>{post.author.name[0]}</AppAvatar>
           {post.author.name}
         </span>
         {onOpenEvent ? (
@@ -69,9 +71,9 @@ export function FeedPostCard({ post, onToggleLike, onAddComment, onOpenEvent }: 
           }}
         >
           <input className="app-filters-input" placeholder="Добавить комментарий…" value={comment} onChange={(change) => setComment(change.target.value)} />
-          <button type="submit" className="app-participation-chip" disabled={comment.trim() === ""}>
+          <AppChip disabled={comment.trim() === ""} type="submit">
             Отправить
-          </button>
+          </AppChip>
         </form>
       </div>
     </article>
@@ -117,10 +119,12 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
   return (
     <section aria-label="Впечатления">
       <div className="app-micro-head">
-        <h2 className="app-today-heading">Впечатления</h2>
-        <button type="button" className="app-micro-add" aria-label="Поделиться впечатлением" onClick={onCreate}>
+        <AppTitle asChild>
+          <h2 className="app-today-heading">Впечатления</h2>
+        </AppTitle>
+        <IconButton aria-label="Поделиться впечатлением" size="small" variant="primary" onClick={onCreate}>
           +
-        </button>
+        </IconButton>
       </div>
       {state.status === "loading" ? null : state.status === "error" ? <p className="app-state app-state--error">Не удалось загрузить впечатления.</p> : state.posts.length === 0 ? <p className="app-state">Пока нет постов — расскажи первым.</p> : state.posts.map((post) => <FeedPostCard key={post.id} post={post} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)}
     </section>
@@ -148,7 +152,9 @@ interface FeedCreateViewProps {
 export function FeedCreateView({ draft, events, submitting, failed, onChange, onSubmit }: FeedCreateViewProps) {
   return (
     <section className="app-gathering">
-      <h2 className="app-gathering-title">Новое впечатление</h2>
+      <AppTitle asChild>
+        <h2 className="app-gathering-title">Новое впечатление</h2>
+      </AppTitle>
       <p className="app-gathering-hint">Фото-заглушка и пара слов — пост в ленте</p>
       {/* ponytail: photo upload is a placeholder until the backend accepts post photos */}
       <button type="button" className="app-review-photo" disabled>
@@ -164,9 +170,9 @@ export function FeedCreateView({ draft, events, submitting, failed, onChange, on
         </datalist>
       </label>
       <textarea className="app-review-text" placeholder="Расскажи, как всё прошло" value={draft.text} onChange={(change) => onChange("text", change.target.value)} />
-      <button type="button" className="app-gathering-launch" disabled={!feedDraftReady(draft) || submitting} onClick={onSubmit}>
+      <AppButton disabled={!feedDraftReady(draft) || submitting} onClick={onSubmit} stretched>
         {submitting ? "Публикуем…" : "Опубликовать"}
-      </button>
+      </AppButton>
       {failed && <p className="app-state app-state--error">Не удалось опубликовать впечатление.</p>}
     </section>
   );

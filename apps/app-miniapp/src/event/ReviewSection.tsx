@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiClient, type EventRating } from "../api/client";
 import type { ReviewCategoryScores } from "@max-events/api-contracts";
+import { AppButton, AppChip, AppTitle } from "../ui/primitives";
 
 export const CATEGORY_SCORE_LABELS: Record<keyof ReviewCategoryScores, string> = {
   atmosphere: "Атмосфера",
@@ -95,21 +96,21 @@ export function ReviewForm({ onSubmit, sending }: { onSubmit: (draft: ReviewDraf
         </div>
       ))}
       <div className="app-review-again">
-        <button type="button" className="app-participation-chip" aria-pressed={wouldGoAgain === true} onClick={() => setWouldGoAgain(true)}>
+        <AppChip pressed={wouldGoAgain === true} onClick={() => setWouldGoAgain(true)}>
           Да
-        </button>
-        <button type="button" className="app-participation-chip" aria-pressed={wouldGoAgain === false} onClick={() => setWouldGoAgain(false)}>
+        </AppChip>
+        <AppChip pressed={wouldGoAgain === false} onClick={() => setWouldGoAgain(false)}>
           Нет
-        </button>
+        </AppChip>
       </div>
       <textarea className="app-review-text" placeholder="Расскажи, как всё прошло (необязательно)" value={text} onChange={(event) => setText(event.target.value)} />
       {/* ponytail: photo upload is a placeholder until the backend accepts review photos */}
       <button type="button" className="app-review-photo" disabled>
         Добавить фото
       </button>
-      <button type="submit" className="app-event-cta" disabled={!ready || sending}>
+      <AppButton disabled={!ready || sending} type="submit" stretched>
         Отправить отзыв
-      </button>
+      </AppButton>
     </form>
   );
 }
@@ -151,7 +152,9 @@ export function ReviewSection({ eventId, userId, canReview }: { eventId: string;
   return (
     <section className="app-event">
       <div className="app-event-body">
-        <h2 className="app-participation-title">{canReview ? "Как прошло?" : "Отзывы"}</h2>
+        <AppTitle asChild>
+          <h2 className="app-participation-title">{canReview ? "Как прошло?" : "Отзывы"}</h2>
+        </AppTitle>
         {sent ? <p className="app-review-sent">Спасибо! Твой отзыв отправлен.</p> : canReview && <ReviewForm onSubmit={submit} sending={sending} />}
         {!failed && rating !== null && <RatingView rating={rating} />}
       </div>

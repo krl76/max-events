@@ -13,6 +13,7 @@
 
 import { useCallback, useState } from "react";
 import { ApiError, apiClient, REPORT_REASONS, type ReportReason } from "../api/client";
+import { AppChip } from "../ui/primitives";
 
 export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
   spam: "Спам или реклама",
@@ -27,9 +28,9 @@ export function ReportMenu({ onReport, sending, done }: { onReport: (reason: Rep
   return (
     <div className="app-report-reasons">
       {REPORT_REASONS.map((reason) => (
-        <button key={reason} type="button" className="app-participation-chip" disabled={sending} onClick={() => onReport(reason)}>
+        <AppChip key={reason} disabled={sending} onClick={() => onReport(reason)}>
           {REPORT_REASON_LABELS[reason]}
-        </button>
+        </AppChip>
       ))}
     </div>
   );

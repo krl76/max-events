@@ -16,6 +16,7 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import type { Gathering, InviteeResponse } from "@max-events/api-contracts";
+import { AppTitle } from "../ui/primitives";
 
 export const INVITEE_RESPONSE_LABELS: Record<InviteeResponse, string> = { accepted: "подтвердил", considering: "смотрит", busy: "занят" };
 
@@ -31,7 +32,9 @@ export function GatheringStatusView({ state }: { state: GatheringStatusState }) 
   if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить сбор.</p>;
   return (
     <section className="app-gathering">
-      <h2 className="app-gathering-title">{gatheringSummary(state.gathering)}</h2>
+      <AppTitle asChild>
+        <h2 className="app-gathering-title">{gatheringSummary(state.gathering)}</h2>
+      </AppTitle>
       <p className="app-gathering-hint">{state.gathering.event.title}</p>
       <ul className="app-gathering-invitees">
         {state.gathering.invitees.map(({ friend, response }) => (

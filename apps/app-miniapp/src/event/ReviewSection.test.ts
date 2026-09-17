@@ -55,12 +55,12 @@ describe("ReviewForm", () => {
   it("keeps the submit disabled until the stars and the choice are set", () => {
     const html = renderToStaticMarkup(createElement(ReviewForm, { onSubmit: () => {}, sending: false }));
 
-    expect(html).toMatch(/type="submit"[^>]*disabled/);
+    expect(html).toMatch(/type="submit"[^>]*disabled|disabled[^>]*type="submit"/);
   });
 
   it("disables the submit while the review is sending", () => {
     const html = renderToStaticMarkup(createElement(ReviewForm, { onSubmit: () => {}, sending: true }));
 
-    expect(html).toMatch(/type="submit"[^>]*disabled/);
+    expect(html).toMatch(/type="submit"[^>]*disabled|disabled[^>]*type="submit"/);
   });
 });
