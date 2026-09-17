@@ -12,10 +12,26 @@
 // - Env - inferred validated env type
 // END_MODULE_MAP
 
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { config } from "dotenv";
 import { z } from "zod";
 
-config({ quiet: true });
+// Resolve the closest .env walking up from this module regardless of cwd
+// (dotenv reads .env relative to process cwd, which differs across run styles:
+// `bun run dev:backend` from repo root vs `bun --filter svc-backend ...`).
+// dotenv default does NOT override existing process.env values, so real env wins.
+let envDir = __dirname;
+while (true) {
+  const envPath = join(envDir, ".env");
+  if (existsSync(envPath)) {
+    config({ path: envPath, quiet: true });
+    break;
+  }
+  const parent = dirname(envDir);
+  if (parent === envDir) break;
+  envDir = parent;
+}
 
 export const envSchema = z.object({
   DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, "must be a postgres connection string (postgres://...)"),
