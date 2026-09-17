@@ -24,6 +24,8 @@ import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { DEMO_USER_ID } from "../event/EventPage";
 import { useRoute } from "../routing/router";
+import { AppButton, AppTitle } from "../ui/primitives";
+import { IconButton } from "@maxhub/max-ui";
 
 export function microWhere(item: MicroEvent): string {
   return item.locationText ?? mockPlaces.find((place) => place.id === item.placeId)?.title ?? "";
@@ -50,13 +52,13 @@ export function MicroCard({ item, joined, onJoin, onLeave }: MicroCardProps) {
           {item.participantsCount}/{item.participantsLimit} участников
         </span>
         {joined ? (
-          <button type="button" className="app-gathering-launch app-micro-join--joined" onClick={onLeave}>
+          <AppButton size="small" tone="secondary" onClick={onLeave}>
             Вы участвуете
-          </button>
+          </AppButton>
         ) : (
-          <button type="button" className="app-gathering-launch" disabled={full} onClick={onJoin}>
+          <AppButton disabled={full} size="small" onClick={onJoin}>
             {full ? "Мест нет" : "Присоединиться"}
-          </button>
+          </AppButton>
         )}
       </div>
     </article>
@@ -108,10 +110,12 @@ export function MicroSection({ onCreate }: { onCreate: () => void }) {
   return (
     <section aria-label="Микро-события">
       <div className="app-micro-head">
-        <h2 className="app-today-heading">Микро-события</h2>
-        <button type="button" className="app-micro-add" aria-label="Создать микро-событие" onClick={onCreate}>
+        <AppTitle asChild>
+          <h2 className="app-today-heading">Микро-события</h2>
+        </AppTitle>
+        <IconButton aria-label="Создать микро-событие" size="small" variant="primary" onClick={onCreate}>
           +
-        </button>
+        </IconButton>
       </div>
       {state.status === "loading" ? null : state.status === "error" ? <p className="app-state app-state--error">Не удалось загрузить микро-события.</p> : state.events.length === 0 ? <p className="app-state">Пока нет открытых микро-событий. Создай первое!</p> : state.events.map((item) => <MicroCard key={item.id} item={item} joined={joined.includes(item.id)} onJoin={() => join(item.id)} onLeave={() => leave(item.id)} />)}
     </section>
@@ -141,7 +145,9 @@ interface MicroEventCreateViewProps {
 export function MicroEventCreateView({ draft, places, submitting, failed, onChange, onSubmit }: MicroEventCreateViewProps) {
   return (
     <section className="app-gathering">
-      <h2 className="app-gathering-title">Новое микро-событие</h2>
+      <AppTitle asChild>
+        <h2 className="app-gathering-title">Новое микро-событие</h2>
+      </AppTitle>
       <p className="app-gathering-hint">Четыре поля — и событие в ленте</p>
       <label className="app-gathering-time">
         Что делаем
@@ -164,9 +170,9 @@ export function MicroEventCreateView({ draft, places, submitting, failed, onChan
         Лимит участников
         <input className="app-gathering-time-input" type="number" min={1} value={draft.limit} onChange={(change) => onChange("limit", change.target.value)} />
       </label>
-      <button type="button" className="app-gathering-launch" disabled={!microDraftReady(draft) || submitting} onClick={onSubmit}>
+      <AppButton disabled={!microDraftReady(draft) || submitting} onClick={onSubmit} stretched>
         {submitting ? "Публикуем…" : "Опубликовать"}
-      </button>
+      </AppButton>
       {failed && <p className="app-state app-state--error">Не удалось опубликовать микро-событие.</p>}
     </section>
   );

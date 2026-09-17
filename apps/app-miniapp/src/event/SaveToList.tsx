@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { apiClient, type ListSummary } from "../api/client";
+import { AppButton } from "../ui/primitives";
 
 export type SaveToListState = { status: "loading" } | { status: "error" } | { status: "ready"; summaries: ListSummary[] };
 
@@ -34,9 +35,9 @@ export function SaveToListView({ state, onToggle, onDone }: { state: SaveToListS
             ))}
           </ul>
         )}
-        <button type="button" className="app-event-cta" onClick={onDone}>
+        <AppButton onClick={onDone} stretched>
           Готово
-        </button>
+        </AppButton>
       </div>
     </section>
   );
@@ -70,9 +71,9 @@ export function SaveToList({ eventId, userId }: { eventId: string; userId: strin
     return (
       <section className="app-event">
         <div className="app-event-body">
-          <button type="button" className="app-event-cta" onClick={() => setOpen(true)}>
+          <AppButton onClick={() => setOpen(true)} stretched tone="secondary">
             {savedCount > 0 ? "Сохранено" : "Сохранить"}
-          </button>
+          </AppButton>
         </div>
       </section>
     );

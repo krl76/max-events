@@ -19,6 +19,7 @@ import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { DEMO_USER_ID, PARTICIPATION_STATUS_LABELS } from "../event/EventPage";
 import { useRoute } from "../routing/router";
+import { AppAvatar, AppButton } from "../ui/primitives";
 
 export type FriendsState = { status: "loading" } | { status: "error" } | { status: "ready"; groups: FriendActivityByFriend[] };
 
@@ -46,9 +47,7 @@ export function FriendsView({ state, onJoin }: FriendsViewProps) {
       {state.groups.map((group) => (
         <section key={group.friend.id} className="app-friends-group">
           <div className="app-friends-person">
-            <span className="app-friends-avatar" aria-hidden="true">
-              {initials(group.friend.name)}
-            </span>
+            <AppAvatar size={44}>{initials(group.friend.name)}</AppAvatar>
             <span className="app-friends-name">{group.friend.name}</span>
           </div>
           {group.events.map(({ event, participationStatus }) => (
@@ -58,9 +57,9 @@ export function FriendsView({ state, onJoin }: FriendsViewProps) {
                 <span className="app-card-subtitle">
                   {formatStartsAt(event.startsAt)} · {PARTICIPATION_STATUS_LABELS[participationStatus]}
                 </span>
-                <button type="button" className="app-friends-join" onClick={() => onJoin(event.id)}>
+                <AppButton className="app-friends-join" size="small" onClick={() => onJoin(event.id)}>
                   Присоединиться
-                </button>
+                </AppButton>
               </div>
             </article>
           ))}

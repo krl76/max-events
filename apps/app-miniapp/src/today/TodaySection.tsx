@@ -17,6 +17,7 @@ import type { TodayCardLabel, TodayResponse } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
+import { AppTitle } from "../ui/primitives";
 
 export type TodayState = { status: "loading" } | { status: "error" } | { status: "ready"; today: TodayResponse };
 
@@ -40,7 +41,9 @@ export function TodayView({ state, onOpen }: TodayViewProps) {
   const { summary, cards } = state.today;
   return (
     <section className="app-today" aria-label="Что делать сегодня?">
-      <h2 className="app-today-heading">Что делать сегодня?</h2>
+      <AppTitle asChild>
+        <h2 className="app-today-heading">Что делать сегодня?</h2>
+      </AppTitle>
       <p className="app-today-summary">
         {summary.nearbyCount} событий рядом, {summary.suitableCount} подходят тебе, на {summary.withFriendsCount} идут друзья
       </p>

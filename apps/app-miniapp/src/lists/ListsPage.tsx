@@ -28,6 +28,7 @@ import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { DEMO_USER_ID } from "../event/EventPage";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
+import { AppButton } from "../ui/primitives";
 import { useRoute } from "../routing/router";
 
 export function listItemsLabel(count: number): string {
@@ -160,15 +161,14 @@ export function ListPage({ id }: { id: string }) {
               <span className="app-micro-badge">Совместная</span> {screen.list.title}
             </p>
             <p className="app-gathering-hint">{participantsLabel(screen.participants)}</p>
-            <button
-              type="button"
-              className="app-event-cta"
+            <AppButton
               onClick={() => {
                 shareCollection(screen.list, screen.items, (text) => shareResult(webApp, text)).then(setShared);
               }}
+              stretched
             >
               Отправить в чат
-            </button>
+            </AppButton>
             {shared === "bridge" && <p className="app-whereto-share-hint">Выберите чат в MAX — экран отправки открыт.</p>}
             {shared === "clipboard" && <p className="app-whereto-share-hint">Коллекция скопирована — вставьте её в чат.</p>}
             <label className="app-gathering-time">
@@ -180,9 +180,9 @@ export function ListPage({ id }: { id: string }) {
                 ))}
               </datalist>
             </label>
-            <button type="button" className="app-gathering-launch" disabled={!addReady} onClick={add}>
+            <AppButton disabled={!addReady} onClick={add} stretched>
               Добавить
-            </button>
+            </AppButton>
           </div>
         </section>
       )}

@@ -62,8 +62,10 @@ describe("CatalogView", () => {
     const mapHtml = renderToStaticMarkup(createElement(CatalogView, { state: { status: "loading" }, filters: {}, onFilters: () => {}, view: "map", onView: () => {} }));
 
     expect(listHtml).toContain("app-view-toggle");
-    expect(listHtml).toContain('aria-pressed="true">Список');
-    expect(mapHtml).toContain('aria-pressed="true">Карта');
+    expect(listHtml).toContain('aria-pressed="true"');
+    expect(listHtml).toContain(">Список</button>");
+    expect(mapHtml).toContain('aria-pressed="true"');
+    expect(mapHtml).toContain(">Карта</button>");
   });
 
   it("renders the map screen instead of cards in map view", () => {

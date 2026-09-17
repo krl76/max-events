@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import type { FriendAvailability } from "@max-events/api-contracts";
 import { useRoute } from "../routing/router";
+import { AppButton, AppTitle } from "../ui/primitives";
 
 export const AVAILABILITY_LABELS: Record<FriendAvailability["availability"], string> = { free: "Свободен", busy: "Занят", unknown: "Неизвестно" };
 
@@ -37,7 +38,9 @@ export function GatheringFlowView({ state, selected, meetingAt, submitting, fail
   if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить друзей.</p>;
   return (
     <section className="app-gathering">
-      <h2 className="app-gathering-title">Собрать компанию</h2>
+      <AppTitle asChild>
+        <h2 className="app-gathering-title">Собрать компанию</h2>
+      </AppTitle>
       <p className="app-gathering-hint">{state.eventTitle}</p>
       <div className="app-gathering-friends" role="group" aria-label="Кого позвать">
         {state.friends.map(({ friend, availability }) => (
@@ -51,9 +54,9 @@ export function GatheringFlowView({ state, selected, meetingAt, submitting, fail
         Когда встречаемся
         <input className="app-gathering-time-input" type="datetime-local" value={meetingAt} min={state.defaultMeetingAt} onChange={(change) => onMeetingAt(change.target.value)} />
       </label>
-      <button type="button" className="app-gathering-launch" disabled={selected.length === 0 || meetingAt === "" || submitting} onClick={onLaunch}>
+      <AppButton disabled={selected.length === 0 || meetingAt === "" || submitting} onClick={onLaunch} stretched>
         {submitting ? "Запускаем…" : "Запустить сбор"}
-      </button>
+      </AppButton>
       {failed && <p className="app-state app-state--error">Не удалось запустить сбор.</p>}
     </section>
   );

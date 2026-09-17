@@ -19,6 +19,7 @@ import type { Event, EventCategory } from "@max-events/api-contracts";
 import { EventCategorySchema } from "@max-events/api-contracts";
 import { apiClient, parseEventFilters, serializeEventFilters, type EventFilters } from "../api/client";
 import { useRoute } from "../routing/router";
+import { AppChip } from "../ui/primitives";
 import { formatStartsAt } from "./format";
 import { MapScreen } from "./MapScreen";
 
@@ -62,12 +63,12 @@ export type CatalogViewName = "list" | "map";
 function ViewToggle({ view, onView }: { view: CatalogViewName; onView: (view: CatalogViewName) => void }) {
   return (
     <div className="app-view-toggle" role="group" aria-label="Вид каталога">
-      <button type="button" className="app-filters-chip" aria-pressed={view === "list"} onClick={() => onView("list")}>
+      <AppChip pressed={view === "list"} onClick={() => onView("list")}>
         Список
-      </button>
-      <button type="button" className="app-filters-chip" aria-pressed={view === "map"} onClick={() => onView("map")}>
+      </AppChip>
+      <AppChip pressed={view === "map"} onClick={() => onView("map")}>
         Карта
-      </button>
+      </AppChip>
     </div>
   );
 }
@@ -110,13 +111,13 @@ function FilterBar({ filters, onFilters }: { filters: EventFilters; onFilters: (
   return (
     <div className="app-filters">
       <div className="app-filters-chips" role="group" aria-label="Категория">
-        <button type="button" className="app-filters-chip" aria-pressed={filters.category === undefined} onClick={() => onFilters({ ...filters, category: undefined })}>
+        <AppChip pressed={filters.category === undefined} onClick={() => onFilters({ ...filters, category: undefined })}>
           Все
-        </button>
+        </AppChip>
         {CATEGORIES.map((category) => (
-          <button type="button" key={category} className="app-filters-chip" aria-pressed={filters.category === category} onClick={() => onFilters({ ...filters, category })}>
+          <AppChip key={category} pressed={filters.category === category} onClick={() => onFilters({ ...filters, category })}>
             {CATEGORY_LABELS[category]}
-          </button>
+          </AppChip>
         ))}
       </div>
       <div className="app-filters-inputs">

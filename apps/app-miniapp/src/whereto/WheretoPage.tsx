@@ -22,6 +22,7 @@ import { mockEvents } from "../api/mock";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
 import { useRoute } from "../routing/router";
+import { AppButton, AppChip, AppTitle } from "../ui/primitives";
 
 export const COMPANY_LABELS: Record<WheretoCompany, string> = { alone: "Я один", friends: "С друзьями", partner: "С девушкой", kids: "С детьми" };
 
@@ -81,7 +82,9 @@ export function WheretoView({ state, events, shared, onCompany, onMood, onBudget
   if (state.step === "company") {
     return (
       <>
-        <h2 className="app-whereto-title">Куда пойдём?</h2>
+        <AppTitle asChild>
+          <h2 className="app-whereto-title">Куда пойдём?</h2>
+        </AppTitle>
         <p className="app-whereto-hint">Выберите компанию</p>
         <div className="app-whereto-options" role="group" aria-label="Компания">
           {(Object.keys(COMPANY_LABELS) as WheretoCompany[]).map((company) => (
@@ -97,34 +100,38 @@ export function WheretoView({ state, events, shared, onCompany, onMood, onBudget
   if (state.step === "context") {
     return (
       <>
-        <h2 className="app-whereto-title">Настроение и бюджет</h2>
+        <AppTitle asChild>
+          <h2 className="app-whereto-title">Настроение и бюджет</h2>
+        </AppTitle>
         <p className="app-whereto-hint">{COMPANY_LABELS[state.company]}</p>
         <div className="app-whereto-chips" role="group" aria-label="Настроение">
           <span className="app-whereto-chips-label">Настроение</span>
           {(Object.keys(MOOD_LABELS) as WheretoMood[]).map((mood) => (
-            <button type="button" key={mood} className="app-filters-chip" aria-pressed={state.mood === mood} onClick={() => onMood(mood)}>
+            <AppChip key={mood} pressed={state.mood === mood} onClick={() => onMood(mood)}>
               {MOOD_LABELS[mood]}
-            </button>
+            </AppChip>
           ))}
         </div>
         <div className="app-whereto-chips" role="group" aria-label="Бюджет">
           <span className="app-whereto-chips-label">Бюджет</span>
           {(Object.keys(BUDGET_LABELS) as WheretoBudget[]).map((budget) => (
-            <button type="button" key={budget} className="app-filters-chip" aria-pressed={state.budget === budget} onClick={() => onBudget(budget)}>
+            <AppChip key={budget} pressed={state.budget === budget} onClick={() => onBudget(budget)}>
               {BUDGET_LABELS[budget]}
-            </button>
+            </AppChip>
           ))}
         </div>
-        <button type="button" className="app-whereto-show" disabled={state.mood === null || state.budget === null} onClick={onShow}>
+        <AppButton disabled={state.mood === null || state.budget === null} onClick={onShow} stretched>
           Показать подборку
-        </button>
+        </AppButton>
       </>
     );
   }
 
   return (
     <>
-      <h2 className="app-whereto-title">Ваша подборка</h2>
+      <AppTitle asChild>
+        <h2 className="app-whereto-title">Ваша подборка</h2>
+      </AppTitle>
       <p className="app-whereto-hint">
         {COMPANY_LABELS[state.query.company]} · {MOOD_LABELS[state.query.mood]} · {BUDGET_LABELS[state.query.budget]}
       </p>
@@ -133,9 +140,9 @@ export function WheretoView({ state, events, shared, onCompany, onMood, onBudget
         <ResultCard key={event.id} event={event} onOpenEvent={onOpenEvent} />
       ))}
       {events.length > 0 && (
-        <button type="button" className="app-whereto-show" onClick={onShare}>
+        <AppButton onClick={onShare} stretched>
           Отправить друзьям
-        </button>
+        </AppButton>
       )}
       {shared === "bridge" && <p className="app-whereto-share-hint">Выберите чат в MAX — экран отправки открыт.</p>}
       {shared === "clipboard" && <p className="app-whereto-share-hint">Подборка скопирована — вставьте её в чат.</p>}

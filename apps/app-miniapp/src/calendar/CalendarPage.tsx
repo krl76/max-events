@@ -17,6 +17,7 @@ import { apiClient, type CalendarEntry } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { DEMO_USER_ID } from "../event/EventPage";
+import { AppButton, AppTitle } from "../ui/primitives";
 
 export type CalendarState = { status: "loading" } | { status: "error" } | { status: "ready"; entries: CalendarEntry[] };
 
@@ -41,9 +42,9 @@ function BookingCard({ entry, onCancel }: { entry: CalendarEntry; onCancel: (() 
           {CATEGORY_LABELS[event.category]} · {event.priceRub === null ? "Бесплатно" : `${event.priceRub} ₽`}
         </span>
         {onCancel !== null && (
-          <button type="button" className="app-calendar-cancel" onClick={onCancel}>
+          <AppButton className="app-calendar-cancel" size="small" tone="danger" onClick={onCancel}>
             Отменить запись
-          </button>
+          </AppButton>
         )}
       </div>
     </article>
@@ -64,11 +65,15 @@ export function CalendarView({ state, now, onCancel }: CalendarViewProps) {
   return (
     <>
       <section className="app-calendar-section">
-        <h2 className="app-calendar-heading">Запланированные</h2>
+        <AppTitle asChild>
+          <h2 className="app-calendar-heading">Запланированные</h2>
+        </AppTitle>
         {upcoming.length === 0 ? <p className="app-state">Нет запланированных событий.</p> : upcoming.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={() => onCancel(entry.booking.id)} />)}
       </section>
       <section className="app-calendar-section">
-        <h2 className="app-calendar-heading">Прошедшие</h2>
+        <AppTitle asChild>
+          <h2 className="app-calendar-heading">Прошедшие</h2>
+        </AppTitle>
         {past.length === 0 ? <p className="app-state">Нет прошедших событий.</p> : past.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={null} />)}
       </section>
     </>

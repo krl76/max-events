@@ -23,6 +23,7 @@ import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { ParticipationStatusSchema, type ParticipationStatus } from "@max-events/api-contracts";
 import { openExternalLink } from "../max/bridge";
 import { useRoute } from "../routing/router";
+import { AppButton, AppChip, AppTitle } from "../ui/primitives";
 import { SaveToList } from "./SaveToList";
 import { FeedSection } from "../feed/FeedPage";
 import { ReviewSection } from "./ReviewSection";
@@ -64,37 +65,37 @@ interface BookingCtaProps {
 function BookingCta({ details, onBook, onCancel }: BookingCtaProps) {
   if (details.activeBookingId !== null) {
     return (
-      <button type="button" className="app-event-cta app-event-cta--booked" onClick={onCancel}>
+      <AppButton onClick={onCancel} stretched tone="secondary">
         Вы записаны
-      </button>
+      </AppButton>
     );
   }
   if (details.remainingSeats === 0) {
     return (
-      <button type="button" className="app-event-cta" disabled>
+      <AppButton disabled stretched>
         Мест нет
-      </button>
+      </AppButton>
     );
   }
   return (
-    <button type="button" className="app-event-cta" onClick={onBook}>
+    <AppButton onClick={onBook} stretched>
       Записаться
-    </button>
+    </AppButton>
   );
 }
 
 function CheckInCta({ checkedIn, onCheckIn }: { checkedIn: boolean; onCheckIn: () => void }) {
   if (checkedIn) {
     return (
-      <button type="button" className="app-event-cta app-event-cta--booked" disabled>
+      <AppButton disabled stretched tone="secondary">
         Вы были здесь
-      </button>
+      </AppButton>
     );
   }
   return (
-    <button type="button" className="app-event-cta" onClick={onCheckIn}>
+    <AppButton onClick={onCheckIn} stretched tone="secondary">
       Я здесь
-    </button>
+    </AppButton>
   );
 }
 
@@ -115,7 +116,9 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy }
     <article className="app-event">
       <div className="app-event-media" />
       <div className="app-event-body">
-        <h1 className="app-event-title">{event.title}</h1>
+        <AppTitle asChild>
+          <h1 className="app-event-title">{event.title}</h1>
+        </AppTitle>
         <dl className="app-event-meta">
           <div className="app-event-meta-row">
             <dt>Когда</dt>
@@ -148,9 +151,9 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy }
         <BookingCta details={details} onBook={onBook} onCancel={onCancel} />
         <CheckInCta checkedIn={details.checkInId !== null} onCheckIn={onCheckIn} />
         {paymentUrl !== null && (
-          <button type="button" className="app-event-cta app-event-cta--buy" onClick={() => onBuy(paymentUrl)}>
+          <AppButton onClick={() => onBuy(paymentUrl)} stretched tone="secondary">
             Купить билет
-          </button>
+          </AppButton>
         )}
       </div>
     </article>
@@ -187,12 +190,14 @@ export function ParticipationView({ stats, onSet, onClear }: ParticipationViewPr
   return (
     <section className="app-event">
       <div className="app-event-body">
-        <h2 className="app-participation-title">Твой статус</h2>
+        <AppTitle asChild>
+          <h2 className="app-participation-title">Твой статус</h2>
+        </AppTitle>
         <div className="app-participation-chips">
           {PARTICIPATION_STATUSES.map((status) => (
-            <button key={status} type="button" className="app-participation-chip" aria-pressed={stats.myStatus === status} onClick={() => onSet(status)}>
+            <AppChip key={status} pressed={stats.myStatus === status} onClick={() => onSet(status)}>
               {PARTICIPATION_STATUS_LABELS[status]}
-            </button>
+            </AppChip>
           ))}
         </div>
         {stats.myStatus !== null && (
@@ -273,9 +278,9 @@ export function EventPage({ id }: { id: string }) {
       <SaveToList eventId={id} userId={userId} />
       <section className="app-event">
         <div className="app-event-body">
-          <button type="button" className="app-event-cta" onClick={() => navigate({ name: "gathering-new", eventId: id })}>
+          <AppButton onClick={() => navigate({ name: "gathering-new", eventId: id })} stretched>
             Собрать компанию
-          </button>
+          </AppButton>
         </div>
       </section>
       <ParticipationSection eventId={id} userId={userId} />
