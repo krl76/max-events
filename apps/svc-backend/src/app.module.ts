@@ -48,6 +48,7 @@ import { DiscoveryModule } from "./discovery/discovery.module";
 import { PeopleModule } from "./people/people.module";
 import { OrganizerModule } from "./organizer/organizer.module";
 import { StatsModule } from "./stats/stats.module";
+import { RatingModule } from "./rating/rating.module";
 
 @Module({
   imports: [
@@ -96,6 +97,7 @@ import { StatsModule } from "./stats/stats.module";
     PeopleModule,
     OrganizerModule,
     StatsModule,
+    RatingModule,
   ],
 })
 export class AppModule {}

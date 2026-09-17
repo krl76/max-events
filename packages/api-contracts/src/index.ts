@@ -30,3 +30,4 @@ export * from "./taste.js";
 export * from "./discovery.js";
 export * from "./people.js";
 export * from "./stats.js";
+export * from "./organizer-rating.js";
