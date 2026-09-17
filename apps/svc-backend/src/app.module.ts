@@ -52,6 +52,7 @@ import { RatingModule } from "./rating/rating.module";
 import { PromoModule } from "./promo/promo.module";
 import { PromotionModule } from "./promotion/promotion.module";
 import { WeGroupsModule } from "./wegroups/we-groups.module";
+import { VotesModule } from "./votes/votes.module";
 
 @Module({
   imports: [
@@ -104,6 +105,7 @@ import { WeGroupsModule } from "./wegroups/we-groups.module";
     PromoModule,
     PromotionModule,
     WeGroupsModule,
+    VotesModule,
   ],
 })
 export class AppModule {}

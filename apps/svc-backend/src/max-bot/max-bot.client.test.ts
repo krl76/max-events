@@ -95,3 +95,16 @@ describe("MaxBotClient.sendMessage", () => {
     await expect(network.sendMessage("1", "x")).resolves.toBe(false);
   });
 });
+
+describe("MaxBotClient.sendChatMessage", () => {
+  it("posts text to /messages?chat_id= with the Authorization token", async () => {
+    const calls: Array<{ url: string; init: { method: string; headers: Record<string, string>; body: string } }> = [];
+    const client = new MaxBotClient(token, MAX_BOT_API_BASE_URL, async (url, init) => {
+      calls.push({ url, init });
+      return jsonResponse(200, { message: {} });
+    });
+    await expect(client.sendChatMessage(7, "Куда идем в пятницу?")).resolves.toBe(true);
+    expect(calls[0]?.url).toBe(`${MAX_BOT_API_BASE_URL}/messages?chat_id=7`);
+    expect(JSON.parse(calls[0]?.init.body ?? "{}")).toEqual({ text: "Куда идем в пятницу?" });
+  });
+});

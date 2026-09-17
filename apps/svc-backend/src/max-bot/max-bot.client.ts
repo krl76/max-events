@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - MaxBotChat - chat id + invite link
 // - MaxBotFetch - injectable fetch for tests
-// - MaxBotClient - createChat(title), sendMessage(maxUserId, text), listFriends(maxUserId)
+// - MaxBotClient - createChat(title), sendMessage(maxUserId, text), sendChatMessage(chatId, text), listFriends(maxUserId)
 // - MAX_BOT_API_BASE_URL - documented Bot API host
 // END_MODULE_MAP
 
@@ -54,10 +54,17 @@ export class MaxBotClient {
   }
 
   async sendMessage(maxUserId: string, text: string): Promise<boolean> {
+    return this.postMessage(`user_id=${encodeURIComponent(maxUserId)}`, text);
+  }
+
+  async sendChatMessage(chatId: number, text: string): Promise<boolean> {
+    return this.postMessage(`chat_id=${encodeURIComponent(String(chatId))}`, text);
+  }
+
+  private async postMessage(query: string, text: string): Promise<boolean> {
     if (!this.token) return false;
     try {
-      const url = `${this.baseUrl}/messages?user_id=${encodeURIComponent(maxUserId)}`;
-      const response = await this.fetchImpl(url, {
+      const response = await this.fetchImpl(`${this.baseUrl}/messages?${query}`, {
         method: "POST",
         headers: { Authorization: this.token, "content-type": "application/json" },
         body: JSON.stringify({ text }),

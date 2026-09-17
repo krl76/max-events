@@ -42,12 +42,13 @@ import { PromoFulfillmentEntity } from "../promo/promo-fulfillment.entity";
 import { PromotionCampaignEntity } from "../promotion/promotion-campaign.entity";
 import { PlanExpenseEntity } from "../plans/plan-expense.entity";
 import { WeGroupEntity, WeGroupItemEntity, WeGroupMemberEntity } from "../wegroups/we-group.entity";
+import { VoteBallotEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity } from "../votes/vote.entity";
 
 const env = validateEnv();
 
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: env.DATABASE_URL,
-  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity, PlanExpenseEntity, ListEntity, ListItemEntity, SubscriptionEntity, CheckInEntity, UserAchievementEntity, ReviewEntity, WaitlistEntryEntity, FeedPostEntity, FeedLikeEntity, FeedCommentEntity, ReportEntity, MicroEventEntity, MicroEventParticipantEntity, CollectionEntity, CollectionMemberEntity, CollectionItemEntity, ListDigestSendEntity, PageViewEntity, PromoCodeEntity, PromoCampaignEntity, PromoFulfillmentEntity, PromotionCampaignEntity, WeGroupEntity, WeGroupMemberEntity, WeGroupItemEntity],
+  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity, PlanExpenseEntity, ListEntity, ListItemEntity, SubscriptionEntity, CheckInEntity, UserAchievementEntity, ReviewEntity, WaitlistEntryEntity, FeedPostEntity, FeedLikeEntity, FeedCommentEntity, ReportEntity, MicroEventEntity, MicroEventParticipantEntity, CollectionEntity, CollectionMemberEntity, CollectionItemEntity, ListDigestSendEntity, PageViewEntity, PromoCodeEntity, PromoCampaignEntity, PromoFulfillmentEntity, PromotionCampaignEntity, WeGroupEntity, WeGroupMemberEntity, WeGroupItemEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity, VoteBallotEntity],
   migrations: ["src/database/migrations/*.ts"],
 });
