@@ -10,7 +10,7 @@
 // - toFriendDto - map UserEntity to api-contracts Friend
 // END_MODULE_MAP
 
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import type { EventFriendsSummary, Friend, FriendActivityByFriend } from "@max-events/api-contracts";
@@ -32,7 +32,7 @@ export class FriendsService {
     private readonly participations: Repository<ParticipationEntity>,
     @InjectRepository(EventEntity)
     private readonly events: Repository<EventEntity>,
-    private readonly bot: MaxBotClient,
+    @Inject(MaxBotClient) private readonly bot: MaxBotClient,
   ) {}
 
   async friendIds(userId: string): Promise<Set<string>> {
