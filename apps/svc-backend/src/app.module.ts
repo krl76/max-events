@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Root NestJS module wiring config, Postgres (TypeORM) and feature modules.
-// SCOPE: Global ConfigModule, TypeOrmModule from DATABASE_URL, Auth/Users/Health/Places/Events/Bookings/Calendar/Reminders/Participations/Friends/Whereto/Today/Gatherings/Plans/Lists/Subscriptions/CheckIns/Achievements modules.
+// SCOPE: Global ConfigModule, TypeOrmModule from DATABASE_URL, feature modules including my-city, reviews, waitlist, feed, reports and place-page.
 // DEPENDS: @nestjs/config, @nestjs/typeorm, auth/auth.module, health/health.module, places/places.module, events/events.module, bookings/bookings.module, calendar/calendar.module, reminders/reminders.module, participations/participations.module, friends/friends.module, whereto/whereto.module, today/today.module, gatherings/gatherings.module, plans/plans.module, lists/lists.module, subscriptions/subscriptions.module, checkins/check-ins.module, achievements/achievements.module
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -31,6 +31,12 @@ import { ListsModule } from "./lists/lists.module";
 import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
 import { CheckInsModule } from "./checkins/check-ins.module";
 import { AchievementsModule } from "./achievements/achievements.module";
+import { MyCityModule } from "./mycity/my-city.module";
+import { ReviewsModule } from "./reviews/reviews.module";
+import { WaitlistModule } from "./waitlist/waitlist.module";
+import { FeedModule } from "./feed/feed.module";
+import { ReportsModule } from "./reports/reports.module";
+import { PlacePageModule } from "./place-page/place-page.module";
 
 @Module({
   imports: [
@@ -62,6 +68,12 @@ import { AchievementsModule } from "./achievements/achievements.module";
     SubscriptionsModule,
     CheckInsModule,
     AchievementsModule,
+    MyCityModule,
+    ReviewsModule,
+    WaitlistModule,
+    FeedModule,
+    ReportsModule,
+    PlacePageModule,
   ],
 })
 export class AppModule {}

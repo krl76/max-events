@@ -18,3 +18,7 @@ export * from "./achievement.js";
 export * from "./mycity.js";
 export * from "./review.js";
 export * from "./microevent.js";
+export * from "./waitlist.js";
+export * from "./feed.js";
+export * from "./report.js";
+export * from "./place-page.js";

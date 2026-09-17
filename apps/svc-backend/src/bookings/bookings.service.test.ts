@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { QueryFailedError, type DataSource, type EntityManager, type EntityTarget, type FindOneOptions, type ObjectLiteral } from "typeorm";
 import type { BookingStatus } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
+import type { WaitlistService } from "../waitlist/waitlist.service";
 import { BookingEntity } from "./booking.entity";
 import { BookingsService } from "./bookings.service";
 
@@ -63,16 +64,17 @@ function createDataSource(event: EventEntity) {
             const held = new Promise<void>((resolve) => {
               release = resolve;
             });
-            tails.set(id, prev.then(() => held));
+            tails.set(
+              id,
+              prev.then(() => held),
+            );
             await prev;
             releases.push(release);
           }
           if (entity === EventEntity) {
             return (events.find((row) => row.id === where.id) ?? null) as Entity | null;
           }
-          return (
-            (bookings.find((row) => Object.entries(where).every(([key, value]) => (row as unknown as Record<string, unknown>)[key] === value)) as Entity | undefined) ?? null
-          );
+          return (bookings.find((row) => Object.entries(where).every(([key, value]) => (row as unknown as Record<string, unknown>)[key] === value)) as Entity | undefined) ?? null;
         },
         create: <Entity>(_entity: EntityTarget<Entity>, fields: Partial<Entity>) => ({ ...fields }) as Entity,
         save: async <Entity>(entity: EntityTarget<Entity> | ObjectLiteral, maybeRecord?: ObjectLiteral) => {
@@ -114,8 +116,9 @@ function createDataSource(event: EventEntity) {
 
 function createService(event: EventEntity = seedEvent()) {
   const fake = createDataSource(event);
-  const service = new BookingsService(fake.dataSource);
-  return { ...fake, service };
+  const waitlist = { onSeatFreed: async () => null } as unknown as WaitlistService;
+  const service = new BookingsService(fake.dataSource, waitlist);
+  return { ...fake, service, waitlist };
 }
 
 describe("BookingsService", () => {

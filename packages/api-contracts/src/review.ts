@@ -14,6 +14,10 @@
 // - Review - review type
 // - RatingSummarySchema - aggregated rating for an event or a place
 // - RatingSummary - rating summary type
+// - CreateReviewWriteSchema - review submission payload (booked event)
+// - CreateReviewWrite - review submission type
+// - EventRatingSchema - event-page rating aggregate with per-category averages
+// - EventRating - event rating type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -65,3 +69,24 @@ export const RatingSummarySchema = z
     path: ["eventId"],
   });
 export type RatingSummary = z.infer<typeof RatingSummarySchema>;
+
+export const CreateReviewWriteSchema = z.object({
+  eventId: IdSchema,
+  stars: z.number().int().min(1).max(5),
+  categoryScores: ReviewCategoryScoresSchema.optional(),
+  wouldGoAgain: z.boolean(),
+  photos: z.array(ReviewPhotoSchema).default([]),
+  text: z.string().max(2000).nullable().optional(),
+});
+export type CreateReviewWrite = z.infer<typeof CreateReviewWriteSchema>;
+
+export const EventRatingSchema = z.object({
+  summary: RatingSummarySchema,
+  categoryAverages: z.object({
+    atmosphere: z.number().min(1).max(5).nullable(),
+    organization: z.number().min(1).max(5).nullable(),
+    price: z.number().min(1).max(5).nullable(),
+    place: z.number().min(1).max(5).nullable(),
+  }),
+});
+export type EventRating = z.infer<typeof EventRatingSchema>;

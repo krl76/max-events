@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ReviewSchema, RatingSummarySchema } from "./review.js";
+import { CreateReviewWriteSchema, ReviewSchema, RatingSummarySchema } from "./review.js";
 
 const review = {
   id: "018f3c5a-0000-7000-8000-000000000050",
@@ -55,6 +55,14 @@ describe("ReviewSchema", () => {
   it("round-trips through JSON", () => {
     const parsed = ReviewSchema.parse(review);
     expect(ReviewSchema.parse(JSON.parse(JSON.stringify(parsed)))).toEqual(parsed);
+  });
+});
+
+describe("CreateReviewWriteSchema", () => {
+  it("requires a booked event, stars and wouldGoAgain", () => {
+    const parsed = CreateReviewWriteSchema.parse({ eventId: review.eventId, stars: 5, wouldGoAgain: true });
+    expect(parsed.photos).toEqual([]);
+    expect(parsed.eventId).toBe(review.eventId);
   });
 });
 

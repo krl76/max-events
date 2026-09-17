@@ -10,16 +10,20 @@
 // - toBookingDto - map BookingEntity plus remaining seats to BookingWithSeats
 // END_MODULE_MAP
 
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource, QueryFailedError } from "typeorm";
 import type { BookingStatus, BookingWithSeats } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
+import { WaitlistService } from "../waitlist/waitlist.service";
 import { BookingEntity } from "./booking.entity";
 
 @Injectable()
 export class BookingsService {
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    @Inject(WaitlistService) private readonly waitlist: WaitlistService,
+  ) {}
 
   async create(userId: string, eventId: string): Promise<BookingWithSeats> {
     try {
@@ -61,6 +65,7 @@ export class BookingsService {
       event.bookedCount = Math.max(0, event.bookedCount - 1);
       const saved = await manager.save(BookingEntity, locked);
       await manager.save(EventEntity, event);
+      await this.waitlist.onSeatFreed(manager, event);
       return toBookingDto(saved, event);
     });
   }

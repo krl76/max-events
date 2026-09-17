@@ -10,6 +10,8 @@
 // - MyCitySummary - my city summary type
 // - MemoryPointSchema - impression point for the personal map (geo + exactly one of eventId/placeId + visited time)
 // - MemoryPoint - memory point type
+// - MyCityPayloadSchema - GET /users/:id/my-city envelope
+// - MyCityPayload - my-city payload type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -37,3 +39,9 @@ export const MemoryPointSchema = z
     path: ["eventId"],
   });
 export type MemoryPoint = z.infer<typeof MemoryPointSchema>;
+
+export const MyCityPayloadSchema = z.object({
+  summary: MyCitySummarySchema,
+  points: z.array(MemoryPointSchema),
+});
+export type MyCityPayload = z.infer<typeof MyCityPayloadSchema>;
