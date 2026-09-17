@@ -64,31 +64,14 @@ function eventRow(): EventEntity {
 
 function createService(options: { otherPrivacy?: ProfileEntity["privacy"]; otherStatus?: ParticipationEntity["status"]; otherLat?: number; viewerCheckIn?: boolean; friendIds?: string[]; otherCity?: string } = {}) {
   const otherCity = options.otherCity ?? "Москва";
-  const profiles = createStoreRepo<ProfileEntity>([
-    { userId: me, city: "Москва", interests: ["джаз"] } as ProfileEntity,
-    { userId: other, city: otherCity, interests: ["джаз"], privacy: options.otherPrivacy } as ProfileEntity,
-  ]);
+  const profiles = createStoreRepo<ProfileEntity>([{ userId: me, city: "Москва", interests: ["джаз"] } as ProfileEntity, { userId: other, city: otherCity, interests: ["джаз"], privacy: options.otherPrivacy } as ProfileEntity]);
   const users = createStoreRepo<UserEntity>([{ id: me, firstName: "Саша", lastName: null, avatarUrl: null } as UserEntity, { id: other, firstName: "Кирилл", lastName: null, avatarUrl: null } as UserEntity]);
-  const checkIns = createStoreRepo<CheckInEntity>([
-    ...(options.viewerCheckIn === false ? [] : [{ id: "c1", userId: me, eventId: null, placeId, checkedInAt: now } as CheckInEntity]),
-    { id: "c2", userId: other, eventId: null, placeId, checkedInAt: now } as CheckInEntity,
-  ]);
+  const checkIns = createStoreRepo<CheckInEntity>([...(options.viewerCheckIn === false ? [] : [{ id: "c1", userId: me, eventId: null, placeId, checkedInAt: now } as CheckInEntity]), { id: "c2", userId: other, eventId: null, placeId, checkedInAt: now } as CheckInEntity]);
   const events = createStoreRepo<EventEntity>([eventRow()]);
   const places = createStoreRepo<PlaceEntity>([{ id: placeId, title: "Парк", address: "x", city: "Москва", category: "park", latitude: options.otherLat ?? 55.75, longitude: 37.62, published: true, createdAt: now, updatedAt: now } as PlaceEntity]);
-  const participations = createStoreRepo<ParticipationEntity>([
-    { id: "p1", userId: me, eventId, status: "going" } as ParticipationEntity,
-    { id: "p2", userId: other, eventId, status: options.otherStatus ?? "looking_for_company" } as ParticipationEntity,
-  ]);
+  const participations = createStoreRepo<ParticipationEntity>([{ id: "p1", userId: me, eventId, status: "going" } as ParticipationEntity, { id: "p2", userId: other, eventId, status: options.otherStatus ?? "looking_for_company" } as ParticipationEntity]);
   const friends = { friendIds: async () => new Set(options.friendIds ?? []) } as unknown as FriendsService;
-  const service = new PeopleService(
-    users as unknown as Repository<UserEntity>,
-    profiles as unknown as Repository<ProfileEntity>,
-    checkIns as unknown as Repository<CheckInEntity>,
-    events as unknown as Repository<EventEntity>,
-    places as unknown as Repository<PlaceEntity>,
-    participations as unknown as Repository<ParticipationEntity>,
-    friends,
-  );
+  const service = new PeopleService(users as unknown as Repository<UserEntity>, profiles as unknown as Repository<ProfileEntity>, checkIns as unknown as Repository<CheckInEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, participations as unknown as Repository<ParticipationEntity>, friends);
   return service;
 }
 

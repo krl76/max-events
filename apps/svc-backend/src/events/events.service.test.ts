@@ -63,9 +63,7 @@ function createRepo(initial: EventEntity[] = []) {
   };
 }
 
-function createService(
-  options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean } = {},
-) {
+function createService(options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean } = {}) {
   const knownPlaces = new Set(options.placeIds ?? []);
   const draftPlaces = new Set(options.draftPlaceIds ?? []);
   const chatCalls: string[] = [];
