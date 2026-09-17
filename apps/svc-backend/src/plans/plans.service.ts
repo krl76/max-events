@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Event-tied plans — create/list/get, invite/confirm, MAX chat, meeting-time reminders.
-// SCOPE: PlanCard with distance to event place when origin is set; chat/DM best-effort; declined users skipped on remind.
+// PURPOSE: Event-tied plans — create/list/get, invite/confirm, MAX chat, recurring spawn/poll, meeting-time reminders.
+// SCOPE: PlanCard with distance to event place when origin is set; chat/DM best-effort; declined users skipped on remind/poll.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, events/friends/places/users/max-bot, reminders window helper
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -11,8 +11,10 @@
 // - haversineMeters - distance from origin to a lat/lng
 // - formatPlanReminderText - DM body for the meeting
 // - formatPlanInviteText - invite DM body
+// - formatPlanPollText - recurring occurrence poll DM body
+// - PLAN_POLL_WINDOW_MS - look-ahead window for occurrence polls
 // - settleBalances - greedy debt settlement
-// - PlansService - create, list, get, addParticipant, respond, remove, spawnRecurring, remindMeeting, budget
+// - PlansService - create, list, get, addParticipant, respond, remove, spawnRecurring, pollRecurring, remindMeeting, budget
 // END_MODULE_MAP
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
@@ -30,7 +32,7 @@ import { UserEntity } from "../users/user.entity";
 import { PlanExpenseEntity } from "./plan-expense.entity";
 import { PlanParticipantEntity } from "./plan-participant.entity";
 import { PlanEntity } from "./plan.entity";
-import { upcomingRecurringAts } from "./recurring";
+import { moscowIsoWeekday, upcomingRecurringAts } from "./recurring";
 
 export type GeoOrigin = { latitude: number; longitude: number };
 export type PlanRemindResult = { sent: number; failed: number };
@@ -39,6 +41,17 @@ const WALK_M_PER_MIN = 80;
 const FOOD_RADIUS_KM = 2;
 const MEETUP_BUFFER_MIN = 20;
 const DINNER_MIN = 70;
+export const PLAN_POLL_WINDOW_MS = 7 * 86_400_000;
+
+const WEEKDAY_POLL: Record<number, string> = {
+  1: "понедельник",
+  2: "вторник",
+  3: "среду",
+  4: "четверг",
+  5: "пятницу",
+  6: "субботу",
+  7: "воскресенье",
+};
 
 export function haversineMeters(from: GeoOrigin, latitude: number, longitude: number): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -88,6 +101,11 @@ export function formatPlanInviteText(title: string, meetingPoint: string, meetin
   return `Тебя зовут в план «${title}». Сбор ${meetingAt.toISOString()} ${meetingPoint}.${chat}`;
 }
 
+export function formatPlanPollText(title: string, meetingPoint: string, meetingAt: Date): string {
+  const weekday = WEEKDAY_POLL[moscowIsoWeekday(meetingAt)] ?? "встречу";
+  return `Идёшь на ${weekday}? План «${title}». Сбор ${meetingAt.toISOString()} ${meetingPoint}. Ответь в приложении.`;
+}
+
 @Injectable()
 export class PlansService {
   private readonly logger = new Logger(PlansService.name);
@@ -132,7 +150,7 @@ export class PlansService {
       await this.plans.save(saved);
     }
     for (const userId of ids) {
-      await this.participants.save(this.participants.create({ planId: saved.id, userId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null }));
+      await this.participants.save(this.participants.create({ planId: saved.id, userId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null, pollSentAt: null }));
     }
     try {
       const chat = await this.bot.createChat(`План: ${event.title}`);
@@ -198,7 +216,7 @@ export class PlansService {
           }),
         );
         for (const row of invitees) {
-          await this.participants.save(this.participants.create({ planId: copy.id, userId: row.userId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null }));
+          await this.participants.save(this.participants.create({ planId: copy.id, userId: row.userId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null, pollSentAt: null }));
         }
         existing.add(meetingAt.getTime());
         created += 1;
@@ -280,7 +298,7 @@ export class PlansService {
     if (!allowed.has(userId)) throw new BadRequestException("Invalid plan payload");
     const existing = (await this.participants.find({ where: { planId } })).find((row) => row.userId === userId);
     if (!existing) {
-      await this.participants.save(this.participants.create({ planId, userId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null }));
+      await this.participants.save(this.participants.create({ planId, userId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null, pollSentAt: null }));
     }
     return this.get(hostUserId, planId);
   }
@@ -305,6 +323,36 @@ export class PlansService {
     const rows = await this.participants.find({ where: { planId } });
     for (const row of rows) await this.participants.delete({ id: row.id });
     await this.plans.delete({ id: planId });
+  }
+
+  async pollRecurring(now = new Date()): Promise<PlanRemindResult> {
+    const result: PlanRemindResult = { sent: 0, failed: 0 };
+    const plans = await this.plans.find();
+    const events = await this.events.find();
+    const users = await this.users.find();
+    const participants = await this.participants.find();
+    for (const plan of plans) {
+      if (plan.cancelledAt || !plan.sourcePlanId) continue;
+      if (!isInReminderWindow(plan.meetingAt, now, PLAN_POLL_WINDOW_MS)) continue;
+      const event = events.find((row) => row.id === plan.eventId);
+      if (!event) continue;
+      const text = formatPlanPollText(event.title, plan.meetingPoint, plan.meetingAt);
+      for (const row of participants.filter((item) => item.planId === plan.id)) {
+        if (row.status !== "invited" || row.pollSentAt) continue;
+        const user = users.find((item) => item.id === row.userId);
+        if (!user) {
+          result.failed += 1;
+          continue;
+        }
+        const sent = await this.dm(user, text, () => {
+          row.pollSentAt = now;
+          return this.participants.save(row);
+        });
+        if (sent) result.sent += 1;
+        else result.failed += 1;
+      }
+    }
+    return result;
   }
 
   async remindMeeting(now = new Date()): Promise<PlanRemindResult> {

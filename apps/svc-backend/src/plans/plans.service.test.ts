@@ -10,7 +10,7 @@ import { UserEntity } from "../users/user.entity";
 import { PlanExpenseEntity } from "./plan-expense.entity";
 import { PlanParticipantEntity } from "./plan-participant.entity";
 import { PlanEntity } from "./plan.entity";
-import { haversineMeters, PlansService, settleBalances } from "./plans.service";
+import { formatPlanPollText, haversineMeters, PlansService, settleBalances } from "./plans.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
 const hostId = "00000000-0000-4000-8000-00000000000a";
@@ -383,7 +383,7 @@ describe("PlansService", () => {
     );
     template.seriesId = template.id;
     await plans.save(template);
-    await participants.save(participants.create({ planId: template.id, userId: dimaId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null }));
+    await participants.save(participants.create({ planId: template.id, userId: dimaId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null, pollSentAt: null }));
     const after = new Date("2026-09-12T10:00:00.000Z");
     expect(await service.spawnRecurring(after)).toBe(4);
     const copies = plans.store.filter((row) => row.sourcePlanId === template.id);
@@ -396,6 +396,49 @@ describe("PlansService", () => {
     ]);
     expect(new Set(times).size).toBe(4);
     expect(copies.every((row) => row.meetingAt.getTime() > after.getTime())).toBe(true);
+  });
+
+  it("polls invited friends on a copy inside the 7-day window once and records their respond status", async () => {
+    const { service, plans, messages } = createService();
+    const created = await service.create(hostId, {
+      eventId,
+      participantIds: [dimaId],
+      meetingPoint: "корт",
+      meetingAt: "2026-09-10T16:00:00.000Z",
+      recurringRule: { type: "weekly_weekday", weekday: 4 },
+    });
+    const first = plans.store.filter((row) => row.sourcePlanId === created.plan.id).sort((a, b) => a.meetingAt.getTime() - b.meetingAt.getTime())[0]!;
+    expect(formatPlanPollText("The Weekend Tribute", "корт", first.meetingAt)).toContain("Идёшь на четверг?");
+    messages.length = 0;
+    const firstPoll = await service.pollRecurring(now);
+    expect(firstPoll.sent).toBe(1);
+    expect(messages).toEqual([formatPlanPollText("The Weekend Tribute", "корт", first.meetingAt)]);
+    expect(await service.pollRecurring(now)).toEqual({ sent: 0, failed: 0 });
+    const answered = await service.respond(dimaId, first.id, "confirmed");
+    expect(answered.plan.participants).toEqual([{ friend: { id: dimaId, name: "Дима", avatarUrl: null }, status: "confirmed" }]);
+    expect(await service.pollRecurring(new Date("2026-09-01T00:00:00.000Z"))).toEqual({ sent: 0, failed: 0 });
+  });
+
+  it("skips declined and cancelled copies when polling", async () => {
+    const { service, plans, messages } = createService();
+    const created = await service.create(hostId, {
+      eventId,
+      participantIds: [dimaId, katyaId],
+      meetingPoint: "корт",
+      meetingAt: "2026-09-10T16:00:00.000Z",
+      recurringRule: { type: "weekly_weekday", weekday: 4 },
+    });
+    const copies = plans.store.filter((row) => row.sourcePlanId === created.plan.id).sort((a, b) => a.meetingAt.getTime() - b.meetingAt.getTime());
+    const first = copies[0]!;
+    await service.respond(katyaId, first.id, "declined");
+    messages.length = 0;
+    expect(await service.pollRecurring(now)).toEqual({ sent: 1, failed: 0 });
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain("Идёшь на четверг?");
+    await service.remove(hostId, first.id);
+    messages.length = 0;
+    expect(await service.pollRecurring(now)).toEqual({ sent: 0, failed: 0 });
+    expect(messages).toHaveLength(0);
   });
 });
 

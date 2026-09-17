@@ -1,13 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: In-process 60s interval that reminds plan hosts and invitees about the meeting time.
-// SCOPE: Starts on module init, clears on destroy; single-flight tick awaits spawn then remind; tests call remindMeeting directly.
+// SCOPE: Starts on module init, clears on destroy; single-flight tick awaits spawn, poll, then remind; tests call service methods directly.
 // DEPENDS: @nestjs/common, ./plans.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - PLAN_REMINDER_INTERVAL_MS - scheduler tick interval
-// - PlansScheduler - 60s setInterval around spawnRecurring then remindMeeting
+// - PlansScheduler - 60s setInterval around spawnRecurring, pollRecurring, remindMeeting
 // END_MODULE_MAP
 
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
@@ -34,6 +34,7 @@ export class PlansScheduler implements OnModuleInit, OnModuleDestroy {
     this.ticking = true;
     try {
       await this.plans.spawnRecurring();
+      await this.plans.pollRecurring();
       await this.plans.remindMeeting();
     } catch (error: unknown) {
       this.logger.error("Plan scheduler tick failed", error instanceof Error ? error.stack : String(error));
