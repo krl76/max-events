@@ -17,13 +17,26 @@ function place(id: string, lat: number, lng: number): PlaceEntity {
   return { id, title: id, address: "x", city: "Москва", category: "park", latitude: lat, longitude: lng, createdAt: now, updatedAt: now } as PlaceEntity;
 }
 
+function inValues(value: unknown): unknown[] | undefined {
+  if (value && typeof value === "object" && Array.isArray((value as { _value?: unknown })._value)) return (value as { _value: unknown[] })._value;
+  return undefined;
+}
+
+function matchesWhere(row: object, where: Record<string, unknown>): boolean {
+  return Object.entries(where).every(([key, value]) => {
+    const cell = (row as Record<string, unknown>)[key];
+    const values = inValues(value);
+    return values ? values.includes(cell) : cell === value;
+  });
+}
+
 function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
   const store = [...initial];
   return {
     store,
-    find: async (opts: { where?: Record<string, string> } = {}) => {
+    find: async (opts: { where?: Record<string, unknown> } = {}) => {
       const where = opts.where ?? {};
-      return store.filter((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value));
+      return store.filter((row) => matchesWhere(row as object, where));
     },
   };
 }

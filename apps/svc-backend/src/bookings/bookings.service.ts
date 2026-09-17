@@ -29,7 +29,7 @@ export class BookingsService {
     try {
       return await this.dataSource.transaction(async (manager) => {
         const event = await manager.findOne(EventEntity, { where: { id: eventId }, lock: { mode: "pessimistic_write" } });
-        if (!event) throw new NotFoundException("Event not found");
+        if (!event || event.published === false) throw new NotFoundException("Event not found");
 
         const duplicate = await manager.findOne(BookingEntity, { where: { userId, eventId, status: "active" satisfies BookingStatus } });
         if (duplicate) throw new ConflictException("Booking already exists");

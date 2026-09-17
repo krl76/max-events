@@ -15,12 +15,13 @@ import { MaxBotModule } from "../max-bot/max-bot.module";
 import { PlacesModule } from "../places/places.module";
 import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 import { UsersModule } from "../users/users.module";
+import { WaitlistModule } from "../waitlist/waitlist.module";
 import { EventEntity } from "./event.entity";
 import { EventsController } from "./events.controller";
 import { EventsService } from "./events.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([EventEntity]), PlacesModule, MaxBotModule, SubscriptionsModule, UsersModule],
+  imports: [TypeOrmModule.forFeature([EventEntity]), PlacesModule, MaxBotModule, SubscriptionsModule, UsersModule, WaitlistModule],
   controllers: [EventsController],
   providers: [EventsService],
   exports: [EventsService],

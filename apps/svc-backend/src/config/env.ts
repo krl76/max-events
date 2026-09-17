@@ -8,6 +8,7 @@
 // START_MODULE_MAP
 // - envSchema - zod schema for backend environment variables
 // - validateEnv - parses raw env input and throws a readable error on invalid values
+// - parseModeratorIds - comma-separated MAX user ids for moderation
 // - Env - inferred validated env type
 // END_MODULE_MAP
 
@@ -21,9 +22,20 @@ export const envSchema = z.object({
   REDIS_URL: z.string().regex(/^rediss?:\/\//, "must be a redis connection string (redis://...)"),
   PORT: z.coerce.number().int().positive().default(3100),
   MAX_BOT_TOKEN: z.string().min(1).optional(),
+  MODERATOR_MAX_USER_IDS: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+export function parseModeratorIds(raw: string | undefined): Set<string> {
+  if (!raw) return new Set();
+  return new Set(
+    raw
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0),
+  );
+}
 
 export function validateEnv(raw: Record<string, unknown> = process.env): Env {
   const parsed = envSchema.safeParse(raw);

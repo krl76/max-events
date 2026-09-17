@@ -12,14 +12,19 @@
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
 import { BanOrganizerWriteSchema, CreateReportWriteSchema, UnpublishWriteSchema, type Report } from "@max-events/api-contracts";
-import { ModerationService } from "./moderation.service";
+import { ConfigService } from "@nestjs/config";
 import { CurrentUser } from "../auth/auth.guard";
+import { assertModerator } from "../auth/moderators";
 import { UserEntity } from "../users/user.entity";
+import { ModerationService } from "./moderation.service";
 import { ReportsService } from "./reports.service";
 
 @Controller("reports")
 export class ReportsController {
-  constructor(@Inject(ReportsService) private readonly reports: ReportsService) {}
+  constructor(
+    @Inject(ReportsService) private readonly reports: ReportsService,
+    @Inject(ConfigService) private readonly config: ConfigService,
+  ) {}
 
   @Post()
   async create(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<Report> {
@@ -29,23 +34,29 @@ export class ReportsController {
   }
 
   @Get()
-  list(@Query("status") status?: string): Promise<Report[]> {
+  list(@CurrentUser() user: UserEntity, @Query("status") status?: string): Promise<Report[]> {
+    assertModerator(this.config, user);
     if (status !== undefined && status !== "open") throw new BadRequestException("Only status=open is supported");
     return this.reports.listOpen();
   }
 
   @Post(":id/resolve")
-  resolve(@Param("id", ParseUUIDPipe) id: string): Promise<Report> {
+  resolve(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<Report> {
+    assertModerator(this.config, user);
     return this.reports.resolve(id);
   }
 }
 
 @Controller("moderation")
 export class ModerationController {
-  constructor(@Inject(ModerationService) private readonly moderation: ModerationService) {}
+  constructor(
+    @Inject(ModerationService) private readonly moderation: ModerationService,
+    @Inject(ConfigService) private readonly config: ConfigService,
+  ) {}
 
   @Post("unpublish")
-  async unpublish(@Body() body: unknown): Promise<{ ok: true }> {
+  async unpublish(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<{ ok: true }> {
+    assertModerator(this.config, user);
     const parsed = UnpublishWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid unpublish payload");
     await this.moderation.unpublish(parsed.data.targetType, parsed.data.targetId);
@@ -53,7 +64,8 @@ export class ModerationController {
   }
 
   @Post("ban")
-  async ban(@Body() body: unknown): Promise<{ ok: true }> {
+  async ban(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<{ ok: true }> {
+    assertModerator(this.config, user);
     const parsed = BanOrganizerWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid ban payload");
     await this.moderation.banOrganizer(parsed.data.userId);

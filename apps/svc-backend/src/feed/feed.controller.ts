@@ -20,12 +20,15 @@ export class FeedController {
   constructor(@Inject(FeedService) private readonly feed: FeedService) {}
 
   @Get()
-  list(@CurrentUser() user: UserEntity, @Query("eventId") eventId?: string): Promise<FeedPost[]> {
+  list(@CurrentUser() user: UserEntity, @Query("eventId") eventId?: string, @Query("limit") queryLimit?: string, @Query("offset") queryOffset?: string): Promise<FeedPost[]> {
     if (eventId !== undefined && eventId !== "") {
       const parsed = /^[0-9a-f-]{36}$/i.test(eventId);
       if (!parsed) throw new BadRequestException("Invalid eventId");
     }
-    return this.feed.list(user.id, eventId || undefined);
+    const limit = queryLimit === undefined || queryLimit === "" ? 50 : Number(queryLimit);
+    const offset = queryOffset === undefined || queryOffset === "" ? 0 : Number(queryOffset);
+    if (!Number.isInteger(limit) || limit < 1 || !Number.isInteger(offset) || offset < 0) throw new BadRequestException("Invalid feed query");
+    return this.feed.list(user.id, eventId || undefined, limit, offset);
   }
 
   @Post()

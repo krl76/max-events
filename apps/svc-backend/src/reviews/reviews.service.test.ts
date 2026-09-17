@@ -1,6 +1,6 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import type { Repository } from "typeorm";
+import { QueryFailedError, type Repository } from "typeorm";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import { ReviewEntity } from "./review.entity";
@@ -11,17 +11,30 @@ const userId = "00000000-0000-4000-8000-00000000000a";
 const eventId = "00000000-0000-4000-8000-0000000000e1";
 const placeId = "00000000-0000-4000-8000-0000000000p1";
 
+function inValues(value: unknown): unknown[] | undefined {
+  if (value && typeof value === "object" && Array.isArray((value as { _value?: unknown })._value)) return (value as { _value: unknown[] })._value;
+  return undefined;
+}
+
+function matchesWhere(row: object, where: Record<string, unknown>): boolean {
+  return Object.entries(where).every(([key, value]) => {
+    const cell = (row as Record<string, unknown>)[key];
+    const values = inValues(value);
+    return values ? values.includes(cell) : cell === value;
+  });
+}
+
 function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
   const store = [...initial];
   let seq = 0;
   return {
     store,
     create: (fields: Partial<T>) => ({ ...fields, createdAt: now }) as unknown as T,
-    find: async (opts: { where?: Record<string, string> } = {}) => {
+    find: async (opts: { where?: Record<string, unknown> } = {}) => {
       const where = opts.where ?? {};
-      return store.filter((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value));
+      return store.filter((row) => matchesWhere(row as object, where));
     },
-    findOneBy: async (where: Record<string, string>) => store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
+    findOneBy: async (where: Record<string, string>) => store.find((row) => matchesWhere(row as object, where)) ?? null,
     save: async (entity: T) => {
       if (!store.includes(entity)) {
         entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
@@ -32,10 +45,10 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
   };
 }
 
-function createService(opts: { booked?: boolean } = {}) {
+function createService(opts: { booked?: boolean; published?: boolean } = {}) {
   const reviews = createStoreRepo<ReviewEntity>();
   const bookings = createStoreRepo<BookingEntity>(opts.booked === false ? [] : [{ id: "b1", userId, eventId, status: "active" } as BookingEntity]);
-  const events = createStoreRepo<EventEntity>([{ id: eventId, placeId } as EventEntity]);
+  const events = createStoreRepo<EventEntity>([{ id: eventId, placeId, published: opts.published ?? true } as EventEntity]);
   const service = new ReviewsService(reviews as unknown as Repository<ReviewEntity>, bookings as unknown as Repository<BookingEntity>, events as unknown as Repository<EventEntity>);
   return { service, reviews };
 }
@@ -49,6 +62,38 @@ describe("ReviewsService.create", () => {
   it("rejects an unknown event", async () => {
     const { service } = createService();
     await expect(service.create(userId, { eventId: "00000000-0000-4000-8000-0000000000e9", stars: 5, wouldGoAgain: true, photos: [] })).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("rejects an unpublished event", async () => {
+    const { service } = createService({ published: false });
+    await expect(service.create(userId, { eventId, stars: 5, wouldGoAgain: true, photos: [] })).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("recovers from a unique-violation race on create", async () => {
+    const { service, reviews } = createService();
+    reviews.store.push({
+      id: "00000000-0000-4000-8000-0000000000d1",
+      userId,
+      eventId,
+      stars: 3,
+      categoryScores: {},
+      wouldGoAgain: false,
+      photoUrls: [],
+      text: null,
+      createdAt: now,
+    } as ReviewEntity);
+    reviews.findOneBy = async () => {
+      reviews.findOneBy = async (where: Record<string, string>) => reviews.store.find((row) => matchesWhere(row as object, where)) ?? null;
+      return null;
+    };
+    const originalSave = reviews.save;
+    reviews.save = async (entity) => {
+      reviews.save = originalSave;
+      throw new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate"), { code: "23505" }));
+    };
+    const saved = await service.create(userId, { eventId, stars: 5, wouldGoAgain: true, photos: [] });
+    expect(saved.stars).toBe(5);
+    expect(reviews.store).toHaveLength(1);
   });
 
   it("stores a booked user's review and replaces it on resubmit", async () => {
@@ -86,5 +131,16 @@ describe("ReviewsService.eventRating", () => {
     expect(rating.summary.reviewsCount).toBe(0);
     expect(rating.summary.averageStars).toBe(0);
     expect(rating.summary.eventId).toBe(eventId);
+  });
+});
+
+describe("ReviewsService.placeRating", () => {
+  it("aggregates reviews for events at the place", async () => {
+    const { service } = createService();
+    await service.create(userId, { eventId, stars: 4, wouldGoAgain: true, photos: [] });
+    const rating = await service.placeRating(placeId);
+    expect(rating.summary.placeId).toBe(placeId);
+    expect(rating.summary.reviewsCount).toBe(1);
+    expect(rating.summary.averageStars).toBe(4);
   });
 });

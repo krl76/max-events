@@ -14,7 +14,7 @@
 
 import { Inject, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Between, In, Repository } from "typeorm";
 import type { LeisureMood, LeisureOption, NearbyBucket, NearbyCard, NearbyTimeline } from "@max-events/api-contracts";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
@@ -109,16 +109,17 @@ export class NearbyService {
       return stops.length === 0 ? [] : [{ mood, title: "Активно", stops }];
     }
 
-    const friendIds = await this.friends.friendIds(userId);
-    const going = await this.participations.find();
-    const friendEventIds = new Set(going.filter((row) => friendIds.has(row.userId) && (row.status === "going" || row.status === "wants_to_go")).map((row) => row.eventId));
+    const friendIds = [...(await this.friends.friendIds(userId))];
+    const going = friendIds.length === 0 ? [] : await this.participations.find({ where: { userId: In(friendIds) } });
+    const friendEventIds = new Set(going.filter((row) => row.status === "going" || row.status === "wants_to_go").map((row) => row.eventId));
     const withFriends = cards.filter((card) => friendEventIds.has(card.event.id));
     const stops = withFriends.slice(0, 3).map((card) => ({ kind: "event" as const, placeId: card.place.id, eventId: card.event.id, title: card.event.title, startsAt: card.event.startsAt }));
     return stops.length === 0 ? [] : [{ mood, title: "С друзьями", stops }];
   }
 
   private async cards(latitude: number, longitude: number, now: Date): Promise<NearbyCard[]> {
-    const events = await this.events.find({ where: { published: true } });
+    const horizon = new Date(now.getTime() + 48 * HOUR_MS);
+    const events = await this.events.find({ where: { published: true, startsAt: Between(now, horizon) } });
     const places = await this.places.find({ where: { published: true } });
     const placeById = new Map(places.map((row) => [row.id, row]));
     const cards: NearbyCard[] = [];

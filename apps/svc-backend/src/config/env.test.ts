@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { envSchema, validateEnv } from "./env";
+import { envSchema, parseModeratorIds, validateEnv } from "./env";
 
 const valid = {
   DATABASE_URL: "postgres://max_events:max_events@localhost:5443/max_events",
@@ -30,5 +30,16 @@ describe("validateEnv", () => {
 
   it("schema is exported so consumers can extend it additively", () => {
     expect(envSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("accepts an optional moderator allowlist", () => {
+    expect(validateEnv({ ...valid, MODERATOR_MAX_USER_IDS: "1, 2" }).MODERATOR_MAX_USER_IDS).toBe("1, 2");
+  });
+});
+
+describe("parseModeratorIds", () => {
+  it("is empty when unset and splits a comma list", () => {
+    expect(parseModeratorIds(undefined).size).toBe(0);
+    expect([...parseModeratorIds("1, 42,")]).toEqual(["1", "42"]);
   });
 });

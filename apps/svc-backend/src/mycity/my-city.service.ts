@@ -12,7 +12,7 @@
 
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { MemoryPointSchema, type MemoryPoint, type MyCityPayload } from "@max-events/api-contracts";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { EventEntity } from "../events/event.entity";
@@ -33,9 +33,19 @@ export class MyCityService {
   async forUser(userId: string, requesterId: string): Promise<MyCityPayload> {
     if (userId !== requesterId) throw new ForbiddenException("Cannot read another user's city");
     const mine = await this.checkIns.find({ where: { userId } });
-    const events = await this.events.find();
-    const places = await this.places.find();
+    const eventIdsToLoad = [...new Set(mine.map((row) => row.eventId).filter((id): id is string => id !== null))];
+    const events = eventIdsToLoad.length === 0 ? [] : await this.events.find({ where: { id: In(eventIdsToLoad) } });
     const eventById = new Map(events.map((row) => [row.id, row]));
+    const placeIdsToLoad = [
+      ...new Set(
+        mine.flatMap((row) => {
+          if (row.placeId) return [row.placeId];
+          const fromEvent = row.eventId ? eventById.get(row.eventId)?.placeId : null;
+          return fromEvent ? [fromEvent] : [];
+        }),
+      ),
+    ];
+    const places = placeIdsToLoad.length === 0 ? [] : await this.places.find({ where: { id: In(placeIdsToLoad) } });
     const placeById = new Map(places.map((row) => [row.id, row]));
 
     const placeIds = new Set<string>();

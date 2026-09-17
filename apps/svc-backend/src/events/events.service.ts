@@ -20,6 +20,7 @@ import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
 import { UsersService } from "../users/users.service";
 import { SubscriptionsService } from "../subscriptions/subscriptions.service";
+import { WaitlistService } from "../waitlist/waitlist.service";
 import { EventEntity } from "./event.entity";
 
 export type EventListQuery = {
@@ -41,6 +42,7 @@ export class EventsService {
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
     @Inject(SubscriptionsService) private readonly subscriptions: SubscriptionsService,
     @Inject(UsersService) private readonly users: UsersService,
+    @Inject(WaitlistService) private readonly waitlist: WaitlistService,
   ) {}
 
   async create(payload: CreateEvent, organizerUserId?: string): Promise<Event> {
@@ -87,7 +89,11 @@ export class EventsService {
     if (!merged.success) throw new BadRequestException("Invalid event payload");
     await assertPlaceBound(this.places, merged.data.placeId);
     assertTimeRange(merged.data.startsAt, merged.data.endsAt);
+    const previousCapacity = existing.capacity;
     const saved = await this.events.save(this.events.merge(existing, toColumns(merged.data)));
+    if (saved.capacity !== null && (previousCapacity === null || saved.capacity > previousCapacity)) {
+      await this.waitlist.fillVacancies(saved.id);
+    }
     return toEventDto(saved);
   }
 

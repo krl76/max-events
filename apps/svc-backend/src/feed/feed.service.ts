@@ -11,7 +11,7 @@
 
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, QueryFailedError, Repository } from "typeorm";
 import type { CreateFeedPostWrite, FeedPost } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { toFriendDto } from "../friends/friends.service";
@@ -30,16 +30,18 @@ export class FeedService {
     @Inject(UsersService) private readonly publishers: UsersService,
   ) {}
 
-  async list(viewerId: string, eventId?: string): Promise<FeedPost[]> {
-    const rows = (eventId ? await this.posts.find({ where: { eventId } }) : await this.posts.find()).filter((row) => row.published !== false);
-    rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    return Promise.all(rows.map((row) => this.toDto(row, viewerId)));
+  async list(viewerId: string, eventId?: string, limit = 50, offset = 0): Promise<FeedPost[]> {
+    const take = Math.min(Math.max(limit, 1), 100);
+    const skip = Math.max(offset, 0);
+    const where = eventId ? { eventId, published: true as const } : { published: true as const };
+    const rows = await this.posts.find({ where, order: { createdAt: "DESC", id: "DESC" }, take, skip });
+    return this.toDtoMany(rows, viewerId);
   }
 
   async create(userId: string, payload: CreateFeedPostWrite): Promise<FeedPost> {
     await this.publishers.assertCanPublish(userId);
     const event = await this.events.findOneBy({ id: payload.eventId });
-    if (!event) throw new NotFoundException("Event not found");
+    if (!event || event.published === false) throw new NotFoundException("Event not found");
     const saved = await this.posts.save(this.posts.create({ authorUserId: userId, eventId: payload.eventId, text: payload.text, published: true }));
     return this.toDto(saved, userId);
   }
@@ -48,7 +50,13 @@ export class FeedService {
     const post = await this.requirePost(postId);
     const existing = await this.likes.findOneBy({ postId, userId });
     if (existing) await this.likes.remove(existing);
-    else await this.likes.save(this.likes.create({ postId, userId }));
+    else {
+      try {
+        await this.likes.save(this.likes.create({ postId, userId }));
+      } catch (error) {
+        if (!(error instanceof QueryFailedError && error.driverError?.code === "23505")) throw error;
+      }
+    }
     return this.toDto(post, userId);
   }
 
@@ -72,25 +80,35 @@ export class FeedService {
   }
 
   private async toDto(post: FeedPostEntity, viewerId: string): Promise<FeedPost> {
-    const author = await this.users.findOneBy({ id: post.authorUserId });
-    if (!author) throw new NotFoundException("Author not found");
-    const likeRows = await this.likes.find({ where: { postId: post.id } });
-    const commentRows = await this.comments.find({ where: { postId: post.id } });
-    commentRows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-    const comments = [];
-    for (const row of commentRows) {
-      const commentAuthor = await this.users.findOneBy({ id: row.authorUserId });
-      if (!commentAuthor) continue;
-      comments.push({ id: row.id, author: toFriendDto(commentAuthor), text: row.text });
-    }
-    return {
-      id: post.id,
-      author: toFriendDto(author),
-      eventId: post.eventId,
-      text: post.text,
-      likesCount: likeRows.length,
-      likedByMe: likeRows.some((row) => row.userId === viewerId),
-      comments,
-    };
+    const [dto] = await this.toDtoMany([post], viewerId);
+    if (!dto) throw new NotFoundException("Author not found");
+    return dto;
+  }
+
+  private async toDtoMany(posts: FeedPostEntity[], viewerId: string): Promise<FeedPost[]> {
+    if (posts.length === 0) return [];
+    const postIds = posts.map((row) => row.id);
+    const userIds = [...new Set(posts.flatMap((row) => [row.authorUserId]))];
+    const [authors, likeRows, commentRows] = await Promise.all([
+      this.users.find({ where: { id: In(userIds) } }),
+      this.likes.find({ where: { postId: In(postIds) } }),
+      this.comments.find({ where: { postId: In(postIds) } }),
+    ]);
+    const commentAuthorIds = [...new Set(commentRows.map((row) => row.authorUserId))];
+    const commentAuthors = commentAuthorIds.length === 0 ? [] : await this.users.find({ where: { id: In(commentAuthorIds) } });
+    const userById = new Map([...authors, ...commentAuthors].map((row) => [row.id, row]));
+    return posts.flatMap((post) => {
+      const author = userById.get(post.authorUserId);
+      if (!author) return [];
+      const likes = likeRows.filter((row) => row.postId === post.id);
+      const comments = commentRows
+        .filter((row) => row.postId === post.id)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .flatMap((row) => {
+          const commentAuthor = userById.get(row.authorUserId);
+          return commentAuthor ? [{ id: row.id, author: toFriendDto(commentAuthor), text: row.text }] : [];
+        });
+      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId, text: post.text, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), comments }];
+    });
   }
 }

@@ -11,7 +11,7 @@
 
 import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, QueryFailedError, Repository } from "typeorm";
 import type { AddCollectionItemWrite, CollectionScreen } from "@max-events/api-contracts";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
@@ -39,27 +39,32 @@ export class CollectionsService {
 
   async listForUser(userId: string): Promise<CollectionScreen[]> {
     const memberships = await this.members.find({ where: { userId } });
-    const screens = [];
-    for (const row of memberships) screens.push(await this.get(userId, row.collectionId));
-    return screens;
+    const collectionIds = memberships.map((row) => row.collectionId);
+    if (collectionIds.length === 0) return [];
+    const collections = await this.collections.find({ where: { id: In(collectionIds) } });
+    return this.toScreens(collections);
   }
 
   async addMember(actorId: string, collectionId: string, userId: string): Promise<CollectionScreen> {
     const collection = await this.requireMember(actorId, collectionId);
     const user = await this.users.findOneBy({ id: userId });
     if (!user) throw new NotFoundException("User not found");
-    const existing = await this.members.findOneBy({ collectionId, userId });
-    if (!existing) await this.members.save(this.members.create({ collectionId, userId }));
+    try {
+      await this.members.save(this.members.create({ collectionId, userId }));
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+    }
     return this.get(actorId, collection.id);
   }
 
   async addItem(actorId: string, collectionId: string, payload: AddCollectionItemWrite): Promise<CollectionScreen> {
     await this.requireMember(actorId, collectionId);
     const event = await this.events.findOneBy({ id: payload.eventId });
-    if (!event) throw new NotFoundException("Event not found");
-    const existing = await this.items.findOneBy({ collectionId, eventId: payload.eventId });
-    if (!existing) {
+    if (!event || event.published === false) throw new NotFoundException("Event not found");
+    try {
       await this.items.save(this.items.create({ collectionId, eventId: payload.eventId, section: payload.section, addedByUserId: actorId }));
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
     }
     return this.get(actorId, collectionId);
   }
@@ -74,42 +79,59 @@ export class CollectionsService {
 
   async get(actorId: string, collectionId: string): Promise<CollectionScreen> {
     const collection = await this.requireMember(actorId, collectionId);
-    const memberRows = await this.members.find({ where: { collectionId } });
-    const itemRows = await this.items.find({ where: { collectionId } });
-    const members = [];
-    for (const row of memberRows) {
-      const user = await this.users.findOneBy({ id: row.userId });
-      if (user) members.push(toFriendDto(user));
-    }
-    const events = await this.events.find();
-    const eventById = new Map(events.map((row) => [row.id, row]));
-    const items = [];
-    for (const row of itemRows) {
-      const event = eventById.get(row.eventId);
-      const adder = await this.users.findOneBy({ id: row.addedByUserId });
-      if (!event || !adder) continue;
-      items.push({
-        id: row.id,
-        collectionId,
-        eventId: row.eventId,
-        section: row.section,
-        addedBy: toFriendDto(adder),
-        addedAt: row.addedAt.toISOString(),
-        event: toEventDto(event),
+    const [screen] = await this.toScreens([collection]);
+    if (!screen) throw new NotFoundException("Collection not found");
+    return screen;
+  }
+
+  private async toScreens(collections: CollectionEntity[]): Promise<CollectionScreen[]> {
+    if (collections.length === 0) return [];
+    const collectionIds = collections.map((row) => row.id);
+    const [memberRows, itemRows] = await Promise.all([this.members.find({ where: { collectionId: In(collectionIds) } }), this.items.find({ where: { collectionId: In(collectionIds) } })]);
+    const eventIds = [...new Set(itemRows.map((row) => row.eventId))];
+    const userIds = [...new Set([...memberRows.map((row) => row.userId), ...itemRows.map((row) => row.addedByUserId)])];
+    const [eventRows, userRows] = await Promise.all([
+      eventIds.length === 0 ? Promise.resolve([] as EventEntity[]) : this.events.find({ where: { id: In(eventIds), published: true } }),
+      userIds.length === 0 ? Promise.resolve([] as UserEntity[]) : this.users.find({ where: { id: In(userIds) } }),
+    ]);
+    const eventById = new Map(eventRows.map((row) => [row.id, row]));
+    const userById = new Map(userRows.map((row) => [row.id, row]));
+    return collections.map((collection) => {
+      const members = memberRows.flatMap((row) => {
+        if (row.collectionId !== collection.id) return [];
+        const user = userById.get(row.userId);
+        return user ? [toFriendDto(user)] : [];
       });
-    }
-    return {
-      collection: {
-        id: collection.id,
-        ownerUserId: collection.ownerUserId,
-        title: collection.title,
-        chatLink: collection.chatLink,
-        createdAt: collection.createdAt.toISOString(),
-        updatedAt: collection.updatedAt.toISOString(),
-      },
-      members,
-      items,
-    };
+      const items = itemRows.flatMap((row) => {
+        if (row.collectionId !== collection.id) return [];
+        const event = eventById.get(row.eventId);
+        const adder = userById.get(row.addedByUserId);
+        if (!event || !adder) return [];
+        return [
+          {
+            id: row.id,
+            collectionId: collection.id,
+            eventId: row.eventId,
+            section: row.section,
+            addedBy: toFriendDto(adder),
+            addedAt: row.addedAt.toISOString(),
+            event: toEventDto(event),
+          },
+        ];
+      });
+      return {
+        collection: {
+          id: collection.id,
+          ownerUserId: collection.ownerUserId,
+          title: collection.title,
+          chatLink: collection.chatLink,
+          createdAt: collection.createdAt.toISOString(),
+          updatedAt: collection.updatedAt.toISOString(),
+        },
+        members,
+        items,
+      };
+    });
   }
 
   private async requireMember(userId: string, collectionId: string): Promise<CollectionEntity> {
@@ -119,4 +141,8 @@ export class CollectionsService {
     if (!member) throw new ForbiddenException("Not a collection member");
     return collection;
   }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return error instanceof QueryFailedError && error.driverError?.code === "23505";
 }

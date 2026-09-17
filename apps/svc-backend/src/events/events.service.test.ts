@@ -6,6 +6,7 @@ import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
 import type { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import type { UsersService } from "../users/users.service";
+import type { WaitlistService } from "../waitlist/waitlist.service";
 import { EventEntity } from "./event.entity";
 import { EventsService, toEventDto } from "./events.service";
 
@@ -61,7 +62,7 @@ function createRepo(initial: EventEntity[] = []) {
   };
 }
 
-function createService(options: { placeIds?: string[]; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat"> } = {}) {
+function createService(options: { placeIds?: string[]; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService } = {}) {
   const knownPlaces = new Set(options.placeIds ?? []);
   const places = {
     getById: async (id: string) => {
@@ -73,8 +74,9 @@ function createService(options: { placeIds?: string[]; store?: EventEntity[]; bo
   const bot = options.bot ?? { createChat: async () => null };
   const subscriptions = { notifyNewEvent: async () => ({ sent: 0, failed: 0 }) } as unknown as SubscriptionsService;
   const users = { assertCanPublish: async () => undefined } as unknown as UsersService;
-  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users);
-  return { repo, service };
+  const waitlist = options.waitlist ?? ({ fillVacancies: async () => undefined } as unknown as WaitlistService);
+  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist);
+  return { repo, service, waitlist };
 }
 
 describe("EventsService", () => {
@@ -169,6 +171,20 @@ describe("EventsService", () => {
 
     const onDay = await service.list({ date: "2026-09-12" });
     expect(onDay.map((item) => item.title)).toEqual(["Субботник", "Джаз в парке"]);
+  });
+
+  it("fills waitlist vacancies when capacity increases", async () => {
+    const calls: string[] = [];
+    const { service } = createService({
+      waitlist: {
+        fillVacancies: async (id: string) => {
+          calls.push(id);
+        },
+      } as unknown as WaitlistService,
+    });
+    const created = await service.create(CreateEventSchema.parse({ ...payload, capacity: 1 }));
+    await service.update(created.id, { capacity: 3 });
+    expect(calls).toEqual([created.id]);
   });
 
   it("filters by date_from/date_to and hides unpublished events", async () => {

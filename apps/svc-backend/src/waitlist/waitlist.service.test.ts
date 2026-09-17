@@ -1,6 +1,6 @@
-import { ConflictException } from "@nestjs/common";
+import { ConflictException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import type { DataSource, EntityManager, Repository } from "typeorm";
+import { QueryFailedError, type DataSource, type EntityManager, type Repository } from "typeorm";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import type { MaxBotClient } from "../max-bot/max-bot.client";
@@ -13,8 +13,8 @@ const userA = "00000000-0000-4000-8000-00000000000a";
 const userB = "00000000-0000-4000-8000-00000000000b";
 const eventId = "00000000-0000-4000-8000-0000000000e1";
 
-function seedEvent(bookedCount: number, capacity: number | null = 1): EventEntity {
-  return { id: eventId, capacity, bookedCount, title: "Jazz" } as EventEntity;
+function seedEvent(bookedCount: number, capacity: number | null = 1, published = true): EventEntity {
+  return { id: eventId, capacity, bookedCount, title: "Jazz", published } as EventEntity;
 }
 
 function createHarness(event: EventEntity) {
@@ -44,7 +44,14 @@ function createHarness(event: EventEntity) {
     },
     find: async (entity: unknown, options: { where: Record<string, unknown>; order?: { createdAt: string } }) => {
       if (entity !== WaitlistEntryEntity) return [];
-      const rows = entries.filter((row) => row.eventId === options.where.eventId);
+      const where = options.where;
+      const status = where.status as { _value?: string[] } | string | undefined;
+      const statuses = typeof status === "string" ? [status] : Array.isArray((status as { _value?: string[] } | undefined)?._value) ? (status as { _value: string[] })._value : undefined;
+      const rows = entries.filter((row) => {
+        if (where.eventId && row.eventId !== where.eventId) return false;
+        if (statuses) return statuses.includes(row.status);
+        return true;
+      });
       return rows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
     },
     create: (_entity: unknown, fields: Partial<WaitlistEntryEntity | BookingEntity>) => ({ ...fields }),
@@ -52,6 +59,9 @@ function createHarness(event: EventEntity) {
       if (entity === EventEntity) return row;
       if (entity === BookingEntity) {
         const booking = row as BookingEntity;
+        if (booking.status === "active" && bookings.some((item) => item !== booking && item.userId === booking.userId && item.eventId === booking.eventId && item.status === "active")) {
+          throw new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate"), { code: "23505" }));
+        }
         if (!bookings.includes(booking)) {
           booking.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
           booking.createdAt ??= now;
@@ -79,8 +89,22 @@ function createHarness(event: EventEntity) {
       return true;
     },
   } as unknown as MaxBotClient;
-  const service = new WaitlistService(dataSource, { find: async (opts: { where: { status: string } }) => entries.filter((row) => row.status === opts.where.status) } as unknown as Repository<WaitlistEntryEntity>, { findOneBy: async () => event } as unknown as Repository<EventEntity>, { findOneBy: async (where: { id: string }) => users.find((row) => row.id === where.id) ?? null } as unknown as Repository<UserEntity>, bot);
-  return { service, entries, events, bookings, sent, manager };
+  const entriesRepo = {
+    find: async (opts: { where: { status?: string } }) =>
+      entries.filter((row) => {
+        if (opts.where.status && row.status !== opts.where.status) return false;
+        if (row.offeredUntil && row.offeredUntil.getTime() > now.getTime()) return false;
+        return true;
+      }),
+  };
+  const service = new WaitlistService(
+    dataSource,
+    entriesRepo as unknown as Repository<WaitlistEntryEntity>,
+    { findOneBy: async () => event } as unknown as Repository<EventEntity>,
+    { findOneBy: async (where: { id: string }) => users.find((row) => row.id === where.id) ?? null } as unknown as Repository<UserEntity>,
+    bot,
+  );
+  return { service, entries, events, bookings, sent, manager, entriesRepo, bot };
 }
 
 describe("WaitlistService.join", () => {
@@ -102,6 +126,11 @@ describe("WaitlistService.join", () => {
     const { service } = createHarness(seedEvent(1, 1));
     await service.join(userA, eventId);
     await expect(service.join(userA, eventId)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("rejects joining an unpublished event", async () => {
+    const { service } = createHarness(seedEvent(1, 1, false));
+    await expect(service.join(userA, eventId)).rejects.toBeInstanceOf(NotFoundException);
   });
 });
 
@@ -137,5 +166,93 @@ describe("WaitlistService.onSeatFreed, confirm and expiry", () => {
     const next = harness.entries.find((row) => row.userId === userB);
     expect(next?.status).toBe("offered");
     expect(harness.events[0]!.bookedCount).toBe(1);
+  });
+
+  it("skips a waiter who already has an active booking and offers the next", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    await harness.service.join(userA, eventId);
+    await harness.service.join(userB, eventId);
+    harness.bookings.push({ id: "b1", userId: userA, eventId, status: "active" } as BookingEntity);
+    harness.events[0]!.bookedCount = 0;
+    const offered = await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, harness.events[0]!, now);
+    expect(offered?.userId).toBe(userB);
+    expect(harness.entries.find((row) => row.userId === userA)?.status).toBe("cancelled");
+  });
+
+  it("is idempotent when confirming an already confirmed offer", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    const joined = await harness.service.join(userA, eventId);
+    harness.events[0]!.bookedCount = 0;
+    await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, harness.events[0]!, now);
+    const first = await harness.service.confirm(userA, joined.id, now);
+    const second = await harness.service.confirm(userA, joined.id, now);
+    expect(first.status).toBe("confirmed");
+    expect(second.status).toBe("confirmed");
+    expect(harness.bookings).toHaveLength(1);
+  });
+
+  it("expires a 23505 confirm and passes the seat to the next waiter", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    const first = await harness.service.join(userA, eventId);
+    await harness.service.join(userB, eventId);
+    harness.bookings.push({ id: "b1", userId: userA, eventId, status: "active" } as BookingEntity);
+    harness.events[0]!.bookedCount = 1;
+    const firstRow = harness.entries.find((row) => row.id === first.id)!;
+    firstRow.status = "offered";
+    firstRow.offeredUntil = new Date(now.getTime() + 60_000);
+    await expect(harness.service.confirm(userA, first.id, now)).rejects.toMatchObject({ message: "Booking already exists" });
+    expect(firstRow.status).toBe("expired");
+    expect(harness.entries.find((row) => row.userId === userB)?.status).toBe("offered");
+    expect(harness.sent[0]).toContain("2:");
+  });
+
+  it("returns the FIFO position among remaining offered and waiting entries", async () => {
+    const harness = createHarness(seedEvent(2, 2));
+    await harness.service.join(userA, eventId);
+    const second = await harness.service.join(userB, eventId);
+    harness.events[0]!.capacity = 4;
+    await harness.service.fillVacancies(eventId, now);
+    const confirmed = await harness.service.confirm(userB, second.id, now);
+    expect(confirmed.position).toBe(2);
+    expect(confirmed.status).toBe("confirmed");
+  });
+
+  it("rejects confirm on an unpublished event", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    const joined = await harness.service.join(userA, eventId);
+    harness.events[0]!.bookedCount = 0;
+    await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, harness.events[0]!, now);
+    harness.events[0]!.published = false;
+    await expect(harness.service.confirm(userA, joined.id, now)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("does not start a second expireOffers while the first is running", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const original = harness.entriesRepo.find;
+    harness.entriesRepo.find = async (opts) => {
+      await gate;
+      return original(opts);
+    };
+    const first = harness.service.expireOffers(now);
+    await expect(harness.service.expireOffers(now)).resolves.toBe(0);
+    release();
+    await first;
+  });
+
+  it("keeps expiring remaining offers when notify throws", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    harness.bot.sendMessage = async () => {
+      throw new Error("bot down");
+    };
+    harness.entries.push(
+      { id: "o1", userId: userA, eventId, status: "offered", offeredUntil: new Date(now.getTime() - 1), createdAt: now, updatedAt: now } as WaitlistEntryEntity,
+      { id: "o2", userId: userB, eventId, status: "offered", offeredUntil: new Date(now.getTime() - 1), createdAt: now, updatedAt: now } as WaitlistEntryEntity,
+    );
+    await expect(harness.service.expireOffers(now)).resolves.toBe(2);
+    expect(harness.entries.every((row) => row.status === "expired")).toBe(true);
   });
 });

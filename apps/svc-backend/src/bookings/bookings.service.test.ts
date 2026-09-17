@@ -182,6 +182,11 @@ describe("BookingsService", () => {
     expect(again.chatLink).toBe("https://max.ru/join/abc");
   });
 
+  it("rejects booking an unpublished event", async () => {
+    const { service } = createService(seedEvent({ published: false }));
+    await expect(service.create(userA, eventId)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it("treats null capacity as unlimited seats", async () => {
     const { service } = createService(seedEvent({ capacity: null }));
     const first = await service.create(userA, eventId);
