@@ -24,3 +24,5 @@ export * from "./report.js";
 export * from "./place-page.js";
 export * from "./collection.js";
 export * from "./nearby.js";
+export * from "./autoplan.js";
+export * from "./route.js";

@@ -11,7 +11,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
-import { CreatePlanWriteSchema, IdSchema, PlanParticipantWriteSchema, type PlanCard } from "@max-events/api-contracts";
+import { CreateAutoPlanWriteSchema, CreatePlanWriteSchema, IdSchema, PlanParticipantWriteSchema, type AutoPlanProposal, type PlanCard } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { PlansService, type GeoOrigin } from "./plans.service";
@@ -23,6 +23,13 @@ export class PlansController {
   @Get()
   async list(@CurrentUser() user: UserEntity, @Query() query: Record<string, string | undefined>): Promise<PlanCard[]> {
     return this.plans.list(user.id, parseOrigin(query));
+  }
+
+  @Post("auto")
+  async autoplan(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<AutoPlanProposal> {
+    const parsed = CreateAutoPlanWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid autoplan payload");
+    return this.plans.generateAutoplan(user.id, parsed.data.eventId, { latitude: parsed.data.latitude, longitude: parsed.data.longitude });
   }
 
   @Post()

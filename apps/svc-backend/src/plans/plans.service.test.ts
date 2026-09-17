@@ -56,8 +56,7 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
       const where = opts.where ?? {};
       return store.filter((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value));
     },
-    findOneBy: async (where: Record<string, string>) =>
-      store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
+    findOneBy: async (where: Record<string, string>) => store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
     save: async (entity: T) => {
       if (!store.includes(entity)) {
         entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
@@ -78,11 +77,23 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
 
 function createService() {
   const users = [user(hostId, "1", "Демо"), user(dimaId, "2", "Дима"), user(katyaId, "3", "Катя")];
-  const place = { id: placeId, title: "Метро", latitude: 55.747, longitude: 37.584 } as PlaceEntity;
+  const place = { id: placeId, title: "Метро", address: "Крымский Вал", city: "Москва", category: "park", published: true, latitude: 55.747, longitude: 37.584, createdAt: now, updatedAt: now } as PlaceEntity;
+  const food = {
+    id: "00000000-0000-4000-8000-0000000000a3",
+    title: "Депо",
+    address: "Лесная, 1",
+    city: "Москва",
+    category: "food",
+    published: true,
+    latitude: 55.748,
+    longitude: 37.585,
+    createdAt: now,
+    updatedAt: now,
+  } as PlaceEntity;
   const plans = createStoreRepo<PlanEntity>();
   const participants = createStoreRepo<PlanParticipantEntity>();
   const events = createStoreRepo<EventEntity>([eventRow()]);
-  const places = createStoreRepo<PlaceEntity>([place]);
+  const places = createStoreRepo<PlaceEntity>([place, food]);
   const userRepo = createStoreRepo<UserEntity>(users);
   const friends = {
     friendIds: async () => new Set([dimaId, katyaId]),
@@ -100,15 +111,7 @@ function createService() {
       return true;
     },
   } as unknown as MaxBotClient;
-  const service = new PlansService(
-    plans as unknown as Repository<PlanEntity>,
-    participants as unknown as Repository<PlanParticipantEntity>,
-    events as unknown as Repository<EventEntity>,
-    places as unknown as Repository<PlaceEntity>,
-    userRepo as unknown as Repository<UserEntity>,
-    friends,
-    bot,
-  );
+  const service = new PlansService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, userRepo as unknown as Repository<UserEntity>, friends, bot);
   return { service, messages, plans };
 }
 
@@ -138,6 +141,16 @@ describe("PlansService", () => {
     expect(withGeo.distanceMeters).toBe(0);
   });
 
+  it("saves an autoplan draft with travel time, nearby food and dinner→road→meetup→event timeline", async () => {
+    const { service, plans } = createService();
+    const proposal = await service.generateAutoplan(hostId, eventId, { latitude: 55.75, longitude: 37.62 });
+    expect(proposal.travelMinutes).toBeGreaterThanOrEqual(0);
+    expect(proposal.foodPlaces.some((row) => row.title === "Депо")).toBe(true);
+    expect(proposal.timeline.map((row) => row.label)).toEqual(["ужин", "дорога", "встреча", "событие"]);
+    expect(proposal.plan.plan.eventId).toBe(eventId);
+    expect(plans.store).toHaveLength(1);
+  });
+
   it("lets an invitee confirm and forbids a stranger", async () => {
     const { service } = createService();
     const created = await service.create(hostId, { eventId, participantIds: [dimaId], meetingPoint: "у метро", meetingAt });
@@ -149,9 +162,7 @@ describe("PlansService", () => {
   it("rejects inviting a non-friend and a missing event", async () => {
     const { service } = createService();
     await expect(service.create(hostId, { eventId, participantIds: [hostId], meetingPoint: "у метро", meetingAt })).rejects.toBeInstanceOf(BadRequestException);
-    await expect(
-      service.create(hostId, { eventId: "00000000-0000-4000-8000-0000000000e9", participantIds: [dimaId], meetingPoint: "у метро", meetingAt }),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.create(hostId, { eventId: "00000000-0000-4000-8000-0000000000e9", participantIds: [dimaId], meetingPoint: "у метро", meetingAt })).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it("reminds host and invited friends once in the meeting window and skips declined", async () => {

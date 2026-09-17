@@ -14,12 +14,13 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import type { CreatePlanWrite, Plan, PlanCard, PlanParticipantStatus } from "@max-events/api-contracts";
+import type { AutoPlanProposal, CreatePlanWrite, Plan, PlanCard, PlanParticipantStatus, Place } from "@max-events/api-contracts";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlaceEntity } from "../places/place.entity";
+import { toPlaceDto } from "../places/places.service";
 import { isInReminderWindow } from "../reminders/reminders.service";
 import { UserEntity } from "../users/user.entity";
 import { PlanParticipantEntity } from "./plan-participant.entity";
@@ -27,6 +28,11 @@ import { PlanEntity } from "./plan.entity";
 
 export type GeoOrigin = { latitude: number; longitude: number };
 export type PlanRemindResult = { sent: number; failed: number };
+
+const WALK_M_PER_MIN = 80;
+const FOOD_RADIUS_KM = 2;
+const MEETUP_BUFFER_MIN = 20;
+const DINNER_MIN = 70;
 
 export function haversineMeters(from: GeoOrigin, latitude: number, longitude: number): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -101,6 +107,34 @@ export class PlansService {
       }
     }
     return this.toCard(saved, event, null);
+  }
+
+  async generateAutoplan(hostUserId: string, eventId: string, origin: GeoOrigin): Promise<AutoPlanProposal> {
+    const event = await this.events.findOneBy({ id: eventId });
+    if (!event) throw new NotFoundException("Event not found");
+    const venue = event.placeId ? await this.places.findOneBy({ id: event.placeId }) : null;
+    const meters = venue ? haversineMeters(origin, venue.latitude, venue.longitude) : 0;
+    const travelMinutes = Math.max(0, Math.round(meters / WALK_M_PER_MIN));
+    const foodPlaces: Place[] = [];
+    if (venue) {
+      const all = await this.places.find({ where: { published: true, category: "food" } });
+      const ranked = all
+        .map((place) => ({ place, km: haversineMeters({ latitude: venue.latitude, longitude: venue.longitude }, place.latitude, place.longitude) / 1000 }))
+        .filter((row) => row.km <= FOOD_RADIUS_KM)
+        .sort((a, b) => a.km - b.km)
+        .slice(0, 3);
+      for (const row of ranked) foodPlaces.push(toPlaceDto(row.place));
+    }
+    const meetupAt = new Date(event.startsAt.getTime() - (travelMinutes + MEETUP_BUFFER_MIN) * 60_000);
+    const dinnerAt = new Date(meetupAt.getTime() - DINNER_MIN * 60_000);
+    const meetingPoint = foodPlaces[0]?.title ?? venue?.address ?? event.city;
+    const card = await this.create(hostUserId, { eventId, participantIds: [], meetingPoint, meetingAt: meetupAt.toISOString() });
+    const timeline = [];
+    if (foodPlaces[0]) timeline.push({ at: dinnerAt.toISOString(), label: "ужин", detail: foodPlaces[0].title });
+    timeline.push({ at: new Date(dinnerAt.getTime() + DINNER_MIN * 60_000).toISOString(), label: "дорога", detail: `${travelMinutes} мин до места` });
+    timeline.push({ at: meetupAt.toISOString(), label: "встреча", detail: meetingPoint });
+    timeline.push({ at: event.startsAt.toISOString(), label: "событие", detail: event.title });
+    return { plan: card, travelMinutes, foodPlaces, timeline };
   }
 
   async list(userId: string, origin: GeoOrigin | null = null): Promise<PlanCard[]> {

@@ -19,11 +19,6 @@ import { NearbyService } from "./nearby.service";
 export class NearbyController {
   constructor(@Inject(NearbyService) private readonly nearby: NearbyService) {}
 
-  @Get()
-  timeline(@Query("latitude") latitude?: string, @Query("longitude") longitude?: string): Promise<NearbyTimeline> {
-    return this.nearby.timeline(...parseCoords(latitude, longitude));
-  }
-
   @Get("free")
   leisure(@CurrentUser() user: UserEntity, @Query("latitude") latitude?: string, @Query("longitude") longitude?: string, @Query("hours") hours?: string, @Query("mood") mood?: string): Promise<LeisureOption[]> {
     const [lat, lng] = parseCoords(latitude, longitude);
@@ -32,6 +27,11 @@ export class NearbyController {
     const parsedMood = LeisureMoodSchema.safeParse(mood);
     if (!parsedMood.success) throw new BadRequestException("Invalid mood");
     return this.nearby.leisure(lat, lng, parsedHours, parsedMood.data, user.id);
+  }
+
+  @Get()
+  timeline(@Query("latitude") latitude?: string, @Query("longitude") longitude?: string): Promise<NearbyTimeline> {
+    return this.nearby.timeline(...parseCoords(latitude, longitude));
   }
 }
 
