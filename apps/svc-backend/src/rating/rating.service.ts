@@ -36,10 +36,7 @@ export class RatingService {
   async forOrganizer(organizerUserId: string, now = new Date()): Promise<OrganizerRatingResponse> {
     const owned = await this.events.find({ where: { organizerUserId } });
     const eventIds = owned.map((row) => row.id);
-    const [reviewRows, checkInRows] = await Promise.all([
-      eventIds.length === 0 ? Promise.resolve([] as ReviewEntity[]) : this.reviews.find({ where: { eventId: In(eventIds) } }),
-      eventIds.length === 0 ? Promise.resolve([] as CheckInEntity[]) : this.checkIns.find({ where: { eventId: In(eventIds) } }),
-    ]);
+    const [reviewRows, checkInRows] = await Promise.all([eventIds.length === 0 ? Promise.resolve([] as ReviewEntity[]) : this.reviews.find({ where: { eventId: In(eventIds) } }), eventIds.length === 0 ? Promise.resolve([] as CheckInEntity[]) : this.checkIns.find({ where: { eventId: In(eventIds) } })]);
     return { rating: buildOrganizerRating(organizerUserId, owned, reviewRows, checkInRows, now) };
   }
 
@@ -51,13 +48,7 @@ export class RatingService {
   }
 }
 
-export function buildOrganizerRating(
-  organizerUserId: string,
-  events: EventEntity[],
-  reviews: ReviewEntity[],
-  checkIns: CheckInEntity[],
-  now: Date,
-): OrganizerRating | null {
+export function buildOrganizerRating(organizerUserId: string, events: EventEntity[], reviews: ReviewEntity[], checkIns: CheckInEntity[], now: Date): OrganizerRating | null {
   if (reviews.length < MIN_REVIEWS) return null;
   const averageStars = reviews.reduce((sum, row) => sum + row.stars, 0) / reviews.length;
   const recommendPercent = (reviews.filter((row) => row.wouldGoAgain).length / reviews.length) * 100;
