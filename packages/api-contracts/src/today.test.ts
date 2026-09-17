@@ -15,6 +15,7 @@ const event: Event = {
   priceRub: null,
   paymentUrl: null,
   capacity: 20,
+  chatLink: null,
 };
 
 describe("TodayResponseSchema", () => {

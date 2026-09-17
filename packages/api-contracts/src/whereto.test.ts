@@ -15,6 +15,7 @@ const event: Event = {
   priceRub: null,
   paymentUrl: null,
   capacity: null,
+  chatLink: null,
 };
 
 describe("WheretoQuerySchema", () => {

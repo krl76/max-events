@@ -9,6 +9,7 @@
 // - main - seed CLI
 // END_MODULE_MAP
 
+import "reflect-metadata";
 import { EventEntity } from "../events/event.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { AppDataSource } from "./data-source";
