@@ -11,6 +11,7 @@
 
 import "reflect-metadata";
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import type { PlanRecurringRule } from "@max-events/api-contracts";
 
 @Entity("plans")
 export class PlanEntity {
@@ -43,6 +44,15 @@ export class PlanEntity {
 
   @Column({ type: "timestamptz", nullable: true })
   friendLeftBroadcastAt!: Date | null;
+
+  @Column({ type: "jsonb", nullable: true })
+  recurringRule!: PlanRecurringRule | null;
+
+  @Column({ type: "uuid", nullable: true })
+  seriesId!: string | null;
+
+  @Column({ type: "uuid", nullable: true })
+  sourcePlanId!: string | null;
 
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;

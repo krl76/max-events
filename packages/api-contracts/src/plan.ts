@@ -16,6 +16,8 @@
 // - CreatePlan - plan creation payload type
 // - PlanCardSchema - response card with computed distance to the meeting point
 // - PlanCard - plan card type
+// - PlanRecurringRuleSchema - weekly weekday or monthly nth weekday
+// - PlanRecurringRule - recurring rule type
 // - CreatePlanWriteSchema - HTTP create payload (event + friend ids + meeting)
 // - CreatePlanWrite - HTTP create payload type
 // - PlanParticipantWriteSchema - invitee confirm/decline body
@@ -57,11 +59,18 @@ export const PlanCardSchema = z.object({
 });
 export type PlanCard = z.infer<typeof PlanCardSchema>;
 
+export const PlanRecurringRuleSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("weekly_weekday"), weekday: z.number().int().min(1).max(7) }),
+  z.object({ type: z.literal("monthly_nth_weekday"), nth: z.number().int().min(1).max(5), weekday: z.number().int().min(1).max(7) }),
+]);
+export type PlanRecurringRule = z.infer<typeof PlanRecurringRuleSchema>;
+
 export const CreatePlanWriteSchema = z.object({
   eventId: IdSchema,
   participantIds: z.array(IdSchema).default([]),
   meetingPoint: z.string().min(1).max(300),
   meetingAt: TimestampSchema,
+  recurringRule: PlanRecurringRuleSchema.optional(),
 });
 export type CreatePlanWrite = z.infer<typeof CreatePlanWriteSchema>;
 

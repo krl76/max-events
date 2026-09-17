@@ -24,6 +24,9 @@ export class PlansScheduler implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     this.timer = setInterval(() => {
+      void this.plans.spawnRecurring().catch((error: unknown) => {
+        this.logger.warn(`Plan recurring tick failed: ${error instanceof Error ? error.message : "unknown"}`);
+      });
       void this.plans.remindMeeting().catch((error: unknown) => {
         this.logger.warn(`Plan reminder tick failed: ${error instanceof Error ? error.message : "unknown"}`);
       });
