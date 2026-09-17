@@ -21,5 +21,6 @@ import { CheckInsService } from "./check-ins.service";
   imports: [TypeOrmModule.forFeature([CheckInEntity, EventEntity, PlaceEntity])],
   controllers: [CheckInsController, VisitStatsController],
   providers: [CheckInsService],
+  exports: [CheckInsService],
 })
 export class CheckInsModule {}
