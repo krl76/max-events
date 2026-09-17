@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CheckInSchema, VisitStatsSchema } from "./checkin.js";
+import { CheckInSchema, CreateCheckInWriteSchema, VisitStatsSchema } from "./checkin.js";
 
 const checkIn = {
   id: "018f3c5a-0000-7000-8000-000000000040",
@@ -54,5 +54,14 @@ describe("VisitStatsSchema", () => {
 
   it("rejects a negative counter", () => {
     expect(VisitStatsSchema.safeParse({ userId: "018f3c5a-0000-7000-8000-000000000001", placesCount: -1, eventsCount: 0 }).success).toBe(false);
+  });
+});
+
+describe("CreateCheckInWriteSchema", () => {
+  it("accepts exactly one target", () => {
+    expect(CreateCheckInWriteSchema.parse({ eventId: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90" }).eventId).toBe("018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90");
+    expect(CreateCheckInWriteSchema.parse({ placeId: checkIn.placeId }).placeId).toBe(checkIn.placeId);
+    expect(CreateCheckInWriteSchema.safeParse({}).success).toBe(false);
+    expect(CreateCheckInWriteSchema.safeParse({ eventId: checkIn.placeId, placeId: checkIn.placeId }).success).toBe(false);
   });
 });

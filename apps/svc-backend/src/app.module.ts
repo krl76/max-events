@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Root NestJS module wiring config, Postgres (TypeORM) and feature modules.
-// SCOPE: Global ConfigModule, TypeOrmModule from DATABASE_URL, Auth/Users/Health/Places/Events/Bookings/Calendar/Reminders/Participations/Friends/Whereto/Today/Gatherings/Plans/Lists/Subscriptions modules.
-// DEPENDS: @nestjs/config, @nestjs/typeorm, auth/auth.module, health/health.module, places/places.module, events/events.module, bookings/bookings.module, calendar/calendar.module, reminders/reminders.module, participations/participations.module, friends/friends.module, whereto/whereto.module, today/today.module, gatherings/gatherings.module, plans/plans.module, lists/lists.module, subscriptions/subscriptions.module
+// SCOPE: Global ConfigModule, TypeOrmModule from DATABASE_URL, Auth/Users/Health/Places/Events/Bookings/Calendar/Reminders/Participations/Friends/Whereto/Today/Gatherings/Plans/Lists/Subscriptions/CheckIns modules.
+// DEPENDS: @nestjs/config, @nestjs/typeorm, auth/auth.module, health/health.module, places/places.module, events/events.module, bookings/bookings.module, calendar/calendar.module, reminders/reminders.module, participations/participations.module, friends/friends.module, whereto/whereto.module, today/today.module, gatherings/gatherings.module, plans/plans.module, lists/lists.module, subscriptions/subscriptions.module, checkins/check-ins.module
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -29,6 +29,7 @@ import { GatheringsModule } from "./gatherings/gatherings.module";
 import { PlansModule } from "./plans/plans.module";
 import { ListsModule } from "./lists/lists.module";
 import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
+import { CheckInsModule } from "./checkins/check-ins.module";
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
     PlansModule,
     ListsModule,
     SubscriptionsModule,
+    CheckInsModule,
   ],
 })
 export class AppModule {}
