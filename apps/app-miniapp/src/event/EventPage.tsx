@@ -24,6 +24,7 @@ import { ParticipationStatusSchema, type ParticipationStatus } from "@max-events
 import { openExternalLink } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { ActionIcon } from "../ui/icons";
 import { SaveToList } from "./SaveToList";
 import { FeedSection } from "../feed/FeedPage";
 import { ReviewSection } from "./ReviewSection";
@@ -121,11 +122,21 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy }
         </AppTitle>
         <dl className="app-event-meta">
           <div className="app-event-meta-row">
-            <dt>Когда</dt>
+            <dt>
+              <span className="app-event-meta-ico">
+                <ActionIcon name="clock" size={20} strokeWidth={1.5} />
+              </span>
+              Когда
+            </dt>
             <dd>{formatStartsAt(event.startsAt)}</dd>
           </div>
           <div className="app-event-meta-row">
-            <dt>Где</dt>
+            <dt>
+              <span className="app-event-meta-ico">
+                <ActionIcon name="pin" size={20} strokeWidth={1.5} />
+              </span>
+              Где
+            </dt>
             <dd>{place ? `${place.title}, ${place.address}` : event.city}</dd>
           </div>
           <div className="app-event-meta-row">
@@ -133,11 +144,21 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy }
             <dd>{CATEGORY_LABELS[event.category]}</dd>
           </div>
           <div className="app-event-meta-row">
-            <dt>Вход</dt>
+            <dt>
+              <span className="app-event-meta-ico">
+                <ActionIcon name="ticket" size={20} strokeWidth={1.5} />
+              </span>
+              Вход
+            </dt>
             <dd>{event.priceRub === null ? "Бесплатно" : `${event.priceRub} ₽`}</dd>
           </div>
           <div className="app-event-meta-row">
-            <dt>Организатор</dt>
+            <dt>
+              <span className="app-event-meta-ico">
+                <ActionIcon name="user" size={20} strokeWidth={1.5} />
+              </span>
+              Организатор
+            </dt>
             <dd>{organizerName}</dd>
           </div>
           {details.remainingSeats !== null && (
@@ -148,13 +169,15 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy }
           )}
         </dl>
         {event.description !== "" && <p className="app-event-description">{event.description}</p>}
-        <BookingCta details={details} onBook={onBook} onCancel={onCancel} />
-        <CheckInCta checkedIn={details.checkInId !== null} onCheckIn={onCheckIn} />
-        {paymentUrl !== null && (
-          <AppButton onClick={() => onBuy(paymentUrl)} stretched tone="secondary">
-            Купить билет
-          </AppButton>
-        )}
+        <div className="app-event-actions">
+          <BookingCta details={details} onBook={onBook} onCancel={onCancel} />
+          <CheckInCta checkedIn={details.checkInId !== null} onCheckIn={onCheckIn} />
+          {paymentUrl !== null && (
+            <AppButton onClick={() => onBuy(paymentUrl)} stretched tone="secondary">
+              Купить билет
+            </AppButton>
+          )}
+        </div>
       </div>
     </article>
   );

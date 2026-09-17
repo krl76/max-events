@@ -41,7 +41,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <nav className="app-tabbar">
         {TABS.map((tab) => (
           <button key={tab.route} type="button" aria-current={tab.active(route.name) ? "page" : undefined} onClick={() => navigate({ name: tab.route })}>
-            <TabIconGlyph name={tab.icon} size={24} />
+            <TabIconGlyph name={tab.icon} size={24} filled={tab.active(route.name)} />
             <span>{tab.label}</span>
           </button>
         ))}

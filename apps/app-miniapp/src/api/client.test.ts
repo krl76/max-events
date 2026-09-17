@@ -39,6 +39,7 @@ const validEvent: Event = {
   priceRub: null,
   paymentUrl: null,
   capacity: null,
+  chatLink: null,
 };
 
 describe("ApiClient", () => {

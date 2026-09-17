@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 import type { Plan, PlanCard } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
+import { ActionIcon } from "../ui/icons";
 
 export function planParticipantsLabel(count: number): string {
   const mod10 = count % 10;
@@ -56,6 +57,9 @@ export function PlansView({ state, onOpen }: { state: PlansState; onOpen: (planI
             <span className="app-card-subtitle">{planMeetingLabel(plan)}</span>
             <span className="app-card-subtitle">{formatDistance(distanceMeters)} от тебя</span>
           </div>
+          <span className="app-row-chevron" aria-hidden="true">
+            <ActionIcon name="chevron" size={16} strokeWidth={2} />
+          </span>
         </button>
       ))}
     </>

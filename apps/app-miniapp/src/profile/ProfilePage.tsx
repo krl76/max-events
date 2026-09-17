@@ -11,16 +11,17 @@
 // - toProfilePatch - form drafts (city, comma-separated interests) -> UpdateProfile payload
 // - VisitStatsView - presentational: visit counters per event category (hidden hint when empty)
 // - ProfileState - union of profile fetch states (loading / error / ready)
-// - ProfileView - presentational: avatar, name, stats row, profile facts, visit statistics, edit form
-// - ProfilePage - route container: resolves auth, loads profile + stats + visit stats, wires saving
+// - ProfileView - presentational: avatar, three-column stats row, name/city, interests, impressions grid (3 columns), visit statistics, edit form
+// - ProfilePage - route container: resolves auth, loads profile + stats + friends count + own posts + visit stats, wires saving and grid navigation
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
 import type { Profile, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
-import { apiClient, type CalendarEntry } from "../api/client";
+import { apiClient, type CalendarEntry, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS } from "../catalog/CatalogPage";
 import { AppAvatar, AppButton, AppTitle } from "../ui/primitives";
+import { useRoute } from "../routing/router";
 
 export interface ProfileStats {
   events: number;
@@ -71,12 +72,15 @@ interface ProfileViewProps {
   user: User;
   profile: Profile;
   stats: ProfileStats;
+  friendsCount: number;
+  posts: FeedPost[];
   visitStats: VisitStats | null;
   saving: boolean;
   onSave: (patch: UpdateProfile) => void;
+  onOpenEvent?: (eventId: string) => void;
 }
 
-export function ProfileView({ user, profile, stats, visitStats, saving, onSave }: ProfileViewProps) {
+export function ProfileView({ user, profile, stats, friendsCount, posts, visitStats, saving, onSave, onOpenEvent }: ProfileViewProps) {
   const [cityDraft, setCityDraft] = useState(profile.city);
   const [interestsDraft, setInterestsDraft] = useState(profile.interests.join(", "));
   useEffect(() => {
@@ -87,13 +91,17 @@ export function ProfileView({ user, profile, stats, visitStats, saving, onSave }
   return (
     <section className="app-profile">
       <div className="app-profile-header">
-        <AppAvatar size={76} src={user.avatarUrl}>
+        <AppAvatar size={86} src={user.avatarUrl}>
           {user.firstName.charAt(0).toUpperCase()}
         </AppAvatar>
         <div className="app-profile-stats">
           <span className="app-profile-stat">
             <span className="app-profile-stat-value">{stats.events}</span>
             <span className="app-profile-stat-label">События</span>
+          </span>
+          <span className="app-profile-stat">
+            <span className="app-profile-stat-value">{friendsCount}</span>
+            <span className="app-profile-stat-label">Друзья</span>
           </span>
           <span className="app-profile-stat">
             <span className="app-profile-stat-value">{stats.places}</span>
@@ -111,6 +119,13 @@ export function ProfileView({ user, profile, stats, visitStats, saving, onSave }
             <span key={interest} className="app-profile-interest">
               {interest}
             </span>
+          ))}
+        </div>
+      )}
+      {posts.length > 0 && (
+        <div className="app-profile-grid" aria-label="Впечатления">
+          {posts.map((post) => (
+            <button key={post.id} type="button" className="app-profile-cell" aria-label={post.text.slice(0, 40)} onClick={onOpenEvent ? () => onOpenEvent(post.eventId) : undefined} />
           ))}
         </div>
       )}
@@ -137,15 +152,17 @@ interface ProfileData {
   failed: boolean;
   saving: boolean;
   stats: ProfileStats;
+  friendsCount: number;
+  posts: FeedPost[];
   visitStats: VisitStats | null;
 }
 
 function useProfileData(userId: string): [ProfileData, (patch: UpdateProfile) => void] {
-  const [data, setData] = useState<ProfileData>({ profile: null, failed: false, saving: false, stats: { events: 0, places: 0 }, visitStats: null });
+  const [data, setData] = useState<ProfileData>({ profile: null, failed: false, saving: false, stats: { events: 0, places: 0 }, friendsCount: 0, posts: [], visitStats: null });
 
   useEffect(() => {
     let alive = true;
-    setData({ profile: null, failed: false, saving: false, stats: { events: 0, places: 0 }, visitStats: null });
+    setData({ profile: null, failed: false, saving: false, stats: { events: 0, places: 0 }, friendsCount: 0, posts: [], visitStats: null });
     apiClient.getProfile(userId).then(
       (profile) => {
         if (alive) setData((current) => ({ ...current, profile }));
@@ -163,6 +180,18 @@ function useProfileData(userId: string): [ProfileData, (patch: UpdateProfile) =>
     apiClient.getVisitStats(userId).then(
       (visitStats) => {
         if (alive) setData((current) => ({ ...current, visitStats }));
+      },
+      () => {},
+    );
+    apiClient.getFriendsActivity(userId).then(
+      (groups) => {
+        if (alive) setData((current) => ({ ...current, friendsCount: groups.length }));
+      },
+      () => {},
+    );
+    apiClient.listFeedPosts().then(
+      (posts) => {
+        if (alive) setData((current) => ({ ...current, posts: posts.filter((post) => post.author.id === userId) }));
       },
       () => {},
     );
@@ -190,11 +219,12 @@ function useProfileData(userId: string): [ProfileData, (patch: UpdateProfile) =>
 }
 
 function AuthenticatedProfile({ user }: { user: User }) {
-  const [{ profile, failed, saving, stats, visitStats }, save] = useProfileData(user.id);
+  const { navigate } = useRoute();
+  const [{ profile, failed, saving, stats, friendsCount, posts, visitStats }, save] = useProfileData(user.id);
 
   if (failed) return <p className="app-state app-state--error">Не удалось загрузить профиль.</p>;
   if (profile === null) return <p className="app-state">Загрузка…</p>;
-  return <ProfileView user={user} profile={profile} stats={stats} visitStats={visitStats} saving={saving} onSave={save} />;
+  return <ProfileView user={user} profile={profile} stats={stats} friendsCount={friendsCount} posts={posts} visitStats={visitStats} saving={saving} onSave={save} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
 }
 
 export function ProfilePage() {

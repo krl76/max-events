@@ -74,7 +74,7 @@ export const mockPlaces: Place[] = [place({ id: "b0000001-0000-4000-8000-0000000
 type EventInput = Pick<Event, "id" | "title" | "category" | "city" | "startsAt" | "isPaid" | "priceRub"> & Partial<Event>;
 
 function event(input: EventInput): Event {
-  return { description: "", placeId: null, endsAt: null, paymentUrl: null, capacity: null, ...input };
+  return { description: "", placeId: null, endsAt: null, paymentUrl: null, capacity: null, chatLink: null, ...input };
 }
 
 export const mockEvents: Event[] = [
