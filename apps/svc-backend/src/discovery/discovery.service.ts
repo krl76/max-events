@@ -81,10 +81,7 @@ export class DiscoveryService {
     ];
     const places = placeIds.length === 0 ? [] : await this.places.find({ where: { id: In(placeIds) } });
     const placeById = new Map(places.map((row) => [row.id, row]));
-    const [users, profiles] = await Promise.all([
-      userIds.length === 0 ? Promise.resolve([] as UserEntity[]) : this.users.find({ where: { id: In(userIds) } }),
-      userIds.length === 0 ? Promise.resolve([] as ProfileEntity[]) : this.profiles.find({ where: { userId: In(userIds) } }),
-    ]);
+    const [users, profiles] = await Promise.all([userIds.length === 0 ? Promise.resolve([] as UserEntity[]) : this.users.find({ where: { id: In(userIds) } }), userIds.length === 0 ? Promise.resolve([] as ProfileEntity[]) : this.profiles.find({ where: { userId: In(userIds) } })]);
     const visitsByUser = new Map<string, CheckInEntity[]>();
     for (const row of checkIns) {
       const list = visitsByUser.get(row.userId) ?? [];

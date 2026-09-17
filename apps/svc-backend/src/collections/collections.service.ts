@@ -90,10 +90,7 @@ export class CollectionsService {
     const [memberRows, itemRows] = await Promise.all([this.members.find({ where: { collectionId: In(collectionIds) } }), this.items.find({ where: { collectionId: In(collectionIds) } })]);
     const eventIds = [...new Set(itemRows.map((row) => row.eventId))];
     const userIds = [...new Set([...memberRows.map((row) => row.userId), ...itemRows.map((row) => row.addedByUserId)])];
-    const [eventRows, userRows] = await Promise.all([
-      eventIds.length === 0 ? Promise.resolve([] as EventEntity[]) : this.events.find({ where: { id: In(eventIds), published: true } }),
-      userIds.length === 0 ? Promise.resolve([] as UserEntity[]) : this.users.find({ where: { id: In(userIds) } }),
-    ]);
+    const [eventRows, userRows] = await Promise.all([eventIds.length === 0 ? Promise.resolve([] as EventEntity[]) : this.events.find({ where: { id: In(eventIds), published: true } }), userIds.length === 0 ? Promise.resolve([] as UserEntity[]) : this.users.find({ where: { id: In(userIds) } })]);
     const eventById = new Map(eventRows.map((row) => [row.id, row]));
     const userById = new Map(userRows.map((row) => [row.id, row]));
     return collections.map((collection) => {

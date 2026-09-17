@@ -40,18 +40,9 @@ function createStoreRepo<T extends object>(initial: T[] = []) {
 
 describe("PeopleService.suggest", () => {
   it("returns nearby people with a shared event and looking-for-company today", async () => {
-    const profiles = createStoreRepo<ProfileEntity>([
-      { userId: me, city: "Москва", interests: ["джаз"] } as ProfileEntity,
-      { userId: other, city: "Москва", interests: ["джаз"] } as ProfileEntity,
-    ]);
-    const users = createStoreRepo<UserEntity>([
-      { id: me, firstName: "Саша", lastName: null, avatarUrl: null } as UserEntity,
-      { id: other, firstName: "Кирилл", lastName: null, avatarUrl: null } as UserEntity,
-    ]);
-    const checkIns = createStoreRepo<CheckInEntity>([
-      { id: "c1", userId: me, eventId: null, placeId, checkedInAt: now } as CheckInEntity,
-      { id: "c2", userId: other, eventId: null, placeId, checkedInAt: now } as CheckInEntity,
-    ]);
+    const profiles = createStoreRepo<ProfileEntity>([{ userId: me, city: "Москва", interests: ["джаз"] } as ProfileEntity, { userId: other, city: "Москва", interests: ["джаз"] } as ProfileEntity]);
+    const users = createStoreRepo<UserEntity>([{ id: me, firstName: "Саша", lastName: null, avatarUrl: null } as UserEntity, { id: other, firstName: "Кирилл", lastName: null, avatarUrl: null } as UserEntity]);
+    const checkIns = createStoreRepo<CheckInEntity>([{ id: "c1", userId: me, eventId: null, placeId, checkedInAt: now } as CheckInEntity, { id: "c2", userId: other, eventId: null, placeId, checkedInAt: now } as CheckInEntity]);
     const events = createStoreRepo<EventEntity>([
       {
         id: eventId,
@@ -75,18 +66,8 @@ describe("PeopleService.suggest", () => {
       } as EventEntity,
     ]);
     const places = createStoreRepo<PlaceEntity>([{ id: placeId, title: "Парк", address: "x", city: "Москва", category: "park", latitude: 55.75, longitude: 37.62, published: true, createdAt: now, updatedAt: now } as PlaceEntity]);
-    const participations = createStoreRepo<ParticipationEntity>([
-      { id: "p1", userId: me, eventId, status: "going" } as ParticipationEntity,
-      { id: "p2", userId: other, eventId, status: "looking_for_company" } as ParticipationEntity,
-    ]);
-    const service = new PeopleService(
-      users as unknown as Repository<UserEntity>,
-      profiles as unknown as Repository<ProfileEntity>,
-      checkIns as unknown as Repository<CheckInEntity>,
-      events as unknown as Repository<EventEntity>,
-      places as unknown as Repository<PlaceEntity>,
-      participations as unknown as Repository<ParticipationEntity>,
-    );
+    const participations = createStoreRepo<ParticipationEntity>([{ id: "p1", userId: me, eventId, status: "going" } as ParticipationEntity, { id: "p2", userId: other, eventId, status: "looking_for_company" } as ParticipationEntity]);
+    const service = new PeopleService(users as unknown as Repository<UserEntity>, profiles as unknown as Repository<ProfileEntity>, checkIns as unknown as Repository<CheckInEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, participations as unknown as Repository<ParticipationEntity>);
     const payload = await service.suggest(me, { latitude: 55.75, longitude: 37.62 }, now);
     expect(payload.nearbyCount).toBe(1);
     expect(payload.lookingForCompanyTodayCount).toBe(1);

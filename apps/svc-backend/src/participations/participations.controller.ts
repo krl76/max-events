@@ -30,11 +30,7 @@ export class ParticipationsController {
   }
 
   @Put()
-  async set(
-    @CurrentUser() user: UserEntity,
-    @Param("eventId", ParseUUIDPipe) eventId: string,
-    @Body() body: unknown,
-  ): Promise<Participation> {
+  async set(@CurrentUser() user: UserEntity, @Param("eventId", ParseUUIDPipe) eventId: string, @Body() body: unknown): Promise<Participation> {
     const parsed = ParticipationStatusWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid participation payload");
     return this.participations.set(user.id, eventId, parsed.data.status);

@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  ParticipationSchema,
-  ParticipationStatsSchema,
-  ParticipationStatusSchema,
-  ParticipationStatusWriteSchema,
-  SetParticipationStatusSchema,
-} from "./participation.js";
+import { ParticipationSchema, ParticipationStatsSchema, ParticipationStatusSchema, ParticipationStatusWriteSchema, SetParticipationStatusSchema } from "./participation.js";
 
 const userId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f";
 const eventId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90";

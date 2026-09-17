@@ -17,10 +17,6 @@ describe("AddSmartAlertSentAt20260912090000", () => {
     expect(queries[2]).toContain('ALTER TABLE "plan_participants" ADD COLUMN "friendLeftBroadcastAt"');
     queries.length = 0;
     await migration.down(queryRunner);
-    expect(queries).toEqual([
-      `ALTER TABLE "plan_participants" DROP COLUMN "friendLeftBroadcastAt"`,
-      `ALTER TABLE "plans" DROP COLUMN "friendLeftBroadcastAt"`,
-      `ALTER TABLE "plans" DROP COLUMN "weatherAlertSentAt"`,
-    ]);
+    expect(queries).toEqual([`ALTER TABLE "plan_participants" DROP COLUMN "friendLeftBroadcastAt"`, `ALTER TABLE "plans" DROP COLUMN "friendLeftBroadcastAt"`, `ALTER TABLE "plans" DROP COLUMN "weatherAlertSentAt"`]);
   });
 });

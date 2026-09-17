@@ -19,7 +19,10 @@ export type MaxBotChat = {
   link: string;
 };
 
-export type MaxBotFetch = (url: string, init: { method: string; headers: Record<string, string>; body: string }) => Promise<{
+export type MaxBotFetch = (
+  url: string,
+  init: { method: string; headers: Record<string, string>; body: string },
+) => Promise<{
   ok: boolean;
   json: () => Promise<unknown>;
 }>;

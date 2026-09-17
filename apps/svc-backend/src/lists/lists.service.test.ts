@@ -46,8 +46,7 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
       const where = opts.where ?? {};
       return store.filter((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value));
     },
-    findOneBy: async (where: Record<string, string>) =>
-      store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
+    findOneBy: async (where: Record<string, string>) => store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
     save: async (entity: T) => {
       if (!store.includes(entity)) {
         entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
@@ -71,11 +70,7 @@ function createService() {
   const lists = createStoreRepo<ListEntity>();
   const items = createStoreRepo<ListItemEntity>();
   const events = createStoreRepo<EventEntity>([eventRow(eventId, "Джаз"), eventRow(otherEventId, "Пробежка")]);
-  const service = new ListsService(
-    lists as unknown as Repository<ListEntity>,
-    items as unknown as Repository<ListItemEntity>,
-    events as unknown as Repository<EventEntity>,
-  );
+  const service = new ListsService(lists as unknown as Repository<ListEntity>, items as unknown as Repository<ListItemEntity>, events as unknown as Repository<EventEntity>);
   return { service, items };
 }
 

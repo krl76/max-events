@@ -55,8 +55,7 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
       const where = opts.where ?? {};
       return store.filter((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value));
     },
-    findOneBy: async (where: Record<string, string>) =>
-      store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
+    findOneBy: async (where: Record<string, string>) => store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
     save: async (entity: T) => {
       if (!store.includes(entity)) {
         entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
@@ -71,10 +70,7 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
 
 function createService(options: { bookings?: BookingEntity[]; botChat?: { chatId: number; link: string } | null } = {}) {
   const users = [user(hostId, "1", "Демо"), user(dimaId, "2", "Дима"), user(katyaId, "3", "Катя")];
-  const events = [
-    eventRow(eventId, "Джаз", "2026-09-20T16:00:00.000Z", "2026-09-20T18:00:00.000Z"),
-    eventRow(otherEventId, "Матч", "2026-09-20T16:30:00.000Z", "2026-09-20T17:30:00.000Z"),
-  ];
+  const events = [eventRow(eventId, "Джаз", "2026-09-20T16:00:00.000Z", "2026-09-20T18:00:00.000Z"), eventRow(otherEventId, "Матч", "2026-09-20T16:30:00.000Z", "2026-09-20T17:30:00.000Z")];
   const gatherings = createStoreRepo<GatheringEntity>();
   const invitees = createStoreRepo<GatheringInviteeEntity>();
   const bookings = createStoreRepo<BookingEntity>(options.bookings ?? []);
@@ -96,15 +92,7 @@ function createService(options: { bookings?: BookingEntity[]; botChat?: { chatId
       return true;
     },
   } as unknown as MaxBotClient;
-  const service = new GatheringsService(
-    gatherings as unknown as Repository<GatheringEntity>,
-    invitees as unknown as Repository<GatheringInviteeEntity>,
-    bookings as unknown as Repository<BookingEntity>,
-    eventRepo as unknown as Repository<EventEntity>,
-    userRepo as unknown as Repository<UserEntity>,
-    friends,
-    bot,
-  );
+  const service = new GatheringsService(gatherings as unknown as Repository<GatheringEntity>, invitees as unknown as Repository<GatheringInviteeEntity>, bookings as unknown as Repository<BookingEntity>, eventRepo as unknown as Repository<EventEntity>, userRepo as unknown as Repository<UserEntity>, friends, bot);
   return { service, invitees, messages };
 }
 
@@ -148,9 +136,7 @@ describe("GatheringsService", () => {
 
   it("rejects inviting a non-friend or a missing event", async () => {
     const { service } = createService();
-    await expect(
-      service.create(hostId, { eventId, friendIds: [hostId], proposedMeetingAt: "2026-09-20T15:30:00.000Z" }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.create(hostId, { eventId, friendIds: [hostId], proposedMeetingAt: "2026-09-20T15:30:00.000Z" })).rejects.toBeInstanceOf(BadRequestException);
     await expect(
       service.create(hostId, {
         eventId: "00000000-0000-4000-8000-0000000000e9",

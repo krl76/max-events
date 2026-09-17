@@ -40,10 +40,7 @@ export function windowsOverlap(a: { start: number; end: number }, b: { start: nu
   return a.start < b.end && b.start < a.end;
 }
 
-export function availabilityOf(
-  target: { startsAt: Date; endsAt: Date | null },
-  bookedEvents: Array<{ startsAt: Date; endsAt: Date | null } | null>,
-): FriendAvailability["availability"] {
+export function availabilityOf(target: { startsAt: Date; endsAt: Date | null }, bookedEvents: Array<{ startsAt: Date; endsAt: Date | null } | null>): FriendAvailability["availability"] {
   const window = eventWindow(target);
   let unknown = false;
   for (const booked of bookedEvents) {
@@ -89,9 +86,7 @@ export class GatheringsService {
     const allEvents = await this.events.find();
     const eventById = new Map(allEvents.map((row) => [row.id, row]));
     return friendList.map((friend) => {
-      const booked = bookings
-        .filter((row) => row.userId === friend.id && row.status === "active")
-        .map((row) => eventById.get(row.eventId) ?? null);
+      const booked = bookings.filter((row) => row.userId === friend.id && row.status === "active").map((row) => eventById.get(row.eventId) ?? null);
       return { friend, availability: availabilityOf(event, booked) };
     });
   }
@@ -114,9 +109,7 @@ export class GatheringsService {
       }),
     );
     for (const userId of friendIds) {
-      await this.invitees.save(
-        this.invitees.create({ gatheringId: saved.id, userId, response: "considering", respondedAt: null, reminderSentAt: null }),
-      );
+      await this.invitees.save(this.invitees.create({ gatheringId: saved.id, userId, response: "considering", respondedAt: null, reminderSentAt: null }));
     }
     try {
       const chat = await this.bot.createChat(`Сбор: ${event.title}`);

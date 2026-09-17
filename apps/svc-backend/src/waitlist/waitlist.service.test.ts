@@ -97,13 +97,7 @@ function createHarness(event: EventEntity) {
         return true;
       }),
   };
-  const service = new WaitlistService(
-    dataSource,
-    entriesRepo as unknown as Repository<WaitlistEntryEntity>,
-    { findOneBy: async () => event } as unknown as Repository<EventEntity>,
-    { findOneBy: async (where: { id: string }) => users.find((row) => row.id === where.id) ?? null } as unknown as Repository<UserEntity>,
-    bot,
-  );
+  const service = new WaitlistService(dataSource, entriesRepo as unknown as Repository<WaitlistEntryEntity>, { findOneBy: async () => event } as unknown as Repository<EventEntity>, { findOneBy: async (where: { id: string }) => users.find((row) => row.id === where.id) ?? null } as unknown as Repository<UserEntity>, bot);
   return { service, entries, events, bookings, sent, manager, entriesRepo, bot };
 }
 
@@ -248,10 +242,7 @@ describe("WaitlistService.onSeatFreed, confirm and expiry", () => {
     harness.bot.sendMessage = async () => {
       throw new Error("bot down");
     };
-    harness.entries.push(
-      { id: "o1", userId: userA, eventId, status: "offered", offeredUntil: new Date(now.getTime() - 1), createdAt: now, updatedAt: now } as WaitlistEntryEntity,
-      { id: "o2", userId: userB, eventId, status: "offered", offeredUntil: new Date(now.getTime() - 1), createdAt: now, updatedAt: now } as WaitlistEntryEntity,
-    );
+    harness.entries.push({ id: "o1", userId: userA, eventId, status: "offered", offeredUntil: new Date(now.getTime() - 1), createdAt: now, updatedAt: now } as WaitlistEntryEntity, { id: "o2", userId: userB, eventId, status: "offered", offeredUntil: new Date(now.getTime() - 1), createdAt: now, updatedAt: now } as WaitlistEntryEntity);
     await expect(harness.service.expireOffers(now)).resolves.toBe(2);
     expect(harness.entries.every((row) => row.status === "expired")).toBe(true);
   });

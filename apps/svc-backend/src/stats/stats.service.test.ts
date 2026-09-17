@@ -36,10 +36,7 @@ describe("StatsService", () => {
   it("records a view once per user per Moscow day and aggregates organizer stats", async () => {
     const views = createStoreRepo<PageViewEntity>();
     const events = createStoreRepo<EventEntity>([{ id: eventId, organizerUserId: owner, isPaid: true } as EventEntity]);
-    const bookings = createStoreRepo<BookingEntity>([
-      { id: "b1", eventId, status: "active" } as BookingEntity,
-      { id: "b2", eventId, status: "cancelled" } as BookingEntity,
-    ]);
+    const bookings = createStoreRepo<BookingEntity>([{ id: "b1", eventId, status: "active" } as BookingEntity, { id: "b2", eventId, status: "cancelled" } as BookingEntity]);
     const service = new StatsService(views as unknown as Repository<PageViewEntity>, events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>);
     expect(await service.recordView(owner, "event", eventId, now)).toEqual({ recorded: true });
     expect(await service.recordView(owner, "event", eventId, now)).toEqual({ recorded: false });

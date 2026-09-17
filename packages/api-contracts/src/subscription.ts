@@ -40,9 +40,5 @@ export const SubscriptionSchema = z
   });
 export type Subscription = z.infer<typeof SubscriptionSchema>;
 
-export const CreateSubscriptionSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("organizer"), organizerUserId: IdSchema }),
-  z.object({ type: z.literal("place"), placeId: IdSchema }),
-  z.object({ type: z.literal("interest"), interest: z.string().min(1).max(200) }),
-]);
+export const CreateSubscriptionSchema = z.discriminatedUnion("type", [z.object({ type: z.literal("organizer"), organizerUserId: IdSchema }), z.object({ type: z.literal("place"), placeId: IdSchema }), z.object({ type: z.literal("interest"), interest: z.string().min(1).max(200) })]);
 export type CreateSubscription = z.infer<typeof CreateSubscriptionSchema>;

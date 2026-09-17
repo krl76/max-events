@@ -17,16 +17,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, MoreThanOrEqual, Repository } from "typeorm";
-import {
-  EventCategorySchema,
-  PlaceCategorySchema,
-  type AfterMeResponse,
-  type AfterMeSuggestion,
-  type EventCategory,
-  type PlaceCategory,
-  type TasteProfile,
-  type TasteTransition,
-} from "@max-events/api-contracts";
+import { EventCategorySchema, PlaceCategorySchema, type AfterMeResponse, type AfterMeSuggestion, type EventCategory, type PlaceCategory, type TasteProfile, type TasteTransition } from "@max-events/api-contracts";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
@@ -99,12 +90,7 @@ export class TasteService {
   }
 }
 
-export function buildTasteGraph(
-  checkIns: CheckInEntity[],
-  eventById: Map<string, EventEntity>,
-  placeById: Map<string, PlaceEntity>,
-  reviews: ReviewEntity[],
-): TasteGraph {
+export function buildTasteGraph(checkIns: CheckInEntity[], eventById: Map<string, EventEntity>, placeById: Map<string, PlaceEntity>, reviews: ReviewEntity[]): TasteGraph {
   const eventWeights = new Map<EventCategory, number>();
   const placeWeights = new Map<PlaceCategory, number>();
   const transitions = new Map<string, number>();
@@ -175,12 +161,8 @@ export function formatAfterMeExplanation(afterCount: number, fromCategory: Event
 function toTasteProfile(userId: string, graph: TasteGraph, now: Date): TasteProfile {
   return {
     userId,
-    eventCategories: EventCategorySchema.options
-      .map((category) => ({ category, weight: graph.eventWeights.get(category) ?? 0 }))
-      .filter((row) => row.weight > 0),
-    placeCategories: PlaceCategorySchema.options
-      .map((category) => ({ category, weight: graph.placeWeights.get(category) ?? 0 }))
-      .filter((row) => row.weight > 0),
+    eventCategories: EventCategorySchema.options.map((category) => ({ category, weight: graph.eventWeights.get(category) ?? 0 })).filter((row) => row.weight > 0),
+    placeCategories: PlaceCategorySchema.options.map((category) => ({ category, weight: graph.placeWeights.get(category) ?? 0 })).filter((row) => row.weight > 0),
     transitions: [...graph.transitions.entries()]
       .map(([key, count]) => {
         const [fromCategory, toCategory] = key.split(">") as [EventCategory, EventCategory];

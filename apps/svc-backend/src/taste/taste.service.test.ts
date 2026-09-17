@@ -52,7 +52,15 @@ describe("buildTasteGraph and strongestAfterMe", () => {
       { id: "c4", userId, eventId: runId, placeId: null, checkedInAt: new Date("2026-09-04T10:00:00Z") },
     ] as CheckInEntity[];
     const reviews = [{ id: "r1", userId, eventId: jazzId, stars: 5, wouldGoAgain: true } as ReviewEntity];
-    const graph = buildTasteGraph(checkIns, new Map([[jazzId, jazz], [runId, run]]), new Map([[parkId, park]]), reviews);
+    const graph = buildTasteGraph(
+      checkIns,
+      new Map([
+        [jazzId, jazz],
+        [runId, run],
+      ]),
+      new Map([[parkId, park]]),
+      reviews,
+    );
     expect(graph.eventWeights.get("afisha")).toBe(4.5);
     expect(graph.eventWeights.get("sport")).toBe(1);
     expect(graph.transitions.get("afisha>sport")).toBe(1);
@@ -65,10 +73,7 @@ describe("buildTasteGraph and strongestAfterMe", () => {
 
 describe("TasteService", () => {
   it("returns after-me upcoming events in the follow-on category", async () => {
-    const checkIns = createStoreRepo<CheckInEntity>([
-      { id: "c1", userId, eventId: jazzId, placeId: null, checkedInAt: new Date("2026-09-01T10:00:00Z") } as CheckInEntity,
-      { id: "c2", userId, eventId: runId, placeId: null, checkedInAt: new Date("2026-09-04T10:00:00Z") } as CheckInEntity,
-    ]);
+    const checkIns = createStoreRepo<CheckInEntity>([{ id: "c1", userId, eventId: jazzId, placeId: null, checkedInAt: new Date("2026-09-01T10:00:00Z") } as CheckInEntity, { id: "c2", userId, eventId: runId, placeId: null, checkedInAt: new Date("2026-09-04T10:00:00Z") } as CheckInEntity]);
     const events = createStoreRepo<EventEntity>([
       { id: jazzId, category: "afisha", placeId: null, published: true, startsAt: new Date("2026-08-01T10:00:00Z") } as EventEntity,
       { id: runId, category: "sport", placeId: null, published: true, startsAt: new Date("2026-08-02T10:00:00Z") } as EventEntity,
@@ -93,12 +98,7 @@ describe("TasteService", () => {
         updatedAt: now,
       } as EventEntity,
     ]);
-    const service = new TasteService(
-      checkIns as unknown as Repository<CheckInEntity>,
-      events as unknown as Repository<EventEntity>,
-      createStoreRepo<PlaceEntity>() as unknown as Repository<PlaceEntity>,
-      createStoreRepo<ReviewEntity>() as unknown as Repository<ReviewEntity>,
-    );
+    const service = new TasteService(checkIns as unknown as Repository<CheckInEntity>, events as unknown as Repository<EventEntity>, createStoreRepo<PlaceEntity>() as unknown as Repository<PlaceEntity>, createStoreRepo<ReviewEntity>() as unknown as Repository<ReviewEntity>);
     const profile = await service.profile(userId, now);
     expect(profile.eventCategories.some((row) => row.category === "afisha" && row.weight === 1)).toBe(true);
     const after = await service.afterMe(userId, now);

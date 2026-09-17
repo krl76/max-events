@@ -27,8 +27,7 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
       const where = opts.where ?? {};
       return store.filter((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value));
     },
-    findOneBy: async (where: Record<string, string>) =>
-      store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
+    findOneBy: async (where: Record<string, string>) => store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
     save: async (entity: T) => {
       if (!store.includes(entity)) {
         entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
@@ -57,12 +56,7 @@ function createService() {
       return true;
     },
   } as unknown as MaxBotClient;
-  const service = new SubscriptionsService(
-    subscriptions as unknown as Repository<SubscriptionEntity>,
-    places as unknown as Repository<PlaceEntity>,
-    users as unknown as Repository<UserEntity>,
-    bot,
-  );
+  const service = new SubscriptionsService(subscriptions as unknown as Repository<SubscriptionEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, bot);
   return { service, messages };
 }
 
@@ -72,9 +66,7 @@ describe("matchesSubscription", () => {
     expect(matchesSubscription(event, { type: "place", placeId, organizerUserId: null, interest: null } as SubscriptionEntity)).toBe(true);
     expect(matchesSubscription(event, { type: "organizer", organizerUserId: organizerId, placeId: null, interest: null } as SubscriptionEntity)).toBe(true);
     expect(matchesSubscription(event, { type: "interest", interest: "поход", organizerUserId: null, placeId: null } as SubscriptionEntity)).toBe(true);
-    expect(matchesSubscription(event, { type: "place", placeId: "00000000-0000-4000-8000-0000000000p9", organizerUserId: null, interest: null } as SubscriptionEntity)).toBe(
-      false,
-    );
+    expect(matchesSubscription(event, { type: "place", placeId: "00000000-0000-4000-8000-0000000000p9", organizerUserId: null, interest: null } as SubscriptionEntity)).toBe(false);
   });
 });
 

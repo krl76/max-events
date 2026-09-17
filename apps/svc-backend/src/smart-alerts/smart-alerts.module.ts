@@ -28,10 +28,7 @@ import { SmartAlertsService } from "./smart-alerts.service";
 import { WeatherClient } from "./weather.client";
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, EventEntity, PlaceEntity, UserEntity, CheckInEntity, ProfileEntity, ListEntity, ListItemEntity, ListDigestSendEntity]),
-    MaxBotModule,
-  ],
+  imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, EventEntity, PlaceEntity, UserEntity, CheckInEntity, ProfileEntity, ListEntity, ListItemEntity, ListDigestSendEntity]), MaxBotModule],
   providers: [WeatherClient, SmartAlertsService, ListDigestService, SmartAlertsScheduler],
 })
 export class SmartAlertsModule {}

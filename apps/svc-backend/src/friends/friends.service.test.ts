@@ -94,21 +94,11 @@ function createEventRepo(initial: EventEntity[]) {
 function createService(options: { botFriends?: string[] | null; users?: UserEntity[]; participations?: ParticipationEntity[]; events?: EventEntity[] } = {}) {
   const users = options.users ?? [user(meId, "1", "Демо"), user(annaId, "2", "Анна", "Соколова"), user(dimaId, "3", "Дима", "Кузнецов")];
   const events = options.events ?? [eventRow(eventJazz, "Джаз в парке", "2026-09-20T16:00:00.000Z"), eventRow(eventMatch, "Матч", "2026-09-18T16:00:00.000Z")];
-  const participations = options.participations ?? [
-    { userId: annaId, eventId: eventJazz, status: "going" } as ParticipationEntity,
-    { userId: dimaId, eventId: eventMatch, status: "looking_for_company" } as ParticipationEntity,
-    { userId: annaId, eventId: eventMatch, status: "wants_to_go" } as ParticipationEntity,
-  ];
+  const participations = options.participations ?? [{ userId: annaId, eventId: eventJazz, status: "going" } as ParticipationEntity, { userId: dimaId, eventId: eventMatch, status: "looking_for_company" } as ParticipationEntity, { userId: annaId, eventId: eventMatch, status: "wants_to_go" } as ParticipationEntity];
   const friendships = createFriendshipRepo();
   const botState: { friends: string[] | null } = { friends: options.botFriends ?? null };
   const bot = { listFriends: async () => botState.friends } as Pick<MaxBotClient, "listFriends">;
-  const service = new FriendsService(
-    friendships as unknown as Repository<FriendshipEntity>,
-    createUserRepo(users) as unknown as Repository<UserEntity>,
-    createParticipationRepo(participations) as unknown as Repository<ParticipationEntity>,
-    createEventRepo(events) as unknown as Repository<EventEntity>,
-    bot as MaxBotClient,
-  );
+  const service = new FriendsService(friendships as unknown as Repository<FriendshipEntity>, createUserRepo(users) as unknown as Repository<UserEntity>, createParticipationRepo(participations) as unknown as Repository<ParticipationEntity>, createEventRepo(events) as unknown as Repository<EventEntity>, bot as MaxBotClient);
   return { friendships, botState, service };
 }
 
@@ -140,11 +130,7 @@ describe("FriendsService", () => {
     const { service } = createService({
       users: [user(meId, "1", "Демо"), user(annaId, "2", "Анна", "Соколова"), user(dimaId, "3", "Дима"), stranger],
       botFriends: ["2", "3"],
-      participations: [
-        { userId: annaId, eventId: eventJazz, status: "going" } as ParticipationEntity,
-        { userId: dimaId, eventId: eventJazz, status: "looking_for_company" } as ParticipationEntity,
-        { userId: stranger.id, eventId: eventJazz, status: "going" } as ParticipationEntity,
-      ],
+      participations: [{ userId: annaId, eventId: eventJazz, status: "going" } as ParticipationEntity, { userId: dimaId, eventId: eventJazz, status: "looking_for_company" } as ParticipationEntity, { userId: stranger.id, eventId: eventJazz, status: "going" } as ParticipationEntity],
     });
     await service.sync(meId);
     const summary = await service.eventFriends(meId, eventJazz);
