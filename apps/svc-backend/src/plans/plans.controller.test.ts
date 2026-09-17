@@ -23,6 +23,8 @@ function createController() {
     get: async () => card,
     remove: async () => undefined,
     addParticipant: async () => card,
+    addExpense: async () => ({ expenses: [], perPerson: [], debts: [], totalRub: 0 }),
+    getBudget: async () => ({ expenses: [], perPerson: [], debts: [], totalRub: 0 }),
     respond: async (_userId: string, _id: string, status: string) => {
       calls.respond = status;
       return card;
@@ -55,5 +57,6 @@ describe("PlansController", () => {
     expect(calls.respond).toBe("confirmed");
     await expect(controller.list(user, { lat: "55.7", lng: "37.6" })).resolves.toEqual([card]);
     expect(calls.origin).toEqual({ latitude: 55.7, longitude: 37.6 });
+    await expect(controller.addExpense(user, planId, {})).rejects.toBeInstanceOf(BadRequestException);
   });
 });

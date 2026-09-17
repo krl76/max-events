@@ -25,19 +25,21 @@ export const PlanExpenseSchema = z.object({
   id: IdSchema,
   planId: IdSchema,
   title: z.string().min(1).max(200),
-  amountRub: z.number().int().positive(),
+  amountRub: z.number().int().positive().max(2_147_483_647),
   payerUserId: IdSchema,
   shareUserIds: z.array(IdSchema).min(1),
   createdAt: TimestampSchema,
 });
 export type PlanExpense = z.infer<typeof PlanExpenseSchema>;
 
-export const CreatePlanExpenseWriteSchema = z.object({
-  title: z.string().trim().min(1).max(200),
-  amountRub: z.number().int().positive(),
-  payerUserId: IdSchema,
-  shareUserIds: z.array(IdSchema).min(1),
-});
+export const CreatePlanExpenseWriteSchema = z
+  .object({
+    title: z.string().trim().min(1).max(200),
+    amountRub: z.number().int().positive().max(2_147_483_647),
+    payerUserId: IdSchema,
+    shareUserIds: z.array(IdSchema).min(1),
+  })
+  .refine((row) => new Set(row.shareUserIds).size === row.shareUserIds.length, { message: "shareUserIds must be unique", path: ["shareUserIds"] });
 export type CreatePlanExpenseWrite = z.infer<typeof CreatePlanExpenseWriteSchema>;
 
 export const PlanBudgetPersonSchema = z.object({

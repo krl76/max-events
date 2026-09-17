@@ -182,6 +182,8 @@ describe("PlansService", () => {
   it("splits expenses and returns per-person totals and debts", async () => {
     const { service } = createService();
     const created = await service.create(hostId, { eventId, participantIds: [dimaId, katyaId], meetingPoint: "у метро", meetingAt });
+    await service.respond(dimaId, created.plan.id, "confirmed");
+    await service.respond(katyaId, created.plan.id, "confirmed");
     await service.addExpense(hostId, created.plan.id, { title: "Билет", amountRub: 850, payerUserId: hostId, shareUserIds: [hostId, dimaId] });
     await service.addExpense(dimaId, created.plan.id, { title: "Такси", amountRub: 620, payerUserId: dimaId, shareUserIds: [hostId, dimaId] });
     const budget = await service.addExpense(katyaId, created.plan.id, { title: "Ужин", amountRub: 1200, payerUserId: katyaId, shareUserIds: [hostId, dimaId, katyaId] });
@@ -194,7 +196,43 @@ describe("PlansService", () => {
       { fromUserId: dimaId, toUserId: katyaId, amountRub: 515 },
       { fromUserId: hostId, toUserId: katyaId, amountRub: 285 },
     ]);
+    const loaded = await service.getBudget(hostId, created.plan.id);
+    expect(loaded.totalRub).toBe(2670);
     await expect(service.addExpense("00000000-0000-4000-8000-0000000000ff", created.plan.id, { title: "Чужой", amountRub: 10, payerUserId: hostId, shareUserIds: [hostId] })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.addExpense(dimaId, created.plan.id, { title: "Чужой", amountRub: 10, payerUserId: hostId, shareUserIds: [hostId] })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.addExpense(hostId, created.plan.id, { title: "Чужой", amountRub: 10, payerUserId: hostId, shareUserIds: [hostId, "00000000-0000-4000-8000-0000000000ff"] })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("rejects declined payers and splits a non-divisible amount without losing rubles", async () => {
+    const { service } = createService();
+    const created = await service.create(hostId, { eventId, participantIds: [dimaId, katyaId], meetingPoint: "у метро", meetingAt });
+    await service.respond(dimaId, created.plan.id, "confirmed");
+    await service.respond(katyaId, created.plan.id, "declined");
+    await expect(service.addExpense(katyaId, created.plan.id, { title: "Ужин", amountRub: 100, payerUserId: katyaId, shareUserIds: [hostId] })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.addExpense(hostId, created.plan.id, { title: "Ужин", amountRub: 100, payerUserId: hostId, shareUserIds: [hostId, katyaId] })).rejects.toBeInstanceOf(BadRequestException);
+    await service.respond(katyaId, created.plan.id, "confirmed");
+    const budget = await service.addExpense(hostId, created.plan.id, { title: "Кофе", amountRub: 100, payerUserId: hostId, shareUserIds: [hostId, dimaId, katyaId] });
+    expect(budget.totalRub).toBe(100);
+    expect(budget.perPerson.reduce((sum, row) => sum + row.shareRub, 0)).toBe(100);
+    expect(budget.perPerson.reduce((sum, row) => sum + row.netRub, 0)).toBe(0);
+    const shares = budget.perPerson.map((row) => row.shareRub).sort((a, b) => b - a);
+    expect(shares).toEqual([34, 33, 33]);
+  });
+
+  it("spawns the next weekly occurrences from a recurring template", async () => {
+    const { service, plans } = createService();
+    const created = await service.create(hostId, {
+      eventId,
+      participantIds: [dimaId],
+      meetingPoint: "корт",
+      meetingAt: "2026-09-10T19:00:00.000Z",
+      recurringRule: { type: "weekly_weekday", weekday: 4 },
+    });
+    expect(created.plan.id).toBeTruthy();
+    expect(plans.store.filter((row) => row.seriesId === created.plan.id).length).toBeGreaterThan(1);
+    const copies = plans.store.filter((row) => row.sourcePlanId === created.plan.id);
+    expect(copies.length).toBeGreaterThanOrEqual(1);
+    expect(copies.every((row) => row.recurringRule === null)).toBe(true);
   });
 });
 

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for shared plans — list/get PlanCard, create, invite, respond, delete.
-// SCOPE: GET/POST /plans, GET/DELETE /plans/:id, POST /plans/:id/participants, PATCH /plans/:id/participants/me; optional lat/lng.
+// SCOPE: GET/POST /plans, GET/DELETE /plans/:id, POST /plans/:id/participants, PATCH /plans/:id/participants/me, GET :id/budget, POST :id/expenses.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./plans.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT

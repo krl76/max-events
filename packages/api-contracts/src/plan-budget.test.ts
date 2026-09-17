@@ -10,6 +10,7 @@ describe("CreatePlanExpenseWriteSchema", () => {
     expect(CreatePlanExpenseWriteSchema.parse({ title: "Билет", amountRub: 850, payerUserId: userA, shareUserIds: [userA, userB] }).amountRub).toBe(850);
     expect(CreatePlanExpenseWriteSchema.safeParse({ title: "Билет", amountRub: 0, payerUserId: userA, shareUserIds: [userA] }).success).toBe(false);
     expect(CreatePlanExpenseWriteSchema.safeParse({ title: "Билет", amountRub: 850, payerUserId: userA, shareUserIds: [] }).success).toBe(false);
+    expect(CreatePlanExpenseWriteSchema.safeParse({ title: "Билет", amountRub: 850, payerUserId: userA, shareUserIds: [userA, userA] }).success).toBe(false);
   });
 });
 

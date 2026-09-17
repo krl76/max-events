@@ -30,6 +30,7 @@ import { UserEntity } from "../users/user.entity";
 import { PlanExpenseEntity } from "./plan-expense.entity";
 import { PlanParticipantEntity } from "./plan-participant.entity";
 import { PlanEntity } from "./plan.entity";
+import { upcomingRecurringAts } from "./recurring";
 
 export type GeoOrigin = { latitude: number; longitude: number };
 export type PlanRemindResult = { sent: number; failed: number };
@@ -120,8 +121,15 @@ export class PlansService {
         leaveNowSentAt: null,
         weatherAlertSentAt: null,
         friendLeftBroadcastAt: null,
+        recurringRule: payload.recurringRule ?? null,
+        seriesId: null,
+        sourcePlanId: null,
       }),
     );
+    if (payload.recurringRule) {
+      saved.seriesId = saved.id;
+      await this.plans.save(saved);
+    }
     for (const userId of ids) {
       await this.participants.save(this.participants.create({ planId: saved.id, userId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null }));
     }
@@ -144,7 +152,45 @@ export class PlansService {
         this.logger.warn(`Plan invite DM failed for ${saved.id}`);
       }
     }
+    if (payload.recurringRule) await this.spawnRecurring(saved.meetingAt);
     return this.toCard(saved, event, null);
+  }
+
+  async spawnRecurring(now = new Date()): Promise<number> {
+    const all = await this.plans.find();
+    const templates = all.filter((row) => row.recurringRule && row.seriesId);
+    let created = 0;
+    for (const template of templates) {
+      const existing = new Set(all.filter((row) => row.seriesId === template.seriesId).map((row) => row.meetingAt.getTime()));
+      const times = upcomingRecurringAts(template.meetingAt, template.recurringRule!, now, 4);
+      const invitees = await this.participants.find({ where: { planId: template.id } });
+      for (const meetingAt of times) {
+        if (existing.has(meetingAt.getTime())) continue;
+        const copy = await this.plans.save(
+          this.plans.create({
+            hostUserId: template.hostUserId,
+            eventId: template.eventId,
+            meetingPoint: template.meetingPoint,
+            meetingAt,
+            chatLink: null,
+            reminderSentAt: null,
+            leaveNowSentAt: null,
+            weatherAlertSentAt: null,
+            friendLeftBroadcastAt: null,
+            recurringRule: null,
+            seriesId: template.seriesId,
+            sourcePlanId: template.id,
+          }),
+        );
+        existing.add(meetingAt.getTime());
+        for (const row of invitees) {
+          await this.participants.save(this.participants.create({ planId: copy.id, userId: row.userId, status: "invited", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null }));
+        }
+        created += 1;
+        all.push(copy);
+      }
+    }
+    return created;
   }
 
   async generateAutoplan(hostUserId: string, eventId: string, origin: GeoOrigin): Promise<AutoPlanProposal> {
@@ -289,8 +335,11 @@ export class PlansService {
   async addExpense(actorId: string, planId: string, payload: CreatePlanExpenseWrite): Promise<PlanBudget> {
     const plan = await this.plans.findOneBy({ id: planId });
     if (!plan) throw new NotFoundException("Plan not found");
-    if (!(await this.canView(actorId, plan))) throw new ForbiddenException("Cannot view another user's plan");
-    const party = await this.partyIds(plan);
+    if (!(await this.canSpend(actorId, plan))) throw new ForbiddenException("Cannot edit this plan's budget");
+    const party = await this.spendPartyIds(plan);
+    if (plan.hostUserId !== actorId && payload.payerUserId !== actorId) {
+      throw new ForbiddenException("Cannot attribute a payment to another person");
+    }
     if (!party.has(payload.payerUserId) || payload.shareUserIds.some((id) => !party.has(id))) {
       throw new BadRequestException("Invalid expense payload");
     }
@@ -312,23 +361,31 @@ export class PlansService {
     if (!plan) throw new NotFoundException("Plan not found");
     if (!(await this.canView(actorId, plan))) throw new ForbiddenException("Cannot view another user's plan");
     const rows = await this.expenses.find({ where: { planId }, order: { createdAt: "ASC", id: "ASC" } });
-    const party = [...(await this.partyIds(plan))].sort();
-    const paid = new Map(party.map((id) => [id, 0]));
-    const share = new Map(party.map((id) => [id, 0]));
+    const party = new Set([...(await this.spendPartyIds(plan))]);
+    for (const row of rows) {
+      party.add(row.payerUserId);
+      for (const id of row.shareUserIds) party.add(id);
+    }
+    const people = [...party].sort();
+    const paid = new Map(people.map((id) => [id, 0]));
+    const share = new Map(people.map((id) => [id, 0]));
     for (const row of rows) {
       paid.set(row.payerUserId, (paid.get(row.payerUserId) ?? 0) + row.amountRub);
-      const ids = [...row.shareUserIds].sort();
+      const ids = [...new Set(row.shareUserIds)].sort();
+      if (ids.length === 0) continue;
       const n = ids.length;
       const base = Math.floor(row.amountRub / n);
       const rem = row.amountRub % n;
+      const offset = [...row.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % n;
       ids.forEach((id, index) => {
-        share.set(id, (share.get(id) ?? 0) + base + (index < rem ? 1 : 0));
+        const extra = rem > 0 && ((index - offset + n) % n) < rem ? 1 : 0;
+        share.set(id, (share.get(id) ?? 0) + base + extra);
       });
     }
-    const balances = new Map(party.map((id) => [id, (paid.get(id) ?? 0) - (share.get(id) ?? 0)]));
+    const balances = new Map(people.map((id) => [id, (paid.get(id) ?? 0) - (share.get(id) ?? 0)]));
     return {
       expenses: rows.map(toExpenseDto),
-      perPerson: party.map((userId) => ({
+      perPerson: people.map((userId) => ({
         userId,
         paidRub: paid.get(userId) ?? 0,
         shareRub: share.get(userId) ?? 0,
@@ -339,9 +396,16 @@ export class PlansService {
     };
   }
 
-  private async partyIds(plan: PlanEntity): Promise<Set<string>> {
+  private async spendPartyIds(plan: PlanEntity): Promise<Set<string>> {
     const rows = await this.participants.find({ where: { planId: plan.id } });
-    return new Set([plan.hostUserId, ...rows.map((row) => row.userId)]);
+    const confirmed = rows.filter((row) => row.status === "confirmed").map((row) => row.userId);
+    return new Set([plan.hostUserId, ...confirmed]);
+  }
+
+  private async canSpend(userId: string, plan: PlanEntity): Promise<boolean> {
+    if (plan.hostUserId === userId) return true;
+    const rows = await this.participants.find({ where: { planId: plan.id } });
+    return rows.some((row) => row.userId === userId && row.status === "confirmed");
   }
 
   private async canView(userId: string, plan: PlanEntity): Promise<boolean> {
