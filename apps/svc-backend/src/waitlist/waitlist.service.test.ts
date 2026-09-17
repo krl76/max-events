@@ -97,8 +97,14 @@ function createHarness(event: EventEntity) {
         return true;
       }),
   };
-  const service = new WaitlistService(dataSource, entriesRepo as unknown as Repository<WaitlistEntryEntity>, { findOneBy: async () => event } as unknown as Repository<EventEntity>, { findOneBy: async (where: { id: string }) => users.find((row) => row.id === where.id) ?? null } as unknown as Repository<UserEntity>, bot);
-  return { service, entries, events, bookings, sent, manager, entriesRepo, bot };
+  const promoCalls: Array<{ bookingId: string; code?: string }> = [];
+  const promo = {
+    recordFulfillmentInTransaction: async (_manager: unknown, _event: EventEntity, _userId: string, bookingId: string, code?: string) => {
+      promoCalls.push({ bookingId, code });
+    },
+  };
+  const service = new WaitlistService(dataSource, entriesRepo as unknown as Repository<WaitlistEntryEntity>, { findOneBy: async () => event } as unknown as Repository<EventEntity>, { findOneBy: async (where: { id: string }) => users.find((row) => row.id === where.id) ?? null } as unknown as Repository<UserEntity>, bot, promo as never);
+  return { service, entries, events, bookings, sent, manager, entriesRepo, bot, promoCalls };
 }
 
 describe("WaitlistService.join", () => {
@@ -240,6 +246,18 @@ describe("WaitlistService.onSeatFreed, confirm and expiry", () => {
     row.offeredUntil = new Date(now.getTime() + 60_000);
     await expect(harness.service.confirm(userA, joined.id, now)).rejects.toBeInstanceOf(ForbiddenException);
     expect(harness.bookings).toHaveLength(0);
+  });
+
+  it("records a referral fulfillment when the waitlist offer is confirmed", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    const joined = await harness.service.join(userA, eventId, now, "friend");
+    expect(harness.entries[0]?.referralCode).toBe("FRIEND");
+    harness.events[0]!.bookedCount = 0;
+    await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, harness.events[0]!, now);
+    const confirmed = await harness.service.confirm(userA, joined.id, now);
+    expect(confirmed.status).toBe("confirmed");
+    expect(harness.promoCalls[0]?.code).toBe("FRIEND");
+    expect(harness.promoCalls[0]?.bookingId).toBe(harness.bookings[0]?.id);
   });
 
   it("does not start a second expireOffers while the first is running", async () => {

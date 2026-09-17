@@ -10,7 +10,7 @@
 // - WaitlistStatus - waitlist status type
 // - WaitlistEntrySchema - queue row with optional offer deadline
 // - WaitlistEntry - waitlist entry type
-// - JoinWaitlistWriteSchema - join payload (eventId)
+// - JoinWaitlistWriteSchema - join payload (eventId, optional referralCode)
 // - JoinWaitlistWrite - join payload type
 // END_MODULE_MAP
 
@@ -34,5 +34,6 @@ export type WaitlistEntry = z.infer<typeof WaitlistEntrySchema>;
 
 export const JoinWaitlistWriteSchema = z.object({
   eventId: IdSchema,
+  referralCode: z.string().min(1).max(40).nullish(),
 });
 export type JoinWaitlistWrite = z.infer<typeof JoinWaitlistWriteSchema>;

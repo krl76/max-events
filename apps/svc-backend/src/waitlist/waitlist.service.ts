@@ -18,6 +18,7 @@ import type { WaitlistEntry, WaitlistStatus } from "@max-events/api-contracts";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
+import { PromoService } from "../promo/promo.service";
 import { UserEntity } from "../users/user.entity";
 import { WaitlistEntryEntity } from "./waitlist-entry.entity";
 
@@ -34,9 +35,10 @@ export class WaitlistService {
     @InjectRepository(EventEntity) private readonly events: Repository<EventEntity>,
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
+    @Inject(PromoService) private readonly promo: PromoService,
   ) {}
 
-  async join(userId: string, eventId: string, now = new Date()): Promise<WaitlistEntry> {
+  async join(userId: string, eventId: string, now = new Date(), referralCode?: string | null): Promise<WaitlistEntry> {
     return this.dataSource.transaction(async (manager) => {
       const event = await manager.findOne(EventEntity, { where: { id: eventId }, lock: { mode: "pessimistic_write" } });
       if (!event || event.published === false) throw new NotFoundException("Event not found");
@@ -48,7 +50,7 @@ export class WaitlistService {
       if (duplicate) throw new ConflictException("Already on the waitlist");
       const activeBooking = await manager.findOne(BookingEntity, { where: { userId, eventId, status: "active" } });
       if (activeBooking) throw new ConflictException("Already booked");
-      const saved = await manager.save(WaitlistEntryEntity, manager.create(WaitlistEntryEntity, { userId, eventId, status: "waiting", offeredUntil: null }));
+      const saved = await manager.save(WaitlistEntryEntity, manager.create(WaitlistEntryEntity, { userId, eventId, status: "waiting", offeredUntil: null, referralCode: referralCode?.trim().toUpperCase() || null }));
       return toWaitlistDto(saved, await positionOf(manager, saved));
     });
   }
@@ -70,7 +72,8 @@ export class WaitlistService {
       if (entry.status !== "offered") throw new ConflictException("Offer is not active");
       const position = await positionOf(manager, entry);
       try {
-        await manager.save(BookingEntity, manager.create(BookingEntity, { userId, eventId: entry.eventId, status: "active" }));
+        const booking = await manager.save(BookingEntity, manager.create(BookingEntity, { userId, eventId: entry.eventId, status: "active" }));
+        await this.promo.recordFulfillmentInTransaction(manager, event, userId, booking.id, entry.referralCode ?? undefined, now);
       } catch (error) {
         if (error instanceof QueryFailedError && error.driverError?.code === "23505") {
           entry.status = "expired";

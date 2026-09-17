@@ -94,13 +94,23 @@ function createService(event: EventEntity = seedEvent(), users: UserEntity[] = [
     findOne: async (entity: EntityTarget<ObjectLiteral>, options: { where: Record<string, unknown> }) => {
       const where = options.where;
       if (entity === PromoCodeEntity) return codes.find((row) => row.eventId === where.eventId && row.code === where.code) ?? null;
-      if (entity === PromoCampaignEntity) return campaigns.find((row) => row.eventId === where.eventId && row.code === where.code) ?? null;
+      if (entity === PromoCampaignEntity) {
+        if (typeof where.id === "string") return campaigns.find((row) => row.id === where.id) ?? null;
+        return campaigns.find((row) => row.eventId === where.eventId && row.code === where.code) ?? null;
+      }
+      if (entity === PromoFulfillmentEntity) return fulfillments.find((row) => row.bookingId === where.bookingId || row.id === where.id) ?? null;
       if (entity === UserEntity) return users.find((row) => row.id === where.id) ?? null;
       return null;
     },
     count: async (entity: EntityTarget<ObjectLiteral>, options: { where: Record<string, unknown> }) => {
       if (entity !== BookingEntity) return 0;
-      return bookings.filter((row) => row.userId === options.where.userId).length;
+      return bookings.filter((row) => Object.entries(options.where).every(([key, value]) => (row as unknown as Record<string, unknown>)[key] === value)).length;
+    },
+    delete: async (entity: EntityTarget<ObjectLiteral>, where: Record<string, unknown>) => {
+      if (entity === PromoFulfillmentEntity) {
+        const index = fulfillments.findIndex((row) => row.id === where.id);
+        if (index >= 0) fulfillments.splice(index, 1);
+      }
     },
     create: (_entity: EntityTarget<ObjectLiteral>, fields: Partial<PromoFulfillmentEntity>) => ({ ...fields }) as PromoFulfillmentEntity,
     save: async (entity: EntityTarget<ObjectLiteral>, row: PromoCodeEntity | PromoCampaignEntity | PromoFulfillmentEntity) => {
@@ -203,16 +213,37 @@ describe("PromoService", () => {
     expect(listed[0]).toMatchObject({ code: "FRIEND", fulfillmentCount: 1, status: "completed" });
   });
 
-  it("does not count an existing booker as a refer-a-friend fulfillment", async () => {
-    const referred = { id: other, createdAt: now } as UserEntity;
+  it("does not count a user registered before the campaign", async () => {
+    const referred = { id: other, createdAt: new Date("2026-09-01T00:00:00Z") } as UserEntity;
     const { service, manager, fulfillments, bookings } = createService(seedEvent(), [referred]);
     await service.createCampaign(organizer, eventId, { type: "refer_a_friend", code: "FRIEND", title: "Приведи друга" });
-    bookings.push(
-      { id: "00000000-0000-4000-8000-0000000000b1", userId: other, eventId, status: "cancelled", promoCode: null, createdAt: now, updatedAt: now, reminderSentAt: null },
-      { id: "00000000-0000-4000-8000-0000000000b2", userId: other, eventId, status: "active", promoCode: null, createdAt: now, updatedAt: now, reminderSentAt: null },
-    );
-    await service.recordFulfillmentInTransaction(manager, seedEvent(), other, "00000000-0000-4000-8000-0000000000b2", "FRIEND", now);
+    bookings.push({ id: "00000000-0000-4000-8000-0000000000b1", userId: other, eventId, status: "active", promoCode: null, createdAt: now, updatedAt: now, reminderSentAt: null });
+    await service.recordFulfillmentInTransaction(manager, seedEvent(), other, bookings[0]!.id, "FRIEND", now);
     expect(fulfillments).toHaveLength(0);
+  });
+
+  it("lets a later booking with a completed campaign code succeed without another fulfillment", async () => {
+    const referred = { id: other, createdAt: now } as UserEntity;
+    const { service, manager, campaigns, fulfillments, bookings } = createService(seedEvent(), [referred]);
+    await service.createCampaign(organizer, eventId, { type: "special_offer", code: "SALE", title: "Спецпредложение", maxFulfillments: 1 });
+    bookings.push({ id: "00000000-0000-4000-8000-0000000000b1", userId: other, eventId, status: "active", promoCode: null, createdAt: now, updatedAt: now, reminderSentAt: null });
+    await service.recordFulfillmentInTransaction(manager, seedEvent(), other, bookings[0]!.id, "SALE", now);
+    expect(campaigns[0]?.status).toBe("completed");
+    await expect(service.recordFulfillmentInTransaction(manager, seedEvent(), organizer, "00000000-0000-4000-8000-0000000000b2", "SALE", now)).resolves.toBeUndefined();
+    expect(fulfillments).toHaveLength(1);
+  });
+
+  it("restores a campaign slot when the booking is released", async () => {
+    const referred = { id: other, createdAt: now } as UserEntity;
+    const { service, manager, campaigns, fulfillments, bookings } = createService(seedEvent(), [referred]);
+    await service.createCampaign(organizer, eventId, { type: "special_offer", code: "SALE", title: "Спецпредложение", maxFulfillments: 1 });
+    bookings.push({ id: "00000000-0000-4000-8000-0000000000b1", userId: other, eventId, status: "active", promoCode: null, createdAt: now, updatedAt: now, reminderSentAt: null });
+    await service.recordFulfillmentInTransaction(manager, seedEvent(), other, bookings[0]!.id, "SALE", now);
+    expect(campaigns[0]?.status).toBe("completed");
+    await service.releaseFulfillmentInTransaction(manager, bookings[0]!.id);
+    expect(fulfillments).toHaveLength(0);
+    expect(campaigns[0]?.fulfillmentCount).toBe(0);
+    expect(campaigns[0]?.status).toBe("active");
   });
 
   it("counts any booking toward a special offer", async () => {

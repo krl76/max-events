@@ -68,6 +68,7 @@ export class BookingsService {
       locked.status = "cancelled";
       event.bookedCount = Math.max(0, event.bookedCount - 1);
       await this.promo.releaseInTransaction(manager, event, locked.promoCode);
+      await this.promo.releaseFulfillmentInTransaction(manager, locked.id);
       const saved = await manager.save(BookingEntity, locked);
       await manager.save(EventEntity, event);
       const offered = await this.waitlist.onSeatFreed(manager, event);

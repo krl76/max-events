@@ -30,6 +30,9 @@ export class WaitlistEntryEntity {
   @Column({ type: "timestamptz", nullable: true })
   offeredUntil!: Date | null;
 
+  @Column({ type: "varchar", length: 40, nullable: true })
+  referralCode!: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

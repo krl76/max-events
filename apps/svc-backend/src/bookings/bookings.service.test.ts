@@ -123,6 +123,7 @@ function createService(event: EventEntity = seedEvent(), promoOverride?: Partial
     redeemInTransaction: async () => null,
     recordFulfillmentInTransaction: async () => undefined,
     releaseInTransaction: async () => undefined,
+    releaseFulfillmentInTransaction: async () => undefined,
     ...promoOverride,
   } as unknown as PromoService;
   const service = new BookingsService(fake.dataSource, waitlist, promo);

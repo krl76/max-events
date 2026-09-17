@@ -97,7 +97,8 @@ export class PromoService {
   async createCampaign(actorId: string, eventId: string, payload: CreatePromoCampaignWrite): Promise<PromoCampaign> {
     const event = await this.requireOwnedEvent(actorId, eventId);
     const code = payload.code.trim().toUpperCase();
-    if (!code || code.length > 40) throw new BadRequestException("Invalid campaign payload");
+    const title = payload.title.trim();
+    if (!code || code.length > 40 || !title) throw new BadRequestException("Invalid campaign payload");
     try {
       const saved = await this.campaigns.save(
         this.campaigns.create({
@@ -106,7 +107,7 @@ export class PromoService {
           type: payload.type,
           status: "active",
           code,
-          title: payload.title.trim(),
+          title,
           maxFulfillments: payload.maxFulfillments ?? null,
           fulfillmentCount: 0,
           completedAt: null,
@@ -129,11 +130,12 @@ export class PromoService {
     const code = rawCode?.trim().toUpperCase();
     if (!code) return;
     const campaign = await manager.findOne(PromoCampaignEntity, { where: { eventId: event.id, code }, lock: { mode: "pessimistic_write" } });
-    if (!campaign || campaign.status !== "active") throw new ForbiddenException("Invalid referral code");
+    if (!campaign) throw new ForbiddenException("Invalid referral code");
+    if (campaign.status !== "active") return;
     if (campaign.type === "refer_a_friend") {
       const user = await manager.findOne(UserEntity, { where: { id: userId } });
       if (!user || user.createdAt.getTime() < campaign.createdAt.getTime()) return;
-      const prior = await manager.count(BookingEntity, { where: { userId } });
+      const prior = await manager.count(BookingEntity, { where: { userId, eventId: event.id, status: "active" } });
       if (prior > 1) return;
     }
     if (campaign.maxFulfillments !== null && campaign.fulfillmentCount >= campaign.maxFulfillments) {
@@ -165,6 +167,20 @@ export class PromoService {
     if (!row) return;
     row.redeemedCount = Math.max(0, row.redeemedCount - 1);
     await manager.save(PromoCodeEntity, row);
+  }
+
+  async releaseFulfillmentInTransaction(manager: EntityManager, bookingId: string): Promise<void> {
+    const row = await manager.findOne(PromoFulfillmentEntity, { where: { bookingId }, lock: { mode: "pessimistic_write" } });
+    if (!row) return;
+    const campaign = await manager.findOne(PromoCampaignEntity, { where: { id: row.campaignId }, lock: { mode: "pessimistic_write" } });
+    await manager.delete(PromoFulfillmentEntity, { id: row.id });
+    if (!campaign) return;
+    campaign.fulfillmentCount = Math.max(0, campaign.fulfillmentCount - 1);
+    if (campaign.status === "completed" && (campaign.maxFulfillments === null || campaign.fulfillmentCount < campaign.maxFulfillments)) {
+      campaign.status = "active";
+      campaign.completedAt = null;
+    }
+    await manager.save(PromoCampaignEntity, campaign);
   }
 
   private async requireOwnedEvent(actorId: string, eventId: string): Promise<EventEntity> {

@@ -217,6 +217,7 @@ describe("EventsService", () => {
   it("lets an organizer bind their own unpublished place and blocks a banned publisher", async () => {
     const organizer = "00000000-0000-4000-8000-00000000000a";
     const { service } = createService({ draftPlaceIds: [placeId], ownerId: organizer });
+    await expect(service.create(CreateEventSchema.parse({ ...payload, placeId }), organizer)).rejects.toBeInstanceOf(BadRequestException);
     const draft = await service.create(CreateEventSchema.parse({ ...payload, placeId }), organizer, { draft: true });
     expect(draft.placeId).toBe(placeId);
     await expect(service.publish(draft.id, organizer)).rejects.toBeInstanceOf(BadRequestException);

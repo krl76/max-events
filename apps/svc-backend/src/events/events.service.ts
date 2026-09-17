@@ -47,7 +47,7 @@ export class EventsService {
 
   async create(payload: CreateEvent, organizerUserId?: string, options?: { draft?: boolean }): Promise<Event> {
     if (organizerUserId) await this.users.assertCanPublish(organizerUserId);
-    await assertPlaceBound(this.places, payload.placeId, organizerUserId);
+    await assertPlaceBound(this.places, payload.placeId, organizerUserId, { requirePublished: !options?.draft });
     assertTimeRange(payload.startsAt, payload.endsAt);
     const saved = await this.events.save(
       this.events.create({
@@ -82,7 +82,7 @@ export class EventsService {
     assertOrganizer(existing.organizerUserId, actorId);
     const merged = EventSchema.safeParse({ ...toEventDto(existing), ...pickEventFields(patch) });
     if (!merged.success) throw new BadRequestException("Invalid event payload");
-    await assertPlaceBound(this.places, merged.data.placeId, actorId);
+    await assertPlaceBound(this.places, merged.data.placeId, actorId, { requirePublished: existing.published !== false });
     assertTimeRange(merged.data.startsAt, merged.data.endsAt);
     const previousCapacity = existing.capacity;
     const saved = await this.events.save(this.events.merge(existing, toColumns(merged.data)));
@@ -215,12 +215,13 @@ async function attachChatLink(events: Repository<EventEntity>, bot: MaxBotClient
   return events.save(saved);
 }
 
-async function assertPlaceBound(places: PlacesService, placeId: string | null, actorId?: string): Promise<void> {
+async function assertPlaceBound(places: PlacesService, placeId: string | null, actorId?: string, options?: { requirePublished?: boolean }): Promise<void> {
   if (!placeId) return;
   try {
-    await places.resolveForEventBind(placeId, actorId);
+    if (options?.requirePublished) await places.getById(placeId);
+    else await places.resolveForEventBind(placeId, actorId);
   } catch (error) {
-    if (error instanceof NotFoundException) throw new BadRequestException("Place not found");
+    if (error instanceof NotFoundException) throw new BadRequestException(options?.requirePublished ? "Place must be published" : "Place not found");
     throw error;
   }
 }

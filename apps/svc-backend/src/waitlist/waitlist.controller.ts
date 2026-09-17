@@ -23,7 +23,7 @@ export class WaitlistController {
   async join(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<WaitlistEntry> {
     const parsed = JoinWaitlistWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid waitlist payload");
-    return this.waitlist.join(user.id, parsed.data.eventId);
+    return this.waitlist.join(user.id, parsed.data.eventId, new Date(), parsed.data.referralCode);
   }
 
   @Post(":id/confirm")
