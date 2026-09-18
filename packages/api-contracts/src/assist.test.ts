@@ -4,6 +4,7 @@ import { AssistQueryWriteSchema, AssistResponseSchema } from "./assist.js";
 describe("AssistQueryWriteSchema", () => {
   it("accepts the README NL query and rejects an empty string", () => {
     expect(AssistQueryWriteSchema.parse({ query: "Хочу вечером куда-нибудь, максимум 3000 ₽, с девушкой, желательно музыка" }).query).toContain("вечером");
+    expect(AssistQueryWriteSchema.parse({ query: "Сделай нам план на субботу", save: true }).save).toBe(true);
     expect(AssistQueryWriteSchema.safeParse({ query: "" }).success).toBe(false);
   });
 });

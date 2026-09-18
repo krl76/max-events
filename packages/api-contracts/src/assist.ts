@@ -20,6 +20,10 @@
 // - AssistPick - pick type
 // - AssistResponseSchema - summary, criteria, picks
 // - AssistResponse - response type
+// - AssistDayStopSchema - timed event on a generated day
+// - AssistDayStop - day stop type
+// - AssistDayResponseSchema - Saturday draft with plan payload
+// - AssistDayResponse - day response type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -44,6 +48,7 @@ export type AssistCriteria = z.infer<typeof AssistCriteriaSchema>;
 
 export const AssistQueryWriteSchema = z.object({
   query: z.string().trim().min(1).max(500),
+  save: z.boolean().optional(),
 });
 export type AssistQueryWrite = z.infer<typeof AssistQueryWriteSchema>;
 
@@ -59,3 +64,24 @@ export const AssistResponseSchema = z.object({
   items: z.array(AssistPickSchema).max(7),
 });
 export type AssistResponse = z.infer<typeof AssistResponseSchema>;
+
+export const AssistDayStopSchema = z.object({
+  at: z.string().min(1),
+  event: EventSchema,
+  explanation: z.string().min(1).max(300),
+});
+export type AssistDayStop = z.infer<typeof AssistDayStopSchema>;
+
+export const AssistDayResponseSchema = z.object({
+  summary: z.string().min(1).max(400),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  stops: z.array(AssistDayStopSchema).min(1).max(4),
+  planDraft: z.object({
+    eventId: z.string().uuid(),
+    participantIds: z.array(z.string().uuid()),
+    meetingPoint: z.string().min(1).max(300),
+    meetingAt: z.string().min(1),
+  }),
+  plan: z.unknown().nullable().default(null),
+});
+export type AssistDayResponse = z.infer<typeof AssistDayResponseSchema>;

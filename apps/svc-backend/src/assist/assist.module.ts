@@ -18,7 +18,9 @@ import { EventEntity } from "../events/event.entity";
 import { FriendshipEntity } from "../friends/friendship.entity";
 import { ListItemEntity } from "../lists/list-item.entity";
 import { ListEntity } from "../lists/list.entity";
+import { PlansModule } from "../plans/plans.module";
 import { AssistController } from "./assist.controller";
+import { AssistRateLimiter } from "./rate-limit";
 import { AssistService } from "./assist.service";
 import { LLM_PROVIDER, type LlmProvider } from "./llm-provider";
 import { NoneLlmProvider } from "./none-llm.provider";
@@ -36,7 +38,7 @@ export function createLlmProvider(kind: string | undefined, apiKey: string | und
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([EventEntity, CheckInEntity, FriendshipEntity, ListEntity, ListItemEntity])],
+  imports: [TypeOrmModule.forFeature([EventEntity, CheckInEntity, FriendshipEntity, ListEntity, ListItemEntity]), PlansModule],
   controllers: [AssistController],
   providers: [
     {
@@ -50,6 +52,7 @@ export function createLlmProvider(kind: string | undefined, apiKey: string | und
           config.get<string>("XAI_MODEL") ?? "grok-4.5",
         ),
     },
+    AssistRateLimiter,
     AssistService,
   ],
 })

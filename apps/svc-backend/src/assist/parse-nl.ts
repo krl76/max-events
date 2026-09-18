@@ -24,7 +24,7 @@ export function parseAssistQuery(query: string): AssistCriteria {
 function detectWhen(text: string): AssistWhen {
   if (text.includes("вечер")) return "evening";
   if (text.includes("утр")) return "morning";
-  if (text.includes("дн") || text.includes("обед")) return "afternoon";
+  if (text.includes("днём") || text.includes("днем") || text.includes("обед")) return "afternoon";
   return "any";
 }
 

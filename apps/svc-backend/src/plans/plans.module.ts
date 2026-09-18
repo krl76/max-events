@@ -27,5 +27,6 @@ import { PlansService } from "./plans.service";
   imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, PlanExpenseEntity, EventEntity, PlaceEntity, UserEntity]), FriendsModule, MaxBotModule],
   controllers: [PlansController],
   providers: [PlansService, PlansScheduler],
+  exports: [PlansService],
 })
 export class PlansModule {}

@@ -8,20 +8,26 @@
 // START_MODULE_MAP
 // - matchAssistEvents - filter catalog by parsed criteria
 // - formatAssistSummary - README-style copy
-// - AssistService - suggest
+// - nextSaturdayKey - next Saturday YYYY-MM-DD in Moscow
+// - AssistService - suggest, planSaturday
 // END_MODULE_MAP
 
-import { Inject, Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, HttpException, HttpStatus, Inject, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import type { AssistCriteria, AssistPick, AssistResponse, Event } from "@max-events/api-contracts";
+import { In, Repository } from "typeorm";
+import type { AssistCriteria, AssistDayResponse, AssistPick, AssistResponse, Event, PlanCard } from "@max-events/api-contracts";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
 import { FriendshipEntity } from "../friends/friendship.entity";
 import { ListItemEntity } from "../lists/list-item.entity";
 import { ListEntity } from "../lists/list.entity";
+import { PlansService } from "../plans/plans.service";
+import { moscowIsoWeekday } from "../plans/recurring";
+import { moscowDateKey } from "../time/moscow-date";
 import { LLM_PROVIDER, LlmProviderError, type LlmProvider } from "./llm-provider";
+import { AssistRateLimiter } from "./rate-limit";
+import { sanitizeAssistQuery } from "./sanitize";
 
 @Injectable()
 export class AssistService {
@@ -32,12 +38,15 @@ export class AssistService {
     @InjectRepository(FriendshipEntity) private readonly friendships: Repository<FriendshipEntity>,
     @InjectRepository(ListEntity) private readonly lists: Repository<ListEntity>,
     @InjectRepository(ListItemEntity) private readonly listItems: Repository<ListItemEntity>,
+    @Inject(PlansService) private readonly plans: PlansService,
+    @Inject(AssistRateLimiter) private readonly limiter: AssistRateLimiter,
   ) {}
 
   async suggest(userId: string, query: string, now = new Date()): Promise<AssistResponse> {
+    const cleaned = this.prepareQuery(userId, query);
     let criteria: AssistCriteria;
     try {
-      criteria = await this.llm.parseQuery(query);
+      criteria = await this.llm.parseQuery(cleaned);
     } catch (error) {
       if (error instanceof LlmProviderError) throw new ServiceUnavailableException(error.message);
       throw error;
@@ -46,7 +55,7 @@ export class AssistService {
     const matched = matchAssistEvents(catalog, criteria);
     const historyIds = await this.historyEventIds(userId);
     const savedIds = await this.partnerSavedEventIds(userId);
-    const historyCategories = new Set(catalog.filter((row) => historyIds.has(row.id)).map((row) => row.category));
+    const historyCategories = await this.historyCategories(historyIds);
     const items: AssistPick[] = matched.map((event) => {
       const fromHistory = historyIds.has(event.id) || historyCategories.has(event.category);
       const fromPartner = savedIds.has(event.id);
@@ -57,9 +66,45 @@ export class AssistService {
     return { summary: formatAssistSummary(items.length, historyCount, savedCount), criteria, items };
   }
 
+  async planSaturday(userId: string, query: string, save = false, now = new Date()): Promise<AssistDayResponse> {
+    this.prepareQuery(userId, query);
+    const date = nextSaturdayKey(now);
+    const catalog = (await this.events.find())
+      .filter((row) => row.published !== false && moscowDateKey(row.startsAt) === date)
+      .map((row) => toEventDto(row))
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
+      .slice(0, 4);
+    if (catalog.length === 0) throw new BadRequestException("No Saturday events found");
+    const stops = catalog.map((event) => ({ at: event.startsAt, event, explanation: "Слот субботнего дня" }));
+    const first = catalog[0]!;
+    const planDraft = {
+      eventId: first.id,
+      participantIds: [] as string[],
+      meetingPoint: first.title,
+      meetingAt: first.startsAt,
+    };
+    let plan: PlanCard | null = null;
+    if (save) {
+      plan = await this.plans.create(userId, planDraft);
+    }
+    return {
+      summary: `Собрал день на субботу ${date}: ${stops.length} событий`,
+      date,
+      stops,
+      planDraft,
+      plan,
+    };
+  }
+
   private async historyEventIds(userId: string): Promise<Set<string>> {
     const rows = await this.checkIns.find({ where: { userId } });
     return new Set(rows.map((row) => row.eventId).filter((id): id is string => Boolean(id)));
+  }
+
+  private async historyCategories(eventIds: Set<string>): Promise<Set<Event["category"]>> {
+    if (eventIds.size === 0) return new Set();
+    const rows = await this.events.find({ where: { id: In([...eventIds]) } });
+    return new Set(rows.map((row) => row.category));
   }
 
   private async partnerSavedEventIds(userId: string): Promise<Set<string>> {
@@ -71,6 +116,19 @@ export class AssistService {
     const items = await this.listItems.find();
     return new Set(items.filter((row) => listIds.has(row.listId) && row.eventId).map((row) => row.eventId as string));
   }
+
+  private prepareQuery(userId: string, query: string): string {
+    if (!this.limiter.hit(userId)) throw new HttpException("Assist rate limit exceeded", HttpStatus.TOO_MANY_REQUESTS);
+    const cleaned = sanitizeAssistQuery(query);
+    if (!cleaned) throw new BadRequestException("Invalid assist payload");
+    return cleaned;
+  }
+}
+
+export function nextSaturdayKey(now: Date): string {
+  const weekday = moscowIsoWeekday(now);
+  const addDays = (6 - weekday + 7) % 7;
+  return moscowDateKey(new Date(now.getTime() + addDays * 86_400_000));
 }
 
 export function matchAssistEvents(events: Event[], criteria: AssistCriteria): Event[] {

@@ -1,16 +1,16 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for NL event assist.
-// SCOPE: POST /assist with AssistQueryWriteSchema.
+// SCOPE: POST /assist and POST /assist/day with AssistQueryWriteSchema.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth, ./assist.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - AssistController - POST /assist
+// - AssistController - POST /assist, POST /assist/day
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Inject, Post } from "@nestjs/common";
-import { AssistQueryWriteSchema, type AssistResponse } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, type AssistDayResponse, type AssistResponse } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { AssistService } from "./assist.service";
@@ -24,5 +24,12 @@ export class AssistController {
     const parsed = AssistQueryWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid assist payload");
     return this.assist.suggest(user.id, parsed.data.query);
+  }
+
+  @Post("day")
+  async planDay(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<AssistDayResponse> {
+    const parsed = AssistQueryWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid assist payload");
+    return this.assist.planSaturday(user.id, parsed.data.query, parsed.data.save === true);
   }
 }
