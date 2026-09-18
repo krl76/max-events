@@ -49,4 +49,12 @@ describe("routeFromStartParam", () => {
   it("keeps the day-route screen out of start_param deep links", () => {
     expect(routeFromStartParam("day-route")).toEqual({ name: "home" });
   });
+
+  it("keeps the discovery screen out of start_param deep links", () => {
+    expect(routeFromStartParam("discovery")).toEqual({ name: "home" });
+  });
+
+  it("keeps the people screen out of start_param deep links", () => {
+    expect(routeFromStartParam("people")).toEqual({ name: "home" });
+  });
 });
