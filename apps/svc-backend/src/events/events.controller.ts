@@ -1,24 +1,28 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for events — authenticated CRUD and catalog list under /api/events.
-// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to.
-// DEPENDS: @nestjs/common, @max-events/api-contracts, ./events.service
+// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to; GET :id/details delegates to EventDetailsService with the current user.
+// DEPENDS: @nestjs/common, @max-events/api-contracts, ./events.service, ./event-details.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - EventsController - /events CRUD and catalog list
+// - EventsController - /events CRUD, catalog list and the :id/details page aggregate
 // - parseEventListQuery - coerce HTTP query into EventListQuery or 400
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
-import { CreateEventSchema, EventCategorySchema, TimestampSchema, type Event } from "@max-events/api-contracts";
+import { CreateEventSchema, EventCategorySchema, TimestampSchema, type Event, type EventDetails } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
+import { EventDetailsService } from "./event-details.service";
 import { EventsService, type EventListQuery } from "./events.service";
 
 @Controller("events")
 export class EventsController {
-  constructor(@Inject(EventsService) private readonly events: EventsService) {}
+  constructor(
+    @Inject(EventsService) private readonly events: EventsService,
+    @Inject(EventDetailsService) private readonly details: EventDetailsService,
+  ) {}
 
   @Post()
   async create(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<Event> {
@@ -30,6 +34,11 @@ export class EventsController {
   @Get()
   list(@Query() query: Record<string, string | undefined>): Promise<Event[]> {
     return this.events.list(parseEventListQuery(query));
+  }
+
+  @Get(":id/details")
+  getDetails(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<EventDetails> {
+    return this.details.get(id, user.id);
   }
 
   @Get(":id")

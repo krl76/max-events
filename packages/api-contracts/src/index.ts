@@ -1,4 +1,5 @@
 export * from "./event.js";
+export * from "./event-details.js";
 export * from "./primitives.js";
 export * from "./user.js";
 export * from "./place.js";
