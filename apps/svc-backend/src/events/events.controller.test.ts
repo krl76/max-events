@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CreateEventSchema, type CreateEvent, type Event } from "@max-events/api-contracts";
 import { UserEntity } from "../users/user.entity";
 import { parseEventListQuery, EventsController } from "./events.controller";
+import type { EventDetailsService } from "./event-details.service";
 import type { EventListQuery, EventsService } from "./events.service";
 
 const payload: CreateEvent = CreateEventSchema.parse({
@@ -22,7 +23,7 @@ const event: Event = {
 };
 
 function createController() {
-  const calls: { create?: CreateEvent; list?: EventListQuery; getById?: string; update?: { id: string; patch: Record<string, unknown> }; remove?: string } = {};
+  const calls: { create?: CreateEvent; list?: EventListQuery; getById?: string; details?: { id: string; viewerId: string }; update?: { id: string; patch: Record<string, unknown> }; remove?: string } = {};
   const service = {
     create: async (body: CreateEvent) => {
       calls.create = body;
@@ -44,7 +45,13 @@ function createController() {
       calls.remove = id;
     },
   } as unknown as EventsService;
-  return { calls, controller: new EventsController(service) };
+  const details = {
+    get: async (id: string, viewerId: string) => {
+      calls.details = { id, viewerId };
+      return { event };
+    },
+  } as unknown as EventDetailsService;
+  return { calls, controller: new EventsController(service, details) };
 }
 
 describe("EventsController", () => {
@@ -77,6 +84,12 @@ describe("EventsController", () => {
     expect(() => parseEventListQuery({ category: "park" })).toThrow(BadRequestException);
     expect(() => parseEventListQuery({ date: "12-09-2026" })).toThrow(BadRequestException);
     expect(() => parseEventListQuery({ date_from: "yesterday" })).toThrow(BadRequestException);
+  });
+
+  it("serves the details aggregate for the current user", async () => {
+    const { calls, controller } = createController();
+    await expect(controller.getDetails(user, event.id)).resolves.toEqual({ event });
+    expect(calls.details).toEqual({ id: event.id, viewerId: user.id });
   });
 
   it("updates, fetches, and deletes by id", async () => {

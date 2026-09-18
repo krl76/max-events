@@ -1,0 +1,87 @@
+import { describe, expect, it } from "vitest";
+import { EventDetailsSchema } from "./event-details.js";
+
+const eventId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f";
+const organizerId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90";
+const bookingId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d91";
+const checkInId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d92";
+
+const emptyRating = {
+  summary: { eventId, averageStars: 0, reviewsCount: 0 },
+  categoryAverages: { atmosphere: null, organization: null, price: null, place: null },
+};
+
+const minimalDetails = {
+  event: {
+    id: eventId,
+    title: "Джаз в парке",
+    category: "afisha",
+    city: "Москва",
+    startsAt: "2026-09-12T19:00:00+03:00",
+  },
+  place: null,
+  organizer: null,
+  remainingSeats: null,
+  activeBookingId: null,
+  checkInId: null,
+  myParticipationStatus: null,
+  rating: emptyRating,
+};
+
+describe("EventDetailsSchema", () => {
+  it("parses a minimal aggregate with all nullables empty", () => {
+    const parsed = EventDetailsSchema.parse(minimalDetails);
+    expect(parsed.event.id).toBe(eventId);
+    expect(parsed.place).toBeNull();
+    expect(parsed.organizer).toBeNull();
+    expect(parsed.remainingSeats).toBeNull();
+    expect(parsed.activeBookingId).toBeNull();
+    expect(parsed.checkInId).toBeNull();
+    expect(parsed.myParticipationStatus).toBeNull();
+    expect(parsed.rating.summary.reviewsCount).toBe(0);
+  });
+
+  it("parses a full aggregate with viewer-scoped fields set", () => {
+    const parsed = EventDetailsSchema.parse({
+      ...minimalDetails,
+      organizer: {
+        id: organizerId,
+        maxUserId: "424242",
+        firstName: "Организатор",
+        createdAt: "2026-09-01T10:00:00+03:00",
+        updatedAt: "2026-09-01T10:00:00+03:00",
+      },
+      remainingSeats: 7,
+      activeBookingId: bookingId,
+      checkInId,
+      myParticipationStatus: "going",
+      rating: {
+        summary: { eventId, averageStars: 4.5, reviewsCount: 2 },
+        categoryAverages: { atmosphere: 5, organization: 4, price: null, place: null },
+      },
+    });
+    expect(parsed.organizer?.id).toBe(organizerId);
+    expect(parsed.remainingSeats).toBe(7);
+    expect(parsed.activeBookingId).toBe(bookingId);
+    expect(parsed.checkInId).toBe(checkInId);
+    expect(parsed.myParticipationStatus).toBe("going");
+    expect(parsed.rating.summary.averageStars).toBe(4.5);
+  });
+
+  it("rejects a non-uuid activeBookingId", () => {
+    expect(EventDetailsSchema.safeParse({ ...minimalDetails, activeBookingId: "booking-1" }).success).toBe(false);
+  });
+
+  it("rejects a negative remainingSeats", () => {
+    expect(EventDetailsSchema.safeParse({ ...minimalDetails, remainingSeats: -1 }).success).toBe(false);
+  });
+
+  it("rejects an unknown participation status", () => {
+    expect(EventDetailsSchema.safeParse({ ...minimalDetails, myParticipationStatus: "maybe" }).success).toBe(false);
+  });
+
+  it("rejects a payload without the rating summary", () => {
+    const { rating: _rating, ...withoutRating } = minimalDetails;
+    expect(EventDetailsSchema.safeParse(withoutRating).success).toBe(false);
+  });
+});
