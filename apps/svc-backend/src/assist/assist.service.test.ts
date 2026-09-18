@@ -116,7 +116,7 @@ describe("AssistService", () => {
       { find: async () => [] } as never,
       { find: async () => [] } as never,
       { create: async () => ({}) } as never,
-      new AssistRateLimiter(2, 60_000),
+      new AssistRateLimiter().configure(2, 60_000),
     );
     await service.suggest(userId, "Хочу вечером музыку 1000 ₽", now);
     await service.suggest(userId, "Хочу вечером музыку 1000 ₽", now);

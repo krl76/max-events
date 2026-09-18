@@ -19,11 +19,15 @@ export const ASSIST_RATE_WINDOW_MS = 10 * 60 * 1000;
 @Injectable()
 export class AssistRateLimiter {
   private readonly hits = new Map<string, number[]>();
+  // Numeric ctor args would be Nest tokens (emitDecoratorMetadata → Number).
+  private limit = ASSIST_RATE_LIMIT;
+  private windowMs = ASSIST_RATE_WINDOW_MS;
 
-  constructor(
-    private readonly limit = ASSIST_RATE_LIMIT,
-    private readonly windowMs = ASSIST_RATE_WINDOW_MS,
-  ) {}
+  configure(limit: number, windowMs: number): this {
+    this.limit = limit;
+    this.windowMs = windowMs;
+    return this;
+  }
 
   hit(userId: string, now = Date.now()): boolean {
     const cutoff = now - this.windowMs;
