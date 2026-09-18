@@ -1,13 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: FIFO waitlist — join when full, offer the freed seat with a confirmation timer, expire and pass on.
-// SCOPE: join, confirm, expireOffers; onSeatFreed is called inside the booking-cancel transaction.
+// SCOPE: join, confirm, getMe, expireOffers; onSeatFreed is called inside the booking-cancel transaction.
 // DEPENDS: typeorm, @max-events/api-contracts, bookings/events/users, max-bot
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - OFFER_TTL_MS - confirmation window
-// - WaitlistService - join/confirm/expire/onSeatFreed/fillVacancies
+// - WaitlistService - join/confirm/getMe/expire/onSeatFreed/fillVacancies
 // - toWaitlistDto - entity plus FIFO position
 // END_MODULE_MAP
 
@@ -110,6 +110,14 @@ export class WaitlistService {
       await this.payments.ensureForBooking(result.bookingId, result.event.priceRub, `Билет: ${result.event.title}`);
     }
     return result.dto;
+  }
+
+  async getMe(userId: string, eventId: string): Promise<WaitlistEntry> {
+    return this.dataSource.transaction(async (manager) => {
+      const entry = await manager.findOne(WaitlistEntryEntity, { where: { userId, eventId, status: In(QUEUE_STATUSES) } });
+      if (!entry) throw new NotFoundException("Waitlist entry not found");
+      return toWaitlistDto(entry, await positionOf(manager, entry));
+    });
   }
 
   async onSeatFreed(manager: EntityManager, event: EventEntity, now = new Date(), reserveSeat = true): Promise<WaitlistEntryEntity | null> {

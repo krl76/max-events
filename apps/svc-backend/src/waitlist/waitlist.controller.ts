@@ -1,15 +1,15 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for the event waitlist.
-// SCOPE: POST /waitlist (join), POST /waitlist/:id/confirm.
+// SCOPE: POST /waitlist (join), POST /waitlist/:id/confirm, GET /waitlist/me (own active entry).
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./waitlist.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - WaitlistController - join and confirm
+// - WaitlistController - join, confirm and getMe
 // END_MODULE_MAP
 
-import { BadRequestException, Body, Controller, Inject, Param, ParseUUIDPipe, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
 import { JoinWaitlistWriteSchema, type WaitlistEntry } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
@@ -24,6 +24,11 @@ export class WaitlistController {
     const parsed = JoinWaitlistWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid waitlist payload");
     return this.waitlist.join(user.id, parsed.data.eventId, new Date(), parsed.data.referralCode);
+  }
+
+  @Get("me")
+  getMe(@CurrentUser() user: UserEntity, @Query("eventId", ParseUUIDPipe) eventId: string): Promise<WaitlistEntry> {
+    return this.waitlist.getMe(user.id, eventId);
   }
 
   @Post(":id/confirm")

@@ -6,7 +6,7 @@ import { EventEntity } from "../events/event.entity";
 import type { MaxBotClient } from "../max-bot/max-bot.client";
 import { UserEntity } from "../users/user.entity";
 import { WaitlistEntryEntity } from "./waitlist-entry.entity";
-import { WaitlistService } from "./waitlist.service";
+import { OFFER_TTL_MS, WaitlistService } from "./waitlist.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
 const userA = "00000000-0000-4000-8000-00000000000a";
@@ -106,7 +106,11 @@ function createHarness(event: EventEntity) {
     },
   };
   const paymentCalls: string[] = [];
-  const payments = { ensureForBooking: async (bookingId: string) => { paymentCalls.push(bookingId); } };
+  const payments = {
+    ensureForBooking: async (bookingId: string) => {
+      paymentCalls.push(bookingId);
+    },
+  };
   const service = new WaitlistService(dataSource, entriesRepo as unknown as Repository<WaitlistEntryEntity>, { findOneBy: async () => event } as unknown as Repository<EventEntity>, { findOneBy: async (where: { id: string }) => users.find((row) => row.id === where.id) ?? null } as unknown as Repository<UserEntity>, bot, promo as never, payments as never);
   return { service, entries, events, bookings, sent, manager, entriesRepo, bot, promoCalls, paymentCalls };
 }
@@ -142,6 +146,50 @@ describe("WaitlistService.join", () => {
     event.bookingOpensAt = new Date("2026-09-20T00:00:00Z");
     const { service } = createHarness(event);
     await expect(service.join(userA, eventId, now)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});
+
+describe("WaitlistService.getMe", () => {
+  it("returns the caller's waiting entry with its real FIFO position", async () => {
+    const { service } = createHarness(seedEvent(1, 1));
+    await service.join(userA, eventId);
+    await service.join(userB, eventId);
+    const mine = await service.getMe(userB, eventId);
+    expect(mine.userId).toBe(userB);
+    expect(mine.status).toBe("waiting");
+    expect(mine.position).toBe(2);
+    expect(mine.offeredUntil).toBeNull();
+  });
+
+  it("returns the caller's offered entry with its deadline", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    const joined = await harness.service.join(userA, eventId);
+    harness.events[0]!.bookedCount = 0;
+    await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, harness.events[0]!, now);
+    const mine = await harness.service.getMe(userA, eventId);
+    expect(mine.id).toBe(joined.id);
+    expect(mine.status).toBe("offered");
+    expect(mine.position).toBe(1);
+    expect(mine.offeredUntil).toBe(new Date(now.getTime() + OFFER_TTL_MS).toISOString());
+  });
+
+  it("throws NotFoundException when the caller has no entry", async () => {
+    const { service } = createHarness(seedEvent(1, 1));
+    await expect(service.getMe(userA, eventId)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("does not return expired, cancelled or confirmed entries", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    for (const status of ["expired", "cancelled", "confirmed"] as const) {
+      harness.entries.push({ id: `row-${status}`, userId: userA, eventId, status, offeredUntil: null, referralCode: null, createdAt: now, updatedAt: now } as WaitlistEntryEntity);
+      await expect(harness.service.getMe(userA, eventId)).rejects.toBeInstanceOf(NotFoundException);
+    }
+  });
+
+  it("hides another user's entry", async () => {
+    const { service } = createHarness(seedEvent(1, 1));
+    await service.join(userA, eventId);
+    await expect(service.getMe(userB, eventId)).rejects.toBeInstanceOf(NotFoundException);
   });
 });
 
