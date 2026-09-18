@@ -96,6 +96,7 @@ describe("ListItemCardSchema", () => {
       paymentUrl: null,
       capacity: null,
       chatLink: null,
+      promoted: false,
     };
     expect(ListItemCardSchema.parse({ item, event, addedBy: null })).toMatchObject({ item, addedBy: null });
   });
