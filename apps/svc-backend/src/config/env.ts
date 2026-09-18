@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: zod-validated environment variables, fail-fast on missing or invalid values.
-// SCOPE: env schema + validator shared by the Nest process and the TypeORM CLI datasource.
+// SCOPE: env schema + validator shared by the Nest process and the TypeORM CLI datasource; optional payment provider keys.
 // DEPENDS: zod, dotenv
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -39,6 +39,9 @@ export const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3100),
   MAX_BOT_TOKEN: z.string().min(1).optional(),
   MODERATOR_MAX_USER_IDS: z.string().optional(),
+  PAYMENT_PROVIDER: z.enum(["sandbox", "none"]).default("sandbox"),
+  PAYMENT_SECRET: z.string().min(1).optional(),
+  PAYMENT_SANDBOX_FAIL_AMOUNT: z.coerce.number().int().positive().default(13),
 });
 
 export type Env = z.infer<typeof envSchema>;
