@@ -145,8 +145,9 @@ export function ListPage({ id }: { id: string }) {
     load();
   }, [load]);
 
+  const isShared = state.status === "ready" && state.screen.participants.length > 0;
   useEffect(() => {
-    if (state.status !== "ready" || state.screen.participants.length === 0) return;
+    if (!isShared) return;
     let alive = true;
     apiClient.listEvents().then(
       (list) => {
@@ -157,7 +158,7 @@ export function ListPage({ id }: { id: string }) {
     return () => {
       alive = false;
     };
-  }, [state]);
+  }, [isShared]);
 
   const add = useCallback(() => {
     if (userId === null) return;
@@ -170,7 +171,6 @@ export function ListPage({ id }: { id: string }) {
   if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
   if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить список.</p>;
   const { screen } = state;
-  const isShared = screen.participants.length > 0;
   const listState: ListState = { status: "ready", cards: screen.items };
   const addReady = events.some((event) => event.title === adding.trim());
 
