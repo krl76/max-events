@@ -14,6 +14,11 @@ function createRows() {
     find: async () => store,
     create: (fields: Partial<PaymentEntity>) => ({ ...fields }) as PaymentEntity,
     save: async (entity: PaymentEntity) => {
+      const index = store.findIndex((row) => row === entity || (entity.id && row.id === entity.id));
+      if (index >= 0) {
+        store[index] = entity;
+        return entity;
+      }
       if (store.some((row) => row.bookingId === entity.bookingId)) {
         throw new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate"), { code: "23505" }));
       }
@@ -38,6 +43,8 @@ describe("PaymentsService.ensureForBooking", () => {
     expect(first.netRub).toBe(765);
     expect(first.commissionBps).toBe(1000);
     expect(first.commissionFixedAt).toBeTruthy();
+    expect(rows.store[0]?.commissionRub).toBe(85);
+    expect(rows.store[0]?.commissionFixedAt).toBeInstanceOf(Date);
     expect(first.bookingId).toBe(bookingId);
     const second = await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
     expect(second.id).toBe(first.id);
@@ -62,6 +69,31 @@ describe("PaymentsService.ensureForBooking", () => {
     expect(rows.store).toHaveLength(1);
   });
 
+  it("heals a succeeded payment that was stored without a freeze", async () => {
+    const rows = createRows();
+    const unfrozen = {
+      id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d11",
+      bookingId,
+      providerPaymentId: "pay_sandbox_old",
+      status: "succeeded" as const,
+      amountRub: 850,
+      currency: "RUB" as const,
+      description: "Билет: Джаз",
+      commissionRub: null,
+      netRub: null,
+      commissionBps: null,
+      commissionFixedAt: null,
+      createdAt: new Date("2026-09-01T07:00:00Z"),
+      updatedAt: new Date("2026-09-01T07:00:00Z"),
+    } as PaymentEntity;
+    rows.store.push(unfrozen);
+    const service = new PaymentsService(new SandboxPaymentProvider(), rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
+    const healed = await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
+    expect(healed.commissionRub).toBe(85);
+    expect(rows.store[0]?.netRub).toBe(765);
+    expect(rows.store[0]?.commissionFixedAt).toBeInstanceOf(Date);
+  });
+
   it("reports frozen sales for the organizer and ignores unfixed rows", async () => {
     const rows = createRows();
     const eventId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d20";
@@ -73,6 +105,21 @@ describe("PaymentsService.ensureForBooking", () => {
     const bookings = { find: async () => [{ id: bookingId, eventId }] };
     const service = new PaymentsService(new SandboxPaymentProvider(), rows as unknown as Repository<PaymentEntity>, events as never, bookings as never, { get: () => 1000 } as never);
     await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
+    rows.store.push({
+      id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d12",
+      bookingId: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d13",
+      providerPaymentId: "pay_fail",
+      status: "failed",
+      amountRub: 850,
+      currency: "RUB",
+      description: "fail",
+      commissionRub: null,
+      netRub: null,
+      commissionBps: null,
+      commissionFixedAt: null,
+      createdAt: new Date("2026-09-01T07:00:00Z"),
+      updatedAt: new Date("2026-09-01T07:00:00Z"),
+    } as PaymentEntity);
     const report = await service.salesReport(organizerId, eventId);
     expect(report.grossRub).toBe(850);
     expect(report.commissionRub).toBe(85);

@@ -45,36 +45,34 @@ export class PaymentsService {
 
   async ensureForBooking(bookingId: string, amountRub: number, description: string): Promise<Payment> {
     const existing = await this.rows.findOneBy({ bookingId });
-    if (existing) return toPaymentDto(existing);
+    if (existing) return toPaymentDto(await this.healCommission(existing));
     const charge = await this.provider.create({
       amountRub,
       currency: "RUB",
       description,
       idempotencyKey: `booking:${bookingId}`,
     });
+    const draft = this.rows.create({
+      bookingId,
+      providerPaymentId: charge.id,
+      status: charge.status,
+      amountRub: charge.amountRub,
+      currency: "RUB",
+      description: charge.description,
+      commissionRub: null,
+      netRub: null,
+      commissionBps: null,
+      commissionFixedAt: null,
+    });
+    freezeCommission(draft, this.commissionBps());
     try {
-      const saved = await this.rows.save(
-        this.rows.create({
-          bookingId,
-          providerPaymentId: charge.id,
-          status: charge.status,
-          amountRub: charge.amountRub,
-          currency: "RUB",
-          description: charge.description,
-          commissionRub: null,
-          netRub: null,
-          commissionBps: null,
-          commissionFixedAt: null,
-        }),
-      );
-      freezeCommission(saved, this.commissionBps());
-      if (saved.commissionFixedAt) await this.rows.save(saved);
+      const saved = await this.rows.save(draft);
       return toPaymentDto(saved);
     } catch (error) {
       if (!(error instanceof QueryFailedError && error.driverError?.code === "23505")) throw error;
       const row = await this.rows.findOneBy({ bookingId });
       if (!row) throw error;
-      return toPaymentDto(row);
+      return toPaymentDto(await this.healCommission(row));
     }
   }
 
@@ -107,6 +105,13 @@ export class PaymentsService {
 
   private commissionBps(): number {
     return this.config.get<number>("PAYMENT_COMMISSION_BPS") ?? DEFAULT_COMMISSION_BPS;
+  }
+
+  private async healCommission(row: PaymentEntity): Promise<PaymentEntity> {
+    if (row.commissionFixedAt || row.status !== "succeeded") return row;
+    freezeCommission(row, this.commissionBps());
+    if (!row.commissionFixedAt) return row;
+    return this.rows.save(row);
   }
 }
 

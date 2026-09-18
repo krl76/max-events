@@ -103,7 +103,17 @@ describe("PaymentsWebhookService", () => {
     expect(events).toHaveLength(1);
     expect(await service.handleWebhook(raw, signature, secret)).toEqual({ duplicate: true, applied: false });
     expect(payments[0]?.status).toBe("succeeded");
+    expect(payments[0]?.commissionRub).toBe(85);
+    expect(payments[0]?.netRub).toBe(765);
     expect(events).toHaveLength(1);
+  });
+
+  it("freezes an already-succeeded payment that has no commission yet", async () => {
+    const { service, payments } = createService(paymentRow("succeeded"));
+    const { raw, signature } = signed({ eventId: "evt_heal", paymentId: providerPaymentId, status: "succeeded" });
+    expect(await service.handleWebhook(raw, signature, secret)).toEqual({ duplicate: false, applied: true });
+    expect(payments[0]?.commissionRub).toBe(85);
+    expect(payments[0]?.netRub).toBe(765);
   });
 
   it("journals an illegal transition without changing the payment", async () => {

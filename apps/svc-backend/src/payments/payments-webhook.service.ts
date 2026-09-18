@@ -71,11 +71,15 @@ export class PaymentsWebhookService {
       }
       const payment = await manager.findOne(PaymentEntity, { where: { providerPaymentId: parsed.data.paymentId }, lock: { mode: "pessimistic_write" } });
       if (!payment) throw new ServiceUnavailableException("Payment not found");
-      if (!canTransitionPaymentStatus(payment.status, parsed.data.status) || payment.status === parsed.data.status) {
+      if (!canTransitionPaymentStatus(payment.status, parsed.data.status)) {
         return { duplicate: false, applied: false };
       }
+      const statusChanged = payment.status !== parsed.data.status;
+      const wasFrozen = Boolean(payment.commissionFixedAt);
       payment.status = parsed.data.status;
       freezeCommission(payment, this.config.get<number>("PAYMENT_COMMISSION_BPS") ?? DEFAULT_COMMISSION_BPS);
+      const healed = Boolean(payment.commissionFixedAt) && !wasFrozen;
+      if (!statusChanged && !healed) return { duplicate: false, applied: false };
       await manager.save(PaymentEntity, payment);
       return { duplicate: false, applied: true };
     });
