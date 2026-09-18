@@ -17,6 +17,7 @@
 // END_MODULE_MAP
 
 import { z } from "zod";
+import { PaymentSchema } from "./payment.js";
 import { IdSchema, TimestampSchema } from "./primitives.js";
 
 export const BookingStatusSchema = z.enum(["active", "cancelled"]);
@@ -46,5 +47,6 @@ export type CreateBooking = z.infer<typeof CreateBookingSchema>;
 export const BookingWithSeatsSchema = BookingSchema.extend({
   freeSeats: z.number().int().nonnegative().nullable(),
   chatLink: z.string().nullable().default(null),
+  payment: PaymentSchema.nullable().default(null),
 });
 export type BookingWithSeats = z.infer<typeof BookingWithSeatsSchema>;

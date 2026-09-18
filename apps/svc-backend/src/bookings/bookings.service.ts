@@ -10,11 +10,12 @@
 // - toBookingDto - map BookingEntity plus remaining seats to BookingWithSeats
 // END_MODULE_MAP
 
-import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource, QueryFailedError } from "typeorm";
-import type { BookingStatus, BookingWithSeats } from "@max-events/api-contracts";
+import type { BookingStatus, BookingWithSeats, Payment } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
+import { PaymentsService } from "../payments/payments.service";
 import { PromoService } from "../promo/promo.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { BookingEntity } from "./booking.entity";
@@ -25,11 +26,12 @@ export class BookingsService {
     @InjectDataSource() private readonly dataSource: DataSource,
     @Inject(WaitlistService) private readonly waitlist: WaitlistService,
     @Inject(PromoService) private readonly promo: PromoService,
+    @Inject(PaymentsService) private readonly payments: PaymentsService,
   ) {}
 
   async create(userId: string, eventId: string, promoCode?: string | null, now = new Date(), referralCode?: string | null): Promise<BookingWithSeats> {
     try {
-      return await this.dataSource.transaction(async (manager) => {
+      const result = await this.dataSource.transaction(async (manager) => {
         const event = await manager.findOne(EventEntity, { where: { id: eventId }, lock: { mode: "pessimistic_write" } });
         if (!event || event.published === false) throw new NotFoundException("Event not found");
         const applied = await this.promo.redeemInTransaction(manager, event, promoCode ?? undefined, now);
@@ -45,11 +47,26 @@ export class BookingsService {
         await this.promo.recordFulfillmentInTransaction(manager, event, userId, booking.id, referralCode ?? undefined, now);
         event.bookedCount += 1;
         await manager.save(EventEntity, event);
-        return toBookingDto(booking, event);
+        return { dto: toBookingDto(booking, event), event, bookingId: booking.id };
       });
+      const payment = await this.paymentFor(result.event, result.bookingId);
+      return { ...result.dto, payment };
     } catch (error) {
       throw translateUniqueViolation(error);
     }
+  }
+
+  async ensurePayment(userId: string, bookingId: string): Promise<BookingWithSeats> {
+    const loaded = await this.dataSource.transaction(async (manager) => {
+      const booking = await manager.findOne(BookingEntity, { where: { id: bookingId } });
+      if (!booking) throw new NotFoundException("Booking not found");
+      if (booking.userId !== userId) throw new ForbiddenException("Cannot pay for another user's booking");
+      const event = await manager.findOne(EventEntity, { where: { id: booking.eventId } });
+      if (!event || event.published === false) throw new NotFoundException("Event not found");
+      return { booking, event };
+    });
+    const payment = await this.paymentFor(loaded.event, loaded.booking.id);
+    return { ...toBookingDto(loaded.booking, loaded.event), payment };
   }
 
   async cancel(userId: string, bookingId: string): Promise<BookingWithSeats> {
@@ -75,7 +92,13 @@ export class BookingsService {
       return { dto: toBookingDto(saved, event), offered };
     });
     if (result.offered) await this.waitlist.notifyOffer(result.offered);
-    return result.dto;
+    return { ...result.dto, payment: null };
+  }
+
+  private async paymentFor(event: EventEntity, bookingId: string): Promise<Payment | null> {
+    if (!event.isPaid) return null;
+    if (event.priceRub == null || event.priceRub <= 0) throw new BadRequestException("Paid event requires a price");
+    return this.payments.ensureForBooking(bookingId, event.priceRub, `Билет: ${event.title}`);
   }
 }
 
@@ -89,6 +112,7 @@ export function toBookingDto(booking: BookingEntity, event: EventEntity): Bookin
     updatedAt: booking.updatedAt.toISOString(),
     freeSeats: freeSeats(event),
     chatLink: event.chatLink,
+    payment: null,
   };
 }
 
@@ -101,7 +125,7 @@ function translateUniqueViolation(error: unknown): unknown {
   if (error instanceof QueryFailedError && error.driverError?.code === "23505") {
     return new ConflictException("Booking already exists");
   }
-  if (error instanceof ConflictException || error instanceof NotFoundException || error instanceof ForbiddenException) {
+  if (error instanceof ConflictException || error instanceof NotFoundException || error instanceof ForbiddenException || error instanceof BadRequestException) {
     return error;
   }
   return error;

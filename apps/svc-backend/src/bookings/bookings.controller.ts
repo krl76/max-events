@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for bookings — authenticated create and cancel under /api/bookings.
-// SCOPE: POST /bookings (CreateBooking, userId must match CurrentUser), DELETE /bookings/:id returning BookingWithSeats.
+// SCOPE: POST /bookings (CreateBooking, userId must match CurrentUser), POST /bookings/:id/payment, DELETE /bookings/:id returning BookingWithSeats.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./bookings.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -25,6 +25,11 @@ export class BookingsController {
     if (!parsed.success) throw new BadRequestException("Invalid booking payload");
     if (parsed.data.userId !== user.id) throw new ForbiddenException("Cannot book for another user");
     return this.bookings.create(user.id, parsed.data.eventId, parsed.data.promoCode, new Date(), parsed.data.referralCode);
+  }
+
+  @Post(":id/payment")
+  pay(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<BookingWithSeats> {
+    return this.bookings.ensurePayment(user.id, id);
   }
 
   @Delete(":id")

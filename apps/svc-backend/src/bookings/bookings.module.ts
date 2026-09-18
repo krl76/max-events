@@ -12,6 +12,7 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { EventEntity } from "../events/event.entity";
+import { PaymentsModule } from "../payments/payments.module";
 import { PromoModule } from "../promo/promo.module";
 import { WaitlistModule } from "../waitlist/waitlist.module";
 import { BookingEntity } from "./booking.entity";
@@ -19,7 +20,7 @@ import { BookingsController } from "./bookings.controller";
 import { BookingsService } from "./bookings.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([BookingEntity, EventEntity]), WaitlistModule, PromoModule],
+  imports: [TypeOrmModule.forFeature([BookingEntity, EventEntity]), WaitlistModule, PromoModule, PaymentsModule],
   controllers: [BookingsController],
   providers: [BookingsService],
   exports: [BookingsService],

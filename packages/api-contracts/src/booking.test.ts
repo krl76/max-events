@@ -52,6 +52,7 @@ describe("BookingWithSeatsSchema", () => {
     expect(BookingWithSeatsSchema.parse(withSeats).chatLink).toBeNull();
     expect(BookingWithSeatsSchema.parse({ ...withSeats, freeSeats: null, chatLink: "https://max.ru/join/abc" }).chatLink).toBe("https://max.ru/join/abc");
     expect(BookingWithSeatsSchema.parse({ ...withSeats, freeSeats: null }).freeSeats).toBeNull();
+    expect(BookingWithSeatsSchema.parse(withSeats).payment).toBeNull();
     expect(BookingWithSeatsSchema.safeParse({ ...withSeats, freeSeats: -1 }).success).toBe(false);
   });
 });

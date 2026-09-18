@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { QueryFailedError, type DataSource, type EntityManager, type EntityTarget, type FindOneOptions, type ObjectLiteral } from "typeorm";
 import type { BookingStatus } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
+import type { PaymentsService } from "../payments/payments.service";
 import type { PromoService } from "../promo/promo.service";
 import type { WaitlistService } from "../waitlist/waitlist.service";
 import { BookingEntity } from "./booking.entity";
@@ -126,8 +127,25 @@ function createService(event: EventEntity = seedEvent(), promoOverride?: Partial
     releaseFulfillmentInTransaction: async () => undefined,
     ...promoOverride,
   } as unknown as PromoService;
-  const service = new BookingsService(fake.dataSource, waitlist, promo);
-  return { ...fake, service, waitlist };
+  const paymentCalls: string[] = [];
+  const payments = {
+    ensureForBooking: async (bookingId: string, amountRub: number, description: string) => {
+      paymentCalls.push(bookingId);
+      return {
+        id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7001",
+        bookingId,
+        providerPaymentId: "pay_sandbox_1",
+        status: "succeeded" as const,
+        amountRub,
+        currency: "RUB" as const,
+        description,
+        createdAt: "2026-09-01T07:00:00.000Z",
+        updatedAt: "2026-09-01T07:00:00.000Z",
+      };
+    },
+  } as unknown as PaymentsService;
+  const service = new BookingsService(fake.dataSource, waitlist, promo, payments);
+  return { ...fake, service, waitlist, paymentCalls };
 }
 
 describe("BookingsService", () => {
@@ -218,5 +236,24 @@ describe("BookingsService", () => {
     await expect(service.create(userA, eventId, undefined, new Date("2026-09-12T10:00:00Z"))).rejects.toBeInstanceOf(ForbiddenException);
     const booked = await service.create(userA, eventId, "early", new Date("2026-09-12T10:00:00Z"));
     expect(booked.status).toBe("active");
+  });
+
+  it("creates a payment for a paid event and reuses it on a second ensurePayment", async () => {
+    const { service, paymentCalls } = createService(seedEvent({ isPaid: true, priceRub: 850, paymentUrl: "https://pay.example/jazz" }));
+    const booked = await service.create(userA, eventId);
+    expect(booked.payment?.status).toBe("succeeded");
+    expect(booked.payment?.amountRub).toBe(850);
+    expect(booked.payment?.description).toContain("Джаз");
+    expect(paymentCalls).toEqual([booked.id]);
+    const again = await service.ensurePayment(userA, booked.id);
+    expect(again.payment?.bookingId).toBe(booked.id);
+    expect(paymentCalls).toEqual([booked.id, booked.id]);
+  });
+
+  it("does not create a payment for a free event", async () => {
+    const { service, paymentCalls } = createService();
+    const booked = await service.create(userA, eventId);
+    expect(booked.payment).toBeNull();
+    expect(paymentCalls).toEqual([]);
   });
 });

@@ -26,7 +26,7 @@ export class SandboxPaymentProvider implements PaymentProvider {
     const existingId = this.byIdempotency.get(input.idempotencyKey);
     if (existingId) {
       const existing = this.charges.get(existingId);
-      if (existing) return existing;
+      if (existing) return copyCharge(existing);
     }
     if (!Number.isInteger(input.amountRub) || input.amountRub <= 0) {
       throw new PaymentProviderError("invalid_amount", "Payment amount must be a positive integer");
@@ -42,29 +42,43 @@ export class SandboxPaymentProvider implements PaymentProvider {
     };
     this.charges.set(id, charge);
     this.byIdempotency.set(input.idempotencyKey, id);
-    return charge;
+    return copyCharge(charge);
   }
 
   async getStatus(paymentId: string): Promise<PaymentCharge> {
     const charge = this.charges.get(paymentId);
     if (!charge) throw new PaymentProviderError("payment_not_found", "Payment not found");
-    return charge;
+    return copyCharge(charge);
   }
 
   async refund(paymentId: string, amountRub?: number): Promise<PaymentRefund> {
     const existing = this.refunds.get(paymentId);
-    if (existing) return existing;
-    const charge = await this.getStatus(paymentId);
+    if (existing) return copyRefund(existing);
+    const charge = this.charges.get(paymentId);
+    if (!charge) throw new PaymentProviderError("payment_not_found", "Payment not found");
     if (charge.status !== "succeeded") {
-      return { id: `ref_sandbox_${paymentId}`, paymentId, status: "failed", amountRub: amountRub ?? charge.amountRub };
+      const failed: PaymentRefund = { id: `ref_sandbox_${paymentId}`, paymentId, status: "failed", amountRub: amountRub ?? charge.amountRub };
+      this.refunds.set(paymentId, failed);
+      return copyRefund(failed);
     }
     const refundAmount = amountRub ?? charge.amountRub;
-    if (!Number.isInteger(refundAmount) || refundAmount <= 0 || refundAmount > charge.amountRub) {
-      return { id: `ref_sandbox_${paymentId}`, paymentId, status: "failed", amountRub: refundAmount };
+    if (amountRub !== undefined && amountRub !== charge.amountRub) {
+      throw new PaymentProviderError("invalid_amount", "Sandbox refunds the full charge only");
+    }
+    if (!Number.isInteger(refundAmount) || refundAmount <= 0) {
+      throw new PaymentProviderError("invalid_amount", "Payment amount must be a positive integer");
     }
     charge.status = "refunded";
     const refund: PaymentRefund = { id: `ref_sandbox_${++this.seq}`, paymentId, status: "succeeded", amountRub: refundAmount };
     this.refunds.set(paymentId, refund);
-    return refund;
+    return copyRefund(refund);
   }
+}
+
+function copyCharge(charge: PaymentCharge): PaymentCharge {
+  return { ...charge };
+}
+
+function copyRefund(refund: PaymentRefund): PaymentRefund {
+  return { ...refund };
 }

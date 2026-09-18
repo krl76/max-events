@@ -44,6 +44,7 @@ export type PaymentRefund = {
 export interface PaymentProvider {
   create(input: CreatePaymentInput): Promise<PaymentCharge>;
   getStatus(paymentId: string): Promise<PaymentCharge>;
+  /** Full refund of a succeeded charge. `amountRub`, when set, must equal the charge. */
   refund(paymentId: string, amountRub?: number): Promise<PaymentRefund>;
 }
 

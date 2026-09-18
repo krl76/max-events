@@ -36,3 +36,4 @@ export * from "./promotion.js";
 export * from "./we-group.js";
 export * from "./plan-budget.js";
 export * from "./vote.js";
+export * from "./payment.js";
