@@ -14,6 +14,7 @@
 // - formatPlanPollText - recurring occurrence poll DM body
 // - PLAN_POLL_WINDOW_MS - look-ahead window for occurrence polls
 // - settleBalances - greedy debt settlement
+// - budgetFromExpenses - split expenses into per-person nets and debts
 // - PlansService - create, list, get, addParticipant, respond, remove, spawnRecurring, pollRecurring, remindMeeting, budget
 // END_MODULE_MAP
 
@@ -82,6 +83,43 @@ export function settleBalances(balances: Map<string, number>): PlanDebt[] {
     if (creditors[j]![1] === 0) j += 1;
   }
   return debts;
+}
+
+export function budgetFromExpenses(rows: PlanExpenseEntity[], extraParty: Iterable<string> = []): PlanBudget {
+  const ordered = [...rows].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
+  const party = new Set(extraParty);
+  for (const row of ordered) {
+    party.add(row.payerUserId);
+    for (const id of row.shareUserIds) party.add(id);
+  }
+  const people = [...party].sort();
+  const paid = new Map(people.map((id) => [id, 0]));
+  const share = new Map(people.map((id) => [id, 0]));
+  for (const row of ordered) {
+    paid.set(row.payerUserId, (paid.get(row.payerUserId) ?? 0) + row.amountRub);
+    const ids = [...new Set(row.shareUserIds)].sort();
+    if (ids.length === 0) continue;
+    const n = ids.length;
+    const base = Math.floor(row.amountRub / n);
+    const rem = row.amountRub % n;
+    const offset = [...row.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % n;
+    ids.forEach((id, index) => {
+      const extra = rem > 0 && ((index - offset + n) % n) < rem ? 1 : 0;
+      share.set(id, (share.get(id) ?? 0) + base + extra);
+    });
+  }
+  const balances = new Map(people.map((id) => [id, (paid.get(id) ?? 0) - (share.get(id) ?? 0)]));
+  return {
+    expenses: ordered.map(toExpenseDto),
+    perPerson: people.map((userId) => ({
+      userId,
+      paidRub: paid.get(userId) ?? 0,
+      shareRub: share.get(userId) ?? 0,
+      netRub: balances.get(userId) ?? 0,
+    })),
+    debts: settleBalances(balances),
+    totalRub: ordered.reduce((sum, row) => sum + row.amountRub, 0),
+  };
 }
 
 function toExpenseDto(row: PlanExpenseEntity) {
@@ -436,39 +474,7 @@ export class PlansService {
     const plan = await this.requireActivePlan(planId);
     if (!(await this.canView(actorId, plan))) throw new ForbiddenException("Cannot view another user's plan");
     const rows = await this.expenses.find({ where: { planId }, order: { createdAt: "ASC", id: "ASC" } });
-    const party = new Set([...(await this.spendPartyIds(plan))]);
-    for (const row of rows) {
-      party.add(row.payerUserId);
-      for (const id of row.shareUserIds) party.add(id);
-    }
-    const people = [...party].sort();
-    const paid = new Map(people.map((id) => [id, 0]));
-    const share = new Map(people.map((id) => [id, 0]));
-    for (const row of rows) {
-      paid.set(row.payerUserId, (paid.get(row.payerUserId) ?? 0) + row.amountRub);
-      const ids = [...new Set(row.shareUserIds)].sort();
-      if (ids.length === 0) continue;
-      const n = ids.length;
-      const base = Math.floor(row.amountRub / n);
-      const rem = row.amountRub % n;
-      const offset = [...row.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % n;
-      ids.forEach((id, index) => {
-        const extra = rem > 0 && ((index - offset + n) % n) < rem ? 1 : 0;
-        share.set(id, (share.get(id) ?? 0) + base + extra);
-      });
-    }
-    const balances = new Map(people.map((id) => [id, (paid.get(id) ?? 0) - (share.get(id) ?? 0)]));
-    return {
-      expenses: rows.map(toExpenseDto),
-      perPerson: people.map((userId) => ({
-        userId,
-        paidRub: paid.get(userId) ?? 0,
-        shareRub: share.get(userId) ?? 0,
-        netRub: balances.get(userId) ?? 0,
-      })),
-      debts: settleBalances(balances),
-      totalRub: rows.reduce((sum, row) => sum + row.amountRub, 0),
-    };
+    return budgetFromExpenses(rows, await this.spendPartyIds(plan));
   }
 
   private async requireActivePlan(planId: string): Promise<PlanEntity> {

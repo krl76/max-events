@@ -8,7 +8,6 @@ import { PlanExpenseEntity } from "../plans/plan-expense.entity";
 import { PlanEntity } from "../plans/plan.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { ReviewEntity } from "../reviews/review.entity";
-import { RoutesService } from "../routes/routes.service";
 import { UserEntity } from "../users/user.entity";
 import { WeGroupEntity, WeGroupItemEntity, WeGroupMemberEntity } from "./we-group.entity";
 import { WeGroupsService } from "./we-groups.service";
@@ -127,7 +126,6 @@ function createService() {
   const expenses = createStoreRepo<PlanExpenseEntity>();
   const reviews = createStoreRepo<ReviewEntity>();
   const bot = { createChat: async () => ({ chatId: 1, link: "https://max.ru/join/we" }) } as unknown as MaxBotClient;
-  const routes = new RoutesService(events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>);
   const service = new WeGroupsService(
     groups as unknown as Repository<WeGroupEntity>,
     members as unknown as Repository<WeGroupMemberEntity>,
@@ -140,7 +138,6 @@ function createService() {
     expenses as unknown as Repository<PlanExpenseEntity>,
     reviews as unknown as Repository<ReviewEntity>,
     bot,
-    routes,
   );
   return { service, groups, events, bookings, plans, expenses, reviews };
 }
@@ -188,38 +185,37 @@ describe("WeGroupsService", () => {
     events.store[0]!.placeId = placeId;
     const created = await service.create(owner, { title: "Поездка в Казань", memberIds: [member] });
     await service.addEvent(owner, created.group.id, eventId);
+    expect((await service.get(owner, created.group.id)).route).toBeNull();
     await service.addPlace(owner, created.group.id, placeBId);
-    await bookings.save(
-      bookings.create({
-        userId: member,
-        eventId,
-        status: "active",
-        promoCode: null,
-        reminderSentAt: null,
-      }),
-    );
-    const plan = await plans.save(
-      plans.create({
-        hostUserId: owner,
-        eventId,
-        meetingPoint: "у кремля",
-        meetingAt: now,
-        chatLink: null,
-        reminderSentAt: null,
-        leaveNowSentAt: null,
-        weatherAlertSentAt: null,
-        friendLeftBroadcastAt: null,
-        recurringRule: null,
-        seriesId: null,
-        sourcePlanId: null,
-        cancelledAt: null,
-      }),
-    );
+    await bookings.save(bookings.create({ userId: member, eventId, status: "active", promoCode: null, reminderSentAt: null }));
+    await bookings.save(bookings.create({ userId: member, eventId, status: "cancelled", promoCode: null, reminderSentAt: null }));
+    await bookings.save(bookings.create({ userId: stranger, eventId, status: "active", promoCode: null, reminderSentAt: null }));
+    const planFields = {
+      eventId,
+      meetingPoint: "у кремля",
+      meetingAt: now,
+      chatLink: null,
+      reminderSentAt: null,
+      leaveNowSentAt: null,
+      weatherAlertSentAt: null,
+      friendLeftBroadcastAt: null,
+      recurringRule: null,
+      seriesId: null,
+      sourcePlanId: null,
+    };
+    const plan = await plans.save(plans.create({ ...planFields, hostUserId: owner, cancelledAt: null }));
+    const cancelledPlan = await plans.save(plans.create({ ...planFields, hostUserId: owner, cancelledAt: now }));
+    const strangerPlan = await plans.save(plans.create({ ...planFields, hostUserId: stranger, cancelledAt: null }));
     await expenses.save(expenses.create({ planId: plan.id, title: "Билет", amountRub: 850, payerUserId: owner, shareUserIds: [owner, member] }));
+    await expenses.save(expenses.create({ planId: cancelledPlan.id, title: "Старое", amountRub: 100, payerUserId: owner, shareUserIds: [owner] }));
+    await expenses.save(expenses.create({ planId: strangerPlan.id, title: "Чужое", amountRub: 50, payerUserId: stranger, shareUserIds: [stranger] }));
     await reviews.save(reviews.create({ userId: member, eventId, stars: 5, categoryScores: {}, wouldGoAgain: true, photoUrls: ["https://example.com/we.jpg"], text: "огонь" }));
+    await reviews.save(reviews.create({ userId: stranger, eventId, stars: 4, categoryScores: {}, wouldGoAgain: true, photoUrls: ["https://example.com/nope.jpg"], text: "нет" }));
     const screen = await service.get(owner, created.group.id);
     expect(screen.bookings.map((row) => row.userId)).toEqual([member]);
-    expect(screen.route?.points.length).toBeGreaterThanOrEqual(2);
+    expect(screen.route?.points.length).toBe(2);
+    const coords = new Set(screen.route?.points.map((point) => `${point.latitude},${point.longitude}`));
+    expect(coords.size).toBe(2);
     expect(screen.budget?.totalRub).toBe(850);
     expect(screen.photos).toEqual([{ url: "https://example.com/we.jpg" }]);
     const archived = await service.archive(owner, created.group.id, now);
@@ -227,5 +223,9 @@ describe("WeGroupsService", () => {
     expect(archived.bookings).toHaveLength(1);
     expect(archived.budget?.totalRub).toBe(850);
     expect(archived.photos).toHaveLength(1);
+    const listed = await service.listForUser(owner);
+    expect(listed[0]?.bookings).toHaveLength(1);
+    expect(listed[0]?.budget?.totalRub).toBe(850);
+    await expect(service.addPlace(owner, created.group.id, placeId)).rejects.toBeInstanceOf(ConflictException);
   });
 });

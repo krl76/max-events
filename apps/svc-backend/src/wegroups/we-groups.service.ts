@@ -10,10 +10,10 @@
 // - toWeGroupDto - entity to WeGroup
 // END_MODULE_MAP
 
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, QueryFailedError, Repository } from "typeorm";
-import type { Booking, CreateWeGroupWrite, PlanBudget, ReviewPhoto, WeGroup, WeGroupScreen } from "@max-events/api-contracts";
+import type { Booking, CreateWeGroupWrite, DayRoute, PlanBudget, ReviewPhoto, RoutePoint, WeGroup, WeGroupScreen } from "@max-events/api-contracts";
 import { BookingEntity } from "../bookings/booking.entity";
 import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
@@ -21,16 +21,18 @@ import { toFriendDto } from "../friends/friends.service";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlanExpenseEntity } from "../plans/plan-expense.entity";
 import { PlanEntity } from "../plans/plan.entity";
-import { settleBalances } from "../plans/plans.service";
+import { budgetFromExpenses } from "../plans/plans.service";
 import { toPlaceDto } from "../places/places.service";
 import { PlaceEntity } from "../places/place.entity";
 import { ReviewEntity } from "../reviews/review.entity";
-import { RoutesService } from "../routes/routes.service";
+import { toDayRoute } from "../routes/routes.service";
 import { UserEntity } from "../users/user.entity";
 import { WeGroupEntity, WeGroupItemEntity, WeGroupMemberEntity } from "./we-group.entity";
 
 @Injectable()
 export class WeGroupsService {
+  private readonly logger = new Logger(WeGroupsService.name);
+
   constructor(
     @InjectRepository(WeGroupEntity) private readonly groups: Repository<WeGroupEntity>,
     @InjectRepository(WeGroupMemberEntity) private readonly members: Repository<WeGroupMemberEntity>,
@@ -43,7 +45,6 @@ export class WeGroupsService {
     @InjectRepository(PlanExpenseEntity) private readonly expenses: Repository<PlanExpenseEntity>,
     @InjectRepository(ReviewEntity) private readonly reviews: Repository<ReviewEntity>,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
-    @Inject(RoutesService) private readonly routes: RoutesService,
   ) {}
 
   async create(ownerUserId: string, payload: CreateWeGroupWrite): Promise<WeGroupScreen> {
@@ -162,17 +163,26 @@ export class WeGroupsService {
       }));
   }
 
-  private async groupRoute(events: EventEntity[], places: PlaceEntity[]) {
-    const stops = [
-      ...events.filter((row) => row.placeId).map((row) => ({ eventId: row.id, placeId: null as string | null })),
-      ...places.map((row) => ({ eventId: null as string | null, placeId: row.id })),
-    ].slice(0, 8);
-    if (stops.length < 2) return null;
-    try {
-      return await this.routes.build({ stops });
-    } catch {
-      return null;
+  private async groupRoute(events: EventEntity[], places: PlaceEntity[]): Promise<DayRoute | null> {
+    const points: RoutePoint[] = [];
+    const usedPlaces = new Set<string>();
+    const sortedEvents = [...events].filter((row) => row.placeId).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+    for (const event of sortedEvents) {
+      const place = await this.places.findOneBy({ id: event.placeId! });
+      if (!place) {
+        this.logger.warn(`We-group route skipped event ${event.id}: place missing`);
+        continue;
+      }
+      points.push({ title: event.title, at: event.startsAt.toISOString(), latitude: place.latitude, longitude: place.longitude, eventId: event.id, placeId: place.id });
+      usedPlaces.add(place.id);
     }
+    const extraPlaces = [...places].filter((row) => !usedPlaces.has(row.id)).sort((a, b) => a.id.localeCompare(b.id));
+    for (const place of extraPlaces) {
+      points.push({ title: place.title, at: null, latitude: place.latitude, longitude: place.longitude, eventId: null, placeId: place.id });
+    }
+    const sliced = points.slice(0, 8);
+    if (sliced.length < 2) return null;
+    return toDayRoute(sliced);
   }
 
   private async groupBudget(memberIds: string[], eventIds: string[]): Promise<PlanBudget | null> {
@@ -184,50 +194,7 @@ export class WeGroupsService {
     const planIds = new Set(plans.map((row) => row.id));
     const rows = (await this.expenses.find()).filter((row) => planIds.has(row.planId));
     if (rows.length === 0) return null;
-    const party = new Set<string>();
-    for (const row of rows) {
-      party.add(row.payerUserId);
-      for (const id of row.shareUserIds) party.add(id);
-    }
-    const people = [...party].sort();
-    const paid = new Map(people.map((id) => [id, 0]));
-    const share = new Map(people.map((id) => [id, 0]));
-    for (const row of rows) {
-      paid.set(row.payerUserId, (paid.get(row.payerUserId) ?? 0) + row.amountRub);
-      const ids = [...new Set(row.shareUserIds)].sort();
-      if (ids.length === 0) continue;
-      const n = ids.length;
-      const base = Math.floor(row.amountRub / n);
-      const rem = row.amountRub % n;
-      const offset = [...row.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % n;
-      ids.forEach((id, index) => {
-        const extra = rem > 0 && ((index - offset + n) % n) < rem ? 1 : 0;
-        share.set(id, (share.get(id) ?? 0) + base + extra);
-      });
-    }
-    const balances = new Map(people.map((id) => [id, (paid.get(id) ?? 0) - (share.get(id) ?? 0)]));
-    return {
-      expenses: rows
-        .slice()
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))
-        .map((row) => ({
-          id: row.id,
-          planId: row.planId,
-          title: row.title,
-          amountRub: row.amountRub,
-          payerUserId: row.payerUserId,
-          shareUserIds: row.shareUserIds,
-          createdAt: row.createdAt.toISOString(),
-        })),
-      perPerson: people.map((userId) => ({
-        userId,
-        paidRub: paid.get(userId) ?? 0,
-        shareRub: share.get(userId) ?? 0,
-        netRub: balances.get(userId) ?? 0,
-      })),
-      debts: settleBalances(balances),
-      totalRub: rows.reduce((sum, row) => sum + row.amountRub, 0),
-    };
+    return budgetFromExpenses(rows);
   }
 
   private async memberPhotos(memberIds: string[], eventIds: string[]): Promise<ReviewPhoto[]> {
