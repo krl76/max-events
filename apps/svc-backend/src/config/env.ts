@@ -43,6 +43,10 @@ export const envSchema = z.object({
   PAYMENT_SECRET: z.string().min(1).optional(),
   PAYMENT_SANDBOX_FAIL_AMOUNT: z.coerce.number().int().positive().default(13),
   PAYMENT_COMMISSION_BPS: z.coerce.number().int().min(0).max(10_000).default(1000),
+  LLM_PROVIDER: z.enum(["sandbox", "none", "xai"]).default("none"),
+  XAI_API_KEY: z.string().min(1).optional(),
+  XAI_API_URL: z.string().url().default("https://api.x.ai/v1"),
+  XAI_MODEL: z.string().min(1).default("grok-4.5"),
 });
 
 export type Env = z.infer<typeof envSchema>;

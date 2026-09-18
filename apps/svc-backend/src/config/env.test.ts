@@ -43,6 +43,12 @@ describe("validateEnv", () => {
     expect(validateEnv({ ...valid, PAYMENT_PROVIDER: "sandbox" }).PAYMENT_PROVIDER).toBe("sandbox");
     expect(() => validateEnv({ ...valid, PAYMENT_PROVIDER: "live" })).toThrow(/PAYMENT_PROVIDER/);
   });
+
+  it("defaults the LLM provider to none and accepts sandbox", () => {
+    expect(validateEnv(valid).LLM_PROVIDER).toBe("none");
+    expect(validateEnv({ ...valid, LLM_PROVIDER: "sandbox" }).LLM_PROVIDER).toBe("sandbox");
+    expect(validateEnv({ ...valid, LLM_PROVIDER: "xai", XAI_API_KEY: "replace-with-your-xai-api-key" }).LLM_PROVIDER).toBe("xai");
+  });
 });
 
 describe("parseModeratorIds", () => {
