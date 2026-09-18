@@ -10,6 +10,8 @@
 // - PaymentStatus - status type
 // - PaymentSchema - booking payment
 // - Payment - payment type
+// - PaymentWebhookWriteSchema - provider webhook payload
+// - PaymentWebhookWrite - webhook write type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -30,3 +32,10 @@ export const PaymentSchema = z.object({
   updatedAt: TimestampSchema,
 });
 export type Payment = z.infer<typeof PaymentSchema>;
+
+export const PaymentWebhookWriteSchema = z.object({
+  eventId: z.string().trim().min(1).max(80),
+  paymentId: z.string().trim().min(1).max(80),
+  status: PaymentStatusSchema,
+});
+export type PaymentWebhookWrite = z.infer<typeof PaymentWebhookWriteSchema>;
