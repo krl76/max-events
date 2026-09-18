@@ -10,7 +10,7 @@
 // - toPaymentDto - PaymentEntity to Payment
 // END_MODULE_MAP
 
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, QueryFailedError, Repository } from "typeorm";
@@ -76,6 +76,18 @@ export class PaymentsService {
     }
   }
 
+  async refundForBooking(bookingId: string): Promise<Payment | null> {
+    const row = await this.rows.findOneBy({ bookingId });
+    if (!row) return null;
+    if (row.status === "refunded") return toPaymentDto(row);
+    if (row.status !== "succeeded") return toPaymentDto(row);
+    const refund = await this.provider.refund(row.providerPaymentId);
+    if (refund.status !== "succeeded") throw new ConflictException("Refund failed");
+    row.status = "refunded";
+    await this.rows.save(row);
+    return toPaymentDto(row);
+  }
+
   async salesReport(organizerId: string, eventId: string): Promise<EventSalesReport> {
     const event = await this.events.findOneBy({ id: eventId, organizerUserId: organizerId });
     if (!event) throw new NotFoundException("Event not found");
@@ -83,7 +95,7 @@ export class PaymentsService {
     const ids = bookings.map((row) => row.id);
     const payments = ids.length === 0 ? [] : await this.rows.find({ where: { bookingId: In(ids) } });
     const frozen = payments
-      .filter((row) => row.commissionFixedAt && row.commissionRub != null && row.netRub != null && row.commissionBps != null)
+      .filter((row) => row.status === "succeeded" && row.commissionFixedAt && row.commissionRub != null && row.netRub != null && row.commissionBps != null)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
     return {
       eventId,

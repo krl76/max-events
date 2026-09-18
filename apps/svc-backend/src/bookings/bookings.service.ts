@@ -73,15 +73,22 @@ export class BookingsService {
     return { ...toBookingDto(loaded.booking, loaded.event), payment };
   }
 
-  async cancel(userId: string, bookingId: string): Promise<BookingWithSeats> {
+  async cancel(userId: string, bookingId: string, options?: { organizerId?: string }): Promise<BookingWithSeats> {
+    const gate = await this.dataSource.transaction(async (manager) => {
+      const booking = await manager.findOne(BookingEntity, { where: { id: bookingId } });
+      if (!booking) throw new NotFoundException("Booking not found");
+      const event = await manager.findOne(EventEntity, { where: { id: booking.eventId } });
+      if (!event) throw new NotFoundException("Event not found");
+      const asOrganizer = Boolean(options?.organizerId && event.organizerUserId === options.organizerId);
+      if (booking.userId !== userId && !asOrganizer) throw new ForbiddenException("Cannot cancel another user's booking");
+      return { alreadyCancelled: booking.status === "cancelled" };
+    });
+    const payment = gate.alreadyCancelled ? null : await this.payments.refundForBooking(bookingId);
     const result = await this.dataSource.transaction(async (manager) => {
       const booking = await manager.findOne(BookingEntity, { where: { id: bookingId } });
       if (!booking) throw new NotFoundException("Booking not found");
-      if (booking.userId !== userId) throw new ForbiddenException("Cannot cancel another user's booking");
-
       const event = await manager.findOne(EventEntity, { where: { id: booking.eventId }, lock: { mode: "pessimistic_write" } });
       if (!event) throw new NotFoundException("Event not found");
-
       const locked = await manager.findOne(BookingEntity, { where: { id: bookingId }, lock: { mode: "pessimistic_write" } });
       if (!locked) throw new NotFoundException("Booking not found");
       if (locked.status === "cancelled") return { dto: toBookingDto(locked, event), offered: null };
@@ -96,7 +103,7 @@ export class BookingsService {
       return { dto: toBookingDto(saved, event), offered };
     });
     if (result.offered) await this.waitlist.notifyOffer(result.offered);
-    return { ...result.dto, payment: null };
+    return { ...result.dto, payment };
   }
 
   private async paymentFor(event: EventEntity, bookingId: string, skipIfCancelled: boolean): Promise<Payment | null> {

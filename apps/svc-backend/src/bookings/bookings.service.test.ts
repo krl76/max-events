@@ -129,6 +129,7 @@ function createService(event: EventEntity = seedEvent(), promoOverride?: Partial
   } as unknown as PromoService;
   const paymentCalls: string[] = [];
   const payments = {
+    refundForBooking: async () => null,
     ensureForBooking: async (bookingId: string, amountRub: number, description: string) => {
       paymentCalls.push(bookingId);
       return {
@@ -271,5 +272,46 @@ describe("BookingsService", () => {
     await service.cancel(userA, booked.id);
     await expect(service.ensurePayment(userA, booked.id)).rejects.toBeInstanceOf(ConflictException);
     expect(paymentCalls).toHaveLength(1);
+  });
+});
+
+describe("BookingsService.cancel refunds", () => {
+  it("refunds a succeeded payment when the guest cancels", async () => {
+    const refunds: string[] = [];
+    const fake = createDataSource(seedEvent({ isPaid: true, priceRub: 850, organizerUserId: userA }));
+    const waitlist = { onSeatFreed: async () => null } as unknown as WaitlistService;
+    const promo = {
+      redeemInTransaction: async () => null,
+      recordFulfillmentInTransaction: async () => undefined,
+      releaseInTransaction: async () => undefined,
+      releaseFulfillmentInTransaction: async () => undefined,
+    } as unknown as PromoService;
+    const payments = {
+      ensureForBooking: async (bookingId: string, amountRub: number, description: string) => ({
+        id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7001",
+        bookingId,
+        providerPaymentId: "pay_sandbox_1",
+        status: "succeeded" as const,
+        amountRub,
+        currency: "RUB" as const,
+        description,
+        commissionRub: 85,
+        netRub: 765,
+        commissionBps: 1000,
+        commissionFixedAt: "2026-09-01T07:00:00.000Z",
+        createdAt: "2026-09-01T07:00:00.000Z",
+        updatedAt: "2026-09-01T07:00:00.000Z",
+      }),
+      refundForBooking: async (bookingId: string) => {
+        refunds.push(bookingId);
+        return { id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7001", bookingId, status: "refunded" };
+      },
+    } as unknown as PaymentsService;
+    const service = new BookingsService(fake.dataSource, waitlist, promo, payments);
+    const booked = await service.create(userB, eventId);
+    const cancelled = await service.cancel(userB, booked.id);
+    expect(cancelled.status).toBe("cancelled");
+    expect(refunds).toEqual([booked.id]);
+    expect(cancelled.payment?.status).toBe("refunded");
   });
 });

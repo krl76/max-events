@@ -10,11 +10,12 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post } from "@nestjs/common";
-import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPromotionPaymentWriteSchema, type Event, type EventSalesReport, type OrganizerBookingRow, type Place, type PromoCampaign, type PromoCode, type PromotionCampaign } from "@max-events/api-contracts";
+import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPromotionPaymentWriteSchema, type BookingWithSeats, type Event, type EventSalesReport, type OrganizerBookingRow, type Place, type PromoCampaign, type PromoCode, type PromotionCampaign } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { EventsService } from "../events/events.service";
 import { PlacesService } from "../places/places.service";
 import { PromoService } from "../promo/promo.service";
+import { BookingsService } from "../bookings/bookings.service";
 import { PaymentsService } from "../payments/payments.service";
 import { PromotionService } from "../promotion/promotion.service";
 import { UserEntity } from "../users/user.entity";
@@ -27,6 +28,7 @@ export class OrganizerController {
     @Inject(PromoService) private readonly promo: PromoService,
     @Inject(PromotionService) private readonly promotions: PromotionService,
     @Inject(PaymentsService) private readonly payments: PaymentsService,
+    @Inject(BookingsService) private readonly bookings: BookingsService,
   ) {}
 
   @Get("events")
@@ -90,6 +92,15 @@ export class OrganizerController {
   @Get("events/:id/sales")
   sales(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<EventSalesReport> {
     return this.payments.salesReport(user.id, id);
+  }
+
+  @Post("events/:id/bookings/:bookingId/refund")
+  refundBooking(
+    @CurrentUser() user: UserEntity,
+    @Param("id", ParseUUIDPipe) _eventId: string,
+    @Param("bookingId", ParseUUIDPipe) bookingId: string,
+  ): Promise<BookingWithSeats> {
+    return this.bookings.cancel(user.id, bookingId, { organizerId: user.id });
   }
 
   @Post("events/:id/campaigns")

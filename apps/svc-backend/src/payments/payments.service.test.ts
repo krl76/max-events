@@ -126,5 +126,10 @@ describe("PaymentsService.ensureForBooking", () => {
     expect(report.netRub).toBe(765);
     expect(report.rows).toHaveLength(1);
     await expect(service.salesReport("018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d99", eventId)).rejects.toMatchObject({ status: 404 });
+    const refunded = await service.refundForBooking(bookingId);
+    expect(refunded?.status).toBe("refunded");
+    const afterRefund = await service.salesReport(organizerId, eventId);
+    expect(afterRefund.rows).toHaveLength(0);
+    expect(afterRefund.grossRub).toBe(0);
   });
 });

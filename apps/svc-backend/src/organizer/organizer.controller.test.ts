@@ -33,7 +33,8 @@ describe("OrganizerController", () => {
     const promo = { create: async () => ({}), list: async () => [], setEarlyAccess: async () => ({ bookingOpensAt: "" }), listBookings: async () => [], createCampaign: async () => ({}), listCampaigns: async () => [] };
     const promotions = { create: async () => ({}), list: async () => [], recordPayment: async () => ({}) };
     const payments = { salesReport: async () => ({ eventId: eventDto.id, rows: [], grossRub: 0, commissionRub: 0, netRub: 0 }) };
-    const controller = new OrganizerController(events, places, promo as never, promotions as never, payments as never);
+    const bookings = { cancel: async () => ({ id: "b" }) };
+    const controller = new OrganizerController(events, places, promo as never, promotions as never, payments as never, bookings as never);
     await expect(controller.listEvents(user)).resolves.toEqual([eventDto]);
     await expect(controller.createEventDraft(user, event)).resolves.toEqual(eventDto);
     expect(calls.create).toEqual({ draft: true });
