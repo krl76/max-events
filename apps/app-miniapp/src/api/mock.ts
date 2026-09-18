@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports and UGC micro-events while backend endpoints (M2–M5, P2) do not exist yet.
+// PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports, UGC micro-events and the place social page while backend endpoints (M2–M5, P2) do not exist yet.
 // SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow), in-memory bookings, check-ins, profiles, plan cards, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
 // DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, CreateBookingSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
@@ -7,7 +7,8 @@
 //
 // START_MODULE_MAP
 // - mockPlaces - 4 Moscow venue fixtures
-// - mockEvents - Moscow event fixtures (all four categories, paid and free, incl. two past events for the review flow)
+// - mockEvents - Moscow event fixtures (all four categories, paid and free, incl. two past events for the review flow, one event "today" for the place page)
+// - MOCK_TODAY - the fixed demo "today" (Moscow day key) the place page fixtures are curated for
 // - mockOrganizers - demo organizer fixture for event details
 // - resetMockMicroEvents - restore seeded micro-events (test isolation)
 // - microEvents - open micro-events soonest first
@@ -56,10 +57,11 @@
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events and /api/today, return a restore function
+// - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events and /api/today, return a restore function
 // END_MODULE_MAP
 
-import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, Review, TodayEventCard, TodayResponse, User, VisitStats } from "@max-events/api-contracts";
+import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlacePage, PlanCard, Profile, Review, TodayEventCard, TodayResponse, User, VisitStats } from "@max-events/api-contracts";
 import { CreateBookingSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
@@ -77,6 +79,14 @@ function event(input: EventInput): Event {
   return { description: "", placeId: null, endsAt: null, paymentUrl: null, capacity: null, chatLink: null, promoted: false, ...input };
 }
 
+/** "Today" for the place social page (P2-11-c): the demo day the today-block fixtures were curated for. */
+export const MOCK_TODAY = "2026-09-12";
+
+/** Moscow-calendar day key of an ISO timestamp (backend moscow-date parity). */
+function moscowDateKey(startsAt: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Moscow", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(startsAt));
+}
+
 export const mockEvents: Event[] = [
   event({ id: "c0000001-0000-4000-8000-000000000001", title: "Вечер Рахманинова: симфонический оркестр", description: "Программа из симфонических произведений С. В. Рахманинова в исполнении камерного оркестра. Начало в 19:00, антракт — 20 минут.", category: "afisha", city: "Москва", startsAt: "2026-09-19T19:00:00+03:00", isPaid: true, priceRub: 1800, paymentUrl: "https://tickets.example.com/rahmaninov", capacity: 300 }),
   event({ id: "c0000002-0000-4000-8000-000000000002", title: "Выставка импрессионистов из частных собраний", category: "afisha", city: "Москва", startsAt: "2026-09-19T12:00:00+03:00", endsAt: "2026-09-19T21:00:00+03:00", placeId: mockPlaces[1].id, isPaid: true, priceRub: 500, paymentUrl: "https://tickets.example.com/impressionists" }),
@@ -92,6 +102,7 @@ export const mockEvents: Event[] = [
   event({ id: "c000000c-0000-4000-8000-00000000000c", title: "Гастрофестиваль в «Депо»", category: "afisha", city: "Москва", startsAt: "2026-09-27T12:00:00+03:00", endsAt: "2026-09-27T22:00:00+03:00", placeId: mockPlaces[3].id, isPaid: true, priceRub: 700, paymentUrl: "https://tickets.example.com/gastro-festival" }),
   event({ id: "c000000d-0000-4000-8000-00000000000d", title: "Прогулка-знакомство по Парку Горького", category: "tourism", city: "Москва", startsAt: "2026-09-05T10:00:00+03:00", placeId: mockPlaces[0].id, isPaid: false, priceRub: null }),
   event({ id: "c000000e-0000-4000-8000-00000000000e", title: "Открытая репетиция камерного оркестра", category: "afisha", city: "Москва", startsAt: "2026-09-08T19:00:00+03:00", isPaid: false, priceRub: null }),
+  event({ id: "c000000f-0000-4000-8000-00000000000f", title: "Летний концерт на Пушкинской набережной", category: "afisha", city: "Москва", startsAt: `${MOCK_TODAY}T19:00:00+03:00`, placeId: mockPlaces[0].id, isPaid: false, priceRub: null, capacity: 200 }),
 ];
 
 export function filterMockEvents(events: Event[], filters: EventFilters): Event[] {
@@ -370,11 +381,13 @@ export function removeMockListItem(listId: string, itemId: string): ListItem | n
 
 type ReviewSeed = { friend: number; event: number; stars: number; categoryScores?: Review["categoryScores"]; wouldGoAgain: boolean; text?: string };
 
-/** Seeded friend reviews for the showcase event so the page shows an aggregate out of the box. */
+/** Seeded friend reviews for the showcase event and the park place events so both pages show aggregates out of the box. */
 const MOCK_REVIEW_SEED: ReviewSeed[] = [
   { friend: 0, event: 0, stars: 5, categoryScores: { atmosphere: 5, organization: 5, price: 4, place: 5 }, wouldGoAgain: true, text: "Атмосфера замечательная, обязательно приду снова!" },
   { friend: 1, event: 0, stars: 4, categoryScores: { atmosphere: 4, organization: 5, price: 3, place: 4 }, wouldGoAgain: true },
   { friend: 2, event: 0, stars: 5, categoryScores: { atmosphere: 5, organization: 4 }, wouldGoAgain: false, text: "Всё понравилось, но пришлось долго искать вход." },
+  { friend: 3, event: 12, stars: 4, categoryScores: { atmosphere: 4, place: 4 }, wouldGoAgain: true, text: "Парк отличное место для прогулок." },
+  { friend: 4, event: 2, stars: 5, categoryScores: { atmosphere: 5, place: 5 }, wouldGoAgain: true },
 ];
 
 const mockReviews: Review[] = [];
@@ -753,6 +766,56 @@ export function todayPicks(): TodayResponse {
   };
 }
 
+/** Place friend-visit seeds: [friend index, mockEvents index] — "Анна была здесь 3 раза"-style fixtures for the park. */
+const MOCK_PLACE_VISIT_SEED: [number, number][] = [
+  [0, 12],
+  [0, 9],
+  [0, 10],
+  [1, 2],
+];
+
+/** Place social page aggregate (mock): today events (MOCK_TODAY Moscow day), friend visits, place rating from the reviews of its events, popularity today, personal visits; null for an unknown place. */
+export function placePageFor(placeId: string, userId: string, day = MOCK_TODAY): PlacePage | null {
+  const place = mockPlaces.find((item) => item.id === placeId);
+  if (!place) return null;
+  const atPlace = mockEvents.filter((item) => item.placeId === placeId);
+  const todayEvents = atPlace.filter((item) => moscowDateKey(item.startsAt) === day);
+  const todayEventIds = new Set(todayEvents.map((item) => item.id));
+  const eventIds = new Set(atPlace.map((item) => item.id));
+  const scoped = mockCheckIns.filter((item) => (item.placeId !== null && item.placeId === placeId) || (item.eventId !== null && eventIds.has(item.eventId)));
+  const popularityToday = scoped.filter((item) => item.placeId === placeId).length;
+  const personalVisitsCount = scoped.filter((item) => item.userId === userId).length;
+  const visitsByFriend = new Map<string, number>();
+  for (const [friend, eventItem] of MOCK_PLACE_VISIT_SEED) {
+    if (mockEvents[eventItem].placeId !== placeId) continue;
+    const friendId = mockFriendIds[friend];
+    visitsByFriend.set(friendId, (visitsByFriend.get(friendId) ?? 0) + 1);
+  }
+  const goingToday = new Set<string>();
+  for (const record of mockParticipations.values()) {
+    if (!todayEventIds.has(record.eventId) || !mockFriendIds.includes(record.userId)) continue;
+    if (record.status === "going" || record.status === "wants_to_go") goingToday.add(record.userId);
+  }
+  const friendIds = new Set([...visitsByFriend.keys(), ...goingToday]);
+  const friends: PlacePage["friends"] = [...friendIds].map((friendId) => mockFriends.find((friend) => friend.id === friendId)).flatMap((friend) => (friend === undefined ? [] : [{ friend, visitsCount: visitsByFriend.get(friend.id) ?? 0, goingToday: goingToday.has(friend.id) }]));
+  const reviews = mockReviews.filter((item) => item.eventId !== null && eventIds.has(item.eventId));
+  const rating =
+    reviews.length === 0
+      ? null
+      : {
+          summary: { eventId: null, placeId, averageStars: reviews.reduce((sum, item) => sum + item.stars, 0) / reviews.length, reviewsCount: reviews.length },
+          categoryAverages: { atmosphere: null, organization: null, price: null, place: null } as EventRating["categoryAverages"],
+        };
+  const categoryKeys = ["atmosphere", "organization", "price", "place"] as const;
+  if (rating !== null) {
+    for (const key of categoryKeys) {
+      const scores = reviews.flatMap((item) => (item.categoryScores[key] === undefined ? [] : [item.categoryScores[key]!]));
+      rating.categoryAverages[key] = scores.length === 0 ? null : scores.reduce((sum, score) => sum + score, 0) / scores.length;
+    }
+  }
+  return { placeId, todayEvents, friends, rating, popularityToday, personalVisitsCount };
+}
+
 const mockProfiles = new Map<string, Profile>();
 
 export function resetMockProfiles(): void {
@@ -805,6 +868,11 @@ export function installMockApi(): () => void {
     }
     if (url.pathname === "/api/places") {
       return Response.json(mockPlaces);
+    }
+    const placePage = /^\/api\/places\/([^/]+)\/page$/.exec(url.pathname);
+    if (placePage) {
+      const page = placePageFor(placePage[1], url.searchParams.get("userId") ?? "");
+      return page ? Response.json(page) : new Response(null, { status: 404 });
     }
     if (url.pathname === "/api/events") {
       return Response.json(filterMockEvents(mockEvents, parseEventFilters(url.search)));

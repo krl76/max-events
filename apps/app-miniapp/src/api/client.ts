@@ -59,6 +59,7 @@
 // - ApiClient.addFeedComment - POST /feed/:id/comments with { userId, text }
 // - EventRating - event page rating aggregate: RatingSummary + per-category averages
 // - ApiClient.getEventRating - GET /events/:id/rating
+// - ApiClient.getPlacePage - GET /places/:id/page?userId=: PlacePage social aggregate
 // - CreateMicroEvent - micro-event creation payload (author, what/when/where, limit)
 // - ApiClient.listMicroEvents - GET /micro-events
 // - ApiClient.createMicroEvent - POST /micro-events
@@ -73,6 +74,7 @@
 // - ApiClient.createReport - POST /reports
 // END_MODULE_MAP
 
+import { PlacePageSchema, type PlacePage } from "@max-events/api-contracts";
 import { AchievementSchema, AuthResponseSchema, BookingSchema, CheckInSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema } from "@max-events/api-contracts";
 import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, Friend, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Review, ReviewCategoryScores, TodayResponse, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
 
@@ -772,6 +774,10 @@ export class ApiClient {
 
   getEventRating(eventId: string): Promise<EventRating> {
     return this.request(`/events/${eventId}/rating`, EventRatingSchema);
+  }
+
+  getPlacePage(placeId: string, userId: string): Promise<PlacePage> {
+    return this.request(`/places/${placeId}/page?userId=${encodeURIComponent(userId)}`, PlacePageSchema);
   }
 
   createReview(payload: CreateReview): Promise<Review> {
