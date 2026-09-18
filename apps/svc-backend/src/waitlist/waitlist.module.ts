@@ -14,6 +14,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import { MaxBotModule } from "../max-bot/max-bot.module";
+import { PaymentsModule } from "../payments/payments.module";
 import { PromoModule } from "../promo/promo.module";
 import { UserEntity } from "../users/user.entity";
 import { WaitlistController } from "./waitlist.controller";
@@ -22,7 +23,7 @@ import { WaitlistScheduler } from "./waitlist.scheduler";
 import { WaitlistService } from "./waitlist.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([WaitlistEntryEntity, EventEntity, UserEntity, BookingEntity]), MaxBotModule, PromoModule],
+  imports: [TypeOrmModule.forFeature([WaitlistEntryEntity, EventEntity, UserEntity, BookingEntity]), MaxBotModule, PromoModule, PaymentsModule],
   controllers: [WaitlistController],
   providers: [WaitlistService, WaitlistScheduler],
   exports: [WaitlistService],

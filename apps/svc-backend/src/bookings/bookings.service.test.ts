@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type DataSource, type EntityManager, type EntityTarget, type FindOneOptions, type ObjectLiteral } from "typeorm";
 import type { BookingStatus } from "@max-events/api-contracts";
@@ -255,5 +255,21 @@ describe("BookingsService", () => {
     const booked = await service.create(userA, eventId);
     expect(booked.payment).toBeNull();
     expect(paymentCalls).toEqual([]);
+  });
+
+  it("rejects a paid event without a price before taking a seat", async () => {
+    const { service, events, paymentCalls } = createService(seedEvent({ isPaid: true, priceRub: null, paymentUrl: "https://pay.example/jazz" }));
+    await expect(service.create(userA, eventId)).rejects.toBeInstanceOf(BadRequestException);
+    expect(events[0]?.bookedCount).toBe(0);
+    expect(paymentCalls).toEqual([]);
+  });
+
+  it("does not charge a cancelled booking", async () => {
+    const { service, paymentCalls } = createService(seedEvent({ isPaid: true, priceRub: 850, paymentUrl: "https://pay.example/jazz" }));
+    const booked = await service.create(userA, eventId);
+    expect(paymentCalls).toHaveLength(1);
+    await service.cancel(userA, booked.id);
+    await expect(service.ensurePayment(userA, booked.id)).rejects.toBeInstanceOf(ConflictException);
+    expect(paymentCalls).toHaveLength(1);
   });
 });

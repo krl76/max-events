@@ -20,7 +20,7 @@ const booking: BookingWithSeats = {
 };
 
 function createController() {
-  const calls: { create?: { userId: string; eventId: string }; cancel?: { userId: string; bookingId: string } } = {};
+  const calls: { create?: { userId: string; eventId: string }; cancel?: { userId: string; bookingId: string }; pay?: string } = {};
   const service = {
     create: async (userId: string, bookedEventId: string) => {
       calls.create = { userId, eventId: bookedEventId };
@@ -29,6 +29,10 @@ function createController() {
     cancel: async (userId: string, bookingId: string) => {
       calls.cancel = { userId, bookingId };
       return { ...booking, status: "cancelled" as const, freeSeats: 1 };
+    },
+    ensurePayment: async (_userId: string, bookingId: string) => {
+      calls.pay = bookingId;
+      return booking;
     },
   } as unknown as BookingsService;
   return { calls, controller: new BookingsController(service) };
@@ -51,5 +55,11 @@ describe("BookingsController", () => {
     const { calls, controller } = createController();
     await expect(controller.cancel(user, booking.id)).resolves.toMatchObject({ status: "cancelled", freeSeats: 1 });
     expect(calls.cancel).toEqual({ userId: user.id, bookingId: booking.id });
+  });
+
+  it("charges an existing booking", async () => {
+    const { calls, controller } = createController();
+    await expect(controller.pay(user, booking.id)).resolves.toEqual(booking);
+    expect(calls.pay).toBe(booking.id);
   });
 });

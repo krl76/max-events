@@ -105,8 +105,10 @@ function createHarness(event: EventEntity) {
       promoCalls.push({ bookingId, code });
     },
   };
-  const service = new WaitlistService(dataSource, entriesRepo as unknown as Repository<WaitlistEntryEntity>, { findOneBy: async () => event } as unknown as Repository<EventEntity>, { findOneBy: async (where: { id: string }) => users.find((row) => row.id === where.id) ?? null } as unknown as Repository<UserEntity>, bot, promo as never);
-  return { service, entries, events, bookings, sent, manager, entriesRepo, bot, promoCalls };
+  const paymentCalls: string[] = [];
+  const payments = { ensureForBooking: async (bookingId: string) => { paymentCalls.push(bookingId); } };
+  const service = new WaitlistService(dataSource, entriesRepo as unknown as Repository<WaitlistEntryEntity>, { findOneBy: async () => event } as unknown as Repository<EventEntity>, { findOneBy: async (where: { id: string }) => users.find((row) => row.id === where.id) ?? null } as unknown as Repository<UserEntity>, bot, promo as never, payments as never);
+  return { service, entries, events, bookings, sent, manager, entriesRepo, bot, promoCalls, paymentCalls };
 }
 
 describe("WaitlistService.join", () => {

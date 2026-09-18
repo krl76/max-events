@@ -38,4 +38,22 @@ describe("PaymentsService.ensureForBooking", () => {
     expect(second.id).toBe(first.id);
     expect(rows.store).toHaveLength(1);
   });
+
+  it("reloads the winner when a concurrent insert hits unique bookingId", async () => {
+    const rows = createRows();
+    const service = new PaymentsService(new SandboxPaymentProvider(), rows as unknown as Repository<PaymentEntity>);
+    const first = await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
+    let misses = 1;
+    const originalFind = rows.findOneBy.bind(rows);
+    rows.findOneBy = async (where: { bookingId: string }) => {
+      if (misses > 0) {
+        misses -= 1;
+        return null;
+      }
+      return originalFind(where);
+    };
+    const second = await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
+    expect(second.id).toBe(first.id);
+    expect(rows.store).toHaveLength(1);
+  });
 });

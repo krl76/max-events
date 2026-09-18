@@ -36,10 +36,10 @@ describe("validateEnv", () => {
     expect(validateEnv({ ...valid, MODERATOR_MAX_USER_IDS: "1, 2" }).MODERATOR_MAX_USER_IDS).toBe("1, 2");
   });
 
-  it("defaults the payment provider to sandbox and accepts none", () => {
-    expect(validateEnv(valid).PAYMENT_PROVIDER).toBe("sandbox");
+  it("defaults the payment provider to none and accepts sandbox", () => {
+    expect(validateEnv(valid).PAYMENT_PROVIDER).toBe("none");
     expect(validateEnv(valid).PAYMENT_SANDBOX_FAIL_AMOUNT).toBe(13);
-    expect(validateEnv({ ...valid, PAYMENT_PROVIDER: "none" }).PAYMENT_PROVIDER).toBe("none");
+    expect(validateEnv({ ...valid, PAYMENT_PROVIDER: "sandbox" }).PAYMENT_PROVIDER).toBe("sandbox");
     expect(() => validateEnv({ ...valid, PAYMENT_PROVIDER: "live" })).toThrow(/PAYMENT_PROVIDER/);
   });
 });

@@ -39,7 +39,7 @@ export const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3100),
   MAX_BOT_TOKEN: z.string().min(1).optional(),
   MODERATOR_MAX_USER_IDS: z.string().optional(),
-  PAYMENT_PROVIDER: z.enum(["sandbox", "none"]).default("sandbox"),
+  PAYMENT_PROVIDER: z.enum(["sandbox", "none"]).default("none"),
   PAYMENT_SECRET: z.string().min(1).optional(),
   PAYMENT_SANDBOX_FAIL_AMOUNT: z.coerce.number().int().positive().default(13),
 });

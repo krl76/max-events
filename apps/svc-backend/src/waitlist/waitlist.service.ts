@@ -18,6 +18,7 @@ import type { WaitlistEntry, WaitlistStatus } from "@max-events/api-contracts";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
+import { PaymentsService } from "../payments/payments.service";
 import { PromoService } from "../promo/promo.service";
 import { UserEntity } from "../users/user.entity";
 import { WaitlistEntryEntity } from "./waitlist-entry.entity";
@@ -36,6 +37,7 @@ export class WaitlistService {
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
     @Inject(PromoService) private readonly promo: PromoService,
+    @Inject(PaymentsService) private readonly payments: PaymentsService,
   ) {}
 
   async join(userId: string, eventId: string, now = new Date(), referralCode?: string | null): Promise<WaitlistEntry> {
@@ -74,9 +76,12 @@ export class WaitlistService {
         throw new ConflictException("Offer expired");
       }
       if (entry.status !== "offered") throw new ConflictException("Offer is not active");
+      if (event.isPaid && (event.priceRub == null || event.priceRub <= 0)) throw new BadRequestException("Paid event requires a price");
       const position = await positionOf(manager, entry);
+      let bookingId: string | undefined;
       try {
         const booking = await manager.save(BookingEntity, manager.create(BookingEntity, { userId, eventId: entry.eventId, status: "active" }));
+        bookingId = booking.id;
         try {
           await this.promo.recordFulfillmentInTransaction(manager, event, userId, booking.id, entry.referralCode ?? undefined, now);
         } catch (error) {
@@ -95,11 +100,14 @@ export class WaitlistService {
       entry.status = "confirmed";
       entry.offeredUntil = null;
       const saved = await manager.save(WaitlistEntryEntity, entry);
-      return { kind: "ok" as const, dto: toWaitlistDto(saved, position) };
+      return { kind: "ok" as const, dto: toWaitlistDto(saved, position), bookingId, event };
     });
     if (result.kind === "duplicate") {
       if (result.next) await this.notifyOffer(result.next);
       throw new ConflictException("Booking already exists");
+    }
+    if (result.bookingId && result.event.isPaid && result.event.priceRub && result.event.priceRub > 0) {
+      await this.payments.ensureForBooking(result.bookingId, result.event.priceRub, `Билет: ${result.event.title}`);
     }
     return result.dto;
   }

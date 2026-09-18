@@ -42,6 +42,9 @@ export class BookingsService {
         if (event.capacity !== null && event.bookedCount >= event.capacity) {
           throw new ConflictException("No seats left");
         }
+        if (event.isPaid && (event.priceRub == null || event.priceRub <= 0)) {
+          throw new BadRequestException("Paid event requires a price");
+        }
 
         const booking = await manager.save(BookingEntity, manager.create(BookingEntity, { userId, eventId, status: "active", promoCode: applied }));
         await this.promo.recordFulfillmentInTransaction(manager, event, userId, booking.id, referralCode ?? undefined, now);
@@ -49,7 +52,7 @@ export class BookingsService {
         await manager.save(EventEntity, event);
         return { dto: toBookingDto(booking, event), event, bookingId: booking.id };
       });
-      const payment = await this.paymentFor(result.event, result.bookingId);
+      const payment = await this.paymentFor(result.event, result.bookingId, true);
       return { ...result.dto, payment };
     } catch (error) {
       throw translateUniqueViolation(error);
@@ -61,11 +64,12 @@ export class BookingsService {
       const booking = await manager.findOne(BookingEntity, { where: { id: bookingId } });
       if (!booking) throw new NotFoundException("Booking not found");
       if (booking.userId !== userId) throw new ForbiddenException("Cannot pay for another user's booking");
+      if (booking.status !== "active") throw new ConflictException("Cannot pay a cancelled booking");
       const event = await manager.findOne(EventEntity, { where: { id: booking.eventId } });
       if (!event || event.published === false) throw new NotFoundException("Event not found");
       return { booking, event };
     });
-    const payment = await this.paymentFor(loaded.event, loaded.booking.id);
+    const payment = await this.paymentFor(loaded.event, loaded.booking.id, false);
     return { ...toBookingDto(loaded.booking, loaded.event), payment };
   }
 
@@ -95,9 +99,14 @@ export class BookingsService {
     return { ...result.dto, payment: null };
   }
 
-  private async paymentFor(event: EventEntity, bookingId: string): Promise<Payment | null> {
+  private async paymentFor(event: EventEntity, bookingId: string, skipIfCancelled: boolean): Promise<Payment | null> {
     if (!event.isPaid) return null;
     if (event.priceRub == null || event.priceRub <= 0) throw new BadRequestException("Paid event requires a price");
+    const live = await this.dataSource.transaction(async (manager) => manager.findOne(BookingEntity, { where: { id: bookingId } }));
+    if (!live || live.status !== "active") {
+      if (skipIfCancelled) return null;
+      throw new ConflictException("Cannot pay a cancelled booking");
+    }
     return this.payments.ensureForBooking(bookingId, event.priceRub, `Билет: ${event.title}`);
   }
 }
