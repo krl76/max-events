@@ -1,13 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: FIFO waitlist — join when full, offer the freed seat with a confirmation timer, expire and pass on.
-// SCOPE: join, confirm, getMe, expireOffers; onSeatFreed is called inside the booking-cancel transaction.
+// SCOPE: join, confirm, decline, getMe, expireOffers; onSeatFreed is called inside the booking-cancel transaction.
 // DEPENDS: typeorm, @max-events/api-contracts, bookings/events/users, max-bot
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - OFFER_TTL_MS - confirmation window
-// - WaitlistService - join/confirm/getMe/expire/onSeatFreed/fillVacancies
+// - WaitlistService - join/confirm/decline/getMe/expire/onSeatFreed/fillVacancies
 // - toWaitlistDto - entity plus FIFO position
 // END_MODULE_MAP
 
@@ -109,6 +109,34 @@ export class WaitlistService {
     if (result.bookingId && result.event.isPaid && result.event.priceRub && result.event.priceRub > 0) {
       await this.payments.ensureForBooking(result.bookingId, result.event.priceRub, `Билет: ${result.event.title}`);
     }
+    return result.dto;
+  }
+
+  async decline(userId: string, entryId: string, now = new Date()): Promise<WaitlistEntry> {
+    const result = await this.dataSource.transaction(async (manager) => {
+      const peek = await manager.findOne(WaitlistEntryEntity, { where: { id: entryId } });
+      if (!peek) throw new NotFoundException("Waitlist entry not found");
+      const event = await manager.findOne(EventEntity, { where: { id: peek.eventId }, lock: { mode: "pessimistic_write" } });
+      if (!event || event.published === false) throw new NotFoundException("Event not found");
+      const entry = await manager.findOne(WaitlistEntryEntity, { where: { id: entryId }, lock: { mode: "pessimistic_write" } });
+      if (!entry || entry.userId !== userId) throw new NotFoundException("Waitlist entry not found");
+      if (entry.status === "cancelled") return { dto: toWaitlistDto(entry, await positionOf(manager, entry)), next: null };
+      if (entry.status === "confirmed") throw new ConflictException("Cancel the booking instead");
+      if (entry.status === "expired") throw new ConflictException("Offer expired");
+      const wasOffered = entry.status === "offered";
+      entry.status = "cancelled";
+      entry.offeredUntil = null;
+      const saved = await manager.save(WaitlistEntryEntity, entry);
+      const dto = toWaitlistDto(saved, await positionOf(manager, saved));
+      if (!wasOffered) return { dto, next: null };
+      const next = await this.onSeatFreed(manager, event, now, false);
+      if (!next) {
+        event.bookedCount = Math.max(0, event.bookedCount - 1);
+        await manager.save(EventEntity, event);
+      }
+      return { dto, next };
+    });
+    if (result.next) await this.notifyOffer(result.next);
     return result.dto;
   }
 

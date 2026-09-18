@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for the event waitlist.
-// SCOPE: POST /waitlist (join), POST /waitlist/:id/confirm, GET /waitlist/me (own active entry).
+// SCOPE: POST /waitlist (join), POST /waitlist/:id/confirm, POST /waitlist/:id/decline, GET /waitlist/me (own active entry).
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./waitlist.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - WaitlistController - join, confirm and getMe
+// - WaitlistController - join, confirm, decline and getMe
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
@@ -34,5 +34,10 @@ export class WaitlistController {
   @Post(":id/confirm")
   confirm(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<WaitlistEntry> {
     return this.waitlist.confirm(user.id, id);
+  }
+
+  @Post(":id/decline")
+  decline(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<WaitlistEntry> {
+    return this.waitlist.decline(user.id, id);
   }
 }
