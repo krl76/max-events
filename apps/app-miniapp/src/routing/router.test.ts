@@ -41,4 +41,8 @@ describe("routeFromStartParam", () => {
   it("falls back to home for an unknown deep-link prefix", () => {
     expect(routeFromStartParam("foo-1")).toEqual({ name: "home" });
   });
+
+  it("keeps the nearby screen out of start_param deep links", () => {
+    expect(routeFromStartParam("nearby")).toEqual({ name: "home" });
+  });
 });

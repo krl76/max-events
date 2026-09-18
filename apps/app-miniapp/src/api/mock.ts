@@ -1,14 +1,18 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports, UGC micro-events and the place social page while backend endpoints (M2–M5, P2) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow), in-memory bookings, FIFO waitlist with timed confirmation offers, check-ins, profiles, plan cards, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, CreateBookingSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema)
+// PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports, UGC micro-events, the place social page and the nearby timeline/leisure surface while backend endpoints (M2–M5, P2) do not exist yet.
+// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings, FIFO waitlist with timed confirmation offers, check-ins, profiles, plan cards, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, CreateBookingSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - mockPlaces - 4 Moscow venue fixtures
-// - mockEvents - Moscow event fixtures (all four categories, paid and free, incl. two past events for the review flow, one event "today" for the place page)
+// - mockEvents - Moscow event fixtures (all four categories, paid and free, incl. two past events for the review flow, one event "today" for the place page, two MOCK_TODAY daytime events filling the nearby now/inAnHour buckets)
 // - MOCK_TODAY - the fixed demo "today" (Moscow day key) the place page fixtures are curated for
+// - MOCK_NOW - the fixed demo "now" (noon of MOCK_TODAY) the nearby timeline buckets and leisure window are computed from
+// - mockNearbyBucket - event start -> now / inAnHour / evening / tomorrow against MOCK_NOW (backend parity)
+// - nearbyTimeline - four-bucket nearby timeline from fixtures, haversine distance from the requested coords (mock GET /nearby)
+// - leisureOptions - deterministic per-mood leisure chains from fixtures inside the free window (mock GET /nearby/free)
 // - mockOrganizers - demo organizer fixture for event details
 // - resetMockMicroEvents - restore seeded micro-events (test isolation)
 // - microEvents - open micro-events soonest first
@@ -64,11 +68,11 @@
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans, /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events and /api/today, return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans, /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today and /api/nearby[/free], return a restore function
 // END_MODULE_MAP
 
-import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlacePage, PlanCard, Profile, Review, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
-import { CreateBookingSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, Participation, ParticipationStatus, Place, PlacePage, PlanCard, Profile, Review, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
+import { CreateBookingSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -109,6 +113,8 @@ export const mockEvents: Event[] = [
   event({ id: "c000000d-0000-4000-8000-00000000000d", title: "Прогулка-знакомство по Парку Горького", category: "tourism", city: "Москва", startsAt: "2026-09-05T10:00:00+03:00", placeId: mockPlaces[0].id, isPaid: false, priceRub: null }),
   event({ id: "c000000e-0000-4000-8000-00000000000e", title: "Открытая репетиция камерного оркестра", category: "afisha", city: "Москва", startsAt: "2026-09-08T19:00:00+03:00", isPaid: false, priceRub: null }),
   event({ id: "c000000f-0000-4000-8000-00000000000f", title: "Летний концерт на Пушкинской набережной", category: "afisha", city: "Москва", startsAt: `${MOCK_TODAY}T19:00:00+03:00`, placeId: mockPlaces[0].id, isPaid: false, priceRub: null, capacity: 200 }),
+  event({ id: "c0000010-0000-4000-8000-000000000010", title: "Дневной кофе-маркет в «Депо»", category: "afisha", city: "Москва", startsAt: `${MOCK_TODAY}T12:30:00+03:00`, placeId: mockPlaces[3].id, isPaid: false, priceRub: null, promoted: true }),
+  event({ id: "c0000011-0000-4000-8000-000000000011", title: "Лекция об импрессионистах", category: "afisha", city: "Москва", startsAt: `${MOCK_TODAY}T15:00:00+03:00`, placeId: mockPlaces[1].id, isPaid: false, priceRub: null }),
 ];
 
 export function filterMockEvents(events: Event[], filters: EventFilters): Event[] {
@@ -870,6 +876,109 @@ export function todayPicks(): TodayResponse {
   };
 }
 
+/** The fixed demo "now" for the nearby surface: noon of MOCK_TODAY, so the four buckets fill deterministically (12:30 -> now, 15:00 -> inAnHour, 19:00 -> evening, next morning -> tomorrow). */
+export const MOCK_NOW = new Date(`${MOCK_TODAY}T12:00:00+03:00`);
+
+const HOUR_MS = 60 * 60 * 1000;
+const NEARBY_MAX_KM = 15;
+
+/** Rough great-circle distance, backend haversine parity. */
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+function moscowHour(date: Date): number {
+  return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Moscow", hour: "2-digit", hour12: false }).format(date));
+}
+
+/** Exclusive bucket of an event start relative to the demo now (mirrors the backend nearbyBucket). */
+export function mockNearbyBucket(startsAt: string, now: Date = MOCK_NOW): NearbyBucket | null {
+  const start = new Date(startsAt);
+  const delta = start.getTime() - now.getTime();
+  if (delta < 0) return null;
+  if (delta < HOUR_MS) return "now";
+  if (moscowDateKey(startsAt) === moscowDateKey(now.toISOString())) return moscowHour(start) >= 18 ? "evening" : "inAnHour";
+  if (moscowDateKey(startsAt) === moscowDateKey(new Date(now.getTime() + 24 * HOUR_MS).toISOString())) return "tomorrow";
+  return null;
+}
+
+/** Four-bucket nearby timeline from fixtures within 48h of the demo now and 15 km of the requested coords, promoted first then by distance (backend parity). */
+export function nearbyTimeline(latitude: number, longitude: number, now: Date = MOCK_NOW): NearbyTimeline {
+  const timeline: NearbyTimeline = { now: [], inAnHour: [], evening: [], tomorrow: [] };
+  const cards: NearbyCard[] = [];
+  const horizon = now.getTime() + 48 * HOUR_MS;
+  for (const item of mockEvents) {
+    if (item.placeId === null) continue;
+    const place = mockPlaces.find((candidate) => candidate.id === item.placeId);
+    if (!place) continue;
+    const start = new Date(item.startsAt).getTime();
+    if (start < now.getTime() || start > horizon) continue;
+    const bucket = mockNearbyBucket(item.startsAt, now);
+    if (bucket === null) continue;
+    const km = haversineKm(latitude, longitude, place.latitude, place.longitude);
+    if (km > NEARBY_MAX_KM) continue;
+    cards.push({ event: item, place, distanceKm: Math.round(km * 10) / 10, bucket, promoted: item.promoted });
+  }
+  cards.sort((a, b) => Number(b.promoted) - Number(a.promoted) || a.distanceKm - b.distanceKm || a.event.startsAt.localeCompare(b.event.startsAt));
+  for (const card of cards) timeline[card.bucket].push(card);
+  return timeline;
+}
+
+/** Deterministic per-mood leisure chains from fixtures inside the free window; the title is the chain joined by arrows (README «Парк → выставка → бар» style). */
+export function leisureOptions(hours: number, mood: LeisureMood, latitude: number, longitude: number, now: Date = MOCK_NOW): LeisureOption[] {
+  const until = now.getTime() + hours * HOUR_MS;
+  const events = mockEvents
+    .filter((item) => {
+      const start = new Date(item.startsAt).getTime();
+      return start >= now.getTime() && start <= until;
+    })
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const places = mockPlaces
+    .map((place) => ({ place, km: haversineKm(latitude, longitude, place.latitude, place.longitude) }))
+    .filter((row) => row.km <= NEARBY_MAX_KM)
+    .sort((a, b) => a.km - b.km);
+  const placeStop = (place: Place): LeisureStop => ({ kind: "place", placeId: place.id, eventId: null, title: place.title, startsAt: null });
+  const eventStop = (item: Event): LeisureStop => ({ kind: "event", placeId: item.placeId, eventId: item.id, title: item.title, startsAt: item.startsAt });
+  let stops: LeisureStop[] = [];
+  if (mood === "relax") {
+    const park = places.find((row) => row.place.category === "park");
+    const show = events.find((item) => item.category === "afisha");
+    const museum = places.find((row) => row.place.category === "museum");
+    const food = places.find((row) => row.place.category === "food");
+    if (park) stops.push(placeStop(park.place));
+    if (show) stops.push(eventStop(show));
+    else if (museum) stops.push(placeStop(museum.place));
+    if (food) stops.push(placeStop(food.place));
+  } else if (mood === "active") {
+    const sport = events.find((item) => item.category === "sport");
+    const sportPlace = places.find((row) => row.place.category === "sport");
+    const park = places.find((row) => row.place.category === "park");
+    if (sport) stops.push(eventStop(sport));
+    else if (sportPlace) stops.push(placeStop(sportPlace.place));
+    if (park) stops.push(placeStop(park.place));
+  } else {
+    // ponytail: the mock has no friend-participation feed for the demo window — friends chain = the window events, soonest first
+    stops = events.slice(0, 3).map(eventStop);
+  }
+  if (stops.length === 0) return [];
+  return [{ mood, title: stops.map((stop) => stop.title).join(" → "), stops }];
+}
+
+/** Coordinate query params mirroring the backend validation (missing/out-of-range -> null -> 400 in the interceptor). */
+function parseMockCoords(url: URL): [number, number] | null {
+  const latitude = url.searchParams.get("latitude");
+  const longitude = url.searchParams.get("longitude");
+  if (latitude === null || longitude === null) return null;
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) return null;
+  return [lat, lng];
+}
+
 /** Place friend-visit seeds: [friend index, mockEvents index] — "Анна была здесь 3 раза"-style fixtures for the park. */
 const MOCK_PLACE_VISIT_SEED: [number, number][] = [
   [0, 12],
@@ -973,6 +1082,18 @@ export function installMockApi(): () => void {
     }
     if (url.pathname === "/api/today") {
       return Response.json(todayPicks());
+    }
+    if (url.pathname === "/api/nearby/free") {
+      const coords = parseMockCoords(url);
+      const hours = Number(url.searchParams.get("hours"));
+      const mood = LeisureMoodSchema.safeParse(url.searchParams.get("mood"));
+      if (coords === null || !Number.isInteger(hours) || hours < 1 || hours > 8 || !mood.success) return new Response(null, { status: 400 });
+      return Response.json(leisureOptions(hours, mood.data, coords[0], coords[1]));
+    }
+    if (url.pathname === "/api/nearby") {
+      const coords = parseMockCoords(url);
+      if (coords === null) return new Response(null, { status: 400 });
+      return Response.json(nearbyTimeline(coords[0], coords[1]));
     }
     if (url.pathname === "/api/places") {
       return Response.json(mockPlaces);

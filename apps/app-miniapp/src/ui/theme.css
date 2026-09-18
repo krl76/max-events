@@ -1477,3 +1477,46 @@ section[aria-label="Микро-события"] {
 .app-card--link:nth-of-type(5n + 5) .app-card-media {
   background-image: var(--app-media-veil), var(--app-media-gradient-5);
 }
+
+/* Экран «Рядом со мной»: действия карточки и цепочки досуга */
+.app-nearby-actions {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-s);
+}
+
+.app-nearby-option > summary {
+  cursor: pointer;
+  display: block;
+  list-style: none;
+}
+
+.app-nearby-stops {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-xs);
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--app-space-m) var(--app-space-m);
+}
+
+.app-nearby-stop {
+  align-items: center;
+  color: var(--app-text);
+  display: flex;
+  font-size: var(--app-font-size-body);
+  gap: var(--app-space-s);
+}
+
+.app-nearby-stop-title {
+  flex: 1;
+}
+
+.app-nearby-stop-open {
+  background: none;
+  border: none;
+  color: var(--app-accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}

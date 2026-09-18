@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - MOSCOW_CENTER - fixed Moscow city center coords (shared with the nearby screen)
 // - initEventMap - create Leaflet map (Moscow center) + OSM tile layer with the required attribution + markers with popup mini-cards; returns a dispose function
 // - MapScreen - places loading state + container ref; wires initEventMap to the React lifecycle
 // END_MODULE_MAP
@@ -16,8 +17,8 @@ import "leaflet/dist/leaflet.css";
 import { apiClient } from "../api/client";
 import { buildMapMarkers, type MapMarker } from "./mapMarkers";
 
-/** Fixtures and P0 scope are Moscow-only, so the map opens on the city center. */
-const MOSCOW_CENTER: [number, number] = [55.7522, 37.6156];
+/** Fixtures and P0 scope are Moscow-only, so the map opens on the city center; also the anchor point of the nearby screen. */
+export const MOSCOW_CENTER: [number, number] = [55.7522, 37.6156];
 const MOSCOW_ZOOM = 11;
 const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
