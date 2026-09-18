@@ -38,7 +38,13 @@ export class PaymentsScheduler implements OnModuleInit, OnModuleDestroy {
     this.ticking = true;
     try {
       const mismatches = await this.payments.reconcile();
-      if (mismatches.length > 0) this.logger.warn(`Payment reconciliation found ${mismatches.length} mismatch(es)`);
+      if (mismatches.length > 0) {
+        const sample = mismatches
+          .slice(0, 5)
+          .map((row) => `${row.paymentId}:${row.internal}/${row.provider}`)
+          .join(",");
+        this.logger.warn(`Payment reconciliation found ${mismatches.length} mismatch(es): ${sample}`);
+      }
     } catch (error: unknown) {
       this.logger.error("Payment reconciliation failed", error instanceof Error ? error.stack : String(error));
     } finally {

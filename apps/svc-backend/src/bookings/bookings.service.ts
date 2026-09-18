@@ -53,6 +53,14 @@ export class BookingsService {
         return { dto: toBookingDto(booking, event), event, bookingId: booking.id };
       });
       const payment = await this.paymentFor(result.event, result.bookingId, true);
+      const live = await this.dataSource.transaction(async (manager) => {
+        const booking = await manager.findOne(BookingEntity, { where: { id: result.bookingId } });
+        const event = await manager.findOne(EventEntity, { where: { id: result.event.id } });
+        return { booking, event };
+      });
+      if (live.booking && live.event && live.booking.status === "cancelled") {
+        return { ...toBookingDto(live.booking, live.event), payment };
+      }
       return { ...result.dto, payment };
     } catch (error) {
       throw translateUniqueViolation(error);
@@ -70,7 +78,9 @@ export class BookingsService {
       return { booking, event };
     });
     const payment = await this.paymentFor(loaded.event, loaded.booking.id, false);
-    return { ...toBookingDto(loaded.booking, loaded.event), payment };
+    const live = await this.dataSource.transaction(async (manager) => manager.findOne(BookingEntity, { where: { id: bookingId } }));
+    if (!live || live.status !== "active") throw new ConflictException("Cannot pay a cancelled booking");
+    return { ...toBookingDto(live, loaded.event), payment };
   }
 
   async cancel(userId: string, bookingId: string, options?: { organizerId?: string }): Promise<BookingWithSeats> {

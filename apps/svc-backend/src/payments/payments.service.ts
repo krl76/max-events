@@ -20,7 +20,7 @@ import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import { DEFAULT_COMMISSION_BPS, freezeCommission } from "./commission";
 import { PaymentEntity } from "./payment.entity";
-import { PAYMENT_PROVIDER, type CreatePaymentInput, type PaymentCharge, type PaymentProvider, type PaymentRefund } from "./payment-provider";
+import { PAYMENT_PROVIDER, PaymentProviderError, type CreatePaymentInput, type PaymentCharge, type PaymentProvider, type PaymentRefund } from "./payment-provider";
 
 @Injectable()
 export class PaymentsService {
@@ -117,7 +117,7 @@ export class PaymentsService {
   }
 
   async reconcile(): Promise<PaymentMismatch[]> {
-    const rows = await this.rows.find();
+    const rows = await this.rows.find({ where: { status: In(["pending", "succeeded"]) } });
     const mismatches: PaymentMismatch[] = [];
     for (const row of rows) {
       try {
@@ -125,8 +125,12 @@ export class PaymentsService {
         if (charge.status !== row.status) {
           mismatches.push({ paymentId: row.id, bookingId: row.bookingId, internal: row.status, provider: charge.status });
         }
-      } catch {
-        mismatches.push({ paymentId: row.id, bookingId: row.bookingId, internal: row.status, provider: "missing" });
+      } catch (error) {
+        if (error instanceof PaymentProviderError && error.code === "payment_not_found") {
+          mismatches.push({ paymentId: row.id, bookingId: row.bookingId, internal: row.status, provider: "missing" });
+          continue;
+        }
+        throw error;
       }
     }
     return mismatches;
