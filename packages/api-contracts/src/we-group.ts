@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for «Мы» trip groups — members, shared chat, bound events/places, archive.
-// SCOPE: group entity, create write, event/place bind writes, screen payload.
-// DEPENDS: zod, ./primitives.js, ./event.js, ./place.js, ./friends.js
+// SCOPE: group entity, create write, event/place bind writes, screen payload with bookings/route/budget/photos.
+// DEPENDS: zod, ./primitives.js, ./event.js, ./place.js, ./friends.js, ./booking.js, ./route.js, ./plan-budget.js, ./review.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -16,15 +16,19 @@
 // - AddWeGroupEventWrite - event write type
 // - AddWeGroupPlaceWriteSchema - bind place
 // - AddWeGroupPlaceWrite - place write type
-// - WeGroupScreenSchema - group plus members, events, places
+// - WeGroupScreenSchema - group plus members, events, places, bookings, route, budget, photos
 // - WeGroupScreen - screen type
 // END_MODULE_MAP
 
 import { z } from "zod";
+import { BookingSchema } from "./booking.js";
 import { EventSchema } from "./event.js";
 import { FriendSchema } from "./friends.js";
+import { PlanBudgetSchema } from "./plan-budget.js";
 import { PlaceSchema } from "./place.js";
 import { IdSchema, TimestampSchema } from "./primitives.js";
+import { ReviewPhotoSchema } from "./review.js";
+import { DayRouteSchema } from "./route.js";
 
 export const WeGroupStatusSchema = z.enum(["active", "archived"]);
 export type WeGroupStatus = z.infer<typeof WeGroupStatusSchema>;
@@ -62,5 +66,9 @@ export const WeGroupScreenSchema = z.object({
   members: z.array(FriendSchema),
   events: z.array(EventSchema),
   places: z.array(PlaceSchema),
+  bookings: z.array(BookingSchema).default([]),
+  route: DayRouteSchema.nullable().default(null),
+  budget: PlanBudgetSchema.nullable().default(null),
+  photos: z.array(ReviewPhotoSchema).default([]),
 });
 export type WeGroupScreen = z.infer<typeof WeGroupScreenSchema>;

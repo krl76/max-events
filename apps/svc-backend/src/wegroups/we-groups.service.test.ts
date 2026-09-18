@@ -1,9 +1,14 @@
 import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
+import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import type { MaxBotClient } from "../max-bot/max-bot.client";
+import { PlanExpenseEntity } from "../plans/plan-expense.entity";
+import { PlanEntity } from "../plans/plan.entity";
 import { PlaceEntity } from "../places/place.entity";
+import { ReviewEntity } from "../reviews/review.entity";
+import { RoutesService } from "../routes/routes.service";
 import { UserEntity } from "../users/user.entity";
 import { WeGroupEntity, WeGroupItemEntity, WeGroupMemberEntity } from "./we-group.entity";
 import { WeGroupsService } from "./we-groups.service";
@@ -15,6 +20,7 @@ const stranger = "00000000-0000-4000-8000-00000000000c";
 const eventId = "00000000-0000-4000-8000-0000000000e1";
 const draftEventId = "00000000-0000-4000-8000-0000000000e2";
 const placeId = "00000000-0000-4000-8000-0000000000p1";
+const placeBId = "00000000-0000-4000-8000-0000000000p2";
 
 function inValues(value: unknown): unknown[] | undefined {
   if (value && typeof value === "object" && Array.isArray((value as { _value?: unknown })._value)) return (value as { _value: unknown[] })._value;
@@ -108,12 +114,20 @@ function createService() {
       updatedAt: now,
     } as EventEntity,
   ]);
-  const places = createStoreRepo<PlaceEntity>([{ id: placeId, title: "Кремль", address: "x", city: "Казань", category: "museum", latitude: 55.79, longitude: 49.11, published: true, createdAt: now, updatedAt: now } as PlaceEntity]);
+  const places = createStoreRepo<PlaceEntity>([
+    { id: placeId, title: "Кремль", address: "x", city: "Казань", category: "museum", latitude: 55.79, longitude: 49.11, published: true, createdAt: now, updatedAt: now } as PlaceEntity,
+    { id: placeBId, title: "Набережная", address: "y", city: "Казань", category: "park", latitude: 55.8, longitude: 49.12, published: true, createdAt: now, updatedAt: now } as PlaceEntity,
+  ]);
   const users = createStoreRepo<UserEntity>([
     { id: owner, firstName: "Саша", lastName: null, avatarUrl: null } as UserEntity,
     { id: member, firstName: "Кирилл", lastName: null, avatarUrl: null } as UserEntity,
   ]);
+  const bookings = createStoreRepo<BookingEntity>();
+  const plans = createStoreRepo<PlanEntity>();
+  const expenses = createStoreRepo<PlanExpenseEntity>();
+  const reviews = createStoreRepo<ReviewEntity>();
   const bot = { createChat: async () => ({ chatId: 1, link: "https://max.ru/join/we" }) } as unknown as MaxBotClient;
+  const routes = new RoutesService(events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>);
   const service = new WeGroupsService(
     groups as unknown as Repository<WeGroupEntity>,
     members as unknown as Repository<WeGroupMemberEntity>,
@@ -121,9 +135,14 @@ function createService() {
     events as unknown as Repository<EventEntity>,
     places as unknown as Repository<PlaceEntity>,
     users as unknown as Repository<UserEntity>,
+    bookings as unknown as Repository<BookingEntity>,
+    plans as unknown as Repository<PlanEntity>,
+    expenses as unknown as Repository<PlanExpenseEntity>,
+    reviews as unknown as Repository<ReviewEntity>,
     bot,
+    routes,
   );
-  return { service, groups };
+  return { service, groups, events, bookings, plans, expenses, reviews };
 }
 
 describe("WeGroupsService", () => {
@@ -162,5 +181,51 @@ describe("WeGroupsService", () => {
     await service.addEvent(owner, created.group.id, eventId);
     const dup = await service.addEvent(owner, created.group.id, eventId);
     expect(dup.events).toHaveLength(1);
+  });
+
+  it("aggregates member bookings, route, budget and photos and keeps them after archive", async () => {
+    const { service, events, bookings, plans, expenses, reviews } = createService();
+    events.store[0]!.placeId = placeId;
+    const created = await service.create(owner, { title: "Поездка в Казань", memberIds: [member] });
+    await service.addEvent(owner, created.group.id, eventId);
+    await service.addPlace(owner, created.group.id, placeBId);
+    await bookings.save(
+      bookings.create({
+        userId: member,
+        eventId,
+        status: "active",
+        promoCode: null,
+        reminderSentAt: null,
+      }),
+    );
+    const plan = await plans.save(
+      plans.create({
+        hostUserId: owner,
+        eventId,
+        meetingPoint: "у кремля",
+        meetingAt: now,
+        chatLink: null,
+        reminderSentAt: null,
+        leaveNowSentAt: null,
+        weatherAlertSentAt: null,
+        friendLeftBroadcastAt: null,
+        recurringRule: null,
+        seriesId: null,
+        sourcePlanId: null,
+        cancelledAt: null,
+      }),
+    );
+    await expenses.save(expenses.create({ planId: plan.id, title: "Билет", amountRub: 850, payerUserId: owner, shareUserIds: [owner, member] }));
+    await reviews.save(reviews.create({ userId: member, eventId, stars: 5, categoryScores: {}, wouldGoAgain: true, photoUrls: ["https://example.com/we.jpg"], text: "огонь" }));
+    const screen = await service.get(owner, created.group.id);
+    expect(screen.bookings.map((row) => row.userId)).toEqual([member]);
+    expect(screen.route?.points.length).toBeGreaterThanOrEqual(2);
+    expect(screen.budget?.totalRub).toBe(850);
+    expect(screen.photos).toEqual([{ url: "https://example.com/we.jpg" }]);
+    const archived = await service.archive(owner, created.group.id, now);
+    expect(archived.group.status).toBe("archived");
+    expect(archived.bookings).toHaveLength(1);
+    expect(archived.budget?.totalRub).toBe(850);
+    expect(archived.photos).toHaveLength(1);
   });
 });

@@ -20,5 +20,6 @@ import { RoutesService } from "./routes.service";
   imports: [TypeOrmModule.forFeature([EventEntity, PlaceEntity])],
   controllers: [RoutesController],
   providers: [RoutesService],
+  exports: [RoutesService],
 })
 export class RoutesModule {}
