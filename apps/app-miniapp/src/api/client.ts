@@ -84,11 +84,13 @@
 // - CreateReport - report submission payload (user + event + reason); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
 // - Report - report entity (contract shape)
 // - ApiClient.createReport - POST /reports
+// - ApiClient.assistQuery - POST /assist: NL query -> explained picks (summary + criteria + items)
+// - ApiClient.assistDay - POST /assist/day: "План на субботу" -> stops timeline + planDraft (+ persisted plan when save=true)
 // END_MODULE_MAP
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, type PlacePage } from "@max-events/api-contracts";
-import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, DayRoute, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, DayRoute, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -852,6 +854,14 @@ export class ApiClient {
 
   leaveMicroEvent(id: string, userId: string): Promise<MicroEvent> {
     return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventEntitySchema, { method: "DELETE" });
+  }
+
+  assistQuery(query: string, save?: boolean): Promise<AssistResponse> {
+    return this.request("/assist", AssistResponseSchema, { body: { query, ...(save === undefined ? {} : { save }) } });
+  }
+
+  assistDay(query: string, save?: boolean): Promise<AssistDayResponse> {
+    return this.request("/assist/day", AssistDayResponseSchema, { body: { query, ...(save === undefined ? {} : { save }) } });
   }
 }
 
