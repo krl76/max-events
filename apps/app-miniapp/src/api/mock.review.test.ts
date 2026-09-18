@@ -88,7 +88,7 @@ describe("mock reports", () => {
     const target = mockEvents[0];
 
     const report = await api.createReport({ userId: DEMO_USER_ID, eventId: target.id, reason: "spam" });
-    expect(report).toMatchObject({ userId: DEMO_USER_ID, eventId: target.id, reason: "spam" });
+    expect(report).toMatchObject({ userId: DEMO_USER_ID, targetType: "event", targetId: target.id, reason: "spam", status: "open" });
 
     await expect(api.createReport({ userId: DEMO_USER_ID, eventId: target.id, reason: "abuse" })).rejects.toMatchObject({ name: "ApiError", status: 409 });
   });

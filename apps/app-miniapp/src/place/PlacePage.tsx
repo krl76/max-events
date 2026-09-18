@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Place social page (P2-11-c): «место как социальный объект» — today events, friend visits, people rating, popularity today, personal history.
 // SCOPE: Data via apiClient.getPlacePage + getPlace (mock or live); empty data per block, not a page error; no navigation logic beyond event cards.
-// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (PlacePage, PlaceFriendVisit), ../auth/AuthContext.js, ../event/EventPage.js (DEMO_USER_ID), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../event/ReviewSection.js (RatingView), ../routing/router.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (PlacePage, PlaceFriendVisit), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../event/ReviewSection.js (RatingView), ../routing/router.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -19,7 +19,6 @@ import { apiClient } from "../api/client";
 import type { Place, PlaceFriendVisit, PlacePage as PlacePageAggregate } from "@max-events/api-contracts";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
-import { DEMO_USER_ID } from "../event/EventPage";
 import { RatingView } from "../event/ReviewSection";
 import { useRoute } from "../routing/router";
 import { AppAvatar, AppTitle } from "../ui/primitives";
@@ -123,11 +122,12 @@ export function PlacePageView({ place, page, onOpenEvent }: PlacePageViewProps) 
 
 export function PlacePage({ id }: { id: string }) {
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
   const [state, setState] = useState<PlacePageState>({ status: "loading" });
 
   useEffect(() => {
+    if (userId === null) return;
     let alive = true;
     setState({ status: "loading" });
     Promise.all([apiClient.getPlace(id), apiClient.getPlacePage(id, userId)]).then(

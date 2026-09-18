@@ -1,28 +1,26 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Impressions feed (Instagram-стилистика): post cards with a photo placeholder, likes and comments, the event wall (block of the event's posts) and the publish form (photo placeholder + text).
-// SCOPE: Data via apiClient.listFeedPosts/toggleFeedLike/addFeedComment/createFeedPost (mock or live); the wall is the same section filtered by eventId; no photo upload (placeholder button).
-// DEPENDS: ../api/client.js (apiClient, FeedPost), ../api/mock.js (mockEvents for the event datalist), ../auth/AuthContext.js, ../event/EventPage.js (DEMO_USER_ID), ../routing/router.js, ../ui/theme.css
+// SCOPE: Data via apiClient.listFeedPosts/toggleFeedLike/addFeedComment/createFeedPost + listEvents (event titles) + listFriends (stories rail); the wall is the same section filtered by eventId; no photo upload (placeholder button).
+// DEPENDS: ../api/client.js (apiClient, FeedPost), ../auth/AuthContext.js, ../routing/router.js, ../max/bridge.js (webApp, shareResult), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - FeedPostCard - presentational Instagram-style post: author header, 4:5 media placeholder, icon actions (like/comment/share), likes line, caption, comments and add form
 // - likesLabel - ru plural line «N отметок „нравится“» for the post likes counter
-// - StoriesRow - decorative stories rail over the home feed (mock friends + own story ring)
+// - StoriesRow - decorative stories rail over the home feed (friends from the API + own story ring)
 // - FeedState - union of the feed fetch states (loading / error / ready)
-// - FeedSection - container: posts (optionally one event — the wall), like/comment wiring, «+» publish CTA
+// - FeedSection - container: posts (optionally one event — the wall), event titles for the cards, like/comment wiring, «+» publish CTA
 // - FeedDraft - publish form draft (event title, text)
 // - feedDraftReady - the event is picked and the text is non-empty
 // - FeedCreateView - presentational publish form: photo placeholder, event datalist, text
-// - FeedCreatePage - route container: author id, draft state, publish via createFeedPost
+// - FeedCreatePage - route container: author id from the auth context, event options via apiClient.listEvents, draft state, publish via createFeedPost
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Event } from "@max-events/api-contracts";
+import type { Event, Friend } from "@max-events/api-contracts";
 import { apiClient, type FeedPost } from "../api/client";
-import { mockEvents, mockFriends } from "../api/mock";
 import { useAuth } from "../auth/AuthContext";
-import { DEMO_USER_ID } from "../event/EventPage";
 import { shareResult, webApp } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { AppAvatar, AppButton, AppChip, AppTitle } from "../ui/primitives";
@@ -31,6 +29,7 @@ import { IconButton } from "@maxhub/max-ui";
 
 interface FeedPostCardProps {
   post: FeedPost;
+  eventTitle: string;
   onToggleLike: () => void;
   onAddComment: (text: string) => void;
   onOpenEvent?: (eventId: string) => void;
@@ -43,10 +42,9 @@ export function likesLabel(count: number): string {
   return `${count} ${word} «нравится»`;
 }
 
-export function FeedPostCard({ post, onToggleLike, onAddComment, onOpenEvent }: FeedPostCardProps) {
+export function FeedPostCard({ post, eventTitle, onToggleLike, onAddComment, onOpenEvent }: FeedPostCardProps) {
   const [comment, setComment] = useState("");
   const commentRef = useRef<HTMLInputElement | null>(null);
-  const eventTitle = mockEvents.find((item) => item.id === post.eventId)?.title ?? "";
   const eventLink = onOpenEvent ? (
     <button type="button" className="app-plan-event" onClick={() => onOpenEvent(post.eventId)}>
       {eventTitle}
@@ -111,9 +109,10 @@ export type FeedState = { status: "loading" } | { status: "error" } | { status: 
 
 export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate: () => void }) {
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
   const [state, setState] = useState<FeedState>({ status: "loading" });
+  const [events, setEvents] = useState<Event[]>([]);
 
   const load = useCallback(() => {
     apiClient.listFeedPosts(eventId).then(
@@ -125,12 +124,26 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
     load();
   }, [load]);
 
+  useEffect(() => {
+    let alive = true;
+    apiClient.listEvents().then(
+      (list) => {
+        if (alive) setEvents(list);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const update = useCallback((next: FeedPost) => {
     setState((current) => (current.status === "ready" ? { ...current, posts: current.posts.map((item) => (item.id === next.id ? next : item)) } : current));
   }, []);
 
   const toggleLike = useCallback(
     (postId: string) => {
+      if (userId === null) return;
       apiClient.toggleFeedLike(postId, userId).then(update);
     },
     [userId, update],
@@ -138,10 +151,13 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
 
   const addComment = useCallback(
     (postId: string, text: string) => {
+      if (userId === null) return;
       apiClient.addFeedComment(postId, { userId, text }).then(update);
     },
     [userId, update],
   );
+
+  const eventTitle = (id: string) => events.find((item) => item.id === id)?.title ?? "";
 
   return (
     <section aria-label="Впечатления">
@@ -153,12 +169,25 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
           +
         </IconButton>
       </div>
-      {state.status === "loading" ? null : state.status === "error" ? <p className="app-state app-state--error">Не удалось загрузить впечатления.</p> : state.posts.length === 0 ? <p className="app-state">Пока нет постов — расскажи первым.</p> : state.posts.map((post) => <FeedPostCard key={post.id} post={post} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)}
+      {state.status === "loading" ? null : state.status === "error" ? <p className="app-state app-state--error">Не удалось загрузить впечатления.</p> : state.posts.length === 0 ? <p className="app-state">Пока нет постов — расскажи первым.</p> : state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)}
     </section>
   );
 }
 
 export function StoriesRow() {
+  const [friends, setFriends] = useState<Friend[]>([]);
+  useEffect(() => {
+    let alive = true;
+    apiClient.listFriends().then(
+      (list) => {
+        if (alive) setFriends(list);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
   return (
     <div className="app-stories" aria-label="Друзья и планы">
       <div className="app-story">
@@ -167,7 +196,7 @@ export function StoriesRow() {
         </span>
         <span className="app-story-name">Твоя история</span>
       </div>
-      {mockFriends.map((friend) => (
+      {friends.map((friend) => (
         <div key={friend.id} className="app-story">
           <span className="app-story-ring">
             <AppAvatar size={58}>{friend.name[0]}</AppAvatar>
@@ -228,17 +257,37 @@ export function FeedCreateView({ draft, events, submitting, failed, onChange, on
 
 export function FeedCreatePage({ eventId }: { eventId: string | null }) {
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
-  const [draft, setDraft] = useState<FeedDraft>({ event: eventId === null ? "" : (mockEvents.find((item) => item.id === eventId)?.title ?? ""), text: "" });
+  const [draft, setDraft] = useState<FeedDraft>({ event: "", text: "" });
+  const [events, setEvents] = useState<Event[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
 
+  useEffect(() => {
+    let alive = true;
+    apiClient.listEvents().then(
+      (list) => {
+        if (alive) setEvents(list);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (eventId === null) return;
+    const found = events.find((item) => item.id === eventId);
+    if (found) setDraft((current) => (current.event === "" ? { ...current, event: found.title } : current));
+  }, [events, eventId]);
+
   const publish = useCallback(() => {
-    if (!feedDraftReady(draft)) return;
+    if (!feedDraftReady(draft) || userId === null) return;
     setSubmitting(true);
     setFailed(false);
-    const event = mockEvents.find((item) => item.title === draft.event.trim());
+    const event = events.find((item) => item.title === draft.event.trim());
     apiClient.createFeedPost({ userId, eventId: event?.id ?? draft.event.trim(), text: draft.text.trim() }).then(
       () => navigate({ name: "home" }),
       () => {
@@ -246,7 +295,7 @@ export function FeedCreatePage({ eventId }: { eventId: string | null }) {
         setFailed(true);
       },
     );
-  }, [draft, userId, navigate]);
+  }, [draft, events, userId, navigate]);
 
-  return <FeedCreateView draft={draft} events={mockEvents} submitting={submitting} failed={failed} onChange={(field, value) => setDraft((current) => ({ ...current, [field]: value }))} onSubmit={publish} />;
+  return <FeedCreateView draft={draft} events={events} submitting={submitting} failed={failed} onChange={(field, value) => setDraft((current) => ({ ...current, [field]: value }))} onSubmit={publish} />;
 }

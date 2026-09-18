@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Lists UI: preset lists overview with counters, one list screen with saved event cards, shared-collection screen (participants, both add, «Отправить в чат»), profile entry link.
 // SCOPE: Data via apiClient.listLists/getList/addListItem/getListItems (mock or live); presentational rendering; no custom list management (P2 backlog); sharing via bridge.shareResult.
-// DEPENDS: ../api/client.js (apiClient, ListItemCard, ListScreen, ListSummary), ../api/mock.js (mockEvents for the add datalist), ../auth/AuthContext.js, ../catalog/CatalogPage.js (formatStartsAt), ../event/EventPage.js (DEMO_USER_ID), ../max/bridge.js (webApp, shareResult, ShareChannel), ../routing/router.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, ListItemCard, ListScreen, ListSummary), ../auth/AuthContext.js, ../catalog/CatalogPage.js (formatStartsAt), ../max/bridge.js (webApp, shareResult, ShareChannel), ../routing/router.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, DF-MAX-IDENTITY
 // END_MODULE_CONTRACT
 //
@@ -16,17 +16,15 @@
 // - ListState - union of the list items fetch states (loading / error / ready)
 // - ListScreenState - union of the one-list aggregate fetch states (loading / error / ready)
 // - ListView - presentational: saved event cards (with the author line for shared collections), navigation to the event page
-// - ListPage - route container: loads one list, wires «Отправить в чат» and the add-row of a shared collection
+// - ListPage - route container: loads one list, wires «Отправить в чат» and the add-row of a shared collection (event options via apiClient.listEvents)
 // - ListsLink - profile entry button to the lists screen
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
-import type { Friend, List } from "@max-events/api-contracts";
+import type { Event, Friend, List } from "@max-events/api-contracts";
 import { apiClient, type ListItemCard, type ListScreen, type ListSummary } from "../api/client";
-import { mockEvents } from "../api/mock";
 import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
-import { DEMO_USER_ID } from "../event/EventPage";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
 import { AppButton } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
@@ -79,10 +77,11 @@ export function ListsView({ state, onOpen }: { state: ListsState; onOpen: (listI
 
 export function ListsPage() {
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
   const [state, setState] = useState<ListsState>({ status: "loading" });
   useEffect(() => {
+    if (userId === null) return;
     let alive = true;
     setState({ status: "loading" });
     apiClient.listLists(userId).then(
@@ -128,11 +127,12 @@ export type ListScreenState = { status: "loading" } | { status: "error" } | { st
 
 export function ListPage({ id }: { id: string }) {
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
   const [state, setState] = useState<ListScreenState>({ status: "loading" });
   const [shared, setShared] = useState<ShareChannel | null>(null);
   const [adding, setAdding] = useState("");
+  const [events, setEvents] = useState<Event[]>([]);
 
   const load = useCallback(() => {
     setState({ status: "loading" });
@@ -145,19 +145,34 @@ export function ListPage({ id }: { id: string }) {
     load();
   }, [load]);
 
+  const isShared = state.status === "ready" && state.screen.participants.length > 0;
+  useEffect(() => {
+    if (!isShared) return;
+    let alive = true;
+    apiClient.listEvents().then(
+      (list) => {
+        if (alive) setEvents(list);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [isShared]);
+
   const add = useCallback(() => {
-    const event = mockEvents.find((item) => item.title === adding.trim());
+    if (userId === null) return;
+    const event = events.find((item) => item.title === adding.trim());
     if (!event) return;
     setAdding("");
     apiClient.addListItem(id, { userId, eventId: event.id }).then(load, load);
-  }, [adding, id, userId, load]);
+  }, [adding, events, id, userId, load]);
 
   if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
   if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить список.</p>;
   const { screen } = state;
-  const isShared = screen.participants.length > 0;
   const listState: ListState = { status: "ready", cards: screen.items };
-  const addReady = mockEvents.some((event) => event.title === adding.trim());
+  const addReady = events.some((event) => event.title === adding.trim());
 
   return (
     <>
@@ -182,7 +197,7 @@ export function ListPage({ id }: { id: string }) {
               Добавить событие
               <input className="app-gathering-time-input" list="shared-event-options" value={adding} placeholder="Событие" onChange={(change) => setAdding(change.target.value)} />
               <datalist id="shared-event-options">
-                {mockEvents.map((event) => (
+                {events.map((event) => (
                   <option key={event.id} value={event.title} />
                 ))}
               </datalist>

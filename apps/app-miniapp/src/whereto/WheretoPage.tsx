@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: "Куда пойдём?" guided wizard: company step, mood/budget step, result with up to 5 event cards and share to a MAX chat.
-// SCOPE: Mock suggestion over fixture events (backend P1-4-b не готов), local wizard state, шаринг через bridge.shareResult; no URL state, no navigation logic.
-// DEPENDS: @max-events/api-contracts (WheretoQuerySchema, Whereto*), ../api/mock.js (mockEvents), ../max/bridge.js (webApp, shareResult, ShareChannel), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../routing/router.js, ../ui/theme.css
+// SCOPE: Suggestion over the catalog events from the API (client-side heuristic until the backend whereto surface lands), local wizard state, шаринг через bridge.shareResult; no URL state, no navigation logic.
+// DEPENDS: @max-events/api-contracts (WheretoQuerySchema, Whereto*), ../api/client.js (apiClient.listEvents), ../max/bridge.js (webApp, shareResult, ShareChannel), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../routing/router.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS, https://dev.max.ru/docs/webapps/bridge
 // END_MODULE_CONTRACT
 //
@@ -10,15 +10,15 @@
 // - MOOD_LABELS - ru labels for WheretoMood
 // - BUDGET_LABELS - ru labels for WheretoBudget
 // - WheretoState - wizard step: company -> context (mood+budget) -> result (WheretoQuery)
-// - suggestEvents - mock-подборка: mood -> категории, budget -> цена, company -> мягкое ограничение, сортировка по дате, максимум 5
+// - suggestEvents - подборка по загруженным событиям: mood -> категории, budget -> цена, company -> мягкое ограничение, сортировка по дате, максимум 5
 // - buildShareText - numbered share text for the result events
 // - WheretoView - presentational wizard by step
 // - WheretoPage - route container: wizard state + share wiring
 // END_MODULE_MAP
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Event, EventCategory, WheretoBudget, WheretoCompany, WheretoMood, WheretoQuery } from "@max-events/api-contracts";
-import { mockEvents } from "../api/mock";
+import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
 import { useRoute } from "../routing/router";
@@ -32,7 +32,7 @@ export const BUDGET_LABELS: Record<WheretoBudget, string> = { any: "Любой",
 
 export type WheretoState = { step: "company" } | { step: "context"; company: WheretoCompany; mood: WheretoMood | null; budget: WheretoBudget | null } | { step: "result"; query: WheretoQuery };
 
-/** Mock-эвристика до P1-4-b: у фикстур нет тегов компании/настроения, категории и цена подобраны под контекст. */
+/** Эвристика до backend whereto API: категории и цена подобраны под контекст. */
 export function suggestEvents(events: Event[], query: WheretoQuery): Event[] {
   const moodCategories: Record<WheretoMood, EventCategory[]> = { active: ["sport", "tourism"], calm: ["afisha"], unusual: ["volunteering", "tourism"] };
   return events
@@ -158,7 +158,20 @@ export function WheretoPage() {
   const { navigate } = useRoute();
   const [state, setState] = useState<WheretoState>({ step: "company" });
   const [shared, setShared] = useState<ShareChannel | null>(null);
-  const events = state.step === "result" ? suggestEvents(mockEvents, state.query) : [];
+  const [loaded, setLoaded] = useState<Event[]>([]);
+  useEffect(() => {
+    let alive = true;
+    apiClient.listEvents().then(
+      (list) => {
+        if (alive) setLoaded(list);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const events = state.step === "result" ? suggestEvents(loaded, state.query) : [];
 
   return (
     <WheretoView

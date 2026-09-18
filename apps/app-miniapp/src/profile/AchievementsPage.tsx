@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Achievements screen: Instagram-style stamp grid with progress per achievement, granted stamps visually distinct.
 // SCOPE: Data via apiClient.getAchievements (mock or live); presentational rendering + profile entry link; no derivation logic (mock derives in api/mock.js).
-// DEPENDS: ../api/client.js (apiClient), ../auth/AuthContext.js, ../event/EventPage.js (DEMO_USER_ID), ../routing/router.js, @max-events/api-contracts (Achievement), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient), ../auth/AuthContext.js, ../routing/router.js, @max-events/api-contracts (Achievement), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -17,7 +17,6 @@ import { useEffect, useState } from "react";
 import type { Achievement } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { DEMO_USER_ID } from "../event/EventPage";
 import { useRoute } from "../routing/router";
 
 export type AchievementsState = { status: "loading" } | { status: "error" } | { status: "ready"; achievements: Achievement[] };
@@ -51,9 +50,10 @@ export function AchievementsView({ state }: { state: AchievementsState }) {
 
 export function AchievementsPage() {
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
   const [state, setState] = useState<AchievementsState>({ status: "loading" });
   useEffect(() => {
+    if (userId === null) return;
     let alive = true;
     setState({ status: "loading" });
     apiClient.getAchievements(userId).then(

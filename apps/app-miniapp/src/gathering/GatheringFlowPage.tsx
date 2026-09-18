@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: «Собрать компанию» flow: pick friends with their free/busy/unknown availability, propose a meeting time, launch the gathering (mock POST).
-// SCOPE: Data via apiClient.getEvent + apiClient.getFriendAvailability, local selection state, launch via apiClient.createGathering, then navigation to the gathering screen; backend P1-6-b/c/d does not exist yet.
+// SCOPE: Data via apiClient.getEvent + apiClient.getFriendAvailability(eventId), local selection state, launch via apiClient.createGathering, then navigation to the gathering screen.
 // DEPENDS: ../api/client.js (apiClient, FriendAvailability), ../routing/router.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -73,7 +73,7 @@ export function GatheringFlowPage({ eventId }: { eventId: string }) {
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
-    Promise.all([apiClient.getEvent(eventId), apiClient.getFriendAvailability()]).then(
+    Promise.all([apiClient.getEvent(eventId), apiClient.getFriendAvailability(eventId)]).then(
       ([event, friends]) => {
         if (alive) setState({ status: "ready", eventTitle: event.title, defaultMeetingAt: event.startsAt.slice(0, 16), friends });
       },

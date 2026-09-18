@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Typed fetch wrapper over the backend /api using zod contracts from @max-events/api-contracts.
-// SCOPE: Base URL resolution, typed GET/POST methods per contract, unified ApiError handling; mock-only surfaces (EventRating aggregate, CreateReview, Report) documented here.
+// SCOPE: Base URL resolution, typed GET/POST methods per contract, unified ApiError handling, x-max-init-data auth header; client-side aggregates (EventDetails, ParticipationStats, ListSummary/ListScreen, MyCityPayload) documented here.
 // DEPENDS: @max-events/api-contracts (zod), fetch (global)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -10,6 +10,7 @@
 // - ApiClient - configurable fetch wrapper with typed methods
 // - apiClient - default singleton instance
 // - ApiClient.login - POST /auth/login with raw MAX initData
+// - ApiClient.setInitData - attach the raw MAX initData sent as the x-max-init-data header on every request (backend global auth guard)
 // - EventFilters - optional catalog list filters (category/city/date)
 // - ApiClient.listEvents - GET /events with serialized filters
 // - ApiClient.listPlaces - GET /places: venues for the catalog map markers
@@ -33,12 +34,13 @@
 // - ApiClient.getAchievements - GET /users/:id/achievements: Achievement[]
 // - MyCityPayload - my-city screen aggregate: summary counters + memory points
 // - ApiClient.getMyCity - GET /users/:id/my-city
-// - ApiClient.getProfile - GET /users/:id/profile
-// - ApiClient.updateProfile - PATCH /users/:id/profile
+// - ApiClient.getProfile - GET /profile (current user)
+// - ApiClient.updateProfile - PATCH /profile (current user)
 // - CalendarEntry - calendar item: active booking enriched with its event and place
-// - ApiClient.listCalendar - GET /bookings?userId=
+// - ApiClient.listCalendar - GET /calendar: active bookings split upcoming/past by the server, flattened for the screens
+// - ApiClient.listFriends - GET /friends: friend list of the authenticated user
 // - ApiClient.getFriendsActivity - GET /friends/activity?userId=
-// - ApiClient.getFriendAvailability - GET /friends/availability: free/busy/unknown per friend
+// - ApiClient.getFriendAvailability - GET /friends/availability?eventId=: free/busy/unknown per friend
 // - CreateGathering - gathering launch payload (event + friend ids + proposed meeting time)
 // - ApiClient.createGathering - POST /gatherings
 // - ApiClient.getGathering - GET /gatherings/:id
@@ -54,7 +56,7 @@
 // - AddListItem - save-to-list payload (owner user + saved event)
 // - ApiClient.addListItem - POST /lists/:id/items with { userId, eventId }
 // - ApiClient.removeListItem - DELETE /lists/:id/items/:itemId
-// - FeedPost - impression post aggregate: author, event, text, like counter/state, comments (mock surface)
+// - FeedPost - impression post aggregate: author, event, text, like counter/state, comments
 // - FeedComment - post comment attributed to its author
 // - CreateFeedPost - impression publication payload (author, event, text)
 // - ApiClient.listFeedPosts - GET /feed[?eventId=]: posts newest first, one event for the wall
@@ -74,13 +76,13 @@
 // - REPORT_REASONS - report reason presets
 // - ReportReason - union of the report reason presets
 // - CreateReport - report submission payload (user + event + reason)
-// - Report - report entity (mock surface)
+// - Report - report entity (contract shape)
 // - ApiClient.createReport - POST /reports
 // END_MODULE_MAP
 
 import { PlacePageSchema, type PlacePage } from "@max-events/api-contracts";
-import { AchievementSchema, AuthResponseSchema, BookingSchema, CheckInSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, Friend, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Review, ReviewCategoryScores, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, BookingSchema, CalendarResponseSchema, CheckInSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -218,28 +220,16 @@ export interface CalendarEntry {
   place: Place | null;
 }
 
-const CalendarEntrySchema: ZodSchema<CalendarEntry> = {
+const FriendArraySchema: ZodSchema<Friend[]> = {
   safeParse(data: unknown) {
-    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a calendar entry" };
-    const raw = data as Record<string, unknown>;
-    const booking = BookingSchema.safeParse(raw.booking);
-    const event = EventSchema.safeParse(raw.event);
-    const place = raw.place === null ? { success: true as const, data: null } : PlaceSchema.safeParse(raw.place);
-    if (!booking.success || !event.success || !place.success) return { success: false as const, error: "invalid calendar entry" };
-    return { success: true as const, data: { booking: booking.data, event: event.data, place: place.data } };
-  },
-};
-
-const CalendarEntryArraySchema: ZodSchema<CalendarEntry[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of calendar entries" };
-    const entries: CalendarEntry[] = [];
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of friends" };
+    const friends: Friend[] = [];
     for (const item of data) {
-      const parsed = CalendarEntrySchema.safeParse(item);
+      const parsed = FriendSchema.safeParse(item);
       if (!parsed.success) return { success: false as const, error: parsed.error };
-      entries.push(parsed.data);
+      friends.push(parsed.data);
     }
-    return { success: true as const, data: entries };
+    return { success: true as const, data: friends };
   },
 };
 
@@ -466,32 +456,14 @@ export interface CreateReport {
   reason: ReportReason;
 }
 
-/** Report entity (mock surface while the backend report endpoint does not exist yet). */
-export interface Report {
-  id: string;
-  userId: string;
-  eventId: string;
-  reason: ReportReason;
-  createdAt: string;
-}
+/** Report entity (contract shape: targetType/targetId/status). */
+export type Report = ContractReport;
 
-/** Feed comment attributed to its author (mock surface while the backend impressions endpoints do not exist yet). */
-export interface FeedComment {
-  id: string;
-  author: Friend;
-  text: string;
-}
+/** Feed comment attributed to its author. */
+export type FeedComment = ContractFeedComment;
 
 /** Impression post aggregate: author, event, text, like counter/state and comments; the photo is a CSS placeholder. */
-export interface FeedPost {
-  id: string;
-  author: Friend;
-  eventId: string;
-  text: string;
-  likesCount: number;
-  likedByMe: boolean;
-  comments: FeedComment[];
-}
+export type FeedPost = ContractFeedPost;
 
 /** Impression publication payload: the author, the event the post is about and the text. */
 export interface CreateFeedPost {
@@ -502,21 +474,7 @@ export interface CreateFeedPost {
 
 const FeedPostEntitySchema: ZodSchema<FeedPost> = {
   safeParse(data: unknown) {
-    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a feed post" };
-    const raw = data as Record<string, unknown>;
-    const author = FriendSchema.safeParse(raw.author);
-    if (!author.success || typeof raw.id !== "string" || typeof raw.eventId !== "string" || typeof raw.text !== "string" || typeof raw.likesCount !== "number" || typeof raw.likedByMe !== "boolean" || !Array.isArray(raw.comments)) {
-      return { success: false as const, error: "invalid feed post" };
-    }
-    const comments: FeedComment[] = [];
-    for (const entry of raw.comments) {
-      if (typeof entry !== "object" || entry === null) return { success: false as const, error: "invalid feed post" };
-      const comment = entry as Record<string, unknown>;
-      const commentAuthor = FriendSchema.safeParse(comment.author);
-      if (!commentAuthor.success || typeof comment.id !== "string" || typeof comment.text !== "string") return { success: false as const, error: "invalid feed post" };
-      comments.push({ id: comment.id, author: commentAuthor.data, text: comment.text });
-    }
-    return { success: true as const, data: { id: raw.id, author: author.data, eventId: raw.eventId, text: raw.text, likesCount: raw.likesCount, likedByMe: raw.likedByMe, comments } };
+    return FeedPostSchema.safeParse(data);
   },
 };
 
@@ -558,12 +516,7 @@ const EventRatingSchema: ZodSchema<EventRating> = {
 
 const ReportEntitySchema: ZodSchema<Report> = {
   safeParse(data: unknown) {
-    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a report" };
-    const raw = data as Record<string, unknown>;
-    if (typeof raw.id !== "string" || typeof raw.userId !== "string" || typeof raw.eventId !== "string" || typeof raw.createdAt !== "string" || !REPORT_REASONS.includes(raw.reason as ReportReason)) {
-      return { success: false as const, error: "invalid report" };
-    }
-    return { success: true as const, data: { id: raw.id, userId: raw.userId, eventId: raw.eventId, reason: raw.reason as ReportReason, createdAt: raw.createdAt } };
+    return ReportSchema.safeParse(data);
   },
 };
 
@@ -603,7 +556,14 @@ export interface CreateMicroEvent {
 }
 
 export class ApiClient {
+  private initData: string | null = null;
+
   constructor(private readonly baseUrl: string = DEFAULT_BASE_URL) {}
+
+  /** Attach (or clear) the raw MAX initData sent as the x-max-init-data header on every request. */
+  setInitData(initData: string | null): void {
+    this.initData = initData;
+  }
 
   login(payload: AuthRequest): Promise<AuthResponse> {
     return this.request("/auth/login", AuthResponseSchema, { body: payload });
@@ -611,6 +571,9 @@ export class ApiClient {
 
   private async request<T>(path: string, schema: ZodSchema<T>, options: MethodOptions = {}): Promise<T> {
     const headers: Record<string, string> = { accept: "application/json" };
+    if (this.initData !== null) {
+      headers["x-max-init-data"] = this.initData;
+    }
     if (options.body !== undefined) {
       headers["content-type"] = "application/json";
     }
@@ -672,12 +635,12 @@ export class ApiClient {
     return this.request(`/users/${id}`, UserSchema);
   }
 
-  getProfile(userId: string): Promise<Profile> {
-    return this.request(`/users/${userId}/profile`, ProfileSchema);
+  getProfile(): Promise<Profile> {
+    return this.request("/profile", ProfileSchema);
   }
 
-  updateProfile(userId: string, payload: UpdateProfile): Promise<Profile> {
-    return this.request(`/users/${userId}/profile`, ProfileSchema, { method: "PATCH", body: payload });
+  updateProfile(payload: UpdateProfile): Promise<Profile> {
+    return this.request("/profile", ProfileSchema, { method: "PATCH", body: payload });
   }
 
   getPlace(id: string): Promise<Place> {
@@ -734,16 +697,21 @@ export class ApiClient {
     return this.request(`/users/${userId}/my-city`, MyCityPayloadSchema);
   }
 
-  listCalendar(userId: string): Promise<CalendarEntry[]> {
-    return this.request(`/bookings?userId=${encodeURIComponent(userId)}`, CalendarEntryArraySchema);
+  async listCalendar(): Promise<CalendarEntry[]> {
+    const response = await this.request("/calendar", CalendarResponseSchema);
+    return [...response.upcoming, ...response.past];
+  }
+
+  listFriends(): Promise<Friend[]> {
+    return this.request("/friends", FriendArraySchema);
   }
 
   getFriendsActivity(userId: string): Promise<FriendActivityByFriend[]> {
     return this.request(`/friends/activity?userId=${encodeURIComponent(userId)}`, FriendActivityArraySchema);
   }
 
-  getFriendAvailability(): Promise<FriendAvailability[]> {
-    return this.request("/friends/availability", FriendAvailabilityArraySchema);
+  getFriendAvailability(eventId: string): Promise<FriendAvailability[]> {
+    return this.request(`/friends/availability?eventId=${encodeURIComponent(eventId)}`, FriendAvailabilityArraySchema);
   }
 
   createGathering(payload: CreateGathering): Promise<Gathering> {

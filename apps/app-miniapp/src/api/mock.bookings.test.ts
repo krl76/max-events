@@ -105,7 +105,7 @@ describe("calendar mock endpoint", () => {
     const target = mockEvents.find((item) => item.placeId !== null)!;
     const booking = await api.createBooking({ userId: DEMO_USER_ID, eventId: target.id });
 
-    const entries = await api.listCalendar(DEMO_USER_ID);
+    const entries = await api.listCalendar();
 
     expect(entries).toHaveLength(1);
     expect(entries[0].booking.id).toBe(booking.id);
@@ -120,7 +120,7 @@ describe("calendar mock endpoint", () => {
 
     await api.cancelBooking(booking.id);
 
-    expect(await api.listCalendar(DEMO_USER_ID)).toHaveLength(0);
+    expect(await api.listCalendar()).toHaveLength(0);
   });
 
   it("keeps other users' bookings out of the list", async () => {
@@ -128,7 +128,7 @@ describe("calendar mock endpoint", () => {
     const api = new ApiClient("/api");
     await api.createBooking({ userId: "a0000000-0000-4000-8000-000000000002", eventId: mockEvents[0].id });
 
-    expect(await api.listCalendar(DEMO_USER_ID)).toHaveLength(0);
+    expect(await api.listCalendar()).toHaveLength(0);
   });
 
   it("matches the pure calendarEntries helper", async () => {
@@ -137,6 +137,6 @@ describe("calendar mock endpoint", () => {
     const target = mockEvents.find((item) => item.placeId !== null)!;
     await api.createBooking({ userId: DEMO_USER_ID, eventId: target.id });
 
-    expect(await api.listCalendar(DEMO_USER_ID)).toEqual(calendarEntries(DEMO_USER_ID));
+    expect(await api.listCalendar()).toEqual(calendarEntries(DEMO_USER_ID));
   });
 });
