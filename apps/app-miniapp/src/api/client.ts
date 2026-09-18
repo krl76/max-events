@@ -45,6 +45,9 @@
 // - ApiClient.createGathering - POST /gatherings
 // - ApiClient.getGathering - GET /gatherings/:id
 // - ApiClient.getToday - GET /today: "What to do today?" digest (summary + typed-label cards)
+// - ApiClient.getNearbyTimeline - GET /nearby?latitude=&longitude=: four-bucket nearby timeline (NearbyTimeline)
+// - ApiClient.getLeisureOptions - GET /nearby/free?hours=&mood=&latitude=&longitude=: leisure chains for a free window
+// - LeisureQuery - free-window leisure payload (hours 1..8, mood, coordinates)
 // - ApiClient.listPlans - GET /plans: plan cards (plan + event + distance to the meeting point)
 // - ApiClient.getPlan - GET /plans/:id: single plan card
 // - ListSummary - lists screen aggregate: list + item count + id of the item saving the checked event (null when not saved) + participants (shared collections, mock)
@@ -80,9 +83,9 @@
 // - ApiClient.createReport - POST /reports
 // END_MODULE_MAP
 
-import { PlacePageSchema, type PlacePage } from "@max-events/api-contracts";
+import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, type PlacePage } from "@max-events/api-contracts";
 import { AchievementSchema, AuthResponseSchema, BookingSchema, CalendarResponseSchema, CheckInSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -546,6 +549,27 @@ const MicroEventArraySchema: ZodSchema<MicroEvent[]> = {
   },
 };
 
+const LeisureOptionArraySchema: ZodSchema<LeisureOption[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of leisure options" };
+    const options: LeisureOption[] = [];
+    for (const item of data) {
+      const parsed = LeisureOptionSchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      options.push(parsed.data);
+    }
+    return { success: true as const, data: options };
+  },
+};
+
+/** Free-window leisure query: hours 1..8 plus the mood. */
+export interface LeisureQuery {
+  hours: number;
+  mood: LeisureMood;
+  latitude: number;
+  longitude: number;
+}
+
 /** Micro-event creation payload: the author plus what/when/where (exactly one of locationText/placeId) and the participant limit. */
 export interface CreateMicroEvent {
   userId: string;
@@ -725,6 +749,16 @@ export class ApiClient {
 
   getToday(): Promise<TodayResponse> {
     return this.request("/today", TodayResponseSchema);
+  }
+
+  getNearbyTimeline(latitude: number, longitude: number): Promise<NearbyTimeline> {
+    const query = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude) });
+    return this.request(`/nearby?${query.toString()}`, NearbyTimelineSchema);
+  }
+
+  getLeisureOptions(query: LeisureQuery): Promise<LeisureOption[]> {
+    const params = new URLSearchParams({ hours: String(query.hours), mood: query.mood, latitude: String(query.latitude), longitude: String(query.longitude) });
+    return this.request(`/nearby/free?${params.toString()}`, LeisureOptionArraySchema);
   }
 
   listPlans(): Promise<PlanCard[]> {
