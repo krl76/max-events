@@ -45,4 +45,8 @@ describe("routeFromStartParam", () => {
   it("keeps the nearby screen out of start_param deep links", () => {
     expect(routeFromStartParam("nearby")).toEqual({ name: "home" });
   });
+
+  it("keeps the day-route screen out of start_param deep links", () => {
+    expect(routeFromStartParam("day-route")).toEqual({ name: "home" });
+  });
 });

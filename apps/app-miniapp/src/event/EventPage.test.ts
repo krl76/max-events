@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { EventDetailsView, PARTICIPATION_STATUS_LABELS, ParticipationView } from "./EventPage";
+import { AutoPlanEntry, EventDetailsView, PARTICIPATION_STATUS_LABELS, ParticipationView } from "./EventPage";
 import type { EventDetails, ParticipationStats } from "../api/client";
 import { mockEvents, mockOrganizers, mockPlaces } from "../api/mock";
 import type { Event, ParticipationStatus, Place } from "@max-events/api-contracts";
@@ -115,7 +115,6 @@ describe("payment link button", () => {
 });
 
 const ZERO_COUNTS: Record<ParticipationStatus, number> = { wants_to_go: 0, probably_going: 0, going: 0, looking_for_company: 0, looking_for_travel_buddy: 0, looking_for_after_event_company: 0 };
-
 function statsFor(overrides: Partial<ParticipationStats> = {}): ParticipationStats {
   return { counts: { ...ZERO_COUNTS }, friendsCount: 0, myStatus: null, ...overrides };
 }
@@ -161,5 +160,15 @@ describe("ParticipationView", () => {
 
     expect(html).not.toContain("Ищут компанию:");
     expect(html).not.toContain("Твои знакомые");
+  });
+});
+
+describe("AutoPlanEntry", () => {
+  it("offers «Собрать план» only in the booked state", () => {
+    const booked = renderToStaticMarkup(createElement(AutoPlanEntry, { activeBookingId: "e0000000-0000-4000-8000-000000000001", eventId: paid.id }));
+    expect(booked).toContain("Собрать план");
+
+    const notBooked = renderToStaticMarkup(createElement(AutoPlanEntry, { activeBookingId: null, eventId: paid.id }));
+    expect(notBooked).not.toContain("Собрать план");
   });
 });

@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Plans list screen: plan cards per the README example (event, «Ты + N друзей», «Сбор <время> <место>», «<расстояние> от тебя»).
 // SCOPE: Data via apiClient.listPlans (mock or live); presentational rendering; navigation to the plan screen; no budget (P4-8) and no route (P3-2/3-3).
-// DEPENDS: ../api/client.js (apiClient), ../routing/router.js, @max-events/api-contracts (PlanCard, Plan), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient), ../routing/router.js, @max-events/api-contracts (PlanCard, Plan), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -12,7 +12,7 @@
 // - planMeetingLabel - «Сбор <время> <место>» line shared by the card and the plan screen
 // - PlansState - union of plans fetch states (loading / error / ready)
 // - PlansView - presentational: one card per plan per the README example
-// - PlansPage - route container: loads the plan list
+// - PlansPage - route container: loads the plan list, entry to the day route builder
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
@@ -20,6 +20,7 @@ import type { Plan, PlanCard } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { AppButton } from "../ui/primitives";
 
 export function planParticipantsLabel(count: number): string {
   const mod10 = count % 10;
@@ -84,5 +85,12 @@ export function PlansPage() {
       alive = false;
     };
   }, []);
-  return <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} />;
+  return (
+    <>
+      <AppButton onClick={() => navigate({ name: "day-route" })} stretched tone="secondary">
+        Маршрут на день
+      </AppButton>
+      <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} />
+    </>
+  );
 }

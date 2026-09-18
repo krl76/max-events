@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Event details page: full event fields, booking button states (book / booked / sold out), external payment link, participation status selector and counters.
+// PURPOSE: Event details page: full event fields, booking button states (book / booked / sold out), external payment link, participation status selector and counters, «Собрать план» autoplan entry once booked.
 // SCOPE: Data via apiClient.getEventDetails (mock or live), booking create/cancel through apiClient, waitlist section when sold out, payment via openExternalLink, participation stats/status write via apiClient, post-event review section and report button; no navigation logic.
-// DEPENDS: ../api/client.js (apiClient, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./SaveToList.js (SaveToList), ./ReviewSection.js (ReviewSection), ./ReportButton.js (ReportButton), ./WaitlistSection.js (WaitlistSection), ../feed/FeedPage.js (FeedSection), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./SaveToList.js (SaveToList), ./ReviewSection.js (ReviewSection), ./ReportButton.js (ReportButton), ./WaitlistSection.js (WaitlistSection), ../plans/AutoPlanSection.js (AutoPlanSection), ../feed/FeedPage.js (FeedSection), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -9,6 +9,7 @@
 // - EventDetailsState - union of details fetch states (loading / error / ready)
 // - EventDetailsView - presentational: media, title, meta rows (place title opens the place page), description, booking CTA, check-in button, buy button
 // - EventPage - route container: resolves the user id from the auth context (loading until authenticated), wires booking/check-in actions and the payment link, entry to the gathering flow
+// - AutoPlanEntry - «Собрать план» autoplan section gate: rendered only with an active booking
 // - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
 // - ParticipationView - presentational: status chip selector, clear button, status counters and friends count
 // - ParticipationSection - container: loads participation stats via apiClient and wires set/clear actions
@@ -29,6 +30,7 @@ import { FeedSection } from "../feed/FeedPage";
 import { ReviewSection } from "./ReviewSection";
 import { ReportButton } from "./ReportButton";
 import { WaitlistSection } from "./WaitlistSection";
+import { AutoPlanSection } from "../plans/AutoPlanSection";
 
 export type EventDetailsState = { status: "loading" } | { status: "error" } | { status: "ready"; details: EventDetails };
 
@@ -283,6 +285,11 @@ export function ParticipationSection({ eventId, userId }: { eventId: string; use
   return <ParticipationView stats={stats} onSet={setStatus} onClear={clear} />;
 }
 
+export function AutoPlanEntry({ activeBookingId, eventId }: { activeBookingId: string | null; eventId: string }) {
+  if (activeBookingId === null) return null;
+  return <AutoPlanSection eventId={eventId} />;
+}
+
 export function EventPage({ id }: { id: string }) {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
@@ -309,6 +316,7 @@ export function EventPage({ id }: { id: string }) {
   return (
     <>
       <EventDetailsView details={state.details} onBook={book} onCancel={cancel} onCheckIn={checkIn} onBuy={openExternalLink} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} />
+      <AutoPlanEntry activeBookingId={state.details.activeBookingId} eventId={id} />
       {state.details.remainingSeats === 0 && state.details.activeBookingId === null && <WaitlistSection eventId={id} userId={userId} onChanged={refetch} />}
       <SaveToList eventId={id} userId={userId} />
       <section className="app-event">

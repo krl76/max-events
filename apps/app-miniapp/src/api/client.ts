@@ -50,6 +50,9 @@
 // - LeisureQuery - free-window leisure payload (hours 1..8, mood, coordinates)
 // - ApiClient.listPlans - GET /plans: plan cards (plan + event + distance to the meeting point)
 // - ApiClient.getPlan - GET /plans/:id: single plan card
+// - ApiClient.createAutoPlan - POST /plans/auto: saved draft plan + travel minutes + food picks + dinner->road->meetup->event timeline
+// - ApiClient.createDayRoute - POST /routes: day route timeline from 2..8 event/place stops with walking legs
+// - ApiClient.optimizeDayRoute - POST /routes/optimize: same stops reordered with saved minutes/km
 // - ListSummary - lists screen aggregate: list + item count + id of the item saving the checked event (null when not saved) + participants (shared collections, mock)
 // - ApiClient.listLists - GET /lists?userId=[&eventId=]: preset lists with counters
 // - ListItemCard - list screen aggregate: list item enriched with its event and the participant who added it (null outside shared collections)
@@ -84,8 +87,8 @@
 // END_MODULE_MAP
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, type PlacePage } from "@max-events/api-contracts";
-import { AchievementSchema, AuthResponseSchema, BookingSchema, CalendarResponseSchema, CheckInSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, DayRoute, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -767,6 +770,18 @@ export class ApiClient {
 
   getPlan(id: string): Promise<PlanCard> {
     return this.request(`/plans/${id}`, PlanCardEntitySchema);
+  }
+
+  createAutoPlan(eventId: string, latitude: number, longitude: number): Promise<AutoPlanProposal> {
+    return this.request("/plans/auto", AutoPlanProposalSchema, { body: { eventId, latitude, longitude } });
+  }
+
+  createDayRoute(stops: RouteStopWrite[], latitude?: number, longitude?: number): Promise<DayRoute> {
+    return this.request("/routes", DayRouteSchema, { body: { stops, latitude, longitude } });
+  }
+
+  optimizeDayRoute(stops: RouteStopWrite[], latitude?: number, longitude?: number): Promise<OptimizeRoute> {
+    return this.request("/routes/optimize", OptimizeRouteSchema, { body: { stops, latitude, longitude } });
   }
 
   listLists(userId: string, eventId?: string): Promise<ListSummary[]> {

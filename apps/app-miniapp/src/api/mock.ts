@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports, UGC micro-events, the place social page and the nearby timeline/leisure surface while backend endpoints (M2–M5, P2) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings, FIFO waitlist with timed confirmation offers, check-ins, profiles, plan cards, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, CreateBookingSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema)
+// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings, FIFO waitlist with timed confirmation offers, check-ins, profiles, plan cards, autoplan drafts, day routes, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, AutoPlanProposal, DayRoute, OptimizeRoute, RoutePoint, CreateBookingSchema, CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - mockPlaces - 4 Moscow venue fixtures
+// - mockPlaces - Moscow venue fixtures (incl. two food spots — Депо and the Gorky Park food court feeding the autoplan food picks)
 // - mockEvents - Moscow event fixtures (all four categories, paid and free, incl. two past events for the review flow, one event "today" for the place page, two MOCK_TODAY daytime events filling the nearby now/inAnHour buckets)
 // - MOCK_TODAY - the fixed demo "today" (Moscow day key) the place page fixtures are curated for
 // - MOCK_NOW - the fixed demo "now" (noon of MOCK_TODAY) the nearby timeline buckets and leisure window are computed from
@@ -32,8 +32,12 @@
 // - createMockGathering - in-memory gathering with deterministic invitee responses (mock POST)
 // - resetMockGatherings - clear in-memory gatherings (test isolation)
 // - mockPlans - plan card fixtures for the plans list and plan screens (backend P1-7-b does not exist yet)
+// - resetMockPlans - restore seeded plan cards, dropping autoplan drafts (test isolation)
 // - planCards - plan fixtures sorted by the soonest meeting first
 // - planCard - single plan card by plan id (or null)
+// - createMockAutoPlan - autoplan after «Пойду»: saved draft plan + walk estimate + food picks + dinner->road->meetup->event timeline (mock POST /plans/auto, backend parity)
+// - buildMockDayRoute - resolve 2..8 event/place stops to points and haversine walking legs (mock POST /routes, backend parity)
+// - optimizeMockDayRoute - keep-first permutation minimizing the total distance, with savings (mock POST /routes/optimize)
 // - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt)
 // - LIST_PRESET_TITLES - ru titles of the six preset lists (mock seeds them as List.title)
 // - SHARED_LIST_ID - id of the seeded shared collection of the demo user and the first friend
@@ -68,11 +72,11 @@
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans, /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today and /api/nearby[/free], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today and /api/nearby[/free], return a restore function
 // END_MODULE_MAP
 
-import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, Participation, ParticipationStatus, Place, PlacePage, PlanCard, Profile, Review, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
-import { CreateBookingSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import type { Achievement, AutoPlanProposal, AutoPlanTimelineEntry, Booking, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, DayRoute, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Place, PlacePage, PlanCard, Profile, Review, RouteLeg, RoutePoint, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
+import { CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -81,7 +85,7 @@ function place(input: Omit<Place, "createdAt" | "updatedAt">): Place {
   return { ...input, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
 }
 
-export const mockPlaces: Place[] = [place({ id: "b0000001-0000-4000-8000-000000000001", title: "Парк Горького", address: "Крымский Вал, 9", city: "Москва", category: "park", latitude: 55.7298, longitude: 37.6019 }), place({ id: "b0000002-0000-4000-8000-000000000002", title: "ГМИИ им. А. С. Пушкина", address: "ул. Волхонка, 12", city: "Москва", category: "museum", latitude: 55.7447, longitude: 37.6055 }), place({ id: "b0000003-0000-4000-8000-000000000003", title: "«Лужники»", address: "Лужнецкая набережная, 24", city: "Москва", category: "sport", latitude: 55.7158, longitude: 37.5543 }), place({ id: "b0000004-0000-4000-8000-000000000004", title: "Депо. Москва", address: "Тверская Застава, 1", city: "Москва", category: "food", latitude: 55.7758, longitude: 37.5936 })];
+export const mockPlaces: Place[] = [place({ id: "b0000001-0000-4000-8000-000000000001", title: "Парк Горького", address: "Крымский Вал, 9", city: "Москва", category: "park", latitude: 55.7298, longitude: 37.6019 }), place({ id: "b0000002-0000-4000-8000-000000000002", title: "ГМИИ им. А. С. Пушкина", address: "ул. Волхонка, 12", city: "Москва", category: "museum", latitude: 55.7447, longitude: 37.6055 }), place({ id: "b0000003-0000-4000-8000-000000000003", title: "«Лужники»", address: "Лужнецкая набережная, 24", city: "Москва", category: "sport", latitude: 55.7158, longitude: 37.5543 }), place({ id: "b0000004-0000-4000-8000-000000000004", title: "Депо. Москва", address: "Тверская Застава, 1", city: "Москва", category: "food", latitude: 55.7758, longitude: 37.5936 }), place({ id: "b0000005-0000-4000-8000-000000000005", title: "Фудкорт «Веранда» у Парка Горького", address: "Крымский Вал, 2", city: "Москва", category: "food", latitude: 55.7315, longitude: 37.604 })];
 
 type EventInput = Pick<Event, "id" | "title" | "category" | "city" | "startsAt" | "isPaid" | "priceRub"> & Partial<Event>;
 
@@ -254,6 +258,16 @@ export const mockPlans: PlanCard[] = [
     distanceMeters: 1200,
   },
 ];
+
+const MOCK_PLAN_SEED = [...mockPlans];
+let mockPlanSeq = MOCK_PLAN_SEED.length;
+
+/** Restore the seeded plan cards, dropping autoplan drafts (test isolation). */
+export function resetMockPlans(): void {
+  mockPlans.length = 0;
+  mockPlans.push(...MOCK_PLAN_SEED);
+  mockPlanSeq = MOCK_PLAN_SEED.length;
+}
 
 /** Plans of the demo user enriched with event and distance, soonest meeting first. */
 export function planCards(): PlanCard[] {
@@ -1069,6 +1083,140 @@ function parseBookingBody(init?: RequestInit): Record<string, unknown> | undefin
   }
 }
 
+// Backend plans.service parity: walking pace, food radius and the dinner->road->meetup->event buffers.
+const WALK_M_PER_MIN = 80;
+const FOOD_RADIUS_KM = 2;
+const MEETUP_BUFFER_MIN = 20;
+const DINNER_MIN = 70;
+
+function walkingMinutes(meters: number): number {
+  return Math.max(0, Math.round(meters / WALK_M_PER_MIN));
+}
+
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  return Math.round(haversineKm(lat1, lon1, lat2, lon2) * 1000);
+}
+
+/** Autoplan after «Пойду» (mock POST /plans/auto, backend generateAutoplan parity): walk estimate to the venue, up to 3 nearest food places within 2 km, the dinner->road->meetup->event timeline and a persisted draft plan card; "no_event" maps to 404 in the interceptor. */
+export function createMockAutoPlan(payload: CreateAutoPlanWrite): AutoPlanProposal | "no_event" {
+  const event = mockEvents.find((item) => item.id === payload.eventId);
+  if (!event) return "no_event";
+  const venue = event.placeId === null ? null : (mockPlaces.find((item) => item.id === event.placeId) ?? null);
+  const meters = venue === null ? 0 : haversineMeters(payload.latitude, payload.longitude, venue.latitude, venue.longitude);
+  const travelMinutes = walkingMinutes(meters);
+  const foodPlaces =
+    venue === null
+      ? []
+      : mockPlaces
+          .filter((item) => item.category === "food")
+          .map((item) => ({ item, km: haversineKm(venue.latitude, venue.longitude, item.latitude, item.longitude) }))
+          .filter((row) => row.km <= FOOD_RADIUS_KM)
+          .sort((a, b) => a.km - b.km)
+          .slice(0, 3)
+          .map((row) => row.item);
+  const startsAt = new Date(event.startsAt);
+  const meetupAt = new Date(startsAt.getTime() - (travelMinutes + MEETUP_BUFFER_MIN) * 60_000);
+  const dinnerAt = new Date(meetupAt.getTime() - DINNER_MIN * 60_000);
+  const meetingPoint = foodPlaces[0]?.title ?? venue?.address ?? event.city;
+  const now = new Date().toISOString();
+  mockPlanSeq += 1;
+  const card: PlanCard = {
+    plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, eventId: event.id, participants: [], meetingPoint, meetingAt: meetupAt.toISOString(), createdAt: now, updatedAt: now },
+    event,
+    distanceMeters: meters,
+  };
+  mockPlans.push(card);
+  const timeline: AutoPlanTimelineEntry[] = [];
+  if (foodPlaces[0]) timeline.push({ at: dinnerAt.toISOString(), label: "ужин", detail: foodPlaces[0].title });
+  timeline.push({ at: meetupAt.toISOString(), label: "дорога", detail: `${travelMinutes} мин до места` });
+  timeline.push({ at: meetupAt.toISOString(), label: "встреча", detail: meetingPoint });
+  timeline.push({ at: startsAt.toISOString(), label: "событие", detail: event.title });
+  return { plan: card, travelMinutes, foodPlaces, timeline };
+}
+
+type MockRouteError = "no_event" | "no_place" | "event_without_place";
+
+/** Resolve event/place stops to route points from fixtures (backend RoutesService.resolve parity); the optional origin becomes the «Старт» point. */
+function mockRoutePoints(payload: CreateDayRouteWrite): RoutePoint[] | MockRouteError {
+  const points: RoutePoint[] = [];
+  for (const stop of payload.stops) {
+    if (stop.eventId != null) {
+      const event = mockEvents.find((item) => item.id === stop.eventId);
+      if (!event) return "no_event";
+      if (event.placeId === null) return "event_without_place";
+      const place = mockPlaces.find((item) => item.id === event.placeId);
+      if (!place) return "no_place";
+      points.push({ title: event.title, at: new Date(event.startsAt).toISOString(), latitude: place.latitude, longitude: place.longitude, eventId: event.id, placeId: place.id });
+    } else {
+      const place = mockPlaces.find((item) => item.id === stop.placeId);
+      if (!place) return "no_place";
+      points.push({ title: place.title, at: null, latitude: place.latitude, longitude: place.longitude, eventId: null, placeId: place.id });
+    }
+  }
+  if (payload.latitude !== undefined && payload.longitude !== undefined) {
+    points.unshift({ title: "Старт", at: null, latitude: payload.latitude, longitude: payload.longitude, eventId: null, placeId: null });
+  }
+  return points;
+}
+
+/** Ordered points -> walking legs and totals (backend toDayRoute parity). */
+function mockDayRoute(points: RoutePoint[]): DayRoute {
+  const legs: RouteLeg[] = [];
+  let totalMeters = 0;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const from = points[index];
+    const to = points[index + 1];
+    const meters = haversineMeters(from.latitude, from.longitude, to.latitude, to.longitude);
+    totalMeters += meters;
+    legs.push({ fromTitle: from.title, toTitle: to.title, travelMinutes: walkingMinutes(meters), distanceKm: Math.round((meters / 1000) * 10) / 10 });
+  }
+  return { points, legs, totalMinutes: walkingMinutes(totalMeters), totalKm: Math.round((totalMeters / 1000) * 10) / 10 };
+}
+
+function mockRouteMeters(points: RoutePoint[]): number {
+  let sum = 0;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    sum += haversineMeters(points[index].latitude, points[index].longitude, points[index + 1].latitude, points[index + 1].longitude);
+  }
+  return sum;
+}
+
+function mockPermutations<T>(items: T[]): T[][] {
+  if (items.length <= 1) return [items];
+  const result: T[][] = [];
+  items.forEach((item, index) => {
+    const rest = items.filter((_, i) => i !== index);
+    for (const perm of mockPermutations(rest)) result.push([item, ...perm]);
+  });
+  return result;
+}
+
+/** Day route from 2..8 stops (mock POST /routes); error tags map to 404/400 in the interceptor. */
+export function buildMockDayRoute(payload: CreateDayRouteWrite): DayRoute | MockRouteError {
+  const points = mockRoutePoints(payload);
+  return typeof points === "string" ? points : mockDayRoute(points);
+}
+
+/** Optimized day route: brute-force permutation of the stops after the first (mock POST /routes/optimize, ≤8 stops per contract, so ≤5040 candidates). */
+export function optimizeMockDayRoute(payload: CreateDayRouteWrite): OptimizeRoute | MockRouteError {
+  const points = mockRoutePoints(payload);
+  if (typeof points === "string") return points;
+  const original = mockDayRoute(points);
+  const [head, ...tail] = points;
+  let best = points;
+  let bestMeters = mockRouteMeters(points);
+  for (const perm of mockPermutations(tail)) {
+    const candidate = [head, ...perm];
+    const meters = mockRouteMeters(candidate);
+    if (meters < bestMeters) {
+      best = candidate;
+      bestMeters = meters;
+    }
+  }
+  const optimized = mockDayRoute(best);
+  return { original, optimized, savedMinutes: original.totalMinutes - optimized.totalMinutes, savedKm: Math.round((original.totalKm - optimized.totalKm) * 10) / 10 };
+}
+
 export function installMockApi(): () => void {
   const real = globalThis.fetch;
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -1223,6 +1371,28 @@ export function installMockApi(): () => void {
     if (gathering) {
       const found = mockGatherings.get(gathering[1]);
       return found ? Response.json(found) : new Response(null, { status: 404 });
+    }
+    if (url.pathname === "/api/plans/auto" && init?.method === "POST") {
+      const parsed = CreateAutoPlanWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const proposal = createMockAutoPlan(parsed.data);
+      return proposal === "no_event" ? new Response(null, { status: 404 }) : Response.json(proposal);
+    }
+    if (url.pathname === "/api/routes" && init?.method === "POST") {
+      const parsed = CreateDayRouteWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const route = buildMockDayRoute(parsed.data);
+      if (route === "no_event" || route === "no_place") return new Response(null, { status: 404 });
+      if (route === "event_without_place") return new Response(null, { status: 400 });
+      return Response.json(route);
+    }
+    if (url.pathname === "/api/routes/optimize" && init?.method === "POST") {
+      const parsed = CreateDayRouteWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const result = optimizeMockDayRoute(parsed.data);
+      if (result === "no_event" || result === "no_place") return new Response(null, { status: 404 });
+      if (result === "event_without_place") return new Response(null, { status: 400 });
+      return Response.json(result);
     }
     if (url.pathname === "/api/plans") {
       return Response.json(planCards());
