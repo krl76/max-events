@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports, UGC micro-events, the place social page and the nearby timeline/leisure surface while backend endpoints (M2–M5, P2) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings, FIFO waitlist with timed confirmation offers, check-ins, profiles, plan cards, autoplan drafts, day routes, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, AutoPlanProposal, DayRoute, OptimizeRoute, RoutePoint, CreateBookingSchema, CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema)
+// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings, FIFO waitlist with timed confirmation offers, check-ins, profiles, plan cards, autoplan drafts, day routes, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, NL assist with deterministic criteria parsing, history/partner explanations, Saturday stops and rate-limit parity, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, AutoPlanProposal, DayRoute, OptimizeRoute, RoutePoint, AssistCriteria, AssistQueryWrite, AssistResponse, AssistPick, AssistDayResponse, CreateBookingSchema, CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema, AssistQueryWriteSchema)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -38,6 +38,13 @@
 // - createMockAutoPlan - autoplan after «Пойду»: saved draft plan + walk estimate + food picks + dinner->road->meetup->event timeline (mock POST /plans/auto, backend parity)
 // - buildMockDayRoute - resolve 2..8 event/place stops to points and haversine walking legs (mock POST /routes, backend parity)
 // - optimizeMockDayRoute - keep-first permutation minimizing the total distance, with savings (mock POST /routes/optimize)
+// - MOCK_ASSIST_RATE_LIMIT - assist rate limit (backend AssistRateLimiter parity: 20 hits / 10 min)
+// - resetMockAssist - clear the assist rate-limit window (test isolation)
+// - mockParseAssistQuery - deterministic NL criteria heuristics (backend parse-nl parity)
+// - mockAssistMatches - criteria matching over fixtures from MOCK_NOW, max 7 (backend matchAssistEvents parity)
+// - mockAssistSuggest - explained picks with history/partner explanations (mock POST /assist, backend AssistService.suggest parity)
+// - mockAssistSaturdayKey - next Saturday (today counts) Moscow day key from MOCK_NOW (backend nextSaturdayKey parity)
+// - mockAssistDay - Saturday stops + planDraft, plan persisted when save=true (mock POST /assist/day, backend planSaturday parity)
 // - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt)
 // - LIST_PRESET_TITLES - ru titles of the six preset lists (mock seeds them as List.title)
 // - SHARED_LIST_ID - id of the seeded shared collection of the demo user and the first friend
@@ -72,11 +79,11 @@
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today and /api/nearby[/free], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free] and /api/assist[/day], return a restore function
 // END_MODULE_MAP
 
-import type { Achievement, AutoPlanProposal, AutoPlanTimelineEntry, Booking, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, DayRoute, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Place, PlacePage, PlanCard, Profile, Review, RouteLeg, RoutePoint, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
-import { CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, DayRoute, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Place, PlacePage, PlanCard, Profile, Review, RouteLeg, RoutePoint, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -1217,6 +1224,141 @@ export function optimizeMockDayRoute(payload: CreateDayRouteWrite): OptimizeRout
   return { original, optimized, savedMinutes: original.totalMinutes - optimized.totalMinutes, savedKm: Math.round((original.totalKm - optimized.totalKm) * 10) / 10 };
 }
 
+/** Backend AssistRateLimiter parity: 20 hits per 10 minutes per user (the mock serves the single demo user). */
+export const MOCK_ASSIST_RATE_LIMIT = 20;
+const MOCK_ASSIST_RATE_WINDOW_MS = 10 * 60 * 1000;
+const mockAssistHits: number[] = [];
+
+/** Clear the in-memory assist rate-limit window (test isolation). */
+export function resetMockAssist(): void {
+  mockAssistHits.length = 0;
+}
+
+function mockAssistRateHit(now: number = Date.now()): boolean {
+  const cutoff = now - MOCK_ASSIST_RATE_WINDOW_MS;
+  while (mockAssistHits.length > 0 && mockAssistHits[0] <= cutoff) mockAssistHits.shift();
+  if (mockAssistHits.length >= MOCK_ASSIST_RATE_LIMIT) return false;
+  mockAssistHits.push(now);
+  return true;
+}
+
+/** Backend sanitizeAssistQuery parity: strip injection wrappers; empty after sanitize is invalid. */
+function mockSanitizeAssistQuery(raw: string): string {
+  return raw
+    .replace(/ignore\s+(all\s+)?(previous|prior|above)\s+instructions?/gi, " ")
+    .replace(/system\s*:/gi, " ")
+    .replace(/<\|[\s\S]*?\|>/g, " ")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/^[.\s,:;-]+/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Backend parseAssistQuery parity: deterministic NL heuristics (числа→budget, «вечером»→evening, «с девушкой»→partner, «музыка»→music). */
+export function mockParseAssistQuery(query: string): AssistCriteria {
+  const text = query.toLowerCase();
+  const when: AssistCriteria["when"] = text.includes("вечер") ? "evening" : text.includes("утр") ? "morning" : text.includes("днём") || text.includes("днем") || text.includes("обед") ? "afternoon" : "any";
+  const budgetMatch = /(\d[\d\s]*)\s*(₽|руб)/i.exec(text);
+  const budget = budgetMatch ? Number(budgetMatch[1].replace(/\s/g, "")) : NaN;
+  const company: AssistCriteria["company"] = text.includes("девушк") || text.includes("парн") || text.includes("двоем") || text.includes("вдвоём") ? "partner" : text.includes("дет") ? "kids" : text.includes("друз") || text.includes("компани") ? "friends" : "alone";
+  const genre: AssistCriteria["genre"] = text.includes("музык") || text.includes("джаз") || text.includes("концерт") ? "music" : text.includes("спорт") || text.includes("футбол") || text.includes("зал") ? "sport" : text.includes("парк") || text.includes("прогул") || text.includes("природ") ? "outdoors" : "any";
+  return { when, budgetMaxRub: Number.isFinite(budget) ? budget : null, company, genre };
+}
+
+function mockMoscowHour(startsAt: string): number {
+  const hour = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Moscow", hour: "2-digit", hourCycle: "h23" }).formatToParts(new Date(startsAt)).find((part) => part.type === "hour")?.value;
+  return Number(hour ?? "0");
+}
+
+/** Backend matchAssistEvents parity: events from MOCK_NOW filtered by the parsed criteria, soonest first, max 7 (fixtures carry no published flag). */
+export function mockAssistMatches(criteria: AssistCriteria, now: Date = MOCK_NOW): Event[] {
+  return mockEvents
+    .filter((item) => new Date(item.startsAt).getTime() >= now.getTime())
+    .filter((item) => {
+      if (criteria.when === "any") return true;
+      const hour = mockMoscowHour(item.startsAt);
+      if (criteria.when === "morning") return hour < 12;
+      if (criteria.when === "afternoon") return hour >= 12 && hour < 17;
+      return hour >= 17;
+    })
+    .filter((item) => criteria.budgetMaxRub === null || !item.isPaid || (item.priceRub !== null && item.priceRub <= criteria.budgetMaxRub))
+    .filter((item) => criteria.company !== "partner" || item.category !== "volunteering")
+    .filter((item) => {
+      if (criteria.genre === "any") return true;
+      const blob = `${item.title} ${item.description}`.toLowerCase();
+      if (criteria.genre === "music") return item.category === "afisha" || /музык|джаз|концерт|симфон|рахманин/.test(blob);
+      if (criteria.genre === "sport") return item.category === "sport";
+      return item.category === "tourism" || item.category === "volunteering";
+    })
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
+    .slice(0, 7);
+}
+
+/** Backend explainPick parity. */
+function mockAssistExplanation(fromHistory: boolean, fromPartner: boolean): string {
+  if (fromHistory && fromPartner) return "По твоей истории, и уже сохранила твоя девушка";
+  if (fromHistory) return "По твоей истории";
+  if (fromPartner) return "Уже сохранила твоя девушка";
+  return "Подходит по запросу";
+}
+
+/** Backend formatAssistSummary parity. */
+function mockAssistSummary(total: number, history: number, saved: number): string {
+  if (total === 0) return "Не нашел вариантов по запросу.";
+  return `Нашел ${total} вариантов, ${history} по твоей истории, ${saved} уже сохранила твоя девушка`;
+}
+
+type MockAssistError = "rate_limited" | "invalid" | "no_events";
+
+/** Backend AssistService.suggest parity: rate limit -> sanitize -> parse -> match -> explain from the demo check-ins and the first friend's saved items; error tags map to 429/400 in the interceptor. */
+export function mockAssistSuggest(payload: AssistQueryWrite): AssistResponse | MockAssistError {
+  if (!mockAssistRateHit()) return "rate_limited";
+  const cleaned = mockSanitizeAssistQuery(payload.query);
+  if (!cleaned) return "invalid";
+  const criteria = mockParseAssistQuery(cleaned);
+  const matched = mockAssistMatches(criteria);
+  const historyIds = new Set(mockCheckIns.filter((item) => item.userId === mockDemoUser.id && item.eventId !== null).map((item) => item.eventId as string));
+  const historyCategories = new Set(mockEvents.filter((item) => historyIds.has(item.id)).map((item) => item.category));
+  const partnerListIds = new Set(listsFor(mockFriendIds[0]).map((list) => list.id));
+  const savedIds = new Set(mockListItems.filter((item) => partnerListIds.has(item.listId) && item.eventId !== null).map((item) => item.eventId as string));
+  const items: AssistPick[] = matched.map((matchedEvent) => ({ event: matchedEvent, explanation: mockAssistExplanation(historyIds.has(matchedEvent.id) || historyCategories.has(matchedEvent.category), savedIds.has(matchedEvent.id)) }));
+  const historyCount = items.filter((row) => historyIds.has(row.event.id) || historyCategories.has(row.event.category)).length;
+  const savedCount = items.filter((row) => savedIds.has(row.event.id)).length;
+  return { summary: mockAssistSummary(items.length, historyCount, savedCount), criteria, items };
+}
+
+/** Backend nextSaturdayKey parity: next Saturday (today counts) as a Moscow YYYY-MM-DD key, from MOCK_NOW by default. */
+export function mockAssistSaturdayKey(now: Date = MOCK_NOW): string {
+  const label = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Moscow", weekday: "short" }).format(now);
+  const weekday = { Sun: 7, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 } as Record<string, number>;
+  const addDays = (6 - (weekday[label] ?? 0) + 7) % 7;
+  return moscowDateKey(new Date(now.getTime() + addDays * 86_400_000).toISOString());
+}
+
+/** Backend AssistService.planSaturday parity: up to 4 stops of the nearest Saturday + planDraft; with save=true the plan is persisted into the mock plans, plan is null otherwise; error tags map to 429/400 in the interceptor. */
+export function mockAssistDay(payload: AssistQueryWrite): AssistDayResponse | MockAssistError {
+  if (!mockAssistRateHit()) return "rate_limited";
+  const cleaned = mockSanitizeAssistQuery(payload.query);
+  if (!cleaned) return "invalid";
+  const date = mockAssistSaturdayKey();
+  const catalog = mockEvents
+    .filter((item) => moscowDateKey(item.startsAt) === date)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
+    .slice(0, 4);
+  if (catalog.length === 0) return "no_events";
+  const stops = catalog.map((stopEvent) => ({ at: stopEvent.startsAt, event: stopEvent, explanation: "Слот субботнего дня" }));
+  const first = catalog[0];
+  const planDraft = { eventId: first.id, participantIds: [] as string[], meetingPoint: first.title, meetingAt: first.startsAt };
+  let plan: PlanCard | null = null;
+  if (payload.save === true) {
+    const now = new Date().toISOString();
+    mockPlanSeq += 1;
+    plan = { plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, eventId: planDraft.eventId, participants: [], meetingPoint: planDraft.meetingPoint, meetingAt: planDraft.meetingAt, createdAt: now, updatedAt: now }, event: first, distanceMeters: 0 };
+    mockPlans.push(plan);
+  }
+  return { summary: `Собрал день на субботу ${date}: ${stops.length} событий`, date, stops, planDraft, plan };
+}
+
 export function installMockApi(): () => void {
   const real = globalThis.fetch;
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -1505,6 +1647,18 @@ export function installMockApi(): () => void {
       }
       const result = declineMockWaitlistOffer(waitlistAction[1]);
       return result === null ? new Response(null, { status: 404 }) : typeof result === "string" ? new Response(null, { status: 409 }) : Response.json(result);
+    }
+    if (url.pathname === "/api/assist/day" && init?.method === "POST") {
+      const parsed = AssistQueryWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const result = mockAssistDay(parsed.data);
+      return result === "rate_limited" ? new Response(null, { status: 429 }) : result === "invalid" || result === "no_events" ? new Response(null, { status: 400 }) : Response.json(result);
+    }
+    if (url.pathname === "/api/assist" && init?.method === "POST") {
+      const parsed = AssistQueryWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const result = mockAssistSuggest(parsed.data);
+      return result === "rate_limited" ? new Response(null, { status: 429 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
     }
     return real(input, init);
   };
