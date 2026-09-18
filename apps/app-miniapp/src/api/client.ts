@@ -86,11 +86,14 @@
 // - ApiClient.createReport - POST /reports
 // - ApiClient.assistQuery - POST /assist: NL query -> explained picks (summary + criteria + items)
 // - ApiClient.assistDay - POST /assist/day: "План на субботу" -> stops timeline + planDraft (+ persisted plan when save=true)
+// - ApiClient.getDiscovery - GET /discovery: reverse discovery summary "Твои люди открыли N мест"
+// - ApiClient.getFriendRoute - GET /discovery/friends/:userId/route: a friend's chronological route of unseen places
+// - ApiClient.getPeople - GET /people[?lat=&lng=]: people matching with shared-interest/event context (lat/lng mirror the backend parseOrigin names)
 // END_MODULE_MAP
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, type PlacePage } from "@max-events/api-contracts";
-import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, DayRoute, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanCard, Profile, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -862,6 +865,19 @@ export class ApiClient {
 
   assistDay(query: string, save?: boolean): Promise<AssistDayResponse> {
     return this.request("/assist/day", AssistDayResponseSchema, { body: { query, ...(save === undefined ? {} : { save }) } });
+  }
+
+  getDiscovery(): Promise<DiscoveryResponse> {
+    return this.request("/discovery", DiscoveryResponseSchema);
+  }
+
+  getFriendRoute(userId: string): Promise<FriendRoute> {
+    return this.request(`/discovery/friends/${encodeURIComponent(userId)}/route`, FriendRouteSchema);
+  }
+
+  getPeople(origin: { latitude: number; longitude: number } | null = null): Promise<PeopleResponse> {
+    const query = origin === null ? "" : `?${new URLSearchParams({ lat: String(origin.latitude), lng: String(origin.longitude) }).toString()}`;
+    return this.request(`/people${query}`, PeopleResponseSchema);
   }
 }
 

@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports, UGC micro-events, the place social page and the nearby timeline/leisure surface while backend endpoints (M2–M5, P2) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings, FIFO waitlist with timed confirmation offers, check-ins, profiles, plan cards, autoplan drafts, day routes, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, NL assist with deterministic criteria parsing, history/partner explanations, Saturday stops and rate-limit parity, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, AutoPlanProposal, DayRoute, OptimizeRoute, RoutePoint, AssistCriteria, AssistQueryWrite, AssistResponse, AssistPick, AssistDayResponse, CreateBookingSchema, CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema, AssistQueryWriteSchema)
+// PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports, UGC micro-events, the place social page, the nearby timeline/leisure surface, reverse discovery and people matching while backend endpoints (M2–M5, P2) do not exist yet.
+// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings, FIFO waitlist with timed confirmation offers, check-ins, seeded friend profiles (interests/privacy) and friend place visits, plan cards, autoplan drafts, day routes, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, reverse discovery of friend places the demo user has not visited, people matching on seeded interests/participations, NL assist with deterministic criteria parsing, history/partner explanations, Saturday stops and rate-limit parity, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, AutoPlanProposal, DayRoute, OptimizeRoute, RoutePoint, AssistCriteria, AssistQueryWrite, AssistResponse, AssistPick, AssistDayResponse, DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute, PeopleCandidate, PeopleMatchContext, PeopleResponse, CreateBookingSchema, CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema, AssistQueryWriteSchema, IdSchema)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -68,7 +68,10 @@
 // - confirmMockWaitlistOffer - confirm an offer into a booking on the reserved seat (mock POST /waitlist/:id/confirm)
 // - declineMockWaitlistOffer - cancel an entry; a declined offer passes the seat to the next waiting entry; confirmed/expired -> 409 (mock POST /waitlist/:id/decline)
 // - resetMockCheckIns - clear in-memory check-ins (test isolation)
-// - resetMockProfiles - clear in-memory profiles (test isolation)
+// - resetMockProfiles - restore the seeded friend profiles (test isolation)
+// - discoverySummary - per-friend unseen places minus the demo user's check-ins, privacy-gated (mock GET /discovery, backend DiscoveryService.summary parity)
+// - friendRoute - chronological unseen places of one friend; own/not-friend/hidden map to 403/404/403 (mock GET /discovery/friends/:userId/route, backend parity)
+// - peopleSuggest - mockFriends matched on seeded interests or a shared upcoming event with distances from the requested coords (mock GET /people, backend PeopleService parity)
 // - resetMockParticipations - restore seeded participations (test isolation)
 // - checkInFor - check-in of a user for an event, or null (mock state for the event page button)
 // - createMockCheckIn - in-memory check-in for an event or a place, idempotent (mock POST)
@@ -79,11 +82,11 @@
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free] and /api/assist[/day], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people and /api/assist[/day], return a restore function
 // END_MODULE_MAP
 
-import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, DayRoute, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Place, PlacePage, PlanCard, Profile, Review, RouteLeg, RoutePoint, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanCard, Profile, Review, RouteLeg, RoutePoint, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -181,6 +184,9 @@ function seedMockParticipations(): void {
     mockParticipationSeq += 1;
     mockParticipations.set(`${mockFriendIds[friend]}:${mockEvents[eventItem].id}`, { id: `f0000000-0000-4000-8000-${String(mockParticipationSeq).padStart(12, "0")}`, userId: mockFriendIds[friend], eventId: mockEvents[eventItem].id, status, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP });
   }
+  // the demo user also wants to go to the open-air cinema (Катя goes too) — backs the shared_event context of the people mock
+  mockParticipationSeq += 1;
+  mockParticipations.set(`${mockDemoUser.id}:${mockEvents[11].id}`, { id: `f0000000-0000-4000-8000-${String(mockParticipationSeq).padStart(12, "0")}`, userId: mockDemoUser.id, eventId: mockEvents[11].id, status: "wants_to_go", createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP });
 }
 seedMockParticipations();
 
@@ -1052,12 +1058,157 @@ export function placePageFor(placeId: string, userId: string, day = MOCK_TODAY):
 
 const mockProfiles = new Map<string, Profile>();
 
-export function resetMockProfiles(): void {
+/** Friend profile seeds for the discovery/people mocks: matching interests plus Лена hiding her routes (privacy gates parity). */
+const MOCK_FRIEND_PROFILE_SEED: { interests: string[]; routesHidden: boolean }[] = [
+  { interests: ["музыка", "выставки"], routesHidden: false },
+  { interests: ["спорт"], routesHidden: false },
+  { interests: ["кино", "музыка"], routesHidden: false },
+  { interests: ["гастрономия"], routesHidden: false },
+  { interests: ["музыка", "кино"], routesHidden: false },
+  { interests: ["гастрономия", "спорт"], routesHidden: false },
+  { interests: ["йога"], routesHidden: true },
+];
+
+function seedMockProfiles(): void {
   mockProfiles.clear();
+  mockFriends.forEach((friend, index) => {
+    const seed = MOCK_FRIEND_PROFILE_SEED[index];
+    mockProfiles.set(friend.id, { userId: friend.id, city: "Москва", interests: [...seed.interests], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: seed.routesHidden ? { visitHistory: "friends", routes: "hidden" } : { ...DEFAULT_PRIVACY }, recommendationsEnabled: true });
+  });
+}
+seedMockProfiles();
+
+export function resetMockProfiles(): void {
+  seedMockProfiles();
 }
 
 function profileFor(userId: string): Profile {
   return mockProfiles.get(userId) ?? { userId, city: "Москва", interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY }, recommendationsEnabled: true };
+}
+
+/** Reverse-discovery friend visit seeds: [mockFriends index, mockPlaces index] in chronological visit order per friend. */
+const MOCK_DISCOVERY_VISIT_SEED: [number, number][] = [
+  [0, 1],
+  [0, 3],
+  [0, 4],
+  [1, 2],
+  [1, 3],
+  [2, 1],
+  [5, 3],
+  [6, 0],
+];
+
+/** Places the demo user has already visited, from the mock check-ins (event check-ins resolve to their place, backend parity). */
+function myVisitedPlaceIds(): Set<string> {
+  const ids = new Set<string>();
+  for (const item of mockCheckIns) {
+    if (item.userId !== mockDemoUser.id) continue;
+    if (item.placeId !== null) ids.add(item.placeId);
+    else if (item.eventId !== null) {
+      const eventPlace = mockEvents.find((candidate) => candidate.id === item.eventId)?.placeId;
+      if (eventPlace) ids.add(eventPlace);
+    }
+  }
+  return ids;
+}
+
+/** Places of one friend the demo user has not visited, deduplicated in visit order (backend unseenPlaces parity). */
+function unseenFriendPlaces(friendIndex: number, myPlaceIds: Set<string>): Place[] {
+  const seen = new Set<string>();
+  const unseen: Place[] = [];
+  for (const [friend, placeIndex] of MOCK_DISCOVERY_VISIT_SEED) {
+    if (friend !== friendIndex) continue;
+    const place = mockPlaces[placeIndex];
+    if (myPlaceIds.has(place.id) || seen.has(place.id)) continue;
+    seen.add(place.id);
+    unseen.push(place);
+  }
+  return unseen;
+}
+
+/** Reverse discovery summary (mock GET /discovery): per-friend unseen places minus the demo user's check-ins, privacy-gated (backend DiscoveryService.summary parity). */
+export function discoverySummary(): DiscoveryResponse {
+  const myPlaceIds = myVisitedPlaceIds();
+  const unique = new Set<string>();
+  const byFriend: DiscoveryFriendPlaces[] = [];
+  for (const [index, friend] of mockFriends.entries()) {
+    const privacy = profileFor(friend.id).privacy;
+    if (privacy.visitHistory === "hidden") continue;
+    const unseen = unseenFriendPlaces(index, myPlaceIds);
+    for (const place of unseen) unique.add(place.id);
+    if (unseen.length === 0) continue;
+    byFriend.push({ friend, newPlacesCount: unseen.length, places: privacy.routes === "hidden" ? [] : unseen });
+  }
+  byFriend.sort((a, b) => b.newPlacesCount - a.newPlacesCount || a.friend.name.localeCompare(b.friend.name));
+  return { newPlacesCount: unique.size, byFriend };
+}
+
+/** Friend route of unseen places (mock GET /discovery/friends/:userId/route); "own"/"not_friend"/"hidden" map to 403/404/403 in the interceptor (backend DiscoveryService.route parity). */
+export function friendRoute(userId: string): FriendRoute | "own" | "not_friend" | "hidden" {
+  if (userId === mockDemoUser.id) return "own";
+  const index = mockFriendIds.indexOf(userId);
+  if (index === -1) return "not_friend";
+  const privacy = profileFor(userId).privacy;
+  if (privacy.routes === "hidden" || privacy.visitHistory === "hidden") return "hidden";
+  return { friend: mockFriends[index], places: unseenFriendPlaces(index, myVisitedPlaceIds()) };
+}
+
+const PEOPLE_MAX_KM = 15;
+const PEOPLE_GOING: ParticipationStatus[] = ["wants_to_go", "probably_going", "going", "looking_for_company", "looking_for_travel_buddy", "looking_for_after_event_company"];
+
+/** Demo viewer interests backing the people matching (the editable demo profile starts empty; the backend reads the viewer profile). */
+const MOCK_DEMO_INTERESTS = ["музыка", "кино", "гастрономия"];
+
+/** Friends looking for company today; the backend derives this from COMPANY participations on today events — seeded to keep the friends-feed fixtures stable. */
+const MOCK_LOOKING_TODAY = new Set<string>([mockFriendIds[3], mockFriendIds[4]]);
+
+/** Latest seeded visit place of a friend (geo origin of the people distance, backend latest-check-in parity). */
+function latestVisitPlace(friendIndex: number): Place | null {
+  for (let index = MOCK_DISCOVERY_VISIT_SEED.length - 1; index >= 0; index -= 1) {
+    const [friend, placeIndex] = MOCK_DISCOVERY_VISIT_SEED[index];
+    if (friend === friendIndex) return mockPlaces[placeIndex];
+  }
+  return null;
+}
+
+/** People matching (mock GET /people): mockFriends sharing a seeded demo interest or a going-status participation on the same upcoming event; distance from the requested coords to the friend's latest visit within 15 km, friends without visits stay via the shared city (backend PeopleService parity). */
+export function peopleSuggest(latitude: number, longitude: number, now: Date = MOCK_NOW): PeopleResponse {
+  const myInterests = new Set(MOCK_DEMO_INTERESTS.map((interest) => interest.toLowerCase()));
+  const upcoming = new Set(mockEvents.filter((item) => new Date(item.startsAt).getTime() >= now.getTime()).map((item) => item.id));
+  const myEventIds = new Set([...mockParticipations.values()].filter((row) => row.userId === mockDemoUser.id && PEOPLE_GOING.includes(row.status)).map((row) => row.eventId));
+  const people: PeopleCandidate[] = [];
+  for (const [index, friend] of mockFriends.entries()) {
+    const profile = profileFor(friend.id);
+    const sharedInterests = profile.interests.filter((interest) => myInterests.has(interest.toLowerCase()));
+    const sharedEvent = [...mockParticipations.values()].find((row) => row.userId === friend.id && PEOPLE_GOING.includes(row.status) && myEventIds.has(row.eventId) && upcoming.has(row.eventId));
+    let distanceKm: number | null = null;
+    const visit = profile.privacy.visitHistory === "hidden" ? null : latestVisitPlace(index);
+    if (visit !== null) {
+      distanceKm = Math.round(haversineKm(latitude, longitude, visit.latitude, visit.longitude) * 10) / 10;
+      if (distanceKm > PEOPLE_MAX_KM) continue;
+    }
+    if (sharedInterests.length === 0 && sharedEvent === undefined) continue;
+    const event = sharedEvent === undefined ? null : mockEvents.find((item) => item.id === sharedEvent.eventId)!;
+    const context: PeopleMatchContext = event === null ? { kind: "shared_interest", interest: sharedInterests[0], explanation: `общий интерес: ${sharedInterests[0]}` } : { kind: "shared_event", event, explanation: `вы оба хотите на «${event.title}»` };
+    people.push({ person: friend, distanceKm, sharedInterests, lookingForCompanyToday: MOCK_LOOKING_TODAY.has(friend.id), context });
+  }
+  people.sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99) || a.person.name.localeCompare(b.person.name));
+  return { nearbyCount: people.length, lookingForCompanyTodayCount: people.filter((row) => row.lookingForCompanyToday).length, people };
+}
+
+/** Viewer coords when the people query carries no lat/lng (MOSCOW_CENTER parity with the nearby screen ponytail). */
+const MOCK_PEOPLE_CENTER: [number, number] = [55.7522, 37.6156];
+
+/** lat/lng query params mirroring the backend parseOrigin: both absent -> null (caller default); partial or out-of-range -> "invalid" (400). */
+function parseMockOrigin(url: URL): [number, number] | null | "invalid" {
+  const lat = url.searchParams.get("lat");
+  const lng = url.searchParams.get("lng");
+  if ((lat === null || lat === "") && (lng === null || lng === "")) return null;
+  if (lat === null || lat === "" || lng === null || lng === "") return "invalid";
+  const latitude = Number(lat);
+  const longitude = Number(lng);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return "invalid";
+  return [latitude, longitude];
 }
 
 function remainingSeats(eventId: string): number | null {
@@ -1384,6 +1535,23 @@ export function installMockApi(): () => void {
       const coords = parseMockCoords(url);
       if (coords === null) return new Response(null, { status: 400 });
       return Response.json(nearbyTimeline(coords[0], coords[1]));
+    }
+    const discoveryRoute = /^\/api\/discovery\/friends\/([^/]+)\/route$/.exec(url.pathname);
+    if (discoveryRoute) {
+      if (!IdSchema.safeParse(discoveryRoute[1]).success) return new Response(null, { status: 400 });
+      const route = friendRoute(discoveryRoute[1]);
+      if (route === "own" || route === "hidden") return new Response(null, { status: 403 });
+      if (route === "not_friend") return new Response(null, { status: 404 });
+      return Response.json(route);
+    }
+    if (url.pathname === "/api/discovery") {
+      return Response.json(discoverySummary());
+    }
+    if (url.pathname === "/api/people") {
+      const origin = parseMockOrigin(url);
+      if (origin === "invalid") return new Response(null, { status: 400 });
+      const [latitude, longitude] = origin ?? MOCK_PEOPLE_CENTER;
+      return Response.json(peopleSuggest(latitude, longitude));
     }
     if (url.pathname === "/api/places") {
       return Response.json(mockPlaces);
