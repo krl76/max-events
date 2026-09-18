@@ -44,13 +44,7 @@ export function createLlmProvider(kind: string | undefined, apiKey: string | und
     {
       provide: LLM_PROVIDER,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) =>
-        createLlmProvider(
-          config.get<string>("LLM_PROVIDER"),
-          config.get<string>("XAI_API_KEY"),
-          config.get<string>("XAI_API_URL") ?? "https://api.x.ai/v1",
-          config.get<string>("XAI_MODEL") ?? "grok-4.5",
-        ),
+      useFactory: (config: ConfigService) => createLlmProvider(config.get<string>("LLM_PROVIDER"), config.get<string>("XAI_API_KEY"), config.get<string>("XAI_API_URL") ?? "https://api.x.ai/v1", config.get<string>("XAI_MODEL") ?? "grok-4.5"),
     },
     AssistRateLimiter,
     AssistService,

@@ -99,8 +99,7 @@ describe("PaymentsService.ensureForBooking", () => {
     const eventId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d20";
     const organizerId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d21";
     const events = {
-      findOneBy: async (where: { id: string; organizerUserId: string }) =>
-        where.id === eventId && where.organizerUserId === organizerId ? { id: eventId, organizerUserId: organizerId } : null,
+      findOneBy: async (where: { id: string; organizerUserId: string }) => (where.id === eventId && where.organizerUserId === organizerId ? { id: eventId, organizerUserId: organizerId } : null),
     };
     const bookings = { find: async () => [{ id: bookingId, eventId }] };
     const service = new PaymentsService(new SandboxPaymentProvider(), rows as unknown as Repository<PaymentEntity>, events as never, bookings as never, { get: () => 1000 } as never);

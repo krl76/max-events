@@ -138,13 +138,25 @@ export class WeGroupsService {
     const memberIds = [...new Set([group.ownerUserId, ...memberRows.map((row) => row.userId)])];
     return {
       group: toWeGroupDto(group),
-      members: memberRows.map((row) => userById.get(row.userId)).filter((row): row is UserEntity => row !== undefined).map(toFriendDto),
+      members: memberRows
+        .map((row) => userById.get(row.userId))
+        .filter((row): row is UserEntity => row !== undefined)
+        .map(toFriendDto),
       events: events.map((row) => toEventDto(row)),
       places: places.map(toPlaceDto),
-      bookings: await this.memberBookings(memberIds, events.map((row) => row.id)),
+      bookings: await this.memberBookings(
+        memberIds,
+        events.map((row) => row.id),
+      ),
       route: await this.groupRoute(events, places),
-      budget: await this.groupBudget(memberIds, events.map((row) => row.id)),
-      photos: await this.memberPhotos(memberIds, events.map((row) => row.id)),
+      budget: await this.groupBudget(
+        memberIds,
+        events.map((row) => row.id),
+      ),
+      photos: await this.memberPhotos(
+        memberIds,
+        events.map((row) => row.id),
+      ),
     };
   }
 

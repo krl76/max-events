@@ -16,8 +16,7 @@ function createRows() {
   return {
     store,
     find: async () => store,
-    findOneBy: async (where: { bookingId?: string; providerPaymentId?: string }) =>
-      store.find((row) => (where.bookingId ? row.bookingId === where.bookingId : row.providerPaymentId === where.providerPaymentId)) ?? null,
+    findOneBy: async (where: { bookingId?: string; providerPaymentId?: string }) => store.find((row) => (where.bookingId ? row.bookingId === where.bookingId : row.providerPaymentId === where.providerPaymentId)) ?? null,
     create: (fields: Partial<PaymentEntity>) => ({ ...fields }) as PaymentEntity,
     save: async (entity: PaymentEntity) => {
       const index = store.findIndex((row) => row === entity || (entity.id && row.id === entity.id));

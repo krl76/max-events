@@ -24,10 +24,7 @@ import { WeGroupsController } from "./we-groups.controller";
 import { WeGroupsService } from "./we-groups.service";
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([WeGroupEntity, WeGroupMemberEntity, WeGroupItemEntity, EventEntity, PlaceEntity, UserEntity, BookingEntity, PlanEntity, PlanExpenseEntity, ReviewEntity]),
-    MaxBotModule,
-  ],
+  imports: [TypeOrmModule.forFeature([WeGroupEntity, WeGroupMemberEntity, WeGroupItemEntity, EventEntity, PlaceEntity, UserEntity, BookingEntity, PlanEntity, PlanExpenseEntity, ReviewEntity]), MaxBotModule],
   controllers: [WeGroupsController],
   providers: [WeGroupsService],
   exports: [WeGroupsService],

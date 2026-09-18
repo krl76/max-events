@@ -125,9 +125,7 @@ export class VotesService {
   }
 
   private async toVote(vote: VoteEntity): Promise<Vote> {
-    const optionRows = (await this.options.find({ where: { voteId: vote.id }, order: { position: "ASC", id: "ASC" } })).sort(
-      (a, b) => a.position - b.position || a.id.localeCompare(b.id),
-    );
+    const optionRows = (await this.options.find({ where: { voteId: vote.id }, order: { position: "ASC", id: "ASC" } })).sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
     const participantRows = await this.participants.find({ where: { voteId: vote.id } });
     const ballotRows = await this.ballots.find({ where: { voteId: vote.id } });
     const events = await this.events.find();

@@ -59,10 +59,7 @@ export const PlanCardSchema = z.object({
 });
 export type PlanCard = z.infer<typeof PlanCardSchema>;
 
-export const PlanRecurringRuleSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("weekly_weekday"), weekday: z.number().int().min(1).max(7) }),
-  z.object({ type: z.literal("monthly_nth_weekday"), nth: z.number().int().min(1).max(5), weekday: z.number().int().min(1).max(7) }),
-]);
+export const PlanRecurringRuleSchema = z.discriminatedUnion("type", [z.object({ type: z.literal("weekly_weekday"), weekday: z.number().int().min(1).max(7) }), z.object({ type: z.literal("monthly_nth_weekday"), nth: z.number().int().min(1).max(5), weekday: z.number().int().min(1).max(7) })]);
 export type PlanRecurringRule = z.infer<typeof PlanRecurringRuleSchema>;
 
 export const CreatePlanWriteSchema = z.object({

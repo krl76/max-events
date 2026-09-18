@@ -113,32 +113,14 @@ function createService() {
       updatedAt: now,
     } as EventEntity,
   ]);
-  const places = createStoreRepo<PlaceEntity>([
-    { id: placeId, title: "Кремль", address: "x", city: "Казань", category: "museum", latitude: 55.79, longitude: 49.11, published: true, createdAt: now, updatedAt: now } as PlaceEntity,
-    { id: placeBId, title: "Набережная", address: "y", city: "Казань", category: "park", latitude: 55.8, longitude: 49.12, published: true, createdAt: now, updatedAt: now } as PlaceEntity,
-  ]);
-  const users = createStoreRepo<UserEntity>([
-    { id: owner, firstName: "Саша", lastName: null, avatarUrl: null } as UserEntity,
-    { id: member, firstName: "Кирилл", lastName: null, avatarUrl: null } as UserEntity,
-  ]);
+  const places = createStoreRepo<PlaceEntity>([{ id: placeId, title: "Кремль", address: "x", city: "Казань", category: "museum", latitude: 55.79, longitude: 49.11, published: true, createdAt: now, updatedAt: now } as PlaceEntity, { id: placeBId, title: "Набережная", address: "y", city: "Казань", category: "park", latitude: 55.8, longitude: 49.12, published: true, createdAt: now, updatedAt: now } as PlaceEntity]);
+  const users = createStoreRepo<UserEntity>([{ id: owner, firstName: "Саша", lastName: null, avatarUrl: null } as UserEntity, { id: member, firstName: "Кирилл", lastName: null, avatarUrl: null } as UserEntity]);
   const bookings = createStoreRepo<BookingEntity>();
   const plans = createStoreRepo<PlanEntity>();
   const expenses = createStoreRepo<PlanExpenseEntity>();
   const reviews = createStoreRepo<ReviewEntity>();
   const bot = { createChat: async () => ({ chatId: 1, link: "https://max.ru/join/we" }) } as unknown as MaxBotClient;
-  const service = new WeGroupsService(
-    groups as unknown as Repository<WeGroupEntity>,
-    members as unknown as Repository<WeGroupMemberEntity>,
-    items as unknown as Repository<WeGroupItemEntity>,
-    events as unknown as Repository<EventEntity>,
-    places as unknown as Repository<PlaceEntity>,
-    users as unknown as Repository<UserEntity>,
-    bookings as unknown as Repository<BookingEntity>,
-    plans as unknown as Repository<PlanEntity>,
-    expenses as unknown as Repository<PlanExpenseEntity>,
-    reviews as unknown as Repository<ReviewEntity>,
-    bot,
-  );
+  const service = new WeGroupsService(groups as unknown as Repository<WeGroupEntity>, members as unknown as Repository<WeGroupMemberEntity>, items as unknown as Repository<WeGroupItemEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, bookings as unknown as Repository<BookingEntity>, plans as unknown as Repository<PlanEntity>, expenses as unknown as Repository<PlanExpenseEntity>, reviews as unknown as Repository<ReviewEntity>, bot);
   return { service, groups, events, bookings, plans, expenses, reviews };
 }
 

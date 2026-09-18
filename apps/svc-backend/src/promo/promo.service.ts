@@ -152,10 +152,7 @@ export class PromoService {
       return;
     }
     try {
-      await manager.save(
-        PromoFulfillmentEntity,
-        manager.create(PromoFulfillmentEntity, { campaignId: campaign.id, referredUserId: userId, bookingId }),
-      );
+      await manager.save(PromoFulfillmentEntity, manager.create(PromoFulfillmentEntity, { campaignId: campaign.id, referredUserId: userId, bookingId }));
     } catch (error) {
       if (error instanceof QueryFailedError && error.driverError?.code === "23505") return;
       throw error;

@@ -29,12 +29,7 @@ describe("recurring plan dates", () => {
     const from = new Date("2017-09-07T19:00:00+03:00");
     const after = new Date("2026-09-12T10:00:00.000Z");
     const upcoming = upcomingRecurringAts(from, { type: "weekly_weekday", weekday: 4 }, after, 4);
-    expect(upcoming.map((row) => row.toISOString())).toEqual([
-      new Date("2026-09-17T19:00:00+03:00").toISOString(),
-      new Date("2026-09-24T19:00:00+03:00").toISOString(),
-      new Date("2026-10-01T19:00:00+03:00").toISOString(),
-      new Date("2026-10-08T19:00:00+03:00").toISOString(),
-    ]);
+    expect(upcoming.map((row) => row.toISOString())).toEqual([new Date("2026-09-17T19:00:00+03:00").toISOString(), new Date("2026-09-24T19:00:00+03:00").toISOString(), new Date("2026-10-01T19:00:00+03:00").toISOString(), new Date("2026-10-08T19:00:00+03:00").toISOString()]);
     expect(new Set(upcoming.map((row) => row.getTime())).size).toBe(4);
     expect(upcoming.every((row) => row.getTime() > after.getTime())).toBe(true);
   });

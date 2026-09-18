@@ -52,12 +52,7 @@ describe("AddPaymentCommission20260913020000", () => {
     } as unknown as QueryRunner;
     const migration = new AddPaymentCommission20260913020000();
     await migration.up(queryRunner);
-    expect(queries).toEqual([
-      `ALTER TABLE "payments" ADD COLUMN "commissionRub" integer`,
-      `ALTER TABLE "payments" ADD COLUMN "netRub" integer`,
-      `ALTER TABLE "payments" ADD COLUMN "commissionBps" integer`,
-      `ALTER TABLE "payments" ADD COLUMN "commissionFixedAt" TIMESTAMP WITH TIME ZONE`,
-    ]);
+    expect(queries).toEqual([`ALTER TABLE "payments" ADD COLUMN "commissionRub" integer`, `ALTER TABLE "payments" ADD COLUMN "netRub" integer`, `ALTER TABLE "payments" ADD COLUMN "commissionBps" integer`, `ALTER TABLE "payments" ADD COLUMN "commissionFixedAt" TIMESTAMP WITH TIME ZONE`]);
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries[0]).toContain("commissionFixedAt");

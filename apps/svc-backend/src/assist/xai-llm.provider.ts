@@ -13,7 +13,7 @@ import { AssistCriteriaSchema, type AssistCriteria } from "@max-events/api-contr
 import { LlmProviderError, type LlmProvider } from "./llm-provider";
 import { parseAssistQuery } from "./parse-nl";
 
-const SYSTEM = "Reply with JSON only: {\"when\":\"morning|afternoon|evening|any\",\"budgetMaxRub\":number|null,\"company\":\"alone|friends|partner|kids\",\"genre\":\"music|sport|outdoors|any\"}";
+const SYSTEM = 'Reply with JSON only: {"when":"morning|afternoon|evening|any","budgetMaxRub":number|null,"company":"alone|friends|partner|kids","genre":"music|sport|outdoors|any"}';
 
 export class XaiLlmProvider implements LlmProvider {
   constructor(

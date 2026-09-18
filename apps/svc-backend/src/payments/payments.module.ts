@@ -38,8 +38,7 @@ export function createPaymentProvider(kind: string | undefined, failAmount = SAN
     {
       provide: PAYMENT_PROVIDER,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) =>
-        createPaymentProvider(config.get<string>("PAYMENT_PROVIDER"), config.get<number>("PAYMENT_SANDBOX_FAIL_AMOUNT") ?? SANDBOX_FAIL_AMOUNT),
+      useFactory: (config: ConfigService) => createPaymentProvider(config.get<string>("PAYMENT_PROVIDER"), config.get<number>("PAYMENT_SANDBOX_FAIL_AMOUNT") ?? SANDBOX_FAIL_AMOUNT),
     },
     PaymentsService,
     PaymentsWebhookService,
