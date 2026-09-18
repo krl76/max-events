@@ -27,6 +27,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((mockUser) => authenticate(webApp, (payload) => apiClient.login(payload), mockUser))
       .then((resolved) => {
         if (alive) setState(resolved);
+      })
+      .catch((error) => {
+        console.error("Failed to load the auth source", error);
       });
     return () => {
       alive = false;

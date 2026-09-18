@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { feedDraftReady, FeedCreateView, FeedPostCard, type FeedDraft } from "./FeedPage";
+import { feedDraftReady, feedEventPicked, FeedCreateView, FeedPostCard, type FeedDraft } from "./FeedPage";
 import type { FeedPost } from "../api/client";
 import { mockEvents } from "../api/mock";
 
@@ -60,8 +60,18 @@ describe("feedDraftReady", () => {
   });
 });
 
+describe("feedEventPicked", () => {
+  it("resolves a draft with a matching event title to that event id", () => {
+    expect(feedEventPicked(readyDraft, mockEvents)).toEqual({ eventId: mockEvents[0].id, matched: true });
+  });
+
+  it("reports unmatched free text so the raw title is never sent as an event id", () => {
+    expect(feedEventPicked({ event: "Какой-то произвольный текст", text: "Было классно" }, mockEvents)).toEqual({ eventId: null, matched: false });
+  });
+});
+
 describe("FeedCreateView", () => {
-  const view = (over: { draft?: FeedDraft; submitting?: boolean; failed?: boolean } = {}) => renderToStaticMarkup(createElement(FeedCreateView, { draft: over.draft ?? { event: "", text: "" }, events: mockEvents, submitting: over.submitting ?? false, failed: over.failed ?? false, onChange: noop, onSubmit: noop }));
+  const view = (over: { draft?: FeedDraft; submitting?: boolean; failed?: boolean; eventMissing?: boolean } = {}) => renderToStaticMarkup(createElement(FeedCreateView, { draft: over.draft ?? { event: "", text: "" }, events: mockEvents, submitting: over.submitting ?? false, failed: over.failed ?? false, eventMissing: over.eventMissing ?? false, onChange: noop, onSubmit: noop }));
 
   it("renders the photo placeholder, the event datalist and the text field", () => {
     const html = view();
@@ -79,5 +89,9 @@ describe("FeedCreateView", () => {
     expect((view({ draft: readyDraft }).match(/disabled=""/g) ?? []).length).toBe(1);
     expect(view({ draft: readyDraft, submitting: true })).toContain("Публикуем…");
     expect(view({ draft: readyDraft, failed: true })).toContain("Не удалось опубликовать впечатление.");
+  });
+
+  it("shows an explicit input error when the event title matches no known event", () => {
+    expect(view({ draft: readyDraft, eventMissing: true })).toContain("Выбери событие из списка.");
   });
 });

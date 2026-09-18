@@ -111,7 +111,7 @@ interface EventDetailsViewProps {
 export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, onOpenPlace }: EventDetailsViewProps) {
   const { event, place, organizer } = details;
   const paymentUrl = event.isPaid ? event.paymentUrl : null;
-  const organizerName = [organizer.firstName, organizer.lastName].filter(Boolean).join(" ");
+  const organizerName = organizer === null ? null : [organizer.firstName, organizer.lastName].filter(Boolean).join(" ");
 
   return (
     <article className="app-event">
@@ -168,7 +168,7 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, 
               </span>
               Организатор
             </dt>
-            <dd>{organizerName}</dd>
+            <dd>{organizerName ?? "Организатор не указан"}</dd>
           </div>
           {details.remainingSeats !== null && (
             <div className="app-event-meta-row">
