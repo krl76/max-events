@@ -150,6 +150,60 @@ describe("waitlist mock flow", () => {
     }
   });
 
+  it("repeat cancel of the same booking does not offer a second seat", async () => {
+    restore = installMockApi();
+    const api = client();
+    const target = smallestCapacityEvent();
+    const bookingId = await fillEvent(api, target.id, target.capacity!);
+    await api.joinWaitlist(target.id, USER_A);
+    await api.joinWaitlist(target.id, USER_B);
+
+    await api.cancelBooking(bookingId);
+    expect((await api.getMyWaitlistEntry(target.id, USER_A))?.status).toBe("offered");
+
+    const again = await api.cancelBooking(bookingId);
+    expect(again.status).toBe("cancelled");
+
+    expect((await api.getMyWaitlistEntry(target.id, USER_A))?.status).toBe("offered");
+    expect((await api.getMyWaitlistEntry(target.id, USER_B))?.status).toBe("waiting");
+    expect((await api.getEventDetails(target.id, DEMO_USER_ID)).remainingSeats).toBe(0);
+  });
+
+  it("decline of a confirmed entry is rejected with 409 while a repeat decline of a cancelled entry stays idempotent", async () => {
+    restore = installMockApi();
+    const api = client();
+    const target = smallestCapacityEvent();
+    const bookingId = await fillEvent(api, target.id, target.capacity!);
+    await api.joinWaitlist(target.id, USER_A);
+    await api.joinWaitlist(target.id, USER_B);
+    await api.cancelBooking(bookingId);
+
+    const offered = await api.getMyWaitlistEntry(target.id, USER_A);
+    const declined = await api.declineWaitlistOffer(offered!.id);
+    expect(declined.status).toBe("cancelled");
+    const repeat = await api.declineWaitlistOffer(offered!.id);
+    expect(repeat.status).toBe("cancelled");
+
+    const confirmed = await api.confirmWaitlistOffer((await api.getMyWaitlistEntry(target.id, USER_B))!.id);
+    await expect(api.declineWaitlistOffer(confirmed.id)).rejects.toMatchObject({ name: "ApiError", status: 409 });
+  });
+
+  it("confirm reports the queue position the entry held before it was confirmed", async () => {
+    restore = installMockApi();
+    const api = client();
+    const target = smallestCapacityEvent();
+    const bookingId = await fillEvent(api, target.id, target.capacity!);
+    await api.joinWaitlist(target.id, USER_A);
+    await api.joinWaitlist(target.id, USER_B);
+    await api.cancelBooking(bookingId);
+
+    const offered = await api.getMyWaitlistEntry(target.id, USER_A);
+    expect(offered?.position).toBe(1);
+    const confirmed = await api.confirmWaitlistOffer(offered!.id);
+    expect(confirmed.status).toBe("confirmed");
+    expect(confirmed.position).toBe(1);
+  });
+
   it("reports 404 for actions on an unknown entry", async () => {
     restore = installMockApi();
     const api = client();

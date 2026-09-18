@@ -51,7 +51,7 @@
 // - joinMockWaitlist - join the queue of a sold-out event (mock POST /waitlist; duplicate/seats available/active booking -> 409)
 // - myMockWaitlistEntry - active (waiting|offered) entry of a user with its FIFO position, or null (mock GET /waitlist/me)
 // - confirmMockWaitlistOffer - confirm an offer into a booking on the reserved seat (mock POST /waitlist/:id/confirm)
-// - declineMockWaitlistOffer - cancel an entry; a declined offer passes the seat to the next waiting entry (mock POST /waitlist/:id/decline)
+// - declineMockWaitlistOffer - cancel an entry; a declined offer passes the seat to the next waiting entry; confirmed/expired -> 409 (mock POST /waitlist/:id/decline)
 // - resetMockCheckIns - clear in-memory check-ins (test isolation)
 // - resetMockProfiles - clear in-memory profiles (test isolation)
 // - resetMockParticipations - restore seeded participations (test isolation)
@@ -733,21 +733,24 @@ export function confirmMockWaitlistOffer(entryId: string): WaitlistEntry | null 
   if (entry.status === "confirmed") return withWaitlistPosition(entry);
   if (entry.status === "expired") return "offer_expired";
   if (entry.status !== "offered" || entry.offeredUntil === null) return "not_offered";
+  const position = withWaitlistPosition(entry).position;
   const now = new Date().toISOString();
   mockBookingSeq += 1;
   mockBookings.push({ id: `e0000000-0000-4000-8000-${String(mockBookingSeq).padStart(12, "0")}`, userId: entry.userId, eventId: entry.eventId, status: "active", createdAt: now, updatedAt: now });
   entry.status = "confirmed";
   entry.offeredUntil = null;
   entry.updatedAt = now;
-  return withWaitlistPosition(entry);
+  return { ...entry, position };
 }
 
-/** Cancels a queue entry; a declined offer passes the reserved seat to the next waiting entry. Idempotent for terminal entries; null for an unknown id (mock 404). */
-export function declineMockWaitlistOffer(entryId: string): WaitlistEntry | null {
+/** Cancels a queue entry; a declined offer passes the reserved seat to the next waiting entry. Idempotent for cancelled entries; "already_confirmed"/"offer_expired" map to 409, null to 404 (mock 404). */
+export function declineMockWaitlistOffer(entryId: string): WaitlistEntry | null | "already_confirmed" | "offer_expired" {
   const entry = mockWaitlist.find((item) => item.id === entryId);
   if (!entry) return null;
   refreshMockWaitlist(entry.eventId);
-  if (entry.status !== "waiting" && entry.status !== "offered") return withWaitlistPosition(entry);
+  if (entry.status === "cancelled") return withWaitlistPosition(entry);
+  if (entry.status === "confirmed") return "already_confirmed";
+  if (entry.status === "expired") return "offer_expired";
   const wasOffered = entry.status === "offered";
   const now = new Date();
   entry.status = "cancelled";
@@ -1070,6 +1073,7 @@ export function installMockApi(): () => void {
     if (cancel && init?.method === "DELETE") {
       const booking = mockBookings.find((item) => item.id === cancel[1]);
       if (!booking) return new Response(null, { status: 404 });
+      if (booking.status === "cancelled") return Response.json(booking);
       booking.status = "cancelled";
       booking.updatedAt = new Date().toISOString();
       offerNextMockWaitlist(booking.eventId, new Date());
@@ -1200,7 +1204,7 @@ export function installMockApi(): () => void {
         return result === null ? new Response(null, { status: 404 }) : typeof result === "string" ? new Response(null, { status: 409 }) : Response.json(result);
       }
       const result = declineMockWaitlistOffer(waitlistAction[1]);
-      return result ? Response.json(result) : new Response(null, { status: 404 });
+      return result === null ? new Response(null, { status: 404 }) : typeof result === "string" ? new Response(null, { status: 409 }) : Response.json(result);
     }
     return real(input, init);
   };
