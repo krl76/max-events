@@ -159,7 +159,7 @@ export class PlansService {
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
   ) {}
 
-  async create(hostUserId: string, payload: CreatePlanWrite): Promise<PlanCard> {
+  async create(hostUserId: string, payload: CreatePlanWrite, origin: GeoOrigin | null = null): Promise<PlanCard> {
     const event = await this.events.findOneBy({ id: payload.eventId });
     if (!event) throw new NotFoundException("Event not found");
     const ids = [...new Set(payload.participantIds)];
@@ -210,7 +210,7 @@ export class PlansService {
       }
     }
     if (payload.recurringRule) await this.spawnRecurring(saved.meetingAt);
-    return this.toCard(saved, event, null);
+    return this.toCard(saved, event, origin);
   }
 
   async spawnRecurring(now = new Date()): Promise<number> {
@@ -294,7 +294,7 @@ export class PlansService {
     const meetupAt = new Date(event.startsAt.getTime() - (travelMinutes + MEETUP_BUFFER_MIN) * 60_000);
     const dinnerAt = new Date(meetupAt.getTime() - DINNER_MIN * 60_000);
     const meetingPoint = foodPlaces[0]?.title ?? venue?.address ?? event.city;
-    const card = await this.create(hostUserId, { eventId, participantIds: [], meetingPoint, meetingAt: meetupAt.toISOString() });
+    const card = await this.create(hostUserId, { eventId, participantIds: [], meetingPoint, meetingAt: meetupAt.toISOString() }, origin);
     const timeline = [];
     if (foodPlaces[0]) timeline.push({ at: dinnerAt.toISOString(), label: "ужин", detail: foodPlaces[0].title });
     timeline.push({ at: new Date(dinnerAt.getTime() + DINNER_MIN * 60_000).toISOString(), label: "дорога", detail: `${travelMinutes} мин до места` });

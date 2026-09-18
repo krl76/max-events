@@ -164,6 +164,16 @@ describe("PlansService", () => {
     expect(plans.store).toHaveLength(1);
   });
 
+  it("carries real distanceMeters on an autoplan card but not on a plain create", async () => {
+    const { service } = createService();
+    const origin = { latitude: 55.75, longitude: 37.62 };
+    const proposal = await service.generateAutoplan(hostId, eventId, origin);
+    expect(proposal.plan.distanceMeters).toBeGreaterThan(0);
+    expect(proposal.plan.distanceMeters).toBe(haversineMeters(origin, 55.747, 37.584));
+    const plain = await service.create(hostId, { eventId, participantIds: [], meetingPoint: "у метро", meetingAt });
+    expect(plain.distanceMeters).toBe(0);
+  });
+
   it("lets an invitee confirm and forbids a stranger", async () => {
     const { service } = createService();
     const created = await service.create(hostId, { eventId, participantIds: [dimaId], meetingPoint: "у метро", meetingAt });
