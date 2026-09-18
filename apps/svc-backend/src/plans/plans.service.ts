@@ -104,7 +104,7 @@ export function budgetFromExpenses(rows: PlanExpenseEntity[], extraParty: Iterab
     const rem = row.amountRub % n;
     const offset = [...row.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % n;
     ids.forEach((id, index) => {
-      const extra = rem > 0 && ((index - offset + n) % n) < rem ? 1 : 0;
+      const extra = rem > 0 && (index - offset + n) % n < rem ? 1 : 0;
       share.set(id, (share.get(id) ?? 0) + base + extra);
     });
   }

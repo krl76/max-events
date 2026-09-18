@@ -90,12 +90,7 @@ function createService(event: EventEntity = seedEvent(), extras: { places?: Plac
   const checkInsRepo = {
     find: async (opts: { where?: Record<string, unknown> } = {}) => checkIns.filter((row) => matchesWhere(row, opts.where ?? {})),
   };
-  const service = new PromotionService(
-    campaignsRepo as unknown as Repository<PromotionCampaignEntity>,
-    eventsRepo as unknown as Repository<EventEntity>,
-    placesRepo as unknown as Repository<PlaceEntity>,
-    checkInsRepo as unknown as Repository<CheckInEntity>,
-  );
+  const service = new PromotionService(campaignsRepo as unknown as Repository<PromotionCampaignEntity>, eventsRepo as unknown as Repository<EventEntity>, placesRepo as unknown as Repository<PlaceEntity>, checkInsRepo as unknown as Repository<CheckInEntity>);
   return { service, campaigns, events };
 }
 
@@ -118,12 +113,7 @@ describe("PromotionService", () => {
     expect(boost.paidAt).toBeNull();
     const banner = await service.create(organizer, eventId, { ...week, type: "banner", tariffCode: "banner_week", priceRub: 1500 }, now);
     const pin = await service.create(organizer, eventId, { ...week, type: "pin", tariffCode: "pin_week", priceRub: 900 }, now);
-    const targeted = await service.create(
-      organizer,
-      eventId,
-      { ...week, type: "target_collection", tariffCode: "target_week", priceRub: 7900, audience: { minVisits: 3, windowDays: 180, category: "afisha" } },
-      now,
-    );
+    const targeted = await service.create(organizer, eventId, { ...week, type: "target_collection", tariffCode: "target_week", priceRub: 7900, audience: { minVisits: 3, windowDays: 180, category: "afisha" } }, now);
     expect([banner.type, pin.type, targeted.type]).toEqual(["banner", "pin", "target_collection"]);
     expect(targeted.audience).toEqual({ minVisits: 3, windowDays: 180, category: "afisha" });
     const listed = await service.list(organizer, eventId, now);
@@ -197,11 +187,7 @@ describe("PromotionService", () => {
     const event = seedEvent({ placeId, category: "afisha" });
     const venue = { id: placeId, title: "Парк", address: "x", city: "Москва", category: "park", latitude: 55.75, longitude: 37.62, published: true, createdAt: now, updatedAt: now } as PlaceEntity;
     const extraEvents = [seedEvent({ id: visitedA, category: "afisha" }), seedEvent({ id: visitedB, category: "afisha" }), seedEvent({ id: visitedC, category: "afisha" })];
-    const checkIns = [
-      { id: "c1", userId: other, eventId: visitedA, placeId: null, checkedInAt: new Date("2026-04-01T10:00:00Z") } as CheckInEntity,
-      { id: "c2", userId: other, eventId: visitedB, placeId: null, checkedInAt: new Date("2026-05-01T10:00:00Z") } as CheckInEntity,
-      { id: "c3", userId: other, eventId: visitedC, placeId: null, checkedInAt: new Date("2026-06-01T10:00:00Z") } as CheckInEntity,
-    ];
+    const checkIns = [{ id: "c1", userId: other, eventId: visitedA, placeId: null, checkedInAt: new Date("2026-04-01T10:00:00Z") } as CheckInEntity, { id: "c2", userId: other, eventId: visitedB, placeId: null, checkedInAt: new Date("2026-05-01T10:00:00Z") } as CheckInEntity, { id: "c3", userId: other, eventId: visitedC, placeId: null, checkedInAt: new Date("2026-06-01T10:00:00Z") } as CheckInEntity];
     const { service } = createService(event, { places: [venue], checkIns, extraEvents });
     const banner = await service.create(organizer, eventId, { ...week, type: "banner", tariffCode: "banner_week", priceRub: 1500 }, now);
     const pin = await service.create(organizer, eventId, { ...week, type: "pin", tariffCode: "pin_week", priceRub: 900 }, now);
@@ -230,11 +216,7 @@ describe("PromotionService", () => {
     const live = seedEvent({ category: "afisha" });
     const { service } = createService(live, {
       extraEvents: [seedEvent({ id: sportId, category: "sport" })],
-      checkIns: [
-        { id: "c1", userId: other, eventId: null, placeId, checkedInAt: new Date("2026-04-01T10:00:00Z") } as CheckInEntity,
-        { id: "c2", userId: other, eventId: null, placeId, checkedInAt: new Date("2026-05-01T10:00:00Z") } as CheckInEntity,
-        { id: "c3", userId: other, eventId: sportId, placeId: null, checkedInAt: new Date("2026-06-01T10:00:00Z") } as CheckInEntity,
-      ],
+      checkIns: [{ id: "c1", userId: other, eventId: null, placeId, checkedInAt: new Date("2026-04-01T10:00:00Z") } as CheckInEntity, { id: "c2", userId: other, eventId: null, placeId, checkedInAt: new Date("2026-05-01T10:00:00Z") } as CheckInEntity, { id: "c3", userId: other, eventId: sportId, placeId: null, checkedInAt: new Date("2026-06-01T10:00:00Z") } as CheckInEntity],
     });
     const target = await service.create(organizer, eventId, { ...week, type: "target_collection", tariffCode: "target_week", priceRub: 7900, audience: { minVisits: 3, windowDays: 180, category: "afisha" } }, now);
     await service.recordPayment(organizer, eventId, target.id, { paidAt: now.toISOString() }, now);

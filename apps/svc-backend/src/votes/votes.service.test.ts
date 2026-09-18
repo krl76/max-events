@@ -80,11 +80,7 @@ function createService() {
   const participants = createStoreRepo<VoteParticipantEntity>();
   const ballots = createStoreRepo<VoteBallotEntity>();
   const events = createStoreRepo<EventEntity>([eventRow(jazzId, "Джаз"), eventRow(concertId, "Концерт"), eventRow(draftId, "Черновик", false)]);
-  const users = createStoreRepo<UserEntity>([
-    { id: hostId, maxUserId: "1", firstName: "Саша", lastName: null, avatarUrl: null } as UserEntity,
-    { id: dimaId, maxUserId: "2", firstName: "Дима", lastName: null, avatarUrl: null } as UserEntity,
-    { id: katyaId, maxUserId: "3", firstName: "Катя", lastName: null, avatarUrl: null } as UserEntity,
-  ]);
+  const users = createStoreRepo<UserEntity>([{ id: hostId, maxUserId: "1", firstName: "Саша", lastName: null, avatarUrl: null } as UserEntity, { id: dimaId, maxUserId: "2", firstName: "Дима", lastName: null, avatarUrl: null } as UserEntity, { id: katyaId, maxUserId: "3", firstName: "Катя", lastName: null, avatarUrl: null } as UserEntity]);
   const friends = {
     friendIds: async () => new Set([dimaId, katyaId]),
     list: async () =>
@@ -106,16 +102,7 @@ function createService() {
       return true;
     },
   } as unknown as MaxBotClient;
-  const service = new VotesService(
-    votes as unknown as Repository<VoteEntity>,
-    options as unknown as Repository<VoteOptionEntity>,
-    participants as unknown as Repository<VoteParticipantEntity>,
-    ballots as unknown as Repository<VoteBallotEntity>,
-    events as unknown as Repository<EventEntity>,
-    users as unknown as Repository<UserEntity>,
-    friends,
-    bot,
-  );
+  const service = new VotesService(votes as unknown as Repository<VoteEntity>, options as unknown as Repository<VoteOptionEntity>, participants as unknown as Repository<VoteParticipantEntity>, ballots as unknown as Repository<VoteBallotEntity>, events as unknown as Repository<EventEntity>, users as unknown as Repository<UserEntity>, friends, bot);
   return { service, chats, dms };
 }
 

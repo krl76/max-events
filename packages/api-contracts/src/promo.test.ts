@@ -33,18 +33,20 @@ describe("PromoCampaignSchema", () => {
   it("accepts a refer-a-friend campaign write", () => {
     const write = CreatePromoCampaignWriteSchema.parse({ type: "refer_a_friend", code: "FRIEND", title: "Приведи друга", maxFulfillments: 20 });
     expect(write.type).toBe("refer_a_friend");
-    expect(PromoCampaignSchema.parse({
-      id: promoId,
-      eventId,
-      type: "special_offer",
-      status: "active",
-      code: "SALE",
-      title: "Спецпредложение",
-      maxFulfillments: null,
-      fulfillmentCount: 0,
-      createdAt: "2026-09-01T10:00:00+03:00",
-      completedAt: null,
-    }).status).toBe("active");
+    expect(
+      PromoCampaignSchema.parse({
+        id: promoId,
+        eventId,
+        type: "special_offer",
+        status: "active",
+        code: "SALE",
+        title: "Спецпредложение",
+        maxFulfillments: null,
+        fulfillmentCount: 0,
+        createdAt: "2026-09-01T10:00:00+03:00",
+        completedAt: null,
+      }).status,
+    ).toBe("active");
   });
 });
 

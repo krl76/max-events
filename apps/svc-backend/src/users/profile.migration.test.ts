@@ -73,6 +73,6 @@ describe("AddProfileRecommendations20260913030000", () => {
     expect(queries[0]).toContain("recommendationsEnabled");
     queries.length = 0;
     await migration.down(queryRunner);
-    expect(queries[0]).toContain("DROP COLUMN \"recommendationsEnabled\"");
+    expect(queries[0]).toContain('DROP COLUMN "recommendationsEnabled"');
   });
 });

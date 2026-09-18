@@ -95,11 +95,7 @@ export class OrganizerController {
   }
 
   @Post("events/:id/bookings/:bookingId/refund")
-  refundBooking(
-    @CurrentUser() user: UserEntity,
-    @Param("id", ParseUUIDPipe) _eventId: string,
-    @Param("bookingId", ParseUUIDPipe) bookingId: string,
-  ): Promise<BookingWithSeats> {
+  refundBooking(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) _eventId: string, @Param("bookingId", ParseUUIDPipe) bookingId: string): Promise<BookingWithSeats> {
     return this.bookings.cancel(user.id, bookingId, { organizerId: user.id });
   }
 
@@ -128,12 +124,7 @@ export class OrganizerController {
   }
 
   @Post("events/:id/promotions/:campaignId/paid")
-  async payPromotion(
-    @CurrentUser() user: UserEntity,
-    @Param("id", ParseUUIDPipe) id: string,
-    @Param("campaignId", ParseUUIDPipe) campaignId: string,
-    @Body() body: unknown,
-  ): Promise<PromotionCampaign> {
+  async payPromotion(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Param("campaignId", ParseUUIDPipe) campaignId: string, @Body() body: unknown): Promise<PromotionCampaign> {
     const parsed = RecordPromotionPaymentWriteSchema.safeParse(body ?? {});
     if (!parsed.success) throw new BadRequestException("Invalid promotion payment payload");
     return this.promotions.recordPayment(user.id, id, campaignId, parsed.data);

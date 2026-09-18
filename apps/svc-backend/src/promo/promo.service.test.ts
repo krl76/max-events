@@ -126,12 +126,7 @@ function createService(event: EventEntity = seedEvent(), users: UserEntity[] = [
       return row;
     },
   } as unknown as EntityManager;
-  const service = new PromoService(
-    codesRepo as unknown as Repository<PromoCodeEntity>,
-    eventsRepo as unknown as Repository<EventEntity>,
-    bookingsRepo as unknown as Repository<BookingEntity>,
-    campaignsRepo as unknown as Repository<PromoCampaignEntity>,
-  );
+  const service = new PromoService(codesRepo as unknown as Repository<PromoCodeEntity>, eventsRepo as unknown as Repository<EventEntity>, bookingsRepo as unknown as Repository<BookingEntity>, campaignsRepo as unknown as Repository<PromoCampaignEntity>);
   return { service, codes, campaigns, fulfillments, events, bookings, manager };
 }
 

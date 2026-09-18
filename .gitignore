@@ -51,3 +51,4 @@ mcp-profile/
 
 .turbo/cache/
 backups/
+.opencode/board/

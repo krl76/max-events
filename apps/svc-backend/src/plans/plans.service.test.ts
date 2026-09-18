@@ -241,12 +241,7 @@ describe("PlansService", () => {
     });
     const copies = plans.store.filter((row) => row.sourcePlanId === created.plan.id);
     expect(copies).toHaveLength(4);
-    expect(copies.map((row) => row.meetingAt.toISOString()).sort()).toEqual([
-      new Date("2026-09-17T19:00:00+03:00").toISOString(),
-      new Date("2026-09-24T19:00:00+03:00").toISOString(),
-      new Date("2026-10-01T19:00:00+03:00").toISOString(),
-      new Date("2026-10-08T19:00:00+03:00").toISOString(),
-    ]);
+    expect(copies.map((row) => row.meetingAt.toISOString()).sort()).toEqual([new Date("2026-09-17T19:00:00+03:00").toISOString(), new Date("2026-09-24T19:00:00+03:00").toISOString(), new Date("2026-10-01T19:00:00+03:00").toISOString(), new Date("2026-10-08T19:00:00+03:00").toISOString()]);
     expect(copies.every((row) => row.recurringRule === null && row.sourcePlanId === created.plan.id)).toBe(true);
     for (const copy of copies) {
       const rows = participants.store.filter((row) => row.planId === copy.id);
@@ -269,12 +264,7 @@ describe("PlansService", () => {
       recurringRule: { type: "monthly_nth_weekday", nth: 1, weekday: 6 },
     });
     const copies = plans.store.filter((row) => row.sourcePlanId === created.plan.id);
-    expect(copies.map((row) => row.meetingAt.toISOString()).sort()).toEqual([
-      new Date("2026-10-03T11:00:00+03:00").toISOString(),
-      new Date("2026-11-07T11:00:00+03:00").toISOString(),
-      new Date("2026-12-05T11:00:00+03:00").toISOString(),
-      new Date("2027-01-02T11:00:00+03:00").toISOString(),
-    ]);
+    expect(copies.map((row) => row.meetingAt.toISOString()).sort()).toEqual([new Date("2026-10-03T11:00:00+03:00").toISOString(), new Date("2026-11-07T11:00:00+03:00").toISOString(), new Date("2026-12-05T11:00:00+03:00").toISOString(), new Date("2027-01-02T11:00:00+03:00").toISOString()]);
   });
 
   it("omits a declined friend from later spawned copies", async () => {
@@ -388,12 +378,7 @@ describe("PlansService", () => {
     expect(await service.spawnRecurring(after)).toBe(4);
     const copies = plans.store.filter((row) => row.sourcePlanId === template.id);
     const times = copies.map((row) => row.meetingAt.toISOString()).sort();
-    expect(times).toEqual([
-      new Date("2026-09-17T19:00:00+03:00").toISOString(),
-      new Date("2026-09-24T19:00:00+03:00").toISOString(),
-      new Date("2026-10-01T19:00:00+03:00").toISOString(),
-      new Date("2026-10-08T19:00:00+03:00").toISOString(),
-    ]);
+    expect(times).toEqual([new Date("2026-09-17T19:00:00+03:00").toISOString(), new Date("2026-09-24T19:00:00+03:00").toISOString(), new Date("2026-10-01T19:00:00+03:00").toISOString(), new Date("2026-10-08T19:00:00+03:00").toISOString()]);
     expect(new Set(times).size).toBe(4);
     expect(copies.every((row) => row.meetingAt.getTime() > after.getTime())).toBe(true);
   });
@@ -444,6 +429,13 @@ describe("PlansService", () => {
 
 describe("settleBalances", () => {
   it("nets two-sided debts", () => {
-    expect(settleBalances(new Map([["a", 100], ["b", -100]]))).toEqual([{ fromUserId: "b", toUserId: "a", amountRub: 100 }]);
+    expect(
+      settleBalances(
+        new Map([
+          ["a", 100],
+          ["b", -100],
+        ]),
+      ),
+    ).toEqual([{ fromUserId: "b", toUserId: "a", amountRub: 100 }]);
   });
 });

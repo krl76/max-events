@@ -42,12 +42,7 @@ function eventRow(id: string, title: string, startsAt: string, priceRub: number 
 }
 
 function createService() {
-  const events = [
-    eventRow(jazzId, "Вечер джаза", "2026-09-19T19:00:00+03:00", 1800),
-    eventRow(savedId, "Концерт камерной музыки", "2026-09-20T20:00:00+03:00", 900),
-    eventRow("00000000-0000-4000-8000-0000000000e3", "Субботник", "2026-09-20T19:00:00+03:00", null, "volunteering"),
-    eventRow("00000000-0000-4000-8000-0000000000e4", "Дорогой концерт", "2026-09-19T19:00:00+03:00", 5000),
-  ];
+  const events = [eventRow(jazzId, "Вечер джаза", "2026-09-19T19:00:00+03:00", 1800), eventRow(savedId, "Концерт камерной музыки", "2026-09-20T20:00:00+03:00", 900), eventRow("00000000-0000-4000-8000-0000000000e3", "Субботник", "2026-09-20T19:00:00+03:00", null, "volunteering"), eventRow("00000000-0000-4000-8000-0000000000e4", "Дорогой концерт", "2026-09-19T19:00:00+03:00", 5000)];
   const checkIns = [{ userId, eventId: jazzId, placeId: null } as CheckInEntity];
   const friendships = [{ userId, friendUserId: partnerId, id: "f1", createdAt: now } as FriendshipEntity];
   const lists = [{ id: "list-1", userId: partnerId } as ListEntity];
@@ -55,16 +50,7 @@ function createService() {
   const plans = {
     create: async () => ({ plan: { id: "plan-1" }, event: { id: jazzId }, distanceMeters: 0 }),
   } as unknown as PlansService;
-  const service = new AssistService(
-    new SandboxLlmProvider(),
-    { find: async () => events } as unknown as Repository<EventEntity>,
-    { find: async () => checkIns } as unknown as Repository<CheckInEntity>,
-    { find: async () => friendships } as unknown as Repository<FriendshipEntity>,
-    { find: async () => lists } as unknown as Repository<ListEntity>,
-    { find: async () => listItems } as unknown as Repository<ListItemEntity>,
-    plans,
-    new AssistRateLimiter(),
-  );
+  const service = new AssistService(new SandboxLlmProvider(), { find: async () => events } as unknown as Repository<EventEntity>, { find: async () => checkIns } as unknown as Repository<CheckInEntity>, { find: async () => friendships } as unknown as Repository<FriendshipEntity>, { find: async () => lists } as unknown as Repository<ListEntity>, { find: async () => listItems } as unknown as Repository<ListItemEntity>, plans, new AssistRateLimiter());
   return { service, events };
 }
 
@@ -108,16 +94,7 @@ describe("AssistService", () => {
 
   it("rate-limits a user", async () => {
     const { events } = createService();
-    const service = new AssistService(
-      new SandboxLlmProvider(),
-      { find: async () => events } as never,
-      { find: async () => [] } as never,
-      { find: async () => [] } as never,
-      { find: async () => [] } as never,
-      { find: async () => [] } as never,
-      { create: async () => ({}) } as never,
-      new AssistRateLimiter().configure(2, 60_000),
-    );
+    const service = new AssistService(new SandboxLlmProvider(), { find: async () => events } as never, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { create: async () => ({}) } as never, new AssistRateLimiter().configure(2, 60_000));
     await service.suggest(userId, "Хочу вечером музыку 1000 ₽", now);
     await service.suggest(userId, "Хочу вечером музыку 1000 ₽", now);
     await expect(service.suggest(userId, "Хочу вечером музыку 1000 ₽", now)).rejects.toBeInstanceOf(HttpException);

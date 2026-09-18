@@ -95,9 +95,7 @@ export class PaymentsService {
     const bookings = await this.bookings.find({ where: { eventId } });
     const ids = bookings.map((row) => row.id);
     const payments = ids.length === 0 ? [] : await this.rows.find({ where: { bookingId: In(ids) } });
-    const frozen = payments
-      .filter((row) => row.status === "succeeded" && row.commissionFixedAt && row.commissionRub != null && row.netRub != null && row.commissionBps != null)
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
+    const frozen = payments.filter((row) => row.status === "succeeded" && row.commissionFixedAt && row.commissionRub != null && row.netRub != null && row.commissionBps != null).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
     return {
       eventId,
       rows: frozen.map((row) => ({
