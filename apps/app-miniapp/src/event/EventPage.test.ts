@@ -49,6 +49,13 @@ describe("EventDetailsView", () => {
 
     expect(html).toContain(`${paid.priceRub} ₽`);
   });
+
+  it("shows the organizer fallback when organizer is null", () => {
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { organizer: null }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+
+    expect(html).toContain("Организатор не указан");
+    expect(html).not.toContain("Анна Соколова");
+  });
 });
 
 describe("booking button states", () => {

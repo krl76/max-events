@@ -150,6 +150,33 @@ describe("ApiClient", () => {
     expect(getInit()?.method).toBe("POST");
     expect(JSON.parse(String(getInit()?.body))).toEqual({ initData: "user=%7B%22id%22%3A1%7D" });
   });
+
+  it("parses an event with organizer: null (seed events without an organizer)", async () => {
+    mockFetchOnce(true, 200, detailsPayload({ organizer: null }));
+    const client = new ApiClient("http://localhost:3100/api");
+
+    const details = await client.getEventDetails(validEvent.id, validEvent.id);
+
+    expect(details.organizer).toBeNull();
+    expect(details.event.id).toBe(validEvent.id);
+  });
+
+  it("rejects a details payload whose organizer is neither a user nor null", async () => {
+    mockFetchOnce(true, 200, detailsPayload({ organizer: { id: "not-a-uuid" } }));
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await expect(client.getEventDetails(validEvent.id, validEvent.id)).rejects.toMatchObject({ name: "ApiError" });
+  });
+});
+
+const detailsPayload = (overrides: { organizer?: unknown }): Record<string, unknown> => ({
+  event: { ...validEvent, placeId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb7d" },
+  place: { id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb7d", title: "Парк", address: "ул. П", city: "Москва", category: "park", latitude: 55.7, longitude: 37.6, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" },
+  organizer: null,
+  remainingSeats: 10,
+  activeBookingId: null,
+  checkInId: null,
+  ...overrides,
 });
 
 describe("ApiClient initData header", () => {

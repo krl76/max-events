@@ -16,7 +16,7 @@
 // - ApiClient.listPlaces - GET /places: venues for the catalog map markers
 // - serializeEventFilters - filters -> query string ("" when empty)
 // - parseEventFilters - query string -> filters, invalid values dropped
-// - EventDetails - event page aggregate: event, place, organizer, free seats, own active booking
+// - EventDetails - event page aggregate: event, place, organizer (nullable), free seats, own active booking
 // - ApiClient.getEventDetails - GET /events/:id/details?userId=
 // - ParticipationStats - event page social aggregate: per-status counters, friends count, own status
 // - ApiClient.getParticipationStats - GET /events/:id/participation/stats?userId=
@@ -58,11 +58,11 @@
 // - ApiClient.removeListItem - DELETE /lists/:id/items/:itemId
 // - FeedPost - impression post aggregate: author, event, text, like counter/state, comments
 // - FeedComment - post comment attributed to its author
-// - CreateFeedPost - impression publication payload (author, event, text)
+// - CreateFeedPost - impression publication payload (author, event, text); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
 // - ApiClient.listFeedPosts - GET /feed[?eventId=]: posts newest first, one event for the wall
 // - ApiClient.createFeedPost - POST /feed
-// - ApiClient.toggleFeedLike - POST /feed/:id/like?userId= (like/unlike toggle)
-// - ApiClient.addFeedComment - POST /feed/:id/comments with { userId, text }
+// - ApiClient.toggleFeedLike - POST /feed/:id/like?userId= (like/unlike toggle; userId is mock-only, ignored by the real backend)
+// - ApiClient.addFeedComment - POST /feed/:id/comments with { userId, text } (userId is mock-only, ignored by the real backend)
 // - EventRating - event page rating aggregate: RatingSummary + per-category averages
 // - ApiClient.getEventRating - GET /events/:id/rating
 // - ApiClient.getPlacePage - GET /places/:id/page?userId=: PlacePage social aggregate
@@ -75,7 +75,7 @@
 // - ApiClient.createReview - POST /reviews
 // - REPORT_REASONS - report reason presets
 // - ReportReason - union of the report reason presets
-// - CreateReport - report submission payload (user + event + reason)
+// - CreateReport - report submission payload (user + event + reason); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
 // - Report - report entity (contract shape)
 // - ApiClient.createReport - POST /reports
 // END_MODULE_MAP
@@ -165,7 +165,8 @@ const PlaceArraySchema: ZodSchema<Place[]> = {
 export interface EventDetails {
   event: Event;
   place: Place | null;
-  organizer: User;
+  /** The event organizer; null for seed events without an organizerUserId. */
+  organizer: User | null;
   remainingSeats: number | null;
   activeBookingId: string | null;
   checkInId: string | null;
@@ -176,7 +177,7 @@ const EventDetailsSchema: ZodSchema<EventDetails> = {
     if (typeof data !== "object" || data === null) return { success: false as const, error: "expected an event details object" };
     const raw = data as Record<string, unknown>;
     const event = EventSchema.safeParse(raw.event);
-    const organizer = UserSchema.safeParse(raw.organizer);
+    const organizer = raw.organizer === null ? { success: true as const, data: null } : UserSchema.safeParse(raw.organizer);
     const place = raw.place === null ? { success: true as const, data: null } : PlaceSchema.safeParse(raw.place);
     if (!event.success || !organizer.success || !place.success) return { success: false as const, error: "invalid event details" };
     if (raw.remainingSeats !== null && typeof raw.remainingSeats !== "number") return { success: false as const, error: "invalid event details" };

@@ -13,6 +13,7 @@
 // - FeedSection - container: posts (optionally one event — the wall), event titles for the cards, like/comment wiring, «+» publish CTA
 // - FeedDraft - publish form draft (event title, text)
 // - feedDraftReady - the event is picked and the text is non-empty
+// - feedEventPicked - resolve the free-text event to a real event id; matched=false means the typed title matches no known event
 // - FeedCreateView - presentational publish form: photo placeholder, event datalist, text
 // - FeedCreatePage - route container: author id from the auth context, event options via apiClient.listEvents, draft state, publish via createFeedPost
 // END_MODULE_MAP
@@ -217,16 +218,23 @@ export function feedDraftReady(draft: FeedDraft): boolean {
   return draft.event.trim() !== "" && draft.text.trim() !== "";
 }
 
+/** Maps the draft's free-text event title to a real event id; matched=false means the user typed a title that matches no known event. */
+export function feedEventPicked(draft: FeedDraft, events: Event[]): { eventId: string | null; matched: boolean } {
+  const event = events.find((item) => item.title === draft.event.trim());
+  return event === undefined ? { eventId: null, matched: false } : { eventId: event.id, matched: true };
+}
+
 interface FeedCreateViewProps {
   draft: FeedDraft;
   events: Event[];
   submitting: boolean;
   failed: boolean;
+  eventMissing: boolean;
   onChange: (field: keyof FeedDraft, value: string) => void;
   onSubmit: () => void;
 }
 
-export function FeedCreateView({ draft, events, submitting, failed, onChange, onSubmit }: FeedCreateViewProps) {
+export function FeedCreateView({ draft, events, submitting, failed, eventMissing, onChange, onSubmit }: FeedCreateViewProps) {
   return (
     <section className="app-gathering">
       <AppTitle asChild>
@@ -251,6 +259,7 @@ export function FeedCreateView({ draft, events, submitting, failed, onChange, on
         {submitting ? "Публикуем…" : "Опубликовать"}
       </AppButton>
       {failed && <p className="app-state app-state--error">Не удалось опубликовать впечатление.</p>}
+      {eventMissing && <p className="app-state app-state--error">Выбери событие из списка.</p>}
     </section>
   );
 }
@@ -263,6 +272,7 @@ export function FeedCreatePage({ eventId }: { eventId: string | null }) {
   const [events, setEvents] = useState<Event[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [eventMissing, setEventMissing] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -285,10 +295,15 @@ export function FeedCreatePage({ eventId }: { eventId: string | null }) {
 
   const publish = useCallback(() => {
     if (!feedDraftReady(draft) || userId === null) return;
+    const picked = feedEventPicked(draft, events);
+    if (picked.eventId === null) {
+      setEventMissing(true);
+      return;
+    }
     setSubmitting(true);
     setFailed(false);
-    const event = events.find((item) => item.title === draft.event.trim());
-    apiClient.createFeedPost({ userId, eventId: event?.id ?? draft.event.trim(), text: draft.text.trim() }).then(
+    setEventMissing(false);
+    apiClient.createFeedPost({ userId, eventId: picked.eventId, text: draft.text.trim() }).then(
       () => navigate({ name: "home" }),
       () => {
         setSubmitting(false);
@@ -297,5 +312,18 @@ export function FeedCreatePage({ eventId }: { eventId: string | null }) {
     );
   }, [draft, events, userId, navigate]);
 
-  return <FeedCreateView draft={draft} events={events} submitting={submitting} failed={failed} onChange={(field, value) => setDraft((current) => ({ ...current, [field]: value }))} onSubmit={publish} />;
+  return (
+    <FeedCreateView
+      draft={draft}
+      events={events}
+      submitting={submitting}
+      failed={failed}
+      eventMissing={eventMissing}
+      onChange={(field, value) => {
+        if (field === "event") setEventMissing(false);
+        setDraft((current) => ({ ...current, [field]: value }));
+      }}
+      onSubmit={publish}
+    />
+  );
 }
