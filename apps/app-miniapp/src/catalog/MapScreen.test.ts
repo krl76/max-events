@@ -106,4 +106,25 @@ describe("initEventMap", () => {
     expect(onOpenPlace).toHaveBeenCalledWith(mockPlaces[0].id);
     expect(onOpenPlace).toHaveBeenCalledTimes(1);
   });
+
+  it("highlights the pin and the popup of a promoted event", async () => {
+    const placed = mockEvents.find((item) => item.placeId !== null)!;
+    const promoted = { ...placed, promoted: true };
+    await initEventMap(container, { events: [promoted], places: mockPlaces, onOpenEvent: vi.fn(), onOpenPlace: vi.fn() });
+
+    expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin app-map-pin--promo" }));
+
+    const popup = leaflet.marker.mock.results[0].value.bindPopup.mock.calls[0][0] as FakeNode;
+    expect(popup.appended.some((node) => node.textContent === "Промо")).toBe(true);
+  });
+
+  it("keeps the plain pin for a regular event", async () => {
+    const placed = mockEvents.find((item) => item.placeId !== null && !item.promoted)!;
+    await initEventMap(container, { events: [placed], places: mockPlaces, onOpenEvent: vi.fn(), onOpenPlace: vi.fn() });
+
+    expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin" }));
+
+    const popup = leaflet.marker.mock.results[0].value.bindPopup.mock.calls[0][0] as FakeNode;
+    expect(popup.appended.some((node) => node.textContent === "Промо")).toBe(false);
+  });
 });

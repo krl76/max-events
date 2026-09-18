@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Event details page: full event fields, booking button states (book / booked / sold out), external payment link, participation status selector and counters, «Собрать план» autoplan entry once booked.
+// PURPOSE: Event details page: full event fields, booking button states (book / booked / sold out) with the promo code field (#202), «Промо» badge for promoted events, external payment link, participation status selector and counters, «Собрать план» autoplan entry once booked.
 // SCOPE: Data via apiClient.getEventDetails (mock or live), booking create/cancel through apiClient, waitlist section when sold out, payment via openExternalLink, participation stats/status write via apiClient, post-event review section and report button; no navigation logic.
 // DEPENDS: ../api/client.js (apiClient, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./SaveToList.js (SaveToList), ./ReviewSection.js (ReviewSection), ./ReportButton.js (ReportButton), ./WaitlistSection.js (WaitlistSection), ../plans/AutoPlanSection.js (AutoPlanSection), ../feed/FeedPage.js (FeedSection), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
@@ -7,7 +7,9 @@
 //
 // START_MODULE_MAP
 // - EventDetailsState - union of details fetch states (loading / error / ready)
-// - EventDetailsView - presentational: media, title, meta rows (place title opens the place page), description, booking CTA, check-in button, buy button
+// - bookingErrorMessage - booking failure -> inline text: 403 = promo code rejected / early access needs a code, 409 = sold out (#202)
+// - PromoCodeState - promo code field state of the booking flow (code, inline error, onCode)
+// - EventDetailsView - presentational: media, title (+ «Промо» badge for promoted events), meta rows (place title opens the place page), description, booking CTA with the promo code field, check-in button, buy button
 // - EventPage - route container: resolves the user id from the auth context (loading until authenticated), wires booking/check-in actions and the payment link, entry to the gathering flow
 // - AutoPlanEntry - «Собрать план» autoplan section gate: rendered only with an active booking
 // - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
@@ -17,7 +19,7 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
-import { apiClient, type EventDetails, type ParticipationStats } from "../api/client";
+import { ApiError, apiClient, type EventDetails, type ParticipationStats } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { ParticipationStatusSchema, type ParticipationStatus } from "@max-events/api-contracts";
@@ -108,9 +110,26 @@ interface EventDetailsViewProps {
   onCheckIn: () => void;
   onBuy: (url: string) => void;
   onOpenPlace: (id: string) => void;
+  promo?: PromoCodeState;
 }
 
-export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, onOpenPlace }: EventDetailsViewProps) {
+/** Promo code field state of the booking flow (#202): present only while the event is bookable. */
+export interface PromoCodeState {
+  code: string;
+  error: string | null;
+  onCode: (value: string) => void;
+}
+
+/** Booking failure -> inline message: the backend maps promo code rejection and the early-access window to 403, sold out to 409 (PromoService.redeemInTransaction / BookingsService parity). */
+export function bookingErrorMessage(error: unknown, hadCode: boolean): string {
+  if (error instanceof ApiError) {
+    if (error.status === 403) return hadCode ? "Промокод не подошёл — проверьте код и срок его действия." : "Запись пока открыта по промокоду раннего доступа — введите код.";
+    if (error.status === 409) return "К сожалению, места закончились.";
+  }
+  return "Не удалось записаться. Попробуйте ещё раз.";
+}
+
+export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, onOpenPlace, promo }: EventDetailsViewProps) {
   const { event, place, organizer } = details;
   const paymentUrl = event.isPaid ? event.paymentUrl : null;
   const organizerName = organizer === null ? null : [organizer.firstName, organizer.lastName].filter(Boolean).join(" ");
@@ -122,6 +141,7 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, 
         <AppTitle asChild>
           <h1 className="app-event-title">{event.title}</h1>
         </AppTitle>
+        {event.promoted && <span className="app-today-chip">Промо</span>}
         <dl className="app-event-meta">
           <div className="app-event-meta-row">
             <dt>
@@ -181,6 +201,12 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, 
         </dl>
         {event.description !== "" && <p className="app-event-description">{event.description}</p>}
         <div className="app-event-actions">
+          {promo !== undefined && details.activeBookingId === null && details.remainingSeats !== 0 && (
+            <div className="app-promo-code">
+              <input className="app-filters-input" type="text" value={promo.code} aria-label="Промокод" placeholder="Промокод (если есть)" onChange={(change) => promo.onCode(change.target.value)} />
+              {promo.error !== null && <p className="app-state app-state--error">{promo.error}</p>}
+            </div>
+          )}
           <BookingCta details={details} onBook={onBook} onCancel={onCancel} />
           <CheckInCta checkedIn={details.checkInId !== null} onCheckIn={onCheckIn} />
           {paymentUrl !== null && (
@@ -296,10 +322,24 @@ export function EventPage({ id }: { id: string }) {
   const { navigate } = useRoute();
   const [state, refetch] = useEventDetails(id, userId);
 
+  const [promoCode, setPromoCode] = useState("");
+  const [bookingError, setBookingError] = useState<string | null>(null);
+
   const book = useCallback(() => {
     if (userId === null) return;
-    apiClient.createBooking({ userId, eventId: id }).then(refetch, refetch);
-  }, [userId, id, refetch]);
+    const code = promoCode.trim();
+    setBookingError(null);
+    apiClient.createBooking({ userId, eventId: id, ...(code === "" ? {} : { promoCode: code }) }).then(
+      () => {
+        setPromoCode("");
+        refetch();
+      },
+      (error: unknown) => {
+        setBookingError(bookingErrorMessage(error, code !== ""));
+        refetch();
+      },
+    );
+  }, [userId, id, promoCode, refetch]);
 
   const cancel = useCallback(() => {
     if (state.status !== "ready" || state.details.activeBookingId === null) return;
@@ -315,7 +355,22 @@ export function EventPage({ id }: { id: string }) {
   if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить событие.</p>;
   return (
     <>
-      <EventDetailsView details={state.details} onBook={book} onCancel={cancel} onCheckIn={checkIn} onBuy={openExternalLink} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} />
+      <EventDetailsView
+        details={state.details}
+        onBook={book}
+        onCancel={cancel}
+        onCheckIn={checkIn}
+        onBuy={openExternalLink}
+        onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })}
+        promo={{
+          code: promoCode,
+          error: bookingError,
+          onCode: (value) => {
+            setPromoCode(value);
+            setBookingError(null);
+          },
+        }}
+      />
       <AutoPlanEntry activeBookingId={state.details.activeBookingId} eventId={id} />
       {state.details.remainingSeats === 0 && state.details.activeBookingId === null && <WaitlistSection eventId={id} userId={userId} onChanged={refetch} />}
       <SaveToList eventId={id} userId={userId} />

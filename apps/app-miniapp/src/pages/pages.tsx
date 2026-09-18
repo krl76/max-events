@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Page composition for the shell routing (home feed with whereto/nearby CTAs, event, place, friends with the discovery/people entries, calendar, profile, whereto wizard, nearby screen, reverse discovery, people matching, plans, day route builder).
 // SCOPE: Thin route-to-page mapping; page internals live in their own modules.
-// DEPENDS: ../routing/router.js, ../catalog/CatalogPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../calendar/CalendarPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../today/TodaySection.js, ../assist/AssistSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js
+// DEPENDS: ../routing/router.js, ../catalog/CatalogPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../calendar/CalendarPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../today/TodaySection.js, ../assist/AssistSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../promo/PromoSections.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - HomePage - «Куда пойдём?» + «Рядом со мной» CTAs + NL assist section (AssistSection) + today digest (TodaySection) + impressions feed (FeedSection) + micro-events section (MicroSection) + catalog screen (CatalogPage) on the home route; today block hidden in map view so the map gets the viewport
+// - HomePage - «Куда пойдём?» + «Рядом со мной» CTAs + NL assist section (AssistSection) + promotion banners/collections (PromotionSections, #205) + today digest (TodaySection) + impressions feed (FeedSection) + micro-events section (MicroSection) + catalog screen (CatalogPage) on the home route; today block hidden in map view so the map gets the viewport
 // - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, friends renders the friends feed with the discovery/people entry buttons, calendar/profile routes render their screens (profile + achievements/my-city/lists entries), whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the plans list and plan(id) the plan screen, day-route renders the day route builder, lists renders the saved lists and list(id) one list
 // END_MODULE_MAP
 
@@ -34,6 +34,7 @@ import { MicroEventCreatePage, MicroSection } from "../micro/MicroEvents";
 import { FeedCreatePage, FeedSection, StoriesRow } from "../feed/FeedPage";
 import { DiscoveryLink, DiscoveryPage } from "../discovery/DiscoveryPage";
 import { PeopleLink, PeoplePage } from "../people/PeoplePage";
+import { PromotionSections } from "../promo/PromoSections";
 
 export function HomePage() {
   const { navigate } = useRoute();
@@ -50,6 +51,7 @@ export function HomePage() {
           </button>
           <AssistSection />
           <StoriesRow />
+          <PromotionSections />
           <FeedSection onCreate={() => navigate({ name: "feed-new", eventId: null })} />
           <TodaySection />
           <MicroSection onCreate={() => navigate({ name: "micro-new" })} />

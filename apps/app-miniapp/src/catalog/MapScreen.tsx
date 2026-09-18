@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - MOSCOW_CENTER - fixed Moscow city center coords (shared with the nearby screen)
-// - initEventMap - create Leaflet map (Moscow center) + OSM tile layer with the required attribution + markers with popup mini-cards; returns a dispose function
+// - initEventMap - create Leaflet map (Moscow center) + OSM tile layer with the required attribution + markers with popup mini-cards (promoted events get the highlighted pin and the «Промо» chip, #205); returns a dispose function
 // - MapScreen - places loading state + container ref; wires initEventMap to the React lifecycle
 // END_MODULE_MAP
 
@@ -26,6 +26,12 @@ const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright
 function popupNode(marker: MapMarker, onOpenEvent: (id: string) => void, onOpenPlace: (id: string) => void): HTMLElement {
   const root = document.createElement("div");
   root.className = "app-map-popup";
+  if (marker.promoted) {
+    const chip = document.createElement("span");
+    chip.className = "app-today-chip";
+    chip.textContent = "Промо";
+    root.append(chip);
+  }
   const title = document.createElement("span");
   title.className = "app-map-popup-title";
   title.textContent = marker.title;
@@ -58,7 +64,7 @@ export async function initEventMap(container: HTMLElement, input: { events: Even
   const map = L.map(container, { center: MOSCOW_CENTER, zoom: MOSCOW_ZOOM });
   L.tileLayer(OSM_TILE_URL, { maxZoom: 19, attribution: OSM_ATTRIBUTION }).addTo(map);
   for (const marker of buildMapMarkers(input.events, input.places)) {
-    L.marker([marker.lat, marker.lng], { icon: L.divIcon({ className: "app-map-pin", iconSize: [18, 18] }) })
+    L.marker([marker.lat, marker.lng], { icon: L.divIcon({ className: marker.promoted ? "app-map-pin app-map-pin--promo" : "app-map-pin", iconSize: [18, 18] }) })
       .addTo(map)
       .bindPopup(popupNode(marker, input.onOpenEvent, input.onOpenPlace));
   }

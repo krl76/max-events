@@ -44,4 +44,13 @@ describe("buildMapMarkers", () => {
 
     expect(eventMarkerCount).toBe(mockEvents.filter((item) => item.placeId !== null).length);
   });
+
+  it("flags only the markers of promoted events", () => {
+    const promotedEvent = { ...placedEvent, promoted: true };
+    const markers = buildMapMarkers([promotedEvent, freeEvent], mockPlaces);
+
+    expect(markers.find((marker) => marker.eventId === promotedEvent.id)?.promoted).toBe(true);
+    expect(markers.find((marker) => marker.eventId === freeEvent.id)?.promoted).toBe(false);
+    expect(markers.filter((marker) => marker.eventId === null).every((marker) => !marker.promoted)).toBe(true);
+  });
 });

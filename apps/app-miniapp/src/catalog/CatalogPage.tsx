@@ -10,7 +10,7 @@
 // - CATEGORY_LABELS - ru labels per event category (reused by the event page)
 // - formatStartsAt - ru "day month, hh:mm" formatting (re-exported from ./format.js, reused by the event page)
 // - CatalogViewName - "list" | "map" view switch on the catalog route
-// - CatalogView - presentational: filter bar + segmented «Список ↔ Карта» toggle + state-driven body (skeleton, error, empty, clickable event cards or map with event/place popups)
+// - CatalogView - presentational: filter bar + segmented «Список ↔ Карта» toggle + state-driven body (skeleton, error, empty, clickable event cards with the «Промо» badge on promoted events (#205) or map with event/place popups)
 // - CatalogPage - filters from window.location on mount; view is controlled by the parent (HomePage hides the today block in map view); fetches via useCatalog and writes filter changes back to the URL
 // END_MODULE_MAP
 
@@ -85,6 +85,7 @@ function EventCard({ event, onOpen }: { event: Event; onOpen?: (id: string) => v
         <span className="app-card-subtitle">
           {event.city} · {event.priceRub === null ? "Бесплатно" : `${event.priceRub} ₽`}
         </span>
+        {event.promoted && <span className="app-today-chip">Промо</span>}
       </div>
     </button>
   );

@@ -1520,3 +1520,28 @@ section[aria-label="Микро-события"] {
   font: inherit;
   padding: 0;
 }
+
+/* Продвижение (#205): выделенный пин карты, баннерная строка на главной, поле промокода (#202) */
+.app-map-pin--promo {
+  background: var(--app-danger);
+  border-color: var(--app-accent-contrast);
+}
+
+.app-promo-banners {
+  display: flex;
+  gap: var(--app-space-s);
+  overflow-x: auto;
+  padding-bottom: var(--app-space-xs);
+}
+
+.app-promo-banner {
+  flex: 0 0 75%;
+  text-align: left;
+}
+
+.app-promo-code {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-xs);
+  width: 100%;
+}

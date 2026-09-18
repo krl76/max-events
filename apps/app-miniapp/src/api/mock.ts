@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports, UGC micro-events, the place social page, the nearby timeline/leisure surface, reverse discovery and people matching while backend endpoints (M2–M5, P2) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings, FIFO waitlist with timed confirmation offers, check-ins, seeded friend profiles (interests/privacy) and friend place visits, plan cards, autoplan drafts, day routes, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, reverse discovery of friend places the demo user has not visited, people matching on seeded interests/participations, NL assist with deterministic criteria parsing, history/partner explanations, Saturday stops and rate-limit parity, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, AutoPlanProposal, DayRoute, OptimizeRoute, RoutePoint, AssistCriteria, AssistQueryWrite, AssistResponse, AssistPick, AssistDayResponse, DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute, PeopleCandidate, PeopleMatchContext, PeopleResponse, CreateBookingSchema, CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema, AssistQueryWriteSchema, IdSchema)
+// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings, FIFO waitlist with timed confirmation offers, check-ins, seeded friend profiles (interests/privacy) and friend place visits, plan cards, autoplan drafts, day routes, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, reverse discovery of friend places the demo user has not visited, people matching on seeded interests/participations, NL assist with deterministic criteria parsing, history/partner explanations, Saturday stops and rate-limit parity, promotion placements/targeted fixtures and promo-code booking validation (#202/#205), fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, AutoPlanProposal, DayRoute, OptimizeRoute, RoutePoint, AssistCriteria, AssistQueryWrite, AssistResponse, AssistPick, AssistDayResponse, DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute, PeopleCandidate, PeopleMatchContext, PeopleResponse, CreateBookingSchema, CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema, AssistQueryWriteSchema, IdSchema; PromotionPlacements, TargetedPromotionsResponse)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -61,6 +61,13 @@
 // - resetMockReports - clear in-memory reports (test isolation)
 // - createMockReport - in-memory deduplicated report (mock POST /reports, duplicate -> 409)
 // - resetMockBookings - clear in-memory bookings (test isolation)
+// - MOCK_EARLY_ACCESS_EVENT_ID - fixture event whose booking opens in the future (early access, #202)
+// - MOCK_PROMO_CODE - seeded unlimited promo code for the early-access event
+// - MOCK_SINGLE_USE_PROMO_CODE - seeded single-use promo code (the exhausted path)
+// - resetMockPromo - restore seeded promo codes and redemption counters (test isolation)
+// - redeemMockPromoCode - backend redeemInTransaction parity: early window needs a code; unknown/expired/exhausted -> "forbidden" (403)
+// - mockPromotionPlacements - placements fixture: 2 banners, 1 pin, boosted ids, promoted=true (mock GET /promotions/placements, #205)
+// - mockTargetedPromotions - one target collection with the explanation derived from the demo check-in history (mock GET /promotions/for-me, #205)
 // - OFFER_TTL_MS - 15-minute confirmation window of a waitlist offer
 // - resetMockWaitlist - clear the in-memory waitlist (test isolation)
 // - joinMockWaitlist - join the queue of a sold-out event (mock POST /waitlist; duplicate/seats available/active booking -> 409)
@@ -82,10 +89,10 @@
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people and /api/assist[/day], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me and /api/assist[/day], return a restore function
 // END_MODULE_MAP
 
-import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanCard, Profile, Review, RouteLeg, RoutePoint, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
+import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanCard, Profile, PromotionPlacements, Review, RouteLeg, RoutePoint, TargetedPromotionsResponse, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
 import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
@@ -693,6 +700,77 @@ seedMockBookings();
 export function resetMockBookings(): void {
   mockBookings.length = 0;
   mockBookingSeq = 0;
+}
+
+/** Early-access fixture event (#202): public booking opens in the future; booking works only with a valid promo code (backend PromoService.redeemInTransaction parity). */
+export const MOCK_EARLY_ACCESS_EVENT_ID = "c0000009-0000-4000-8000-000000000009";
+// ponytail: far-future window so the fixture stays "early access" regardless of the wall clock at test time
+const MOCK_BOOKING_OPENS_AT = "2027-06-01T10:00:00+03:00";
+
+/** Unlimited promo code seeded for the early-access fixture event. */
+export const MOCK_PROMO_CODE = "VIP2026";
+/** Single-use promo code seeded for the early-access fixture event (the exhausted path). */
+export const MOCK_SINGLE_USE_PROMO_CODE = "LAST1";
+
+interface MockPromoCode {
+  eventId: string;
+  code: string;
+  maxRedemptions: number | null;
+  redeemedCount: number;
+  expiresAt: string | null;
+}
+
+const mockPromoCodes: MockPromoCode[] = [];
+
+function seedMockPromoCodes(): void {
+  mockPromoCodes.length = 0;
+  mockPromoCodes.push({ eventId: MOCK_EARLY_ACCESS_EVENT_ID, code: MOCK_PROMO_CODE, maxRedemptions: null, redeemedCount: 0, expiresAt: null });
+  mockPromoCodes.push({ eventId: MOCK_EARLY_ACCESS_EVENT_ID, code: MOCK_SINGLE_USE_PROMO_CODE, maxRedemptions: 1, redeemedCount: 0, expiresAt: null });
+}
+seedMockPromoCodes();
+
+/** Restore the seeded promo codes and their redemption counters (test isolation). */
+export function resetMockPromo(): void {
+  seedMockPromoCodes();
+}
+
+/** Backend PromoService.redeemInTransaction parity: no window and no code pass; a window without a code, an unknown/expired/exhausted code are forbidden (403 in the interceptor). */
+export function redeemMockPromoCode(eventId: string, rawCode: string | null | undefined, now: Date = new Date()): { applied: string | null } | "forbidden" {
+  const early = eventId === MOCK_EARLY_ACCESS_EVENT_ID && now.getTime() < new Date(MOCK_BOOKING_OPENS_AT).getTime();
+  const code = rawCode?.trim().toUpperCase();
+  if (!early && !code) return { applied: null };
+  if (!code) return "forbidden";
+  const row = mockPromoCodes.find((item) => item.eventId === eventId && item.code === code);
+  if (!row) return "forbidden";
+  if (row.expiresAt !== null && new Date(row.expiresAt).getTime() <= now.getTime()) return "forbidden";
+  if (row.maxRedemptions !== null && row.redeemedCount >= row.maxRedemptions) return "forbidden";
+  row.redeemedCount += 1;
+  return { applied: code };
+}
+
+/** Promotion placements fixture (mock GET /promotions/placements): two banners, one pin, boosted ids; placement events carry promoted=true (backend PromotionService.placements parity). */
+export function mockPromotionPlacements(): PromotionPlacements {
+  const promoted = (item: Event): Event => ({ ...item, promoted: true });
+  return {
+    banners: [mockEvents[0], mockEvents[5]].map(promoted),
+    pins: [{ event: promoted(mockEvents[2]), place: mockPlaces[0] }],
+    boostedEventIds: [mockEvents[7].id],
+  };
+}
+
+/** Targeted collection fixture (mock GET /promotions/for-me): one target_collection row for the open-air cinema; the visit count in the explanation is derived from the demo user's mock check-in history (backend targetedFor parity). */
+export function mockTargetedPromotions(): TargetedPromotionsResponse {
+  const event = mockEvents[10];
+  const visits = visitStatsFor(mockDemoUser.id).byCategory.find((row) => row.category === event.category)?.count ?? 0;
+  return {
+    collections: [
+      {
+        campaign: { id: "d1000000-0000-4000-8000-000000000001", eventId: event.id, type: "target_collection", status: "active", startsAt: `${MOCK_TODAY}T00:00:00+03:00`, endsAt: "2026-12-31T23:59:59+03:00", audience: { minVisits: 1, windowDays: 30, category: event.category }, createdAt: PLACE_STAMP, completedAt: null },
+        event: { ...event, promoted: true },
+        explanation: `${visits} посещений категории «афиша» за 30 дней`,
+      },
+    ],
+  };
 }
 
 /** Confirmation window of a waitlist offer (mirrors the backend OFFER_TTL_MS). */
@@ -1553,6 +1631,12 @@ export function installMockApi(): () => void {
       const [latitude, longitude] = origin ?? MOCK_PEOPLE_CENTER;
       return Response.json(peopleSuggest(latitude, longitude));
     }
+    if (url.pathname === "/api/promotions/placements") {
+      return Response.json(mockPromotionPlacements());
+    }
+    if (url.pathname === "/api/promotions/for-me") {
+      return Response.json(mockTargetedPromotions());
+    }
     if (url.pathname === "/api/places") {
       return Response.json(mockPlaces);
     }
@@ -1623,6 +1707,8 @@ export function installMockApi(): () => void {
       const existing = mockBookings.find((booking) => booking.eventId === parsed.data.eventId && booking.userId === parsed.data.userId && booking.status === "active");
       if (existing) return Response.json(existing);
       if (remainingSeats(parsed.data.eventId) === 0) return new Response(null, { status: 409 });
+      const promo = redeemMockPromoCode(parsed.data.eventId, parsed.data.promoCode);
+      if (promo === "forbidden") return new Response(null, { status: 403 });
       const now = new Date().toISOString();
       mockBookingSeq += 1;
       const booking: Booking = { id: `e0000000-0000-4000-8000-${String(mockBookingSeq).padStart(12, "0")}`, userId: parsed.data.userId, eventId: parsed.data.eventId, status: "active", createdAt: now, updatedAt: now };
