@@ -14,10 +14,10 @@ describe("profile mock endpoints", () => {
     resetMockProfiles();
   });
 
-  it("serves a default profile for an unknown user", async () => {
+  it("serves a default profile for the demo user", async () => {
     restore = installMockApi();
 
-    const profile = await new ApiClient("/api").getProfile(DEMO_USER_ID);
+    const profile = await new ApiClient("/api").getProfile();
 
     expect(profile).toEqual({ userId: DEMO_USER_ID, city: "Москва", interests: [], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: true });
   });
@@ -26,28 +26,27 @@ describe("profile mock endpoints", () => {
     restore = installMockApi();
     const api = new ApiClient("/api");
 
-    const updated = await api.updateProfile(DEMO_USER_ID, { city: "Казань", interests: ["бег", "джаз"], recommendationsEnabled: false });
+    const updated = await api.updateProfile({ city: "Казань", interests: ["бег", "джаз"], recommendationsEnabled: false });
     expect(updated).toEqual({ userId: DEMO_USER_ID, city: "Казань", interests: ["бег", "джаз"], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: false });
 
-    const reread = await api.getProfile(DEMO_USER_ID);
+    const reread = await api.getProfile();
     expect(reread).toEqual(updated);
   });
 
-  it("keeps a partial patch without touching other users", async () => {
+  it("keeps a partial patch without touching other fields", async () => {
     restore = installMockApi();
     const api = new ApiClient("/api");
 
-    const updated = await api.updateProfile(DEMO_USER_ID, { city: "Казань" });
-    expect(updated.interests).toEqual([]);
+    const updated = await api.updateProfile({ city: "Казань" });
 
-    const other = await api.getProfile("a0000000-0000-4000-8000-000000000002");
-    expect(other.city).toBe("Москва");
-    expect(other.interests).toEqual([]);
+    expect(updated.city).toBe("Казань");
+    expect(updated.interests).toEqual([]);
+    expect(updated.recommendationsEnabled).toBe(true);
   });
 
   it("rejects an invalid patch body", async () => {
     restore = installMockApi();
 
-    await expect(new ApiClient("/api").updateProfile(DEMO_USER_ID, { city: "" })).rejects.toMatchObject({ name: "ApiError", status: 400 });
+    await expect(new ApiClient("/api").updateProfile({ city: "" })).rejects.toMatchObject({ name: "ApiError", status: 400 });
   });
 });

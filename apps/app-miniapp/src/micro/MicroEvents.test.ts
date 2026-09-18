@@ -10,24 +10,24 @@ const noop = () => {};
 const readyDraft: MicroDraft = { title: "Играем в баскетбол", when: "2026-09-19T19:00", where: "Стритбол-площадка", limit: "6" };
 
 describe("microWhere", () => {
-  it("prefers locationText and falls back to the picked mock place title", () => {
+  it("prefers locationText and falls back to the picked place title", () => {
     const withText = events.find((item) => item.locationText !== null)!;
     const withPlace = events.find((item) => item.placeId !== null)!;
 
-    expect(microWhere(withText)).toBe(withText.locationText);
-    expect(microWhere(withPlace)).toBe(mockPlaces.find((place) => place.id === withPlace.placeId)!.title);
+    expect(microWhere(withText, mockPlaces)).toBe(withText.locationText);
+    expect(microWhere(withPlace, mockPlaces)).toBe(mockPlaces.find((place) => place.id === withPlace.placeId)!.title);
   });
 });
 
 describe("MicroCard", () => {
-  const card = (over: { joined?: boolean } = {}) => renderToStaticMarkup(createElement(MicroCard, { item: events[0], joined: over.joined ?? false, onJoin: noop, onLeave: noop }));
+  const card = (over: { joined?: boolean } = {}) => renderToStaticMarkup(createElement(MicroCard, { item: events[0], places: mockPlaces, joined: over.joined ?? false, onJoin: noop, onLeave: noop }));
 
   it("renders the badge, title, where line and the participants counter", () => {
     const html = card();
 
     expect(html).toContain("Микро");
     expect(html).toContain(events[0].title);
-    expect(html).toContain(microWhere(events[0]));
+    expect(html).toContain(microWhere(events[0], mockPlaces));
     expect(html).toContain(`${events[0].participantsCount}/${events[0].participantsLimit}`);
     expect(html).toContain("Присоединиться");
   });
@@ -39,7 +39,7 @@ describe("MicroCard", () => {
 
   it("disables joining when the counter reached the limit", () => {
     const full = { ...events[0], participantsCount: events[0].participantsLimit };
-    const html = renderToStaticMarkup(createElement(MicroCard, { item: full, joined: false, onJoin: noop, onLeave: noop }));
+    const html = renderToStaticMarkup(createElement(MicroCard, { item: full, places: mockPlaces, joined: false, onJoin: noop, onLeave: noop }));
 
     expect(html).toContain("Мест нет");
     expect(html).toContain("disabled");

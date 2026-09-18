@@ -20,7 +20,7 @@ const post: FeedPost = {
 const readyDraft: FeedDraft = { event: mockEvents[0].title, text: "Как прошло — восторг" };
 
 describe("FeedPostCard", () => {
-  const card = (over: Partial<FeedPost> = {}, withEventLink = false) => renderToStaticMarkup(createElement(FeedPostCard, { post: { ...post, ...over }, onToggleLike: noop, onAddComment: noop, ...(withEventLink ? { onOpenEvent: noop } : {}) }));
+  const card = (over: Partial<FeedPost> = {}, withEventLink = false) => renderToStaticMarkup(createElement(FeedPostCard, { post: { ...post, ...over }, eventTitle: mockEvents[0].title, onToggleLike: noop, onAddComment: noop, ...(withEventLink ? { onOpenEvent: noop } : {}) }));
 
   it("renders the photo placeholder, author, event title, text and comments", () => {
     const html = card();

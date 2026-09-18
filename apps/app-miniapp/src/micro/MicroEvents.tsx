@@ -1,44 +1,43 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Micro-events (UGC): feed section with the participants counter and the ≤30-seconds creation form ("Играем в баскетбол сегодня в 19:00 — 3/6").
-// SCOPE: Data via apiClient.listMicroEvents/joinMicroEvent/leaveMicroEvent/createMicroEvent; the section shows open micro events with a join/leave toggle; the form has exactly four fields (title, when, where, limit) and resolves a picked mock place into placeId, free text into locationText; membership is client-session state until the backend owns it.
-// DEPENDS: ../api/client.js (apiClient), ../api/mock.js (mockPlaces for the place datalist), ../catalog/CatalogPage.js (formatStartsAt), ../auth/AuthContext.js, ../event/EventPage.js (DEMO_USER_ID), ../routing/router.js, ../ui/theme.css
+// SCOPE: Data via apiClient.listMicroEvents/joinMicroEvent/leaveMicroEvent/createMicroEvent + listPlaces (place titles for cards and the create-form datalist); the section shows open micro events with a join/leave toggle; the form has exactly four fields (title, when, where, limit) and resolves a picked place into placeId, free text into locationText; membership is client-session state until the backend owns it.
+// DEPENDS: ../api/client.js (apiClient), ../catalog/CatalogPage.js (formatStartsAt), ../auth/AuthContext.js, ../routing/router.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - microWhere - locationText or the title of the picked mock place
+// - microWhere - locationText or the title of the picked place from the loaded places list
 // - MicroCard - presentational: «Микро» badge, title, when/where, «3/6» counter, join/leave button
 // - MicroState - union of the section fetch states (loading / error / ready)
-// - MicroSection - container: loads open micro events, wires join/leave and the create CTA
+// - MicroSection - container: loads open micro events and the places list, wires join/leave and the create CTA
 // - MicroDraft - creation form draft (title, when, where, limit)
 // - microDraftReady - the four fields are filled with a positive limit
-// - MicroEventCreateView - presentational four-field form with the mock-place datalist
-// - MicroEventCreatePage - route container: author id, draft state, publish via createMicroEvent
+// - MicroEventCreateView - presentational four-field form with the place datalist
+// - MicroEventCreatePage - route container: author id from the auth context, places via apiClient, draft state, publish via createMicroEvent
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
 import type { MicroEvent, Place } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
-import { mockPlaces } from "../api/mock";
 import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
-import { DEMO_USER_ID } from "../event/EventPage";
 import { useRoute } from "../routing/router";
 import { AppButton, AppTitle } from "../ui/primitives";
 import { IconButton } from "@maxhub/max-ui";
 
-export function microWhere(item: MicroEvent): string {
-  return item.locationText ?? mockPlaces.find((place) => place.id === item.placeId)?.title ?? "";
+export function microWhere(item: MicroEvent, places: Place[]): string {
+  return item.locationText ?? places.find((place) => place.id === item.placeId)?.title ?? "";
 }
 
 interface MicroCardProps {
   item: MicroEvent;
+  places: Place[];
   joined: boolean;
   onJoin: () => void;
   onLeave: () => void;
 }
 
-export function MicroCard({ item, joined, onJoin, onLeave }: MicroCardProps) {
+export function MicroCard({ item, places, joined, onJoin, onLeave }: MicroCardProps) {
   const full = item.participantsCount >= item.participantsLimit;
   return (
     <article className="app-card">
@@ -47,7 +46,7 @@ export function MicroCard({ item, joined, onJoin, onLeave }: MicroCardProps) {
           <span className="app-micro-badge">Микро</span> {item.title}
         </span>
         <span className="app-card-subtitle">{formatStartsAt(item.startsAt)}</span>
-        <span className="app-card-subtitle">{microWhere(item)}</span>
+        <span className="app-card-subtitle">{microWhere(item, places)}</span>
         <span className="app-card-subtitle">
           {item.participantsCount}/{item.participantsLimit} участников
         </span>
@@ -69,8 +68,9 @@ export type MicroState = { status: "loading" } | { status: "error" } | { status:
 
 export function MicroSection({ onCreate }: { onCreate: () => void }) {
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
   const [state, setState] = useState<MicroState>({ status: "loading" });
+  const [places, setPlaces] = useState<Place[]>([]);
   const [joined, setJoined] = useState<string[]>([]);
 
   const load = useCallback(() => {
@@ -83,12 +83,26 @@ export function MicroSection({ onCreate }: { onCreate: () => void }) {
     load();
   }, [load]);
 
+  useEffect(() => {
+    let alive = true;
+    apiClient.listPlaces().then(
+      (list) => {
+        if (alive) setPlaces(list);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const update = useCallback((next: MicroEvent) => {
     setState((current) => (current.status === "ready" ? { ...current, events: current.events.map((item) => (item.id === next.id ? next : item)) } : current));
   }, []);
 
   const join = useCallback(
     (id: string) => {
+      if (userId === null) return;
       apiClient.joinMicroEvent(id, userId).then((next) => {
         setJoined((current) => (current.includes(id) ? current : [...current, id]));
         update(next);
@@ -99,6 +113,7 @@ export function MicroSection({ onCreate }: { onCreate: () => void }) {
 
   const leave = useCallback(
     (id: string) => {
+      if (userId === null) return;
       apiClient.leaveMicroEvent(id, userId).then((next) => {
         setJoined((current) => current.filter((item) => item !== id));
         update(next);
@@ -117,7 +132,7 @@ export function MicroSection({ onCreate }: { onCreate: () => void }) {
           +
         </IconButton>
       </div>
-      {state.status === "loading" ? null : state.status === "error" ? <p className="app-state app-state--error">Не удалось загрузить микро-события.</p> : state.events.length === 0 ? <p className="app-state">Пока нет открытых микро-событий. Создай первое!</p> : state.events.map((item) => <MicroCard key={item.id} item={item} joined={joined.includes(item.id)} onJoin={() => join(item.id)} onLeave={() => leave(item.id)} />)}
+      {state.status === "loading" ? null : state.status === "error" ? <p className="app-state app-state--error">Не удалось загрузить микро-события.</p> : state.events.length === 0 ? <p className="app-state">Пока нет открытых микро-событий. Создай первое!</p> : state.events.map((item) => <MicroCard key={item.id} item={item} places={places} joined={joined.includes(item.id)} onJoin={() => join(item.id)} onLeave={() => leave(item.id)} />)}
     </section>
   );
 }
@@ -180,17 +195,31 @@ export function MicroEventCreateView({ draft, places, submitting, failed, onChan
 
 export function MicroEventCreatePage() {
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
   const [draft, setDraft] = useState<MicroDraft>({ title: "", when: "", where: "", limit: "6" });
+  const [places, setPlaces] = useState<Place[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
 
+  useEffect(() => {
+    let alive = true;
+    apiClient.listPlaces().then(
+      (list) => {
+        if (alive) setPlaces(list);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const publish = useCallback(() => {
-    if (!microDraftReady(draft)) return;
+    if (!microDraftReady(draft) || userId === null) return;
     setSubmitting(true);
     setFailed(false);
-    const place = mockPlaces.find((item) => item.title === draft.where.trim());
+    const place = places.find((item) => item.title === draft.where.trim());
     apiClient
       .createMicroEvent({
         userId,
@@ -206,7 +235,7 @@ export function MicroEventCreatePage() {
           setFailed(true);
         },
       );
-  }, [draft, userId, navigate]);
+  }, [draft, places, userId, navigate]);
 
-  return <MicroEventCreateView draft={draft} places={mockPlaces} submitting={submitting} failed={failed} onChange={(field, value) => setDraft((current) => ({ ...current, [field]: value }))} onSubmit={publish} />;
+  return <MicroEventCreateView draft={draft} places={places} submitting={submitting} failed={failed} onChange={(field, value) => setDraft((current) => ({ ...current, [field]: value }))} onSubmit={publish} />;
 }

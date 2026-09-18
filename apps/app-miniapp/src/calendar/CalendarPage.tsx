@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Calendar screen: own bookings split into upcoming/past sections, booking cards, cancel action.
 // SCOPE: Data via apiClient.listCalendar (mock or live), cancel via apiClient.cancelBooking; sectioning by the event start date.
-// DEPENDS: ../api/client.js (apiClient, CalendarEntry), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../event/EventPage.js (DEMO_USER_ID), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, CalendarEntry), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -16,7 +16,6 @@ import { useCallback, useEffect, useState } from "react";
 import { apiClient, type CalendarEntry } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
-import { DEMO_USER_ID } from "../event/EventPage";
 import { AppButton, AppTitle } from "../ui/primitives";
 
 export type CalendarState = { status: "loading" } | { status: "error" } | { status: "ready"; entries: CalendarEntry[] };
@@ -82,14 +81,15 @@ export function CalendarView({ state, now, onCancel }: CalendarViewProps) {
 
 export function CalendarPage() {
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
   const [state, setState] = useState<CalendarState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    if (userId === null) return;
     let alive = true;
     setState({ status: "loading" });
-    apiClient.listCalendar(userId).then(
+    apiClient.listCalendar().then(
       (entries) => {
         if (alive) setState({ status: "ready", entries });
       },

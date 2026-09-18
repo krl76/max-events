@@ -163,7 +163,7 @@ function useProfileData(userId: string): [ProfileData, (patch: UpdateProfile) =>
   useEffect(() => {
     let alive = true;
     setData({ profile: null, failed: false, saving: false, stats: { events: 0, places: 0 }, friendsCount: 0, posts: [], visitStats: null });
-    apiClient.getProfile(userId).then(
+    apiClient.getProfile().then(
       (profile) => {
         if (alive) setData((current) => ({ ...current, profile }));
       },
@@ -171,7 +171,7 @@ function useProfileData(userId: string): [ProfileData, (patch: UpdateProfile) =>
         if (alive) setData((current) => ({ ...current, failed: true }));
       },
     );
-    apiClient.listCalendar(userId).then(
+    apiClient.listCalendar().then(
       (entries) => {
         if (alive) setData((current) => ({ ...current, stats: profileStats(entries) }));
       },
@@ -203,7 +203,7 @@ function useProfileData(userId: string): [ProfileData, (patch: UpdateProfile) =>
   const save = useCallback(
     (patch: UpdateProfile) => {
       setData((current) => ({ ...current, saving: true }));
-      apiClient.updateProfile(userId, patch).then(
+      apiClient.updateProfile(patch).then(
         (profile) => {
           setData((current) => ({ ...current, profile, saving: false }));
         },

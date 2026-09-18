@@ -152,6 +152,35 @@ describe("ApiClient", () => {
   });
 });
 
+describe("ApiClient initData header", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("sends x-max-init-data on every request once set", async () => {
+    const getInit = mockFetchCaptured(validEvent);
+    const client = new ApiClient("http://localhost:3100/api");
+    client.setInitData("user=%7B%22id%22%3A1%7D&hash=abc");
+
+    await client.getEvent(validEvent.id);
+
+    expect(getInit()?.headers).toMatchObject({ "x-max-init-data": "user=%7B%22id%22%3A1%7D&hash=abc" });
+  });
+
+  it("omits the header without initData and after it is cleared", async () => {
+    const getInit = mockFetchCaptured(validEvent);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await client.getEvent(validEvent.id);
+    expect((getInit()?.headers as Record<string, string>)["x-max-init-data"]).toBeUndefined();
+
+    client.setInitData("user=%7B%22id%22%3A1%7D&hash=abc");
+    client.setInitData(null);
+    await client.getEvent(validEvent.id);
+    expect((getInit()?.headers as Record<string, string>)["x-max-init-data"]).toBeUndefined();
+  });
+});
+
 describe("ApiClient.listEvents", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -210,7 +239,7 @@ describe("ApiClient.profile", () => {
     const getInit = mockFetchCaptured(profile);
     const client = new ApiClient("http://localhost:3100/api");
 
-    const saved = await client.updateProfile(profile.userId, { city: "Казань" });
+    const saved = await client.updateProfile({ city: "Казань" });
 
     expect(saved).toEqual(profile);
     expect(getInit()?.method).toBe("PATCH");
@@ -222,7 +251,7 @@ describe("ApiClient.profile", () => {
     mockFetchOnce(true, 200, { userId: "not-a-uuid", city: "Москва" });
     const client = new ApiClient("http://localhost:3100/api");
 
-    await expect(client.updateProfile(profile.userId, { interests: [] })).rejects.toMatchObject({ name: "ApiError" });
+    await expect(client.updateProfile({ interests: [] })).rejects.toMatchObject({ name: "ApiError" });
   });
 });
 
@@ -231,24 +260,8 @@ describe("ApiClient.listCalendar", () => {
     vi.unstubAllGlobals();
   });
 
-  it("requests /bookings with the userId query param", async () => {
+  it("requests /calendar and flattens upcoming and past entries", async () => {
     const urls: string[] = [];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn((url: string) => {
-        urls.push(url);
-        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
-      }),
-    );
-    const client = new ApiClient("http://localhost:3100/api");
-
-    const entries = await client.listCalendar("u-1");
-
-    expect(entries).toEqual([]);
-    expect(urls[0]).toBe("http://localhost:3100/api/bookings?userId=u-1");
-  });
-
-  it("parses a valid calendar entry payload", async () => {
     const event = validEvent;
     const booking = {
       id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6e",
@@ -258,19 +271,30 @@ describe("ApiClient.listCalendar", () => {
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     };
-    mockFetchOnce(true, 200, [{ booking, event, place: null }]);
+    const pastBooking = { ...booking, id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6f" };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        urls.push(url);
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ upcoming: [{ booking, event, place: null }], past: [{ booking: pastBooking, event, place: null }] }) });
+      }),
+    );
     const client = new ApiClient("http://localhost:3100/api");
 
-    const entries = await client.listCalendar("u-1");
+    const entries = await client.listCalendar();
 
-    expect(entries).toEqual([{ booking, event, place: null }]);
+    expect(urls[0]).toBe("http://localhost:3100/api/calendar");
+    expect(entries).toEqual([
+      { booking, event, place: null },
+      { booking: pastBooking, event, place: null },
+    ]);
   });
 
   it("rejects a payload with an invalid entry", async () => {
-    mockFetchOnce(true, 200, [{ booking: {}, event: {}, place: null }]);
+    mockFetchOnce(true, 200, { upcoming: [{ booking: {}, event: {}, place: null }], past: [] });
     const client = new ApiClient("http://localhost:3100/api");
 
-    await expect(client.listCalendar("u-1")).rejects.toMatchObject({ name: "ApiError" });
+    await expect(client.listCalendar()).rejects.toMatchObject({ name: "ApiError" });
   });
 });
 

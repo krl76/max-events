@@ -6,10 +6,9 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - DEMO_USER_ID - fallback booking owner outside the MAX client (mock/dev mode)
 // - EventDetailsState - union of details fetch states (loading / error / ready)
 // - EventDetailsView - presentational: media, title, meta rows (place title opens the place page), description, booking CTA, check-in button, buy button
-// - EventPage - route container: resolves the user id, wires booking/check-in actions and the payment link, entry to the gathering flow
+// - EventPage - route container: resolves the user id from the auth context (loading until authenticated), wires booking/check-in actions and the payment link, entry to the gathering flow
 // - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
 // - ParticipationView - presentational: status chip selector, clear button, status counters and friends count
 // - ParticipationSection - container: loads participation stats via apiClient and wires set/clear actions
@@ -31,15 +30,14 @@ import { ReviewSection } from "./ReviewSection";
 import { ReportButton } from "./ReportButton";
 import { WaitlistSection } from "./WaitlistSection";
 
-export const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
-
 export type EventDetailsState = { status: "loading" } | { status: "error" } | { status: "ready"; details: EventDetails };
 
-function useEventDetails(id: string, userId: string): [EventDetailsState, () => void] {
+function useEventDetails(id: string, userId: string | null): [EventDetailsState, () => void] {
   const [state, setState] = useState<EventDetailsState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    if (userId === null) return;
     let alive = true;
     setState({ status: "loading" });
     apiClient.getEventDetails(id, userId).then(
@@ -287,11 +285,12 @@ export function ParticipationSection({ eventId, userId }: { eventId: string; use
 
 export function EventPage({ id }: { id: string }) {
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
   const [state, refetch] = useEventDetails(id, userId);
 
   const book = useCallback(() => {
+    if (userId === null) return;
     apiClient.createBooking({ userId, eventId: id }).then(refetch, refetch);
   }, [userId, id, refetch]);
 
@@ -301,10 +300,11 @@ export function EventPage({ id }: { id: string }) {
   }, [state, refetch]);
 
   const checkIn = useCallback(() => {
+    if (userId === null) return;
     apiClient.createCheckIn({ userId, eventId: id }).then(refetch, refetch);
   }, [userId, id, refetch]);
 
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
+  if (state.status === "loading" || userId === null) return <p className="app-state">Загрузка…</p>;
   if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить событие.</p>;
   return (
     <>

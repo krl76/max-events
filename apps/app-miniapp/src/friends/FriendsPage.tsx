@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Friends feed screen "Твои люди идут": friends grouped with the events they attend, join CTA to the event page.
 // SCOPE: Data via apiClient.getFriendsActivity (mock or live backend); grouping by friend; CTA navigates to the event route; empty/loading/error states.
-// DEPENDS: ../api/client.js (apiClient, FriendActivityByFriend), @max-events/api-contracts (FriendActivityByFriendSchema), ../routing/router.js, ../catalog/CatalogPage.js (formatStartsAt), ../event/EventPage.js (PARTICIPATION_STATUS_LABELS, DEMO_USER_ID), ../auth/AuthContext.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, FriendActivityByFriend), @max-events/api-contracts (FriendActivityByFriendSchema), ../routing/router.js, ../catalog/CatalogPage.js (formatStartsAt), ../event/EventPage.js (PARTICIPATION_STATUS_LABELS), ../auth/AuthContext.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -17,7 +17,7 @@ import { apiClient } from "../api/client";
 import type { FriendActivityByFriend } from "@max-events/api-contracts";
 import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
-import { DEMO_USER_ID, PARTICIPATION_STATUS_LABELS } from "../event/EventPage";
+import { PARTICIPATION_STATUS_LABELS } from "../event/EventPage";
 import { useRoute } from "../routing/router";
 import { AppAvatar, AppButton } from "../ui/primitives";
 
@@ -71,11 +71,12 @@ export function FriendsView({ state, onJoin }: FriendsViewProps) {
 
 export function FriendsPage() {
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
   const [state, setState] = useState<FriendsState>({ status: "loading" });
 
   useEffect(() => {
+    if (userId === null) return;
     let alive = true;
     setState({ status: "loading" });
     apiClient.getFriendsActivity(userId).then(

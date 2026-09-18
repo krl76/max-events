@@ -1,18 +1,17 @@
 // START_MODULE_CONTRACT
 // PURPOSE: React context exposing the AuthState resolved once at startup.
 // SCOPE: AuthProvider (authenticate on mount), useAuth hook; rendering of states lives in pages/layout.
-// DEPENDS: ./auth.js, ../max/bridge.js (webApp), ../api/client.js (apiClient)
+// DEPENDS: ./auth.js, ../max/bridge.js (webApp), ../api/client.js (apiClient), ../api/mock.js (lazy import under the VITE_USE_MOCK gate only — the mock module stays out of the real-mode runtime)
 // LINKS: M-APP-MINIAPP, DF-MAX-IDENTITY
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - AuthProvider - resolves the auth state on mount and provides it via context; in mock mode (VITE_USE_MOCK=1) resolves a demo user so screens are reachable outside MAX
+// - AuthProvider - resolves the auth state on mount and provides it via context; in mock mode (VITE_USE_MOCK=1) lazily imports the demo user so screens are reachable outside MAX
 // - useAuth - read the current AuthState
 // END_MODULE_MAP
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { apiClient } from "../api/client";
-import { mockDemoUser } from "../api/mock";
 import { webApp } from "../max/bridge";
 import { authenticate, type AuthState } from "./auth";
 
@@ -23,10 +22,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let alive = true;
-    const mockUser = import.meta.env.VITE_USE_MOCK === "1" ? mockDemoUser : null;
-    authenticate(webApp, (payload) => apiClient.login(payload), mockUser).then((resolved) => {
-      if (alive) setState(resolved);
-    });
+    apiClient.setInitData(webApp?.initData ?? null);
+    const demoUser = import.meta.env.VITE_USE_MOCK === "1" ? import("../api/mock").then((module) => module.mockDemoUser) : Promise.resolve(null);
+    demoUser
+      .then((mockUser) => authenticate(webApp, (payload) => apiClient.login(payload), mockUser))
+      .then((resolved) => {
+        if (alive) setState(resolved);
+      });
     return () => {
       alive = false;
     };

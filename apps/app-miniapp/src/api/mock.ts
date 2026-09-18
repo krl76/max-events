@@ -64,7 +64,7 @@
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events and /api/today, return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans, /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events and /api/today, return a restore function
 // END_MODULE_MAP
 
 import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlacePage, PlanCard, Profile, Review, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
@@ -455,9 +455,9 @@ export function resetMockReports(): void {
 export function createMockReport(payload: CreateReport): Report | "duplicate" | "no_target" | "invalid" {
   if (!mockEvents.some((item) => item.id === payload.eventId)) return "no_target";
   if (!REPORT_REASONS.includes(payload.reason)) return "invalid";
-  if (mockReports.some((item) => item.userId === payload.userId && item.eventId === payload.eventId)) return "duplicate";
+  if (mockReports.some((item) => item.userId === payload.userId && item.targetId === payload.eventId)) return "duplicate";
   mockReportSeq += 1;
-  const report: Report = { id: `81000000-0000-4000-8000-${String(mockReportSeq).padStart(12, "0")}`, userId: payload.userId, eventId: payload.eventId, reason: payload.reason, createdAt: new Date().toISOString() };
+  const report: Report = { id: `81000000-0000-4000-8000-${String(mockReportSeq).padStart(12, "0")}`, userId: payload.userId, targetType: "event", targetId: payload.eventId, reason: payload.reason, status: "open", createdAt: new Date().toISOString() };
   mockReports.push(report);
   return report;
 }
@@ -968,6 +968,9 @@ export function installMockApi(): () => void {
     if (url.pathname === "/api/friends/activity") {
       return Response.json(friendActivityByFriend());
     }
+    if (url.pathname === "/api/friends") {
+      return Response.json(mockFriends);
+    }
     if (url.pathname === "/api/today") {
       return Response.json(todayPicks());
     }
@@ -1023,17 +1026,16 @@ export function installMockApi(): () => void {
       mockParticipations.delete(key);
       return Response.json(existing);
     }
-    const profile = /^\/api\/users\/([^/]+)\/profile$/.exec(url.pathname);
-    if (profile && init?.method === "PATCH") {
+    if (url.pathname === "/api/profile" && init?.method === "PATCH") {
       const parsed = UpdateProfileSchema.safeParse(parseBookingBody(init));
       if (!parsed.success) return new Response(null, { status: 400 });
-      const current = profileFor(profile[1]);
+      const current = profileFor(mockDemoUser.id);
       const updated: Profile = { ...current, ...parsed.data, smartAlerts: { ...current.smartAlerts, ...parsed.data.smartAlerts }, privacy: { ...current.privacy, ...parsed.data.privacy }, recommendationsEnabled: parsed.data.recommendationsEnabled ?? current.recommendationsEnabled };
-      mockProfiles.set(profile[1], updated);
+      mockProfiles.set(mockDemoUser.id, updated);
       return Response.json(updated);
     }
-    if (profile) {
-      return Response.json(profileFor(profile[1]));
+    if (url.pathname === "/api/profile") {
+      return Response.json(profileFor(mockDemoUser.id));
     }
     if (url.pathname === "/api/bookings" && init?.method === "POST") {
       const parsed = CreateBookingSchema.safeParse(parseBookingBody(init));
@@ -1048,8 +1050,14 @@ export function installMockApi(): () => void {
       mockBookings.push(booking);
       return Response.json(booking);
     }
-    if (url.pathname === "/api/bookings") {
-      return Response.json(calendarEntries(url.searchParams.get("userId") ?? ""));
+    if (url.pathname === "/api/calendar") {
+      const entries = calendarEntries(mockDemoUser.id);
+      const now = Date.now();
+      const byStartAsc = (a: (typeof entries)[number], b: (typeof entries)[number]) => a.event.startsAt.localeCompare(b.event.startsAt);
+      return Response.json({
+        upcoming: entries.filter((entry) => new Date(entry.event.startsAt).getTime() >= now).sort(byStartAsc),
+        past: entries.filter((entry) => new Date(entry.event.startsAt).getTime() < now).sort((a, b) => -byStartAsc(a, b)),
+      });
     }
     if (url.pathname === "/api/check-ins" && init?.method === "POST") {
       const payload = parseBookingBody(init) as { userId?: string; eventId?: string; placeId?: string } | undefined;
@@ -1080,6 +1088,7 @@ export function installMockApi(): () => void {
       return Response.json(booking);
     }
     if (url.pathname === "/api/friends/availability") {
+      if (!url.searchParams.get("eventId")) return new Response(null, { status: 400 });
       return Response.json(friendAvailability());
     }
     if (url.pathname === "/api/gatherings" && init?.method === "POST") {

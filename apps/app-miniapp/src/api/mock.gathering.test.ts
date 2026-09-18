@@ -61,9 +61,15 @@ describe("gathering mock endpoints", () => {
   it("serves friend availability through the typed client", async () => {
     restore = installMockApi();
 
-    const entries = await new ApiClient("/api").getFriendAvailability();
+    const entries = await new ApiClient("/api").getFriendAvailability(mockEvents[0].id);
 
     expect(entries).toEqual(friendAvailability());
+  });
+
+  it("answers 400 for friend availability without an eventId", async () => {
+    restore = installMockApi();
+
+    await expect(new ApiClient("/api").getFriendAvailability("")).rejects.toMatchObject({ name: "ApiError", status: 400 });
   });
 
   it("creates a gathering via POST and reads it back via the typed client", async () => {

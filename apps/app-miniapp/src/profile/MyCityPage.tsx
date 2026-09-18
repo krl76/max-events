@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: "My city" screen: personal history counters (places/events/districts) and the memory map of impression points.
 // SCOPE: Data via apiClient.getMyCity + listEvents + listPlaces (mock or live); Leaflet loaded lazily (dynamic import) like the catalog map; point->marker mapping is pure.
-// DEPENDS: ../api/client.js (apiClient, MyCityPayload), ../auth/AuthContext.js, ../catalog/format.js (formatStartsAt), ../event/EventPage.js (DEMO_USER_ID), ../routing/router.js, leaflet (dynamic import), @max-events/api-contracts (Event, MemoryPoint, MyCitySummary, Place), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, MyCityPayload), ../auth/AuthContext.js, ../catalog/format.js (formatStartsAt), ../routing/router.js, leaflet (dynamic import), @max-events/api-contracts (Event, MemoryPoint, MyCitySummary, Place), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -20,7 +20,6 @@ import type { Event, MemoryPoint, MyCitySummary, Place } from "@max-events/api-c
 import { apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/format";
 import { useAuth } from "../auth/AuthContext";
-import { DEMO_USER_ID } from "../event/EventPage";
 import { useRoute } from "../routing/router";
 
 export interface MemoryMarker {
@@ -102,9 +101,10 @@ export function MyCityView({ state }: { state: MyCityState }) {
 
 export function MyCityPage() {
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : DEMO_USER_ID;
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
   const [state, setState] = useState<MyCityState>({ status: "loading" });
   useEffect(() => {
+    if (userId === null) return;
     let alive = true;
     setState({ status: "loading" });
     Promise.all([apiClient.getMyCity(userId), apiClient.listEvents(), apiClient.listPlaces()]).then(
