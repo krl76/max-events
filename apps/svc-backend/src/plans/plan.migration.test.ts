@@ -34,11 +34,7 @@ describe("AddPlanRecurring20260912190000", () => {
     } as unknown as QueryRunner;
     const migration = new AddPlanRecurring20260912190000();
     await migration.up(queryRunner);
-    expect(queries).toEqual([
-      `ALTER TABLE "plans" ADD COLUMN "recurringRule" jsonb`,
-      `ALTER TABLE "plans" ADD COLUMN "seriesId" uuid`,
-      `ALTER TABLE "plans" ADD COLUMN "sourcePlanId" uuid`,
-    ]);
+    expect(queries).toEqual([`ALTER TABLE "plans" ADD COLUMN "recurringRule" jsonb`, `ALTER TABLE "plans" ADD COLUMN "seriesId" uuid`, `ALTER TABLE "plans" ADD COLUMN "sourcePlanId" uuid`]);
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries).toEqual([`ALTER TABLE "plans" DROP COLUMN "sourcePlanId"`, `ALTER TABLE "plans" DROP COLUMN "seriesId"`, `ALTER TABLE "plans" DROP COLUMN "recurringRule"`]);
@@ -57,7 +53,7 @@ describe("AddPlanRecurringGuards20260912191000", () => {
     await migration.up(queryRunner);
     expect(queries[0]).toContain(`ADD COLUMN "cancelledAt"`);
     expect(queries[1]).toContain(`DELETE FROM "plans"`);
-    expect(queries[1]).toContain(`GROUP BY q."seriesId", q."meetingAt"`);
+    expect(queries[1]).toContain(`row_number() OVER (PARTITION BY "seriesId", "meetingAt" ORDER BY "id")`);
     expect(queries[2]).toContain(`CREATE UNIQUE INDEX "UQ_plans_series_meeting"`);
     expect(queries[2]).toContain(`"seriesId", "meetingAt"`);
     expect(queries[2]).toContain(`WHERE "seriesId" IS NOT NULL`);

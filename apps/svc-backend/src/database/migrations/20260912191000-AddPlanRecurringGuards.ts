@@ -5,9 +5,7 @@ export class AddPlanRecurringGuards20260912191000 implements MigrationInterface 
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TABLE "plans" ADD COLUMN "cancelledAt" TIMESTAMP WITH TIME ZONE`);
-    await queryRunner.query(
-      `DELETE FROM "plans" p WHERE p."seriesId" IS NOT NULL AND p."id" NOT IN (SELECT MIN(q."id") FROM "plans" q WHERE q."seriesId" IS NOT NULL GROUP BY q."seriesId", q."meetingAt")`,
-    );
+    await queryRunner.query(`WITH ranked AS (SELECT "id", row_number() OVER (PARTITION BY "seriesId", "meetingAt" ORDER BY "id") AS rn FROM "plans" WHERE "seriesId" IS NOT NULL) DELETE FROM "plans" p WHERE p."id" IN (SELECT "id" FROM ranked WHERE rn > 1)`);
     await queryRunner.query(`CREATE UNIQUE INDEX "UQ_plans_series_meeting" ON "plans" ("seriesId", "meetingAt") WHERE "seriesId" IS NOT NULL`);
   }
 
