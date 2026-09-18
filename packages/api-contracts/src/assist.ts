@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for NL event assist (AI helper, not a separate chat).
-// SCOPE: query write, parsed criteria, picks with explanations, response summary.
-// DEPENDS: zod, ./event.js
+// SCOPE: query write, parsed criteria, picks with explanations, response summary, Saturday day draft with typed plan card.
+// DEPENDS: zod, ./event.js, ./plan.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -22,12 +22,13 @@
 // - AssistResponse - response type
 // - AssistDayStopSchema - timed event on a generated day
 // - AssistDayStop - day stop type
-// - AssistDayResponseSchema - Saturday draft with plan payload
+// - AssistDayResponseSchema - Saturday draft with typed PlanCard payload
 // - AssistDayResponse - day response type
 // END_MODULE_MAP
 
 import { z } from "zod";
 import { EventSchema } from "./event.js";
+import { PlanCardSchema } from "./plan.js";
 
 export const AssistWhenSchema = z.enum(["morning", "afternoon", "evening", "any"]);
 export type AssistWhen = z.infer<typeof AssistWhenSchema>;
@@ -82,6 +83,6 @@ export const AssistDayResponseSchema = z.object({
     meetingPoint: z.string().min(1).max(300),
     meetingAt: z.string().min(1),
   }),
-  plan: z.unknown().nullable().default(null),
+  plan: PlanCardSchema.nullable().default(null),
 });
 export type AssistDayResponse = z.infer<typeof AssistDayResponseSchema>;

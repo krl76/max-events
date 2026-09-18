@@ -1,6 +1,7 @@
-import { HttpException, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, HttpException, ServiceUnavailableException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
+import type { PlanCard } from "@max-events/api-contracts";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { EventEntity } from "../events/event.entity";
 import { FriendshipEntity } from "../friends/friendship.entity";
@@ -47,11 +48,19 @@ function createService() {
   const friendships = [{ userId, friendUserId: partnerId, id: "f1", createdAt: now } as FriendshipEntity];
   const lists = [{ id: "list-1", userId: partnerId } as ListEntity];
   const listItems = [{ listId: "list-1", eventId: savedId } as ListItemEntity];
+  const plansStore: PlanCard[] = [];
+  let planSeq = 0;
   const plans = {
-    create: async () => ({ plan: { id: "plan-1" }, event: { id: jazzId }, distanceMeters: 0 }),
+    findExisting: async (_hostUserId: string, eventId: string, meetingAt: Date) => plansStore.find((card) => card.plan.eventId === eventId && new Date(card.plan.meetingAt).getTime() === meetingAt.getTime()) ?? null,
+    create: async (_hostUserId: string, payload: { eventId: string; meetingPoint: string; meetingAt: string }) => {
+      planSeq += 1;
+      const card = { plan: { id: `00000000-0000-4000-8000-${String(planSeq).padStart(12, "0")}`, eventId: payload.eventId, participants: [], meetingPoint: payload.meetingPoint, meetingAt: payload.meetingAt, createdAt: now.toISOString(), updatedAt: now.toISOString() }, event: { id: payload.eventId }, distanceMeters: 0 } as unknown as PlanCard;
+      plansStore.push(card);
+      return card;
+    },
   } as unknown as PlansService;
   const service = new AssistService(new SandboxLlmProvider(), { find: async () => events } as unknown as Repository<EventEntity>, { find: async () => checkIns } as unknown as Repository<CheckInEntity>, { find: async () => friendships } as unknown as Repository<FriendshipEntity>, { find: async () => lists } as unknown as Repository<ListEntity>, { find: async () => listItems } as unknown as Repository<ListItemEntity>, plans, new AssistRateLimiter());
-  return { service, events };
+  return { service, events, plansStore };
 }
 
 describe("AssistService", () => {
@@ -83,6 +92,33 @@ describe("AssistService", () => {
     expect(day.plan).toBeNull();
     const saved = await service.planSaturday(userId, "Сделай нам план на субботу", true, new Date("2026-09-11T10:00:00Z"));
     expect(saved.plan).toBeTruthy();
+  });
+
+  it("skips Saturday events that already started", async () => {
+    const { service, events } = createService();
+    events.push(eventRow("00000000-0000-4000-8000-0000000000e7", "Утро в парке", "2026-09-12T10:00:00+03:00", null));
+    events.push(eventRow("00000000-0000-4000-8000-0000000000e8", "Поздний джаз", "2026-09-12T21:00:00+03:00", 900));
+    const saturdayEvening = new Date("2026-09-12T17:00:00Z"); // 20:00 в Москве
+    const day = await service.planSaturday(userId, "Сделай нам план на субботу", false, saturdayEvening);
+    expect(day.date).toBe("2026-09-12");
+    expect(day.stops.map((stop) => stop.event.title)).toEqual(["Поздний джаз"]);
+  });
+
+  it("keeps the 400 when only past Saturday events remain", async () => {
+    const { service, events } = createService();
+    events.push(eventRow("00000000-0000-4000-8000-0000000000e9", "Утро в парке", "2026-09-12T10:00:00+03:00", null));
+    const saturdayEvening = new Date("2026-09-12T17:00:00Z"); // 20:00 в Москве
+    await expect(service.planSaturday(userId, "Сделай нам план на субботу", false, saturdayEvening)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("repeated save returns the same plan instead of creating a duplicate", async () => {
+    const { service, events, plansStore } = createService();
+    events.push(eventRow("00000000-0000-4000-8000-0000000000e5", "Утро в музее", "2026-09-12T12:00:00+03:00", 400));
+    const at = new Date("2026-09-11T10:00:00Z");
+    const first = await service.planSaturday(userId, "Сделай нам план на субботу", true, at);
+    const second = await service.planSaturday(userId, "Сделай нам план на субботу", true, at);
+    expect(plansStore).toHaveLength(1);
+    expect(second.plan?.plan.id).toBe(first.plan?.plan.id);
   });
 
   it("strips injection wrappers and still parses the README query", async () => {

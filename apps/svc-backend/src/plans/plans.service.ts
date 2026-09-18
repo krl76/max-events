@@ -15,7 +15,7 @@
 // - PLAN_POLL_WINDOW_MS - look-ahead window for occurrence polls
 // - settleBalances - greedy debt settlement
 // - budgetFromExpenses - split expenses into per-person nets and debts
-// - PlansService - create, list, get, addParticipant, respond, remove, spawnRecurring, pollRecurring, remindMeeting, budget
+// - PlansService - create, findExisting, list, get, addParticipant, respond, remove, spawnRecurring, pollRecurring, remindMeeting, budget
 // END_MODULE_MAP
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
@@ -211,6 +211,15 @@ export class PlansService {
     }
     if (payload.recurringRule) await this.spawnRecurring(saved.meetingAt);
     return this.toCard(saved, event, origin);
+  }
+
+  async findExisting(hostUserId: string, eventId: string, meetingAt: Date): Promise<PlanCard | null> {
+    const rows = await this.plans.find({ where: { hostUserId, eventId } });
+    const plan = rows.find((row) => !row.cancelledAt && row.meetingAt.getTime() === meetingAt.getTime());
+    if (!plan) return null;
+    const event = await this.events.findOneBy({ id: plan.eventId });
+    if (!event) return null;
+    return this.toCard(plan, event, null);
   }
 
   async spawnRecurring(now = new Date()): Promise<number> {

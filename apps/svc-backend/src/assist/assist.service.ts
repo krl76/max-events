@@ -9,7 +9,7 @@
 // - matchAssistEvents - filter catalog by parsed criteria
 // - formatAssistSummary - README-style copy
 // - nextSaturdayKey - next Saturday YYYY-MM-DD in Moscow
-// - AssistService - suggest, planSaturday
+// - AssistService - suggest, planSaturday (skips past Saturday hours, idempotent save)
 // END_MODULE_MAP
 
 import { BadRequestException, HttpException, HttpStatus, Inject, Injectable, ServiceUnavailableException } from "@nestjs/common";
@@ -70,7 +70,7 @@ export class AssistService {
     this.prepareQuery(userId, query);
     const date = nextSaturdayKey(now);
     const catalog = (await this.events.find())
-      .filter((row) => row.published !== false && moscowDateKey(row.startsAt) === date)
+      .filter((row) => row.published !== false && moscowDateKey(row.startsAt) === date && row.startsAt.getTime() >= now.getTime())
       .map((row) => toEventDto(row))
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
       .slice(0, 4);
@@ -85,7 +85,7 @@ export class AssistService {
     };
     let plan: PlanCard | null = null;
     if (save) {
-      plan = await this.plans.create(userId, planDraft);
+      plan = (await this.plans.findExisting(userId, planDraft.eventId, new Date(planDraft.meetingAt))) ?? (await this.plans.create(userId, planDraft));
     }
     return {
       summary: `Собрал день на субботу ${date}: ${stops.length} событий`,
