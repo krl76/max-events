@@ -22,7 +22,23 @@ describe("routeFromStartParam", () => {
     expect(routeFromStartParam("promo_summer2025")).toEqual({ name: "home" });
   });
 
-  it("falls back to home when the event id is empty", () => {
-    expect(routeFromStartParam("event-")).toEqual({ name: "home" });
+  it("opens the plan route from a plan-* deep link", () => {
+    expect(routeFromStartParam("plan-p1")).toEqual({ name: "plan", id: "p1" });
+  });
+
+  it("opens the list route from a list-* deep link", () => {
+    expect(routeFromStartParam("list-l1")).toEqual({ name: "list", id: "l1" });
+  });
+
+  it("opens the gathering route from a gathering-* deep link", () => {
+    expect(routeFromStartParam("gathering-g1")).toEqual({ name: "gathering", id: "g1" });
+  });
+
+  it("falls back to home when the plan id is empty", () => {
+    expect(routeFromStartParam("plan-")).toEqual({ name: "home" });
+  });
+
+  it("falls back to home for an unknown deep-link prefix", () => {
+    expect(routeFromStartParam("foo-1")).toEqual({ name: "home" });
   });
 });
