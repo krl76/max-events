@@ -10,7 +10,7 @@
 // - PlansScheduler - 60s setInterval around spawnRecurring, pollRecurring, remindMeeting
 // END_MODULE_MAP
 
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PlansService } from "./plans.service";
 
 export const PLAN_REMINDER_INTERVAL_MS = 60_000;
@@ -21,7 +21,7 @@ export class PlansScheduler implements OnModuleInit, OnModuleDestroy {
   private timer: ReturnType<typeof setInterval> | undefined;
   private ticking = false;
 
-  constructor(private readonly plans: PlansService) {}
+  constructor(@Inject(PlansService) private readonly plans: PlansService) {}
 
   onModuleInit() {
     this.timer = setInterval(() => {

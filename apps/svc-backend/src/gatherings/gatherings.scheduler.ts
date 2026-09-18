@@ -10,7 +10,7 @@
 // - GatheringsScheduler - 60s setInterval around remindUnanswered()
 // END_MODULE_MAP
 
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { GatheringsService } from "./gatherings.service";
 
 export const GATHERING_REMINDER_INTERVAL_MS = 60_000;
@@ -20,7 +20,7 @@ export class GatheringsScheduler implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(GatheringsScheduler.name);
   private timer: ReturnType<typeof setInterval> | undefined;
 
-  constructor(private readonly gatherings: GatheringsService) {}
+  constructor(@Inject(GatheringsService) private readonly gatherings: GatheringsService) {}
 
   onModuleInit() {
     this.timer = setInterval(() => {
