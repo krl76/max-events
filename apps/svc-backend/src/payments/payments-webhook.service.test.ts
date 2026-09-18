@@ -1,6 +1,6 @@
-import { BadRequestException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import { QueryFailedError, type Repository } from "typeorm";
+import { QueryFailedError, type DataSource, type EntityManager, type EntityTarget } from "typeorm";
 import { PaymentWebhookEventEntity } from "./payment-webhook-event.entity";
 import { PaymentEntity } from "./payment.entity";
 import { PaymentsWebhookService } from "./payments-webhook.service";
@@ -24,30 +24,57 @@ function paymentRow(status: PaymentEntity["status"] = "pending"): PaymentEntity 
   };
 }
 
-function createService(payment: PaymentEntity) {
-  const payments: PaymentEntity[] = [payment];
+function createService(payment: PaymentEntity | null) {
+  const payments: PaymentEntity[] = payment ? [payment] : [];
   const events: PaymentWebhookEventEntity[] = [];
-  const paymentRepo = {
-    findOneBy: async (where: { providerPaymentId: string }) => payments.find((row) => row.providerPaymentId === where.providerPaymentId) ?? null,
-    save: async (entity: PaymentEntity) => entity,
-  };
-  const eventRepo = {
-    findOneBy: async (where: { providerEventId: string }) => events.find((row) => row.providerEventId === where.providerEventId) ?? null,
-    create: (fields: Partial<PaymentWebhookEventEntity>) => ({ ...fields }) as PaymentWebhookEventEntity,
-    save: async (entity: PaymentWebhookEventEntity) => {
-      if (events.some((row) => row.providerEventId === entity.providerEventId)) {
-        throw new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate"), { code: "23505" }));
+  const dataSource = {
+    transaction: async <T>(run: (manager: EntityManager) => Promise<T>): Promise<T> => {
+      const paymentsSnap = payments.map((row) => ({ ...row }));
+      const eventsSnap = events.map((row) => ({ ...row }));
+      const manager = {
+        findOne: async (entity: EntityTarget<unknown>, options: { where: Record<string, string> }) => {
+          const where = options.where;
+          if (entity === PaymentWebhookEventEntity) return events.find((row) => row.providerEventId === where.providerEventId) ?? null;
+          if (entity === PaymentEntity) return payments.find((row) => row.providerPaymentId === where.providerPaymentId) ?? null;
+          return null;
+        },
+        create: (_entity: EntityTarget<unknown>, fields: object) => ({ ...fields }),
+        save: async (entity: EntityTarget<unknown> | object, maybeRecord?: object) => {
+          const record = (maybeRecord ?? entity) as PaymentEntity | PaymentWebhookEventEntity;
+          if (maybeRecord !== undefined && entity === PaymentWebhookEventEntity) {
+            const row = record as PaymentWebhookEventEntity;
+            if (events.some((item) => item.providerEventId === row.providerEventId)) {
+              throw new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate"), { code: "23505" }));
+            }
+            events.push(row);
+            return row;
+          }
+          if (maybeRecord !== undefined && entity === PaymentEntity) {
+            const row = record as PaymentEntity;
+            const index = payments.findIndex((item) => item.id === row.id);
+            if (index >= 0) payments[index] = row;
+            return row;
+          }
+          return record;
+        },
+      };
+      try {
+        return await run(manager as unknown as EntityManager);
+      } catch (error) {
+        payments.length = 0;
+        payments.push(...paymentsSnap);
+        events.length = 0;
+        events.push(...eventsSnap);
+        throw error;
       }
-      events.push(entity);
-      return entity;
     },
   };
-  const service = new PaymentsWebhookService(paymentRepo as unknown as Repository<PaymentEntity>, eventRepo as unknown as Repository<PaymentWebhookEventEntity>);
+  const service = new PaymentsWebhookService(dataSource as unknown as DataSource);
   return { service, payments, events };
 }
 
-function signed(body: object) {
-  const raw = JSON.stringify(body);
+function signed(body: object | string) {
+  const raw = typeof body === "string" ? body : JSON.stringify(body);
   return { raw, signature: signPaymentWebhook(secret, raw) };
 }
 
@@ -57,8 +84,8 @@ describe("PaymentsWebhookService", () => {
     const { raw, signature } = signed({ eventId: "evt_1", paymentId: providerPaymentId, status: "succeeded" });
     await expect(service.handleWebhook(raw, signature, undefined)).rejects.toBeInstanceOf(UnauthorizedException);
     await expect(service.handleWebhook(raw, "ab", secret)).rejects.toBeInstanceOf(UnauthorizedException);
-    const broken = "{";
-    await expect(service.handleWebhook(broken, signPaymentWebhook(secret, broken), secret)).rejects.toBeInstanceOf(BadRequestException);
+    const broken = signed("{");
+    await expect(service.handleWebhook(broken.raw, broken.signature, secret)).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("applies a succeeded status once and ignores a duplicate delivery", async () => {
@@ -74,9 +101,17 @@ describe("PaymentsWebhookService", () => {
   });
 
   it("journals an illegal transition without changing the payment", async () => {
-    const { service, payments } = createService(paymentRow("succeeded"));
+    const { service, payments, events } = createService(paymentRow("succeeded"));
     const { raw, signature } = signed({ eventId: "evt_2", paymentId: providerPaymentId, status: "pending" });
     expect(await service.handleWebhook(raw, signature, secret)).toEqual({ duplicate: false, applied: false });
     expect(payments[0]?.status).toBe("succeeded");
+    expect(events).toHaveLength(1);
+  });
+
+  it("rolls back the journal when the payment row is missing so the provider can retry", async () => {
+    const { service, events } = createService(null);
+    const { raw, signature } = signed({ eventId: "evt_3", paymentId: providerPaymentId, status: "succeeded" });
+    await expect(service.handleWebhook(raw, signature, secret)).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(events).toHaveLength(0);
   });
 });

@@ -15,6 +15,7 @@ import type { PaymentStatus } from "@max-events/api-contracts";
 
 @Entity("payments")
 @Unique("UQ_payments_booking", ["bookingId"])
+@Unique("UQ_payments_provider_payment", ["providerPaymentId"])
 export class PaymentEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;

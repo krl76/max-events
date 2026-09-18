@@ -31,9 +31,10 @@ describe("CreatePaymentWebhookEvents20260913010000", () => {
     } as unknown as QueryRunner;
     const migration = new CreatePaymentWebhookEvents20260913010000();
     await migration.up(queryRunner);
-    expect(queries[0]).toContain(`CREATE UNIQUE INDEX "UQ_payments_provider_payment"`);
-    expect(queries[1]).toContain('CREATE TABLE "payment_webhook_events"');
-    expect(queries[1]).toContain("UQ_payment_webhook_events_provider_event");
+    expect(queries[0]).toContain("duplicate payments.providerPaymentId");
+    expect(queries[1]).toContain(`CREATE UNIQUE INDEX "UQ_payments_provider_payment"`);
+    expect(queries[2]).toContain('CREATE TABLE "payment_webhook_events"');
+    expect(queries[2]).toContain("UQ_payment_webhook_events_provider_event");
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries).toEqual([`DROP TABLE "payment_webhook_events"`, `DROP INDEX "UQ_payments_provider_payment"`]);

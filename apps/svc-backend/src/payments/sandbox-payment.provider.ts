@@ -10,6 +10,7 @@
 // - SandboxPaymentProvider - in-memory PaymentProvider
 // END_MODULE_MAP
 
+import { randomUUID } from "node:crypto";
 import { PaymentProviderError, type CreatePaymentInput, type PaymentCharge, type PaymentProvider, type PaymentRefund } from "./payment-provider";
 
 export const SANDBOX_FAIL_AMOUNT = 13;
@@ -32,7 +33,7 @@ export class SandboxPaymentProvider implements PaymentProvider {
       throw new PaymentProviderError("invalid_amount", "Payment amount must be a positive integer");
     }
     const failed = input.amountRub === this.failAmount || input.description.includes("[fail]");
-    const id = `pay_sandbox_${++this.seq}`;
+    const id = `pay_sandbox_${randomUUID()}`;
     const charge: PaymentCharge = {
       id,
       status: failed ? "failed" : "succeeded",
