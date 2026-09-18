@@ -101,6 +101,15 @@ describe("DayRouteView route", () => {
     const optimizeError = viewHtml({ built: { status: "ready", route: ROUTE }, optimize: { status: "error" } });
     expect(optimizeError).toContain("Не удалось оптимизировать маршрут");
   });
+
+  it("drops the timeline once the built route is reset to idle (selection changed)", () => {
+    // toggle after build resets `built` to idle in the container; then no stale timeline may surface
+    const html = viewHtml({ built: { status: "idle" }, optimize: { status: "idle" } });
+
+    expect(html).not.toContain(routeTotalsLabel(ROUTE));
+    expect(html).not.toContain("Оптимизировать");
+    for (const leg of ROUTE.legs) expect(html).not.toContain(formatLeg(leg));
+  });
 });
 
 describe("DayRoutePage", () => {

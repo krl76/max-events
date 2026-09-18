@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - Layout - theme classes + header + routed children + tabbar (icon + label per tab)
+// - TABS - tabbar definitions with per-tab active predicate
 // END_MODULE_MAP
 
 import { MaxUI } from "@maxhub/max-ui";
@@ -23,9 +24,9 @@ function maxUiPlatform(): "android" | "ios" {
   return webApp?.platform === "android" ? "android" : "ios";
 }
 
-const TABS: Array<{ icon: TabIcon; label: string; active: (route: string) => boolean; route: "home" | "plans" | "friends" | "calendar" | "profile" }> = [
+export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string) => boolean; route: "home" | "plans" | "friends" | "calendar" | "profile" }> = [
   { icon: "feed", label: "Лента", route: "home", active: (name) => name === "home" },
-  { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" },
+  { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" },
   { icon: "friends", label: "Друзья", route: "friends", active: (name) => name === "friends" },
   { icon: "calendar", label: "Календарь", route: "calendar", active: (name) => name === "calendar" },
   { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" },

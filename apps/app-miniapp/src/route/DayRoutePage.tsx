@@ -159,7 +159,11 @@ export function DayRoutePage() {
     };
   }, []);
 
-  const toggle = (key: string) => setSelected((current) => (current.includes(key) ? current.filter((item) => item !== key) : current.length >= MAX_ROUTE_STOPS ? current : [...current, key]));
+  const toggle = (key: string) => {
+    setSelected((current) => (current.includes(key) ? current.filter((item) => item !== key) : current.length >= MAX_ROUTE_STOPS ? current : [...current, key]));
+    setBuilt({ status: "idle" });
+    setOptimize({ status: "idle" });
+  };
 
   const selectedStops = (): RouteStopWrite[] => {
     if (options.status !== "ready") return [];
