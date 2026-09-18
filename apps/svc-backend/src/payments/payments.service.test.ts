@@ -131,5 +131,7 @@ describe("PaymentsService.ensureForBooking", () => {
     const afterRefund = await service.salesReport(organizerId, eventId);
     expect(afterRefund.rows).toHaveLength(0);
     expect(afterRefund.grossRub).toBe(0);
+    const drift = await service.reconcile();
+    expect(drift.some((row) => row.internal === "refunded" && row.provider === "refunded")).toBe(false);
   });
 });

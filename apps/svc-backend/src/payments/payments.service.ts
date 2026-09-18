@@ -6,7 +6,8 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - PaymentsService - domain entry for charges, refunds, booking payment rows, sales report
+// - PaymentMismatch - internal vs provider status
+// - PaymentsService - domain entry for charges, refunds, booking payment rows, sales report, reconcile
 // - toPaymentDto - PaymentEntity to Payment
 // END_MODULE_MAP
 
@@ -14,7 +15,7 @@ import { ConflictException, Inject, Injectable, NotFoundException } from "@nestj
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, QueryFailedError, Repository } from "typeorm";
-import type { EventSalesReport, Payment } from "@max-events/api-contracts";
+import type { EventSalesReport, Payment, PaymentStatus } from "@max-events/api-contracts";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import { DEFAULT_COMMISSION_BPS, freezeCommission } from "./commission";
@@ -115,6 +116,22 @@ export class PaymentsService {
     };
   }
 
+  async reconcile(): Promise<PaymentMismatch[]> {
+    const rows = await this.rows.find();
+    const mismatches: PaymentMismatch[] = [];
+    for (const row of rows) {
+      try {
+        const charge = await this.provider.getStatus(row.providerPaymentId);
+        if (charge.status !== row.status) {
+          mismatches.push({ paymentId: row.id, bookingId: row.bookingId, internal: row.status, provider: charge.status });
+        }
+      } catch {
+        mismatches.push({ paymentId: row.id, bookingId: row.bookingId, internal: row.status, provider: "missing" });
+      }
+    }
+    return mismatches;
+  }
+
   private commissionBps(): number {
     return this.config.get<number>("PAYMENT_COMMISSION_BPS") ?? DEFAULT_COMMISSION_BPS;
   }
@@ -126,6 +143,13 @@ export class PaymentsService {
     return this.rows.save(row);
   }
 }
+
+export type PaymentMismatch = {
+  paymentId: string;
+  bookingId: string;
+  internal: PaymentStatus;
+  provider: PaymentStatus | "missing";
+};
 
 export function toPaymentDto(row: PaymentEntity): Payment {
   return {

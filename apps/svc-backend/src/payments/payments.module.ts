@@ -21,6 +21,7 @@ import { PaymentEntity } from "./payment.entity";
 import { PAYMENT_PROVIDER, type PaymentProvider } from "./payment-provider";
 import { PaymentsController } from "./payments.controller";
 import { PaymentsWebhookService } from "./payments-webhook.service";
+import { PaymentsScheduler } from "./payments.scheduler";
 import { PaymentsService } from "./payments.service";
 import { SANDBOX_FAIL_AMOUNT, SandboxPaymentProvider } from "./sandbox-payment.provider";
 
@@ -42,6 +43,7 @@ export function createPaymentProvider(kind: string | undefined, failAmount = SAN
     },
     PaymentsService,
     PaymentsWebhookService,
+    PaymentsScheduler,
   ],
   exports: [PaymentsService, PAYMENT_PROVIDER],
 })
