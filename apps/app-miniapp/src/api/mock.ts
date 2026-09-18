@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports, UGC micro-events and the place social page while backend endpoints (M2–M5, P2) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow), in-memory bookings, check-ins, profiles, plan cards, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, CreateBookingSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema)
+// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow), in-memory bookings, FIFO waitlist with timed confirmation offers, check-ins, profiles, plan cards, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, CreateBookingSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -46,6 +46,12 @@
 // - resetMockReports - clear in-memory reports (test isolation)
 // - createMockReport - in-memory deduplicated report (mock POST /reports, duplicate -> 409)
 // - resetMockBookings - clear in-memory bookings (test isolation)
+// - OFFER_TTL_MS - 15-minute confirmation window of a waitlist offer
+// - resetMockWaitlist - clear the in-memory waitlist (test isolation)
+// - joinMockWaitlist - join the queue of a sold-out event (mock POST /waitlist; duplicate/seats available/active booking -> 409)
+// - myMockWaitlistEntry - active (waiting|offered) entry of a user with its FIFO position, or null (mock GET /waitlist/me)
+// - confirmMockWaitlistOffer - confirm an offer into a booking on the reserved seat (mock POST /waitlist/:id/confirm)
+// - declineMockWaitlistOffer - cancel an entry; a declined offer passes the seat to the next waiting entry (mock POST /waitlist/:id/decline)
 // - resetMockCheckIns - clear in-memory check-ins (test isolation)
 // - resetMockProfiles - clear in-memory profiles (test isolation)
 // - resetMockParticipations - restore seeded participations (test isolation)
@@ -58,10 +64,10 @@
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events and /api/today, return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/users/:id/profile, /api/friends/activity, /api/friends/availability, /api/gatherings, /api/plans, /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events and /api/today, return a restore function
 // END_MODULE_MAP
 
-import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlacePage, PlanCard, Profile, Review, TodayEventCard, TodayResponse, User, VisitStats } from "@max-events/api-contracts";
+import type { Achievement, Booking, CheckIn, Event, Friend, FriendActivityByFriend, FriendAvailability, Gathering, InviteeResponse, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlacePage, PlanCard, Profile, Review, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
 import { CreateBookingSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
@@ -656,6 +662,101 @@ export function resetMockBookings(): void {
   mockBookingSeq = 0;
 }
 
+/** Confirmation window of a waitlist offer (mirrors the backend OFFER_TTL_MS). */
+export const OFFER_TTL_MS = 15 * 60 * 1000;
+
+const mockWaitlist: WaitlistEntry[] = [];
+let mockWaitlistSeq = 0;
+
+export function resetMockWaitlist(): void {
+  mockWaitlist.length = 0;
+  mockWaitlistSeq = 0;
+}
+
+/** Queue entries of an event (waiting|offered) in FIFO order. */
+function waitlistQueue(eventId: string): WaitlistEntry[] {
+  return mockWaitlist.filter((entry) => entry.eventId === eventId && (entry.status === "waiting" || entry.status === "offered")).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+function withWaitlistPosition(entry: WaitlistEntry): WaitlistEntry {
+  const queue = waitlistQueue(entry.eventId);
+  const index = queue.findIndex((item) => item.id === entry.id);
+  return { ...entry, position: index === -1 ? queue.length + 1 : index + 1 };
+}
+
+/** Offers a freed seat to the first waiting entry (15-minute confirmation window); the offered seat stays reserved. */
+function offerNextMockWaitlist(eventId: string, now: Date): void {
+  const next = waitlistQueue(eventId).find((entry) => entry.status === "waiting");
+  if (!next) return;
+  next.status = "offered";
+  next.offeredUntil = new Date(now.getTime() + OFFER_TTL_MS).toISOString();
+  next.updatedAt = now.toISOString();
+}
+
+/** Lazy offer expiry: a due offer flips to expired and the seat passes to the next waiting entry. */
+function refreshMockWaitlist(eventId: string, now: Date = new Date()): void {
+  for (const entry of mockWaitlist) {
+    if (entry.eventId !== eventId || entry.status !== "offered" || entry.offeredUntil === null) continue;
+    if (new Date(entry.offeredUntil).getTime() > now.getTime()) continue;
+    entry.status = "expired";
+    entry.offeredUntil = null;
+    entry.updatedAt = now.toISOString();
+    offerNextMockWaitlist(eventId, now);
+  }
+}
+
+/** Joins the queue of a sold-out event; "no_event"/"seats_available"/"duplicate"/"booked" map to 404/409 in the interceptor. */
+export function joinMockWaitlist(eventId: string, userId: string): WaitlistEntry | "no_event" | "seats_available" | "duplicate" | "booked" {
+  if (!mockEvents.some((item) => item.id === eventId)) return "no_event";
+  if ((remainingSeats(eventId) ?? 1) > 0) return "seats_available";
+  if (mockBookings.some((booking) => booking.eventId === eventId && booking.userId === userId && booking.status === "active")) return "booked";
+  if (waitlistQueue(eventId).some((entry) => entry.userId === userId)) return "duplicate";
+  const now = new Date().toISOString();
+  mockWaitlistSeq += 1;
+  const entry: WaitlistEntry = { id: `82000000-0000-4000-8000-${String(mockWaitlistSeq).padStart(12, "0")}`, userId, eventId, position: 0, status: "waiting", offeredUntil: null, createdAt: now, updatedAt: now };
+  mockWaitlist.push(entry);
+  return withWaitlistPosition(entry);
+}
+
+/** Active (waiting|offered) entry of a user for an event with its FIFO position, or null (mock GET /waitlist/me). */
+export function myMockWaitlistEntry(eventId: string, userId: string): WaitlistEntry | null {
+  refreshMockWaitlist(eventId);
+  const entry = waitlistQueue(eventId).find((item) => item.userId === userId);
+  return entry === undefined ? null : withWaitlistPosition(entry);
+}
+
+/** Confirms an offer into a booking on the reserved seat (no capacity re-check); null/"not_offered"/"offer_expired" map to 404/409 in the interceptor. */
+export function confirmMockWaitlistOffer(entryId: string): WaitlistEntry | null | "not_offered" | "offer_expired" {
+  const entry = mockWaitlist.find((item) => item.id === entryId);
+  if (!entry) return null;
+  refreshMockWaitlist(entry.eventId);
+  if (entry.status === "confirmed") return withWaitlistPosition(entry);
+  if (entry.status === "expired") return "offer_expired";
+  if (entry.status !== "offered" || entry.offeredUntil === null) return "not_offered";
+  const now = new Date().toISOString();
+  mockBookingSeq += 1;
+  mockBookings.push({ id: `e0000000-0000-4000-8000-${String(mockBookingSeq).padStart(12, "0")}`, userId: entry.userId, eventId: entry.eventId, status: "active", createdAt: now, updatedAt: now });
+  entry.status = "confirmed";
+  entry.offeredUntil = null;
+  entry.updatedAt = now;
+  return withWaitlistPosition(entry);
+}
+
+/** Cancels a queue entry; a declined offer passes the reserved seat to the next waiting entry. Idempotent for terminal entries; null for an unknown id (mock 404). */
+export function declineMockWaitlistOffer(entryId: string): WaitlistEntry | null {
+  const entry = mockWaitlist.find((item) => item.id === entryId);
+  if (!entry) return null;
+  refreshMockWaitlist(entry.eventId);
+  if (entry.status !== "waiting" && entry.status !== "offered") return withWaitlistPosition(entry);
+  const wasOffered = entry.status === "offered";
+  const now = new Date();
+  entry.status = "cancelled";
+  entry.offeredUntil = null;
+  entry.updatedAt = now.toISOString();
+  if (wasOffered) offerNextMockWaitlist(entry.eventId, now);
+  return withWaitlistPosition(entry);
+}
+
 const mockCheckIns: CheckIn[] = [];
 let mockCheckInSeq = 0;
 
@@ -829,7 +930,8 @@ function profileFor(userId: string): Profile {
 function remainingSeats(eventId: string): number | null {
   const target = mockEvents.find((item) => item.id === eventId);
   if (!target || target.capacity === null) return null;
-  const taken = mockBookings.filter((booking) => booking.eventId === eventId && booking.status === "active").length;
+  refreshMockWaitlist(eventId);
+  const taken = mockBookings.filter((booking) => booking.eventId === eventId && booking.status === "active").length + mockWaitlist.filter((entry) => entry.eventId === eventId && entry.status === "offered").length;
   return target.capacity - taken;
 }
 
@@ -970,6 +1072,7 @@ export function installMockApi(): () => void {
       if (!booking) return new Response(null, { status: 404 });
       booking.status = "cancelled";
       booking.updatedAt = new Date().toISOString();
+      offerNextMockWaitlist(booking.eventId, new Date());
       return Response.json(booking);
     }
     if (url.pathname === "/api/friends/availability") {
@@ -1075,6 +1178,29 @@ export function installMockApi(): () => void {
       if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || payload.userId === "" || typeof payload.text !== "string" || payload.text.trim() === "") return new Response(null, { status: 400 });
       const post = addMockFeedComment(feedComment[1], { userId: payload.userId, text: payload.text });
       return post ? Response.json(post) : new Response(null, { status: 404 });
+    }
+    if (url.pathname === "/api/waitlist" && init?.method === "POST") {
+      const userId = url.searchParams.get("userId") ?? "";
+      const payload = parseBookingBody(init) as { eventId?: string } | undefined;
+      if (userId === "" || typeof payload !== "object" || payload === null || typeof payload.eventId !== "string") return new Response(null, { status: 400 });
+      const result = joinMockWaitlist(payload.eventId, userId);
+      return result === "no_event" ? new Response(null, { status: 404 }) : typeof result === "string" ? new Response(null, { status: 409 }) : Response.json(result);
+    }
+    if (url.pathname === "/api/waitlist/me") {
+      const eventId = url.searchParams.get("eventId") ?? "";
+      const userId = url.searchParams.get("userId") ?? "";
+      if (eventId === "" || userId === "") return new Response(null, { status: 400 });
+      const entry = myMockWaitlistEntry(eventId, userId);
+      return entry ? Response.json(entry) : new Response(null, { status: 404 });
+    }
+    const waitlistAction = /^\/api\/waitlist\/([^/]+)\/(confirm|decline)$/.exec(url.pathname);
+    if (waitlistAction && init?.method === "POST") {
+      if (waitlistAction[2] === "confirm") {
+        const result = confirmMockWaitlistOffer(waitlistAction[1]);
+        return result === null ? new Response(null, { status: 404 }) : typeof result === "string" ? new Response(null, { status: 409 }) : Response.json(result);
+      }
+      const result = declineMockWaitlistOffer(waitlistAction[1]);
+      return result ? Response.json(result) : new Response(null, { status: 404 });
     }
     return real(input, init);
   };

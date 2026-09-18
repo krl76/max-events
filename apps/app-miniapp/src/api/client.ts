@@ -23,6 +23,10 @@
 // - ApiClient.deleteParticipation - DELETE /events/:id/participation?userId=
 // - ApiClient.createBooking - POST /bookings
 // - ApiClient.cancelBooking - DELETE /bookings/:id
+// - ApiClient.joinWaitlist - POST /waitlist?userId= with { eventId }
+// - ApiClient.getMyWaitlistEntry - GET /waitlist/me?eventId=&userId= (404 -> null)
+// - ApiClient.confirmWaitlistOffer - POST /waitlist/:id/confirm
+// - ApiClient.declineWaitlistOffer - POST /waitlist/:id/decline
 // - CreateCheckIn - check-in payload (user + exactly one of event/place)
 // - ApiClient.createCheckIn - POST /check-ins
 // - ApiClient.getVisitStats - GET /users/:id/visit-stats: VisitStats
@@ -75,8 +79,8 @@
 // END_MODULE_MAP
 
 import { PlacePageSchema, type PlacePage } from "@max-events/api-contracts";
-import { AchievementSchema, AuthResponseSchema, BookingSchema, CheckInSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, Friend, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Review, ReviewCategoryScores, TodayResponse, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, BookingSchema, CheckInSchema, EventCategorySchema, EventSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, ParticipationSchema, ParticipationStatusSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, Event, EventCategory, Friend, FriendActivityByFriend, FriendAvailability, Gathering, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, Participation, ParticipationStatus, Place, PlanCard, Profile, RatingSummary, Review, ReviewCategoryScores, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -569,6 +573,12 @@ const MicroEventEntitySchema: ZodSchema<MicroEvent> = {
   },
 };
 
+const WaitlistEntryEntitySchema: ZodSchema<WaitlistEntry> = {
+  safeParse(data: unknown) {
+    return WaitlistEntrySchema.safeParse(data);
+  },
+};
+
 const MicroEventArraySchema: ZodSchema<MicroEvent[]> = {
   safeParse(data: unknown) {
     if (!Array.isArray(data)) return { success: false as const, error: "expected an array of micro-events" };
@@ -684,6 +694,28 @@ export class ApiClient {
 
   cancelBooking(bookingId: string): Promise<Booking> {
     return this.request(`/bookings/${bookingId}`, BookingSchema, { method: "DELETE" });
+  }
+
+  joinWaitlist(eventId: string, userId: string): Promise<WaitlistEntry> {
+    return this.request(`/waitlist?userId=${encodeURIComponent(userId)}`, WaitlistEntryEntitySchema, { body: { eventId } });
+  }
+
+  async getMyWaitlistEntry(eventId: string, userId: string): Promise<WaitlistEntry | null> {
+    const query = new URLSearchParams({ eventId, userId });
+    try {
+      return await this.request(`/waitlist/me?${query.toString()}`, WaitlistEntryEntitySchema);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    }
+  }
+
+  confirmWaitlistOffer(entryId: string): Promise<WaitlistEntry> {
+    return this.request(`/waitlist/${entryId}/confirm`, WaitlistEntryEntitySchema, { method: "POST" });
+  }
+
+  declineWaitlistOffer(entryId: string): Promise<WaitlistEntry> {
+    return this.request(`/waitlist/${entryId}/decline`, WaitlistEntryEntitySchema, { method: "POST" });
   }
 
   createCheckIn(payload: CreateCheckIn): Promise<CheckIn> {
