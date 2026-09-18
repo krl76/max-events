@@ -157,11 +157,23 @@ describe("discovery and people mock endpoints", () => {
     expect(await api.getPeople()).toEqual(peopleSuggest(...MOSCOW));
   });
 
-  it("rejects a partial or broken geo query with 400, mirroring the backend parseOrigin", async () => {
+  it("rejects a broken geo query with 400, mirroring the backend parseOrigin", async () => {
     restore = installMockApi();
     const api = client();
 
     await expect(api.getPeople({ latitude: Number("not-a-lat"), longitude: 0 })).rejects.toMatchObject({ name: "ApiError", status: 400 });
     await expect(api.getPeople({ latitude: 91, longitude: 0 })).rejects.toMatchObject({ name: "ApiError", status: 400 });
+  });
+
+  it("rejects a partial geo query with only lat", async () => {
+    restore = installMockApi();
+
+    expect((await fetch("/api/people?lat=55.75")).status).toBe(400);
+  });
+
+  it("rejects a partial geo query with only lng", async () => {
+    restore = installMockApi();
+
+    expect((await fetch("/api/people?lng=37.6")).status).toBe(400);
   });
 });

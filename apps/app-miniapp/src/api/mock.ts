@@ -1204,6 +1204,7 @@ function parseMockOrigin(url: URL): [number, number] | null | "invalid" {
   const lat = url.searchParams.get("lat");
   const lng = url.searchParams.get("lng");
   if ((lat === null || lat === "") && (lng === null || lng === "")) return null;
+  if (lat === null || lat === "" || lng === null || lng === "") return "invalid";
   const latitude = Number(lat);
   const longitude = Number(lng);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return "invalid";
