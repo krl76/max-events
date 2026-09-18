@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { formatDistance, planMeetingLabel, planParticipantsLabel, PlansView, type PlansState } from "./PlansPage";
+import { formatDistance, planMeetingLabel, planParticipantsLabel, PlansPage, PlansView, type PlansState } from "./PlansPage";
 import { planCards } from "../api/mock";
 
 const CARDS = planCards();
@@ -59,5 +59,13 @@ describe("PlansView", () => {
     expect(render({ status: "error" })).toContain("app-state--error");
     expect(render({ status: "error" })).toContain("Не удалось загрузить планы.");
     expect(render({ status: "ready", cards: [] })).toContain("Пока нет планов.");
+  });
+});
+
+describe("PlansPage", () => {
+  it("offers the day route entry above the list", () => {
+    const html = renderToStaticMarkup(createElement(PlansPage));
+
+    expect(html).toContain("Маршрут на день");
   });
 });

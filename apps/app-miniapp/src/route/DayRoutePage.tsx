@@ -1,0 +1,192 @@
+// START_MODULE_CONTRACT
+// PURPOSE: «Маршрут на день» screen (#176): pick 2..8 event/place stops, build the walking day route (timeline of points with travel legs and totals), then optimize the order and show the savings README-style («11.4 км → 6.8 км, экономия 47 минут») with the optimized timeline redrawn.
+// SCOPE: Stop options via apiClient.listEvents/listPlaces (events without a venue excluded — the backend rejects them), build/optimize via apiClient.createDayRoute/optimizeDayRoute from the fixed Moscow center; checkbox selection order is the route order; loading/error states for options, build and optimize.
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (DayRoute, OptimizeRoute, RouteLeg, RouteStopWrite), ../catalog/CatalogPage.js (formatStartsAt), ../catalog/MapScreen.js (MOSCOW_CENTER), ../ui/primitives.js, ../ui/theme.css
+// LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+// - MIN_ROUTE_STOPS - contract lower stop bound (2)
+// - MAX_ROUTE_STOPS - contract upper stop bound (8)
+// - RouteStopOption - selectable stop (event or place) with a stable key
+// - formatLeg - "15 мин / 2.1 км" leg line
+// - routeTotalsLabel - "Итого: N мин · X.X км" totals line
+// - savingsLabel - README-style optimize savings line
+// - RouteOptionsState - options fetch state union (loading / error / ready)
+// - DayRouteBuildState - build state union (idle / loading / error / ready)
+// - OptimizeState - optimize state union (idle / loading / error / ready)
+// - RouteTimeline - presentational: ordered points with the leg after each point
+// - DayRouteView - presentational: stop checkboxes with the counter, build CTA, timeline, optimize CTA and savings
+// - DayRoutePage - route container: loads options, wires selection, build and optimize
+// END_MODULE_MAP
+
+import { useEffect, useState } from "react";
+import type { DayRoute, OptimizeRoute, RouteLeg, RouteStopWrite } from "@max-events/api-contracts";
+import { apiClient } from "../api/client";
+import { formatStartsAt } from "../catalog/CatalogPage";
+import { MOSCOW_CENTER } from "../catalog/MapScreen";
+import { AppButton, AppTitle } from "../ui/primitives";
+
+// ponytail: fixed Moscow center as the route start point; user geolocation/city picker when the bridge exposes it
+const [ROUTE_LAT, ROUTE_LNG] = MOSCOW_CENTER;
+
+export const MIN_ROUTE_STOPS = 2;
+export const MAX_ROUTE_STOPS = 8;
+
+export interface RouteStopOption {
+  key: string;
+  title: string;
+  hint: string | null;
+  stop: RouteStopWrite;
+}
+
+export function formatLeg(leg: RouteLeg): string {
+  return `${leg.travelMinutes} мин / ${leg.distanceKm.toFixed(1)} км`;
+}
+
+export function routeTotalsLabel(route: DayRoute): string {
+  return `Итого: ${route.totalMinutes} мин · ${route.totalKm.toFixed(1)} км`;
+}
+
+export function savingsLabel(result: OptimizeRoute): string {
+  return `${result.original.totalKm.toFixed(1)} км → ${result.optimized.totalKm.toFixed(1)} км, экономия ${result.savedMinutes} минут`;
+}
+
+export type RouteOptionsState = { status: "loading" } | { status: "error" } | { status: "ready"; options: RouteStopOption[] };
+
+export type DayRouteBuildState = { status: "idle" } | { status: "loading" } | { status: "error" } | { status: "ready"; route: DayRoute };
+
+export type OptimizeState = { status: "idle" } | { status: "loading" } | { status: "error" } | { status: "ready"; result: OptimizeRoute };
+
+export function RouteTimeline({ route }: { route: DayRoute }) {
+  return (
+    <ol className="app-plan-participants">
+      {route.points.map((point, index) => (
+        <li key={index} className="app-plan-participant">
+          <span>
+            {point.title}
+            {point.at !== null ? ` · ${formatStartsAt(point.at)}` : ""}
+          </span>
+          {index < route.legs.length && <span>↓ {formatLeg(route.legs[index])}</span>}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+interface DayRouteViewProps {
+  options: RouteOptionsState;
+  selected: string[];
+  onToggle: (key: string) => void;
+  onBuild: () => void;
+  built: DayRouteBuildState;
+  optimize: OptimizeState;
+  onOptimize: () => void;
+}
+
+export function DayRouteView({ options, selected, onToggle, onBuild, built, optimize, onOptimize }: DayRouteViewProps) {
+  const selectedSet = new Set(selected);
+  const limitReached = selected.length >= MAX_ROUTE_STOPS;
+  const displayRoute = built.status === "ready" ? (optimize.status === "ready" ? optimize.result.optimized : built.route) : null;
+  return (
+    <>
+      <AppTitle asChild>
+        <h2 className="app-whereto-title">Маршрут на день</h2>
+      </AppTitle>
+      {options.status === "loading" && <p className="app-state">Загружаем точки…</p>}
+      {options.status === "error" && <p className="app-state app-state--error">Не удалось загрузить точки маршрута.</p>}
+      {options.status === "ready" && (
+        <>
+          <p className="app-whereto-hint">
+            Выбрано: {selected.length} из {MAX_ROUTE_STOPS}
+          </p>
+          <ul className="app-plan-participants" aria-label="Точки маршрута">
+            {options.options.map((option) => (
+              <li key={option.key} className="app-plan-participant">
+                <label>
+                  <input type="checkbox" checked={selectedSet.has(option.key)} disabled={!selectedSet.has(option.key) && limitReached} onChange={() => onToggle(option.key)} /> {option.title}
+                  {option.hint !== null ? ` · ${option.hint}` : ""}
+                </label>
+              </li>
+            ))}
+          </ul>
+          {selected.length < MIN_ROUTE_STOPS && <p className="app-whereto-hint">Выберите минимум {MIN_ROUTE_STOPS} точки.</p>}
+          <AppButton onClick={onBuild} disabled={selected.length < MIN_ROUTE_STOPS || built.status === "loading"} stretched>
+            Построить
+          </AppButton>
+        </>
+      )}
+      {built.status === "loading" && <p className="app-state">Строим маршрут…</p>}
+      {built.status === "error" && <p className="app-state app-state--error">Не удалось построить маршрут.</p>}
+      {displayRoute !== null && (
+        <>
+          <RouteTimeline route={displayRoute} />
+          <p className="app-state">{routeTotalsLabel(displayRoute)}</p>
+          {optimize.status === "ready" && <p className="app-state">{savingsLabel(optimize.result)}</p>}
+          <AppButton onClick={onOptimize} tone="secondary" stretched disabled={optimize.status === "loading"}>
+            Оптимизировать
+          </AppButton>
+          {optimize.status === "loading" && <p className="app-state">Оптимизируем…</p>}
+          {optimize.status === "error" && <p className="app-state app-state--error">Не удалось оптимизировать маршрут.</p>}
+        </>
+      )}
+    </>
+  );
+}
+
+export function DayRoutePage() {
+  const [options, setOptions] = useState<RouteOptionsState>({ status: "loading" });
+  const [selected, setSelected] = useState<string[]>([]);
+  const [built, setBuilt] = useState<DayRouteBuildState>({ status: "idle" });
+  const [optimize, setOptimize] = useState<OptimizeState>({ status: "idle" });
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all([apiClient.listEvents(), apiClient.listPlaces()]).then(
+      ([events, places]) => {
+        if (!alive) return;
+        setOptions({
+          status: "ready",
+          options: [...events.filter((event) => event.placeId !== null).map((event) => ({ key: `event:${event.id}`, title: event.title, hint: formatStartsAt(event.startsAt), stop: { eventId: event.id } })), ...places.map((place) => ({ key: `place:${place.id}`, title: place.title, hint: null, stop: { placeId: place.id } }))],
+        });
+      },
+      () => {
+        if (alive) setOptions({ status: "error" });
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const toggle = (key: string) => setSelected((current) => (current.includes(key) ? current.filter((item) => item !== key) : current.length >= MAX_ROUTE_STOPS ? current : [...current, key]));
+
+  const selectedStops = (): RouteStopWrite[] => {
+    if (options.status !== "ready") return [];
+    const byKey = new Map(options.options.map((option) => [option.key, option.stop]));
+    return selected.flatMap((key) => {
+      const stop = byKey.get(key);
+      return stop === undefined ? [] : [stop];
+    });
+  };
+
+  const build = () => {
+    if (selected.length < MIN_ROUTE_STOPS) return;
+    setBuilt({ status: "loading" });
+    setOptimize({ status: "idle" });
+    apiClient.createDayRoute(selectedStops(), ROUTE_LAT, ROUTE_LNG).then(
+      (route) => setBuilt({ status: "ready", route }),
+      () => setBuilt({ status: "error" }),
+    );
+  };
+
+  const runOptimize = () => {
+    setOptimize({ status: "loading" });
+    apiClient.optimizeDayRoute(selectedStops(), ROUTE_LAT, ROUTE_LNG).then(
+      (result) => setOptimize({ status: "ready", result }),
+      () => setOptimize({ status: "error" }),
+    );
+  };
+
+  return <DayRouteView options={options} selected={selected} onToggle={toggle} onBuild={build} built={built} optimize={optimize} onOptimize={runOptimize} />;
+}
