@@ -10,7 +10,7 @@
 // - RemindersScheduler - 60s setInterval around tick()
 // END_MODULE_MAP
 
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { RemindersService } from "./reminders.service";
 
 export const REMINDER_TICK_INTERVAL_MS = 60_000;
@@ -20,7 +20,7 @@ export class RemindersScheduler implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RemindersScheduler.name);
   private timer: ReturnType<typeof setInterval> | undefined;
 
-  constructor(private readonly reminders: RemindersService) {}
+  constructor(@Inject(RemindersService) private readonly reminders: RemindersService) {}
 
   onModuleInit() {
     this.timer = setInterval(() => {

@@ -10,7 +10,7 @@
 // - LeaveNowScheduler - 60s setInterval around tick()
 // END_MODULE_MAP
 
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { LeaveNowService } from "./leave-now.service";
 
 export const LEAVE_NOW_TICK_INTERVAL_MS = 60_000;
@@ -20,7 +20,7 @@ export class LeaveNowScheduler implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(LeaveNowScheduler.name);
   private timer: ReturnType<typeof setInterval> | undefined;
 
-  constructor(private readonly leaveNow: LeaveNowService) {}
+  constructor(@Inject(LeaveNowService) private readonly leaveNow: LeaveNowService) {}
 
   onModuleInit() {
     this.timer = setInterval(() => {

@@ -10,7 +10,7 @@
 // - SmartAlertsScheduler - 60s setInterval around tick()
 // END_MODULE_MAP
 
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ListDigestService } from "./list-digest.service";
 import { SmartAlertsService } from "./smart-alerts.service";
 
@@ -22,8 +22,8 @@ export class SmartAlertsScheduler implements OnModuleInit, OnModuleDestroy {
   private timer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
-    private readonly alerts: SmartAlertsService,
-    private readonly digest: ListDigestService,
+    @Inject(SmartAlertsService) private readonly alerts: SmartAlertsService,
+    @Inject(ListDigestService) private readonly digest: ListDigestService,
   ) {}
 
   onModuleInit() {
