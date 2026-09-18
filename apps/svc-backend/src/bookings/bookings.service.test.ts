@@ -128,8 +128,12 @@ function createService(event: EventEntity = seedEvent(), promoOverride?: Partial
     ...promoOverride,
   } as unknown as PromoService;
   const paymentCalls: string[] = [];
+  const refundCalls: string[] = [];
   const payments = {
-    refundForBooking: async () => null,
+    refundForBooking: async (bookingId: string) => {
+      refundCalls.push(bookingId);
+      return null;
+    },
     ensureForBooking: async (bookingId: string, amountRub: number, description: string) => {
       paymentCalls.push(bookingId);
       return {
@@ -146,7 +150,7 @@ function createService(event: EventEntity = seedEvent(), promoOverride?: Partial
     },
   } as unknown as PaymentsService;
   const service = new BookingsService(fake.dataSource, waitlist, promo, payments);
-  return { ...fake, service, waitlist, paymentCalls };
+  return { ...fake, service, waitlist, paymentCalls, refundCalls };
 }
 
 describe("BookingsService", () => {
@@ -183,9 +187,10 @@ describe("BookingsService", () => {
   });
 
   it("forbids cancelling another user's booking and 404s unknown ids", async () => {
-    const { service } = createService();
+    const { service, refundCalls } = createService();
     const created = await service.create(userA, eventId);
     await expect(service.cancel(userB, created.id)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(refundCalls).toEqual([]);
     await expect(service.cancel(userA, "00000000-0000-4000-8000-000000000099")).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.create(userA, "00000000-0000-4000-8000-000000000099")).rejects.toBeInstanceOf(NotFoundException);
   });
@@ -313,5 +318,74 @@ describe("BookingsService.cancel refunds", () => {
     expect(cancelled.status).toBe("cancelled");
     expect(refunds).toEqual([booked.id]);
     expect(cancelled.payment?.status).toBe("refunded");
+  });
+
+  it("keeps the seat when the provider refund fails", async () => {
+    const fake = createDataSource(seedEvent({ isPaid: true, priceRub: 850 }));
+    const waitlist = { onSeatFreed: async () => null } as unknown as WaitlistService;
+    const promo = {
+      redeemInTransaction: async () => null,
+      recordFulfillmentInTransaction: async () => undefined,
+      releaseInTransaction: async () => undefined,
+      releaseFulfillmentInTransaction: async () => undefined,
+    } as unknown as PromoService;
+    const payments = {
+      ensureForBooking: async (bookingId: string, amountRub: number, description: string) => ({
+        id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7001",
+        bookingId,
+        providerPaymentId: "pay_sandbox_1",
+        status: "succeeded" as const,
+        amountRub,
+        currency: "RUB" as const,
+        description,
+        createdAt: "2026-09-01T07:00:00.000Z",
+        updatedAt: "2026-09-01T07:00:00.000Z",
+      }),
+      refundForBooking: async () => {
+        throw new ConflictException("Refund failed");
+      },
+    } as unknown as PaymentsService;
+    const service = new BookingsService(fake.dataSource, waitlist, promo, payments);
+    const booked = await service.create(userA, eventId);
+    await expect(service.cancel(userA, booked.id)).rejects.toBeInstanceOf(ConflictException);
+    expect(fake.events[0]?.bookedCount).toBe(1);
+    expect(fake.bookings[0]?.status).toBe("active");
+  });
+
+  it("refunds a succeeded payment even if the booking is already cancelled", async () => {
+    const refunds: string[] = [];
+    const fake = createDataSource(seedEvent({ isPaid: true, priceRub: 850, organizerUserId: userA }));
+    const waitlist = { onSeatFreed: async () => null } as unknown as WaitlistService;
+    const promo = {
+      redeemInTransaction: async () => null,
+      recordFulfillmentInTransaction: async () => undefined,
+      releaseInTransaction: async () => undefined,
+      releaseFulfillmentInTransaction: async () => undefined,
+    } as unknown as PromoService;
+    const payments = {
+      ensureForBooking: async (bookingId: string, amountRub: number, description: string) => ({
+        id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7001",
+        bookingId,
+        providerPaymentId: "pay_sandbox_1",
+        status: "succeeded" as const,
+        amountRub,
+        currency: "RUB" as const,
+        description,
+        createdAt: "2026-09-01T07:00:00.000Z",
+        updatedAt: "2026-09-01T07:00:00.000Z",
+      }),
+      refundForBooking: async (bookingId: string) => {
+        refunds.push(bookingId);
+        return { id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7001", bookingId, status: "refunded" as const };
+      },
+    } as unknown as PaymentsService;
+    const service = new BookingsService(fake.dataSource, waitlist, promo, payments);
+    const booked = await service.create(userB, eventId);
+    fake.bookings[0]!.status = "cancelled";
+    fake.events[0]!.bookedCount = 0;
+    const healed = await service.cancel(userA, booked.id, { organizerId: userA });
+    expect(refunds).toEqual([booked.id]);
+    expect(healed.status).toBe("cancelled");
+    expect(fake.events[0]?.bookedCount).toBe(0);
   });
 });

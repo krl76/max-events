@@ -33,7 +33,14 @@ describe("OrganizerController", () => {
     const promo = { create: async () => ({}), list: async () => [], setEarlyAccess: async () => ({ bookingOpensAt: "" }), listBookings: async () => [], createCampaign: async () => ({}), listCampaigns: async () => [] };
     const promotions = { create: async () => ({}), list: async () => [], recordPayment: async () => ({}) };
     const payments = { salesReport: async () => ({ eventId: eventDto.id, rows: [], grossRub: 0, commissionRub: 0, netRub: 0 }) };
-    const bookings = { cancel: async () => ({ id: "b" }) };
+    const bookingCalls: { organizerId?: string; bookingId?: string } = {};
+    const bookings = {
+      cancel: async (_userId: string, bookingId: string, options?: { organizerId?: string }) => {
+        bookingCalls.bookingId = bookingId;
+        bookingCalls.organizerId = options?.organizerId;
+        return { id: bookingId, status: "cancelled" };
+      },
+    };
     const controller = new OrganizerController(events, places, promo as never, promotions as never, payments as never, bookings as never);
     await expect(controller.listEvents(user)).resolves.toEqual([eventDto]);
     await expect(controller.createEventDraft(user, event)).resolves.toEqual(eventDto);
@@ -44,5 +51,7 @@ describe("OrganizerController", () => {
     await expect(controller.createPromo(user, eventDto.id, { code: "" })).rejects.toBeInstanceOf(BadRequestException);
     await expect(controller.createCampaign(user, eventDto.id, { type: "refer_a_friend", code: "", title: "x" })).rejects.toBeInstanceOf(BadRequestException);
     await expect(controller.createPromotion(user, eventDto.id, { type: "boost" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.refundBooking(user, eventDto.id, "00000000-0000-4000-8000-0000000000b1")).resolves.toMatchObject({ status: "cancelled" });
+    expect(bookingCalls).toEqual({ bookingId: "00000000-0000-4000-8000-0000000000b1", organizerId: user.id });
   });
 });

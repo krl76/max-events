@@ -74,16 +74,15 @@ export class BookingsService {
   }
 
   async cancel(userId: string, bookingId: string, options?: { organizerId?: string }): Promise<BookingWithSeats> {
-    const gate = await this.dataSource.transaction(async (manager) => {
+    await this.dataSource.transaction(async (manager) => {
       const booking = await manager.findOne(BookingEntity, { where: { id: bookingId } });
       if (!booking) throw new NotFoundException("Booking not found");
       const event = await manager.findOne(EventEntity, { where: { id: booking.eventId } });
       if (!event) throw new NotFoundException("Event not found");
       const asOrganizer = Boolean(options?.organizerId && event.organizerUserId === options.organizerId);
       if (booking.userId !== userId && !asOrganizer) throw new ForbiddenException("Cannot cancel another user's booking");
-      return { alreadyCancelled: booking.status === "cancelled" };
     });
-    const payment = gate.alreadyCancelled ? null : await this.payments.refundForBooking(bookingId);
+    const payment = await this.payments.refundForBooking(bookingId);
     const result = await this.dataSource.transaction(async (manager) => {
       const booking = await manager.findOne(BookingEntity, { where: { id: bookingId } });
       if (!booking) throw new NotFoundException("Booking not found");
@@ -114,7 +113,12 @@ export class BookingsService {
       if (skipIfCancelled) return null;
       throw new ConflictException("Cannot pay a cancelled booking");
     }
-    return this.payments.ensureForBooking(bookingId, event.priceRub, `Билет: ${event.title}`);
+    const payment = await this.payments.ensureForBooking(bookingId, event.priceRub, `Билет: ${event.title}`);
+    const still = await this.dataSource.transaction(async (manager) => manager.findOne(BookingEntity, { where: { id: bookingId } }));
+    if (still && still.status !== "active" && payment.status === "succeeded") {
+      return this.payments.refundForBooking(bookingId);
+    }
+    return payment;
   }
 }
 
