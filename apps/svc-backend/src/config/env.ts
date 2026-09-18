@@ -42,6 +42,7 @@ export const envSchema = z.object({
   PAYMENT_PROVIDER: z.enum(["sandbox", "none"]).default("none"),
   PAYMENT_SECRET: z.string().min(1).optional(),
   PAYMENT_SANDBOX_FAIL_AMOUNT: z.coerce.number().int().positive().default(13),
+  PAYMENT_COMMISSION_BPS: z.coerce.number().int().min(0).max(10_000).default(1000),
 });
 
 export type Env = z.infer<typeof envSchema>;

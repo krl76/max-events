@@ -39,6 +39,7 @@ describe("validateEnv", () => {
   it("defaults the payment provider to none and accepts sandbox", () => {
     expect(validateEnv(valid).PAYMENT_PROVIDER).toBe("none");
     expect(validateEnv(valid).PAYMENT_SANDBOX_FAIL_AMOUNT).toBe(13);
+    expect(validateEnv(valid).PAYMENT_COMMISSION_BPS).toBe(1000);
     expect(validateEnv({ ...valid, PAYMENT_PROVIDER: "sandbox" }).PAYMENT_PROVIDER).toBe("sandbox");
     expect(() => validateEnv({ ...valid, PAYMENT_PROVIDER: "live" })).toThrow(/PAYMENT_PROVIDER/);
   });

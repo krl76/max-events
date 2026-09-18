@@ -18,6 +18,8 @@ describe("PaymentSchema", () => {
       updatedAt: "2026-09-12T10:00:00+03:00",
     });
     expect(parsed.status).toBe("succeeded");
+    expect(parsed.commissionRub).toBeNull();
+    expect(parsed.netRub).toBeNull();
     expect(PaymentSchema.safeParse({ ...parsed, amountRub: 0 }).success).toBe(false);
     expect(PaymentSchema.safeParse({ ...parsed, status: "paid" }).success).toBe(false);
   });

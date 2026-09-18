@@ -10,7 +10,7 @@ const ok = { amountRub: 850, currency: "RUB" as const, description: "Билет 
 describe("SandboxPaymentProvider", () => {
   it("succeeds, then refunds, and treats a second create with the same key as a no-op", async () => {
     const provider = new SandboxPaymentProvider();
-    const service = new PaymentsService(provider, { findOneBy: async () => null } as never);
+    const service = new PaymentsService(provider, { findOneBy: async () => null } as never, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
     const charge = await service.create(ok);
     expect(charge.status).toBe("succeeded");
     expect(charge.amountRub).toBe(850);

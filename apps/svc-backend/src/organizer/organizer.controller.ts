@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for the organizer panel — own events/places including drafts, publish.
-// SCOPE: GET /organizer/events, GET /organizer/places, POST create draft, POST publish, promocodes, campaigns, promotions.
+// SCOPE: GET /organizer/events, GET /organizer/places, POST create draft, POST publish, promocodes, campaigns, promotions, sales.
 // DEPENDS: @nestjs/common, ../events, ../places, ../promo, ../promotion, ../auth
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -10,11 +10,12 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post } from "@nestjs/common";
-import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPromotionPaymentWriteSchema, type Event, type OrganizerBookingRow, type Place, type PromoCampaign, type PromoCode, type PromotionCampaign } from "@max-events/api-contracts";
+import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPromotionPaymentWriteSchema, type Event, type EventSalesReport, type OrganizerBookingRow, type Place, type PromoCampaign, type PromoCode, type PromotionCampaign } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { EventsService } from "../events/events.service";
 import { PlacesService } from "../places/places.service";
 import { PromoService } from "../promo/promo.service";
+import { PaymentsService } from "../payments/payments.service";
 import { PromotionService } from "../promotion/promotion.service";
 import { UserEntity } from "../users/user.entity";
 
@@ -25,6 +26,7 @@ export class OrganizerController {
     @Inject(PlacesService) private readonly places: PlacesService,
     @Inject(PromoService) private readonly promo: PromoService,
     @Inject(PromotionService) private readonly promotions: PromotionService,
+    @Inject(PaymentsService) private readonly payments: PaymentsService,
   ) {}
 
   @Get("events")
@@ -83,6 +85,11 @@ export class OrganizerController {
   @Get("events/:id/bookings")
   listBookings(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<OrganizerBookingRow[]> {
     return this.promo.listBookings(user.id, id);
+  }
+
+  @Get("events/:id/sales")
+  sales(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<EventSalesReport> {
+    return this.payments.salesReport(user.id, id);
   }
 
   @Post("events/:id/campaigns")

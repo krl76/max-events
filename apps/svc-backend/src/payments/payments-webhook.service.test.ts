@@ -19,6 +19,10 @@ function paymentRow(status: PaymentEntity["status"] = "pending"): PaymentEntity 
     amountRub: 850,
     currency: "RUB",
     description: "Билет: Джаз",
+    commissionRub: null,
+    netRub: null,
+    commissionBps: null,
+    commissionFixedAt: null,
     createdAt: new Date("2026-09-01T07:00:00Z"),
     updatedAt: new Date("2026-09-01T07:00:00Z"),
   };
@@ -69,7 +73,7 @@ function createService(payment: PaymentEntity | null) {
       }
     },
   };
-  const service = new PaymentsWebhookService(dataSource as unknown as DataSource);
+  const service = new PaymentsWebhookService(dataSource as unknown as DataSource, { get: () => 1000 } as never);
   return { service, payments, events };
 }
 
@@ -94,6 +98,8 @@ describe("PaymentsWebhookService", () => {
     const { raw, signature } = signed(body);
     expect(await service.handleWebhook(raw, signature, secret)).toEqual({ duplicate: false, applied: true });
     expect(payments[0]?.status).toBe("succeeded");
+    expect(payments[0]?.commissionRub).toBe(85);
+    expect(payments[0]?.netRub).toBe(765);
     expect(events).toHaveLength(1);
     expect(await service.handleWebhook(raw, signature, secret)).toEqual({ duplicate: true, applied: false });
     expect(payments[0]?.status).toBe("succeeded");

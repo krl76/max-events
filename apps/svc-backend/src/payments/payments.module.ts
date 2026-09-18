@@ -13,6 +13,8 @@
 import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { BookingEntity } from "../bookings/booking.entity";
+import { EventEntity } from "../events/event.entity";
 import { NonePaymentProvider } from "./none-payment.provider";
 import { PaymentWebhookEventEntity } from "./payment-webhook-event.entity";
 import { PaymentEntity } from "./payment.entity";
@@ -29,7 +31,7 @@ export function createPaymentProvider(kind: string | undefined, failAmount = SAN
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PaymentEntity, PaymentWebhookEventEntity])],
+  imports: [TypeOrmModule.forFeature([PaymentEntity, PaymentWebhookEventEntity, EventEntity, BookingEntity])],
   controllers: [PaymentsController],
   providers: [
     {

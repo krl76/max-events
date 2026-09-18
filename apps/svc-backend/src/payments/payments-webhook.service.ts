@@ -11,10 +11,12 @@
 // - PaymentsWebhookService - signed webhook handler
 // END_MODULE_MAP
 
-import { BadRequestException, Injectable, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource, QueryFailedError } from "typeorm";
 import { PaymentWebhookWriteSchema, type PaymentStatus } from "@max-events/api-contracts";
+import { DEFAULT_COMMISSION_BPS, freezeCommission } from "./commission";
 import { PaymentWebhookEventEntity } from "./payment-webhook-event.entity";
 import { PaymentEntity } from "./payment.entity";
 import { verifyPaymentWebhook } from "./webhook-signature";
@@ -35,7 +37,10 @@ export function canTransitionPaymentStatus(from: PaymentStatus, to: PaymentStatu
 
 @Injectable()
 export class PaymentsWebhookService {
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    @Inject(ConfigService) private readonly config: ConfigService,
+  ) {}
 
   async handleWebhook(rawBody: string, signature: string | undefined, secret: string | undefined): Promise<PaymentWebhookResult> {
     if (!secret) throw new UnauthorizedException("Payment webhook is not configured");
@@ -70,6 +75,7 @@ export class PaymentsWebhookService {
         return { duplicate: false, applied: false };
       }
       payment.status = parsed.data.status;
+      freezeCommission(payment, this.config.get<number>("PAYMENT_COMMISSION_BPS") ?? DEFAULT_COMMISSION_BPS);
       await manager.save(PaymentEntity, payment);
       return { duplicate: false, applied: true };
     });

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for a booking payment (provider charge linked 1:1 to a booking).
-// SCOPE: payment status enum, Payment entity, optional attach on BookingWithSeats.
+// SCOPE: payment status enum, Payment entity, webhook write, frozen commission, organizer sales report.
 // DEPENDS: zod, ./primitives.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -12,6 +12,10 @@
 // - Payment - payment type
 // - PaymentWebhookWriteSchema - provider webhook payload
 // - PaymentWebhookWrite - webhook write type
+// - EventSalesRowSchema - one frozen ticket sale
+// - EventSalesRow - sales row type
+// - EventSalesReportSchema - organizer totals
+// - EventSalesReport - report type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -28,6 +32,10 @@ export const PaymentSchema = z.object({
   amountRub: z.number().int().positive(),
   currency: z.literal("RUB"),
   description: z.string().min(1).max(300),
+  commissionRub: z.number().int().nonnegative().nullable().default(null),
+  netRub: z.number().int().nonnegative().nullable().default(null),
+  commissionBps: z.number().int().min(0).max(10_000).nullable().default(null),
+  commissionFixedAt: TimestampSchema.nullable().default(null),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 });
@@ -39,3 +47,24 @@ export const PaymentWebhookWriteSchema = z.object({
   status: PaymentStatusSchema,
 });
 export type PaymentWebhookWrite = z.infer<typeof PaymentWebhookWriteSchema>;
+
+export const EventSalesRowSchema = z.object({
+  paymentId: IdSchema,
+  bookingId: IdSchema,
+  status: PaymentStatusSchema,
+  grossRub: z.number().int().positive(),
+  commissionRub: z.number().int().nonnegative(),
+  netRub: z.number().int().nonnegative(),
+  commissionBps: z.number().int().min(0).max(10_000),
+  commissionFixedAt: TimestampSchema,
+});
+export type EventSalesRow = z.infer<typeof EventSalesRowSchema>;
+
+export const EventSalesReportSchema = z.object({
+  eventId: IdSchema,
+  rows: z.array(EventSalesRowSchema),
+  grossRub: z.number().int().nonnegative(),
+  commissionRub: z.number().int().nonnegative(),
+  netRub: z.number().int().nonnegative(),
+});
+export type EventSalesReport = z.infer<typeof EventSalesReportSchema>;
