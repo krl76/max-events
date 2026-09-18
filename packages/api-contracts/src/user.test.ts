@@ -34,6 +34,7 @@ describe("ProfileSchema", () => {
     expect(parsed.interests).toEqual([]);
     expect(parsed.smartAlerts).toEqual(DEFAULT_SMART_ALERTS);
     expect(parsed.privacy).toEqual(DEFAULT_PRIVACY);
+    expect(parsed.recommendationsEnabled).toBe(true);
   });
 
   it("rejects a blank city and blank interests", () => {
@@ -47,5 +48,6 @@ describe("UpdateProfileSchema", () => {
     expect(UpdateProfileSchema.safeParse({ city: "Казань" }).success).toBe(true);
     expect(UpdateProfileSchema.safeParse({ smartAlerts: { weather: false } }).success).toBe(true);
     expect(UpdateProfileSchema.safeParse({ privacy: { visitHistory: "hidden" } }).success).toBe(true);
+    expect(UpdateProfileSchema.safeParse({ recommendationsEnabled: false }).success).toBe(true);
   });
 });

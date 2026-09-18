@@ -760,7 +760,7 @@ export function resetMockProfiles(): void {
 }
 
 function profileFor(userId: string): Profile {
-  return mockProfiles.get(userId) ?? { userId, city: "Москва", interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY } };
+  return mockProfiles.get(userId) ?? { userId, city: "Москва", interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY }, recommendationsEnabled: true };
 }
 
 function remainingSeats(eventId: string): number | null {
@@ -855,7 +855,7 @@ export function installMockApi(): () => void {
       const parsed = UpdateProfileSchema.safeParse(parseBookingBody(init));
       if (!parsed.success) return new Response(null, { status: 400 });
       const current = profileFor(profile[1]);
-      const updated: Profile = { ...current, ...parsed.data, smartAlerts: { ...current.smartAlerts, ...parsed.data.smartAlerts }, privacy: { ...current.privacy, ...parsed.data.privacy } };
+      const updated: Profile = { ...current, ...parsed.data, smartAlerts: { ...current.smartAlerts, ...parsed.data.smartAlerts }, privacy: { ...current.privacy, ...parsed.data.privacy }, recommendationsEnabled: parsed.data.recommendationsEnabled ?? current.recommendationsEnabled };
       mockProfiles.set(profile[1], updated);
       return Response.json(updated);
     }

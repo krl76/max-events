@@ -30,6 +30,9 @@ export class ProfileEntity {
   @Column({ type: "jsonb", default: DEFAULT_PRIVACY })
   privacy!: PrivacySettings;
 
+  @Column({ type: "boolean", default: true })
+  recommendationsEnabled!: boolean;
+
   @UpdateDateColumn({ type: "timestamptz" })
   updatedAt!: Date;
 }

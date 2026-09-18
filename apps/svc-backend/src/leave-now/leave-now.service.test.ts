@@ -99,7 +99,7 @@ function createService(options: { startsInMin: number; dimaStatus?: PlanParticip
       return true;
     },
   } as unknown as MaxBotClient;
-  const service = new LeaveNowService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, checkIns as unknown as Repository<CheckInEntity>, createStoreRepo<ProfileEntity>(options.hostLeaveNow === false ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: false, weather: true, friendLeft: true, listDigest: true }, privacy: { visitHistory: "friends", routes: "friends" }, updatedAt: now } as ProfileEntity] : []) as unknown as Repository<ProfileEntity>, bot);
+  const service = new LeaveNowService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, checkIns as unknown as Repository<CheckInEntity>, createStoreRepo<ProfileEntity>(options.hostLeaveNow === false ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: false, weather: true, friendLeft: true, listDigest: true }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, updatedAt: now } as ProfileEntity] : []) as unknown as Repository<ProfileEntity>, bot);
   return { service, sent, plans, participants };
 }
 

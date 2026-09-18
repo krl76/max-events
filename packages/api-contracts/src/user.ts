@@ -16,7 +16,7 @@
 // - PrivacySettingsSchema - visit history and route visibility
 // - PrivacySettings - privacy type
 // - DEFAULT_PRIVACY - visible to friends
-// - ProfileSchema - user profile with default city, interests, alerts and privacy
+// - ProfileSchema - user profile with default city, interests, alerts, privacy and recommendations
 // - Profile - profile type
 // - UpdateProfileSchema - profile edit payload (nested partial smartAlerts/privacy)
 // - UpdateProfile - profile edit type
@@ -71,6 +71,7 @@ export const ProfileSchema = z.object({
   interests: z.array(z.string().min(1)).default([]),
   smartAlerts: SmartAlertSettingsSchema.default({ ...DEFAULT_SMART_ALERTS }),
   privacy: PrivacySettingsSchema.default({ ...DEFAULT_PRIVACY }),
+  recommendationsEnabled: z.boolean().default(true),
 });
 export type Profile = z.infer<typeof ProfileSchema>;
 
@@ -79,5 +80,6 @@ export const UpdateProfileSchema = z.object({
   interests: z.array(z.string().min(1)).optional(),
   smartAlerts: SmartAlertSettingsSchema.partial().optional(),
   privacy: PrivacySettingsSchema.partial().optional(),
+  recommendationsEnabled: z.boolean().optional(),
 });
 export type UpdateProfile = z.infer<typeof UpdateProfileSchema>;

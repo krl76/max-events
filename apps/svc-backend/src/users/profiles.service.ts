@@ -32,7 +32,7 @@ export class ProfilesService {
     const existing = await this.profiles.findOneBy({ userId });
     if (existing) return toProfileDto(existing);
     try {
-      const created = await this.profiles.save(this.profiles.create({ userId, city: DEFAULT_PROFILE_CITY, interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY } }));
+      const created = await this.profiles.save(this.profiles.create({ userId, city: DEFAULT_PROFILE_CITY, interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY }, recommendationsEnabled: true }));
       return toProfileDto(created);
     } catch (error) {
       if (error instanceof QueryFailedError && error.driverError?.code === "23505") {
@@ -49,6 +49,7 @@ export class ProfilesService {
       interests: patch.interests ?? current.interests,
       smartAlerts: { ...current.smartAlerts, ...patch.smartAlerts },
       privacy: { ...current.privacy, ...patch.privacy },
+      recommendationsEnabled: patch.recommendationsEnabled ?? current.recommendationsEnabled,
     };
     const existing = await this.profiles.findOneByOrFail({ userId });
     const saved = await this.profiles.save(this.profiles.merge(existing, next));
@@ -63,6 +64,7 @@ export function toProfileDto(profile: ProfileEntity): Profile {
     interests: [...profile.interests],
     smartAlerts: readAlertPrefs(profile),
     privacy: readPrivacy(profile),
+    recommendationsEnabled: profile.recommendationsEnabled !== false,
   };
 }
 
