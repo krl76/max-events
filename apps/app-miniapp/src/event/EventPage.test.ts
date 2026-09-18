@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AutoPlanEntry, EventDetailsView, PARTICIPATION_STATUS_LABELS, ParticipationView } from "./EventPage";
-import type { EventDetails, ParticipationStats } from "../api/client";
+import { AutoPlanEntry, bookingErrorMessage, EventDetailsView, PARTICIPATION_STATUS_LABELS, ParticipationView, type PromoCodeState } from "./EventPage";
+import { ApiError, type EventDetails, type ParticipationStats } from "../api/client";
 import { mockEvents, mockOrganizers, mockPlaces } from "../api/mock";
 import type { Event, ParticipationStatus, Place } from "@max-events/api-contracts";
 
@@ -97,6 +97,46 @@ describe("check-in button states", () => {
     expect(html).toContain("Вы были здесь");
     expect(html).toContain("disabled");
     expect(html).not.toContain("Я здесь");
+  });
+});
+
+describe("promo code field, booking errors and promoted badge", () => {
+  const promo = (overrides: Partial<PromoCodeState> = {}): PromoCodeState => ({ code: "", error: null, onCode: () => {}, ...overrides });
+  const baseProps = { onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} };
+
+  it("renders the promo code input while the event is bookable", () => {
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), ...baseProps, promo: promo() }));
+
+    expect(html).toContain('aria-label="Промокод"');
+  });
+
+  it("hides the promo code input in the booked and sold-out states", () => {
+    const booked = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { activeBookingId: "e0000000-0000-4000-8000-000000000001" }), ...baseProps, promo: promo() }));
+    const soldOut = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { remainingSeats: 0 }), ...baseProps, promo: promo() }));
+
+    expect(booked).not.toContain('aria-label="Промокод"');
+    expect(soldOut).not.toContain('aria-label="Промокод"');
+  });
+
+  it("shows the booking error inline instead of an alert", () => {
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), ...baseProps, promo: promo({ code: "NOPE", error: "Промокод не подошёл — проверьте код и срок его действия." }) }));
+
+    expect(html).toContain("app-state--error");
+    expect(html).toContain("Промокод не подошёл");
+  });
+
+  it("renders the «Промо» badge only for promoted events", () => {
+    const promoted = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor({ ...free, promoted: true }), ...baseProps }));
+    const regular = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), ...baseProps }));
+
+    expect(promoted).toContain("Промо");
+    expect(regular).not.toContain("Промо");
+  });
+  it("maps booking failures to inline messages", () => {
+    expect(bookingErrorMessage(new ApiError(403, "forbidden"), false)).toContain("раннего доступа");
+    expect(bookingErrorMessage(new ApiError(403, "forbidden"), true)).toContain("Промокод не подошёл");
+    expect(bookingErrorMessage(new ApiError(409, "conflict"), false)).toContain("места закончились");
+    expect(bookingErrorMessage(new Error("network"), false)).toContain("Не удалось записаться");
   });
 });
 

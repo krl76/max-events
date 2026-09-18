@@ -89,11 +89,13 @@
 // - ApiClient.getDiscovery - GET /discovery: reverse discovery summary "Твои люди открыли N мест"
 // - ApiClient.getFriendRoute - GET /discovery/friends/:userId/route: a friend's chronological route of unseen places
 // - ApiClient.getPeople - GET /people[?lat=&lng=]: people matching with shared-interest/event context (lat/lng mirror the backend parseOrigin names)
+// - ApiClient.getPromotionPlacements - GET /promotions/placements: banners, pins, boosted ids (#205)
+// - ApiClient.getTargetedPromotions - GET /promotions/for-me: targeted collections with explanations (#205)
 // END_MODULE_MAP
 
-import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, type PlacePage } from "@max-events/api-contracts";
+import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, type PlacePage } from "@max-events/api-contracts";
 import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanCard, Profile, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -878,6 +880,14 @@ export class ApiClient {
   getPeople(origin: { latitude: number; longitude: number } | null = null): Promise<PeopleResponse> {
     const query = origin === null ? "" : `?${new URLSearchParams({ lat: String(origin.latitude), lng: String(origin.longitude) }).toString()}`;
     return this.request(`/people${query}`, PeopleResponseSchema);
+  }
+
+  getPromotionPlacements(): Promise<PromotionPlacements> {
+    return this.request("/promotions/placements", PromotionPlacementsSchema);
+  }
+
+  getTargetedPromotions(): Promise<TargetedPromotionsResponse> {
+    return this.request("/promotions/for-me", TargetedPromotionsResponseSchema);
   }
 }
 

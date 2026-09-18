@@ -29,6 +29,14 @@ describe("CatalogView", () => {
     expect(html).not.toContain("<article");
   });
 
+  it("renders the «Промо» badge on promoted cards only", () => {
+    const promotedEvent = { ...free, id: "c00000ff-0000-4000-8000-0000000000ff", promoted: true };
+    const state: CatalogState = { status: "ready", events: [free, promotedEvent] };
+    const html = renderToStaticMarkup(createElement(CatalogView, { state, filters: {}, onFilters: () => {} }));
+
+    expect(html.match(/Промо/g)).toHaveLength(1);
+  });
+
   it("renders skeleton cards while loading", () => {
     const html = renderToStaticMarkup(createElement(CatalogView, { state: { status: "loading" }, filters: {}, onFilters: () => {} }));
 
