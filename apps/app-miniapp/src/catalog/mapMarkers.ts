@@ -6,7 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - MapMarker - marker payload: popup title/subtitle, coordinates, event id (null for place markers)
+// - MapMarker - marker payload: popup title/subtitle, coordinates, event id (null for place markers), place id (set for place markers)
 // - buildMapMarkers - events (via place coordinates) + places -> marker list
 // END_MODULE_MAP
 
@@ -15,8 +15,9 @@ import { formatStartsAt } from "./format";
 
 export interface MapMarker {
   key: string;
-  /** Event markers navigate to the event page; place markers are informational. */
+  /** Event markers navigate to the event page; place markers open the place page. */
   eventId: string | null;
+  placeId: string | null;
   title: string;
   subtitle: string;
   lat: number;
@@ -32,6 +33,7 @@ export function buildMapMarkers(events: Event[], places: Place[]): MapMarker[] {
     markers.push({
       key: `event-${event.id}`,
       eventId: event.id,
+      placeId: null,
       title: event.title,
       subtitle: `${formatStartsAt(event.startsAt)} · ${event.priceRub === null ? "Бесплатно" : `${event.priceRub} ₽`}`,
       lat: place.latitude,
@@ -39,7 +41,7 @@ export function buildMapMarkers(events: Event[], places: Place[]): MapMarker[] {
     });
   }
   for (const place of places) {
-    markers.push({ key: `place-${place.id}`, eventId: null, title: place.title, subtitle: place.address, lat: place.latitude, lng: place.longitude });
+    markers.push({ key: `place-${place.id}`, eventId: null, placeId: place.id, title: place.title, subtitle: place.address, lat: place.latitude, lng: place.longitude });
   }
   return markers;
 }

@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - DEMO_USER_ID - fallback booking owner outside the MAX client (mock/dev mode)
 // - EventDetailsState - union of details fetch states (loading / error / ready)
-// - EventDetailsView - presentational: media, title, meta rows, description, booking CTA, check-in button, buy button
+// - EventDetailsView - presentational: media, title, meta rows (place title opens the place page), description, booking CTA, check-in button, buy button
 // - EventPage - route container: resolves the user id, wires booking/check-in actions and the payment link, entry to the gathering flow
 // - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
 // - ParticipationView - presentational: status chip selector, clear button, status counters and friends count
@@ -106,9 +106,10 @@ interface EventDetailsViewProps {
   onCancel: () => void;
   onCheckIn: () => void;
   onBuy: (url: string) => void;
+  onOpenPlace: (id: string) => void;
 }
 
-export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy }: EventDetailsViewProps) {
+export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, onOpenPlace }: EventDetailsViewProps) {
   const { event, place, organizer } = details;
   const paymentUrl = event.isPaid ? event.paymentUrl : null;
   const organizerName = [organizer.firstName, organizer.lastName].filter(Boolean).join(" ");
@@ -137,7 +138,16 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy }
               </span>
               Где
             </dt>
-            <dd>{place ? `${place.title}, ${place.address}` : event.city}</dd>
+            <dd>
+              {place ? (
+                <button type="button" className="app-plan-event" onClick={() => onOpenPlace(place.id)}>
+                  {place.title}
+                </button>
+              ) : (
+                event.city
+              )}
+            </dd>
+            {place && <dd className="app-place-meta-address">{place.address}</dd>}
           </div>
           <div className="app-event-meta-row">
             <dt>Категория</dt>
@@ -297,7 +307,7 @@ export function EventPage({ id }: { id: string }) {
   if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить событие.</p>;
   return (
     <>
-      <EventDetailsView details={state.details} onBook={book} onCancel={cancel} onCheckIn={checkIn} onBuy={openExternalLink} />
+      <EventDetailsView details={state.details} onBook={book} onCancel={cancel} onCheckIn={checkIn} onBuy={openExternalLink} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} />
       <SaveToList eventId={id} userId={userId} />
       <section className="app-event">
         <div className="app-event-body">

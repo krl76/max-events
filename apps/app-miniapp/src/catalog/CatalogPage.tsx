@@ -10,7 +10,7 @@
 // - CATEGORY_LABELS - ru labels per event category (reused by the event page)
 // - formatStartsAt - ru "day month, hh:mm" formatting (re-exported from ./format.js, reused by the event page)
 // - CatalogViewName - "list" | "map" view switch on the catalog route
-// - CatalogView - presentational: filter bar + segmented «Список ↔ Карта» toggle + state-driven body (skeleton, error, empty, clickable event cards or map)
+// - CatalogView - presentational: filter bar + segmented «Список ↔ Карта» toggle + state-driven body (skeleton, error, empty, clickable event cards or map with event/place popups)
 // - CatalogPage - filters from window.location on mount; view is controlled by the parent (HomePage hides the today block in map view); fetches via useCatalog and writes filter changes back to the URL
 // END_MODULE_MAP
 
@@ -151,15 +151,16 @@ interface CatalogViewProps {
   view?: CatalogViewName;
   onView?: (view: CatalogViewName) => void;
   onOpenEvent?: (id: string) => void;
+  onOpenPlace?: (id: string) => void;
 }
 
-export function CatalogView({ state, filters, onFilters, view = "list", onView, onOpenEvent }: CatalogViewProps) {
+export function CatalogView({ state, filters, onFilters, view = "list", onView, onOpenEvent, onOpenPlace }: CatalogViewProps) {
   return (
     <>
       <FilterBar filters={filters} onFilters={onFilters} />
       {onView !== undefined && <ViewToggle view={view} onView={onView} />}
       {view === "map" && state.status === "ready" ? (
-        <MapScreen events={state.events} onOpenEvent={onOpenEvent ?? (() => {})} />
+        <MapScreen events={state.events} onOpenEvent={onOpenEvent ?? (() => {})} onOpenPlace={onOpenPlace ?? (() => {})} />
       ) : (
         <>
           {state.status === "loading" && (
@@ -183,11 +184,12 @@ export function CatalogPage({ view, onView }: { view: CatalogViewName; onView: (
   const catalog = useCatalog(filters);
   const { navigate } = useRoute();
   const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
+  const openPlace = useCallback((id: string) => navigate({ name: "place", id }), [navigate]);
 
   useEffect(() => {
     const query = serializeEventFilters(filters);
     window.history.replaceState(null, "", query ? `/?${query}` : "/");
   }, [filters]);
 
-  return <CatalogView state={catalog} filters={filters} onFilters={setFilters} view={view} onView={onView} onOpenEvent={openEvent} />;
+  return <CatalogView state={catalog} filters={filters} onFilters={setFilters} view={view} onView={onView} onOpenEvent={openEvent} onOpenPlace={openPlace} />;
 }

@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Catalog map view: Leaflet map with OSM tiles, event/place markers and popup mini-cards with navigation to the event page.
+// PURPOSE: Catalog map view: Leaflet map with OSM tiles, event/place markers and popup mini-cards with navigation to the event and place pages.
 // SCOPE: Places fetched via apiClient.listPlaces; Leaflet loaded lazily (dynamic import) so it stays out of the main bundle; map is disposed on unmount or data change.
 // DEPENDS: leaflet (dynamic import + css), ../api/client.js (apiClient), ./mapMarkers.js (buildMapMarkers, MapMarker)
 // LINKS: M-APP-MINIAPP
@@ -22,7 +22,7 @@ const MOSCOW_ZOOM = 11;
 const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
-function popupNode(marker: MapMarker, onOpenEvent: (id: string) => void): HTMLElement {
+function popupNode(marker: MapMarker, onOpenEvent: (id: string) => void, onOpenPlace: (id: string) => void): HTMLElement {
   const root = document.createElement("div");
   root.className = "app-map-popup";
   const title = document.createElement("span");
@@ -40,25 +40,33 @@ function popupNode(marker: MapMarker, onOpenEvent: (id: string) => void): HTMLEl
     button.textContent = "Открыть";
     button.addEventListener("click", () => onOpenEvent(eventId));
     root.append(button);
+  } else if (marker.placeId !== null) {
+    const placeId = marker.placeId;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "app-map-popup-open";
+    button.textContent = "Открыть место";
+    button.addEventListener("click", () => onOpenPlace(placeId));
+    root.append(button);
   }
   return root;
 }
 
-export async function initEventMap(container: HTMLElement, input: { events: Event[]; places: Place[]; onOpenEvent: (id: string) => void }): Promise<() => void> {
+export async function initEventMap(container: HTMLElement, input: { events: Event[]; places: Place[]; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void }): Promise<() => void> {
   const L = await import("leaflet");
   const map = L.map(container, { center: MOSCOW_CENTER, zoom: MOSCOW_ZOOM });
   L.tileLayer(OSM_TILE_URL, { maxZoom: 19, attribution: OSM_ATTRIBUTION }).addTo(map);
   for (const marker of buildMapMarkers(input.events, input.places)) {
     L.marker([marker.lat, marker.lng], { icon: L.divIcon({ className: "app-map-pin", iconSize: [18, 18] }) })
       .addTo(map)
-      .bindPopup(popupNode(marker, input.onOpenEvent));
+      .bindPopup(popupNode(marker, input.onOpenEvent, input.onOpenPlace));
   }
   return () => map.remove();
 }
 
 type PlacesState = { status: "loading" } | { status: "error" } | { status: "ready"; places: Place[] };
 
-export function MapScreen({ events, onOpenEvent }: { events: Event[]; onOpenEvent: (id: string) => void }) {
+export function MapScreen({ events, onOpenEvent, onOpenPlace }: { events: Event[]; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [places, setPlaces] = useState<PlacesState>({ status: "loading" });
 
@@ -81,7 +89,7 @@ export function MapScreen({ events, onOpenEvent }: { events: Event[]; onOpenEven
     if (places.status !== "ready" || containerRef.current === null) return;
     let disposed = false;
     let dispose: (() => void) | null = null;
-    initEventMap(containerRef.current, { events, places: places.places, onOpenEvent }).then((created) => {
+    initEventMap(containerRef.current, { events, places: places.places, onOpenEvent, onOpenPlace }).then((created) => {
       if (disposed) created();
       else dispose = created;
     });
@@ -89,7 +97,7 @@ export function MapScreen({ events, onOpenEvent }: { events: Event[]; onOpenEven
       disposed = true;
       dispose?.();
     };
-  }, [events, places, onOpenEvent]);
+  }, [events, places, onOpenEvent, onOpenPlace]);
 
   if (places.status === "loading") return <p className="app-state">Загружаем карту…</p>;
   if (places.status === "error") return <p className="app-state app-state--error">Не удалось загрузить места для карты.</p>;

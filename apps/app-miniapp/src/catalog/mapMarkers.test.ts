@@ -31,6 +31,7 @@ describe("buildMapMarkers", () => {
     expect(placeMarkers).toHaveLength(mockPlaces.length);
     for (const marker of placeMarkers) {
       const place = mockPlaces.find((item) => item.id === marker.key.slice("place-".length));
+      expect(marker.placeId).toBe(place?.id);
       expect(marker.lat).toBe(place?.latitude);
       expect(marker.lng).toBe(place?.longitude);
       expect(marker.subtitle).toBe(place?.address);

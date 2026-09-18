@@ -53,7 +53,7 @@ afterEach(() => {
 
 describe("initEventMap", () => {
   it("initializes the map centered on Moscow with an attributed OSM tile layer", async () => {
-    const dispose = await initEventMap(container, { events: [], places: [], onOpenEvent: vi.fn() });
+    const dispose = await initEventMap(container, { events: [], places: [], onOpenEvent: vi.fn(), onOpenPlace: vi.fn() });
 
     expect(leaflet.map).toHaveBeenCalledWith(container, { center: [55.7522, 37.6156], zoom: 11 });
     expect(leaflet.tileLayer).toHaveBeenCalledWith("https://tile.openstreetmap.org/{z}/{x}/{y}.png", expect.objectContaining({ attribution: expect.stringContaining("OpenStreetMap") }));
@@ -61,7 +61,7 @@ describe("initEventMap", () => {
   });
 
   it("removes the map when disposed", async () => {
-    const dispose = await initEventMap(container, { events: [], places: [], onOpenEvent: vi.fn() });
+    const dispose = await initEventMap(container, { events: [], places: [], onOpenEvent: vi.fn(), onOpenPlace: vi.fn() });
     const remove = leaflet.map.mock.results[0].value.remove;
 
     dispose();
@@ -71,7 +71,7 @@ describe("initEventMap", () => {
 
   it("creates one marker per mapped event/place at the mapped coordinates", async () => {
     const markers = buildMapMarkers(mockEvents, mockPlaces);
-    await initEventMap(container, { events: mockEvents, places: mockPlaces, onOpenEvent: vi.fn() });
+    await initEventMap(container, { events: mockEvents, places: mockPlaces, onOpenEvent: vi.fn(), onOpenPlace: vi.fn() });
 
     expect(leaflet.marker).toHaveBeenCalledTimes(markers.length);
     expect(leaflet.marker.mock.calls.map((call) => call[0])).toEqual(markers.map((marker) => [marker.lat, marker.lng]));
@@ -81,7 +81,7 @@ describe("initEventMap", () => {
   it("renders a popup mini-card with a button that opens the event route", async () => {
     const onOpenEvent = vi.fn();
     const placed = mockEvents.find((item) => item.placeId !== null)!;
-    await initEventMap(container, { events: [placed], places: mockPlaces, onOpenEvent });
+    await initEventMap(container, { events: [placed], places: mockPlaces, onOpenEvent, onOpenPlace: vi.fn() });
 
     const eventPopup = leaflet.marker.mock.results[0].value.bindPopup.mock.calls[0][0] as FakeNode;
     expect(eventPopup.appended.some((node) => node.textContent === placed.title)).toBe(true);
@@ -93,11 +93,17 @@ describe("initEventMap", () => {
     expect(onOpenEvent).toHaveBeenCalledTimes(1);
   });
 
-  it("gives place markers an informational popup without a navigation button", async () => {
-    await initEventMap(container, { events: [], places: mockPlaces, onOpenEvent: vi.fn() });
+  it("gives place markers a popup button that opens the place route", async () => {
+    const onOpenPlace = vi.fn();
+    await initEventMap(container, { events: [], places: mockPlaces, onOpenEvent: vi.fn(), onOpenPlace });
 
     const placePopup = leaflet.marker.mock.results[0].value.bindPopup.mock.calls[0][0] as FakeNode;
     expect(placePopup.appended.some((node) => node.textContent === mockPlaces[0].title)).toBe(true);
-    expect(placePopup.appended.every((node) => node.textContent !== "Открыть")).toBe(true);
+
+    const button = placePopup.appended.find((node) => node.textContent === "Открыть место")!;
+    expect(onOpenPlace).not.toHaveBeenCalled();
+    button.click!();
+    expect(onOpenPlace).toHaveBeenCalledWith(mockPlaces[0].id);
+    expect(onOpenPlace).toHaveBeenCalledTimes(1);
   });
 });
