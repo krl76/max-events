@@ -43,3 +43,25 @@ describe("WaitlistController.getMe", () => {
     await expect(pipe.transform("not-a-uuid", { type: "query", data: "eventId" })).rejects.toBeInstanceOf(BadRequestException);
   });
 });
+
+describe("WaitlistController.decline", () => {
+  it("forwards the authenticated user id and the entry id to the service", async () => {
+    const calls: Array<{ userId: string; id: string }> = [];
+    const service = {
+      decline: async (userId: string, id: string) => {
+        calls.push({ userId, id });
+        return { ...entry, status: "cancelled" };
+      },
+    } as unknown as WaitlistService;
+    const controller = new WaitlistController(service);
+    await expect(controller.decline(user, entry.id)).resolves.toMatchObject({ id: entry.id, status: "cancelled" });
+    expect(calls).toEqual([{ userId: user.id, id: entry.id }]);
+  });
+
+  it("wires ParseUUIDPipe on the id param", async () => {
+    const metadata = Reflect.getMetadata(ROUTE_ARGS_METADATA, WaitlistController, "decline") as Record<string, { pipes?: Array<new () => ParseUUIDPipe> }>;
+    const param = Object.values(metadata).find((arg) => arg.pipes?.includes(ParseUUIDPipe));
+    expect(param).toBeDefined();
+    await expect(new ParseUUIDPipe().transform("not-a-uuid", { type: "param", data: "id" })).rejects.toBeInstanceOf(BadRequestException);
+  });
+});

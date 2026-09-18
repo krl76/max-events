@@ -193,6 +193,84 @@ describe("WaitlistService.getMe", () => {
   });
 });
 
+describe("WaitlistService.decline", () => {
+  it("cancels an offered entry and passes the reserved seat to the next waiter", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    const first = await harness.service.join(userA, eventId);
+    await harness.service.join(userB, eventId);
+    harness.events[0]!.bookedCount = 0;
+    await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, harness.events[0]!, now);
+    const declined = await harness.service.decline(userA, first.id, now);
+    expect(declined.status).toBe("cancelled");
+    expect(declined.offeredUntil).toBeNull();
+    const next = harness.entries.find((row) => row.userId === userB);
+    expect(next?.status).toBe("offered");
+    expect(next?.offeredUntil?.toISOString()).toBe(new Date(now.getTime() + OFFER_TTL_MS).toISOString());
+    expect(harness.events[0]!.bookedCount).toBe(1);
+    expect(harness.sent[0]).toContain("2:");
+  });
+
+  it("releases the reserved seat when the declining offer is last in queue", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    const first = await harness.service.join(userA, eventId);
+    harness.events[0]!.bookedCount = 0;
+    await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, harness.events[0]!, now);
+    expect(harness.events[0]!.bookedCount).toBe(1);
+    const declined = await harness.service.decline(userA, first.id, now);
+    expect(declined.status).toBe("cancelled");
+    expect(harness.events[0]!.bookedCount).toBe(0);
+  });
+
+  it("cancels a waiting entry and shifts the next waiter's position", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    const first = await harness.service.join(userA, eventId);
+    await harness.service.join(userB, eventId);
+    const declined = await harness.service.decline(userA, first.id, now);
+    expect(declined.status).toBe("cancelled");
+    expect(harness.events[0]!.bookedCount).toBe(1);
+    const mine = await harness.service.getMe(userB, eventId);
+    expect(mine.position).toBe(1);
+    expect(mine.status).toBe("waiting");
+  });
+
+  it("is idempotent when declining an already cancelled entry", async () => {
+    const { service } = createHarness(seedEvent(1, 1));
+    const joined = await service.join(userA, eventId);
+    const first = await service.decline(userA, joined.id, now);
+    const second = await service.decline(userA, joined.id, now);
+    expect(first.status).toBe("cancelled");
+    expect(second.status).toBe("cancelled");
+  });
+
+  it("hides another user's entry behind NotFoundException", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    const joined = await harness.service.join(userA, eventId);
+    await expect(harness.service.decline(userB, joined.id, now)).rejects.toBeInstanceOf(NotFoundException);
+    expect(harness.entries.find((row) => row.id === joined.id)?.status).toBe("waiting");
+  });
+
+  it("rejects decline of an unknown entry", async () => {
+    const { service } = createHarness(seedEvent(1, 1));
+    await expect(service.decline(userA, "00000000-0000-4000-8000-000000000099", now)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("rejects decline of a confirmed entry because it is a booking", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    const joined = await harness.service.join(userA, eventId);
+    harness.events[0]!.bookedCount = 0;
+    await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, harness.events[0]!, now);
+    await harness.service.confirm(userA, joined.id, now);
+    await expect(harness.service.decline(userA, joined.id, now)).rejects.toBeInstanceOf(ConflictException);
+    expect(harness.bookings[0]?.status).toBe("active");
+  });
+
+  it("rejects decline of an expired entry like confirm does", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    harness.entries.push({ id: "00000000-0000-4000-8000-0000000000e2", userId: userA, eventId, status: "expired", offeredUntil: null, referralCode: null, createdAt: now, updatedAt: now } as WaitlistEntryEntity);
+    await expect(harness.service.decline(userA, "00000000-0000-4000-8000-0000000000e2", now)).rejects.toBeInstanceOf(ConflictException);
+  });
+});
+
 describe("WaitlistService.onSeatFreed, confirm and expiry", () => {
   it("offers the first waiter, notifies them, and confirm creates a booking", async () => {
     const harness = createHarness(seedEvent(1, 1));
