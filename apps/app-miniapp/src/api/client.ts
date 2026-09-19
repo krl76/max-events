@@ -105,11 +105,20 @@
 // - ApiClient.createVote - POST /votes: shared event vote (title + 2..10 unique events + >=1 friend participants)
 // - ApiClient.getVote - GET /votes/:id: vote with option tallies and the server-computed winner
 // - ApiClient.castBallot - POST /votes/:id/ballots: one-tap vote; a repeated ballot replaces the previous one (backend semantics)
+// - ApiClient.getEventSales - GET /organizer/events/:id/sales: EventSalesReport of frozen ticket sales (#196)
+// - ApiClient.getOrganizerEventStats - GET /organizer/events/:id/stats: OrganizerEventStats counters (#196)
+// - ApiClient.recordPageView - POST /views (#196)
+// - trackPageView - fire-and-forget page helper over recordPageView (errors swallowed, #196)
+// - ApiClient.getEventOrganizerRating / getOrganizerRating - GET /events/:id/organizer-rating and /organizers/:userId/rating (#199; nullable envelope)
+// - ApiClient.listCampaigns / createCampaign - organizer promo campaigns (GET/POST /organizer/events/:id/campaigns, #206)
+// - ApiClient.listPromotions / createPromotion / markPromotionPaid - organizer promotion campaigns (GET/POST /organizer/events/:id/promotions, POST .../:campaignId/paid, #206)
 // END_MODULE_MAP
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
 import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema } from "@max-events/api-contracts";
 import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, Vote, WaitlistEntry, WeGroupScreen, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
+import { EventSalesReportSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, PromoCampaignSchema, PromotionCampaignSchema } from "@max-events/api-contracts";
+import type { CreatePromoCampaignWrite, CreatePromotionWrite, EventSalesReport, OrganizerEventStats, OrganizerRatingResponse, PromoCampaign, PromotionCampaign, RecordPageViewWrite } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -667,6 +676,39 @@ const WeGroupScreenEntitySchema: ZodSchema<WeGroupScreen> = {
   },
 };
 
+const PromoCampaignArraySchema: ZodSchema<PromoCampaign[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of promo campaigns" };
+    const campaigns: PromoCampaign[] = [];
+    for (const item of data) {
+      const parsed = PromoCampaignSchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      campaigns.push(parsed.data);
+    }
+    return { success: true as const, data: campaigns };
+  },
+};
+
+const PromotionCampaignArraySchema: ZodSchema<PromotionCampaign[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of promotion campaigns" };
+    const campaigns: PromotionCampaign[] = [];
+    for (const item of data) {
+      const parsed = PromotionCampaignSchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      campaigns.push(parsed.data);
+    }
+    return { success: true as const, data: campaigns };
+  },
+};
+
+const PageViewResultSchema: ZodSchema<{ recorded: boolean }> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null || typeof (data as Record<string, unknown>).recorded !== "boolean") return { success: false as const, error: "expected a page-view result" };
+    return { success: true as const, data: data as { recorded: boolean } };
+  },
+};
+
 const WeGroupScreenArraySchema: ZodSchema<WeGroupScreen[]> = {
   safeParse(data: unknown) {
     if (!Array.isArray(data)) return { success: false as const, error: "expected an array of we-group screens" };
@@ -1026,6 +1068,46 @@ export class ApiClient {
     return { ...published, draft: false };
   }
 
+  getEventSales(eventId: string): Promise<EventSalesReport> {
+    return this.request(`/organizer/events/${eventId}/sales`, EventSalesReportSchema);
+  }
+
+  getOrganizerEventStats(eventId: string): Promise<OrganizerEventStats> {
+    return this.request(`/organizer/events/${eventId}/stats`, OrganizerEventStatsSchema);
+  }
+
+  recordPageView(payload: RecordPageViewWrite): Promise<{ recorded: boolean }> {
+    return this.request("/views", PageViewResultSchema, { body: payload });
+  }
+
+  getEventOrganizerRating(eventId: string): Promise<OrganizerRatingResponse> {
+    return this.request(`/events/${eventId}/organizer-rating`, OrganizerRatingResponseSchema);
+  }
+
+  getOrganizerRating(userId: string): Promise<OrganizerRatingResponse> {
+    return this.request(`/organizers/${userId}/rating`, OrganizerRatingResponseSchema);
+  }
+
+  listCampaigns(eventId: string): Promise<PromoCampaign[]> {
+    return this.request(`/organizer/events/${eventId}/campaigns`, PromoCampaignArraySchema);
+  }
+
+  createCampaign(eventId: string, payload: CreatePromoCampaignWrite): Promise<PromoCampaign> {
+    return this.request(`/organizer/events/${eventId}/campaigns`, PromoCampaignSchema, { body: payload });
+  }
+
+  listPromotions(eventId: string): Promise<PromotionCampaign[]> {
+    return this.request(`/organizer/events/${eventId}/promotions`, PromotionCampaignArraySchema);
+  }
+
+  createPromotion(eventId: string, payload: CreatePromotionWrite): Promise<PromotionCampaign> {
+    return this.request(`/organizer/events/${eventId}/promotions`, PromotionCampaignSchema, { body: payload });
+  }
+
+  markPromotionPaid(eventId: string, campaignId: string, paidAt?: string): Promise<PromotionCampaign> {
+    return this.request(`/organizer/events/${eventId}/promotions/${campaignId}/paid`, PromotionCampaignSchema, { body: paidAt === undefined ? {} : { paidAt } });
+  }
+
   createWeGroup(payload: CreateWeGroupWrite): Promise<WeGroupScreen> {
     return this.request("/we-groups", WeGroupScreenEntitySchema, { body: payload });
   }
@@ -1072,3 +1154,8 @@ export class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
+/** Fire-and-forget page-view tracking (#196): a tracking failure must never break a page, so the rejection is swallowed here. */
+export function trackPageView(payload: RecordPageViewWrite): void {
+  void apiClient.recordPageView(payload).catch(() => {});
+}

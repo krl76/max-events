@@ -118,10 +118,27 @@
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
 // - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
+// - recordMockPageView - page-view write with per-user per-day dedup (backend StatsService.recordView 23505 parity, mock POST /views, #196)
+// - resetMockPageViews - clear in-memory page views (test isolation)
+// - mockOrganizerEventStats - per-event views/bookings/cancellations/paid counters (backend StatsService.eventStats parity: 403 catalog, 404 unknown, mock GET /organizer/events/:id/stats, #196)
+// - mockEventSalesReport - frozen-sales report from mock bookings/payments (backend PaymentsService.salesReport parity: 404 for unknown and foreign events, mock GET /organizer/events/:id/sales, #196)
+// - MOCK_COMMISSION_BPS - 10% platform fee frozen when a mock payment settles (backend freezeCommission parity)
+// - mockOrganizerRating - organizer rating from mock reviews/check-ins (backend buildOrganizerRating parity: null below MIN_REVIEWS, mock GET /organizers/:userId/rating, #199)
+// - mockEventOrganizerRating - rating of the event owner, 404 unknown/unpublished (backend RatingService.forEvent parity, mock GET /events/:id/organizer-rating, #199)
+// - listMockCampaigns - promo campaigns of an owned event, createdAt ASC (mock GET /organizer/events/:id/campaigns, #206)
+// - createMockCampaign - promo campaign create (backend PromoService.createCampaign parity: 403 catalog, 404 unknown, 409 duplicate code, #206)
+// - resetMockCampaigns - clear in-memory promo campaigns (test isolation)
+// - listMockPromotions - promotion campaigns of an owned event with lazy expiry, startsAt ASC (mock GET /organizer/events/:id/promotions, #206)
+// - createMockPromotion - promotion create; an already-past window is created completed (backend PromotionService.create parity, #206)
+// - payMockPromotion - manual paid stamp (backend PromotionService.recordPayment parity: 404 unknown campaign, 403 foreign event, #206)
+// - resetMockPromotions - clear in-memory promotion campaigns (test isolation)
+// - MOCK_ORGANIZER_PAID_EVENT_ID - seeded published paid organizer event with two frozen sales, one cancellation and four views (re-seeded idempotently by resetMockOrganizer)
 // END_MODULE_MAP
 
 import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, BookingWithSeats, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Payment, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanBudget, PlanCard, PlanDebt, Profile, PromotionPlacements, Review, RouteLeg, RoutePoint, TargetedPromotionsResponse, TodayEventCard, TodayResponse, User, VisitStats, Vote, WaitlistEntry, WeGroup, WeGroupScreen } from "@max-events/api-contracts";
 import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema } from "@max-events/api-contracts";
+import { CreatePromoCampaignWriteSchema, CreatePromotionWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
+import type { CreatePromoCampaignWrite, CreatePromotionWrite, EventSalesReport, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, PageViewTarget, PromoCampaign, PromotionCampaign, RecordPageViewWrite } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -1173,12 +1190,21 @@ function ensureMockPayment(booking: Booking, now: string): Payment | null {
   return payment;
 }
 
-/** Mirrors the sandbox charge rule: a pending payment resolves to failed at the fail amount (or a "[fail]" title marker), otherwise succeeded; settled payments stay untouched. */
+/** 10% platform fee frozen when a mock payment settles (backend DEFAULT_COMMISSION_BPS / freezeCommission parity). */
+export const MOCK_COMMISSION_BPS = 1000;
+
+/** Mirrors the sandbox charge rule: a pending payment resolves to failed at the fail amount (or a "[fail]" title marker), otherwise succeeded; settled payments stay untouched. A succeeded charge freezes the commission once (backend freezeCommission parity). */
 function settleMockPayment(payment: Payment, now: string): Payment {
   if (payment.status !== "pending") return payment;
   const event = mockEvents.find((item) => item.id === (mockBookings.find((booking) => booking.id === payment.bookingId)?.eventId ?? ""));
   payment.status = payment.amountRub === MOCK_SANDBOX_FAIL_AMOUNT || (event?.title.includes("[fail]") ?? false) ? "failed" : "succeeded";
   payment.updatedAt = now;
+  if (payment.status === "succeeded" && payment.commissionFixedAt === null) {
+    payment.commissionBps = MOCK_COMMISSION_BPS;
+    payment.commissionRub = Math.floor((payment.amountRub * MOCK_COMMISSION_BPS) / 10_000);
+    payment.netRub = payment.amountRub - payment.commissionRub;
+    payment.commissionFixedAt = now;
+  }
   return payment;
 }
 
@@ -1205,6 +1231,27 @@ export function resetMockBookings(): void {
   mockBookingSeq = 0;
   mockPayments.length = 0;
   mockPaymentSeq = 0;
+}
+
+interface MockPageView {
+  userId: string;
+  targetType: PageViewTarget;
+  targetId: string;
+  viewedOn: string;
+}
+
+const mockPageViews: MockPageView[] = [];
+
+/** Records a page view with per-user per-target per-day dedup (backend StatsService.recordView 23505 parity); the mock has no auth token, so the viewer is the demo user. */
+export function recordMockPageView(userId: string, payload: RecordPageViewWrite, now: Date = new Date()): { recorded: boolean } {
+  const viewedOn = moscowDateKey(now.toISOString());
+  if (mockPageViews.some((view) => view.userId === userId && view.targetType === payload.targetType && view.targetId === payload.targetId && view.viewedOn === viewedOn)) return { recorded: false };
+  mockPageViews.push({ userId, targetType: payload.targetType, targetId: payload.targetId, viewedOn });
+  return { recorded: true };
+}
+
+export function resetMockPageViews(): void {
+  mockPageViews.length = 0;
 }
 
 /** Unlimited promo code seeded for the early-access fixture event. */
@@ -2094,9 +2141,15 @@ export function mockAssistDay(payload: AssistQueryWrite): AssistDayResponse | Mo
 export type MockOrganizerEvent = Event & { published: boolean };
 export type MockOrganizerPlace = Place & { published: boolean };
 
+/** Seeded published paid organizer event (#196/#206 demo + tests): two frozen ticket sales, one cancelled booking and seeded views are attached by seedMockOrganizerAddons. */
+export const MOCK_ORGANIZER_PAID_EVENT_ID = "c00000f2-0000-4000-8000-0000000000f2";
+
 function seedMockOrganizer(): { events: MockOrganizerEvent[]; places: MockOrganizerPlace[] } {
   return {
-    events: [{ ...event({ id: "c00000f1-0000-4000-8000-0000000000f1", title: "Акустический вечер в «Депо»", category: "afisha", city: "Москва", startsAt: "2026-10-11T19:00:00+03:00", isPaid: false, priceRub: null, capacity: 40 }), published: false }],
+    events: [
+      { ...event({ id: "c00000f1-0000-4000-8000-0000000000f1", title: "Акустический вечер в «Депо»", category: "afisha", city: "Москва", startsAt: "2026-10-11T19:00:00+03:00", isPaid: false, priceRub: null, capacity: 40 }), published: false },
+      { ...event({ id: MOCK_ORGANIZER_PAID_EVENT_ID, title: "Квиз «Мозгобойня»", category: "afisha", city: "Москва", startsAt: "2026-09-06T19:00:00+03:00", isPaid: true, priceRub: 500, paymentUrl: "https://tickets.example.com/mozgoboynya", capacity: 60 }), published: true },
+    ],
     places: [{ ...place({ id: "b00000f1-0000-4000-8000-0000000000f1", title: "Лофт на Бауманской", address: "ул. Бауманская, 5", city: "Москва", category: "other", latitude: 55.7717, longitude: 37.6879 }), published: false }],
   };
 }
@@ -2104,11 +2157,34 @@ function seedMockOrganizer(): { events: MockOrganizerEvent[]; places: MockOrgani
 let mockOrganizerState = seedMockOrganizer();
 let mockOrganizerSeq = 0;
 
-/** Restore the seeded organizer drafts (test isolation). */
+/** Restore the seeded organizer drafts plus the seeded sales/views addon fixtures (test isolation). */
 export function resetMockOrganizer(): void {
   mockOrganizerState = seedMockOrganizer();
   mockOrganizerSeq = 0;
+  seedMockOrganizerAddons();
 }
+
+const MOCK_ADDON_BOOKING_IDS = ["e00000f2-0000-4000-8000-0000000000f1", "e00000f2-0000-4000-8000-0000000000f2", "e00000f2-0000-4000-8000-0000000000f3"];
+const MOCK_ADDON_PAYMENT_IDS = ["700000f2-0000-4000-8000-0000000000f1", "700000f2-0000-4000-8000-0000000000f2"];
+
+/** Seeded addon fixtures for the paid organizer event (fixed ids, re-added idempotently): two settled sales with the commission frozen (backend webhook freeze parity), one cancelled booking, four page views on a fixed past day (never dedup-collides with the test "today"). */
+function seedMockOrganizerAddons(): void {
+  for (let index = mockBookings.length - 1; index >= 0; index -= 1) {
+    if (MOCK_ADDON_BOOKING_IDS.includes(mockBookings[index].id)) mockBookings.splice(index, 1);
+  }
+  for (let index = mockPayments.length - 1; index >= 0; index -= 1) {
+    if (MOCK_ADDON_PAYMENT_IDS.includes(mockPayments[index].id)) mockPayments.splice(index, 1);
+  }
+  for (let index = mockPageViews.length - 1; index >= 0; index -= 1) {
+    if (mockPageViews[index].targetId === MOCK_ORGANIZER_PAID_EVENT_ID) mockPageViews.splice(index, 1);
+  }
+  const saleBooking = (id: string, userId: string, status: Booking["status"]): Booking => ({ id, userId, eventId: MOCK_ORGANIZER_PAID_EVENT_ID, status, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP });
+  mockBookings.push(saleBooking(MOCK_ADDON_BOOKING_IDS[0], mockFriendIds[0], "active"), saleBooking(MOCK_ADDON_BOOKING_IDS[1], mockFriendIds[1], "active"), saleBooking(MOCK_ADDON_BOOKING_IDS[2], mockFriendIds[2], "cancelled"));
+  const frozenSale = (id: string, bookingId: string): Payment => ({ id, bookingId, providerPaymentId: `pay_sandbox_${bookingId}`, status: "succeeded", amountRub: 500, currency: "RUB", description: "Билет: Квиз «Мозгобойня»", commissionRub: 50, netRub: 450, commissionBps: MOCK_COMMISSION_BPS, commissionFixedAt: PLACE_STAMP, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP });
+  mockPayments.push(frozenSale(MOCK_ADDON_PAYMENT_IDS[0], MOCK_ADDON_BOOKING_IDS[0]), frozenSale(MOCK_ADDON_PAYMENT_IDS[1], MOCK_ADDON_BOOKING_IDS[1]));
+  for (const viewer of mockFriendIds.slice(0, 4)) mockPageViews.push({ userId: viewer, targetType: "event", targetId: MOCK_ORGANIZER_PAID_EVENT_ID, viewedOn: "2026-08-01" });
+}
+seedMockOrganizerAddons();
 
 /** Backend EventsService.listMine parity: the demo user's events (drafts included), startsAt ASC then id ASC. */
 export function organizerEvents(): MockOrganizerEvent[] {
@@ -2176,6 +2252,165 @@ export function updateMockOrganizerPlace(id: string, patch: Record<string, unkno
   if (!parsed.success) return "invalid";
   Object.assign(found, parsed.data);
   return found;
+}
+
+/** Ownership emulation for the organizer sub-resources: the demo user's event, "forbidden" for a catalog event owned by someone else, null when unknown (backend requireOwnedEvent parity). */
+function mockOwnedEvent(eventId: string): MockOrganizerEvent | "forbidden" | null {
+  const own = mockOrganizerState.events.find((item) => item.id === eventId);
+  if (own) return own;
+  return mockEvents.some((item) => item.id === eventId) ? "forbidden" : null;
+}
+
+/** Backend StatsService.eventStats parity: views/bookings/cancellations/paid counters for an owned event; "forbidden" for catalog events, null when unknown. */
+export function mockOrganizerEventStats(eventId: string): OrganizerEventStats | "forbidden" | null {
+  const own = mockOwnedEvent(eventId);
+  if (own === null || own === "forbidden") return own;
+  const bookings = mockBookings.filter((booking) => booking.eventId === eventId);
+  return {
+    eventId,
+    views: mockPageViews.filter((view) => view.targetType === "event" && view.targetId === eventId).length,
+    bookings: bookings.length,
+    cancellations: bookings.filter((booking) => booking.status === "cancelled").length,
+    paidBookings: own.isPaid ? bookings.filter((booking) => booking.status === "active").length : 0,
+  };
+}
+
+/** Backend PaymentsService.salesReport parity: only succeeded payments with the frozen commission make the report; null (404) for unknown and foreign events alike. */
+export function mockEventSalesReport(eventId: string): EventSalesReport | null {
+  if (!mockOrganizerState.events.some((item) => item.id === eventId)) return null;
+  const bookingIds = new Set(mockBookings.filter((booking) => booking.eventId === eventId).map((booking) => booking.id));
+  const frozen = mockPayments.filter((payment) => bookingIds.has(payment.bookingId) && payment.status === "succeeded" && payment.commissionFixedAt !== null && payment.commissionRub !== null && payment.netRub !== null && payment.commissionBps !== null).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() || a.id.localeCompare(b.id));
+  return {
+    eventId,
+    rows: frozen.map((payment) => ({ paymentId: payment.id, bookingId: payment.bookingId, status: payment.status, grossRub: payment.amountRub, commissionRub: payment.commissionRub!, netRub: payment.netRub!, commissionBps: payment.commissionBps!, commissionFixedAt: payment.commissionFixedAt! })),
+    grossRub: frozen.reduce((sum, payment) => sum + payment.amountRub, 0),
+    commissionRub: frozen.reduce((sum, payment) => sum + (payment.commissionRub ?? 0), 0),
+    netRub: frozen.reduce((sum, payment) => sum + (payment.netRub ?? 0), 0),
+  };
+}
+
+/** Backend MIN_REVIEWS parity: the rating card hides below this review count. */
+const MOCK_MIN_RATING_REVIEWS = 3;
+const MOCK_ON_TIME_BEFORE_MS = 30 * 60 * 1000;
+const MOCK_ON_TIME_AFTER_MS = 15 * 60 * 1000;
+
+/** Backend buildOrganizerRating parity: the catalog fixture organizer owns all catalog events (same convention as eventDetails), the demo user owns the organizer-panel events; null below MIN_REVIEWS, onTimePercent null without past events. */
+export function mockOrganizerRating(userId: string, now: Date = new Date()): OrganizerRatingResponse {
+  const owned: Event[] = userId === mockOrganizers[0].id ? mockEvents : userId === mockDemoUser.id ? mockOrganizerState.events : [];
+  const ownedIds = new Set(owned.map((item) => item.id));
+  const reviews = mockReviews.filter((item) => item.eventId !== null && ownedIds.has(item.eventId));
+  if (reviews.length < MOCK_MIN_RATING_REVIEWS) return { rating: null };
+  const checkIns = mockCheckIns.filter((item) => item.eventId !== null && ownedIds.has(item.eventId));
+  const past = owned.filter((item) => item.published !== false && new Date(item.startsAt).getTime() <= now.getTime());
+  let onTimePercent: number | null = null;
+  if (past.length > 0) {
+    const onTime = past.filter((item) =>
+      checkIns.some((checkIn) => {
+        if (checkIn.eventId !== item.id) return false;
+        const delta = new Date(checkIn.checkedInAt).getTime() - new Date(item.startsAt).getTime();
+        return delta >= -MOCK_ON_TIME_BEFORE_MS && delta <= MOCK_ON_TIME_AFTER_MS;
+      }),
+    ).length;
+    onTimePercent = (onTime / past.length) * 100;
+  }
+  const rating: OrganizerRating = {
+    organizerUserId: userId,
+    averageStars: reviews.reduce((sum, item) => sum + item.stars, 0) / reviews.length,
+    recommendPercent: (reviews.filter((item) => item.wouldGoAgain).length / reviews.length) * 100,
+    visitsCount: checkIns.length,
+    onTimePercent,
+    reviewsCount: reviews.length,
+  };
+  return { rating };
+}
+
+/** Backend RatingService.forEvent parity: null (404) for unknown or unpublished events; the rating of the event owner otherwise. */
+export function mockEventOrganizerRating(eventId: string, now: Date = new Date()): OrganizerRatingResponse | null {
+  const catalogEvent = mockEvents.find((item) => item.id === eventId);
+  if (catalogEvent) return catalogEvent.published === false ? null : mockOrganizerRating(mockOrganizers[0].id, now);
+  const ownEvent = mockOrganizerState.events.find((item) => item.id === eventId);
+  if (!ownEvent || ownEvent.published === false) return null;
+  return mockOrganizerRating(mockDemoUser.id, now);
+}
+
+const mockPromoCampaigns: PromoCampaign[] = [];
+let mockCampaignSeq = 0;
+
+export function resetMockCampaigns(): void {
+  mockPromoCampaigns.length = 0;
+  mockCampaignSeq = 0;
+}
+
+/** Backend PromoService.listCampaigns parity: createdAt ASC. */
+export function listMockCampaigns(eventId: string): PromoCampaign[] | "forbidden" | null {
+  const owned = mockOwnedEvent(eventId);
+  if (owned === null || owned === "forbidden") return owned;
+  return mockPromoCampaigns.filter((campaign) => campaign.eventId === eventId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+/** Backend PromoService.createCampaign parity: uppercased code, duplicate code per event -> "duplicate" (409). */
+export function createMockCampaign(eventId: string, payload: CreatePromoCampaignWrite, now: Date = new Date()): PromoCampaign | "forbidden" | "invalid" | "duplicate" | null {
+  const owned = mockOwnedEvent(eventId);
+  if (owned === null || owned === "forbidden") return owned;
+  const code = payload.code.trim().toUpperCase();
+  const title = payload.title.trim();
+  if (code === "" || code.length > 40 || title === "") return "invalid";
+  if (mockPromoCampaigns.some((campaign) => campaign.eventId === eventId && campaign.code === code)) return "duplicate";
+  mockCampaignSeq += 1;
+  const campaign: PromoCampaign = { id: `f3000000-0000-4000-8000-${String(mockCampaignSeq).padStart(12, "0")}`, eventId, type: payload.type, status: "active", code, title, maxFulfillments: payload.maxFulfillments ?? null, fulfillmentCount: 0, createdAt: now.toISOString(), completedAt: null };
+  mockPromoCampaigns.push(campaign);
+  return campaign;
+}
+
+const mockPromotionCampaigns: PromotionCampaign[] = [];
+let mockPromotionSeq = 0;
+
+export function resetMockPromotions(): void {
+  mockPromotionCampaigns.length = 0;
+  mockPromotionSeq = 0;
+}
+
+/** Backend expireOverdue parity: an active campaign past its endsAt flips to completed. */
+function expireMockPromotions(now: Date): void {
+  for (const campaign of mockPromotionCampaigns) {
+    if (campaign.status !== "active" || new Date(campaign.endsAt).getTime() > now.getTime()) continue;
+    campaign.status = "completed";
+    campaign.completedAt = campaign.endsAt;
+  }
+}
+
+/** Backend PromotionService.list parity: startsAt ASC then id ASC, with lazy expiry. */
+export function listMockPromotions(eventId: string, now: Date = new Date()): PromotionCampaign[] | "forbidden" | null {
+  const owned = mockOwnedEvent(eventId);
+  if (owned === null || owned === "forbidden") return owned;
+  expireMockPromotions(now);
+  return mockPromotionCampaigns.filter((campaign) => campaign.eventId === eventId).sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+}
+
+/** Backend PromotionService.create parity: a campaign already past its window is created completed; the payload refines (period, audience) are validated by the interceptor. */
+export function createMockPromotion(eventId: string, payload: CreatePromotionWrite, now: Date = new Date()): PromotionCampaign | "forbidden" | "invalid" | null {
+  const owned = mockOwnedEvent(eventId);
+  if (owned === null || owned === "forbidden") return owned;
+  if (new Date(payload.endsAt).getTime() <= new Date(payload.startsAt).getTime()) return "invalid";
+  if (payload.type === "target_collection" && payload.audience == null) return "invalid";
+  const tariffCode = payload.tariffCode.trim();
+  if (tariffCode === "") return "invalid";
+  const expired = new Date(payload.endsAt).getTime() <= now.getTime();
+  mockPromotionSeq += 1;
+  const campaign: PromotionCampaign = { id: `f4000000-0000-4000-8000-${String(mockPromotionSeq).padStart(12, "0")}`, eventId, type: payload.type, status: expired ? "completed" : "active", startsAt: payload.startsAt, endsAt: payload.endsAt, tariffCode, priceRub: payload.priceRub, paidAt: null, audience: payload.audience ?? null, createdAt: now.toISOString(), completedAt: expired ? payload.endsAt : null };
+  mockPromotionCampaigns.push(campaign);
+  return campaign;
+}
+
+/** Backend PromotionService.recordPayment parity: manual paid stamp; "no_campaign" when the campaign is not on this event. */
+export function payMockPromotion(eventId: string, campaignId: string, paidAt: string | undefined, now: Date = new Date()): PromotionCampaign | "forbidden" | "no_campaign" | null {
+  const owned = mockOwnedEvent(eventId);
+  if (owned === null || owned === "forbidden") return owned;
+  const campaign = mockPromotionCampaigns.find((item) => item.id === campaignId && item.eventId === eventId);
+  if (!campaign) return "no_campaign";
+  expireMockPromotions(now);
+  campaign.paidAt = paidAt ?? now.toISOString();
+  return campaign;
 }
 
 export function installMockApi(): () => void {
@@ -2600,6 +2835,63 @@ export function installMockApi(): () => void {
     if (organizerPlacePatch && init?.method === "PATCH") {
       const result = updateMockOrganizerPlace(organizerPlacePatch[1], parseBookingBody(init) ?? {});
       return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
+    }
+    if (url.pathname === "/api/views" && init?.method === "POST") {
+      const parsed = RecordPageViewWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      return Response.json(recordMockPageView(mockDemoUser.id, parsed.data));
+    }
+    const organizerEventStats = /^\/api\/organizer\/events\/([^/]+)\/stats$/.exec(url.pathname);
+    if (organizerEventStats) {
+      if (!IdSchema.safeParse(organizerEventStats[1]).success) return new Response(null, { status: 400 });
+      const result = mockOrganizerEventStats(organizerEventStats[1]);
+      return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
+    }
+    const organizerEventSales = /^\/api\/organizer\/events\/([^/]+)\/sales$/.exec(url.pathname);
+    if (organizerEventSales) {
+      if (!IdSchema.safeParse(organizerEventSales[1]).success) return new Response(null, { status: 400 });
+      const result = mockEventSalesReport(organizerEventSales[1]);
+      return result === null ? new Response(null, { status: 404 }) : Response.json(result);
+    }
+    const eventOrganizerRating = /^\/api\/events\/([^/]+)\/organizer-rating$/.exec(url.pathname);
+    if (eventOrganizerRating) {
+      if (!IdSchema.safeParse(eventOrganizerRating[1]).success) return new Response(null, { status: 400 });
+      const result = mockEventOrganizerRating(eventOrganizerRating[1]);
+      return result === null ? new Response(null, { status: 404 }) : Response.json(result);
+    }
+    const organizerRating = /^\/api\/organizers\/([^/]+)\/rating$/.exec(url.pathname);
+    if (organizerRating) {
+      if (!IdSchema.safeParse(organizerRating[1]).success) return new Response(null, { status: 400 });
+      return Response.json(mockOrganizerRating(organizerRating[1]));
+    }
+    const organizerCampaigns = /^\/api\/organizer\/events\/([^/]+)\/campaigns$/.exec(url.pathname);
+    if (organizerCampaigns && init?.method === "POST") {
+      const parsed = CreatePromoCampaignWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const result = createMockCampaign(organizerCampaigns[1], parsed.data);
+      return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : result === "invalid" ? new Response(null, { status: 400 }) : result === "duplicate" ? new Response(null, { status: 409 }) : Response.json(result);
+    }
+    if (organizerCampaigns) {
+      const result = listMockCampaigns(organizerCampaigns[1]);
+      return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
+    }
+    const organizerPromotionPaid = /^\/api\/organizer\/events\/([^/]+)\/promotions\/([^/]+)\/paid$/.exec(url.pathname);
+    if (organizerPromotionPaid && init?.method === "POST") {
+      const parsed = RecordPromotionPaymentWriteSchema.safeParse(parseBookingBody(init) ?? {});
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const result = payMockPromotion(organizerPromotionPaid[1], organizerPromotionPaid[2], parsed.data.paidAt);
+      return result === null || result === "no_campaign" ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
+    }
+    const organizerPromotions = /^\/api\/organizer\/events\/([^/]+)\/promotions$/.exec(url.pathname);
+    if (organizerPromotions && init?.method === "POST") {
+      const parsed = CreatePromotionWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const result = createMockPromotion(organizerPromotions[1], parsed.data);
+      return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
+    }
+    if (organizerPromotions) {
+      const result = listMockPromotions(organizerPromotions[1]);
+      return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
     }
     if (url.pathname === "/api/assist/day" && init?.method === "POST") {
       const parsed = AssistQueryWriteSchema.safeParse(parseBookingBody(init));

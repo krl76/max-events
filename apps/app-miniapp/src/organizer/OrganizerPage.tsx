@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Organizer panel: own events/places with draft badges, draft creation forms, publish and minimal edit (event title/time/price/capacity, place title/address/city/coords).
 // SCOPE: Data via apiClient.listOrganizerEvents/createOrganizerEvent/updateOrganizerEvent/publishOrganizerEvent and the place twins; drafts flagged from the raw published field (the backend organizer DTO omits it — list reloads against the real backend read as published, see ../api/client.js); inline validation errors; mutations applied to local list state.
-// DEPENDS: ../api/client.js (apiClient, OrganizerEvent, OrganizerPlace, UpdateOrganizerEvent, UpdateOrganizerPlace), ../auth/AuthContext.js, ../routing/router.js, ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../ui/primitives.js, @max-events/api-contracts (CreateEvent, CreatePlace, EventCategory, EventCategorySchema, PlaceCategory, PlaceCategorySchema), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, OrganizerEvent, OrganizerPlace, UpdateOrganizerEvent, UpdateOrganizerPlace), ../auth/AuthContext.js, ../routing/router.js, ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./OrganizerAddons.js (MyOrganizerRatingCard, OrganizerEventAddons), ../ui/primitives.js, @max-events/api-contracts (CreateEvent, CreatePlace, EventCategory, EventCategorySchema, PlaceCategory, PlaceCategorySchema), ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -25,7 +25,7 @@
 // - EventDraftForm - presentational event form with inline errors, create and edit modes
 // - PlaceDraftForm - presentational place twin
 // - OrganizerListStatus - presentational loading/error/empty line for a list state
-// - OrganizerPage - route container: auth gate, events/places tabs, data loading, create/publish/edit mutations
+// - OrganizerPage - route container: auth gate, events/places tabs, data loading, create/publish/edit mutations; renders the own-rating card and per-event stats/promotion addons from ./OrganizerAddons.js (#196/#199/#206)
 // - OrganizerLink - profile entry button navigating to the organizer route
 // END_MODULE_MAP
 
@@ -34,6 +34,7 @@ import { EventCategorySchema, PlaceCategorySchema, type CreateEvent, type Create
 import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganizerEvent } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { MyOrganizerRatingCard, OrganizerEventAddons } from "./OrganizerAddons";
 import { useRoute } from "../routing/router";
 import { AppButton, AppChip, AppTitle } from "../ui/primitives";
 
@@ -329,7 +330,7 @@ function upsert<T extends { id: string }>(items: T[], item: T): T[] {
   return items.some((existing) => existing.id === item.id) ? items.map((existing) => (existing.id === item.id ? item : existing)) : [...items, item];
 }
 
-function OrganizerPanel() {
+function OrganizerPanel({ userId }: { userId: string }) {
   const [tab, setTab] = useState<"events" | "places">("events");
   const [events, setEvents] = useState<OrganizerListState<OrganizerEvent>>({ status: "loading" });
   const [places, setPlaces] = useState<OrganizerListState<OrganizerPlace>>({ status: "loading" });
@@ -456,6 +457,7 @@ function OrganizerPanel() {
         <h1 className="app-gathering-title">Панель организатора</h1>
       </AppTitle>
       <p className="app-gathering-hint">Черновики видны только вам — опубликуйте, когда всё готово</p>
+      <MyOrganizerRatingCard userId={userId} />
       <div className="app-micro-head">
         <AppChip pressed={tab === "events"} onClick={() => setTab("events")}>
           События
@@ -467,7 +469,15 @@ function OrganizerPanel() {
       {tab === "events" && (
         <>
           <OrganizerListStatus state={events} emptyText="Пока нет событий — создайте первое." />
-          {events.status === "ready" && events.items.map((item) => (eventForm?.mode === "edit" && eventForm.id === item.id ? null : <OrganizerEventCard key={item.id} item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishEvent(item.id)} onEdit={() => openEventForm({ mode: "edit", id: item.id, draft: eventDraftFrom(item) })} />))}
+          {events.status === "ready" &&
+            events.items.map((item) =>
+              eventForm?.mode === "edit" && eventForm.id === item.id ? null : (
+                <div key={item.id}>
+                  <OrganizerEventCard item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishEvent(item.id)} onEdit={() => openEventForm({ mode: "edit", id: item.id, draft: eventDraftFrom(item) })} />
+                  <OrganizerEventAddons eventId={item.id} />
+                </div>
+              ),
+            )}
           {eventForm === null ? (
             <AppButton tone="secondary" stretched onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
               Новое событие
@@ -496,7 +506,7 @@ function OrganizerPanel() {
 
 export function OrganizerPage() {
   const auth = useAuth();
-  if (auth.status === "authenticated") return <OrganizerPanel />;
+  if (auth.status === "authenticated") return <OrganizerPanel userId={auth.user.id} />;
   if (auth.status === "error") return <p className="app-state app-state--error">Не удалось войти: {auth.message}</p>;
   if (auth.status === "loading") return <p className="app-state">Загрузка…</p>;
   return <p className="app-state">Откройте приложение внутри MAX, чтобы авторизоваться.</p>;
