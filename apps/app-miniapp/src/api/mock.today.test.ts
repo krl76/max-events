@@ -23,4 +23,13 @@ describe("today mock endpoint", () => {
       restore();
     }
   });
+
+  it("tolerates the origin query the live client sends", async () => {
+    const restore = installMockApi();
+    try {
+      expect(await new ApiClient("/api").getToday({ latitude: 55.7522, longitude: 37.6156 })).toEqual(todayPicks());
+    } finally {
+      restore();
+    }
+  });
 });

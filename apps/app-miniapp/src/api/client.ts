@@ -45,11 +45,11 @@
 // - CreateGathering - gathering launch payload (event + friend ids + proposed meeting time)
 // - ApiClient.createGathering - POST /gatherings
 // - ApiClient.getGathering - GET /gatherings/:id
-// - ApiClient.getToday - GET /today: "What to do today?" digest (summary + typed-label cards)
+// - ApiClient.getToday - GET /today[?lat=&lng=]: "What to do today?" digest (summary + typed-label cards)
 // - ApiClient.getNearbyTimeline - GET /nearby?latitude=&longitude=: four-bucket nearby timeline (NearbyTimeline)
 // - ApiClient.getLeisureOptions - GET /nearby/free?hours=&mood=&latitude=&longitude=: leisure chains for a free window
 // - LeisureQuery - free-window leisure payload (hours 1..8, mood, coordinates)
-// - ApiClient.listPlans - GET /plans: plan cards (plan + event + distance to the meeting point)
+// - ApiClient.listPlans - GET /plans[?lat=&lng=]: plan cards (plan + event + distance to the meeting point)
 // - ApiClient.getPlan - GET /plans/:id: single plan card
 // - ApiClient.createAutoPlan - POST /plans/auto: saved draft plan + travel minutes + food picks + dinner->road->meetup->event timeline
 // - ApiClient.createDayRoute - POST /routes: day route timeline from 2..8 event/place stops with walking legs
@@ -899,8 +899,9 @@ export class ApiClient {
     return this.request(`/gatherings/${id}`, GatheringEntitySchema);
   }
 
-  getToday(): Promise<TodayResponse> {
-    return this.request("/today", TodayResponseSchema);
+  getToday(origin: { latitude: number; longitude: number } | null = null): Promise<TodayResponse> {
+    const query = origin === null ? "" : `?${new URLSearchParams({ lat: String(origin.latitude), lng: String(origin.longitude) }).toString()}`;
+    return this.request(`/today${query}`, TodayResponseSchema);
   }
 
   getNearbyTimeline(latitude: number, longitude: number): Promise<NearbyTimeline> {
@@ -913,8 +914,9 @@ export class ApiClient {
     return this.request(`/nearby/free?${params.toString()}`, LeisureOptionArraySchema);
   }
 
-  listPlans(): Promise<PlanCard[]> {
-    return this.request("/plans", PlanCardArraySchema);
+  listPlans(origin: { latitude: number; longitude: number } | null = null): Promise<PlanCard[]> {
+    const query = origin === null ? "" : `?${new URLSearchParams({ lat: String(origin.latitude), lng: String(origin.longitude) }).toString()}`;
+    return this.request(`/plans${query}`, PlanCardArraySchema);
   }
 
   getPlan(id: string): Promise<PlanCard> {

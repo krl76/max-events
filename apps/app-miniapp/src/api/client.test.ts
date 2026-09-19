@@ -169,6 +169,63 @@ describe("ApiClient", () => {
 
     await expect(client.getEventDetails(validEvent.id, validEvent.id)).rejects.toMatchObject({ name: "ApiError" });
   });
+
+  function mockFetchCaptureUrls(body: unknown): string[] {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        urls.push(url);
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+      }),
+    );
+    return urls;
+  }
+
+  const todayDigest = { summary: { nearbyCount: 0, suitableCount: 0, withFriendsCount: 0 }, cards: [] };
+  const origin = { latitude: 55.7522, longitude: 37.6156 };
+
+  it("appends lat/lng to /today when an origin is given", async () => {
+    const urls = mockFetchCaptureUrls(todayDigest);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await client.getToday(origin);
+
+    const url = new URL(urls[0]);
+    expect(url.pathname).toBe("/api/today");
+    expect(url.searchParams.get("lat")).toBe("55.7522");
+    expect(url.searchParams.get("lng")).toBe("37.6156");
+  });
+
+  it("appends lat/lng to /plans when an origin is given", async () => {
+    const urls = mockFetchCaptureUrls([]);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await client.listPlans(origin);
+
+    const url = new URL(urls[0]);
+    expect(url.pathname).toBe("/api/plans");
+    expect(url.searchParams.get("lat")).toBe("55.7522");
+    expect(url.searchParams.get("lng")).toBe("37.6156");
+  });
+
+  it("requests /today without a query when no origin is given", async () => {
+    const urls = mockFetchCaptureUrls(todayDigest);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await client.getToday();
+
+    expect(urls).toEqual(["http://localhost:3100/api/today"]);
+  });
+
+  it("requests /plans without a query when no origin is given", async () => {
+    const urls = mockFetchCaptureUrls([]);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await client.listPlans();
+
+    expect(urls).toEqual(["http://localhost:3100/api/plans"]);
+  });
 });
 
 const detailsPayload = (overrides: { organizer?: unknown }): Record<string, unknown> => ({

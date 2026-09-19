@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Plans list screen: plan cards per the README example (event, «Ты + N друзей», «Сбор <время> <место>», «<расстояние> от тебя»).
-// SCOPE: Data via apiClient.listPlans (mock or live); presentational rendering; navigation to the plan screen; no budget (P4-8) and no route (P3-2/3-3).
-// DEPENDS: ../api/client.js (apiClient), ../routing/router.js, @max-events/api-contracts (PlanCard, Plan), ../ui/primitives.js, ../ui/theme.css
+// SCOPE: Data via apiClient.listPlans (mock or live) at the fixed Moscow center origin; presentational rendering; navigation to the plan screen; no budget (P4-8) and no route (P3-2/3-3).
+// DEPENDS: ../api/client.js (apiClient), ../catalog/MapScreen.js (MOSCOW_CENTER), ../routing/router.js, @max-events/api-contracts (PlanCard, Plan), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -18,9 +18,13 @@
 import { useEffect, useState } from "react";
 import type { Plan, PlanCard } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
+import { MOSCOW_CENTER } from "../catalog/MapScreen";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppNavTiles, AppState, AppSkeleton, AppMedia } from "../ui/primitives";
+
+// ponytail: fixed Moscow center as the plans origin; user geolocation when the bridge exposes it
+const [PLANS_LAT, PLANS_LNG] = MOSCOW_CENTER;
 
 export function planParticipantsLabel(count: number): string {
   const mod10 = count % 10;
@@ -86,7 +90,7 @@ export function PlansPage() {
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
-    apiClient.listPlans().then(
+    apiClient.listPlans({ latitude: PLANS_LAT, longitude: PLANS_LNG }).then(
       (cards) => {
         if (alive) setState({ status: "ready", cards });
       },
