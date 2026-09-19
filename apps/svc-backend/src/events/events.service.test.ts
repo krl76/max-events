@@ -275,29 +275,29 @@ describe("EventsService", () => {
 });
 
 describe("toEventDto", () => {
+  const entity: EventEntity = {
+    id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f",
+    title: "Джаз в парке",
+    description: "",
+    category: "afisha",
+    city: "Москва",
+    placeId: null,
+    organizerUserId: null,
+    startsAt: new Date("2026-09-12T16:00:00Z"),
+    endsAt: null,
+    isPaid: false,
+    priceRub: null,
+    paymentUrl: null,
+    capacity: null,
+    bookedCount: 0,
+    published: true,
+    bookingOpensAt: null,
+    chatLink: null,
+    chatSyncPending: true,
+    createdAt: new Date("2026-09-01T07:00:00Z"),
+    updatedAt: new Date("2026-09-01T07:00:00Z"),
+  };
   it("maps the entity to the api-contracts Event shape with ISO timestamps", () => {
-    const entity: EventEntity = {
-      id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f",
-      title: "Джаз в парке",
-      description: "",
-      category: "afisha",
-      city: "Москва",
-      placeId: null,
-      organizerUserId: null,
-      startsAt: new Date("2026-09-12T16:00:00Z"),
-      endsAt: null,
-      isPaid: false,
-      priceRub: null,
-      paymentUrl: null,
-      capacity: null,
-      bookedCount: 0,
-      published: true,
-      bookingOpensAt: null,
-      chatLink: null,
-      chatSyncPending: true,
-      createdAt: new Date("2026-09-01T07:00:00Z"),
-      updatedAt: new Date("2026-09-01T07:00:00Z"),
-    };
     expect(toEventDto(entity)).toMatchObject({
       id: entity.id,
       title: "Джаз в парке",
@@ -306,7 +306,15 @@ describe("toEventDto", () => {
       endsAt: null,
       placeId: null,
       published: true,
+      bookingOpensAt: null,
     });
     expect(toEventDto({ ...entity, published: false }).published).toBe(false);
+  });
+
+  it("exposes the early-access bookingOpensAt window as ISO or null", () => {
+    const base = toEventDto({ ...entity, bookingOpensAt: null });
+    expect(base.bookingOpensAt).toBeNull();
+    const opens = new Date("2026-09-20T06:00:00Z");
+    expect(toEventDto({ ...entity, bookingOpensAt: opens }).bookingOpensAt).toBe("2026-09-20T06:00:00.000Z");
   });
 });

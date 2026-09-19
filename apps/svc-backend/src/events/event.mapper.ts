@@ -29,5 +29,6 @@ export function toEventDto(event: EventEntity, options?: { promoted?: boolean })
     chatLink: event.chatLink,
     promoted: options?.promoted === true,
     published: event.published,
+    bookingOpensAt: event.bookingOpensAt ? event.bookingOpensAt.toISOString() : null,
   };
 }

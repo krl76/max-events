@@ -23,6 +23,7 @@ const draftEvent: OrganizerEvent = {
   promoted: false,
   draft: true,
   published: false,
+  bookingOpensAt: null,
 };
 
 const publishedPlace: OrganizerPlace = {

@@ -16,6 +16,13 @@ describe("EventSchema", () => {
     expect(parsed.capacity).toBeNull();
     expect(parsed.chatLink).toBeNull();
     expect(parsed.published).toBe(true);
+    expect(parsed.bookingOpensAt).toBeNull();
+  });
+
+  it("parses bookingOpensAt as ISO timestamp or null", () => {
+    expect(EventSchema.parse({ ...validEvent, bookingOpensAt: "2026-09-20T09:00:00+03:00" }).bookingOpensAt).toBe("2026-09-20T09:00:00+03:00");
+    expect(EventSchema.parse({ ...validEvent, bookingOpensAt: null }).bookingOpensAt).toBeNull();
+    expect(EventSchema.safeParse({ ...validEvent, bookingOpensAt: "soon" }).success).toBe(false);
   });
 
   it("keeps an explicit published flag", () => {
@@ -54,6 +61,12 @@ describe("CreateEventSchema", () => {
     const { id: _id, ...withoutId } = validEvent;
     const parsed = CreateEventSchema.parse({ ...withoutId, published: false });
     expect("published" in parsed).toBe(false);
+  });
+
+  it("strips the organizer-owned bookingOpensAt window", () => {
+    const { id: _id, ...withoutId } = validEvent;
+    const parsed = CreateEventSchema.parse({ ...withoutId, bookingOpensAt: "2026-09-20T09:00:00+03:00" });
+    expect("bookingOpensAt" in parsed).toBe(false);
   });
 
   it("keeps the paid/free payment link invariant", () => {

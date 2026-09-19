@@ -21,6 +21,7 @@ const event: Event = {
   chatLink: null,
   promoted: false,
   published: true,
+  bookingOpensAt: null,
 };
 
 function createController() {
