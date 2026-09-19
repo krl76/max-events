@@ -9,7 +9,8 @@
 // - Layout - theme classes + header + routed children + tabbar (icon + label per tab)
 // - TABS - tabbar definitions with per-tab active predicate
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
-// - routeTitle / routeHasBack - header derivation from the current route (back on every non-tab route)
+// - routeTitle - header title for the current route
+// - routeHasBack - back button shown on every non-tab route
 // END_MODULE_MAP
 
 import { MaxUI } from "@maxhub/max-ui";

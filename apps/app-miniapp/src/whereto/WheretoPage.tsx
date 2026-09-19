@@ -10,7 +10,7 @@
 // - MOOD_LABELS - ru labels for WheretoMood
 // - BUDGET_LABELS - ru labels for WheretoBudget
 // - WheretoState - wizard step: company -> context (mood+budget) -> result (WheretoQuery) -> vote (create form over the result events)
-// - WizardProgress - «Шаг N из 3» meta line + segmented progress bar
+// - wizardStepIndex - 0-based progress position of a wizard step (drives the «Шаг N из 3» header)
 // - suggestEvents - подборка по загруженным событиям: mood -> категории, budget -> цена, company -> мягкое ограничение, сортировка по дате, максимум 5
 // - buildShareText - numbered share text for the result events
 // - WheretoView - presentational wizard by step (result offers the «Голосование с друзьями» CTA when >= 2 events)

@@ -9,6 +9,7 @@
 // - Route - home | event(id) | place(id) | friends | calendar | profile | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | day-route | lists | list(id) | achievements | my-city | micro-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote- prefixes) to a Route, home fallback
 // - isTabRoute - the five tabbar routes; tab-to-tab switches replace the history entry instead of pushing
+// - RouteHistoryState - history entry payload: route + sequential idx (idx drives back/forward detection)
 // - nextHistory - pure history decision: tab-to-tab -> replace (idx kept), anything else -> push (idx + 1)
 // - routeFromHistoryState - validate a popstate payload back into a RouteHistoryState, null when malformed
 // - NavTransition - push/pop/tab/none direction of the last navigation (drives screen animations)

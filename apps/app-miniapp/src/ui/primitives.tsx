@@ -13,9 +13,12 @@
 // - AppAvatar - MAX Avatar.Container: image when src given, otherwise the label children
 // - AppChip - toggle chip button (aria-pressed)
 // - AppNavTiles - grid of navigation tiles (icon + label) replacing full-width entry buttons
+// - AppNavTileItem - one navigation tile (icon, label, onClick)
 // - AppState - loading/empty/error state block: alert icon on error, text, optional retry action
+// - AppStateAction - retry action payload of AppState (label + onClick)
 // - AppSkeleton - pulsing placeholder block (lines or media) for loading states
 // - AppSection - section rhythm primitive: title row with an optional right-side action, unified top margin
+// - CATEGORY_MEDIA_ICON - event category -> placeholder icon mapping
 // - AppMedia - media placeholder: category-fixed MAX gradient + category icon (neutral gradient without a category)
 // END_MODULE_MAP
 
