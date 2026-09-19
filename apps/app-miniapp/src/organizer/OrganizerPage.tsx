@@ -12,6 +12,7 @@
 // - EMPTY_EVENT_DRAFT - initial event form state
 // - EMPTY_PLACE_DRAFT - initial place form state (coordinates default to the Moscow center)
 // - eventDraftErrors - inline event validation errors (ru), empty list when ready
+// - toLocalInput - format an ISO instant into the local datetime-local input value (YYYY-MM-DDTHH:mm)
 // - placeDraftErrors - inline place validation errors (ru), empty list when ready
 // - toCreateEvent - draft -> CreateEvent payload (call only when there are no errors)
 // - toCreatePlace - draft -> CreatePlace payload
@@ -69,11 +70,23 @@ export const EMPTY_EVENT_DRAFT: EventDraft = { title: "", category: "afisha", ci
 /** Place coordinates are optional in the UI and default to the Moscow center (the demo city of the fixtures). */
 export const EMPTY_PLACE_DRAFT: PlaceDraft = { title: "", address: "", city: "", category: "other", latitude: "55.7558", longitude: "37.6173" };
 
+/** Format a Date into the local `datetime-local` input value (YYYY-MM-DDTHH:mm in the machine's local zone). */
+export function toLocalInput(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+  return `${date.getFullYear()}-${mm}-${dd}T${hh}:${min}`;
+}
+
 export function eventDraftErrors(draft: EventDraft): string[] {
   const errors: string[] = [];
   if (draft.title.trim() === "") errors.push("Укажите название события");
   if (draft.city.trim() === "") errors.push("Укажите город");
   if (draft.startsAt === "") errors.push("Укажите дату и время начала");
+  if (draft.startsAt !== "" && draft.endsAt !== "" && new Date(draft.endsAt) < new Date(draft.startsAt)) errors.push("Окончание не может быть раньше начала");
   const price = draft.price.trim() === "" ? null : Number(draft.price);
   if (price !== null && (!Number.isInteger(price) || price < 0)) errors.push("Цена — целое число от 0");
   if (price !== null && price > 0 && draft.paymentUrl.trim() === "") errors.push("Для платного события нужна ссылка на оплату");
@@ -125,8 +138,8 @@ export function eventDraftFrom(item: OrganizerEvent): EventDraft {
     title: item.title,
     category: item.category,
     city: item.city,
-    startsAt: item.startsAt.slice(0, 16),
-    endsAt: item.endsAt === null ? "" : item.endsAt.slice(0, 16),
+    startsAt: toLocalInput(item.startsAt),
+    endsAt: item.endsAt === null ? "" : toLocalInput(item.endsAt),
     price: item.priceRub === null ? "" : String(item.priceRub),
     paymentUrl: item.paymentUrl ?? "",
     capacity: item.capacity === null ? "" : String(item.capacity),
@@ -146,7 +159,7 @@ export function OrganizerListStatus<T>({ state, emptyText }: { state: OrganizerL
   return null;
 }
 
-export function OrganizerEventCard({ item, publishing, onPublish, onEdit }: { item: OrganizerEvent; publishing: boolean; onPublish: () => void; onEdit: () => void }) {
+export function OrganizerEventCard({ item, publishing, failed, onPublish, onEdit }: { item: OrganizerEvent; publishing: boolean; failed: boolean; onPublish: () => void; onEdit: () => void }) {
   return (
     <article className="app-card">
       <div className="app-card-body">
@@ -160,6 +173,7 @@ export function OrganizerEventCard({ item, publishing, onPublish, onEdit }: { it
           {item.isPaid && item.priceRub !== null ? `${item.priceRub} ₽` : "Бесплатно"}
           {item.capacity !== null ? ` · до ${item.capacity} мест` : ""}
         </span>
+        {failed && <p className="app-state app-state--error">Не удалось опубликовать. Попробуйте ещё раз.</p>}
         <span className="app-card-subtitle">
           {item.draft && (
             <AppButton size="small" disabled={publishing} onClick={onPublish}>
@@ -175,7 +189,7 @@ export function OrganizerEventCard({ item, publishing, onPublish, onEdit }: { it
   );
 }
 
-export function OrganizerPlaceCard({ item, publishing, onPublish, onEdit }: { item: OrganizerPlace; publishing: boolean; onPublish: () => void; onEdit: () => void }) {
+export function OrganizerPlaceCard({ item, publishing, failed, onPublish, onEdit }: { item: OrganizerPlace; publishing: boolean; failed: boolean; onPublish: () => void; onEdit: () => void }) {
   return (
     <article className="app-card">
       <div className="app-card-body">
@@ -186,6 +200,7 @@ export function OrganizerPlaceCard({ item, publishing, onPublish, onEdit }: { it
           {item.address} · {item.city}
         </span>
         <span className="app-card-subtitle">{PLACE_CATEGORY_LABELS[item.category]}</span>
+        {failed && <p className="app-state app-state--error">Не удалось опубликовать. Попробуйте ещё раз.</p>}
         <span className="app-card-subtitle">
           {item.draft && (
             <AppButton size="small" disabled={publishing} onClick={onPublish}>
@@ -324,6 +339,7 @@ function OrganizerPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [publishErrorId, setPublishErrorId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -406,6 +422,7 @@ function OrganizerPanel() {
 
   const publishEvent = (id: string) => {
     setPublishingId(id);
+    setPublishErrorId(null);
     apiClient.publishOrganizerEvent(id).then(
       (item) => {
         setEvents((current) => (current.status === "ready" ? { status: "ready", items: upsert(current.items, item) } : current));
@@ -413,13 +430,14 @@ function OrganizerPanel() {
       },
       () => {
         setPublishingId(null);
-        setEvents({ status: "error" });
+        setPublishErrorId(id);
       },
     );
   };
 
   const publishPlace = (id: string) => {
     setPublishingId(id);
+    setPublishErrorId(null);
     apiClient.publishOrganizerPlace(id).then(
       (item) => {
         setPlaces((current) => (current.status === "ready" ? { status: "ready", items: upsert(current.items, item) } : current));
@@ -427,7 +445,7 @@ function OrganizerPanel() {
       },
       () => {
         setPublishingId(null);
-        setPlaces({ status: "error" });
+        setPublishErrorId(id);
       },
     );
   };
@@ -449,7 +467,7 @@ function OrganizerPanel() {
       {tab === "events" && (
         <>
           <OrganizerListStatus state={events} emptyText="Пока нет событий — создайте первое." />
-          {events.status === "ready" && events.items.map((item) => (eventForm?.mode === "edit" && eventForm.id === item.id ? null : <OrganizerEventCard key={item.id} item={item} publishing={publishingId === item.id} onPublish={() => publishEvent(item.id)} onEdit={() => openEventForm({ mode: "edit", id: item.id, draft: eventDraftFrom(item) })} />))}
+          {events.status === "ready" && events.items.map((item) => (eventForm?.mode === "edit" && eventForm.id === item.id ? null : <OrganizerEventCard key={item.id} item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishEvent(item.id)} onEdit={() => openEventForm({ mode: "edit", id: item.id, draft: eventDraftFrom(item) })} />))}
           {eventForm === null ? (
             <AppButton tone="secondary" stretched onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
               Новое событие
@@ -462,7 +480,7 @@ function OrganizerPanel() {
       {tab === "places" && (
         <>
           <OrganizerListStatus state={places} emptyText="Пока нет мест — создайте первое." />
-          {places.status === "ready" && places.items.map((item) => (placeForm?.mode === "edit" && placeForm.id === item.id ? null : <OrganizerPlaceCard key={item.id} item={item} publishing={publishingId === item.id} onPublish={() => publishPlace(item.id)} onEdit={() => openPlaceForm({ mode: "edit", id: item.id, draft: placeDraftFrom(item) })} />))}
+          {places.status === "ready" && places.items.map((item) => (placeForm?.mode === "edit" && placeForm.id === item.id ? null : <OrganizerPlaceCard key={item.id} item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishPlace(item.id)} onEdit={() => openPlaceForm({ mode: "edit", id: item.id, draft: placeDraftFrom(item) })} />))}
           {placeForm === null ? (
             <AppButton tone="secondary" stretched onClick={() => openPlaceForm({ mode: "create", draft: EMPTY_PLACE_DRAFT })}>
               Новое место

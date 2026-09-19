@@ -945,7 +945,7 @@ export class ApiClient {
     return this.request(`/people${query}`, PeopleResponseSchema);
   }
 
-getPromotionPlacements(): Promise<PromotionPlacements> {
+  getPromotionPlacements(): Promise<PromotionPlacements> {
     return this.request("/promotions/placements", PromotionPlacementsSchema);
   }
 

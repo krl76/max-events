@@ -1672,7 +1672,7 @@ export function updateMockOrganizerEvent(id: string, patch: Record<string, unkno
     if (Object.prototype.hasOwnProperty.call(patch, key)) picked[key] = patch[key];
   }
   const merged = EventSchema.safeParse({ ...found, ...picked });
-  if (!merged.success) return "invalid";
+  if (!merged.success || (merged.data.endsAt !== null && new Date(merged.data.endsAt) < new Date(merged.data.startsAt))) return "invalid";
   Object.assign(found, picked);
   return found;
 }
@@ -2007,7 +2007,7 @@ export function installMockApi(): () => void {
     }
     if (url.pathname === "/api/organizer/events" && init?.method === "POST") {
       const parsed = CreateEventSchema.safeParse(parseBookingBody(init));
-      if (!parsed.success) return new Response(null, { status: 400 });
+      if (!parsed.success || (parsed.data.endsAt && new Date(parsed.data.endsAt) < new Date(parsed.data.startsAt))) return new Response(null, { status: 400 });
       return Response.json(createMockOrganizerEvent(parsed.data));
     }
     if (url.pathname === "/api/organizer/events") {

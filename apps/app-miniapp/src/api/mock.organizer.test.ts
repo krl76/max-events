@@ -53,6 +53,15 @@ describe("organizer panel flow", () => {
     await expect(client().createOrganizerEvent({ ...NEW_EVENT, title: "" })).rejects.toMatchObject({ name: "ApiError", status: 400 });
   });
 
+  it("rejects create and update with endsAt before startsAt (backend assertTimeRange parity)", async () => {
+    restore = installMockApi();
+    const api = client();
+    await expect(api.createOrganizerEvent({ ...NEW_EVENT, startsAt: "2026-10-20T19:00:00+03:00", endsAt: "2026-10-20T09:00:00+03:00" })).rejects.toMatchObject({ name: "ApiError", status: 400 });
+
+    const created = await api.createOrganizerEvent({ ...NEW_EVENT });
+    await expect(api.updateOrganizerEvent(created.id, { startsAt: "2026-10-20T19:00:00+03:00", endsAt: "2026-10-20T09:00:00+03:00" })).rejects.toMatchObject({ name: "ApiError", status: 400 });
+  });
+
   it("rejects an invalid place payload with 400", async () => {
     restore = installMockApi();
     await expect(client().createOrganizerPlace({ ...NEW_PLACE, latitude: 100 })).rejects.toMatchObject({ name: "ApiError", status: 400 });

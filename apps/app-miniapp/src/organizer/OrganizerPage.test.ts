@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { EMPTY_EVENT_DRAFT, EMPTY_PLACE_DRAFT, EventDraftForm, eventDraftErrors, eventDraftFrom, OrganizerEventCard, OrganizerLink, OrganizerListStatus, OrganizerPlaceCard, placeDraftErrors, toCreateEvent, toEventPatch, type EventDraft, type OrganizerListState } from "./OrganizerPage";
+import { EMPTY_EVENT_DRAFT, EMPTY_PLACE_DRAFT, EventDraftForm, eventDraftErrors, eventDraftFrom, OrganizerEventCard, OrganizerLink, OrganizerListStatus, OrganizerPlaceCard, placeDraftErrors, toCreateEvent, toEventPatch, toLocalInput, type EventDraft, type OrganizerListState } from "./OrganizerPage";
 import type { OrganizerEvent, OrganizerPlace } from "../api/client";
 
 const noop = () => {};
@@ -50,6 +50,11 @@ describe("eventDraftErrors", () => {
     expect(eventDraftErrors({ ...readyDraft, price: "500" })).toContain("Для платного события нужна ссылка на оплату");
     expect(eventDraftErrors({ ...readyDraft, capacity: "0" })).toContain("Вместимость — целое число от 1");
   });
+
+  it("rejects an endsAt that is before startsAt", () => {
+    expect(eventDraftErrors({ ...readyDraft, startsAt: "2026-10-20T19:00", endsAt: "2026-10-20T09:00" })).toContain("Окончание не может быть раньше начала");
+    expect(eventDraftErrors({ ...readyDraft, startsAt: "2026-10-20T19:00", endsAt: "2026-10-20T21:00" })).toEqual([]);
+  });
 });
 
 describe("placeDraftErrors", () => {
@@ -86,19 +91,44 @@ describe("toEventPatch / eventDraftFrom", () => {
   it("round-trips an item into the form and back into the minimal patch fields", () => {
     const draft = eventDraftFrom(draftEvent);
     expect(draft.title).toBe(draftEvent.title);
-    expect(draft.startsAt).toBe("2026-10-11T19:00");
     expect(draft.capacity).toBe("40");
+    // prefill keeps the same instant, expressed as a local datetime-local string (TZ-independent via Date.parse)
+    expect(new Date(draft.startsAt).getTime()).toBe(new Date(draftEvent.startsAt).getTime());
+    expect(draft.endsAt).toBe("");
 
     const patch = toEventPatch(draft);
     expect(patch.title).toBe(draftEvent.title);
     expect(patch.capacity).toBe(40);
+    // save of an untouched form must preserve the original UTC instant (no TZ drift)
+    expect(new Date(patch.startsAt as string).getTime()).toBe(new Date(draftEvent.startsAt).getTime());
     expect(patch).not.toHaveProperty("category");
     expect(patch).not.toHaveProperty("city");
+  });
+
+  it("round-trips an endsAt through prefill and save without drift", () => {
+    const item = { ...draftEvent, endsAt: "2026-10-12T10:00:00+03:00" };
+    const draft = eventDraftFrom(item);
+    const patch = toEventPatch(draft);
+    expect(draft.endsAt).not.toBe("");
+    expect(new Date(patch.endsAt as string).getTime()).toBe(new Date(item.endsAt as string).getTime());
+  });
+});
+
+describe("toLocalInput", () => {
+  it("formats an ISO instant into a local datetime-local value and back is stable via Date.parse", () => {
+    const iso = "2026-10-11T19:00:00+03:00";
+    const input = toLocalInput(iso);
+    expect(input).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+    expect(new Date(input).getTime()).toBe(new Date(iso).getTime());
+  });
+
+  it("returns an empty string for an invalid date", () => {
+    expect(toLocalInput("not-a-date")).toBe("");
   });
 });
 
 describe("OrganizerEventCard", () => {
-  const card = (item: OrganizerEvent) => renderToStaticMarkup(createElement(OrganizerEventCard, { item, publishing: false, onPublish: noop, onEdit: noop }));
+  const card = (item: OrganizerEvent, failed = false) => renderToStaticMarkup(createElement(OrganizerEventCard, { item, publishing: false, failed, onPublish: noop, onEdit: noop }));
 
   it("shows the draft badge and the publish button on a draft", () => {
     const html = card(draftEvent);
@@ -106,6 +136,12 @@ describe("OrganizerEventCard", () => {
     expect(html).toContain("Опубликовать");
     expect(html).toContain(draftEvent.title);
     expect(html).toContain("Бесплатно");
+  });
+
+  it("shows the inline publish failure message without dropping the card", () => {
+    const html = card(draftEvent, true);
+    expect(html).toContain("Не удалось опубликовать");
+    expect(html).toContain(draftEvent.title);
   });
 
   it("hides the badge and the publish button on a published event", () => {
@@ -118,11 +154,11 @@ describe("OrganizerEventCard", () => {
 
 describe("OrganizerPlaceCard", () => {
   it("shows the publish button only on drafts", () => {
-    const published = renderToStaticMarkup(createElement(OrganizerPlaceCard, { item: publishedPlace, publishing: false, onPublish: noop, onEdit: noop }));
+    const published = renderToStaticMarkup(createElement(OrganizerPlaceCard, { item: publishedPlace, publishing: false, failed: false, onPublish: noop, onEdit: noop }));
     expect(published).not.toContain("Черновик");
     expect(published).not.toContain("Опубликовать");
 
-    const draft = renderToStaticMarkup(createElement(OrganizerPlaceCard, { item: { ...publishedPlace, draft: true }, publishing: false, onPublish: noop, onEdit: noop }));
+    const draft = renderToStaticMarkup(createElement(OrganizerPlaceCard, { item: { ...publishedPlace, draft: true }, publishing: false, failed: false, onPublish: noop, onEdit: noop }));
     expect(draft).toContain("Черновик");
     expect(draft).toContain("Опубликовать");
     expect(draft).toContain(publishedPlace.address);
