@@ -9,11 +9,11 @@
 // - COMPANY_LABELS - ru labels for WheretoCompany
 // - MOOD_LABELS - ru labels for WheretoMood
 // - BUDGET_LABELS - ru labels for WheretoBudget
-// - WheretoState - wizard step: company -> context (mood+budget) -> result (WheretoQuery)
+// - WheretoState - wizard step: company -> context (mood+budget) -> result (WheretoQuery) -> vote (create form over the result events)
 // - suggestEvents - подборка по загруженным событиям: mood -> категории, budget -> цена, company -> мягкое ограничение, сортировка по дате, максимум 5
 // - buildShareText - numbered share text for the result events
-// - WheretoView - presentational wizard by step
-// - WheretoPage - route container: wizard state + share wiring
+// - WheretoView - presentational wizard by step (result offers the «Голосование с друзьями» CTA when >= 2 events)
+// - WheretoPage - route container: wizard state + share wiring + vote creation handoff
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
@@ -23,6 +23,7 @@ import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { VoteCreateSection } from "../votes/VotePage";
 
 export const COMPANY_LABELS: Record<WheretoCompany, string> = { alone: "Я один", friends: "С друзьями", partner: "С девушкой", kids: "С детьми" };
 
@@ -30,7 +31,7 @@ export const MOOD_LABELS: Record<WheretoMood, string> = { active: "Активн�
 
 export const BUDGET_LABELS: Record<WheretoBudget, string> = { any: "Любой", free: "Бесплатное", under_3000: "До 3000 ₽" };
 
-export type WheretoState = { step: "company" } | { step: "context"; company: WheretoCompany; mood: WheretoMood | null; budget: WheretoBudget | null } | { step: "result"; query: WheretoQuery };
+export type WheretoState = { step: "company" } | { step: "context"; company: WheretoCompany; mood: WheretoMood | null; budget: WheretoBudget | null } | { step: "result"; query: WheretoQuery } | { step: "vote"; query: WheretoQuery };
 
 /** Эвристика до backend whereto API: категории и цена подобраны под контекст. */
 export function suggestEvents(events: Event[], query: WheretoQuery): Event[] {
@@ -59,6 +60,7 @@ interface WheretoViewProps {
   onRestart: () => void;
   onShare: () => void;
   onOpenEvent: (id: string) => void;
+  onCreateVote: () => void;
 }
 
 function ResultCard({ event, onOpenEvent }: { event: Event; onOpenEvent: (id: string) => void }) {
@@ -78,7 +80,7 @@ function ResultCard({ event, onOpenEvent }: { event: Event; onOpenEvent: (id: st
   );
 }
 
-export function WheretoView({ state, events, shared, onCompany, onMood, onBudget, onShow, onRestart, onShare, onOpenEvent }: WheretoViewProps) {
+export function WheretoView({ state, events, shared, onCompany, onMood, onBudget, onShow, onRestart, onShare, onOpenEvent, onCreateVote }: WheretoViewProps) {
   if (state.step === "company") {
     return (
       <>
@@ -144,6 +146,11 @@ export function WheretoView({ state, events, shared, onCompany, onMood, onBudget
           Отправить друзьям
         </AppButton>
       )}
+      {events.length >= 2 && (
+        <AppButton tone="secondary" onClick={onCreateVote} stretched>
+          Голосование с друзьями
+        </AppButton>
+      )}
       {shared === "bridge" && <p className="app-whereto-share-hint">Выберите чат в MAX — экран отправки открыт.</p>}
       {shared === "clipboard" && <p className="app-whereto-share-hint">Подборка скопирована — вставьте её в чат.</p>}
       {shared === "unavailable" && <pre className="app-whereto-share-hint">{buildShareText(events)}</pre>}
@@ -171,7 +178,11 @@ export function WheretoPage() {
       alive = false;
     };
   }, []);
-  const events = state.step === "result" ? suggestEvents(loaded, state.query) : [];
+  const events = state.step === "result" || state.step === "vote" ? suggestEvents(loaded, state.query) : [];
+
+  if (state.step === "vote") {
+    return <VoteCreateSection events={events} onCreated={(vote) => navigate({ name: "vote", id: vote.id })} onCancel={() => setState({ step: "result", query: state.query })} />;
+  }
 
   return (
     <WheretoView
@@ -190,6 +201,7 @@ export function WheretoPage() {
         shareResult(webApp, buildShareText(events)).then(setShared);
       }}
       onOpenEvent={(id) => navigate({ name: "event", id })}
+      onCreateVote={() => setState((current) => (current.step === "result" ? { step: "vote", query: current.query } : current))}
     />
   );
 }

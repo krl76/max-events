@@ -23,6 +23,7 @@ function viewHtml(state: WheretoState, over: { events?: Event[]; shared?: ShareC
       onRestart: noop,
       onShare: noop,
       onOpenEvent: noop,
+      onCreateVote: noop,
     }),
   );
 }
@@ -122,6 +123,15 @@ describe("WheretoView", () => {
 
     expect(html).toContain("Ничего не нашлось");
     expect(html).not.toContain("Отправить друзьям");
+  });
+
+  it("offers the vote creation CTA only when at least two events are suggested", () => {
+    const events = suggestEvents(mockEvents, query());
+    const enough = viewHtml({ step: "result", query: query() }, { events });
+    const single = viewHtml({ step: "result", query: query() }, { events: events.slice(0, 1) });
+
+    expect(enough).toContain("Голосование с друзьями");
+    expect(single).not.toContain("Голосование с друзьями");
   });
 
   it("renders share feedback per channel", () => {
