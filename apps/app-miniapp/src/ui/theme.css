@@ -66,13 +66,38 @@ body {
 }
 
 .app-header {
+  align-items: center;
   background: var(--app-card);
   border-bottom: var(--app-hairline);
+  display: flex;
   flex-shrink: 0;
   font-size: 1.25rem;
   font-weight: 700;
+  gap: var(--app-space-xs);
   letter-spacing: -0.02em;
   padding: var(--app-space-m) var(--app-space-l);
+}
+
+.app-header-back {
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  margin-left: calc(-1 * var(--app-space-xs));
+  padding: var(--app-space-xs);
+}
+
+/* Шеврон нарисован вправо; кнопка назад разворачивает его */
+.app-header-back svg {
+  transform: rotate(180deg);
+}
+
+.app-header-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-content {

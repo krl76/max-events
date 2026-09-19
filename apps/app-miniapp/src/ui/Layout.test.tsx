@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { TABS } from "./Layout";
+import type { Route } from "../routing/router";
+import { ROUTE_TITLES, routeHasBack, routeTitle, TABS } from "./Layout";
 
 describe("Layout tabbar active predicates", () => {
   it("highlights only the Plans tab on the day-route screen", () => {
@@ -17,5 +18,36 @@ describe("Layout tabbar active predicates", () => {
   it("keeps other screens off the Plans tab", () => {
     expect(TABS.find((tab) => tab.route === "plans")?.active("home")).toBe(false);
     expect(TABS.find((tab) => tab.route === "plans")?.active("friends")).toBe(false);
+  });
+});
+
+describe("routeTitle", () => {
+  it("has a non-empty title for every route name", () => {
+    const names = Object.keys(ROUTE_TITLES) as Array<Route["name"]>;
+
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expect(routeTitle({ name } as Route).trim()).not.toBe("");
+    }
+  });
+
+  it("titles tab routes with their tab labels", () => {
+    for (const tab of TABS) {
+      expect(routeTitle({ name: tab.route })).toBe(tab.label);
+    }
+  });
+});
+
+describe("routeHasBack", () => {
+  it("hides the back button on tab routes", () => {
+    for (const tab of TABS) {
+      expect(routeHasBack({ name: tab.route })).toBe(false);
+    }
+  });
+
+  it("shows the back button on detail routes", () => {
+    expect(routeHasBack({ name: "event", id: "e1" })).toBe(true);
+    expect(routeHasBack({ name: "whereto" })).toBe(true);
+    expect(routeHasBack({ name: "plan", id: "p1" })).toBe(true);
   });
 });

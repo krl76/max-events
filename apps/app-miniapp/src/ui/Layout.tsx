@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Base mini-app layout: MAX UI theme classes, header, content, bottom tabbar with icons.
+// PURPOSE: Base mini-app layout: MAX UI theme classes, header (per-route title + back button on detail routes), content, bottom tabbar with icons.
 // SCOPE: Theme application via MAX UI CSS classes, tab navigation between home/plans/friends/calendar/profile; children render routed pages.
 // DEPENDS: ../routing/router.js, ../max/bridge.js (webApp), ./theme.css, ./icons.js, @maxhub/max-ui/dist/styles.css (imported in main.tsx)
 // LINKS: M-APP-MINIAPP
@@ -8,13 +8,15 @@
 // START_MODULE_MAP
 // - Layout - theme classes + header + routed children + tabbar (icon + label per tab)
 // - TABS - tabbar definitions with per-tab active predicate
+// - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
+// - routeTitle / routeHasBack - header derivation from the current route (back on every non-tab route)
 // END_MODULE_MAP
 
 import { MaxUI } from "@maxhub/max-ui";
 import type { ReactNode } from "react";
 import { webApp } from "../max/bridge";
-import { useRoute } from "../routing/router";
-import { TabIconGlyph, type TabIcon } from "./icons";
+import { isTabRoute, useRoute, type Route } from "../routing/router";
+import { ActionIcon, TabIconGlyph, type TabIcon } from "./icons";
 
 /* MAX Bridge не отдаёт themeParams (сверено с dev.max.ru/docs/webapps/bridge) и
  * различает только ios/android/desktop/web — платформенный класс MAX UI существует
@@ -32,12 +34,55 @@ export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string)
   { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" },
 ];
 
+export const ROUTE_TITLES: Record<Route["name"], string> = {
+  home: "Лента",
+  plans: "Планы",
+  friends: "Друзья",
+  calendar: "Календарь",
+  profile: "Профиль",
+  event: "Событие",
+  place: "Место",
+  whereto: "Куда пойдём?",
+  nearby: "Рядом со мной",
+  discovery: "Подборка мест",
+  people: "Похожие люди",
+  "gathering-new": "Сбор компании",
+  gathering: "Сбор компании",
+  plan: "План",
+  "day-route": "Маршрут на день",
+  lists: "Сохранённое",
+  list: "Список",
+  achievements: "Достижения",
+  "my-city": "Мой город",
+  "micro-new": "Новое микро-событие",
+  "feed-new": "Новое впечатление",
+  organizer: "Панель организатора",
+  "we-groups": "Группы «Мы»",
+  "we-group": "Группа «Мы»",
+  vote: "Голосование",
+};
+
+export function routeTitle(route: Route): string {
+  return ROUTE_TITLES[route.name];
+}
+
+export function routeHasBack(route: Route): boolean {
+  return !isTabRoute(route.name);
+}
+
 export function Layout({ children }: { children: ReactNode }) {
-  const { route, navigate } = useRoute();
+  const { route, navigate, back } = useRoute();
 
   return (
     <MaxUI className="app-root" colorScheme="light" platform={maxUiPlatform()}>
-      <header className="app-header">MAX Events</header>
+      <header className="app-header">
+        {routeHasBack(route) && (
+          <button type="button" className="app-header-back" aria-label="Назад" onClick={back}>
+            <ActionIcon name="chevron" size={20} strokeWidth={2} />
+          </button>
+        )}
+        <span className="app-header-title">{routeTitle(route)}</span>
+      </header>
       <main className="app-content">{children}</main>
       <nav className="app-tabbar">
         {TABS.map((tab) => (
