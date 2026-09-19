@@ -14,7 +14,11 @@ describe("AppButton", () => {
   });
 
   it("maps the danger tone to the max-ui destructive variant and appends className", () => {
-    const html = renderToStaticMarkup(<AppButton tone="danger" className="extra">x</AppButton>);
+    const html = renderToStaticMarkup(
+      <AppButton tone="danger" className="extra">
+        x
+      </AppButton>,
+    );
 
     expect(html).toContain("Button_variant_destructive");
     expect(html).toContain("app-btn app-btn--danger extra");
