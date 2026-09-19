@@ -23,6 +23,7 @@ const event: Event = {
   capacity: null,
   chatLink: null,
   promoted: false,
+  published: true,
 };
 
 describe("FriendSchema", () => {

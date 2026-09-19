@@ -17,6 +17,7 @@ const event: Event = {
   capacity: 20,
   chatLink: null,
   promoted: false,
+  published: true,
 };
 
 describe("TodayResponseSchema", () => {
