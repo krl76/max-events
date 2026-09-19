@@ -17,7 +17,7 @@ import type { TodayCardLabel, TodayResponse } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
-import { AppTitle } from "../ui/primitives";
+import { AppTitle, AppState, AppSkeleton } from "../ui/primitives";
 
 export type TodayState = { status: "loading" } | { status: "error" } | { status: "ready"; today: TodayResponse };
 
@@ -32,12 +32,33 @@ export function todayLabel(label: TodayCardLabel): string {
 interface TodayViewProps {
   state: TodayState;
   onOpen: (eventId: string) => void;
+  onRetry: () => void;
 }
 
-export function TodayView({ state, onOpen }: TodayViewProps) {
-  if (state.status === "loading") return null;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить подборку.</p>;
-  if (state.today.cards.length === 0) return <p className="app-state">На сегодня пока ничего нет. Загляните позже!</p>;
+export function TodayView({ state, onOpen, onRetry }: TodayViewProps) {
+  if (state.status === "loading")
+    return (
+      <section className="app-today" aria-label="Что делать сегодня?">
+        <AppTitle asChild>
+          <h2 className="app-section-title">Что делать сегодня?</h2>
+        </AppTitle>
+        {[0, 1].map((row) => (
+          <div key={row} className="app-card" aria-hidden="true">
+            <div className="app-card-body">
+              <AppSkeleton />
+              <AppSkeleton variant="line-short" />
+            </div>
+          </div>
+        ))}
+      </section>
+    );
+  if (state.status === "error")
+    return (
+      <AppState error action={{ label: "Повторить", onClick: onRetry }}>
+        Не удалось загрузить подборку.
+      </AppState>
+    );
+  if (state.today.cards.length === 0) return <AppState>На сегодня пока ничего нет. Загляните позже!</AppState>;
 
   const { summary, cards } = state.today;
   return (
@@ -72,6 +93,7 @@ export function TodayView({ state, onOpen }: TodayViewProps) {
 export function TodaySection() {
   const { navigate } = useRoute();
   const [state, setState] = useState<TodayState>({ status: "loading" });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -87,7 +109,7 @@ export function TodaySection() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [attempt]);
 
-  return <TodayView state={state} onOpen={(eventId) => navigate({ name: "event", id: eventId })} />;
+  return <TodayView state={state} onOpen={(eventId) => navigate({ name: "event", id: eventId })} onRetry={() => setAttempt((n) => n + 1)} />;
 }

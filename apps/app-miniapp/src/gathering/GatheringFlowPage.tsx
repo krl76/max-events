@@ -16,7 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import type { FriendAvailability } from "@max-events/api-contracts";
 import { useRoute } from "../routing/router";
-import { AppButton, AppTitle } from "../ui/primitives";
+import { AppButton, AppTitle, AppState } from "../ui/primitives";
 
 export const AVAILABILITY_LABELS: Record<FriendAvailability["availability"], string> = { free: "Свободен", busy: "Занят", unknown: "Неизвестно" };
 
@@ -34,8 +34,8 @@ interface GatheringFlowViewProps {
 }
 
 export function GatheringFlowView({ state, selected, meetingAt, submitting, failed, onToggle, onMeetingAt, onLaunch }: GatheringFlowViewProps) {
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить друзей.</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить друзей.</AppState>;
   return (
     <section className="app-gathering">
       <AppTitle asChild>
@@ -57,7 +57,7 @@ export function GatheringFlowView({ state, selected, meetingAt, submitting, fail
       <AppButton disabled={selected.length === 0 || meetingAt === "" || submitting} onClick={onLaunch} stretched>
         {submitting ? "Запускаем…" : "Запустить сбор"}
       </AppButton>
-      {failed && <p className="app-state app-state--error">Не удалось запустить сбор.</p>}
+      {failed && <AppState error>Не удалось запустить сбор.</AppState>}
     </section>
   );
 }

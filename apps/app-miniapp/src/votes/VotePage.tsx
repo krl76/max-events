@@ -19,7 +19,7 @@ import { useEffect, useState } from "react";
 import type { Event, Friend, Vote } from "@max-events/api-contracts";
 import { ApiError, apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/CatalogPage";
-import { AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
 
 export type VoteState = { status: "loading" } | { status: "notfound" } | { status: "forbidden" } | { status: "error" } | { status: "ready"; vote: Vote };
 
@@ -41,10 +41,10 @@ interface VoteViewProps {
 }
 
 export function VoteView({ state, myChoice, voting, failed, onVote }: VoteViewProps) {
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "notfound") return <p className="app-state">Голосование не найдено.</p>;
-  if (state.status === "forbidden") return <p className="app-state app-state--error">Голосование недоступно.</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить голосование.</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "notfound") return <AppState>Голосование не найдено.</AppState>;
+  if (state.status === "forbidden") return <AppState error>Голосование недоступно.</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить голосование.</AppState>;
   const { vote } = state;
   const myBallotEventId = vote.myBallotEventId ?? myChoice;
   return (
@@ -71,7 +71,7 @@ export function VoteView({ state, myChoice, voting, failed, onVote }: VoteViewPr
           );
         })}
       </div>
-      {failed && <p className="app-state app-state--error">Не удалось отправить голос.</p>}
+      {failed && <AppState error>Не удалось отправить голос.</AppState>}
     </section>
   );
 }
@@ -174,7 +174,7 @@ export function VoteCreateView({ events, friends, title, selectedEvents, selecte
       <AppButton tone="ghost" onClick={onCancel} stretched>
         Назад к подборке
       </AppButton>
-      {failed && <p className="app-state app-state--error">Не удалось создать голосование.</p>}
+      {failed && <AppState error>Не удалось создать голосование.</AppState>}
     </section>
   );
 }

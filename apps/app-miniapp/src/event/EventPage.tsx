@@ -25,7 +25,7 @@ import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { ParticipationStatusSchema, type ParticipationStatus, type Payment } from "@max-events/api-contracts";
 import { openExternalLink } from "../max/bridge";
 import { useRoute } from "../routing/router";
-import { AppButton, AppChip, AppText, AppTitle } from "../ui/primitives";
+import { AppButton, AppChip, AppText, AppTitle, AppState } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { SaveToList } from "./SaveToList";
 import { FeedSection } from "../feed/FeedPage";
@@ -207,7 +207,7 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, 
             <div className="app-promo-code">
               {event.bookingOpensAt !== null && new Date(event.bookingOpensAt).getTime() > Date.now() && <AppText>Запись откроется {formatStartsAt(event.bookingOpensAt)}</AppText>}
               <input className="app-filters-input" type="text" value={promo.code} aria-label="Промокод" placeholder="Промокод (если есть)" onChange={(change) => promo.onCode(change.target.value)} />
-              {promo.error !== null && <p className="app-state app-state--error">{promo.error}</p>}
+              {promo.error !== null && <AppState error>{promo.error}</AppState>}
             </div>
           )}
           <BookingCta details={details} onBook={onBook} onCancel={onCancel} />
@@ -309,7 +309,11 @@ export function ParticipationSection({ eventId, userId }: { eventId: string; use
   }, [eventId, userId, load]);
 
   if (stats === null) {
-    return <p className={`app-state${failed ? " app-state--error" : ""}`}>{failed ? "Не удалось загрузить статусы." : "Загрузка…"}</p>;
+    return (
+      <AppState error={failed} action={failed ? { label: "Повторить", onClick: load } : undefined}>
+        {failed ? "Не удалось загрузить статусы." : "Загрузка…"}
+      </AppState>
+    );
   }
   return <ParticipationView stats={stats} onSet={setStatus} onClear={clear} />;
 }
@@ -397,8 +401,8 @@ export function EventPage({ id }: { id: string }) {
     apiClient.createCheckIn({ userId, eventId: id }).then(refetch, refetch);
   }, [userId, id, refetch]);
 
-  if (state.status === "loading" || userId === null) return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить событие.</p>;
+  if (state.status === "loading" || userId === null) return <AppState>Загрузка…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить событие.</AppState>;
   const currentPayment = payment !== null && payment.bookingId === state.details.activeBookingId ? payment.value : null;
   return (
     <>

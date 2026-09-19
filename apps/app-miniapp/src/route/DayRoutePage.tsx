@@ -25,7 +25,7 @@ import type { DayRoute, OptimizeRoute, RouteLeg, RouteStopWrite } from "@max-eve
 import { apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { MOSCOW_CENTER } from "../catalog/MapScreen";
-import { AppButton } from "../ui/primitives";
+import { AppButton, AppState } from "../ui/primitives";
 
 // ponytail: fixed Moscow center as the route start point; user geolocation/city picker when the bridge exposes it
 const [ROUTE_LAT, ROUTE_LNG] = MOSCOW_CENTER;
@@ -90,8 +90,8 @@ export function DayRouteView({ options, selected, onToggle, onBuild, built, opti
   const displayRoute = built.status === "ready" ? (optimize.status === "ready" ? optimize.result.optimized : built.route) : null;
   return (
     <>
-      {options.status === "loading" && <p className="app-state">Загружаем точки…</p>}
-      {options.status === "error" && <p className="app-state app-state--error">Не удалось загрузить точки маршрута.</p>}
+      {options.status === "loading" && <AppState>Загружаем точки…</AppState>}
+      {options.status === "error" && <AppState error>Не удалось загрузить точки маршрута.</AppState>}
       {options.status === "ready" && (
         <>
           <p className="app-whereto-hint">
@@ -113,18 +113,18 @@ export function DayRouteView({ options, selected, onToggle, onBuild, built, opti
           </AppButton>
         </>
       )}
-      {built.status === "loading" && <p className="app-state">Строим маршрут…</p>}
-      {built.status === "error" && <p className="app-state app-state--error">Не удалось построить маршрут.</p>}
+      {built.status === "loading" && <AppState>Строим маршрут…</AppState>}
+      {built.status === "error" && <AppState error>Не удалось построить маршрут.</AppState>}
       {displayRoute !== null && (
         <>
           <RouteTimeline route={displayRoute} />
-          <p className="app-state">{routeTotalsLabel(displayRoute)}</p>
-          {optimize.status === "ready" && <p className="app-state">{savingsLabel(optimize.result)}</p>}
+          <AppState>{routeTotalsLabel(displayRoute)}</AppState>
+          {optimize.status === "ready" && <AppState>{savingsLabel(optimize.result)}</AppState>}
           <AppButton onClick={onOptimize} tone="secondary" stretched disabled={optimize.status === "loading"}>
             Оптимизировать
           </AppButton>
-          {optimize.status === "loading" && <p className="app-state">Оптимизируем…</p>}
-          {optimize.status === "error" && <p className="app-state app-state--error">Не удалось оптимизировать маршрут.</p>}
+          {optimize.status === "loading" && <AppState>Оптимизируем…</AppState>}
+          {optimize.status === "error" && <AppState error>Не удалось оптимизировать маршрут.</AppState>}
         </>
       )}
     </>

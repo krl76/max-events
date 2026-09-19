@@ -22,7 +22,7 @@ import { initials } from "../friends/FriendsPage";
 import { formatDistanceKm } from "../nearby/NearbyPage";
 import { peopleLabel } from "../place/PlacePage";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { AppAvatar, AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
 
 // ponytail: fixed Moscow center; user geolocation when the bridge exposes it
 const [PEOPLE_LAT, PEOPLE_LNG] = MOSCOW_CENTER;
@@ -91,8 +91,8 @@ export function PeopleView({ state, chips, selected, onToggle, onOpenEvent }: Pe
       <AppTitle asChild>
         <h2 className="app-section-title">Люди с похожими интересами</h2>
       </AppTitle>
-      {state.status === "loading" && <p className="app-state">Ищем людей рядом…</p>}
-      {state.status === "error" && <p className="app-state app-state--error">Не удалось найти людей рядом.</p>}
+      {state.status === "loading" && <AppState>Ищем людей рядом…</AppState>}
+      {state.status === "error" && <AppState error>Не удалось найти людей рядом.</AppState>}
       {state.status === "ready" && (
         <>
           <p className="app-today-summary">
@@ -108,7 +108,7 @@ export function PeopleView({ state, chips, selected, onToggle, onOpenEvent }: Pe
               ))}
             </div>
           )}
-          {people.length === 0 && <p className="app-state">Никого рядом с такими интересами не нашлось.</p>}
+          {people.length === 0 && <AppState>Никого рядом с такими интересами не нашлось.</AppState>}
           {people.map((candidate) => (
             <PersonCard key={candidate.person.id} candidate={candidate} onOpenEvent={onOpenEvent} />
           ))}

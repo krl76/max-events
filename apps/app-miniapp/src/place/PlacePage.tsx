@@ -21,7 +21,7 @@ import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { RatingView } from "../event/ReviewSection";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppTitle } from "../ui/primitives";
+import { AppAvatar, AppTitle, AppState } from "../ui/primitives";
 
 export type PlacePageState = { status: "loading" } | { status: "error" } | { status: "ready"; place: Place; page: PlacePageAggregate };
 
@@ -75,7 +75,7 @@ export function PlacePageView({ place, page, onOpenEvent }: PlacePageViewProps) 
         <section className="app-place-block" aria-label="События сегодня">
           <h2 className="app-section-title">События сегодня</h2>
           {page.todayEvents.length === 0 ? (
-            <p className="app-state">На сегодня событий нет.</p>
+            <AppState>На сегодня событий нет.</AppState>
           ) : (
             page.todayEvents.map((event) => (
               <button key={event.id} type="button" className="app-card app-card--link" onClick={() => onOpenEvent(event.id)}>
@@ -93,7 +93,7 @@ export function PlacePageView({ place, page, onOpenEvent }: PlacePageViewProps) 
         <section className="app-place-block" aria-label="Друзья">
           <h2 className="app-section-title">Друзья</h2>
           {page.friends.length === 0 ? (
-            <p className="app-state">Друзья пока не отмечались здесь.</p>
+            <AppState>Друзья пока не отмечались здесь.</AppState>
           ) : (
             <ul className="app-place-friends">
               {page.friends.map((visit) => (
@@ -108,7 +108,7 @@ export function PlacePageView({ place, page, onOpenEvent }: PlacePageViewProps) 
 
         <section className="app-place-block" aria-label="Оценки людей">
           <h2 className="app-section-title">Оценки людей</h2>
-          {page.rating === null ? <p className="app-state">Оценок пока нет.</p> : <RatingView rating={page.rating} />}
+          {page.rating === null ? <AppState>Оценок пока нет.</AppState> : <RatingView rating={page.rating} />}
         </section>
 
         <section className="app-place-block" aria-label="Личная история">
@@ -149,7 +149,7 @@ export function PlacePage({ id }: { id: string }) {
     };
   }, [id, userId]);
 
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить место.</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить место.</AppState>;
   return <PlacePageView place={state.place} page={state.page} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
 }

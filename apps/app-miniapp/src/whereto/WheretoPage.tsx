@@ -22,7 +22,7 @@ import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
 import { useRoute } from "../routing/router";
-import { AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
 import { VoteCreateSection } from "../votes/VotePage";
 
 export const COMPANY_LABELS: Record<WheretoCompany, string> = { alone: "Я один", friends: "С друзьями", partner: "С девушкой", kids: "С детьми" };
@@ -134,7 +134,7 @@ export function WheretoView({ state, events, shared, onCompany, onMood, onBudget
       <p className="app-whereto-hint">
         {COMPANY_LABELS[state.query.company]} · {MOOD_LABELS[state.query.mood]} · {BUDGET_LABELS[state.query.budget]}
       </p>
-      {events.length === 0 && <p className="app-state">Ничего не нашлось — попробуйте другой контекст</p>}
+      {events.length === 0 && <AppState>Ничего не нашлось — попробуйте другой контекст</AppState>}
       {events.map((event) => (
         <ResultCard key={event.id} event={event} onOpenEvent={onOpenEvent} />
       ))}

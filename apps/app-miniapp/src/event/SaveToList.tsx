@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { apiClient, type ListSummary } from "../api/client";
-import { AppButton } from "../ui/primitives";
+import { AppButton, AppState } from "../ui/primitives";
 
 export type SaveToListState = { status: "loading" } | { status: "error" } | { status: "ready"; summaries: ListSummary[] };
 
@@ -21,8 +21,8 @@ export function SaveToListView({ state, onToggle, onDone }: { state: SaveToListS
   return (
     <section className="app-event">
       <div className="app-event-body">
-        {state.status === "loading" && <p className="app-state">Загрузка…</p>}
-        {state.status === "error" && <p className="app-state app-state--error">Не удалось загрузить списки.</p>}
+        {state.status === "loading" && <AppState>Загрузка…</AppState>}
+        {state.status === "error" && <AppState error>Не удалось загрузить списки.</AppState>}
         {state.status === "ready" && (
           <ul className="app-lists-picker">
             {state.summaries.map((summary) => (

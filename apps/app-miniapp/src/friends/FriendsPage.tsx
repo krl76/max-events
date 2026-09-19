@@ -19,7 +19,7 @@ import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { PARTICIPATION_STATUS_LABELS } from "../event/EventPage";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppButton } from "../ui/primitives";
+import { AppAvatar, AppButton, AppState } from "../ui/primitives";
 
 export type FriendsState = { status: "loading" } | { status: "error" } | { status: "ready"; groups: FriendActivityByFriend[] };
 
@@ -38,9 +38,9 @@ interface FriendsViewProps {
 }
 
 export function FriendsView({ state, onJoin }: FriendsViewProps) {
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить события друзей.</p>;
-  if (state.groups.length === 0) return <p className="app-state">Пока никто из друзей никуда не идёт</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить события друзей.</AppState>;
+  if (state.groups.length === 0) return <AppState>Пока никто из друзей никуда не идёт</AppState>;
 
   return (
     <>

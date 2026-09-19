@@ -29,7 +29,7 @@ import { useEffect, useState } from "react";
 import { EventCategorySchema, type CreatePromotionWrite, type EventCategory, type EventSalesReport, type OrganizerEventStats, type OrganizerRating, type OrganizerRatingResponse, type PromotionCampaign, type PromotionStatus, type PromotionType } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
-import { AppButton, AppTitle } from "../ui/primitives";
+import { AppButton, AppTitle, AppState } from "../ui/primitives";
 
 /** ru plural of «посещение» for the rating card (1 посещение / 3 посещения / 12 посещений). */
 export function visitsCountLabel(count: number): string {
@@ -136,8 +136,8 @@ export function EventStatsSection({ eventId }: { eventId: string }) {
       <AppButton size="small" tone="ghost" onClick={toggle}>
         {open ? "Скрыть статистику" : "Статистика"}
       </AppButton>
-      {open && state?.status === "loading" && <p className="app-state">Загрузка…</p>}
-      {open && state?.status === "error" && <p className="app-state app-state--error">Не удалось загрузить статистику.</p>}
+      {open && state?.status === "loading" && <AppState>Загрузка…</AppState>}
+      {open && state?.status === "error" && <AppState error>Не удалось загрузить статистику.</AppState>}
       {open && state?.status === "ready" && <EventStatsView stats={state.stats} report={state.report} />}
     </div>
   );
@@ -273,7 +273,7 @@ export function PromotionForm({ draft, errors, submitting, failed, onChange, onS
           {error}
         </p>
       ))}
-      {failed && <p className="app-state app-state--error">Не удалось сохранить. Попробуйте ещё раз.</p>}
+      {failed && <AppState error>Не удалось сохранить. Попробуйте ещё раз.</AppState>}
       <AppButton disabled={submitting} type="submit" stretched>
         {submitting ? "Сохранение…" : "Создать кампанию"}
       </AppButton>
@@ -343,11 +343,11 @@ export function PromotionSection({ eventId }: { eventId: string }) {
       <AppButton size="small" tone="ghost" onClick={toggle}>
         {open ? "Скрыть продвижение" : "Продвижение"}
       </AppButton>
-      {open && state?.status === "loading" && <p className="app-state">Загрузка…</p>}
-      {open && state?.status === "error" && <p className="app-state app-state--error">Не удалось загрузить кампании.</p>}
+      {open && state?.status === "loading" && <AppState>Загрузка…</AppState>}
+      {open && state?.status === "error" && <AppState error>Не удалось загрузить кампании.</AppState>}
       {open && state?.status === "ready" && (
         <>
-          {state.items.length === 0 && form === null && <p className="app-state">Кампаний пока нет.</p>}
+          {state.items.length === 0 && form === null && <AppState>Кампаний пока нет.</AppState>}
           {state.items.map((campaign) => (
             <PromotionCampaignRow key={campaign.id} campaign={campaign} paying={payingId === campaign.id} onPaid={() => markPaid(campaign.id)} />
           ))}

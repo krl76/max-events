@@ -21,7 +21,7 @@ import type { AssistCompany, AssistCriteria, AssistGenre, AssistResponse, Assist
 import { ApiError, apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
-import { AppButton, AppTitle } from "../ui/primitives";
+import { AppButton, AppTitle, AppState } from "../ui/primitives";
 import { AssistDayCard, type AssistDayState } from "./AssistDayCard";
 
 export type AssistState = { status: "idle" } | { status: "loading" } | { status: "error"; message: string } | { status: "ready"; result: AssistResponse };
@@ -74,8 +74,8 @@ export function AssistView({ query, state, day, onQuery, onSubmit, onPlanDay, on
       <AppButton tone="secondary" disabled={day.status === "loading"} onClick={onPlanDay}>
         Сделай нам план на субботу
       </AppButton>
-      {state.status === "loading" && <p className="app-state">Подбираем варианты…</p>}
-      {state.status === "error" && <p className="app-state app-state--error">{state.message}</p>}
+      {state.status === "loading" && <AppState>Подбираем варианты…</AppState>}
+      {state.status === "error" && <AppState error>{state.message}</AppState>}
       {state.status === "ready" && (
         <>
           <p className="app-today-summary">{state.result.summary}</p>
@@ -86,7 +86,7 @@ export function AssistView({ query, state, day, onQuery, onSubmit, onPlanDay, on
               </span>
             ))}
           </span>
-          {state.result.items.length === 0 && <p className="app-state">Ничего не нашлось — попробуйте изменить запрос.</p>}
+          {state.result.items.length === 0 && <AppState>Ничего не нашлось — попробуйте изменить запрос.</AppState>}
           {state.result.items.map((pick) => (
             <button key={pick.event.id} type="button" className="app-card app-card--link" onClick={() => onOpenEvent(pick.event.id)}>
               <div className="app-card-body">

@@ -20,7 +20,7 @@ import type { Profile, UpdateProfile, User, VisitStats } from "@max-events/api-c
 import { apiClient, type CalendarEntry, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS } from "../catalog/CatalogPage";
-import { AppAvatar, AppButton, AppTitle } from "../ui/primitives";
+import { AppAvatar, AppButton, AppTitle, AppState, AppSkeleton } from "../ui/primitives";
 import { useRoute } from "../routing/router";
 
 export interface ProfileStats {
@@ -222,8 +222,17 @@ function AuthenticatedProfile({ user }: { user: User }) {
   const { navigate } = useRoute();
   const [{ profile, failed, saving, stats, friendsCount, posts, visitStats }, save] = useProfileData(user.id);
 
-  if (failed) return <p className="app-state app-state--error">Не удалось загрузить профиль.</p>;
-  if (profile === null) return <p className="app-state">Загрузка…</p>;
+  if (failed) return <AppState error>Не удалось загрузить профиль.</AppState>;
+  if (profile === null)
+    return (
+      <div className="app-card" aria-hidden="true">
+        <div className="app-card-body">
+          <AppSkeleton variant="block" />
+          <AppSkeleton />
+          <AppSkeleton variant="line-short" />
+        </div>
+      </div>
+    );
   return <ProfileView user={user} profile={profile} stats={stats} friendsCount={friendsCount} posts={posts} visitStats={visitStats} saving={saving} onSave={save} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
 }
 
@@ -232,10 +241,10 @@ export function ProfilePage() {
 
   if (auth.status === "authenticated") return <AuthenticatedProfile user={auth.user} />;
   if (auth.status === "error") {
-    return <p className="app-state app-state--error">Не удалось войти: {auth.message}</p>;
+    return <AppState error>Не удалось войти: {auth.message}</AppState>;
   }
   if (auth.status === "loading") {
-    return <p className="app-state">Загрузка…</p>;
+    return <AppState>Загрузка…</AppState>;
   }
-  return <p className="app-state">Откройте приложение внутри MAX, чтобы авторизоваться.</p>;
+  return <AppState>Откройте приложение внутри MAX, чтобы авторизоваться.</AppState>;
 }

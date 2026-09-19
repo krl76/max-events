@@ -18,14 +18,15 @@ import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
 import { BudgetSection } from "./BudgetSection";
 import { planMeetingLabel } from "./PlansPage";
+import { AppState } from "../ui/primitives";
 
 export const PLAN_STATUS_LABELS: Record<PlanParticipantStatus, string> = { invited: "приглашён", confirmed: "подтвердил", declined: "отказался" };
 
 export type PlanState = { status: "loading" } | { status: "error" } | { status: "ready"; card: PlanCard };
 
 export function PlanView({ state, onOpenEvent }: { state: PlanState; onOpenEvent: (eventId: string) => void }) {
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить план.</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить план.</AppState>;
   const { plan, event } = state.card;
   return (
     <section className="app-plan">

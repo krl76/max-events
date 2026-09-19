@@ -225,6 +225,46 @@ body {
   color: var(--app-danger);
 }
 
+/* Блок состояния (AppState): иконка ошибки + текст + опциональное действие */
+.app-state-block {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  padding: var(--app-space-m) 0;
+}
+
+.app-state-block .app-state {
+  margin: 0;
+  padding: var(--app-space-s) var(--app-space-l);
+}
+
+.app-state-block .app-btn {
+  align-self: center;
+  width: auto;
+}
+
+.app-state-icon {
+  color: var(--app-danger);
+  display: flex;
+  opacity: 0.7;
+}
+
+.app-skeleton-block {
+  animation: app-skeleton-pulse 1.2s ease-in-out infinite;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-media);
+  display: block;
+  height: 72px;
+  width: 100%;
+}
+
+.app-skeleton-block--media {
+  aspect-ratio: 4 / 5;
+  border-radius: 0;
+  height: auto;
+}
+
 /* Pill-кнопки (AppButton): primary — акцентная заливка, secondary — светло-серая с тёмным текстом */
 .app-root .app-btn {
   border-radius: 999px;

@@ -11,7 +11,7 @@
 // END_MODULE_MAP
 
 import type { Payment } from "@max-events/api-contracts";
-import { AppButton, AppText, AppTitle } from "../ui/primitives";
+import { AppButton, AppText, AppTitle, AppState } from "../ui/primitives";
 
 export interface PaymentSectionProps {
   payment: Payment | null;
@@ -35,7 +35,7 @@ export function PaymentSection({ payment, busy, error = false, onPay }: PaymentS
         {payment.status === "refunded" && <AppText>Возврат {amount}</AppText>}
         {payment.status === "cancelled" && <AppText>Платёж отменён</AppText>}
         {payment.status === "failed" && <AppText>Ошибка оплаты — повторить</AppText>}
-        {error && <p className="app-state app-state--error">Не удалось выполнить оплату. Попробуйте ещё раз.</p>}
+        {error && <AppState error>Не удалось выполнить оплату. Попробуйте ещё раз.</AppState>}
         {payable && (
           <AppButton onClick={onPay} disabled={busy} stretched>
             {payment.status === "pending" ? `Оплатить ${amount}` : `Повторить оплату — ${amount}`}

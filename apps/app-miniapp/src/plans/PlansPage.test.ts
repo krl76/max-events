@@ -55,7 +55,7 @@ describe("PlansView", () => {
   it("renders loading, error and empty states", () => {
     const render = (state: PlansState) => renderToStaticMarkup(createElement(PlansView, { state, onOpen: () => {} }));
 
-    expect(render({ status: "loading" })).toContain("Загрузка…");
+    expect(render({ status: "loading" })).toContain("app-skeleton-line");
     expect(render({ status: "error" })).toContain("app-state--error");
     expect(render({ status: "error" })).toContain("Не удалось загрузить планы.");
     expect(render({ status: "ready", cards: [] })).toContain("Пока нет планов.");

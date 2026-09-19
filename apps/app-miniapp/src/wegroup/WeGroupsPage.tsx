@@ -22,7 +22,7 @@ import type { Friend, WeGroupScreen } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppButton } from "../ui/primitives";
+import { AppButton, AppState } from "../ui/primitives";
 
 export type WeGroupsState = { status: "loading" } | { status: "error" } | { status: "ready"; groups: WeGroupScreen[] };
 
@@ -91,7 +91,7 @@ export function WeGroupCreateForm({ draft, friends, saving, failed, onChange, on
           </li>
         ))}
       </ul>
-      {failed && <p className="app-state app-state--error">Не удалось создать группу.</p>}
+      {failed && <AppState error>Не удалось создать группу.</AppState>}
       <AppButton stretched disabled={saving} type="submit">
         Создать группу
       </AppButton>
@@ -118,9 +118,9 @@ export function WeGroupsView({ state, friends, creating, draft, saving, failed, 
   const archived = groups.filter((screen) => screen.group.status === "archived");
   return (
     <>
-      {state.status === "loading" && <p className="app-state">Загрузка…</p>}
-      {state.status === "error" && <p className="app-state app-state--error">Не удалось загрузить группы.</p>}
-      {state.status === "ready" && groups.length === 0 && <p className="app-state">Пока нет групп. Создайте первую.</p>}
+      {state.status === "loading" && <AppState>Загрузка…</AppState>}
+      {state.status === "error" && <AppState error>Не удалось загрузить группы.</AppState>}
+      {state.status === "ready" && groups.length === 0 && <AppState>Пока нет групп. Создайте первую.</AppState>}
       {active.map((screen) => (
         <WeGroupCard key={screen.group.id} screen={screen} onOpen={onOpen} />
       ))}

@@ -16,7 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 import { apiClient, type CalendarEntry } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
-import { AppButton, AppTitle } from "../ui/primitives";
+import { AppButton, AppTitle, AppState } from "../ui/primitives";
 
 export type CalendarState = { status: "loading" } | { status: "error" } | { status: "ready"; entries: CalendarEntry[] };
 
@@ -57,8 +57,8 @@ interface CalendarViewProps {
 }
 
 export function CalendarView({ state, now, onCancel }: CalendarViewProps) {
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить календарь.</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить календарь.</AppState>;
 
   const { upcoming, past } = splitCalendarEntries(state.entries, now);
   return (
@@ -67,13 +67,13 @@ export function CalendarView({ state, now, onCancel }: CalendarViewProps) {
         <AppTitle asChild>
           <h2 className="app-section-title">Запланированные</h2>
         </AppTitle>
-        {upcoming.length === 0 ? <p className="app-state">Нет запланированных событий.</p> : upcoming.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={() => onCancel(entry.booking.id)} />)}
+        {upcoming.length === 0 ? <AppState>Нет запланированных событий.</AppState> : upcoming.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={() => onCancel(entry.booking.id)} />)}
       </section>
       <section className="app-calendar-section">
         <AppTitle asChild>
           <h2 className="app-section-title">Прошедшие</h2>
         </AppTitle>
-        {past.length === 0 ? <p className="app-state">Нет прошедших событий.</p> : past.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={null} />)}
+        {past.length === 0 ? <AppState>Нет прошедших событий.</AppState> : past.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={null} />)}
       </section>
     </>
   );

@@ -19,6 +19,7 @@ import type { Event, MemoryPoint, MyCitySummary, Place } from "@max-events/api-c
 import { apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/format";
 import { useAuth } from "../auth/AuthContext";
+import { AppState } from "../ui/primitives";
 
 export interface MemoryMarker {
   key: string;
@@ -74,8 +75,8 @@ export function MyCityView({ state }: { state: MyCityState }) {
     };
   }, [state]);
 
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить «Мой город».</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить «Мой город».</AppState>;
   return (
     <section className="app-mycity">
       <div className="app-profile-stats app-mycity-summary">

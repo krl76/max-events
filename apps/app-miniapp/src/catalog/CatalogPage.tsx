@@ -19,7 +19,7 @@ import type { Event, EventCategory } from "@max-events/api-contracts";
 import { EventCategorySchema } from "@max-events/api-contracts";
 import { apiClient, parseEventFilters, serializeEventFilters, type EventFilters } from "../api/client";
 import { useRoute } from "../routing/router";
-import { AppChip } from "../ui/primitives";
+import { AppChip, AppState } from "../ui/primitives";
 import { formatStartsAt } from "./format";
 import { MapScreen } from "./MapScreen";
 
@@ -171,8 +171,8 @@ export function CatalogView({ state, filters, onFilters, view = "list", onView, 
               <SkeletonCard />
             </>
           )}
-          {state.status === "error" && <p className="app-state app-state--error">Не удалось загрузить события. Попробуйте изменить фильтры.</p>}
-          {state.status === "ready" && state.events.length === 0 && <p className="app-state">Ничего не найдено. Попробуйте изменить фильтры.</p>}
+          {state.status === "error" && <AppState error>Не удалось загрузить события. Попробуйте изменить фильтры.</AppState>}
+          {state.status === "ready" && state.events.length === 0 && <AppState>Ничего не найдено. Попробуйте изменить фильтры.</AppState>}
           {state.status === "ready" && state.events.map((item) => <EventCard key={item.id} event={item} onOpen={onOpenEvent} />)}
         </>
       )}

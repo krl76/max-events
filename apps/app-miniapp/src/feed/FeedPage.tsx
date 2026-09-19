@@ -24,7 +24,7 @@ import { apiClient, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { shareResult, webApp } from "../max/bridge";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { AppAvatar, AppButton, AppChip, AppTitle, AppState, AppSkeleton } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { IconButton } from "@maxhub/max-ui";
 
@@ -170,7 +170,22 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
           +
         </IconButton>
       </div>
-      {state.status === "loading" ? null : state.status === "error" ? <p className="app-state app-state--error">Не удалось загрузить впечатления.</p> : state.posts.length === 0 ? <p className="app-state">Пока нет постов — расскажи первым.</p> : state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)}
+      {state.status === "loading" ? (
+        <article className="app-card app-card--post" aria-hidden="true">
+          <div className="app-post-head">
+            <AppSkeleton width="45%" />
+          </div>
+          <AppSkeleton variant="media" />
+        </article>
+      ) : state.status === "error" ? (
+        <AppState error action={{ label: "Повторить", onClick: load }}>
+          Не удалось загрузить впечатления.
+        </AppState>
+      ) : state.posts.length === 0 ? (
+        <AppState>Пока нет постов — расскажи первым.</AppState>
+      ) : (
+        state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)
+      )}
     </section>
   );
 }
@@ -255,8 +270,8 @@ export function FeedCreateView({ draft, events, submitting, failed, eventMissing
       <AppButton disabled={!feedDraftReady(draft) || submitting} onClick={onSubmit} stretched>
         {submitting ? "Публикуем…" : "Опубликовать"}
       </AppButton>
-      {failed && <p className="app-state app-state--error">Не удалось опубликовать впечатление.</p>}
-      {eventMissing && <p className="app-state app-state--error">Выбери событие из списка.</p>}
+      {failed && <AppState error>Не удалось опубликовать впечатление.</AppState>}
+      {eventMissing && <AppState error>Выбери событие из списка.</AppState>}
     </section>
   );
 }

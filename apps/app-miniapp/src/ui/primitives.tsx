@@ -13,6 +13,8 @@
 // - AppAvatar - MAX Avatar.Container: image when src given, otherwise the label children
 // - AppChip - toggle chip button (aria-pressed)
 // - AppNavTiles - grid of navigation tiles (icon + label) replacing full-width entry buttons
+// - AppState - loading/empty/error state block: alert icon on error, text, optional retry action
+// - AppSkeleton - pulsing placeholder block (lines or media) for loading states
 // END_MODULE_MAP
 
 import type { ComponentProps, ReactNode } from "react";
@@ -67,4 +69,32 @@ export function AppNavTiles({ items }: { items: AppNavTileItem[] }) {
       ))}
     </div>
   );
+}
+
+export interface AppStateAction {
+  label: string;
+  onClick: () => void;
+}
+
+export function AppState({ error = false, action, children }: { error?: boolean; action?: AppStateAction; children: ReactNode }) {
+  return (
+    <div className="app-state-block">
+      {error && (
+        <span className="app-state-icon" aria-hidden="true">
+          <ActionIcon name="alert" size={28} />
+        </span>
+      )}
+      <p className={error ? "app-state app-state--error" : "app-state"}>{children}</p>
+      {action && (
+        <AppButton tone="secondary" onClick={action.onClick}>
+          {action.label}
+        </AppButton>
+      )}
+    </div>
+  );
+}
+
+export function AppSkeleton({ variant = "line", width }: { variant?: "line" | "line-short" | "block" | "media"; width?: string }) {
+  const className = variant === "media" ? "app-skeleton-block app-skeleton-block--media" : variant === "block" ? "app-skeleton-block" : variant === "line-short" ? "app-skeleton-line app-skeleton-line--short" : "app-skeleton-line";
+  return <span className={className} style={width ? { width } : undefined} aria-hidden="true" />;
 }

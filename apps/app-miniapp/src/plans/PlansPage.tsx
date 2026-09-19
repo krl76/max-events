@@ -20,7 +20,7 @@ import type { Plan, PlanCard } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppNavTiles } from "../ui/primitives";
+import { AppNavTiles, AppState, AppSkeleton } from "../ui/primitives";
 
 export function planParticipantsLabel(count: number): string {
   const mod10 = count % 10;
@@ -45,9 +45,21 @@ export function planMeetingLabel(plan: Plan): string {
 export type PlansState = { status: "loading" } | { status: "error" } | { status: "ready"; cards: PlanCard[] };
 
 export function PlansView({ state, onOpen }: { state: PlansState; onOpen: (planId: string) => void }) {
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить планы.</p>;
-  if (state.cards.length === 0) return <p className="app-state">Пока нет планов.</p>;
+  if (state.status === "loading")
+    return (
+      <>
+        {[0, 1].map((row) => (
+          <div key={row} className="app-card" aria-hidden="true">
+            <div className="app-card-body">
+              <AppSkeleton />
+              <AppSkeleton variant="line-short" />
+            </div>
+          </div>
+        ))}
+      </>
+    );
+  if (state.status === "error") return <AppState error>Не удалось загрузить планы.</AppState>;
+  if (state.cards.length === 0) return <AppState>Пока нет планов.</AppState>;
   return (
     <>
       {state.cards.map(({ plan, event, distanceMeters }) => (
