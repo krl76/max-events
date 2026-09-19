@@ -502,10 +502,28 @@ body {
 }
 
 .app-event-media {
-  aspect-ratio: 4 / 5;
+  align-items: flex-end;
+  aspect-ratio: 16 / 9;
   background-image: var(--app-media-veil), var(--app-media-gradient-2);
   background-position: center;
   background-size: cover;
+  display: flex;
+}
+
+.app-event-media-overlay {
+  background: linear-gradient(transparent, rgba(6, 7, 8, 0.55));
+  padding: var(--app-space-xl) var(--app-space-l) var(--app-space-m);
+  width: 100%;
+}
+
+.app-event-media-overlay .app-event-title {
+  color: #fff;
+}
+
+.app-event-media-meta {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: var(--app-font-size-description);
+  margin: var(--app-space-xs) 0 0;
 }
 
 .app-event-body {
@@ -581,23 +599,20 @@ body {
   z-index: 5;
 }
 
-/* Страница мероприятия: статусы участия (селектор + счётчики) */
-.app-participation-chips {
+/* Вторичные действия (check-in, билет) — одной строкой под primary CTA */
+.app-event-actions-row {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--app-space-s);
 }
 
-.app-participation-clear {
-  align-self: flex-start;
-  background: none;
-  border: 1px solid var(--app-danger);
-  border-radius: 999px;
-  color: var(--app-danger);
+.app-event-actions-row > * {
+  flex: 1;
+}
+
+/* Страница мероприятия: статус участия (нативный select) + счётчики */
+.app-participation-select {
+  align-self: stretch;
   cursor: pointer;
-  font: inherit;
-  font-size: var(--app-font-size-description);
-  padding: var(--app-space-s) var(--app-space-m);
 }
 
 .app-participation-counters {

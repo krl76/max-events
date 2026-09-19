@@ -9,11 +9,11 @@
 // - EventDetailsState - union of details fetch states (loading / error / ready)
 // - bookingErrorMessage - booking failure -> inline text: 403 = promo code rejected / early access needs a code, 409 = sold out (#202)
 // - PromoCodeState - promo code field state of the booking flow (code, inline error, onCode)
-// - EventDetailsView - presentational: media, title (+ «Промо» badge for promoted events), meta rows (place title opens the place page), description, booking CTA with the promo code field, check-in button, buy button
+// - EventDetailsView - presentational: 16:9 media with the title/date/category overlay (+ «Промо» marker), meta rows (place title opens the place page), description, booking CTA with the promo code field, check-in and buy buttons in one secondary row
 // - EventPage - route container: resolves the user id from the auth context (loading until authenticated), wires booking/check-in actions and the payment link, loads/keeps the booking payment via payBooking (silent auto-load for paid bookings; errors only on an explicit tap, keyed to the failed booking so a re-book resets them), entry to the gathering flow; records the page view fire-and-forget once auth resolved (#196) and shows the organizer rating card (#199)
 // - AutoPlanEntry - «Собрать план» autoplan section gate: rendered only with an active booking
 // - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
-// - ParticipationView - presentational: status chip selector, clear button, status counters and friends count
+// - ParticipationView - presentational: status select (empty option clears), status counters and friends count
 // - ParticipationSection - container: loads participation stats via apiClient and wires set/clear actions
 // - ReviewSection, ReportButton, FeedSection, WaitlistSection - post-event review flow (#144), the report button (#167), the event wall (recent impression posts) and the sold-out waitlist block (#260), see their files
 // END_MODULE_MAP
@@ -25,7 +25,7 @@ import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { ParticipationStatusSchema, type ParticipationStatus, type Payment } from "@max-events/api-contracts";
 import { openExternalLink } from "../max/bridge";
 import { useRoute } from "../routing/router";
-import { AppButton, AppChip, AppText, AppTitle, AppState } from "../ui/primitives";
+import { AppButton, AppText, AppTitle, AppState } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { SaveToList } from "./SaveToList";
 import { FeedSection } from "../feed/FeedPage";
@@ -93,7 +93,7 @@ function BookingCta({ details, onBook, onCancel }: BookingCtaProps) {
 function CheckInCta({ checkedIn, onCheckIn }: { checkedIn: boolean; onCheckIn: () => void }) {
   if (checkedIn) {
     return (
-      <AppButton disabled stretched tone="secondary">
+      <AppButton disabled tone="secondary">
         Вы были здесь
       </AppButton>
     );
@@ -138,12 +138,18 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, 
 
   return (
     <article className="app-event">
-      <div className="app-event-media" />
+      <div className="app-event-media">
+        <div className="app-event-media-overlay">
+          <AppTitle asChild>
+            <h1 className="app-event-title">{event.title}</h1>
+          </AppTitle>
+          <p className="app-event-media-meta">
+            {formatStartsAt(event.startsAt)} · {CATEGORY_LABELS[event.category]}
+            {event.promoted && " · Промо"}
+          </p>
+        </div>
+      </div>
       <div className="app-event-body">
-        <AppTitle asChild>
-          <h1 className="app-event-title">{event.title}</h1>
-        </AppTitle>
-        {event.promoted && <span className="app-today-chip">Промо</span>}
         <dl className="app-event-meta">
           <div className="app-event-meta-row">
             <dt>
@@ -211,12 +217,14 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, 
             </div>
           )}
           <BookingCta details={details} onBook={onBook} onCancel={onCancel} />
-          <CheckInCta checkedIn={details.checkInId !== null} onCheckIn={onCheckIn} />
-          {paymentUrl !== null && (
-            <AppButton onClick={() => onBuy(paymentUrl)} stretched tone="secondary">
-              Купить билет
-            </AppButton>
-          )}
+          <div className="app-event-actions-row">
+            <CheckInCta checkedIn={details.checkInId !== null} onCheckIn={onCheckIn} />
+            {paymentUrl !== null && (
+              <AppButton onClick={() => onBuy(paymentUrl)} tone="secondary">
+                Купить билет
+              </AppButton>
+            )}
+          </div>
         </div>
       </div>
     </article>
@@ -256,18 +264,23 @@ export function ParticipationView({ stats, onSet, onClear }: ParticipationViewPr
         <AppTitle asChild>
           <h2 className="app-section-title">Твой статус</h2>
         </AppTitle>
-        <div className="app-participation-chips">
+        <select
+          className="app-filters-input app-participation-select"
+          aria-label="Твой статус участия"
+          value={stats.myStatus ?? ""}
+          onChange={(change) => {
+            const value = change.target.value;
+            if (value === "") onClear();
+            else onSet(value as ParticipationStatus);
+          }}
+        >
+          <option value="">Не выбран</option>
           {PARTICIPATION_STATUSES.map((status) => (
-            <AppChip key={status} pressed={stats.myStatus === status} onClick={() => onSet(status)}>
+            <option key={status} value={status}>
               {PARTICIPATION_STATUS_LABELS[status]}
-            </AppChip>
+            </option>
           ))}
-        </div>
-        {stats.myStatus !== null && (
-          <button type="button" className="app-participation-clear" onClick={onClear}>
-            Снять статус
-          </button>
-        )}
+        </select>
         <ul className="app-participation-counters">
           {PARTICIPATION_STATUSES.filter((status) => stats.counts[status] > 0).map((status) => (
             <li key={status}>
