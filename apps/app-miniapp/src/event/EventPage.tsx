@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Event details page: full event fields, booking button states (book / booked / sold out) with the promo code field (#202), «Промо» badge for promoted events, external payment link, participation status selector and counters, «Собрать план» autoplan entry once booked.
-// SCOPE: Data via apiClient.getEventDetails (mock or live), booking create/cancel through apiClient, waitlist section when sold out, payment via openExternalLink, participation stats/status write via apiClient, post-event review section and report button; no navigation logic.
-// DEPENDS: ../api/client.js (apiClient, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./SaveToList.js (SaveToList), ./ReviewSection.js (ReviewSection), ./ReportButton.js (ReportButton), ./WaitlistSection.js (WaitlistSection), ../plans/AutoPlanSection.js (AutoPlanSection), ../feed/FeedPage.js (FeedSection), ../ui/theme.css
+// PURPOSE: Event details page: full event fields, booking button states (book / booked / sold out) with the promo code field (#202) and the early-access «Запись откроется …» line (#313), «Промо» badge for promoted events, in-app payment block for the active booking (#213), external payment link, participation status selector and counters, «Собрать план» autoplan entry once booked.
+// SCOPE: Data via apiClient.getEventDetails (mock or live), booking create/cancel through apiClient, waitlist section when sold out, in-app payment via apiClient.payBooking (status/amount strictly from BookingWithSeats.payment) plus the external link via openExternalLink, participation stats/status write via apiClient, post-event review section and report button; no navigation logic.
+// DEPENDS: ../api/client.js (apiClient, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus, Payment), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./SaveToList.js (SaveToList), ./ReviewSection.js (ReviewSection), ./ReportButton.js (ReportButton), ./WaitlistSection.js (WaitlistSection), ./PaymentSection.js (PaymentSection), ../plans/AutoPlanSection.js (AutoPlanSection), ../feed/FeedPage.js (FeedSection), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -10,7 +10,7 @@
 // - bookingErrorMessage - booking failure -> inline text: 403 = promo code rejected / early access needs a code, 409 = sold out (#202)
 // - PromoCodeState - promo code field state of the booking flow (code, inline error, onCode)
 // - EventDetailsView - presentational: media, title (+ «Промо» badge for promoted events), meta rows (place title opens the place page), description, booking CTA with the promo code field, check-in button, buy button
-// - EventPage - route container: resolves the user id from the auth context (loading until authenticated), wires booking/check-in actions and the payment link, entry to the gathering flow
+// - EventPage - route container: resolves the user id from the auth context (loading until authenticated), wires booking/check-in actions and the payment link, loads/keeps the booking payment via payBooking (silent auto-load for paid bookings; errors only on an explicit tap), entry to the gathering flow
 // - AutoPlanEntry - «Собрать план» autoplan section gate: rendered only with an active booking
 // - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
 // - ParticipationView - presentational: status chip selector, clear button, status counters and friends count
@@ -22,16 +22,17 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiClient, type EventDetails, type ParticipationStats } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
-import { ParticipationStatusSchema, type ParticipationStatus } from "@max-events/api-contracts";
+import { ParticipationStatusSchema, type ParticipationStatus, type Payment } from "@max-events/api-contracts";
 import { openExternalLink } from "../max/bridge";
 import { useRoute } from "../routing/router";
-import { AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { AppButton, AppChip, AppText, AppTitle } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { SaveToList } from "./SaveToList";
 import { FeedSection } from "../feed/FeedPage";
 import { ReviewSection } from "./ReviewSection";
 import { ReportButton } from "./ReportButton";
 import { WaitlistSection } from "./WaitlistSection";
+import { PaymentSection } from "./PaymentSection";
 import { AutoPlanSection } from "../plans/AutoPlanSection";
 
 export type EventDetailsState = { status: "loading" } | { status: "error" } | { status: "ready"; details: EventDetails };
@@ -203,6 +204,7 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, 
         <div className="app-event-actions">
           {promo !== undefined && details.activeBookingId === null && details.remainingSeats !== 0 && (
             <div className="app-promo-code">
+              {event.bookingOpensAt !== null && new Date(event.bookingOpensAt).getTime() > Date.now() && <AppText>Запись откроется {formatStartsAt(event.bookingOpensAt)}</AppText>}
               <input className="app-filters-input" type="text" value={promo.code} aria-label="Промокод" placeholder="Промокод (если есть)" onChange={(change) => promo.onCode(change.target.value)} />
               {promo.error !== null && <p className="app-state app-state--error">{promo.error}</p>}
             </div>
@@ -324,14 +326,45 @@ export function EventPage({ id }: { id: string }) {
 
   const [promoCode, setPromoCode] = useState("");
   const [bookingError, setBookingError] = useState<string | null>(null);
+  const [payment, setPayment] = useState<{ bookingId: string; value: Payment | null } | null>(null);
+  const [paymentBusy, setPaymentBusy] = useState(false);
+  const [paymentError, setPaymentError] = useState(false);
+
+  const activeBookingId = state.status === "ready" ? state.details.activeBookingId : null;
+  const paidEvent = state.status === "ready" && state.details.event.isPaid;
+
+  const loadPayment = useCallback((bookingId: string, reportError: boolean) => {
+    setPaymentBusy(true);
+    apiClient
+      .payBooking(bookingId)
+      .then(
+        (booking) => {
+          setPayment({ bookingId, value: booking.payment });
+          setPaymentError(false);
+        },
+        () => {
+          setPayment((prev) => (prev === null ? { bookingId, value: null } : prev));
+          if (reportError) setPaymentError(true);
+        },
+      )
+      .finally(() => setPaymentBusy(false));
+  }, []);
+
+  // The details aggregate carries no payment: POST /bookings/:id/payment (ensurePayment) is the only read path; the failure stays silent so the external paymentUrl flow (provider=none) is untouched.
+  useEffect(() => {
+    if (activeBookingId === null || !paidEvent) return;
+    if (payment !== null && payment.bookingId === activeBookingId) return;
+    loadPayment(activeBookingId, false);
+  }, [activeBookingId, paidEvent, payment, loadPayment]);
 
   const book = useCallback(() => {
     if (userId === null) return;
     const code = promoCode.trim();
     setBookingError(null);
     apiClient.createBooking({ userId, eventId: id, ...(code === "" ? {} : { promoCode: code }) }).then(
-      () => {
+      (booking) => {
         setPromoCode("");
+        setPayment({ bookingId: booking.id, value: booking.payment });
         refetch();
       },
       (error: unknown) => {
@@ -346,6 +379,11 @@ export function EventPage({ id }: { id: string }) {
     apiClient.cancelBooking(state.details.activeBookingId).then(refetch, refetch);
   }, [state, refetch]);
 
+  const pay = useCallback(() => {
+    if (activeBookingId === null || paymentBusy) return;
+    loadPayment(activeBookingId, true);
+  }, [activeBookingId, paymentBusy, loadPayment]);
+
   const checkIn = useCallback(() => {
     if (userId === null) return;
     apiClient.createCheckIn({ userId, eventId: id }).then(refetch, refetch);
@@ -353,6 +391,7 @@ export function EventPage({ id }: { id: string }) {
 
   if (state.status === "loading" || userId === null) return <p className="app-state">Загрузка…</p>;
   if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить событие.</p>;
+  const currentPayment = payment !== null && payment.bookingId === state.details.activeBookingId ? payment.value : null;
   return (
     <>
       <EventDetailsView
@@ -371,6 +410,7 @@ export function EventPage({ id }: { id: string }) {
           },
         }}
       />
+      <PaymentSection payment={currentPayment} busy={paymentBusy} error={paymentError} onPay={pay} />
       <AutoPlanEntry activeBookingId={state.details.activeBookingId} eventId={id} />
       {state.details.remainingSeats === 0 && state.details.activeBookingId === null && <WaitlistSection eventId={id} userId={userId} onChanged={refetch} />}
       <SaveToList eventId={id} userId={userId} />
