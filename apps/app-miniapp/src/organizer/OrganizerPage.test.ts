@@ -22,6 +22,7 @@ const draftEvent: OrganizerEvent = {
   chatLink: null,
   promoted: false,
   draft: true,
+  published: false,
 };
 
 const publishedPlace: OrganizerPlace = {
@@ -35,6 +36,7 @@ const publishedPlace: OrganizerPlace = {
   createdAt: "2026-08-01T12:00:00+03:00",
   updatedAt: "2026-08-01T12:00:00+03:00",
   draft: false,
+  published: true,
 };
 
 const readyDraft: EventDraft = { title: "Встреча книжного клуба", category: "afisha", city: "Москва", startsAt: "2026-10-20T19:00", endsAt: "", price: "", paymentUrl: "", capacity: "12" };

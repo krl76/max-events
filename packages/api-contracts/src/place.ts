@@ -14,7 +14,7 @@
 // - PlaceCategory - place category type
 // - PlaceSchema - full place entity with server-owned published flag
 // - Place - full place type
-// - CreatePlaceSchema - place creation payload (no id/timestamps)
+// - CreatePlaceSchema - place creation payload (no id/timestamps, no server-owned published)
 // - CreatePlace - place creation payload type
 // END_MODULE_MAP
 
