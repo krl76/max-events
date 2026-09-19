@@ -10,36 +10,39 @@
 // - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar/profile routes render their screens (profile + achievements/my-city/lists/organizer nav tiles), whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the plans list and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, lists renders the saved lists and list(id) one list, organizer renders the organizer panel, vote(id) renders the shared vote screen
 // END_MODULE_MAP
 
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useRoute } from "../routing/router";
 import { CatalogPage, type CatalogViewName } from "../catalog/CatalogPage";
-import { EventPage } from "../event/EventPage";
-import { PlacePage } from "../place/PlacePage";
-import { FriendsPage } from "../friends/FriendsPage";
-import { CalendarPage } from "../calendar/CalendarPage";
-import { ProfilePage } from "../profile/ProfilePage";
-import { WheretoPage } from "../whereto/WheretoPage";
-import { NearbyPage } from "../nearby/NearbyPage";
 import { TodaySection } from "../today/TodaySection";
 import { AssistSection } from "../assist/AssistSection";
-import { GatheringFlowPage } from "../gathering/GatheringFlowPage";
-import { GatheringStatusPage } from "../gathering/GatheringStatusPage";
-import { PlansPage } from "../plans/PlansPage";
-import { PlanPage } from "../plans/PlanPage";
-import { WeGroupPage } from "../wegroup/WeGroupPage";
-import { WeGroupsPage } from "../wegroup/WeGroupsPage";
-import { DayRoutePage } from "../route/DayRoutePage";
-import { ListPage, ListsPage } from "../lists/ListsPage";
-import { AchievementsPage } from "../profile/AchievementsPage";
-import { MyCityPage } from "../profile/MyCityPage";
-import { MicroEventCreatePage, MicroSection } from "../micro/MicroEvents";
-import { FeedCreatePage, FeedSection, StoriesRow } from "../feed/FeedPage";
-import { DiscoveryPage } from "../discovery/DiscoveryPage";
-import { PeoplePage } from "../people/PeoplePage";
 import { PromotionSections } from "../promo/PromoSections";
-import { OrganizerPage } from "../organizer/OrganizerPage";
-import { VotePage } from "../votes/VotePage";
-import { AppNavTiles } from "../ui/primitives";
+import { FeedCreatePage, FeedSection, StoriesRow } from "../feed/FeedPage";
+import { MicroEventCreatePage, MicroSection } from "../micro/MicroEvents";
+import { AppNavTiles, AppSkeleton } from "../ui/primitives";
+
+// ponytail: MicroEventCreatePage/FeedCreatePage share their module with eager home sections, so they stay eager too.
+const EventPage = lazy(() => import("../event/EventPage").then((m) => ({ default: m.EventPage })));
+const PlacePage = lazy(() => import("../place/PlacePage").then((m) => ({ default: m.PlacePage })));
+const FriendsPage = lazy(() => import("../friends/FriendsPage").then((m) => ({ default: m.FriendsPage })));
+const DiscoveryPage = lazy(() => import("../discovery/DiscoveryPage").then((m) => ({ default: m.DiscoveryPage })));
+const PeoplePage = lazy(() => import("../people/PeoplePage").then((m) => ({ default: m.PeoplePage })));
+const CalendarPage = lazy(() => import("../calendar/CalendarPage").then((m) => ({ default: m.CalendarPage })));
+const ProfilePage = lazy(() => import("../profile/ProfilePage").then((m) => ({ default: m.ProfilePage })));
+const OrganizerPage = lazy(() => import("../organizer/OrganizerPage").then((m) => ({ default: m.OrganizerPage })));
+const ListsPage = lazy(() => import("../lists/ListsPage").then((m) => ({ default: m.ListsPage })));
+const ListPage = lazy(() => import("../lists/ListsPage").then((m) => ({ default: m.ListPage })));
+const AchievementsPage = lazy(() => import("../profile/AchievementsPage").then((m) => ({ default: m.AchievementsPage })));
+const MyCityPage = lazy(() => import("../profile/MyCityPage").then((m) => ({ default: m.MyCityPage })));
+const WheretoPage = lazy(() => import("../whereto/WheretoPage").then((m) => ({ default: m.WheretoPage })));
+const NearbyPage = lazy(() => import("../nearby/NearbyPage").then((m) => ({ default: m.NearbyPage })));
+const GatheringFlowPage = lazy(() => import("../gathering/GatheringFlowPage").then((m) => ({ default: m.GatheringFlowPage })));
+const GatheringStatusPage = lazy(() => import("../gathering/GatheringStatusPage").then((m) => ({ default: m.GatheringStatusPage })));
+const VotePage = lazy(() => import("../votes/VotePage").then((m) => ({ default: m.VotePage })));
+const PlansPage = lazy(() => import("../plans/PlansPage").then((m) => ({ default: m.PlansPage })));
+const PlanPage = lazy(() => import("../plans/PlanPage").then((m) => ({ default: m.PlanPage })));
+const WeGroupsPage = lazy(() => import("../wegroup/WeGroupsPage").then((m) => ({ default: m.WeGroupsPage })));
+const WeGroupPage = lazy(() => import("../wegroup/WeGroupPage").then((m) => ({ default: m.WeGroupPage })));
+const DayRoutePage = lazy(() => import("../route/DayRoutePage").then((m) => ({ default: m.DayRoutePage })));
 
 export function HomePage() {
   const { navigate } = useRoute();
@@ -70,6 +73,29 @@ export function HomePage() {
 }
 
 export function RoutedPages() {
+  return (
+    <Suspense fallback={<PageFallback />}>
+      <Routed />
+    </Suspense>
+  );
+}
+
+function PageFallback() {
+  return (
+    <>
+      {[0, 1].map((row) => (
+        <div key={row} className="app-card" aria-hidden="true">
+          <div className="app-card-body">
+            <AppSkeleton />
+            <AppSkeleton variant="line-short" />
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function Routed() {
   const { route, navigate } = useRoute();
 
   if (route.name === "event") return <EventPage id={route.id} />;
