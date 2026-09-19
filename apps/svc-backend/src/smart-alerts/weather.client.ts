@@ -14,7 +14,7 @@
 // - WeatherClient - precipitationAt
 // END_MODULE_MAP
 
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 
 export const OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
 
@@ -39,8 +39,8 @@ export function isRainy(hour: HourlyPrecip, probabilityThreshold = 50): boolean 
 @Injectable()
 export class WeatherClient {
   constructor(
-    private readonly baseUrl: string = OPEN_METEO_FORECAST_URL,
-    private readonly fetchImpl: WeatherFetch = fetch as WeatherFetch,
+    @Optional() private readonly baseUrl: string = OPEN_METEO_FORECAST_URL,
+    @Optional() private readonly fetchImpl: WeatherFetch = fetch as WeatherFetch,
   ) {}
 
   async precipitationAt(latitude: number, longitude: number, at: Date): Promise<HourlyPrecip | null> {
