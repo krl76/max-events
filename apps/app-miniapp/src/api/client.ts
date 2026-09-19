@@ -173,32 +173,6 @@ export function parseEventFilters(search: string): EventFilters {
   };
 }
 
-const EventArraySchema: ZodSchema<Event[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of events" };
-    const events: Event[] = [];
-    for (const item of data) {
-      const parsed = EventSchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      events.push(parsed.data);
-    }
-    return { success: true as const, data: events };
-  },
-};
-
-const PlaceArraySchema: ZodSchema<Place[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of places" };
-    const places: Place[] = [];
-    for (const item of data) {
-      const parsed = PlaceSchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      places.push(parsed.data);
-    }
-    return { success: true as const, data: places };
-  },
-};
-
 /** Aggregate for the event page: everything the details screen renders in one request. */
 export interface EventDetails {
   event: Event;
@@ -258,70 +232,6 @@ export interface CalendarEntry {
   event: Event;
   place: Place | null;
 }
-
-const FriendArraySchema: ZodSchema<Friend[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of friends" };
-    const friends: Friend[] = [];
-    for (const item of data) {
-      const parsed = FriendSchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      friends.push(parsed.data);
-    }
-    return { success: true as const, data: friends };
-  },
-};
-
-const FriendActivityArraySchema: ZodSchema<FriendActivityByFriend[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of friend activity groups" };
-    const groups: FriendActivityByFriend[] = [];
-    for (const item of data) {
-      const parsed = FriendActivityByFriendSchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      groups.push(parsed.data);
-    }
-    return { success: true as const, data: groups };
-  },
-};
-
-const FriendAvailabilityArraySchema: ZodSchema<FriendAvailability[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of friend availability" };
-    const entries: FriendAvailability[] = [];
-    for (const item of data) {
-      const parsed = FriendAvailabilitySchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      entries.push(parsed.data);
-    }
-    return { success: true as const, data: entries };
-  },
-};
-
-const GatheringEntitySchema: ZodSchema<Gathering> = {
-  safeParse(data: unknown) {
-    return GatheringSchema.safeParse(data);
-  },
-};
-
-const PlanCardEntitySchema: ZodSchema<PlanCard> = {
-  safeParse(data: unknown) {
-    return PlanCardSchema.safeParse(data);
-  },
-};
-
-const PlanCardArraySchema: ZodSchema<PlanCard[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of plan cards" };
-    const cards: PlanCard[] = [];
-    for (const item of data) {
-      const parsed = PlanCardSchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      cards.push(parsed.data);
-    }
-    return { success: true as const, data: cards };
-  },
-};
 
 /** Lists screen aggregate: a preset or custom list, its item count, the id of the item saving the checked event (null when not saved) and the participants of a shared collection (empty for personal lists). */
 export interface ListSummary {
@@ -404,25 +314,6 @@ const ListScreenSchema: ZodSchema<ListScreen> = {
       participants.push(parsed.data);
     }
     return { success: true as const, data: { list: list.data, participants, items: items.data } };
-  },
-};
-
-const ListItemEntitySchema: ZodSchema<ListItem> = {
-  safeParse(data: unknown) {
-    return ListItemSchema.safeParse(data);
-  },
-};
-
-const AchievementArraySchema: ZodSchema<Achievement[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of achievements" };
-    const achievements: Achievement[] = [];
-    for (const item of data) {
-      const parsed = AchievementSchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      achievements.push(parsed.data);
-    }
-    return { success: true as const, data: achievements };
   },
 };
 
@@ -511,31 +402,6 @@ export interface CreateFeedPost {
   text: string;
 }
 
-const FeedPostEntitySchema: ZodSchema<FeedPost> = {
-  safeParse(data: unknown) {
-    return FeedPostSchema.safeParse(data);
-  },
-};
-
-const FeedPostArraySchema: ZodSchema<FeedPost[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of feed posts" };
-    const posts: FeedPost[] = [];
-    for (const item of data) {
-      const parsed = FeedPostEntitySchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      posts.push(parsed.data);
-    }
-    return { success: true as const, data: posts };
-  },
-};
-
-const ReviewEntitySchema: ZodSchema<Review> = {
-  safeParse(data: unknown) {
-    return ReviewSchema.safeParse(data);
-  },
-};
-
 const EventRatingSchema: ZodSchema<EventRating> = {
   safeParse(data: unknown) {
     if (typeof data !== "object" || data === null) return { success: false as const, error: "expected an event rating" };
@@ -550,50 +416,6 @@ const EventRatingSchema: ZodSchema<EventRating> = {
       categoryAverages[key] = typeof value === "number" ? value : null;
     }
     return { success: true as const, data: { summary: summary.data, categoryAverages } };
-  },
-};
-
-const ReportEntitySchema: ZodSchema<Report> = {
-  safeParse(data: unknown) {
-    return ReportSchema.safeParse(data);
-  },
-};
-
-const MicroEventEntitySchema: ZodSchema<MicroEvent> = {
-  safeParse(data: unknown) {
-    return MicroEventSchema.safeParse(data);
-  },
-};
-
-const WaitlistEntryEntitySchema: ZodSchema<WaitlistEntry> = {
-  safeParse(data: unknown) {
-    return WaitlistEntrySchema.safeParse(data);
-  },
-};
-
-const MicroEventArraySchema: ZodSchema<MicroEvent[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of micro-events" };
-    const items: MicroEvent[] = [];
-    for (const item of data) {
-      const parsed = MicroEventSchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      items.push(parsed.data);
-    }
-    return { success: true as const, data: items };
-  },
-};
-
-const LeisureOptionArraySchema: ZodSchema<LeisureOption[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of leisure options" };
-    const options: LeisureOption[] = [];
-    for (const item of data) {
-      const parsed = LeisureOptionSchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      options.push(parsed.data);
-    }
-    return { success: true as const, data: options };
   },
 };
 
@@ -672,74 +494,10 @@ const OrganizerPlaceArraySchema: ZodSchema<OrganizerPlace[]> = {
   },
 };
 
-const WeGroupScreenEntitySchema: ZodSchema<WeGroupScreen> = {
-  safeParse(data: unknown) {
-    return WeGroupScreenSchema.safeParse(data);
-  },
-};
-
-const PromoCampaignArraySchema: ZodSchema<PromoCampaign[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of promo campaigns" };
-    const campaigns: PromoCampaign[] = [];
-    for (const item of data) {
-      const parsed = PromoCampaignSchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      campaigns.push(parsed.data);
-    }
-    return { success: true as const, data: campaigns };
-  },
-};
-
-const PromoCodeArraySchema: ZodSchema<PromoCode[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of promo codes" };
-    const codes: PromoCode[] = [];
-    for (const item of data) {
-      const parsed = PromoCodeSchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      codes.push(parsed.data);
-    }
-    return { success: true as const, data: codes };
-  },
-};
-
-const PromotionCampaignArraySchema: ZodSchema<PromotionCampaign[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of promotion campaigns" };
-    const campaigns: PromotionCampaign[] = [];
-    for (const item of data) {
-      const parsed = PromotionCampaignSchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      campaigns.push(parsed.data);
-    }
-    return { success: true as const, data: campaigns };
-  },
-};
-
 const PageViewResultSchema: ZodSchema<{ recorded: boolean }> = {
   safeParse(data: unknown) {
     if (typeof data !== "object" || data === null || typeof (data as Record<string, unknown>).recorded !== "boolean") return { success: false as const, error: "expected a page-view result" };
     return { success: true as const, data: data as { recorded: boolean } };
-  },
-};
-
-const WeGroupScreenArraySchema: ZodSchema<WeGroupScreen[]> = {
-  safeParse(data: unknown) {
-    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of we-group screens" };
-    const screens: WeGroupScreen[] = [];
-    for (const item of data) {
-      const parsed = WeGroupScreenSchema.safeParse(item);
-      if (!parsed.success) return { success: false as const, error: parsed.error };
-      screens.push(parsed.data);
-    }
-    return { success: true as const, data: screens };
-  },
-};
-
-const PlanBudgetEntitySchema: ZodSchema<PlanBudget> = {
-  safeParse(data: unknown) {
-    return PlanBudgetSchema.safeParse(data);
   },
 };
 
@@ -788,11 +546,11 @@ export class ApiClient {
 
   listEvents(filters: EventFilters = {}): Promise<Event[]> {
     const query = serializeEventFilters(filters);
-    return this.request(`/events${query ? `?${query}` : ""}`, EventArraySchema);
+    return this.request(`/events${query ? `?${query}` : ""}`, EventSchema.array());
   }
 
   listPlaces(): Promise<Place[]> {
-    return this.request("/places", PlaceArraySchema);
+    return this.request("/places", PlaceSchema.array());
   }
 
   getEvent(id: string): Promise<Event> {
@@ -852,13 +610,13 @@ export class ApiClient {
   }
 
   joinWaitlist(eventId: string, userId: string): Promise<WaitlistEntry> {
-    return this.request(`/waitlist?userId=${encodeURIComponent(userId)}`, WaitlistEntryEntitySchema, { body: { eventId } });
+    return this.request(`/waitlist?userId=${encodeURIComponent(userId)}`, WaitlistEntrySchema, { body: { eventId } });
   }
 
   async getMyWaitlistEntry(eventId: string, userId: string): Promise<WaitlistEntry | null> {
     const query = new URLSearchParams({ eventId, userId });
     try {
-      return await this.request(`/waitlist/me?${query.toString()}`, WaitlistEntryEntitySchema);
+      return await this.request(`/waitlist/me?${query.toString()}`, WaitlistEntrySchema);
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) return null;
       throw error;
@@ -866,11 +624,11 @@ export class ApiClient {
   }
 
   confirmWaitlistOffer(entryId: string): Promise<WaitlistEntry> {
-    return this.request(`/waitlist/${entryId}/confirm`, WaitlistEntryEntitySchema, { method: "POST" });
+    return this.request(`/waitlist/${entryId}/confirm`, WaitlistEntrySchema, { method: "POST" });
   }
 
   declineWaitlistOffer(entryId: string): Promise<WaitlistEntry> {
-    return this.request(`/waitlist/${entryId}/decline`, WaitlistEntryEntitySchema, { method: "POST" });
+    return this.request(`/waitlist/${entryId}/decline`, WaitlistEntrySchema, { method: "POST" });
   }
 
   createCheckIn(payload: CreateCheckIn): Promise<CheckIn> {
@@ -882,7 +640,7 @@ export class ApiClient {
   }
 
   getAchievements(userId: string): Promise<Achievement[]> {
-    return this.request(`/users/${userId}/achievements`, AchievementArraySchema);
+    return this.request(`/users/${userId}/achievements`, AchievementSchema.array());
   }
 
   getMyCity(userId: string): Promise<MyCityPayload> {
@@ -895,23 +653,23 @@ export class ApiClient {
   }
 
   listFriends(): Promise<Friend[]> {
-    return this.request("/friends", FriendArraySchema);
+    return this.request("/friends", FriendSchema.array());
   }
 
   getFriendsActivity(userId: string): Promise<FriendActivityByFriend[]> {
-    return this.request(`/friends/activity?userId=${encodeURIComponent(userId)}`, FriendActivityArraySchema);
+    return this.request(`/friends/activity?userId=${encodeURIComponent(userId)}`, FriendActivityByFriendSchema.array());
   }
 
   getFriendAvailability(eventId: string): Promise<FriendAvailability[]> {
-    return this.request(`/friends/availability?eventId=${encodeURIComponent(eventId)}`, FriendAvailabilityArraySchema);
+    return this.request(`/friends/availability?eventId=${encodeURIComponent(eventId)}`, FriendAvailabilitySchema.array());
   }
 
   createGathering(payload: CreateGathering): Promise<Gathering> {
-    return this.request("/gatherings", GatheringEntitySchema, { body: payload });
+    return this.request("/gatherings", GatheringSchema, { body: payload });
   }
 
   getGathering(id: string): Promise<Gathering> {
-    return this.request(`/gatherings/${id}`, GatheringEntitySchema);
+    return this.request(`/gatherings/${id}`, GatheringSchema);
   }
 
   getToday(origin: { latitude: number; longitude: number } | null = null): Promise<TodayResponse> {
@@ -926,16 +684,16 @@ export class ApiClient {
 
   getLeisureOptions(query: LeisureQuery): Promise<LeisureOption[]> {
     const params = new URLSearchParams({ hours: String(query.hours), mood: query.mood, latitude: String(query.latitude), longitude: String(query.longitude) });
-    return this.request(`/nearby/free?${params.toString()}`, LeisureOptionArraySchema);
+    return this.request(`/nearby/free?${params.toString()}`, LeisureOptionSchema.array());
   }
 
   listPlans(origin: { latitude: number; longitude: number } | null = null): Promise<PlanCard[]> {
     const query = origin === null ? "" : `?${new URLSearchParams({ lat: String(origin.latitude), lng: String(origin.longitude) }).toString()}`;
-    return this.request(`/plans${query}`, PlanCardArraySchema);
+    return this.request(`/plans${query}`, PlanCardSchema.array());
   }
 
   getPlan(id: string): Promise<PlanCard> {
-    return this.request(`/plans/${id}`, PlanCardEntitySchema);
+    return this.request(`/plans/${id}`, PlanCardSchema);
   }
 
   createAutoPlan(eventId: string, latitude: number, longitude: number): Promise<AutoPlanProposal> {
@@ -961,11 +719,11 @@ export class ApiClient {
   }
 
   addListItem(listId: string, payload: AddListItem): Promise<ListItem> {
-    return this.request(`/lists/${listId}/items`, ListItemEntitySchema, { body: payload });
+    return this.request(`/lists/${listId}/items`, ListItemSchema, { body: payload });
   }
 
   removeListItem(listId: string, itemId: string): Promise<ListItem> {
-    return this.request(`/lists/${listId}/items/${itemId}`, ListItemEntitySchema, { method: "DELETE" });
+    return this.request(`/lists/${listId}/items/${itemId}`, ListItemSchema, { method: "DELETE" });
   }
 
   getList(listId: string): Promise<ListScreen> {
@@ -973,19 +731,19 @@ export class ApiClient {
   }
 
   listFeedPosts(eventId?: string): Promise<FeedPost[]> {
-    return this.request(`/feed${eventId !== undefined ? `?eventId=${encodeURIComponent(eventId)}` : ""}`, FeedPostArraySchema);
+    return this.request(`/feed${eventId !== undefined ? `?eventId=${encodeURIComponent(eventId)}` : ""}`, FeedPostSchema.array());
   }
 
   createFeedPost(payload: CreateFeedPost): Promise<FeedPost> {
-    return this.request("/feed", FeedPostEntitySchema, { body: payload });
+    return this.request("/feed", FeedPostSchema, { body: payload });
   }
 
   toggleFeedLike(postId: string, userId: string): Promise<FeedPost> {
-    return this.request(`/feed/${postId}/like?userId=${encodeURIComponent(userId)}`, FeedPostEntitySchema, { method: "POST" });
+    return this.request(`/feed/${postId}/like?userId=${encodeURIComponent(userId)}`, FeedPostSchema, { method: "POST" });
   }
 
   addFeedComment(postId: string, payload: { userId: string; text: string }): Promise<FeedPost> {
-    return this.request(`/feed/${postId}/comments`, FeedPostEntitySchema, { body: payload });
+    return this.request(`/feed/${postId}/comments`, FeedPostSchema, { body: payload });
   }
 
   getEventRating(eventId: string): Promise<EventRating> {
@@ -997,27 +755,27 @@ export class ApiClient {
   }
 
   createReview(payload: CreateReview): Promise<Review> {
-    return this.request("/reviews", ReviewEntitySchema, { body: payload });
+    return this.request("/reviews", ReviewSchema, { body: payload });
   }
 
   createReport(payload: CreateReport): Promise<Report> {
-    return this.request("/reports", ReportEntitySchema, { body: payload });
+    return this.request("/reports", ReportSchema, { body: payload });
   }
 
   listMicroEvents(): Promise<MicroEvent[]> {
-    return this.request("/micro-events", MicroEventArraySchema);
+    return this.request("/micro-events", MicroEventSchema.array());
   }
 
   createMicroEvent(payload: CreateMicroEvent): Promise<MicroEvent> {
-    return this.request("/micro-events", MicroEventEntitySchema, { body: payload });
+    return this.request("/micro-events", MicroEventSchema, { body: payload });
   }
 
   joinMicroEvent(id: string, userId: string): Promise<MicroEvent> {
-    return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventEntitySchema, { method: "POST" });
+    return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventSchema, { method: "POST" });
   }
 
   leaveMicroEvent(id: string, userId: string): Promise<MicroEvent> {
-    return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventEntitySchema, { method: "DELETE" });
+    return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventSchema, { method: "DELETE" });
   }
 
   assistQuery(query: string): Promise<AssistResponse> {
@@ -1111,7 +869,7 @@ export class ApiClient {
   }
 
   listCampaigns(eventId: string): Promise<PromoCampaign[]> {
-    return this.request(`/organizer/events/${eventId}/campaigns`, PromoCampaignArraySchema);
+    return this.request(`/organizer/events/${eventId}/campaigns`, PromoCampaignSchema.array());
   }
 
   createCampaign(eventId: string, payload: CreatePromoCampaignWrite): Promise<PromoCampaign> {
@@ -1119,7 +877,7 @@ export class ApiClient {
   }
 
   listPromotions(eventId: string): Promise<PromotionCampaign[]> {
-    return this.request(`/organizer/events/${eventId}/promotions`, PromotionCampaignArraySchema);
+    return this.request(`/organizer/events/${eventId}/promotions`, PromotionCampaignSchema.array());
   }
 
   createPromotion(eventId: string, payload: CreatePromotionWrite): Promise<PromotionCampaign> {
@@ -1131,7 +889,7 @@ export class ApiClient {
   }
 
   listOrganizerPromos(eventId: string): Promise<PromoCode[]> {
-    return this.request(`/organizer/events/${eventId}/promocodes`, PromoCodeArraySchema);
+    return this.request(`/organizer/events/${eventId}/promocodes`, PromoCodeSchema.array());
   }
 
   createOrganizerPromo(eventId: string, payload: CreatePromoCodeWrite): Promise<PromoCode> {
@@ -1143,35 +901,35 @@ export class ApiClient {
   }
 
   createWeGroup(payload: CreateWeGroupWrite): Promise<WeGroupScreen> {
-    return this.request("/we-groups", WeGroupScreenEntitySchema, { body: payload });
+    return this.request("/we-groups", WeGroupScreenSchema, { body: payload });
   }
 
   listWeGroups(): Promise<WeGroupScreen[]> {
-    return this.request("/we-groups", WeGroupScreenArraySchema);
+    return this.request("/we-groups", WeGroupScreenSchema.array());
   }
 
   getWeGroup(id: string): Promise<WeGroupScreen> {
-    return this.request(`/we-groups/${id}`, WeGroupScreenEntitySchema);
+    return this.request(`/we-groups/${id}`, WeGroupScreenSchema);
   }
 
   addWeGroupEvent(id: string, eventId: string): Promise<WeGroupScreen> {
-    return this.request(`/we-groups/${id}/events`, WeGroupScreenEntitySchema, { body: { eventId } });
+    return this.request(`/we-groups/${id}/events`, WeGroupScreenSchema, { body: { eventId } });
   }
 
   addWeGroupPlace(id: string, placeId: string): Promise<WeGroupScreen> {
-    return this.request(`/we-groups/${id}/places`, WeGroupScreenEntitySchema, { body: { placeId } });
+    return this.request(`/we-groups/${id}/places`, WeGroupScreenSchema, { body: { placeId } });
   }
 
   archiveWeGroup(id: string): Promise<WeGroupScreen> {
-    return this.request(`/we-groups/${id}/archive`, WeGroupScreenEntitySchema, { method: "POST" });
+    return this.request(`/we-groups/${id}/archive`, WeGroupScreenSchema, { method: "POST" });
   }
 
   getPlanBudget(planId: string): Promise<PlanBudget> {
-    return this.request(`/plans/${planId}/budget`, PlanBudgetEntitySchema);
+    return this.request(`/plans/${planId}/budget`, PlanBudgetSchema);
   }
 
   addPlanExpense(planId: string, payload: CreatePlanExpenseWrite): Promise<PlanBudget> {
-    return this.request(`/plans/${planId}/expenses`, PlanBudgetEntitySchema, { body: payload });
+    return this.request(`/plans/${planId}/expenses`, PlanBudgetSchema, { body: payload });
   }
 
   createVote(payload: CreateVoteWrite): Promise<Vote> {
