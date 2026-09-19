@@ -76,7 +76,7 @@ export function TabIconGlyph({ name, size = 24, filled = false }: { name: TabIco
   );
 }
 
-export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron";
+export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star";
 
 const ACTIONS: Record<ActionIconName, ReactNode> = {
   heart: <path d="M12 20.3S3.4 15.4 3.4 9.6a4.6 4.6 0 0 1 8.6-2.3A4.6 4.6 0 0 1 20.6 9.6c0 5.8-8.6 10.7-8.6 10.7Z" />,
@@ -108,6 +108,7 @@ const ACTIONS: Record<ActionIconName, ReactNode> = {
     </>
   ),
   chevron: <path d="m9.2 5.6 6.4 6.4-6.4 6.4" />,
+  star: <path d="M12 3.6l2.5 5.1 5.6.8-4 4 .9 5.6-5-2.7-5 2.7.9-5.6-4-4 5.6-.8Z" />,
 };
 
 export function ActionIcon({ name, size = 24, filled = false, strokeWidth = 1.7 }: { name: ActionIconName; size?: number; filled?: boolean; strokeWidth?: number }) {

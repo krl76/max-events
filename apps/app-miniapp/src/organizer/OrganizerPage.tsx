@@ -26,7 +26,6 @@
 // - PlaceDraftForm - presentational place twin
 // - OrganizerListStatus - presentational loading/error/empty line for a list state
 // - OrganizerPage - route container: auth gate, events/places tabs, data loading, create/publish/edit mutations; renders the own-rating card and per-event stats/promotion addons from ./OrganizerAddons.js (#196/#199/#206)
-// - OrganizerLink - profile entry button navigating to the organizer route
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
@@ -35,7 +34,6 @@ import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganiz
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { MyOrganizerRatingCard, OrganizerEventAddons } from "./OrganizerAddons";
-import { useRoute } from "../routing/router";
 import { AppButton, AppChip, AppTitle } from "../ui/primitives";
 
 export const PLACE_CATEGORY_LABELS: Record<PlaceCategory, string> = {
@@ -512,11 +510,4 @@ export function OrganizerPage() {
   return <p className="app-state">Откройте приложение внутри MAX, чтобы авторизоваться.</p>;
 }
 
-export function OrganizerLink() {
-  const { navigate } = useRoute();
-  return (
-    <button type="button" className="app-lists-link" onClick={() => navigate({ name: "organizer" })}>
-      Панель организатора
-    </button>
-  );
-}
+

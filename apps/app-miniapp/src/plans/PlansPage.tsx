@@ -20,7 +20,7 @@ import type { Plan, PlanCard } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppButton } from "../ui/primitives";
+import { AppNavTiles } from "../ui/primitives";
 
 export function planParticipantsLabel(count: number): string {
   const mod10 = count % 10;
@@ -87,12 +87,12 @@ export function PlansPage() {
   }, []);
   return (
     <>
-      <AppButton onClick={() => navigate({ name: "we-groups" })} stretched tone="secondary">
-        Мы
-      </AppButton>
-      <AppButton onClick={() => navigate({ name: "day-route" })} stretched tone="secondary">
-        Маршрут на день
-      </AppButton>
+      <AppNavTiles
+        items={[
+          { icon: "user", label: "Мы", onClick: () => navigate({ name: "we-groups" }) },
+          { icon: "pin", label: "Маршрут на день", onClick: () => navigate({ name: "day-route" }) },
+        ]}
+      />
       <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} />
     </>
   );

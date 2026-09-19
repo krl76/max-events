@@ -12,7 +12,6 @@
 // - PeopleState - people fetch union (loading / error / ready)
 // - PeopleView - presentational: summary counters, chips, candidate cards with context and badge
 // - PeoplePage - route container: loads people + profile chips, wires the filter and event navigation
-// - PeopleLink - friends-screen entry button to the people screen
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
@@ -161,11 +160,4 @@ export function PeoplePage() {
   return <PeopleView state={state} chips={chips} selected={selected} onToggle={toggle} onOpenEvent={(id) => navigate({ name: "event", id })} />;
 }
 
-export function PeopleLink() {
-  const { navigate } = useRoute();
-  return (
-    <button type="button" className="app-lists-link" onClick={() => navigate({ name: "people" })}>
-      Найти людей с похожими интересами
-    </button>
-  );
-}
+

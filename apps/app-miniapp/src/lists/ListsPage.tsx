@@ -17,7 +17,6 @@
 // - ListScreenState - union of the one-list aggregate fetch states (loading / error / ready)
 // - ListView - presentational: saved event cards (with the author line for shared collections), navigation to the event page
 // - ListPage - route container: loads one list, wires «Отправить в чат» and the add-row of a shared collection (event options via apiClient.listEvents)
-// - ListsLink - profile entry button to the lists screen
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
@@ -213,11 +212,4 @@ export function ListPage({ id }: { id: string }) {
   );
 }
 
-export function ListsLink() {
-  const { navigate } = useRoute();
-  return (
-    <button type="button" className="app-lists-link" onClick={() => navigate({ name: "lists" })}>
-      Сохранённое
-    </button>
-  );
-}
+

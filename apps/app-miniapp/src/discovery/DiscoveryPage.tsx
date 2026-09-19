@@ -12,7 +12,6 @@
 // - routeErrorMessage - ApiError 403 -> hidden-route text, otherwise the fallback
 // - DiscoveryView - presentational: summary line, friend cards with expandable place lists, route timeline
 // - DiscoveryPage - route container: loads the summary, wires route loading and place navigation
-// - DiscoveryLink - friends-screen entry button to the discovery screen
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
@@ -166,11 +165,4 @@ export function DiscoveryPage() {
   return <DiscoveryView state={state} route={route} onShowRoute={showRoute} onOpenPlace={(id) => navigate({ name: "place", id })} />;
 }
 
-export function DiscoveryLink() {
-  const { navigate } = useRoute();
-  return (
-    <button type="button" className="app-lists-link" onClick={() => navigate({ name: "discovery" })}>
-      Твои люди открыли места
-    </button>
-  );
-}
+

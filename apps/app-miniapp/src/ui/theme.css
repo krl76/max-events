@@ -1162,20 +1162,32 @@ section[aria-label="Микро-события"] .app-card:first-of-type {
   color: var(--app-danger);
 }
 
-/* Списки (сохранённое): pill-вход из профиля, строки с хайрлайнами */
-.app-lists-link {
+/* Навигационные входы: плитки с иконкой (2 колонки) вместо столбца полнширинных кнопок */
+.app-nav-tiles {
+  display: grid;
+  gap: var(--app-space-s);
+  grid-template-columns: repeat(2, 1fr);
+  margin: var(--app-space-m) 0;
+}
+
+.app-nav-tile {
+  align-items: center;
   background: var(--app-card);
-  border: 1px solid var(--app-divider);
-  border-radius: 999px;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
   color: var(--app-text);
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: var(--app-font-weight-title);
-  margin-top: var(--app-space-s);
-  padding: 10px var(--app-space-l);
-  text-align: center;
-  width: 100%;
+  gap: var(--app-space-xs);
+  padding: var(--app-space-m);
+}
+
+.app-nav-tile svg {
+  color: var(--app-accent);
 }
 
 .app-lists-picker {

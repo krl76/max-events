@@ -10,14 +10,12 @@
 // - achievementProgressPercent - clamped progress percentage of one achievement
 // - AchievementsView - presentational: one stamp tile per achievement with title, progress line and bar
 // - AchievementsPage - route container: loads the achievements of the current user
-// - AchievementsLink - profile entry button to the achievements screen
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
 import type { Achievement } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { useRoute } from "../routing/router";
 
 export type AchievementsState = { status: "loading" } | { status: "error" } | { status: "ready"; achievements: Achievement[] };
 
@@ -71,11 +69,4 @@ export function AchievementsPage() {
   return <AchievementsView state={state} />;
 }
 
-export function AchievementsLink() {
-  const { navigate } = useRoute();
-  return (
-    <button type="button" className="app-lists-link" onClick={() => navigate({ name: "achievements" })}>
-      Достижения
-    </button>
-  );
-}
+

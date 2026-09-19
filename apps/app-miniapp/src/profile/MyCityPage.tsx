@@ -12,7 +12,6 @@
 // - MyCityState - union of the my-city fetch states (loading / error / ready)
 // - MyCityView - presentational: summary counters row + memory map container
 // - MyCityPage - route container: loads summary, points and title sources, wires the map
-// - MyCityLink - profile entry button to the my-city screen
 // END_MODULE_MAP
 
 import { useEffect, useRef, useState } from "react";
@@ -20,7 +19,6 @@ import type { Event, MemoryPoint, MyCitySummary, Place } from "@max-events/api-c
 import { apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/format";
 import { useAuth } from "../auth/AuthContext";
-import { useRoute } from "../routing/router";
 
 export interface MemoryMarker {
   key: string;
@@ -122,11 +120,4 @@ export function MyCityPage() {
   return <MyCityView state={state} />;
 }
 
-export function MyCityLink() {
-  const { navigate } = useRoute();
-  return (
-    <button type="button" className="app-lists-link" onClick={() => navigate({ name: "my-city" })}>
-      Мой город
-    </button>
-  );
-}
+

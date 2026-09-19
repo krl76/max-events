@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { EMPTY_EVENT_DRAFT, EMPTY_PLACE_DRAFT, EventDraftForm, eventDraftErrors, eventDraftFrom, OrganizerEventCard, OrganizerLink, OrganizerListStatus, OrganizerPlaceCard, placeDraftErrors, toCreateEvent, toEventPatch, toLocalInput, type EventDraft, type OrganizerListState } from "./OrganizerPage";
+import { EMPTY_EVENT_DRAFT, EMPTY_PLACE_DRAFT, EventDraftForm, eventDraftErrors, eventDraftFrom, OrganizerEventCard, OrganizerListStatus, OrganizerPlaceCard, placeDraftErrors, toCreateEvent, toEventPatch, toLocalInput, type EventDraft, type OrganizerListState } from "./OrganizerPage";
 import type { OrganizerEvent, OrganizerPlace } from "../api/client";
 
 const noop = () => {};
@@ -200,8 +200,3 @@ describe("OrganizerListStatus", () => {
   });
 });
 
-describe("OrganizerLink", () => {
-  it("renders the profile entry button", () => {
-    expect(renderToStaticMarkup(createElement(OrganizerLink))).toContain("Панель организатора");
-  });
-});

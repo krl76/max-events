@@ -12,10 +12,12 @@
 // - AppText - MAX Typography.Text wrapper
 // - AppAvatar - MAX Avatar.Container: image when src given, otherwise the label children
 // - AppChip - toggle chip button (aria-pressed)
+// - AppNavTiles - grid of navigation tiles (icon + label) replacing full-width entry buttons
 // END_MODULE_MAP
 
 import type { ComponentProps, ReactNode } from "react";
 import { Avatar, Button, Typography } from "@maxhub/max-ui";
+import { ActionIcon, type ActionIconName } from "./icons";
 
 export type AppButtonTone = "primary" | "secondary" | "danger" | "ghost";
 
@@ -46,4 +48,23 @@ export function AppAvatar({ src, size = 44, children }: { src?: string | null; s
 export function AppChip({ pressed = false, className, ...props }: ComponentProps<"button"> & { pressed?: boolean }) {
   const chipClass = className ? `${className} app-chip` : "app-chip";
   return <button aria-pressed={pressed} className={pressed ? `${chipClass} app-chip--on` : chipClass} type="button" {...props} />;
+}
+
+export interface AppNavTileItem {
+  icon: ActionIconName;
+  label: string;
+  onClick: () => void;
+}
+
+export function AppNavTiles({ items }: { items: AppNavTileItem[] }) {
+  return (
+    <div className="app-nav-tiles">
+      {items.map((item) => (
+        <button key={item.label} type="button" className="app-nav-tile" onClick={item.onClick}>
+          <ActionIcon name={item.icon} size={20} />
+          <span>{item.label}</span>
+        </button>
+      ))}
+    </div>
+  );
 }
