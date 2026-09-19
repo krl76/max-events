@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
+import { NonePaymentProvider } from "./none-payment.provider";
 import { PaymentEntity } from "./payment.entity";
 import { PaymentsService } from "./payments.service";
-import { SandboxPaymentProvider } from "./sandbox-payment.provider";
+import { SANDBOX_FAIL_AMOUNT, SandboxPaymentProvider } from "./sandbox-payment.provider";
 
 const bookingId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d10";
 
@@ -37,17 +38,17 @@ describe("PaymentsService.ensureForBooking", () => {
     const rows = createRows();
     const service = new PaymentsService(new SandboxPaymentProvider(), rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
     const first = await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
-    expect(first.status).toBe("succeeded");
-    expect(first.amountRub).toBe(850);
-    expect(first.commissionRub).toBe(85);
-    expect(first.netRub).toBe(765);
-    expect(first.commissionBps).toBe(1000);
-    expect(first.commissionFixedAt).toBeTruthy();
+    expect(first?.status).toBe("succeeded");
+    expect(first?.amountRub).toBe(850);
+    expect(first?.commissionRub).toBe(85);
+    expect(first?.netRub).toBe(765);
+    expect(first?.commissionBps).toBe(1000);
+    expect(first?.commissionFixedAt).toBeTruthy();
     expect(rows.store[0]?.commissionRub).toBe(85);
     expect(rows.store[0]?.commissionFixedAt).toBeInstanceOf(Date);
-    expect(first.bookingId).toBe(bookingId);
+    expect(first?.bookingId).toBe(bookingId);
     const second = await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
-    expect(second.id).toBe(first.id);
+    expect(second?.id).toBe(first?.id);
     expect(rows.store).toHaveLength(1);
   });
 
@@ -65,7 +66,7 @@ describe("PaymentsService.ensureForBooking", () => {
       return originalFind(where);
     };
     const second = await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
-    expect(second.id).toBe(first.id);
+    expect(second?.id).toBe(first?.id);
     expect(rows.store).toHaveLength(1);
   });
 
@@ -89,7 +90,7 @@ describe("PaymentsService.ensureForBooking", () => {
     rows.store.push(unfrozen);
     const service = new PaymentsService(new SandboxPaymentProvider(), rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
     const healed = await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
-    expect(healed.commissionRub).toBe(85);
+    expect(healed?.commissionRub).toBe(85);
     expect(rows.store[0]?.netRub).toBe(765);
     expect(rows.store[0]?.commissionFixedAt).toBeInstanceOf(Date);
   });
@@ -132,5 +133,62 @@ describe("PaymentsService.ensureForBooking", () => {
     expect(afterRefund.grossRub).toBe(0);
     const drift = await service.reconcile();
     expect(drift.some((row) => row.internal === "refunded" && row.provider === "refunded")).toBe(false);
+  });
+});
+
+describe("PaymentsService.ensureForBooking disabled provider and retries", () => {
+  it("returns null and stores nothing when payments are disabled", async () => {
+    const rows = createRows();
+    const service = new PaymentsService(new NonePaymentProvider(), rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
+    const payment = await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
+    expect(payment).toBeNull();
+    expect(rows.store).toHaveLength(0);
+  });
+
+  it("re-arms a failed payment as a new provider charge", async () => {
+    const rows = createRows();
+    const service = new PaymentsService(new SandboxPaymentProvider(), rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
+    const failed = await service.ensureForBooking(bookingId, SANDBOX_FAIL_AMOUNT, "Билет: Джаз");
+    expect(failed?.status).toBe("failed");
+    const retried = await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
+    expect(retried?.status).toBe("succeeded");
+    expect(retried?.providerPaymentId).not.toBe(failed?.providerPaymentId);
+    expect(retried?.commissionRub).toBe(85);
+    expect(rows.store).toHaveLength(1);
+    expect(rows.store[0]?.providerPaymentId).toBe(retried?.providerPaymentId);
+  });
+
+  it("keeps a pending payment untouched without a new charge", async () => {
+    const rows = createRows();
+    rows.store.push({
+      id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d11",
+      bookingId,
+      providerPaymentId: "pay_sandbox_pending",
+      status: "pending",
+      amountRub: 850,
+      currency: "RUB",
+      description: "Билет: Джаз",
+      commissionRub: null,
+      netRub: null,
+      commissionBps: null,
+      commissionFixedAt: null,
+      createdAt: new Date("2026-09-01T07:00:00Z"),
+      updatedAt: new Date("2026-09-01T07:00:00Z"),
+    } as PaymentEntity);
+    const service = new PaymentsService(new SandboxPaymentProvider(), rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
+    const same = await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
+    expect(same?.providerPaymentId).toBe("pay_sandbox_pending");
+    expect(same?.status).toBe("pending");
+    expect(rows.store).toHaveLength(1);
+  });
+
+  it("shares one provider charge across concurrent retries of a failed payment", async () => {
+    const rows = createRows();
+    const service = new PaymentsService(new SandboxPaymentProvider(), rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
+    const failed = await service.ensureForBooking(bookingId, SANDBOX_FAIL_AMOUNT, "Билет: Джаз");
+    const [first, second] = await Promise.all([service.ensureForBooking(bookingId, 850, "Билет: Джаз"), service.ensureForBooking(bookingId, 850, "Билет: Джаз")]);
+    expect(first?.providerPaymentId).toBe(second?.providerPaymentId);
+    expect(first?.providerPaymentId).not.toBe(failed?.providerPaymentId);
+    expect(rows.store).toHaveLength(1);
   });
 });
