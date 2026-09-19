@@ -51,6 +51,14 @@ describe("plans mock endpoints", () => {
     expect(cards).toEqual(planCards());
   });
 
+  it("tolerate the origin query the live client sends", async () => {
+    restore = installMockApi();
+
+    const cards = await new ApiClient("/api").listPlans({ latitude: 55.7522, longitude: 37.6156 });
+
+    expect(cards).toEqual(planCards());
+  });
+
   it("serve a single plan by id and return 404 for an unknown plan", async () => {
     restore = installMockApi();
     const client = new ApiClient("/api");

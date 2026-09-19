@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: "What to do today?" home block: digest summary counters and curated event cards with contextual typed labels.
-// SCOPE: Data via apiClient.getToday (mock or live backend); label texts from the TodayCardLabel union; card click navigates to the event route; empty/loading/error states.
-// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (TodayResponse, TodayCardLabel), ../catalog/CatalogPage.js (formatStartsAt, CATEGORY_LABELS), ../routing/router.js, ../ui/theme.css
+// SCOPE: Data via apiClient.getToday (mock or live backend) at the fixed Moscow center origin; label texts from the TodayCardLabel union; card click navigates to the event route; empty/loading/error states.
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (TodayResponse, TodayCardLabel), ../catalog/CatalogPage.js (formatStartsAt, CATEGORY_LABELS), ../catalog/MapScreen.js (MOSCOW_CENTER), ../routing/router.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -16,8 +16,12 @@ import { useEffect, useState } from "react";
 import type { TodayCardLabel, TodayResponse } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { MOSCOW_CENTER } from "../catalog/MapScreen";
 import { useRoute } from "../routing/router";
 import { AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
+
+// ponytail: fixed Moscow center as the digest origin; user geolocation when the bridge exposes it
+const [TODAY_LAT, TODAY_LNG] = MOSCOW_CENTER;
 
 export type TodayState = { status: "loading" } | { status: "error" } | { status: "ready"; today: TodayResponse };
 
@@ -90,7 +94,7 @@ export function TodaySection() {
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
-    apiClient.getToday().then(
+    apiClient.getToday({ latitude: TODAY_LAT, longitude: TODAY_LNG }).then(
       (today) => {
         if (alive) setState({ status: "ready", today });
       },
