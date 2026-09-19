@@ -19,6 +19,7 @@ const event: Event = {
   chatLink: null,
   promoted: false,
   published: true,
+  bookingOpensAt: null,
 };
 
 const friend: Friend = { id: "018f3c5a-0000-7000-8000-000000000001", name: "Дима", avatarUrl: null };

@@ -19,6 +19,7 @@ function event(overrides: Partial<Event> & Pick<Event, "id" | "title" | "categor
     chatLink: null,
     promoted: false,
     published: true,
+    bookingOpensAt: null,
     ...overrides,
   };
 }

@@ -40,6 +40,7 @@ describe("AssistDayResponseSchema", () => {
     chatLink: null,
     promoted: false,
     published: true,
+    bookingOpensAt: null,
   };
   const planCard = {
     plan: {

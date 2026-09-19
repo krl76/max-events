@@ -42,6 +42,7 @@ const validEvent: Event = {
   chatLink: null,
   promoted: false,
   published: true,
+  bookingOpensAt: null,
 };
 
 describe("ApiClient", () => {

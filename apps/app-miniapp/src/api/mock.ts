@@ -118,7 +118,7 @@ export const mockPlaces: Place[] = [place({ id: "b0000001-0000-4000-8000-0000000
 type EventInput = Pick<Event, "id" | "title" | "category" | "city" | "startsAt" | "isPaid" | "priceRub"> & Partial<Event>;
 
 function event(input: EventInput): Event {
-  return { published: true, description: "", placeId: null, endsAt: null, paymentUrl: null, capacity: null, chatLink: null, promoted: false, ...input };
+  return { published: true, description: "", placeId: null, endsAt: null, paymentUrl: null, capacity: null, chatLink: null, promoted: false, bookingOpensAt: null, ...input };
 }
 
 /** "Today" for the place social page (P2-11-c): the demo day the today-block fixtures were curated for. */
@@ -1632,7 +1632,7 @@ export function organizerPlaces(): MockOrganizerPlace[] {
 /** Backend organizer create parity: the payload is CreateEventSchema-validated by the interceptor; the draft belongs to the demo user. */
 export function createMockOrganizerEvent(payload: CreateEvent): MockOrganizerEvent {
   mockOrganizerSeq += 1;
-  const created: MockOrganizerEvent = { ...payload, id: `f1000000-0000-4000-8000-${String(mockOrganizerSeq).padStart(12, "0")}`, chatLink: null, promoted: false, published: false };
+  const created: MockOrganizerEvent = { ...payload, id: `f1000000-0000-4000-8000-${String(mockOrganizerSeq).padStart(12, "0")}`, chatLink: null, promoted: false, published: false, bookingOpensAt: null };
   mockOrganizerState.events.push(created);
   return created;
 }

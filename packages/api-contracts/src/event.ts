@@ -8,9 +8,9 @@
 // START_MODULE_MAP
 // - EventCategorySchema - event category enum
 // - EventCategory - event category type
-// - EventSchema - full event schema with defaults, server-owned published flag and paid/free payment link invariant
+// - EventSchema - full event schema with defaults, server-owned published/promoted/bookingOpensAt flags and paid/free payment link invariant
 // - Event - full event type
-// - CreateEventSchema - event creation payload (no id, no server-owned chatLink/published)
+// - CreateEventSchema - event creation payload (no id, no server-owned chatLink/promoted/published/bookingOpensAt)
 // - CreateEvent - event creation payload type
 // END_MODULE_MAP
 
@@ -36,6 +36,7 @@ const EventObjectSchema = z.object({
   chatLink: z.string().nullable().default(null),
   promoted: z.boolean().default(false),
   published: z.boolean().default(true),
+  bookingOpensAt: TimestampSchema.nullable().default(null),
 });
 
 const hasValidPaymentLink = (data: { isPaid: boolean; paymentUrl: string | null }) => (data.isPaid ? data.paymentUrl !== null : data.paymentUrl === null);
@@ -48,5 +49,5 @@ const paymentLinkInvariant = {
 export const EventSchema = EventObjectSchema.refine(hasValidPaymentLink, paymentLinkInvariant);
 export type Event = z.infer<typeof EventSchema>;
 
-export const CreateEventSchema = EventObjectSchema.omit({ id: true, chatLink: true, promoted: true, published: true }).refine(hasValidPaymentLink, paymentLinkInvariant);
+export const CreateEventSchema = EventObjectSchema.omit({ id: true, chatLink: true, promoted: true, published: true, bookingOpensAt: true }).refine(hasValidPaymentLink, paymentLinkInvariant);
 export type CreateEvent = z.infer<typeof CreateEventSchema>;
