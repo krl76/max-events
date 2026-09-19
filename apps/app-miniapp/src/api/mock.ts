@@ -116,8 +116,9 @@
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
+// - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
 // - recordMockPageView - page-view write with per-user per-day dedup (backend StatsService.recordView 23505 parity, mock POST /views, #196)
 // - resetMockPageViews - clear in-memory page views (test isolation)
 // - mockOrganizerEventStats - per-event views/bookings/cancellations/paid counters (backend StatsService.eventStats parity: 403 catalog, 404 unknown, mock GET /organizer/events/:id/stats, #196)
@@ -135,8 +136,8 @@
 // - MOCK_ORGANIZER_PAID_EVENT_ID - seeded published paid organizer event with two frozen sales, one cancellation and four views (re-seeded idempotently by resetMockOrganizer)
 // END_MODULE_MAP
 
-import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, BookingWithSeats, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Payment, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanBudget, PlanCard, PlanDebt, Profile, PromotionPlacements, Review, RouteLeg, RoutePoint, TargetedPromotionsResponse, TodayEventCard, TodayResponse, User, VisitStats, Vote, WaitlistEntry, WeGroup, WeGroupScreen } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema } from "@max-events/api-contracts";
+import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, BookingWithSeats, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, EventCategory, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Payment, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanBudget, PlanCard, PlanDebt, Profile, PromotionPlacements, Review, RouteLeg, RoutePoint, TargetedPromotionsResponse, TodayEventCard, TodayResponse, User, VisitStats, Vote, WaitlistEntry, WeGroup, WeGroupScreen, WheretoMood, WheretoQuery, WheretoResponse } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
 import { CreatePromoCampaignWriteSchema, CreatePromotionWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
 import type { CreatePromoCampaignWrite, CreatePromotionWrite, EventSalesReport, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, PageViewTarget, PromoCampaign, PromotionCampaign, RecordPageViewWrite } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
@@ -2055,6 +2056,21 @@ function mockMoscowHour(startsAt: string): number {
   return Number(hour ?? "0");
 }
 
+/** Backend selectWheretoItems parity: mood -> categories, budget (!isPaid free / <=3000 under_3000), company soft filters, upcoming from MOCK_NOW, soonest first, max 5 (fixtures carry no published flag). */
+export function wheretoSuggestions(query: WheretoQuery, now: Date = MOCK_NOW): WheretoResponse {
+  const moodCategories: Record<WheretoMood, EventCategory[]> = { active: ["sport", "tourism"], calm: ["afisha"], unusual: ["volunteering", "tourism"] };
+  return {
+    items: mockEvents
+      .filter((item) => new Date(item.startsAt).getTime() >= now.getTime())
+      .filter((item) => moodCategories[query.mood].includes(item.category))
+      .filter((item) => query.budget === "any" || !item.isPaid || (query.budget === "under_3000" && item.priceRub !== null && item.priceRub <= 3000))
+      .filter((item) => query.company !== "partner" || item.category !== "volunteering")
+      .filter((item) => query.company !== "kids" || (item.priceRub ?? 0) <= 3000)
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
+      .slice(0, 5),
+  };
+}
+
 /** Backend matchAssistEvents parity: events from MOCK_NOW filtered by the parsed criteria, soonest first, max 7 (fixtures carry no published flag). */
 export function mockAssistMatches(criteria: AssistCriteria, now: Date = MOCK_NOW): Event[] {
   return mockEvents
@@ -2433,6 +2449,11 @@ export function installMockApi(): () => void {
     }
     if (url.pathname === "/api/today") {
       return Response.json(todayPicks());
+    }
+    if (url.pathname === "/api/whereto") {
+      const parsed = WheretoQuerySchema.safeParse({ company: url.searchParams.get("company"), mood: url.searchParams.get("mood"), budget: url.searchParams.get("budget") });
+      if (!parsed.success) return new Response(null, { status: 400 });
+      return Response.json(wheretoSuggestions(parsed.data));
     }
     if (url.pathname === "/api/nearby/free") {
       const coords = parseMockCoords(url);
