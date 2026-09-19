@@ -18,9 +18,15 @@ afterEach(() => {
   mockRoute = { name: "home" };
 });
 
-function routedHtml(route: Route): string {
+async function routedHtml(route: Route, ready: string): Promise<string> {
   mockRoute = route;
-  return renderToStaticMarkup(<RoutedPages />);
+  let html = renderToStaticMarkup(<RoutedPages />);
+  // Lazy route chunks resolve asynchronously; re-render until the route content replaces the Suspense fallback.
+  await vi.waitFor(() => {
+    html = renderToStaticMarkup(<RoutedPages />);
+    if (!html.includes(ready)) throw new Error(`route content not ready: ${ready}`);
+  });
+  return html;
 }
 
 describe("HomePage", () => {
@@ -35,22 +41,22 @@ describe("HomePage", () => {
 });
 
 describe("RoutedPages", () => {
-  it("falls through to the home page on the home route", () => {
-    const html = routedHtml({ name: "home" });
+  it("falls through to the home page on the home route", async () => {
+    const html = await routedHtml({ name: "home" }, "Куда пойдём?");
 
     expect(html).toContain("Куда пойдём?");
   });
 
-  it("maps the friends route to the feed with the discovery/people nav tiles", () => {
-    const html = routedHtml({ name: "friends" });
+  it("maps the friends route to the feed with the discovery/people nav tiles", async () => {
+    const html = await routedHtml({ name: "friends" }, "Твои люди открыли места");
 
     expect(html).toContain("Твои люди открыли места");
     expect(html).toContain("Люди с похожими интересами");
     expect(html).not.toContain("Куда пойдём?");
   });
 
-  it("maps the profile route to the profile screen with its nav tiles", () => {
-    const html = routedHtml({ name: "profile" });
+  it("maps the profile route to the profile screen with its nav tiles", async () => {
+    const html = await routedHtml({ name: "profile" }, "Достижения");
 
     for (const label of ["Достижения", "Мой город", "Сохранённое", "Панель организатора"]) {
       expect(html).toContain(label);
@@ -58,8 +64,8 @@ describe("RoutedPages", () => {
     expect(html).not.toContain("Твои люди открыли места");
   });
 
-  it("renders the event page skeleton for an event deep link", () => {
-    const html = routedHtml({ name: "event", id: "c0000001-0000-4000-8000-000000000001" });
+  it("renders the event page skeleton for an event deep link", async () => {
+    const html = await routedHtml({ name: "event", id: "c0000001-0000-4000-8000-000000000001" }, "Загрузка…");
 
     expect(html).toContain("Загрузка…");
     expect(html).not.toContain("Куда пойдём?");
