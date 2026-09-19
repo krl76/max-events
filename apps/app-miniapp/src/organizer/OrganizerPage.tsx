@@ -453,7 +453,7 @@ function OrganizerPanel({ userId }: { userId: string }) {
     <section className="app-gathering">
       <p className="app-gathering-hint">Черновики видны только вам — опубликуйте, когда всё готово</p>
       <MyOrganizerRatingCard userId={userId} />
-      <div className="app-micro-head">
+      <div className="app-filters-chips">
         <AppChip pressed={tab === "events"} onClick={() => setTab("events")}>
           События
         </AppChip>{" "}

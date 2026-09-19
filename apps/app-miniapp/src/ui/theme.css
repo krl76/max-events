@@ -933,11 +933,9 @@ body {
   text-align: left;
 }
 
-.app-whereto-option::after {
+.app-whereto-option svg {
   color: var(--app-text-tertiary);
-  content: "›";
-  font-size: 1.25rem;
-  line-height: 1;
+  flex: none;
 }
 
 .app-whereto-chips {
@@ -1603,20 +1601,20 @@ body {
 /* Голосование (#222): варианты-карточки, выделение лучшего варианта, подсказки экрана */
 .app-vote-title {
   font-size: var(--app-font-size-title);
-  margin: var(--app-space-l) var(--app-space-l) 0;
+  margin: var(--app-space-l) 0 0;
 }
 
 .app-vote-hint {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);
-  margin: var(--app-space-xs) var(--app-space-l);
+  margin: var(--app-space-xs) 0;
 }
 
 .app-vote-options {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-s);
-  padding: var(--app-space-m) var(--app-space-l);
+  padding: var(--app-space-m) 0;
 }
 
 .app-vote-option {

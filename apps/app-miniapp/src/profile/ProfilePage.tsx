@@ -20,7 +20,7 @@ import type { Profile, UpdateProfile, User, VisitStats } from "@max-events/api-c
 import { apiClient, type CalendarEntry, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS } from "../catalog/CatalogPage";
-import { AppAvatar, AppButton, AppTitle, AppState, AppSkeleton } from "../ui/primitives";
+import { AppAvatar, AppButton, AppTitle, AppState, AppSkeleton, AppSection } from "../ui/primitives";
 import { useRoute } from "../routing/router";
 
 export interface ProfileStats {
@@ -47,10 +47,7 @@ export type ProfileState = { status: "loading" } | { status: "error" } | { statu
 
 export function VisitStatsView({ stats }: { stats: VisitStats | null }) {
   return (
-    <section className="app-visitstats">
-      <AppTitle asChild>
-        <h2 className="app-section-title">Статистика посещений</h2>
-      </AppTitle>
+    <AppSection title="Статистика посещений">
       {stats === null || (stats.eventsCount === 0 && stats.placesCount === 0) ? (
         <p className="app-today-summary">Пока нет посещений — отметьтесь «Я здесь» на странице события.</p>
       ) : (
@@ -64,7 +61,7 @@ export function VisitStatsView({ stats }: { stats: VisitStats | null }) {
             ))}
         </ul>
       )}
-    </section>
+    </AppSection>
   );
 }
 

@@ -23,6 +23,7 @@ import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
+import { ActionIcon } from "../ui/icons";
 import { VoteCreateSection } from "../votes/VotePage";
 
 export const COMPANY_LABELS: Record<WheretoCompany, string> = { alone: "Я один", friends: "С друзьями", partner: "С девушкой", kids: "С детьми" };
@@ -89,6 +90,7 @@ export function WheretoView({ state, events, shared, onCompany, onMood, onBudget
           {(Object.keys(COMPANY_LABELS) as WheretoCompany[]).map((company) => (
             <button type="button" key={company} className="app-whereto-option" onClick={() => onCompany(company)}>
               {COMPANY_LABELS[company]}
+              <ActionIcon name="chevron" size={16} strokeWidth={2} />
             </button>
           ))}
         </div>
