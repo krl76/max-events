@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTabRoute, nextHistory, routeFromHistoryState, routeFromStartParam } from "./router";
+import { isTabRoute, nextHistory, routeFromHistoryState, routeFromStartParam, transitionFromIdx } from "./router";
 
 describe("routeFromStartParam", () => {
   it("opens the event route from an event-* deep link", () => {
@@ -112,6 +112,14 @@ describe("isTabRoute", () => {
 
     expect(isTabRoute("event")).toBe(false);
     expect(isTabRoute("whereto")).toBe(false);
+  });
+});
+
+describe("transitionFromIdx", () => {
+  it("maps forward movement to push, backward to pop, same level to tab", () => {
+    expect(transitionFromIdx(0, 1)).toBe("push");
+    expect(transitionFromIdx(2, 1)).toBe("pop");
+    expect(transitionFromIdx(1, 1)).toBe("tab");
   });
 });
 

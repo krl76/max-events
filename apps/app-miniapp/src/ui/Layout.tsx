@@ -71,7 +71,7 @@ export function routeHasBack(route: Route): boolean {
 }
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { route, navigate, back } = useRoute();
+  const { route, navigate, back, transition, navSeq } = useRoute();
 
   return (
     <MaxUI className="app-root" colorScheme="light" platform={maxUiPlatform()}>
@@ -83,7 +83,9 @@ export function Layout({ children }: { children: ReactNode }) {
         )}
         <span className="app-header-title">{routeTitle(route)}</span>
       </header>
-      <main className="app-content">{children}</main>
+      <main key={navSeq} className={`app-content app-screen--${transition}`}>
+        {children}
+      </main>
       <nav className="app-tabbar">
         {TABS.map((tab) => (
           <button key={tab.route} type="button" aria-current={tab.active(route.name) ? "page" : undefined} onClick={() => navigate({ name: tab.route })}>
