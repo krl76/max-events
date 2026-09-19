@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { routeFromStartParam } from "./router";
+import { isTabRoute, nextHistory, routeFromHistoryState, routeFromStartParam } from "./router";
 
 describe("routeFromStartParam", () => {
   it("opens the event route from an event-* deep link", () => {
@@ -72,5 +72,73 @@ describe("routeFromStartParam", () => {
 
   it("keeps the we-groups screens out of start_param deep links", () => {
     expect(routeFromStartParam("we-groups")).toEqual({ name: "home" });
+  });
+});
+
+describe("nextHistory", () => {
+  it("replaces the entry when switching between tab routes", () => {
+    const result = nextHistory({ route: { name: "home" }, idx: 0 }, { name: "plans" });
+
+    expect(result.method).toBe("replace");
+    expect(result.state).toEqual({ route: { name: "plans" }, idx: 0 });
+  });
+
+  it("pushes a new entry when leaving a tab for a detail route", () => {
+    const result = nextHistory({ route: { name: "home" }, idx: 0 }, { name: "event", id: "e1" });
+
+    expect(result.method).toBe("push");
+    expect(result.state).toEqual({ route: { name: "event", id: "e1" }, idx: 1 });
+  });
+
+  it("pushes when navigating from a detail route back to a tab so back returns to the detail", () => {
+    const result = nextHistory({ route: { name: "event", id: "e1" }, idx: 1 }, { name: "profile" });
+
+    expect(result.method).toBe("push");
+    expect(result.state.idx).toBe(2);
+  });
+
+  it("pushes between two detail routes", () => {
+    const result = nextHistory({ route: { name: "event", id: "e1" }, idx: 3 }, { name: "plan", id: "p1" });
+
+    expect(result.method).toBe("push");
+    expect(result.state.idx).toBe(4);
+  });
+});
+
+describe("isTabRoute", () => {
+  it("marks only the five tabbar routes as tab routes", () => {
+    const tabNames = ["home", "plans", "friends", "calendar", "profile"] as const;
+    for (const name of tabNames) expect(isTabRoute(name)).toBe(true);
+
+    expect(isTabRoute("event")).toBe(false);
+    expect(isTabRoute("whereto")).toBe(false);
+  });
+});
+
+describe("routeFromHistoryState", () => {
+  it("restores a detail route from a valid popstate payload", () => {
+    expect(routeFromHistoryState({ route: { name: "event", id: "e1" }, idx: 2 })).toEqual({ route: { name: "event", id: "e1" }, idx: 2 });
+  });
+
+  it("restores the feed-new route keeping a nullable eventId", () => {
+    expect(routeFromHistoryState({ route: { name: "feed-new", eventId: null }, idx: 1 })).toEqual({ route: { name: "feed-new", eventId: null }, idx: 1 });
+  });
+
+  it("rejects a payload without a numeric idx", () => {
+    expect(routeFromHistoryState({ route: { name: "home" } })).toBeNull();
+  });
+
+  it("rejects an unknown route name", () => {
+    expect(routeFromHistoryState({ route: { name: "nope" }, idx: 0 })).toBeNull();
+  });
+
+  it("rejects an id route without a string id", () => {
+    expect(routeFromHistoryState({ route: { name: "event" }, idx: 0 })).toBeNull();
+    expect(routeFromHistoryState({ route: { name: "event", id: 42 }, idx: 0 })).toBeNull();
+  });
+
+  it("rejects non-object payloads", () => {
+    expect(routeFromHistoryState(null)).toBeNull();
+    expect(routeFromHistoryState("home")).toBeNull();
   });
 });
