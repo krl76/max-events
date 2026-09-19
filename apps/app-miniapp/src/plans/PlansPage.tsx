@@ -44,7 +44,7 @@ export function planMeetingLabel(plan: Plan): string {
 
 export type PlansState = { status: "loading" } | { status: "error" } | { status: "ready"; cards: PlanCard[] };
 
-export function PlansView({ state, onOpen }: { state: PlansState; onOpen: (planId: string) => void }) {
+export function PlansView({ state, onOpen, onExplore }: { state: PlansState; onOpen: (planId: string) => void; onExplore: () => void }) {
   if (state.status === "loading")
     return (
       <>
@@ -59,11 +59,12 @@ export function PlansView({ state, onOpen }: { state: PlansState; onOpen: (planI
       </>
     );
   if (state.status === "error") return <AppState error>Не удалось загрузить планы.</AppState>;
-  if (state.cards.length === 0) return <AppState>Пока нет планов.</AppState>;
+  if (state.cards.length === 0) return <AppState action={{ label: "Найти событие", onClick: onExplore }}>Пока нет планов. Выбери событие — и собери компанию.</AppState>;
   return (
     <>
       {state.cards.map(({ plan, event, distanceMeters }) => (
         <button key={plan.id} type="button" className="app-card app-card--link" onClick={() => onOpen(plan.id)}>
+          <div className="app-card-media" />
           <div className="app-card-body">
             <span className="app-card-title">{event.title}</span>
             <span className="app-card-subtitle">{planParticipantsLabel(plan.participants.length)}</span>
@@ -105,7 +106,7 @@ export function PlansPage() {
           { icon: "pin", label: "Маршрут на день", onClick: () => navigate({ name: "day-route" }) },
         ]}
       />
-      <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} />
+      <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} />
     </>
   );
 }

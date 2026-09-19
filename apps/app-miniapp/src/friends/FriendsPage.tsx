@@ -51,12 +51,12 @@ export function FriendsView({ state, onJoin }: FriendsViewProps) {
             <span className="app-friends-name">{group.friend.name}</span>
           </div>
           {group.events.map(({ event, participationStatus }) => (
-            <article key={event.id} className="app-card">
+            <article key={event.id} className="app-card app-card--row">
+              <div className="app-card-media" />
               <div className="app-card-body">
                 <span className="app-card-title">{event.title}</span>
-                <span className="app-card-subtitle">
-                  {formatStartsAt(event.startsAt)} · {PARTICIPATION_STATUS_LABELS[participationStatus]}
-                </span>
+                <span className="app-card-subtitle">{formatStartsAt(event.startsAt)}</span>
+                <span className="app-today-chip">{PARTICIPATION_STATUS_LABELS[participationStatus]}</span>
                 <AppButton className="app-friends-join" size="small" onClick={() => onJoin(event.id)}>
                   Присоединиться
                 </AppButton>

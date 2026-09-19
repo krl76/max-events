@@ -402,7 +402,25 @@ body {
   align-self: flex-start;
   aspect-ratio: 1;
   flex: none;
-  width: 96px;
+  width: 72px;
+}
+
+/* Некликабельная строка-карточка (внутри есть свои кнопки): тот же layout, что у app-card--link */
+.app-card--row {
+  border-top: var(--app-hairline);
+  display: flex;
+}
+
+.app-card--row .app-card-media {
+  align-self: flex-start;
+  aspect-ratio: 1;
+  flex: none;
+  width: 72px;
+}
+
+.app-card--row .app-card-body {
+  flex: 1;
+  gap: var(--app-space-xs);
 }
 
 .app-card--link .app-card-body {

@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 import { apiClient, type CalendarEntry } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { useRoute } from "../routing/router";
 import { AppButton, AppState, AppSection } from "../ui/primitives";
 
 export type CalendarState = { status: "loading" } | { status: "error" } | { status: "ready"; entries: CalendarEntry[] };
@@ -31,7 +32,8 @@ export function splitCalendarEntries(entries: CalendarEntry[], now: Date): { upc
 function BookingCard({ entry, onCancel }: { entry: CalendarEntry; onCancel: (() => void) | null }) {
   const { event, place } = entry;
   return (
-    <article className="app-card">
+    <article className="app-card app-card--row">
+      <div className="app-card-media" />
       <div className="app-card-body">
         <span className="app-card-title">{event.title}</span>
         <span className="app-card-subtitle">
@@ -54,9 +56,10 @@ interface CalendarViewProps {
   state: CalendarState;
   now: Date;
   onCancel: (bookingId: string) => void;
+  onExplore: () => void;
 }
 
-export function CalendarView({ state, now, onCancel }: CalendarViewProps) {
+export function CalendarView({ state, now, onCancel, onExplore }: CalendarViewProps) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "error") return <AppState error>Не удалось загрузить календарь.</AppState>;
 
@@ -64,7 +67,7 @@ export function CalendarView({ state, now, onCancel }: CalendarViewProps) {
   return (
     <>
       <AppSection title="Запланированные" className="app-cards-flat">
-        {upcoming.length === 0 ? <AppState>Нет запланированных событий.</AppState> : upcoming.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={() => onCancel(entry.booking.id)} />)}
+        {upcoming.length === 0 ? <AppState action={{ label: "Найти событие", onClick: onExplore }}>Нет запланированных событий.</AppState> : upcoming.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={() => onCancel(entry.booking.id)} />)}
       </AppSection>
       <AppSection title="Прошедшие" className="app-cards-flat">
         {past.length === 0 ? <AppState>Нет прошедших событий.</AppState> : past.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={null} />)}
@@ -75,6 +78,7 @@ export function CalendarView({ state, now, onCancel }: CalendarViewProps) {
 
 export function CalendarPage() {
   const auth = useAuth();
+  const { navigate } = useRoute();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const [state, setState] = useState<CalendarState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
@@ -103,5 +107,5 @@ export function CalendarPage() {
     );
   }, []);
 
-  return <CalendarView state={state} now={new Date()} onCancel={cancel} />;
+  return <CalendarView state={state} now={new Date()} onCancel={cancel} onExplore={() => navigate({ name: "home" })} />;
 }

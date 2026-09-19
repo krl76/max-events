@@ -60,6 +60,7 @@ export function TodayView({ state, onOpen, onRetry }: TodayViewProps) {
           </p>
           {state.today.cards.map(({ event, labels }) => (
             <button key={event.id} type="button" className="app-card app-card--link" onClick={() => onOpen(event.id)}>
+              <div className="app-card-media" />
               <div className="app-card-body">
                 <span className="app-card-title">{event.title}</span>
                 <span className="app-card-subtitle">
