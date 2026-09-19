@@ -152,9 +152,7 @@ export function WheretoView({ state, events, status, shared, onCompany, onMood, 
       {status === "loading" && <AppState>Загрузка…</AppState>}
       {status === "error" && <AppState error>Не удалось загрузить подборку.</AppState>}
       {status === "ready" && events.length === 0 && <AppState>Ничего не нашлось — попробуйте другой контекст</AppState>}
-      {status === "ready" && events.map((event) => (
-        <ResultCard key={event.id} event={event} onOpenEvent={onOpenEvent} />
-      ))}
+      {status === "ready" && events.map((event) => <ResultCard key={event.id} event={event} onOpenEvent={onOpenEvent} />)}
       {status === "ready" && events.length > 0 && (
         <AppButton onClick={onShare} stretched>
           Отправить друзьям
