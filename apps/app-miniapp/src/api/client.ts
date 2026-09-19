@@ -102,11 +102,14 @@
 // - ApiClient.addWeGroupEvent / addWeGroupPlace / archiveWeGroup - group writes (POST /we-groups/:id/events|places|archive)
 // - ApiClient.getPlanBudget - GET /plans/:id/budget: expenses + per-person totals + debts, all computed server-side
 // - ApiClient.addPlanExpense - POST /plans/:id/expenses, returns the recomputed PlanBudget
+// - ApiClient.createVote - POST /votes: shared event vote (title + 2..10 unique events + >=1 friend participants)
+// - ApiClient.getVote - GET /votes/:id: vote with option tallies and the server-computed winner
+// - ApiClient.castBallot - POST /votes/:id/ballots: one-tap vote; a repeated ballot replaces the previous one (backend semantics)
 // END_MODULE_MAP
 
-import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
+import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
 import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry, WeGroupScreen, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, Vote, WaitlistEntry, WeGroupScreen, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -1053,6 +1056,18 @@ export class ApiClient {
 
   addPlanExpense(planId: string, payload: CreatePlanExpenseWrite): Promise<PlanBudget> {
     return this.request(`/plans/${planId}/expenses`, PlanBudgetEntitySchema, { body: payload });
+  }
+
+  createVote(payload: CreateVoteWrite): Promise<Vote> {
+    return this.request("/votes", VoteSchema, { body: payload });
+  }
+
+  getVote(id: string): Promise<Vote> {
+    return this.request(`/votes/${id}`, VoteSchema);
+  }
+
+  castBallot(voteId: string, eventId: string): Promise<Vote> {
+    return this.request(`/votes/${voteId}/ballots`, VoteSchema, { body: { eventId } });
   }
 }
 

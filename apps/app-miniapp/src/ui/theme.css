@@ -1545,3 +1545,39 @@ section[aria-label="Микро-события"] {
   gap: var(--app-space-xs);
   width: 100%;
 }
+
+/* Голосование (#222): варианты-карточки, выделение лучшего варианта, подсказки экрана */
+.app-vote-title {
+  font-size: var(--app-font-size-title);
+  margin: var(--app-space-l) var(--app-space-l) 0;
+}
+
+.app-vote-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: var(--app-space-xs) var(--app-space-l);
+}
+
+.app-vote-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  padding: var(--app-space-m) var(--app-space-l);
+}
+
+.app-vote-option {
+  border: 2px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.app-vote-option--winner {
+  border-color: var(--app-accent);
+}
+
+.app-vote-badge {
+  color: var(--app-accent);
+  font-size: 0.75rem;
+  font-weight: var(--app-font-weight-title);
+}

@@ -31,6 +31,12 @@
 // - friendAvailability - per-friend free/busy/unknown for the gathering flow (mock)
 // - createMockGathering - in-memory gathering with deterministic invitee responses (mock POST)
 // - resetMockGatherings - clear in-memory gatherings (test isolation)
+// - resetMockVotes - restore the two seeded votes (test isolation)
+// - MOCK_VOTE_ID - seeded deep-link demo vote (the demo user is a participant; seeded winner)
+// - MOCK_FOREIGN_VOTE_ID - seeded vote the demo user can neither view nor vote on (403 parity)
+// - createMockVote - in-memory vote with a sent chat card (chatLink set, successful MaxBot parity); participants must be friends of the demo host, events must exist (mock POST /votes, backend VotesService parity)
+// - getMockVote - mock GET /votes/:id (404 unknown, 403 neither host nor participant)
+// - castMockBallot - mock POST /votes/:id/ballots: one ballot per user, a repeated ballot replaces the previous one; winner = max votes then option id, null without ballots (backend parity)
 // - mockPlans - plan card fixtures for the plans list and plan screens (backend P1-7-b does not exist yet)
 // - resetMockPlans - restore seeded plan cards, dropping autoplan drafts (test isolation)
 // - planCards - plan fixtures sorted by the soonest meeting first
@@ -111,11 +117,11 @@
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
 // END_MODULE_MAP
 
-import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, BookingWithSeats, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateWeGroupWrite, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Payment, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanBudget, PlanCard, PlanDebt, Profile, PromotionPlacements, Review, RouteLeg, RoutePoint, TargetedPromotionsResponse, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry, WeGroup, WeGroupScreen } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, BookingWithSeats, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Payment, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanBudget, PlanCard, PlanDebt, Profile, PromotionPlacements, Review, RouteLeg, RoutePoint, TargetedPromotionsResponse, TodayEventCard, TodayResponse, User, VisitStats, Vote, WaitlistEntry, WeGroup, WeGroupScreen } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -269,6 +275,142 @@ export function createMockGathering(payload: CreateGathering): Gathering | null 
   };
   mockGatherings.set(gathering.id, gathering);
   return gathering;
+}
+
+/** In-memory vote row: contract fields plus option positions and raw ballots (backend vote.entity parity; option ids tie-break the winner like the entity ids do). */
+interface MockVoteRow {
+  id: string;
+  hostUserId: string;
+  title: string;
+  chatLink: string | null;
+  participantIds: string[];
+  options: { id: string; eventId: string; position: number }[];
+  ballots: { userId: string; eventId: string }[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Seeded deep-link demo vote (hosted by Дима, the demo user is a participant; winner seeded with two ballots). */
+export const MOCK_VOTE_ID = "d7000000-0000-4000-8000-000000000001";
+/** Seeded vote the demo user can neither view nor vote on (403 parity). */
+export const MOCK_FOREIGN_VOTE_ID = "d7000000-0000-4000-8000-000000000002";
+
+const mockVotes = new Map<string, MockVoteRow>();
+let mockVoteSeq = 0;
+
+function mockVoteDto(row: MockVoteRow): Vote {
+  const counts = new Map<string, number>();
+  for (const ballot of row.ballots) counts.set(ballot.eventId, (counts.get(ballot.eventId) ?? 0) + 1);
+  const options = [...row.options]
+    .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))
+    .flatMap((option) => {
+      const found = mockEvents.find((item) => item.id === option.eventId);
+      return found ? [{ event: found, votes: counts.get(option.eventId) ?? 0 }] : [];
+    });
+  const ranked = [...row.options].sort((a, b) => (counts.get(b.eventId) ?? 0) - (counts.get(a.eventId) ?? 0) || a.id.localeCompare(b.id));
+  const top = ranked[0];
+  const topVotes = top ? (counts.get(top.eventId) ?? 0) : 0;
+  const participants: Friend[] = row.participantIds.flatMap((userId) => {
+    const friend = mockFriends.find((item) => item.id === userId);
+    if (friend) return [friend];
+    return userId === mockDemoUser.id ? [{ id: mockDemoUser.id, name: mockDemoUser.firstName, avatarUrl: null }] : [];
+  });
+  return { id: row.id, hostUserId: row.hostUserId, title: row.title, chatLink: row.chatLink, participants, options, winnerEventId: top && topVotes > 0 ? top.eventId : null, createdAt: row.createdAt, updatedAt: row.updatedAt };
+}
+
+function seedMockVotes(): void {
+  mockVotes.clear();
+  const stamp = PLACE_STAMP;
+  mockVotes.set(MOCK_VOTE_ID, {
+    id: MOCK_VOTE_ID,
+    hostUserId: mockFriendIds[0],
+    title: "Куда идем в пятницу?",
+    chatLink: "https://max.ru/chat/mock-vote-1",
+    participantIds: [mockDemoUser.id, mockFriendIds[1], mockFriendIds[2]],
+    options: [
+      { id: `${MOCK_VOTE_ID}-o1`, eventId: mockEvents[0].id, position: 0 },
+      { id: `${MOCK_VOTE_ID}-o2`, eventId: mockEvents[2].id, position: 1 },
+      { id: `${MOCK_VOTE_ID}-o3`, eventId: mockEvents[4].id, position: 2 },
+    ],
+    ballots: [
+      { userId: mockFriendIds[0], eventId: mockEvents[0].id },
+      { userId: mockFriendIds[1], eventId: mockEvents[0].id },
+      { userId: mockFriendIds[2], eventId: mockEvents[2].id },
+    ],
+    createdAt: stamp,
+    updatedAt: stamp,
+  });
+  mockVotes.set(MOCK_FOREIGN_VOTE_ID, {
+    id: MOCK_FOREIGN_VOTE_ID,
+    hostUserId: mockFriendIds[1],
+    title: "Закрытое голосование",
+    chatLink: null,
+    participantIds: [mockFriendIds[2]],
+    options: [
+      { id: `${MOCK_FOREIGN_VOTE_ID}-o1`, eventId: mockEvents[0].id, position: 0 },
+      { id: `${MOCK_FOREIGN_VOTE_ID}-o2`, eventId: mockEvents[1].id, position: 1 },
+    ],
+    ballots: [],
+    createdAt: stamp,
+    updatedAt: stamp,
+  });
+  mockVoteSeq = 2;
+}
+
+seedMockVotes();
+
+export function resetMockVotes(): void {
+  seedMockVotes();
+}
+
+/** Creates an in-memory vote hosted by the demo user; the mock mirrors a successful MaxBot chat card (chatLink is set). */
+export function createMockVote(payload: CreateVoteWrite): Vote | "invalid" | "no_event" {
+  const hostUserId = mockDemoUser.id;
+  const participantIds = [...new Set(payload.participantIds)];
+  if (participantIds.includes(hostUserId) || participantIds.some((id) => !mockFriendIds.includes(id))) return "invalid";
+  const eventIds = [...new Set(payload.eventIds)];
+  const events = eventIds.map((id) => mockEvents.find((item) => item.id === id));
+  if (events.some((found) => !found || found.published === false)) return "no_event";
+  const now = new Date().toISOString();
+  mockVoteSeq += 1;
+  const id = `d7000000-0000-4000-8000-${String(mockVoteSeq).padStart(12, "0")}`;
+  const row: MockVoteRow = {
+    id,
+    hostUserId,
+    title: payload.title,
+    chatLink: `https://max.ru/chat/mock-vote-${mockVoteSeq}`,
+    participantIds,
+    options: eventIds.map((eventId, position) => ({ id: `${id}-o${position + 1}`, eventId, position })),
+    ballots: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+  mockVotes.set(id, row);
+  return mockVoteDto(row);
+}
+
+/** Reads a vote for the demo user: unknown -> "unknown", neither host nor participant -> "forbidden". */
+export function getMockVote(id: string): Vote | "unknown" | "forbidden" {
+  const row = mockVotes.get(id);
+  if (!row) return "unknown";
+  if (row.hostUserId !== mockDemoUser.id && !row.participantIds.includes(mockDemoUser.id)) return "forbidden";
+  return mockVoteDto(row);
+}
+
+/** Casts the demo user's ballot; a repeated ballot replaces the previous one (backend castBallot parity). */
+export function castMockBallot(id: string, eventId: string): Vote | "unknown" | "forbidden" | "invalid" {
+  const row = mockVotes.get(id);
+  if (!row) return "unknown";
+  if (row.hostUserId !== mockDemoUser.id && !row.participantIds.includes(mockDemoUser.id)) return "forbidden";
+  if (!row.options.some((option) => option.eventId === eventId)) return "invalid";
+  const existing = row.ballots.find((ballot) => ballot.userId === mockDemoUser.id);
+  if (existing) {
+    existing.eventId = eventId;
+  } else {
+    row.ballots.push({ userId: mockDemoUser.id, eventId });
+  }
+  row.updatedAt = new Date().toISOString();
+  return mockVoteDto(row);
 }
 
 /** Plans fixtures for the plans list and plan screens (backend P1-7-b does not exist yet); events reference mockEvents, distance is precomputed to the meeting point. */
@@ -2230,6 +2372,26 @@ export function installMockApi(): () => void {
     if (gathering) {
       const found = mockGatherings.get(gathering[1]);
       return found ? Response.json(found) : new Response(null, { status: 404 });
+    }
+    if (url.pathname === "/api/votes" && init?.method === "POST") {
+      const parsed = CreateVoteWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const created = createMockVote(parsed.data);
+      return created === "invalid" ? new Response(null, { status: 400 }) : created === "no_event" ? new Response(null, { status: 404 }) : Response.json(created);
+    }
+    const voteBallots = /^\/api\/votes\/([^/]+)\/ballots$/.exec(url.pathname);
+    if (voteBallots && init?.method === "POST") {
+      if (!IdSchema.safeParse(voteBallots[1]).success) return new Response(null, { status: 400 });
+      const parsed = VoteBallotWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const result = castMockBallot(voteBallots[1], parsed.data.eventId);
+      return result === "unknown" ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
+    }
+    const voteById = /^\/api\/votes\/([^/]+)$/.exec(url.pathname);
+    if (voteById) {
+      if (!IdSchema.safeParse(voteById[1]).success) return new Response(null, { status: 400 });
+      const result = getMockVote(voteById[1]);
+      return result === "unknown" ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
     }
     if (url.pathname === "/api/plans/auto" && init?.method === "POST") {
       const parsed = CreateAutoPlanWriteSchema.safeParse(parseBookingBody(init));

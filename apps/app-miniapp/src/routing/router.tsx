@@ -6,8 +6,8 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - Route - home | event(id) | place(id) | friends | calendar | profile | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | day-route | lists | list(id) | achievements | my-city | micro-new | feed-new(eventId) | organizer | we-groups | we-group(id)
-// - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering- prefixes) to a Route, home fallback
+// - Route - home | event(id) | place(id) | friends | calendar | profile | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | day-route | lists | list(id) | achievements | my-city | micro-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
+// - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote- prefixes) to a Route, home fallback
 // - RouteProvider - holds the current route, initial route from start_param
 // - useRoute - current route + navigate
 // END_MODULE_MAP
@@ -15,7 +15,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { getStartParam, webApp } from "../max/bridge";
 
-export type Route = { name: "home" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "day-route" } | { name: "lists" } | { name: "list"; id: string } | { name: "achievements" } | { name: "my-city" } | { name: "micro-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string };
+export type Route = { name: "home" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "day-route" } | { name: "lists" } | { name: "list"; id: string } | { name: "achievements" } | { name: "my-city" } | { name: "micro-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -23,6 +23,7 @@ const START_PARAM_PREFIXES = [
   ["plan-", "plan"],
   ["list-", "list"],
   ["gathering-", "gathering"],
+  ["vote-", "vote"],
 ] as const satisfies ReadonlyArray<readonly [string, Route["name"]]>;
 
 export function routeFromStartParam(startParam: string | null): Route {

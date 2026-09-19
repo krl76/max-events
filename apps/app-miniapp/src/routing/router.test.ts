@@ -34,6 +34,14 @@ describe("routeFromStartParam", () => {
     expect(routeFromStartParam("gathering-g1")).toEqual({ name: "gathering", id: "g1" });
   });
 
+  it("opens the vote route from a vote-* deep link", () => {
+    expect(routeFromStartParam("vote-d7000000-0000-4000-8000-000000000001")).toEqual({ name: "vote", id: "d7000000-0000-4000-8000-000000000001" });
+  });
+
+  it("falls back to home when the vote id is empty", () => {
+    expect(routeFromStartParam("vote-")).toEqual({ name: "home" });
+  });
+
   it("falls back to home when the plan id is empty", () => {
     expect(routeFromStartParam("plan-")).toEqual({ name: "home" });
   });
