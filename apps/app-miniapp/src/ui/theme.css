@@ -948,17 +948,51 @@ body {
   margin: 0;
 }
 
+/* Прогресс-шапка визарда: мета-строка + сегментная полоса */
+.app-wizard-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
+}
+
+.app-wizard-progress-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-type-meta-size);
+  font-weight: var(--app-font-weight-title);
+}
+
+.app-wizard-progress-bar {
+  display: flex;
+  gap: var(--app-space-xs);
+}
+
+.app-wizard-progress-seg {
+  background: var(--app-divider);
+  border-radius: 999px;
+  flex: 1;
+  height: 3px;
+  opacity: 0.5;
+}
+
+.app-wizard-progress-seg--on {
+  background: var(--app-accent);
+  opacity: 1;
+}
+
 .app-whereto-options {
   display: flex;
   flex-direction: column;
+  gap: var(--app-space-s);
   margin-top: var(--app-space-s);
 }
 
+/* Опции визарда — карточки с шевроном (не голые строки) */
 .app-whereto-option {
   align-items: center;
-  background: none;
-  border: none;
-  border-top: var(--app-hairline);
+  background: var(--app-card);
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
   color: var(--app-text);
   cursor: pointer;
   display: flex;
@@ -966,7 +1000,7 @@ body {
   font-size: 0.875rem;
   font-weight: var(--app-font-weight-title);
   justify-content: space-between;
-  padding: 14px 0;
+  padding: var(--app-space-m) var(--app-space-l);
   text-align: left;
 }
 

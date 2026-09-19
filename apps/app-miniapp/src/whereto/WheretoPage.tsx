@@ -10,6 +10,7 @@
 // - MOOD_LABELS - ru labels for WheretoMood
 // - BUDGET_LABELS - ru labels for WheretoBudget
 // - WheretoState - wizard step: company -> context (mood+budget) -> result (WheretoQuery) -> vote (create form over the result events)
+// - WizardProgress - «Шаг N из 3» meta line + segmented progress bar
 // - suggestEvents - подборка по загруженным событиям: mood -> категории, budget -> цена, company -> мягкое ограничение, сортировка по дате, максимум 5
 // - buildShareText - numbered share text for the result events
 // - WheretoView - presentational wizard by step (result offers the «Голосование с друзьями» CTA when >= 2 events)
@@ -22,7 +23,7 @@ import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
 import { useRoute } from "../routing/router";
-import { AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
+import { AppButton, AppChip, AppState } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { VoteCreateSection } from "../votes/VotePage";
 
@@ -81,10 +82,34 @@ function ResultCard({ event, onOpenEvent }: { event: Event; onOpenEvent: (id: st
   );
 }
 
+const WIZARD_STEPS = ["Кто идёт?", "Настроение и бюджет", "Ваша подборка"] as const;
+
+export function wizardStepIndex(state: WheretoState): number {
+  if (state.step === "company") return 0;
+  if (state.step === "context") return 1;
+  return 2;
+}
+
+function WizardProgress({ step }: { step: number }) {
+  return (
+    <div className="app-wizard-progress">
+      <span className="app-wizard-progress-label">
+        Шаг {step + 1} из {WIZARD_STEPS.length} — {WIZARD_STEPS[step]}
+      </span>
+      <div className="app-wizard-progress-bar" aria-hidden="true">
+        {WIZARD_STEPS.map((name, index) => (
+          <span key={name} className={index <= step ? "app-wizard-progress-seg app-wizard-progress-seg--on" : "app-wizard-progress-seg"} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function WheretoView({ state, events, shared, onCompany, onMood, onBudget, onShow, onRestart, onShare, onOpenEvent, onCreateVote }: WheretoViewProps) {
   if (state.step === "company") {
     return (
       <>
+        <WizardProgress step={0} />
         <p className="app-whereto-hint">Выберите компанию</p>
         <div className="app-whereto-options" role="group" aria-label="Компания">
           {(Object.keys(COMPANY_LABELS) as WheretoCompany[]).map((company) => (
@@ -101,9 +126,7 @@ export function WheretoView({ state, events, shared, onCompany, onMood, onBudget
   if (state.step === "context") {
     return (
       <>
-        <AppTitle asChild>
-          <h2 className="app-section-title">Настроение и бюджет</h2>
-        </AppTitle>
+        <WizardProgress step={1} />
         <p className="app-whereto-hint">{COMPANY_LABELS[state.company]}</p>
         <div className="app-whereto-chips" role="group" aria-label="Настроение">
           <span className="app-whereto-chips-label">Настроение</span>
@@ -130,9 +153,7 @@ export function WheretoView({ state, events, shared, onCompany, onMood, onBudget
 
   return (
     <>
-      <AppTitle asChild>
-        <h2 className="app-section-title">Ваша подборка</h2>
-      </AppTitle>
+      <WizardProgress step={2} />
       <p className="app-whereto-hint">
         {COMPANY_LABELS[state.query.company]} · {MOOD_LABELS[state.query.mood]} · {BUDGET_LABELS[state.query.budget]}
       </p>
