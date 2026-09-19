@@ -15,6 +15,7 @@
 // - AppNavTiles - grid of navigation tiles (icon + label) replacing full-width entry buttons
 // - AppState - loading/empty/error state block: alert icon on error, text, optional retry action
 // - AppSkeleton - pulsing placeholder block (lines or media) for loading states
+// - AppSection - section rhythm primitive: title row with an optional right-side action, unified top margin
 // END_MODULE_MAP
 
 import type { ComponentProps, ReactNode } from "react";
@@ -97,4 +98,21 @@ export function AppState({ error = false, action, children }: { error?: boolean;
 export function AppSkeleton({ variant = "line", width }: { variant?: "line" | "line-short" | "block" | "media"; width?: string }) {
   const className = variant === "media" ? "app-skeleton-block app-skeleton-block--media" : variant === "block" ? "app-skeleton-block" : variant === "line-short" ? "app-skeleton-line app-skeleton-line--short" : "app-skeleton-line";
   return <span className={className} style={width ? { width } : undefined} aria-hidden="true" />;
+}
+
+export function AppSection({ title, action, className, ariaLabel, children }: { title?: string; action?: ReactNode; className?: string; ariaLabel?: string; children: ReactNode }) {
+  const sectionClass = className ? `app-section ${className}` : "app-section";
+  return (
+    <section className={sectionClass} aria-label={ariaLabel ?? title}>
+      {title !== undefined && (
+        <div className="app-section-head">
+          <AppTitle asChild>
+            <h2 className="app-section-title">{title}</h2>
+          </AppTitle>
+          {action}
+        </div>
+      )}
+      {children}
+    </section>
+  );
 }

@@ -22,7 +22,7 @@ import { apiClient } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
-import { AppButton, AppTitle, AppState, AppSkeleton } from "../ui/primitives";
+import { AppButton, AppState, AppSkeleton, AppSection } from "../ui/primitives";
 import { IconButton } from "@maxhub/max-ui";
 
 export function microWhere(item: MicroEvent, places: Place[]): string {
@@ -123,15 +123,15 @@ export function MicroSection({ onCreate }: { onCreate: () => void }) {
   );
 
   return (
-    <section aria-label="Микро-события">
-      <div className="app-micro-head">
-        <AppTitle asChild>
-          <h2 className="app-section-title">Микро-события</h2>
-        </AppTitle>
+    <AppSection
+      title="Микро-события"
+      className="app-cards-flat"
+      action={
         <IconButton aria-label="Создать микро-событие" size="small" variant="primary" onClick={onCreate}>
           +
         </IconButton>
-      </div>
+      }
+    >
       {state.status === "loading" ? (
         <div className="app-card" aria-hidden="true">
           <div className="app-card-body">
@@ -148,7 +148,7 @@ export function MicroSection({ onCreate }: { onCreate: () => void }) {
       ) : (
         state.events.map((item) => <MicroCard key={item.id} item={item} places={places} joined={joined.includes(item.id)} onJoin={() => join(item.id)} onLeave={() => leave(item.id)} />)
       )}
-    </section>
+    </AppSection>
   );
 }
 

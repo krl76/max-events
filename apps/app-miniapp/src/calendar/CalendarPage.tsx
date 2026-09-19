@@ -16,7 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 import { apiClient, type CalendarEntry } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
-import { AppButton, AppTitle, AppState } from "../ui/primitives";
+import { AppButton, AppState, AppSection } from "../ui/primitives";
 
 export type CalendarState = { status: "loading" } | { status: "error" } | { status: "ready"; entries: CalendarEntry[] };
 
@@ -63,18 +63,12 @@ export function CalendarView({ state, now, onCancel }: CalendarViewProps) {
   const { upcoming, past } = splitCalendarEntries(state.entries, now);
   return (
     <>
-      <section className="app-calendar-section">
-        <AppTitle asChild>
-          <h2 className="app-section-title">Запланированные</h2>
-        </AppTitle>
+      <AppSection title="Запланированные" className="app-cards-flat">
         {upcoming.length === 0 ? <AppState>Нет запланированных событий.</AppState> : upcoming.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={() => onCancel(entry.booking.id)} />)}
-      </section>
-      <section className="app-calendar-section">
-        <AppTitle asChild>
-          <h2 className="app-section-title">Прошедшие</h2>
-        </AppTitle>
+      </AppSection>
+      <AppSection title="Прошедшие" className="app-cards-flat">
         {past.length === 0 ? <AppState>Нет прошедших событий.</AppState> : past.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={null} />)}
-      </section>
+      </AppSection>
     </>
   );
 }

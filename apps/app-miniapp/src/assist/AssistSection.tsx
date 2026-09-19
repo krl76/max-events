@@ -21,7 +21,7 @@ import type { AssistCompany, AssistCriteria, AssistGenre, AssistResponse, Assist
 import { ApiError, apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
-import { AppButton, AppTitle, AppState } from "../ui/primitives";
+import { AppButton, AppState, AppSection } from "../ui/primitives";
 import { AssistDayCard, type AssistDayState } from "./AssistDayCard";
 
 export type AssistState = { status: "idle" } | { status: "loading" } | { status: "error"; message: string } | { status: "ready"; result: AssistResponse };
@@ -55,10 +55,7 @@ interface AssistViewProps {
 
 export function AssistView({ query, state, day, onQuery, onSubmit, onPlanDay, onCreatePlan, onOpenEvent, onOpenPlan }: AssistViewProps) {
   return (
-    <section aria-label="Спросите по-своему">
-      <AppTitle asChild>
-        <h2 className="app-section-title">Спросите по-своему</h2>
-      </AppTitle>
+    <AppSection title="Спросите по-своему">
       <form
         className="app-filters-inputs"
         onSubmit={(event) => {
@@ -101,7 +98,7 @@ export function AssistView({ query, state, day, onQuery, onSubmit, onPlanDay, on
         </>
       )}
       <AssistDayCard state={day} onOpenEvent={onOpenEvent} onOpenPlan={onOpenPlan} onCreatePlan={onCreatePlan} />
-    </section>
+    </AppSection>
   );
 }
 

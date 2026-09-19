@@ -16,7 +16,7 @@ import type { Event, TargetedPromotion } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
-import { AppTitle } from "../ui/primitives";
+import { AppSection } from "../ui/primitives";
 
 export interface PromoSectionsData {
   banners: Event[];
@@ -32,7 +32,7 @@ export function PromotionSectionsView({ banners, collections, onOpenEvent }: Pro
   return (
     <>
       {banners.length > 0 && (
-        <section aria-label="Акции">
+        <AppSection ariaLabel="Акции">
           <div className="app-promo-banners">
             {banners.map((event) => (
               <button key={event.id} type="button" className="app-card app-card--link app-promo-banner" onClick={() => onOpenEvent(event.id)}>
@@ -46,13 +46,10 @@ export function PromotionSectionsView({ banners, collections, onOpenEvent }: Pro
               </button>
             ))}
           </div>
-        </section>
+        </AppSection>
       )}
       {collections.length > 0 && (
-        <section aria-label="Подборки для тебя">
-          <AppTitle asChild>
-            <h2 className="app-section-title">Подборки для тебя</h2>
-          </AppTitle>
+        <AppSection title="Подборки для тебя">
           {collections.map((row) => (
             <button key={row.campaign.id} type="button" className="app-card app-card--link" onClick={() => onOpenEvent(row.event.id)}>
               <div className="app-card-body">
@@ -64,7 +61,7 @@ export function PromotionSectionsView({ banners, collections, onOpenEvent }: Pro
               </div>
             </button>
           ))}
-        </section>
+        </AppSection>
       )}
     </>
   );

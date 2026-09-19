@@ -17,7 +17,7 @@ import type { TodayCardLabel, TodayResponse } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
-import { AppTitle, AppState, AppSkeleton } from "../ui/primitives";
+import { AppState, AppSkeleton, AppSection } from "../ui/primitives";
 
 export type TodayState = { status: "loading" } | { status: "error" } | { status: "ready"; today: TodayResponse };
 
@@ -36,57 +36,48 @@ interface TodayViewProps {
 }
 
 export function TodayView({ state, onOpen, onRetry }: TodayViewProps) {
-  if (state.status === "loading")
-    return (
-      <section className="app-today" aria-label="Что делать сегодня?">
-        <AppTitle asChild>
-          <h2 className="app-section-title">Что делать сегодня?</h2>
-        </AppTitle>
-        {[0, 1].map((row) => (
+  return (
+    <AppSection title="Что делать сегодня?" className="app-cards-flat">
+      {state.status === "loading" ? (
+        [0, 1].map((row) => (
           <div key={row} className="app-card" aria-hidden="true">
             <div className="app-card-body">
               <AppSkeleton />
               <AppSkeleton variant="line-short" />
             </div>
           </div>
-        ))}
-      </section>
-    );
-  if (state.status === "error")
-    return (
-      <AppState error action={{ label: "Повторить", onClick: onRetry }}>
-        Не удалось загрузить подборку.
-      </AppState>
-    );
-  if (state.today.cards.length === 0) return <AppState>На сегодня пока ничего нет. Загляните позже!</AppState>;
-
-  const { summary, cards } = state.today;
-  return (
-    <section className="app-today" aria-label="Что делать сегодня?">
-      <AppTitle asChild>
-        <h2 className="app-section-title">Что делать сегодня?</h2>
-      </AppTitle>
-      <p className="app-today-summary">
-        {summary.nearbyCount} событий рядом, {summary.suitableCount} подходят тебе, на {summary.withFriendsCount} идут друзья
-      </p>
-      {cards.map(({ event, labels }) => (
-        <button key={event.id} type="button" className="app-card app-card--link" onClick={() => onOpen(event.id)}>
-          <div className="app-card-body">
-            <span className="app-card-title">{event.title}</span>
-            <span className="app-card-subtitle">
-              {formatStartsAt(event.startsAt)} · {CATEGORY_LABELS[event.category]}
-            </span>
-            <span className="app-today-labels">
-              {labels.map((label, index) => (
-                <span key={index} className="app-today-chip">
-                  {todayLabel(label)}
+        ))
+      ) : state.status === "error" ? (
+        <AppState error action={{ label: "Повторить", onClick: onRetry }}>
+          Не удалось загрузить подборку.
+        </AppState>
+      ) : state.today.cards.length === 0 ? (
+        <AppState>На сегодня пока ничего нет. Загляните позже!</AppState>
+      ) : (
+        <>
+          <p className="app-today-summary">
+            {state.today.summary.nearbyCount} событий рядом, {state.today.summary.suitableCount} подходят тебе, на {state.today.summary.withFriendsCount} идут друзья
+          </p>
+          {state.today.cards.map(({ event, labels }) => (
+            <button key={event.id} type="button" className="app-card app-card--link" onClick={() => onOpen(event.id)}>
+              <div className="app-card-body">
+                <span className="app-card-title">{event.title}</span>
+                <span className="app-card-subtitle">
+                  {formatStartsAt(event.startsAt)} · {CATEGORY_LABELS[event.category]}
                 </span>
-              ))}
-            </span>
-          </div>
-        </button>
-      ))}
-    </section>
+                <span className="app-today-labels">
+                  {labels.map((label, index) => (
+                    <span key={index} className="app-today-chip">
+                      {todayLabel(label)}
+                    </span>
+                  ))}
+                </span>
+              </div>
+            </button>
+          ))}
+        </>
+      )}
+    </AppSection>
   );
 }
 

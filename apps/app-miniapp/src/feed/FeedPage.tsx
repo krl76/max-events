@@ -24,7 +24,7 @@ import { apiClient, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { shareResult, webApp } from "../max/bridge";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppButton, AppChip, AppTitle, AppState, AppSkeleton } from "../ui/primitives";
+import { AppAvatar, AppButton, AppChip, AppState, AppSkeleton, AppSection } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { IconButton } from "@maxhub/max-ui";
 
@@ -161,15 +161,14 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
   const eventTitle = (id: string) => events.find((item) => item.id === id)?.title ?? "";
 
   return (
-    <section aria-label="Впечатления">
-      <div className="app-micro-head">
-        <AppTitle asChild>
-          <h2 className="app-section-title">Впечатления</h2>
-        </AppTitle>
+    <AppSection
+      title="Впечатления"
+      action={
         <IconButton aria-label="Поделиться впечатлением" size="small" variant="primary" onClick={onCreate}>
           +
         </IconButton>
-      </div>
+      }
+    >
       {state.status === "loading" ? (
         <article className="app-card app-card--post" aria-hidden="true">
           <div className="app-post-head">
@@ -186,7 +185,7 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
       ) : (
         state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)
       )}
-    </section>
+    </AppSection>
   );
 }
 
