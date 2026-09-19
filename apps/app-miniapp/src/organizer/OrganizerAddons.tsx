@@ -13,6 +13,9 @@
 // - EventStatsState - union of the stats+sales fetch states (loading / error / ready)
 // - EventStatsView - presentational counters plus the sales summary and frozen sale rows
 // - EventStatsSection - expandable container loading OrganizerEventStats + EventSalesReport on first open; re-open after an error retries the load
+// - LazyListState - shared list fetch state union (loading / error / ready items) used by the expandable addon sections
+// - useLazyList - shared expand/lazy-load state for the addon list sections; re-open after an error retries the load
+// - ExpandableSection - shared expandable container: toggle button, loading/error app states, ready content via render children
 // - PROMOTION_TYPE_LABELS - ru labels per promotion type
 // - PROMOTION_STATUS_LABELS - ru labels per promotion status
 // - PromotionDraft - promotion creation form draft (string fields; audience fields used only for target_collection)
@@ -41,7 +44,7 @@
 // - OrganizerEventAddons - per-event organizer addon stack (early access + stats + promocodes + promo campaigns + promotion)
 // END_MODULE_MAP
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { EventCategorySchema, type CreatePromoCampaignWrite, type CreatePromoCodeWrite, type CreatePromotionWrite, type EventCategory, type EventSalesReport, type OrganizerEventStats, type OrganizerRating, type OrganizerRatingResponse, type PromoCampaign, type PromoCampaignType, type PromoCode, type PromotionCampaign, type PromotionStatus, type PromotionType } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
@@ -155,6 +158,40 @@ export function EventStatsSection({ eventId }: { eventId: string }) {
       {open && state?.status === "loading" && <AppState>Загрузка…</AppState>}
       {open && state?.status === "error" && <AppState error>Не удалось загрузить статистику.</AppState>}
       {open && state?.status === "ready" && <EventStatsView stats={state.stats} report={state.report} />}
+    </div>
+  );
+}
+
+export type LazyListState<T> = { status: "loading" } | { status: "error" } | { status: "ready"; items: T[] };
+
+/** Shared expand/lazy-load state for the addon list sections: first open (or re-open after an error) fetches the list, re-open after an error retries the load. */
+function useLazyList<T>(load: () => Promise<T[]>) {
+  const [open, setOpen] = useState(false);
+  const [state, setState] = useState<LazyListState<T> | null>(null);
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && (state === null || state.status === "error")) {
+      setState({ status: "loading" });
+      load().then(
+        (items) => setState({ status: "ready", items }),
+        () => setState({ status: "error" }),
+      );
+    }
+  };
+  const append = (item: T) => setState((current) => (current?.status === "ready" ? { status: "ready", items: [...current.items, item] } : current));
+  return { open, toggle, state, setState, append };
+}
+
+export function ExpandableSection<T>({ label, openLabel, errorText, list, children }: { label: string; openLabel: string; errorText: string; list: { open: boolean; toggle: () => void; state: LazyListState<T> | null }; children: (items: T[]) => ReactNode }) {
+  return (
+    <div>
+      <AppButton size="small" tone="ghost" onClick={list.toggle}>
+        {list.open ? openLabel : label}
+      </AppButton>
+      {list.open && list.state?.status === "loading" && <AppState>Загрузка…</AppState>}
+      {list.open && list.state?.status === "error" && <AppState error>{errorText}</AppState>}
+      {list.open && list.state?.status === "ready" && children(list.state.items)}
     </div>
   );
 }
@@ -300,28 +337,13 @@ export function PromotionForm({ draft, errors, submitting, failed, onChange, onS
   );
 }
 
-type PromotionListState = { status: "loading" } | { status: "error" } | { status: "ready"; items: PromotionCampaign[] };
-
 export function PromotionSection({ eventId }: { eventId: string }) {
-  const [open, setOpen] = useState(false);
-  const [state, setState] = useState<PromotionListState | null>(null);
+  const list = useLazyList(() => apiClient.listPromotions(eventId));
   const [form, setForm] = useState<PromotionDraft | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
   const [payingId, setPayingId] = useState<string | null>(null);
-
-  const toggle = () => {
-    const next = !open;
-    setOpen(next);
-    if (next && (state === null || state.status === "error")) {
-      setState({ status: "loading" });
-      apiClient.listPromotions(eventId).then(
-        (items) => setState({ status: "ready", items }),
-        () => setState({ status: "error" }),
-      );
-    }
-  };
 
   const submit = () => {
     if (form === null) return;
@@ -332,7 +354,7 @@ export function PromotionSection({ eventId }: { eventId: string }) {
     setFailed(false);
     apiClient.createPromotion(eventId, toCreatePromotion(form)).then(
       (campaign) => {
-        setState((current) => (current?.status === "ready" ? { status: "ready", items: [...current.items, campaign] } : current));
+        list.append(campaign);
         setSubmitting(false);
         setForm(null);
       },
@@ -347,7 +369,7 @@ export function PromotionSection({ eventId }: { eventId: string }) {
     setPayingId(campaignId);
     apiClient.markPromotionPaid(eventId, campaignId).then(
       (updated) => {
-        setState((current) => (current?.status === "ready" ? { status: "ready", items: current.items.map((item) => (item.id === updated.id ? updated : item)) } : current));
+        list.setState((current) => (current?.status === "ready" ? { status: "ready", items: current.items.map((item) => (item.id === updated.id ? updated : item)) } : current));
         setPayingId(null);
       },
       () => setPayingId(null),
@@ -355,16 +377,11 @@ export function PromotionSection({ eventId }: { eventId: string }) {
   };
 
   return (
-    <div>
-      <AppButton size="small" tone="ghost" onClick={toggle}>
-        {open ? "Скрыть продвижение" : "Продвижение"}
-      </AppButton>
-      {open && state?.status === "loading" && <AppState>Загрузка…</AppState>}
-      {open && state?.status === "error" && <AppState error>Не удалось загрузить кампании.</AppState>}
-      {open && state?.status === "ready" && (
+    <ExpandableSection list={list} label="Продвижение" openLabel="Скрыть продвижение" errorText="Не удалось загрузить кампании.">
+      {(items) => (
         <>
-          {state.items.length === 0 && form === null && <AppState>Кампаний пока нет.</AppState>}
-          {state.items.map((campaign) => (
+          {items.length === 0 && form === null && <AppState>Кампаний пока нет.</AppState>}
+          {items.map((campaign) => (
             <PromotionCampaignRow key={campaign.id} campaign={campaign} paying={payingId === campaign.id} onPaid={() => markPaid(campaign.id)} />
           ))}
           {form === null ? (
@@ -384,7 +401,7 @@ export function PromotionSection({ eventId }: { eventId: string }) {
           )}
         </>
       )}
-    </div>
+    </ExpandableSection>
   );
 }
 
@@ -470,27 +487,12 @@ export function PromoForm({ draft, errors, submitting, failed, onChange, onSubmi
   );
 }
 
-type PromoCodeListState = { status: "loading" } | { status: "error" } | { status: "ready"; items: PromoCode[] };
-
 export function PromoCodeSection({ eventId }: { eventId: string }) {
-  const [open, setOpen] = useState(false);
-  const [state, setState] = useState<PromoCodeListState | null>(null);
+  const list = useLazyList(() => apiClient.listOrganizerPromos(eventId));
   const [form, setForm] = useState<PromoDraft | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
-
-  const toggle = () => {
-    const next = !open;
-    setOpen(next);
-    if (next && (state === null || state.status === "error")) {
-      setState({ status: "loading" });
-      apiClient.listOrganizerPromos(eventId).then(
-        (items) => setState({ status: "ready", items }),
-        () => setState({ status: "error" }),
-      );
-    }
-  };
 
   const submit = () => {
     if (form === null) return;
@@ -501,7 +503,7 @@ export function PromoCodeSection({ eventId }: { eventId: string }) {
     setFailed(false);
     apiClient.createOrganizerPromo(eventId, toCreatePromo(form)).then(
       (code) => {
-        setState((current) => (current?.status === "ready" ? { status: "ready", items: [...current.items, code] } : current));
+        list.append(code);
         setSubmitting(false);
         setForm(null);
       },
@@ -513,16 +515,11 @@ export function PromoCodeSection({ eventId }: { eventId: string }) {
   };
 
   return (
-    <div>
-      <AppButton size="small" tone="ghost" onClick={toggle}>
-        {open ? "Скрыть промокоды" : "Промокоды"}
-      </AppButton>
-      {open && state?.status === "loading" && <AppState>Загрузка…</AppState>}
-      {open && state?.status === "error" && <AppState error>Не удалось загрузить промокоды.</AppState>}
-      {open && state?.status === "ready" && (
+    <ExpandableSection list={list} label="Промокоды" openLabel="Скрыть промокоды" errorText="Не удалось загрузить промокоды.">
+      {(items) => (
         <>
-          {state.items.length === 0 && form === null && <AppState>Промокодов пока нет.</AppState>}
-          {state.items.map((code) => (
+          {items.length === 0 && form === null && <AppState>Промокодов пока нет.</AppState>}
+          {items.map((code) => (
             <PromoCodeRow key={code.id} code={code} />
           ))}
           {form === null ? (
@@ -542,7 +539,7 @@ export function PromoCodeSection({ eventId }: { eventId: string }) {
           )}
         </>
       )}
-    </div>
+    </ExpandableSection>
   );
 }
 
@@ -628,27 +625,12 @@ export function CampaignForm({ draft, errors, submitting, failed, onChange, onSu
   );
 }
 
-type CampaignListState = { status: "loading" } | { status: "error" } | { status: "ready"; items: PromoCampaign[] };
-
 export function CampaignSection({ eventId }: { eventId: string }) {
-  const [open, setOpen] = useState(false);
-  const [state, setState] = useState<CampaignListState | null>(null);
+  const list = useLazyList(() => apiClient.listCampaigns(eventId));
   const [form, setForm] = useState<CampaignDraft | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
-
-  const toggle = () => {
-    const next = !open;
-    setOpen(next);
-    if (next && (state === null || state.status === "error")) {
-      setState({ status: "loading" });
-      apiClient.listCampaigns(eventId).then(
-        (items) => setState({ status: "ready", items }),
-        () => setState({ status: "error" }),
-      );
-    }
-  };
 
   const submit = () => {
     if (form === null) return;
@@ -659,7 +641,7 @@ export function CampaignSection({ eventId }: { eventId: string }) {
     setFailed(false);
     apiClient.createCampaign(eventId, toCreateCampaign(form)).then(
       (campaign) => {
-        setState((current) => (current?.status === "ready" ? { status: "ready", items: [...current.items, campaign] } : current));
+        list.append(campaign);
         setSubmitting(false);
         setForm(null);
       },
@@ -671,16 +653,11 @@ export function CampaignSection({ eventId }: { eventId: string }) {
   };
 
   return (
-    <div>
-      <AppButton size="small" tone="ghost" onClick={toggle}>
-        {open ? "Скрыть акции" : "Акции"}
-      </AppButton>
-      {open && state?.status === "loading" && <AppState>Загрузка…</AppState>}
-      {open && state?.status === "error" && <AppState error>Не удалось загрузить акции.</AppState>}
-      {open && state?.status === "ready" && (
+    <ExpandableSection list={list} label="Акции" openLabel="Скрыть акции" errorText="Не удалось загрузить акции.">
+      {(items) => (
         <>
-          {state.items.length === 0 && form === null && <AppState>Акций пока нет.</AppState>}
-          {state.items.map((campaign) => (
+          {items.length === 0 && form === null && <AppState>Акций пока нет.</AppState>}
+          {items.map((campaign) => (
             <PromoCampaignRow key={campaign.id} campaign={campaign} />
           ))}
           {form === null ? (
@@ -700,7 +677,7 @@ export function CampaignSection({ eventId }: { eventId: string }) {
           )}
         </>
       )}
-    </div>
+    </ExpandableSection>
   );
 }
 
