@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Plan screen: event (link to the event page), participants with statuses, meeting point and time.
-// SCOPE: Data via apiClient.getPlan (mock or live); presentational rendering; navigation to the event page; no budget (P4-8) and no route (P3-2/3-3).
+// PURPOSE: Plan screen: event (link to the event page), participants with statuses, meeting point and time, shared budget with expenses and debts (#218).
+// SCOPE: Data via apiClient.getPlan (mock or live); presentational rendering; navigation to the event page; budget lives in ./BudgetSection.js (participant-only, server-gated); no route (P3-2/3-3).
 // DEPENDS: ../api/client.js (apiClient), ../routing/router.js, @max-events/api-contracts (PlanCard, PlanParticipantStatus), ./PlansPage.js (planMeetingLabel), ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -9,13 +9,14 @@
 // - PLAN_STATUS_LABELS - ru labels for participant statuses (invited/confirmed/declined)
 // - PlanState - union of plan fetch states (loading / error / ready)
 // - PlanView - presentational: event link, participants with statuses, meeting line
-// - PlanPage - route container: loads the plan by id
+// - PlanPage - route container: loads the plan by id; the budget section is embedded in PlanView
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
 import type { PlanCard, PlanParticipantStatus } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
+import { BudgetSection } from "./BudgetSection";
 import { planMeetingLabel } from "./PlansPage";
 
 export const PLAN_STATUS_LABELS: Record<PlanParticipantStatus, string> = { invited: "приглашён", confirmed: "подтвердил", declined: "отказался" };
@@ -40,6 +41,7 @@ export function PlanView({ state, onOpenEvent }: { state: PlanState; onOpenEvent
           </li>
         ))}
       </ul>
+      <BudgetSection planId={plan.id} members={plan.participants.map(({ friend }) => friend)} />
     </section>
   );
 }

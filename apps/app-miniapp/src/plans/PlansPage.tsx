@@ -12,7 +12,7 @@
 // - planMeetingLabel - «Сбор <время> <место>» line shared by the card and the plan screen
 // - PlansState - union of plans fetch states (loading / error / ready)
 // - PlansView - presentational: one card per plan per the README example
-// - PlansPage - route container: loads the plan list, entry to the day route builder
+// - PlansPage - route container: loads the plan list, entries to the «Мы» groups and the day route builder
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
@@ -87,6 +87,9 @@ export function PlansPage() {
   }, []);
   return (
     <>
+      <AppButton onClick={() => navigate({ name: "we-groups" })} stretched tone="secondary">
+        Мы
+      </AppButton>
       <AppButton onClick={() => navigate({ name: "day-route" })} stretched tone="secondary">
         Маршрут на день
       </AppButton>

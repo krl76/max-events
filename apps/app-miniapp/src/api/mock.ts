@@ -35,6 +35,16 @@
 // - resetMockPlans - restore seeded plan cards, dropping autoplan drafts (test isolation)
 // - planCards - plan fixtures sorted by the soonest meeting first
 // - planCard - single plan card by plan id (or null)
+// - MockPlanExpense - in-memory plan expense row
+// - mockBudgetFromExpenses - expenses -> per-person nets + debts (backend budgetFromExpenses parity, incl. the id-rotated remainder split)
+// - mockPlanBudget - mock GET /plans/:id/budget (404 unknown plan)
+// - addMockPlanExpense - mock POST /plans/:id/expenses (400 payer/shares outside the host+confirmed party)
+// - resetMockWeGroups - restore seeded groups and plan expenses (test isolation)
+// - listMockWeGroups - mock GET /we-groups: screens of the demo user's groups, newest first
+// - getMockWeGroup - mock GET /we-groups/:id (404 unknown, 403 non-member)
+// - createMockWeGroup - mock POST /we-groups (404 unknown member; owner always a member)
+// - bindMockWeGroupItem - mock POST /we-groups/:id/events|places (idempotent binds; 404 unknown target; 409 archived)
+// - archiveMockWeGroup - mock POST /we-groups/:id/archive (owner only -> 403, idempotent)
 // - createMockAutoPlan - autoplan after «Пойду»: saved draft plan + walk estimate + food picks + dinner->road->meetup->event timeline (mock POST /plans/auto, backend parity)
 // - buildMockDayRoute - resolve 2..8 event/place stops to points and haversine walking legs (mock POST /routes, backend parity)
 // - optimizeMockDayRoute - keep-first permutation minimizing the total distance, with savings (mock POST /routes/optimize)
@@ -101,11 +111,11 @@
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
 // END_MODULE_MAP
 
-import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, BookingWithSeats, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, CreateEvent, CreatePlace, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Payment, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanCard, Profile, PromotionPlacements, Review, RouteLeg, RoutePoint, TargetedPromotionsResponse, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, BookingWithSeats, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateWeGroupWrite, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Payment, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanBudget, PlanCard, PlanDebt, Profile, PromotionPlacements, Review, RouteLeg, RoutePoint, TargetedPromotionsResponse, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry, WeGroup, WeGroupScreen } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -316,6 +326,286 @@ export function planCards(): PlanCard[] {
 /** Single plan card by plan id, or null. */
 export function planCard(id: string): PlanCard | null {
   return mockPlans.find((card) => card.plan.id === id) ?? null;
+}
+
+/** In-memory plan expense row (PlanExpenseEntity parity: createdAt stored as ISO). */
+export interface MockPlanExpense {
+  id: string;
+  planId: string;
+  title: string;
+  amountRub: number;
+  payerUserId: string;
+  shareUserIds: string[];
+  createdAt: string;
+}
+
+const PLAN_ONE_ID = "90000000-0000-4000-8000-000000000001";
+const PLAN_TWO_ID = "90000000-0000-4000-8000-000000000002";
+
+const MOCK_PLAN_EXPENSE_SEED: MockPlanExpense[] = [
+  { id: "96000000-0000-4000-8000-000000000001", planId: PLAN_ONE_ID, title: "Билеты", amountRub: 3600, payerUserId: mockDemoUser.id, shareUserIds: [mockDemoUser.id, mockFriendIds[0], mockFriendIds[1]], createdAt: "2026-08-01T12:00:00+03:00" },
+  { id: "96000000-0000-4000-8000-000000000002", planId: PLAN_ONE_ID, title: "Кафе после концерта", amountRub: 1000, payerUserId: mockFriendIds[0], shareUserIds: [mockDemoUser.id, mockFriendIds[0], mockFriendIds[1]], createdAt: "2026-08-01T12:01:00+03:00" },
+  { id: "96000000-0000-4000-8000-000000000003", planId: PLAN_TWO_ID, title: "Завтрак перед субботником", amountRub: 1001, payerUserId: mockDemoUser.id, shareUserIds: [mockDemoUser.id, mockFriendIds[3]], createdAt: "2026-08-01T12:02:00+03:00" },
+  { id: "96000000-0000-4000-8000-000000000004", planId: PLAN_TWO_ID, title: "Проезд", amountRub: 300, payerUserId: mockFriendIds[3], shareUserIds: [mockDemoUser.id, mockFriendIds[3]], createdAt: "2026-08-01T12:03:00+03:00" },
+];
+
+const mockPlanExpenses: MockPlanExpense[] = [...MOCK_PLAN_EXPENSE_SEED];
+let mockPlanExpenseSeq = MOCK_PLAN_EXPENSE_SEED.length;
+
+/** Backend settleBalances parity: greedy debtor->creditor settle, debtors by balance asc/id, creditors by balance desc/id. */
+function mockSettleBalances(balances: Map<string, number>): PlanDebt[] {
+  const debtors = [...balances.entries()].filter(([, value]) => value < 0).sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]));
+  const creditors = [...balances.entries()].filter(([, value]) => value > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const debts: PlanDebt[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < debtors.length && j < creditors.length) {
+    const pay = Math.min(-debtors[i]![1], creditors[j]![1]);
+    if (pay > 0) debts.push({ fromUserId: debtors[i]![0], toUserId: creditors[j]![0], amountRub: pay });
+    debtors[i]![1] += pay;
+    creditors[j]![1] -= pay;
+    if (debtors[i]![1] === 0) i += 1;
+    if (creditors[j]![1] === 0) j += 1;
+  }
+  return debts;
+}
+
+/** Backend budgetFromExpenses parity, incl. the remainder split rotated by the expense-id charcode offset. */
+export function mockBudgetFromExpenses(rows: MockPlanExpense[], extraParty: Iterable<string> = []): PlanBudget {
+  const ordered = [...rows].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id.localeCompare(b.id));
+  const party = new Set(extraParty);
+  for (const row of ordered) {
+    party.add(row.payerUserId);
+    for (const id of row.shareUserIds) party.add(id);
+  }
+  const people = [...party].sort();
+  const paid = new Map(people.map((id) => [id, 0]));
+  const share = new Map(people.map((id) => [id, 0]));
+  for (const row of ordered) {
+    paid.set(row.payerUserId, (paid.get(row.payerUserId) ?? 0) + row.amountRub);
+    const ids = [...new Set(row.shareUserIds)].sort();
+    if (ids.length === 0) continue;
+    const n = ids.length;
+    const base = Math.floor(row.amountRub / n);
+    const rem = row.amountRub % n;
+    const offset = [...row.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % n;
+    ids.forEach((id, index) => {
+      const extra = rem > 0 && (index - offset + n) % n < rem ? 1 : 0;
+      share.set(id, (share.get(id) ?? 0) + base + extra);
+    });
+  }
+  const balances = new Map(people.map((id) => [id, (paid.get(id) ?? 0) - (share.get(id) ?? 0)]));
+  return {
+    expenses: ordered.map((row) => ({ id: row.id, planId: row.planId, title: row.title, amountRub: row.amountRub, payerUserId: row.payerUserId, shareUserIds: [...row.shareUserIds], createdAt: row.createdAt })),
+    perPerson: people.map((userId) => ({ userId, paidRub: paid.get(userId) ?? 0, shareRub: share.get(userId) ?? 0, netRub: balances.get(userId) ?? 0 })),
+    debts: mockSettleBalances(balances),
+    totalRub: ordered.reduce((sum, row) => sum + row.amountRub, 0),
+  };
+}
+
+/** Backend spendPartyIds parity: the mock serves the demo user as the host of every seeded plan, so the party is the host + confirmed participants. */
+function mockSpendPartyIds(planId: string): Set<string> {
+  const card = planCard(planId);
+  const confirmed = card ? card.plan.participants.filter((row) => row.status === "confirmed").map((row) => row.friend.id) : [];
+  return new Set([mockDemoUser.id, ...confirmed]);
+}
+
+/** Mock GET /plans/:id/budget: 404 unknown plan; the demo user hosts every seeded plan, so canView always passes. */
+export function mockPlanBudget(planId: string): PlanBudget | null {
+  if (!planCard(planId)) return null;
+  const rows = mockPlanExpenses.filter((row) => row.planId === planId);
+  return mockBudgetFromExpenses(rows, mockSpendPartyIds(planId));
+}
+
+/** Mock POST /plans/:id/expenses (backend addExpense parity): 404 unknown plan; 400 payer/shares outside the party; the demo host may attribute payments to any party member. */
+export function addMockPlanExpense(planId: string, payload: CreatePlanExpenseWrite): PlanBudget | null | "invalid" {
+  if (!planCard(planId)) return null;
+  const party = mockSpendPartyIds(planId);
+  if (!party.has(payload.payerUserId) || payload.shareUserIds.some((id) => !party.has(id))) return "invalid";
+  mockPlanExpenseSeq += 1;
+  mockPlanExpenses.push({ id: `96000000-0000-4000-8000-${String(mockPlanExpenseSeq).padStart(12, "0")}`, planId, title: payload.title.trim(), amountRub: payload.amountRub, payerUserId: payload.payerUserId, shareUserIds: [...new Set(payload.shareUserIds)], createdAt: new Date().toISOString() });
+  return mockBudgetFromExpenses(
+    mockPlanExpenses.filter((row) => row.planId === planId),
+    party,
+  );
+}
+
+/** In-memory «Мы» group row: the group plus its member ids and bound event/place ids. */
+interface MockWeGroupRow {
+  group: WeGroup;
+  memberIds: string[];
+  eventIds: string[];
+  placeIds: string[];
+}
+
+const MOCK_WE_GROUP_SEED: MockWeGroupRow[] = [
+  {
+    group: { id: "91000000-0000-4000-8000-000000000001", ownerUserId: mockDemoUser.id, title: "Субботник и гастровыходные", chatLink: "https://max.ru/join/we-group-demo", status: "active", createdAt: "2026-08-01T12:00:00+03:00", updatedAt: "2026-08-01T12:00:00+03:00", archivedAt: null },
+    memberIds: [mockDemoUser.id, mockFriendIds[3], mockFriendIds[4]],
+    eventIds: [mockEvents[2].id],
+    placeIds: [mockPlaces[3].id],
+  },
+  {
+    group: { id: "91000000-0000-4000-8000-000000000002", ownerUserId: mockDemoUser.id, title: "Прошлый поход на выставку", chatLink: null, status: "archived", createdAt: "2026-07-01T12:00:00+03:00", updatedAt: "2026-07-02T12:00:00+03:00", archivedAt: "2026-07-02T12:00:00+03:00" },
+    memberIds: [mockDemoUser.id, mockFriendIds[0]],
+    eventIds: [],
+    placeIds: [],
+  },
+  {
+    group: { id: "91000000-0000-4000-8000-000000000003", ownerUserId: mockFriendIds[0], title: "Киноклуб", chatLink: null, status: "active", createdAt: "2026-07-10T12:00:00+03:00", updatedAt: "2026-07-10T12:00:00+03:00", archivedAt: null },
+    memberIds: [mockFriendIds[0], mockDemoUser.id],
+    eventIds: [],
+    placeIds: [],
+  },
+  {
+    group: { id: "91000000-0000-4000-8000-000000000004", ownerUserId: mockFriendIds[0], title: "Чужая группа", chatLink: null, status: "active", createdAt: "2026-07-05T12:00:00+03:00", updatedAt: "2026-07-05T12:00:00+03:00", archivedAt: null },
+    memberIds: [mockFriendIds[0], mockFriendIds[1]],
+    eventIds: [],
+    placeIds: [],
+  },
+];
+
+let mockWeGroups: MockWeGroupRow[] = MOCK_WE_GROUP_SEED.map((row) => ({ group: { ...row.group }, memberIds: [...row.memberIds], eventIds: [...row.eventIds], placeIds: [...row.placeIds] }));
+let mockWeGroupSeq = MOCK_WE_GROUP_SEED.length;
+
+/** Restore the seeded groups and plan expenses (test isolation). */
+export function resetMockWeGroups(): void {
+  mockWeGroups = MOCK_WE_GROUP_SEED.map((row) => ({ group: { ...row.group }, memberIds: [...row.memberIds], eventIds: [...row.eventIds], placeIds: [...row.placeIds] }));
+  mockWeGroupSeq = MOCK_WE_GROUP_SEED.length;
+  mockPlanExpenses.length = 0;
+  mockPlanExpenses.push(...MOCK_PLAN_EXPENSE_SEED);
+  mockPlanExpenseSeq = MOCK_PLAN_EXPENSE_SEED.length;
+}
+
+function mockFriendOf(userId: string): Friend {
+  if (userId === mockDemoUser.id) return { id: mockDemoUser.id, name: "Демо", avatarUrl: null };
+  return mockFriends.find((friend) => friend.id === userId) ?? { id: userId, name: "Участник", avatarUrl: null };
+}
+
+/** Screen aggregate (backend WeGroupsService.toScreen parity): members in join order, bound events/places from fixtures, member bookings, group route, shared plan budget, photos (no seeded photos). */
+function mockWeGroupScreen(row: MockWeGroupRow): WeGroupScreen {
+  const events = row.eventIds.flatMap((id) => {
+    const found = mockEvents.find((item) => item.id === id && item.published !== false);
+    return found ? [found] : [];
+  });
+  const places = row.placeIds.flatMap((id) => {
+    const found = mockPlaces.find((item) => item.id === id && item.published !== false);
+    return found ? [found] : [];
+  });
+  const memberSet = new Set([row.group.ownerUserId, ...row.memberIds]);
+  const eventSet = new Set(events.map((item) => item.id));
+  return {
+    group: { ...row.group },
+    members: row.memberIds.map(mockFriendOf),
+    events,
+    places,
+    bookings: mockBookings.filter((booking) => booking.status === "active" && memberSet.has(booking.userId) && eventSet.has(booking.eventId)).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id.localeCompare(b.id)),
+    route: mockWeGroupRoute(events, places),
+    budget: mockWeGroupBudget(memberSet, eventSet),
+    photos: [],
+  };
+}
+
+/** Backend groupRoute parity: event points by startsAt, then not-yet-used extra places by id; null under two points. */
+function mockWeGroupRoute(events: Event[], places: Place[]): DayRoute | null {
+  const points: RoutePoint[] = [];
+  const usedPlaces = new Set<string>();
+  const sortedEvents = [...events].filter((row) => row.placeId !== null).sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt) || a.id.localeCompare(b.id));
+  for (const event of sortedEvents) {
+    const place = mockPlaces.find((item) => item.id === event.placeId);
+    if (!place) continue;
+    points.push({ title: event.title, at: new Date(event.startsAt).toISOString(), latitude: place.latitude, longitude: place.longitude, eventId: event.id, placeId: place.id });
+    usedPlaces.add(place.id);
+  }
+  const extraPlaces = [...places].filter((row) => !usedPlaces.has(row.id)).sort((a, b) => a.id.localeCompare(b.id));
+  for (const place of extraPlaces) {
+    points.push({ title: place.title, at: null, latitude: place.latitude, longitude: place.longitude, eventId: null, placeId: place.id });
+  }
+  const sliced = points.slice(0, 8);
+  if (sliced.length < 2) return null;
+  return mockDayRoute(sliced);
+}
+
+/** Backend groupBudget parity: expenses of the demo-hosted plans bound to the group events; null without plans or expenses. */
+function mockWeGroupBudget(memberSet: Set<string>, eventSet: Set<string>): PlanBudget | null {
+  if (eventSet.size === 0 || !memberSet.has(mockDemoUser.id)) return null;
+  const planIds = new Set(mockPlans.filter((card) => eventSet.has(card.plan.eventId)).map((card) => card.plan.id));
+  if (planIds.size === 0) return null;
+  const rows = mockPlanExpenses.filter((row) => planIds.has(row.planId));
+  if (rows.length === 0) return null;
+  return mockBudgetFromExpenses(rows);
+}
+
+function findMockWeGroup(id: string): MockWeGroupRow | null {
+  return mockWeGroups.find((row) => row.group.id === id) ?? null;
+}
+
+function isMockWeGroupMember(row: MockWeGroupRow, userId: string): boolean {
+  return row.group.ownerUserId === userId || row.memberIds.includes(userId);
+}
+
+/** Mock GET /we-groups: screens of the demo user's groups, newest first (backend listForUser parity). */
+export function listMockWeGroups(): WeGroupScreen[] {
+  return [...mockWeGroups]
+    .filter((row) => isMockWeGroupMember(row, mockDemoUser.id))
+    .sort((a, b) => Date.parse(b.group.createdAt) - Date.parse(a.group.createdAt) || a.group.id.localeCompare(b.group.id))
+    .map(mockWeGroupScreen);
+}
+
+/** Mock GET /we-groups/:id: "unknown" -> 404, "forbidden" non-member -> 403 (backend requireMember parity). */
+export function getMockWeGroup(id: string): WeGroupScreen | "unknown" | "forbidden" {
+  const row = findMockWeGroup(id);
+  if (!row) return "unknown";
+  if (!isMockWeGroupMember(row, mockDemoUser.id)) return "forbidden";
+  return mockWeGroupScreen(row);
+}
+
+/** Mock POST /we-groups (backend create parity): owner always a member, every member id must be a known user. */
+export function createMockWeGroup(payload: CreateWeGroupWrite): WeGroupScreen | "unknown_user" {
+  const known = new Set([mockDemoUser.id, ...mockFriendIds]);
+  const memberIds = [...new Set([mockDemoUser.id, ...payload.memberIds])];
+  if (memberIds.some((id) => !known.has(id))) return "unknown_user";
+  const now = new Date().toISOString();
+  mockWeGroupSeq += 1;
+  const row: MockWeGroupRow = {
+    group: { id: `91000000-0000-4000-8000-${String(mockWeGroupSeq).padStart(12, "0")}`, ownerUserId: mockDemoUser.id, title: payload.title.trim(), chatLink: `https://max.ru/join/we-group-${mockWeGroupSeq}`, status: "active", createdAt: now, updatedAt: now, archivedAt: null },
+    memberIds,
+    eventIds: [],
+    placeIds: [],
+  };
+  mockWeGroups.push(row);
+  return mockWeGroupScreen(row);
+}
+
+/** Mock POST /we-groups/:id/events|places (backend addEvent/addPlace parity): duplicate binds are idempotent; "archived" -> 409. */
+export function bindMockWeGroupItem(id: string, kind: "event" | "place", itemId: string): WeGroupScreen | "unknown" | "forbidden" | "archived" | "no_target" {
+  const row = findMockWeGroup(id);
+  if (!row) return "unknown";
+  if (!isMockWeGroupMember(row, mockDemoUser.id)) return "forbidden";
+  if (row.group.status === "archived") return "archived";
+  if (kind === "event") {
+    if (!mockEvents.some((item) => item.id === itemId && item.published !== false)) return "no_target";
+    if (!row.eventIds.includes(itemId)) row.eventIds.push(itemId);
+  } else {
+    if (!mockPlaces.some((item) => item.id === itemId && item.published !== false)) return "no_target";
+    if (!row.placeIds.includes(itemId)) row.placeIds.push(itemId);
+  }
+  return mockWeGroupScreen(row);
+}
+
+/** Mock POST /we-groups/:id/archive (backend archive parity): owner only, idempotent. */
+export function archiveMockWeGroup(id: string): WeGroupScreen | "unknown" | "forbidden" {
+  const row = findMockWeGroup(id);
+  if (!row) return "unknown";
+  if (!isMockWeGroupMember(row, mockDemoUser.id)) return "forbidden";
+  if (row.group.ownerUserId !== mockDemoUser.id) return "forbidden";
+  if (row.group.status !== "archived") {
+    const now = new Date().toISOString();
+    row.group.status = "archived";
+    row.group.archivedAt = now;
+    row.group.updatedAt = now;
+  }
+  return mockWeGroupScreen(row);
 }
 
 /** Preset list titles per ListPreset; the lists UI renders List.title as-is. */
@@ -1965,6 +2255,49 @@ export function installMockApi(): () => void {
     }
     if (url.pathname === "/api/plans") {
       return Response.json(planCards());
+    }
+    const planBudget = /^\/api\/plans\/([^/]+)\/budget$/.exec(url.pathname);
+    if (planBudget) {
+      if (!IdSchema.safeParse(planBudget[1]).success) return new Response(null, { status: 400 });
+      const budget = mockPlanBudget(planBudget[1]);
+      return budget ? Response.json(budget) : new Response(null, { status: 404 });
+    }
+    const planExpenses = /^\/api\/plans\/([^/]+)\/expenses$/.exec(url.pathname);
+    if (planExpenses && init?.method === "POST") {
+      if (!IdSchema.safeParse(planExpenses[1]).success) return new Response(null, { status: 400 });
+      const parsed = CreatePlanExpenseWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const budget = addMockPlanExpense(planExpenses[1], parsed.data);
+      return budget === null ? new Response(null, { status: 404 }) : budget === "invalid" ? new Response(null, { status: 400 }) : Response.json(budget);
+    }
+    if (url.pathname === "/api/we-groups" && init?.method === "POST") {
+      const parsed = CreateWeGroupWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success || parsed.data.title.trim() === "") return new Response(null, { status: 400 });
+      const created = createMockWeGroup(parsed.data);
+      return created === "unknown_user" ? new Response(null, { status: 404 }) : Response.json(created);
+    }
+    if (url.pathname === "/api/we-groups") {
+      return Response.json(listMockWeGroups());
+    }
+    const weGroupAction = /^\/api\/we-groups\/([^/]+)\/(events|places|archive)$/.exec(url.pathname);
+    if (weGroupAction && init?.method === "POST") {
+      if (!IdSchema.safeParse(weGroupAction[1]).success) return new Response(null, { status: 400 });
+      if (weGroupAction[2] === "archive") {
+        const archived = archiveMockWeGroup(weGroupAction[1]);
+        return archived === "unknown" ? new Response(null, { status: 404 }) : archived === "forbidden" ? new Response(null, { status: 403 }) : Response.json(archived);
+      }
+      const body = parseBookingBody(init);
+      const itemId = body?.[weGroupAction[2] === "events" ? "eventId" : "placeId"];
+      const parsedId = IdSchema.safeParse(itemId);
+      if (!parsedId.success) return new Response(null, { status: 400 });
+      const bound = bindMockWeGroupItem(weGroupAction[1], weGroupAction[2] === "events" ? "event" : "place", parsedId.data);
+      return bound === "unknown" || bound === "no_target" ? new Response(null, { status: 404 }) : bound === "forbidden" ? new Response(null, { status: 403 }) : bound === "archived" ? new Response(null, { status: 409 }) : Response.json(bound);
+    }
+    const weGroupById = /^\/api\/we-groups\/([^/]+)$/.exec(url.pathname);
+    if (weGroupById) {
+      if (!IdSchema.safeParse(weGroupById[1]).success) return new Response(null, { status: 400 });
+      const screen = getMockWeGroup(weGroupById[1]);
+      return screen === "unknown" ? new Response(null, { status: 404 }) : screen === "forbidden" ? new Response(null, { status: 403 }) : Response.json(screen);
     }
     const plan = /^\/api\/plans\/([^/]+)$/.exec(url.pathname);
     if (plan) {

@@ -61,4 +61,8 @@ describe("routeFromStartParam", () => {
   it("keeps the organizer panel out of start_param deep links", () => {
     expect(routeFromStartParam("organizer")).toEqual({ name: "home" });
   });
+
+  it("keeps the we-groups screens out of start_param deep links", () => {
+    expect(routeFromStartParam("we-groups")).toEqual({ name: "home" });
+  });
 });

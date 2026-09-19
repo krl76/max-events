@@ -98,11 +98,15 @@
 // - UpdateOrganizerPlace - place edit payload (backend PATCH /places/:id validates CreatePlaceSchema.partial())
 // - ApiClient.listOrganizerEvents / createOrganizerEvent / updateOrganizerEvent / publishOrganizerEvent - organizer event surface (GET/POST /organizer/events, PATCH /events/:id, POST /organizer/events/:id/publish); create always yields a draft, publish always yields a published item
 // - ApiClient.listOrganizerPlaces / createOrganizerPlace / updateOrganizerPlace / publishOrganizerPlace - organizer place surface (GET/POST /organizer/places, PATCH /places/:id, POST /organizer/places/:id/publish)
+// - ApiClient.createWeGroup / listWeGroups / getWeGroup - «Мы» group lifecycle (POST/GET /we-groups, GET /we-groups/:id; every response is the full WeGroupScreen aggregate)
+// - ApiClient.addWeGroupEvent / addWeGroupPlace / archiveWeGroup - group writes (POST /we-groups/:id/events|places|archive)
+// - ApiClient.getPlanBudget - GET /plans/:id/budget: expenses + per-person totals + debts, all computed server-side
+// - ApiClient.addPlanExpense - POST /plans/:id/expenses, returns the recomputed PlanBudget
 // END_MODULE_MAP
 
-import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, type PlacePage } from "@max-events/api-contracts";
+import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
 import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry, WeGroupScreen, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -654,6 +658,31 @@ const OrganizerPlaceArraySchema: ZodSchema<OrganizerPlace[]> = {
   },
 };
 
+const WeGroupScreenEntitySchema: ZodSchema<WeGroupScreen> = {
+  safeParse(data: unknown) {
+    return WeGroupScreenSchema.safeParse(data);
+  },
+};
+
+const WeGroupScreenArraySchema: ZodSchema<WeGroupScreen[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of we-group screens" };
+    const screens: WeGroupScreen[] = [];
+    for (const item of data) {
+      const parsed = WeGroupScreenSchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      screens.push(parsed.data);
+    }
+    return { success: true as const, data: screens };
+  },
+};
+
+const PlanBudgetEntitySchema: ZodSchema<PlanBudget> = {
+  safeParse(data: unknown) {
+    return PlanBudgetSchema.safeParse(data);
+  },
+};
+
 export class ApiClient {
   private initData: string | null = null;
 
@@ -992,6 +1021,38 @@ export class ApiClient {
   async publishOrganizerPlace(id: string): Promise<OrganizerPlace> {
     const published = await this.request(`/organizer/places/${id}/publish`, OrganizerPlaceEntitySchema, { method: "POST" });
     return { ...published, draft: false };
+  }
+
+  createWeGroup(payload: CreateWeGroupWrite): Promise<WeGroupScreen> {
+    return this.request("/we-groups", WeGroupScreenEntitySchema, { body: payload });
+  }
+
+  listWeGroups(): Promise<WeGroupScreen[]> {
+    return this.request("/we-groups", WeGroupScreenArraySchema);
+  }
+
+  getWeGroup(id: string): Promise<WeGroupScreen> {
+    return this.request(`/we-groups/${id}`, WeGroupScreenEntitySchema);
+  }
+
+  addWeGroupEvent(id: string, eventId: string): Promise<WeGroupScreen> {
+    return this.request(`/we-groups/${id}/events`, WeGroupScreenEntitySchema, { body: { eventId } });
+  }
+
+  addWeGroupPlace(id: string, placeId: string): Promise<WeGroupScreen> {
+    return this.request(`/we-groups/${id}/places`, WeGroupScreenEntitySchema, { body: { placeId } });
+  }
+
+  archiveWeGroup(id: string): Promise<WeGroupScreen> {
+    return this.request(`/we-groups/${id}/archive`, WeGroupScreenEntitySchema, { method: "POST" });
+  }
+
+  getPlanBudget(planId: string): Promise<PlanBudget> {
+    return this.request(`/plans/${planId}/budget`, PlanBudgetEntitySchema);
+  }
+
+  addPlanExpense(planId: string, payload: CreatePlanExpenseWrite): Promise<PlanBudget> {
+    return this.request(`/plans/${planId}/expenses`, PlanBudgetEntitySchema, { body: payload });
   }
 }
 
