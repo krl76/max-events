@@ -68,4 +68,10 @@ describe("PlansPage", () => {
 
     expect(html).toContain("Маршрут на день");
   });
+
+  it("offers the «Мы» groups entry above the list", () => {
+    const html = renderToStaticMarkup(createElement(PlansPage));
+
+    expect(html).toContain("Мы");
+  });
 });

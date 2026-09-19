@@ -45,4 +45,11 @@ describe("PlanView", () => {
     expect(renderToStaticMarkup(createElement(PlanView, { state: { status: "loading" }, onOpenEvent: () => {} }))).toContain("Загрузка…");
     expect(renderToStaticMarkup(createElement(PlanView, { state: { status: "error" }, onOpenEvent: () => {} }))).toContain("Не удалось загрузить план.");
   });
+
+  it("embeds the budget section into the ready plan screen", () => {
+    const { card } = ready(0);
+    const html = renderToStaticMarkup(createElement(PlanView, { state: { status: "ready", card }, onOpenEvent: () => {} }));
+
+    expect(html).toContain("Загружаем бюджет…");
+  });
 });
