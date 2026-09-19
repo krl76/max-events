@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { describe, expect, it } from "vitest";
 import { isRainy, OPEN_METEO_FORECAST_URL, utcHourKey, WeatherClient, type WeatherFetch } from "./weather.client";
 
@@ -50,5 +51,13 @@ describe("WeatherClient.precipitationAt", () => {
       throw new Error("ECONNREFUSED");
     });
     await expect(network.precipitationAt(1, 2, at)).resolves.toBeNull();
+  });
+});
+
+describe("WeatherClient DI constructability", () => {
+  it("marks both constructor params as optional for Nest DI", () => {
+    const optional = (Reflect.getMetadata("optional:paramtypes", WeatherClient) as number[] | undefined) ?? [];
+    expect([...optional].sort()).toEqual([0, 1]);
+    expect(new WeatherClient().precipitationAt).toBeInstanceOf(Function);
   });
 });
