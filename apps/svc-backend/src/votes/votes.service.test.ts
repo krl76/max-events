@@ -157,4 +157,31 @@ describe("VotesService", () => {
     expect(listed).toHaveLength(1);
     expect(await service.list(strangerId)).toEqual([]);
   });
+
+  it("returns the viewer's own ballot and never someone else's", async () => {
+    const { service } = createService();
+    const created = await service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [jazzId, concertId], participantIds: [dimaId, katyaId] });
+    expect(created.myBallotEventId).toBeNull();
+    const dimaView = await service.castBallot(dimaId, created.id, jazzId);
+    expect(dimaView.myBallotEventId).toBe(jazzId);
+    await service.castBallot(katyaId, created.id, concertId);
+    expect((await service.get(dimaId, created.id)).myBallotEventId).toBe(jazzId);
+    expect((await service.get(katyaId, created.id)).myBallotEventId).toBe(concertId);
+    expect((await service.get(hostId, created.id)).myBallotEventId).toBeNull();
+    expect((await service.list(dimaId))[0]?.myBallotEventId).toBe(jazzId);
+  });
+
+  it("breaks vote ties by option creation order, deterministically", async () => {
+    const { service } = createService();
+    const vote = await service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [jazzId, concertId], participantIds: [dimaId, katyaId] });
+    await service.castBallot(dimaId, vote.id, concertId);
+    const tied = await service.castBallot(katyaId, vote.id, jazzId);
+    expect(tied.options.every((row) => row.votes === 1)).toBe(true);
+    expect(tied.winnerEventId).toBe(jazzId);
+    expect((await service.get(hostId, vote.id)).winnerEventId).toBe(jazzId);
+    const reversed = await service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [concertId, jazzId], participantIds: [dimaId, katyaId] });
+    await service.castBallot(dimaId, reversed.id, concertId);
+    const tiedReversed = await service.castBallot(katyaId, reversed.id, jazzId);
+    expect(tiedReversed.winnerEventId).toBe(concertId);
+  });
 });

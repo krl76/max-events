@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Shared event vote — create options, MAX chat card, collect ballots, compute the winner.
-// SCOPE: create/list/get; one ballot per participant; best option is max votes then option id.
+// SCOPE: create/list/get; one ballot per participant; best option is max votes then option position (creation order).
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, events/friends/users/max-bot
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -79,7 +79,7 @@ export class VotesService {
         this.logger.warn(`Vote invite DM failed for ${saved.id}`);
       }
     }
-    return this.toVote(saved);
+    return this.toVote(saved, hostUserId);
   }
 
   async list(userId: string): Promise<Vote[]> {
@@ -88,13 +88,13 @@ export class VotesService {
     for (const vote of all) {
       if (await this.canView(userId, vote)) mine.push(vote);
     }
-    return Promise.all(mine.map((vote) => this.toVote(vote)));
+    return Promise.all(mine.map((vote) => this.toVote(vote, userId)));
   }
 
   async get(userId: string, voteId: string): Promise<Vote> {
     const vote = await this.requireVote(voteId);
     if (!(await this.canView(userId, vote))) throw new ForbiddenException("Cannot view another user's vote");
-    return this.toVote(vote);
+    return this.toVote(vote, userId);
   }
 
   async castBallot(userId: string, voteId: string, eventId: string): Promise<Vote> {
@@ -109,7 +109,7 @@ export class VotesService {
     } else {
       await this.ballots.save(this.ballots.create({ voteId, userId, eventId }));
     }
-    return this.toVote(vote);
+    return this.toVote(vote, userId);
   }
 
   private async requireVote(voteId: string): Promise<VoteEntity> {
@@ -124,7 +124,7 @@ export class VotesService {
     return rows.some((row) => row.userId === userId);
   }
 
-  private async toVote(vote: VoteEntity): Promise<Vote> {
+  private async toVote(vote: VoteEntity, viewerId: string): Promise<Vote> {
     const optionRows = (await this.options.find({ where: { voteId: vote.id }, order: { position: "ASC", id: "ASC" } })).sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
     const participantRows = await this.participants.find({ where: { voteId: vote.id } });
     const ballotRows = await this.ballots.find({ where: { voteId: vote.id } });
@@ -138,7 +138,7 @@ export class VotesService {
       const event = eventById.get(row.eventId);
       return event ? [{ event: toEventDto(event), votes: counts.get(row.eventId) ?? 0 }] : [];
     });
-    const ranked = [...optionRows].sort((a, b) => (counts.get(b.eventId) ?? 0) - (counts.get(a.eventId) ?? 0) || a.id.localeCompare(b.id));
+    const ranked = [...optionRows].sort((a, b) => (counts.get(b.eventId) ?? 0) - (counts.get(a.eventId) ?? 0) || a.position - b.position || a.id.localeCompare(b.id));
     const top = ranked[0];
     const topVotes = top ? (counts.get(top.eventId) ?? 0) : 0;
     const participants: Friend[] = participantRows.flatMap((row) => {
@@ -153,6 +153,7 @@ export class VotesService {
       participants,
       options,
       winnerEventId: top && topVotes > 0 ? top.eventId : null,
+      myBallotEventId: ballotRows.find((row) => row.userId === viewerId)?.eventId ?? null,
       createdAt: vote.createdAt.toISOString(),
       updatedAt: vote.updatedAt.toISOString(),
     };

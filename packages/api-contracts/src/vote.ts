@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - VoteOptionTallySchema - event plus vote count
 // - VoteOptionTally - option tally type
-// - VoteSchema - vote with options, participants, winner
+// - VoteSchema - vote with options, participants, winner, viewer's own ballot
 // - Vote - vote type
 // - CreateVoteWriteSchema - title, event ids, participant ids
 // - CreateVoteWrite - create write type
@@ -37,6 +37,7 @@ export const VoteSchema = z.object({
   participants: z.array(FriendSchema),
   options: z.array(VoteOptionTallySchema),
   winnerEventId: IdSchema.nullable(),
+  myBallotEventId: IdSchema.nullable().default(null),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 });
