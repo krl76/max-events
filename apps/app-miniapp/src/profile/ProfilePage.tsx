@@ -78,6 +78,7 @@ interface ProfileViewProps {
 }
 
 export function ProfileView({ user, profile, stats, friendsCount, posts, visitStats, saving, onSave, onOpenEvent }: ProfileViewProps) {
+  const [editing, setEditing] = useState(false);
   const [cityDraft, setCityDraft] = useState(profile.city);
   const [interestsDraft, setInterestsDraft] = useState(profile.interests.join(", "));
   useEffect(() => {
@@ -119,6 +120,38 @@ export function ProfileView({ user, profile, stats, friendsCount, posts, visitSt
           ))}
         </div>
       )}
+      {editing ? (
+        <form
+          className="app-profile-form"
+          onSubmit={(submit) => {
+            submit.preventDefault();
+            onSave(toProfilePatch(cityDraft, interestsDraft));
+            setEditing(false);
+          }}
+        >
+          <input className="app-profile-input" type="text" aria-label="Город" value={cityDraft} onChange={(change) => setCityDraft(change.target.value)} />
+          <input className="app-profile-input" type="text" aria-label="Интересы" placeholder="Интересы через запятую" value={interestsDraft} onChange={(change) => setInterestsDraft(change.target.value)} />
+          <div className="app-event-actions-row">
+            <AppButton disabled={saving} type="submit">
+              {saving ? "Сохранение…" : "Сохранить"}
+            </AppButton>
+            <AppButton
+              tone="secondary"
+              onClick={() => {
+                setCityDraft(profile.city);
+                setInterestsDraft(profile.interests.join(", "));
+                setEditing(false);
+              }}
+            >
+              Отмена
+            </AppButton>
+          </div>
+        </form>
+      ) : (
+        <AppButton className="app-profile-edit" tone="secondary" onClick={() => setEditing(true)}>
+          Редактировать
+        </AppButton>
+      )}
       {posts.length > 0 && (
         <div className="app-profile-grid" aria-label="Впечатления">
           {posts.map((post) => (
@@ -127,19 +160,6 @@ export function ProfileView({ user, profile, stats, friendsCount, posts, visitSt
         </div>
       )}
       <VisitStatsView stats={visitStats} />
-      <form
-        className="app-profile-form"
-        onSubmit={(submit) => {
-          submit.preventDefault();
-          onSave(toProfilePatch(cityDraft, interestsDraft));
-        }}
-      >
-        <input className="app-profile-input" type="text" aria-label="Город" value={cityDraft} onChange={(change) => setCityDraft(change.target.value)} />
-        <input className="app-profile-input" type="text" aria-label="Интересы" placeholder="Интересы через запятую" value={interestsDraft} onChange={(change) => setInterestsDraft(change.target.value)} />
-        <AppButton disabled={saving} type="submit" stretched>
-          {saving ? "Сохранение…" : "Сохранить"}
-        </AppButton>
-      </form>
     </section>
   );
 }

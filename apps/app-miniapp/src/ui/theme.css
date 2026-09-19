@@ -848,6 +848,10 @@ body {
   background-image: var(--app-media-veil), var(--app-media-gradient-5);
 }
 
+.app-profile-edit {
+  align-self: flex-start;
+}
+
 .app-profile-form {
   border-top: var(--app-hairline);
   display: flex;
