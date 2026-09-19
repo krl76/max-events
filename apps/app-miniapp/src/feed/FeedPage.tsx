@@ -24,13 +24,14 @@ import { apiClient, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { shareResult, webApp } from "../max/bridge";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppButton, AppChip, AppState, AppSkeleton, AppSection } from "../ui/primitives";
+import { AppAvatar, AppButton, AppChip, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { IconButton } from "@maxhub/max-ui";
 
 interface FeedPostCardProps {
   post: FeedPost;
   eventTitle: string;
+  eventCategory?: Event["category"];
   onToggleLike: () => void;
   onAddComment: (text: string) => void;
   onOpenEvent?: (eventId: string) => void;
@@ -43,7 +44,7 @@ export function likesLabel(count: number): string {
   return `${count} ${word} «нравится»`;
 }
 
-export function FeedPostCard({ post, eventTitle, onToggleLike, onAddComment, onOpenEvent }: FeedPostCardProps) {
+export function FeedPostCard({ post, eventTitle, eventCategory, onToggleLike, onAddComment, onOpenEvent }: FeedPostCardProps) {
   const [comment, setComment] = useState("");
   const commentRef = useRef<HTMLInputElement | null>(null);
   const eventLink = onOpenEvent ? (
@@ -62,7 +63,7 @@ export function FeedPostCard({ post, eventTitle, onToggleLike, onAddComment, onO
           {eventTitle !== "" && <span className="app-post-place">{eventLink}</span>}
         </span>
       </header>
-      <div className="app-card-media" />
+      <AppMedia category={eventCategory} />
       <div className="app-post-actions">
         <button type="button" className="app-post-action" aria-pressed={post.likedByMe} aria-label="Нравится" onClick={onToggleLike}>
           <ActionIcon filled={post.likedByMe} name="heart" />
@@ -183,7 +184,7 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
       ) : state.posts.length === 0 ? (
         <AppState>Пока нет постов — расскажи первым.</AppState>
       ) : (
-        state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)
+        state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} eventCategory={events.find((item) => item.id === post.eventId)?.category} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)
       )}
     </AppSection>
   );

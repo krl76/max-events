@@ -17,7 +17,7 @@ import type { TodayCardLabel, TodayResponse } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
-import { AppState, AppSkeleton, AppSection } from "../ui/primitives";
+import { AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 
 export type TodayState = { status: "loading" } | { status: "error" } | { status: "ready"; today: TodayResponse };
 
@@ -60,7 +60,7 @@ export function TodayView({ state, onOpen, onRetry }: TodayViewProps) {
           </p>
           {state.today.cards.map(({ event, labels }) => (
             <button key={event.id} type="button" className="app-card app-card--link" onClick={() => onOpen(event.id)}>
-              <div className="app-card-media" />
+              <AppMedia category={event.category} />
               <div className="app-card-body">
                 <span className="app-card-title">{event.title}</span>
                 <span className="app-card-subtitle">

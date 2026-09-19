@@ -20,7 +20,7 @@ import type { Plan, PlanCard } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppNavTiles, AppState, AppSkeleton } from "../ui/primitives";
+import { AppNavTiles, AppState, AppSkeleton, AppMedia } from "../ui/primitives";
 
 export function planParticipantsLabel(count: number): string {
   const mod10 = count % 10;
@@ -64,7 +64,7 @@ export function PlansView({ state, onOpen, onExplore }: { state: PlansState; onO
     <>
       {state.cards.map(({ plan, event, distanceMeters }) => (
         <button key={plan.id} type="button" className="app-card app-card--link" onClick={() => onOpen(plan.id)}>
-          <div className="app-card-media" />
+          <AppMedia category={event.category} />
           <div className="app-card-body">
             <span className="app-card-title">{event.title}</span>
             <span className="app-card-subtitle">{planParticipantsLabel(plan.participants.length)}</span>

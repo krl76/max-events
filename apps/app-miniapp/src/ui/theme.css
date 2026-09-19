@@ -178,11 +178,32 @@ body {
 }
 
 .app-card-media {
+  align-items: center;
   aspect-ratio: 4 / 5;
   background-image: var(--app-media-veil), var(--app-media-gradient-1);
   background-position: center;
   background-size: cover;
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  justify-content: center;
   width: 100%;
+}
+
+/* Категорийные градиенты плейсхолдеров: цвет семантичен, а не ротируется по позиции */
+.app-media--afisha {
+  background-image: var(--app-media-veil), var(--app-media-gradient-2);
+}
+
+.app-media--volunteering {
+  background-image: var(--app-media-veil), var(--app-media-gradient-4);
+}
+
+.app-media--tourism {
+  background-image: var(--app-media-veil), var(--app-media-gradient-1);
+}
+
+.app-media--sport {
+  background-image: var(--app-media-veil), var(--app-media-gradient-3);
 }
 
 .app-card-body {
@@ -522,9 +543,6 @@ body {
 .app-event-media {
   align-items: flex-end;
   aspect-ratio: 16 / 9;
-  background-image: var(--app-media-veil), var(--app-media-gradient-2);
-  background-position: center;
-  background-size: cover;
   display: flex;
 }
 
@@ -830,22 +848,6 @@ body {
   border: none;
   cursor: pointer;
   padding: 0;
-}
-
-.app-profile-cell:nth-child(5n + 2) {
-  background-image: var(--app-media-veil), var(--app-media-gradient-2);
-}
-
-.app-profile-cell:nth-child(5n + 3) {
-  background-image: var(--app-media-veil), var(--app-media-gradient-3);
-}
-
-.app-profile-cell:nth-child(5n + 4) {
-  background-image: var(--app-media-veil), var(--app-media-gradient-4);
-}
-
-.app-profile-cell:nth-child(5n + 5) {
-  background-image: var(--app-media-veil), var(--app-media-gradient-5);
 }
 
 .app-profile-edit {
@@ -1567,38 +1569,7 @@ body {
   align-self: center;
 }
 
-/* Ротация градиентов медиа-заглушек: детерминированно по позиции в списке */
-.app-card--post:nth-of-type(5n + 2) .app-card-media {
-  background-image: var(--app-media-veil), var(--app-media-gradient-2);
-}
-
-.app-card--post:nth-of-type(5n + 3) .app-card-media {
-  background-image: var(--app-media-veil), var(--app-media-gradient-3);
-}
-
-.app-card--post:nth-of-type(5n + 4) .app-card-media {
-  background-image: var(--app-media-veil), var(--app-media-gradient-4);
-}
-
-.app-card--post:nth-of-type(5n + 5) .app-card-media {
-  background-image: var(--app-media-veil), var(--app-media-gradient-5);
-}
-
-.app-card--link:nth-of-type(5n + 2) .app-card-media {
-  background-image: var(--app-media-veil), var(--app-media-gradient-2);
-}
-
-.app-card--link:nth-of-type(5n + 3) .app-card-media {
-  background-image: var(--app-media-veil), var(--app-media-gradient-3);
-}
-
-.app-card--link:nth-of-type(5n + 4) .app-card-media {
-  background-image: var(--app-media-veil), var(--app-media-gradient-4);
-}
-
-.app-card--link:nth-of-type(5n + 5) .app-card-media {
-  background-image: var(--app-media-veil), var(--app-media-gradient-5);
-}
+/* Ротации градиентов по позиции больше нет: цвет медиа-плейсхолдера задаётся категорией (.app-media--*) */
 
 /* Экран «Рядом со мной»: действия карточки и цепочки досуга */
 .app-nearby-actions {

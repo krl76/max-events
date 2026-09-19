@@ -23,7 +23,7 @@ import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
 import { useRoute } from "../routing/router";
-import { AppButton, AppChip, AppState } from "../ui/primitives";
+import { AppButton, AppChip, AppState, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { VoteCreateSection } from "../votes/VotePage";
 
@@ -68,7 +68,7 @@ interface WheretoViewProps {
 function ResultCard({ event, onOpenEvent }: { event: Event; onOpenEvent: (id: string) => void }) {
   return (
     <button type="button" className="app-card app-card--link" onClick={() => onOpenEvent(event.id)}>
-      <div className="app-card-media" />
+      <AppMedia category={event.category} />
       <div className="app-card-body">
         <span className="app-card-title">{event.title}</span>
         <span className="app-card-subtitle">

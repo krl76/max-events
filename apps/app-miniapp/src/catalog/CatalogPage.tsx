@@ -19,7 +19,7 @@ import type { Event, EventCategory } from "@max-events/api-contracts";
 import { EventCategorySchema } from "@max-events/api-contracts";
 import { apiClient, parseEventFilters, serializeEventFilters, type EventFilters } from "../api/client";
 import { useRoute } from "../routing/router";
-import { AppChip, AppState } from "../ui/primitives";
+import { AppChip, AppState, AppMedia } from "../ui/primitives";
 import { formatStartsAt } from "./format";
 import { MapScreen } from "./MapScreen";
 
@@ -76,7 +76,7 @@ function ViewToggle({ view, onView }: { view: CatalogViewName; onView: (view: Ca
 function EventCard({ event, onOpen }: { event: Event; onOpen?: (id: string) => void }) {
   return (
     <button type="button" className="app-card app-card--link" onClick={() => onOpen?.(event.id)}>
-      <div className="app-card-media" />
+      <AppMedia category={event.category} />
       <div className="app-card-body">
         <span className="app-card-title">{event.title}</span>
         <span className="app-card-subtitle">

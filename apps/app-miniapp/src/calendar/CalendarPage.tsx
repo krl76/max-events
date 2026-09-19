@@ -17,7 +17,7 @@ import { apiClient, type CalendarEntry } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
-import { AppButton, AppState, AppSection } from "../ui/primitives";
+import { AppButton, AppState, AppSection, AppMedia } from "../ui/primitives";
 
 export type CalendarState = { status: "loading" } | { status: "error" } | { status: "ready"; entries: CalendarEntry[] };
 
@@ -33,7 +33,7 @@ function BookingCard({ entry, onCancel }: { entry: CalendarEntry; onCancel: (() 
   const { event, place } = entry;
   return (
     <article className="app-card app-card--row">
-      <div className="app-card-media" />
+      <AppMedia category={event.category} />
       <div className="app-card-body">
         <span className="app-card-title">{event.title}</span>
         <span className="app-card-subtitle">

@@ -19,7 +19,7 @@ import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { PARTICIPATION_STATUS_LABELS } from "../event/EventPage";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppButton, AppState } from "../ui/primitives";
+import { AppAvatar, AppButton, AppState, AppMedia } from "../ui/primitives";
 
 export type FriendsState = { status: "loading" } | { status: "error" } | { status: "ready"; groups: FriendActivityByFriend[] };
 
@@ -52,7 +52,7 @@ export function FriendsView({ state, onJoin }: FriendsViewProps) {
           </div>
           {group.events.map(({ event, participationStatus }) => (
             <article key={event.id} className="app-card app-card--row">
-              <div className="app-card-media" />
+              <AppMedia category={event.category} />
               <div className="app-card-body">
                 <span className="app-card-title">{event.title}</span>
                 <span className="app-card-subtitle">{formatStartsAt(event.startsAt)}</span>

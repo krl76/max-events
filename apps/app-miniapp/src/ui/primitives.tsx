@@ -16,10 +16,12 @@
 // - AppState - loading/empty/error state block: alert icon on error, text, optional retry action
 // - AppSkeleton - pulsing placeholder block (lines or media) for loading states
 // - AppSection - section rhythm primitive: title row with an optional right-side action, unified top margin
+// - AppMedia - media placeholder: category-fixed MAX gradient + category icon (neutral gradient without a category)
 // END_MODULE_MAP
 
 import type { ComponentProps, ReactNode } from "react";
 import { Avatar, Button, Typography } from "@maxhub/max-ui";
+import type { EventCategory } from "@max-events/api-contracts";
 import { ActionIcon, type ActionIconName } from "./icons";
 
 export type AppButtonTone = "primary" | "secondary" | "danger" | "ghost";
@@ -115,4 +117,16 @@ export function AppSection({ title, action, className, ariaLabel, children }: { 
       {children}
     </section>
   );
+}
+
+export const CATEGORY_MEDIA_ICON: Record<EventCategory, ActionIconName> = {
+  afisha: "ticket",
+  volunteering: "heart",
+  tourism: "pin",
+  sport: "star",
+};
+
+export function AppMedia({ category, className }: { category?: EventCategory; className?: string }) {
+  const mediaClass = ["app-card-media", category !== undefined ? `app-media--${category}` : "", className ?? ""].filter(Boolean).join(" ");
+  return <div className={mediaClass}>{category !== undefined && <ActionIcon name={CATEGORY_MEDIA_ICON[category]} size={22} />}</div>;
 }
