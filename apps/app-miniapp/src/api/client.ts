@@ -112,11 +112,12 @@
 // - ApiClient.getEventOrganizerRating / getOrganizerRating - GET /events/:id/organizer-rating and /organizers/:userId/rating (#199; nullable envelope)
 // - ApiClient.listCampaigns / createCampaign - organizer promo campaigns (GET/POST /organizer/events/:id/campaigns, #206)
 // - ApiClient.listPromotions / createPromotion / markPromotionPaid - organizer promotion campaigns (GET/POST /organizer/events/:id/promotions, POST .../:campaignId/paid, #206)
+// - ApiClient.getWhereto - GET /whereto?company=&mood=&budget=: guided "Куда пойдём?" suggestions (up to 5 events, #371)
 // END_MODULE_MAP
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
-import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, Vote, WaitlistEntry, WeGroupScreen, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, Vote, WaitlistEntry, WeGroupScreen, WheretoQuery, WheretoResponse, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
 import { EventSalesReportSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, PromoCampaignSchema, PromotionCampaignSchema } from "@max-events/api-contracts";
 import type { CreatePromoCampaignWrite, CreatePromotionWrite, EventSalesReport, OrganizerEventStats, OrganizerRatingResponse, PromoCampaign, PromotionCampaign, RecordPageViewWrite } from "@max-events/api-contracts";
 
@@ -1024,6 +1025,11 @@ export class ApiClient {
   getPeople(origin: { latitude: number; longitude: number } | null = null): Promise<PeopleResponse> {
     const query = origin === null ? "" : `?${new URLSearchParams({ lat: String(origin.latitude), lng: String(origin.longitude) }).toString()}`;
     return this.request(`/people${query}`, PeopleResponseSchema);
+  }
+
+  getWhereto(query: WheretoQuery): Promise<WheretoResponse> {
+    const params = new URLSearchParams({ company: query.company, mood: query.mood, budget: query.budget });
+    return this.request(`/whereto?${params.toString()}`, WheretoResponseSchema);
   }
 
   getPromotionPlacements(): Promise<PromotionPlacements> {

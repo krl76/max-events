@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { buildShareText, suggestEvents, WheretoView, wizardStepIndex, type WheretoState } from "./WheretoPage";
+import { buildShareText, WheretoView, wizardStepIndex, type WheretoState } from "./WheretoPage";
 import { mockEvents } from "../api/mock";
 import type { ShareChannel } from "../max/bridge";
 import type { Event, WheretoQuery } from "@max-events/api-contracts";
@@ -10,11 +10,12 @@ const query = (over: Partial<WheretoQuery> = {}): WheretoQuery => ({ company: "a
 
 const noop = () => {};
 
-function viewHtml(state: WheretoState, over: { events?: Event[]; shared?: ShareChannel | null } = {}): string {
+function viewHtml(state: WheretoState, over: { events?: Event[]; shared?: ShareChannel | null; status?: "loading" | "error" | "ready" } = {}): string {
   return renderToStaticMarkup(
     createElement(WheretoView, {
       state,
       events: over.events ?? [],
+      status: over.status ?? "ready",
       shared: over.shared ?? null,
       onCompany: noop,
       onMood: noop,
@@ -27,48 +28,6 @@ function viewHtml(state: WheretoState, over: { events?: Event[]; shared?: ShareC
     }),
   );
 }
-
-describe("suggestEvents", () => {
-  it("caps the result at 5 events sorted by start time", () => {
-    const result = suggestEvents(mockEvents, query());
-
-    expect(result).toHaveLength(5);
-    const starts = result.map((item) => item.startsAt);
-    expect([...starts].sort((a, b) => a.localeCompare(b))).toEqual(starts);
-  });
-
-  it("maps mood to categories (calm -> afisha only)", () => {
-    const result = suggestEvents(mockEvents, query({ mood: "calm" }));
-
-    expect(result.length).toBeGreaterThan(0);
-    expect(result.every((item) => item.category === "afisha")).toBe(true);
-  });
-
-  it("budget free keeps only unpaid events", () => {
-    const result = suggestEvents(mockEvents, query({ mood: "unusual", budget: "free" }));
-
-    expect(result.length).toBeGreaterThan(0);
-    expect(result.every((item) => item.priceRub === null)).toBe(true);
-  });
-
-  it("budget under_3000 keeps free and cheap events", () => {
-    const result = suggestEvents(mockEvents, query({ mood: "unusual", budget: "under_3000" }));
-
-    expect(result.every((item) => item.priceRub === null || item.priceRub <= 3000)).toBe(true);
-  });
-
-  it("company partner drops volunteering, kids caps the price", () => {
-    const partner = suggestEvents(mockEvents, query({ mood: "unusual", company: "partner" }));
-    const kids = suggestEvents(mockEvents, query({ mood: "unusual", company: "kids", budget: "any" }));
-
-    expect(partner.every((item) => item.category !== "volunteering")).toBe(true);
-    expect(kids.every((item) => (item.priceRub ?? 0) <= 3000)).toBe(true);
-  });
-
-  it("a different mood changes the result", () => {
-    expect(suggestEvents(mockEvents, query({ mood: "active" })).map((item) => item.id)).not.toEqual(suggestEvents(mockEvents, query({ mood: "unusual" })).map((item) => item.id));
-  });
-});
 
 describe("buildShareText", () => {
   it("numbers the events with their start time", () => {
@@ -106,14 +65,12 @@ describe("WheretoView", () => {
   });
 
   it("renders the result cards, the share CTA and the query context", () => {
-    const result = suggestEvents(mockEvents, query({ mood: "unusual", company: "friends", budget: "under_3000" }));
-    const html = viewHtml({ step: "result", query: query({ mood: "unusual", company: "friends", budget: "under_3000" }) }, { events: result });
+    const events = mockEvents.slice(0, 2);
+    const html = viewHtml({ step: "result", query: query({ mood: "unusual", company: "friends", budget: "under_3000" }) }, { events });
 
-    expect(result.length).toBeGreaterThan(0);
-    expect(result.length).toBeLessThanOrEqual(5);
     expect(html).toContain("Ваша подборка");
     expect(html).toContain("С друзьями · Необычное · До 3000 ₽");
-    for (const item of result) expect(html).toContain(item.title);
+    for (const item of events) expect(html).toContain(item.title);
     expect(html).toContain("Отправить друзьям");
     expect(html).toContain("Начать заново");
   });
@@ -125,8 +82,18 @@ describe("WheretoView", () => {
     expect(html).not.toContain("Отправить друзьям");
   });
 
+  it("renders loading and error states via AppState instead of cards", () => {
+    const loading = viewHtml({ step: "result", query: query() }, { status: "loading" });
+    const failed = viewHtml({ step: "result", query: query() }, { status: "error" });
+
+    expect(loading).toContain("Загрузка");
+    expect(loading).not.toContain("Отправить друзьям");
+    expect(failed).toContain("Не удалось загрузить подборку");
+    expect(failed).not.toContain("Отправить друзьям");
+  });
+
   it("offers the vote creation CTA only when at least two events are suggested", () => {
-    const events = suggestEvents(mockEvents, query());
+    const events = mockEvents.slice(0, 2);
     const enough = viewHtml({ step: "result", query: query() }, { events });
     const single = viewHtml({ step: "result", query: query() }, { events: events.slice(0, 1) });
 
@@ -135,7 +102,7 @@ describe("WheretoView", () => {
   });
 
   it("renders share feedback per channel", () => {
-    const events = suggestEvents(mockEvents, query());
+    const events = mockEvents.slice(0, 2);
     const bridge = viewHtml({ step: "result", query: query() }, { events, shared: "bridge" });
     const clipboard = viewHtml({ step: "result", query: query() }, { events, shared: "clipboard" });
     const manual = viewHtml({ step: "result", query: query() }, { events, shared: "unavailable" });

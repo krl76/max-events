@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: "Куда пойдём?" guided wizard: company step, mood/budget step, result with up to 5 event cards and share to a MAX chat.
-// SCOPE: Suggestion over the catalog events from the API (client-side heuristic until the backend whereto surface lands), local wizard state, шаринг через bridge.shareResult; no URL state, no navigation logic.
-// DEPENDS: @max-events/api-contracts (WheretoQuerySchema, Whereto*), ../api/client.js (apiClient.listEvents), ../max/bridge.js (webApp, shareResult, ShareChannel), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../routing/router.js, ../ui/theme.css
+// SCOPE: Suggestion via the backend GET /api/whereto through apiClient.getWhereto (loading/error/empty via AppState), local wizard state, шаринг через bridge.shareResult; no URL state, no navigation logic.
+// DEPENDS: @max-events/api-contracts (WheretoQuerySchema, Whereto*), ../api/client.js (apiClient.getWhereto), ../max/bridge.js (webApp, shareResult, ShareChannel), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../routing/router.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS, https://dev.max.ru/docs/webapps/bridge
 // END_MODULE_CONTRACT
 //
@@ -10,15 +10,15 @@
 // - MOOD_LABELS - ru labels for WheretoMood
 // - BUDGET_LABELS - ru labels for WheretoBudget
 // - WheretoState - wizard step: company -> context (mood+budget) -> result (WheretoQuery) -> vote (create form over the result events)
+// - WheretoResult - fetch status of the result step: loading | error | ready (backend items)
 // - wizardStepIndex - 0-based progress position of a wizard step (drives the «Шаг N из 3» header)
-// - suggestEvents - подборка по загруженным событиям: mood -> категории, budget -> цена, company -> мягкое ограничение, сортировка по дате, максимум 5
 // - buildShareText - numbered share text for the result events
 // - WheretoView - presentational wizard by step (result offers the «Голосование с друзьями» CTA when >= 2 events)
-// - WheretoPage - route container: wizard state + share wiring + vote creation handoff
+// - WheretoPage - route container: wizard state + backend suggestion fetch + share wiring + vote creation handoff
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import type { Event, EventCategory, WheretoBudget, WheretoCompany, WheretoMood, WheretoQuery } from "@max-events/api-contracts";
+import type { Event, WheretoBudget, WheretoCompany, WheretoMood, WheretoQuery } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
@@ -35,17 +35,8 @@ export const BUDGET_LABELS: Record<WheretoBudget, string> = { any: "Любой",
 
 export type WheretoState = { step: "company" } | { step: "context"; company: WheretoCompany; mood: WheretoMood | null; budget: WheretoBudget | null } | { step: "result"; query: WheretoQuery } | { step: "vote"; query: WheretoQuery };
 
-/** Эвристика до backend whereto API: категории и цена подобраны под контекст. */
-export function suggestEvents(events: Event[], query: WheretoQuery): Event[] {
-  const moodCategories: Record<WheretoMood, EventCategory[]> = { active: ["sport", "tourism"], calm: ["afisha"], unusual: ["volunteering", "tourism"] };
-  return events
-    .filter((item) => moodCategories[query.mood].includes(item.category))
-    .filter((item) => query.company !== "partner" || item.category !== "volunteering")
-    .filter((item) => query.company !== "kids" || (item.priceRub ?? 0) <= 3000)
-    .filter((item) => query.budget === "any" || item.priceRub === null || (query.budget === "under_3000" && item.priceRub <= 3000))
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
-    .slice(0, 5);
-}
+/** Fetch status of the result step: the backend suggestion is loading, failed, or ready with its items. */
+export type WheretoResult = { status: "loading" } | { status: "error" } | { status: "ready"; events: Event[] };
 
 export function buildShareText(events: Event[]): string {
   return ["Куда пойдём? Подборка MAX Events:", ...events.map((event, index) => `${index + 1}. ${event.title} — ${formatStartsAt(event.startsAt)}`)].join("\n");
@@ -54,6 +45,7 @@ export function buildShareText(events: Event[]): string {
 interface WheretoViewProps {
   state: WheretoState;
   events: Event[];
+  status: WheretoResult["status"];
   shared: ShareChannel | null;
   onCompany: (company: WheretoCompany) => void;
   onMood: (mood: WheretoMood) => void;
@@ -105,7 +97,7 @@ function WizardProgress({ step }: { step: number }) {
   );
 }
 
-export function WheretoView({ state, events, shared, onCompany, onMood, onBudget, onShow, onRestart, onShare, onOpenEvent, onCreateVote }: WheretoViewProps) {
+export function WheretoView({ state, events, status, shared, onCompany, onMood, onBudget, onShow, onRestart, onShare, onOpenEvent, onCreateVote }: WheretoViewProps) {
   if (state.step === "company") {
     return (
       <>
@@ -157,16 +149,18 @@ export function WheretoView({ state, events, shared, onCompany, onMood, onBudget
       <p className="app-whereto-hint">
         {COMPANY_LABELS[state.query.company]} · {MOOD_LABELS[state.query.mood]} · {BUDGET_LABELS[state.query.budget]}
       </p>
-      {events.length === 0 && <AppState>Ничего не нашлось — попробуйте другой контекст</AppState>}
-      {events.map((event) => (
+      {status === "loading" && <AppState>Загрузка…</AppState>}
+      {status === "error" && <AppState error>Не удалось загрузить подборку.</AppState>}
+      {status === "ready" && events.length === 0 && <AppState>Ничего не нашлось — попробуйте другой контекст</AppState>}
+      {status === "ready" && events.map((event) => (
         <ResultCard key={event.id} event={event} onOpenEvent={onOpenEvent} />
       ))}
-      {events.length > 0 && (
+      {status === "ready" && events.length > 0 && (
         <AppButton onClick={onShare} stretched>
           Отправить друзьям
         </AppButton>
       )}
-      {events.length >= 2 && (
+      {status === "ready" && events.length >= 2 && (
         <AppButton tone="secondary" onClick={onCreateVote} stretched>
           Голосование с друзьями
         </AppButton>
@@ -185,20 +179,25 @@ export function WheretoPage() {
   const { navigate } = useRoute();
   const [state, setState] = useState<WheretoState>({ step: "company" });
   const [shared, setShared] = useState<ShareChannel | null>(null);
-  const [loaded, setLoaded] = useState<Event[]>([]);
+  const [result, setResult] = useState<WheretoResult | null>(null);
+  const query = state.step === "result" || state.step === "vote" ? state.query : null;
   useEffect(() => {
+    if (query === null) return;
     let alive = true;
-    apiClient.listEvents().then(
-      (list) => {
-        if (alive) setLoaded(list);
+    setResult({ status: "loading" });
+    apiClient.getWhereto(query).then(
+      (response) => {
+        if (alive) setResult({ status: "ready", events: response.items });
       },
-      () => {},
+      () => {
+        if (alive) setResult({ status: "error" });
+      },
     );
     return () => {
       alive = false;
     };
-  }, []);
-  const events = state.step === "result" || state.step === "vote" ? suggestEvents(loaded, state.query) : [];
+  }, [query]);
+  const events = result?.status === "ready" ? result.events : [];
 
   if (state.step === "vote") {
     return <VoteCreateSection events={events} onCreated={(vote) => navigate({ name: "vote", id: vote.id })} onCancel={() => setState({ step: "result", query: state.query })} />;
@@ -208,6 +207,7 @@ export function WheretoPage() {
     <WheretoView
       state={state}
       events={events}
+      status={result?.status ?? "loading"}
       shared={shared}
       onCompany={(company) => setState({ step: "context", company, mood: null, budget: null })}
       onMood={(mood) => setState((current) => (current.step === "context" ? { ...current, mood } : current))}
