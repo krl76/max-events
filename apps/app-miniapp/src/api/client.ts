@@ -91,6 +91,12 @@
 // - ApiClient.getPeople - GET /people[?lat=&lng=]: people matching with shared-interest/event context (lat/lng mirror the backend parseOrigin names)
 // - ApiClient.getPromotionPlacements - GET /promotions/placements: banners, pins, boosted ids (#205)
 // - ApiClient.getTargetedPromotions - GET /promotions/for-me: targeted collections with explanations (#205)
+// - OrganizerEvent - contract event plus the draft flag read from the raw `published` field (the backend organizer DTO omits it; a missing flag reads as published)
+// - OrganizerPlace - contract place plus the draft flag (same raw published reading)
+// - UpdateOrganizerEvent - minimal event edit payload (backend PATCH /events/:id whitelist)
+// - UpdateOrganizerPlace - place edit payload (backend PATCH /places/:id validates CreatePlaceSchema.partial())
+// - ApiClient.listOrganizerEvents / createOrganizerEvent / updateOrganizerEvent / publishOrganizerEvent - organizer event surface (GET/POST /organizer/events, PATCH /events/:id, POST /organizer/events/:id/publish); create always yields a draft, publish always yields a published item
+// - ApiClient.listOrganizerPlaces / createOrganizerPlace / updateOrganizerPlace / publishOrganizerPlace - organizer place surface (GET/POST /organizer/places, PATCH /places/:id, POST /organizer/places/:id/publish)
 // END_MODULE_MAP
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, type PlacePage } from "@max-events/api-contracts";
@@ -590,6 +596,63 @@ export interface CreateMicroEvent {
   participantsLimit: number;
 }
 
+/** Organizer panel item: the contract entity plus the draft flag. The backend organizer DTO omits `published`, so a missing flag reads as published (drafts are only distinguishable when the payload carries published=false). */
+export type OrganizerEvent = Event & { draft: boolean };
+export type OrganizerPlace = Place & { draft: boolean };
+
+/** Minimal editable event fields (backend PATCH /events/:id whitelist via pickEventFields). */
+export type UpdateOrganizerEvent = Partial<Pick<CreateEvent, "title" | "startsAt" | "endsAt" | "isPaid" | "priceRub" | "paymentUrl" | "capacity">>;
+
+/** Editable place fields (backend PATCH /places/:id validates CreatePlaceSchema.partial()). */
+export type UpdateOrganizerPlace = Partial<CreatePlace>;
+
+function organizerItem<T>(schema: ZodSchema<T>, data: unknown): (T & { draft: boolean }) | null {
+  const parsed = schema.safeParse(data);
+  if (!parsed.success) return null;
+  const draft = typeof data === "object" && data !== null && (data as Record<string, unknown>).published === false;
+  return { ...parsed.data, draft };
+}
+
+const OrganizerEventEntitySchema: ZodSchema<OrganizerEvent> = {
+  safeParse(data: unknown) {
+    const item = organizerItem(EventSchema, data);
+    return item === null ? { success: false as const, error: "invalid organizer event" } : { success: true as const, data: item };
+  },
+};
+
+const OrganizerPlaceEntitySchema: ZodSchema<OrganizerPlace> = {
+  safeParse(data: unknown) {
+    const item = organizerItem(PlaceSchema, data);
+    return item === null ? { success: false as const, error: "invalid organizer place" } : { success: true as const, data: item };
+  },
+};
+
+const OrganizerEventArraySchema: ZodSchema<OrganizerEvent[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of organizer events" };
+    const events: OrganizerEvent[] = [];
+    for (const item of data) {
+      const parsed = OrganizerEventEntitySchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      events.push(parsed.data);
+    }
+    return { success: true as const, data: events };
+  },
+};
+
+const OrganizerPlaceArraySchema: ZodSchema<OrganizerPlace[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of organizer places" };
+    const places: OrganizerPlace[] = [];
+    for (const item of data) {
+      const parsed = OrganizerPlaceEntitySchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      places.push(parsed.data);
+    }
+    return { success: true as const, data: places };
+  },
+};
+
 export class ApiClient {
   private initData: string | null = null;
 
@@ -882,12 +945,48 @@ export class ApiClient {
     return this.request(`/people${query}`, PeopleResponseSchema);
   }
 
-  getPromotionPlacements(): Promise<PromotionPlacements> {
+getPromotionPlacements(): Promise<PromotionPlacements> {
     return this.request("/promotions/placements", PromotionPlacementsSchema);
   }
 
   getTargetedPromotions(): Promise<TargetedPromotionsResponse> {
     return this.request("/promotions/for-me", TargetedPromotionsResponseSchema);
+  }
+
+  listOrganizerEvents(): Promise<OrganizerEvent[]> {
+    return this.request("/organizer/events", OrganizerEventArraySchema);
+  }
+
+  async createOrganizerEvent(payload: CreateEvent): Promise<OrganizerEvent> {
+    const created = await this.request("/organizer/events", OrganizerEventEntitySchema, { body: payload });
+    return { ...created, draft: true };
+  }
+
+  updateOrganizerEvent(id: string, patch: UpdateOrganizerEvent): Promise<OrganizerEvent> {
+    return this.request(`/events/${id}`, OrganizerEventEntitySchema, { method: "PATCH", body: patch });
+  }
+
+  async publishOrganizerEvent(id: string): Promise<OrganizerEvent> {
+    const published = await this.request(`/organizer/events/${id}/publish`, OrganizerEventEntitySchema, { method: "POST" });
+    return { ...published, draft: false };
+  }
+
+  listOrganizerPlaces(): Promise<OrganizerPlace[]> {
+    return this.request("/organizer/places", OrganizerPlaceArraySchema);
+  }
+
+  async createOrganizerPlace(payload: CreatePlace): Promise<OrganizerPlace> {
+    const created = await this.request("/organizer/places", OrganizerPlaceEntitySchema, { body: payload });
+    return { ...created, draft: true };
+  }
+
+  updateOrganizerPlace(id: string, patch: UpdateOrganizerPlace): Promise<OrganizerPlace> {
+    return this.request(`/places/${id}`, OrganizerPlaceEntitySchema, { method: "PATCH", body: patch });
+  }
+
+  async publishOrganizerPlace(id: string): Promise<OrganizerPlace> {
+    const published = await this.request(`/organizer/places/${id}/publish`, OrganizerPlaceEntitySchema, { method: "POST" });
+    return { ...published, draft: false };
   }
 }
 
