@@ -69,6 +69,33 @@ describe("booking payments via mock (sandbox parity)", () => {
     await expect(api.payBooking("00000000-0000-4000-8000-000000000000")).rejects.toMatchObject({ name: "ApiError", status: 404 });
   });
 
+  it("refunds the succeeded payment when a paid booking is cancelled", async () => {
+    restore = installMockApi();
+    const api = client();
+    const booking = await api.createBooking({ userId: DEMO_USER_ID, eventId: PAID_EVENT_ID });
+    const paid = await api.payBooking(booking.id);
+    expect(paid.payment?.status).toBe("succeeded");
+
+    const cancelled = await api.cancelBooking(booking.id);
+    expect(cancelled.status).toBe("cancelled");
+    expect(cancelled.payment?.status).toBe("refunded");
+    expect(cancelled.payment?.amountRub).toBe(paid.payment?.amountRub);
+
+    const again = await api.cancelBooking(booking.id);
+    expect(again.payment?.status).toBe("refunded");
+  });
+
+  it("cancels a booking with a pending payment without a refund", async () => {
+    restore = installMockApi();
+    const api = client();
+    const booking = await api.createBooking({ userId: DEMO_USER_ID, eventId: PAID_EVENT_ID });
+    expect(booking.payment?.status).toBe("pending");
+
+    const cancelled = await api.cancelBooking(booking.id);
+    expect(cancelled.status).toBe("cancelled");
+    expect(cancelled.payment?.status).toBe("pending");
+  });
+
   it("keeps free events paymentless, including the pay endpoint", async () => {
     restore = installMockApi();
     const api = client();

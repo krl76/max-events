@@ -63,6 +63,23 @@ describe("VoteView", () => {
     expect(html).not.toContain("disabled");
   });
 
+  it("highlights «Твой голос» from the api-provided myBallotEventId on load", () => {
+    const vote = seededVote();
+    const voted = castMockBallot(vote.id, vote.options[2].event.id);
+    if (typeof voted === "string") throw new Error("unexpected ballot failure");
+
+    const html = viewHtml({ state: { status: "ready", vote: voted } });
+    expect(voted.myBallotEventId).toBe(vote.options[2].event.id);
+    expect(html).toContain("Твой голос");
+
+    const withoutBallot = viewHtml({ state: { status: "ready", vote: { ...voted, myBallotEventId: null } } });
+    expect(withoutBallot).not.toContain("Твой голос");
+  });
+
+  it("renders the forbidden state for a vote the user cannot access", () => {
+    expect(viewHtml({ state: { status: "forbidden" } })).toContain("Голосование недоступно");
+  });
+
   it("renders the not-found, error and ballot-failure states", () => {
     expect(viewHtml({ state: { status: "notfound" } })).toContain("Голосование не найдено");
     expect(viewHtml({ state: { status: "error" } })).toContain("Не удалось загрузить голосование");

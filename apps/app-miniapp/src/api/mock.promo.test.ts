@@ -27,6 +27,18 @@ describe("promotion placements and targeted collections", () => {
     expect(placements.boostedEventIds.length).toBeGreaterThanOrEqual(1);
   });
 
+  it("flags the placement events promoted in the /api/events listing (backend promotedEventIds parity)", async () => {
+    restore = installMockApi();
+    const placements = await client().getPromotionPlacements();
+    const promotedIds = new Set([...placements.banners.map((event) => event.id), ...placements.pins.map((pin) => pin.event.id), ...placements.boostedEventIds]);
+
+    const events = await client().listEvents();
+    for (const id of promotedIds) {
+      expect(events.find((event) => event.id === id)?.promoted).toBe(true);
+    }
+    expect(events.some((event) => !promotedIds.has(event.id) && !event.promoted)).toBe(true);
+  });
+
   it("serves a targeted collection with an explanation derived from the mock visit history", async () => {
     restore = installMockApi();
     const targeted = await client().getTargetedPromotions();

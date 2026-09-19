@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { PlanCardSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { installMockApi, MOCK_ASSIST_RATE_LIMIT, MOCK_TODAY, mockAssistSaturdayKey, mockParseAssistQuery, planCards, resetMockAssist, resetMockPlans } from "./mock";
+import { installMockApi, MOCK_ASSIST_RATE_LIMIT, MOCK_TODAY, mockAssistDay, mockAssistSaturdayKey, mockParseAssistQuery, planCards, resetMockAssist, resetMockPlans } from "./mock";
 
 const README_QUERY = "Хочу вечером куда-нибудь, максимум 3000 ₽, с девушкой, желательно музыка";
 
@@ -79,6 +79,19 @@ describe("assist API via mock", () => {
     expect(result.planDraft.eventId).toBe(result.stops[0].event.id);
     expect(result.plan).toBeNull();
     expect(planCards()).toHaveLength(before);
+  });
+
+  it("drops Saturday stops already past at the requested hour (backend planSaturday parity)", () => {
+    const saturdayEvening = new Date(`${MOCK_TODAY}T18:00:00+03:00`);
+
+    const result = mockAssistDay({ query: "план на субботу" }, saturdayEvening);
+    if (typeof result === "string") throw new Error(`unexpected assist failure: ${result}`);
+
+    expect(result.date).toBe(MOCK_TODAY);
+    expect(result.stops.length).toBeGreaterThanOrEqual(1);
+    for (const stop of result.stops) {
+      expect(new Date(stop.at).getTime()).toBeGreaterThanOrEqual(saturdayEvening.getTime());
+    }
   });
 
   it("persists the plan when save=true and returns it as a plan card", async () => {

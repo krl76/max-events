@@ -23,7 +23,7 @@
 // - ApiClient.setParticipationStatus - PUT /events/:id/participation?userId= with { status }
 // - ApiClient.deleteParticipation - DELETE /events/:id/participation?userId=
 // - ApiClient.createBooking - POST /bookings (BookingWithSeats: the payment of a paid event rides along)
-// - ApiClient.cancelBooking - DELETE /bookings/:id
+// - ApiClient.cancelBooking - DELETE /bookings/:id (BookingWithSeats: a succeeded payment comes back refunded)
 // - ApiClient.payBooking - POST /bookings/:id/payment (initiate/continue the in-app payment; BookingWithSeats)
 // - ApiClient.joinWaitlist - POST /waitlist?userId= with { eventId }
 // - ApiClient.getMyWaitlistEntry - GET /waitlist/me?eventId=&userId= (404 -> null)
@@ -115,7 +115,7 @@
 // END_MODULE_MAP
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
-import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema } from "@max-events/api-contracts";
 import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, Vote, WaitlistEntry, WeGroupScreen, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
 import { EventSalesReportSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, PromoCampaignSchema, PromotionCampaignSchema } from "@max-events/api-contracts";
 import type { CreatePromoCampaignWrite, CreatePromotionWrite, EventSalesReport, OrganizerEventStats, OrganizerRatingResponse, PromoCampaign, PromotionCampaign, RecordPageViewWrite } from "@max-events/api-contracts";
@@ -832,8 +832,8 @@ export class ApiClient {
     return this.request(`/bookings/${bookingId}/payment`, BookingWithSeatsSchema, { method: "POST" });
   }
 
-  cancelBooking(bookingId: string): Promise<Booking> {
-    return this.request(`/bookings/${bookingId}`, BookingSchema, { method: "DELETE" });
+  cancelBooking(bookingId: string): Promise<BookingWithSeats> {
+    return this.request(`/bookings/${bookingId}`, BookingWithSeatsSchema, { method: "DELETE" });
   }
 
   joinWaitlist(eventId: string, userId: string): Promise<WaitlistEntry> {
@@ -1003,8 +1003,8 @@ export class ApiClient {
     return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventEntitySchema, { method: "DELETE" });
   }
 
-  assistQuery(query: string, save?: boolean): Promise<AssistResponse> {
-    return this.request("/assist", AssistResponseSchema, { body: { query, ...(save === undefined ? {} : { save }) } });
+  assistQuery(query: string): Promise<AssistResponse> {
+    return this.request("/assist", AssistResponseSchema, { body: { query } });
   }
 
   assistDay(query: string, save?: boolean): Promise<AssistDayResponse> {

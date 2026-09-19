@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { VoteSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { castMockBallot, createMockVote, installMockApi, MOCK_FOREIGN_VOTE_ID, MOCK_VOTE_ID, mockEvents, mockFriendIds, resetMockVotes } from "./mock";
+import { castMockBallot, createMockVote, getMockVote, installMockApi, MOCK_FOREIGN_VOTE_ID, MOCK_VOTE_ID, mockEvents, mockFriendIds, resetMockVotes } from "./mock";
 
 describe("vote mock endpoints", () => {
   let restore: (() => void) | null = null;
@@ -114,5 +114,29 @@ describe("vote mock store", () => {
     if (typeof replaced === "string") throw new Error("unexpected ballot failure");
     expect(replaced.winnerEventId).toBe(mockEvents[0].id);
     expect(replaced.options.find((option) => option.event.id === mockEvents[1].id)!.votes).toBe(0);
+  });
+
+  it("breaks a vote tie by the option position, not the option id (backend parity)", () => {
+    // seeded tally: mockEvents[0] x2 (position 0), mockEvents[2] x1 (position 1); the demo ballot ties it 2:2
+    const tied = castMockBallot(MOCK_VOTE_ID, mockEvents[2].id);
+    if (typeof tied === "string") throw new Error("unexpected ballot failure");
+
+    expect(tied.options.find((option) => option.event.id === mockEvents[0].id)!.votes).toBe(2);
+    expect(tied.options.find((option) => option.event.id === mockEvents[2].id)!.votes).toBe(2);
+    expect(tied.winnerEventId).toBe(mockEvents[0].id);
+  });
+
+  it("returns myBallotEventId of the demo user's stored ballot and null without one", () => {
+    const before = getMockVote(MOCK_VOTE_ID);
+    if (typeof before === "string") throw new Error("seeded vote missing");
+    expect(before.myBallotEventId).toBeNull();
+
+    const voted = castMockBallot(MOCK_VOTE_ID, mockEvents[2].id);
+    if (typeof voted === "string") throw new Error("unexpected ballot failure");
+    expect(voted.myBallotEventId).toBe(mockEvents[2].id);
+
+    const after = getMockVote(MOCK_VOTE_ID);
+    if (typeof after === "string") throw new Error("seeded vote missing");
+    expect(after.myBallotEventId).toBe(mockEvents[2].id);
   });
 });

@@ -9,7 +9,7 @@ const MEMBERS = mockPlans[0].plan.participants.map(({ friend }) => friend);
 const BUDGET = mockPlanBudget(PLAN_ONE_ID)!;
 
 function renderBudget(budget = BUDGET, draft = emptyExpenseDraft(BUDGET.perPerson[0].userId)): string {
-  return renderToStaticMarkup(createElement(BudgetView, { budget, members: MEMBERS, draft, saving: false, failed: false, showErrors: true, onDraftChange: () => {}, onSubmit: () => {} }));
+  return renderToStaticMarkup(createElement(BudgetView, { budget, members: MEMBERS, ownId: mockDemoUser.id, draft, saving: false, failed: false, showErrors: true, onDraftChange: () => {}, onSubmit: () => {} }));
 }
 
 describe("expenseDraftErrors", () => {
@@ -25,9 +25,14 @@ describe("expenseDraftErrors", () => {
 });
 
 describe("expenseNameOf", () => {
-  it("resolves participant names and falls back to «Ты» for the host", () => {
-    expect(expenseNameOf(MEMBERS, MEMBERS[0].id)).toBe(MEMBERS[0].name);
-    expect(expenseNameOf(MEMBERS, mockDemoUser.id)).toBe("Ты");
+  it("resolves participant names and shows «Ты» only for the viewer id", () => {
+    expect(expenseNameOf(MEMBERS, MEMBERS[0].id, mockDemoUser.id)).toBe(MEMBERS[0].name);
+    expect(expenseNameOf(MEMBERS, mockDemoUser.id, mockDemoUser.id)).toBe("Ты");
+  });
+
+  it("falls back to «Участник» for an unknown id instead of «Ты» (a non-host viewer must not see the host as «Ты»)", () => {
+    expect(expenseNameOf(MEMBERS, mockDemoUser.id, MEMBERS[0].id)).toBe("Участник");
+    expect(expenseNameOf(MEMBERS, mockDemoUser.id, null)).toBe("Участник");
   });
 });
 
@@ -38,14 +43,14 @@ describe("BudgetView", () => {
     for (const expense of BUDGET.expenses) {
       expect(html).toContain(expense.title);
       expect(html).toContain(`${expense.amountRub} ₽`);
-      expect(html).toContain(`оплатил ${expenseNameOf(MEMBERS, expense.payerUserId)}`);
+      expect(html).toContain(`оплатил ${expenseNameOf(MEMBERS, expense.payerUserId, mockDemoUser.id)}`);
     }
     expect(html).toContain(`Итого ${BUDGET.totalRub} ₽`);
     for (const person of BUDGET.perPerson) {
       expect(html).toContain(`доля ${person.shareRub} ₽`);
     }
     for (const debt of BUDGET.debts) {
-      expect(html).toContain(`${expenseNameOf(MEMBERS, debt.fromUserId)} → ${expenseNameOf(MEMBERS, debt.toUserId)} ${debt.amountRub} ₽`);
+      expect(html).toContain(`${expenseNameOf(MEMBERS, debt.fromUserId, mockDemoUser.id)} → ${expenseNameOf(MEMBERS, debt.toUserId, mockDemoUser.id)} ${debt.amountRub} ₽`);
     }
   });
 
