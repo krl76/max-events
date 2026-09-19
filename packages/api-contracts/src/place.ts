@@ -12,7 +12,7 @@
 // - Longitude - longitude type
 // - PlaceCategorySchema - place category enum
 // - PlaceCategory - place category type
-// - PlaceSchema - full place entity
+// - PlaceSchema - full place entity with server-owned published flag
 // - Place - full place type
 // - CreatePlaceSchema - place creation payload (no id/timestamps)
 // - CreatePlace - place creation payload type
@@ -42,10 +42,11 @@ const basePlaceShape = {
 
 export const PlaceSchema = z.object({
   ...basePlaceShape,
+  published: z.boolean().default(true),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 });
 export type Place = z.infer<typeof PlaceSchema>;
 
-export const CreatePlaceSchema = PlaceSchema.omit({ id: true, createdAt: true, updatedAt: true });
+export const CreatePlaceSchema = PlaceSchema.omit({ id: true, published: true, createdAt: true, updatedAt: true });
 export type CreatePlace = z.infer<typeof CreatePlaceSchema>;

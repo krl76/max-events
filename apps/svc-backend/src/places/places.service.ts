@@ -120,6 +120,7 @@ export function toPlaceDto(place: PlaceEntity): Place {
     category: place.category,
     latitude: place.latitude,
     longitude: place.longitude,
+    published: place.published,
     createdAt: place.createdAt.toISOString(),
     updatedAt: place.updatedAt.toISOString(),
   };

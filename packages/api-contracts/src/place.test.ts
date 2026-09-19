@@ -20,6 +20,11 @@ describe("PlaceSchema", () => {
     expect(parsed.category).toBe("park");
   });
 
+  it("defaults published to true and keeps an explicit value", () => {
+    expect(PlaceSchema.parse(validPlace).published).toBe(true);
+    expect(PlaceSchema.parse({ ...validPlace, published: false }).published).toBe(false);
+  });
+
   it("rejects latitude outside [-90, 90]", () => {
     expect(PlaceSchema.safeParse({ ...validPlace, latitude: 95 }).success).toBe(false);
     expect(PlaceSchema.safeParse({ ...validPlace, latitude: -95 }).success).toBe(false);
@@ -39,5 +44,6 @@ describe("CreatePlaceSchema", () => {
     const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...payload } = validPlace;
     expect(CreatePlaceSchema.safeParse(payload).success).toBe(true);
     expect(CreatePlaceSchema.safeParse({ ...payload, title: "" }).success).toBe(false);
+    expect("published" in CreatePlaceSchema.parse({ ...payload, published: false })).toBe(false);
   });
 });
