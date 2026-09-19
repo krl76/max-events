@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Event details page: full event fields, booking button states (book / booked / sold out) with the promo code field (#202) and the early-access «Запись откроется …» line (#313), «Промо» badge for promoted events, in-app payment block for the active booking (#213), external payment link, participation status selector and counters, «Собрать план» autoplan entry once booked.
 // SCOPE: Data via apiClient.getEventDetails (mock or live), booking create/cancel through apiClient, waitlist section when sold out, in-app payment via apiClient.payBooking (status/amount strictly from BookingWithSeats.payment) plus the external link via openExternalLink, participation stats/status write via apiClient, post-event review section and report button; no navigation logic.
-// DEPENDS: ../api/client.js (apiClient, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus, Payment), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./SaveToList.js (SaveToList), ./ReviewSection.js (ReviewSection), ./ReportButton.js (ReportButton), ./WaitlistSection.js (WaitlistSection), ./PaymentSection.js (PaymentSection), ../plans/AutoPlanSection.js (AutoPlanSection), ../feed/FeedPage.js (FeedSection), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, trackPageView, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus, Payment), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./SaveToList.js (SaveToList), ./ReviewSection.js (ReviewSection), ./ReportButton.js (ReportButton), ./WaitlistSection.js (WaitlistSection), ./PaymentSection.js (PaymentSection), ../plans/AutoPlanSection.js (AutoPlanSection), ../feed/FeedPage.js (FeedSection), ../organizer/OrganizerAddons.js (EventOrganizerRatingCard), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -10,7 +10,7 @@
 // - bookingErrorMessage - booking failure -> inline text: 403 = promo code rejected / early access needs a code, 409 = sold out (#202)
 // - PromoCodeState - promo code field state of the booking flow (code, inline error, onCode)
 // - EventDetailsView - presentational: media, title (+ «Промо» badge for promoted events), meta rows (place title opens the place page), description, booking CTA with the promo code field, check-in button, buy button
-// - EventPage - route container: resolves the user id from the auth context (loading until authenticated), wires booking/check-in actions and the payment link, loads/keeps the booking payment via payBooking (silent auto-load for paid bookings; errors only on an explicit tap), entry to the gathering flow
+// - EventPage - route container: resolves the user id from the auth context (loading until authenticated), wires booking/check-in actions and the payment link, loads/keeps the booking payment via payBooking (silent auto-load for paid bookings; errors only on an explicit tap), entry to the gathering flow; records the page view fire-and-forget (#196) and shows the organizer rating card (#199)
 // - AutoPlanEntry - «Собрать план» autoplan section gate: rendered only with an active booking
 // - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
 // - ParticipationView - presentational: status chip selector, clear button, status counters and friends count
@@ -19,7 +19,7 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
-import { ApiError, apiClient, type EventDetails, type ParticipationStats } from "../api/client";
+import { ApiError, apiClient, trackPageView, type EventDetails, type ParticipationStats } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { ParticipationStatusSchema, type ParticipationStatus, type Payment } from "@max-events/api-contracts";
@@ -34,6 +34,7 @@ import { ReportButton } from "./ReportButton";
 import { WaitlistSection } from "./WaitlistSection";
 import { PaymentSection } from "./PaymentSection";
 import { AutoPlanSection } from "../plans/AutoPlanSection";
+import { EventOrganizerRatingCard } from "../organizer/OrganizerAddons";
 
 export type EventDetailsState = { status: "loading" } | { status: "error" } | { status: "ready"; details: EventDetails };
 
@@ -324,6 +325,11 @@ export function EventPage({ id }: { id: string }) {
   const { navigate } = useRoute();
   const [state, refetch] = useEventDetails(id, userId);
 
+  // Fire-and-forget page view (#196): a tracking failure must never break the page (trackPageView swallows rejections).
+  useEffect(() => {
+    trackPageView({ targetType: "event", targetId: id });
+  }, [id]);
+
   const [promoCode, setPromoCode] = useState("");
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [payment, setPayment] = useState<{ bookingId: string; value: Payment | null } | null>(null);
@@ -410,6 +416,7 @@ export function EventPage({ id }: { id: string }) {
           },
         }}
       />
+      <EventOrganizerRatingCard eventId={id} />
       <PaymentSection payment={currentPayment} busy={paymentBusy} error={paymentError} onPay={pay} />
       <AutoPlanEntry activeBookingId={state.details.activeBookingId} eventId={id} />
       {state.details.remainingSeats === 0 && state.details.activeBookingId === null && <WaitlistSection eventId={id} userId={userId} onChanged={refetch} />}

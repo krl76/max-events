@@ -11,11 +11,11 @@
 // - visitsLabel - ru plural form of «раз» for visit counts
 // - peopleLabel - ru plural form of «человек» for the popularity line
 // - PlacePageView - presentational: place title/address, the five social blocks with empty states
-// - PlacePage - route container: resolves the user id, loads the aggregate, wires event card navigation
+// - PlacePage - route container: resolves the user id, loads the aggregate, wires event card navigation; records the page view fire-and-forget (#196)
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import { apiClient } from "../api/client";
+import { apiClient, trackPageView } from "../api/client";
 import type { Place, PlaceFriendVisit, PlacePage as PlacePageAggregate } from "@max-events/api-contracts";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
@@ -125,6 +125,11 @@ export function PlacePage({ id }: { id: string }) {
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
   const [state, setState] = useState<PlacePageState>({ status: "loading" });
+
+  // Fire-and-forget page view (#196): a tracking failure must never break the page (trackPageView swallows rejections).
+  useEffect(() => {
+    trackPageView({ targetType: "place", targetId: id });
+  }, [id]);
 
   useEffect(() => {
     if (userId === null) return;

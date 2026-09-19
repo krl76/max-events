@@ -1,0 +1,153 @@
+import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { EMPTY_PROMOTION_DRAFT, EventStatsView, OrganizerRatingView, PromotionCampaignRow, PromotionForm, promotionDraftErrors, toCreatePromotion, visitsCountLabel, type PromotionDraft } from "./OrganizerAddons";
+import type { EventSalesReport, OrganizerEventStats, OrganizerRating, PromotionCampaign } from "@max-events/api-contracts";
+
+const noop = () => {};
+
+const rating: OrganizerRating = { organizerUserId: "d0000001-0000-4000-8000-000000000001", averageStars: 4.6, recommendPercent: 80, visitsCount: 3, onTimePercent: 95, reviewsCount: 5 };
+
+const stats: OrganizerEventStats = { eventId: "c00000f2-0000-4000-8000-0000000000f2", views: 4, bookings: 3, cancellations: 1, paidBookings: 2 };
+
+const report: EventSalesReport = {
+  eventId: stats.eventId,
+  rows: [{ paymentId: "700000f2-0000-4000-8000-0000000000f1", bookingId: "e00000f2-0000-4000-8000-0000000000f1", status: "succeeded", grossRub: 500, commissionRub: 50, netRub: 450, commissionBps: 1000, commissionFixedAt: "2026-08-01T12:00:00+03:00" }],
+  grossRub: 500,
+  commissionRub: 50,
+  netRub: 450,
+};
+
+const unpaidCampaign: PromotionCampaign = { id: "f4000000-0000-4000-8000-000000000001", eventId: stats.eventId, type: "boost", status: "active", startsAt: "2027-01-01T10:00:00+03:00", endsAt: "2027-01-08T10:00:00+03:00", tariffCode: "boost-7", priceRub: 990, paidAt: null, audience: null, createdAt: "2026-09-01T10:00:00+03:00", completedAt: null };
+
+const targetedCampaign: PromotionCampaign = { ...unpaidCampaign, id: "f4000000-0000-4000-8000-000000000002", type: "target_collection", paidAt: "2026-09-02T10:00:00+03:00", audience: { minVisits: 2, windowDays: 30, category: "afisha" } };
+
+const readyDraft: PromotionDraft = { type: "boost", startsAt: "2027-01-01T10:00", endsAt: "2027-01-08T10:00", tariffCode: "boost-7", priceRub: "990", minVisits: "2", windowDays: "30", category: "" };
+
+describe("visitsCountLabel", () => {
+  it("pluralizes the ru visit counter", () => {
+    expect(visitsCountLabel(1)).toBe("1 посещение");
+    expect(visitsCountLabel(3)).toBe("3 посещения");
+    expect(visitsCountLabel(12)).toBe("12 посещений");
+    expect(visitsCountLabel(21)).toBe("21 посещение");
+  });
+});
+
+describe("OrganizerRatingView", () => {
+  it("renders stars, recommend share, visits and the on-time share", () => {
+    const html = renderToStaticMarkup(createElement(OrganizerRatingView, { rating }));
+    expect(html).toContain("4.6 ⭐");
+    expect(html).toContain("80% рекомендуют");
+    expect(html).toContain("3 посещения");
+    expect(html).toContain("95% вовремя");
+  });
+
+  it("omits the on-time line when it is null", () => {
+    const html = renderToStaticMarkup(createElement(OrganizerRatingView, { rating: { ...rating, onTimePercent: null } }));
+    expect(html).not.toContain("вовремя");
+  });
+
+  it("renders nothing for null (too few reviews — never show zeros)", () => {
+    expect(renderToStaticMarkup(createElement(OrganizerRatingView, { rating: null }))).toBe("");
+  });
+});
+
+describe("EventStatsView", () => {
+  it("renders the counters, the sales summary and the frozen sale rows (money as-is from the API)", () => {
+    const html = renderToStaticMarkup(createElement(EventStatsView, { stats, report }));
+    expect(html).toContain("Просмотры: 4");
+    expect(html).toContain("Записи: 3");
+    expect(html).toContain("Отмены: 1");
+    expect(html).toContain("Оплаченные записи: 2");
+    expect(html).toContain("Продажи: 500 ₽");
+    expect(html).toContain("комиссия 50 ₽");
+    expect(html).toContain("к выплате 450 ₽");
+  });
+
+  it("renders zero totals without sale rows for an event without sales", () => {
+    const html = renderToStaticMarkup(createElement(EventStatsView, { stats: { ...stats, views: 0, bookings: 0, cancellations: 0, paidBookings: 0 }, report: { ...report, rows: [], grossRub: 0, commissionRub: 0, netRub: 0 } }));
+    expect(html).toContain("Просмотры: 0");
+    expect(html).toContain("Продажи: 0 ₽");
+    expect(html).not.toContain("к выплате 450 ₽");
+  });
+});
+
+describe("promotionDraftErrors", () => {
+  it("accepts a ready draft and reports every missing required field", () => {
+    expect(promotionDraftErrors(readyDraft)).toEqual([]);
+    expect(promotionDraftErrors(EMPTY_PROMOTION_DRAFT)).toEqual(["Укажите начало кампании", "Укажите окончание кампании", "Укажите тариф", "Цена — целое число от 0"]);
+  });
+
+  it("rejects an endsAt that is not after startsAt and a negative price", () => {
+    expect(promotionDraftErrors({ ...readyDraft, endsAt: "2027-01-01T10:00" })).toContain("Окончание должно быть позже начала");
+    expect(promotionDraftErrors({ ...readyDraft, priceRub: "-5" })).toContain("Цена — целое число от 0");
+  });
+
+  it("requires the audience numbers only for target_collection", () => {
+    const targeted: PromotionDraft = { ...readyDraft, type: "target_collection" };
+    expect(promotionDraftErrors(targeted)).toEqual([]);
+    expect(promotionDraftErrors({ ...targeted, minVisits: "0" })).toContain("Минимум посещений — целое число от 1");
+    expect(promotionDraftErrors({ ...targeted, windowDays: "" })).toContain("Окно аудитории — целое число дней от 1");
+    // не-target типы игнорируют поля аудитории
+    expect(promotionDraftErrors({ ...readyDraft, minVisits: "0", windowDays: "" })).toEqual([]);
+  });
+});
+
+describe("toCreatePromotion", () => {
+  it("maps a boost draft without the audience", () => {
+    const payload = toCreatePromotion(readyDraft);
+    expect(payload.type).toBe("boost");
+    expect(payload.audience).toBeNull();
+    expect(payload.priceRub).toBe(990);
+    expect(payload.tariffCode).toBe("boost-7");
+    expect(new Date(payload.startsAt).getTime()).toBe(new Date(readyDraft.startsAt).getTime());
+  });
+
+  it("maps a target_collection draft with the audience and the optional category", () => {
+    const withCategory = toCreatePromotion({ ...readyDraft, type: "target_collection", minVisits: "3", windowDays: "14", category: "sport" });
+    expect(withCategory.audience).toEqual({ minVisits: 3, windowDays: 14, category: "sport" });
+
+    const withoutCategory = toCreatePromotion({ ...readyDraft, type: "target_collection", minVisits: "3", windowDays: "14" });
+    expect(withoutCategory.audience).toEqual({ minVisits: 3, windowDays: 14 });
+  });
+});
+
+describe("PromotionCampaignRow", () => {
+  it("offers the paid stamp on an unpaid campaign", () => {
+    const html = renderToStaticMarkup(createElement(PromotionCampaignRow, { campaign: unpaidCampaign, paying: false, onPaid: noop }));
+    expect(html).toContain("Буст");
+    expect(html).toContain("Активна");
+    expect(html).toContain("boost-7");
+    expect(html).toContain("990 ₽");
+    expect(html).toContain("Отметить оплаченной");
+    expect(html).not.toContain("оплачена");
+  });
+
+  it("shows the paid marker and the audience instead of the stamp on a paid target_collection", () => {
+    const html = renderToStaticMarkup(createElement(PromotionCampaignRow, { campaign: targetedCampaign, paying: false, onPaid: noop }));
+    expect(html).toContain("Подборка по аудитории");
+    expect(html).toContain("оплачена");
+    expect(html).toContain("от 2 посещений за 30 дн.");
+    expect(html).toContain("Афиша");
+    expect(html).not.toContain("Отметить оплаченной");
+  });
+});
+
+describe("PromotionForm", () => {
+  const form = (over: { draft?: PromotionDraft; errors?: string[]; failed?: boolean } = {}) => renderToStaticMarkup(createElement(PromotionForm, { draft: over.draft ?? EMPTY_PROMOTION_DRAFT, errors: over.errors ?? [], submitting: false, failed: over.failed ?? false, onChange: noop, onSubmit: noop, onCancel: noop }));
+
+  it("renders the type options and hides the audience fields outside target_collection", () => {
+    const html = form();
+    expect(html).toContain("Буст");
+    expect(html).toContain("Подборка по аудитории");
+    expect(html).not.toContain("Минимум посещений");
+  });
+
+  it("reveals the audience fields for target_collection and shows inline errors", () => {
+    const html = form({ draft: { ...EMPTY_PROMOTION_DRAFT, type: "target_collection" }, errors: ["Укажите тариф"], failed: true });
+    expect(html).toContain("Минимум посещений");
+    expect(html).toContain("Окно аудитории, дней");
+    expect(html).toContain("Укажите тариф");
+    expect(html).toContain("Не удалось сохранить");
+  });
+});
