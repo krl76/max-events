@@ -816,6 +816,13 @@ body {
   align-self: flex-start;
 }
 
+/* Главная: пара CTA «Куда пойдём?» (primary) + «Рядом со мной» (secondary) в одну строку */
+.app-home-ctas {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
+}
+
 /* Визард «Куда пойдём?»: pill-CTA, строки-опции с шевроном */
 .app-whereto-cta {
   background: var(--app-accent);
@@ -823,6 +830,7 @@ body {
   border-radius: 999px;
   color: var(--app-accent-contrast);
   cursor: pointer;
+  flex: 1;
   font: inherit;
   font-size: var(--app-font-size-body);
   font-weight: var(--app-font-weight-title);
@@ -830,6 +838,17 @@ body {
   padding: 12px var(--app-space-l);
   text-align: center;
   width: 100%;
+}
+
+.app-home-ctas .app-whereto-cta {
+  margin-top: 0;
+  padding: 12px var(--app-space-s);
+}
+
+.app-whereto-cta--secondary {
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  color: var(--app-text);
 }
 
 .app-whereto-title {

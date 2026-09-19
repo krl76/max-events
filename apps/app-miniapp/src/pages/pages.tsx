@@ -6,7 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - HomePage - «Куда пойдём?» + «Рядом со мной» CTAs + NL assist section (AssistSection) + promotion banners/collections (PromotionSections, #205) + today digest (TodaySection) + impressions feed (FeedSection) + micro-events section (MicroSection) + catalog screen (CatalogPage) on the home route; today block hidden in map view so the map gets the viewport
+// - HomePage - stories rail (StoriesRow) + «Куда пойдём?»/«Рядом со мной» CTA pair (primary/secondary) + NL assist section (AssistSection) + today digest (TodaySection) + impressions feed (FeedSection) + micro-events section (MicroSection) + promotion banners/collections (PromotionSections, #205) + catalog screen (CatalogPage) on the home route; all sections hidden in map view so the map gets the viewport
 // - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, friends renders the friends feed with the discovery/people entry buttons, calendar/profile routes render their screens (profile + achievements/my-city/lists/organizer entries), whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the plans list and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, lists renders the saved lists and list(id) one list, organizer renders the organizer panel, vote(id) renders the shared vote screen
 // END_MODULE_MAP
 
@@ -47,18 +47,20 @@ export function HomePage() {
     <>
       {view === "list" && (
         <>
-          <button type="button" className="app-whereto-cta" onClick={() => navigate({ name: "whereto" })}>
-            Куда пойдём?
-          </button>
-          <button type="button" className="app-whereto-cta" onClick={() => navigate({ name: "nearby" })}>
-            Рядом со мной
-          </button>
-          <AssistSection />
           <StoriesRow />
-          <PromotionSections />
-          <FeedSection onCreate={() => navigate({ name: "feed-new", eventId: null })} />
+          <div className="app-home-ctas">
+            <button type="button" className="app-whereto-cta" onClick={() => navigate({ name: "whereto" })}>
+              Куда пойдём?
+            </button>
+            <button type="button" className="app-whereto-cta app-whereto-cta--secondary" onClick={() => navigate({ name: "nearby" })}>
+              Рядом со мной
+            </button>
+          </div>
+          <AssistSection />
           <TodaySection />
+          <FeedSection onCreate={() => navigate({ name: "feed-new", eventId: null })} />
           <MicroSection onCreate={() => navigate({ name: "micro-new" })} />
+          <PromotionSections />
         </>
       )}
       <CatalogPage view={view} onView={setView} />

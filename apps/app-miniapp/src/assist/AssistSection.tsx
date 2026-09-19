@@ -71,7 +71,7 @@ export function AssistView({ query, state, day, onQuery, onSubmit, onPlanDay, on
           Найти
         </AppButton>
       </form>
-      <AppButton tone="secondary" stretched disabled={day.status === "loading"} onClick={onPlanDay}>
+      <AppButton tone="secondary" disabled={day.status === "loading"} onClick={onPlanDay}>
         Сделай нам план на субботу
       </AppButton>
       {state.status === "loading" && <p className="app-state">Подбираем варианты…</p>}
