@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports, UGC micro-events, the place social page, the nearby timeline/leisure surface, reverse discovery and people matching while backend endpoints (M2–M5, P2) do not exist yet.
 // SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings, FIFO waitlist with timed confirmation offers, check-ins, seeded friend profiles (interests/privacy) and friend place visits, plan cards, autoplan drafts, day routes, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, reverse discovery of friend places the demo user has not visited, people matching on seeded interests/participations, NL assist with deterministic criteria parsing, history/partner explanations, Saturday stops and rate-limit parity, promotion placements/targeted fixtures and promo-code booking validation (#202/#205), fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, AutoPlanProposal, DayRoute, OptimizeRoute, RoutePoint, AssistCriteria, AssistQueryWrite, AssistResponse, AssistPick, AssistDayResponse, DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute, PeopleCandidate, PeopleMatchContext, PeopleResponse, CreateBookingSchema, CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema, AssistQueryWriteSchema, IdSchema; PromotionPlacements, TargetedPromotionsResponse)
+// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, AutoPlanProposal, DayRoute, OptimizeRoute, RoutePoint, AssistCriteria, AssistQueryWrite, AssistResponse, AssistPick, AssistDayResponse, DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute, PeopleCandidate, PeopleMatchContext, PeopleResponse, CreateBookingSchema, CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema, AssistQueryWriteSchema, IdSchema, CreateEventSchema, CreatePlaceSchema, EventSchema, CreateEvent, CreatePlace; PromotionPlacements, TargetedPromotionsResponse)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -45,6 +45,17 @@
 // - mockAssistSuggest - explained picks with history/partner explanations (mock POST /assist, backend AssistService.suggest parity)
 // - mockAssistSaturdayKey - next Saturday (today counts) Moscow day key from MOCK_NOW (backend nextSaturdayKey parity)
 // - mockAssistDay - Saturday stops + planDraft, plan persisted when save=true (mock POST /assist/day, backend planSaturday parity)
+// - MockOrganizerEvent - contract event plus the published flag the backend keeps server-side
+// - MockOrganizerPlace - contract place plus the published flag
+// - resetMockOrganizer - restore the seeded organizer drafts (test isolation)
+// - organizerEvents - the demo user's events including drafts (backend listMine parity)
+// - organizerPlaces - the demo user's places including drafts (backend listMine parity)
+// - createMockOrganizerEvent - draft event creation, published=false (mock POST /api/organizer/events)
+// - createMockOrganizerPlace - draft place creation, published=false (mock POST /api/organizer/places)
+// - publishMockOrganizerEvent - publish flips the flag; 404 unknown, 403 catalog event not owned by the demo user (ownership emulation)
+// - publishMockOrganizerPlace - same for places
+// - updateMockOrganizerEvent - whitelisted event PATCH edit (mock PATCH /api/events/:id; backend pickEventFields + merged EventSchema parity)
+// - updateMockOrganizerPlace - place PATCH edit (mock PATCH /api/places/:id; backend CreatePlaceSchema.partial parity)
 // - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt)
 // - LIST_PRESET_TITLES - ru titles of the six preset lists (mock seeds them as List.title)
 // - SHARED_LIST_ID - id of the seeded shared collection of the demo user and the first friend
@@ -89,11 +100,11 @@
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me and /api/assist[/day], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
 // END_MODULE_MAP
 
-import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanCard, Profile, PromotionPlacements, Review, RouteLeg, RoutePoint, TargetedPromotionsResponse, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
+import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, CreateEvent, CreatePlace, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanCard, Profile, PromotionPlacements, Review, RouteLeg, RoutePoint, TargetedPromotionsResponse, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -1588,6 +1599,94 @@ export function mockAssistDay(payload: AssistQueryWrite): AssistDayResponse | Mo
   return { summary: `Собрал день на субботу ${date}: ${stops.length} событий`, date, stops, planDraft, plan };
 }
 
+/** Organizer panel store item: the contract entity plus the published flag the backend keeps server-side (organizer DTOs omit it; the mock surfaces it so the client can badge drafts). */
+export type MockOrganizerEvent = Event & { published: boolean };
+export type MockOrganizerPlace = Place & { published: boolean };
+
+function seedMockOrganizer(): { events: MockOrganizerEvent[]; places: MockOrganizerPlace[] } {
+  return {
+    events: [{ ...event({ id: "c00000f1-0000-4000-8000-0000000000f1", title: "Акустический вечер в «Депо»", category: "afisha", city: "Москва", startsAt: "2026-10-11T19:00:00+03:00", isPaid: false, priceRub: null, capacity: 40 }), published: false }],
+    places: [{ ...place({ id: "b00000f1-0000-4000-8000-0000000000f1", title: "Лофт на Бауманской", address: "ул. Бауманская, 5", city: "Москва", category: "other", latitude: 55.7717, longitude: 37.6879 }), published: false }],
+  };
+}
+
+let mockOrganizerState = seedMockOrganizer();
+let mockOrganizerSeq = 0;
+
+/** Restore the seeded organizer drafts (test isolation). */
+export function resetMockOrganizer(): void {
+  mockOrganizerState = seedMockOrganizer();
+  mockOrganizerSeq = 0;
+}
+
+/** Backend EventsService.listMine parity: the demo user's events (drafts included), startsAt ASC then id ASC. */
+export function organizerEvents(): MockOrganizerEvent[] {
+  return [...mockOrganizerState.events].sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+}
+
+/** Backend PlacesService.listMine parity: the demo user's places (drafts included), title ASC then id ASC. */
+export function organizerPlaces(): MockOrganizerPlace[] {
+  return [...mockOrganizerState.places].sort((a, b) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
+}
+
+/** Backend organizer create parity: the payload is CreateEventSchema-validated by the interceptor; the draft belongs to the demo user. */
+export function createMockOrganizerEvent(payload: CreateEvent): MockOrganizerEvent {
+  mockOrganizerSeq += 1;
+  const created: MockOrganizerEvent = { ...payload, id: `f1000000-0000-4000-8000-${String(mockOrganizerSeq).padStart(12, "0")}`, chatLink: null, promoted: false, published: false };
+  mockOrganizerState.events.push(created);
+  return created;
+}
+
+/** Backend organizer create parity for places. */
+export function createMockOrganizerPlace(payload: CreatePlace): MockOrganizerPlace {
+  mockOrganizerSeq += 1;
+  const created: MockOrganizerPlace = { ...payload, id: `f2000000-0000-4000-8000-${String(mockOrganizerSeq).padStart(12, "0")}`, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP, published: false };
+  mockOrganizerState.places.push(created);
+  return created;
+}
+
+/** Backend organizer publish parity: 404 unknown, 403 when the id is a catalog event not owned by the demo user (ownership emulation), otherwise flips the flag. */
+export function publishMockOrganizerEvent(id: string): MockOrganizerEvent | "forbidden" | null {
+  const found = mockOrganizerState.events.find((item) => item.id === id);
+  if (!found) return mockEvents.some((item) => item.id === id) ? "forbidden" : null;
+  found.published = true;
+  return found;
+}
+
+export function publishMockOrganizerPlace(id: string): MockOrganizerPlace | "forbidden" | null {
+  const found = mockOrganizerState.places.find((item) => item.id === id);
+  if (!found) return mockPlaces.some((item) => item.id === id) ? "forbidden" : null;
+  found.published = true;
+  return found;
+}
+
+/** Backend pickEventFields parity. */
+const MOCK_EVENT_PATCH_KEYS = ["title", "description", "category", "city", "placeId", "startsAt", "endsAt", "isPaid", "priceRub", "paymentUrl", "capacity"] as const;
+
+/** Backend EventsService.update parity: whitelist patch, merged EventSchema validation; 404 unknown, 403 catalog (not owned). */
+export function updateMockOrganizerEvent(id: string, patch: Record<string, unknown>): MockOrganizerEvent | "forbidden" | "invalid" | null {
+  const found = mockOrganizerState.events.find((item) => item.id === id);
+  if (!found) return mockEvents.some((item) => item.id === id) ? "forbidden" : null;
+  const picked: Record<string, unknown> = {};
+  for (const key of MOCK_EVENT_PATCH_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(patch, key)) picked[key] = patch[key];
+  }
+  const merged = EventSchema.safeParse({ ...found, ...picked });
+  if (!merged.success || (merged.data.endsAt !== null && new Date(merged.data.endsAt) < new Date(merged.data.startsAt))) return "invalid";
+  Object.assign(found, picked);
+  return found;
+}
+
+/** Backend PlacesService.update parity: CreatePlaceSchema.partial() patch; 404 unknown, 403 catalog (not owned). */
+export function updateMockOrganizerPlace(id: string, patch: Record<string, unknown>): MockOrganizerPlace | "forbidden" | "invalid" | null {
+  const found = mockOrganizerState.places.find((item) => item.id === id);
+  if (!found) return mockPlaces.some((item) => item.id === id) ? "forbidden" : null;
+  const parsed = CreatePlaceSchema.partial().safeParse(patch);
+  if (!parsed.success) return "invalid";
+  Object.assign(found, parsed.data);
+  return found;
+}
+
 export function installMockApi(): () => void {
   const real = globalThis.fetch;
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -1654,6 +1753,10 @@ export function installMockApi(): () => void {
       return payload ? Response.json(payload) : new Response(null, { status: 404 });
     }
     const byId = /^\/api\/events\/([^/]+)$/.exec(url.pathname);
+    if (byId && init?.method === "PATCH") {
+      const result = updateMockOrganizerEvent(byId[1], parseBookingBody(init) ?? {});
+      return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
+    }
     if (byId) {
       const found = mockEvents.find((item) => item.id === byId[1]);
       return found ? Response.json(found) : new Response(null, { status: 404 });
@@ -1901,6 +2004,37 @@ export function installMockApi(): () => void {
       }
       const result = declineMockWaitlistOffer(waitlistAction[1]);
       return result === null ? new Response(null, { status: 404 }) : typeof result === "string" ? new Response(null, { status: 409 }) : Response.json(result);
+    }
+    if (url.pathname === "/api/organizer/events" && init?.method === "POST") {
+      const parsed = CreateEventSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success || (parsed.data.endsAt && new Date(parsed.data.endsAt) < new Date(parsed.data.startsAt))) return new Response(null, { status: 400 });
+      return Response.json(createMockOrganizerEvent(parsed.data));
+    }
+    if (url.pathname === "/api/organizer/events") {
+      return Response.json(organizerEvents());
+    }
+    const organizerEventPublish = /^\/api\/organizer\/events\/([^/]+)\/publish$/.exec(url.pathname);
+    if (organizerEventPublish && init?.method === "POST") {
+      const result = publishMockOrganizerEvent(organizerEventPublish[1]);
+      return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
+    }
+    if (url.pathname === "/api/organizer/places" && init?.method === "POST") {
+      const parsed = CreatePlaceSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      return Response.json(createMockOrganizerPlace(parsed.data));
+    }
+    if (url.pathname === "/api/organizer/places") {
+      return Response.json(organizerPlaces());
+    }
+    const organizerPlacePublish = /^\/api\/organizer\/places\/([^/]+)\/publish$/.exec(url.pathname);
+    if (organizerPlacePublish && init?.method === "POST") {
+      const result = publishMockOrganizerPlace(organizerPlacePublish[1]);
+      return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
+    }
+    const organizerPlacePatch = /^\/api\/places\/([^/]+)$/.exec(url.pathname);
+    if (organizerPlacePatch && init?.method === "PATCH") {
+      const result = updateMockOrganizerPlace(organizerPlacePatch[1], parseBookingBody(init) ?? {});
+      return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
     }
     if (url.pathname === "/api/assist/day" && init?.method === "POST") {
       const parsed = AssistQueryWriteSchema.safeParse(parseBookingBody(init));
