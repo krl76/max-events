@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { EMPTY_PROMOTION_DRAFT, EventStatsView, OrganizerRatingView, PromotionCampaignRow, PromotionForm, promotionDraftErrors, toCreatePromotion, visitsCountLabel, type PromotionDraft } from "./OrganizerAddons";
-import type { EventSalesReport, OrganizerEventStats, OrganizerRating, PromotionCampaign } from "@max-events/api-contracts";
+import { EMPTY_PROMOTION_DRAFT, EarlyAccessSection, EventStatsView, OrganizerRatingView, PromoCampaignRow, PromoCodeRow, PromoForm, CampaignForm, EMPTY_PROMO_DRAFT, EMPTY_CAMPAIGN_DRAFT, PromotionCampaignRow, PromotionForm, campaignDraftErrors, promoDraftErrors, promotionDraftErrors, toCreateCampaign, toCreatePromotion, toCreatePromo, visitsCountLabel, type PromotionDraft, type PromoDraft } from "./OrganizerAddons";
+import type { EventSalesReport, OrganizerEventStats, OrganizerRating, PromoCampaign, PromoCode, PromotionCampaign } from "@max-events/api-contracts";
 
 const noop = () => {};
 
@@ -149,5 +149,82 @@ describe("PromotionForm", () => {
     expect(html).toContain("Окно аудитории, дней");
     expect(html).toContain("Укажите тариф");
     expect(html).toContain("Не удалось сохранить");
+  });
+});
+
+describe("promocode organizer helpers (#372)", () => {
+  const ready: PromoDraft = { code: " friend10 ", maxRedemptions: "5", expiresAt: "2027-06-01T10:00" };
+  const code: PromoCode = { id: "f2000000-0000-4000-8000-000000000001", eventId: stats.eventId, code: "FRIEND10", maxRedemptions: 5, redeemedCount: 2, expiresAt: "2027-06-01T10:00:00Z", createdAt: "2026-09-01T10:00:00Z" };
+
+  it("accepts a ready draft and reports the missing code", () => {
+    expect(promoDraftErrors(ready)).toEqual([]);
+    expect(promoDraftErrors(EMPTY_PROMO_DRAFT)).toEqual(["Укажите код (до 40 символов)"]);
+  });
+
+  it("rejects a non-positive limit but allows an empty one", () => {
+    expect(promoDraftErrors({ ...ready, maxRedemptions: "0" })).toContain("Лимит — целое число от 1 или пусто");
+    expect(promoDraftErrors({ ...ready, maxRedemptions: "" })).toEqual([]);
+  });
+
+  it("maps the draft to the write payload with optional fields dropped", () => {
+    const payload = toCreatePromo(ready);
+    expect(payload).toEqual({ code: "friend10", maxRedemptions: 5, expiresAt: new Date("2027-06-01T10:00").toISOString() });
+    expect(toCreatePromo({ code: "X", maxRedemptions: "", expiresAt: "" })).toEqual({ code: "X" });
+  });
+
+  it("shows the code, redemptions and expiry on the row", () => {
+    const html = renderToStaticMarkup(createElement(PromoCodeRow, { code }));
+    expect(html).toContain("FRIEND10");
+    expect(html).toContain("Использований: 2 из 5");
+    expect(html).toContain("До ");
+  });
+
+  it("marks an unlimited code without an expiry line", () => {
+    const html = renderToStaticMarkup(createElement(PromoCodeRow, { code: { ...code, maxRedemptions: null, expiresAt: null } }));
+    expect(html).toContain("без лимита");
+    expect(html).not.toContain("До ");
+  });
+
+  it("renders the create form with the code, limit and expiry fields", () => {
+    const html = renderToStaticMarkup(createElement(PromoForm, { draft: EMPTY_PROMO_DRAFT, errors: ["Укажите код (до 40 символов)"], submitting: false, failed: true, onChange: noop, onSubmit: noop, onCancel: noop }));
+    expect(html).toContain('aria-label="Код промокода"');
+    expect(html).toContain('aria-label="Лимит применений"');
+    expect(html).toContain('aria-label="Действует до"');
+    expect(html).toContain("Укажите код (до 40 символов)");
+    expect(html).toContain("Не удалось сохранить");
+  });
+});
+
+describe("promo campaign organizer helpers (#372)", () => {
+  it("reports the missing code and title", () => {
+    expect(campaignDraftErrors({ type: "refer_a_friend", code: " FRIEND10 ", title: "Приведи друга" })).toEqual([]);
+    expect(campaignDraftErrors(EMPTY_CAMPAIGN_DRAFT)).toEqual(["Укажите код (до 40 символов)", "Укажите название акции"]);
+  });
+
+  it("maps the draft to the write payload trimmed", () => {
+    expect(toCreateCampaign({ type: "special_offer", code: " X ", title: " Скидка " })).toEqual({ type: "special_offer", code: "X", title: "Скидка" });
+  });
+
+  it("shows the shareable campaign code on the row", () => {
+    const campaign: PromoCampaign = { id: "f3000000-0000-4000-8000-000000000001", eventId: stats.eventId, type: "refer_a_friend", status: "active", code: "FRIEND10", title: "Приведи друга", maxFulfillments: 10, fulfillmentCount: 3, createdAt: "2026-09-01T10:00:00Z", completedAt: null };
+    const html = renderToStaticMarkup(createElement(PromoCampaignRow, { campaign }));
+    expect(html).toContain("Приведи друга · Активна");
+    expect(html).toContain("Код акции: FRIEND10");
+    expect(html).toContain("Выполнений: 3 из 10");
+  });
+
+  it("renders the create form with the type select and both inputs", () => {
+    const html = renderToStaticMarkup(createElement(CampaignForm, { draft: EMPTY_CAMPAIGN_DRAFT, errors: ["Укажите название акции"], submitting: false, failed: false, onChange: noop, onSubmit: noop, onCancel: noop }));
+    expect(html).toContain("Приведи друга");
+    expect(html).toContain("Спецпредложение");
+    expect(html).toContain('aria-label="Код акции"');
+    expect(html).toContain('aria-label="Название акции"');
+    expect(html).toContain("Укажите название акции");
+  });
+
+  it("renders the collapsed early-access toggle with the current window hidden", () => {
+    const html = renderToStaticMarkup(createElement(EarlyAccessSection, { eventId: stats.eventId, bookingOpensAt: "2027-06-01T10:00:00Z" }));
+    expect(html).toContain("Ранний доступ");
+    expect(html).not.toContain("Запись откроется");
   });
 });

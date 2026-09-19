@@ -469,7 +469,7 @@ function OrganizerPanel({ userId }: { userId: string }) {
               eventForm?.mode === "edit" && eventForm.id === item.id ? null : (
                 <div key={item.id}>
                   <OrganizerEventCard item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishEvent(item.id)} onEdit={() => openEventForm({ mode: "edit", id: item.id, draft: eventDraftFrom(item) })} />
-                  <OrganizerEventAddons eventId={item.id} />
+                  <OrganizerEventAddons eventId={item.id} bookingOpensAt={item.bookingOpensAt} />
                 </div>
               ),
             )}

@@ -101,7 +101,7 @@ describe("check-in button states", () => {
 });
 
 describe("promo code field, booking errors and promoted badge", () => {
-  const promo = (overrides: Partial<PromoCodeState> = {}): PromoCodeState => ({ code: "", error: null, onCode: () => {}, ...overrides });
+  const promo = (overrides: Partial<PromoCodeState> = {}): PromoCodeState => ({ code: "", referral: "", error: null, onCode: () => {}, onReferral: () => {}, ...overrides });
   const baseProps = { onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} };
 
   it("renders the promo code input while the event is bookable", () => {
@@ -110,12 +110,21 @@ describe("promo code field, booking errors and promoted badge", () => {
     expect(html).toContain('aria-label="Промокод"');
   });
 
+  it("renders the referral code input next to the promo code (#372)", () => {
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), ...baseProps, promo: promo({ referral: "FRIEND10" }) }));
+
+    expect(html).toContain('aria-label="Код акции или друга"');
+    expect(html).toContain('value="FRIEND10"');
+  });
+
   it("hides the promo code input in the booked and sold-out states", () => {
     const booked = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { activeBookingId: "e0000000-0000-4000-8000-000000000001" }), ...baseProps, promo: promo() }));
     const soldOut = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { remainingSeats: 0 }), ...baseProps, promo: promo() }));
 
     expect(booked).not.toContain('aria-label="Промокод"');
     expect(soldOut).not.toContain('aria-label="Промокод"');
+    expect(booked).not.toContain('aria-label="Код акции или друга"');
+    expect(soldOut).not.toContain('aria-label="Код акции или друга"');
   });
 
   it("shows the booking error inline instead of an alert", () => {
@@ -141,7 +150,7 @@ describe("promo code field, booking errors and promoted badge", () => {
 });
 
 describe("early-access bookingOpensAt line", () => {
-  const promo: PromoCodeState = { code: "", error: null, onCode: () => {} };
+  const promo: PromoCodeState = { code: "", referral: "", error: null, onCode: () => {}, onReferral: () => {} };
   const baseProps = { onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, promo };
 
   it("shows when booking opens while the window is in the future", () => {
