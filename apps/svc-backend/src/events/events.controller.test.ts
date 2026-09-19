@@ -20,6 +20,7 @@ const event: Event = {
   ...payload,
   chatLink: null,
   promoted: false,
+  published: true,
 };
 
 function createController() {

@@ -15,6 +15,12 @@ describe("EventSchema", () => {
     expect(parsed.isPaid).toBe(false);
     expect(parsed.capacity).toBeNull();
     expect(parsed.chatLink).toBeNull();
+    expect(parsed.published).toBe(true);
+  });
+
+  it("keeps an explicit published flag", () => {
+    expect(EventSchema.parse({ ...validEvent, published: false }).published).toBe(false);
+    expect(EventSchema.parse({ ...validEvent, published: true }).published).toBe(true);
   });
 
   it("rejects paid event semantics violation: negative price", () => {
@@ -42,6 +48,12 @@ describe("CreateEventSchema", () => {
   it("does not require id", () => {
     const { id: _id, ...withoutId } = validEvent;
     expect(CreateEventSchema.safeParse(withoutId).success).toBe(true);
+  });
+
+  it("strips the server-owned published flag", () => {
+    const { id: _id, ...withoutId } = validEvent;
+    const parsed = CreateEventSchema.parse({ ...withoutId, published: false });
+    expect("published" in parsed).toBe(false);
   });
 
   it("keeps the paid/free payment link invariant", () => {

@@ -148,9 +148,11 @@ describe("PlacesService", () => {
     const { service, repo } = createService();
     const draft = await service.create(payload, owner, { draft: true });
     expect(repo.store[0]?.published).toBe(false);
+    expect(draft.published).toBe(false);
     await expect(service.getById(draft.id)).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.resolveForEventBind(draft.id, owner)).resolves.toBeUndefined();
     await expect(service.resolveForEventBind(draft.id, "00000000-0000-4000-8000-00000000000b")).rejects.toBeInstanceOf(NotFoundException);
+    expect((await service.publish(draft.id, owner)).published).toBe(true);
   });
 
   it("forbids a banned organizer from publishing a draft place", async () => {
@@ -207,8 +209,10 @@ describe("toPlaceDto", () => {
       category: "park",
       latitude: 55.7297,
       longitude: 37.6035,
+      published: true,
       createdAt: "2026-09-01T07:00:00.000Z",
       updatedAt: "2026-09-01T07:00:00.000Z",
     });
+    expect(toPlaceDto({ ...entity, published: false }).published).toBe(false);
   });
 });

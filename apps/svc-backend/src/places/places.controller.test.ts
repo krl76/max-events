@@ -17,6 +17,7 @@ const payload: CreatePlace = {
 const place: Place = {
   id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f",
   ...payload,
+  published: true,
   createdAt: "2026-09-01T07:00:00.000Z",
   updatedAt: "2026-09-01T07:00:00.000Z",
 };

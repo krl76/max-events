@@ -222,12 +222,14 @@ describe("EventsService", () => {
     const organizer = "00000000-0000-4000-8000-00000000000a";
     const draft = await service.create(payload, organizer, { draft: true });
     expect(repo.store[0]?.published).toBe(false);
+    expect(draft.published).toBe(false);
     expect(chatCalls).toEqual([]);
     expect(notifyCalls).toEqual([]);
     expect(await service.list({})).toEqual([]);
     await expect(service.update(draft.id, { title: "Чужой" }, "00000000-0000-4000-8000-00000000000b")).rejects.toBeInstanceOf(ForbiddenException);
     const published = await service.publish(draft.id, organizer);
     expect(published.title).toBe("Джаз в парке");
+    expect(published.published).toBe(true);
     expect(published.chatLink).toBe("https://max.ru/join/draft");
     expect(chatCalls).toEqual([payload.title]);
     expect(notifyCalls).toEqual([draft.id]);
@@ -303,6 +305,8 @@ describe("toEventDto", () => {
       startsAt: "2026-09-12T16:00:00.000Z",
       endsAt: null,
       placeId: null,
+      published: true,
     });
+    expect(toEventDto({ ...entity, published: false }).published).toBe(false);
   });
 });
