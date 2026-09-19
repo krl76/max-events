@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: «Мы» group screen: members, bound events/places with CTAs, group chat link, route/budget/photos blocks when present, event/place pickers and owner archive.
 // SCOPE: Data via apiClient.getWeGroup/addWeGroupEvent/addWeGroupPlace/archiveWeGroup plus listEvents/listPlaces for the pickers; writes replace the screen with the returned aggregate; presentational rendering; money values come from the API budget aggregate only.
-// DEPENDS: ../api/client.js (apiClient), ../auth/AuthContext.js (useAuth), ../routing/router.js, ../route/DayRoutePage.js (RouteTimeline), @max-events/api-contracts (PlanBudget, WeGroupScreen), ../ui/primitives.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient), ../auth/AuthContext.js (useAuth), ../routing/router.js, ../route/DayRoutePage.js (RouteTimeline), @max-events/api-contracts (PlanBudget, WeGroupScreen), ../max/bridge.js (openExternalLink), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -20,6 +20,7 @@ import { apiClient, ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { RouteTimeline } from "../route/DayRoutePage";
 import { useRoute } from "../routing/router";
+import { openExternalLink } from "../max/bridge";
 import { AppButton, AppTitle } from "../ui/primitives";
 
 export type WeGroupState = { status: "loading" } | { status: "error" } | { status: "forbidden" } | { status: "ready"; screen: WeGroupScreen };
@@ -121,9 +122,9 @@ export function WeGroupView({ state, ownId, picker, pickerOptions, pickerLoading
       </ul>
       {group.chatLink !== null && (
         <p>
-          <a className="app-card-subtitle" href={group.chatLink} target="_blank" rel="noreferrer">
+          <button type="button" className="app-card-subtitle" onClick={() => openExternalLink(group.chatLink!)}>
             Чат группы
-          </a>
+          </button>
         </p>
       )}
       {screen.events.length > 0 && (
