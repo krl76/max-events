@@ -9,7 +9,8 @@
 // - Layout - theme classes + header + routed children + tabbar (icon + label per tab)
 // - TABS - tabbar definitions with per-tab active predicate
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
-// - routeTitle / routeHasBack - header derivation from the current route (back on every non-tab route)
+// - routeTitle - header title for the current route
+// - routeHasBack - back button shown on every non-tab route
 // END_MODULE_MAP
 
 import { MaxUI } from "@maxhub/max-ui";
@@ -71,7 +72,7 @@ export function routeHasBack(route: Route): boolean {
 }
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { route, navigate, back } = useRoute();
+  const { route, navigate, back, transition, navSeq } = useRoute();
 
   return (
     <MaxUI className="app-root" colorScheme="light" platform={maxUiPlatform()}>
@@ -83,7 +84,9 @@ export function Layout({ children }: { children: ReactNode }) {
         )}
         <span className="app-header-title">{routeTitle(route)}</span>
       </header>
-      <main className="app-content">{children}</main>
+      <main key={navSeq} className={`app-content app-screen--${transition}`}>
+        {children}
+      </main>
       <nav className="app-tabbar">
         {TABS.map((tab) => (
           <button key={tab.route} type="button" aria-current={tab.active(route.name) ? "page" : undefined} onClick={() => navigate({ name: tab.route })}>

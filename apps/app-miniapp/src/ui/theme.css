@@ -126,6 +126,47 @@ body {
   flex-shrink: 0;
 }
 
+/* Переходы экранов: направление задаёт роутер (push/pop/tab); без exit-анимаций (старый экран не удерживается) */
+@keyframes app-screen-push {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@keyframes app-screen-pop {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
+@keyframes app-screen-tab {
+  from {
+    opacity: 0;
+  }
+}
+
+.app-screen--push {
+  animation: app-screen-push 180ms ease-out;
+}
+
+.app-screen--pop {
+  animation: app-screen-pop 180ms ease-out;
+}
+
+.app-screen--tab {
+  animation: app-screen-tab 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-screen--push,
+  .app-screen--pop,
+  .app-screen--tab {
+    animation: none;
+  }
+}
+
 .app-tabbar {
   align-items: center;
   background: var(--app-card);

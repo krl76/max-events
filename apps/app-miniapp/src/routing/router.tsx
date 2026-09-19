@@ -9,10 +9,13 @@
 // - Route - home | event(id) | place(id) | friends | calendar | profile | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | day-route | lists | list(id) | achievements | my-city | micro-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote- prefixes) to a Route, home fallback
 // - isTabRoute - the five tabbar routes; tab-to-tab switches replace the history entry instead of pushing
+// - RouteHistoryState - history entry payload: route + sequential idx (idx drives back/forward detection)
 // - nextHistory - pure history decision: tab-to-tab -> replace (idx kept), anything else -> push (idx + 1)
 // - routeFromHistoryState - validate a popstate payload back into a RouteHistoryState, null when malformed
-// - RouteProvider - current route synced with window.history (replaceState seed, popstate listener), back() with home fallback
-// - useRoute - current route + navigate + back + canGoBack
+// - NavTransition - push/pop/tab/none direction of the last navigation (drives screen animations)
+// - transitionFromIdx - direction from history idx movement (forward -> push, backward -> pop, same -> tab)
+// - RouteProvider - current route synced with window.history (replaceState seed, popstate listener), back() with home fallback, transition direction + navSeq for screen animations
+// - useRoute - current route + navigate + back + canGoBack + transition + navSeq
 // END_MODULE_MAP
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -111,14 +114,24 @@ export function routeFromHistoryState(value: unknown): RouteHistoryState | null 
   return route === null ? null : { route, idx: candidate.idx };
 }
 
+export type NavTransition = "push" | "pop" | "tab" | "none";
+
+export function transitionFromIdx(currentIdx: number, nextIdx: number): NavTransition {
+  if (nextIdx > currentIdx) return "push";
+  if (nextIdx < currentIdx) return "pop";
+  return "tab";
+}
+
 interface Router {
   route: Route;
   navigate: (route: Route) => void;
   back: () => void;
   canGoBack: boolean;
+  transition: NavTransition;
+  navSeq: number;
 }
 
-const RouteContext = createContext<Router>({ route: { name: "home" }, navigate: () => {}, back: () => {}, canGoBack: false });
+const RouteContext = createContext<Router>({ route: { name: "home" }, navigate: () => {}, back: () => {}, canGoBack: false, transition: "none", navSeq: 0 });
 
 function writeHistory(state: RouteHistoryState, method: "push" | "replace"): void {
   if (typeof window === "undefined") return;
@@ -128,16 +141,23 @@ function writeHistory(state: RouteHistoryState, method: "push" | "replace"): voi
 
 const HOME_STATE: RouteHistoryState = { route: { name: "home" }, idx: 0 };
 
+interface NavState {
+  history: RouteHistoryState;
+  transition: NavTransition;
+  seq: number;
+}
+
 export function RouteProvider({ children }: { children: ReactNode }) {
-  const [history, setHistory] = useState<RouteHistoryState>(() => {
+  const [nav, setNav] = useState<NavState>(() => {
     const initial: RouteHistoryState = { route: routeFromStartParam(getStartParam(webApp)), idx: 0 };
     writeHistory(initial, "replace");
-    return initial;
+    return { history: initial, transition: "none", seq: 0 };
   });
 
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
-      setHistory(routeFromHistoryState(event.state) ?? HOME_STATE);
+      const next = routeFromHistoryState(event.state) ?? HOME_STATE;
+      setNav((current) => ({ history: next, transition: transitionFromIdx(current.history.idx, next.idx), seq: current.seq + 1 }));
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -145,23 +165,23 @@ export function RouteProvider({ children }: { children: ReactNode }) {
 
   const navigate = useCallback(
     (next: Route) => {
-      const { state, method } = nextHistory(history, next);
+      const { state, method } = nextHistory(nav.history, next);
       writeHistory(state, method);
-      setHistory(state);
+      setNav({ history: state, transition: method === "push" ? "push" : "tab", seq: nav.seq + 1 });
     },
-    [history],
+    [nav],
   );
 
   const back = useCallback(() => {
-    if (history.idx > 0 && typeof window !== "undefined") {
+    if (nav.history.idx > 0 && typeof window !== "undefined") {
       window.history.back();
       return;
     }
     writeHistory(HOME_STATE, "replace");
-    setHistory(HOME_STATE);
-  }, [history.idx]);
+    setNav((current) => ({ history: HOME_STATE, transition: "pop", seq: current.seq + 1 }));
+  }, [nav.history.idx]);
 
-  const value = useMemo<Router>(() => ({ route: history.route, navigate, back, canGoBack: history.idx > 0 }), [history, navigate, back]);
+  const value = useMemo<Router>(() => ({ route: nav.history.route, navigate, back, canGoBack: nav.history.idx > 0, transition: nav.transition, navSeq: nav.seq }), [nav, navigate, back]);
   return <RouteContext.Provider value={value}>{children}</RouteContext.Provider>;
 }
 
