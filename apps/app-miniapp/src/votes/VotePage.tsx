@@ -6,10 +6,10 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - VoteState - union of the vote fetch states (loading / notfound 404 / error / ready)
+// - VoteState - union of the vote fetch states (loading / notfound 404 / forbidden 403 / error / ready)
 // - voteCountLabel - ru plural of the ballot counter
-// - VoteView - presentational: title, participants, «Отправлено в чат» hint when chatLink, option cards with counters, winner badge, «Твой голос» mark
-// - VotePage - route container: loads the vote by id, casts ballots
+// - VoteView - presentational: title, participants, «Отправлено в чат» hint when chatLink, option cards with counters, winner badge, «Твой голос» mark (vote.myBallotEventId wins over the session myChoice)
+// - VotePage - route container: loads the vote by id, casts ballots (403 -> «Голосование недоступно»)
 // - voteCreateReady - create form validity: non-empty title, 2..10 events, >=1 friend
 // - VoteCreateView - presentational create form (event chips from the wizard result, friend chips)
 // - VoteCreateSection - container: loads friends, creates the vote, reports the created vote up
@@ -21,7 +21,7 @@ import { ApiError, apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { AppButton, AppChip, AppTitle } from "../ui/primitives";
 
-export type VoteState = { status: "loading" } | { status: "notfound" } | { status: "error" } | { status: "ready"; vote: Vote };
+export type VoteState = { status: "loading" } | { status: "notfound" } | { status: "forbidden" } | { status: "error" } | { status: "ready"; vote: Vote };
 
 export function voteCountLabel(votes: number): string {
   const mod100 = votes % 100;
@@ -43,8 +43,10 @@ interface VoteViewProps {
 export function VoteView({ state, myChoice, voting, failed, onVote }: VoteViewProps) {
   if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
   if (state.status === "notfound") return <p className="app-state">Голосование не найдено.</p>;
+  if (state.status === "forbidden") return <p className="app-state app-state--error">Голосование недоступно.</p>;
   if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить голосование.</p>;
   const { vote } = state;
+  const myBallotEventId = vote.myBallotEventId ?? myChoice;
   return (
     <section className="app-vote">
       <AppTitle asChild>
@@ -55,7 +57,7 @@ export function VoteView({ state, myChoice, voting, failed, onVote }: VoteViewPr
       <div className="app-vote-options">
         {vote.options.map((option) => {
           const winner = vote.winnerEventId === option.event.id;
-          const mine = myChoice === option.event.id;
+          const mine = myBallotEventId === option.event.id;
           return (
             <button type="button" key={option.event.id} disabled={voting} className={winner ? "app-card app-card--link app-vote-option app-vote-option--winner" : "app-card app-card--link app-vote-option"} onClick={() => onVote(option.event.id)}>
               <div className="app-card-body">
@@ -89,7 +91,13 @@ export function VotePage({ id }: { id: string }) {
       },
       (error: unknown) => {
         if (!alive) return;
-        setState(error instanceof ApiError && error.status === 404 ? { status: "notfound" } : { status: "error" });
+        if (error instanceof ApiError && error.status === 404) {
+          setState({ status: "notfound" });
+        } else if (error instanceof ApiError && error.status === 403) {
+          setState({ status: "forbidden" });
+        } else {
+          setState({ status: "error" });
+        }
       },
     );
     return () => {

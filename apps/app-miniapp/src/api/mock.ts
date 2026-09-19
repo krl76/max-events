@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports, UGC micro-events, the place social page, the nearby timeline/leisure surface, reverse discovery and people matching while backend endpoints (M2–M5, P2) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings with sandbox-parity booking payments (pending at booking, settle on POST /bookings/:id/payment), FIFO waitlist with timed confirmation offers, check-ins, seeded friend profiles (interests/privacy) and friend place visits, plan cards, autoplan drafts, day routes, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, reverse discovery of friend places the demo user has not visited, people matching on seeded interests/participations, NL assist with deterministic criteria parsing, history/partner explanations, Saturday stops and rate-limit parity, promotion placements/targeted fixtures and promo-code booking validation (#202/#205), fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings with a two-phase demo model of the sandbox fail rule (pending at booking, settle on POST /bookings/:id/payment; the real sandbox provider settles instantly at create), FIFO waitlist with timed confirmation offers, check-ins, seeded friend profiles (interests/privacy) and friend place visits, plan cards, autoplan drafts, day routes, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, reverse discovery of friend places the demo user has not visited, people matching on seeded interests/participations, NL assist with deterministic criteria parsing, history/partner explanations, Saturday stops and rate-limit parity, promotion placements/targeted fixtures and promo-code booking validation (#202/#205), fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
 // DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, AutoPlanProposal, DayRoute, OptimizeRoute, RoutePoint, AssistCriteria, AssistQueryWrite, AssistResponse, AssistPick, AssistDayResponse, DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute, PeopleCandidate, PeopleMatchContext, PeopleResponse, CreateBookingSchema, CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema, AssistQueryWriteSchema, IdSchema, CreateEventSchema, CreatePlaceSchema, EventSchema, CreateEvent, CreatePlace; PromotionPlacements, TargetedPromotionsResponse)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -35,8 +35,8 @@
 // - MOCK_VOTE_ID - seeded deep-link demo vote (the demo user is a participant; seeded winner)
 // - MOCK_FOREIGN_VOTE_ID - seeded vote the demo user can neither view nor vote on (403 parity)
 // - createMockVote - in-memory vote with a sent chat card (chatLink set, successful MaxBot parity); participants must be friends of the demo host, events must exist (mock POST /votes, backend VotesService parity)
-// - getMockVote - mock GET /votes/:id (404 unknown, 403 neither host nor participant)
-// - castMockBallot - mock POST /votes/:id/ballots: one ballot per user, a repeated ballot replaces the previous one; winner = max votes then option id, null without ballots (backend parity)
+// - getMockVote - mock GET /votes/:id (404 unknown, 403 neither host nor participant); myBallotEventId comes from the demo user's stored ballot (backend #324 parity)
+// - castMockBallot - mock POST /votes/:id/ballots: one ballot per user, a repeated ballot replaces the previous one; winner = max votes then option position, null without ballots (backend parity)
 // - mockPlans - plan card fixtures for the plans list and plan screens (backend P1-7-b does not exist yet)
 // - resetMockPlans - restore seeded plan cards, dropping autoplan drafts (test isolation)
 // - planCards - plan fixtures sorted by the soonest meeting first
@@ -60,7 +60,7 @@
 // - mockAssistMatches - criteria matching over fixtures from MOCK_NOW, max 7 (backend matchAssistEvents parity)
 // - mockAssistSuggest - explained picks with history/partner explanations (mock POST /assist, backend AssistService.suggest parity)
 // - mockAssistSaturdayKey - next Saturday (today counts) Moscow day key from MOCK_NOW (backend nextSaturdayKey parity)
-// - mockAssistDay - Saturday stops + planDraft, plan persisted when save=true (mock POST /assist/day, backend planSaturday parity)
+// - mockAssistDay - upcoming Saturday stops (startsAt >= now) + planDraft, plan persisted when save=true (mock POST /assist/day, backend planSaturday parity)
 // - MockOrganizerEvent - contract event plus the published flag the backend keeps server-side
 // - MockOrganizerPlace - contract place plus the published flag
 // - resetMockOrganizer - restore the seeded organizer drafts (test isolation)
@@ -94,7 +94,7 @@
 // - MOCK_SINGLE_USE_PROMO_CODE - seeded single-use promo code (the exhausted path)
 // - resetMockPromo - restore seeded promo codes and redemption counters (test isolation)
 // - redeemMockPromoCode - backend redeemInTransaction parity: early window needs a code; unknown/expired/exhausted -> "forbidden" (403)
-// - mockPromotionPlacements - placements fixture: 2 banners, 1 pin, boosted ids, promoted=true (mock GET /promotions/placements, #205)
+// - mockPromotionPlacements - placements fixture: 2 banners, 1 pin, boosted ids, promoted=true (mock GET /promotions/placements, #205); the /api/events listing flags the placement events promoted (backend promotedEventIds parity)
 // - mockTargetedPromotions - one target collection with the explanation derived from the demo check-in history (mock GET /promotions/for-me, #205)
 // - OFFER_TTL_MS - 15-minute confirmation window of a waitlist offer
 // - resetMockWaitlist - clear the in-memory waitlist (test isolation)
@@ -294,7 +294,7 @@ export function createMockGathering(payload: CreateGathering): Gathering | null 
   return gathering;
 }
 
-/** In-memory vote row: contract fields plus option positions and raw ballots (backend vote.entity parity; option ids tie-break the winner like the entity ids do). */
+/** In-memory vote row: contract fields plus option positions and raw ballots (backend vote.entity parity; option positions tie-break the winner like the backend order does). */
 interface MockVoteRow {
   id: string;
   hostUserId: string;
@@ -307,7 +307,7 @@ interface MockVoteRow {
   updatedAt: string;
 }
 
-/** Seeded deep-link demo vote (hosted by Дима, the demo user is a participant; winner seeded with two ballots). */
+/** Seeded deep-link demo vote (hosted by Анна, the demo user is a participant; winner seeded with two ballots). */
 export const MOCK_VOTE_ID = "d7000000-0000-4000-8000-000000000001";
 /** Seeded vote the demo user can neither view nor vote on (403 parity). */
 export const MOCK_FOREIGN_VOTE_ID = "d7000000-0000-4000-8000-000000000002";
@@ -324,7 +324,7 @@ function mockVoteDto(row: MockVoteRow): Vote {
       const found = mockEvents.find((item) => item.id === option.eventId);
       return found ? [{ event: found, votes: counts.get(option.eventId) ?? 0 }] : [];
     });
-  const ranked = [...row.options].sort((a, b) => (counts.get(b.eventId) ?? 0) - (counts.get(a.eventId) ?? 0) || a.id.localeCompare(b.id));
+  const ranked = [...row.options].sort((a, b) => (counts.get(b.eventId) ?? 0) - (counts.get(a.eventId) ?? 0) || a.position - b.position || a.id.localeCompare(b.id));
   const top = ranked[0];
   const topVotes = top ? (counts.get(top.eventId) ?? 0) : 0;
   const participants: Friend[] = row.participantIds.flatMap((userId) => {
@@ -332,7 +332,7 @@ function mockVoteDto(row: MockVoteRow): Vote {
     if (friend) return [friend];
     return userId === mockDemoUser.id ? [{ id: mockDemoUser.id, name: mockDemoUser.firstName, avatarUrl: null }] : [];
   });
-  return { id: row.id, hostUserId: row.hostUserId, title: row.title, chatLink: row.chatLink, participants, options, winnerEventId: top && topVotes > 0 ? top.eventId : null, myBallotEventId: null, createdAt: row.createdAt, updatedAt: row.updatedAt };
+  return { id: row.id, hostUserId: row.hostUserId, title: row.title, chatLink: row.chatLink, participants, options, winnerEventId: top && topVotes > 0 ? top.eventId : null, myBallotEventId: row.ballots.find((ballot) => ballot.userId === mockDemoUser.id)?.eventId ?? null, createdAt: row.createdAt, updatedAt: row.updatedAt };
 }
 
 function seedMockVotes(): void {
@@ -344,10 +344,11 @@ function seedMockVotes(): void {
     title: "Куда идем в пятницу?",
     chatLink: "https://max.ru/chat/mock-vote-1",
     participantIds: [mockDemoUser.id, mockFriendIds[1], mockFriendIds[2]],
+    // option ids deliberately run against positions so a winner tie discriminates the position tie-break from the id order
     options: [
-      { id: `${MOCK_VOTE_ID}-o1`, eventId: mockEvents[0].id, position: 0 },
+      { id: `${MOCK_VOTE_ID}-o3`, eventId: mockEvents[0].id, position: 0 },
       { id: `${MOCK_VOTE_ID}-o2`, eventId: mockEvents[2].id, position: 1 },
-      { id: `${MOCK_VOTE_ID}-o3`, eventId: mockEvents[4].id, position: 2 },
+      { id: `${MOCK_VOTE_ID}-o1`, eventId: mockEvents[4].id, position: 2 },
     ],
     ballots: [
       { userId: mockFriendIds[0], eventId: mockEvents[0].id },
@@ -1305,6 +1306,12 @@ export function mockPromotionPlacements(): PromotionPlacements {
   };
 }
 
+/** Event ids with a placement campaign (banner/pin/boost): the mock /api/events listing flags them promoted (backend EventsService.list promotedEventIds parity). */
+const MOCK_PLACEMENT_PROMOTED_IDS: ReadonlySet<string> = (() => {
+  const placements = mockPromotionPlacements();
+  return new Set([...placements.banners.map((item) => item.id), ...placements.pins.map((pin) => pin.event.id), ...placements.boostedEventIds]);
+})();
+
 /** Targeted collection fixture (mock GET /promotions/for-me): one target_collection row for the open-air cinema; the visit count in the explanation is derived from the demo user's mock check-in history (backend targetedFor parity). */
 export function mockTargetedPromotions(): TargetedPromotionsResponse {
   const event = mockEvents[10];
@@ -2113,14 +2120,14 @@ export function mockAssistSaturdayKey(now: Date = MOCK_NOW): string {
   return moscowDateKey(new Date(now.getTime() + addDays * 86_400_000).toISOString());
 }
 
-/** Backend AssistService.planSaturday parity: up to 4 stops of the nearest Saturday + planDraft; with save=true the plan is persisted into the mock plans, plan is null otherwise; error tags map to 429/400 in the interceptor. */
-export function mockAssistDay(payload: AssistQueryWrite): AssistDayResponse | MockAssistError {
+/** Backend AssistService.planSaturday parity: up to 4 stops of the nearest Saturday, past hours excluded (startsAt >= now), + planDraft; with save=true the plan is persisted into the mock plans, plan is null otherwise; error tags map to 429/400 in the interceptor. */
+export function mockAssistDay(payload: AssistQueryWrite, now: Date = MOCK_NOW): AssistDayResponse | MockAssistError {
   if (!mockAssistRateHit()) return "rate_limited";
   const cleaned = mockSanitizeAssistQuery(payload.query);
   if (!cleaned) return "invalid";
-  const date = mockAssistSaturdayKey();
+  const date = mockAssistSaturdayKey(now);
   const catalog = mockEvents
-    .filter((item) => moscowDateKey(item.startsAt) === date)
+    .filter((item) => moscowDateKey(item.startsAt) === date && new Date(item.startsAt).getTime() >= now.getTime())
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
     .slice(0, 4);
   if (catalog.length === 0) return "no_events";
@@ -2471,7 +2478,8 @@ export function installMockApi(): () => void {
       return page ? Response.json(page) : new Response(null, { status: 404 });
     }
     if (url.pathname === "/api/events") {
-      return Response.json(filterMockEvents(mockEvents, parseEventFilters(url.search)));
+      const events = filterMockEvents(mockEvents, parseEventFilters(url.search)).map((item) => (MOCK_PLACEMENT_PROMOTED_IDS.has(item.id) && !item.promoted ? { ...item, promoted: true } : item));
+      return Response.json(events);
     }
     const details = /^\/api\/events\/([^/]+)\/details$/.exec(url.pathname);
     if (details) {
@@ -2534,7 +2542,7 @@ export function installMockApi(): () => void {
       if (!parsed.success) return new Response(null, { status: 400 });
       if (!mockEvents.some((item) => item.id === parsed.data.eventId)) return new Response(null, { status: 404 });
       const existing = mockBookings.find((booking) => booking.eventId === parsed.data.eventId && booking.userId === parsed.data.userId && booking.status === "active");
-      if (existing) return Response.json(mockBookingWithSeats(existing));
+      if (existing) return new Response(null, { status: 409 });
       if (remainingSeats(parsed.data.eventId) === 0) return new Response(null, { status: 409 });
       const promo = redeemMockPromoCode(parsed.data.eventId, parsed.data.promoCode);
       if (promo === "forbidden") return new Response(null, { status: 403 });
@@ -2586,11 +2594,18 @@ export function installMockApi(): () => void {
     if (cancel && init?.method === "DELETE") {
       const booking = mockBookings.find((item) => item.id === cancel[1]);
       if (!booking) return new Response(null, { status: 404 });
-      if (booking.status === "cancelled") return Response.json(booking);
-      booking.status = "cancelled";
-      booking.updatedAt = new Date().toISOString();
-      offerNextMockWaitlist(booking.eventId, new Date());
-      return Response.json(booking);
+      if (booking.status !== "cancelled") {
+        booking.status = "cancelled";
+        booking.updatedAt = new Date().toISOString();
+        offerNextMockWaitlist(booking.eventId, new Date());
+      }
+      // refundForBooking parity: a succeeded payment is refunded (idempotent), other statuses pass through
+      const payment = mockPayments.find((item) => item.bookingId === booking.id);
+      if (payment?.status === "succeeded") {
+        payment.status = "refunded";
+        payment.updatedAt = new Date().toISOString();
+      }
+      return Response.json(mockBookingWithSeats(booking));
     }
     if (url.pathname === "/api/friends/availability") {
       if (!url.searchParams.get("eventId")) return new Response(null, { status: 400 });

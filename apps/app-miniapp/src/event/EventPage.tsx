@@ -10,7 +10,7 @@
 // - bookingErrorMessage - booking failure -> inline text: 403 = promo code rejected / early access needs a code, 409 = sold out (#202)
 // - PromoCodeState - promo code field state of the booking flow (code, inline error, onCode)
 // - EventDetailsView - presentational: media, title (+ «Промо» badge for promoted events), meta rows (place title opens the place page), description, booking CTA with the promo code field, check-in button, buy button
-// - EventPage - route container: resolves the user id from the auth context (loading until authenticated), wires booking/check-in actions and the payment link, loads/keeps the booking payment via payBooking (silent auto-load for paid bookings; errors only on an explicit tap), entry to the gathering flow; records the page view fire-and-forget (#196) and shows the organizer rating card (#199)
+// - EventPage - route container: resolves the user id from the auth context (loading until authenticated), wires booking/check-in actions and the payment link, loads/keeps the booking payment via payBooking (silent auto-load for paid bookings; errors only on an explicit tap, keyed to the failed booking so a re-book resets them), entry to the gathering flow; records the page view fire-and-forget once auth resolved (#196) and shows the organizer rating card (#199)
 // - AutoPlanEntry - «Собрать план» autoplan section gate: rendered only with an active booking
 // - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
 // - ParticipationView - presentational: status chip selector, clear button, status counters and friends count
@@ -325,16 +325,18 @@ export function EventPage({ id }: { id: string }) {
   const { navigate } = useRoute();
   const [state, refetch] = useEventDetails(id, userId);
 
-  // Fire-and-forget page view (#196): a tracking failure must never break the page (trackPageView swallows rejections).
+  // Fire-and-forget page view (#196): a tracking failure must never break the page (trackPageView swallows rejections); skip until auth resolves so pre-login views are not recorded.
   useEffect(() => {
+    if (userId === null) return;
     trackPageView({ targetType: "event", targetId: id });
-  }, [id]);
+  }, [id, userId]);
 
   const [promoCode, setPromoCode] = useState("");
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [payment, setPayment] = useState<{ bookingId: string; value: Payment | null } | null>(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
-  const [paymentError, setPaymentError] = useState(false);
+  // bookingId of the failed pay attempt — the error dies with its booking (cancel/re-book resets it)
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const activeBookingId = state.status === "ready" ? state.details.activeBookingId : null;
   const paidEvent = state.status === "ready" && state.details.event.isPaid;
@@ -346,11 +348,11 @@ export function EventPage({ id }: { id: string }) {
       .then(
         (booking) => {
           setPayment({ bookingId, value: booking.payment });
-          setPaymentError(false);
+          setPaymentError(null);
         },
         () => {
           setPayment((prev) => (prev === null ? { bookingId, value: null } : prev));
-          if (reportError) setPaymentError(true);
+          if (reportError) setPaymentError(bookingId);
         },
       )
       .finally(() => setPaymentBusy(false));
@@ -417,7 +419,7 @@ export function EventPage({ id }: { id: string }) {
         }}
       />
       <EventOrganizerRatingCard eventId={id} />
-      <PaymentSection payment={currentPayment} busy={paymentBusy} error={paymentError} onPay={pay} />
+      <PaymentSection payment={currentPayment} busy={paymentBusy} error={paymentError !== null && paymentError === state.details.activeBookingId} onPay={pay} />
       <AutoPlanEntry activeBookingId={state.details.activeBookingId} eventId={id} />
       {state.details.remainingSeats === 0 && state.details.activeBookingId === null && <WaitlistSection eventId={id} userId={userId} onChanged={refetch} />}
       <SaveToList eventId={id} userId={userId} />

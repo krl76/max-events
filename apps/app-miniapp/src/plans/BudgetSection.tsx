@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Plan budget block on the plan screen: expense list, add-expense form (title/amount/payer/shares), per-person totals and the who-owes-whom table.
 // SCOPE: Data via apiClient.getPlanBudget/addPlanExpense; all money values (shares, nets, debts, total) come from the API budget aggregate, never computed on the client; 403 hides the block (budget is a participant-only surface, backend canView/canSpend parity); inline validation errors.
-// DEPENDS: ../api/client.js (apiClient, ApiError), @max-events/api-contracts (Friend, PlanBudget), ../ui/primitives.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, ApiError), ../auth/AuthContext.js (useAuth), @max-events/api-contracts (Friend, PlanBudget), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -10,7 +10,7 @@
 // - ExpenseDraft - add-expense form draft (string amount field)
 // - emptyExpenseDraft - initial form state for a payer
 // - expenseDraftErrors - inline validation errors (ru), empty list when ready
-// - expenseNameOf - user id -> display name (plan participant names, «Ты» fallback for the host/viewer)
+// - expenseNameOf - user id -> display name (plan participant names; «Ты» only for the viewer id, «Участник» for unknown)
 // - BudgetView - presentational: expenses, totals, debts table, add form
 // - BudgetSection - container: loads the budget of a plan, wires expense creation
 // END_MODULE_MAP
@@ -18,6 +18,7 @@
 import { useEffect, useState } from "react";
 import type { Friend, PlanBudget } from "@max-events/api-contracts";
 import { apiClient, ApiError } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 import { AppButton } from "../ui/primitives";
 
 export type BudgetState = { status: "loading" } | { status: "error" } | { status: "hidden" } | { status: "ready"; budget: PlanBudget };
@@ -42,14 +43,16 @@ export function expenseDraftErrors(draft: ExpenseDraft): string[] {
   return errors;
 }
 
-/** Resolve a budget party member to a display name; the host is not in plan.participants, so an unknown id reads as «Ты» (the mock serves the viewer-hosted plans). */
-export function expenseNameOf(members: Friend[], userId: string): string {
-  return members.find((member) => member.id === userId)?.name ?? "Ты";
+/** Resolve a budget party member to a display name; «Ты» only for the viewer id (the host is not in plan.participants), an unknown id reads as «Участник» — a non-host viewer must not see the host as «Ты». */
+export function expenseNameOf(members: Friend[], userId: string, ownId: string | null): string {
+  if (ownId !== null && userId === ownId) return "Ты";
+  return members.find((member) => member.id === userId)?.name ?? "Участник";
 }
 
 interface BudgetViewProps {
   budget: PlanBudget;
   members: Friend[];
+  ownId: string | null;
   draft: ExpenseDraft;
   saving: boolean;
   failed: boolean;
@@ -58,7 +61,7 @@ interface BudgetViewProps {
   onSubmit: () => void;
 }
 
-export function BudgetView({ budget, members, draft, saving, failed, showErrors, onDraftChange, onSubmit }: BudgetViewProps) {
+export function BudgetView({ budget, members, ownId, draft, saving, failed, showErrors, onDraftChange, onSubmit }: BudgetViewProps) {
   const errors = expenseDraftErrors(draft);
   const toggleShare = (userId: string) => onDraftChange({ ...draft, shareUserIds: draft.shareUserIds.includes(userId) ? draft.shareUserIds.filter((item) => item !== userId) : [...draft.shareUserIds, userId] });
   return (
@@ -72,7 +75,7 @@ export function BudgetView({ budget, members, draft, saving, failed, showErrors,
               {expense.title} — {expense.amountRub} ₽
             </span>
             <span className="app-card-subtitle">
-              оплатил {expenseNameOf(members, expense.payerUserId)}, делится на {expense.shareUserIds.length}
+              оплатил {expenseNameOf(members, expense.payerUserId, ownId)}, делится на {expense.shareUserIds.length}
             </span>
           </li>
         ))}
@@ -83,7 +86,7 @@ export function BudgetView({ budget, members, draft, saving, failed, showErrors,
           <ul className="app-plan-participants" aria-label="По людям">
             {budget.perPerson.map((person) => (
               <li key={person.userId} className="app-plan-participant">
-                <span className="app-plan-friend-name">{expenseNameOf(members, person.userId)}</span>
+                <span className="app-plan-friend-name">{expenseNameOf(members, person.userId, ownId)}</span>
                 <span className="app-card-subtitle">
                   доля {person.shareRub} ₽ · оплачено {person.paidRub} ₽
                 </span>
@@ -94,7 +97,7 @@ export function BudgetView({ budget, members, draft, saving, failed, showErrors,
             <ul className="app-plan-participants" aria-label="Кто кому должен">
               {budget.debts.map((debt) => (
                 <li key={`${debt.fromUserId}-${debt.toUserId}`} className="app-plan-participant">
-                  {expenseNameOf(members, debt.fromUserId)} → {expenseNameOf(members, debt.toUserId)} {debt.amountRub} ₽
+                  {expenseNameOf(members, debt.fromUserId, ownId)} → {expenseNameOf(members, debt.toUserId, ownId)} {debt.amountRub} ₽
                 </li>
               ))}
             </ul>
@@ -113,7 +116,7 @@ export function BudgetView({ budget, members, draft, saving, failed, showErrors,
         <select className="app-profile-input" aria-label="Кто оплатил" value={draft.payerUserId} onChange={(event) => onDraftChange({ ...draft, payerUserId: event.target.value })}>
           {budget.perPerson.map((person) => (
             <option key={person.userId} value={person.userId}>
-              {expenseNameOf(members, person.userId)}
+              {expenseNameOf(members, person.userId, ownId)}
             </option>
           ))}
         </select>
@@ -121,7 +124,7 @@ export function BudgetView({ budget, members, draft, saving, failed, showErrors,
           {budget.perPerson.map((person) => (
             <li key={person.userId} className="app-plan-participant">
               <label>
-                <input type="checkbox" checked={draft.shareUserIds.includes(person.userId)} onChange={() => toggleShare(person.userId)} /> {expenseNameOf(members, person.userId)}
+                <input type="checkbox" checked={draft.shareUserIds.includes(person.userId)} onChange={() => toggleShare(person.userId)} /> {expenseNameOf(members, person.userId, ownId)}
               </label>
             </li>
           ))}
@@ -142,6 +145,8 @@ export function BudgetView({ budget, members, draft, saving, failed, showErrors,
 }
 
 export function BudgetSection({ planId, members }: { planId: string; members: Friend[] }) {
+  const auth = useAuth();
+  const ownId = auth.status === "authenticated" ? auth.user.id : null;
   const [state, setState] = useState<BudgetState>({ status: "loading" });
   const [draft, setDraft] = useState<ExpenseDraft>(() => emptyExpenseDraft(""));
   const [saving, setSaving] = useState(false);
@@ -192,5 +197,5 @@ export function BudgetSection({ planId, members }: { planId: string; members: Fr
   if (state.status === "hidden") return null;
   if (state.status === "loading") return <p className="app-state">Загружаем бюджет…</p>;
   if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить бюджет.</p>;
-  return <BudgetView budget={state.budget} members={members} draft={draft} saving={saving} failed={failed} showErrors={showErrors} onDraftChange={setDraft} onSubmit={submit} />;
+  return <BudgetView budget={state.budget} members={members} ownId={ownId} draft={draft} saving={saving} failed={failed} showErrors={showErrors} onDraftChange={setDraft} onSubmit={submit} />;
 }

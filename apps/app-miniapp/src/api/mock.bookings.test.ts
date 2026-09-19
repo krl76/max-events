@@ -76,14 +76,15 @@ describe("event details and booking flow", () => {
     expect(details.activeBookingId).toBeNull();
   });
 
-  it("keeps re-booking the same user idempotent", async () => {
+  it("rejects a duplicate active booking of the same user with 409 (backend parity)", async () => {
     restore = installMockApi();
     const target = placeTarget();
     const api = client();
 
     const first = await api.createBooking({ userId: DEMO_USER_ID, eventId: target.id });
-    const second = await api.createBooking({ userId: DEMO_USER_ID, eventId: target.id });
-    expect(second.id).toBe(first.id);
+    expect(first.status).toBe("active");
+
+    await expect(api.createBooking({ userId: DEMO_USER_ID, eventId: target.id })).rejects.toMatchObject({ name: "ApiError", status: 409 });
 
     const details = await api.getEventDetails(target.id, DEMO_USER_ID);
     expect(details.remainingSeats).toBe(target.capacity - 1);

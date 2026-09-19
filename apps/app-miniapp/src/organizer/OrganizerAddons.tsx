@@ -12,7 +12,7 @@
 // - MyOrganizerRatingCard - rating card container keyed by the organizer user id (GET /organizers/:userId/rating)
 // - EventStatsState - union of the stats+sales fetch states (loading / error / ready)
 // - EventStatsView - presentational counters plus the sales summary and frozen sale rows
-// - EventStatsSection - expandable container loading OrganizerEventStats + EventSalesReport on first open
+// - EventStatsSection - expandable container loading OrganizerEventStats + EventSalesReport on first open; re-open after an error retries the load
 // - PROMOTION_TYPE_LABELS - ru labels per promotion type
 // - PROMOTION_STATUS_LABELS - ru labels per promotion status
 // - PromotionDraft - promotion creation form draft (string fields; audience fields used only for target_collection)
@@ -21,7 +21,7 @@
 // - toCreatePromotion - draft -> CreatePromotionWrite payload (call only when there are no errors)
 // - PromotionCampaignRow - presentational campaign row with the manual «Отметить оплаченной» stamp for unpaid campaigns
 // - PromotionForm - presentational promotion create form with inline errors; the audience fields render only for target_collection
-// - PromotionSection - expandable promotion campaigns container: list, create form, paid stamp
+// - PromotionSection - expandable promotion campaigns container: list, create form, paid stamp; re-open after an error retries the load
 // - OrganizerEventAddons - per-event organizer addon stack (stats + promotion)
 // END_MODULE_MAP
 
@@ -122,7 +122,7 @@ export function EventStatsSection({ eventId }: { eventId: string }) {
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    if (next && state === null) {
+    if (next && (state === null || state.status === "error")) {
       setState({ status: "loading" });
       Promise.all([apiClient.getOrganizerEventStats(eventId), apiClient.getEventSales(eventId)]).then(
         ([stats, report]) => setState({ status: "ready", stats, report }),
@@ -298,7 +298,7 @@ export function PromotionSection({ eventId }: { eventId: string }) {
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    if (next && state === null) {
+    if (next && (state === null || state.status === "error")) {
       setState({ status: "loading" });
       apiClient.listPromotions(eventId).then(
         (items) => setState({ status: "ready", items }),
