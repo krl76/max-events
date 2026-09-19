@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Organizer panel addons (#196/#199/#206): expandable per-event statistics (views/bookings/cancellations/paid + frozen sales report), promotion campaign management (list/create/paid stamp) and the organizer rating card shared with the event page.
-// SCOPE: lazy loading on expand (stats and sales load together; promotions on open); the rating card renders nothing while loading, on error and when the API returns null (too few reviews — never show zeros); money values come from the API as-is (₽ formatting only, no arithmetic).
+// PURPOSE: Organizer panel addons (#196/#199/#206/#372): expandable per-event statistics (views/bookings/cancellations/paid + frozen sales report), promotion campaign management (list/create/paid stamp), promocode and refer-a-friend/special-offer campaign management (list/create), early-access window, and the organizer rating card shared with the event page.
+// SCOPE: lazy loading on expand (stats and sales load together; promotions, promocodes and campaigns on open); the rating card renders nothing while loading, on error and when the API returns null (too few reviews — never show zeros); money values come from the API as-is (₽ formatting only, no arithmetic).
 // DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (OrganizerRating, OrganizerEventStats, EventSalesReport, PromotionCampaign, CreatePromotionWrite), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -22,11 +22,27 @@
 // - PromotionCampaignRow - presentational campaign row with the manual «Отметить оплаченной» stamp for unpaid campaigns
 // - PromotionForm - presentational promotion create form with inline errors; the audience fields render only for target_collection
 // - PromotionSection - expandable promotion campaigns container: list, create form, paid stamp; re-open after an error retries the load
-// - OrganizerEventAddons - per-event organizer addon stack (stats + promotion)
+// - PROMO_CAMPAIGN_TYPE_LABELS - ru labels per promo campaign type (#372)
+// - PromoDraft - promocode creation form draft (string fields; limit/expiry optional) (#372)
+// - EMPTY_PROMO_DRAFT - initial promocode form state (#372)
+// - promoDraftErrors - inline promocode validation errors (ru), empty list when ready (#372)
+// - toCreatePromo - draft -> CreatePromoCodeWrite payload (call only when there are no errors) (#372)
+// - PromoCodeRow - presentational promocode row: the code itself, redemptions and expiry (#372)
+// - PromoForm - presentational promocode create form with inline errors (#372)
+// - PromoCodeSection - expandable promocodes container: list + create (#372)
+// - CampaignDraft - refer-a-friend/special-offer creation form draft (#372)
+// - EMPTY_CAMPAIGN_DRAFT - initial promo campaign form state (#372)
+// - campaignDraftErrors - inline promo campaign validation errors (ru) (#372)
+// - toCreateCampaign - draft -> CreatePromoCampaignWrite payload (#372)
+// - PromoCampaignRow - presentational promo campaign row: type, the shareable code, title, status, fulfillment counters (#372)
+// - CampaignForm - presentational promo campaign create form with inline errors (#372)
+// - CampaignSection - expandable refer-a-friend/special-offer container: list + create; the list shows the campaign codes (#372)
+// - EarlyAccessSection - bookingOpensAt window editor (current value + set) (#372)
+// - OrganizerEventAddons - per-event organizer addon stack (early access + stats + promocodes + promo campaigns + promotion)
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import { EventCategorySchema, type CreatePromotionWrite, type EventCategory, type EventSalesReport, type OrganizerEventStats, type OrganizerRating, type OrganizerRatingResponse, type PromotionCampaign, type PromotionStatus, type PromotionType } from "@max-events/api-contracts";
+import { EventCategorySchema, type CreatePromoCampaignWrite, type CreatePromoCodeWrite, type CreatePromotionWrite, type EventCategory, type EventSalesReport, type OrganizerEventStats, type OrganizerRating, type OrganizerRatingResponse, type PromoCampaign, type PromoCampaignType, type PromoCode, type PromotionCampaign, type PromotionStatus, type PromotionType } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { AppButton, AppTitle, AppState } from "../ui/primitives";
@@ -372,10 +388,377 @@ export function PromotionSection({ eventId }: { eventId: string }) {
   );
 }
 
-export function OrganizerEventAddons({ eventId }: { eventId: string }) {
+export const PROMO_CAMPAIGN_TYPE_LABELS: Record<PromoCampaignType, string> = {
+  refer_a_friend: "Приведи друга",
+  special_offer: "Спецпредложение",
+};
+
+export interface PromoDraft {
+  code: string;
+  maxRedemptions: string;
+  expiresAt: string;
+}
+
+export const EMPTY_PROMO_DRAFT: PromoDraft = { code: "", maxRedemptions: "", expiresAt: "" };
+
+export function promoDraftErrors(draft: PromoDraft): string[] {
+  const errors: string[] = [];
+  const code = draft.code.trim();
+  if (code === "" || code.length > 40) errors.push("Укажите код (до 40 символов)");
+  if (draft.maxRedemptions !== "" && (!Number.isInteger(Number(draft.maxRedemptions)) || Number(draft.maxRedemptions) < 1)) errors.push("Лимит — целое число от 1 или пусто");
+  return errors;
+}
+
+export function toCreatePromo(draft: PromoDraft): CreatePromoCodeWrite {
+  return {
+    code: draft.code.trim(),
+    ...(draft.maxRedemptions === "" ? {} : { maxRedemptions: Number(draft.maxRedemptions) }),
+    ...(draft.expiresAt === "" ? {} : { expiresAt: new Date(draft.expiresAt).toISOString() }),
+  };
+}
+
+export function PromoCodeRow({ code }: { code: PromoCode }) {
+  return (
+    <article className="app-card">
+      <div className="app-card-body">
+        <span className="app-card-title">{code.code}</span>
+        <span className="app-card-subtitle">
+          Использований: {code.redeemedCount}
+          {code.maxRedemptions === null ? " · без лимита" : ` из ${code.maxRedemptions}`}
+        </span>
+        {code.expiresAt !== null && <span className="app-card-subtitle">До {formatStartsAt(code.expiresAt)}</span>}
+      </div>
+    </article>
+  );
+}
+
+interface PromoFormProps {
+  draft: PromoDraft;
+  errors: string[];
+  submitting: boolean;
+  failed: boolean;
+  onChange: (field: keyof PromoDraft, value: string) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+}
+
+export function PromoForm({ draft, errors, submitting, failed, onChange, onSubmit, onCancel }: PromoFormProps) {
+  return (
+    <form
+      className="app-profile-form"
+      onSubmit={(submit) => {
+        submit.preventDefault();
+        onSubmit();
+      }}
+    >
+      <input className="app-profile-input" type="text" aria-label="Код промокода" placeholder="Код промокода" value={draft.code} onChange={(change) => onChange("code", change.target.value)} />
+      <input className="app-profile-input" type="number" min={1} aria-label="Лимит применений" placeholder="Лимит применений (необязательно)" value={draft.maxRedemptions} onChange={(change) => onChange("maxRedemptions", change.target.value)} />
+      <input className="app-profile-input" type="datetime-local" aria-label="Действует до" value={draft.expiresAt} onChange={(change) => onChange("expiresAt", change.target.value)} />
+      {errors.map((error) => (
+        <p key={error} className="app-state app-state--error">
+          {error}
+        </p>
+      ))}
+      {failed && <AppState error>Не удалось сохранить. Попробуйте ещё раз.</AppState>}
+      <AppButton disabled={submitting} type="submit" stretched>
+        {submitting ? "Сохранение…" : "Создать промокод"}
+      </AppButton>
+      <AppButton type="button" tone="ghost" stretched onClick={onCancel}>
+        Отмена
+      </AppButton>
+    </form>
+  );
+}
+
+type PromoCodeListState = { status: "loading" } | { status: "error" } | { status: "ready"; items: PromoCode[] };
+
+export function PromoCodeSection({ eventId }: { eventId: string }) {
+  const [open, setOpen] = useState(false);
+  const [state, setState] = useState<PromoCodeListState | null>(null);
+  const [form, setForm] = useState<PromoDraft | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && (state === null || state.status === "error")) {
+      setState({ status: "loading" });
+      apiClient.listOrganizerPromos(eventId).then(
+        (items) => setState({ status: "ready", items }),
+        () => setState({ status: "error" }),
+      );
+    }
+  };
+
+  const submit = () => {
+    if (form === null) return;
+    const nextErrors = promoDraftErrors(form);
+    setErrors(nextErrors);
+    if (nextErrors.length > 0) return;
+    setSubmitting(true);
+    setFailed(false);
+    apiClient.createOrganizerPromo(eventId, toCreatePromo(form)).then(
+      (code) => {
+        setState((current) => (current?.status === "ready" ? { status: "ready", items: [...current.items, code] } : current));
+        setSubmitting(false);
+        setForm(null);
+      },
+      () => {
+        setSubmitting(false);
+        setFailed(true);
+      },
+    );
+  };
+
+  return (
+    <div>
+      <AppButton size="small" tone="ghost" onClick={toggle}>
+        {open ? "Скрыть промокоды" : "Промокоды"}
+      </AppButton>
+      {open && state?.status === "loading" && <AppState>Загрузка…</AppState>}
+      {open && state?.status === "error" && <AppState error>Не удалось загрузить промокоды.</AppState>}
+      {open && state?.status === "ready" && (
+        <>
+          {state.items.length === 0 && form === null && <AppState>Промокодов пока нет.</AppState>}
+          {state.items.map((code) => (
+            <PromoCodeRow key={code.id} code={code} />
+          ))}
+          {form === null ? (
+            <AppButton
+              tone="secondary"
+              stretched
+              onClick={() => {
+                setErrors([]);
+                setFailed(false);
+                setForm(EMPTY_PROMO_DRAFT);
+              }}
+            >
+              Новый промокод
+            </AppButton>
+          ) : (
+            <PromoForm draft={form} errors={errors} submitting={submitting} failed={failed} onChange={(field, value) => setForm((current) => (current === null ? current : { ...current, [field]: value }))} onSubmit={submit} onCancel={() => setForm(null)} />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export interface CampaignDraft {
+  type: PromoCampaignType;
+  code: string;
+  title: string;
+}
+
+export const EMPTY_CAMPAIGN_DRAFT: CampaignDraft = { type: "refer_a_friend", code: "", title: "" };
+
+export function campaignDraftErrors(draft: CampaignDraft): string[] {
+  const errors: string[] = [];
+  const code = draft.code.trim();
+  if (code === "" || code.length > 40) errors.push("Укажите код (до 40 символов)");
+  if (draft.title.trim() === "") errors.push("Укажите название акции");
+  return errors;
+}
+
+export function toCreateCampaign(draft: CampaignDraft): CreatePromoCampaignWrite {
+  return { type: draft.type, code: draft.code.trim(), title: draft.title.trim() };
+}
+
+export function PromoCampaignRow({ campaign }: { campaign: PromoCampaign }) {
+  return (
+    <article className="app-card">
+      <div className="app-card-body">
+        <span className="app-card-title">
+          {PROMO_CAMPAIGN_TYPE_LABELS[campaign.type]} · {PROMOTION_STATUS_LABELS[campaign.status]}
+        </span>
+        <span className="app-card-subtitle">Код акции: {campaign.code}</span>
+        <span className="app-card-subtitle">{campaign.title}</span>
+        <span className="app-card-subtitle">
+          Выполнений: {campaign.fulfillmentCount}
+          {campaign.maxFulfillments === null ? "" : ` из ${campaign.maxFulfillments}`}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+interface CampaignFormProps {
+  draft: CampaignDraft;
+  errors: string[];
+  submitting: boolean;
+  failed: boolean;
+  onChange: (field: keyof CampaignDraft, value: string) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+}
+
+export function CampaignForm({ draft, errors, submitting, failed, onChange, onSubmit, onCancel }: CampaignFormProps) {
+  return (
+    <form
+      className="app-profile-form"
+      onSubmit={(submit) => {
+        submit.preventDefault();
+        onSubmit();
+      }}
+    >
+      <select className="app-profile-input" aria-label="Тип акции" value={draft.type} onChange={(change) => onChange("type", change.target.value)}>
+        {(Object.keys(PROMO_CAMPAIGN_TYPE_LABELS) as PromoCampaignType[]).map((type) => (
+          <option key={type} value={type}>
+            {PROMO_CAMPAIGN_TYPE_LABELS[type]}
+          </option>
+        ))}
+      </select>
+      <input className="app-profile-input" type="text" aria-label="Код акции" placeholder="Код акции" value={draft.code} onChange={(change) => onChange("code", change.target.value)} />
+      <input className="app-profile-input" type="text" aria-label="Название акции" placeholder="Название акции" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
+      {errors.map((error) => (
+        <p key={error} className="app-state app-state--error">
+          {error}
+        </p>
+      ))}
+      {failed && <AppState error>Не удалось сохранить. Попробуйте ещё раз.</AppState>}
+      <AppButton disabled={submitting} type="submit" stretched>
+        {submitting ? "Сохранение…" : "Создать акцию"}
+      </AppButton>
+      <AppButton type="button" tone="ghost" stretched onClick={onCancel}>
+        Отмена
+      </AppButton>
+    </form>
+  );
+}
+
+type CampaignListState = { status: "loading" } | { status: "error" } | { status: "ready"; items: PromoCampaign[] };
+
+export function CampaignSection({ eventId }: { eventId: string }) {
+  const [open, setOpen] = useState(false);
+  const [state, setState] = useState<CampaignListState | null>(null);
+  const [form, setForm] = useState<CampaignDraft | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && (state === null || state.status === "error")) {
+      setState({ status: "loading" });
+      apiClient.listCampaigns(eventId).then(
+        (items) => setState({ status: "ready", items }),
+        () => setState({ status: "error" }),
+      );
+    }
+  };
+
+  const submit = () => {
+    if (form === null) return;
+    const nextErrors = campaignDraftErrors(form);
+    setErrors(nextErrors);
+    if (nextErrors.length > 0) return;
+    setSubmitting(true);
+    setFailed(false);
+    apiClient.createCampaign(eventId, toCreateCampaign(form)).then(
+      (campaign) => {
+        setState((current) => (current?.status === "ready" ? { status: "ready", items: [...current.items, campaign] } : current));
+        setSubmitting(false);
+        setForm(null);
+      },
+      () => {
+        setSubmitting(false);
+        setFailed(true);
+      },
+    );
+  };
+
+  return (
+    <div>
+      <AppButton size="small" tone="ghost" onClick={toggle}>
+        {open ? "Скрыть акции" : "Акции"}
+      </AppButton>
+      {open && state?.status === "loading" && <AppState>Загрузка…</AppState>}
+      {open && state?.status === "error" && <AppState error>Не удалось загрузить акции.</AppState>}
+      {open && state?.status === "ready" && (
+        <>
+          {state.items.length === 0 && form === null && <AppState>Акций пока нет.</AppState>}
+          {state.items.map((campaign) => (
+            <PromoCampaignRow key={campaign.id} campaign={campaign} />
+          ))}
+          {form === null ? (
+            <AppButton
+              tone="secondary"
+              stretched
+              onClick={() => {
+                setErrors([]);
+                setFailed(false);
+                setForm(EMPTY_CAMPAIGN_DRAFT);
+              }}
+            >
+              Новая акция
+            </AppButton>
+          ) : (
+            <CampaignForm draft={form} errors={errors} submitting={submitting} failed={failed} onChange={(field, value) => setForm((current) => (current === null ? current : { ...current, [field]: value }))} onSubmit={submit} onCancel={() => setForm(null)} />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export function EarlyAccessSection({ eventId, bookingOpensAt }: { eventId: string; bookingOpensAt: string | null }) {
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const save = () => {
+    if (value === "") return;
+    setSaving(true);
+    setFailed(false);
+    apiClient.setOrganizerEarlyAccess(eventId, new Date(value).toISOString()).then(
+      ({ bookingOpensAt }) => {
+        setSaving(false);
+        setSaved(bookingOpensAt);
+      },
+      () => {
+        setSaving(false);
+        setFailed(true);
+      },
+    );
+  };
+
+  const current = saved ?? bookingOpensAt;
+  return (
+    <div>
+      <AppButton size="small" tone="ghost" onClick={() => setValue(current === null ? "" : current.slice(0, 16))}>
+        Ранний доступ
+      </AppButton>
+      {value !== "" && (
+        <form
+          className="app-profile-form"
+          onSubmit={(submit) => {
+            submit.preventDefault();
+            save();
+          }}
+        >
+          <input className="app-profile-input" type="datetime-local" aria-label="Запись откроется" value={value} onChange={(change) => setValue(change.target.value)} />
+          {current !== null && <p className="app-card-subtitle">Сейчас: запись откроется {formatStartsAt(current)}</p>}
+          {failed && <AppState error>Не удалось сохранить.</AppState>}
+          <AppButton disabled={saving} type="submit" stretched>
+            {saving ? "Сохранение…" : "Сохранить"}
+          </AppButton>
+        </form>
+      )}
+    </div>
+  );
+}
+
+export function OrganizerEventAddons({ eventId, bookingOpensAt }: { eventId: string; bookingOpensAt: string | null }) {
   return (
     <div className="app-card-body">
+      <EarlyAccessSection eventId={eventId} bookingOpensAt={bookingOpensAt} />
       <EventStatsSection eventId={eventId} />
+      <PromoCodeSection eventId={eventId} />
+      <CampaignSection eventId={eventId} />
       <PromotionSection eventId={eventId} />
     </div>
   );

@@ -113,13 +113,14 @@
 // - ApiClient.listCampaigns / createCampaign - organizer promo campaigns (GET/POST /organizer/events/:id/campaigns, #206)
 // - ApiClient.listPromotions / createPromotion / markPromotionPaid - organizer promotion campaigns (GET/POST /organizer/events/:id/promotions, POST .../:campaignId/paid, #206)
 // - ApiClient.getWhereto - GET /whereto?company=&mood=&budget=: guided "Куда пойдём?" suggestions (up to 5 events, #371)
+// - ApiClient.listOrganizerPromos / createOrganizerPromo / setOrganizerEarlyAccess - organizer promocodes and the early-access window (GET/POST /organizer/events/:id/promocodes, POST .../early-access, #372)
 // END_MODULE_MAP
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
 import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
 import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, Vote, WaitlistEntry, WeGroupScreen, WheretoQuery, WheretoResponse, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
-import { EventSalesReportSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, PromoCampaignSchema, PromotionCampaignSchema } from "@max-events/api-contracts";
-import type { CreatePromoCampaignWrite, CreatePromotionWrite, EventSalesReport, OrganizerEventStats, OrganizerRatingResponse, PromoCampaign, PromotionCampaign, RecordPageViewWrite } from "@max-events/api-contracts";
+import { EarlyAccessWriteSchema, EventSalesReportSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, PromoCampaignSchema, PromoCodeSchema, PromotionCampaignSchema } from "@max-events/api-contracts";
+import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EarlyAccessWrite, EventSalesReport, OrganizerEventStats, OrganizerRatingResponse, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -690,6 +691,19 @@ const PromoCampaignArraySchema: ZodSchema<PromoCampaign[]> = {
   },
 };
 
+const PromoCodeArraySchema: ZodSchema<PromoCode[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected an array of promo codes" };
+    const codes: PromoCode[] = [];
+    for (const item of data) {
+      const parsed = PromoCodeSchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      codes.push(parsed.data);
+    }
+    return { success: true as const, data: codes };
+  },
+};
+
 const PromotionCampaignArraySchema: ZodSchema<PromotionCampaign[]> = {
   safeParse(data: unknown) {
     if (!Array.isArray(data)) return { success: false as const, error: "expected an array of promotion campaigns" };
@@ -1114,6 +1128,18 @@ export class ApiClient {
 
   markPromotionPaid(eventId: string, campaignId: string, paidAt?: string): Promise<PromotionCampaign> {
     return this.request(`/organizer/events/${eventId}/promotions/${campaignId}/paid`, PromotionCampaignSchema, { body: paidAt === undefined ? {} : { paidAt } });
+  }
+
+  listOrganizerPromos(eventId: string): Promise<PromoCode[]> {
+    return this.request(`/organizer/events/${eventId}/promocodes`, PromoCodeArraySchema);
+  }
+
+  createOrganizerPromo(eventId: string, payload: CreatePromoCodeWrite): Promise<PromoCode> {
+    return this.request(`/organizer/events/${eventId}/promocodes`, PromoCodeSchema, { body: payload });
+  }
+
+  setOrganizerEarlyAccess(eventId: string, bookingOpensAt: string): Promise<EarlyAccessWrite> {
+    return this.request(`/organizer/events/${eventId}/early-access`, EarlyAccessWriteSchema, { body: { bookingOpensAt } });
   }
 
   createWeGroup(payload: CreateWeGroupWrite): Promise<WeGroupScreen> {

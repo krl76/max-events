@@ -133,6 +133,10 @@
 // - createMockPromotion - promotion create; an already-past window is created completed (backend PromotionService.create parity, #206)
 // - payMockPromotion - manual paid stamp (backend PromotionService.recordPayment parity: 404 unknown campaign, 403 foreign event, #206)
 // - resetMockPromotions - clear in-memory promotion campaigns (test isolation)
+// - listMockPromoCodes - promocodes of an owned event, createdAt ASC (mock GET /organizer/events/:id/promocodes, #372)
+// - createMockPromoCode - promocode create (backend PromoService.create parity: 403 catalog, 404 unknown, 409 duplicate code, #372)
+// - resetMockPromoCodes - clear in-memory promocodes (test isolation)
+// - setMockEarlyAccess - set the booking window on an owned event (mock POST /organizer/events/:id/early-access, #372)
 // - MOCK_ORGANIZER_PAID_EVENT_ID - seeded published paid organizer event with two frozen sales, one cancellation and four views (re-seeded idempotently by resetMockOrganizer)
 // END_MODULE_MAP
 
@@ -209,8 +213,8 @@ import type {
   WheretoResponse,
 } from "@max-events/api-contracts";
 import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
-import { CreatePromoCampaignWriteSchema, CreatePromotionWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
-import type { CreatePromoCampaignWrite, CreatePromotionWrite, EventSalesReport, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, PageViewTarget, PromoCampaign, PromotionCampaign, RecordPageViewWrite } from "@max-events/api-contracts";
+import { CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
+import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EventSalesReport, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -2507,6 +2511,42 @@ export function payMockPromotion(eventId: string, campaignId: string, paidAt: st
   return campaign;
 }
 
+const mockOrganizerPromoCodes: PromoCode[] = [];
+let mockPromoCodeSeq = 0;
+
+export function resetMockPromoCodes(): void {
+  mockOrganizerPromoCodes.length = 0;
+  mockPromoCodeSeq = 0;
+}
+
+/** Backend PromoService.list parity: createdAt ASC. */
+export function listMockPromoCodes(eventId: string): PromoCode[] | "forbidden" | null {
+  const owned = mockOwnedEvent(eventId);
+  if (owned === null || owned === "forbidden") return owned;
+  return mockOrganizerPromoCodes.filter((code) => code.eventId === eventId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+/** Backend PromoService.create parity: uppercased code, duplicate code per event -> "duplicate" (409). */
+export function createMockPromoCode(eventId: string, payload: CreatePromoCodeWrite, now: Date = new Date()): PromoCode | "forbidden" | "invalid" | "duplicate" | null {
+  const owned = mockOwnedEvent(eventId);
+  if (owned === null || owned === "forbidden") return owned;
+  const code = payload.code.trim().toUpperCase();
+  if (code === "" || code.length > 40) return "invalid";
+  if (mockOrganizerPromoCodes.some((item) => item.eventId === eventId && item.code === code)) return "duplicate";
+  mockPromoCodeSeq += 1;
+  const created: PromoCode = { id: `f2000000-0000-4000-8000-${String(mockPromoCodeSeq).padStart(12, "0")}`, eventId, code, maxRedemptions: payload.maxRedemptions ?? null, redeemedCount: 0, expiresAt: payload.expiresAt ?? null, createdAt: now.toISOString() };
+  mockOrganizerPromoCodes.push(created);
+  return created;
+}
+
+/** Backend PromoService.setEarlyAccess parity: sets the owned event's booking window. */
+export function setMockEarlyAccess(eventId: string, bookingOpensAt: string): { bookingOpensAt: string } | "forbidden" | null {
+  const owned = mockOwnedEvent(eventId);
+  if (owned === null || owned === "forbidden") return owned;
+  owned.bookingOpensAt = bookingOpensAt;
+  return { bookingOpensAt };
+}
+
 export function installMockApi(): () => void {
   const real = globalThis.fetch;
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -2998,6 +3038,24 @@ export function installMockApi(): () => void {
     }
     if (organizerPromotions) {
       const result = listMockPromotions(organizerPromotions[1]);
+      return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
+    }
+    const organizerPromocodes = /^\/api\/organizer\/events\/([^/]+)\/promocodes$/.exec(url.pathname);
+    if (organizerPromocodes && init?.method === "POST") {
+      const parsed = CreatePromoCodeWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const result = createMockPromoCode(organizerPromocodes[1], parsed.data);
+      return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : result === "invalid" ? new Response(null, { status: 400 }) : result === "duplicate" ? new Response(null, { status: 409 }) : Response.json(result);
+    }
+    if (organizerPromocodes) {
+      const result = listMockPromoCodes(organizerPromocodes[1]);
+      return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
+    }
+    const organizerEarlyAccess = /^\/api\/organizer\/events\/([^/]+)\/early-access$/.exec(url.pathname);
+    if (organizerEarlyAccess && init?.method === "POST") {
+      const parsed = EarlyAccessWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const result = setMockEarlyAccess(organizerEarlyAccess[1], parsed.data.bookingOpensAt);
       return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
     }
     if (url.pathname === "/api/assist/day" && init?.method === "POST") {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ApiClient, trackPageView } from "./client";
-import { installMockApi, MOCK_ORGANIZER_PAID_EVENT_ID, mockEvents, mockOrganizers, resetMockCampaigns, resetMockCheckIns, resetMockOrganizer, resetMockPromotions } from "./mock";
+import { installMockApi, MOCK_ORGANIZER_PAID_EVENT_ID, mockEvents, mockOrganizers, resetMockCampaigns, resetMockCheckIns, resetMockOrganizer, resetMockPromoCodes, resetMockPromotions } from "./mock";
 
 const PAID_OWNED_EVENT_ID = MOCK_ORGANIZER_PAID_EVENT_ID;
 const DRAFT_OWNED_EVENT_ID = "c00000f1-0000-4000-8000-0000000000f1";
@@ -17,6 +17,7 @@ describe("organizer stats, sales, page views, rating and campaigns via mock", ()
     resetMockOrganizer();
     resetMockCampaigns();
     resetMockPromotions();
+    resetMockPromoCodes();
     resetMockCheckIns();
   });
 
@@ -26,6 +27,7 @@ describe("organizer stats, sales, page views, rating and campaigns via mock", ()
     resetMockOrganizer();
     resetMockCampaigns();
     resetMockPromotions();
+    resetMockPromoCodes();
     resetMockCheckIns();
   });
 
@@ -160,5 +162,37 @@ describe("organizer stats, sales, page views, rating and campaigns via mock", ()
     const past = await client().createPromotion(PAID_OWNED_EVENT_ID, { type: "banner", startsAt: "2026-01-01T10:00:00+03:00", endsAt: "2026-01-08T10:00:00+03:00", tariffCode: "banner-7", priceRub: 500 });
     expect(past.status).toBe("completed");
     expect(past.completedAt).toBe(past.endsAt);
+  });
+
+  it("creates and lists promocodes, rejecting duplicates and foreign events (#372)", async () => {
+    restore = installMockApi();
+    const api = client();
+
+    const created = await api.createOrganizerPromo(PAID_OWNED_EVENT_ID, { code: " friend10 ", maxRedemptions: 5, expiresAt: "2027-06-01T10:00:00Z" });
+    expect(created).toMatchObject({ code: "FRIEND10", maxRedemptions: 5, redeemedCount: 0 });
+
+    const list = await api.listOrganizerPromos(PAID_OWNED_EVENT_ID);
+    expect(list.map((code) => code.code)).toEqual(["FRIEND10"]);
+
+    // негативные пути: дубликат кода (409), пустой код (400), чужое событие (403), неизвестное (404)
+    await expect(api.createOrganizerPromo(PAID_OWNED_EVENT_ID, { code: "friend10" })).rejects.toMatchObject({ name: "ApiError", status: 409 });
+    await expect(api.createOrganizerPromo(PAID_OWNED_EVENT_ID, { code: "" })).rejects.toMatchObject({ name: "ApiError", status: 400 });
+    await expect(api.listOrganizerPromos(CATALOG_EVENT_ID)).rejects.toMatchObject({ name: "ApiError", status: 403 });
+    await expect(api.listOrganizerPromos(UNKNOWN_ID)).rejects.toMatchObject({ name: "ApiError", status: 404 });
+  });
+
+  it("sets the early-access window on an owned event and resets with the organizer seed (#372)", async () => {
+    restore = installMockApi();
+    const api = client();
+
+    const result = await api.setOrganizerEarlyAccess(PAID_OWNED_EVENT_ID, "2027-06-01T10:00:00Z");
+    expect(result).toEqual({ bookingOpensAt: "2027-06-01T10:00:00Z" });
+    const stored = (await api.listOrganizerEvents()).find((item) => item.id === PAID_OWNED_EVENT_ID);
+    expect(stored?.bookingOpensAt).toBe("2027-06-01T10:00:00Z");
+
+    // негативные пути: невалидный timestamp без offset (400), чужое событие (403), неизвестное (404)
+    await expect(api.setOrganizerEarlyAccess(PAID_OWNED_EVENT_ID, "2027-06-01T10:00")).rejects.toMatchObject({ name: "ApiError", status: 400 });
+    await expect(api.setOrganizerEarlyAccess(CATALOG_EVENT_ID, "2027-06-01T10:00:00Z")).rejects.toMatchObject({ name: "ApiError", status: 403 });
+    await expect(api.setOrganizerEarlyAccess(UNKNOWN_ID, "2027-06-01T10:00:00Z")).rejects.toMatchObject({ name: "ApiError", status: 404 });
   });
 });

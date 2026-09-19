@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - EventDetailsState - union of details fetch states (loading / error / ready)
 // - bookingErrorMessage - booking failure -> inline text: 403 = promo code rejected / early access needs a code, 409 = sold out (#202)
-// - PromoCodeState - promo code field state of the booking flow (code, inline error, onCode)
+// - PromoCodeState - promo code fields state of the booking flow (discount code, referral/campaign code, inline error, onCode/onReferral) (#372)
 // - EventDetailsView - presentational: 16:9 media with the title/date/category overlay (+ «Промо» marker), meta rows (place title opens the place page), description, booking CTA with the promo code field, check-in and buy buttons in one secondary row
 // - EventPage - route container: resolves the user id from the auth context (loading until authenticated), wires booking/check-in actions and the payment link, loads/keeps the booking payment via payBooking (silent auto-load for paid bookings; errors only on an explicit tap, keyed to the failed booking so a re-book resets them), entry to the gathering flow; records the page view fire-and-forget once auth resolved (#196) and shows the organizer rating card (#199)
 // - AutoPlanEntry - «Собрать план» autoplan section gate: rendered only with an active booking
@@ -115,11 +115,13 @@ interface EventDetailsViewProps {
   promo?: PromoCodeState;
 }
 
-/** Promo code field state of the booking flow (#202): present only while the event is bookable. */
+/** Promo code fields state of the booking flow (#202/#372): present only while the event is bookable. The backend keeps the discount promoCode and the referral/campaign referralCode apart (BookingsService.create parity). */
 export interface PromoCodeState {
   code: string;
+  referral: string;
   error: string | null;
   onCode: (value: string) => void;
+  onReferral: (value: string) => void;
 }
 
 /** Booking failure -> inline message: the backend maps promo code rejection and the early-access window to 403, sold out to 409 (PromoService.redeemInTransaction / BookingsService parity). */
@@ -213,6 +215,7 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, 
             <div className="app-promo-code">
               {event.bookingOpensAt !== null && new Date(event.bookingOpensAt).getTime() > Date.now() && <AppText>Запись откроется {formatStartsAt(event.bookingOpensAt)}</AppText>}
               <input className="app-filters-input" type="text" value={promo.code} aria-label="Промокод" placeholder="Промокод (если есть)" onChange={(change) => promo.onCode(change.target.value)} />
+              <input className="app-filters-input" type="text" value={promo.referral} aria-label="Код акции или друга" placeholder="Код акции или друга (если есть)" onChange={(change) => promo.onReferral(change.target.value)} />
               {promo.error !== null && <AppState error>{promo.error}</AppState>}
             </div>
           )}
@@ -349,6 +352,7 @@ export function EventPage({ id }: { id: string }) {
   }, [id, userId]);
 
   const [promoCode, setPromoCode] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [payment, setPayment] = useState<{ bookingId: string; value: Payment | null } | null>(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
@@ -385,10 +389,12 @@ export function EventPage({ id }: { id: string }) {
   const book = useCallback(() => {
     if (userId === null) return;
     const code = promoCode.trim();
+    const referral = referralCode.trim();
     setBookingError(null);
-    apiClient.createBooking({ userId, eventId: id, ...(code === "" ? {} : { promoCode: code }) }).then(
+    apiClient.createBooking({ userId, eventId: id, ...(code === "" ? {} : { promoCode: code }), ...(referral === "" ? {} : { referralCode: referral }) }).then(
       (booking) => {
         setPromoCode("");
+        setReferralCode("");
         setPayment({ bookingId: booking.id, value: booking.payment });
         refetch();
       },
@@ -397,7 +403,7 @@ export function EventPage({ id }: { id: string }) {
         refetch();
       },
     );
-  }, [userId, id, promoCode, refetch]);
+  }, [userId, id, promoCode, referralCode, refetch]);
 
   const cancel = useCallback(() => {
     if (state.status !== "ready" || state.details.activeBookingId === null) return;
@@ -428,9 +434,14 @@ export function EventPage({ id }: { id: string }) {
         onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })}
         promo={{
           code: promoCode,
+          referral: referralCode,
           error: bookingError,
           onCode: (value) => {
             setPromoCode(value);
+            setBookingError(null);
+          },
+          onReferral: (value) => {
+            setReferralCode(value);
             setBookingError(null);
           },
         }}
