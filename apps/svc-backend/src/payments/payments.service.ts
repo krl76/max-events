@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Domain facade for payments — only talks to PaymentProvider, never to an SDK.
-// SCOPE: create / getStatus / refund; ensureForBooking; freeze commission; organizer sales report.
+// SCOPE: create / getStatus / refund; ensureForBooking (null when payments_disabled, failed re-armed as a new charge); freeze commission; organizer sales report.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ./payment-provider, ./payment.entity, ./commission
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -44,15 +44,29 @@ export class PaymentsService {
     return this.provider.refund(paymentId, amountRub);
   }
 
-  async ensureForBooking(bookingId: string, amountRub: number, description: string): Promise<Payment> {
+  async ensureForBooking(bookingId: string, amountRub: number, description: string): Promise<Payment | null> {
     const existing = await this.rows.findOneBy({ bookingId });
-    if (existing) return toPaymentDto(await this.healCommission(existing));
-    const charge = await this.provider.create({
-      amountRub,
-      currency: "RUB",
-      description,
-      idempotencyKey: `booking:${bookingId}`,
-    });
+    if (existing && existing.status !== "failed") return toPaymentDto(await this.healCommission(existing));
+    const idempotencyKey = existing ? `booking:${bookingId}:retry:${existing.providerPaymentId}` : `booking:${bookingId}`;
+    let charge: PaymentCharge;
+    try {
+      charge = await this.provider.create({ amountRub, currency: "RUB", description, idempotencyKey });
+    } catch (error) {
+      if (error instanceof PaymentProviderError && error.code === "payments_disabled") return null;
+      throw error;
+    }
+    if (existing) {
+      existing.providerPaymentId = charge.id;
+      existing.status = charge.status;
+      existing.amountRub = charge.amountRub;
+      existing.description = charge.description;
+      existing.commissionRub = null;
+      existing.netRub = null;
+      existing.commissionBps = null;
+      existing.commissionFixedAt = null;
+      freezeCommission(existing, this.commissionBps());
+      return toPaymentDto(await this.rows.save(existing));
+    }
     const draft = this.rows.create({
       bookingId,
       providerPaymentId: charge.id,

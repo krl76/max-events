@@ -39,10 +39,10 @@ describe("money path", () => {
     const provider = new SandboxPaymentProvider();
     const payments = new PaymentsService(provider, rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
     const ok = await payments.ensureForBooking(bookingOk, 850, "Билет: Джаз");
-    expect(ok.status).toBe("succeeded");
-    expect(ok.commissionRub).toBe(85);
+    expect(ok?.status).toBe("succeeded");
+    expect(ok?.commissionRub).toBe(85);
     const declined = await payments.ensureForBooking(bookingFail, SANDBOX_FAIL_AMOUNT, "Билет: Джаз");
-    expect(declined.status).toBe("failed");
+    expect(declined?.status).toBe("failed");
 
     const events: PaymentWebhookEventEntity[] = [];
     const dataSource = {

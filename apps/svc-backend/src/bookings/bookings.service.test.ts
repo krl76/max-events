@@ -1,9 +1,11 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import { QueryFailedError, type DataSource, type EntityManager, type EntityTarget, type FindOneOptions, type ObjectLiteral } from "typeorm";
+import { QueryFailedError, type DataSource, type EntityManager, type EntityTarget, type FindOneOptions, type ObjectLiteral, type Repository } from "typeorm";
 import type { BookingStatus } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
-import type { PaymentsService } from "../payments/payments.service";
+import { NonePaymentProvider } from "../payments/none-payment.provider";
+import { PaymentEntity } from "../payments/payment.entity";
+import { PaymentsService } from "../payments/payments.service";
 import type { PromoService } from "../promo/promo.service";
 import type { WaitlistService } from "../waitlist/waitlist.service";
 import { BookingEntity } from "./booking.entity";
@@ -117,7 +119,7 @@ function createDataSource(event: EventEntity) {
   return { bookings, dataSource: dataSource as unknown as DataSource, events };
 }
 
-function createService(event: EventEntity = seedEvent(), promoOverride?: Partial<Pick<PromoService, "redeemInTransaction" | "recordFulfillmentInTransaction">>) {
+function createService(event: EventEntity = seedEvent(), promoOverride?: Partial<Pick<PromoService, "redeemInTransaction" | "recordFulfillmentInTransaction">>, paymentsInstance?: PaymentsService) {
   const fake = createDataSource(event);
   const waitlist = { onSeatFreed: async () => null } as unknown as WaitlistService;
   const promo = {
@@ -129,28 +131,43 @@ function createService(event: EventEntity = seedEvent(), promoOverride?: Partial
   } as unknown as PromoService;
   const paymentCalls: string[] = [];
   const refundCalls: string[] = [];
-  const payments = {
-    refundForBooking: async (bookingId: string) => {
-      refundCalls.push(bookingId);
-      return null;
-    },
-    ensureForBooking: async (bookingId: string, amountRub: number, description: string) => {
-      paymentCalls.push(bookingId);
-      return {
-        id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7001",
-        bookingId,
-        providerPaymentId: "pay_sandbox_1",
-        status: "succeeded" as const,
-        amountRub,
-        currency: "RUB" as const,
-        description,
-        createdAt: "2026-09-01T07:00:00.000Z",
-        updatedAt: "2026-09-01T07:00:00.000Z",
-      };
-    },
-  } as unknown as PaymentsService;
+  const payments =
+    paymentsInstance ??
+    ({
+      refundForBooking: async (bookingId: string) => {
+        refundCalls.push(bookingId);
+        return null;
+      },
+      ensureForBooking: async (bookingId: string, amountRub: number, description: string) => {
+        paymentCalls.push(bookingId);
+        return {
+          id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7001",
+          bookingId,
+          providerPaymentId: "pay_sandbox_1",
+          status: "succeeded" as const,
+          amountRub,
+          currency: "RUB" as const,
+          description,
+          createdAt: "2026-09-01T07:00:00.000Z",
+          updatedAt: "2026-09-01T07:00:00.000Z",
+        };
+      },
+    } as unknown as PaymentsService);
   const service = new BookingsService(fake.dataSource, waitlist, promo, payments);
   return { ...fake, service, waitlist, paymentCalls, refundCalls };
+}
+
+function createDisabledPayments(): PaymentsService {
+  const store: PaymentEntity[] = [];
+  const rows = {
+    findOneBy: async (where: { bookingId: string }) => store.find((row) => row.bookingId === where.bookingId) ?? null,
+    create: (fields: Partial<PaymentEntity>) => ({ ...fields }) as PaymentEntity,
+    save: async (entity: PaymentEntity) => {
+      store.push(entity);
+      return entity;
+    },
+  };
+  return new PaymentsService(new NonePaymentProvider(), rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
 }
 
 describe("BookingsService", () => {
@@ -277,6 +294,22 @@ describe("BookingsService", () => {
     await service.cancel(userA, booked.id);
     await expect(service.ensurePayment(userA, booked.id)).rejects.toBeInstanceOf(ConflictException);
     expect(paymentCalls).toHaveLength(1);
+  });
+
+  it("books a paid event with payment null when payments are disabled (provider=none)", async () => {
+    const { service, bookings } = createService(seedEvent({ isPaid: true, priceRub: 850, paymentUrl: "https://pay.example/jazz" }), undefined, createDisabledPayments());
+    const booked = await service.create(userA, eventId);
+    expect(booked.status).toBe("active");
+    expect(booked.payment).toBeNull();
+    expect(bookings).toHaveLength(1);
+  });
+
+  it("returns payment null on ensurePayment when payments are disabled (provider=none)", async () => {
+    const { service } = createService(seedEvent({ isPaid: true, priceRub: 850, paymentUrl: "https://pay.example/jazz" }), undefined, createDisabledPayments());
+    const booked = await service.create(userA, eventId);
+    const paid = await service.ensurePayment(userA, booked.id);
+    expect(paid.status).toBe("active");
+    expect(paid.payment).toBeNull();
   });
 });
 

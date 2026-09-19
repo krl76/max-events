@@ -125,7 +125,7 @@ export class BookingsService {
     }
     const payment = await this.payments.ensureForBooking(bookingId, event.priceRub, `Билет: ${event.title}`);
     const still = await this.dataSource.transaction(async (manager) => manager.findOne(BookingEntity, { where: { id: bookingId } }));
-    if (still && still.status !== "active" && payment.status === "succeeded") {
+    if (still && still.status !== "active" && payment?.status === "succeeded") {
       return this.payments.refundForBooking(bookingId);
     }
     return payment;
