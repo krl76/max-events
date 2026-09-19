@@ -19,7 +19,7 @@ import { useEffect, useState } from "react";
 import type { Friend, PlanBudget } from "@max-events/api-contracts";
 import { apiClient, ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { AppButton } from "../ui/primitives";
+import { AppButton, AppState } from "../ui/primitives";
 
 export type BudgetState = { status: "loading" } | { status: "error" } | { status: "hidden" } | { status: "ready"; budget: PlanBudget };
 
@@ -67,7 +67,7 @@ export function BudgetView({ budget, members, ownId, draft, saving, failed, show
   return (
     <section className="app-plan" aria-label="Бюджет плана">
       <p className="app-card-title">Бюджет</p>
-      {budget.expenses.length === 0 && <p className="app-state">Пока нет расходов.</p>}
+      {budget.expenses.length === 0 && <AppState>Пока нет расходов.</AppState>}
       <ul className="app-plan-participants" aria-label="Расходы">
         {budget.expenses.map((expense) => (
           <li key={expense.id} className="app-plan-participant">
@@ -135,7 +135,7 @@ export function BudgetView({ budget, members, ownId, draft, saving, failed, show
               {error}
             </p>
           ))}
-        {failed && <p className="app-state app-state--error">Не удалось сохранить расход.</p>}
+        {failed && <AppState error>Не удалось сохранить расход.</AppState>}
         <AppButton stretched tone="secondary" disabled={saving} type="submit">
           Добавить расход
         </AppButton>
@@ -195,7 +195,7 @@ export function BudgetSection({ planId, members }: { planId: string; members: Fr
   };
 
   if (state.status === "hidden") return null;
-  if (state.status === "loading") return <p className="app-state">Загружаем бюджет…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить бюджет.</p>;
+  if (state.status === "loading") return <AppState>Загружаем бюджет…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить бюджет.</AppState>;
   return <BudgetView budget={state.budget} members={members} ownId={ownId} draft={draft} saving={saving} failed={failed} showErrors={showErrors} onDraftChange={setDraft} onSubmit={submit} />;
 }

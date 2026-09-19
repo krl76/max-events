@@ -17,7 +17,6 @@
 // - ListScreenState - union of the one-list aggregate fetch states (loading / error / ready)
 // - ListView - presentational: saved event cards (with the author line for shared collections), navigation to the event page
 // - ListPage - route container: loads one list, wires «Отправить в чат» and the add-row of a shared collection (event options via apiClient.listEvents)
-// - ListsLink - profile entry button to the lists screen
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
@@ -26,7 +25,7 @@ import { apiClient, type ListItemCard, type ListScreen, type ListSummary } from 
 import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
-import { AppButton } from "../ui/primitives";
+import { AppButton, AppState } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { useRoute } from "../routing/router";
 
@@ -53,8 +52,8 @@ export function shareCollection(list: List, cards: ListItemCard[], share: (text:
 export type ListsState = { status: "loading" } | { status: "error" } | { status: "ready"; summaries: ListSummary[] };
 
 export function ListsView({ state, onOpen }: { state: ListsState; onOpen: (listId: string) => void }) {
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить списки.</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить списки.</AppState>;
   return (
     <>
       {state.summaries.map(({ list, itemsCount, participants }) => (
@@ -102,9 +101,9 @@ export function ListsPage() {
 export type ListState = { status: "loading" } | { status: "error" } | { status: "ready"; cards: ListItemCard[] };
 
 export function ListView({ state, onOpenEvent, showAuthors = false }: { state: ListState; onOpenEvent: (eventId: string) => void; showAuthors?: boolean }) {
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить список.</p>;
-  if (state.cards.length === 0) return <p className="app-state">Пока ничего не сохранено.</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить список.</AppState>;
+  if (state.cards.length === 0) return <AppState>Пока ничего не сохранено.</AppState>;
   return (
     <>
       {state.cards.map(({ item, event, addedBy }) => (
@@ -168,8 +167,8 @@ export function ListPage({ id }: { id: string }) {
     apiClient.addListItem(id, { userId, eventId: event.id }).then(load, load);
   }, [adding, events, id, userId, load]);
 
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить список.</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить список.</AppState>;
   const { screen } = state;
   const listState: ListState = { status: "ready", cards: screen.items };
   const addReady = events.some((event) => event.title === adding.trim());
@@ -210,14 +209,5 @@ export function ListPage({ id }: { id: string }) {
       )}
       <ListView state={listState} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} showAuthors={isShared} />
     </>
-  );
-}
-
-export function ListsLink() {
-  const { navigate } = useRoute();
-  return (
-    <button type="button" className="app-lists-link" onClick={() => navigate({ name: "lists" })}>
-      Сохранённое
-    </button>
   );
 }

@@ -1,13 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Page composition for the shell routing (home feed with whereto/nearby CTAs, event, place, friends with the discovery/people entries, calendar, profile, whereto wizard, nearby screen, reverse discovery, people matching, plans, day route builder).
 // SCOPE: Thin route-to-page mapping; page internals live in their own modules.
-// DEPENDS: ../routing/router.js, ../catalog/CatalogPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../calendar/CalendarPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../today/TodaySection.js, ../assist/AssistSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../organizer/OrganizerPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js
+// DEPENDS: ../routing/router.js, ../catalog/CatalogPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../calendar/CalendarPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../today/TodaySection.js, ../assist/AssistSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../organizer/OrganizerPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js, ../ui/primitives.js (AppNavTiles)
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - HomePage - «Куда пойдём?» + «Рядом со мной» CTAs + NL assist section (AssistSection) + promotion banners/collections (PromotionSections, #205) + today digest (TodaySection) + impressions feed (FeedSection) + micro-events section (MicroSection) + catalog screen (CatalogPage) on the home route; today block hidden in map view so the map gets the viewport
-// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, friends renders the friends feed with the discovery/people entry buttons, calendar/profile routes render their screens (profile + achievements/my-city/lists/organizer entries), whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the plans list and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, lists renders the saved lists and list(id) one list, organizer renders the organizer panel, vote(id) renders the shared vote screen
+// - HomePage - stories rail (StoriesRow) + «Куда пойдём?»/«Рядом со мной» CTA pair (primary/secondary) + NL assist section (AssistSection) + today digest (TodaySection) + impressions feed (FeedSection) + micro-events section (MicroSection) + promotion banners/collections (PromotionSections, #205) + catalog screen (CatalogPage) on the home route; all sections hidden in map view so the map gets the viewport
+// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar/profile routes render their screens (profile + achievements/my-city/lists/organizer nav tiles), whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the plans list and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, lists renders the saved lists and list(id) one list, organizer renders the organizer panel, vote(id) renders the shared vote screen
 // END_MODULE_MAP
 
 import { useState } from "react";
@@ -29,16 +29,17 @@ import { PlanPage } from "../plans/PlanPage";
 import { WeGroupPage } from "../wegroup/WeGroupPage";
 import { WeGroupsPage } from "../wegroup/WeGroupsPage";
 import { DayRoutePage } from "../route/DayRoutePage";
-import { ListPage, ListsLink, ListsPage } from "../lists/ListsPage";
-import { AchievementsLink, AchievementsPage } from "../profile/AchievementsPage";
-import { MyCityLink, MyCityPage } from "../profile/MyCityPage";
+import { ListPage, ListsPage } from "../lists/ListsPage";
+import { AchievementsPage } from "../profile/AchievementsPage";
+import { MyCityPage } from "../profile/MyCityPage";
 import { MicroEventCreatePage, MicroSection } from "../micro/MicroEvents";
 import { FeedCreatePage, FeedSection, StoriesRow } from "../feed/FeedPage";
-import { DiscoveryLink, DiscoveryPage } from "../discovery/DiscoveryPage";
-import { PeopleLink, PeoplePage } from "../people/PeoplePage";
+import { DiscoveryPage } from "../discovery/DiscoveryPage";
+import { PeoplePage } from "../people/PeoplePage";
 import { PromotionSections } from "../promo/PromoSections";
-import { OrganizerLink, OrganizerPage } from "../organizer/OrganizerPage";
+import { OrganizerPage } from "../organizer/OrganizerPage";
 import { VotePage } from "../votes/VotePage";
+import { AppNavTiles } from "../ui/primitives";
 
 export function HomePage() {
   const { navigate } = useRoute();
@@ -47,18 +48,20 @@ export function HomePage() {
     <>
       {view === "list" && (
         <>
-          <button type="button" className="app-whereto-cta" onClick={() => navigate({ name: "whereto" })}>
-            Куда пойдём?
-          </button>
-          <button type="button" className="app-whereto-cta" onClick={() => navigate({ name: "nearby" })}>
-            Рядом со мной
-          </button>
-          <AssistSection />
           <StoriesRow />
-          <PromotionSections />
-          <FeedSection onCreate={() => navigate({ name: "feed-new", eventId: null })} />
+          <div className="app-home-ctas">
+            <button type="button" className="app-whereto-cta" onClick={() => navigate({ name: "whereto" })}>
+              Куда пойдём?
+            </button>
+            <button type="button" className="app-whereto-cta app-whereto-cta--secondary" onClick={() => navigate({ name: "nearby" })}>
+              Рядом со мной
+            </button>
+          </div>
+          <AssistSection />
           <TodaySection />
+          <FeedSection onCreate={() => navigate({ name: "feed-new", eventId: null })} />
           <MicroSection onCreate={() => navigate({ name: "micro-new" })} />
+          <PromotionSections />
         </>
       )}
       <CatalogPage view={view} onView={setView} />
@@ -67,15 +70,19 @@ export function HomePage() {
 }
 
 export function RoutedPages() {
-  const { route } = useRoute();
+  const { route, navigate } = useRoute();
 
   if (route.name === "event") return <EventPage id={route.id} />;
   if (route.name === "place") return <PlacePage id={route.id} />;
   if (route.name === "friends")
     return (
       <>
-        <DiscoveryLink />
-        <PeopleLink />
+        <AppNavTiles
+          items={[
+            { icon: "pin", label: "Твои люди открыли места", onClick: () => navigate({ name: "discovery" }) },
+            { icon: "user", label: "Люди с похожими интересами", onClick: () => navigate({ name: "people" }) },
+          ]}
+        />
         <FriendsPage />
       </>
     );
@@ -86,10 +93,14 @@ export function RoutedPages() {
     return (
       <>
         <ProfilePage />
-        <AchievementsLink />
-        <MyCityLink />
-        <ListsLink />
-        <OrganizerLink />
+        <AppNavTiles
+          items={[
+            { icon: "star", label: "Достижения", onClick: () => navigate({ name: "achievements" }) },
+            { icon: "pin", label: "Мой город", onClick: () => navigate({ name: "my-city" }) },
+            { icon: "bookmark", label: "Сохранённое", onClick: () => navigate({ name: "lists" }) },
+            { icon: "ticket", label: "Панель организатора", onClick: () => navigate({ name: "organizer" }) },
+          ]}
+        />
       </>
     );
   if (route.name === "organizer") return <OrganizerPage />;

@@ -21,7 +21,7 @@ import { useAuth } from "../auth/AuthContext";
 import { RouteTimeline } from "../route/DayRoutePage";
 import { useRoute } from "../routing/router";
 import { openExternalLink } from "../max/bridge";
-import { AppButton, AppTitle } from "../ui/primitives";
+import { AppButton, AppTitle, AppState } from "../ui/primitives";
 
 export type WeGroupState = { status: "loading" } | { status: "error" } | { status: "forbidden" } | { status: "ready"; screen: WeGroupScreen };
 
@@ -67,9 +67,9 @@ interface WeGroupPickerProps {
 export function WeGroupPicker({ title, options, loading, failed, onPick }: WeGroupPickerProps) {
   return (
     <section aria-label={title}>
-      {loading && <p className="app-state">Загружаем каталог…</p>}
-      {failed && <p className="app-state app-state--error">Не удалось добавить.</p>}
-      {!loading && options.length === 0 && <p className="app-state">Нечего добавить.</p>}
+      {loading && <AppState>Загружаем каталог…</AppState>}
+      {failed && <AppState error>Не удалось добавить.</AppState>}
+      {!loading && options.length === 0 && <AppState>Нечего добавить.</AppState>}
       <ul className="app-plan-participants">
         {options.map((option) => (
           <li key={option.id} className="app-plan-participant">
@@ -100,9 +100,9 @@ interface WeGroupViewProps {
 }
 
 export function WeGroupView({ state, ownId, picker, pickerOptions, pickerLoading, actionFailed, onTogglePicker, onPick, onArchive, onOpenEvent, onOpenPlace }: WeGroupViewProps) {
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "forbidden") return <p className="app-state app-state--error">Нет доступа к группе.</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить группу.</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "forbidden") return <AppState error>Нет доступа к группе.</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить группу.</AppState>;
   const { screen } = state;
   const { group } = screen;
   const isOwner = ownId !== null && group.ownerUserId === ownId;
@@ -110,9 +110,9 @@ export function WeGroupView({ state, ownId, picker, pickerOptions, pickerLoading
   return (
     <>
       <AppTitle asChild>
-        <h2 className="app-whereto-title">{group.title}</h2>
+        <h2 className="app-section-title">{group.title}</h2>
       </AppTitle>
-      {group.status === "archived" && <p className="app-state">Группа в архиве.</p>}
+      {group.status === "archived" && <AppState>Группа в архиве.</AppState>}
       <ul className="app-plan-participants" aria-label="Участники">
         {screen.members.map((member) => (
           <li key={member.id} className="app-plan-participant">
@@ -181,7 +181,7 @@ export function WeGroupView({ state, ownId, picker, pickerOptions, pickerLoading
           Архивировать
         </AppButton>
       )}
-      {actionFailed && picker === null && <p className="app-state app-state--error">Действие не удалось.</p>}
+      {actionFailed && picker === null && <AppState error>Действие не удалось.</AppState>}
     </>
   );
 }

@@ -12,10 +12,20 @@
 // - AppText - MAX Typography.Text wrapper
 // - AppAvatar - MAX Avatar.Container: image when src given, otherwise the label children
 // - AppChip - toggle chip button (aria-pressed)
+// - AppNavTiles - grid of navigation tiles (icon + label) replacing full-width entry buttons
+// - AppNavTileItem - one navigation tile (icon, label, onClick)
+// - AppState - loading/empty/error state block: alert icon on error, text, optional retry action
+// - AppStateAction - retry action payload of AppState (label + onClick)
+// - AppSkeleton - pulsing placeholder block (lines or media) for loading states
+// - AppSection - section rhythm primitive: title row with an optional right-side action, unified top margin
+// - CATEGORY_MEDIA_ICON - event category -> placeholder icon mapping
+// - AppMedia - media placeholder: category-fixed MAX gradient + category icon (neutral gradient without a category)
 // END_MODULE_MAP
 
 import type { ComponentProps, ReactNode } from "react";
 import { Avatar, Button, Typography } from "@maxhub/max-ui";
+import type { EventCategory } from "@max-events/api-contracts";
+import { ActionIcon, type ActionIconName } from "./icons";
 
 export type AppButtonTone = "primary" | "secondary" | "danger" | "ghost";
 
@@ -46,4 +56,80 @@ export function AppAvatar({ src, size = 44, children }: { src?: string | null; s
 export function AppChip({ pressed = false, className, ...props }: ComponentProps<"button"> & { pressed?: boolean }) {
   const chipClass = className ? `${className} app-chip` : "app-chip";
   return <button aria-pressed={pressed} className={pressed ? `${chipClass} app-chip--on` : chipClass} type="button" {...props} />;
+}
+
+export interface AppNavTileItem {
+  icon: ActionIconName;
+  label: string;
+  onClick: () => void;
+}
+
+export function AppNavTiles({ items }: { items: AppNavTileItem[] }) {
+  return (
+    <div className="app-nav-tiles">
+      {items.map((item) => (
+        <button key={item.label} type="button" className="app-nav-tile" onClick={item.onClick}>
+          <ActionIcon name={item.icon} size={20} />
+          <span>{item.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export interface AppStateAction {
+  label: string;
+  onClick: () => void;
+}
+
+export function AppState({ error = false, action, children }: { error?: boolean; action?: AppStateAction; children: ReactNode }) {
+  return (
+    <div className="app-state-block">
+      {error && (
+        <span className="app-state-icon" aria-hidden="true">
+          <ActionIcon name="alert" size={28} />
+        </span>
+      )}
+      <p className={error ? "app-state app-state--error" : "app-state"}>{children}</p>
+      {action && (
+        <AppButton tone="secondary" onClick={action.onClick}>
+          {action.label}
+        </AppButton>
+      )}
+    </div>
+  );
+}
+
+export function AppSkeleton({ variant = "line", width }: { variant?: "line" | "line-short" | "block" | "media"; width?: string }) {
+  const className = variant === "media" ? "app-skeleton-block app-skeleton-block--media" : variant === "block" ? "app-skeleton-block" : variant === "line-short" ? "app-skeleton-line app-skeleton-line--short" : "app-skeleton-line";
+  return <span className={className} style={width ? { width } : undefined} aria-hidden="true" />;
+}
+
+export function AppSection({ title, action, className, ariaLabel, children }: { title?: string; action?: ReactNode; className?: string; ariaLabel?: string; children: ReactNode }) {
+  const sectionClass = className ? `app-section ${className}` : "app-section";
+  return (
+    <section className={sectionClass} aria-label={ariaLabel ?? title}>
+      {title !== undefined && (
+        <div className="app-section-head">
+          <AppTitle asChild>
+            <h2 className="app-section-title">{title}</h2>
+          </AppTitle>
+          {action}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+export const CATEGORY_MEDIA_ICON: Record<EventCategory, ActionIconName> = {
+  afisha: "ticket",
+  volunteering: "heart",
+  tourism: "pin",
+  sport: "star",
+};
+
+export function AppMedia({ category, className }: { category?: EventCategory; className?: string }) {
+  const mediaClass = ["app-card-media", category !== undefined ? `app-media--${category}` : "", className ?? ""].filter(Boolean).join(" ");
+  return <div className={mediaClass}>{category !== undefined && <ActionIcon name={CATEGORY_MEDIA_ICON[category]} size={22} />}</div>;
 }

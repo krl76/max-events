@@ -107,20 +107,12 @@ describe("ProfileView", () => {
     expect(html).not.toContain("app-profile-interest");
   });
 
-  it("fills the edit form with the current profile", () => {
+  it("hides the edit form behind the «Редактировать» button in view mode", () => {
     const html = renderProfileView();
 
-    expect(html).toContain('value="Москва"');
-    expect(html).toContain('value="бег, джаз"');
-    expect(html).toContain("Сохранить");
-  });
-
-  it("shows the saving state on the submit button", () => {
-    const html = renderProfileView({ saving: true });
-
-    expect(html).toContain("Сохранение…");
-    expect(html).toContain("disabled");
-    expect(html).not.toContain(">Сохранить</button>");
+    expect(html).toContain("Редактировать");
+    expect(html).not.toContain("app-profile-form");
+    expect(html).not.toContain("Сохранить");
   });
 
   it("renders the avatar image when MAX provides an avatar url", () => {

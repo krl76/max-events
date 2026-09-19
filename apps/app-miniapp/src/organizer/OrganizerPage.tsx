@@ -26,7 +26,6 @@
 // - PlaceDraftForm - presentational place twin
 // - OrganizerListStatus - presentational loading/error/empty line for a list state
 // - OrganizerPage - route container: auth gate, events/places tabs, data loading, create/publish/edit mutations; renders the own-rating card and per-event stats/promotion addons from ./OrganizerAddons.js (#196/#199/#206)
-// - OrganizerLink - profile entry button navigating to the organizer route
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
@@ -35,8 +34,7 @@ import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganiz
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { MyOrganizerRatingCard, OrganizerEventAddons } from "./OrganizerAddons";
-import { useRoute } from "../routing/router";
-import { AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { AppButton, AppChip, AppState } from "../ui/primitives";
 
 export const PLACE_CATEGORY_LABELS: Record<PlaceCategory, string> = {
   park: "Парк",
@@ -154,9 +152,9 @@ export function placeDraftFrom(item: OrganizerPlace): PlaceDraft {
 export type OrganizerListState<T> = { status: "loading" } | { status: "error" } | { status: "ready"; items: T[] };
 
 export function OrganizerListStatus<T>({ state, emptyText }: { state: OrganizerListState<T>; emptyText: string }) {
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить список.</p>;
-  if (state.items.length === 0) return <p className="app-state">{emptyText}</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить список.</AppState>;
+  if (state.items.length === 0) return <AppState>{emptyText}</AppState>;
   return null;
 }
 
@@ -174,7 +172,7 @@ export function OrganizerEventCard({ item, publishing, failed, onPublish, onEdit
           {item.isPaid && item.priceRub !== null ? `${item.priceRub} ₽` : "Бесплатно"}
           {item.capacity !== null ? ` · до ${item.capacity} мест` : ""}
         </span>
-        {failed && <p className="app-state app-state--error">Не удалось опубликовать. Попробуйте ещё раз.</p>}
+        {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
         <span className="app-card-subtitle">
           {item.draft && (
             <AppButton size="small" disabled={publishing} onClick={onPublish}>
@@ -201,7 +199,7 @@ export function OrganizerPlaceCard({ item, publishing, failed, onPublish, onEdit
           {item.address} · {item.city}
         </span>
         <span className="app-card-subtitle">{PLACE_CATEGORY_LABELS[item.category]}</span>
-        {failed && <p className="app-state app-state--error">Не удалось опубликовать. Попробуйте ещё раз.</p>}
+        {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
         <span className="app-card-subtitle">
           {item.draft && (
             <AppButton size="small" disabled={publishing} onClick={onPublish}>
@@ -256,7 +254,7 @@ export function EventDraftForm({ draft, errors, submitting, failed, submitLabel,
           {error}
         </p>
       ))}
-      {failed && <p className="app-state app-state--error">Не удалось сохранить. Попробуйте ещё раз.</p>}
+      {failed && <AppState error>Не удалось сохранить. Попробуйте ещё раз.</AppState>}
       <AppButton disabled={submitting} type="submit" stretched>
         {submitting ? "Сохранение…" : submitLabel}
       </AppButton>
@@ -304,7 +302,7 @@ export function PlaceDraftForm({ draft, errors, submitting, failed, submitLabel,
           {error}
         </p>
       ))}
-      {failed && <p className="app-state app-state--error">Не удалось сохранить. Попробуйте ещё раз.</p>}
+      {failed && <AppState error>Не удалось сохранить. Попробуйте ещё раз.</AppState>}
       <AppButton disabled={submitting} type="submit" stretched>
         {submitting ? "Сохранение…" : submitLabel}
       </AppButton>
@@ -453,12 +451,9 @@ function OrganizerPanel({ userId }: { userId: string }) {
 
   return (
     <section className="app-gathering">
-      <AppTitle asChild>
-        <h1 className="app-gathering-title">Панель организатора</h1>
-      </AppTitle>
       <p className="app-gathering-hint">Черновики видны только вам — опубликуйте, когда всё готово</p>
       <MyOrganizerRatingCard userId={userId} />
-      <div className="app-micro-head">
+      <div className="app-filters-chips">
         <AppChip pressed={tab === "events"} onClick={() => setTab("events")}>
           События
         </AppChip>{" "}
@@ -507,16 +502,7 @@ function OrganizerPanel({ userId }: { userId: string }) {
 export function OrganizerPage() {
   const auth = useAuth();
   if (auth.status === "authenticated") return <OrganizerPanel userId={auth.user.id} />;
-  if (auth.status === "error") return <p className="app-state app-state--error">Не удалось войти: {auth.message}</p>;
-  if (auth.status === "loading") return <p className="app-state">Загрузка…</p>;
-  return <p className="app-state">Откройте приложение внутри MAX, чтобы авторизоваться.</p>;
-}
-
-export function OrganizerLink() {
-  const { navigate } = useRoute();
-  return (
-    <button type="button" className="app-lists-link" onClick={() => navigate({ name: "organizer" })}>
-      Панель организатора
-    </button>
-  );
+  if (auth.status === "error") return <AppState error>Не удалось войти: {auth.message}</AppState>;
+  if (auth.status === "loading") return <AppState>Загрузка…</AppState>;
+  return <AppState>Откройте приложение внутри MAX, чтобы авторизоваться.</AppState>;
 }

@@ -12,7 +12,6 @@
 // - PeopleState - people fetch union (loading / error / ready)
 // - PeopleView - presentational: summary counters, chips, candidate cards with context and badge
 // - PeoplePage - route container: loads people + profile chips, wires the filter and event navigation
-// - PeopleLink - friends-screen entry button to the people screen
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
@@ -23,7 +22,7 @@ import { initials } from "../friends/FriendsPage";
 import { formatDistanceKm } from "../nearby/NearbyPage";
 import { peopleLabel } from "../place/PlacePage";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { AppAvatar, AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
 
 // ponytail: fixed Moscow center; user geolocation when the bridge exposes it
 const [PEOPLE_LAT, PEOPLE_LNG] = MOSCOW_CENTER;
@@ -90,10 +89,10 @@ export function PeopleView({ state, chips, selected, onToggle, onOpenEvent }: Pe
   return (
     <>
       <AppTitle asChild>
-        <h2 className="app-whereto-title">Люди с похожими интересами</h2>
+        <h2 className="app-section-title">Люди с похожими интересами</h2>
       </AppTitle>
-      {state.status === "loading" && <p className="app-state">Ищем людей рядом…</p>}
-      {state.status === "error" && <p className="app-state app-state--error">Не удалось найти людей рядом.</p>}
+      {state.status === "loading" && <AppState>Ищем людей рядом…</AppState>}
+      {state.status === "error" && <AppState error>Не удалось найти людей рядом.</AppState>}
       {state.status === "ready" && (
         <>
           <p className="app-today-summary">
@@ -109,7 +108,7 @@ export function PeopleView({ state, chips, selected, onToggle, onOpenEvent }: Pe
               ))}
             </div>
           )}
-          {people.length === 0 && <p className="app-state">Никого рядом с такими интересами не нашлось.</p>}
+          {people.length === 0 && <AppState>Никого рядом с такими интересами не нашлось.</AppState>}
           {people.map((candidate) => (
             <PersonCard key={candidate.person.id} candidate={candidate} onOpenEvent={onOpenEvent} />
           ))}
@@ -159,13 +158,4 @@ export function PeoplePage() {
   const chips = profileInterests !== null && profileInterests.length > 0 ? profileInterests : state.status === "ready" ? candidateInterests(state.data.people) : [];
 
   return <PeopleView state={state} chips={chips} selected={selected} onToggle={toggle} onOpenEvent={(id) => navigate({ name: "event", id })} />;
-}
-
-export function PeopleLink() {
-  const { navigate } = useRoute();
-  return (
-    <button type="button" className="app-lists-link" onClick={() => navigate({ name: "people" })}>
-      Найти людей с похожими интересами
-    </button>
-  );
 }

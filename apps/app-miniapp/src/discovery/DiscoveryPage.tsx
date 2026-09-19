@@ -12,7 +12,6 @@
 // - routeErrorMessage - ApiError 403 -> hidden-route text, otherwise the fallback
 // - DiscoveryView - presentational: summary line, friend cards with expandable place lists, route timeline
 // - DiscoveryPage - route container: loads the summary, wires route loading and place navigation
-// - DiscoveryLink - friends-screen entry button to the discovery screen
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
@@ -20,7 +19,7 @@ import type { DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute } from "@max
 import { ApiError, apiClient } from "../api/client";
 import { initials } from "../friends/FriendsPage";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppButton, AppTitle } from "../ui/primitives";
+import { AppAvatar, AppButton, AppTitle, AppState } from "../ui/primitives";
 
 export function placesLabel(count: number): string {
   const mod10 = count % 10;
@@ -92,9 +91,9 @@ function FriendDiscoveryCard({ entry, route, onShowRoute, onOpenPlace }: FriendD
           Посмотреть маршрут
         </AppButton>
       )}
-      {routeMine && route.status === "loading" && <p className="app-state">Загружаем маршрут…</p>}
-      {routeMine && route.status === "error" && <p className="app-state app-state--error">{route.message}</p>}
-      {routeMine && route.status === "ready" && route.route.places.length === 0 && <p className="app-state">Все места из маршрута ты уже видел.</p>}
+      {routeMine && route.status === "loading" && <AppState>Загружаем маршрут…</AppState>}
+      {routeMine && route.status === "error" && <AppState error>{route.message}</AppState>}
+      {routeMine && route.status === "ready" && route.route.places.length === 0 && <AppState>Все места из маршрута ты уже видел.</AppState>}
       {routeMine && route.status === "ready" && route.route.places.length > 0 && (
         <ol className="app-nearby-stops" aria-label={`Маршрут: ${entry.friend.name}`}>
           {route.route.places.map((place) => (
@@ -117,11 +116,11 @@ export function DiscoveryView({ state, route, onShowRoute, onOpenPlace }: Discov
   return (
     <>
       <AppTitle asChild>
-        <h2 className="app-whereto-title">Открытия твоих людей</h2>
+        <h2 className="app-section-title">Открытия твоих людей</h2>
       </AppTitle>
-      {state.status === "loading" && <p className="app-state">Загружаем открытия…</p>}
-      {state.status === "error" && <p className="app-state app-state--error">Не удалось загрузить открытия друзей.</p>}
-      {state.status === "ready" && state.data.byFriend.length === 0 && <p className="app-state">Пока ничего нового — друзья ещё не открыли мест, где ты не был.</p>}
+      {state.status === "loading" && <AppState>Загружаем открытия…</AppState>}
+      {state.status === "error" && <AppState error>Не удалось загрузить открытия друзей.</AppState>}
+      {state.status === "ready" && state.data.byFriend.length === 0 && <AppState>Пока ничего нового — друзья ещё не открыли мест, где ты не был.</AppState>}
       {state.status === "ready" && state.data.byFriend.length > 0 && (
         <>
           <p className="app-today-summary">Твои люди открыли {placesLabel(state.data.newPlacesCount)}</p>
@@ -164,13 +163,4 @@ export function DiscoveryPage() {
   };
 
   return <DiscoveryView state={state} route={route} onShowRoute={showRoute} onOpenPlace={(id) => navigate({ name: "place", id })} />;
-}
-
-export function DiscoveryLink() {
-  const { navigate } = useRoute();
-  return (
-    <button type="button" className="app-lists-link" onClick={() => navigate({ name: "discovery" })}>
-      Твои люди открыли места
-    </button>
-  );
 }

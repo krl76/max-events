@@ -17,7 +17,7 @@ import type { AutoPlanProposal } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { MOSCOW_CENTER } from "../catalog/MapScreen";
 import { useRoute } from "../routing/router";
-import { AppButton, AppTitle } from "../ui/primitives";
+import { AppButton, AppTitle, AppState } from "../ui/primitives";
 
 // ponytail: fixed Moscow center as the autoplan origin; user geolocation when the bridge exposes it
 const [AUTOPLAN_LAT, AUTOPLAN_LNG] = MOSCOW_CENTER;
@@ -33,15 +33,15 @@ export function AutoPlanView({ state, onBuild, onOpenPlan }: { state: AutoPlanSt
     <section className="app-event">
       <div className="app-event-body">
         <AppTitle asChild>
-          <h2 className="app-participation-title">План на вечер</h2>
+          <h2 className="app-section-title">План на вечер</h2>
         </AppTitle>
         {(state.status === "idle" || state.status === "error") && (
           <AppButton onClick={onBuild} stretched>
             Собрать план
           </AppButton>
         )}
-        {state.status === "error" && <p className="app-state app-state--error">Не удалось собрать план.</p>}
-        {state.status === "loading" && <p className="app-state">Собираем план…</p>}
+        {state.status === "error" && <AppState error>Не удалось собрать план.</AppState>}
+        {state.status === "loading" && <AppState>Собираем план…</AppState>}
         {state.status === "ready" && (
           <>
             <ol className="app-plan-participants">
@@ -54,7 +54,7 @@ export function AutoPlanView({ state, onBuild, onOpenPlan }: { state: AutoPlanSt
             <p className="app-plan-meeting">{state.proposal.travelMinutes} мин до места</p>
             {state.proposal.foodPlaces.length > 0 && (
               <>
-                <p className="app-state">Где поесть рядом:</p>
+                <AppState>Где поесть рядом:</AppState>
                 <ul className="app-plan-participants">
                   {state.proposal.foodPlaces.map((place) => (
                     <li key={place.id} className="app-plan-participant">

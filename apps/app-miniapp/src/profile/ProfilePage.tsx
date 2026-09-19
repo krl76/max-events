@@ -20,7 +20,7 @@ import type { Profile, UpdateProfile, User, VisitStats } from "@max-events/api-c
 import { apiClient, type CalendarEntry, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS } from "../catalog/CatalogPage";
-import { AppAvatar, AppButton, AppTitle } from "../ui/primitives";
+import { AppAvatar, AppButton, AppTitle, AppState, AppSkeleton, AppSection } from "../ui/primitives";
 import { useRoute } from "../routing/router";
 
 export interface ProfileStats {
@@ -47,10 +47,7 @@ export type ProfileState = { status: "loading" } | { status: "error" } | { statu
 
 export function VisitStatsView({ stats }: { stats: VisitStats | null }) {
   return (
-    <section className="app-visitstats">
-      <AppTitle asChild>
-        <h2 className="app-today-heading">Статистика посещений</h2>
-      </AppTitle>
+    <AppSection title="Статистика посещений">
       {stats === null || (stats.eventsCount === 0 && stats.placesCount === 0) ? (
         <p className="app-today-summary">Пока нет посещений — отметьтесь «Я здесь» на странице события.</p>
       ) : (
@@ -64,7 +61,7 @@ export function VisitStatsView({ stats }: { stats: VisitStats | null }) {
             ))}
         </ul>
       )}
-    </section>
+    </AppSection>
   );
 }
 
@@ -81,6 +78,7 @@ interface ProfileViewProps {
 }
 
 export function ProfileView({ user, profile, stats, friendsCount, posts, visitStats, saving, onSave, onOpenEvent }: ProfileViewProps) {
+  const [editing, setEditing] = useState(false);
   const [cityDraft, setCityDraft] = useState(profile.city);
   const [interestsDraft, setInterestsDraft] = useState(profile.interests.join(", "));
   useEffect(() => {
@@ -122,6 +120,38 @@ export function ProfileView({ user, profile, stats, friendsCount, posts, visitSt
           ))}
         </div>
       )}
+      {editing ? (
+        <form
+          className="app-profile-form"
+          onSubmit={(submit) => {
+            submit.preventDefault();
+            onSave(toProfilePatch(cityDraft, interestsDraft));
+            setEditing(false);
+          }}
+        >
+          <input className="app-profile-input" type="text" aria-label="Город" value={cityDraft} onChange={(change) => setCityDraft(change.target.value)} />
+          <input className="app-profile-input" type="text" aria-label="Интересы" placeholder="Интересы через запятую" value={interestsDraft} onChange={(change) => setInterestsDraft(change.target.value)} />
+          <div className="app-event-actions-row">
+            <AppButton disabled={saving} type="submit">
+              {saving ? "Сохранение…" : "Сохранить"}
+            </AppButton>
+            <AppButton
+              tone="secondary"
+              onClick={() => {
+                setCityDraft(profile.city);
+                setInterestsDraft(profile.interests.join(", "));
+                setEditing(false);
+              }}
+            >
+              Отмена
+            </AppButton>
+          </div>
+        </form>
+      ) : (
+        <AppButton className="app-profile-edit" tone="secondary" onClick={() => setEditing(true)}>
+          Редактировать
+        </AppButton>
+      )}
       {posts.length > 0 && (
         <div className="app-profile-grid" aria-label="Впечатления">
           {posts.map((post) => (
@@ -130,19 +160,6 @@ export function ProfileView({ user, profile, stats, friendsCount, posts, visitSt
         </div>
       )}
       <VisitStatsView stats={visitStats} />
-      <form
-        className="app-profile-form"
-        onSubmit={(submit) => {
-          submit.preventDefault();
-          onSave(toProfilePatch(cityDraft, interestsDraft));
-        }}
-      >
-        <input className="app-profile-input" type="text" aria-label="Город" value={cityDraft} onChange={(change) => setCityDraft(change.target.value)} />
-        <input className="app-profile-input" type="text" aria-label="Интересы" placeholder="Интересы через запятую" value={interestsDraft} onChange={(change) => setInterestsDraft(change.target.value)} />
-        <AppButton disabled={saving} type="submit" stretched>
-          {saving ? "Сохранение…" : "Сохранить"}
-        </AppButton>
-      </form>
     </section>
   );
 }
@@ -222,8 +239,17 @@ function AuthenticatedProfile({ user }: { user: User }) {
   const { navigate } = useRoute();
   const [{ profile, failed, saving, stats, friendsCount, posts, visitStats }, save] = useProfileData(user.id);
 
-  if (failed) return <p className="app-state app-state--error">Не удалось загрузить профиль.</p>;
-  if (profile === null) return <p className="app-state">Загрузка…</p>;
+  if (failed) return <AppState error>Не удалось загрузить профиль.</AppState>;
+  if (profile === null)
+    return (
+      <div className="app-card" aria-hidden="true">
+        <div className="app-card-body">
+          <AppSkeleton variant="block" />
+          <AppSkeleton />
+          <AppSkeleton variant="line-short" />
+        </div>
+      </div>
+    );
   return <ProfileView user={user} profile={profile} stats={stats} friendsCount={friendsCount} posts={posts} visitStats={visitStats} saving={saving} onSave={save} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
 }
 
@@ -232,10 +258,10 @@ export function ProfilePage() {
 
   if (auth.status === "authenticated") return <AuthenticatedProfile user={auth.user} />;
   if (auth.status === "error") {
-    return <p className="app-state app-state--error">Не удалось войти: {auth.message}</p>;
+    return <AppState error>Не удалось войти: {auth.message}</AppState>;
   }
   if (auth.status === "loading") {
-    return <p className="app-state">Загрузка…</p>;
+    return <AppState>Загрузка…</AppState>;
   }
-  return <p className="app-state">Откройте приложение внутри MAX, чтобы авторизоваться.</p>;
+  return <AppState>Откройте приложение внутри MAX, чтобы авторизоваться.</AppState>;
 }

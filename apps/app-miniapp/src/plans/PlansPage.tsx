@@ -20,7 +20,7 @@ import type { Plan, PlanCard } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppButton } from "../ui/primitives";
+import { AppNavTiles, AppState, AppSkeleton, AppMedia } from "../ui/primitives";
 
 export function planParticipantsLabel(count: number): string {
   const mod10 = count % 10;
@@ -44,14 +44,27 @@ export function planMeetingLabel(plan: Plan): string {
 
 export type PlansState = { status: "loading" } | { status: "error" } | { status: "ready"; cards: PlanCard[] };
 
-export function PlansView({ state, onOpen }: { state: PlansState; onOpen: (planId: string) => void }) {
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить планы.</p>;
-  if (state.cards.length === 0) return <p className="app-state">Пока нет планов.</p>;
+export function PlansView({ state, onOpen, onExplore }: { state: PlansState; onOpen: (planId: string) => void; onExplore: () => void }) {
+  if (state.status === "loading")
+    return (
+      <>
+        {[0, 1].map((row) => (
+          <div key={row} className="app-card" aria-hidden="true">
+            <div className="app-card-body">
+              <AppSkeleton />
+              <AppSkeleton variant="line-short" />
+            </div>
+          </div>
+        ))}
+      </>
+    );
+  if (state.status === "error") return <AppState error>Не удалось загрузить планы.</AppState>;
+  if (state.cards.length === 0) return <AppState action={{ label: "Найти событие", onClick: onExplore }}>Пока нет планов. Выбери событие — и собери компанию.</AppState>;
   return (
     <>
       {state.cards.map(({ plan, event, distanceMeters }) => (
         <button key={plan.id} type="button" className="app-card app-card--link" onClick={() => onOpen(plan.id)}>
+          <AppMedia category={event.category} />
           <div className="app-card-body">
             <span className="app-card-title">{event.title}</span>
             <span className="app-card-subtitle">{planParticipantsLabel(plan.participants.length)}</span>
@@ -87,13 +100,13 @@ export function PlansPage() {
   }, []);
   return (
     <>
-      <AppButton onClick={() => navigate({ name: "we-groups" })} stretched tone="secondary">
-        Мы
-      </AppButton>
-      <AppButton onClick={() => navigate({ name: "day-route" })} stretched tone="secondary">
-        Маршрут на день
-      </AppButton>
-      <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} />
+      <AppNavTiles
+        items={[
+          { icon: "user", label: "Мы", onClick: () => navigate({ name: "we-groups" }) },
+          { icon: "pin", label: "Маршрут на день", onClick: () => navigate({ name: "day-route" }) },
+        ]}
+      />
+      <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} />
     </>
   );
 }

@@ -13,7 +13,7 @@
 import type { AssistDayResponse } from "@max-events/api-contracts";
 import { PlanCardSchema } from "@max-events/api-contracts";
 import { formatStartsAt } from "../catalog/CatalogPage";
-import { AppButton } from "../ui/primitives";
+import { AppButton, AppState } from "../ui/primitives";
 
 export type AssistDayState = { status: "idle" } | { status: "loading" } | { status: "error"; message: string } | { status: "ready"; result: AssistDayResponse };
 
@@ -26,8 +26,8 @@ interface AssistDayCardProps {
 
 export function AssistDayCard({ state, onOpenEvent, onOpenPlan, onCreatePlan }: AssistDayCardProps) {
   if (state.status === "idle") return null;
-  if (state.status === "loading") return <p className="app-state">Собираем план на субботу…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">{state.message}</p>;
+  if (state.status === "loading") return <AppState>Собираем план на субботу…</AppState>;
+  if (state.status === "error") return <AppState error>{state.message}</AppState>;
 
   const { result } = state;
   const plan = PlanCardSchema.safeParse(result.plan);

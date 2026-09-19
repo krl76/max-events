@@ -19,7 +19,7 @@ import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { PARTICIPATION_STATUS_LABELS } from "../event/EventPage";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppButton } from "../ui/primitives";
+import { AppAvatar, AppButton, AppState, AppMedia } from "../ui/primitives";
 
 export type FriendsState = { status: "loading" } | { status: "error" } | { status: "ready"; groups: FriendActivityByFriend[] };
 
@@ -38,9 +38,9 @@ interface FriendsViewProps {
 }
 
 export function FriendsView({ state, onJoin }: FriendsViewProps) {
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить события друзей.</p>;
-  if (state.groups.length === 0) return <p className="app-state">Пока никто из друзей никуда не идёт</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить события друзей.</AppState>;
+  if (state.groups.length === 0) return <AppState>Пока никто из друзей никуда не идёт</AppState>;
 
   return (
     <>
@@ -51,12 +51,12 @@ export function FriendsView({ state, onJoin }: FriendsViewProps) {
             <span className="app-friends-name">{group.friend.name}</span>
           </div>
           {group.events.map(({ event, participationStatus }) => (
-            <article key={event.id} className="app-card">
+            <article key={event.id} className="app-card app-card--row">
+              <AppMedia category={event.category} />
               <div className="app-card-body">
                 <span className="app-card-title">{event.title}</span>
-                <span className="app-card-subtitle">
-                  {formatStartsAt(event.startsAt)} · {PARTICIPATION_STATUS_LABELS[participationStatus]}
-                </span>
+                <span className="app-card-subtitle">{formatStartsAt(event.startsAt)}</span>
+                <span className="app-today-chip">{PARTICIPATION_STATUS_LABELS[participationStatus]}</span>
                 <AppButton className="app-friends-join" size="small" onClick={() => onJoin(event.id)}>
                   Присоединиться
                 </AppButton>

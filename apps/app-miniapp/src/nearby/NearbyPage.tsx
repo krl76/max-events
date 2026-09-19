@@ -23,7 +23,7 @@ import { apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { MOSCOW_CENTER } from "../catalog/MapScreen";
 import { useRoute } from "../routing/router";
-import { AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
 
 // ponytail: fixed Moscow center; user geolocation/city picker when bridge exposes it
 const [NEARBY_LAT, NEARBY_LNG] = MOSCOW_CENTER;
@@ -111,9 +111,6 @@ interface NearbyViewProps extends CardHandlers {
 export function NearbyView({ state, bucket, onBucket, leisure, hours, mood, onHours, onMood, onShowLeisure, onOpenEvent, onOpenPlace }: NearbyViewProps) {
   return (
     <>
-      <AppTitle asChild>
-        <h2 className="app-whereto-title">Рядом со мной</h2>
-      </AppTitle>
       <div className="app-whereto-chips" role="group" aria-label="Время">
         {NEARBY_BUCKETS.map((item) => (
           <AppChip key={item} pressed={bucket === item} onClick={() => onBucket(item)}>
@@ -121,13 +118,13 @@ export function NearbyView({ state, bucket, onBucket, leisure, hours, mood, onHo
           </AppChip>
         ))}
       </div>
-      {state.status === "loading" && <p className="app-state">Загружаем события рядом…</p>}
-      {state.status === "error" && <p className="app-state app-state--error">Не удалось загрузить события рядом.</p>}
-      {state.status === "ready" && state.timeline[bucket].length === 0 && <p className="app-state">На «{BUCKET_LABELS[bucket]}» рядом ничего нет.</p>}
+      {state.status === "loading" && <AppState>Загружаем события рядом…</AppState>}
+      {state.status === "error" && <AppState error>Не удалось загрузить события рядом.</AppState>}
+      {state.status === "ready" && state.timeline[bucket].length === 0 && <AppState>На «{BUCKET_LABELS[bucket]}» рядом ничего нет.</AppState>}
       {state.status === "ready" && state.timeline[bucket].map((card) => <NearbyCardView key={card.event.id} card={card} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />)}
 
       <AppTitle asChild>
-        <h2 className="app-whereto-title">Свободно время?</h2>
+        <h2 className="app-section-title">Свободно время?</h2>
       </AppTitle>
       <div className="app-whereto-chips" role="group" aria-label="Сколько часов свободно">
         <span className="app-whereto-chips-label">Часов</span>
@@ -148,9 +145,9 @@ export function NearbyView({ state, bucket, onBucket, leisure, hours, mood, onHo
       <AppButton onClick={onShowLeisure} stretched>
         Подобрать досуг
       </AppButton>
-      {leisure.status === "loading" && <p className="app-state">Подбираем цепочку…</p>}
-      {leisure.status === "error" && <p className="app-state app-state--error">Не удалось подобрать досуг.</p>}
-      {leisure.status === "ready" && leisure.options.length === 0 && <p className="app-state">Не нашлось цепочки — попробуйте другое настроение.</p>}
+      {leisure.status === "loading" && <AppState>Подбираем цепочку…</AppState>}
+      {leisure.status === "error" && <AppState error>Не удалось подобрать досуг.</AppState>}
+      {leisure.status === "ready" && leisure.options.length === 0 && <AppState>Не нашлось цепочки — попробуйте другое настроение.</AppState>}
       {leisure.status === "ready" && leisure.options.map((option) => <LeisureOptionCard key={option.title} option={option} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />)}
     </>
   );

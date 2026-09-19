@@ -134,7 +134,6 @@ describe("VoteCreateView", () => {
   it("renders the question field, the event and friend chips", () => {
     const html = createHtml();
 
-    expect(html).toContain("Голосование с друзьями");
     expect(html).toContain("Куда идем в пятницу?");
     for (const event of mockEvents.slice(0, 3)) expect(html).toContain(event.title);
     for (const friend of mockFriends.slice(0, 3)) expect(html).toContain(friend.name);

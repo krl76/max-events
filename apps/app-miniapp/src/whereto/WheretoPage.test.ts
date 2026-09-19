@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { buildShareText, suggestEvents, WheretoView, type WheretoState } from "./WheretoPage";
+import { buildShareText, suggestEvents, WheretoView, wizardStepIndex, type WheretoState } from "./WheretoPage";
 import { mockEvents } from "../api/mock";
 import type { ShareChannel } from "../max/bridge";
 import type { Event, WheretoQuery } from "@max-events/api-contracts";
@@ -84,7 +84,7 @@ describe("WheretoView", () => {
   it("renders the four company options on step 1", () => {
     const html = viewHtml({ step: "company" });
 
-    expect(html).toContain("Куда пойдём?");
+    expect(html).toContain("Шаг 1 из 3");
     expect(html).toContain("Я один");
     expect(html).toContain("С друзьями");
     expect(html).toContain("С девушкой");
@@ -143,5 +143,14 @@ describe("WheretoView", () => {
     expect(bridge).toContain("экран отправки открыт");
     expect(clipboard).toContain("скопирована");
     expect(manual).toContain(buildShareText(events));
+  });
+});
+
+describe("wizardStepIndex", () => {
+  it("maps the wizard steps to 0-based progress positions", () => {
+    expect(wizardStepIndex({ step: "company" })).toBe(0);
+    expect(wizardStepIndex({ step: "context", company: "alone", mood: null, budget: null })).toBe(1);
+    expect(wizardStepIndex({ step: "result", query: { company: "alone", mood: "calm", budget: "any" } })).toBe(2);
+    expect(wizardStepIndex({ step: "vote", query: { company: "alone", mood: "calm", budget: "any" } })).toBe(2);
   });
 });

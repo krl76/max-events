@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { EMPTY_EVENT_DRAFT, EMPTY_PLACE_DRAFT, EventDraftForm, eventDraftErrors, eventDraftFrom, OrganizerEventCard, OrganizerLink, OrganizerListStatus, OrganizerPlaceCard, placeDraftErrors, toCreateEvent, toEventPatch, toLocalInput, type EventDraft, type OrganizerListState } from "./OrganizerPage";
+import { EMPTY_EVENT_DRAFT, EMPTY_PLACE_DRAFT, EventDraftForm, eventDraftErrors, eventDraftFrom, OrganizerEventCard, OrganizerListStatus, OrganizerPlaceCard, placeDraftErrors, toCreateEvent, toEventPatch, toLocalInput, type EventDraft, type OrganizerListState } from "./OrganizerPage";
 import type { OrganizerEvent, OrganizerPlace } from "../api/client";
 
 const noop = () => {};
@@ -197,11 +197,5 @@ describe("OrganizerListStatus", () => {
     expect(renderToStaticMarkup(createElement(OrganizerListStatus, { state: { status: "error" } as OrganizerListState<OrganizerEvent>, emptyText: "Пока нет событий — создайте первое." }))).toContain("Не удалось загрузить список.");
     expect(renderToStaticMarkup(createElement(OrganizerListStatus, { state: { status: "ready", items: [] } as OrganizerListState<OrganizerEvent>, emptyText: "Пока нет событий — создайте первое." }))).toContain("Пока нет событий");
     expect(renderToStaticMarkup(createElement(OrganizerListStatus, { state: { status: "ready", items: [draftEvent] } as OrganizerListState<OrganizerEvent>, emptyText: "Пока нет событий — создайте первое." }))).toBe("");
-  });
-});
-
-describe("OrganizerLink", () => {
-  it("renders the profile entry button", () => {
-    expect(renderToStaticMarkup(createElement(OrganizerLink))).toContain("Панель организатора");
   });
 });

@@ -24,13 +24,14 @@ import { apiClient, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { shareResult, webApp } from "../max/bridge";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { AppAvatar, AppButton, AppChip, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { IconButton } from "@maxhub/max-ui";
 
 interface FeedPostCardProps {
   post: FeedPost;
   eventTitle: string;
+  eventCategory?: Event["category"];
   onToggleLike: () => void;
   onAddComment: (text: string) => void;
   onOpenEvent?: (eventId: string) => void;
@@ -43,7 +44,7 @@ export function likesLabel(count: number): string {
   return `${count} ${word} «нравится»`;
 }
 
-export function FeedPostCard({ post, eventTitle, onToggleLike, onAddComment, onOpenEvent }: FeedPostCardProps) {
+export function FeedPostCard({ post, eventTitle, eventCategory, onToggleLike, onAddComment, onOpenEvent }: FeedPostCardProps) {
   const [comment, setComment] = useState("");
   const commentRef = useRef<HTMLInputElement | null>(null);
   const eventLink = onOpenEvent ? (
@@ -62,7 +63,7 @@ export function FeedPostCard({ post, eventTitle, onToggleLike, onAddComment, onO
           {eventTitle !== "" && <span className="app-post-place">{eventLink}</span>}
         </span>
       </header>
-      <div className="app-card-media" />
+      <AppMedia category={eventCategory} />
       <div className="app-post-actions">
         <button type="button" className="app-post-action" aria-pressed={post.likedByMe} aria-label="Нравится" onClick={onToggleLike}>
           <ActionIcon filled={post.likedByMe} name="heart" />
@@ -161,17 +162,31 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
   const eventTitle = (id: string) => events.find((item) => item.id === id)?.title ?? "";
 
   return (
-    <section aria-label="Впечатления">
-      <div className="app-micro-head">
-        <AppTitle asChild>
-          <h2 className="app-today-heading">Впечатления</h2>
-        </AppTitle>
+    <AppSection
+      title="Впечатления"
+      action={
         <IconButton aria-label="Поделиться впечатлением" size="small" variant="primary" onClick={onCreate}>
           +
         </IconButton>
-      </div>
-      {state.status === "loading" ? null : state.status === "error" ? <p className="app-state app-state--error">Не удалось загрузить впечатления.</p> : state.posts.length === 0 ? <p className="app-state">Пока нет постов — расскажи первым.</p> : state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)}
-    </section>
+      }
+    >
+      {state.status === "loading" ? (
+        <article className="app-card app-card--post" aria-hidden="true">
+          <div className="app-post-head">
+            <AppSkeleton width="45%" />
+          </div>
+          <AppSkeleton variant="media" />
+        </article>
+      ) : state.status === "error" ? (
+        <AppState error action={{ label: "Повторить", onClick: load }}>
+          Не удалось загрузить впечатления.
+        </AppState>
+      ) : state.posts.length === 0 ? (
+        <AppState>Пока нет постов — расскажи первым.</AppState>
+      ) : (
+        state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} eventCategory={events.find((item) => item.id === post.eventId)?.category} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)
+      )}
+    </AppSection>
   );
 }
 
@@ -237,9 +252,6 @@ interface FeedCreateViewProps {
 export function FeedCreateView({ draft, events, submitting, failed, eventMissing, onChange, onSubmit }: FeedCreateViewProps) {
   return (
     <section className="app-gathering">
-      <AppTitle asChild>
-        <h2 className="app-gathering-title">Новое впечатление</h2>
-      </AppTitle>
       <p className="app-gathering-hint">Фото-заглушка и пара слов — пост в ленте</p>
       {/* ponytail: photo upload is a placeholder until the backend accepts post photos */}
       <button type="button" className="app-review-photo" disabled>
@@ -258,8 +270,8 @@ export function FeedCreateView({ draft, events, submitting, failed, eventMissing
       <AppButton disabled={!feedDraftReady(draft) || submitting} onClick={onSubmit} stretched>
         {submitting ? "Публикуем…" : "Опубликовать"}
       </AppButton>
-      {failed && <p className="app-state app-state--error">Не удалось опубликовать впечатление.</p>}
-      {eventMissing && <p className="app-state app-state--error">Выбери событие из списка.</p>}
+      {failed && <AppState error>Не удалось опубликовать впечатление.</AppState>}
+      {eventMissing && <AppState error>Выбери событие из списка.</AppState>}
     </section>
   );
 }

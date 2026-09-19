@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import type { WaitlistEntry } from "@max-events/api-contracts";
-import { AppButton, AppText, AppTitle } from "../ui/primitives";
+import { AppButton, AppText, AppTitle, AppState } from "../ui/primitives";
 
 export type WaitlistState = { status: "loading" } | { status: "error" } | { status: "idle" } | { status: "waiting"; position: number } | { status: "offered"; secondsLeft: number };
 
@@ -36,10 +36,10 @@ export function WaitlistView({ state, onJoin, onConfirm, onDecline }: WaitlistVi
     <section className="app-event">
       <div className="app-event-body">
         <AppTitle asChild>
-          <h2 className="app-participation-title">Лист ожидания</h2>
+          <h2 className="app-section-title">Лист ожидания</h2>
         </AppTitle>
-        {state.status === "loading" && <p className="app-state">Загрузка…</p>}
-        {state.status === "error" && <p className="app-state app-state--error">Не удалось выполнить действие. Попробуй ещё раз.</p>}
+        {state.status === "loading" && <AppState>Загрузка…</AppState>}
+        {state.status === "error" && <AppState error>Не удалось выполнить действие. Попробуй ещё раз.</AppState>}
         {state.status === "idle" && (
           <AppButton onClick={onJoin} stretched>
             Встать в лист ожидания

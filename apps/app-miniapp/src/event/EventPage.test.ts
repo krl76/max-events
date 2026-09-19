@@ -183,27 +183,14 @@ function statsFor(overrides: Partial<ParticipationStats> = {}): ParticipationSta
 describe("ParticipationView", () => {
   const props = { onSet: () => {}, onClear: () => {} };
 
-  it("renders all six status chips with the contract labels", () => {
-    const html = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor(), ...props }));
+  it("renders the status select with all six options plus the clearing empty option", () => {
+    const html = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor({ myStatus: "going" }), ...props }));
 
+    expect(html).toContain('aria-label="Твой статус участия"');
+    expect(html).toContain("Не выбран");
     for (const label of Object.values(PARTICIPATION_STATUS_LABELS)) {
       expect(html).toContain(label);
     }
-  });
-
-  it("marks exactly the chosen status and offers clearing it", () => {
-    const html = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor({ myStatus: "going" }), ...props }));
-
-    expect(html).toContain('aria-pressed="true"');
-    expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
-    expect(html).toContain("Снять статус");
-  });
-
-  it("hides the selection and the clear button without my status", () => {
-    const html = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor(), ...props }));
-
-    expect(html).not.toContain('aria-pressed="true"');
-    expect(html).not.toContain("Снять статус");
   });
 
   it("renders only non-zero status counters and the friends line", () => {

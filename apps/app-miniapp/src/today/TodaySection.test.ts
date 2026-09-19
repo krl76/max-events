@@ -18,7 +18,7 @@ describe("todayLabel", () => {
 
 describe("TodayView", () => {
   it("renders the digest summary and curated cards with all four label kinds", () => {
-    const html = renderToStaticMarkup(createElement(TodayView, { state: ready, onOpen: () => {} }));
+    const html = renderToStaticMarkup(createElement(TodayView, { state: ready, onOpen: () => {}, onRetry: () => {} }));
 
     expect(html).toContain("Что делать сегодня?");
     const summary = ready.today.summary;
@@ -34,14 +34,14 @@ describe("TodayView", () => {
 
   it("renders an empty state when the digest has no cards", () => {
     const empty: TodayState = { status: "ready", today: { summary: todayPicks().summary, cards: [] } };
-    const html = renderToStaticMarkup(createElement(TodayView, { state: empty, onOpen: () => {} }));
+    const html = renderToStaticMarkup(createElement(TodayView, { state: empty, onOpen: () => {}, onRetry: () => {} }));
 
     expect(html).toContain("На сегодня пока ничего нет");
     expect(html).not.toContain("app-card--link");
   });
 
   it("renders an error state when the request fails", () => {
-    const html = renderToStaticMarkup(createElement(TodayView, { state: { status: "error" }, onOpen: () => {} }));
+    const html = renderToStaticMarkup(createElement(TodayView, { state: { status: "error" }, onOpen: () => {}, onRetry: () => {} }));
 
     expect(html).toContain("app-state--error");
     expect(html).toContain("Не удалось загрузить подборку");

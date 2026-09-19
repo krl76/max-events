@@ -36,7 +36,7 @@ describe("planMeetingLabel", () => {
 
 describe("PlansView", () => {
   it("renders every card per the README example: event, participants, meeting, distance", () => {
-    const html = renderToStaticMarkup(createElement(PlansView, { state: { status: "ready", cards: CARDS }, onOpen: () => {} }));
+    const html = renderToStaticMarkup(createElement(PlansView, { state: { status: "ready", cards: CARDS }, onOpen: () => {}, onExplore: () => {} }));
 
     for (const card of CARDS) {
       expect(html).toContain(card.event.title);
@@ -47,15 +47,15 @@ describe("PlansView", () => {
   });
 
   it("renders the first card as a link to the plan screen", () => {
-    const html = renderToStaticMarkup(createElement(PlansView, { state: { status: "ready", cards: [CARDS[0]] }, onOpen: () => {} }));
+    const html = renderToStaticMarkup(createElement(PlansView, { state: { status: "ready", cards: [CARDS[0]] }, onOpen: () => {}, onExplore: () => {} }));
 
     expect(html).toContain(`class="app-card app-card--link"`);
   });
 
   it("renders loading, error and empty states", () => {
-    const render = (state: PlansState) => renderToStaticMarkup(createElement(PlansView, { state, onOpen: () => {} }));
+    const render = (state: PlansState) => renderToStaticMarkup(createElement(PlansView, { state, onOpen: () => {}, onExplore: () => {} }));
 
-    expect(render({ status: "loading" })).toContain("Загрузка…");
+    expect(render({ status: "loading" })).toContain("app-skeleton-line");
     expect(render({ status: "error" })).toContain("app-state--error");
     expect(render({ status: "error" })).toContain("Не удалось загрузить планы.");
     expect(render({ status: "ready", cards: [] })).toContain("Пока нет планов.");

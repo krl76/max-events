@@ -10,14 +10,13 @@
 // - achievementProgressPercent - clamped progress percentage of one achievement
 // - AchievementsView - presentational: one stamp tile per achievement with title, progress line and bar
 // - AchievementsPage - route container: loads the achievements of the current user
-// - AchievementsLink - profile entry button to the achievements screen
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
 import type { Achievement } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { useRoute } from "../routing/router";
+import { AppState } from "../ui/primitives";
 
 export type AchievementsState = { status: "loading" } | { status: "error" } | { status: "ready"; achievements: Achievement[] };
 
@@ -26,8 +25,8 @@ export function achievementProgressPercent(achievement: Achievement): number {
 }
 
 export function AchievementsView({ state }: { state: AchievementsState }) {
-  if (state.status === "loading") return <p className="app-state">Загрузка…</p>;
-  if (state.status === "error") return <p className="app-state app-state--error">Не удалось загрузить достижения.</p>;
+  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (state.status === "error") return <AppState error>Не удалось загрузить достижения.</AppState>;
   return (
     <ul className="app-achievements">
       {state.achievements.map((achievement) => (
@@ -69,13 +68,4 @@ export function AchievementsPage() {
     };
   }, [userId]);
   return <AchievementsView state={state} />;
-}
-
-export function AchievementsLink() {
-  const { navigate } = useRoute();
-  return (
-    <button type="button" className="app-lists-link" onClick={() => navigate({ name: "achievements" })}>
-      Достижения
-    </button>
-  );
 }

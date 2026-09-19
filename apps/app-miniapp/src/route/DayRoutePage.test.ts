@@ -116,7 +116,6 @@ describe("DayRoutePage", () => {
   it("starts in the options loading state", () => {
     const html = renderToStaticMarkup(createElement(DayRoutePage));
 
-    expect(html).toContain("Маршрут на день");
     expect(html).toContain("Загружаем точки");
   });
 });

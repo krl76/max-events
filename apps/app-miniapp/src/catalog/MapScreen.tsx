@@ -16,6 +16,7 @@ import type { Event, Place } from "@max-events/api-contracts";
 import "leaflet/dist/leaflet.css";
 import { apiClient } from "../api/client";
 import { buildMapMarkers, type MapMarker } from "./mapMarkers";
+import { AppState } from "../ui/primitives";
 
 /** Fixtures and P0 scope are Moscow-only, so the map opens on the city center; also the anchor point of the nearby screen. */
 export const MOSCOW_CENTER: [number, number] = [55.7522, 37.6156];
@@ -106,7 +107,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace }: { events: Event[
     };
   }, [events, places, onOpenEvent, onOpenPlace]);
 
-  if (places.status === "loading") return <p className="app-state">Загружаем карту…</p>;
-  if (places.status === "error") return <p className="app-state app-state--error">Не удалось загрузить места для карты.</p>;
+  if (places.status === "loading") return <AppState>Загружаем карту…</AppState>;
+  if (places.status === "error") return <AppState error>Не удалось загрузить места для карты.</AppState>;
   return <div ref={containerRef} className="app-map" aria-label="Карта событий и мест" />;
 }
