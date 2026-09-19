@@ -332,7 +332,7 @@ function mockVoteDto(row: MockVoteRow): Vote {
     if (friend) return [friend];
     return userId === mockDemoUser.id ? [{ id: mockDemoUser.id, name: mockDemoUser.firstName, avatarUrl: null }] : [];
   });
-  return { id: row.id, hostUserId: row.hostUserId, title: row.title, chatLink: row.chatLink, participants, options, winnerEventId: top && topVotes > 0 ? top.eventId : null, createdAt: row.createdAt, updatedAt: row.updatedAt };
+  return { id: row.id, hostUserId: row.hostUserId, title: row.title, chatLink: row.chatLink, participants, options, winnerEventId: top && topVotes > 0 ? top.eventId : null, myBallotEventId: null, createdAt: row.createdAt, updatedAt: row.updatedAt };
 }
 
 function seedMockVotes(): void {
