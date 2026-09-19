@@ -213,9 +213,10 @@ body {
   border-radius: 999px;
 }
 
+/* Обводка обязательна: #f5f7fa surface на #fafafa фоне страницы нечитаем без неё */
 .app-root .app-btn--secondary {
   background: var(--app-surface);
-  border: none;
+  border: 1px solid var(--app-divider);
   color: var(--app-text);
 }
 
