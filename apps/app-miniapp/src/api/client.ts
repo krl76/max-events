@@ -22,8 +22,9 @@
 // - ApiClient.getParticipationStats - GET /events/:id/participation/stats?userId=
 // - ApiClient.setParticipationStatus - PUT /events/:id/participation?userId= with { status }
 // - ApiClient.deleteParticipation - DELETE /events/:id/participation?userId=
-// - ApiClient.createBooking - POST /bookings
+// - ApiClient.createBooking - POST /bookings (BookingWithSeats: the payment of a paid event rides along)
 // - ApiClient.cancelBooking - DELETE /bookings/:id
+// - ApiClient.payBooking - POST /bookings/:id/payment (initiate/continue the in-app payment; BookingWithSeats)
 // - ApiClient.joinWaitlist - POST /waitlist?userId= with { eventId }
 // - ApiClient.getMyWaitlistEntry - GET /waitlist/me?eventId=&userId= (404 -> null)
 // - ApiClient.confirmWaitlistOffer - POST /waitlist/:id/confirm
@@ -100,8 +101,8 @@
 // END_MODULE_MAP
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, type PlacePage } from "@max-events/api-contracts";
-import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, CheckIn, CreateBooking, CreateEvent, CreatePlace, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, WaitlistEntry, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -749,8 +750,12 @@ export class ApiClient {
     return this.request("/places", PlaceSchema, { body: payload });
   }
 
-  createBooking(payload: CreateBooking): Promise<Booking> {
-    return this.request("/bookings", BookingSchema, { body: payload });
+  createBooking(payload: CreateBooking): Promise<BookingWithSeats> {
+    return this.request("/bookings", BookingWithSeatsSchema, { body: payload });
+  }
+
+  payBooking(bookingId: string): Promise<BookingWithSeats> {
+    return this.request(`/bookings/${bookingId}/payment`, BookingWithSeatsSchema, { method: "POST" });
   }
 
   cancelBooking(bookingId: string): Promise<Booking> {

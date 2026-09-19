@@ -140,6 +140,27 @@ describe("promo code field, booking errors and promoted badge", () => {
   });
 });
 
+describe("early-access bookingOpensAt line", () => {
+  const promo: PromoCodeState = { code: "", error: null, onCode: () => {} };
+  const baseProps = { onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, promo };
+
+  it("shows when booking opens while the window is in the future", () => {
+    const opensAt = "2027-06-01T10:00:00+03:00";
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor({ ...free, bookingOpensAt: opensAt }), ...baseProps }));
+
+    expect(html).toContain("Запись откроется");
+    expect(html).toContain(new Date(opensAt).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }));
+  });
+
+  it("stays hidden once the window has opened or is absent", () => {
+    const past = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor({ ...free, bookingOpensAt: "2020-01-01T10:00:00+03:00" }), ...baseProps }));
+    const none = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), ...baseProps }));
+
+    expect(past).not.toContain("Запись откроется");
+    expect(none).not.toContain("Запись откроется");
+  });
+});
+
 describe("payment link button", () => {
   it("renders the buy button for a paid event with a payment url", () => {
     const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(paid), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));

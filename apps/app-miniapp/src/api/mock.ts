@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports, UGC micro-events, the place social page, the nearby timeline/leisure surface, reverse discovery and people matching while backend endpoints (M2–M5, P2) do not exist yet.
-// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings, FIFO waitlist with timed confirmation offers, check-ins, seeded friend profiles (interests/privacy) and friend place visits, plan cards, autoplan drafts, day routes, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, reverse discovery of friend places the demo user has not visited, people matching on seeded interests/participations, NL assist with deterministic criteria parsing, history/partner explanations, Saturday stops and rate-limit parity, promotion placements/targeted fixtures and promo-code booking validation (#202/#205), fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
+// SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings with sandbox-parity booking payments (pending at booking, settle on POST /bookings/:id/payment), FIFO waitlist with timed confirmation offers, check-ins, seeded friend profiles (interests/privacy) and friend place visits, plan cards, autoplan drafts, day routes, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, reverse discovery of friend places the demo user has not visited, people matching on seeded interests/participations, NL assist with deterministic criteria parsing, history/partner explanations, Saturday stops and rate-limit parity, promotion placements/targeted fixtures and promo-code booking validation (#202/#205), fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
 // DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, AutoPlanProposal, DayRoute, OptimizeRoute, RoutePoint, AssistCriteria, AssistQueryWrite, AssistResponse, AssistPick, AssistDayResponse, DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute, PeopleCandidate, PeopleMatchContext, PeopleResponse, CreateBookingSchema, CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema, AssistQueryWriteSchema, IdSchema, CreateEventSchema, CreatePlaceSchema, EventSchema, CreateEvent, CreatePlace; PromotionPlacements, TargetedPromotionsResponse)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -71,7 +71,8 @@
 // - createMockReview - create or replace the review of a user for an event (mock POST /reviews)
 // - resetMockReports - clear in-memory reports (test isolation)
 // - createMockReport - in-memory deduplicated report (mock POST /reports, duplicate -> 409)
-// - resetMockBookings - clear in-memory bookings (test isolation)
+// - resetMockBookings - clear in-memory bookings and payments (test isolation)
+// - MOCK_SANDBOX_FAIL_AMOUNT - sandbox fail amount: a charge of exactly this sum is declined (#213)
 // - MOCK_EARLY_ACCESS_EVENT_ID - fixture event whose booking opens in the future (early access, #202)
 // - MOCK_PROMO_CODE - seeded unlimited promo code for the early-access event
 // - MOCK_SINGLE_USE_PROMO_CODE - seeded single-use promo code (the exhausted path)
@@ -100,10 +101,10 @@
 // - calendarEntries - active bookings of a user enriched with event and place
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/plans[/auto], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
 // END_MODULE_MAP
 
-import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, CreateEvent, CreatePlace, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanCard, Profile, PromotionPlacements, Review, RouteLeg, RoutePoint, TargetedPromotionsResponse, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
+import type { Achievement, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, AutoPlanProposal, AutoPlanTimelineEntry, Booking, BookingWithSeats, CheckIn, CreateAutoPlanWrite, CreateDayRouteWrite, CreateEvent, CreatePlace, DayRoute, DiscoveryFriendPlaces, DiscoveryResponse, Event, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, LeisureStop, List, ListItem, ListPreset, MemoryPoint, MicroEvent, MyCitySummary, NearbyBucket, NearbyCard, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, Payment, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlacePage, PlanCard, Profile, PromotionPlacements, Review, RouteLeg, RoutePoint, TargetedPromotionsResponse, TodayEventCard, TodayResponse, User, VisitStats, WaitlistEntry } from "@max-events/api-contracts";
 import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
@@ -129,6 +130,11 @@ function moscowDateKey(startsAt: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Moscow", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(startsAt));
 }
 
+/** Early-access fixture event (#202): public booking opens in the future; booking works only with a valid promo code (backend PromoService.redeemInTransaction parity). */
+export const MOCK_EARLY_ACCESS_EVENT_ID = "c0000009-0000-4000-8000-000000000009";
+// ponytail: far-future window so the fixture stays "early access" regardless of the wall clock at test time
+const MOCK_BOOKING_OPENS_AT = "2027-06-01T10:00:00+03:00";
+
 export const mockEvents: Event[] = [
   event({ id: "c0000001-0000-4000-8000-000000000001", title: "Вечер Рахманинова: симфонический оркестр", description: "Программа из симфонических произведений С. В. Рахманинова в исполнении камерного оркестра. Начало в 19:00, антракт — 20 минут.", category: "afisha", city: "Москва", startsAt: "2026-09-19T19:00:00+03:00", isPaid: true, priceRub: 1800, paymentUrl: "https://tickets.example.com/rahmaninov", capacity: 300 }),
   event({ id: "c0000002-0000-4000-8000-000000000002", title: "Выставка импрессионистов из частных собраний", category: "afisha", city: "Москва", startsAt: "2026-09-19T12:00:00+03:00", endsAt: "2026-09-19T21:00:00+03:00", placeId: mockPlaces[1].id, isPaid: true, priceRub: 500, paymentUrl: "https://tickets.example.com/impressionists" }),
@@ -138,7 +144,7 @@ export const mockEvents: Event[] = [
   event({ id: "c0000006-0000-4000-8000-000000000006", title: "Матч «Спартак» — «Динамо»", category: "sport", city: "Москва", startsAt: "2026-10-03T19:00:00+03:00", placeId: mockPlaces[2].id, isPaid: true, priceRub: 1500, paymentUrl: "https://tickets.example.com/spartak-dinamo" }),
   event({ id: "c0000007-0000-4000-8000-000000000007", title: "Веломаршрут по центру Москвы", category: "tourism", city: "Москва", startsAt: "2026-09-20T12:00:00+03:00", isPaid: false, priceRub: null }),
   event({ id: "c0000008-0000-4000-8000-000000000008", title: "Экскурсия по Китай-городу", category: "tourism", city: "Москва", startsAt: "2026-09-26T14:00:00+03:00", isPaid: true, priceRub: 900, paymentUrl: "https://tickets.example.com/kitay-gorod", capacity: 20 }),
-  event({ id: "c0000009-0000-4000-8000-000000000009", title: "Гастрогид по «Депо»", category: "tourism", city: "Москва", startsAt: "2026-10-04T13:00:00+03:00", placeId: mockPlaces[3].id, isPaid: true, priceRub: 1200, paymentUrl: "https://tickets.example.com/gastro-depo", capacity: 25 }),
+  event({ id: "c0000009-0000-4000-8000-000000000009", title: "Гастрогид по «Депо»", category: "tourism", city: "Москва", startsAt: "2026-10-04T13:00:00+03:00", placeId: mockPlaces[3].id, isPaid: true, priceRub: 1200, paymentUrl: "https://tickets.example.com/gastro-depo", capacity: 25, bookingOpensAt: MOCK_BOOKING_OPENS_AT }),
   event({ id: "c000000a-0000-4000-8000-00000000000a", title: "Йога на рассвете в парке", category: "sport", city: "Москва", startsAt: "2026-09-13T08:00:00+03:00", placeId: mockPlaces[0].id, isPaid: false, priceRub: null, capacity: 50 }),
   event({ id: "c000000b-0000-4000-8000-00000000000b", title: "Кинопоказ под открытым небом", category: "afisha", city: "Москва", startsAt: "2026-09-18T21:00:00+03:00", placeId: mockPlaces[0].id, isPaid: false, priceRub: null }),
   event({ id: "c000000c-0000-4000-8000-00000000000c", title: "Гастрофестиваль в «Депо»", category: "afisha", city: "Москва", startsAt: "2026-09-27T12:00:00+03:00", endsAt: "2026-09-27T22:00:00+03:00", placeId: mockPlaces[3].id, isPaid: true, priceRub: 700, paymentUrl: "https://tickets.example.com/gastro-festival" }),
@@ -147,6 +153,8 @@ export const mockEvents: Event[] = [
   event({ id: "c000000f-0000-4000-8000-00000000000f", title: "Летний концерт на Пушкинской набережной", category: "afisha", city: "Москва", startsAt: `${MOCK_TODAY}T19:00:00+03:00`, placeId: mockPlaces[0].id, isPaid: false, priceRub: null, capacity: 200 }),
   event({ id: "c0000010-0000-4000-8000-000000000010", title: "Дневной кофе-маркет в «Депо»", category: "afisha", city: "Москва", startsAt: `${MOCK_TODAY}T12:30:00+03:00`, placeId: mockPlaces[3].id, isPaid: false, priceRub: null, promoted: true }),
   event({ id: "c0000011-0000-4000-8000-000000000011", title: "Лекция об импрессионистах", category: "afisha", city: "Москва", startsAt: `${MOCK_TODAY}T15:00:00+03:00`, placeId: mockPlaces[1].id, isPaid: false, priceRub: null }),
+  // Sandbox-payment failure fixture (#213): the 13 ₽ price is the sandbox fail amount, so paying for a booking here always fails (backend SANDBOX_FAIL_AMOUNT parity).
+  event({ id: "c0000012-0000-4000-8000-000000000012", title: "Утренняя настольная игра", category: "sport", city: "Москва", startsAt: "2027-03-15T10:00:00+03:00", isPaid: true, priceRub: 13, paymentUrl: "https://tickets.example.com/nastolka-13" }),
 ];
 
 export function filterMockEvents(events: Event[], filters: EventFilters): Event[] {
@@ -701,6 +709,58 @@ export function participationStats(eventId: string, userId: string): Participati
 const mockBookings: Booking[] = [];
 let mockBookingSeq = 0;
 
+const mockPayments: Payment[] = [];
+let mockPaymentSeq = 0;
+
+/** Sandbox fail amount (backend SANDBOX_FAIL_AMOUNT parity): a charge of exactly this sum is declined, as is a title containing "[fail]". */
+export const MOCK_SANDBOX_FAIL_AMOUNT = 13;
+
+/** Mirrors PaymentsService.ensureForBooking: the payment of a booking is created once (pending at booking time) and then returned as-is; free/unpriced events have none. */
+function ensureMockPayment(booking: Booking, now: string): Payment | null {
+  const event = mockEvents.find((item) => item.id === booking.eventId);
+  if (!event || !event.isPaid || event.priceRub === null || event.priceRub <= 0) return null;
+  const existing = mockPayments.find((item) => item.bookingId === booking.id);
+  if (existing) return existing;
+  mockPaymentSeq += 1;
+  const payment: Payment = {
+    id: `70000000-0000-4000-8000-${String(mockPaymentSeq).padStart(12, "0")}`,
+    bookingId: booking.id,
+    providerPaymentId: `pay_sandbox_${booking.id}`,
+    status: "pending",
+    amountRub: event.priceRub,
+    currency: "RUB",
+    description: `Билет: ${event.title}`,
+    commissionRub: null,
+    netRub: null,
+    commissionBps: null,
+    commissionFixedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+  mockPayments.push(payment);
+  return payment;
+}
+
+/** Mirrors the sandbox charge rule: a pending payment resolves to failed at the fail amount (or a "[fail]" title marker), otherwise succeeded; settled payments stay untouched. */
+function settleMockPayment(payment: Payment, now: string): Payment {
+  if (payment.status !== "pending") return payment;
+  const event = mockEvents.find((item) => item.id === (mockBookings.find((booking) => booking.id === payment.bookingId)?.eventId ?? ""));
+  payment.status = payment.amountRub === MOCK_SANDBOX_FAIL_AMOUNT || (event?.title.includes("[fail]") ?? false) ? "failed" : "succeeded";
+  payment.updatedAt = now;
+  return payment;
+}
+
+/** BookingWithSeats response shape (backend toBookingDto + payment parity). */
+function mockBookingWithSeats(booking: Booking): BookingWithSeats {
+  const event = mockEvents.find((item) => item.id === booking.eventId);
+  return {
+    ...booking,
+    freeSeats: remainingSeats(booking.eventId),
+    chatLink: event?.chatLink ?? null,
+    payment: mockPayments.find((item) => item.bookingId === booking.id) ?? null,
+  };
+}
+
 /** Module-load seed: active booking of the demo user on a past fixture event, so the post-event review flow ("Как прошло?") is reachable in the demo; test resets clear it. */
 function seedMockBookings(): void {
   mockBookingSeq += 1;
@@ -711,12 +771,9 @@ seedMockBookings();
 export function resetMockBookings(): void {
   mockBookings.length = 0;
   mockBookingSeq = 0;
+  mockPayments.length = 0;
+  mockPaymentSeq = 0;
 }
-
-/** Early-access fixture event (#202): public booking opens in the future; booking works only with a valid promo code (backend PromoService.redeemInTransaction parity). */
-export const MOCK_EARLY_ACCESS_EVENT_ID = "c0000009-0000-4000-8000-000000000009";
-// ponytail: far-future window so the fixture stays "early access" regardless of the wall clock at test time
-const MOCK_BOOKING_OPENS_AT = "2027-06-01T10:00:00+03:00";
 
 /** Unlimited promo code seeded for the early-access fixture event. */
 export const MOCK_PROMO_CODE = "VIP2026";
@@ -858,7 +915,9 @@ export function confirmMockWaitlistOffer(entryId: string): WaitlistEntry | null 
   const position = withWaitlistPosition(entry).position;
   const now = new Date().toISOString();
   mockBookingSeq += 1;
-  mockBookings.push({ id: `e0000000-0000-4000-8000-${String(mockBookingSeq).padStart(12, "0")}`, userId: entry.userId, eventId: entry.eventId, status: "active", createdAt: now, updatedAt: now });
+  const booking: Booking = { id: `e0000000-0000-4000-8000-${String(mockBookingSeq).padStart(12, "0")}`, userId: entry.userId, eventId: entry.eventId, status: "active", createdAt: now, updatedAt: now };
+  mockBookings.push(booking);
+  ensureMockPayment(booking, now);
   entry.status = "confirmed";
   entry.offeredUntil = null;
   entry.updatedAt = now;
@@ -1808,7 +1867,7 @@ export function installMockApi(): () => void {
       if (!parsed.success) return new Response(null, { status: 400 });
       if (!mockEvents.some((item) => item.id === parsed.data.eventId)) return new Response(null, { status: 404 });
       const existing = mockBookings.find((booking) => booking.eventId === parsed.data.eventId && booking.userId === parsed.data.userId && booking.status === "active");
-      if (existing) return Response.json(existing);
+      if (existing) return Response.json(mockBookingWithSeats(existing));
       if (remainingSeats(parsed.data.eventId) === 0) return new Response(null, { status: 409 });
       const promo = redeemMockPromoCode(parsed.data.eventId, parsed.data.promoCode);
       if (promo === "forbidden") return new Response(null, { status: 403 });
@@ -1816,7 +1875,18 @@ export function installMockApi(): () => void {
       mockBookingSeq += 1;
       const booking: Booking = { id: `e0000000-0000-4000-8000-${String(mockBookingSeq).padStart(12, "0")}`, userId: parsed.data.userId, eventId: parsed.data.eventId, status: "active", createdAt: now, updatedAt: now };
       mockBookings.push(booking);
-      return Response.json(booking);
+      ensureMockPayment(booking, now);
+      return Response.json(mockBookingWithSeats(booking));
+    }
+    const payBooking = /^\/api\/bookings\/([^/]+)\/payment$/.exec(url.pathname);
+    if (payBooking && init?.method === "POST") {
+      const booking = mockBookings.find((item) => item.id === payBooking[1]);
+      if (!booking) return new Response(null, { status: 404 });
+      if (booking.status !== "active") return new Response(null, { status: 409 });
+      const now = new Date().toISOString();
+      const payment = ensureMockPayment(booking, now);
+      if (payment !== null) settleMockPayment(payment, now);
+      return Response.json(mockBookingWithSeats(booking));
     }
     if (url.pathname === "/api/calendar") {
       const entries = calendarEntries(mockDemoUser.id);
