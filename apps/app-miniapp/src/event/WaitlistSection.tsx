@@ -36,7 +36,7 @@ export function WaitlistView({ state, onJoin, onConfirm, onDecline }: WaitlistVi
     <section className="app-event">
       <div className="app-event-body">
         <AppTitle asChild>
-          <h2 className="app-participation-title">Лист ожидания</h2>
+          <h2 className="app-section-title">Лист ожидания</h2>
         </AppTitle>
         {state.status === "loading" && <p className="app-state">Загрузка…</p>}
         {state.status === "error" && <p className="app-state app-state--error">Не удалось выполнить действие. Попробуй ещё раз.</p>}

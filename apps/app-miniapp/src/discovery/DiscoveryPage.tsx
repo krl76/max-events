@@ -116,7 +116,7 @@ export function DiscoveryView({ state, route, onShowRoute, onOpenPlace }: Discov
   return (
     <>
       <AppTitle asChild>
-        <h2 className="app-whereto-title">Открытия твоих людей</h2>
+        <h2 className="app-section-title">Открытия твоих людей</h2>
       </AppTitle>
       {state.status === "loading" && <p className="app-state">Загружаем открытия…</p>}
       {state.status === "error" && <p className="app-state app-state--error">Не удалось загрузить открытия друзей.</p>}
@@ -164,5 +164,3 @@ export function DiscoveryPage() {
 
   return <DiscoveryView state={state} route={route} onShowRoute={showRoute} onOpenPlace={(id) => navigate({ name: "place", id })} />;
 }
-
-

@@ -34,7 +34,7 @@ import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganiz
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { MyOrganizerRatingCard, OrganizerEventAddons } from "./OrganizerAddons";
-import { AppButton, AppChip, AppTitle } from "../ui/primitives";
+import { AppButton, AppChip } from "../ui/primitives";
 
 export const PLACE_CATEGORY_LABELS: Record<PlaceCategory, string> = {
   park: "Парк",
@@ -451,9 +451,6 @@ function OrganizerPanel({ userId }: { userId: string }) {
 
   return (
     <section className="app-gathering">
-      <AppTitle asChild>
-        <h1 className="app-gathering-title">Панель организатора</h1>
-      </AppTitle>
       <p className="app-gathering-hint">Черновики видны только вам — опубликуйте, когда всё готово</p>
       <MyOrganizerRatingCard userId={userId} />
       <div className="app-micro-head">
@@ -509,5 +506,3 @@ export function OrganizerPage() {
   if (auth.status === "loading") return <p className="app-state">Загрузка…</p>;
   return <p className="app-state">Откройте приложение внутри MAX, чтобы авторизоваться.</p>;
 }
-
-

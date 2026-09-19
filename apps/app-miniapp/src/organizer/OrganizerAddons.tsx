@@ -46,7 +46,7 @@ export function OrganizerRatingView({ rating }: { rating: OrganizerRating | null
     <section className="app-event">
       <div className="app-event-body">
         <AppTitle asChild>
-          <h2 className="app-participation-title">Об организаторе</h2>
+          <h2 className="app-section-title">Об организаторе</h2>
         </AppTitle>
         <ul className="app-participation-counters">
           <li>{rating.averageStars.toFixed(1)} ⭐</li>

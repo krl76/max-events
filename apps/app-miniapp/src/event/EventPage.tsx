@@ -254,7 +254,7 @@ export function ParticipationView({ stats, onSet, onClear }: ParticipationViewPr
     <section className="app-event">
       <div className="app-event-body">
         <AppTitle asChild>
-          <h2 className="app-participation-title">Твой статус</h2>
+          <h2 className="app-section-title">Твой статус</h2>
         </AppTitle>
         <div className="app-participation-chips">
           {PARTICIPATION_STATUSES.map((status) => (

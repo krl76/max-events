@@ -44,6 +44,13 @@ body {
   --app-font-size-description: var(--font-size-description, 0.8125rem);
   --app-font-weight-title: var(--font-weight-title, 600);
 
+  /* Типографическая шкала: 4 роли — экран / секция / карточка / мета */
+  --app-type-screen-size: 1.25rem;
+  --app-type-screen-weight: 700;
+  --app-type-section-size: 0.75rem;
+  --app-type-card-size: 0.9375rem;
+  --app-type-meta-size: 0.75rem;
+
   /* Радиусы и отступы (8pt-ритм) */
   --app-radius-card: var(--size-border-radius-semantic-border-radius-card, 16px);
   --app-radius-media: var(--size-border-radius-semantic-border-radius-paper, 12px);
@@ -71,8 +78,8 @@ body {
   border-bottom: var(--app-hairline);
   display: flex;
   flex-shrink: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: var(--app-type-screen-size);
+  font-weight: var(--app-type-screen-weight);
   gap: var(--app-space-xs);
   letter-spacing: -0.02em;
   padding: var(--app-space-m) var(--app-space-l);
@@ -195,7 +202,17 @@ body {
 
 .app-card-subtitle {
   color: var(--app-text-tertiary);
-  font-size: 0.75rem;
+  font-size: var(--app-type-meta-size);
+}
+
+/* Заголовок секции: единая роль вместо пяти дублей (today/calendar/whereto/gathering/participation) */
+.app-section-title {
+  color: var(--app-text);
+  font-size: var(--app-type-section-size);
+  font-weight: var(--app-font-weight-title);
+  letter-spacing: 0.08em;
+  margin: 0 0 var(--app-space-s);
+  text-transform: uppercase;
 }
 
 .app-state {
@@ -328,7 +345,7 @@ body {
 }
 
 .app-card--link .app-card-title {
-  font-size: 0.9375rem;
+  font-size: var(--app-type-card-size);
 }
 
 .app-row-chevron {
@@ -434,8 +451,8 @@ body {
 
 .app-event-title {
   color: var(--app-text);
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: var(--app-type-screen-size);
+  font-weight: var(--app-type-screen-weight);
   letter-spacing: -0.01em;
   margin: 0;
 }
@@ -498,15 +515,6 @@ body {
 }
 
 /* Страница мероприятия: статусы участия (селектор + счётчики) */
-.app-participation-title {
-  color: var(--app-text);
-  font-size: 0.75rem;
-  font-weight: var(--app-font-weight-title);
-  letter-spacing: 0.08em;
-  margin: 0;
-  text-transform: uppercase;
-}
-
 .app-participation-chips {
   display: flex;
   flex-wrap: wrap;
@@ -766,15 +774,6 @@ body {
   padding-top: var(--app-space-m);
 }
 
-.app-calendar-heading {
-  color: var(--app-text);
-  font-size: 0.75rem;
-  font-weight: var(--app-font-weight-title);
-  letter-spacing: 0.08em;
-  margin: 0 0 var(--app-space-s);
-  text-transform: uppercase;
-}
-
 .app-calendar-section .app-card {
   border-top: var(--app-hairline);
 }
@@ -852,15 +851,6 @@ body {
   color: var(--app-text);
 }
 
-.app-whereto-title {
-  color: var(--app-text);
-  font-size: 0.75rem;
-  font-weight: var(--app-font-weight-title);
-  letter-spacing: 0.08em;
-  margin: 0;
-  text-transform: uppercase;
-}
-
 .app-whereto-hint {
   color: var(--app-text-tertiary);
   font-size: var(--app-font-size-description);
@@ -934,15 +924,6 @@ body {
   padding-top: var(--app-space-m);
 }
 
-.app-today-heading {
-  color: var(--app-text);
-  font-size: 0.75rem;
-  font-weight: var(--app-font-weight-title);
-  letter-spacing: 0.08em;
-  margin: 0 0 var(--app-space-s);
-  text-transform: uppercase;
-}
-
 .app-today-summary {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);
@@ -982,15 +963,6 @@ section[aria-label="Микро-события"] .app-card:first-of-type {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-m);
-}
-
-.app-gathering-title {
-  color: var(--app-text);
-  font-size: 0.75rem;
-  font-weight: var(--app-font-weight-title);
-  letter-spacing: 0.08em;
-  margin: 0;
-  text-transform: uppercase;
 }
 
 .app-gathering-hint {

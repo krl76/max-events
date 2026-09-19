@@ -28,7 +28,7 @@ export function PaymentSection({ payment, busy, error = false, onPay }: PaymentS
     <section className="app-event">
       <div className="app-event-body">
         <AppTitle asChild>
-          <h2 className="app-participation-title">Оплата</h2>
+          <h2 className="app-section-title">Оплата</h2>
         </AppTitle>
         {payment.status === "succeeded" && <AppText>Оплачено {amount}</AppText>}
         {payment.status === "succeeded" && <AppText>{payment.description}</AppText>}

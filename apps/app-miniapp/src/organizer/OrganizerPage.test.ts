@@ -199,4 +199,3 @@ describe("OrganizerListStatus", () => {
     expect(renderToStaticMarkup(createElement(OrganizerListStatus, { state: { status: "ready", items: [draftEvent] } as OrganizerListState<OrganizerEvent>, emptyText: "Пока нет событий — создайте первое." }))).toBe("");
   });
 });
-

@@ -164,7 +164,7 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
     <section aria-label="Впечатления">
       <div className="app-micro-head">
         <AppTitle asChild>
-          <h2 className="app-today-heading">Впечатления</h2>
+          <h2 className="app-section-title">Впечатления</h2>
         </AppTitle>
         <IconButton aria-label="Поделиться впечатлением" size="small" variant="primary" onClick={onCreate}>
           +
@@ -237,9 +237,6 @@ interface FeedCreateViewProps {
 export function FeedCreateView({ draft, events, submitting, failed, eventMissing, onChange, onSubmit }: FeedCreateViewProps) {
   return (
     <section className="app-gathering">
-      <AppTitle asChild>
-        <h2 className="app-gathering-title">Новое впечатление</h2>
-      </AppTitle>
       <p className="app-gathering-hint">Фото-заглушка и пара слов — пост в ленте</p>
       {/* ponytail: photo upload is a placeholder until the backend accepts post photos */}
       <button type="button" className="app-review-photo" disabled>

@@ -126,7 +126,7 @@ export function MicroSection({ onCreate }: { onCreate: () => void }) {
     <section aria-label="Микро-события">
       <div className="app-micro-head">
         <AppTitle asChild>
-          <h2 className="app-today-heading">Микро-события</h2>
+          <h2 className="app-section-title">Микро-события</h2>
         </AppTitle>
         <IconButton aria-label="Создать микро-событие" size="small" variant="primary" onClick={onCreate}>
           +
@@ -160,9 +160,6 @@ interface MicroEventCreateViewProps {
 export function MicroEventCreateView({ draft, places, submitting, failed, onChange, onSubmit }: MicroEventCreateViewProps) {
   return (
     <section className="app-gathering">
-      <AppTitle asChild>
-        <h2 className="app-gathering-title">Новое микро-событие</h2>
-      </AppTitle>
       <p className="app-gathering-hint">Четыре поля — и событие в ленте</p>
       <label className="app-gathering-time">
         Что делаем

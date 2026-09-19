@@ -25,7 +25,7 @@ import type { DayRoute, OptimizeRoute, RouteLeg, RouteStopWrite } from "@max-eve
 import { apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { MOSCOW_CENTER } from "../catalog/MapScreen";
-import { AppButton, AppTitle } from "../ui/primitives";
+import { AppButton } from "../ui/primitives";
 
 // ponytail: fixed Moscow center as the route start point; user geolocation/city picker when the bridge exposes it
 const [ROUTE_LAT, ROUTE_LNG] = MOSCOW_CENTER;
@@ -90,9 +90,6 @@ export function DayRouteView({ options, selected, onToggle, onBuild, built, opti
   const displayRoute = built.status === "ready" ? (optimize.status === "ready" ? optimize.result.optimized : built.route) : null;
   return (
     <>
-      <AppTitle asChild>
-        <h2 className="app-whereto-title">Маршрут на день</h2>
-      </AppTitle>
       {options.status === "loading" && <p className="app-state">Загружаем точки…</p>}
       {options.status === "error" && <p className="app-state app-state--error">Не удалось загрузить точки маршрута.</p>}
       {options.status === "ready" && (

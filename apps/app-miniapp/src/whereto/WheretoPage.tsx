@@ -84,9 +84,6 @@ export function WheretoView({ state, events, shared, onCompany, onMood, onBudget
   if (state.step === "company") {
     return (
       <>
-        <AppTitle asChild>
-          <h2 className="app-whereto-title">Куда пойдём?</h2>
-        </AppTitle>
         <p className="app-whereto-hint">Выберите компанию</p>
         <div className="app-whereto-options" role="group" aria-label="Компания">
           {(Object.keys(COMPANY_LABELS) as WheretoCompany[]).map((company) => (
@@ -103,7 +100,7 @@ export function WheretoView({ state, events, shared, onCompany, onMood, onBudget
     return (
       <>
         <AppTitle asChild>
-          <h2 className="app-whereto-title">Настроение и бюджет</h2>
+          <h2 className="app-section-title">Настроение и бюджет</h2>
         </AppTitle>
         <p className="app-whereto-hint">{COMPANY_LABELS[state.company]}</p>
         <div className="app-whereto-chips" role="group" aria-label="Настроение">
@@ -132,7 +129,7 @@ export function WheretoView({ state, events, shared, onCompany, onMood, onBudget
   return (
     <>
       <AppTitle asChild>
-        <h2 className="app-whereto-title">Ваша подборка</h2>
+        <h2 className="app-section-title">Ваша подборка</h2>
       </AppTitle>
       <p className="app-whereto-hint">
         {COMPANY_LABELS[state.query.company]} · {MOOD_LABELS[state.query.mood]} · {BUDGET_LABELS[state.query.budget]}

@@ -49,7 +49,7 @@ export function VisitStatsView({ stats }: { stats: VisitStats | null }) {
   return (
     <section className="app-visitstats">
       <AppTitle asChild>
-        <h2 className="app-today-heading">Статистика посещений</h2>
+        <h2 className="app-section-title">Статистика посещений</h2>
       </AppTitle>
       {stats === null || (stats.eventsCount === 0 && stats.placesCount === 0) ? (
         <p className="app-today-summary">Пока нет посещений — отметьтесь «Я здесь» на странице события.</p>

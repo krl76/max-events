@@ -65,13 +65,13 @@ export function CalendarView({ state, now, onCancel }: CalendarViewProps) {
     <>
       <section className="app-calendar-section">
         <AppTitle asChild>
-          <h2 className="app-calendar-heading">Запланированные</h2>
+          <h2 className="app-section-title">Запланированные</h2>
         </AppTitle>
         {upcoming.length === 0 ? <p className="app-state">Нет запланированных событий.</p> : upcoming.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={() => onCancel(entry.booking.id)} />)}
       </section>
       <section className="app-calendar-section">
         <AppTitle asChild>
-          <h2 className="app-calendar-heading">Прошедшие</h2>
+          <h2 className="app-section-title">Прошедшие</h2>
         </AppTitle>
         {past.length === 0 ? <p className="app-state">Нет прошедших событий.</p> : past.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={null} />)}
       </section>

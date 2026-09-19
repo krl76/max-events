@@ -68,5 +68,3 @@ export function AchievementsPage() {
   }, [userId]);
   return <AchievementsView state={state} />;
 }
-
-

@@ -51,7 +51,7 @@ export function PromotionSectionsView({ banners, collections, onOpenEvent }: Pro
       {collections.length > 0 && (
         <section aria-label="Подборки для тебя">
           <AppTitle asChild>
-            <h2 className="app-today-heading">Подборки для тебя</h2>
+            <h2 className="app-section-title">Подборки для тебя</h2>
           </AppTitle>
           {collections.map((row) => (
             <button key={row.campaign.id} type="button" className="app-card app-card--link" onClick={() => onOpenEvent(row.event.id)}>

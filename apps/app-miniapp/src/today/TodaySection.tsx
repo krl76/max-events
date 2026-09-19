@@ -43,7 +43,7 @@ export function TodayView({ state, onOpen }: TodayViewProps) {
   return (
     <section className="app-today" aria-label="Что делать сегодня?">
       <AppTitle asChild>
-        <h2 className="app-today-heading">Что делать сегодня?</h2>
+        <h2 className="app-section-title">Что делать сегодня?</h2>
       </AppTitle>
       <p className="app-today-summary">
         {summary.nearbyCount} событий рядом, {summary.suitableCount} подходят тебе, на {summary.withFriendsCount} идут друзья

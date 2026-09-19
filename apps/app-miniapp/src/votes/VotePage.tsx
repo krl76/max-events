@@ -147,9 +147,6 @@ interface VoteCreateViewProps {
 export function VoteCreateView({ events, friends, title, selectedEvents, selectedFriends, submitting, failed, onTitle, onToggleEvent, onToggleFriend, onSubmit, onCancel }: VoteCreateViewProps) {
   return (
     <section className="app-gathering">
-      <AppTitle asChild>
-        <h2 className="app-gathering-title">Голосование с друзьями</h2>
-      </AppTitle>
       <p className="app-gathering-hint">Друзья проголосуют за один из вариантов — лучший подсветится здесь и в чате</p>
       <label className="app-gathering-time">
         Вопрос

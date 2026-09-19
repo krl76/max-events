@@ -119,5 +119,3 @@ export function MyCityPage() {
   }, [userId]);
   return <MyCityView state={state} />;
 }
-
-

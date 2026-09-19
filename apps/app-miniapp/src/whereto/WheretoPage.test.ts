@@ -84,7 +84,6 @@ describe("WheretoView", () => {
   it("renders the four company options on step 1", () => {
     const html = viewHtml({ step: "company" });
 
-    expect(html).toContain("Куда пойдём?");
     expect(html).toContain("Я один");
     expect(html).toContain("С друзьями");
     expect(html).toContain("С девушкой");

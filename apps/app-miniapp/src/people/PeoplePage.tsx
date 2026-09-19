@@ -89,7 +89,7 @@ export function PeopleView({ state, chips, selected, onToggle, onOpenEvent }: Pe
   return (
     <>
       <AppTitle asChild>
-        <h2 className="app-whereto-title">Люди с похожими интересами</h2>
+        <h2 className="app-section-title">Люди с похожими интересами</h2>
       </AppTitle>
       {state.status === "loading" && <p className="app-state">Ищем людей рядом…</p>}
       {state.status === "error" && <p className="app-state app-state--error">Не удалось найти людей рядом.</p>}
@@ -159,5 +159,3 @@ export function PeoplePage() {
 
   return <PeopleView state={state} chips={chips} selected={selected} onToggle={toggle} onOpenEvent={(id) => navigate({ name: "event", id })} />;
 }
-
-

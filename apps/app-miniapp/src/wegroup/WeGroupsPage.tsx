@@ -22,7 +22,7 @@ import type { Friend, WeGroupScreen } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppButton, AppTitle } from "../ui/primitives";
+import { AppButton } from "../ui/primitives";
 
 export type WeGroupsState = { status: "loading" } | { status: "error" } | { status: "ready"; groups: WeGroupScreen[] };
 
@@ -118,9 +118,6 @@ export function WeGroupsView({ state, friends, creating, draft, saving, failed, 
   const archived = groups.filter((screen) => screen.group.status === "archived");
   return (
     <>
-      <AppTitle asChild>
-        <h2 className="app-whereto-title">Мы</h2>
-      </AppTitle>
       {state.status === "loading" && <p className="app-state">Загрузка…</p>}
       {state.status === "error" && <p className="app-state app-state--error">Не удалось загрузить группы.</p>}
       {state.status === "ready" && groups.length === 0 && <p className="app-state">Пока нет групп. Создайте первую.</p>}

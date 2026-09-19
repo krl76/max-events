@@ -153,7 +153,7 @@ export function ReviewSection({ eventId, userId, canReview }: { eventId: string;
     <section className="app-event">
       <div className="app-event-body">
         <AppTitle asChild>
-          <h2 className="app-participation-title">{canReview ? "Как прошло?" : "Отзывы"}</h2>
+          <h2 className="app-section-title">{canReview ? "Как прошло?" : "Отзывы"}</h2>
         </AppTitle>
         {sent ? <p className="app-review-sent">Спасибо! Твой отзыв отправлен.</p> : canReview && <ReviewForm onSubmit={submit} sending={sending} />}
         {!failed && rating !== null && <RatingView rating={rating} />}

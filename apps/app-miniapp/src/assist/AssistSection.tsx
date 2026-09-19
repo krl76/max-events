@@ -57,7 +57,7 @@ export function AssistView({ query, state, day, onQuery, onSubmit, onPlanDay, on
   return (
     <section aria-label="Спросите по-своему">
       <AppTitle asChild>
-        <h2 className="app-today-heading">Спросите по-своему</h2>
+        <h2 className="app-section-title">Спросите по-своему</h2>
       </AppTitle>
       <form
         className="app-filters-inputs"

@@ -33,7 +33,7 @@ export function GatheringStatusView({ state }: { state: GatheringStatusState }) 
   return (
     <section className="app-gathering">
       <AppTitle asChild>
-        <h2 className="app-gathering-title">{gatheringSummary(state.gathering)}</h2>
+        <h2 className="app-section-title">{gatheringSummary(state.gathering)}</h2>
       </AppTitle>
       <p className="app-gathering-hint">{state.gathering.event.title}</p>
       <ul className="app-gathering-invitees">

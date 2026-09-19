@@ -39,7 +39,7 @@ export function GatheringFlowView({ state, selected, meetingAt, submitting, fail
   return (
     <section className="app-gathering">
       <AppTitle asChild>
-        <h2 className="app-gathering-title">Собрать компанию</h2>
+        <h2 className="app-section-title">Собрать компанию</h2>
       </AppTitle>
       <p className="app-gathering-hint">{state.eventTitle}</p>
       <div className="app-gathering-friends" role="group" aria-label="Кого позвать">

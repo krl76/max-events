@@ -73,7 +73,7 @@ export function PlacePageView({ place, page, onOpenEvent }: PlacePageViewProps) 
         <p className="app-place-popularity">{page.popularityToday > 0 ? `${peopleLabel(page.popularityToday)} были здесь сегодня` : "Сегодня здесь пока никого не было"}</p>
 
         <section className="app-place-block" aria-label="События сегодня">
-          <h2 className="app-participation-title">События сегодня</h2>
+          <h2 className="app-section-title">События сегодня</h2>
           {page.todayEvents.length === 0 ? (
             <p className="app-state">На сегодня событий нет.</p>
           ) : (
@@ -91,7 +91,7 @@ export function PlacePageView({ place, page, onOpenEvent }: PlacePageViewProps) 
         </section>
 
         <section className="app-place-block" aria-label="Друзья">
-          <h2 className="app-participation-title">Друзья</h2>
+          <h2 className="app-section-title">Друзья</h2>
           {page.friends.length === 0 ? (
             <p className="app-state">Друзья пока не отмечались здесь.</p>
           ) : (
@@ -107,12 +107,12 @@ export function PlacePageView({ place, page, onOpenEvent }: PlacePageViewProps) 
         </section>
 
         <section className="app-place-block" aria-label="Оценки людей">
-          <h2 className="app-participation-title">Оценки людей</h2>
+          <h2 className="app-section-title">Оценки людей</h2>
           {page.rating === null ? <p className="app-state">Оценок пока нет.</p> : <RatingView rating={page.rating} />}
         </section>
 
         <section className="app-place-block" aria-label="Личная история">
-          <h2 className="app-participation-title">Личная история</h2>
+          <h2 className="app-section-title">Личная история</h2>
           <p className="app-place-personal">{page.personalVisitsCount > 0 ? `Ты был здесь ${visitsLabel(page.personalVisitsCount)}` : "Ты пока не был здесь"}</p>
         </section>
       </div>

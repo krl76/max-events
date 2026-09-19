@@ -110,7 +110,7 @@ export function WeGroupView({ state, ownId, picker, pickerOptions, pickerLoading
   return (
     <>
       <AppTitle asChild>
-        <h2 className="app-whereto-title">{group.title}</h2>
+        <h2 className="app-section-title">{group.title}</h2>
       </AppTitle>
       {group.status === "archived" && <p className="app-state">Группа в архиве.</p>}
       <ul className="app-plan-participants" aria-label="Участники">

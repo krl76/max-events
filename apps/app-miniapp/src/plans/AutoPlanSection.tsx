@@ -33,7 +33,7 @@ export function AutoPlanView({ state, onBuild, onOpenPlan }: { state: AutoPlanSt
     <section className="app-event">
       <div className="app-event-body">
         <AppTitle asChild>
-          <h2 className="app-participation-title">План на вечер</h2>
+          <h2 className="app-section-title">План на вечер</h2>
         </AppTitle>
         {(state.status === "idle" || state.status === "error") && (
           <AppButton onClick={onBuild} stretched>

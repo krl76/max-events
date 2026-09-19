@@ -211,5 +211,3 @@ export function ListPage({ id }: { id: string }) {
     </>
   );
 }
-
-

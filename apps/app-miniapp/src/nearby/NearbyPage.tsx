@@ -111,9 +111,6 @@ interface NearbyViewProps extends CardHandlers {
 export function NearbyView({ state, bucket, onBucket, leisure, hours, mood, onHours, onMood, onShowLeisure, onOpenEvent, onOpenPlace }: NearbyViewProps) {
   return (
     <>
-      <AppTitle asChild>
-        <h2 className="app-whereto-title">Рядом со мной</h2>
-      </AppTitle>
       <div className="app-whereto-chips" role="group" aria-label="Время">
         {NEARBY_BUCKETS.map((item) => (
           <AppChip key={item} pressed={bucket === item} onClick={() => onBucket(item)}>
@@ -127,7 +124,7 @@ export function NearbyView({ state, bucket, onBucket, leisure, hours, mood, onHo
       {state.status === "ready" && state.timeline[bucket].map((card) => <NearbyCardView key={card.event.id} card={card} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />)}
 
       <AppTitle asChild>
-        <h2 className="app-whereto-title">Свободно время?</h2>
+        <h2 className="app-section-title">Свободно время?</h2>
       </AppTitle>
       <div className="app-whereto-chips" role="group" aria-label="Сколько часов свободно">
         <span className="app-whereto-chips-label">Часов</span>
