@@ -10,6 +10,7 @@ const microEvent = {
   placeId: null,
   participantsLimit: 6,
   participantsCount: 3,
+  participantIds: ["018f3c5a-0000-7000-8000-000000000001", "018f3c5a-0000-7000-8000-000000000002", "018f3c5a-0000-7000-8000-000000000003"],
   status: "open",
   createdAt: "2026-09-11T18:00:00+03:00",
 } as const;
@@ -37,8 +38,17 @@ describe("MicroEventSchema", () => {
   });
 
   it("defaults participantsCount to zero", () => {
-    const fresh = { ...microEvent, participantsCount: undefined };
+    const fresh = { ...microEvent, participantsCount: undefined, participantIds: undefined };
     expect(MicroEventSchema.parse(fresh).participantsCount).toBe(0);
+    expect(MicroEventSchema.parse(fresh).participantIds).toEqual([]);
+  });
+
+  it("rejects a participant list that disagrees with the count", () => {
+    expect(MicroEventSchema.safeParse({ ...microEvent, participantIds: ["018f3c5a-0000-7000-8000-000000000001"] }).success).toBe(false);
+  });
+
+  it("rejects a participant id that is not a uuid", () => {
+    expect(MicroEventSchema.safeParse({ ...microEvent, participantIds: ["me", "you", "them"] }).success).toBe(false);
   });
 
   it("round-trips through JSON", () => {

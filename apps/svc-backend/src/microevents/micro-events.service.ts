@@ -1,17 +1,18 @@
 // START_MODULE_CONTRACT
 // PURPOSE: UGC micro-events — minimal create, author auto-joins, capacity-locked join/leave, published immediately.
-// SCOPE: list/create/join/leave; unpublished rows are hidden from the public list.
+// SCOPE: list/create/join/leave; every DTO carries its participantIds; unpublished rows are hidden from the public list.
 // DEPENDS: typeorm, @max-events/api-contracts, places/users
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - MicroEventsService - create/list/join/leave
+// - toMicroEventDto - entity plus its participant ids to the MicroEvent contract
 // END_MODULE_MAP
 
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
-import { DataSource, Repository } from "typeorm";
+import { DataSource, In, Repository } from "typeorm";
 import { MicroEventSchema, type CreateMicroEventWrite, type MicroEvent } from "@max-events/api-contracts";
 import { PlaceEntity } from "../places/place.entity";
 import { UsersService } from "../users/users.service";
@@ -29,7 +30,12 @@ export class MicroEventsService {
 
   async list(): Promise<MicroEvent[]> {
     const rows = (await this.events.find({ where: { published: true, status: "open" } })).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
-    return Promise.all(rows.map((row) => this.toDto(row)));
+    if (rows.length === 0) return [];
+    // One batch for the whole page instead of a participant query per row.
+    const participants = await this.participants.find({ where: { microEventId: In(rows.map((row) => row.id)) } });
+    const byEvent = new Map<string, string[]>();
+    for (const row of participants) byEvent.set(row.microEventId, [...(byEvent.get(row.microEventId) ?? []), row.userId]);
+    return rows.map((row) => toMicroEventDto(row, byEvent.get(row.id) ?? []));
   }
 
   async create(userId: string, payload: CreateMicroEventWrite): Promise<MicroEvent> {
@@ -58,12 +64,12 @@ export class MicroEventsService {
     return this.dataSource.transaction(async (manager) => {
       const event = await manager.findOne(MicroEventEntity, { where: { id }, lock: { mode: "pessimistic_write" } });
       if (!event || !event.published || event.status !== "open") throw new NotFoundException("Micro-event not found");
-      const existing = await manager.findOne(MicroEventParticipantEntity, { where: { microEventId: id, userId } });
-      if (existing) return this.toDto(event);
-      const taken = await manager.count(MicroEventParticipantEntity, { where: { microEventId: id } });
-      if (taken >= event.participantsLimit) throw new ConflictException("No seats left");
+      const taken = await manager.find(MicroEventParticipantEntity, { where: { microEventId: id } });
+      const ids = taken.map((row) => row.userId);
+      if (ids.includes(userId)) return toMicroEventDto(event, ids);
+      if (ids.length >= event.participantsLimit) throw new ConflictException("No seats left");
       await manager.save(MicroEventParticipantEntity, manager.create(MicroEventParticipantEntity, { microEventId: id, userId }));
-      return this.toDto(event, taken + 1);
+      return toMicroEventDto(event, [...ids, userId]);
     });
   }
 
@@ -83,19 +89,28 @@ export class MicroEventsService {
     await this.events.save(event);
   }
 
-  private async toDto(row: MicroEventEntity, count?: number): Promise<MicroEvent> {
-    const participantsCount = count ?? (await this.participants.countBy({ microEventId: row.id }));
-    return MicroEventSchema.parse({
-      id: row.id,
-      authorId: row.authorId,
-      title: row.title,
-      startsAt: row.startsAt.toISOString(),
-      locationText: row.locationText,
-      placeId: row.placeId,
-      participantsLimit: row.participantsLimit,
-      participantsCount,
-      status: row.status,
-      createdAt: row.createdAt.toISOString(),
-    });
+  private async toDto(row: MicroEventEntity): Promise<MicroEvent> {
+    const participants = await this.participants.find({ where: { microEventId: row.id } });
+    return toMicroEventDto(
+      row,
+      participants.map((item) => item.userId),
+    );
   }
+}
+
+export function toMicroEventDto(row: MicroEventEntity, participantIds: string[]): MicroEvent {
+  const ids = [...participantIds].sort();
+  return MicroEventSchema.parse({
+    id: row.id,
+    authorId: row.authorId,
+    title: row.title,
+    startsAt: row.startsAt.toISOString(),
+    locationText: row.locationText,
+    placeId: row.placeId,
+    participantsLimit: row.participantsLimit,
+    participantsCount: ids.length,
+    participantIds: ids,
+    status: row.status,
+    createdAt: row.createdAt.toISOString(),
+  });
 }

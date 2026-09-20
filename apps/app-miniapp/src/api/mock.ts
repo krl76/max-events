@@ -1010,8 +1010,30 @@ export function createMockReport(payload: CreateReport): Report | "duplicate" | 
 type MicroEventSeed = Omit<MicroEvent, "createdAt">;
 
 const MICRO_EVENT_SEED: MicroEventSeed[] = [
-  { id: "20000000-0000-4000-8000-000000000001", authorId: mockFriendIds[0], title: "Играем в баскетбол", startsAt: "2026-09-19T19:00:00+03:00", locationText: "Стритбол-площадка у Парка Горького", placeId: null, participantsLimit: 6, participantsCount: 3, status: "open" },
-  { id: "20000000-0000-4000-8000-000000000002", authorId: mockFriendIds[1], title: "Прогулка по Парку Горького", startsAt: "2026-09-20T14:00:00+03:00", locationText: null, placeId: mockPlaces[0].id, participantsLimit: 4, participantsCount: 2, status: "open" },
+  {
+    id: "20000000-0000-4000-8000-000000000001",
+    authorId: mockFriendIds[0],
+    title: "Играем в баскетбол",
+    startsAt: "2026-09-19T19:00:00+03:00",
+    locationText: "Стритбол-площадка у Парка Горького",
+    placeId: null,
+    participantsLimit: 6,
+    participantsCount: 3,
+    participantIds: [mockFriendIds[0], mockFriendIds[1], mockFriendIds[2]],
+    status: "open",
+  },
+  {
+    id: "20000000-0000-4000-8000-000000000002",
+    authorId: mockFriendIds[1],
+    title: "Прогулка по Парку Горького",
+    startsAt: "2026-09-20T14:00:00+03:00",
+    locationText: null,
+    placeId: mockPlaces[0].id,
+    participantsLimit: 4,
+    participantsCount: 2,
+    participantIds: [mockFriendIds[1], mockFriendIds[3]],
+    status: "open",
+  },
 ];
 
 const mockMicroEvents: MicroEvent[] = [];
@@ -1022,7 +1044,10 @@ function seedMockMicroEvents(): void {
   mockMicroEvents.length = 0;
   mockMicroMemberships.clear();
   mockMicroSeq = MICRO_EVENT_SEED.length;
-  for (const seed of MICRO_EVENT_SEED) mockMicroEvents.push({ ...seed, createdAt: PLACE_STAMP });
+  for (const seed of MICRO_EVENT_SEED) {
+    mockMicroEvents.push({ ...seed, participantIds: [...seed.participantIds], createdAt: PLACE_STAMP });
+    for (const participant of seed.participantIds) mockMicroMemberships.add(`${participant}:${seed.id}`);
+  }
 }
 seedMockMicroEvents();
 
@@ -1050,6 +1075,7 @@ export function createMockMicroEvent(payload: CreateMicroEvent): MicroEvent | "n
     placeId,
     participantsLimit: payload.participantsLimit,
     participantsCount: 1,
+    participantIds: [payload.userId],
     status: "open",
     createdAt: new Date().toISOString(),
   };
@@ -1068,6 +1094,7 @@ export function joinMockMicroEvent(id: string, userId: string): MicroEvent | nul
   if (mockMicroMemberships.has(key)) return target;
   if (target.participantsCount >= target.participantsLimit) return "full";
   target.participantsCount += 1;
+  target.participantIds = [...target.participantIds, userId].sort();
   mockMicroMemberships.add(key);
   return target;
 }
@@ -1076,7 +1103,10 @@ export function joinMockMicroEvent(id: string, userId: string): MicroEvent | nul
 export function leaveMockMicroEvent(id: string, userId: string): MicroEvent | null {
   const target = mockMicroEvents.find((item) => item.id === id);
   if (!target) return null;
-  if (mockMicroMemberships.delete(`${userId}:${id}`)) target.participantsCount -= 1;
+  if (mockMicroMemberships.delete(`${userId}:${id}`)) {
+    target.participantsCount -= 1;
+    target.participantIds = target.participantIds.filter((item) => item !== userId);
+  }
   return target;
 }
 

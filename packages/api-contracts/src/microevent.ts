@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for user-created micro-events (UGC) — "Играем в баскетбол сегодня в 19:00, сейчас 3/6".
-// SCOPE: MicroEvent status enum, MicroEvent entity (what/when/where, participant limit and count, author).
+// SCOPE: MicroEvent status enum, MicroEvent entity (what/when/where, participant limit, count and ids, author).
 // DEPENDS: zod, ./primitives.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - MicroEventStatusSchema - closed micro-event status enum (open/cancelled)
 // - MicroEventStatus - micro-event status type
-// - MicroEventSchema - micro-event entity (title, startsAt, text or place location, limit/count, author)
+// - MicroEventSchema - micro-event entity (title, startsAt, text or place location, limit/count/participantIds, author)
 // - MicroEvent - micro-event type
 // - CreateMicroEventWriteSchema - create payload
 // - CreateMicroEventWrite - create payload type
@@ -30,6 +30,8 @@ export const MicroEventSchema = z
     placeId: IdSchema.nullable().default(null),
     participantsLimit: z.number().int().min(1),
     participantsCount: z.number().int().min(0).default(0),
+    // Who is in, so a client can tell whether the current user joined instead of guessing.
+    participantIds: z.array(IdSchema).default([]),
     status: MicroEventStatusSchema,
     createdAt: TimestampSchema,
   })
@@ -40,6 +42,10 @@ export const MicroEventSchema = z
   .refine((data) => data.participantsCount <= data.participantsLimit, {
     message: "participantsCount cannot exceed participantsLimit",
     path: ["participantsCount"],
+  })
+  .refine((data) => data.participantIds.length === 0 || data.participantIds.length === data.participantsCount, {
+    message: "participantIds must match participantsCount when present",
+    path: ["participantIds"],
   });
 export type MicroEvent = z.infer<typeof MicroEventSchema>;
 
