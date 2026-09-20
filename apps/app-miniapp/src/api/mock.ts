@@ -85,7 +85,7 @@
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
 // - resetMockCampaigns - clear in-memory promo campaigns (test isolation)
 // - resetMockPromotions - clear in-memory promotion campaigns (test isolation)
 // - resetMockPromoCodes - clear in-memory promocodes (test isolation)
@@ -2570,6 +2570,11 @@ export function installMockApi(): () => void {
     if (placePage) {
       const page = placePageFor(placePage[1], url.searchParams.get("userId") ?? "");
       return page ? Response.json(page) : new Response(null, { status: 404 });
+    }
+    const placeById = /^\/api\/places\/([^/]+)$/.exec(url.pathname);
+    if (placeById && (init?.method ?? "GET") === "GET" && IdSchema.safeParse(placeById[1]).success) {
+      const found = mockPlaces.find((item) => item.id === placeById[1]);
+      return found ? Response.json(found) : new Response(null, { status: 404 });
     }
     if (url.pathname === "/api/events") {
       const events = filterMockEvents(mockEvents, parseEventFilters(url.search))
