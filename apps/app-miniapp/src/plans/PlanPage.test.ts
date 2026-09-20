@@ -52,4 +52,12 @@ describe("PlanView", () => {
 
     expect(html).toContain("Загружаем бюджет…");
   });
+
+  it("renders the chat button only when the plan has a chat link", () => {
+    const withChat = renderToStaticMarkup(createElement(PlanView, { state: ready(0), onOpenEvent: () => {} }));
+    expect(withChat).toContain("В чат плана");
+
+    const withoutChat = renderToStaticMarkup(createElement(PlanView, { state: ready(1), onOpenEvent: () => {} }));
+    expect(withoutChat).not.toContain("В чат плана");
+  });
 });

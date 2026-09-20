@@ -14,7 +14,7 @@
 // - Invitee - invitee type
 // - GatheringStatusSchema - closed gathering status enum
 // - GatheringStatus - gathering status type
-// - GatheringSchema - gathering entity (event + invitees + proposed meeting time + status)
+// - GatheringSchema - gathering entity (event + invitees + proposed meeting time + status + optional chat link)
 // - Gathering - gathering type
 // - CreateGatheringSchema - launch payload (event + friend ids + proposed meeting time)
 // - CreateGathering - launch payload type
@@ -51,6 +51,7 @@ export const GatheringSchema = z.object({
   invitees: z.array(InviteeSchema),
   proposedMeetingAt: TimestampSchema,
   status: GatheringStatusSchema,
+  chatLink: z.string().nullable().default(null),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 });

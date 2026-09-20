@@ -25,7 +25,7 @@
 // - mockFriends - friend fixtures for the "Your people are going" feed
 // - friendActivityByFriend - friend participations grouped by friend (feed payload)
 // - friendAvailability - per-friend free/busy/unknown for the gathering flow (mock)
-// - createMockGathering - in-memory gathering with deterministic invitee responses (mock POST)
+// - createMockGathering - in-memory gathering with deterministic invitee responses and a sent chat card (chatLink set, successful MaxBot parity) (mock POST)
 // - resetMockGatherings - clear in-memory gatherings (test isolation)
 // - resetMockVotes - restore the two seeded votes (test isolation)
 // - MOCK_VOTE_ID - seeded deep-link demo vote (the demo user is a participant; seeded winner)
@@ -33,7 +33,7 @@
 // - createMockVote - in-memory vote with a sent chat card (chatLink set, successful MaxBot parity); participants must be friends of the demo host, events must exist (mock POST /votes, backend VotesService parity)
 // - getMockVote - mock GET /votes/:id (404 unknown, 403 neither host nor participant); myBallotEventId comes from the demo user's stored ballot (backend #324 parity)
 // - castMockBallot - mock POST /votes/:id/ballots: one ballot per user, a repeated ballot replaces the previous one; winner = max votes then option position, null without ballots (backend parity)
-// - mockPlans - plan card fixtures for the plans list and plan screens (backend P1-7-b does not exist yet)
+// - mockPlans - plan card fixtures for the plans list and plan screens; the demo plan carries a chat link, the second one none (backend P1-7-b does not exist yet)
 // - resetMockPlans - restore seeded plan cards, dropping autoplan drafts (test isolation)
 // - planCards - plan fixtures sorted by the soonest meeting first
 // - planCard - single plan card by plan id (or null)
@@ -315,6 +315,7 @@ export function createMockGathering(payload: CreateGathering): Gathering | null 
     }),
     proposedMeetingAt: payload.proposedMeetingAt,
     status: "awaiting_responses",
+    chatLink: `https://max.ru/chat/mock-gathering-${mockGatheringSeq}`,
     createdAt: now,
     updatedAt: now,
   };
@@ -472,6 +473,7 @@ export const mockPlans: PlanCard[] = [
       ],
       meetingPoint: "у метро Смоленская",
       meetingAt: "2026-09-19T18:20:00+03:00",
+      chatLink: "https://max.ru/chat/mock-plan-1",
       createdAt: PLACE_STAMP,
       updatedAt: PLACE_STAMP,
     },
@@ -488,6 +490,7 @@ export const mockPlans: PlanCard[] = [
       ],
       meetingPoint: "у входа в Парк Горького",
       meetingAt: "2026-09-20T09:30:00+03:00",
+      chatLink: null,
       createdAt: PLACE_STAMP,
       updatedAt: PLACE_STAMP,
     },
@@ -1948,7 +1951,7 @@ export function createMockAutoPlan(payload: CreateAutoPlanWrite): AutoPlanPropos
   const now = new Date().toISOString();
   mockPlanSeq += 1;
   const card: PlanCard = {
-    plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, eventId: event.id, participants: [], meetingPoint, meetingAt: meetupAt.toISOString(), createdAt: now, updatedAt: now },
+    plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, eventId: event.id, participants: [], meetingPoint, meetingAt: meetupAt.toISOString(), chatLink: null, createdAt: now, updatedAt: now },
     event,
     distanceMeters: meters,
   };
@@ -2188,7 +2191,7 @@ export function mockAssistDay(payload: AssistQueryWrite, now: Date = MOCK_NOW): 
   if (payload.save === true) {
     const now = new Date().toISOString();
     mockPlanSeq += 1;
-    plan = { plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, eventId: planDraft.eventId, participants: [], meetingPoint: planDraft.meetingPoint, meetingAt: planDraft.meetingAt, createdAt: now, updatedAt: now }, event: first, distanceMeters: 0 };
+    plan = { plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, eventId: planDraft.eventId, participants: [], meetingPoint: planDraft.meetingPoint, meetingAt: planDraft.meetingAt, chatLink: null, createdAt: now, updatedAt: now }, event: first, distanceMeters: 0 };
     mockPlans.push(plan);
   }
   return { summary: `Собрал день на субботу ${date}: ${stops.length} событий`, date, stops, planDraft, plan };

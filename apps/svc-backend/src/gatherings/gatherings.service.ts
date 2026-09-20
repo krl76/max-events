@@ -204,6 +204,7 @@ export class GatheringsService {
       }),
       proposedMeetingAt: gathering.proposedMeetingAt.toISOString(),
       status: gathering.status,
+      chatLink: gathering.chatLink,
       createdAt: gathering.createdAt.toISOString(),
       updatedAt: gathering.updatedAt.toISOString(),
     };

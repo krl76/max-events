@@ -78,6 +78,20 @@ describe("GatheringSchema", () => {
     expect(GatheringSchema.parse(JSON.parse(JSON.stringify(gathering)))).toEqual(gathering);
   });
 
+  it("defaults chatLink to null when absent and keeps a provided one", () => {
+    const base = {
+      id: "018f3c5a-0000-7000-8000-000000000010",
+      event,
+      invitees: [],
+      proposedMeetingAt: "2026-09-20T18:30:00+03:00",
+      status: "awaiting_responses",
+      createdAt: "2026-09-11T10:00:00+03:00",
+      updatedAt: "2026-09-11T12:00:00+03:00",
+    };
+    expect(GatheringSchema.parse(base).chatLink).toBeNull();
+    expect(GatheringSchema.parse({ ...base, chatLink: "https://max.ru/chat/gathering-1" }).chatLink).toBe("https://max.ru/chat/gathering-1");
+  });
+
   it("rejects an unknown gathering status", () => {
     expect(
       GatheringSchema.safeParse({

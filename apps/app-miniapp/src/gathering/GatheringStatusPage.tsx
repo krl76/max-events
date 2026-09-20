@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Gathering status screen: every invitee answer («подтвердил / смотрит / занят») and the «Ты + N из M» summary.
+// PURPOSE: Gathering status screen: every invitee answer («подтвердил / смотрит / занят»), the «Ты + N из M» summary and the chat link button when the gathering chat exists.
 // SCOPE: Data via apiClient.getGathering (mock or live); presentational rendering of invitee responses; no actions on responses.
-// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (Gathering, InviteeResponse), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (Gathering, InviteeResponse), ../max/bridge.js (openExternalLink), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -9,14 +9,15 @@
 // - INVITEE_RESPONSE_LABELS - ru labels for invitee responses (accepted/considering/busy)
 // - gatheringSummary - «Ты + accepted из total» aggregate line
 // - GatheringStatusState - union of gathering fetch states (loading / error / ready)
-// - GatheringStatusView - presentational: summary title, event hint, invitee answer list
+// - GatheringStatusView - presentational: summary title, event hint, invitee answer list, chat link button
 // - GatheringStatusPage - route container: loads the gathering by id
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import type { Gathering, InviteeResponse } from "@max-events/api-contracts";
-import { AppTitle, AppState } from "../ui/primitives";
+import { openExternalLink } from "../max/bridge";
+import { AppButton, AppTitle, AppState } from "../ui/primitives";
 
 export const INVITEE_RESPONSE_LABELS: Record<InviteeResponse, string> = { accepted: "подтвердил", considering: "смотрит", busy: "занят" };
 
@@ -36,6 +37,11 @@ export function GatheringStatusView({ state }: { state: GatheringStatusState }) 
         <h2 className="app-section-title">{gatheringSummary(state.gathering)}</h2>
       </AppTitle>
       <p className="app-gathering-hint">{state.gathering.event.title}</p>
+      {state.gathering.chatLink !== null && (
+        <AppButton tone="secondary" onClick={() => openExternalLink(state.gathering.chatLink!)}>
+          В чат сбора
+        </AppButton>
+      )}
       <ul className="app-gathering-invitees">
         {state.gathering.invitees.map(({ friend, response }) => (
           <li key={friend.id} className="app-gathering-invitee">

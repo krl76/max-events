@@ -52,4 +52,14 @@ describe("GatheringStatusView", () => {
     expect(renderToStaticMarkup(createElement(GatheringStatusView, { state: { status: "loading" } }))).toContain("Загрузка…");
     expect(renderToStaticMarkup(createElement(GatheringStatusView, { state: { status: "error" } }))).toContain("Не удалось загрузить сбор.");
   });
+
+  it("renders the chat button only when the gathering has a chat link", () => {
+    const withChat = renderToStaticMarkup(createElement(GatheringStatusView, { state: readyState(0, [0, 1]) }));
+    expect(withChat).toContain("В чат сбора");
+
+    const gathering = createMockGathering({ eventId: mockEvents[0].id, friendIds: [mockFriendIds[0]], proposedMeetingAt: MEETING_AT });
+    if (!gathering) throw new Error("fixture gathering was rejected by the mock");
+    const withoutChat = renderToStaticMarkup(createElement(GatheringStatusView, { state: { status: "ready", gathering: { ...gathering, chatLink: null } } }));
+    expect(withoutChat).not.toContain("В чат сбора");
+  });
 });
