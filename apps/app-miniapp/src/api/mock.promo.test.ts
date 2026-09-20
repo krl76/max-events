@@ -39,6 +39,30 @@ describe("promotion placements and targeted collections", () => {
     expect(events.some((event) => !promotedIds.has(event.id) && !event.promoted)).toBe(true);
   });
 
+  it("flags a placement event promoted in GET /events/:id and event details (backend getById/EventDetailsService parity)", async () => {
+    restore = installMockApi();
+    const boostedId = mockEvents[7].id;
+
+    const single = await client().getEvent(boostedId);
+    expect(single.promoted).toBe(true);
+
+    const details = await client().getEventDetails(boostedId, DEMO_USER_ID);
+    expect(details.event.promoted).toBe(true);
+  });
+
+  it("sorts the boosted event first in the listing and the rest by startsAt (backend list boosted-first parity)", async () => {
+    restore = installMockApi();
+    const boostedId = mockEvents[7].id;
+
+    const events = await client().listEvents();
+
+    expect(events[0]!.id).toBe(boostedId);
+    const nonBoosted = events.filter((event) => event.id !== boostedId);
+    for (let i = 1; i < nonBoosted.length; i += 1) {
+      expect(nonBoosted[i - 1]!.startsAt <= nonBoosted[i]!.startsAt).toBe(true);
+    }
+  });
+
   it("serves a targeted collection with an explanation derived from the mock visit history", async () => {
     restore = installMockApi();
     const targeted = await client().getTargetedPromotions();

@@ -1388,6 +1388,12 @@ const MOCK_PLACEMENT_PROMOTED_IDS: ReadonlySet<string> = (() => {
   return new Set([...placements.banners.map((item) => item.id), ...placements.pins.map((pin) => pin.event.id), ...placements.boostedEventIds]);
 })();
 
+/** Event ids with an active boost placement: the /api/events listing sorts these first (backend EventsService.list boosted-first parity). */
+const MOCK_BOOSTED_EVENT_IDS: ReadonlySet<string> = new Set(mockPromotionPlacements().boostedEventIds);
+
+/** Promoted-flag default: a placement event that is not already promoted fixture-wise carries promoted=true (backend promotedEventIds parity, applied in the listing, GET /events/:id and event details). */
+const eventPromoted = (item: Event): Event => (MOCK_PLACEMENT_PROMOTED_IDS.has(item.id) && !item.promoted ? { ...item, promoted: true } : item);
+
 /** Targeted collection fixture (mock GET /promotions/for-me): one target_collection row for the open-air cinema; the visit count in the explanation is derived from the demo user's mock check-in history (backend targetedFor parity). */
 export function mockTargetedPromotions(): TargetedPromotionsResponse {
   const event = mockEvents[10];
@@ -1934,7 +1940,7 @@ function eventDetails(eventId: string, userId: string): object | null {
   if (!event) return null;
   const active = mockBookings.find((booking) => booking.eventId === eventId && booking.userId === userId && booking.status === "active");
   return {
-    event,
+    event: eventPromoted(event),
     place: mockPlaces.find((item) => item.id === event.placeId) ?? null,
     organizer: mockOrganizers[0],
     remainingSeats: remainingSeats(eventId),
@@ -2610,7 +2616,9 @@ export function installMockApi(): () => void {
       return page ? Response.json(page) : new Response(null, { status: 404 });
     }
     if (url.pathname === "/api/events") {
-      const events = filterMockEvents(mockEvents, parseEventFilters(url.search)).map((item) => (MOCK_PLACEMENT_PROMOTED_IDS.has(item.id) && !item.promoted ? { ...item, promoted: true } : item));
+      const events = filterMockEvents(mockEvents, parseEventFilters(url.search))
+        .map(eventPromoted)
+        .sort((a, b) => Number(MOCK_BOOSTED_EVENT_IDS.has(b.id)) - Number(MOCK_BOOSTED_EVENT_IDS.has(a.id)) || Date.parse(a.startsAt) - Date.parse(b.startsAt) || a.id.localeCompare(b.id));
       return Response.json(events);
     }
     const details = /^\/api\/events\/([^/]+)\/details$/.exec(url.pathname);
@@ -2625,7 +2633,7 @@ export function installMockApi(): () => void {
     }
     if (byId) {
       const found = mockEvents.find((item) => item.id === byId[1]);
-      return found ? Response.json(found) : new Response(null, { status: 404 });
+      return found ? Response.json(eventPromoted(found)) : new Response(null, { status: 404 });
     }
     const rating = /^\/api\/events\/([^/]+)\/rating$/.exec(url.pathname);
     if (rating) {
@@ -2724,6 +2732,9 @@ export function installMockApi(): () => void {
     }
     const cancel = /^\/api\/bookings\/([^/]+)$/.exec(url.pathname);
     if (cancel && init?.method === "DELETE") {
+      // ponytail: wontfix ownership check (backend -> 403 for a foreign user) — the mock has no auth context on
+      // DELETE /bookings/:id (ApiClient.cancelBooking sends no actor id), so an owner assert is not enforceable without
+      // expanding the client surface; the sandbox is single-identity (everything acts as mockDemoUser).
       const booking = mockBookings.find((item) => item.id === cancel[1]);
       if (!booking) return new Response(null, { status: 404 });
       if (booking.status !== "cancelled") {
