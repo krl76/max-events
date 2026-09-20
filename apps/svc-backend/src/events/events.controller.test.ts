@@ -86,6 +86,13 @@ describe("EventsController", () => {
     expect(() => parseEventListQuery({ category: "park" })).toThrow(BadRequestException);
     expect(() => parseEventListQuery({ date: "12-09-2026" })).toThrow(BadRequestException);
     expect(() => parseEventListQuery({ date_from: "yesterday" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ limit: "0" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ limit: "1000" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ offset: "-1" })).toThrow(BadRequestException);
+  });
+
+  it("passes a valid page window through to the service", () => {
+    expect(parseEventListQuery({ limit: "20", offset: "40" })).toMatchObject({ limit: 20, offset: 40 });
   });
 
   it("serves the details aggregate for the current user", async () => {

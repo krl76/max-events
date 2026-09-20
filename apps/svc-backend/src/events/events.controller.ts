@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for events — authenticated CRUD and catalog list under /api/events.
-// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to; GET :id/details delegates to EventDetailsService with the current user.
+// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to/limit/offset; GET :id/details delegates to EventDetailsService with the current user.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ./events.service, ./event-details.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -15,7 +15,7 @@ import { CreateEventSchema, EventCategorySchema, TimestampSchema, type Event, ty
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { EventDetailsService } from "./event-details.service";
-import { EventsService, type EventListQuery } from "./events.service";
+import { EVENT_LIST_MAX_LIMIT, EventsService, type EventListQuery } from "./events.service";
 
 @Controller("events")
 export class EventsController {
@@ -76,7 +76,11 @@ export function parseEventListQuery(query: Record<string, string | undefined>): 
   }
   const dateFrom = parseOptionalTimestamp(query.date_from);
   const dateTo = parseOptionalTimestamp(query.date_to);
-  return { city, category, date, dateFrom, dateTo };
+  const offset = query.offset === undefined || query.offset === "" ? undefined : Number(query.offset);
+  const limit = query.limit === undefined || query.limit === "" ? undefined : Number(query.limit);
+  if (offset !== undefined && (!Number.isInteger(offset) || offset < 0)) throw new BadRequestException("Invalid event query");
+  if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > EVENT_LIST_MAX_LIMIT)) throw new BadRequestException("Invalid event query");
+  return { city, category, date, dateFrom, dateTo, limit, offset };
 }
 
 function parseOptionalTimestamp(value: string | undefined): Date | undefined {

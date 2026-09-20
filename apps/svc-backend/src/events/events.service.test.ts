@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import type { Repository } from "typeorm";
+import type { FindOperator, Repository } from "typeorm";
 import { CreateEventSchema, type CreateEvent, type Place } from "@max-events/api-contracts";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
@@ -9,7 +9,7 @@ import type { UsersService } from "../users/users.service";
 import type { PromotionService } from "../promotion/promotion.service";
 import type { WaitlistService } from "../waitlist/waitlist.service";
 import { EventEntity } from "./event.entity";
-import { EventsService, toEventDto } from "./events.service";
+import { EVENT_LIST_MAX_LIMIT, EventsService, toEventDto } from "./events.service";
 
 const placeId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f";
 
@@ -46,14 +46,17 @@ function createRepo(initial: EventEntity[] = []) {
       return entity;
     },
     findOneBy: async (where: { id: string }) => store.find((row) => row.id === where.id) ?? null,
-    find: async (opts: { where?: { published?: boolean; city?: string; category?: string; organizerUserId?: string }; order?: { startsAt?: "ASC" | "DESC"; id?: "ASC" | "DESC" } }) => {
+    find: async (opts: { where?: { published?: boolean; city?: string; category?: string; organizerUserId?: string; startsAt?: FindOperator<Date> }; order?: { startsAt?: "ASC" | "DESC"; id?: "ASC" | "DESC" }; skip?: number; take?: number }) => {
       let rows = [...store];
       if (opts.where?.published === true) rows = rows.filter((row) => row.published);
       if (opts.where?.city) rows = rows.filter((row) => row.city === opts.where?.city);
       if (opts.where?.category) rows = rows.filter((row) => row.category === opts.where?.category);
       if (opts.where?.organizerUserId) rows = rows.filter((row) => row.organizerUserId === opts.where?.organizerUserId);
+      const startsAt = opts.where?.startsAt;
+      if (startsAt) rows = rows.filter((row) => matchesDateOperator(row.startsAt, startsAt));
       rows.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
-      return rows;
+      const from = opts.skip ?? 0;
+      return opts.take === undefined ? rows.slice(from) : rows.slice(from, from + opts.take);
     },
     delete: async (where: { id: string }) => {
       const index = store.findIndex((row) => row.id === where.id);
@@ -62,6 +65,17 @@ function createRepo(initial: EventEntity[] = []) {
       return { affected: 1 };
     },
   };
+}
+
+// The catalog list now pushes its start window into the WHERE clause, so the fake repository has to
+// read the same find operators postgres would.
+function matchesDateOperator(value: Date, operator: FindOperator<Date>): boolean {
+  if (operator.type === "and") return (operator.value as unknown as FindOperator<Date>[]).every((inner) => matchesDateOperator(value, inner));
+  const bound = operator.value as unknown as Date;
+  if (operator.type === "moreThanOrEqual") return value.getTime() >= bound.getTime();
+  if (operator.type === "lessThan") return value.getTime() < bound.getTime();
+  if (operator.type === "lessThanOrEqual") return value.getTime() <= bound.getTime();
+  throw new Error(`unsupported find operator in fake repository: ${operator.type}`);
 }
 
 function createService(options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean; promotions?: PromotionService } = {}) {
@@ -197,6 +211,25 @@ describe("EventsService", () => {
 
     const onDay = await service.list({ date: "2026-09-12" });
     expect(onDay.map((item) => item.title)).toEqual(["Субботник", "Джаз в парке"]);
+  });
+
+  it("reads only the requested page of the catalog", async () => {
+    const { repo, service } = createService();
+    for (const day of ["13", "14", "15"]) {
+      await service.create(CreateEventSchema.parse({ ...payload, title: `День ${day}`, startsAt: `2026-09-${day}T19:00:00+03:00` }));
+    }
+    const firstPage = await service.list({ limit: 2 });
+    expect(firstPage.map((item) => item.title)).toEqual(["День 13", "День 14"]);
+    const secondPage = await service.list({ limit: 2, offset: 2 });
+    expect(secondPage.map((item) => item.title)).toEqual(["День 15"]);
+    expect(repo.store).toHaveLength(3);
+  });
+
+  it("caps a limit above the hard ceiling instead of reading the whole table", async () => {
+    const { service } = createService();
+    await service.create(payload);
+    // The ceiling is what protects the query; asking past it must not widen the read.
+    await expect(service.list({ limit: EVENT_LIST_MAX_LIMIT + 50 })).resolves.toHaveLength(1);
   });
 
   it("lifts a boosted event to the front of the catalog and marks it promoted", async () => {

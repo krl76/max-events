@@ -1,12 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Event persistence — CRUD and catalog list mapped to api-contracts Event.
-// SCOPE: Create/read/update/delete, optional place FK, payment-link invariant, catalog filters on city/category/start date.
+// SCOPE: Create/read/update/delete, optional place FK, payment-link invariant, catalog filters on city/category/start date pushed into SQL and capped by limit/offset.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../places/places.service, ./event.entity
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - EventListQuery - catalog list filters
+// - EVENT_LIST_MAX_LIMIT - hard cap on catalog rows read per request
 // - pickEventFields - patch keys allowed on update
 // - EventsService - CRUD + list against EventEntity
 // - toEventDto - map EventEntity to the api-contracts Event shape
@@ -14,7 +15,7 @@
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { And, FindOperator, LessThan, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
 import { CreateEventSchema, EventSchema, type CreateEvent, type Event, type EventCategory } from "@max-events/api-contracts";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
@@ -33,7 +34,14 @@ export type EventListQuery = {
   date?: string;
   dateFrom?: Date;
   dateTo?: Date;
+  limit?: number;
+  offset?: number;
 };
+
+/** Ceiling on rows a single catalog read may pull; also the default when the caller names no limit. */
+export const EVENT_LIST_MAX_LIMIT = 100;
+
+const DAY_MS = 86_400_000;
 
 const EVENT_PATCH_KEYS = ["title", "description", "category", "city", "placeId", "startsAt", "endsAt", "isPaid", "priceRub", "paymentUrl", "capacity"] as const;
 
@@ -145,15 +153,23 @@ export class EventsService {
   }
 
   async list(query: EventListQuery, now = new Date()): Promise<Event[]> {
-    const where: { published: true; city?: string; category?: EventCategory } = { published: true };
+    const where: { published: true; city?: string; category?: EventCategory; startsAt?: FindOperator<Date> } = { published: true };
     if (query.city) where.city = query.city;
     if (query.category) where.category = query.category;
-    const rows = await this.events.find({ where, order: { startsAt: "ASC", id: "ASC" } });
-    const visible = rows.filter((row) => matchesStartWindow(row.startsAt, query));
+    // The start window belongs in SQL: filtering it in memory meant reading every published event
+    // to answer "what is on Saturday".
+    const window = startWindow(query);
+    if (window) where.startsAt = window;
+    const visible = await this.events.find({
+      where,
+      order: { startsAt: "ASC", id: "ASC" },
+      skip: query.offset,
+      take: Math.min(query.limit ?? EVENT_LIST_MAX_LIMIT, EVENT_LIST_MAX_LIMIT),
+    });
     const [boosts, promoted] = await Promise.all([this.promotions.listActive(now, "boost"), this.promotions.promotedEventIds(now)]);
     const boosted = new Set(boosts.map((row) => row.eventId));
-    visible.sort((a, b) => Number(boosted.has(b.id)) - Number(boosted.has(a.id)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
-    return visible.map((row) => toEventDto(row, { promoted: promoted.has(row.id) }));
+    const ordered = [...visible].sort((a, b) => Number(boosted.has(b.id)) - Number(boosted.has(a.id)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+    return ordered.map((row) => toEventDto(row, { promoted: promoted.has(row.id) }));
   }
 }
 
@@ -182,15 +198,16 @@ function toColumns(payload: CreateEvent | Event): Omit<CreateEvent, "startsAt" |
   };
 }
 
-function matchesStartWindow(startsAt: Date, query: EventListQuery): boolean {
+function startWindow(query: EventListQuery): FindOperator<Date> | undefined {
+  const bounds: FindOperator<Date>[] = [];
   if (query.date) {
     const from = new Date(`${query.date}T00:00:00.000Z`);
-    const to = new Date(from.getTime() + 86_400_000);
-    if (startsAt < from || startsAt >= to) return false;
+    bounds.push(MoreThanOrEqual(from), LessThan(new Date(from.getTime() + DAY_MS)));
   }
-  if (query.dateFrom && startsAt < query.dateFrom) return false;
-  if (query.dateTo && startsAt > query.dateTo) return false;
-  return true;
+  if (query.dateFrom) bounds.push(MoreThanOrEqual(query.dateFrom));
+  if (query.dateTo) bounds.push(LessThanOrEqual(query.dateTo));
+  if (bounds.length === 0) return undefined;
+  return bounds.length === 1 ? bounds[0] : And(...bounds);
 }
 
 async function attachChatLink(events: Repository<EventEntity>, bot: MaxBotClient, saved: EventEntity): Promise<EventEntity> {
