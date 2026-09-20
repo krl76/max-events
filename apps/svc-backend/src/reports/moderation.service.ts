@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Moderation sanctions — unpublish event/place/feed post and ban an organizer from publishing.
+// PURPOSE: Moderation sanctions — unpublish event/place/feed post/micro-event and ban an organizer from publishing.
 // SCOPE: unpublish hides the object from public lists; banFromPublishing blocks create on events/places/feed/micro-events.
-// DEPENDS: events/places/feed/users
+// DEPENDS: events/places/feed/micro-events/users
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -13,6 +13,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { ReportTargetType } from "@max-events/api-contracts";
 import { EventsService } from "../events/events.service";
 import { FeedService } from "../feed/feed.service";
+import { MicroEventsService } from "../microevents/micro-events.service";
 import { PlacesService } from "../places/places.service";
 import { UsersService } from "../users/users.service";
 
@@ -22,12 +23,14 @@ export class ModerationService {
     @Inject(EventsService) private readonly events: EventsService,
     @Inject(PlacesService) private readonly places: PlacesService,
     @Inject(FeedService) private readonly feed: FeedService,
+    @Inject(MicroEventsService) private readonly microEvents: MicroEventsService,
     @Inject(UsersService) private readonly users: UsersService,
   ) {}
 
   async unpublish(targetType: ReportTargetType, targetId: string): Promise<void> {
     if (targetType === "event") await this.events.unpublish(targetId);
     else if (targetType === "place") await this.places.unpublish(targetId);
+    else if (targetType === "micro_event") await this.microEvents.unpublish(targetId);
     else await this.feed.unpublish(targetId);
   }
 

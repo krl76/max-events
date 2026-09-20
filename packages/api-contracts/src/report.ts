@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for user reports (post-moderation queue).
-// SCOPE: Report reason enum, Report entity, create-report write payload; unique (user, target) is a backend invariant.
+// SCOPE: Report reason enum, Report entity, create-report write payload over every post-moderated object (event, place, feed post, micro-event); unique (user, target) is a backend invariant.
 // DEPENDS: zod, ./primitives.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - ReportReasonSchema - closed report-reason enum
 // - ReportReason - report reason type
-// - ReportTargetTypeSchema - event/place/feed_post
+// - ReportTargetTypeSchema - event/place/feed_post/micro_event
 // - ReportTargetType - target type
 // - ReportStatusSchema - open/resolved
 // - ReportStatus - status type
@@ -28,7 +28,7 @@ import { IdSchema, TimestampSchema } from "./primitives.js";
 export const ReportReasonSchema = z.enum(["spam", "abuse", "inaccurate", "inappropriate", "other"]);
 export type ReportReason = z.infer<typeof ReportReasonSchema>;
 
-export const ReportTargetTypeSchema = z.enum(["event", "place", "feed_post"]);
+export const ReportTargetTypeSchema = z.enum(["event", "place", "feed_post", "micro_event"]);
 export type ReportTargetType = z.infer<typeof ReportTargetTypeSchema>;
 
 export const ReportStatusSchema = z.enum(["open", "resolved"]);
@@ -49,6 +49,7 @@ export const CreateReportWriteSchema = z.object({
   eventId: IdSchema.optional(),
   placeId: IdSchema.optional(),
   feedPostId: IdSchema.optional(),
+  microEventId: IdSchema.optional(),
   reason: ReportReasonSchema,
 });
 export type CreateReportWrite = z.infer<typeof CreateReportWriteSchema>;
