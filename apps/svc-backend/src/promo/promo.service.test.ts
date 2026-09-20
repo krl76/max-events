@@ -81,7 +81,7 @@ function createService(event: EventEntity = seedEvent(), users: UserEntity[] = [
       }
       return entity;
     },
-    find: async (opts: { where: { eventId: string } }) => campaigns.filter((row) => row.eventId === opts.where.eventId),
+    find: async (opts: { where: Partial<PromoCampaignEntity> }) => campaigns.filter((row) => Object.entries(opts.where).every(([key, value]) => (row as unknown as Record<string, unknown>)[key] === value)),
   };
   const eventsRepo = {
     findOneBy: async (where: { id: string }) => events.find((row) => row.id === where.id) ?? null,
@@ -239,6 +239,36 @@ describe("PromoService", () => {
     expect(fulfillments).toHaveLength(0);
     expect(campaigns[0]?.fulfillmentCount).toBe(0);
     expect(campaigns[0]?.status).toBe("active");
+  });
+
+  it("hands a participant the active refer-a-friend code for the event", async () => {
+    const { service } = createService();
+    await service.createCampaign(organizer, eventId, { type: "refer_a_friend", code: "friend", title: "Приведи друга", maxFulfillments: 2 });
+    const referral = await service.activeReferral(eventId);
+    expect(referral.code).toBe("FRIEND");
+    expect(referral.type).toBe("refer_a_friend");
+    expect(referral.maxFulfillments).toBe(2);
+    expect(referral.fulfillmentCount).toBe(0);
+  });
+
+  it("404s when the event has no active refer-a-friend campaign", async () => {
+    const { service, campaigns } = createService();
+    await expect(service.activeReferral(eventId)).rejects.toBeInstanceOf(NotFoundException);
+
+    // A special offer is not a referral, and a completed campaign is not something to share.
+    await service.createCampaign(organizer, eventId, { type: "special_offer", code: "SALE", title: "Спецпредложение" });
+    await expect(service.activeReferral(eventId)).rejects.toBeInstanceOf(NotFoundException);
+
+    await service.createCampaign(organizer, eventId, { type: "refer_a_friend", code: "FRIEND", title: "Приведи друга" });
+    campaigns[1]!.status = "completed";
+    await expect(service.activeReferral(eventId)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("404s the referral of an unknown or unpublished event", async () => {
+    const draft = createService(seedEvent({ published: false }));
+    await draft.service.createCampaign(organizer, eventId, { type: "refer_a_friend", code: "FRIEND", title: "Приведи друга" });
+    await expect(draft.service.activeReferral(eventId)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(createService().service.activeReferral("00000000-0000-4000-8000-0000000000e9")).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it("counts any booking toward a special offer", async () => {

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Nest module wiring promocodes and early access.
-// SCOPE: PromoCode/Event/Booking repos, PromoService; exported for bookings.
+// SCOPE: PromoCode/Event/Booking repos, PromoService, the participant referral controller; PromoService exported for bookings.
 // DEPENDS: @nestjs/typeorm
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -16,10 +16,12 @@ import { EventEntity } from "../events/event.entity";
 import { PromoCampaignEntity } from "./promo-campaign.entity";
 import { PromoCodeEntity } from "./promo-code.entity";
 import { PromoFulfillmentEntity } from "./promo-fulfillment.entity";
+import { EventReferralController } from "./promo.controller";
 import { PromoService } from "./promo.service";
 
 @Module({
   imports: [TypeOrmModule.forFeature([PromoCodeEntity, PromoCampaignEntity, PromoFulfillmentEntity, EventEntity, BookingEntity])],
+  controllers: [EventReferralController],
   providers: [PromoService],
   exports: [PromoService],
 })

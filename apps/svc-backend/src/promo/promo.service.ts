@@ -1,13 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Organizer promocodes, early-access window, and refer-a-friend / special-offer campaigns.
-// SCOPE: create/list codes; setBookingOpensAt; redeem inside a booking transaction; list bookings; campaign fulfillments.
+// SCOPE: create/list codes; setBookingOpensAt; redeem inside a booking transaction; list bookings; campaign fulfillments; the referral code a participant can share.
 // DEPENDS: typeorm, @max-events/api-contracts, events/bookings
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - toPromoDto - entity to PromoCode
-// - PromoService - CRUD, early access, redeem, booking list, campaigns, campaignExistsInTransaction
+// - PromoService - CRUD, early access, redeem, booking list, campaigns, activeReferral, campaignExistsInTransaction
 // - toCampaignDto - entity to PromoCampaign
 // END_MODULE_MAP
 
@@ -124,6 +124,20 @@ export class PromoService {
     await this.requireOwnedEvent(actorId, eventId);
     const rows = await this.campaigns.find({ where: { eventId }, order: { createdAt: "ASC" } });
     return rows.map(toCampaignDto);
+  }
+
+  /**
+   * The refer-a-friend code a participant can share for this event. A campaign owns one code for
+   * everyone who spreads it — there is no per-user code — so any viewer of a published event gets
+   * the same active campaign, and a completed or absent campaign is a 404 rather than an empty box.
+   */
+  async activeReferral(eventId: string): Promise<PromoCampaign> {
+    const event = await this.events.findOneBy({ id: eventId });
+    if (!event || event.published === false) throw new NotFoundException("Event not found");
+    const rows = await this.campaigns.find({ where: { eventId, type: "refer_a_friend", status: "active" }, order: { createdAt: "ASC" } });
+    const campaign = rows[0];
+    if (!campaign) throw new NotFoundException("Referral campaign not found");
+    return toCampaignDto(campaign);
   }
 
   async campaignExistsInTransaction(manager: EntityManager, eventId: string, rawCode: string): Promise<boolean> {
