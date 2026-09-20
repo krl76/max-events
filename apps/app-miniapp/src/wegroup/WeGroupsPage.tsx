@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: «Мы» groups list screen: active groups first, archived in a separate section, plus the create form (title + member checkboxes from the friend list).
 // SCOPE: Data via apiClient.listWeGroups/createWeGroup/listFriends; presentational rendering; navigation to the group screen; inline validation error for an empty title.
-// DEPENDS: ../api/client.js (apiClient), ../routing/router.js, @max-events/api-contracts (Friend, WeGroupScreen), ../ui/primitives.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient), ../catalog/format.js (pluralRu), ../routing/router.js, @max-events/api-contracts (Friend, WeGroupScreen), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -10,7 +10,6 @@
 // - CreateDraft - create form state (title + checked member ids)
 // - EMPTY_CREATE_DRAFT - initial create form state
 // - createDraftErrors - inline validation errors (ru), empty list when ready
-// - groupMembersLabel - «N участников» with ru pluralization
 // - WeGroupCard - presentational group card with member count and status
 // - WeGroupCreateForm - presentational create form with friend checkboxes
 // - WeGroupsView - presentational: active list, archived section, create form toggle
@@ -20,6 +19,7 @@
 import { useEffect, useState } from "react";
 import type { Friend, WeGroupScreen } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
+import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppState } from "../ui/primitives";
@@ -37,13 +37,6 @@ export function createDraftErrors(draft: CreateDraft): string[] {
   return draft.title.trim() === "" ? ["Укажите название группы"] : [];
 }
 
-export function groupMembersLabel(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  const word = mod10 === 1 && mod100 !== 11 ? "участник" : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? "участника" : "участников";
-  return `${count} ${word}`;
-}
-
 export function WeGroupCard({ screen, onOpen }: { screen: WeGroupScreen; onOpen: (id: string) => void }) {
   return (
     <button type="button" className="app-card app-card--link" onClick={() => onOpen(screen.group.id)}>
@@ -51,7 +44,9 @@ export function WeGroupCard({ screen, onOpen }: { screen: WeGroupScreen; onOpen:
         <span className="app-card-title">
           {screen.group.status === "archived" && <span className="app-micro-badge">Архив</span>} {screen.group.title}
         </span>
-        <span className="app-card-subtitle">{groupMembersLabel(screen.members.length)}</span>
+        <span className="app-card-subtitle">
+          {screen.members.length} {pluralRu(screen.members.length, "участник", "участника", "участников")}
+        </span>
         {screen.events.length > 0 && <span className="app-card-subtitle">{screen.events[0].title}</span>}
       </div>
       <span className="app-row-chevron" aria-hidden="true">
