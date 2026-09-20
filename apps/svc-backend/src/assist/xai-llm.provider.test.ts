@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { LlmProviderError } from "./llm-provider";
 import { XaiLlmProvider } from "./xai-llm.provider";
 
@@ -31,6 +31,31 @@ describe("XaiLlmProvider", () => {
     } catch (error) {
       expect((error as Error).message).toBe("LLM request failed");
       expect((error as Error).message.includes(key)).toBe(false);
+    }
+  });
+
+  it("aborts a request that never answers and reports a timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      // Resolves only when the provider's own signal fires, so the abort is what ends the call.
+      const hanging = new XaiLlmProvider(
+        key,
+        "https://api.x.ai/v1",
+        "grok-4.5",
+        (_url, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            const signal = (init as RequestInit).signal;
+            expect(signal).toBeInstanceOf(AbortSignal);
+            signal?.addEventListener("abort", () => reject(new Error("aborted")));
+          }),
+        5_000,
+      );
+      const pending = hanging.parseQuery("вечером музыка");
+      const assertion = expect(pending).rejects.toMatchObject({ code: "llm_timeout", message: "LLM request failed" });
+      await vi.advanceTimersByTimeAsync(5_000);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
     }
   });
 });
