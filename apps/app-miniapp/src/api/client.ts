@@ -57,7 +57,6 @@
 // - ListSummary - lists screen aggregate: list + item count + id of the item saving the checked event (null when not saved) + participants (shared collections, mock)
 // - ApiClient.listLists - GET /lists?userId=[&eventId=]: preset lists with counters
 // - ListItemCard - list screen aggregate: list item enriched with its event and the participant who added it (null outside shared collections)
-// - ApiClient.getListItems - GET /lists/:id/items
 // - ListScreen - one-list aggregate: list + participants + item cards (shared collections surface)
 // - ApiClient.getList - GET /lists/:id
 // - AddListItem - save-to-list payload (owner user + saved event)
@@ -573,14 +572,6 @@ export class ApiClient {
     return this.request(`/events/${eventId}/participation?userId=${encodeURIComponent(userId)}`, ParticipationSchema, { method: "DELETE" });
   }
 
-  createEvent(payload: CreateEvent): Promise<Event> {
-    return this.request("/events", EventSchema, { body: payload });
-  }
-
-  getUser(id: string): Promise<User> {
-    return this.request(`/users/${id}`, UserSchema);
-  }
-
   getProfile(): Promise<Profile> {
     return this.request("/profile", ProfileSchema);
   }
@@ -591,10 +582,6 @@ export class ApiClient {
 
   getPlace(id: string): Promise<Place> {
     return this.request(`/places/${id}`, PlaceSchema);
-  }
-
-  createPlace(payload: CreatePlace): Promise<Place> {
-    return this.request("/places", PlaceSchema, { body: payload });
   }
 
   createBooking(payload: CreateBooking): Promise<BookingWithSeats> {
@@ -712,10 +699,6 @@ export class ApiClient {
     const query = new URLSearchParams({ userId });
     if (eventId !== undefined) query.set("eventId", eventId);
     return this.request(`/lists?${query.toString()}`, ListSummaryArraySchema);
-  }
-
-  getListItems(listId: string): Promise<ListItemCard[]> {
-    return this.request(`/lists/${listId}/items`, ListItemCardArraySchema);
   }
 
   addListItem(listId: string, payload: AddListItem): Promise<ListItem> {

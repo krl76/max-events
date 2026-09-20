@@ -15,7 +15,6 @@
 // - openExternalLink - open link via MAX or browser fallback
 // - ShareChannel - where the shared text went (bridge / clipboard / unavailable)
 // - shareResult - share text into a MAX chat via documented shareMaxContent, clipboard fallback
-// - bridgeHandshake - call WebApp.ready() once, idempotent
 // END_MODULE_MAP
 
 export interface MaxWebAppUser {
@@ -87,11 +86,4 @@ export async function shareResult(app: Pick<MaxWebApp, "shareMaxContent"> | null
     return "clipboard";
   }
   return "unavailable";
-}
-
-/** Notify the MAX client the app is rendered; idempotent, `alreadySent` comes from a mount ref. */
-export function bridgeHandshake(app: Pick<MaxWebApp, "ready"> | null, alreadySent: boolean): boolean {
-  if (alreadySent || !app) return alreadySent;
-  app.ready();
-  return true;
 }

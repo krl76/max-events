@@ -88,17 +88,6 @@ describe("lists mock endpoints", () => {
     const after = (await client.listLists(DEMO_USER_ID, eventId)).find((summary) => summary.list.preset === "want_to_go")!;
     expect(after.savedItemId).toBeNull();
     expect(after.itemsCount).toBe(0);
-    expect(await client.getListItems(list.list.id)).toEqual([]);
-  });
-
-  it("serve list item cards with events, newest first", async () => {
-    restore = installMockApi();
-    const client = new ApiClient("/api");
-    const list = (await client.listLists(DEMO_USER_ID)).find((summary) => summary.list.preset === "favorites")!;
-
-    const cards = await client.getListItems(list.list.id);
-
-    expect(cards.map((card) => card.event.id)).toEqual([mockEvents[1].id]);
   });
 
   it("return 404 for unknown lists, unknown events and unknown items", async () => {
@@ -106,7 +95,6 @@ describe("lists mock endpoints", () => {
     const client = new ApiClient("/api");
     const list = (await client.listLists(DEMO_USER_ID)).find((summary) => summary.list.preset === "favorites")!;
 
-    await expect(client.getListItems("70000000-0000-4000-8000-000000000099")).rejects.toMatchObject({ name: "ApiError", status: 404 });
     await expect(client.addListItem("70000000-0000-4000-8000-000000000099", { userId: DEMO_USER_ID, eventId: mockEvents[0].id })).rejects.toMatchObject({ name: "ApiError", status: 404 });
     await expect(client.addListItem(list.list.id, { userId: DEMO_USER_ID, eventId: "00000000-0000-4000-8000-000000000000" })).rejects.toMatchObject({ name: "ApiError", status: 404 });
     await expect(client.addListItem(list.list.id, { userId: "", eventId: mockEvents[0].id })).rejects.toMatchObject({ name: "ApiError", status: 400 });

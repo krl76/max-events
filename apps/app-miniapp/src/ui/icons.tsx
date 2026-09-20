@@ -68,12 +68,16 @@ const FILLED: Partial<Record<TabIcon, ReactNode>> = {
   ),
 };
 
-export function TabIconGlyph({ name, size = 24, filled = false }: { name: TabIcon; size?: number; filled?: boolean }) {
+function Glyph({ paths, size, filled, strokeWidth }: { paths: ReactNode; size: number; filled: boolean; strokeWidth?: number }) {
   return (
-    <svg aria-hidden="true" fill={filled ? "currentColor" : "none"} height={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} viewBox="0 0 24 24" width={size}>
-      {filled && FILLED[name] ? FILLED[name] : OUTLINE[name]}
+    <svg aria-hidden="true" fill={filled ? "currentColor" : "none"} height={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth ?? 1.7} viewBox="0 0 24 24" width={size}>
+      {paths}
     </svg>
   );
+}
+
+export function TabIconGlyph({ name, size = 24, filled = false }: { name: TabIcon; size?: number; filled?: boolean }) {
+  return <Glyph paths={filled ? (FILLED[name] ?? OUTLINE[name]) : OUTLINE[name]} size={size} filled={filled} />;
 }
 
 export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert";
@@ -119,9 +123,5 @@ const ACTIONS: Record<ActionIconName, ReactNode> = {
 };
 
 export function ActionIcon({ name, size = 24, filled = false, strokeWidth = 1.7 }: { name: ActionIconName; size?: number; filled?: boolean; strokeWidth?: number }) {
-  return (
-    <svg aria-hidden="true" fill={filled ? "currentColor" : "none"} height={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} viewBox="0 0 24 24" width={size}>
-      {ACTIONS[name]}
-    </svg>
-  );
+  return <Glyph paths={ACTIONS[name]} size={size} filled={filled} strokeWidth={strokeWidth} />;
 }

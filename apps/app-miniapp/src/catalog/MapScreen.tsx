@@ -7,22 +7,26 @@
 //
 // START_MODULE_MAP
 // - MOSCOW_CENTER - fixed Moscow city center coords (shared with the nearby screen)
+// - MOSCOW_ZOOM - shared Leaflet initial zoom (imported by the MyCity map)
+// - OSM_TILE_URL - shared OpenStreetMap tile URL (imported by the MyCity map)
+// - OSM_ATTRIBUTION - shared OSM attribution (imported by the MyCity map)
 // - initEventMap - create Leaflet map (Moscow center) + OSM tile layer with the required attribution + markers with popup mini-cards (promoted events get the highlighted pin and the «Промо» chip, #205); returns a dispose function
-// - MapScreen - places loading state + container ref; wires initEventMap to the React lifecycle
+// - MapScreen - places loading state + container ref; wires initEventMap to the React lifecycle via useLeafletMap
 // END_MODULE_MAP
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Event, Place } from "@max-events/api-contracts";
 import "leaflet/dist/leaflet.css";
 import { apiClient } from "../api/client";
 import { buildMapMarkers, type MapMarker } from "./mapMarkers";
+import { useLeafletMap } from "./useLeafletMap";
 import { AppState } from "../ui/primitives";
 
 /** Fixtures and P0 scope are Moscow-only, so the map opens on the city center; also the anchor point of the nearby screen. */
 export const MOSCOW_CENTER: [number, number] = [55.7522, 37.6156];
-const MOSCOW_ZOOM = 11;
-const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+export const MOSCOW_ZOOM = 11;
+export const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+export const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 function popupNode(marker: MapMarker, onOpenEvent: (id: string) => void, onOpenPlace: (id: string) => void): HTMLElement {
   const root = document.createElement("div");
@@ -75,7 +79,6 @@ export async function initEventMap(container: HTMLElement, input: { events: Even
 type PlacesState = { status: "loading" } | { status: "error" } | { status: "ready"; places: Place[] };
 
 export function MapScreen({ events, onOpenEvent, onOpenPlace }: { events: Event[]; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void }) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const [places, setPlaces] = useState<PlacesState>({ status: "loading" });
 
   useEffect(() => {
@@ -93,19 +96,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace }: { events: Event[
     };
   }, []);
 
-  useEffect(() => {
-    if (places.status !== "ready" || containerRef.current === null) return;
-    let disposed = false;
-    let dispose: (() => void) | null = null;
-    initEventMap(containerRef.current, { events, places: places.places, onOpenEvent, onOpenPlace }).then((created) => {
-      if (disposed) created();
-      else dispose = created;
-    });
-    return () => {
-      disposed = true;
-      dispose?.();
-    };
-  }, [events, places, onOpenEvent, onOpenPlace]);
+  const readyPlaces = places.status === "ready" ? places.places : [];
+  const containerRef = useLeafletMap(places.status === "ready", (container) => initEventMap(container, { events, places: readyPlaces, onOpenEvent, onOpenPlace }), [events, places, onOpenEvent, onOpenPlace]);
 
   if (places.status === "loading") return <AppState>Загружаем карту…</AppState>;
   if (places.status === "error") return <AppState error>Не удалось загрузить места для карты.</AppState>;
