@@ -1,6 +1,9 @@
-import { BadRequestException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, UnauthorizedException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type DataSource, type EntityManager, type EntityTarget } from "typeorm";
+import { BookingEntity } from "../bookings/booking.entity";
+import { EventEntity } from "../events/event.entity";
+import type { PromoService } from "../promo/promo.service";
 import { PaymentWebhookEventEntity } from "./payment-webhook-event.entity";
 import { PaymentEntity } from "./payment.entity";
 import { PaymentsWebhookService } from "./payments-webhook.service";
@@ -28,9 +31,12 @@ function paymentRow(status: PaymentEntity["status"] = "pending"): PaymentEntity 
   };
 }
 
-function createService(payment: PaymentEntity | null) {
+function createService(payment: PaymentEntity | null, seed: { booking?: BookingEntity; event?: EventEntity } = {}) {
   const payments: PaymentEntity[] = payment ? [payment] : [];
   const events: PaymentWebhookEventEntity[] = [];
+  const bookings: BookingEntity[] = seed.booking ? [seed.booking] : [];
+  const eventRows: EventEntity[] = seed.event ? [seed.event] : [];
+  const released: string[] = [];
   const dataSource = {
     transaction: async <T>(run: (manager: EntityManager) => Promise<T>): Promise<T> => {
       const paymentsSnap = payments.map((row) => ({ ...row }));
@@ -40,6 +46,8 @@ function createService(payment: PaymentEntity | null) {
           const where = options.where;
           if (entity === PaymentWebhookEventEntity) return events.find((row) => row.providerEventId === where.providerEventId) ?? null;
           if (entity === PaymentEntity) return payments.find((row) => row.providerPaymentId === where.providerPaymentId) ?? null;
+          if (entity === BookingEntity) return bookings.find((row) => row.id === where.id) ?? null;
+          if (entity === EventEntity) return eventRows.find((row) => row.id === where.id) ?? null;
           return null;
         },
         create: (_entity: EntityTarget<unknown>, fields: object) => ({ ...fields }),
@@ -59,6 +67,18 @@ function createService(payment: PaymentEntity | null) {
             if (index >= 0) payments[index] = row;
             return row;
           }
+          if (maybeRecord !== undefined && entity === BookingEntity) {
+            const row = record as unknown as BookingEntity;
+            const index = bookings.findIndex((item) => item.id === row.id);
+            if (index >= 0) bookings[index] = row;
+            return row;
+          }
+          if (maybeRecord !== undefined && entity === EventEntity) {
+            const row = record as unknown as EventEntity;
+            const index = eventRows.findIndex((item) => item.id === row.id);
+            if (index >= 0) eventRows[index] = row;
+            return row;
+          }
           return record;
         },
       };
@@ -73,8 +93,14 @@ function createService(payment: PaymentEntity | null) {
       }
     },
   };
-  const service = new PaymentsWebhookService(dataSource as unknown as DataSource, { get: () => 1000 } as never);
-  return { service, payments, events };
+  const promo = {
+    releaseInTransaction: async () => undefined,
+    releaseFulfillmentInTransaction: async (_manager: EntityManager, id: string) => {
+      released.push(id);
+    },
+  } as unknown as PromoService;
+  const service = new PaymentsWebhookService(dataSource as unknown as DataSource, { get: () => 1000 } as never, promo);
+  return { service, payments, events, bookings, eventRows, released };
 }
 
 function signed(body: object | string) {
@@ -124,10 +150,36 @@ describe("PaymentsWebhookService", () => {
     expect(events).toHaveLength(1);
   });
 
-  it("rolls back the journal when the payment row is missing so the provider can retry", async () => {
+  it("acknowledges a webhook for a provider payment it does not know", async () => {
     const { service, events } = createService(null);
     const { raw, signature } = signed({ eventId: "evt_3", paymentId: providerPaymentId, status: "succeeded" });
-    await expect(service.handleWebhook(raw, signature, secret)).rejects.toBeInstanceOf(ServiceUnavailableException);
-    expect(events).toHaveLength(0);
+    expect(await service.handleWebhook(raw, signature, secret)).toEqual({ duplicate: false, applied: false });
+    // The delivery is journaled, so a provider that re-sends the same event is deduped instead of
+    // walking the unknown-payment path again.
+    expect(events).toHaveLength(1);
+  });
+
+  it("frees the booking seat when the provider reports a refund", async () => {
+    const eventId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d20";
+    const booking = { id: bookingId, userId: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d21", eventId, status: "active", promoCode: null } as BookingEntity;
+    const eventRow = { id: eventId, capacity: 10, bookedCount: 4 } as EventEntity;
+    const { service, payments, bookings, eventRows, released } = createService(paymentRow("succeeded"), { booking, event: eventRow });
+    const { raw, signature } = signed({ eventId: "evt_refund", paymentId: providerPaymentId, status: "refunded" });
+    expect(await service.handleWebhook(raw, signature, secret)).toEqual({ duplicate: false, applied: true });
+    expect(payments[0]?.status).toBe("refunded");
+    expect(bookings[0]?.status).toBe("cancelled");
+    expect(eventRows[0]?.bookedCount).toBe(3);
+    expect(released).toEqual([bookingId]);
+  });
+
+  it("leaves an already-cancelled booking and its seat count alone on a refund", async () => {
+    const eventId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d20";
+    const booking = { id: bookingId, userId: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d21", eventId, status: "cancelled", promoCode: null } as BookingEntity;
+    const eventRow = { id: eventId, capacity: 10, bookedCount: 4 } as EventEntity;
+    const { service, bookings, eventRows } = createService(paymentRow("succeeded"), { booking, event: eventRow });
+    const { raw, signature } = signed({ eventId: "evt_refund_again", paymentId: providerPaymentId, status: "refunded" });
+    expect(await service.handleWebhook(raw, signature, secret)).toEqual({ duplicate: false, applied: true });
+    expect(bookings[0]?.status).toBe("cancelled");
+    expect(eventRows[0]?.bookedCount).toBe(4);
   });
 });

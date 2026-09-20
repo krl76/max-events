@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Nest module wiring PaymentProvider from env (sandbox or none).
 // SCOPE: Factory selects SandboxPaymentProvider or NonePaymentProvider; exports PaymentsService.
-// DEPENDS: @nestjs/config, ./sandbox-payment.provider, ./none-payment.provider, ./payments.service
+// DEPENDS: @nestjs/config, ../promo/promo.module, ./sandbox-payment.provider, ./none-payment.provider, ./payments.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -15,6 +15,7 @@ import { ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
+import { PromoModule } from "../promo/promo.module";
 import { NonePaymentProvider } from "./none-payment.provider";
 import { PaymentWebhookEventEntity } from "./payment-webhook-event.entity";
 import { PaymentEntity } from "./payment.entity";
@@ -32,7 +33,7 @@ export function createPaymentProvider(kind: string | undefined, failAmount = SAN
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PaymentEntity, PaymentWebhookEventEntity, EventEntity, BookingEntity])],
+  imports: [TypeOrmModule.forFeature([PaymentEntity, PaymentWebhookEventEntity, EventEntity, BookingEntity]), PromoModule],
   controllers: [PaymentsController],
   providers: [
     {
