@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { EMPTY_PROMOTION_DRAFT, EarlyAccessSection, EventStatsView, OrganizerRatingView, PromoCampaignRow, PromoCodeRow, PromoForm, CampaignForm, EMPTY_PROMO_DRAFT, EMPTY_CAMPAIGN_DRAFT, PromotionCampaignRow, PromotionForm, campaignDraftErrors, promoDraftErrors, promotionDraftErrors, toCreateCampaign, toCreatePromotion, toCreatePromo, visitsCountLabel, type PromotionDraft, type PromoDraft } from "./OrganizerAddons";
+import { EMPTY_PROMOTION_DRAFT, EarlyAccessSection, EventStatsView, ExpandableSection, OrganizerRatingView, PromoCampaignRow, PromoCodeRow, PromoForm, CampaignForm, EMPTY_PROMO_DRAFT, EMPTY_CAMPAIGN_DRAFT, PromotionCampaignRow, PromotionForm, campaignDraftErrors, promoDraftErrors, promotionDraftErrors, toCreateCampaign, toCreatePromotion, toCreatePromo, visitsCountLabel, type PromotionDraft, type PromoDraft } from "./OrganizerAddons";
 import type { EventSalesReport, OrganizerEventStats, OrganizerRating, PromoCampaign, PromoCode, PromotionCampaign } from "@max-events/api-contracts";
 
 const noop = () => {};
@@ -226,5 +226,31 @@ describe("promo campaign organizer helpers (#372)", () => {
     const html = renderToStaticMarkup(createElement(EarlyAccessSection, { eventId: stats.eventId, bookingOpensAt: "2027-06-01T10:00:00Z" }));
     expect(html).toContain("Ранний доступ");
     expect(html).not.toContain("Запись откроется");
+  });
+});
+
+describe("ExpandableSection", () => {
+  const base = {
+    label: "Продвижение",
+    openLabel: "Скрыть продвижение",
+    errorText: "Не удалось загрузить кампании.",
+    list: { open: false, toggle: noop, state: null },
+    children: (items: string[]) => createElement("p", null, items.join(",")),
+  };
+
+  it("renders the collapsed toggle and hides the content", () => {
+    const html = renderToStaticMarkup(createElement(ExpandableSection<string>, base));
+    expect(html).toContain("Продвижение");
+    expect(html).not.toContain("Скрыть продвижение");
+    expect(html).not.toContain("Загрузка");
+  });
+
+  it("renders the loading/error app states and the ready items", () => {
+    const loading = renderToStaticMarkup(createElement(ExpandableSection<string>, { ...base, list: { open: true, toggle: noop, state: { status: "loading" } } }));
+    expect(loading).toContain("Загрузка…");
+    const error = renderToStaticMarkup(createElement(ExpandableSection<string>, { ...base, list: { open: true, toggle: noop, state: { status: "error" } } }));
+    expect(error).toContain("Не удалось загрузить кампании.");
+    const ready = renderToStaticMarkup(createElement(ExpandableSection<string>, { ...base, list: { open: true, toggle: noop, state: { status: "ready", items: ["a", "b"] } } }));
+    expect(ready).toContain("<p>a,b</p>");
   });
 });
