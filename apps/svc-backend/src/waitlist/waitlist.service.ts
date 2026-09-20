@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: FIFO waitlist — join when full, offer the freed seat with a confirmation timer, expire and pass on.
-// SCOPE: join, confirm, decline, getMe, expireOffers; onSeatFreed is called inside the booking-cancel transaction.
+// SCOPE: join, confirm, decline, getMe, expireOffers; every path that drops an offer releases its reserved seat; onSeatFreed is called inside the booking-cancel transaction.
 // DEPENDS: typeorm, @max-events/api-contracts, bookings/events/users, max-bot
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -93,6 +93,12 @@ export class WaitlistService {
           entry.offeredUntil = null;
           await manager.save(WaitlistEntryEntity, entry);
           const next = await this.onSeatFreed(manager, event, now, false);
+          // The offer held a reserved seat. Handing it to the next entry keeps the count; with an
+          // empty queue it has to go back on sale, exactly as decline and expiry release it.
+          if (!next) {
+            event.bookedCount = Math.max(0, event.bookedCount - 1);
+            await manager.save(EventEntity, event);
+          }
           return { kind: "duplicate" as const, next };
         }
         throw error;

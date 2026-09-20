@@ -343,6 +343,21 @@ describe("WaitlistService.onSeatFreed, confirm and expiry", () => {
     expect(harness.sent[0]).toContain("2:");
   });
 
+  it("puts the reserved seat back on sale when a 23505 confirm finds an empty queue", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    const joined = await harness.service.join(userA, eventId);
+    harness.bookings.push({ id: "b1", userId: userA, eventId, status: "active" } as BookingEntity);
+    const offered = harness.entries.find((row) => row.id === joined.id)!;
+    offered.status = "offered";
+    offered.offeredUntil = new Date(now.getTime() + 60_000);
+    harness.events[0]!.bookedCount = 1;
+    await expect(harness.service.confirm(userA, joined.id, now)).rejects.toMatchObject({ message: "Booking already exists" });
+    expect(offered.status).toBe("expired");
+    // Nobody is left to take the offer, so the seat the offer reserved has to go back on sale.
+    expect(harness.events[0]?.bookedCount).toBe(0);
+    expect(harness.sent).toHaveLength(0);
+  });
+
   it("returns the FIFO position among remaining offered and waiting entries", async () => {
     const harness = createHarness(seedEvent(2, 2));
     await harness.service.join(userA, eventId);
