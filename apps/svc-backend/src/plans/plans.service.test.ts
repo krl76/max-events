@@ -116,8 +116,12 @@ function createService() {
       ] satisfies Friend[],
   } as unknown as FriendsService;
   const messages: string[] = [];
+  const chatTitles: string[] = [];
   const bot = {
-    createChat: async () => ({ chatId: 1, link: "https://max.ru/join/plan" }),
+    createChat: async (title: string) => {
+      chatTitles.push(title);
+      return { chatId: 1, link: "https://max.ru/join/plan" };
+    },
     sendMessage: async (_id: string, text: string) => {
       messages.push(text);
       return true;
@@ -125,7 +129,7 @@ function createService() {
   } as unknown as MaxBotClient;
   const expenses = createStoreRepo<PlanExpenseEntity>();
   const service = new PlansService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, userRepo as unknown as Repository<UserEntity>, expenses as unknown as Repository<PlanExpenseEntity>, friends, bot);
-  return { service, messages, plans, participants };
+  return { service, messages, plans, participants, chatTitles };
 }
 
 describe("haversineMeters", () => {
@@ -162,6 +166,17 @@ describe("PlansService", () => {
     expect(proposal.timeline.map((row) => row.label)).toEqual(["ужин", "дорога", "встреча", "событие"]);
     expect(proposal.plan.plan.eventId).toBe(eventId);
     expect(plans.store).toHaveLength(1);
+  });
+
+  it("returns the plan that already exists when the autoplan is collected twice", async () => {
+    const { service, plans, chatTitles } = createService();
+    const first = await service.generateAutoplan(hostId, eventId, { latitude: 55.75, longitude: 37.62 });
+    // A slightly different position shifts the derived meeting time, which must not spawn a second plan.
+    const second = await service.generateAutoplan(hostId, eventId, { latitude: 55.79, longitude: 37.66 });
+    expect(second.plan.plan.id).toBe(first.plan.plan.id);
+    expect(second.plan.plan.meetingAt).toBe(first.plan.plan.meetingAt);
+    expect(plans.store).toHaveLength(1);
+    expect(chatTitles).toHaveLength(1);
   });
 
   it("carries real distanceMeters on an autoplan card but not on a plain create", async () => {

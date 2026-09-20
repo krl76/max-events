@@ -15,7 +15,7 @@
 // - PLAN_POLL_WINDOW_MS - look-ahead window for occurrence polls
 // - settleBalances - greedy debt settlement
 // - budgetFromExpenses - split expenses into per-person nets and debts
-// - PlansService - create, findExisting, list, get, addParticipant, respond, remove, spawnRecurring, pollRecurring, remindMeeting, budget
+// - PlansService - create, findExisting, findActiveForEvent, list, get, addParticipant, respond, remove, spawnRecurring, pollRecurring, remindMeeting, budget
 // END_MODULE_MAP
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
@@ -222,6 +222,20 @@ export class PlansService {
     return this.toCard(plan, event, null);
   }
 
+  /**
+   * The host's live plan for an event, whatever meeting time it holds. Autoplan derives its meeting
+   * time from the caller's coordinates, so matching on the exact minute would still let a second
+   * click create a duplicate.
+   */
+  async findActiveForEvent(hostUserId: string, eventId: string): Promise<PlanCard | null> {
+    const rows = await this.plans.find({ where: { hostUserId, eventId } });
+    const plan = rows.filter((row) => !row.cancelledAt).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))[0];
+    if (!plan) return null;
+    const event = await this.events.findOneBy({ id: plan.eventId });
+    if (!event) return null;
+    return this.toCard(plan, event, null);
+  }
+
   async spawnRecurring(now = new Date()): Promise<number> {
     const all = await this.plans.find();
     const templates = all.filter((row) => row.recurringRule && row.seriesId && !row.cancelledAt);
@@ -300,14 +314,18 @@ export class PlansService {
         .slice(0, 3);
       for (const row of ranked) foodPlaces.push(toPlaceDto(row.place));
     }
-    const meetupAt = new Date(event.startsAt.getTime() - (travelMinutes + MEETUP_BUFFER_MIN) * 60_000);
+    const proposedMeetupAt = new Date(event.startsAt.getTime() - (travelMinutes + MEETUP_BUFFER_MIN) * 60_000);
+    const proposedMeetingPoint = foodPlaces[0]?.title ?? venue?.address ?? event.city;
+    // Collecting the plan twice (a second tap, or a reload of the page) must land on the plan that
+    // already exists — creating another one also created a second MAX chat for the same outing.
+    const existing = await this.findActiveForEvent(hostUserId, eventId);
+    const card = existing ?? (await this.create(hostUserId, { eventId, participantIds: [], meetingPoint: proposedMeetingPoint, meetingAt: proposedMeetupAt.toISOString() }, origin));
+    const meetupAt = new Date(card.plan.meetingAt);
     const dinnerAt = new Date(meetupAt.getTime() - DINNER_MIN * 60_000);
-    const meetingPoint = foodPlaces[0]?.title ?? venue?.address ?? event.city;
-    const card = await this.create(hostUserId, { eventId, participantIds: [], meetingPoint, meetingAt: meetupAt.toISOString() }, origin);
     const timeline = [];
     if (foodPlaces[0]) timeline.push({ at: dinnerAt.toISOString(), label: "ужин", detail: foodPlaces[0].title });
     timeline.push({ at: new Date(dinnerAt.getTime() + DINNER_MIN * 60_000).toISOString(), label: "дорога", detail: `${travelMinutes} мин до места` });
-    timeline.push({ at: meetupAt.toISOString(), label: "встреча", detail: meetingPoint });
+    timeline.push({ at: meetupAt.toISOString(), label: "встреча", detail: card.plan.meetingPoint });
     timeline.push({ at: event.startsAt.toISOString(), label: "событие", detail: event.title });
     return { plan: card, travelMinutes, foodPlaces, timeline };
   }
