@@ -81,7 +81,7 @@
 // - ApiClient.createReview - POST /reviews
 // - REPORT_REASONS - report reason presets
 // - ReportReason - union of the report reason presets
-// - CreateReport - report submission payload (user + event + reason); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
+// - CreateReport - report submission payload (user + exactly one of event/place/feed post + reason); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
 // - Report - report entity (contract shape)
 // - ApiClient.createReport - POST /reports
 // - ApiClient.assistQuery - POST /assist: NL query -> explained picks (summary + criteria + items)
@@ -378,10 +378,12 @@ export interface CreateReview {
 export const REPORT_REASONS = ["spam", "abuse", "inaccurate", "inappropriate", "other"] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number];
 
-/** Report submission payload: the author, the reported event and the reason. */
+/** Report submission payload: the author, the reported target (exactly one of event/place/feed post) and the reason. */
 export interface CreateReport {
   userId: string;
-  eventId: string;
+  eventId?: string;
+  placeId?: string;
+  feedPostId?: string;
   reason: ReportReason;
 }
 

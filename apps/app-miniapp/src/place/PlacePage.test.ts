@@ -8,6 +8,7 @@ import type { PlacePage as PlacePageAggregate } from "@max-events/api-contracts"
 import { mockPlaces } from "../api/mock";
 
 const park = mockPlaces[0];
+const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
 function page(overrides: Partial<PlacePageAggregate> = {}): PlacePageAggregate {
   return {
@@ -22,7 +23,7 @@ function page(overrides: Partial<PlacePageAggregate> = {}): PlacePageAggregate {
 }
 
 function viewHtml(payload: PlacePageAggregate, place: Place = park): string {
-  return renderToStaticMarkup(createElement(PlacePageView, { place, page: payload, onOpenEvent: () => {} }));
+  return renderToStaticMarkup(createElement(PlacePageView, { place, page: payload, userId: DEMO_USER_ID, checkedIn: false, onCheckIn: () => {}, onOpenEvent: () => {} }));
 }
 
 describe("ru visits label", () => {
@@ -92,5 +93,22 @@ describe("PlacePageView", () => {
 
     expect(html).toContain(park.title);
     expect(html).toContain(park.address);
+  });
+
+  it("renders the check-in CTA before the user checks in", () => {
+    const html = viewHtml(page());
+    expect(html).toContain("Я здесь");
+    expect(html).not.toContain("Вы были здесь");
+  });
+
+  it("renders «Вы были здесь» once checked in", () => {
+    const html = renderToStaticMarkup(createElement(PlacePageView, { place: park, page: page(), userId: DEMO_USER_ID, checkedIn: true, onCheckIn: () => {}, onOpenEvent: () => {} }));
+    expect(html).toContain("Вы были здесь");
+    expect(html).not.toContain("Я здесь");
+  });
+
+  it("renders the report button", () => {
+    const html = viewHtml(page());
+    expect(html).toContain("Пожаловаться");
   });
 });

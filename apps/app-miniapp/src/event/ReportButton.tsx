@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: "Пожаловаться" control for the event page: preset reasons, mock submission and the post-moderation states (sent / already sent).
-// SCOPE: Presentational ReportMenu plus the ReportButton container that submits reports via apiClient; a 409 duplicate is mapped to the "already reported" state. Place pages do not exist yet, so the button is event-only.
+// PURPOSE: "Пожаловаться" control for the event/place/feed pages: preset reasons, mock submission and the post-moderation states (sent / already sent).
+// SCOPE: Presentational ReportMenu plus the ReportButton container that submits reports via apiClient; a 409 duplicate is mapped to the "already reported" state.
 // DEPENDS: ../api/client.js (ApiError, apiClient, REPORT_REASONS, ReportReason), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - REPORT_REASON_LABELS - ru labels of the report reason presets
 // - ReportMenu - presentational: reason preset buttons or the submitted state
-// - ReportButton - container: opens the menu, submits the report, maps 409 to the already-reported state
+// - ReportButton - container: opens the menu, submits the report for an event/place/feed post target, maps 409 to the already-reported state
 // END_MODULE_MAP
 
 import { useCallback, useState } from "react";
@@ -36,7 +36,7 @@ export function ReportMenu({ onReport, sending, done }: { onReport: (reason: Rep
   );
 }
 
-export function ReportButton({ eventId, userId }: { eventId: string; userId: string }) {
+export function ReportButton({ target, userId }: { target: { eventId: string } | { placeId: string } | { feedPostId: string }; userId: string }) {
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState<string | null>(null);
@@ -45,14 +45,14 @@ export function ReportButton({ eventId, userId }: { eventId: string; userId: str
     (reason: ReportReason) => {
       setSending(true);
       apiClient
-        .createReport({ userId, eventId, reason })
+        .createReport({ userId, ...target, reason })
         .then(() => setDone("Жалоба отправлена. Мы её проверим."))
         .catch((error: unknown) => {
           if (error instanceof ApiError && error.status === 409) setDone("Жалоба уже отправлена.");
         })
         .finally(() => setSending(false));
     },
-    [eventId, userId],
+    [target, userId],
   );
 
   return (

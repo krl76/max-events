@@ -6,7 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - FeedPostCard - presentational Instagram-style post: author header, 4:5 media placeholder, icon actions (like/comment/share), likes line, caption, comments and add form
+// - FeedPostCard - presentational Instagram-style post: author header, 4:5 media placeholder, icon actions (like/comment/share), likes line, caption, comments, add form and a «Пожаловаться» report control
 // - StoriesRow - decorative stories rail over the home feed (friends from the API + own story ring)
 // - FeedState - union of the feed fetch states (loading / error / ready)
 // - FeedSection - container: posts (optionally one event — the wall), event titles for the cards, like/comment wiring, «+» publish CTA
@@ -23,6 +23,7 @@ import { apiClient, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { shareResult, webApp } from "../max/bridge";
 import { useRoute } from "../routing/router";
+import { ReportButton } from "../event/ReportButton";
 import { AppAvatar, AppButton, AppChip, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { IconButton } from "@maxhub/max-ui";
@@ -32,12 +33,13 @@ interface FeedPostCardProps {
   post: FeedPost;
   eventTitle: string;
   eventCategory?: Event["category"];
+  userId: string;
   onToggleLike: () => void;
   onAddComment: (text: string) => void;
   onOpenEvent?: (eventId: string) => void;
 }
 
-export function FeedPostCard({ post, eventTitle, eventCategory, onToggleLike, onAddComment, onOpenEvent }: FeedPostCardProps) {
+export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenEvent }: FeedPostCardProps) {
   const [comment, setComment] = useState("");
   const commentRef = useRef<HTMLInputElement | null>(null);
   const eventLink = onOpenEvent ? (
@@ -98,6 +100,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, onToggleLike, on
           Отправить
         </AppChip>
       </form>
+      {userId !== "" && <ReportButton target={{ feedPostId: post.id }} userId={userId} />}
     </article>
   );
 }
@@ -179,7 +182,7 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
       ) : state.posts.length === 0 ? (
         <AppState>Пока нет постов — расскажи первым.</AppState>
       ) : (
-        state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} eventCategory={events.find((item) => item.id === post.eventId)?.category} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)
+        state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} eventCategory={events.find((item) => item.id === post.eventId)?.category} userId={userId ?? ""} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)
       )}
     </AppSection>
   );

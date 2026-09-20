@@ -5,10 +5,20 @@ import { REPORT_REASON_LABELS, ReportButton, ReportMenu } from "./ReportButton";
 
 describe("ReportButton", () => {
   it("renders the closed report button", () => {
-    const html = renderToStaticMarkup(createElement(ReportButton, { eventId: "c0000001-0000-4000-8000-000000000001", userId: "a0000000-0000-4000-8000-000000000001" }));
+    const html = renderToStaticMarkup(createElement(ReportButton, { target: { eventId: "c0000001-0000-4000-8000-000000000001" }, userId: "a0000000-0000-4000-8000-000000000001" }));
 
     expect(html).toContain("Пожаловаться");
     expect(html).not.toContain("Спам");
+  });
+
+  it("renders for a place target", () => {
+    const html = renderToStaticMarkup(createElement(ReportButton, { target: { placeId: "b0000001-0000-4000-8000-000000000001" }, userId: "a0000000-0000-4000-8000-000000000001" }));
+    expect(html).toContain("Пожаловаться");
+  });
+
+  it("renders for a feed post target", () => {
+    const html = renderToStaticMarkup(createElement(ReportButton, { target: { feedPostId: "30000000-0000-4000-8000-000000000001" }, userId: "a0000000-0000-4000-8000-000000000001" }));
+    expect(html).toContain("Пожаловаться");
   });
 });
 

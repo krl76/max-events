@@ -461,7 +461,7 @@ export function EventPage({ id }: { id: string }) {
       <ParticipationSection eventId={id} userId={userId} />
       <FeedSection eventId={id} onCreate={() => navigate({ name: "feed-new", eventId: id })} />
       <ReviewSection eventId={id} userId={userId} canReview={state.details.activeBookingId !== null && new Date(state.details.event.startsAt).getTime() < Date.now()} />
-      <ReportButton eventId={id} userId={userId} />
+      <ReportButton target={{ eventId: id }} userId={userId} />
     </>
   );
 }
