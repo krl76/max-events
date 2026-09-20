@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DataSource, EntityManager, EntityTarget, FindOneOptions, ObjectLiteral, Repository } from "typeorm";
+import { FindOperator, type Repository } from "typeorm";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
@@ -72,6 +72,20 @@ function user(): UserEntity {
   };
 }
 
+// The tick now filters in SQL, so the fake repositories have to read the same find operators.
+function matchesOperator(cell: unknown, condition: unknown): boolean {
+  if (!(condition instanceof FindOperator)) return cell === condition;
+  const value = condition.value as unknown;
+  if (condition.type === "and") return (value as FindOperator<unknown>[]).every((inner) => matchesOperator(cell, inner));
+  if (condition.type === "isNull") return cell === null || cell === undefined;
+  if (condition.type === "in") return (value as unknown[]).includes(cell);
+  const time = (cell as Date)?.getTime?.();
+  const bound = (value as Date)?.getTime?.();
+  if (condition.type === "moreThanOrEqual") return time >= bound;
+  if (condition.type === "lessThan") return time < bound;
+  throw new Error(`unsupported find operator in fake repository: ${condition.type}`);
+}
+
 function createHarness(options: { bookings: BookingEntity[]; events: EventEntity[]; send?: (maxUserId: string, text: string) => Promise<boolean> }) {
   const bookings = options.bookings;
   const events = options.events;
@@ -86,36 +100,21 @@ function createHarness(options: { bookings: BookingEntity[]; events: EventEntity
   } as unknown as MaxBotClient;
 
   const bookingsRepo = {
-    find: async (opts: { where: { status: string } }) => bookings.filter((row) => row.status === opts.where.status),
+    find: async (opts: { where: { status: string; reminderSentAt: FindOperator<Date>; eventId: FindOperator<string> } }) => bookings.filter((row) => row.status === opts.where.status && matchesOperator(row.reminderSentAt, opts.where.reminderSentAt) && matchesOperator(row.eventId, opts.where.eventId)),
+    update: async (criteria: Record<string, unknown>, patch: Partial<BookingEntity>) => {
+      const matched = bookings.filter((row) => Object.entries(criteria).every(([key, value]) => matchesOperator((row as unknown as Record<string, unknown>)[key], value)));
+      for (const row of matched) Object.assign(row, patch);
+      return { affected: matched.length };
+    },
   };
   const eventsRepo = {
-    findOneBy: async (where: { id: string }) => events.find((row) => row.id === where.id) ?? null,
+    find: async (opts: { where: { startsAt: FindOperator<Date> } }) => events.filter((row) => matchesOperator(row.startsAt, opts.where.startsAt)),
   };
   const usersRepo = {
     findOneBy: async (where: { id: string }) => users.find((row) => row.id === where.id) ?? null,
   };
 
-  const dataSource = {
-    transaction: async <T>(run: (manager: EntityManager) => Promise<T>): Promise<T> => {
-      const manager = {
-        findOne: async <Entity extends ObjectLiteral>(entity: EntityTarget<Entity>, opts: FindOneOptions<Entity>) => {
-          const where = (opts.where ?? {}) as Record<string, unknown>;
-          if (entity === BookingEntity) return (bookings.find((row) => row.id === where.id) ?? null) as Entity | null;
-          if (entity === UserEntity) return (users.find((row) => row.id === where.id) ?? null) as Entity | null;
-          return null;
-        },
-        save: async <Entity>(_entity: EntityTarget<Entity>, record: ObjectLiteral) => {
-          const row = record as BookingEntity;
-          const index = bookings.findIndex((item) => item.id === row.id);
-          if (index >= 0) bookings[index] = row;
-          return row as Entity;
-        },
-      };
-      return run(manager as unknown as EntityManager);
-    },
-  };
-
-  const service = new RemindersService(bookingsRepo as unknown as Repository<BookingEntity>, eventsRepo as unknown as Repository<EventEntity>, usersRepo as unknown as Repository<UserEntity>, dataSource as unknown as DataSource, bot);
+  const service = new RemindersService(bookingsRepo as unknown as Repository<BookingEntity>, eventsRepo as unknown as Repository<EventEntity>, usersRepo as unknown as Repository<UserEntity>, bot);
   return { bookings, sent, service };
 }
 
@@ -143,6 +142,25 @@ describe("RemindersService.tick", () => {
     });
     await expect(service.tick(now)).resolves.toEqual({ sent: 0, failed: 0 });
     expect(sent).toEqual([]);
+  });
+
+  it("releases the claim so the booking is retried on a later tick", async () => {
+    const startsAt = new Date(now.getTime() + 15 * 60 * 1000);
+    let calls = 0;
+    const { bookings, sent, service } = createHarness({
+      bookings: [booking()],
+      events: [eventAt(startsAt)],
+      send: async () => {
+        calls += 1;
+        return calls !== 1;
+      },
+    });
+    await expect(service.tick(now)).resolves.toEqual({ sent: 0, failed: 1 });
+    expect(bookings[0]?.reminderSentAt).toBeNull();
+    const retry = await service.tick(now);
+    expect(retry).toEqual({ sent: 1, failed: 0 });
+    expect(bookings[0]?.reminderSentAt).toEqual(now);
+    expect(sent).toHaveLength(1);
   });
 
   it("does not mark sent when the bot fails and still processes the next booking", async () => {
