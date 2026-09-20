@@ -10,7 +10,6 @@
 // - mockEvents - Moscow event fixtures (all four categories, paid and free, incl. two past events for the review flow, one event "today" for the place page, two MOCK_TODAY daytime events filling the nearby now/inAnHour buckets)
 // - MOCK_TODAY - the fixed demo "today" (Moscow day key) the place page fixtures are curated for
 // - MOCK_NOW - the fixed demo "now" (noon of MOCK_TODAY) the nearby timeline buckets and leisure window are computed from
-// - mockNearbyBucket - event start -> now / inAnHour / evening / tomorrow against MOCK_NOW (backend parity)
 // - nearbyTimeline - four-bucket nearby timeline from fixtures, haversine distance from the requested coords (mock GET /nearby)
 // - leisureOptions - deterministic per-mood leisure chains from fixtures inside the free window (mock GET /nearby/free)
 // - mockOrganizers - demo organizer fixture for event details
@@ -21,9 +20,6 @@
 // - leaveMockMicroEvent - leave with the counter, idempotent (mock DELETE /join)
 // - resetMockFeed - restore seeded impression posts (test isolation)
 // - feedPosts - impression posts newest first, optionally only one event (the event wall)
-// - toggleMockFeedLike - like/unlike toggle with the counter, idempotent per state (mock POST)
-// - addMockFeedComment - append a comment attributed to its author (mock POST)
-// - createMockFeedPost - publish an impression post as its author (mock POST)
 // - mockDemoUser - demo user returned by mock auth outside MAX (VITE_USE_MOCK=1)
 // - mockFriendIds - friend user ids of the demo user (social counters fixtures)
 // - mockFriends - friend fixtures for the "Your people are going" feed
@@ -41,50 +37,28 @@
 // - resetMockPlans - restore seeded plan cards, dropping autoplan drafts (test isolation)
 // - planCards - plan fixtures sorted by the soonest meeting first
 // - planCard - single plan card by plan id (or null)
-// - MockPlanExpense - in-memory plan expense row
 // - mockBudgetFromExpenses - expenses -> per-person nets + debts (backend budgetFromExpenses parity, incl. the id-rotated remainder split)
 // - mockPlanBudget - mock GET /plans/:id/budget (404 unknown plan)
-// - addMockPlanExpense - mock POST /plans/:id/expenses (400 payer/shares outside the host+confirmed party)
 // - resetMockWeGroups - restore seeded groups and plan expenses (test isolation)
 // - listMockWeGroups - mock GET /we-groups: screens of the demo user's groups, newest first
-// - getMockWeGroup - mock GET /we-groups/:id (404 unknown, 403 non-member)
-// - createMockWeGroup - mock POST /we-groups (404 unknown member; owner always a member)
-// - bindMockWeGroupItem - mock POST /we-groups/:id/events|places (idempotent binds; 404 unknown target; 409 archived)
-// - archiveMockWeGroup - mock POST /we-groups/:id/archive (owner only -> 403, idempotent)
 // - createMockAutoPlan - autoplan after «Пойду»: saved draft plan + walk estimate + food picks + dinner->road->meetup->event timeline (mock POST /plans/auto, backend parity)
 // - buildMockDayRoute - resolve 2..8 event/place stops to points and haversine walking legs (mock POST /routes, backend parity)
 // - optimizeMockDayRoute - keep-first permutation minimizing the total distance, with savings (mock POST /routes/optimize)
 // - MOCK_ASSIST_RATE_LIMIT - assist rate limit (backend AssistRateLimiter parity: 20 hits / 10 min)
 // - resetMockAssist - clear the assist rate-limit window (test isolation)
 // - mockParseAssistQuery - deterministic NL criteria heuristics (backend parse-nl parity)
-// - mockAssistMatches - criteria matching over fixtures from MOCK_NOW, max 7 (backend matchAssistEvents parity)
 // - mockAssistSuggest - explained picks with history/partner explanations (mock POST /assist, backend AssistService.suggest parity)
 // - mockAssistSaturdayKey - next Saturday (today counts) Moscow day key from MOCK_NOW (backend nextSaturdayKey parity)
 // - mockAssistDay - upcoming Saturday stops (startsAt >= now) + planDraft, plan persisted when save=true (mock POST /assist/day, backend planSaturday parity)
-// - MockOrganizerEvent - contract event plus the published flag the backend keeps server-side
-// - MockOrganizerPlace - contract place plus the published flag
 // - resetMockOrganizer - restore the seeded organizer drafts (test isolation)
-// - organizerEvents - the demo user's events including drafts (backend listMine parity)
-// - organizerPlaces - the demo user's places including drafts (backend listMine parity)
-// - createMockOrganizerEvent - draft event creation, published=false (mock POST /api/organizer/events)
-// - createMockOrganizerPlace - draft place creation, published=false (mock POST /api/organizer/places)
-// - publishMockOrganizerEvent - publish flips the flag; 404 unknown, 403 catalog event not owned by the demo user (ownership emulation)
-// - publishMockOrganizerPlace - same for places
-// - updateMockOrganizerEvent - whitelisted event PATCH edit (mock PATCH /api/events/:id; backend pickEventFields + merged EventSchema parity)
-// - updateMockOrganizerPlace - place PATCH edit (mock PATCH /api/places/:id; backend CreatePlaceSchema.partial parity)
 // - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt)
 // - LIST_PRESET_TITLES - ru titles of the six preset lists (mock seeds them as List.title)
-// - SHARED_LIST_ID - id of the seeded shared collection of the demo user and the first friend
 // - SHARED_COLLECTION_TITLE - ru title of the seeded shared collection
 // - listSummaries - preset lists of a user with item counters, the saved-item id for the checked event and shared-collection participants
 // - listItemCards - items of one list enriched with their events and the participant who added them, newest first (mock)
-// - listScreen - one-list aggregate: list + participants + item cards (shared collections surface)
-// - addMockListItem - in-memory list membership, idempotent (mock POST)
-// - removeMockListItem - in-memory list membership removal (mock DELETE)
 // - resetMockLists - clear in-memory lists (test isolation)
 // - resetMockReviews - restore seeded reviews (test isolation)
 // - eventRating - rating summary and per-category averages for an event from the mock reviews
-// - createMockReview - create or replace the review of a user for an event (mock POST /reviews)
 // - resetMockReports - clear in-memory reports (test isolation)
 // - createMockReport - in-memory deduplicated report (mock POST /reports, duplicate -> 409)
 // - resetMockBookings - clear in-memory bookings and payments (test isolation)
@@ -93,24 +67,17 @@
 // - MOCK_PROMO_CODE - seeded unlimited promo code for the early-access event
 // - MOCK_SINGLE_USE_PROMO_CODE - seeded single-use promo code (the exhausted path)
 // - resetMockPromo - restore seeded promo codes and redemption counters (test isolation)
-// - redeemMockPromoCode - backend redeemInTransaction parity: early window needs a code; unknown/expired/exhausted -> "forbidden" (403)
 // - mockPromotionPlacements - placements fixture: 2 banners, 1 pin, boosted ids, promoted=true (mock GET /promotions/placements, #205); the /api/events listing flags the placement events promoted (backend promotedEventIds parity)
 // - mockTargetedPromotions - one target collection with the explanation derived from the demo check-in history (mock GET /promotions/for-me, #205)
 // - OFFER_TTL_MS - 15-minute confirmation window of a waitlist offer
 // - resetMockWaitlist - clear the in-memory waitlist (test isolation)
-// - joinMockWaitlist - join the queue of a sold-out event (mock POST /waitlist; duplicate/seats available/active booking -> 409)
-// - myMockWaitlistEntry - active (waiting|offered) entry of a user with its FIFO position, or null (mock GET /waitlist/me)
-// - confirmMockWaitlistOffer - confirm an offer into a booking on the reserved seat (mock POST /waitlist/:id/confirm)
-// - declineMockWaitlistOffer - cancel an entry; a declined offer passes the seat to the next waiting entry; confirmed/expired -> 409 (mock POST /waitlist/:id/decline)
 // - resetMockCheckIns - clear in-memory check-ins (test isolation)
 // - resetMockProfiles - restore the seeded friend profiles (test isolation)
 // - discoverySummary - per-friend unseen places minus the demo user's check-ins, privacy-gated (mock GET /discovery, backend DiscoveryService.summary parity)
 // - friendRoute - chronological unseen places of one friend; own/not-friend/hidden map to 403/404/403 (mock GET /discovery/friends/:userId/route, backend parity)
 // - peopleSuggest - mockFriends matched on seeded interests or a shared upcoming event with distances from the requested coords (mock GET /people, backend PeopleService parity)
 // - resetMockParticipations - restore seeded participations (test isolation)
-// - checkInFor - check-in of a user for an event, or null (mock state for the event page button)
 // - createMockCheckIn - in-memory check-in for an event or a place, idempotent (mock POST)
-// - visitStatsFor - visit statistics derived from the check-ins of a user
 // - achievementsFor - the four README achievements with progress derived from visit stats
 // - myCityFor - my-city summary and memory points derived from the check-ins of a user
 // - participationStats - per-event status counters, friends count and own status
@@ -119,24 +86,9 @@
 // - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
 // - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
-// - recordMockPageView - page-view write with per-user per-day dedup (backend StatsService.recordView 23505 parity, mock POST /views, #196)
-// - resetMockPageViews - clear in-memory page views (test isolation)
-// - mockOrganizerEventStats - per-event views/bookings/cancellations/paid counters (backend StatsService.eventStats parity: 403 catalog, 404 unknown, mock GET /organizer/events/:id/stats, #196)
-// - mockEventSalesReport - frozen-sales report from mock bookings/payments (backend PaymentsService.salesReport parity: 404 for unknown and foreign events, mock GET /organizer/events/:id/sales, #196)
-// - MOCK_COMMISSION_BPS - 10% platform fee frozen when a mock payment settles (backend freezeCommission parity)
-// - mockOrganizerRating - organizer rating from mock reviews/check-ins (backend buildOrganizerRating parity: null below MIN_REVIEWS, mock GET /organizers/:userId/rating, #199)
-// - mockEventOrganizerRating - rating of the event owner, 404 unknown/unpublished (backend RatingService.forEvent parity, mock GET /events/:id/organizer-rating, #199)
-// - listMockCampaigns - promo campaigns of an owned event, createdAt ASC (mock GET /organizer/events/:id/campaigns, #206)
-// - createMockCampaign - promo campaign create (backend PromoService.createCampaign parity: 403 catalog, 404 unknown, 409 duplicate code, #206)
 // - resetMockCampaigns - clear in-memory promo campaigns (test isolation)
-// - listMockPromotions - promotion campaigns of an owned event with lazy expiry, startsAt ASC (mock GET /organizer/events/:id/promotions, #206)
-// - createMockPromotion - promotion create; an already-past window is created completed (backend PromotionService.create parity, #206)
-// - payMockPromotion - manual paid stamp (backend PromotionService.recordPayment parity: 404 unknown campaign, 403 foreign event, #206)
 // - resetMockPromotions - clear in-memory promotion campaigns (test isolation)
-// - listMockPromoCodes - promocodes of an owned event, createdAt ASC (mock GET /organizer/events/:id/promocodes, #372)
-// - createMockPromoCode - promocode create (backend PromoService.create parity: 403 catalog, 404 unknown, 409 duplicate code, #372)
 // - resetMockPromoCodes - clear in-memory promocodes (test isolation)
-// - setMockEarlyAccess - set the booking window on an owned event (mock POST /organizer/events/:id/early-access, #372)
 // - MOCK_ORGANIZER_PAID_EVENT_ID - seeded published paid organizer event with two frozen sales, one cancellation and four views (re-seeded idempotently by resetMockOrganizer)
 // END_MODULE_MAP
 
@@ -565,7 +517,7 @@ export function planCard(id: string): PlanCard | null {
 }
 
 /** In-memory plan expense row (PlanExpenseEntity parity: createdAt stored as ISO). */
-export interface MockPlanExpense {
+interface MockPlanExpense {
   id: string;
   planId: string;
   title: string;
@@ -654,7 +606,7 @@ export function mockPlanBudget(planId: string): PlanBudget | null {
 }
 
 /** Mock POST /plans/:id/expenses (backend addExpense parity): 404 unknown plan; 400 payer/shares outside the party; the demo host may attribute payments to any party member. */
-export function addMockPlanExpense(planId: string, payload: CreatePlanExpenseWrite): PlanBudget | null | "invalid" {
+function addMockPlanExpense(planId: string, payload: CreatePlanExpenseWrite): PlanBudget | null | "invalid" {
   if (!planCard(planId)) return null;
   const party = mockSpendPartyIds(planId);
   if (!party.has(payload.payerUserId) || payload.shareUserIds.some((id) => !party.has(id))) return "invalid";
@@ -789,7 +741,7 @@ export function listMockWeGroups(): WeGroupScreen[] {
 }
 
 /** Mock GET /we-groups/:id: "unknown" -> 404, "forbidden" non-member -> 403 (backend requireMember parity). */
-export function getMockWeGroup(id: string): WeGroupScreen | "unknown" | "forbidden" {
+function getMockWeGroup(id: string): WeGroupScreen | "unknown" | "forbidden" {
   const row = findMockWeGroup(id);
   if (!row) return "unknown";
   if (!isMockWeGroupMember(row, mockDemoUser.id)) return "forbidden";
@@ -797,7 +749,7 @@ export function getMockWeGroup(id: string): WeGroupScreen | "unknown" | "forbidd
 }
 
 /** Mock POST /we-groups (backend create parity): owner always a member, every member id must be a known user. */
-export function createMockWeGroup(payload: CreateWeGroupWrite): WeGroupScreen | "unknown_user" {
+function createMockWeGroup(payload: CreateWeGroupWrite): WeGroupScreen | "unknown_user" {
   const known = new Set([mockDemoUser.id, ...mockFriendIds]);
   const memberIds = [...new Set([mockDemoUser.id, ...payload.memberIds])];
   if (memberIds.some((id) => !known.has(id))) return "unknown_user";
@@ -814,7 +766,7 @@ export function createMockWeGroup(payload: CreateWeGroupWrite): WeGroupScreen | 
 }
 
 /** Mock POST /we-groups/:id/events|places (backend addEvent/addPlace parity): duplicate binds are idempotent; "archived" -> 409. */
-export function bindMockWeGroupItem(id: string, kind: "event" | "place", itemId: string): WeGroupScreen | "unknown" | "forbidden" | "archived" | "no_target" {
+function bindMockWeGroupItem(id: string, kind: "event" | "place", itemId: string): WeGroupScreen | "unknown" | "forbidden" | "archived" | "no_target" {
   const row = findMockWeGroup(id);
   if (!row) return "unknown";
   if (!isMockWeGroupMember(row, mockDemoUser.id)) return "forbidden";
@@ -830,7 +782,7 @@ export function bindMockWeGroupItem(id: string, kind: "event" | "place", itemId:
 }
 
 /** Mock POST /we-groups/:id/archive (backend archive parity): owner only, idempotent. */
-export function archiveMockWeGroup(id: string): WeGroupScreen | "unknown" | "forbidden" {
+function archiveMockWeGroup(id: string): WeGroupScreen | "unknown" | "forbidden" {
   const row = findMockWeGroup(id);
   if (!row) return "unknown";
   if (!isMockWeGroupMember(row, mockDemoUser.id)) return "forbidden";
@@ -875,7 +827,7 @@ export function resetMockLists(): void {
 }
 
 /** The seeded shared collection of the demo user and the first friend; both add items, «Отправить в чат» shares it. */
-export const SHARED_LIST_ID = "70000000-0000-4000-8000-0000000000c0";
+const SHARED_LIST_ID = "70000000-0000-4000-8000-0000000000c0";
 export const SHARED_COLLECTION_TITLE = "Совместное: идеи на выходные";
 
 const SHARED_LIST_PARTICIPANTS = (): Friend[] => [{ id: mockDemoUser.id, name: "Демо", avatarUrl: null }, mockFriends[0]];
@@ -946,14 +898,14 @@ export function listItemCards(listId: string): ListItemCard[] | null {
 }
 
 /** One-list aggregate for the list screen: the list, its participants (shared collections) and its item cards; null for an unknown list. */
-export function listScreen(listId: string): { list: List; participants: Friend[]; items: ListItemCard[] } | null {
+function listScreen(listId: string): { list: List; participants: Friend[]; items: ListItemCard[] } | null {
   const list = findList(listId);
   if (!list) return null;
   return { list, participants: list.id === SHARED_LIST_ID ? SHARED_LIST_PARTICIPANTS() : [], items: listItemCards(listId) ?? [] };
 }
 
 /** Adds an event to a list, idempotent, attributed to the adding user; "no_list"/"no_event" map to 404 in the interceptor. */
-export function addMockListItem(listId: string, payload: AddListItem): ListItem | "no_list" | "no_event" {
+function addMockListItem(listId: string, payload: AddListItem): ListItem | "no_list" | "no_event" {
   if (!findList(listId)) return "no_list";
   if (!mockEvents.some((event) => event.id === payload.eventId)) return "no_event";
   const existing = mockListItems.find((item) => item.listId === listId && item.eventId === payload.eventId);
@@ -964,7 +916,7 @@ export function addMockListItem(listId: string, payload: AddListItem): ListItem 
 }
 
 /** Removes an item from a list; null when the list or the item is unknown. */
-export function removeMockListItem(listId: string, itemId: string): ListItem | null {
+function removeMockListItem(listId: string, itemId: string): ListItem | null {
   const index = mockListItems.findIndex((item) => item.listId === listId && item.id === itemId);
   if (index === -1) return null;
   return mockListItems.splice(index, 1)[0];
@@ -1014,7 +966,7 @@ export function eventRating(eventId: string): EventRating | null {
 }
 
 /** Creates or replaces the review of a user for an event (one review per user and event); "no_event"/"invalid" map to 404/400 in the interceptor. */
-export function createMockReview(payload: CreateReview): Review | "no_event" | "invalid" {
+function createMockReview(payload: CreateReview): Review | "no_event" | "invalid" {
   if (!mockEvents.some((item) => item.id === payload.eventId)) return "no_event";
   mockReviewSeq += 1;
   const review: Review = { id: `80000000-0000-4000-8000-${String(mockReviewSeq).padStart(12, "0")}`, userId: payload.userId, eventId: payload.eventId, placeId: null, stars: payload.stars, categoryScores: payload.categoryScores ?? {}, wouldGoAgain: payload.wouldGoAgain, photos: [], text: payload.text ?? null, createdAt: new Date().toISOString() };
@@ -1170,7 +1122,7 @@ export function feedPosts(eventId: string | null): FeedPost[] {
 }
 
 /** Likes/unlikes a post as the user; the returned post carries the new counter and state; null for an unknown post. */
-export function toggleMockFeedLike(postId: string, userId: string): FeedPost | null {
+function toggleMockFeedLike(postId: string, userId: string): FeedPost | null {
   const post = mockFeedPosts.find((item) => item.id === postId);
   if (!post) return null;
   const key = `${userId}:${postId}`;
@@ -1187,7 +1139,7 @@ export function toggleMockFeedLike(postId: string, userId: string): FeedPost | n
 }
 
 /** Appends a comment attributed to its author; null for an unknown post (mock 404). */
-export function addMockFeedComment(postId: string, payload: { userId: string; text: string }): FeedPost | null {
+function addMockFeedComment(postId: string, payload: { userId: string; text: string }): FeedPost | null {
   const post = mockFeedPosts.find((item) => item.id === postId);
   if (!post) return null;
   mockFeedCommentSeq += 1;
@@ -1197,7 +1149,7 @@ export function addMockFeedComment(postId: string, payload: { userId: string; te
 }
 
 /** Publishes an impression post as its author; null for an unknown event (mock 404). */
-export function createMockFeedPost(payload: CreateFeedPost): FeedPost | null {
+function createMockFeedPost(payload: CreateFeedPost): FeedPost | null {
   if (!mockEvents.some((event) => event.id === payload.eventId)) return null;
   mockFeedSeq += 1;
   const post: FeedPost = { id: `30000000-0000-4000-8000-${String(mockFeedSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), eventId: payload.eventId, text: payload.text, likesCount: 0, likedByMe: false, comments: [] };
@@ -1268,7 +1220,7 @@ function ensureMockPayment(booking: Booking, now: string): Payment | null {
 }
 
 /** 10% platform fee frozen when a mock payment settles (backend DEFAULT_COMMISSION_BPS / freezeCommission parity). */
-export const MOCK_COMMISSION_BPS = 1000;
+const MOCK_COMMISSION_BPS = 1000;
 
 /** Mirrors the sandbox charge rule: a pending payment resolves to failed at the fail amount (or a "[fail]" title marker), otherwise succeeded; settled payments stay untouched. A succeeded charge freezes the commission once (backend freezeCommission parity). */
 function settleMockPayment(payment: Payment, now: string): Payment {
@@ -1320,15 +1272,11 @@ interface MockPageView {
 const mockPageViews: MockPageView[] = [];
 
 /** Records a page view with per-user per-target per-day dedup (backend StatsService.recordView 23505 parity); the mock has no auth token, so the viewer is the demo user. */
-export function recordMockPageView(userId: string, payload: RecordPageViewWrite, now: Date = new Date()): { recorded: boolean } {
+function recordMockPageView(userId: string, payload: RecordPageViewWrite, now: Date = new Date()): { recorded: boolean } {
   const viewedOn = moscowDateKey(now.toISOString());
   if (mockPageViews.some((view) => view.userId === userId && view.targetType === payload.targetType && view.targetId === payload.targetId && view.viewedOn === viewedOn)) return { recorded: false };
   mockPageViews.push({ userId, targetType: payload.targetType, targetId: payload.targetId, viewedOn });
   return { recorded: true };
-}
-
-export function resetMockPageViews(): void {
-  mockPageViews.length = 0;
 }
 
 /** Unlimited promo code seeded for the early-access fixture event. */
@@ -1359,7 +1307,7 @@ export function resetMockPromo(): void {
 }
 
 /** Backend PromoService.redeemInTransaction parity: no window and no code pass; a window without a code, an unknown/expired/exhausted code are forbidden (403 in the interceptor). */
-export function redeemMockPromoCode(eventId: string, rawCode: string | null | undefined, now: Date = new Date()): { applied: string | null } | "forbidden" {
+function redeemMockPromoCode(eventId: string, rawCode: string | null | undefined, now: Date = new Date()): { applied: string | null } | "forbidden" {
   const early = eventId === MOCK_EARLY_ACCESS_EVENT_ID && now.getTime() < new Date(MOCK_BOOKING_OPENS_AT).getTime();
   const code = rawCode?.trim().toUpperCase();
   if (!early && !code) return { applied: null };
@@ -1453,7 +1401,7 @@ function refreshMockWaitlist(eventId: string, now: Date = new Date()): void {
 }
 
 /** Joins the queue of a sold-out event; "no_event"/"seats_available"/"duplicate"/"booked" map to 404/409 in the interceptor. */
-export function joinMockWaitlist(eventId: string, userId: string): WaitlistEntry | "no_event" | "seats_available" | "duplicate" | "booked" {
+function joinMockWaitlist(eventId: string, userId: string): WaitlistEntry | "no_event" | "seats_available" | "duplicate" | "booked" {
   if (!mockEvents.some((item) => item.id === eventId)) return "no_event";
   if ((remainingSeats(eventId) ?? 1) > 0) return "seats_available";
   if (mockBookings.some((booking) => booking.eventId === eventId && booking.userId === userId && booking.status === "active")) return "booked";
@@ -1466,14 +1414,14 @@ export function joinMockWaitlist(eventId: string, userId: string): WaitlistEntry
 }
 
 /** Active (waiting|offered) entry of a user for an event with its FIFO position, or null (mock GET /waitlist/me). */
-export function myMockWaitlistEntry(eventId: string, userId: string): WaitlistEntry | null {
+function myMockWaitlistEntry(eventId: string, userId: string): WaitlistEntry | null {
   refreshMockWaitlist(eventId);
   const entry = waitlistQueue(eventId).find((item) => item.userId === userId);
   return entry === undefined ? null : withWaitlistPosition(entry);
 }
 
 /** Confirms an offer into a booking on the reserved seat (no capacity re-check); null/"not_offered"/"offer_expired" map to 404/409 in the interceptor. */
-export function confirmMockWaitlistOffer(entryId: string): WaitlistEntry | null | "not_offered" | "offer_expired" {
+function confirmMockWaitlistOffer(entryId: string): WaitlistEntry | null | "not_offered" | "offer_expired" {
   const entry = mockWaitlist.find((item) => item.id === entryId);
   if (!entry) return null;
   refreshMockWaitlist(entry.eventId);
@@ -1493,7 +1441,7 @@ export function confirmMockWaitlistOffer(entryId: string): WaitlistEntry | null 
 }
 
 /** Cancels a queue entry; a declined offer passes the reserved seat to the next waiting entry. Idempotent for cancelled entries; "already_confirmed"/"offer_expired" map to 409, null to 404 (mock 404). */
-export function declineMockWaitlistOffer(entryId: string): WaitlistEntry | null | "already_confirmed" | "offer_expired" {
+function declineMockWaitlistOffer(entryId: string): WaitlistEntry | null | "already_confirmed" | "offer_expired" {
   const entry = mockWaitlist.find((item) => item.id === entryId);
   if (!entry) return null;
   refreshMockWaitlist(entry.eventId);
@@ -1518,7 +1466,7 @@ export function resetMockCheckIns(): void {
 }
 
 /** Check-in of a user for an event, or null (mock state for the event page button). */
-export function checkInFor(userId: string, eventId: string): CheckIn | null {
+function checkInFor(userId: string, eventId: string): CheckIn | null {
   return mockCheckIns.find((item) => item.userId === userId && item.eventId === eventId) ?? null;
 }
 
@@ -1536,7 +1484,7 @@ export function createMockCheckIn(userId: string, payload: { eventId?: string; p
 }
 
 /** Visit statistics derived from the check-ins of a user: events, unique places, per-category counters. */
-export function visitStatsFor(userId: string): VisitStats {
+function visitStatsFor(userId: string): VisitStats {
   const mine = mockCheckIns.filter((item) => item.userId === userId);
   const placeIds = new Set<string>();
   const byCategory = new Map<string, number>();
@@ -1639,7 +1587,7 @@ function moscowHour(date: Date): number {
 }
 
 /** Exclusive bucket of an event start relative to the demo now (mirrors the backend nearbyBucket). */
-export function mockNearbyBucket(startsAt: string, now: Date = MOCK_NOW): NearbyBucket | null {
+function mockNearbyBucket(startsAt: string, now: Date = MOCK_NOW): NearbyBucket | null {
   const start = new Date(startsAt);
   const delta = start.getTime() - now.getTime();
   if (delta < 0) return null;
@@ -2153,7 +2101,7 @@ export function wheretoSuggestions(query: WheretoQuery, now: Date = MOCK_NOW): W
 }
 
 /** Backend matchAssistEvents parity: events from MOCK_NOW filtered by the parsed criteria, soonest first, max 7 (fixtures carry no published flag). */
-export function mockAssistMatches(criteria: AssistCriteria, now: Date = MOCK_NOW): Event[] {
+function mockAssistMatches(criteria: AssistCriteria, now: Date = MOCK_NOW): Event[] {
   return mockEvents
     .filter((item) => new Date(item.startsAt).getTime() >= now.getTime())
     .filter((item) => {
@@ -2242,8 +2190,8 @@ export function mockAssistDay(payload: AssistQueryWrite, now: Date = MOCK_NOW): 
 }
 
 /** Organizer panel store item: the contract entity plus the published flag the backend keeps server-side (organizer DTOs omit it; the mock surfaces it so the client can badge drafts). */
-export type MockOrganizerEvent = Event & { published: boolean };
-export type MockOrganizerPlace = Place & { published: boolean };
+type MockOrganizerEvent = Event & { published: boolean };
+type MockOrganizerPlace = Place & { published: boolean };
 
 /** Seeded published paid organizer event (#196/#206 demo + tests): two frozen ticket sales, one cancelled booking and seeded views are attached by seedMockOrganizerAddons. */
 export const MOCK_ORGANIZER_PAID_EVENT_ID = "c00000f2-0000-4000-8000-0000000000f2";
@@ -2291,17 +2239,17 @@ function seedMockOrganizerAddons(): void {
 seedMockOrganizerAddons();
 
 /** Backend EventsService.listMine parity: the demo user's events (drafts included), startsAt ASC then id ASC. */
-export function organizerEvents(): MockOrganizerEvent[] {
+function organizerEvents(): MockOrganizerEvent[] {
   return [...mockOrganizerState.events].sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
 }
 
 /** Backend PlacesService.listMine parity: the demo user's places (drafts included), title ASC then id ASC. */
-export function organizerPlaces(): MockOrganizerPlace[] {
+function organizerPlaces(): MockOrganizerPlace[] {
   return [...mockOrganizerState.places].sort((a, b) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
 }
 
 /** Backend organizer create parity: the payload is CreateEventSchema-validated by the interceptor; the draft belongs to the demo user. */
-export function createMockOrganizerEvent(payload: CreateEvent): MockOrganizerEvent {
+function createMockOrganizerEvent(payload: CreateEvent): MockOrganizerEvent {
   mockOrganizerSeq += 1;
   const created: MockOrganizerEvent = { ...payload, id: `f1000000-0000-4000-8000-${String(mockOrganizerSeq).padStart(12, "0")}`, chatLink: null, promoted: false, published: false, bookingOpensAt: null };
   mockOrganizerState.events.push(created);
@@ -2309,7 +2257,7 @@ export function createMockOrganizerEvent(payload: CreateEvent): MockOrganizerEve
 }
 
 /** Backend organizer create parity for places. */
-export function createMockOrganizerPlace(payload: CreatePlace): MockOrganizerPlace {
+function createMockOrganizerPlace(payload: CreatePlace): MockOrganizerPlace {
   mockOrganizerSeq += 1;
   const created: MockOrganizerPlace = { ...payload, id: `f2000000-0000-4000-8000-${String(mockOrganizerSeq).padStart(12, "0")}`, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP, published: false };
   mockOrganizerState.places.push(created);
@@ -2317,14 +2265,14 @@ export function createMockOrganizerPlace(payload: CreatePlace): MockOrganizerPla
 }
 
 /** Backend organizer publish parity: 404 unknown, 403 when the id is a catalog event not owned by the demo user (ownership emulation), otherwise flips the flag. */
-export function publishMockOrganizerEvent(id: string): MockOrganizerEvent | "forbidden" | null {
+function publishMockOrganizerEvent(id: string): MockOrganizerEvent | "forbidden" | null {
   const found = mockOrganizerState.events.find((item) => item.id === id);
   if (!found) return mockEvents.some((item) => item.id === id) ? "forbidden" : null;
   found.published = true;
   return found;
 }
 
-export function publishMockOrganizerPlace(id: string): MockOrganizerPlace | "forbidden" | null {
+function publishMockOrganizerPlace(id: string): MockOrganizerPlace | "forbidden" | null {
   const found = mockOrganizerState.places.find((item) => item.id === id);
   if (!found) return mockPlaces.some((item) => item.id === id) ? "forbidden" : null;
   found.published = true;
@@ -2335,7 +2283,7 @@ export function publishMockOrganizerPlace(id: string): MockOrganizerPlace | "for
 const MOCK_EVENT_PATCH_KEYS = ["title", "description", "category", "city", "placeId", "startsAt", "endsAt", "isPaid", "priceRub", "paymentUrl", "capacity"] as const;
 
 /** Backend EventsService.update parity: whitelist patch, merged EventSchema validation; 404 unknown, 403 catalog (not owned). */
-export function updateMockOrganizerEvent(id: string, patch: Record<string, unknown>): MockOrganizerEvent | "forbidden" | "invalid" | null {
+function updateMockOrganizerEvent(id: string, patch: Record<string, unknown>): MockOrganizerEvent | "forbidden" | "invalid" | null {
   const found = mockOrganizerState.events.find((item) => item.id === id);
   if (!found) return mockEvents.some((item) => item.id === id) ? "forbidden" : null;
   const picked: Record<string, unknown> = {};
@@ -2349,7 +2297,7 @@ export function updateMockOrganizerEvent(id: string, patch: Record<string, unkno
 }
 
 /** Backend PlacesService.update parity: CreatePlaceSchema.partial() patch; 404 unknown, 403 catalog (not owned). */
-export function updateMockOrganizerPlace(id: string, patch: Record<string, unknown>): MockOrganizerPlace | "forbidden" | "invalid" | null {
+function updateMockOrganizerPlace(id: string, patch: Record<string, unknown>): MockOrganizerPlace | "forbidden" | "invalid" | null {
   const found = mockOrganizerState.places.find((item) => item.id === id);
   if (!found) return mockPlaces.some((item) => item.id === id) ? "forbidden" : null;
   const parsed = CreatePlaceSchema.partial().safeParse(patch);
@@ -2366,7 +2314,7 @@ function mockOwnedEvent(eventId: string): MockOrganizerEvent | "forbidden" | nul
 }
 
 /** Backend StatsService.eventStats parity: views/bookings/cancellations/paid counters for an owned event; "forbidden" for catalog events, null when unknown. */
-export function mockOrganizerEventStats(eventId: string): OrganizerEventStats | "forbidden" | null {
+function mockOrganizerEventStats(eventId: string): OrganizerEventStats | "forbidden" | null {
   const own = mockOwnedEvent(eventId);
   if (own === null || own === "forbidden") return own;
   const bookings = mockBookings.filter((booking) => booking.eventId === eventId);
@@ -2380,7 +2328,7 @@ export function mockOrganizerEventStats(eventId: string): OrganizerEventStats | 
 }
 
 /** Backend PaymentsService.salesReport parity: only succeeded payments with the frozen commission make the report; null (404) for unknown and foreign events alike. */
-export function mockEventSalesReport(eventId: string): EventSalesReport | null {
+function mockEventSalesReport(eventId: string): EventSalesReport | null {
   if (!mockOrganizerState.events.some((item) => item.id === eventId)) return null;
   const bookingIds = new Set(mockBookings.filter((booking) => booking.eventId === eventId).map((booking) => booking.id));
   const frozen = mockPayments.filter((payment) => bookingIds.has(payment.bookingId) && payment.status === "succeeded" && payment.commissionFixedAt !== null && payment.commissionRub !== null && payment.netRub !== null && payment.commissionBps !== null).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() || a.id.localeCompare(b.id));
@@ -2399,7 +2347,7 @@ const MOCK_ON_TIME_BEFORE_MS = 30 * 60 * 1000;
 const MOCK_ON_TIME_AFTER_MS = 15 * 60 * 1000;
 
 /** Backend buildOrganizerRating parity: the catalog fixture organizer owns all catalog events (same convention as eventDetails), the demo user owns the organizer-panel events; null below MIN_REVIEWS, onTimePercent null without past events. */
-export function mockOrganizerRating(userId: string, now: Date = new Date()): OrganizerRatingResponse {
+function mockOrganizerRating(userId: string, now: Date = new Date()): OrganizerRatingResponse {
   const owned: Event[] = userId === mockOrganizers[0].id ? mockEvents : userId === mockDemoUser.id ? mockOrganizerState.events : [];
   const ownedIds = new Set(owned.map((item) => item.id));
   const reviews = mockReviews.filter((item) => item.eventId !== null && ownedIds.has(item.eventId));
@@ -2429,7 +2377,7 @@ export function mockOrganizerRating(userId: string, now: Date = new Date()): Org
 }
 
 /** Backend RatingService.forEvent parity: null (404) for unknown or unpublished events; the rating of the event owner otherwise. */
-export function mockEventOrganizerRating(eventId: string, now: Date = new Date()): OrganizerRatingResponse | null {
+function mockEventOrganizerRating(eventId: string, now: Date = new Date()): OrganizerRatingResponse | null {
   const catalogEvent = mockEvents.find((item) => item.id === eventId);
   if (catalogEvent) return catalogEvent.published === false ? null : mockOrganizerRating(mockOrganizers[0].id, now);
   const ownEvent = mockOrganizerState.events.find((item) => item.id === eventId);
@@ -2446,14 +2394,14 @@ export function resetMockCampaigns(): void {
 }
 
 /** Backend PromoService.listCampaigns parity: createdAt ASC. */
-export function listMockCampaigns(eventId: string): PromoCampaign[] | "forbidden" | null {
+function listMockCampaigns(eventId: string): PromoCampaign[] | "forbidden" | null {
   const owned = mockOwnedEvent(eventId);
   if (owned === null || owned === "forbidden") return owned;
   return mockPromoCampaigns.filter((campaign) => campaign.eventId === eventId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 /** Backend PromoService.createCampaign parity: uppercased code, duplicate code per event -> "duplicate" (409). */
-export function createMockCampaign(eventId: string, payload: CreatePromoCampaignWrite, now: Date = new Date()): PromoCampaign | "forbidden" | "invalid" | "duplicate" | null {
+function createMockCampaign(eventId: string, payload: CreatePromoCampaignWrite, now: Date = new Date()): PromoCampaign | "forbidden" | "invalid" | "duplicate" | null {
   const owned = mockOwnedEvent(eventId);
   if (owned === null || owned === "forbidden") return owned;
   const code = payload.code.trim().toUpperCase();
@@ -2484,7 +2432,7 @@ function expireMockPromotions(now: Date): void {
 }
 
 /** Backend PromotionService.list parity: startsAt ASC then id ASC, with lazy expiry. */
-export function listMockPromotions(eventId: string, now: Date = new Date()): PromotionCampaign[] | "forbidden" | null {
+function listMockPromotions(eventId: string, now: Date = new Date()): PromotionCampaign[] | "forbidden" | null {
   const owned = mockOwnedEvent(eventId);
   if (owned === null || owned === "forbidden") return owned;
   expireMockPromotions(now);
@@ -2492,7 +2440,7 @@ export function listMockPromotions(eventId: string, now: Date = new Date()): Pro
 }
 
 /** Backend PromotionService.create parity: a campaign already past its window is created completed; the payload refines (period, audience) are validated by the interceptor. */
-export function createMockPromotion(eventId: string, payload: CreatePromotionWrite, now: Date = new Date()): PromotionCampaign | "forbidden" | "invalid" | null {
+function createMockPromotion(eventId: string, payload: CreatePromotionWrite, now: Date = new Date()): PromotionCampaign | "forbidden" | "invalid" | null {
   const owned = mockOwnedEvent(eventId);
   if (owned === null || owned === "forbidden") return owned;
   if (new Date(payload.endsAt).getTime() <= new Date(payload.startsAt).getTime()) return "invalid";
@@ -2507,7 +2455,7 @@ export function createMockPromotion(eventId: string, payload: CreatePromotionWri
 }
 
 /** Backend PromotionService.recordPayment parity: manual paid stamp; "no_campaign" when the campaign is not on this event. */
-export function payMockPromotion(eventId: string, campaignId: string, paidAt: string | undefined, now: Date = new Date()): PromotionCampaign | "forbidden" | "no_campaign" | null {
+function payMockPromotion(eventId: string, campaignId: string, paidAt: string | undefined, now: Date = new Date()): PromotionCampaign | "forbidden" | "no_campaign" | null {
   const owned = mockOwnedEvent(eventId);
   if (owned === null || owned === "forbidden") return owned;
   const campaign = mockPromotionCampaigns.find((item) => item.id === campaignId && item.eventId === eventId);
@@ -2526,14 +2474,14 @@ export function resetMockPromoCodes(): void {
 }
 
 /** Backend PromoService.list parity: createdAt ASC. */
-export function listMockPromoCodes(eventId: string): PromoCode[] | "forbidden" | null {
+function listMockPromoCodes(eventId: string): PromoCode[] | "forbidden" | null {
   const owned = mockOwnedEvent(eventId);
   if (owned === null || owned === "forbidden") return owned;
   return mockOrganizerPromoCodes.filter((code) => code.eventId === eventId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 /** Backend PromoService.create parity: uppercased code, duplicate code per event -> "duplicate" (409). */
-export function createMockPromoCode(eventId: string, payload: CreatePromoCodeWrite, now: Date = new Date()): PromoCode | "forbidden" | "invalid" | "duplicate" | null {
+function createMockPromoCode(eventId: string, payload: CreatePromoCodeWrite, now: Date = new Date()): PromoCode | "forbidden" | "invalid" | "duplicate" | null {
   const owned = mockOwnedEvent(eventId);
   if (owned === null || owned === "forbidden") return owned;
   const code = payload.code.trim().toUpperCase();
@@ -2546,7 +2494,7 @@ export function createMockPromoCode(eventId: string, payload: CreatePromoCodeWri
 }
 
 /** Backend PromoService.setEarlyAccess parity: sets the owned event's booking window. */
-export function setMockEarlyAccess(eventId: string, bookingOpensAt: string): { bookingOpensAt: string } | "forbidden" | null {
+function setMockEarlyAccess(eventId: string, bookingOpensAt: string): { bookingOpensAt: string } | "forbidden" | null {
   const owned = mockOwnedEvent(eventId);
   if (owned === null || owned === "forbidden") return owned;
   owned.bookingOpensAt = bookingOpensAt;

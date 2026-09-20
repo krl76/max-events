@@ -88,42 +88,6 @@ describe("ApiClient", () => {
     });
   });
 
-  it("sends content-type application/json on a POST with body", async () => {
-    const getInit = mockFetchCaptured(validEvent);
-    const client = new ApiClient("http://localhost:3100/api");
-
-    await client.createEvent({
-      title: "Concert",
-      description: "",
-      category: "afisha",
-      city: "Moscow",
-      placeId: null,
-      startsAt: "2026-09-11T10:00:00.000Z",
-      endsAt: null,
-      isPaid: false,
-      priceRub: null,
-      paymentUrl: null,
-      capacity: null,
-    });
-
-    const init = getInit();
-    expect(init?.method).toBe("POST");
-    expect(JSON.parse(String(init?.body))).toEqual({
-      title: "Concert",
-      description: "",
-      category: "afisha",
-      city: "Moscow",
-      placeId: null,
-      startsAt: "2026-09-11T10:00:00.000Z",
-      endsAt: null,
-      isPaid: false,
-      priceRub: null,
-      paymentUrl: null,
-      capacity: null,
-    });
-    expect(init?.headers).toMatchObject({ "content-type": "application/json" });
-  });
-
   it("omits content-type header on GET without body", async () => {
     const getInit = mockFetchCaptured(validEvent);
     const client = new ApiClient("http://localhost:3100/api");

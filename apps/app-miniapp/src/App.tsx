@@ -9,28 +9,21 @@
 // - App - AuthProvider > RouteProvider > Layout > routed pages
 // END_MODULE_MAP
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { AuthProvider } from "./auth/AuthContext";
-import { bridgeHandshake, webApp } from "./max/bridge";
+import { webApp } from "./max/bridge";
 import { RoutedPages } from "./pages/pages";
 import { RouteProvider } from "./routing/router";
 import { Layout } from "./ui/Layout";
 
-function BridgeHandshake() {
-  const sentRef = useRef(false);
-
+export function App() {
   useEffect(() => {
-    sentRef.current = bridgeHandshake(webApp, sentRef.current);
+    webApp?.ready();
   }, []);
 
-  return null;
-}
-
-export function App() {
   return (
     <AuthProvider>
       <RouteProvider>
-        <BridgeHandshake />
         <Layout>
           <RoutedPages />
         </Layout>

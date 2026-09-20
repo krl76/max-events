@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: "My city" screen: personal history counters (places/events/districts) and the memory map of impression points.
 // SCOPE: Data via apiClient.getMyCity + listEvents + listPlaces (mock or live); Leaflet loaded lazily (dynamic import) like the catalog map; point->marker mapping is pure.
-// DEPENDS: ../api/client.js (apiClient, MyCityPayload), ../auth/AuthContext.js, ../catalog/format.js (formatStartsAt), ../routing/router.js, leaflet (dynamic import), @max-events/api-contracts (Event, MemoryPoint, MyCitySummary, Place), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, MyCityPayload), ../auth/AuthContext.js, ../catalog/format.js (formatStartsAt), ../catalog/MapScreen.js (MOSCOW_CENTER, MOSCOW_ZOOM, OSM_TILE_URL, OSM_ATTRIBUTION), ../catalog/useLeafletMap.js, ../routing/router.js, leaflet (dynamic import), @max-events/api-contracts (Event, MemoryPoint, MyCitySummary, Place), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -14,10 +14,12 @@
 // - MyCityPage - route container: loads summary, points and title sources, wires the map
 // END_MODULE_MAP
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Event, MemoryPoint, MyCitySummary, Place } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/format";
+import { MOSCOW_CENTER, MOSCOW_ZOOM, OSM_ATTRIBUTION, OSM_TILE_URL } from "../catalog/MapScreen";
+import { useLeafletMap } from "../catalog/useLeafletMap";
 import { useAuth } from "../auth/AuthContext";
 import { AppState } from "../ui/primitives";
 
@@ -39,11 +41,6 @@ export function memoryMarkers(points: MemoryPoint[], events: Event[], places: Pl
   });
 }
 
-const MOSCOW_CENTER: [number, number] = [55.7522, 37.6156];
-const MOSCOW_ZOOM = 11;
-const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-
 export async function initMemoryMap(container: HTMLElement, markers: MemoryMarker[]): Promise<() => void> {
   const L = await import("leaflet");
   const map = L.map(container, { center: MOSCOW_CENTER, zoom: MOSCOW_ZOOM });
@@ -59,21 +56,8 @@ export async function initMemoryMap(container: HTMLElement, markers: MemoryMarke
 export type MyCityState = { status: "loading" } | { status: "error" } | { status: "ready"; summary: MyCitySummary; markers: MemoryMarker[] };
 
 export function MyCityView({ state }: { state: MyCityState }) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (state.status !== "ready" || containerRef.current === null) return;
-    let disposed = false;
-    let dispose: (() => void) | null = null;
-    initMemoryMap(containerRef.current, state.markers).then((created) => {
-      if (disposed) created();
-      else dispose = created;
-    });
-    return () => {
-      disposed = true;
-      dispose?.();
-    };
-  }, [state]);
+  const markers = state.status === "ready" ? state.markers : [];
+  const containerRef = useLeafletMap(state.status === "ready", (container) => initMemoryMap(container, markers), [state]);
 
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "error") return <AppState error>Не удалось загрузить «Мой город».</AppState>;
