@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createDraftErrors, groupMembersLabel, WeGroupsView, type WeGroupsState } from "./WeGroupsPage";
+import { pluralRu } from "../catalog/format";
+import { createDraftErrors, WeGroupsView, type WeGroupsState } from "./WeGroupsPage";
 import { listMockWeGroups, mockFriends } from "../api/mock";
 
 const GROUPS = listMockWeGroups();
@@ -10,12 +11,12 @@ function render(state: WeGroupsState): string {
   return renderToStaticMarkup(createElement(WeGroupsView, { state, friends: mockFriends, creating: false, draft: { title: "", memberIds: [] }, saving: false, failed: false, onToggleCreate: () => {}, onDraftChange: () => {}, onCreate: () => {}, onOpen: () => {} }));
 }
 
-describe("groupMembersLabel", () => {
+describe("member count label", () => {
   it("pluralizes «участник» by ru rules", () => {
-    expect(groupMembersLabel(1)).toBe("1 участник");
-    expect(groupMembersLabel(3)).toBe("3 участника");
-    expect(groupMembersLabel(5)).toBe("5 участников");
-    expect(groupMembersLabel(11)).toBe("11 участников");
+    expect(`1 ${pluralRu(1, "участник", "участника", "участников")}`).toBe("1 участник");
+    expect(`3 ${pluralRu(3, "участник", "участника", "участников")}`).toBe("3 участника");
+    expect(`5 ${pluralRu(5, "участник", "участника", "участников")}`).toBe("5 участников");
+    expect(`11 ${pluralRu(11, "участник", "участника", "участников")}`).toBe("11 участников");
   });
 });
 
@@ -41,7 +42,7 @@ describe("WeGroupsView", () => {
     const html = render({ status: "ready", groups: GROUPS });
 
     expect(html).toContain("Создать");
-    expect(html).toContain(groupMembersLabel(GROUPS[0].members.length));
+    expect(html).toContain(`${GROUPS[0].members.length} ${pluralRu(GROUPS[0].members.length, "участник", "участника", "участников")}`);
   });
 
   it("renders loading, error and empty states", () => {
