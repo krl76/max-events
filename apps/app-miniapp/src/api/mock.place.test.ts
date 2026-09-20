@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { PlacePageSchema } from "@max-events/api-contracts";
+import { PlacePageSchema, PlaceSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
 import { installMockApi, createMockCheckIn, mockDemoUser, mockEvents, mockFriendIds, mockPlaces, placePageFor, resetMockCheckIns } from "./mock";
 
@@ -67,5 +67,26 @@ describe("place page mock endpoint", () => {
 
     expect(page.personalVisitsCount).toBe(1);
     expect(page.popularityToday).toBe(1);
+  });
+});
+
+describe("place by-id mock endpoint", () => {
+  const PUSHKIN = "b0000002-0000-4000-8000-000000000002";
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+  });
+
+  it("serves a place through the typed client and 404 for unknown ids", async () => {
+    restore = installMockApi();
+    const api = new ApiClient("/api");
+
+    const place = await api.getPlace(PUSHKIN);
+    expect(PlaceSchema.safeParse(place).success).toBe(true);
+    expect(place.title).toBe("ГМИИ им. А. С. Пушкина");
+
+    await expect(api.getPlace(UNKNOWN_ID)).rejects.toMatchObject({ name: "ApiError", status: 404 });
   });
 });
