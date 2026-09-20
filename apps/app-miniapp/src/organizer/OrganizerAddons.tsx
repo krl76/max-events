@@ -14,7 +14,6 @@
 // - EventStatsView - presentational counters plus the sales summary and frozen sale rows
 // - EventStatsSection - expandable container loading OrganizerEventStats + EventSalesReport on first open; re-open after an error retries the load
 // - LazyListState - shared list fetch state union (loading / error / ready items) used by the expandable addon sections
-// - useLazyList - shared expand/lazy-load state for the addon list sections; re-open after an error retries the load
 // - ExpandableSection - shared expandable container: toggle button, loading/error app states, ready content via render children
 // - PROMOTION_TYPE_LABELS - ru labels per promotion type
 // - PROMOTION_STATUS_LABELS - ru labels per promotion status
