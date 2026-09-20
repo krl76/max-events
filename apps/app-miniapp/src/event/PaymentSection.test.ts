@@ -53,14 +53,16 @@ describe("PaymentSection", () => {
     expect(html).toContain("Повторить оплату — 1800 ₽");
   });
 
-  it("shows read-only lines for refunded and cancelled payments", () => {
+  it("shows a read-only line for a refunded payment", () => {
     const refunded = render({ payment: payment({ status: "refunded" }) });
     expect(refunded).toContain("Возврат 1800 ₽");
     expect(refunded).not.toContain("Оплатить");
+  });
 
+  it("offers a retry for a cancelled payment instead of a dead end", () => {
     const cancelled = render({ payment: payment({ status: "cancelled" }) });
     expect(cancelled).toContain("Платёж отменён");
-    expect(cancelled).not.toContain("Оплатить");
+    expect(cancelled).toContain("Повторить оплату — 1800 ₽");
   });
 
   it("surfaces a failed pay attempt inline", () => {

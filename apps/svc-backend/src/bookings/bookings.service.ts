@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Transactional event bookings — capacity lock, duplicate-active rejection, cancel that frees a seat.
-// SCOPE: Create/cancel inside a DB transaction with pessimistic write on the event row; bookedCount; freeSeats on the response.
+// SCOPE: Create/cancel inside a DB transaction with pessimistic write on the event row; bookedCount; freeSeats on the response; the refund runs only once the cancellation is committed.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../events/event.entity, ./booking.entity
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -92,7 +92,6 @@ export class BookingsService {
       const asOrganizer = Boolean(options?.organizerId && event.organizerUserId === options.organizerId);
       if (booking.userId !== userId && !asOrganizer) throw new ForbiddenException("Cannot cancel another user's booking");
     });
-    const payment = await this.payments.refundForBooking(bookingId);
     const result = await this.dataSource.transaction(async (manager) => {
       const booking = await manager.findOne(BookingEntity, { where: { id: bookingId } });
       if (!booking) throw new NotFoundException("Booking not found");
@@ -111,6 +110,10 @@ export class BookingsService {
       const offered = await this.waitlist.onSeatFreed(manager, event);
       return { dto: toBookingDto(saved, event), offered };
     });
+    // Refund only once the cancellation is durable. Refunding first meant a crash before the commit
+    // left the money returned while the booking stayed active; this order leaves at worst a cancelled
+    // booking whose refund a repeated cancel picks up again.
+    const payment = await this.payments.refundForBooking(bookingId);
     if (result.offered) await this.waitlist.notifyOffer(result.offered);
     return { ...result.dto, payment };
   }

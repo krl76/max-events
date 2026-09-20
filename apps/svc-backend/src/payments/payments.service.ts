@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Domain facade for payments — only talks to PaymentProvider, never to an SDK.
-// SCOPE: create / getStatus / refund; ensureForBooking (null when payments_disabled, failed re-armed as a new charge); freeze commission; organizer sales report.
+// SCOPE: create / getStatus / refund; ensureForBooking (null when payments_disabled, failed and cancelled re-armed as a new charge); refundForBooking claims the row before calling the provider so concurrent cancels refund once; freeze commission; organizer sales report.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ./payment-provider, ./payment.entity, ./commission
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -40,13 +40,13 @@ export class PaymentsService {
     return this.provider.getStatus(paymentId);
   }
 
-  refund(paymentId: string, amountRub?: number): Promise<PaymentRefund> {
-    return this.provider.refund(paymentId, amountRub);
+  refund(paymentId: string, amountRub?: number, idempotencyKey?: string): Promise<PaymentRefund> {
+    return this.provider.refund(paymentId, amountRub, idempotencyKey);
   }
 
   async ensureForBooking(bookingId: string, amountRub: number, description: string): Promise<Payment | null> {
     const existing = await this.rows.findOneBy({ bookingId });
-    if (existing && existing.status !== "failed") return toPaymentDto(await this.healCommission(existing));
+    if (existing && !RE_ARMABLE.includes(existing.status)) return toPaymentDto(await this.healCommission(existing));
     const idempotencyKey = existing ? `booking:${bookingId}:retry:${existing.providerPaymentId}` : `booking:${bookingId}`;
     let charge: PaymentCharge;
     try {
@@ -94,13 +94,25 @@ export class PaymentsService {
   async refundForBooking(bookingId: string): Promise<Payment | null> {
     const row = await this.rows.findOneBy({ bookingId });
     if (!row) return null;
-    if (row.status === "refunded") return toPaymentDto(row);
     if (row.status !== "succeeded") return toPaymentDto(row);
-    const refund = await this.provider.refund(row.providerPaymentId);
-    if (refund.status !== "succeeded") throw new ConflictException("Refund failed");
-    row.status = "refunded";
-    await this.rows.save(row);
-    return toPaymentDto(row);
+    // Claim the row with a conditional update before touching the provider: concurrent cancels of the
+    // same booking race here, and only the writer that flips succeeded -> refunded may move money.
+    const claim = await this.rows.update({ id: row.id, status: "succeeded" }, { status: "refunded" });
+    if (!claim.affected) {
+      const current = await this.rows.findOneBy({ bookingId });
+      return current ? toPaymentDto(current) : null;
+    }
+    try {
+      const refund = await this.provider.refund(row.providerPaymentId, undefined, `booking:${bookingId}:refund`);
+      if (refund.status !== "succeeded") throw new ConflictException("Refund failed");
+    } catch (error) {
+      // Release the claim so a retried cancel can refund again; the idempotency key keeps a
+      // provider-side success that failed on our side from paying out twice.
+      await this.rows.update({ id: row.id, status: "refunded" }, { status: "succeeded" });
+      throw error;
+    }
+    const refunded = await this.rows.findOneBy({ bookingId });
+    return toPaymentDto(refunded ?? Object.assign(row, { status: "refunded" as const }));
   }
 
   async salesReport(organizerId: string, eventId: string): Promise<EventSalesReport> {
@@ -159,6 +171,9 @@ export class PaymentsService {
     return this.rows.save(row);
   }
 }
+
+// A charge in one of these states never took the user's money, so a new charge may replace it.
+const RE_ARMABLE: PaymentStatus[] = ["failed", "cancelled"];
 
 export type PaymentMismatch = {
   paymentId: string;

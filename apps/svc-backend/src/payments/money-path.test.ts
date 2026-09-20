@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DataSource, EntityManager, EntityTarget, Repository } from "typeorm";
+import type { PromoService } from "../promo/promo.service";
 import { PaymentWebhookEventEntity } from "./payment-webhook-event.entity";
 import { PaymentEntity } from "./payment.entity";
 import { PaymentsWebhookService } from "./payments-webhook.service";
@@ -18,6 +19,11 @@ function createRows() {
     find: async () => store,
     findOneBy: async (where: { bookingId?: string; providerPaymentId?: string }) => store.find((row) => (where.bookingId ? row.bookingId === where.bookingId : row.providerPaymentId === where.providerPaymentId)) ?? null,
     create: (fields: Partial<PaymentEntity>) => ({ ...fields }) as PaymentEntity,
+    update: async (criteria: Partial<PaymentEntity>, patch: Partial<PaymentEntity>) => {
+      const matched = store.filter((row) => Object.entries(criteria).every(([key, value]) => (row as unknown as Record<string, unknown>)[key] === value));
+      for (const row of matched) Object.assign(row, patch);
+      return { affected: matched.length };
+    },
     save: async (entity: PaymentEntity) => {
       const index = store.findIndex((row) => row === entity || (entity.id && row.id === entity.id));
       if (index >= 0) {
@@ -65,7 +71,8 @@ describe("money path", () => {
         return run(manager as unknown as EntityManager);
       },
     };
-    const webhooks = new PaymentsWebhookService(dataSource as unknown as DataSource, { get: () => 1000 } as never);
+    const promo = { releaseInTransaction: async () => undefined, releaseFulfillmentInTransaction: async () => undefined } as unknown as PromoService;
+    const webhooks = new PaymentsWebhookService(dataSource as unknown as DataSource, { get: () => 1000 } as never, promo);
     const pending = rows.store.find((row) => row.bookingId === bookingOk)!;
     pending.status = "pending";
     pending.commissionFixedAt = null;

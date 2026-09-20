@@ -44,8 +44,11 @@ export type PaymentRefund = {
 export interface PaymentProvider {
   create(input: CreatePaymentInput): Promise<PaymentCharge>;
   getStatus(paymentId: string): Promise<PaymentCharge>;
-  /** Full refund of a succeeded charge. `amountRub`, when set, must equal the charge. */
-  refund(paymentId: string, amountRub?: number): Promise<PaymentRefund>;
+  /**
+   * Full refund of a succeeded charge. `amountRub`, when set, must equal the charge.
+   * `idempotencyKey` lets a live provider collapse retries of the same refund into one movement of money.
+   */
+  refund(paymentId: string, amountRub?: number, idempotencyKey?: string): Promise<PaymentRefund>;
 }
 
 export class PaymentProviderError extends Error {

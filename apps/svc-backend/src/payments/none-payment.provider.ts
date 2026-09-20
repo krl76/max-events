@@ -20,7 +20,7 @@ export class NonePaymentProvider implements PaymentProvider {
     throw new PaymentProviderError("payments_disabled", "Payments are disabled");
   }
 
-  async refund(_paymentId: string, _amountRub?: number): Promise<never> {
+  async refund(_paymentId: string, _amountRub?: number, _idempotencyKey?: string): Promise<never> {
     throw new PaymentProviderError("payments_disabled", "Payments are disabled");
   }
 }

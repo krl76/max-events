@@ -1,13 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: In-app payment block on the event page: status of the booking payment plus the pay/retry action.
-// SCOPE: Presentational only — amounts and status transitions come from API responses (BookingWithSeats.payment); renders nothing without a payment; refunded/cancelled are read-only lines (the refund itself is a server-side path).
+// SCOPE: Presentational only — amounts and status transitions come from API responses (BookingWithSeats.payment); renders nothing without a payment; refunded is a read-only line (the refund itself is a server-side path).
 // DEPENDS: @max-events/api-contracts (Payment), ../ui/primitives.js (AppButton, AppText, AppTitle), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - PaymentSectionProps - payment (null hides the block), in-flight busy flag guarding repeat clicks, inline pay error, pay/retry handler
-// - PaymentSection - payment status block: pending/failed -> pay button (disabled while busy), succeeded -> paid line + receipt description, refunded/cancelled -> info line
+// - PaymentSection - payment status block: pending/failed/cancelled -> pay button (disabled while busy), succeeded -> paid line + receipt description, refunded -> info line
 // END_MODULE_MAP
 
 import type { Payment } from "@max-events/api-contracts";
@@ -23,7 +23,9 @@ export interface PaymentSectionProps {
 export function PaymentSection({ payment, busy, error = false, onPay }: PaymentSectionProps) {
   if (payment === null) return null;
   const amount = `${payment.amountRub} ₽`;
-  const payable = payment.status === "pending" || payment.status === "failed";
+  // A cancelled charge never took money, and the server re-arms it as a new charge, so the booking
+  // is not a dead end: offer the retry instead of leaving the user stuck on an active booking.
+  const payable = payment.status === "pending" || payment.status === "failed" || payment.status === "cancelled";
   return (
     <section className="app-event">
       <div className="app-event-body">
@@ -33,7 +35,7 @@ export function PaymentSection({ payment, busy, error = false, onPay }: PaymentS
         {payment.status === "succeeded" && <AppText>Оплачено {amount}</AppText>}
         {payment.status === "succeeded" && <AppText>{payment.description}</AppText>}
         {payment.status === "refunded" && <AppText>Возврат {amount}</AppText>}
-        {payment.status === "cancelled" && <AppText>Платёж отменён</AppText>}
+        {payment.status === "cancelled" && <AppText>Платёж отменён — можно оплатить заново</AppText>}
         {payment.status === "failed" && <AppText>Ошибка оплаты — повторить</AppText>}
         {error && <AppState error>Не удалось выполнить оплату. Попробуйте ещё раз.</AppState>}
         {payable && (

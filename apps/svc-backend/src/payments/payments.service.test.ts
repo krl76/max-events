@@ -2,10 +2,45 @@ import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
 import { NonePaymentProvider } from "./none-payment.provider";
 import { PaymentEntity } from "./payment.entity";
+import { PaymentProviderError, type CreatePaymentInput, type PaymentProvider } from "./payment-provider";
 import { PaymentsService } from "./payments.service";
 import { SANDBOX_FAIL_AMOUNT, SandboxPaymentProvider } from "./sandbox-payment.provider";
 
 const bookingId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d10";
+
+// Sandbox charges plus a record of every refund the domain asked the provider for.
+function countingProvider(refundOverride?: () => Promise<never>) {
+  const sandbox = new SandboxPaymentProvider();
+  const refundKeys: Array<string | undefined> = [];
+  const provider: PaymentProvider = {
+    create: (input: CreatePaymentInput) => sandbox.create(input),
+    getStatus: (paymentId: string) => sandbox.getStatus(paymentId),
+    refund: async (paymentId: string, amountRub?: number, idempotencyKey?: string) => {
+      refundKeys.push(idempotencyKey);
+      if (refundOverride) return refundOverride();
+      return sandbox.refund(paymentId, amountRub, idempotencyKey);
+    },
+  };
+  return { provider, refundKeys };
+}
+
+function seedPayment(status: PaymentEntity["status"], providerPaymentId: string): PaymentEntity {
+  return {
+    id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d11",
+    bookingId,
+    providerPaymentId,
+    status,
+    amountRub: 850,
+    currency: "RUB",
+    description: "Билет: Джаз",
+    commissionRub: null,
+    netRub: null,
+    commissionBps: null,
+    commissionFixedAt: null,
+    createdAt: new Date("2026-09-01T07:00:00Z"),
+    updatedAt: new Date("2026-09-01T07:00:00Z"),
+  } as PaymentEntity;
+}
 
 function createRows() {
   const store: PaymentEntity[] = [];
@@ -14,6 +49,11 @@ function createRows() {
     findOneBy: async (where: { bookingId: string }) => store.find((row) => row.bookingId === where.bookingId) ?? null,
     find: async () => store,
     create: (fields: Partial<PaymentEntity>) => ({ ...fields }) as PaymentEntity,
+    update: async (criteria: Partial<PaymentEntity>, patch: Partial<PaymentEntity>) => {
+      const matched = store.filter((row) => Object.entries(criteria).every(([key, value]) => (row as unknown as Record<string, unknown>)[key] === value));
+      for (const row of matched) Object.assign(row, patch);
+      return { affected: matched.length };
+    },
     save: async (entity: PaymentEntity) => {
       const index = store.findIndex((row) => row === entity || (entity.id && row.id === entity.id));
       if (index >= 0) {
@@ -182,6 +222,17 @@ describe("PaymentsService.ensureForBooking disabled provider and retries", () =>
     expect(rows.store).toHaveLength(1);
   });
 
+  it("re-arms a cancelled payment as a new provider charge", async () => {
+    const rows = createRows();
+    rows.store.push(seedPayment("cancelled", "pay_sandbox_cancelled"));
+    const service = new PaymentsService(new SandboxPaymentProvider(), rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
+    const retried = await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
+    expect(retried?.status).toBe("succeeded");
+    expect(retried?.providerPaymentId).not.toBe("pay_sandbox_cancelled");
+    expect(rows.store).toHaveLength(1);
+    expect(rows.store[0]?.status).toBe("succeeded");
+  });
+
   it("shares one provider charge across concurrent retries of a failed payment", async () => {
     const rows = createRows();
     const service = new PaymentsService(new SandboxPaymentProvider(), rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
@@ -190,5 +241,41 @@ describe("PaymentsService.ensureForBooking disabled provider and retries", () =>
     expect(first?.providerPaymentId).toBe(second?.providerPaymentId);
     expect(first?.providerPaymentId).not.toBe(failed?.providerPaymentId);
     expect(rows.store).toHaveLength(1);
+  });
+});
+
+describe("PaymentsService.refundForBooking", () => {
+  it("moves money once when two cancels race on the same booking", async () => {
+    const rows = createRows();
+    const { provider, refundKeys } = countingProvider();
+    const service = new PaymentsService(provider, rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
+    await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
+    const [first, second] = await Promise.all([service.refundForBooking(bookingId), service.refundForBooking(bookingId)]);
+    expect(first?.status).toBe("refunded");
+    expect(second?.status).toBe("refunded");
+    expect(rows.store[0]?.status).toBe("refunded");
+    expect(refundKeys).toEqual([`booking:${bookingId}:refund`]);
+  });
+
+  it("releases the claim when the provider refund fails so a retry can refund", async () => {
+    const rows = createRows();
+    const { provider, refundKeys } = countingProvider(() => {
+      throw new PaymentProviderError("provider_unavailable", "Provider is down");
+    });
+    const service = new PaymentsService(provider, rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
+    await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
+    await expect(service.refundForBooking(bookingId)).rejects.toBeInstanceOf(PaymentProviderError);
+    expect(rows.store[0]?.status).toBe("succeeded");
+    expect(refundKeys).toHaveLength(1);
+  });
+
+  it("leaves a payment that never took money alone", async () => {
+    const rows = createRows();
+    rows.store.push(seedPayment("failed", "pay_sandbox_failed"));
+    const { provider, refundKeys } = countingProvider();
+    const service = new PaymentsService(provider, rows as unknown as Repository<PaymentEntity>, { findOneBy: async () => null } as never, { find: async () => [] } as never, { get: () => 1000 } as never);
+    const result = await service.refundForBooking(bookingId);
+    expect(result?.status).toBe("failed");
+    expect(refundKeys).toHaveLength(0);
   });
 });

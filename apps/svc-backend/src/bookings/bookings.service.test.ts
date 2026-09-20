@@ -353,7 +353,7 @@ describe("BookingsService.cancel refunds", () => {
     expect(cancelled.payment?.status).toBe("refunded");
   });
 
-  it("keeps the seat when the provider refund fails", async () => {
+  it("keeps the committed cancellation when the provider refund fails and refunds on retry", async () => {
     const fake = createDataSource(seedEvent({ isPaid: true, priceRub: 850 }));
     const waitlist = { onSeatFreed: async () => null } as unknown as WaitlistService;
     const promo = {
@@ -362,6 +362,7 @@ describe("BookingsService.cancel refunds", () => {
       releaseInTransaction: async () => undefined,
       releaseFulfillmentInTransaction: async () => undefined,
     } as unknown as PromoService;
+    let refundAttempts = 0;
     const payments = {
       ensureForBooking: async (bookingId: string, amountRub: number, description: string) => ({
         id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7001",
@@ -374,15 +375,31 @@ describe("BookingsService.cancel refunds", () => {
         createdAt: "2026-09-01T07:00:00.000Z",
         updatedAt: "2026-09-01T07:00:00.000Z",
       }),
-      refundForBooking: async () => {
-        throw new ConflictException("Refund failed");
+      refundForBooking: async (bookingId: string) => {
+        refundAttempts += 1;
+        if (refundAttempts === 1) throw new ConflictException("Refund failed");
+        return {
+          id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7001",
+          bookingId,
+          providerPaymentId: "pay_sandbox_1",
+          status: "refunded" as const,
+          amountRub: 850,
+          currency: "RUB" as const,
+          description: "Билет: Джаз",
+          createdAt: "2026-09-01T07:00:00.000Z",
+          updatedAt: "2026-09-01T07:00:00.000Z",
+        };
       },
     } as unknown as PaymentsService;
     const service = new BookingsService(fake.dataSource, waitlist, promo, payments);
     const booked = await service.create(userA, eventId);
     await expect(service.cancel(userA, booked.id)).rejects.toBeInstanceOf(ConflictException);
-    expect(fake.events[0]?.bookedCount).toBe(1);
-    expect(fake.bookings[0]?.status).toBe("active");
+    // The cancellation is already durable: the seat is back on sale and only the money is pending.
+    expect(fake.events[0]?.bookedCount).toBe(0);
+    expect(fake.bookings[0]?.status).toBe("cancelled");
+    const retried = await service.cancel(userA, booked.id);
+    expect(retried.payment?.status).toBe("refunded");
+    expect(refundAttempts).toBe(2);
   });
 
   it("refunds a succeeded payment even if the booking is already cancelled", async () => {

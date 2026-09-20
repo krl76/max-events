@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: In-process sandbox payment provider for success/fail/refund without a live SDK.
-// SCOPE: Idempotent create; failAmount or "[fail]" description → failed; refund only succeeded charges.
+// SCOPE: Idempotent create; failAmount or "[fail]" description → failed; refund only succeeded charges, deduped per charge so a retried refund returns the first result.
 // DEPENDS: ./payment-provider
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -52,7 +52,9 @@ export class SandboxPaymentProvider implements PaymentProvider {
     return copyCharge(charge);
   }
 
-  async refund(paymentId: string, amountRub?: number): Promise<PaymentRefund> {
+  // The sandbox dedups on the charge itself, which is stricter than the idempotency key a live
+  // provider would use, so the key is accepted and ignored.
+  async refund(paymentId: string, amountRub?: number, _idempotencyKey?: string): Promise<PaymentRefund> {
     const existing = this.refunds.get(paymentId);
     if (existing) return copyRefund(existing);
     const charge = this.charges.get(paymentId);
