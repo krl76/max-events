@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for the feed wall — impression posts, likes and comments.
-// SCOPE: FeedPost/FeedComment entities, create-post and add-comment write payloads.
+// SCOPE: FeedPost/FeedComment entities with an optional post photo, create-post and add-comment write payloads.
 // DEPENDS: zod, ./primitives.js, ./friends.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -32,6 +32,7 @@ export const FeedPostSchema = z.object({
   author: FriendSchema,
   eventId: IdSchema,
   text: z.string().min(1).max(5000),
+  photoUrl: z.string().url().max(500).nullable().default(null),
   likesCount: z.number().int().min(0),
   likedByMe: z.boolean(),
   comments: z.array(FeedCommentSchema).default([]),
@@ -41,6 +42,7 @@ export type FeedPost = z.infer<typeof FeedPostSchema>;
 export const CreateFeedPostWriteSchema = z.object({
   eventId: IdSchema,
   text: z.string().min(1).max(5000),
+  photoUrl: z.string().url().max(500).nullable().optional(),
 });
 export type CreateFeedPostWrite = z.infer<typeof CreateFeedPostWriteSchema>;
 

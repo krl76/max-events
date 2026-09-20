@@ -10,6 +10,10 @@ import { FeedService } from "./feed.service";
 const now = new Date("2026-09-12T10:00:00Z");
 const userId = "00000000-0000-4000-8000-00000000000a";
 const eventId = "00000000-0000-4000-8000-0000000000e1";
+const otherEventId = "00000000-0000-4000-8000-0000000000e2";
+const placeId = "00000000-0000-4000-8000-0000000000a1";
+const otherPlaceId = "00000000-0000-4000-8000-0000000000a2";
+const photoUrl = "https://cdn.example/feed/1.jpg";
 
 function inValues(value: unknown): unknown[] | undefined {
   if (value && typeof value === "object" && Array.isArray((value as { _value?: unknown })._value)) return (value as { _value: unknown[] })._value;
@@ -56,7 +60,7 @@ function createService(eventPublished = true) {
   const posts = createStoreRepo<FeedPostEntity>();
   const likes = createStoreRepo<FeedLikeEntity>();
   const comments = createStoreRepo<FeedCommentEntity>();
-  const events = createStoreRepo<EventEntity>([{ id: eventId, published: eventPublished } as EventEntity]);
+  const events = createStoreRepo<EventEntity>([{ id: eventId, placeId, published: eventPublished } as EventEntity, { id: otherEventId, placeId: otherPlaceId, published: true } as EventEntity]);
   const users = createStoreRepo<UserEntity>([{ id: userId, firstName: "Анна", lastName: "Соколова", avatarUrl: null } as UserEntity]);
   const publishers = { assertCanPublish: async () => undefined } as unknown as UsersService;
   const service = new FeedService(posts as unknown as Repository<FeedPostEntity>, likes as unknown as Repository<FeedLikeEntity>, comments as unknown as Repository<FeedCommentEntity>, events as unknown as Repository<EventEntity>, users as unknown as Repository<UserEntity>, publishers);
@@ -70,9 +74,41 @@ describe("FeedService", () => {
     expect(created.text).toBe("Как прошло — огонь");
     expect(created.author.name).toBe("Анна Соколова");
     expect(created.likesCount).toBe(0);
-    const listed = await service.list(userId, eventId);
+    const listed = await service.list(userId, { eventId });
     expect(listed).toHaveLength(1);
     expect(listed[0]?.id).toBe(created.id);
+  });
+
+  it("keeps the post photo from create through the list", async () => {
+    const { service } = createService();
+    const created = await service.create(userId, { eventId, text: "с фото", photoUrl });
+    expect(created.photoUrl).toBe(photoUrl);
+    const listed = await service.list(userId, { eventId });
+    expect(listed[0]?.photoUrl).toBe(photoUrl);
+  });
+
+  it("leaves photoUrl null when the post carries no photo", async () => {
+    const { service } = createService();
+    const created = await service.create(userId, { eventId, text: "без фото" });
+    expect(created.photoUrl).toBeNull();
+  });
+
+  it("serves the wall of a place from the posts of its events", async () => {
+    const { service } = createService();
+    const here = await service.create(userId, { eventId, text: "тут" });
+    await service.create(userId, { eventId: otherEventId, text: "в другом месте" });
+
+    const wall = await service.list(userId, { placeId });
+    expect(wall.map((post) => post.id)).toEqual([here.id]);
+
+    const everything = await service.list(userId);
+    expect(everything).toHaveLength(2);
+  });
+
+  it("returns an empty wall for a place with no events", async () => {
+    const { service } = createService();
+    await service.create(userId, { eventId, text: "тут" });
+    await expect(service.list(userId, { placeId: "00000000-0000-4000-8000-0000000000a9" })).resolves.toEqual([]);
   });
 
   it("toggles a like and adds a comment", async () => {
@@ -115,7 +151,7 @@ describe("FeedService", () => {
     const { service } = createService();
     await service.create(userId, { eventId, text: "first" });
     await service.create(userId, { eventId, text: "second" });
-    const page = await service.list(userId, eventId, 1, 0);
+    const page = await service.list(userId, { eventId }, 1, 0);
     expect(page).toHaveLength(1);
     expect(page[0]?.text).toBe("second");
   });

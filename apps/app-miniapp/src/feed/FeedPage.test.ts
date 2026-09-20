@@ -13,6 +13,7 @@ const post: FeedPost = {
   author: { id: "a0000000-0000-4000-8000-0000000000b1", name: "Анна Соколова", avatarUrl: null },
   eventId: mockEvents[0].id,
   text: "Было здорово",
+  photoUrl: null,
   likesCount: 2,
   likedByMe: false,
   comments: [{ id: "31000000-0000-4000-8000-000000000001", author: { id: "a0000000-0000-4000-8000-0000000000b2", name: "Дима Кузнецов", avatarUrl: null }, text: "Класс!" }],

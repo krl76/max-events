@@ -1,12 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for the feed wall.
-// SCOPE: GET/POST /feed, POST /feed/:id/like, POST /feed/:id/comments.
+// SCOPE: GET /feed (?eventId or ?placeId wall), POST /feed, POST /feed/:id/like, POST /feed/:id/comments.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./feed.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - FeedController - list/create/like/comment
+// - requireId - optional uuid query parameter or 400
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
@@ -15,20 +16,25 @@ import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { FeedService } from "./feed.service";
 
+export function requireId(value: string | undefined, message: string): string | undefined {
+  if (value === undefined || value === "") return undefined;
+  if (!/^[0-9a-f-]{36}$/i.test(value)) throw new BadRequestException(message);
+  return value;
+}
+
 @Controller("feed")
 export class FeedController {
   constructor(@Inject(FeedService) private readonly feed: FeedService) {}
 
   @Get()
-  list(@CurrentUser() user: UserEntity, @Query("eventId") eventId?: string, @Query("limit") queryLimit?: string, @Query("offset") queryOffset?: string): Promise<FeedPost[]> {
-    if (eventId !== undefined && eventId !== "") {
-      const parsed = /^[0-9a-f-]{36}$/i.test(eventId);
-      if (!parsed) throw new BadRequestException("Invalid eventId");
-    }
+  list(@CurrentUser() user: UserEntity, @Query("eventId") eventId?: string, @Query("placeId") placeId?: string, @Query("limit") queryLimit?: string, @Query("offset") queryOffset?: string): Promise<FeedPost[]> {
+    const event = requireId(eventId, "Invalid eventId");
+    const place = requireId(placeId, "Invalid placeId");
+    if (event && place) throw new BadRequestException("Filter the feed by eventId or placeId, not both");
     const limit = queryLimit === undefined || queryLimit === "" ? 50 : Number(queryLimit);
     const offset = queryOffset === undefined || queryOffset === "" ? 0 : Number(queryOffset);
     if (!Number.isInteger(limit) || limit < 1 || !Number.isInteger(offset) || offset < 0) throw new BadRequestException("Invalid feed query");
-    return this.feed.list(user.id, eventId || undefined, limit, offset);
+    return this.feed.list(user.id, { eventId: event, placeId: place }, limit, offset);
   }
 
   @Post()

@@ -64,8 +64,8 @@
 // - ApiClient.removeListItem - DELETE /lists/:id/items/:itemId
 // - FeedPost - impression post aggregate: author, event, text, like counter/state, comments
 // - FeedComment - post comment attributed to its author
-// - CreateFeedPost - impression publication payload (author, event, text); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
-// - ApiClient.listFeedPosts - GET /feed[?eventId=]: posts newest first, one event for the wall
+// - CreateFeedPost - impression publication payload (author, event, text, optional photo); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
+// - ApiClient.listFeedPosts - GET /feed[?eventId=|?placeId=]: posts newest first, one event or one place for the wall
 // - ApiClient.createFeedPost - POST /feed
 // - ApiClient.toggleFeedLike - POST /feed/:id/like?userId= (like/unlike toggle; userId is mock-only, ignored by the real backend)
 // - ApiClient.addFeedComment - POST /feed/:id/comments with { userId, text } (userId is mock-only, ignored by the real backend)
@@ -401,6 +401,8 @@ export interface CreateFeedPost {
   userId: string;
   eventId: string;
   text: string;
+  /** Optional photo for the post; the server stores the url as given. */
+  photoUrl?: string | null;
 }
 
 const EventRatingSchema: ZodSchema<EventRating> = {
@@ -715,8 +717,9 @@ export class ApiClient {
     return this.request(`/lists/${listId}`, ListScreenSchema);
   }
 
-  listFeedPosts(eventId?: string): Promise<FeedPost[]> {
-    return this.request(`/feed${eventId !== undefined ? `?eventId=${encodeURIComponent(eventId)}` : ""}`, FeedPostSchema.array());
+  listFeedPosts(eventId?: string, placeId?: string): Promise<FeedPost[]> {
+    const query = eventId !== undefined ? `?eventId=${encodeURIComponent(eventId)}` : placeId !== undefined ? `?placeId=${encodeURIComponent(placeId)}` : "";
+    return this.request(`/feed${query}`, FeedPostSchema.array());
   }
 
   createFeedPost(payload: CreateFeedPost): Promise<FeedPost> {

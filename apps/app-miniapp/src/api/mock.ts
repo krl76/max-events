@@ -1135,6 +1135,7 @@ function seedMockFeed(): void {
       author: mockFriends[seed.author],
       eventId: mockEvents[seed.event].id,
       text: seed.text,
+      photoUrl: null,
       likesCount: seed.likes,
       likedByMe: false,
       comments: (seed.comments ?? []).map((comment) => {
@@ -1155,8 +1156,13 @@ function mockUserAsFriend(userId: string): FeedPost["author"] {
 }
 
 /** Impression posts newest first; with an eventId — only the posts of that event (the event wall). */
-export function feedPosts(eventId: string | null): FeedPost[] {
-  return [...mockFeedPosts].reverse().filter((post) => eventId === null || post.eventId === eventId);
+export function feedPosts(eventId: string | null, placeId: string | null = null): FeedPost[] {
+  const newestFirst = [...mockFeedPosts].reverse();
+  if (eventId !== null) return newestFirst.filter((post) => post.eventId === eventId);
+  if (placeId === null) return newestFirst;
+  // The wall of a place is the posts of the events held there, same as the server computes it.
+  const atPlace = new Set(mockEvents.filter((event) => event.placeId === placeId).map((event) => event.id));
+  return newestFirst.filter((post) => atPlace.has(post.eventId));
 }
 
 /** Likes/unlikes a post as the user; the returned post carries the new counter and state; null for an unknown post. */
@@ -1190,7 +1196,7 @@ function addMockFeedComment(postId: string, payload: { userId: string; text: str
 function createMockFeedPost(payload: CreateFeedPost): FeedPost | null {
   if (!mockEvents.some((event) => event.id === payload.eventId)) return null;
   mockFeedSeq += 1;
-  const post: FeedPost = { id: `30000000-0000-4000-8000-${String(mockFeedSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), eventId: payload.eventId, text: payload.text, likesCount: 0, likedByMe: false, comments: [] };
+  const post: FeedPost = { id: `30000000-0000-4000-8000-${String(mockFeedSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), eventId: payload.eventId, text: payload.text, photoUrl: payload.photoUrl ?? null, likesCount: 0, likedByMe: false, comments: [] };
   mockFeedPosts.push(post);
   return post;
 }
@@ -2915,7 +2921,7 @@ export function installMockApi(): () => void {
       return post ? Response.json(post) : new Response(null, { status: 404 });
     }
     if (url.pathname === "/api/feed") {
-      return Response.json(feedPosts(url.searchParams.get("eventId")));
+      return Response.json(feedPosts(url.searchParams.get("eventId"), url.searchParams.get("placeId")));
     }
     const feedLike = /^\/api\/feed\/([^/]+)\/like$/.exec(url.pathname);
     if (feedLike && init?.method === "POST") {

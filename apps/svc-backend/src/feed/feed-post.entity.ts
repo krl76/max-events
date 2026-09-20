@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: TypeORM entities for feed posts, likes and comments.
-// SCOPE: FeedPostEntity, FeedLikeEntity, FeedCommentEntity.
+// SCOPE: FeedPostEntity (with the optional post photo), FeedLikeEntity, FeedCommentEntity.
 // DEPENDS: typeorm
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -27,6 +27,9 @@ export class FeedPostEntity {
 
   @Column({ type: "varchar", length: 5000 })
   text!: string;
+
+  @Column({ type: "varchar", length: 500, nullable: true })
+  photoUrl!: string | null;
 
   @Column({ type: "boolean", default: true })
   published!: boolean;

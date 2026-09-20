@@ -1,23 +1,26 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Feed wall — create posts, toggle likes, add comments, list newest-first optionally filtered by event.
-// SCOPE: toFeedPost includes author, likesCount, likedByMe for the requester, comments.
+// PURPOSE: Feed wall — create posts with an optional photo, toggle likes, add comments, list newest-first filtered by event or by place.
+// SCOPE: toFeedPost includes author, photoUrl, likesCount, likedByMe for the requester, comments; a place wall is the posts of that place's events.
 // DEPENDS: typeorm, @max-events/api-contracts, events/users
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - FeedListFilter - event wall or place wall selector
 // - FeedService - list/create/toggleLike/addComment
 // END_MODULE_MAP
 
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, QueryFailedError, Repository } from "typeorm";
+import { FindOperator, In, QueryFailedError, Repository } from "typeorm";
 import type { CreateFeedPostWrite, FeedPost } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { toFriendDto } from "../friends/friends.service";
 import { UserEntity } from "../users/user.entity";
 import { UsersService } from "../users/users.service";
 import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "./feed-post.entity";
+
+export type FeedListFilter = { eventId?: string; placeId?: string };
 
 @Injectable()
 export class FeedService {
@@ -30,10 +33,17 @@ export class FeedService {
     @Inject(UsersService) private readonly publishers: UsersService,
   ) {}
 
-  async list(viewerId: string, eventId?: string, limit = 50, offset = 0): Promise<FeedPost[]> {
+  async list(viewerId: string, filter: FeedListFilter = {}, limit = 50, offset = 0): Promise<FeedPost[]> {
     const take = Math.min(Math.max(limit, 1), 100);
     const skip = Math.max(offset, 0);
-    const where = eventId ? { eventId, published: true as const } : { published: true as const };
+    const where: { published: true; eventId?: string | FindOperator<string> } = { published: true };
+    if (filter.eventId) where.eventId = filter.eventId;
+    else if (filter.placeId) {
+      // The wall of a place is the posts of the events held there; an empty place has no wall.
+      const atPlace = await this.events.find({ where: { placeId: filter.placeId, published: true } });
+      if (atPlace.length === 0) return [];
+      where.eventId = In(atPlace.map((row) => row.id));
+    }
     const rows = await this.posts.find({ where, order: { createdAt: "DESC", id: "DESC" }, take, skip });
     return this.toDtoMany(rows, viewerId);
   }
@@ -42,7 +52,7 @@ export class FeedService {
     await this.publishers.assertCanPublish(userId);
     const event = await this.events.findOneBy({ id: payload.eventId });
     if (!event || event.published === false) throw new NotFoundException("Event not found");
-    const saved = await this.posts.save(this.posts.create({ authorUserId: userId, eventId: payload.eventId, text: payload.text, published: true }));
+    const saved = await this.posts.save(this.posts.create({ authorUserId: userId, eventId: payload.eventId, text: payload.text, photoUrl: payload.photoUrl ?? null, published: true }));
     return this.toDto(saved, userId);
   }
 
@@ -104,7 +114,7 @@ export class FeedService {
           const commentAuthor = userById.get(row.authorUserId);
           return commentAuthor ? [{ id: row.id, author: toFriendDto(commentAuthor), text: row.text }] : [];
         });
-      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId, text: post.text, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), comments }];
+      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId, text: post.text, photoUrl: post.photoUrl ?? null, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), comments }];
     });
   }
 }
