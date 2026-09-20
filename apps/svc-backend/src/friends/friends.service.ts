@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Friend graph sync, "your people are going" activity, and per-event friend counters.
-// SCOPE: Replace-on-sync from MaxBotClient.listFriends or other app users; activity grouped by friend; event summary.
-// DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../max-bot, ../users, ../events, ../participations
+// SCOPE: Replace-on-sync from MaxBotClient.listFriends; without a list the graph is left untouched unless FRIENDS_DEMO_ALL_USERS opts into the demo fallback; activity grouped by friend; event summary.
+// DEPENDS: @nestjs/common, @nestjs/config, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../max-bot, ../users, ../events, ../participations
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -11,6 +11,7 @@
 // END_MODULE_MAP
 
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import type { EventFriendsSummary, Friend, FriendActivityByFriend } from "@max-events/api-contracts";
@@ -33,6 +34,7 @@ export class FriendsService {
     @InjectRepository(EventEntity)
     private readonly events: Repository<EventEntity>,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
+    @Inject(ConfigService) private readonly config: ConfigService,
   ) {}
 
   async friendIds(userId: string): Promise<Set<string>> {
@@ -55,6 +57,10 @@ export class FriendsService {
     const me = await this.users.findOneBy({ id: userId });
     if (!me) throw new NotFoundException("User not found");
     const fromBot = await this.bot.listFriends(me.maxUserId);
+    // No list from MAX means no knowledge of who this user's friends are. Inventing the whole user
+    // table as friends inflated the social counters and let anyone discover every other user, so
+    // the graph is left exactly as it is unless the demo switch is deliberately on.
+    if (fromBot === null && !this.demoFallbackEnabled()) return this.list(userId);
     const all = await this.users.find();
     const nextUsers = all.filter((row) => row.id !== userId && (fromBot === null || fromBot.includes(row.maxUserId)));
     const nextIds = new Set(nextUsers.map((row) => row.id));
@@ -68,6 +74,10 @@ export class FriendsService {
       await this.friendships.save(this.friendships.create({ userId, friendUserId: friend.id }));
     }
     return this.list(userId);
+  }
+
+  private demoFallbackEnabled(): boolean {
+    return this.config.get<boolean>("FRIENDS_DEMO_ALL_USERS") === true;
   }
 
   async activity(userId: string): Promise<FriendActivityByFriend[]> {

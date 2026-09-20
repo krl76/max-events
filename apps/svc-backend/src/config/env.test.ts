@@ -44,6 +44,12 @@ describe("validateEnv", () => {
     expect(() => validateEnv({ ...valid, PAYMENT_PROVIDER: "live" })).toThrow(/PAYMENT_PROVIDER/);
   });
 
+  it("keeps the friends demo fallback off unless it is switched on explicitly", () => {
+    expect(validateEnv(valid).FRIENDS_DEMO_ALL_USERS).toBe(false);
+    expect(validateEnv({ ...valid, FRIENDS_DEMO_ALL_USERS: "true" }).FRIENDS_DEMO_ALL_USERS).toBe(true);
+    expect(() => validateEnv({ ...valid, FRIENDS_DEMO_ALL_USERS: "yes" })).toThrow(/FRIENDS_DEMO_ALL_USERS/);
+  });
+
   it("defaults the LLM provider to none and accepts sandbox", () => {
     expect(validateEnv(valid).LLM_PROVIDER).toBe("none");
     expect(validateEnv({ ...valid, LLM_PROVIDER: "sandbox" }).LLM_PROVIDER).toBe("sandbox");

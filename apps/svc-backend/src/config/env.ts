@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: zod-validated environment variables, fail-fast on missing or invalid values.
-// SCOPE: env schema + validator shared by the Nest process and the TypeORM CLI datasource; optional payment provider keys.
+// SCOPE: env schema + validator shared by the Nest process and the TypeORM CLI datasource; optional payment provider keys; opt-in demo switches.
 // DEPENDS: zod, dotenv
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -47,6 +47,12 @@ export const envSchema = z.object({
   XAI_API_KEY: z.string().min(1).optional(),
   XAI_API_URL: z.string().url().default("https://api.x.ai/v1"),
   XAI_MODEL: z.string().min(1).default("grok-4.5"),
+  // MAX Bridge exposes no friend list. Treating every app user as a friend is a demo convenience
+  // that leaks who else uses the app, so it is opt-in and off by default.
+  FRIENDS_DEMO_ALL_USERS: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
 });
 
 export type Env = z.infer<typeof envSchema>;

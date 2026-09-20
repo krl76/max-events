@@ -1,4 +1,5 @@
 import { NotFoundException } from "@nestjs/common";
+import type { ConfigService } from "@nestjs/config";
 import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
 import { EventEntity } from "../events/event.entity";
@@ -91,20 +92,39 @@ function createEventRepo(initial: EventEntity[]) {
   };
 }
 
-function createService(options: { botFriends?: string[] | null; users?: UserEntity[]; participations?: ParticipationEntity[]; events?: EventEntity[] } = {}) {
+function createService(options: { botFriends?: string[] | null; users?: UserEntity[]; participations?: ParticipationEntity[]; events?: EventEntity[]; demoAllUsers?: boolean } = {}) {
   const users = options.users ?? [user(meId, "1", "Демо"), user(annaId, "2", "Анна", "Соколова"), user(dimaId, "3", "Дима", "Кузнецов")];
   const events = options.events ?? [eventRow(eventJazz, "Джаз в парке", "2026-09-20T16:00:00.000Z"), eventRow(eventMatch, "Матч", "2026-09-18T16:00:00.000Z")];
   const participations = options.participations ?? [{ userId: annaId, eventId: eventJazz, status: "going" } as ParticipationEntity, { userId: dimaId, eventId: eventMatch, status: "looking_for_company" } as ParticipationEntity, { userId: annaId, eventId: eventMatch, status: "wants_to_go" } as ParticipationEntity];
   const friendships = createFriendshipRepo();
   const botState: { friends: string[] | null } = { friends: options.botFriends ?? null };
   const bot = { listFriends: async () => botState.friends } as Pick<MaxBotClient, "listFriends">;
-  const service = new FriendsService(friendships as unknown as Repository<FriendshipEntity>, createUserRepo(users) as unknown as Repository<UserEntity>, createParticipationRepo(participations) as unknown as Repository<ParticipationEntity>, createEventRepo(events) as unknown as Repository<EventEntity>, bot as MaxBotClient);
+  const config = { get: (key: string) => (key === "FRIENDS_DEMO_ALL_USERS" ? (options.demoAllUsers ?? false) : undefined) } as unknown as ConfigService;
+  const service = new FriendsService(friendships as unknown as Repository<FriendshipEntity>, createUserRepo(users) as unknown as Repository<UserEntity>, createParticipationRepo(participations) as unknown as Repository<ParticipationEntity>, createEventRepo(events) as unknown as Repository<EventEntity>, bot as MaxBotClient, config);
   return { friendships, botState, service };
 }
 
 describe("FriendsService", () => {
-  it("syncs all other app users when MAX has no friends list, and drops edges on a smaller rerun", async () => {
-    const { friendships, botState, service } = createService({ botFriends: null });
+  it("leaves the graph untouched when MAX returns no friends list", async () => {
+    const { friendships, botState, service } = createService({ botFriends: ["2"] });
+    await service.sync(meId);
+    expect(friendships.store).toHaveLength(1);
+
+    // MAX stops answering: the known edge survives and nobody new becomes a friend.
+    botState.friends = null;
+    const afterBlindSync = await service.sync(meId);
+    expect(afterBlindSync.map((row) => row.name)).toEqual(["Анна Соколова"]);
+    expect(friendships.store).toHaveLength(1);
+  });
+
+  it("makes nobody a friend on a first sync without a MAX friends list", async () => {
+    const { friendships, service } = createService({ botFriends: null });
+    await expect(service.sync(meId)).resolves.toEqual([]);
+    expect(friendships.store).toHaveLength(0);
+  });
+
+  it("falls back to every app user only when the demo switch is on", async () => {
+    const { friendships, botState, service } = createService({ botFriends: null, demoAllUsers: true });
     const first = await service.sync(meId);
     expect(first.map((row) => row.name).sort()).toEqual(["Анна Соколова", "Дима Кузнецов"]);
     expect(friendships.store).toHaveLength(2);
@@ -116,7 +136,7 @@ describe("FriendsService", () => {
   });
 
   it("groups activity by friend and sorts by soonest event", async () => {
-    const { service } = createService();
+    const { service } = createService({ botFriends: ["2", "3"] });
     await service.sync(meId);
     const groups = await service.activity(meId);
     expect(groups.map((group) => group.friend.name)).toEqual(["Анна Соколова", "Дима Кузнецов"]);
