@@ -1,12 +1,11 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Reverse discovery screen (#189) «Твои люди открыли N мест»: per-friend cards of places the viewer has not visited, expandable place lists and a «Посмотреть маршрут» friend timeline.
 // SCOPE: Data via apiClient.getDiscovery/getFriendRoute (mock or live); route timeline local state; CTAs navigate to the place route; loading/error/empty states. Privacy is backend-driven: friends with hidden routes show only counts, without place lists and route CTAs.
-// DEPENDS: ../api/client.js (apiClient, ApiError), @max-events/api-contracts (DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute), ../friends/FriendsPage.js (initials), ../routing/router.js, ../ui/primitives.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, ApiError), @max-events/api-contracts (DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute), ../friends/FriendsPage.js (initials), ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - placesLabel - ru plural of «новое место» for the discovery counters
 // - DiscoveryState - summary fetch union (loading / error / ready)
 // - RouteState - friend route union (idle / loading / error / ready)
 // - routeErrorMessage - ApiError 403 -> hidden-route text, otherwise the fallback
@@ -18,16 +17,9 @@ import { useEffect, useState } from "react";
 import type { DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute } from "@max-events/api-contracts";
 import { ApiError, apiClient } from "../api/client";
 import { initials } from "../friends/FriendsPage";
+import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { AppAvatar, AppButton, AppTitle, AppState } from "../ui/primitives";
-
-export function placesLabel(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod10 === 1 && mod100 !== 11) return `${count} новое место`;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} новых места`;
-  return `${count} новых мест`;
-}
 
 export type DiscoveryState = { status: "loading" } | { status: "error" } | { status: "ready"; data: DiscoveryResponse };
 
@@ -70,7 +62,7 @@ function FriendDiscoveryCard({ entry, route, onShowRoute, onOpenPlace }: FriendD
         <span className="app-friends-name">{entry.friend.name}</span>
       </div>
       <p className="app-today-summary">
-        {firstName}: {placesLabel(entry.newPlacesCount)}
+        {firstName}: {entry.newPlacesCount} {pluralRu(entry.newPlacesCount, "новое место", "новых места", "новых мест")}
       </p>
       {entry.places.length > 0 && (
         <details className="app-card app-nearby-option">
@@ -123,7 +115,9 @@ export function DiscoveryView({ state, route, onShowRoute, onOpenPlace }: Discov
       {state.status === "ready" && state.data.byFriend.length === 0 && <AppState>Пока ничего нового — друзья ещё не открыли мест, где ты не был.</AppState>}
       {state.status === "ready" && state.data.byFriend.length > 0 && (
         <>
-          <p className="app-today-summary">Твои люди открыли {placesLabel(state.data.newPlacesCount)}</p>
+          <p className="app-today-summary">
+            Твои люди открыли {state.data.newPlacesCount} {pluralRu(state.data.newPlacesCount, "новое место", "новых места", "новых мест")}
+          </p>
           {state.data.byFriend.map((entry) => (
             <FriendDiscoveryCard key={entry.friend.id} entry={entry} route={route} onShowRoute={onShowRoute} onOpenPlace={onOpenPlace} />
           ))}

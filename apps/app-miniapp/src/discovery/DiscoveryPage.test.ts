@@ -3,7 +3,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ApiError } from "../api/client";
 import { discoverySummary, friendRoute, mockFriendIds, resetMockCheckIns } from "../api/mock";
-import { DiscoveryView, placesLabel, routeErrorMessage, type DiscoveryState, type RouteState } from "./DiscoveryPage";
+import { DiscoveryView, routeErrorMessage, type DiscoveryState, type RouteState } from "./DiscoveryPage";
+import { pluralRu } from "../catalog/format";
 
 const noop = () => {};
 
@@ -16,13 +17,13 @@ function readyState(): DiscoveryState {
   return { status: "ready", data: discoverySummary() };
 }
 
-describe("placesLabel", () => {
+describe("ru places label", () => {
   it("picks the right russian plural form", () => {
-    expect(placesLabel(1)).toBe("1 новое место");
-    expect(placesLabel(2)).toBe("2 новых места");
-    expect(placesLabel(5)).toBe("5 новых мест");
-    expect(placesLabel(11)).toBe("11 новых мест");
-    expect(placesLabel(21)).toBe("21 новое место");
+    expect(`1 ${pluralRu(1, "новое место", "новых места", "новых мест")}`).toBe("1 новое место");
+    expect(`2 ${pluralRu(2, "новое место", "новых места", "новых мест")}`).toBe("2 новых места");
+    expect(`5 ${pluralRu(5, "новое место", "новых места", "новых мест")}`).toBe("5 новых мест");
+    expect(`11 ${pluralRu(11, "новое место", "новых места", "новых мест")}`).toBe("11 новых мест");
+    expect(`21 ${pluralRu(21, "новое место", "новых места", "новых мест")}`).toBe("21 новое место");
   });
 });
 

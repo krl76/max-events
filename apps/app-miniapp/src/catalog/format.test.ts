@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatStartsAt } from "./format";
+import { formatStartsAt, pluralRu } from "./format";
 
 describe("formatStartsAt", () => {
   it("renders the numeric day before the ru genitive month word", () => {
@@ -21,5 +21,19 @@ describe("formatStartsAt", () => {
 
   it("surfaces stdlib Invalid Date for garbage input instead of throwing", () => {
     expect(formatStartsAt("not-a-date")).toBe("Invalid Date");
+  });
+});
+
+describe("pluralRu", () => {
+  it("selects the ru one/few/many forms per Intl.PluralRules", () => {
+    expect(pluralRu(1, "друг", "друга", "друзей")).toBe("друг");
+    expect(pluralRu(21, "друг", "друга", "друзей")).toBe("друг");
+    expect(pluralRu(2, "друг", "друга", "друзей")).toBe("друга");
+    expect(pluralRu(3, "друг", "друга", "друзей")).toBe("друга");
+    expect(pluralRu(22, "друг", "друга", "друзей")).toBe("друга");
+    expect(pluralRu(5, "друг", "друга", "друзей")).toBe("друзей");
+    expect(pluralRu(11, "друг", "друга", "друзей")).toBe("друзей");
+    expect(pluralRu(12, "друг", "друга", "друзей")).toBe("друзей");
+    expect(pluralRu(0, "друг", "друга", "друзей")).toBe("друзей");
   });
 });

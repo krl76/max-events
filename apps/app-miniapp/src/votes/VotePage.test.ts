@@ -3,7 +3,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { castMockBallot, getMockVote, MOCK_VOTE_ID, mockEvents, mockFriends, resetMockVotes } from "../api/mock";
 import type { Vote } from "@max-events/api-contracts";
-import { voteCountLabel, voteCreateReady, VoteCreateView, VoteView, type VoteState } from "./VotePage";
+import { voteCreateReady, VoteCreateView, VoteView, type VoteState } from "./VotePage";
+import { pluralRu } from "../catalog/format";
 
 const noop = () => {};
 
@@ -21,13 +22,13 @@ function viewHtml(over: { state?: VoteState; myChoice?: string | null; voting?: 
   return renderToStaticMarkup(createElement(VoteView, { state: over.state ?? { status: "ready", vote: seededVote() }, myChoice: over.myChoice ?? null, voting: over.voting ?? false, failed: over.failed ?? false, onVote: noop }));
 }
 
-describe("voteCountLabel", () => {
+describe("ru ballot counter label", () => {
   it("pluralizes the ballot counter in Russian", () => {
-    expect(voteCountLabel(1)).toBe("1 голос");
-    expect(voteCountLabel(2)).toBe("2 голоса");
-    expect(voteCountLabel(5)).toBe("5 голосов");
-    expect(voteCountLabel(11)).toBe("11 голосов");
-    expect(voteCountLabel(21)).toBe("21 голос");
+    expect(`1 ${pluralRu(1, "голос", "голоса", "голосов")}`).toBe("1 голос");
+    expect(`2 ${pluralRu(2, "голос", "голоса", "голосов")}`).toBe("2 голоса");
+    expect(`5 ${pluralRu(5, "голос", "голоса", "голосов")}`).toBe("5 голосов");
+    expect(`11 ${pluralRu(11, "голос", "голоса", "голосов")}`).toBe("11 голосов");
+    expect(`21 ${pluralRu(21, "голос", "голоса", "голосов")}`).toBe("21 голос");
   });
 });
 
@@ -41,7 +42,7 @@ describe("VoteView", () => {
     expect(html).toContain("Участники:");
     for (const option of vote.options) {
       expect(html).toContain(option.event.title);
-      expect(html).toContain(voteCountLabel(option.votes));
+      expect(html).toContain(`${option.votes} ${pluralRu(option.votes, "голос", "голоса", "голосов")}`);
     }
   });
 
@@ -97,7 +98,7 @@ describe("VoteView", () => {
     if (typeof next === "string") throw new Error("unexpected ballot failure");
     const html = viewHtml({ state: { status: "ready", vote: next }, myChoice: target.event.id });
 
-    expect(html).toContain(voteCountLabel(target.votes + 1));
+    expect(html).toContain(`${target.votes + 1} ${pluralRu(target.votes + 1, "голос", "голоса", "голосов")}`);
     expect(html).toContain("Твой голос");
   });
 });

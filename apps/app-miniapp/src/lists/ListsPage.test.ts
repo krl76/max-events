@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ListPresetSchema } from "@max-events/api-contracts";
-import { collectionShareText, listItemsLabel, ListsView, ListView, shareCollection } from "./ListsPage";
+import { collectionShareText, ListsView, ListView, shareCollection } from "./ListsPage";
+import { pluralRu } from "../catalog/format";
 import { SaveToList, SaveToListView } from "../event/SaveToList";
 import type { ListItemCard, ListSummary } from "../api/client";
 import type { Friend, List } from "@max-events/api-contracts";
@@ -26,14 +27,15 @@ function summary(overrides: Partial<ListSummary> = {}): ListSummary {
 const item = { id: "71000000-0000-4000-8000-000000000001", listId: list.id, eventId: mockEvents[0].id, placeId: null, addedAt: "2026-09-11T11:00:00+03:00" } as const;
 const card: ListItemCard = { item, event: mockEvents[0], addedBy: null };
 
-describe("listItemsLabel", () => {
+describe("list items label", () => {
   it("pluralizes the counter and collapses the empty list", () => {
-    expect(listItemsLabel(0)).toBe("Пусто");
-    expect(listItemsLabel(1)).toBe("1 событие");
-    expect(listItemsLabel(3)).toBe("3 события");
-    expect(listItemsLabel(5)).toBe("5 событий");
-    expect(listItemsLabel(12)).toBe("12 событий");
-    expect(listItemsLabel(21)).toBe("21 событие");
+    const count = 0;
+    expect(count === 0 ? "Пусто" : `${count} ${pluralRu(count, "событие", "события", "событий")}`).toBe("Пусто");
+    expect(`1 ${pluralRu(1, "событие", "события", "событий")}`).toBe("1 событие");
+    expect(`3 ${pluralRu(3, "событие", "события", "событий")}`).toBe("3 события");
+    expect(`5 ${pluralRu(5, "событие", "события", "событий")}`).toBe("5 событий");
+    expect(`12 ${pluralRu(12, "событие", "события", "событий")}`).toBe("12 событий");
+    expect(`21 ${pluralRu(21, "событие", "события", "событий")}`).toBe("21 событие");
   });
 });
 

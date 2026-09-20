@@ -1,19 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { formatDistance, planMeetingLabel, planParticipantsLabel, PlansPage, PlansView, type PlansState } from "./PlansPage";
+import { formatDistance, planMeetingLabel, PlansPage, PlansView, type PlansState } from "./PlansPage";
+import { pluralRu } from "../catalog/format";
 import { planCards } from "../api/mock";
 
 const CARDS = planCards();
 
-describe("planParticipantsLabel", () => {
+describe("plan participants label", () => {
   it("pluralizes «друг» by ru rules like the README example", () => {
-    expect(planParticipantsLabel(1)).toBe("Ты + 1 друг");
-    expect(planParticipantsLabel(3)).toBe("Ты + 3 друга");
-    expect(planParticipantsLabel(5)).toBe("Ты + 5 друзей");
-    expect(planParticipantsLabel(11)).toBe("Ты + 11 друзей");
-    expect(planParticipantsLabel(12)).toBe("Ты + 12 друзей");
-    expect(planParticipantsLabel(22)).toBe("Ты + 22 друга");
+    expect(`Ты + 1 ${pluralRu(1, "друг", "друга", "друзей")}`).toBe("Ты + 1 друг");
+    expect(`Ты + 3 ${pluralRu(3, "друг", "друга", "друзей")}`).toBe("Ты + 3 друга");
+    expect(`Ты + 5 ${pluralRu(5, "друг", "друга", "друзей")}`).toBe("Ты + 5 друзей");
+    expect(`Ты + 11 ${pluralRu(11, "друг", "друга", "друзей")}`).toBe("Ты + 11 друзей");
+    expect(`Ты + 12 ${pluralRu(12, "друг", "друга", "друзей")}`).toBe("Ты + 12 друзей");
+    expect(`Ты + 22 ${pluralRu(22, "друг", "друга", "друзей")}`).toBe("Ты + 22 друга");
   });
 });
 
@@ -40,7 +41,7 @@ describe("PlansView", () => {
 
     for (const card of CARDS) {
       expect(html).toContain(card.event.title);
-      expect(html).toContain(planParticipantsLabel(card.plan.participants.length));
+      expect(html).toContain(`Ты + ${card.plan.participants.length} ${pluralRu(card.plan.participants.length, "друг", "друга", "друзей")}`);
       expect(html).toContain(planMeetingLabel(card.plan));
       expect(html).toContain(`${formatDistance(card.distanceMeters)} от тебя`);
     }

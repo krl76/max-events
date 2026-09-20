@@ -1,13 +1,12 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Shared event vote («Куда идем в пятницу?»): screen opened from a MAX chat card via the vote-<id> deep link, one-tap ballot, winner highlight; plus the minimal create form launched from the whereto wizard result.
 // SCOPE: VotePage container (getVote) + presentational VoteView + VoteCreateSection form (title + event/friend pickers over the wizard result and the friends list); the winner comes from the API (no client-side tally); a repeated tap replaces the previous ballot (backend semantics); no share UI (the backend sends the chat card).
-// DEPENDS: ../api/client.js (apiClient, ApiError), @max-events/api-contracts (Vote, Event, Friend), ../catalog/CatalogPage.js (formatStartsAt), ../ui/primitives.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, ApiError), @max-events/api-contracts (Vote, Event, Friend), ../catalog/CatalogPage.js (formatStartsAt), ../catalog/format.js (pluralRu), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - VoteState - union of the vote fetch states (loading / notfound 404 / forbidden 403 / error / ready)
-// - voteCountLabel - ru plural of the ballot counter
 // - VoteView - presentational: title, participants, «Отправлено в чат» hint when chatLink, option cards with counters, winner badge, «Твой голос» mark (vote.myBallotEventId wins over the session myChoice)
 // - VotePage - route container: loads the vote by id, casts ballots (403 -> «Голосование недоступно»)
 // - voteCreateReady - create form validity: non-empty title, 2..10 events, >=1 friend
@@ -19,18 +18,10 @@ import { useEffect, useState } from "react";
 import type { Event, Friend, Vote } from "@max-events/api-contracts";
 import { ApiError, apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/CatalogPage";
+import { pluralRu } from "../catalog/format";
 import { AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
 
 export type VoteState = { status: "loading" } | { status: "notfound" } | { status: "forbidden" } | { status: "error" } | { status: "ready"; vote: Vote };
-
-export function voteCountLabel(votes: number): string {
-  const mod100 = votes % 100;
-  const mod10 = mod100 % 10;
-  if (mod100 >= 11 && mod100 <= 14) return `${votes} голосов`;
-  if (mod10 === 1) return `${votes} голос`;
-  if (mod10 >= 2 && mod10 <= 4) return `${votes} голоса`;
-  return `${votes} голосов`;
-}
 
 interface VoteViewProps {
   state: VoteState;
@@ -63,7 +54,9 @@ export function VoteView({ state, myChoice, voting, failed, onVote }: VoteViewPr
               <div className="app-card-body">
                 <span className="app-card-title">{option.event.title}</span>
                 <span className="app-card-subtitle">{formatStartsAt(option.event.startsAt)}</span>
-                <span className="app-card-subtitle">{voteCountLabel(option.votes)}</span>
+                <span className="app-card-subtitle">
+                  {option.votes} {pluralRu(option.votes, "голос", "голоса", "голосов")}
+                </span>
                 {winner && <span className="app-vote-badge">Лучший вариант</span>}
                 {mine && <span className="app-vote-badge">Твой голос</span>}
               </div>

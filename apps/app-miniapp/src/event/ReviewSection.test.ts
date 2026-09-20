@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { RatingView, ReviewForm, reviewsLabel } from "./ReviewSection";
+import { RatingView, ReviewForm } from "./ReviewSection";
+import { pluralRu } from "../catalog/format";
 import type { EventRating } from "../api/client";
 
 const rating: EventRating = {
@@ -27,14 +28,14 @@ describe("RatingView", () => {
   });
 });
 
-describe("reviewsLabel", () => {
+describe("ru reviews label", () => {
   it("picks the right russian plural form", () => {
-    expect(reviewsLabel(1)).toBe("отзыв");
-    expect(reviewsLabel(3)).toBe("отзыва");
-    expect(reviewsLabel(12)).toBe("отзывов");
-    expect(reviewsLabel(21)).toBe("отзыв");
-    expect(reviewsLabel(11)).toBe("отзывов");
-    expect(reviewsLabel(14)).toBe("отзывов");
+    expect(pluralRu(1, "отзыв", "отзыва", "отзывов")).toBe("отзыв");
+    expect(pluralRu(3, "отзыв", "отзыва", "отзывов")).toBe("отзыва");
+    expect(pluralRu(12, "отзыв", "отзыва", "отзывов")).toBe("отзывов");
+    expect(pluralRu(21, "отзыв", "отзыва", "отзывов")).toBe("отзыв");
+    expect(pluralRu(11, "отзыв", "отзыва", "отзывов")).toBe("отзывов");
+    expect(pluralRu(14, "отзыв", "отзыва", "отзывов")).toBe("отзывов");
   });
 });
 

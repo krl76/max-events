@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { EMPTY_PROMOTION_DRAFT, EarlyAccessSection, EventStatsView, ExpandableSection, OrganizerRatingView, PromoCampaignRow, PromoCodeRow, PromoForm, CampaignForm, EMPTY_PROMO_DRAFT, EMPTY_CAMPAIGN_DRAFT, PromotionCampaignRow, PromotionForm, campaignDraftErrors, promoDraftErrors, promotionDraftErrors, toCreateCampaign, toCreatePromotion, toCreatePromo, visitsCountLabel, type PromotionDraft, type PromoDraft } from "./OrganizerAddons";
+import { pluralRu } from "../catalog/format";
+import { EMPTY_PROMOTION_DRAFT, EarlyAccessSection, EventStatsView, ExpandableSection, OrganizerRatingView, PromoCampaignRow, PromoCodeRow, PromoForm, CampaignForm, EMPTY_PROMO_DRAFT, EMPTY_CAMPAIGN_DRAFT, PromotionCampaignRow, PromotionForm, campaignDraftErrors, promoDraftErrors, promotionDraftErrors, toCreateCampaign, toCreatePromotion, toCreatePromo, type PromotionDraft, type PromoDraft } from "./OrganizerAddons";
 import type { EventSalesReport, OrganizerEventStats, OrganizerRating, PromoCampaign, PromoCode, PromotionCampaign } from "@max-events/api-contracts";
 
 const noop = () => {};
@@ -24,12 +25,12 @@ const targetedCampaign: PromotionCampaign = { ...unpaidCampaign, id: "f4000000-0
 
 const readyDraft: PromotionDraft = { type: "boost", startsAt: "2027-01-01T10:00", endsAt: "2027-01-08T10:00", tariffCode: "boost-7", priceRub: "990", minVisits: "2", windowDays: "30", category: "" };
 
-describe("visitsCountLabel", () => {
+describe("ru visits counter label", () => {
   it("pluralizes the ru visit counter", () => {
-    expect(visitsCountLabel(1)).toBe("1 посещение");
-    expect(visitsCountLabel(3)).toBe("3 посещения");
-    expect(visitsCountLabel(12)).toBe("12 посещений");
-    expect(visitsCountLabel(21)).toBe("21 посещение");
+    expect(`1 ${pluralRu(1, "посещение", "посещения", "посещений")}`).toBe("1 посещение");
+    expect(`3 ${pluralRu(3, "посещение", "посещения", "посещений")}`).toBe("3 посещения");
+    expect(`12 ${pluralRu(12, "посещение", "посещения", "посещений")}`).toBe("12 посещений");
+    expect(`21 ${pluralRu(21, "посещение", "посещения", "посещений")}`).toBe("21 посещение");
   });
 });
 

@@ -1,12 +1,11 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Lists UI: preset lists overview with counters, one list screen with saved event cards, shared-collection screen (participants, both add, «Отправить в чат»), profile entry link.
 // SCOPE: Data via apiClient.listLists/getList/addListItem/getListItems (mock or live); presentational rendering; no custom list management (P2 backlog); sharing via bridge.shareResult.
-// DEPENDS: ../api/client.js (apiClient, ListItemCard, ListScreen, ListSummary), ../auth/AuthContext.js, ../catalog/CatalogPage.js (formatStartsAt), ../max/bridge.js (webApp, shareResult, ShareChannel), ../routing/router.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, ListItemCard, ListScreen, ListSummary), ../auth/AuthContext.js, ../catalog/CatalogPage.js (formatStartsAt), ../catalog/format.js (pluralRu), ../max/bridge.js (webApp, shareResult, ShareChannel), ../routing/router.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, DF-MAX-IDENTITY
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - listItemsLabel - ru counter line for a list row («1 событие», «Пусто»)
 // - participantsLabel - «Имя + Имя» line of a shared collection
 // - collectionShareText - share text of a shared collection for the MAX chat
 // - shareCollection - sends the collection share text through the given share channel
@@ -24,18 +23,11 @@ import type { Event, Friend, List } from "@max-events/api-contracts";
 import { apiClient, type ListItemCard, type ListScreen, type ListSummary } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
+import { pluralRu } from "../catalog/format";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
 import { AppButton, AppState } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { useRoute } from "../routing/router";
-
-export function listItemsLabel(count: number): string {
-  if (count === 0) return "Пусто";
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  const word = mod10 === 1 && mod100 !== 11 ? "событие" : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? "события" : "событий";
-  return `${count} ${word}`;
-}
 
 export function participantsLabel(participants: Friend[]): string {
   return participants.map((participant) => participant.name).join(" + ");
@@ -63,7 +55,7 @@ export function ListsView({ state, onOpen }: { state: ListsState; onOpen: (listI
               {participants.length > 0 && <span className="app-micro-badge">Совместная</span>} {list.title}
             </span>
             {participants.length > 0 && <span className="app-card-subtitle">{participantsLabel(participants)}</span>}
-            <span className="app-card-subtitle">{listItemsLabel(itemsCount)}</span>
+            <span className="app-card-subtitle">{itemsCount === 0 ? "Пусто" : `${itemsCount} ${pluralRu(itemsCount, "событие", "события", "событий")}`}</span>
           </div>
           <span className="app-row-chevron" aria-hidden="true">
             <ActionIcon name="chevron" size={16} strokeWidth={2} />
