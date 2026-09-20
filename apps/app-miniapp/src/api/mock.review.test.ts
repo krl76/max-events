@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ApiClient } from "./client";
-import { createMockReport, eventRating, installMockApi, mockEvents, resetMockReports, resetMockReviews } from "./mock";
+import { createMockReport, eventRating, feedPosts, installMockApi, mockEvents, mockPlaces, resetMockReports, resetMockReviews } from "./mock";
 
 const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 const UNKNOWN_ID = "00000000-0000-4000-8000-000000000000";
@@ -104,5 +104,37 @@ describe("mock reports", () => {
 
     await expect(api.createReport({ userId: DEMO_USER_ID, eventId: UNKNOWN_ID, reason: "spam" })).rejects.toMatchObject({ status: 404 });
     await expect(api.createReport({ userId: DEMO_USER_ID, eventId: mockEvents[0].id, reason: "nonsense" as "spam" })).rejects.toMatchObject({ status: 400 });
+  });
+});
+
+describe("mock reports for places and feed posts", () => {
+  afterEach(() => {
+    resetMockReports();
+  });
+
+  it("creates a report for a place target", () => {
+    const report = createMockReport({ userId: DEMO_USER_ID, placeId: mockPlaces[0].id, reason: "spam" });
+    expect(report).toMatchObject({ userId: DEMO_USER_ID, targetType: "place", targetId: mockPlaces[0].id, reason: "spam" });
+  });
+
+  it("creates a report for a feed post target", () => {
+    const feedPostId = feedPosts(null)[0].id;
+    const report = createMockReport({ userId: DEMO_USER_ID, feedPostId, reason: "inaccurate" });
+    expect(report).toMatchObject({ userId: DEMO_USER_ID, targetType: "feed_post", targetId: feedPostId, reason: "inaccurate" });
+  });
+
+  it("returns duplicate for a repeated report of the same target", () => {
+    createMockReport({ userId: DEMO_USER_ID, placeId: mockPlaces[1].id, reason: "spam" });
+    expect(createMockReport({ userId: DEMO_USER_ID, placeId: mockPlaces[1].id, reason: "abuse" })).toBe("duplicate");
+  });
+
+  it("returns no_target for an unknown place or feed post", () => {
+    expect(createMockReport({ userId: DEMO_USER_ID, placeId: UNKNOWN_ID, reason: "spam" })).toBe("no_target");
+    expect(createMockReport({ userId: DEMO_USER_ID, feedPostId: UNKNOWN_ID, reason: "spam" })).toBe("no_target");
+  });
+
+  it("returns invalid when zero or more than one target is given", () => {
+    expect(createMockReport({ userId: DEMO_USER_ID, reason: "spam" as const })).toBe("invalid");
+    expect(createMockReport({ userId: DEMO_USER_ID, eventId: mockEvents[0].id, placeId: mockPlaces[0].id, reason: "spam" })).toBe("invalid");
   });
 });

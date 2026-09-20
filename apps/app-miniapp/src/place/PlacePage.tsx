@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Place social page (P2-11-c): «место как социальный объект» — today events, friend visits, people rating, popularity today, personal history.
+// PURPOSE: Place social page (P2-11-c): «место как социальный объект» — today events, friend visits, people rating, popularity today, personal history, a «Я здесь» check-in and a «Пожаловаться» control.
 // SCOPE: Data via apiClient.getPlacePage + getPlace (mock or live); empty data per block, not a page error; no navigation logic beyond event cards.
 // DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (PlacePage, PlaceFriendVisit), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../catalog/format.js (pluralRu), ../event/ReviewSection.js (RatingView), ../routing/router.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
@@ -19,8 +19,9 @@ import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { pluralRu } from "../catalog/format";
 import { RatingView } from "../event/ReviewSection";
+import { ReportButton } from "../event/ReportButton";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppTitle, AppState } from "../ui/primitives";
+import { AppAvatar, AppButton, AppTitle, AppState } from "../ui/primitives";
 
 export type PlacePageState = { status: "loading" } | { status: "error" } | { status: "ready"; place: Place; page: PlacePageAggregate };
 
@@ -39,10 +40,13 @@ export function friendVisitLabel(visit: PlaceFriendVisit): string {
 interface PlacePageViewProps {
   place: Place;
   page: PlacePageAggregate;
+  userId: string;
+  checkedIn: boolean;
+  onCheckIn: () => void;
   onOpenEvent: (eventId: string) => void;
 }
 
-export function PlacePageView({ place, page, onOpenEvent }: PlacePageViewProps) {
+export function PlacePageView({ place, page, userId, checkedIn, onCheckIn, onOpenEvent }: PlacePageViewProps) {
   return (
     <article className="app-event">
       <div className="app-event-body">
@@ -53,6 +57,15 @@ export function PlacePageView({ place, page, onOpenEvent }: PlacePageViewProps) 
           {place.address}, {place.city}
         </p>
         <p className="app-place-popularity">{page.popularityToday > 0 ? `${page.popularityToday} ${pluralRu(page.popularityToday, "человек", "человека", "человек")} были здесь сегодня` : "Сегодня здесь пока никого не было"}</p>
+        {checkedIn ? (
+          <AppButton disabled tone="secondary" stretched>
+            Вы были здесь
+          </AppButton>
+        ) : (
+          <AppButton onClick={onCheckIn} stretched tone="secondary">
+            Я здесь
+          </AppButton>
+        )}
 
         <section className="app-place-block" aria-label="События сегодня">
           <h2 className="app-section-title">События сегодня</h2>
@@ -98,6 +111,7 @@ export function PlacePageView({ place, page, onOpenEvent }: PlacePageViewProps) 
           <p className="app-place-personal">{page.personalVisitsCount > 0 ? `Ты был здесь ${page.personalVisitsCount} ${pluralRu(page.personalVisitsCount, "раз", "раза", "раз")}` : "Ты пока не был здесь"}</p>
         </section>
       </div>
+      <ReportButton target={{ placeId: place.id }} userId={userId} />
     </article>
   );
 }
@@ -107,6 +121,8 @@ export function PlacePage({ id }: { id: string }) {
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
   const [state, setState] = useState<PlacePageState>({ status: "loading" });
+  // ponytail: session-only check-in state — the PlacePage aggregate has no per-user "was here" field, so a re-mount resets the button; backend-parity state is a separate task
+  const [checkedIn, setCheckedIn] = useState(false);
 
   // Fire-and-forget page view (#196): a tracking failure must never break the page (trackPageView swallows rejections); skip until auth resolves so pre-login views are not recorded.
   useEffect(() => {
@@ -133,5 +149,12 @@ export function PlacePage({ id }: { id: string }) {
 
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "error") return <AppState error>Не удалось загрузить место.</AppState>;
-  return <PlacePageView place={state.place} page={state.page} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
+  const checkIn = () => {
+    if (userId === null) return;
+    apiClient.createCheckIn({ userId, placeId: id }).then(
+      () => setCheckedIn(true),
+      () => {},
+    );
+  };
+  return <PlacePageView place={state.place} page={state.page} userId={userId ?? ""} checkedIn={checkedIn} onCheckIn={checkIn} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
 }

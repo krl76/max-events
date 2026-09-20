@@ -60,7 +60,7 @@
 // - resetMockReviews - restore seeded reviews (test isolation)
 // - eventRating - rating summary and per-category averages for an event from the mock reviews
 // - resetMockReports - clear in-memory reports (test isolation)
-// - createMockReport - in-memory deduplicated report (mock POST /reports, duplicate -> 409)
+// - createMockReport - in-memory deduplicated report (mock POST /reports, duplicate -> 409, unknown target -> "no_target")
 // - resetMockBookings - clear in-memory bookings and payments (test isolation)
 // - MOCK_SANDBOX_FAIL_AMOUNT - sandbox fail amount: a charge of exactly this sum is declined (#213)
 // - MOCK_EARLY_ACCESS_EVENT_ID - fixture event whose booking opens in the future (early access, #202)
@@ -988,13 +988,18 @@ export function resetMockReports(): void {
   mockReportSeq = 0;
 }
 
-/** Creates a report; a repeat report of the same user for the same event returns "duplicate" (mock 409), an unknown event or reason — "no_target"/"invalid". */
+/** Creates a report for exactly one known event/place/feed post; a repeat report of the same user for the same target returns "duplicate" (mock 409), 0 or >1 targets — "invalid", an unknown target or reason — "no_target"/"invalid". */
 export function createMockReport(payload: CreateReport): Report | "duplicate" | "no_target" | "invalid" {
-  if (!mockEvents.some((item) => item.id === payload.eventId)) return "no_target";
+  const targetCount = [payload.eventId, payload.placeId, payload.feedPostId].filter((id) => id !== undefined).length;
+  if (targetCount !== 1) return "invalid";
+  const targetType = payload.eventId !== undefined ? "event" : payload.placeId !== undefined ? "place" : "feed_post";
+  const targetId = payload.eventId ?? payload.placeId ?? payload.feedPostId!;
+  const known = payload.eventId !== undefined ? mockEvents.some((item) => item.id === payload.eventId) : payload.placeId !== undefined ? mockPlaces.some((item) => item.id === payload.placeId) : mockFeedPosts.some((item) => item.id === payload.feedPostId);
+  if (!known) return "no_target";
   if (!REPORT_REASONS.includes(payload.reason)) return "invalid";
-  if (mockReports.some((item) => item.userId === payload.userId && item.targetId === payload.eventId)) return "duplicate";
+  if (mockReports.some((item) => item.userId === payload.userId && item.targetId === targetId)) return "duplicate";
   mockReportSeq += 1;
-  const report: Report = { id: `81000000-0000-4000-8000-${String(mockReportSeq).padStart(12, "0")}`, userId: payload.userId, targetType: "event", targetId: payload.eventId, reason: payload.reason, status: "open", createdAt: new Date().toISOString() };
+  const report: Report = { id: `81000000-0000-4000-8000-${String(mockReportSeq).padStart(12, "0")}`, userId: payload.userId, targetType, targetId, reason: payload.reason, status: "open", createdAt: new Date().toISOString() };
   mockReports.push(report);
   return report;
 }
@@ -2839,7 +2844,7 @@ export function installMockApi(): () => void {
     }
     if (url.pathname === "/api/reports" && init?.method === "POST") {
       const payload = parseBookingBody(init) as CreateReport | undefined;
-      if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || typeof payload.eventId !== "string" || typeof payload.reason !== "string") return new Response(null, { status: 400 });
+      if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || typeof payload.reason !== "string") return new Response(null, { status: 400 });
       const result = createMockReport(payload as CreateReport);
       return result === "no_target" ? new Response(null, { status: 404 }) : result === "invalid" ? new Response(null, { status: 400 }) : result === "duplicate" ? new Response(null, { status: 409 }) : Response.json(result);
     }

@@ -6,6 +6,7 @@ import type { FeedPost } from "../api/client";
 import { mockEvents } from "../api/mock";
 
 const noop = () => {};
+const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
 const post: FeedPost = {
   id: "30000000-0000-4000-8000-000000000001",
@@ -20,7 +21,7 @@ const post: FeedPost = {
 const readyDraft: FeedDraft = { event: mockEvents[0].title, text: "Как прошло — восторг" };
 
 describe("FeedPostCard", () => {
-  const card = (over: Partial<FeedPost> = {}, withEventLink = false) => renderToStaticMarkup(createElement(FeedPostCard, { post: { ...post, ...over }, eventTitle: mockEvents[0].title, onToggleLike: noop, onAddComment: noop, ...(withEventLink ? { onOpenEvent: noop } : {}) }));
+  const card = (over: Partial<FeedPost> = {}, withEventLink = false) => renderToStaticMarkup(createElement(FeedPostCard, { post: { ...post, ...over }, eventTitle: mockEvents[0].title, userId: DEMO_USER_ID, onToggleLike: noop, onAddComment: noop, ...(withEventLink ? { onOpenEvent: noop } : {}) }));
 
   it("renders the photo placeholder, author, event title, text and comments", () => {
     const html = card();
@@ -48,6 +49,10 @@ describe("FeedPostCard", () => {
   it("renders the comment add form with a disabled submit until text is typed", () => {
     expect(card()).toContain("Добавить комментарий…");
     expect(card()).toContain("disabled");
+  });
+
+  it("renders the report button for the post", () => {
+    expect(card()).toContain("Пожаловаться");
   });
 });
 
