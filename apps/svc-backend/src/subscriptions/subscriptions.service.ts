@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Catalog subscriptions — follow organizer/place/interest and DM on matching new events.
-// SCOPE: CRUD for CurrentUser; matchesSubscription; notifyNewEvent unique users; bot failure does not throw.
+// SCOPE: CRUD for CurrentUser; create idempotent per target incl. the 23505 insert race; matchesSubscription; notifyNewEvent unique users; bot failure does not throw.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, places/users/max-bot
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -16,7 +16,7 @@
 
 import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { QueryFailedError, Repository } from "typeorm";
 import type { CreateSubscription, Subscription } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
@@ -78,10 +78,21 @@ export class SubscriptionsService {
       const organizer = await this.users.findOneBy({ id: fields.organizerUserId });
       if (!organizer) throw new NotFoundException("Organizer not found");
     }
-    const existing = (await this.subscriptions.find({ where: { userId } })).find((row) => sameTarget(row, fields));
+    const existing = await this.findSameTarget(userId, fields);
     if (existing) return toSubscriptionDto(existing);
-    const saved = await this.subscriptions.save(this.subscriptions.create(fields));
-    return toSubscriptionDto(saved);
+    try {
+      return toSubscriptionDto(await this.subscriptions.save(this.subscriptions.create(fields)));
+    } catch (error) {
+      // UQ_subscriptions_user_*: a parallel follow tap must read back the winner, not 500.
+      if (!isUniqueViolation(error)) throw error;
+      const winner = await this.findSameTarget(userId, fields);
+      if (!winner) throw error;
+      return toSubscriptionDto(winner);
+    }
+  }
+
+  private async findSameTarget(userId: string, fields: SubscriptionTarget): Promise<SubscriptionEntity | undefined> {
+    return (await this.subscriptions.find({ where: { userId } })).find((row) => sameTarget(row, fields));
   }
 
   async remove(userId: string, subscriptionId: string): Promise<Subscription> {
@@ -121,7 +132,13 @@ export class SubscriptionsService {
   }
 }
 
-function sameTarget(row: SubscriptionEntity, fields: { type: SubscriptionEntity["type"]; organizerUserId: string | null; placeId: string | null; interest: string | null }): boolean {
+type SubscriptionTarget = { type: SubscriptionEntity["type"]; organizerUserId: string | null; placeId: string | null; interest: string | null };
+
+function isUniqueViolation(error: unknown): boolean {
+  return error instanceof QueryFailedError && error.driverError?.code === "23505";
+}
+
+function sameTarget(row: SubscriptionEntity, fields: SubscriptionTarget): boolean {
   if (row.type !== fields.type) return false;
   if (fields.type === "organizer") return row.organizerUserId === fields.organizerUserId;
   if (fields.type === "place") return row.placeId === fields.placeId;

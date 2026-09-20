@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Personal event lists — six README presets per user, add/remove events, return lists with events.
-// SCOPE: Lazy ensurePresets; idempotent add by (listId, eventId); GET summaries/items/screen; owner-only.
+// SCOPE: Lazy ensurePresets; idempotent add by (listId, eventId) incl. the 23505 insert race; GET summaries/items/screen; owner-only.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../events
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -14,7 +14,7 @@
 
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { QueryFailedError, Repository } from "typeorm";
 import { ListPresetSchema, type List, type ListItem, type ListItemCard, type ListPreset, type ListScreen, type ListSummary } from "@max-events/api-contracts";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
@@ -62,10 +62,21 @@ export class ListsService {
     await this.requireOwnedList(userId, listId);
     const event = await this.events.findOneBy({ id: eventId });
     if (!event) throw new NotFoundException("Event not found");
-    const existing = (await this.items.find({ where: { listId } })).find((row) => row.eventId === eventId);
+    const existing = await this.findItem(listId, eventId);
     if (existing) return toItemDto(existing);
-    const saved = await this.items.save(this.items.create({ listId, eventId, placeId: null }));
-    return toItemDto(saved);
+    try {
+      return toItemDto(await this.items.save(this.items.create({ listId, eventId, placeId: null })));
+    } catch (error) {
+      // UQ_list_items_list_event: a parallel "save to list" tap must read back the winner, not 500.
+      if (!isUniqueViolation(error)) throw error;
+      const winner = await this.findItem(listId, eventId);
+      if (!winner) throw error;
+      return toItemDto(winner);
+    }
+  }
+
+  private async findItem(listId: string, eventId: string): Promise<ListItemEntity | undefined> {
+    return (await this.items.find({ where: { listId } })).find((row) => row.eventId === eventId);
   }
 
   async removeItem(userId: string, listId: string, itemId: string): Promise<ListItem> {
@@ -103,6 +114,10 @@ export class ListsService {
       return event ? [{ item: toItemDto(row), event: toEventDto(event), addedBy: null }] : [];
     });
   }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return error instanceof QueryFailedError && error.driverError?.code === "23505";
 }
 
 export function toListDto(list: ListEntity): List {

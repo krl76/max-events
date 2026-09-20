@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Check-in «Я здесь» — event or place, per-visit dedup, visit statistics.
-// SCOPE: Event unique per user; place unique per user+UTC day; stats unique places (incl. event.placeId) and per-category event counts.
+// SCOPE: Event unique per user; place unique per user+UTC day; concurrent inserts resolve to the winning row (23505); stats unique places (incl. event.placeId) and per-category event counts.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, events/places
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -13,7 +13,7 @@
 
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { QueryFailedError, Repository } from "typeorm";
 import { EventCategorySchema, type CheckIn, type CreateCheckInWrite, type EventCategory, type VisitStats } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { PlaceEntity } from "../places/place.entity";
@@ -33,21 +33,39 @@ export class CheckInsService {
 
   async create(userId: string, payload: CreateCheckInWrite, now = new Date()): Promise<CheckIn> {
     if (payload.eventId) {
-      const event = await this.events.findOneBy({ id: payload.eventId });
+      const eventId = payload.eventId;
+      const event = await this.events.findOneBy({ id: eventId });
       if (!event) throw new NotFoundException("Event not found");
-      const existing = (await this.checkIns.find({ where: { userId } })).find((row) => row.eventId === payload.eventId);
+      const match = (row: CheckInEntity) => row.eventId === eventId;
+      const existing = await this.findMine(userId, match);
       if (existing) return toCheckInDto(existing);
-      const saved = await this.checkIns.save(this.checkIns.create({ userId, eventId: payload.eventId, placeId: null, visitDate: null }));
-      return toCheckInDto(saved);
+      return toCheckInDto(await this.insertOrExisting(userId, { userId, eventId, placeId: null, visitDate: null }, match));
     }
     const placeId = payload.placeId!;
     const place = await this.places.findOneBy({ id: placeId });
     if (!place) throw new NotFoundException("Place not found");
     const day = utcVisitDate(now);
-    const existing = (await this.checkIns.find({ where: { userId } })).find((row) => row.placeId === placeId && row.visitDate === day);
+    const match = (row: CheckInEntity) => row.placeId === placeId && row.visitDate === day;
+    const existing = await this.findMine(userId, match);
     if (existing) return toCheckInDto(existing);
-    const saved = await this.checkIns.save(this.checkIns.create({ userId, eventId: null, placeId, visitDate: day }));
-    return toCheckInDto(saved);
+    return toCheckInDto(await this.insertOrExisting(userId, { userId, eventId: null, placeId, visitDate: day }, match));
+  }
+
+  private async findMine(userId: string, match: (row: CheckInEntity) => boolean): Promise<CheckInEntity | undefined> {
+    return (await this.checkIns.find({ where: { userId } })).find(match);
+  }
+
+  // The unique indexes (user+event, user+place+day) are the real gate: a parallel double-click
+  // loses the insert race and must read back the winner instead of surfacing a 500.
+  private async insertOrExisting(userId: string, fields: Partial<CheckInEntity>, match: (row: CheckInEntity) => boolean): Promise<CheckInEntity> {
+    try {
+      return await this.checkIns.save(this.checkIns.create(fields));
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      const winner = await this.findMine(userId, match);
+      if (!winner) throw error;
+      return winner;
+    }
   }
 
   async stats(userId: string, requesterId: string): Promise<VisitStats> {
@@ -72,6 +90,10 @@ export class CheckInsService {
       byCategory: EventCategorySchema.options.map((category) => ({ category, count: byCategory.get(category) ?? 0 })),
     };
   }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return error instanceof QueryFailedError && error.driverError?.code === "23505";
 }
 
 export function toCheckInDto(row: CheckInEntity): CheckIn {

@@ -1,6 +1,6 @@
 import { NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import type { Repository } from "typeorm";
+import { QueryFailedError, type Repository } from "typeorm";
 import { EventEntity } from "../events/event.entity";
 import type { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlaceEntity } from "../places/place.entity";
@@ -57,7 +57,11 @@ function createService() {
     },
   } as unknown as MaxBotClient;
   const service = new SubscriptionsService(subscriptions as unknown as Repository<SubscriptionEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, bot);
-  return { service, messages };
+  return { service, messages, subscriptions };
+}
+
+function uniqueViolation(): QueryFailedError {
+  return new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate key"), { code: "23505" }));
 }
 
 describe("matchesSubscription", () => {
@@ -88,6 +92,28 @@ describe("SubscriptionsService", () => {
     expect(removed.id).toBe(created.id);
     expect(await service.list(userId)).toEqual([]);
     await expect(service.create(userId, { type: "place", placeId: "00000000-0000-4000-8000-0000000000p9" })).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("returns the concurrent winner when the subscription insert loses the unique race", async () => {
+    const { service, subscriptions } = createService();
+    const winnerId = "00000000-0000-4000-8000-0000000000d1";
+    const originalSave = subscriptions.save;
+    subscriptions.save = async () => {
+      subscriptions.save = originalSave;
+      subscriptions.store.push({ id: winnerId, userId, type: "place", placeId, organizerUserId: null, interest: null, createdAt: now } as SubscriptionEntity);
+      throw uniqueViolation();
+    };
+    const created = await service.create(userId, { type: "place", placeId });
+    expect(created.id).toBe(winnerId);
+    expect(subscriptions.store).toHaveLength(1);
+  });
+
+  it("rethrows a subscription unique violation that leaves no readable row", async () => {
+    const { service, subscriptions } = createService();
+    subscriptions.save = async () => {
+      throw uniqueViolation();
+    };
+    await expect(service.create(userId, { type: "place", placeId })).rejects.toBeInstanceOf(QueryFailedError);
   });
 
   it("notifies a matching subscriber once when a new event is created", async () => {

@@ -1,6 +1,6 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import type { Repository } from "typeorm";
+import { QueryFailedError, type Repository } from "typeorm";
 import { ListPresetSchema } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { ListItemEntity } from "./list-item.entity";
@@ -74,6 +74,10 @@ function createService() {
   return { service, items };
 }
 
+function uniqueViolation(): QueryFailedError {
+  return new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate key"), { code: "23505" }));
+}
+
 describe("ListsService", () => {
   it("creates the six README presets on first list and keeps them on rerun", async () => {
     const { service } = createService();
@@ -83,6 +87,30 @@ describe("ListsService", () => {
     expect(first.every((row) => row.itemsCount === 0 && row.savedItemId === null && row.participants.length === 0)).toBe(true);
     const second = await service.list(userId);
     expect(second.map((row) => row.list.id)).toEqual(first.map((row) => row.list.id));
+  });
+
+  it("returns the concurrent winner when the list-item insert loses the unique race", async () => {
+    const { service, items } = createService();
+    const want = (await service.list(userId)).find((row) => row.list.preset === "want_to_go")!;
+    const winnerId = "00000000-0000-4000-8000-0000000000d1";
+    const originalSave = items.save;
+    items.save = async () => {
+      items.save = originalSave;
+      items.store.push({ id: winnerId, listId: want.list.id, eventId, placeId: null, addedAt: now } as ListItemEntity);
+      throw uniqueViolation();
+    };
+    const item = await service.addEvent(userId, want.list.id, eventId);
+    expect(item.id).toBe(winnerId);
+    expect(items.store).toHaveLength(1);
+  });
+
+  it("rethrows a list-item unique violation that leaves no readable row", async () => {
+    const { service, items } = createService();
+    const want = (await service.list(userId)).find((row) => row.list.preset === "want_to_go")!;
+    items.save = async () => {
+      throw uniqueViolation();
+    };
+    await expect(service.addEvent(userId, want.list.id, eventId)).rejects.toBeInstanceOf(QueryFailedError);
   });
 
   it("adds an event idempotently, reports savedItemId, and returns the event on the list", async () => {

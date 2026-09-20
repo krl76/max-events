@@ -1,6 +1,6 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import type { Repository } from "typeorm";
+import { QueryFailedError, type Repository } from "typeorm";
 import { EventEntity } from "../events/event.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { CheckInEntity } from "./check-in.entity";
@@ -64,7 +64,11 @@ function createService() {
   const events = createStoreRepo<EventEntity>([eventRow()]);
   const places = createStoreRepo<PlaceEntity>([{ id: placeId } as PlaceEntity, { id: otherPlaceId } as PlaceEntity]);
   const service = new CheckInsService(checkIns as unknown as Repository<CheckInEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>);
-  return { service };
+  return { service, checkIns };
+}
+
+function uniqueViolation(): QueryFailedError {
+  return new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate key"), { code: "23505" }));
 }
 
 describe("utcVisitDate", () => {
@@ -97,6 +101,42 @@ describe("CheckInsService", () => {
     const stats = await service.stats(userId, userId);
     expect(stats.placesCount).toBe(2);
     expect(stats.eventsCount).toBe(0);
+  });
+
+  it("returns the concurrent winner when the event check-in insert loses the unique race", async () => {
+    const { service, checkIns } = createService();
+    const winnerId = "00000000-0000-4000-8000-0000000000d1";
+    const originalSave = checkIns.save;
+    checkIns.save = async () => {
+      checkIns.save = originalSave;
+      checkIns.store.push({ id: winnerId, userId, eventId, placeId: null, visitDate: null, checkedInAt: now } as CheckInEntity);
+      throw uniqueViolation();
+    };
+    const created = await service.create(userId, { eventId }, now);
+    expect(created.id).toBe(winnerId);
+    expect(checkIns.store).toHaveLength(1);
+  });
+
+  it("returns the concurrent winner when the place check-in insert loses the unique race", async () => {
+    const { service, checkIns } = createService();
+    const winnerId = "00000000-0000-4000-8000-0000000000d2";
+    const originalSave = checkIns.save;
+    checkIns.save = async () => {
+      checkIns.save = originalSave;
+      checkIns.store.push({ id: winnerId, userId, eventId: null, placeId, visitDate: "2026-09-12", checkedInAt: now } as CheckInEntity);
+      throw uniqueViolation();
+    };
+    const created = await service.create(userId, { placeId }, now);
+    expect(created.id).toBe(winnerId);
+    expect(checkIns.store).toHaveLength(1);
+  });
+
+  it("rethrows a unique violation that leaves no readable row", async () => {
+    const { service, checkIns } = createService();
+    checkIns.save = async () => {
+      throw uniqueViolation();
+    };
+    await expect(service.create(userId, { eventId }, now)).rejects.toBeInstanceOf(QueryFailedError);
   });
 
   it("404s unknown targets and forbids reading another user's stats", async () => {
