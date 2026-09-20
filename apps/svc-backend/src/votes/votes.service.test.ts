@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import type { Repository } from "typeorm";
+import { QueryFailedError, type Repository } from "typeorm";
 import type { Friend } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import type { FriendsService } from "../friends/friends.service";
@@ -103,7 +103,11 @@ function createService() {
     },
   } as unknown as MaxBotClient;
   const service = new VotesService(votes as unknown as Repository<VoteEntity>, options as unknown as Repository<VoteOptionEntity>, participants as unknown as Repository<VoteParticipantEntity>, ballots as unknown as Repository<VoteBallotEntity>, events as unknown as Repository<EventEntity>, users as unknown as Repository<UserEntity>, friends, bot);
-  return { service, chats, dms };
+  return { service, chats, dms, ballots };
+}
+
+function uniqueViolation(): QueryFailedError {
+  return new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate key"), { code: "23505" }));
 }
 
 describe("formatVoteChatText", () => {
@@ -169,6 +173,30 @@ describe("VotesService", () => {
     expect((await service.get(katyaId, created.id)).myBallotEventId).toBe(concertId);
     expect((await service.get(hostId, created.id)).myBallotEventId).toBeNull();
     expect((await service.list(dimaId))[0]?.myBallotEventId).toBe(jazzId);
+  });
+
+  it("keeps the ballot idempotent when a concurrent first vote wins the insert race", async () => {
+    const { service, ballots } = createService();
+    const created = await service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [jazzId, concertId], participantIds: [dimaId, katyaId] });
+    const originalSave = ballots.save;
+    ballots.save = async () => {
+      ballots.save = originalSave;
+      ballots.store.push({ id: "00000000-0000-4000-8000-0000000000d1", voteId: created.id, userId: dimaId, eventId: concertId } as VoteBallotEntity);
+      throw uniqueViolation();
+    };
+    const view = await service.castBallot(dimaId, created.id, jazzId);
+    expect(view.myBallotEventId).toBe(jazzId);
+    expect(ballots.store.filter((row) => row.userId === dimaId)).toHaveLength(1);
+    expect(view.options.reduce((sum, row) => sum + row.votes, 0)).toBe(1);
+  });
+
+  it("rethrows a ballot unique violation that leaves no readable row", async () => {
+    const { service, ballots } = createService();
+    const created = await service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [jazzId, concertId], participantIds: [dimaId, katyaId] });
+    ballots.save = async () => {
+      throw uniqueViolation();
+    };
+    await expect(service.castBallot(dimaId, created.id, jazzId)).rejects.toBeInstanceOf(QueryFailedError);
   });
 
   it("breaks vote ties by option creation order, deterministically", async () => {

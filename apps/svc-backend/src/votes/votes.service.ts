@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Shared event vote — create options, MAX chat card, collect ballots, compute the winner.
-// SCOPE: create/list/get; one ballot per participant; best option is max votes then option position (creation order).
+// SCOPE: create/list/get; one ballot per participant (re-vote overwrites, concurrent first vote resolves via 23505); best option is max votes then option position (creation order).
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, events/friends/users/max-bot
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -12,7 +12,7 @@
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { In, QueryFailedError, Repository } from "typeorm";
 import type { CreateVoteWrite, Friend, Vote, VoteOptionTally } from "@max-events/api-contracts";
 import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
@@ -102,14 +102,27 @@ export class VotesService {
     if (!(await this.canView(userId, vote))) throw new ForbiddenException("Cannot vote on this poll");
     const option = (await this.options.find({ where: { voteId } })).find((row) => row.eventId === eventId);
     if (!option) throw new BadRequestException("Invalid vote payload");
-    const existing = (await this.ballots.find({ where: { voteId } })).find((row) => row.userId === userId);
+    const existing = await this.findBallot(voteId, userId);
     if (existing) {
       existing.eventId = eventId;
       await this.ballots.save(existing);
-    } else {
+      return this.toVote(vote, userId);
+    }
+    try {
       await this.ballots.save(this.ballots.create({ voteId, userId, eventId }));
+    } catch (error) {
+      // UQ_vote_ballots_vote_user: a parallel first vote must land as a re-vote, not a 500.
+      if (!isUniqueViolation(error)) throw error;
+      const winner = await this.findBallot(voteId, userId);
+      if (!winner) throw error;
+      winner.eventId = eventId;
+      await this.ballots.save(winner);
     }
     return this.toVote(vote, userId);
+  }
+
+  private async findBallot(voteId: string, userId: string): Promise<VoteBallotEntity | undefined> {
+    return (await this.ballots.find({ where: { voteId } })).find((row) => row.userId === userId);
   }
 
   private async requireVote(voteId: string): Promise<VoteEntity> {
@@ -158,4 +171,8 @@ export class VotesService {
       updatedAt: vote.updatedAt.toISOString(),
     };
   }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return error instanceof QueryFailedError && error.driverError?.code === "23505";
 }
