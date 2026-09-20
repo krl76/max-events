@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: People matching screen (#191) «Хочу найти людей с похожими интересами»: counters «N человек рядом, M ищут компанию сегодня», interest chip filter and candidate cards with the match context — no dating mechanics (view plus event CTAs only).
 // SCOPE: Data via apiClient.getPeople (mock or live) at the fixed Moscow center; chips from the viewer profile interests (candidate sharedInterests fallback); client-side interest filtering; CTA to the event route on shared_event contexts; loading/error/empty states.
-// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (PeopleCandidate, PeopleResponse), ../catalog/MapScreen.js (MOSCOW_CENTER), ../friends/FriendsPage.js (initials), ../nearby/NearbyPage.js (formatDistanceKm), ../place/PlacePage.js (peopleLabel), ../routing/router.js, ../ui/primitives.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (PeopleCandidate, PeopleResponse), ../catalog/MapScreen.js (MOSCOW_CENTER), ../catalog/format.js (pluralRu), ../friends/FriendsPage.js (initials), ../nearby/NearbyPage.js (formatDistanceKm), ../routing/router.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -20,7 +20,7 @@ import { apiClient } from "../api/client";
 import { MOSCOW_CENTER } from "../catalog/MapScreen";
 import { initials } from "../friends/FriendsPage";
 import { formatDistanceKm } from "../nearby/NearbyPage";
-import { peopleLabel } from "../place/PlacePage";
+import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { AppAvatar, AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
 
@@ -96,7 +96,7 @@ export function PeopleView({ state, chips, selected, onToggle, onOpenEvent }: Pe
       {state.status === "ready" && (
         <>
           <p className="app-today-summary">
-            {peopleLabel(state.data.nearbyCount)} рядом с похожими интересами
+            {state.data.nearbyCount} {pluralRu(state.data.nearbyCount, "человек", "человека", "человек")} рядом с похожими интересами
             {state.data.lookingForCompanyTodayCount > 0 ? `, ${lookingLabel(state.data.lookingForCompanyTodayCount)}` : ""}
           </p>
           {chips.length > 0 && (

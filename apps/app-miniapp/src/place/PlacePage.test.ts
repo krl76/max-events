@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { friendVisitLabel, peopleLabel, PlacePageView, visitsLabel } from "./PlacePage";
+import { friendVisitLabel, PlacePageView } from "./PlacePage";
+import { pluralRu } from "../catalog/format";
 import type { Place } from "@max-events/api-contracts";
 import type { PlacePage as PlacePageAggregate } from "@max-events/api-contracts";
 import { mockPlaces } from "../api/mock";
@@ -24,24 +25,24 @@ function viewHtml(payload: PlacePageAggregate, place: Place = park): string {
   return renderToStaticMarkup(createElement(PlacePageView, { place, page: payload, onOpenEvent: () => {} }));
 }
 
-describe("visitsLabel", () => {
+describe("ru visits label", () => {
   it("picks the right russian plural form", () => {
-    expect(visitsLabel(1)).toBe("1 раз");
-    expect(visitsLabel(3)).toBe("3 раза");
-    expect(visitsLabel(5)).toBe("5 раз");
-    expect(visitsLabel(11)).toBe("11 раз");
-    expect(visitsLabel(21)).toBe("21 раз");
-    expect(visitsLabel(0)).toBe("0 раз");
+    expect(`1 ${pluralRu(1, "раз", "раза", "раз")}`).toBe("1 раз");
+    expect(`3 ${pluralRu(3, "раз", "раза", "раз")}`).toBe("3 раза");
+    expect(`5 ${pluralRu(5, "раз", "раза", "раз")}`).toBe("5 раз");
+    expect(`11 ${pluralRu(11, "раз", "раза", "раз")}`).toBe("11 раз");
+    expect(`21 ${pluralRu(21, "раз", "раза", "раз")}`).toBe("21 раз");
+    expect(`0 ${pluralRu(0, "раз", "раза", "раз")}`).toBe("0 раз");
   });
 });
 
-describe("peopleLabel", () => {
+describe("ru people label", () => {
   it("picks the right russian plural form", () => {
-    expect(peopleLabel(1)).toBe("1 человек");
-    expect(peopleLabel(21)).toBe("21 человек");
-    expect(peopleLabel(3)).toBe("3 человека");
-    expect(peopleLabel(482)).toBe("482 человека");
-    expect(peopleLabel(11)).toBe("11 человек");
+    expect(`1 ${pluralRu(1, "человек", "человека", "человек")}`).toBe("1 человек");
+    expect(`21 ${pluralRu(21, "человек", "человека", "человек")}`).toBe("21 человек");
+    expect(`3 ${pluralRu(3, "человек", "человека", "человек")}`).toBe("3 человека");
+    expect(`482 ${pluralRu(482, "человек", "человека", "человек")}`).toBe("482 человека");
+    expect(`11 ${pluralRu(11, "человек", "человека", "человек")}`).toBe("11 человек");
   });
 });
 

@@ -1,12 +1,11 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Organizer panel addons (#196/#199/#206/#372): expandable per-event statistics (views/bookings/cancellations/paid + frozen sales report), promotion campaign management (list/create/paid stamp), promocode and refer-a-friend/special-offer campaign management (list/create), early-access window, and the organizer rating card shared with the event page.
 // SCOPE: lazy loading on expand (stats and sales load together; promotions, promocodes and campaigns on open); the rating card renders nothing while loading, on error and when the API returns null (too few reviews — never show zeros); money values come from the API as-is (₽ formatting only, no arithmetic).
-// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (OrganizerRating, OrganizerEventStats, EventSalesReport, PromotionCampaign, CreatePromotionWrite), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../ui/primitives.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (OrganizerRating, OrganizerEventStats, EventSalesReport, PromotionCampaign, CreatePromotionWrite), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../catalog/format.js (pluralRu), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - visitsCountLabel - ru plural form of «посещение» for the rating card
 // - OrganizerRatingView - presentational rating card; renders nothing for null (too few reviews, loading or failed — #199)
 // - EventOrganizerRatingCard - rating card container keyed by event (GET /events/:id/organizer-rating)
 // - MyOrganizerRatingCard - rating card container keyed by the organizer user id (GET /organizers/:userId/rating)
@@ -47,16 +46,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { EventCategorySchema, type CreatePromoCampaignWrite, type CreatePromoCodeWrite, type CreatePromotionWrite, type EventCategory, type EventSalesReport, type OrganizerEventStats, type OrganizerRating, type OrganizerRatingResponse, type PromoCampaign, type PromoCampaignType, type PromoCode, type PromotionCampaign, type PromotionStatus, type PromotionType } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { pluralRu } from "../catalog/format";
 import { AppButton, AppTitle, AppState } from "../ui/primitives";
-
-/** ru plural of «посещение» for the rating card (1 посещение / 3 посещения / 12 посещений). */
-export function visitsCountLabel(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod10 === 1 && mod100 !== 11) return `${count} посещение`;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} посещения`;
-  return `${count} посещений`;
-}
 
 export function OrganizerRatingView({ rating }: { rating: OrganizerRating | null }) {
   if (rating === null) return null;
@@ -69,7 +60,9 @@ export function OrganizerRatingView({ rating }: { rating: OrganizerRating | null
         <ul className="app-participation-counters">
           <li>{rating.averageStars.toFixed(1)} ⭐</li>
           <li>{Math.round(rating.recommendPercent)}% рекомендуют</li>
-          <li>{visitsCountLabel(rating.visitsCount)}</li>
+          <li>
+            {rating.visitsCount} {pluralRu(rating.visitsCount, "посещение", "посещения", "посещений")}
+          </li>
           {rating.onTimePercent !== null && <li>{Math.round(rating.onTimePercent)}% вовремя</li>}
         </ul>
       </div>

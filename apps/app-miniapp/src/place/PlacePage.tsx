@@ -1,15 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Place social page (P2-11-c): «место как социальный объект» — today events, friend visits, people rating, popularity today, personal history.
 // SCOPE: Data via apiClient.getPlacePage + getPlace (mock or live); empty data per block, not a page error; no navigation logic beyond event cards.
-// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (PlacePage, PlaceFriendVisit), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../event/ReviewSection.js (RatingView), ../routing/router.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (PlacePage, PlaceFriendVisit), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../catalog/format.js (pluralRu), ../event/ReviewSection.js (RatingView), ../routing/router.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - PlacePageState - union of place page fetch states (loading / error / ready)
 // - friendVisitLabel - ru line per friend visit («была здесь 3 раза» / «идёт сегодня»)
-// - visitsLabel - ru plural form of «раз» for visit counts
-// - peopleLabel - ru plural form of «человек» for the popularity line
 // - PlacePageView - presentational: place title/address, the five social blocks with empty states
 // - PlacePage - route container: resolves the user id, loads the aggregate, wires event card navigation; records the page view fire-and-forget once auth resolved (#196)
 // END_MODULE_MAP
@@ -19,6 +17,7 @@ import { apiClient, trackPageView } from "../api/client";
 import type { Place, PlaceFriendVisit, PlacePage as PlacePageAggregate } from "@max-events/api-contracts";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { pluralRu } from "../catalog/format";
 import { RatingView } from "../event/ReviewSection";
 import { useRoute } from "../routing/router";
 import { AppAvatar, AppTitle, AppState } from "../ui/primitives";
@@ -34,24 +33,7 @@ export function friendVisitLabel(visit: PlaceFriendVisit): string {
   const lowerName = name.toLowerCase();
   const isFemale = /[ая]$/.test(lowerName) && !maleExceptions.includes(lowerName);
   const gendered = isFemale ? "была здесь" : "был здесь";
-  return `${name} ${gendered} ${visitsLabel(visit.visitsCount)}`;
-}
-
-export function visitsLabel(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod10 === 1 && mod100 !== 11) return `${count} раз`;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} раза`;
-  return `${count} раз`;
-}
-
-/** ru plural of «человек» for the popularity line (482 человека / 21 человек / 3 человека). */
-export function peopleLabel(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod10 === 1 && mod100 !== 11) return `${count} человек`;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} человека`;
-  return `${count} человек`;
+  return `${name} ${gendered} ${visit.visitsCount} ${pluralRu(visit.visitsCount, "раз", "раза", "раз")}`;
 }
 
 interface PlacePageViewProps {
@@ -70,7 +52,7 @@ export function PlacePageView({ place, page, onOpenEvent }: PlacePageViewProps) 
         <p className="app-place-address">
           {place.address}, {place.city}
         </p>
-        <p className="app-place-popularity">{page.popularityToday > 0 ? `${peopleLabel(page.popularityToday)} были здесь сегодня` : "Сегодня здесь пока никого не было"}</p>
+        <p className="app-place-popularity">{page.popularityToday > 0 ? `${page.popularityToday} ${pluralRu(page.popularityToday, "человек", "человека", "человек")} были здесь сегодня` : "Сегодня здесь пока никого не было"}</p>
 
         <section className="app-place-block" aria-label="События сегодня">
           <h2 className="app-section-title">События сегодня</h2>
@@ -113,7 +95,7 @@ export function PlacePageView({ place, page, onOpenEvent }: PlacePageViewProps) 
 
         <section className="app-place-block" aria-label="Личная история">
           <h2 className="app-section-title">Личная история</h2>
-          <p className="app-place-personal">{page.personalVisitsCount > 0 ? `Ты был здесь ${visitsLabel(page.personalVisitsCount)}` : "Ты пока не был здесь"}</p>
+          <p className="app-place-personal">{page.personalVisitsCount > 0 ? `Ты был здесь ${page.personalVisitsCount} ${pluralRu(page.personalVisitsCount, "раз", "раза", "раз")}` : "Ты пока не был здесь"}</p>
         </section>
       </div>
     </article>

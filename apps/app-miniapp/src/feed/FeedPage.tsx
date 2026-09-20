@@ -1,13 +1,12 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Impressions feed (Instagram-стилистика): post cards with a photo placeholder, likes and comments, the event wall (block of the event's posts) and the publish form (photo placeholder + text).
 // SCOPE: Data via apiClient.listFeedPosts/toggleFeedLike/addFeedComment/createFeedPost + listEvents (event titles) + listFriends (stories rail); the wall is the same section filtered by eventId; no photo upload (placeholder button).
-// DEPENDS: ../api/client.js (apiClient, FeedPost), ../auth/AuthContext.js, ../routing/router.js, ../max/bridge.js (webApp, shareResult), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, FeedPost), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../routing/router.js, ../max/bridge.js (webApp, shareResult), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - FeedPostCard - presentational Instagram-style post: author header, 4:5 media placeholder, icon actions (like/comment/share), likes line, caption, comments and add form
-// - likesLabel - ru plural line «N отметок „нравится“» for the post likes counter
 // - StoriesRow - decorative stories rail over the home feed (friends from the API + own story ring)
 // - FeedState - union of the feed fetch states (loading / error / ready)
 // - FeedSection - container: posts (optionally one event — the wall), event titles for the cards, like/comment wiring, «+» publish CTA
@@ -27,6 +26,7 @@ import { useRoute } from "../routing/router";
 import { AppAvatar, AppButton, AppChip, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { IconButton } from "@maxhub/max-ui";
+import { pluralRu } from "../catalog/format";
 
 interface FeedPostCardProps {
   post: FeedPost;
@@ -35,13 +35,6 @@ interface FeedPostCardProps {
   onToggleLike: () => void;
   onAddComment: (text: string) => void;
   onOpenEvent?: (eventId: string) => void;
-}
-
-export function likesLabel(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  const word = mod10 === 1 && mod100 !== 11 ? "отметка" : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? "отметки" : "отметок";
-  return `${count} ${word} «нравится»`;
 }
 
 export function FeedPostCard({ post, eventTitle, eventCategory, onToggleLike, onAddComment, onOpenEvent }: FeedPostCardProps) {
@@ -78,7 +71,9 @@ export function FeedPostCard({ post, eventTitle, eventCategory, onToggleLike, on
           <ActionIcon name="bookmark" />
         </span>
       </div>
-      <p className="app-post-likes">{likesLabel(post.likesCount)}</p>
+      <p className="app-post-likes">
+        {post.likesCount} {pluralRu(post.likesCount, "отметка", "отметки", "отметок")} «нравится»
+      </p>
       <p className="app-post-caption">
         <span className="app-post-caption-author">{post.author.name}</span> {post.text}
       </p>

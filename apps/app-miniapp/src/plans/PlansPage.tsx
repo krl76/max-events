@@ -1,12 +1,11 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Plans list screen: plan cards per the README example (event, «Ты + N друзей», «Сбор <время> <место>», «<расстояние> от тебя»).
 // SCOPE: Data via apiClient.listPlans (mock or live) at the fixed Moscow center origin; presentational rendering; navigation to the plan screen; no budget (P4-8) and no route (P3-2/3-3).
-// DEPENDS: ../api/client.js (apiClient), ../catalog/MapScreen.js (MOSCOW_CENTER), ../routing/router.js, @max-events/api-contracts (PlanCard, Plan), ../ui/primitives.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient), ../catalog/MapScreen.js (MOSCOW_CENTER), ../catalog/format.js (pluralRu), ../routing/router.js, @max-events/api-contracts (PlanCard, Plan), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - planParticipantsLabel - «Ты + N друзей» with ru pluralization (друг/друга/друзей)
 // - formatMeetingTime - «18:20» ru time formatting
 // - formatDistance - «850 м» / «1,2 км»
 // - planMeetingLabel - «Сбор <время> <место>» line shared by the card and the plan screen
@@ -19,19 +18,13 @@ import { useEffect, useState } from "react";
 import type { Plan, PlanCard } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { MOSCOW_CENTER } from "../catalog/MapScreen";
+import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppNavTiles, AppState, AppSkeleton, AppMedia } from "../ui/primitives";
 
 // ponytail: fixed Moscow center as the plans origin; user geolocation when the bridge exposes it
 const [PLANS_LAT, PLANS_LNG] = MOSCOW_CENTER;
-
-export function planParticipantsLabel(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  const word = mod10 === 1 && mod100 !== 11 ? "друг" : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? "друга" : "друзей";
-  return `Ты + ${count} ${word}`;
-}
 
 export function formatMeetingTime(meetingAt: string): string {
   return new Date(meetingAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -71,7 +64,9 @@ export function PlansView({ state, onOpen, onExplore }: { state: PlansState; onO
           <AppMedia category={event.category} />
           <div className="app-card-body">
             <span className="app-card-title">{event.title}</span>
-            <span className="app-card-subtitle">{planParticipantsLabel(plan.participants.length)}</span>
+            <span className="app-card-subtitle">
+              Ты + {plan.participants.length} {pluralRu(plan.participants.length, "друг", "друга", "друзей")}
+            </span>
             <span className="app-card-subtitle">{planMeetingLabel(plan)}</span>
             <span className="app-card-subtitle">{formatDistance(distanceMeters)} от тебя</span>
           </div>

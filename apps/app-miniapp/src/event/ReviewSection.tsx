@@ -1,13 +1,12 @@
 // START_MODULE_CONTRACT
 // PURPOSE: "Как прошло?" block: aggregated event rating plus the post-event review form (stars, category scores, would-go-again, text, photo placeholder).
 // SCOPE: Presentational RatingView and ReviewForm plus the ReviewSection container that loads EventRating via apiClient and submits reviews; the form is gated by the canReview flag (past event + user was booked) computed by EventPage.
-// DEPENDS: ../api/client.js (apiClient, EventRating, CreateReview), @max-events/api-contracts (ReviewCategoryScores), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, EventRating, CreateReview), @max-events/api-contracts (ReviewCategoryScores), ../catalog/format.js (pluralRu), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - CATEGORY_SCORE_LABELS - ru labels of the four review categories
-// - reviewsLabel - ru plural form of "отзыв" for the aggregate line
 // - ReviewDraft - review form draft (stars, category scores, would-go-again, text)
 // - RatingView - presentational: "4.8 ⭐ (N отзывов)" plus non-empty per-category averages
 // - ReviewForm - presentational: star picker, per-category stars, would-go-again, text field, photo placeholder and submit
@@ -17,6 +16,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiClient, type EventRating } from "../api/client";
 import type { ReviewCategoryScores } from "@max-events/api-contracts";
+import { pluralRu } from "../catalog/format";
 import { AppButton, AppChip, AppTitle } from "../ui/primitives";
 
 export const CATEGORY_SCORE_LABELS: Record<keyof ReviewCategoryScores, string> = {
@@ -29,20 +29,12 @@ export const CATEGORY_SCORE_LABELS: Record<keyof ReviewCategoryScores, string> =
 const CATEGORY_KEYS = Object.keys(CATEGORY_SCORE_LABELS) as (keyof ReviewCategoryScores)[];
 const STARS = [1, 2, 3, 4, 5];
 
-export function reviewsLabel(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod10 === 1 && mod100 !== 11) return "отзыв";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "отзыва";
-  return "отзывов";
-}
-
 export function RatingView({ rating }: { rating: EventRating }) {
   if (rating.summary.reviewsCount === 0) return null;
   return (
     <div className="app-review-summary">
       <p className="app-review-average">
-        {rating.summary.averageStars.toFixed(1)} ⭐ ({rating.summary.reviewsCount} {reviewsLabel(rating.summary.reviewsCount)})
+        {rating.summary.averageStars.toFixed(1)} ⭐ ({rating.summary.reviewsCount} {pluralRu(rating.summary.reviewsCount, "отзыв", "отзыва", "отзывов")})
       </p>
       <ul className="app-review-categories">
         {CATEGORY_KEYS.filter((key) => rating.categoryAverages[key] !== null).map((key) => (
