@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Post-event reviews — only booked users, one review per user+event, rating aggregates.
-// SCOPE: create for CurrentUser with any booking including cancelled (post-event review); rating for event and for place (via event.placeId). Unpublished events 404.
+// SCOPE: create for CurrentUser with an active booking (a cancelled booking loses the right to review, matching the UI gate); rating for event and for place (via event.placeId). Unpublished events 404.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, bookings/events
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -32,7 +32,7 @@ export class ReviewsService {
   async create(userId: string, payload: CreateReviewWrite): Promise<Review> {
     const event = await this.events.findOneBy({ id: payload.eventId });
     if (!event || event.published === false) throw new NotFoundException("Event not found");
-    const booking = await this.bookings.findOneBy({ userId, eventId: payload.eventId });
+    const booking = await this.bookings.findOneBy({ userId, eventId: payload.eventId, status: "active" });
     if (!booking) throw new ForbiddenException("Only booked users can review this event");
     const existing = await this.reviews.findOneBy({ userId, eventId: payload.eventId });
     const fields = {

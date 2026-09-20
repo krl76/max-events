@@ -45,9 +45,9 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
   };
 }
 
-function createService(opts: { booked?: boolean; published?: boolean } = {}) {
+function createService(opts: { booked?: boolean; published?: boolean; bookingStatus?: BookingEntity["status"] } = {}) {
   const reviews = createStoreRepo<ReviewEntity>();
-  const bookings = createStoreRepo<BookingEntity>(opts.booked === false ? [] : [{ id: "b1", userId, eventId, status: "active" } as BookingEntity]);
+  const bookings = createStoreRepo<BookingEntity>(opts.booked === false ? [] : [{ id: "b1", userId, eventId, status: opts.bookingStatus ?? "active" } as BookingEntity]);
   const events = createStoreRepo<EventEntity>([{ id: eventId, placeId, published: opts.published ?? true } as EventEntity]);
   const service = new ReviewsService(reviews as unknown as Repository<ReviewEntity>, bookings as unknown as Repository<BookingEntity>, events as unknown as Repository<EventEntity>);
   return { service, reviews };
@@ -57,6 +57,12 @@ describe("ReviewsService.create", () => {
   it("rejects a review from a user without a booking", async () => {
     const { service } = createService({ booked: false });
     await expect(service.create(userId, { eventId, stars: 5, wouldGoAgain: true, photos: [] })).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("rejects a review backed only by a cancelled booking", async () => {
+    const { service, reviews } = createService({ bookingStatus: "cancelled" });
+    await expect(service.create(userId, { eventId, stars: 5, wouldGoAgain: true, photos: [] })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(reviews.store).toHaveLength(0);
   });
 
   it("rejects an unknown event", async () => {
