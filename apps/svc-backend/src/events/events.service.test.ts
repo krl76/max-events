@@ -46,15 +46,18 @@ function createRepo(initial: EventEntity[] = []) {
       return entity;
     },
     findOneBy: async (where: { id: string }) => store.find((row) => row.id === where.id) ?? null,
-    find: async (opts: { where?: { published?: boolean; city?: string; category?: string; organizerUserId?: string; startsAt?: FindOperator<Date> }; order?: { startsAt?: "ASC" | "DESC"; id?: "ASC" | "DESC" }; skip?: number; take?: number }) => {
+    find: async (opts: { where?: { published?: boolean; city?: string; category?: string; organizerUserId?: string; startsAt?: FindOperator<Date>; chatSyncPending?: boolean; chatLink?: FindOperator<string> }; order?: { startsAt?: "ASC" | "DESC"; id?: "ASC" | "DESC"; createdAt?: "ASC" | "DESC" }; skip?: number; take?: number }) => {
       let rows = [...store];
       if (opts.where?.published === true) rows = rows.filter((row) => row.published);
       if (opts.where?.city) rows = rows.filter((row) => row.city === opts.where?.city);
       if (opts.where?.category) rows = rows.filter((row) => row.category === opts.where?.category);
       if (opts.where?.organizerUserId) rows = rows.filter((row) => row.organizerUserId === opts.where?.organizerUserId);
+      if (opts.where?.chatSyncPending !== undefined) rows = rows.filter((row) => row.chatSyncPending === opts.where?.chatSyncPending);
+      if (opts.where?.chatLink?.type === "isNull") rows = rows.filter((row) => row.chatLink === null);
       const startsAt = opts.where?.startsAt;
       if (startsAt) rows = rows.filter((row) => matchesDateOperator(row.startsAt, startsAt));
-      rows.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+      if (opts.order?.createdAt === "ASC") rows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
+      else rows.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
       const from = opts.skip ?? 0;
       return opts.take === undefined ? rows.slice(from) : rows.slice(from, from + opts.take);
     },
@@ -150,6 +153,40 @@ describe("EventsService", () => {
     expect(fallback.title).toBe("Без чата");
     expect(fallback.chatLink).toBeNull();
     expect(down.repo.store[0]?.chatSyncPending).toBe(true);
+  });
+
+  it("retries the pending chat on the next sync pass and clears the flag", async () => {
+    const down = createService({
+      bot: {
+        createChat: async () => {
+          throw new Error("bot down");
+        },
+      },
+    });
+    await down.service.create(payload);
+    expect(down.repo.store[0]?.chatSyncPending).toBe(true);
+
+    // The retry runs against the same rows once the Bot API is reachable again.
+    const back = createService({ store: down.repo.store, bot: { createChat: async () => ({ chatId: 7, link: "https://max.ru/join/late" }) } });
+    await expect(back.service.syncPendingChats()).resolves.toBe(1);
+    expect(back.repo.store[0]?.chatLink).toBe("https://max.ru/join/late");
+    expect(back.repo.store[0]?.chatSyncPending).toBe(false);
+    // Nothing is pending any more, so a second pass is a no-op.
+    await expect(back.service.syncPendingChats()).resolves.toBe(0);
+  });
+
+  it("leaves the flag set when the bot is still down", async () => {
+    const down = createService({
+      bot: {
+        createChat: async () => {
+          throw new Error("bot down");
+        },
+      },
+    });
+    await down.service.create(payload);
+    await expect(down.service.syncPendingChats()).resolves.toBe(0);
+    expect(down.repo.store[0]?.chatSyncPending).toBe(true);
+    expect(down.repo.store[0]?.chatLink).toBeNull();
   });
 
   it("stores a paid event with a payment link and rejects an unknown placeId", async () => {

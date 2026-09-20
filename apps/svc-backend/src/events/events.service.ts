@@ -8,14 +8,15 @@
 // START_MODULE_MAP
 // - EventListQuery - catalog list filters
 // - EVENT_LIST_MAX_LIMIT - hard cap on catalog rows read per request
+// - CHAT_SYNC_BATCH - events retried per chat-sync tick
 // - pickEventFields - patch keys allowed on update
-// - EventsService - CRUD + list against EventEntity
+// - EventsService - CRUD + list against EventEntity + chat-sync retry
 // - toEventDto - map EventEntity to the api-contracts Event shape
 // END_MODULE_MAP
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { And, FindOperator, LessThan, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
+import { And, FindOperator, IsNull, LessThan, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
 import { CreateEventSchema, EventSchema, type CreateEvent, type Event, type EventCategory } from "@max-events/api-contracts";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
@@ -40,6 +41,9 @@ export type EventListQuery = {
 
 /** Ceiling on rows a single catalog read may pull; also the default when the caller names no limit. */
 export const EVENT_LIST_MAX_LIMIT = 100;
+
+/** Events a single chat-sync tick retries, so a long backlog is drained over several ticks. */
+export const CHAT_SYNC_BATCH = 20;
 
 const DAY_MS = 86_400_000;
 
@@ -111,6 +115,25 @@ export class EventsService {
     if (!found) throw new NotFoundException("Event not found");
     found.published = false;
     await this.events.save(found);
+  }
+
+  /**
+   * Retry the MAX chat for events whose creation found the Bot API down. Without a reader of
+   * chatSyncPending those events kept the flag forever and never got the auto-chat (M9).
+   * Returns how many events gained a chat link on this pass.
+   */
+  async syncPendingChats(limit = CHAT_SYNC_BATCH): Promise<number> {
+    const pending = await this.events.find({
+      where: { chatSyncPending: true, chatLink: IsNull(), published: true },
+      order: { createdAt: "ASC", id: "ASC" },
+      take: limit,
+    });
+    let linked = 0;
+    for (const event of pending) {
+      const synced = await attachChatLink(this.events, this.bot, event);
+      if (synced.chatLink) linked += 1;
+    }
+    return linked;
   }
 
   async remove(id: string, actorId?: string): Promise<void> {
