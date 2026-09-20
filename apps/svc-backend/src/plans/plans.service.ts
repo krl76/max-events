@@ -523,6 +523,7 @@ export class PlansService {
       }),
       meetingPoint: plan.meetingPoint,
       meetingAt: plan.meetingAt.toISOString(),
+      chatLink: plan.chatLink,
       createdAt: plan.createdAt.toISOString(),
       updatedAt: plan.updatedAt.toISOString(),
     };

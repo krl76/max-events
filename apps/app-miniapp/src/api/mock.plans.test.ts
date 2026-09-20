@@ -13,6 +13,13 @@ describe("plan fixtures", () => {
     expect(cards.every((card) => card.plan.participants.every((participant) => mockFriends.some((friend) => friend.id === participant.friend.id)))).toBe(true);
   });
 
+  it("give the demo plan a chat link and leave the second plan without one", () => {
+    const cards = planCards();
+
+    expect(cards[0]?.plan.chatLink).toBe("https://max.ru/chat/mock-plan-1");
+    expect(cards[1]?.plan.chatLink).toBeNull();
+  });
+
   it("are sorted by the soonest meeting first", () => {
     const meetings = planCards().map((card) => card.plan.meetingAt);
 

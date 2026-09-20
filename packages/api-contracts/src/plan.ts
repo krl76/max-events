@@ -10,9 +10,9 @@
 // - PlanParticipantStatus - participant status type
 // - PlanParticipantSchema - plan participant (friend + status)
 // - PlanParticipant - participant type
-// - PlanSchema - plan entity (event link, participants, meeting point and time)
+// - PlanSchema - plan entity (event link, participants, meeting point and time, optional chat link)
 // - Plan - plan type
-// - CreatePlanSchema - plan creation payload (no id/timestamps)
+// - CreatePlanSchema - plan creation payload (no id/timestamps/chatLink)
 // - CreatePlan - plan creation payload type
 // - PlanCardSchema - response card with computed distance to the meeting point
 // - PlanCard - plan card type
@@ -44,12 +44,13 @@ export const PlanSchema = z.object({
   participants: z.array(PlanParticipantSchema),
   meetingPoint: z.string().min(1).max(300),
   meetingAt: TimestampSchema,
+  chatLink: z.string().nullable().default(null),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 });
 export type Plan = z.infer<typeof PlanSchema>;
 
-export const CreatePlanSchema = PlanSchema.omit({ id: true, createdAt: true, updatedAt: true });
+export const CreatePlanSchema = PlanSchema.omit({ id: true, chatLink: true, createdAt: true, updatedAt: true });
 export type CreatePlan = z.infer<typeof CreatePlanSchema>;
 
 export const PlanCardSchema = z.object({

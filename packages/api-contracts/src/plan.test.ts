@@ -40,7 +40,15 @@ const plan = {
 
 describe("PlanSchema", () => {
   it("accepts a plan with event link, participants, meeting point and time", () => {
-    expect(PlanSchema.parse(plan)).toEqual(plan);
+    expect(PlanSchema.parse(plan)).toEqual({ ...plan, chatLink: null });
+  });
+
+  it("defaults chatLink to null when absent", () => {
+    expect(PlanSchema.parse(plan).chatLink).toBeNull();
+  });
+
+  it("keeps a provided chatLink", () => {
+    expect(PlanSchema.parse({ ...plan, chatLink: "https://max.ru/chat/plan-1" }).chatLink).toBe("https://max.ru/chat/plan-1");
   });
 
   it("rejects an unknown participant status", () => {
@@ -62,6 +70,11 @@ describe("CreatePlanSchema", () => {
   it("strips an extra id from the payload", () => {
     const parsed = CreatePlanSchema.parse(plan);
     expect(parsed).not.toHaveProperty("id");
+  });
+
+  it("strips chatLink from the payload", () => {
+    const parsed = CreatePlanSchema.parse({ ...plan, chatLink: "https://max.ru/chat/plan-1" });
+    expect(parsed).not.toHaveProperty("chatLink");
   });
 });
 

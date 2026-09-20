@@ -1,14 +1,14 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Plan screen: event (link to the event page), participants with statuses, meeting point and time, shared budget with expenses and debts (#218).
 // SCOPE: Data via apiClient.getPlan (mock or live); presentational rendering; navigation to the event page; budget lives in ./BudgetSection.js (participant-only, server-gated); no route (P3-2/3-3).
-// DEPENDS: ../api/client.js (apiClient), ../routing/router.js, @max-events/api-contracts (PlanCard, PlanParticipantStatus), ./PlansPage.js (planMeetingLabel), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient), ../routing/router.js, @max-events/api-contracts (PlanCard, PlanParticipantStatus), ./PlansPage.js (planMeetingLabel), ../max/bridge.js (openExternalLink), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - PLAN_STATUS_LABELS - ru labels for participant statuses (invited/confirmed/declined)
 // - PlanState - union of plan fetch states (loading / error / ready)
-// - PlanView - presentational: event link, participants with statuses, meeting line
+// - PlanView - presentational: event link, participants with statuses, meeting line, chat link button when the plan chat exists
 // - PlanPage - route container: loads the plan by id; the budget section is embedded in PlanView
 // END_MODULE_MAP
 
@@ -18,7 +18,8 @@ import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
 import { BudgetSection } from "./BudgetSection";
 import { planMeetingLabel } from "./PlansPage";
-import { AppState } from "../ui/primitives";
+import { openExternalLink } from "../max/bridge";
+import { AppButton, AppState } from "../ui/primitives";
 
 export const PLAN_STATUS_LABELS: Record<PlanParticipantStatus, string> = { invited: "приглашён", confirmed: "подтвердил", declined: "отказался" };
 
@@ -34,6 +35,11 @@ export function PlanView({ state, onOpenEvent }: { state: PlanState; onOpenEvent
         {event.title}
       </button>
       <p className="app-plan-meeting">{planMeetingLabel(plan)}</p>
+      {plan.chatLink !== null && (
+        <AppButton tone="secondary" onClick={() => openExternalLink(plan.chatLink!)}>
+          В чат плана
+        </AppButton>
+      )}
       <ul className="app-plan-participants">
         {plan.participants.map(({ friend, status }) => (
           <li key={friend.id} className="app-plan-participant">
