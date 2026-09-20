@@ -10,7 +10,7 @@
 // - CheckIn - check-in type
 // - CategoryVisitCountSchema - visit counter for one event category
 // - CategoryVisitCount - category visit counter type
-// - VisitStatsSchema - user visit statistics (places/events totals + per-category counters)
+// - VisitStatsSchema - user visit statistics (places/events/districts totals + per-category counters)
 // - VisitStats - visit stats type
 // - CreateCheckInWriteSchema - write payload with exactly one of eventId or placeId
 // - CreateCheckInWrite - write payload type
@@ -44,6 +44,8 @@ export const VisitStatsSchema = z.object({
   userId: IdSchema,
   placesCount: z.number().int().min(0),
   eventsCount: z.number().int().min(0),
+  /** Neighbourhoods the visited places fall into — the "3 района" achievement counts these. */
+  districtsCount: z.number().int().min(0).default(0),
   byCategory: z.array(CategoryVisitCountSchema).default([]),
 });
 export type VisitStats = z.infer<typeof VisitStatsSchema>;

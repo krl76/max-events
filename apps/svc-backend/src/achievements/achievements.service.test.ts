@@ -11,7 +11,7 @@ const otherUser = "00000000-0000-4000-8000-00000000000b";
 const now = new Date("2026-09-12T10:00:00Z");
 
 function stats(overrides: Partial<VisitStats> = {}): VisitStats {
-  return { userId, placesCount: 0, eventsCount: 0, byCategory: [], ...overrides };
+  return { userId, placesCount: 0, eventsCount: 0, districtsCount: 0, byCategory: [], ...overrides };
 }
 
 function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
@@ -44,7 +44,7 @@ describe("achievementsFromStats", () => {
 
   it("caps progress at the threshold and keeps an existing grant", () => {
     const granted = new Date("2026-09-01T00:00:00Z");
-    const list = achievementsFromStats(stats({ placesCount: 12, byCategory: [{ category: "afisha", count: 7 }] }), new Map([["city_explorer", granted]]));
+    const list = achievementsFromStats(stats({ placesCount: 12, districtsCount: 4, byCategory: [{ category: "afisha", count: 7 }] }), new Map([["city_explorer", granted]]));
     const byCode = new Map(list.map((item) => [item.code, item]));
     expect(byCode.get("city_explorer")?.progress).toBe(10);
     expect(byCode.get("city_explorer")?.grantedAt).toBe(granted.toISOString());
@@ -52,13 +52,22 @@ describe("achievementsFromStats", () => {
     expect(byCode.get("music_fan")?.grantedAt).toBeNull();
     expect(byCode.get("weekend_city")?.progress).toBe(3);
   });
+
+  it("measures «Город за выходные» in districts, not in places", () => {
+    // Ten places inside one neighbourhood are still one district, so the badge stays unearned.
+    const oneDistrict = achievementsFromStats(stats({ placesCount: 10, districtsCount: 1 }), new Map());
+    expect(oneDistrict.find((item) => item.code === "weekend_city")?.progress).toBe(1);
+
+    const threeDistricts = achievementsFromStats(stats({ placesCount: 3, districtsCount: 3 }), new Map());
+    expect(threeDistricts.find((item) => item.code === "weekend_city")?.progress).toBe(3);
+  });
 });
 
 describe("AchievementsService", () => {
   it("grants on first crossing and keeps grantedAt on a second read", async () => {
     const grants = createStoreRepo<UserAchievementEntity>();
     const checkIns = {
-      stats: async () => stats({ placesCount: 10, byCategory: [{ category: "volunteering", count: 5 }] }),
+      stats: async () => stats({ placesCount: 10, districtsCount: 3, byCategory: [{ category: "volunteering", count: 5 }] }),
     } as unknown as CheckInsService;
     const service = new AchievementsService(grants as unknown as Repository<UserAchievementEntity>, checkIns);
     const first = await service.list(userId, userId, now);

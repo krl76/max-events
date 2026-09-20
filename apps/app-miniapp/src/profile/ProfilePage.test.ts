@@ -61,6 +61,7 @@ describe("VisitStatsView", () => {
     userId: user.id,
     placesCount: 2,
     eventsCount: 3,
+    districtsCount: 2,
     byCategory: [
       { category: "afisha", count: 2 },
       { category: "sport", count: 1 },

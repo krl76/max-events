@@ -1527,7 +1527,12 @@ export function createMockCheckIn(userId: string, payload: { eventId?: string; p
   return checkIn;
 }
 
-/** Visit statistics derived from the check-ins of a user: events, unique places, per-category counters. */
+/** Backend districtKey parity: a neighbourhood is a 0.01° geo cell of a visited place. */
+function mockDistrictKey(latitude: number, longitude: number): string {
+  return `${latitude.toFixed(2)},${longitude.toFixed(2)}`;
+}
+
+/** Visit statistics derived from the check-ins of a user: events, unique places, their districts, per-category counters. */
 function visitStatsFor(userId: string): VisitStats {
   const mine = mockCheckIns.filter((item) => item.userId === userId);
   const placeIds = new Set<string>();
@@ -1540,7 +1545,19 @@ function visitStatsFor(userId: string): VisitStats {
       byCategory.set(event.category, (byCategory.get(event.category) ?? 0) + 1);
     }
   }
-  return { userId, placesCount: placeIds.size, eventsCount: mine.filter((item) => item.eventId !== null).length, byCategory: EventCategorySchema.options.map((category) => ({ category, count: byCategory.get(category) ?? 0 })) };
+  const districts = new Set(
+    [...placeIds].flatMap((id) => {
+      const place = mockPlaces.find((candidate) => candidate.id === id);
+      return place ? [mockDistrictKey(place.latitude, place.longitude)] : [];
+    }),
+  );
+  return {
+    userId,
+    placesCount: placeIds.size,
+    eventsCount: mine.filter((item) => item.eventId !== null).length,
+    districtsCount: districts.size,
+    byCategory: EventCategorySchema.options.map((category) => ({ category, count: byCategory.get(category) ?? 0 })),
+  };
 }
 
 /** The four README achievements («Исследователь города», «Музыкальный фанат», «Город за выходные», «Волонтер») with progress from visit stats. */
@@ -1549,7 +1566,7 @@ export function achievementsFor(stats: VisitStats): Achievement[] {
   return [
     { code: "city_explorer", title: "Исследователь города", threshold: 10, progress: Math.min(stats.placesCount, 10), grantedAt: stats.placesCount >= 10 ? PLACE_STAMP : null },
     { code: "music_fan", title: "Музыкальный фанат", threshold: 5, progress: Math.min(count("afisha"), 5), grantedAt: count("afisha") >= 5 ? PLACE_STAMP : null },
-    { code: "weekend_city", title: "Город за выходные", threshold: 3, progress: Math.min(stats.placesCount, 3), grantedAt: stats.placesCount >= 3 ? PLACE_STAMP : null },
+    { code: "weekend_city", title: "Город за выходные", threshold: 3, progress: Math.min(stats.districtsCount, 3), grantedAt: stats.districtsCount >= 3 ? PLACE_STAMP : null },
     { code: "volunteer", title: "Волонтёр", threshold: 5, progress: Math.min(count("volunteering"), 5), grantedAt: count("volunteering") >= 5 ? PLACE_STAMP : null },
   ];
 }
@@ -1557,8 +1574,7 @@ export function achievementsFor(stats: VisitStats): Achievement[] {
 /** My-city summary and memory points derived from the check-ins of a user. */
 export function myCityFor(userId: string): { summary: MyCitySummary; points: MemoryPoint[] } {
   const stats = visitStatsFor(userId);
-  // ponytail: fixtures have no district data — districts ≈ unique visited places; backend supplies real districts later
-  const summary: MyCitySummary = { userId, placesCount: stats.placesCount, eventsCount: stats.eventsCount, districtsCount: stats.placesCount };
+  const summary: MyCitySummary = { userId, placesCount: stats.placesCount, eventsCount: stats.eventsCount, districtsCount: stats.districtsCount };
   const points = mockCheckIns
     .filter((item) => item.userId === userId && item.eventId !== null)
     .flatMap((item) => {

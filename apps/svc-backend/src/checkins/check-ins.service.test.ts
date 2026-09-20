@@ -1,6 +1,6 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import { QueryFailedError, type Repository } from "typeorm";
+import { FindOperator, QueryFailedError, type Repository } from "typeorm";
 import { EventEntity } from "../events/event.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { CheckInEntity } from "./check-in.entity";
@@ -37,15 +37,24 @@ function eventRow(): EventEntity {
   } as EventEntity;
 }
 
+// stats() reads the visited places with In(...), so the fake has to match the operator.
+function matchesCell(cell: unknown, condition: unknown): boolean {
+  if (condition instanceof FindOperator) {
+    if (condition.type === "in") return (condition.value as unknown as unknown[]).includes(cell);
+    throw new Error(`unsupported find operator in fake repository: ${condition.type}`);
+  }
+  return cell === condition;
+}
+
 function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
   const store = [...initial];
   let seq = 0;
   return {
     store,
     create: (fields: Partial<T>) => ({ ...fields }) as T,
-    find: async (opts: { where?: Record<string, string> } = {}) => {
+    find: async (opts: { where?: Record<string, unknown> } = {}) => {
       const where = opts.where ?? {};
-      return store.filter((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value));
+      return store.filter((row) => Object.entries(where).every(([key, value]) => matchesCell((row as Record<string, unknown>)[key], value)));
     },
     findOneBy: async (where: Record<string, string>) => store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
     save: async (entity: T) => {
@@ -62,9 +71,10 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
 function createService() {
   const checkIns = createStoreRepo<CheckInEntity>();
   const events = createStoreRepo<EventEntity>([eventRow()]);
-  const places = createStoreRepo<PlaceEntity>([{ id: placeId } as PlaceEntity, { id: otherPlaceId } as PlaceEntity]);
+  // otherPlaceId sits in the same 0.01° cell as placeId, so two places can still be one district.
+  const places = createStoreRepo<PlaceEntity>([{ id: placeId, latitude: 55.73, longitude: 37.6 } as PlaceEntity, { id: otherPlaceId, latitude: 55.731, longitude: 37.601 } as PlaceEntity]);
   const service = new CheckInsService(checkIns as unknown as Repository<CheckInEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>);
-  return { service, checkIns };
+  return { service, checkIns, places };
 }
 
 function uniqueViolation(): QueryFailedError {
@@ -101,6 +111,22 @@ describe("CheckInsService", () => {
     const stats = await service.stats(userId, userId);
     expect(stats.placesCount).toBe(2);
     expect(stats.eventsCount).toBe(0);
+    // Both places fall into the same neighbourhood cell.
+    expect(stats.districtsCount).toBe(1);
+  });
+
+  it("counts one district per neighbourhood cell of the visited places", async () => {
+    const { service, places } = createService();
+    const farPlaceId = "00000000-0000-4000-8000-0000000000p3";
+    places.store.push({ id: farPlaceId, latitude: 55.9, longitude: 37.9 } as PlaceEntity);
+
+    await service.create(userId, { placeId }, now);
+    expect((await service.stats(userId, userId)).districtsCount).toBe(1);
+
+    await service.create(userId, { placeId: farPlaceId }, now);
+    const stats = await service.stats(userId, userId);
+    expect(stats.placesCount).toBe(2);
+    expect(stats.districtsCount).toBe(2);
   });
 
   it("returns the concurrent winner when the event check-in insert loses the unique race", async () => {

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Achievement catalog from visit stats, with persisted first-time grants.
-// SCOPE: Four README codes; progress capped at threshold; grantedAt stored once on user_achievements.
+// SCOPE: Four README codes (10 мест / 5 концертов / 3 района / 5 акций); progress capped at threshold; grantedAt stored once on user_achievements.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../checkins/check-ins.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -20,17 +20,19 @@ import type { Achievement, AchievementCode, VisitStats } from "@max-events/api-c
 import { CheckInsService } from "../checkins/check-ins.service";
 import { UserAchievementEntity } from "./user-achievement.entity";
 
-export type AchievementMetric = "places" | "afisha" | "volunteering";
+export type AchievementMetric = "places" | "districts" | "afisha" | "volunteering";
 
 export const ACHIEVEMENT_CATALOG: Array<{ code: AchievementCode; title: string; threshold: number; metric: AchievementMetric }> = [
   { code: "city_explorer", title: "Исследователь города", threshold: 10, metric: "places" },
   { code: "music_fan", title: "Музыкальный фанат", threshold: 5, metric: "afisha" },
-  { code: "weekend_city", title: "Город за выходные", threshold: 3, metric: "places" },
+  // README: «Город за выходные» is three districts, not three places.
+  { code: "weekend_city", title: "Город за выходные", threshold: 3, metric: "districts" },
   { code: "volunteer", title: "Волонтёр", threshold: 5, metric: "volunteering" },
 ];
 
 export function metricValue(stats: VisitStats, metric: AchievementMetric): number {
   if (metric === "places") return stats.placesCount;
+  if (metric === "districts") return stats.districtsCount;
   return stats.byCategory.find((row) => row.category === metric)?.count ?? 0;
 }
 

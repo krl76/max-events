@@ -7,7 +7,7 @@ import { achievementsFor, installMockApi, mockEvents, resetMockCheckIns } from "
 const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
 function stats(overrides: Partial<VisitStats> = {}): VisitStats {
-  return { userId: DEMO_USER_ID, placesCount: 0, eventsCount: 0, byCategory: [], ...overrides };
+  return { userId: DEMO_USER_ID, placesCount: 0, eventsCount: 0, districtsCount: 0, byCategory: [], ...overrides };
 }
 
 describe("achievementsFor", () => {
@@ -19,10 +19,11 @@ describe("achievementsFor", () => {
     expect(list.every((item) => item.progress === 0 && item.grantedAt === null)).toBe(true);
   });
 
-  it("derive progress from places and per-category counters", () => {
+  it("derive progress from places, districts and per-category counters", () => {
     const list = achievementsFor(
       stats({
         placesCount: 2,
+        districtsCount: 2,
         byCategory: [
           { category: "afisha", count: 2 },
           { category: "volunteering", count: 1 },
@@ -38,8 +39,16 @@ describe("achievementsFor", () => {
     expect(list.every((item) => item.grantedAt === null)).toBe(true);
   });
 
+  it("measure «Город за выходные» in districts, not in places", () => {
+    // Ten places inside one neighbourhood are still one district.
+    const list = achievementsFor(stats({ placesCount: 10, districtsCount: 1 }));
+    const weekend = list.find((item) => item.code === "weekend_city")!;
+    expect(weekend.progress).toBe(1);
+    expect(weekend.grantedAt).toBeNull();
+  });
+
   it("cap progress at the threshold and grant the achievement", () => {
-    const list = achievementsFor(stats({ placesCount: 12, byCategory: [{ category: "afisha", count: 7 }] }));
+    const list = achievementsFor(stats({ placesCount: 12, districtsCount: 4, byCategory: [{ category: "afisha", count: 7 }] }));
     const byCode = new Map(list.map((item) => [item.code, item]));
 
     expect(byCode.get("city_explorer")!.progress).toBe(10);

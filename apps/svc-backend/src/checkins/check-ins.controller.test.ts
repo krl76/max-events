@@ -7,7 +7,7 @@ import type { CheckInsService } from "./check-ins.service";
 
 const user = { id: "00000000-0000-4000-8000-00000000000a" } as UserEntity;
 const checkIn = { id: "00000000-0000-4000-8000-0000000000c1", userId: user.id, eventId: "00000000-0000-4000-8000-0000000000e1", placeId: null } as CheckIn;
-const stats = { userId: user.id, placesCount: 0, eventsCount: 0, byCategory: [] } as VisitStats;
+const stats = { userId: user.id, placesCount: 0, eventsCount: 0, districtsCount: 0, byCategory: [] } as VisitStats;
 
 function createService() {
   const calls: { create?: unknown; stats?: { userId: string; requesterId: string } } = {};

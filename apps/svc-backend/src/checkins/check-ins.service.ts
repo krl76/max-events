@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Check-in «Я здесь» — event or place, per-visit dedup, visit statistics.
-// SCOPE: Event unique per user; place unique per user+UTC day; concurrent inserts resolve to the winning row (23505); stats unique places (incl. event.placeId) and per-category event counts.
-// DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, events/places
+// SCOPE: Event unique per user; place unique per user+UTC day; concurrent inserts resolve to the winning row (23505); stats unique places (incl. event.placeId), their districts and per-category event counts.
+// DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, events/places, mycity/districtKey
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -13,9 +13,10 @@
 
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { QueryFailedError, Repository } from "typeorm";
+import { In, QueryFailedError, Repository } from "typeorm";
 import { EventCategorySchema, type CheckIn, type CreateCheckInWrite, type EventCategory, type VisitStats } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
+import { districtKey } from "../mycity/my-city.service";
 import { PlaceEntity } from "../places/place.entity";
 import { CheckInEntity } from "./check-in.entity";
 
@@ -83,10 +84,14 @@ export class CheckInsService {
       if (event.placeId) placeIds.add(event.placeId);
       byCategory.set(event.category, (byCategory.get(event.category) ?? 0) + 1);
     }
+    // Districts are the neighbourhood cells of the visited places, the same cells «Мой город» counts.
+    const visited = placeIds.size === 0 ? [] : await this.places.find({ where: { id: In([...placeIds]) } });
+    const districts = new Set(visited.map((place) => districtKey(place.latitude, place.longitude)));
     return {
       userId,
       placesCount: placeIds.size,
       eventsCount: mine.filter((row) => row.eventId !== null).length,
+      districtsCount: districts.size,
       byCategory: EventCategorySchema.options.map((category) => ({ category, count: byCategory.get(category) ?? 0 })),
     };
   }

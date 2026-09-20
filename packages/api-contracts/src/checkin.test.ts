@@ -39,12 +39,22 @@ describe("VisitStatsSchema", () => {
       userId: "018f3c5a-0000-7000-8000-000000000001",
       placesCount: 38,
       eventsCount: 12,
+      districtsCount: 5,
       byCategory: [
         { category: "afisha", count: 8 },
         { category: "volunteering", count: 4 },
       ],
     };
     expect(VisitStatsSchema.parse(stats)).toEqual(stats);
+  });
+
+  it("defaults districtsCount to zero for a payload that predates it", () => {
+    const withoutDistricts = { userId: "018f3c5a-0000-7000-8000-000000000001", placesCount: 1, eventsCount: 0, byCategory: [] };
+    expect(VisitStatsSchema.parse(withoutDistricts).districtsCount).toBe(0);
+  });
+
+  it("rejects a negative district counter", () => {
+    expect(VisitStatsSchema.safeParse({ userId: "018f3c5a-0000-7000-8000-000000000001", placesCount: 1, eventsCount: 0, districtsCount: -1, byCategory: [] }).success).toBe(false);
   });
 
   it("defaults byCategory to an empty array", () => {
