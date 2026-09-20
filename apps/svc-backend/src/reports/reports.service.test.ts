@@ -22,6 +22,7 @@ function createStoreRepo() {
   return {
     store,
     create: (fields: Partial<ReportEntity>) => ({ ...fields, createdAt: now }) as ReportEntity,
+    // The queue is read oldest first; insertion order already is that order in this fake.
     find: async (opts: { where?: { status?: string } } = {}) => store.filter((row) => !opts.where?.status || row.status === opts.where.status),
     findOneBy: async (where: { id: string }) => store.find((row) => row.id === where.id) ?? null,
     save: async (entity: ReportEntity) => {
@@ -52,6 +53,35 @@ describe("ReportsService", () => {
     expect(created.status).toBe("open");
     const open = await service.listOpen();
     expect(open).toHaveLength(1);
+  });
+
+  it("puts a moderator spot check on the same queue, marked apart from a complaint", async () => {
+    const repo = createStoreRepo();
+    const service = createService(repo);
+    const complaint = await service.create(userId, { eventId, reason: "spam" });
+    const moderator = "00000000-0000-4000-8000-00000000000c";
+    const check = await service.spotCheck(moderator, { placeId, reason: "other" });
+    expect(complaint.source).toBe("user");
+    expect(check.source).toBe("spot_check");
+
+    const queue = await service.listOpen();
+    expect(queue.map((row) => row.source)).toEqual(["user", "spot_check"]);
+  });
+
+  it("resolves a spot check the same way as a complaint", async () => {
+    const repo = createStoreRepo();
+    const service = createService(repo);
+    const check = await service.spotCheck(userId, { eventId, reason: "other" });
+    const resolved = await service.resolve(check.id);
+    expect(resolved.status).toBe("resolved");
+    expect(resolved.source).toBe("spot_check");
+    await expect(service.listOpen()).resolves.toEqual([]);
+  });
+
+  it("refuses a spot check on a target that does not exist", async () => {
+    const repo = createStoreRepo();
+    await expect(createService(repo).spotCheck(userId, { eventId: missingId, reason: "other" })).rejects.toBeInstanceOf(NotFoundException);
+    expect(repo.store).toHaveLength(0);
   });
 
   it("records a report against a micro-event", async () => {

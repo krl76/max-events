@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for user reports (post-moderation queue).
-// SCOPE: Report reason enum, Report entity, create-report write payload over every post-moderated object (event, place, feed post, micro-event); unique (user, target) is a backend invariant.
+// SCOPE: Report reason enum, report source, Report entity, create-report write payload over every post-moderated object (event, place, feed post, micro-event); unique (user, target) is a backend invariant.
 // DEPENDS: zod, ./primitives.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -12,6 +12,8 @@
 // - ReportTargetType - target type
 // - ReportStatusSchema - open/resolved
 // - ReportStatus - status type
+// - ReportSourceSchema - user complaint or moderator spot check
+// - ReportSource - source type
 // - ReportSchema - report entity
 // - Report - report type
 // - CreateReportWriteSchema - report submission payload
@@ -34,6 +36,10 @@ export type ReportTargetType = z.infer<typeof ReportTargetTypeSchema>;
 export const ReportStatusSchema = z.enum(["open", "resolved"]);
 export type ReportStatus = z.infer<typeof ReportStatusSchema>;
 
+/** Who put the row in the queue: a user complaint, or a moderator pulling a publication for review. */
+export const ReportSourceSchema = z.enum(["user", "spot_check"]);
+export type ReportSource = z.infer<typeof ReportSourceSchema>;
+
 export const ReportSchema = z.object({
   id: IdSchema,
   userId: IdSchema,
@@ -41,6 +47,7 @@ export const ReportSchema = z.object({
   targetId: IdSchema,
   reason: ReportReasonSchema,
   status: ReportStatusSchema.default("open"),
+  source: ReportSourceSchema.default("user"),
   createdAt: TimestampSchema,
 });
 export type Report = z.infer<typeof ReportSchema>;

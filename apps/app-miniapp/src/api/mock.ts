@@ -1002,7 +1002,7 @@ export function createMockReport(payload: CreateReport): Report | "duplicate" | 
   if (!REPORT_REASONS.includes(payload.reason)) return "invalid";
   if (mockReports.some((item) => item.userId === payload.userId && item.targetId === targetId)) return "duplicate";
   mockReportSeq += 1;
-  const report: Report = { id: `81000000-0000-4000-8000-${String(mockReportSeq).padStart(12, "0")}`, userId: payload.userId, targetType, targetId, reason: payload.reason, status: "open", createdAt: new Date().toISOString() };
+  const report: Report = { id: `81000000-0000-4000-8000-${String(mockReportSeq).padStart(12, "0")}`, userId: payload.userId, targetType, targetId, reason: payload.reason, status: "open", source: "user", createdAt: new Date().toISOString() };
   mockReports.push(report);
   return report;
 }

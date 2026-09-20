@@ -1,4 +1,4 @@
-import { ForbiddenException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { describe, expect, it } from "vitest";
 import type { Report } from "@max-events/api-contracts";
@@ -17,13 +17,18 @@ const report: Report = {
   targetId,
   reason: "spam",
   status: "open",
+  source: "user",
   createdAt: "2026-09-12T10:00:00.000Z",
 };
 
 function createControllers() {
-  const calls: { list?: boolean; resolve?: string; unpublish?: { targetType: string; targetId: string }; ban?: string } = {};
+  const calls: { list?: boolean; resolve?: string; spotCheck?: string; unpublish?: { targetType: string; targetId: string }; ban?: string } = {};
   const reports = {
     create: async () => report,
+    spotCheck: async (moderatorId: string) => {
+      calls.spotCheck = moderatorId;
+      return { ...report, source: "spot_check" as const };
+    },
     listOpen: async () => {
       calls.list = true;
       return [report];
@@ -55,12 +60,20 @@ describe("ReportsController and ModerationController", () => {
     await expect(reports.create(visitor, { eventId: targetId, reason: "spam" })).resolves.toMatchObject({ targetId, status: "open" });
   });
 
-  it("forbids a non-moderator from the queue and sanctions", async () => {
+  it("forbids a non-moderator from the queue, spot checks and sanctions", async () => {
     const { reports, moderation } = createControllers();
     expect(() => reports.list(visitor)).toThrow(ForbiddenException);
     expect(() => reports.resolve(visitor, report.id)).toThrow(ForbiddenException);
+    await expect(reports.spotCheck(visitor, { eventId: targetId, reason: "other" })).rejects.toBeInstanceOf(ForbiddenException);
     await expect(moderation.unpublish(visitor, { targetType: "event", targetId })).rejects.toBeInstanceOf(ForbiddenException);
     await expect(moderation.ban(visitor, { userId: admin.id })).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("lets a listed moderator queue a spot check", async () => {
+    const { calls, reports } = createControllers();
+    await expect(reports.spotCheck(admin, { eventId: targetId, reason: "other" })).resolves.toMatchObject({ source: "spot_check" });
+    expect(calls.spotCheck).toBe(admin.id);
+    await expect(reports.spotCheck(admin, { eventId: targetId, reason: "nope" })).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("lets a listed moderator list, resolve, unpublish and ban", async () => {

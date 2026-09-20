@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: TypeORM entity for the moderation report queue.
-// SCOPE: ReportEntity: reporter, target type/id, reason, open/resolved.
+// SCOPE: ReportEntity: reporter, target type/id, reason, source, open/resolved.
 // DEPENDS: typeorm, @max-events/api-contracts
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -11,7 +11,7 @@
 
 import "reflect-metadata";
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from "typeorm";
-import type { ReportReason, ReportStatus, ReportTargetType } from "@max-events/api-contracts";
+import type { ReportReason, ReportSource, ReportStatus, ReportTargetType } from "@max-events/api-contracts";
 
 @Entity("reports")
 export class ReportEntity {
@@ -32,6 +32,9 @@ export class ReportEntity {
 
   @Column({ type: "varchar", default: "open" })
   status!: ReportStatus;
+
+  @Column({ type: "varchar", default: "user" })
+  source!: ReportSource;
 
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;

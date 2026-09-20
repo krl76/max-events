@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for reports — create, open queue, resolve.
-// SCOPE: POST /reports, GET /reports?status=open, POST /reports/:id/resolve.
+// SCOPE: POST /reports, POST /reports/spot-check (moderator), GET /reports?status=open, POST /reports/:id/resolve.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./reports.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - ReportsController - create/list/resolve
+// - ReportsController - create/spot-check/list/resolve
 // - ModerationController - unpublish and ban
 // END_MODULE_MAP
 
@@ -31,6 +31,14 @@ export class ReportsController {
     const parsed = CreateReportWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid report payload");
     return this.reports.create(user.id, parsed.data);
+  }
+
+  @Post("spot-check")
+  async spotCheck(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<Report> {
+    assertModerator(this.config, user);
+    const parsed = CreateReportWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid report payload");
+    return this.reports.spotCheck(user.id, parsed.data);
   }
 
   @Get()

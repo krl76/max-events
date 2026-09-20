@@ -1,19 +1,19 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Report queue — one open report per user+target, list open reports, resolve.
-// SCOPE: create (event/place/feed_post/micro_event, target must exist), listOpen, resolve.
+// PURPOSE: Moderation queue — user complaints and moderator spot checks on one list, oldest first.
+// SCOPE: create and spotCheck (event/place/feed_post/micro_event, target must exist), listOpen oldest first, resolve.
 // DEPENDS: typeorm, @max-events/api-contracts, events/places/feed/micro-events entities
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - ReportsService - create/listOpen/resolve
+// - ReportsService - create/spotCheck/listOpen/resolve
 // - toReportDto - entity to Report contract
 // END_MODULE_MAP
 
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
-import { ReportSchema, type CreateReportWrite, type Report, type ReportTargetType } from "@max-events/api-contracts";
+import { ReportSchema, type CreateReportWrite, type Report, type ReportSource, type ReportTargetType } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { FeedPostEntity } from "../feed/feed-post.entity";
 import { MicroEventEntity } from "../microevents/micro-event.entity";
@@ -31,11 +31,28 @@ export class ReportsService {
   ) {}
 
   async create(userId: string, payload: CreateReportWrite): Promise<Report> {
+    return this.enqueue(userId, payload, "user");
+  }
+
+  /**
+   * A moderator pulling a publication into the queue without waiting for a complaint. It lands on
+   * the same list as user reports and is resolved the same way; only `source` tells them apart.
+   */
+  async spotCheck(moderatorId: string, payload: CreateReportWrite): Promise<Report> {
+    return this.enqueue(moderatorId, payload, "spot_check");
+  }
+
+  async listOpen(): Promise<Report[]> {
+    const rows = await this.reports.find({ where: { status: "open" }, order: { createdAt: "ASC", id: "ASC" } });
+    return rows.map(toReportDto);
+  }
+
+  private async enqueue(userId: string, payload: CreateReportWrite, source: ReportSource): Promise<Report> {
     const target = resolveTarget(payload);
     // A report on nothing cannot be moderated and only pollutes the queue.
     if (!(await this.targetExists(target))) throw new NotFoundException("Report target not found");
     try {
-      const saved = await this.reports.save(this.reports.create({ userId, targetType: target.type, targetId: target.id, reason: payload.reason, status: "open" }));
+      const saved = await this.reports.save(this.reports.create({ userId, targetType: target.type, targetId: target.id, reason: payload.reason, status: "open", source }));
       return toReportDto(saved);
     } catch (error) {
       if (error instanceof QueryFailedError && error.driverError?.code === "23505") {
@@ -43,11 +60,6 @@ export class ReportsService {
       }
       throw error;
     }
-  }
-
-  async listOpen(): Promise<Report[]> {
-    const rows = await this.reports.find({ where: { status: "open" } });
-    return rows.map(toReportDto);
   }
 
   async resolve(id: string): Promise<Report> {
@@ -73,6 +85,7 @@ export function toReportDto(row: ReportEntity): Report {
     targetId: row.targetId,
     reason: row.reason,
     status: row.status,
+    source: row.source ?? "user",
     createdAt: row.createdAt.toISOString(),
   });
 }
