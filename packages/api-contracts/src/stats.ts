@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for page-view tracking and organizer event statistics.
-// SCOPE: view write payload; per-event views/bookings/cancellations/paid bookings.
+// SCOPE: view write payload; the reporting period; per-event views/bookings/cancellations/paid bookings over that period.
 // DEPENDS: zod, ./primitives.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -10,12 +10,14 @@
 // - PageViewTarget - target type
 // - RecordPageViewWriteSchema - view write
 // - RecordPageViewWrite - write type
-// - OrganizerEventStatsSchema - aggregated counters
+// - StatsPeriodSchema - inclusive from/to window, null on either side meaning open-ended
+// - StatsPeriod - period type
+// - OrganizerEventStatsSchema - aggregated counters plus the period they cover
 // - OrganizerEventStats - stats type
 // END_MODULE_MAP
 
 import { z } from "zod";
-import { IdSchema } from "./primitives.js";
+import { IdSchema, TimestampSchema } from "./primitives.js";
 
 export const PageViewTargetSchema = z.enum(["event", "place"]);
 export type PageViewTarget = z.infer<typeof PageViewTargetSchema>;
@@ -26,8 +28,21 @@ export const RecordPageViewWriteSchema = z.object({
 });
 export type RecordPageViewWrite = z.infer<typeof RecordPageViewWriteSchema>;
 
+/** The window a report covers. Both sides null is "all time"; either side alone is open-ended. */
+export const StatsPeriodSchema = z
+  .object({
+    from: TimestampSchema.nullable().default(null),
+    to: TimestampSchema.nullable().default(null),
+  })
+  .refine((data) => data.from === null || data.to === null || new Date(data.from).getTime() <= new Date(data.to).getTime(), {
+    message: "period from must not be after to",
+    path: ["from"],
+  });
+export type StatsPeriod = z.infer<typeof StatsPeriodSchema>;
+
 export const OrganizerEventStatsSchema = z.object({
   eventId: IdSchema,
+  period: StatsPeriodSchema.default({ from: null, to: null }),
   views: z.number().int().min(0),
   bookings: z.number().int().min(0),
   cancellations: z.number().int().min(0),

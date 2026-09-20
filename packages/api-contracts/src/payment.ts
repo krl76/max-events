@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for a booking payment (provider charge linked 1:1 to a booking).
 // SCOPE: payment status enum, Payment entity, webhook write, frozen commission, organizer sales report.
-// DEPENDS: zod, ./primitives.js
+// DEPENDS: zod, ./primitives.js, ./stats.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -14,12 +14,13 @@
 // - PaymentWebhookWrite - webhook write type
 // - EventSalesRowSchema - one frozen ticket sale
 // - EventSalesRow - sales row type
-// - EventSalesReportSchema - organizer totals
+// - EventSalesReportSchema - organizer totals over a reporting period
 // - EventSalesReport - report type
 // END_MODULE_MAP
 
 import { z } from "zod";
 import { IdSchema, TimestampSchema } from "./primitives.js";
+import { StatsPeriodSchema } from "./stats.js";
 
 export const PaymentStatusSchema = z.enum(["pending", "succeeded", "failed", "cancelled", "refunded"]);
 export type PaymentStatus = z.infer<typeof PaymentStatusSchema>;
@@ -62,6 +63,7 @@ export type EventSalesRow = z.infer<typeof EventSalesRowSchema>;
 
 export const EventSalesReportSchema = z.object({
   eventId: IdSchema,
+  period: StatsPeriodSchema.default({ from: null, to: null }),
   rows: z.array(EventSalesRowSchema),
   grossRub: z.number().int().nonnegative(),
   commissionRub: z.number().int().nonnegative(),

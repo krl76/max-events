@@ -9,10 +9,18 @@ const noop = () => {};
 
 const rating: OrganizerRating = { organizerUserId: "d0000001-0000-4000-8000-000000000001", averageStars: 4.6, recommendPercent: 80, visitsCount: 3, onTimePercent: 95, reviewsCount: 5 };
 
-const stats: OrganizerEventStats = { eventId: "c00000f2-0000-4000-8000-0000000000f2", views: 4, bookings: 3, cancellations: 1, paidBookings: 2 };
+const stats: OrganizerEventStats = {
+  period: { from: null, to: null },
+  eventId: "c00000f2-0000-4000-8000-0000000000f2",
+  views: 4,
+  bookings: 3,
+  cancellations: 1,
+  paidBookings: 2,
+};
 
 const report: EventSalesReport = {
   eventId: stats.eventId,
+  period: { from: null, to: null },
   rows: [{ paymentId: "700000f2-0000-4000-8000-0000000000f1", bookingId: "e00000f2-0000-4000-8000-0000000000f1", status: "succeeded", grossRub: 500, commissionRub: 50, netRub: 450, commissionBps: 1000, commissionFixedAt: "2026-08-01T12:00:00+03:00" }],
   grossRub: 500,
   commissionRub: 50,

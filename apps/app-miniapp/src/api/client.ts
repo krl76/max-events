@@ -104,8 +104,10 @@
 // - ApiClient.createVote - POST /votes: shared event vote (title + 2..10 unique events + >=1 friend participants)
 // - ApiClient.getVote - GET /votes/:id: vote with option tallies and the server-computed winner
 // - ApiClient.castBallot - POST /votes/:id/ballots: one-tap vote; a repeated ballot replaces the previous one (backend semantics)
-// - ApiClient.getEventSales - GET /organizer/events/:id/sales: EventSalesReport of frozen ticket sales (#196)
-// - ApiClient.getOrganizerEventStats - GET /organizer/events/:id/stats: OrganizerEventStats counters (#196)
+// - StatsPeriodQuery - optional from/to window for the organizer reports
+// - statsPeriodQuery - period into a ?from&to query string
+// - ApiClient.getEventSales - GET /organizer/events/:id/sales[?from&to]: EventSalesReport of frozen ticket sales (#196)
+// - ApiClient.getOrganizerEventStats - GET /organizer/events/:id/stats[?from&to]: OrganizerEventStats counters (#196)
 // - ApiClient.recordPageView - POST /views (#196)
 // - trackPageView - fire-and-forget page helper over recordPageView (errors swallowed, #196)
 // - ApiClient.getEventOrganizerRating / getOrganizerRating - GET /events/:id/organizer-rating and /organizers/:userId/rating (#199; nullable envelope)
@@ -397,6 +399,17 @@ export type FeedComment = ContractFeedComment;
 export type FeedPost = ContractFeedPost;
 
 /** Impression publication payload: the author, the event the post is about and the text. */
+/** Reporting window for the organizer stats and sales endpoints; omitted sides mean "all time". */
+export interface StatsPeriodQuery {
+  from?: string;
+  to?: string;
+}
+
+export function statsPeriodQuery(period: StatsPeriodQuery): string {
+  const parts = [period.from ? `from=${encodeURIComponent(period.from)}` : "", period.to ? `to=${encodeURIComponent(period.to)}` : ""].filter((part) => part !== "");
+  return parts.length === 0 ? "" : `?${parts.join("&")}`;
+}
+
 export interface CreateFeedPost {
   userId: string;
   eventId: string;
@@ -836,12 +849,12 @@ export class ApiClient {
     return { ...published, draft: false };
   }
 
-  getEventSales(eventId: string): Promise<EventSalesReport> {
-    return this.request(`/organizer/events/${eventId}/sales`, EventSalesReportSchema);
+  getEventSales(eventId: string, period: StatsPeriodQuery = {}): Promise<EventSalesReport> {
+    return this.request(`/organizer/events/${eventId}/sales${statsPeriodQuery(period)}`, EventSalesReportSchema);
   }
 
-  getOrganizerEventStats(eventId: string): Promise<OrganizerEventStats> {
-    return this.request(`/organizer/events/${eventId}/stats`, OrganizerEventStatsSchema);
+  getOrganizerEventStats(eventId: string, period: StatsPeriodQuery = {}): Promise<OrganizerEventStats> {
+    return this.request(`/organizer/events/${eventId}/stats${statsPeriodQuery(period)}`, OrganizerEventStatsSchema);
   }
 
   recordPageView(payload: RecordPageViewWrite): Promise<{ recorded: boolean }> {

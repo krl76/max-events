@@ -164,9 +164,9 @@ import type {
   WheretoQuery,
   WheretoResponse,
 } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, StatsPeriodSchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
 import { CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
-import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EventSalesReport, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite } from "@max-events/api-contracts";
+import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EventSalesReport, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -2357,27 +2357,47 @@ function mockOwnedEvent(eventId: string): MockOrganizerEvent | "forbidden" | nul
   return mockEvents.some((item) => item.id === eventId) ? "forbidden" : null;
 }
 
-/** Backend StatsService.eventStats parity: views/bookings/cancellations/paid counters for an owned event; "forbidden" for catalog events, null when unknown. */
-function mockOrganizerEventStats(eventId: string): OrganizerEventStats | "forbidden" | null {
+const ALL_TIME: StatsPeriod = { from: null, to: null };
+
+/** Backend StatsService.inPeriod parity: an inclusive window, null on either side meaning open-ended. */
+function mockInPeriod(at: string, period: StatsPeriod): boolean {
+  const time = new Date(at).getTime();
+  if (period.from !== null && time < new Date(period.from).getTime()) return false;
+  if (period.to !== null && time > new Date(period.to).getTime()) return false;
+  return true;
+}
+
+/** Backend parseStatsPeriod parity: from/to query values into a period, or null when the window is inverted. */
+function mockStatsPeriod(url: URL): StatsPeriod | null {
+  const from = url.searchParams.get("from");
+  const to = url.searchParams.get("to");
+  const parsed = StatsPeriodSchema.safeParse({ from: from === null || from === "" ? null : from, to: to === null || to === "" ? null : to });
+  return parsed.success ? parsed.data : null;
+}
+
+/** Backend StatsService.eventStats parity: views/bookings/cancellations/paid counters for an owned event over a period; "forbidden" for catalog events, null when unknown. */
+function mockOrganizerEventStats(eventId: string, period: StatsPeriod = ALL_TIME): OrganizerEventStats | "forbidden" | null {
   const own = mockOwnedEvent(eventId);
   if (own === null || own === "forbidden") return own;
-  const bookings = mockBookings.filter((booking) => booking.eventId === eventId);
+  const bookings = mockBookings.filter((booking) => booking.eventId === eventId && mockInPeriod(booking.createdAt, period));
   return {
     eventId,
-    views: mockPageViews.filter((view) => view.targetType === "event" && view.targetId === eventId).length,
+    period,
+    views: mockPageViews.filter((view) => view.targetType === "event" && view.targetId === eventId && mockInPeriod(view.viewedOn, period)).length,
     bookings: bookings.length,
     cancellations: bookings.filter((booking) => booking.status === "cancelled").length,
     paidBookings: own.isPaid ? bookings.filter((booking) => booking.status === "active").length : 0,
   };
 }
 
-/** Backend PaymentsService.salesReport parity: only succeeded payments with the frozen commission make the report; null (404) for unknown and foreign events alike. */
-function mockEventSalesReport(eventId: string): EventSalesReport | null {
+/** Backend PaymentsService.salesReport parity: only succeeded payments with the frozen commission made inside the period make the report; null (404) for unknown and foreign events alike. */
+function mockEventSalesReport(eventId: string, period: StatsPeriod = ALL_TIME): EventSalesReport | null {
   if (!mockOrganizerState.events.some((item) => item.id === eventId)) return null;
   const bookingIds = new Set(mockBookings.filter((booking) => booking.eventId === eventId).map((booking) => booking.id));
-  const frozen = mockPayments.filter((payment) => bookingIds.has(payment.bookingId) && payment.status === "succeeded" && payment.commissionFixedAt !== null && payment.commissionRub !== null && payment.netRub !== null && payment.commissionBps !== null).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() || a.id.localeCompare(b.id));
+  const frozen = mockPayments.filter((payment) => bookingIds.has(payment.bookingId) && payment.status === "succeeded" && payment.commissionFixedAt !== null && payment.commissionRub !== null && payment.netRub !== null && payment.commissionBps !== null && mockInPeriod(payment.createdAt, period)).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() || a.id.localeCompare(b.id));
   return {
     eventId,
+    period,
     rows: frozen.map((payment) => ({ paymentId: payment.id, bookingId: payment.bookingId, status: payment.status, grossRub: payment.amountRub, commissionRub: payment.commissionRub!, netRub: payment.netRub!, commissionBps: payment.commissionBps!, commissionFixedAt: payment.commissionFixedAt! })),
     grossRub: frozen.reduce((sum, payment) => sum + payment.amountRub, 0),
     commissionRub: frozen.reduce((sum, payment) => sum + (payment.commissionRub ?? 0), 0),
@@ -2999,13 +3019,17 @@ export function installMockApi(): () => void {
     const organizerEventStats = /^\/api\/organizer\/events\/([^/]+)\/stats$/.exec(url.pathname);
     if (organizerEventStats) {
       if (!IdSchema.safeParse(organizerEventStats[1]).success) return new Response(null, { status: 400 });
-      const result = mockOrganizerEventStats(organizerEventStats[1]);
+      const period = mockStatsPeriod(url);
+      if (period === null) return new Response(null, { status: 400 });
+      const result = mockOrganizerEventStats(organizerEventStats[1], period);
       return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
     }
     const organizerEventSales = /^\/api\/organizer\/events\/([^/]+)\/sales$/.exec(url.pathname);
     if (organizerEventSales) {
       if (!IdSchema.safeParse(organizerEventSales[1]).success) return new Response(null, { status: 400 });
-      const result = mockEventSalesReport(organizerEventSales[1]);
+      const period = mockStatsPeriod(url);
+      if (period === null) return new Response(null, { status: 400 });
+      const result = mockEventSalesReport(organizerEventSales[1], period);
       return result === null ? new Response(null, { status: 404 }) : Response.json(result);
     }
     const eventOrganizerRating = /^\/api\/events\/([^/]+)\/organizer-rating$/.exec(url.pathname);

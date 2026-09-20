@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for page views and organizer stats.
-// SCOPE: POST /views, GET /organizer/events/:id/stats.
+// SCOPE: POST /views, GET /organizer/events/:id/stats?from&to.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth, ./stats.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -8,10 +8,11 @@
 // START_MODULE_MAP
 // - ViewsController - POST /views
 // - OrganizerStatsController - GET /organizer/events/:id/stats
+// - parseStatsPeriod - from/to query into a StatsPeriod or 400
 // END_MODULE_MAP
 
-import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post } from "@nestjs/common";
-import { RecordPageViewWriteSchema, type OrganizerEventStats } from "@max-events/api-contracts";
+import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
+import { RecordPageViewWriteSchema, StatsPeriodSchema, type OrganizerEventStats, type StatsPeriod } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { StatsService } from "./stats.service";
@@ -33,7 +34,13 @@ export class OrganizerStatsController {
   constructor(@Inject(StatsService) private readonly stats: StatsService) {}
 
   @Get(":id/stats")
-  eventStats(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<OrganizerEventStats> {
-    return this.stats.eventStats(user.id, id);
+  eventStats(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Query("from") from?: string, @Query("to") to?: string): Promise<OrganizerEventStats> {
+    return this.stats.eventStats(user.id, id, parseStatsPeriod(from, to));
   }
+}
+
+export function parseStatsPeriod(from: string | undefined, to: string | undefined): StatsPeriod {
+  const parsed = StatsPeriodSchema.safeParse({ from: from === undefined || from === "" ? null : from, to: to === undefined || to === "" ? null : to });
+  if (!parsed.success) throw new BadRequestException("Invalid stats period");
+  return parsed.data;
 }

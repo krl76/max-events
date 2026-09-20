@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for the organizer panel — own events/places including drafts, publish.
-// SCOPE: GET /organizer/events, GET /organizer/places, POST create draft, POST publish, promocodes, campaigns, promotions, sales.
+// SCOPE: GET /organizer/events, GET /organizer/places, POST create draft, POST publish, promocodes, campaigns, promotions, sales over an optional from/to period.
 // DEPENDS: @nestjs/common, ../events, ../places, ../promo, ../promotion, ../auth
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -9,7 +9,7 @@
 // - OrganizerController - mine lists, draft create, publish
 // END_MODULE_MAP
 
-import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
 import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPromotionPaymentWriteSchema, type BookingWithSeats, type Event, type EventSalesReport, type OrganizerBookingRow, type Place, type PromoCampaign, type PromoCode, type PromotionCampaign } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { EventsService } from "../events/events.service";
@@ -18,6 +18,7 @@ import { PromoService } from "../promo/promo.service";
 import { BookingsService } from "../bookings/bookings.service";
 import { PaymentsService } from "../payments/payments.service";
 import { PromotionService } from "../promotion/promotion.service";
+import { parseStatsPeriod } from "../stats/stats.controller";
 import { UserEntity } from "../users/user.entity";
 
 @Controller("organizer")
@@ -90,8 +91,8 @@ export class OrganizerController {
   }
 
   @Get("events/:id/sales")
-  sales(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<EventSalesReport> {
-    return this.payments.salesReport(user.id, id);
+  sales(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Query("from") from?: string, @Query("to") to?: string): Promise<EventSalesReport> {
+    return this.payments.salesReport(user.id, id, parseStatsPeriod(from, to));
   }
 
   @Post("events/:id/bookings/:bookingId/refund")

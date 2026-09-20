@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Domain facade for payments — only talks to PaymentProvider, never to an SDK.
-// SCOPE: create / getStatus / refund; ensureForBooking (null when payments_disabled, failed and cancelled re-armed as a new charge); refundForBooking claims the row before calling the provider so concurrent cancels refund once; freeze commission; organizer sales report.
+// SCOPE: create / getStatus / refund; ensureForBooking (null when payments_disabled, failed and cancelled re-armed as a new charge); refundForBooking claims the row before calling the provider so concurrent cancels refund once; freeze commission; organizer sales report over an optional from/to period.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ./payment-provider, ./payment.entity, ./commission
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -15,7 +15,8 @@ import { ConflictException, Inject, Injectable, NotFoundException } from "@nestj
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, QueryFailedError, Repository } from "typeorm";
-import type { EventSalesReport, Payment, PaymentStatus } from "@max-events/api-contracts";
+import type { EventSalesReport, Payment, PaymentStatus, StatsPeriod } from "@max-events/api-contracts";
+import { inPeriod } from "../stats/stats.service";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import { DEFAULT_COMMISSION_BPS, freezeCommission } from "./commission";
@@ -115,15 +116,17 @@ export class PaymentsService {
     return toPaymentDto(refunded ?? Object.assign(row, { status: "refunded" as const }));
   }
 
-  async salesReport(organizerId: string, eventId: string): Promise<EventSalesReport> {
+  /** Frozen ticket sales for one event; a period narrows the report to charges created inside it. */
+  async salesReport(organizerId: string, eventId: string, period: StatsPeriod = { from: null, to: null }): Promise<EventSalesReport> {
     const event = await this.events.findOneBy({ id: eventId, organizerUserId: organizerId });
     if (!event) throw new NotFoundException("Event not found");
     const bookings = await this.bookings.find({ where: { eventId } });
     const ids = bookings.map((row) => row.id);
     const payments = ids.length === 0 ? [] : await this.rows.find({ where: { bookingId: In(ids) } });
-    const frozen = payments.filter((row) => row.status === "succeeded" && row.commissionFixedAt && row.commissionRub != null && row.netRub != null && row.commissionBps != null).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
+    const frozen = payments.filter((row) => row.status === "succeeded" && row.commissionFixedAt && row.commissionRub != null && row.netRub != null && row.commissionBps != null && inPeriod(row.createdAt, period)).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
     return {
       eventId,
+      period,
       rows: frozen.map((row) => ({
         paymentId: row.id,
         bookingId: row.bookingId,
