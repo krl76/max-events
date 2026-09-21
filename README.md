@@ -28,7 +28,15 @@ bun run dev:miniapp                     # vite на :5173
 open "http://localhost:5173/?initData=$(bun tools/dev-initdata.mjs)"
 ```
 
-Вне клиента MAX dev-сборка ставит shim `window.WebApp` из `?initData=` (сохраняется в localStorage и переживает перезагрузку); в прод-сборке этот код отсутствует.
+Вне клиента MAX ставится shim `window.WebApp` из `?initData=` (HMAC тем же `MAX_BOT_TOKEN`, что на бэкенде). Работает в vite DEV и на хостах `localhost`, `dev.events.versacegus.cc`, `events.versacegus.cc`. Строка сохраняется в localStorage и убирается из URL. Сброс: `?clearInitData=1`. Реальный MAX-клиент с непустым `initData` не перезаписывается.
+
+Живой контур (тот же HMAC, не мок):
+
+```bash
+# .env: MAX_BOT_TOKEN=<тот же, что на VPS>  MAX_DEV_USER={"id":123,"first_name":"Имя","username":"nick"}
+bun run verify:live
+bun run dev:login-url          # печатает https://dev.events.versacegus.cc/?initData=...
+```
 
 ## Идея
 
