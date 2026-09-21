@@ -49,9 +49,6 @@ export const SEED_EVENTS: SeedEventSpec[] = [
     dayOffset: 7,
     hourUtc: 16,
     durationHours: 2,
-    isPaid: true,
-    priceRub: 1500,
-    paymentUrl: "https://tickets.example.com/gorky-jazz",
     capacity: 120,
   },
   {

@@ -86,4 +86,8 @@ describe("seedDatabase", () => {
     expect(places.store.every((row) => row.latitude >= -90 && row.latitude <= 90 && row.longitude >= -180 && row.longitude <= 180)).toBe(true);
     expect(places.store.every((row) => row.city === "Москва")).toBe(true);
   });
+
+  it("does not point seed events at dead example.com payment URLs", () => {
+    expect(SEED_EVENTS.every((spec) => spec.paymentUrl == null || !spec.paymentUrl.includes("example.com"))).toBe(true);
+  });
 });
