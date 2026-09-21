@@ -1,13 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Page composition for the shell routing (home feed with whereto/nearby CTAs, event, place, friends with the discovery/people entries, calendar, profile, whereto wizard, nearby screen, reverse discovery, people matching, plans, day route builder).
 // SCOPE: Thin route-to-page mapping; page internals live in their own modules.
-// DEPENDS: ../routing/router.js, ../catalog/CatalogPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../calendar/CalendarPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../today/TodaySection.js, ../assist/AssistSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../organizer/OrganizerPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js, ../ui/primitives.js (AppNavTiles)
+// DEPENDS: ../routing/router.js, ../catalog/CatalogPage.js, ../catalog/MapPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../calendar/CalendarPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../today/TodaySection.js, ../assist/AssistSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../organizer/OrganizerPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js, ../search/SearchPage.js, ../ui/primitives.js (AppNavTiles)
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - HomePage - stories rail (StoriesRow) + «Куда пойдём?»/«Рядом со мной» CTA pair (primary/secondary) + NL assist section (AssistSection) + today digest (TodaySection) + impressions feed (FeedSection) + micro-events section (MicroSection) + promotion banners/collections (PromotionSections, #205) + catalog screen (CatalogPage) on the home route; all sections hidden in map view so the map gets the viewport
-// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar/profile routes render their screens (profile + achievements/my-city/lists nav tiles), whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the plans list and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, lists renders the saved lists and list(id) one list, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen
+// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders the search screen, map renders the full-screen map, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar/profile routes render their screens (profile + friends/achievements/my-city/lists nav tiles, plans + calendar nav tile), whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the plans list and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, lists renders the saved lists and list(id) one list, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen
 // END_MODULE_MAP
 
 import { lazy, Suspense, useState, type ElementType, type LazyExoticComponent } from "react";
@@ -48,6 +48,8 @@ const GatheringStatusPage = lazyNamed(() => import("../gathering/GatheringStatus
 const VotePage = lazyNamed(() => import("../votes/VotePage"), "VotePage");
 const PlansPage = lazyNamed(() => import("../plans/PlansPage"), "PlansPage");
 const PlanPage = lazyNamed(() => import("../plans/PlanPage"), "PlanPage");
+const SearchPage = lazyNamed(() => import("../search/SearchPage"), "SearchPage");
+const MapPage = lazyNamed(() => import("../catalog/MapPage"), "MapPage");
 const WeGroupsPage = lazyNamed(() => import("../wegroup/WeGroupsPage"), "WeGroupsPage");
 const WeGroupPage = lazyNamed(() => import("../wegroup/WeGroupPage"), "WeGroupPage");
 const DayRoutePage = lazyNamed(() => import("../route/DayRoutePage"), "DayRoutePage");
@@ -123,12 +125,15 @@ function Routed() {
   if (route.name === "discovery") return <DiscoveryPage />;
   if (route.name === "people") return <PeoplePage />;
   if (route.name === "calendar") return <CalendarPage />;
+  if (route.name === "search") return <SearchPage />;
+  if (route.name === "map") return <MapPage />;
   if (route.name === "profile")
     return (
       <>
         <ProfilePage />
         <AppNavTiles
           items={[
+            { icon: "user", label: "Друзья", onClick: () => navigate({ name: "friends" }) },
             { icon: "star", label: "Достижения", onClick: () => navigate({ name: "achievements" }) },
             { icon: "pin", label: "Мой город", onClick: () => navigate({ name: "my-city" }) },
             { icon: "bookmark", label: "Сохранённое", onClick: () => navigate({ name: "lists" }) },
@@ -148,7 +153,13 @@ function Routed() {
   if (route.name === "gathering-new") return <GatheringFlowPage eventId={route.eventId} />;
   if (route.name === "gathering") return <GatheringStatusPage id={route.id} />;
   if (route.name === "vote") return <VotePage id={route.id} />;
-  if (route.name === "plans") return <PlansPage />;
+  if (route.name === "plans")
+    return (
+      <>
+        <AppNavTiles items={[{ icon: "clock", label: "Календарь", onClick: () => navigate({ name: "calendar" }) }]} />
+        <PlansPage />
+      </>
+    );
   if (route.name === "plan") return <PlanPage id={route.id} />;
   if (route.name === "we-groups") return <WeGroupsPage />;
   if (route.name === "we-group") return <WeGroupPage id={route.id} />;

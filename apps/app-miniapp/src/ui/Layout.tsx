@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Base mini-app layout: header (home: wordmark + search; other routes: per-route title + back button), content, bottom tabbar with icons.
-// SCOPE: Tab navigation between home/plans/friends/calendar/profile; children render routed pages; the home search query lives in HomeSearchContext for the catalog to consume.
+// SCOPE: Tab navigation between home/search/map/plans/profile; children render routed pages; the home search query lives in HomeSearchContext for the catalog to consume.
 // DEPENDS: ../routing/router.js, ./theme.css, ./icons.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -19,16 +19,18 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from "re
 import { isTabRoute, useRoute, type Route } from "../routing/router";
 import { ActionIcon, TabIconGlyph, type TabIcon } from "./icons";
 
-export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string) => boolean; route: "home" | "plans" | "friends" | "calendar" | "profile" }> = [
+export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string) => boolean; route: "home" | "search" | "map" | "plans" | "profile" }> = [
   { icon: "feed", label: "Лента", route: "home", active: (name) => name === "home" },
-  { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" },
-  { icon: "friends", label: "Друзья", route: "friends", active: (name) => name === "friends" },
-  { icon: "calendar", label: "Календарь", route: "calendar", active: (name) => name === "calendar" },
-  { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" },
+  { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" },
+  { icon: "map", label: "Карта", route: "map", active: (name) => name === "map" },
+  { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" },
+  { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "friends" },
 ];
 
 export const ROUTE_TITLES: Record<Route["name"], string> = {
   home: "Лента",
+  search: "Поиск",
+  map: "Карта",
   plans: "Планы",
   friends: "Друзья",
   calendar: "Календарь",

@@ -83,6 +83,20 @@ describe("nextHistory", () => {
     expect(result.state).toEqual({ route: { name: "plans" }, idx: 0 });
   });
 
+  it("replaces between the new search and map tabs", () => {
+    const result = nextHistory({ route: { name: "search" }, idx: 0 }, { name: "map" });
+
+    expect(result.method).toBe("replace");
+    expect(result.state).toEqual({ route: { name: "map" }, idx: 0 });
+  });
+
+  it("pushes when leaving a tab for the former friends tab", () => {
+    const result = nextHistory({ route: { name: "profile" }, idx: 0 }, { name: "friends" });
+
+    expect(result.method).toBe("push");
+    expect(result.state).toEqual({ route: { name: "friends" }, idx: 1 });
+  });
+
   it("pushes a new entry when leaving a tab for a detail route", () => {
     const result = nextHistory({ route: { name: "home" }, idx: 0 }, { name: "event", id: "e1" });
 
@@ -107,9 +121,11 @@ describe("nextHistory", () => {
 
 describe("isTabRoute", () => {
   it("marks only the five tabbar routes as tab routes", () => {
-    const tabNames = ["home", "plans", "friends", "calendar", "profile"] as const;
+    const tabNames = ["home", "search", "map", "plans", "profile"] as const;
     for (const name of tabNames) expect(isTabRoute(name)).toBe(true);
 
+    expect(isTabRoute("friends")).toBe(false);
+    expect(isTabRoute("calendar")).toBe(false);
     expect(isTabRoute("event")).toBe(false);
     expect(isTabRoute("whereto")).toBe(false);
   });
