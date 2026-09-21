@@ -1,0 +1,56 @@
+# Production stack for work-vps. Postgres/Redis stay on the compose network
+# (no host ports — ShotZone already owns 127.0.0.1:5432 and :6380).
+# Secrets live in /opt/max-events/.env (not in git). Compose reads POSTGRES_PASSWORD
+# from that file for interpolation.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: max_events
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in /opt/max-events/.env}
+      POSTGRES_DB: max_events
+    volumes:
+      - max_events_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U max_events -d max_events"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - max_events_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://max_events:${POSTGRES_PASSWORD}@postgres:5432/max_events
+      REDIS_URL: redis://redis:6379
+      PORT: "3100"
+    ports:
+      - "127.0.0.1:3100:3100"
+    restart: unless-stopped
+
+volumes:
+  max_events_pgdata:
+  max_events_redisdata:
