@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Route } from "../routing/router";
-import { ROUTE_TITLES, routeHasBack, routeTitle, TABS } from "./Layout";
+import { ROUTE_TITLES, routeHasBack, routeHasHeader, routeTitle, TABS } from "./Layout";
 
 describe("Layout tabbar active predicates", () => {
   it("highlights only the Plans tab on the day-route screen", () => {
@@ -67,5 +67,20 @@ describe("routeHasBack", () => {
     expect(routeHasBack({ name: "event", id: "e1" })).toBe(true);
     expect(routeHasBack({ name: "whereto" })).toBe(true);
     expect(routeHasBack({ name: "plan", id: "p1" })).toBe(true);
+  });
+});
+
+describe("routeHasHeader", () => {
+  it("hides the header on the search, map and plans screens", () => {
+    expect(routeHasHeader({ name: "search" })).toBe(false);
+    expect(routeHasHeader({ name: "map" })).toBe(false);
+    expect(routeHasHeader({ name: "plans" })).toBe(false);
+  });
+
+  it("keeps the header on the home and profile tabs and detail routes", () => {
+    expect(routeHasHeader({ name: "home" })).toBe(true);
+    expect(routeHasHeader({ name: "profile" })).toBe(true);
+    expect(routeHasHeader({ name: "event", id: "e1" })).toBe(true);
+    expect(routeHasHeader({ name: "calendar" })).toBe(true);
   });
 });
