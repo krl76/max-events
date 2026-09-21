@@ -11,7 +11,8 @@
 // - OrganizerLoginResult - organizerLogin outcome: { token, user } | "disabled" (env unset) | null (bad credentials)
 // - AuthService.organizerLogin - env-credential check, find-or-create organizer user, store token in Redis
 // - AuthService.authenticateOrganizerToken - Bearer token -> Redis lookup -> organizer user
-// - BROWSER_DEMO_USER - MAX user payload minted for AUTH_ALLOW_BROWSER sessions
+// - BROWSER_DEFAULT_USER - owner MAX payload minted for AUTH_ALLOW_BROWSER (keep in sync with tools/max-dev-accounts.json)
+// - BROWSER_DEMO_USER - alias of BROWSER_DEFAULT_USER
 // - AuthService.issueBrowserInitData - signed initData for the staging browser host, or "disabled"
 // END_MODULE_MAP
 
@@ -27,7 +28,9 @@ import { UsersService } from "../users/users.service";
 import { REDIS_CLIENT } from "../redis/redis.module";
 import { signInitData, validateInitData } from "./max-init-data";
 
-export const BROWSER_DEMO_USER = { id: 1001, first_name: "Демо", username: "kku_demo" };
+/** Staging browser contour. Same person as tools/max-dev-accounts.json `owner`. Override with AUTH_BROWSER_USER JSON. */
+export const BROWSER_DEFAULT_USER = { id: 14352055, first_name: "seaG7", username: "seaG7", language_code: "ru" };
+export const BROWSER_DEMO_USER = BROWSER_DEFAULT_USER;
 
 export const ORGANIZER_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
@@ -65,7 +68,19 @@ export class AuthService {
     if (!isEnabled(this.config.get("AUTH_ALLOW_BROWSER"))) return "disabled";
     const botToken = this.config.get<string>("MAX_BOT_TOKEN");
     if (!botToken) return "disabled";
-    return signInitData({ auth_date: String(nowSeconds), user: JSON.stringify(BROWSER_DEMO_USER) }, botToken);
+    return signInitData({ auth_date: String(nowSeconds), user: JSON.stringify(this.browserUser()) }, botToken);
+  }
+
+  private browserUser(): { id: number; first_name: string; username?: string | null; language_code?: string } {
+    const raw = this.config.get<string>("AUTH_BROWSER_USER");
+    if (!raw) return BROWSER_DEFAULT_USER;
+    try {
+      const parsed = JSON.parse(raw) as { id: number; first_name: string; username?: string | null; language_code?: string };
+      if (typeof parsed.id === "number" && parsed.id > 0 && typeof parsed.first_name === "string" && parsed.first_name.length > 0) return parsed;
+    } catch {
+      this.logger.warn("AUTH_BROWSER_USER is not valid JSON; using BROWSER_DEFAULT_USER");
+    }
+    return BROWSER_DEFAULT_USER;
   }
 
   async authenticate(initData: string): Promise<UserEntity | null> {

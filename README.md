@@ -30,13 +30,26 @@ open "http://localhost:5173/?initData=$(bun tools/dev-initdata.mjs)"
 
 Вне клиента MAX ставится shim `window.WebApp` из `?initData=` (HMAC тем же `MAX_BOT_TOKEN`, что на бэкенде). Работает в vite DEV и на хостах `localhost`, `dev.events.versacegus.cc`. На `events.versacegus.cc` контур только через MAX. Строка сохраняется в localStorage и убирается из URL. Сброс: `?clearInitData=1`. Реальный MAX-клиент с непустым `initData` не перезаписывается.
 
-Живой контур (тот же HMAC, не мок):
+Живой контур (тот же HMAC, не мок). **Учётка по умолчанию — owner** (`tools/max-dev-accounts.json`), ею входят агент и команда. Моки (`VITE_USE_MOCK=1`) только для unit-тестов; в браузере против API личность всегда MAX. События — из БД (сид). Если каталог пустой, не включай мок-интерцептор, залей сид.
 
 ```bash
-# .env: MAX_BOT_TOKEN=<тот же, что на VPS>  MAX_DEV_USER={"id":123,"first_name":"Имя","username":"nick"}
+# .env: MAX_BOT_TOKEN=<тот же, что на VPS>
+# учётка: MAX_DEV_ACCOUNT=owner   (дефолт, можно не писать)
 bun run verify:live
-bun run dev:login-url          # печатает https://dev.events.versacegus.cc/?initData=...
+bun run dev:login-url          # https://dev.events.versacegus.cc/?initData=... под owner
 ```
+
+Свой MAX-аккаунт (не owner): числовой id из профиля MAX (или из `window.WebApp.initDataUnsafe.user` после одного запуска мини-аппа внутри MAX).
+
+```bash
+# вариант A — разовая ссылка
+bun tools/dev-initdata.mjs --url https://dev.events.versacegus.cc --user '{"id":123456,"first_name":"Имя","username":"nick","language_code":"ru"}'
+
+# вариант B — в своём .env (не коммитить)
+# MAX_DEV_USER={"id":123456,"first_name":"Имя","username":"nick","language_code":"ru"}
+```
+
+Id owner в JSON при необходимости поправь на реальный MAX user id владельца бота.
 
 ## Идея
 
