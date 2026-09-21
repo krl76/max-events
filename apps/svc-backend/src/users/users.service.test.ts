@@ -54,8 +54,33 @@ describe("UsersService.upsertFromMax", () => {
     expect(user.maxUserId).toBe("67890");
     expect(user.firstName).toBe("Max");
     expect(user.lastName).toBe("User");
+    expect(user.username).toBeNull();
     expect(user.avatarUrl).toBeNull();
     expect(repo.store).toHaveLength(1);
+  });
+
+  it("creates the user with the MAX username when provided", async () => {
+    const { repo, service } = createService();
+    const user = await service.upsertFromMax({ ...maxUser, username: "maxuser" });
+    expect(user.username).toBe("maxuser");
+    expect(repo.store).toHaveLength(1);
+  });
+
+  it("updates the username on a later sign-in when it changes", async () => {
+    const { repo, service } = createService();
+    const first = await service.upsertFromMax({ ...maxUser, username: "maxuser" });
+    const updated = await service.upsertFromMax({ ...maxUser, username: "maxuser2" });
+    expect(repo.store).toHaveLength(1);
+    expect(updated.username).toBe("maxuser2");
+    expect(updated).toBe(first);
+  });
+
+  it("clears the username when a later sign-in has none", async () => {
+    const { repo, service } = createService();
+    await service.upsertFromMax({ ...maxUser, username: "maxuser" });
+    const updated = await service.upsertFromMax(maxUser);
+    expect(repo.store).toHaveLength(1);
+    expect(updated.username).toBeNull();
   });
 
   it("is idempotent: a repeated sign-in creates no duplicate and writes nothing", async () => {
@@ -102,6 +127,7 @@ describe("toUserDto", () => {
       maxUserId: "67890",
       firstName: "Max",
       lastName: null,
+      username: "maxuser",
       avatarUrl: null,
       bannedFromPublishing: false,
       createdAt: new Date("2026-09-01T07:00:00Z"),
@@ -112,7 +138,7 @@ describe("toUserDto", () => {
       maxUserId: "67890",
       firstName: "Max",
       lastName: null,
-      username: null,
+      username: "maxuser",
       avatarUrl: null,
       createdAt: "2026-09-01T07:00:00.000Z",
       updatedAt: "2026-09-01T07:00:00.000Z",

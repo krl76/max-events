@@ -26,6 +26,9 @@ export class UserEntity {
   @Column({ type: "varchar", nullable: true })
   lastName!: string | null;
 
+  @Column({ type: "varchar", length: 64, nullable: true })
+  username!: string | null;
+
   @Column({ type: "varchar", nullable: true })
   avatarUrl!: string | null;
 
