@@ -306,6 +306,50 @@ describe("ApiClient.profile", () => {
   });
 });
 
+describe("ApiClient.respondToGathering", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const gathering = {
+    id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+    event: validEvent,
+    invitees: [{ friend: { id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6e", name: "Дима Кузнецов", avatarUrl: null }, response: "considering" }],
+    proposedMeetingAt: "2026-09-19T18:00:00.000Z",
+    status: "awaiting_responses",
+    chatLink: null,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  };
+
+  it("patches /gatherings/:id/response with the invitee answer and parses the gathering", async () => {
+    let request: { url: string; init?: RequestInit } | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        request = { url, init };
+        return { ok: true, status: 200, json: () => Promise.resolve(gathering) };
+      }),
+    );
+    const client = new ApiClient("http://localhost:3100/api");
+
+    const saved = await client.respondToGathering(gathering.id, "accepted");
+
+    expect(saved).toEqual(gathering);
+    expect(request?.url).toBe(`http://localhost:3100/api/gatherings/${gathering.id}/response`);
+    expect(request?.init?.method).toBe("PATCH");
+    expect(JSON.parse(String(request?.init?.body))).toEqual({ response: "accepted" });
+    expect(request?.init?.headers).toMatchObject({ "content-type": "application/json" });
+  });
+
+  it("rejects an invalid gathering payload", async () => {
+    mockFetchOnce(true, 200, { ...gathering, status: "not-a-status" });
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await expect(client.respondToGathering(gathering.id, "accepted")).rejects.toMatchObject({ name: "ApiError" });
+  });
+});
+
 describe("ApiClient.listCalendar", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

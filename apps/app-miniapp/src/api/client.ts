@@ -48,6 +48,7 @@
 // - CreateGathering - gathering launch payload (event + friend ids + proposed meeting time)
 // - ApiClient.createGathering - POST /gatherings
 // - ApiClient.getGathering - GET /gatherings/:id
+// - ApiClient.respondToGathering - PATCH /gatherings/:id/response with { response } (invitee answer; the host and outsiders get 403 from the backend)
 // - ApiClient.getToday - GET /today[?lat=&lng=]: "What to do today?" digest (summary + typed-label cards)
 // - ApiClient.getNearbyTimeline - GET /nearby?latitude=&longitude=: four-bucket nearby timeline (NearbyTimeline)
 // - ApiClient.getLeisureOptions - GET /nearby/free?hours=&mood=&latitude=&longitude=: leisure chains for a free window
@@ -122,7 +123,7 @@
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
 import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, Vote, WaitlistEntry, WeGroupScreen, WheretoQuery, WheretoResponse, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
+import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, Vote, WaitlistEntry, WeGroupScreen, WheretoQuery, WheretoResponse, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
 import { EarlyAccessWriteSchema, EventSalesReportSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, OrganizerSessionSchema, PromoCampaignSchema, PromoCodeSchema, PromotionCampaignSchema, StorySchema } from "@max-events/api-contracts";
 import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EarlyAccessWrite, EventSalesReport, OrganizerEventStats, OrganizerLoginWrite, OrganizerRatingResponse, OrganizerSession, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, Story } from "@max-events/api-contracts";
 
@@ -698,6 +699,10 @@ export class ApiClient {
 
   getGathering(id: string): Promise<Gathering> {
     return this.request(`/gatherings/${id}`, GatheringSchema);
+  }
+
+  respondToGathering(gatheringId: string, response: InviteeResponse): Promise<Gathering> {
+    return this.request(`/gatherings/${gatheringId}/response`, GatheringSchema, { method: "PATCH", body: { response } });
   }
 
   getToday(origin: { latitude: number; longitude: number } | null = null): Promise<TodayResponse> {
