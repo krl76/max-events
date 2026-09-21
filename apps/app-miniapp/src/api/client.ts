@@ -94,8 +94,8 @@
 // - ApiClient.getPeople - GET /people[?lat=&lng=]: people matching with shared-interest/event context (lat/lng mirror the backend parseOrigin names)
 // - ApiClient.getPromotionPlacements - GET /promotions/placements: banners, pins, boosted ids (#205)
 // - ApiClient.getTargetedPromotions - GET /promotions/for-me: targeted collections with explanations (#205)
-// - OrganizerEvent - contract event plus the draft flag read from the raw `published` field (the backend organizer DTO omits it; a missing flag reads as published)
-// - OrganizerPlace - contract place plus the draft flag (same raw published reading)
+// - OrganizerEvent - contract event plus the draft flag read from the raw `published` field (returned by toEventDto; a missing flag reads as published)
+// - OrganizerPlace - contract place plus the draft flag read from the raw `published` field (returned by toPlaceDto; a missing flag reads as published)
 // - UpdateOrganizerEvent - minimal event edit payload (backend PATCH /events/:id whitelist)
 // - UpdateOrganizerPlace - place edit payload (backend PATCH /places/:id validates CreatePlaceSchema.partial())
 // - ApiClient.listOrganizerEvents / createOrganizerEvent / updateOrganizerEvent / publishOrganizerEvent - organizer event surface (GET/POST /organizer/events, PATCH /events/:id, POST /organizer/events/:id/publish); create always yields a draft, publish always yields a published item
@@ -343,7 +343,7 @@ const MyCityPayloadSchema: ZodSchema<MyCityPayload> = {
   },
 };
 
-/** Check-in payload: the user plus exactly one of eventId/placeId. */
+/** Check-in payload: the user plus exactly one of eventId/placeId; the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token). */
 export interface CreateCheckIn {
   userId: string;
   eventId?: string;
@@ -357,7 +357,7 @@ export interface CreateGathering {
   proposedMeetingAt: string;
 }
 
-/** Save-to-list payload: the owner user and the saved event. */
+/** Save-to-list payload: the owner user and the saved event; the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token). */
 export interface AddListItem {
   userId: string;
   eventId: string;
@@ -369,7 +369,7 @@ export interface EventRating {
   categoryAverages: { atmosphere: number | null; organization: number | null; price: number | null; place: number | null };
 }
 
-/** Review submission payload: the author, the event, the scores and the optional text. */
+/** Review submission payload: the author, the event, the scores and the optional text; the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token). */
 export interface CreateReview {
   userId: string;
   eventId: string;
@@ -605,10 +605,12 @@ export class ApiClient {
     return this.request(`/events/${eventId}/participation/stats?userId=${encodeURIComponent(userId)}`, ParticipationStatsSchema);
   }
 
+  /** Set participation status (PUT); the userId param is ignored server-side, identity comes from initData. */
   setParticipationStatus(eventId: string, userId: string, status: ParticipationStatus): Promise<Participation> {
     return this.request(`/events/${eventId}/participation?userId=${encodeURIComponent(userId)}`, ParticipationSchema, { method: "PUT", body: { status } });
   }
 
+  /** Delete participation (DELETE); the userId param is ignored server-side, identity comes from initData. */
   deleteParticipation(eventId: string, userId: string): Promise<Participation> {
     return this.request(`/events/${eventId}/participation?userId=${encodeURIComponent(userId)}`, ParticipationSchema, { method: "DELETE" });
   }
@@ -637,6 +639,7 @@ export class ApiClient {
     return this.request(`/bookings/${bookingId}`, BookingWithSeatsSchema, { method: "DELETE" });
   }
 
+  /** Join the event waitlist; the userId param is ignored server-side, identity comes from initData. */
   joinWaitlist(eventId: string, userId: string): Promise<WaitlistEntry> {
     return this.request(`/waitlist?userId=${encodeURIComponent(userId)}`, WaitlistEntrySchema, { body: { eventId } });
   }
@@ -763,6 +766,7 @@ export class ApiClient {
     return this.request("/feed", FeedPostSchema, { body: payload });
   }
 
+  /** Toggle a feed like; the userId param is ignored server-side, identity comes from initData. */
   toggleFeedLike(postId: string, userId: string): Promise<FeedPost> {
     return this.request(`/feed/${postId}/like?userId=${encodeURIComponent(userId)}`, FeedPostSchema, { method: "POST" });
   }
@@ -795,10 +799,12 @@ export class ApiClient {
     return this.request("/micro-events", MicroEventSchema, { body: payload });
   }
 
+  /** Join a micro-event; the userId param is ignored server-side, identity comes from initData. */
   joinMicroEvent(id: string, userId: string): Promise<MicroEvent> {
     return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventSchema, { method: "POST" });
   }
 
+  /** Leave a micro-event; the userId param is ignored server-side, identity comes from initData. */
   leaveMicroEvent(id: string, userId: string): Promise<MicroEvent> {
     return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventSchema, { method: "DELETE" });
   }

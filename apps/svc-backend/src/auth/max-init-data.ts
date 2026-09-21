@@ -28,7 +28,7 @@ export const MaxInitDataUserSchema = z.object({
   id: z.number().int().positive(),
   first_name: z.string().min(1),
   last_name: z.string().nullish(),
-  username: z.string().nullish(),
+  username: z.string().max(64).nullish(),
   language_code: z.string().nullish(),
   photo_url: z.string().nullish(),
 });
