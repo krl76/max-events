@@ -4,6 +4,7 @@
 // SCOPE: CLI only; signs auth_date + user with the bot token per https://dev.max.ru/docs/webapps/validation. No dependencies.
 // DEPENDS: node:crypto; backend must run with the same MAX_BOT_TOKEN
 // LINKS: M-APP-MINIAPP, M-SVC-BACKEND
+// MAP_MODE: NONE
 // END_MODULE_CONTRACT
 //
 // Usage: open "http://localhost:5173/?initData=$(bun tools/dev-initdata.mjs)"
