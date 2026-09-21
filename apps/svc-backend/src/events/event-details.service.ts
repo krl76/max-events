@@ -6,7 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - EventDetailsService - get(eventId, viewerId) composition, constant query count
+// - EventDetailsService - get(eventId, viewerId) composition plus optional weather attach
 // END_MODULE_MAP
 
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";

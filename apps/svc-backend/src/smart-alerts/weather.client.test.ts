@@ -69,6 +69,7 @@ describe("WeatherClient.forecastAt", () => {
   it("reads temperature, weather code and rain chance at the UTC hour", async () => {
     const fetchImpl: WeatherFetch = async (url) => {
       expect(url).toContain("hourly=temperature_2m,weather_code,precipitation,precipitation_probability");
+      expect(url).toContain("forecast_days=16");
       return jsonResponse(200, {
         hourly: {
           time: ["2026-09-12T15:00", "2026-09-12T16:00"],

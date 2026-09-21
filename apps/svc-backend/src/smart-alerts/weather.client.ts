@@ -78,7 +78,7 @@ export class WeatherClient {
 
   async forecastAt(latitude: number, longitude: number, at: Date): Promise<HourlyForecast | null> {
     const hour = utcHourKey(at);
-    const url = `${this.baseUrl}?latitude=${encodeURIComponent(String(latitude))}&longitude=${encodeURIComponent(String(longitude))}&hourly=temperature_2m,weather_code,precipitation,precipitation_probability&timezone=UTC`;
+    const url = `${this.baseUrl}?latitude=${encodeURIComponent(String(latitude))}&longitude=${encodeURIComponent(String(longitude))}&hourly=temperature_2m,weather_code,precipitation,precipitation_probability&timezone=UTC&forecast_days=16`;
     try {
       const response = await this.fetchImpl(url);
       if (!response.ok) return null;
