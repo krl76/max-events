@@ -6,9 +6,10 @@ import type { AuthService } from "./auth.service";
 import { AuthGuard, MAX_INIT_DATA_HEADER, Public } from "./auth.guard";
 
 const fakeUser = { id: "uuid-1", maxUserId: "67890", firstName: "Max" } as UserEntity;
+const organizerUser = { id: "uuid-org", maxUserId: "organizer:demo", firstName: "demo" } as UserEntity;
 
-function createGuard(authenticate: (initData: string) => Promise<UserEntity | null>) {
-  return new AuthGuard({ authenticate } as unknown as AuthService, new Reflector());
+function createGuard(authenticate: (initData: string) => Promise<UserEntity | null>, authenticateOrganizerToken: (token: string) => Promise<UserEntity | null> = async () => null) {
+  return new AuthGuard({ authenticate, authenticateOrganizerToken } as unknown as AuthService, new Reflector());
 }
 
 function createContext(headers: Record<string, string> = {}, handler: object = () => {}) {
@@ -49,5 +50,28 @@ describe("AuthGuard", () => {
     Public()(PublicRoute);
     const { context } = createContext({}, PublicRoute);
     await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+
+  it("authenticates a valid organizer Bearer token and attaches the organizer user", async () => {
+    const guard = createGuard(
+      async () => null,
+      async (token) => (token === "good-token" ? organizerUser : null),
+    );
+    const { context, request } = createContext({ authorization: "Bearer good-token" });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(request.currentUser).toBe(organizerUser);
+  });
+
+  it("falls back to the initData path when the Bearer token is unknown", async () => {
+    const guard = createGuard(async () => fakeUser);
+    const { context, request } = createContext({ authorization: "Bearer stale-token", [MAX_INIT_DATA_HEADER]: "valid-init-data" });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(request.currentUser).toBe(fakeUser);
+  });
+
+  it("rejects an unknown Bearer token when no initData is present", async () => {
+    const guard = createGuard(async () => fakeUser);
+    const { context } = createContext({ authorization: "Bearer stale-token" });
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });
