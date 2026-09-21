@@ -125,41 +125,12 @@ body {
   white-space: nowrap;
 }
 
-/* Главная: wordmark + поисковая строка в стиле IG */
+/* Главная: wordmark */
 .app-header-wordmark {
   flex-shrink: 0;
   font-size: var(--app-type-screen-size);
   font-weight: 700;
   letter-spacing: -0.02em;
-}
-
-.app-header-search {
-  align-items: center;
-  background: var(--app-surface);
-  border-radius: 999px;
-  color: var(--app-text-tertiary);
-  display: flex;
-  flex: 1;
-  gap: var(--app-space-xs);
-  min-width: 0;
-  padding: var(--app-space-xs) var(--app-space-m);
-}
-
-.app-header-search input {
-  background: none;
-  border: none;
-  color: var(--app-text);
-  flex: 1;
-  font: inherit;
-  font-size: var(--app-font-size-body);
-  font-weight: 400;
-  letter-spacing: normal;
-  min-width: 0;
-  outline: none;
-}
-
-.app-header-search input::placeholder {
-  color: var(--app-text-tertiary);
 }
 
 .app-content {
