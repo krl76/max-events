@@ -1,47 +1,113 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Dev-only window.WebApp shim so the miniapp runs in live mode (no VITE_USE_MOCK) from a plain browser against the real backend.
-// SCOPE: Reads signed initData from the ?initData= query param (persisted to localStorage) or from localStorage, installs a minimal window.WebApp when the real MAX bridge is absent. Dead code in prod builds (import.meta.env.DEV gate).
+// PURPOSE: Browser MAX-contour shim: signed initData as window.WebApp so the miniapp can run outside the MAX client against a real backend (HMAC still verified server-side).
+// SCOPE: ?initData= (persisted in localStorage) or stored value; overlays empty official WebApp from st.max.ru; no-op on unknown hosts, inside a real MAX session, or when ?clearInitData=1. Allowed on DEV, VITE_ALLOW_INITDATA_SHIM=1, or INITDATA_SHIM_HOSTS (staging/dev only — not events.versacegus.cc).
 // DEPENDS: ./bridge (MaxWebApp type), tools/dev-initdata.mjs generates the signed initData
 // LINKS: M-APP-MINIAPP, DF-MAX-IDENTITY, https://dev.max.ru/docs/webapps/validation
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - DEV_INIT_DATA_STORAGE_KEY - localStorage key where query initData is persisted across reloads
-// - installDevWebAppShim - install a minimal window.WebApp from query/localStorage initData; no-op outside DEV or inside the MAX client
+// - INITDATA_SHIM_HOSTS - staging/dev hostnames that may install the shim (MAX-only prod host excluded)
+// - isInitDataShimAllowed - DEV / env flag / allowlisted hostname
+// - parseInitDataUnsafe - user/start_param/auth_date from a signed initData query string
+// - installDevWebAppShim - overlay signed initData onto window.WebApp
 // END_MODULE_MAP
 
-import type { MaxWebApp } from "./bridge";
+import type { MaxWebApp, MaxWebAppInitDataUnsafe } from "./bridge";
 
 export const DEV_INIT_DATA_STORAGE_KEY = "max-events-dev-initdata";
 
+export const INITDATA_SHIM_HOSTS: readonly string[] = ["localhost", "127.0.0.1", "dev.events.versacegus.cc"];
+
+export function isInitDataShimAllowed(): boolean {
+  if (typeof window === "undefined") return false;
+  if (import.meta.env.DEV) return true;
+  if (import.meta.env.VITE_ALLOW_INITDATA_SHIM === "1") return true;
+  return INITDATA_SHIM_HOSTS.includes(window.location.hostname);
+}
+
+export function parseInitDataUnsafe(initData: string): MaxWebAppInitDataUnsafe {
+  const params = new URLSearchParams(initData);
+  const unsafe: MaxWebAppInitDataUnsafe = {};
+  const userRaw = params.get("user");
+  if (userRaw) {
+    try {
+      unsafe.user = JSON.parse(userRaw) as MaxWebAppInitDataUnsafe["user"];
+    } catch {
+      /* backend rejects a broken user payload; keep the shim so login can surface the error */
+    }
+  }
+  const start = params.get("start_param");
+  if (start) unsafe.start_param = start;
+  const authDate = params.get("auth_date");
+  if (authDate) unsafe.auth_date = Number(authDate);
+  return unsafe;
+}
+
 function readDevInitData(): string | null {
-  const fromQuery = new URLSearchParams(window.location.search).get("initData");
+  const search = new URLSearchParams(window.location.search);
+  if (search.get("clearInitData") === "1") {
+    window.localStorage.removeItem(DEV_INIT_DATA_STORAGE_KEY);
+    stripInitDataQuery();
+    return null;
+  }
+  const fromQuery = search.get("initData");
   if (fromQuery) {
     window.localStorage.setItem(DEV_INIT_DATA_STORAGE_KEY, fromQuery);
+    stripInitDataQuery();
     return fromQuery;
   }
   return window.localStorage.getItem(DEV_INIT_DATA_STORAGE_KEY);
 }
 
-/** Install a minimal window.WebApp for local dev. Returns true when the shim was installed. */
-export function installDevWebAppShim(): boolean {
-  if (!import.meta.env.DEV) return false;
-  if (typeof window === "undefined" || window.WebApp) return false;
-  const initData = readDevInitData();
-  if (!initData) return false;
-  const shim: MaxWebApp = {
+function stripInitDataQuery(): void {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("initData") && !url.searchParams.has("clearInitData")) return;
+    url.searchParams.delete("initData");
+    url.searchParams.delete("clearInitData");
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    window.history.replaceState(null, "", next);
+  } catch {
+    /* history may be missing in tests */
+  }
+}
+
+function emptyWebApp(): MaxWebApp {
+  return {
     platform: "web",
     version: "dev",
-    initData,
+    initData: "",
     initDataUnsafe: {},
     ready() {},
-    openLink() {},
-    openMaxLink() {},
+    openLink(url: string) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
+    openMaxLink(url: string) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
     close() {},
   };
-  window.WebApp = shim;
+}
+
+/** Overlay signed initData onto window.WebApp. Returns true when the contour was applied. */
+export function installDevWebAppShim(): boolean {
+  if (!isInitDataShimAllowed()) return false;
+  if (typeof window === "undefined") return false;
+  // Official st.max.ru/js/max-web-app.js always assigns window.WebApp, even in a plain browser
+  // with empty initData. Only a non-empty initData is a real MAX session — do not clobber it.
+  if (window.WebApp?.initData) return false;
+  const initData = readDevInitData();
+  if (!initData) return false;
+  const unsafe = parseInitDataUnsafe(initData);
+  if (window.WebApp) {
+    window.WebApp.initData = initData;
+    window.WebApp.initDataUnsafe = unsafe;
+  } else {
+    window.WebApp = { ...emptyWebApp(), initData, initDataUnsafe: unsafe };
+  }
   return true;
 }
 
 // Side effect on import: main.tsx imports this module first, before ./bridge reads window.WebApp.
-if (import.meta.env.DEV) installDevWebAppShim();
+installDevWebAppShim();
