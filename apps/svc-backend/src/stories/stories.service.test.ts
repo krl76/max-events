@@ -49,10 +49,7 @@ describe("StoriesService", () => {
 
   it("lists stories freshest first", async () => {
     const { service, stories } = createService();
-    stories.store.push(
-      { id: "00000000-0000-4000-8000-0000000000f1", userId: author, imageUrl: "old", createdAt: new Date("2026-09-15T10:00:00Z") },
-      { id: "00000000-0000-4000-8000-0000000000f2", userId: other, imageUrl: "new", createdAt: new Date("2026-09-16T10:00:00Z") },
-    );
+    stories.store.push({ id: "00000000-0000-4000-8000-0000000000f1", userId: author, imageUrl: "old", createdAt: new Date("2026-09-15T10:00:00Z") }, { id: "00000000-0000-4000-8000-0000000000f2", userId: other, imageUrl: "new", createdAt: new Date("2026-09-16T10:00:00Z") });
     const listed = await service.list();
     expect(listed.map((story) => story.imageUrl)).toEqual(["new", "old"]);
   });
