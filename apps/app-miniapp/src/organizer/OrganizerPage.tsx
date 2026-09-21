@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Organizer panel: own events/places with draft badges, draft creation forms, publish and minimal edit (event title/time/price/capacity, place title/address/city/coords).
-// SCOPE: Data via apiClient.listOrganizerEvents/createOrganizerEvent/updateOrganizerEvent/publishOrganizerEvent and the place twins; drafts flagged from the raw published field (the backend organizer DTO omits it — list reloads against the real backend read as published, see ../api/client.js); inline validation errors; mutations applied to local list state.
+// SCOPE: Data via apiClient.listOrganizerEvents/createOrganizerEvent/updateOrganizerEvent/publishOrganizerEvent and the place twins; drafts flagged from `published` (toEventDto/toPlaceDto return it — a missing flag still reads as published, see ../api/client.js); inline validation errors; mutations applied to local list state.
 // DEPENDS: ../api/client.js (apiClient, OrganizerEvent, OrganizerPlace, UpdateOrganizerEvent, UpdateOrganizerPlace), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./OrganizerAddons.js (MyOrganizerRatingCard, OrganizerEventAddons), ../ui/primitives.js, @max-events/api-contracts (CreateEvent, CreatePlace, EventCategory, EventCategorySchema, PlaceCategory, PlaceCategorySchema), ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT

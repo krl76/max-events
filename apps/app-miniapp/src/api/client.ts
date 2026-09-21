@@ -23,16 +23,16 @@
 // - ApiClient.getEventDetails - GET /events/:id/details?userId=
 // - ParticipationStats - event page social aggregate: per-status counters, friends count, own status
 // - ApiClient.getParticipationStats - GET /events/:id/participation/stats?userId=
-// - ApiClient.setParticipationStatus - PUT /events/:id/participation?userId= with { status }
-// - ApiClient.deleteParticipation - DELETE /events/:id/participation?userId=
+// - ApiClient.setParticipationStatus - PUT /events/:id/participation?userId= with { status }; userId ignored server-side, identity from initData
+// - ApiClient.deleteParticipation - DELETE /events/:id/participation?userId=; userId ignored server-side, identity from initData
 // - ApiClient.createBooking - POST /bookings (BookingWithSeats: the payment of a paid event rides along)
 // - ApiClient.cancelBooking - DELETE /bookings/:id (BookingWithSeats: a succeeded payment comes back refunded)
 // - ApiClient.payBooking - POST /bookings/:id/payment (initiate/continue the in-app payment; BookingWithSeats)
-// - ApiClient.joinWaitlist - POST /waitlist?userId= with { eventId }
+// - ApiClient.joinWaitlist - POST /waitlist?userId= with { eventId }; userId ignored server-side, identity from initData
 // - ApiClient.getMyWaitlistEntry - GET /waitlist/me?eventId=&userId= (404 -> null)
 // - ApiClient.confirmWaitlistOffer - POST /waitlist/:id/confirm
 // - ApiClient.declineWaitlistOffer - POST /waitlist/:id/decline
-// - CreateCheckIn - check-in payload (user + exactly one of event/place)
+// - CreateCheckIn - check-in payload (user + exactly one of event/place); userId ignored server-side, identity from initData
 // - ApiClient.createCheckIn - POST /check-ins
 // - ApiClient.getVisitStats - GET /users/:id/visit-stats: VisitStats
 // - ApiClient.getAchievements - GET /users/:id/achievements: Achievement[]
@@ -70,7 +70,7 @@
 // - CreateFeedPost - impression publication payload (author, event, text, optional photo); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
 // - ApiClient.listFeedPosts - GET /feed[?eventId=|?placeId=]: posts newest first, one event or one place for the wall
 // - ApiClient.createFeedPost - POST /feed
-// - ApiClient.toggleFeedLike - POST /feed/:id/like?userId= (like/unlike toggle; userId is mock-only, ignored by the real backend)
+// - ApiClient.toggleFeedLike - POST /feed/:id/like?userId= (like/unlike toggle; userId ignored server-side, identity from initData)
 // - ApiClient.addFeedComment - POST /feed/:id/comments with { userId, text } (userId is mock-only, ignored by the real backend)
 // - EventRating - event page rating aggregate: RatingSummary + per-category averages
 // - ApiClient.getEventRating - GET /events/:id/rating
@@ -78,8 +78,8 @@
 // - CreateMicroEvent - micro-event creation payload (author, what/when/where, limit)
 // - ApiClient.listMicroEvents - GET /micro-events
 // - ApiClient.createMicroEvent - POST /micro-events
-// - ApiClient.joinMicroEvent - POST /micro-events/:id/join?userId=
-// - ApiClient.leaveMicroEvent - DELETE /micro-events/:id/join?userId=
+// - ApiClient.joinMicroEvent - POST /micro-events/:id/join?userId=; userId ignored server-side, identity from initData
+// - ApiClient.leaveMicroEvent - DELETE /micro-events/:id/join?userId=; userId ignored server-side, identity from initData
 // - CreateReview - review submission payload (user + event + scores)
 // - ApiClient.createReview - POST /reviews
 // - REPORT_REASONS - report reason presets
@@ -94,8 +94,8 @@
 // - ApiClient.getPeople - GET /people[?lat=&lng=]: people matching with shared-interest/event context (lat/lng mirror the backend parseOrigin names)
 // - ApiClient.getPromotionPlacements - GET /promotions/placements: banners, pins, boosted ids (#205)
 // - ApiClient.getTargetedPromotions - GET /promotions/for-me: targeted collections with explanations (#205)
-// - OrganizerEvent - contract event plus the draft flag read from the raw `published` field (the backend organizer DTO omits it; a missing flag reads as published)
-// - OrganizerPlace - contract place plus the draft flag (same raw published reading)
+// - OrganizerEvent - contract event plus the draft flag from `published` (toEventDto returns it; missing flag still reads as published)
+// - OrganizerPlace - contract place plus the draft flag from `published` (toPlaceDto returns it; missing flag still reads as published)
 // - UpdateOrganizerEvent - minimal event edit payload (backend PATCH /events/:id whitelist)
 // - UpdateOrganizerPlace - place edit payload (backend PATCH /places/:id validates CreatePlaceSchema.partial())
 // - ApiClient.listOrganizerEvents / createOrganizerEvent / updateOrganizerEvent / publishOrganizerEvent - organizer event surface (GET/POST /organizer/events, PATCH /events/:id, POST /organizer/events/:id/publish); create always yields a draft, publish always yields a published item
@@ -343,7 +343,7 @@ const MyCityPayloadSchema: ZodSchema<MyCityPayload> = {
   },
 };
 
-/** Check-in payload: the user plus exactly one of eventId/placeId. */
+/** Check-in payload: the user plus exactly one of eventId/placeId. `userId` is ignored server-side — identity comes from the initData token. */
 export interface CreateCheckIn {
   userId: string;
   eventId?: string;
@@ -357,7 +357,7 @@ export interface CreateGathering {
   proposedMeetingAt: string;
 }
 
-/** Save-to-list payload: the owner user and the saved event. */
+/** Save-to-list payload: the owner user and the saved event. `userId` is ignored server-side — identity comes from the initData token. */
 export interface AddListItem {
   userId: string;
   eventId: string;
@@ -369,7 +369,7 @@ export interface EventRating {
   categoryAverages: { atmosphere: number | null; organization: number | null; price: number | null; place: number | null };
 }
 
-/** Review submission payload: the author, the event, the scores and the optional text. */
+/** Review submission payload: the author, the event, the scores and the optional text. `userId` is ignored server-side — identity comes from the initData token. */
 export interface CreateReview {
   userId: string;
   eventId: string;
@@ -456,7 +456,7 @@ export interface CreateMicroEvent {
   participantsLimit: number;
 }
 
-/** Organizer panel item: the contract entity plus the draft flag. The backend organizer DTO omits `published`, so a missing flag reads as published (drafts are only distinguishable when the payload carries published=false). */
+/** Organizer panel item: the contract entity plus the draft flag. `toEventDto`/`toPlaceDto` return `published`; a missing flag still reads as published (drafts are distinguishable when the payload carries published=false). */
 export type OrganizerEvent = Event & { draft: boolean };
 export type OrganizerPlace = Place & { draft: boolean };
 
@@ -605,10 +605,12 @@ export class ApiClient {
     return this.request(`/events/${eventId}/participation/stats?userId=${encodeURIComponent(userId)}`, ParticipationStatsSchema);
   }
 
+  /** userId ignored server-side, identity from initData */
   setParticipationStatus(eventId: string, userId: string, status: ParticipationStatus): Promise<Participation> {
     return this.request(`/events/${eventId}/participation?userId=${encodeURIComponent(userId)}`, ParticipationSchema, { method: "PUT", body: { status } });
   }
 
+  /** userId ignored server-side, identity from initData */
   deleteParticipation(eventId: string, userId: string): Promise<Participation> {
     return this.request(`/events/${eventId}/participation?userId=${encodeURIComponent(userId)}`, ParticipationSchema, { method: "DELETE" });
   }
@@ -637,6 +639,7 @@ export class ApiClient {
     return this.request(`/bookings/${bookingId}`, BookingWithSeatsSchema, { method: "DELETE" });
   }
 
+  /** userId ignored server-side, identity from initData */
   joinWaitlist(eventId: string, userId: string): Promise<WaitlistEntry> {
     return this.request(`/waitlist?userId=${encodeURIComponent(userId)}`, WaitlistEntrySchema, { body: { eventId } });
   }
@@ -763,6 +766,7 @@ export class ApiClient {
     return this.request("/feed", FeedPostSchema, { body: payload });
   }
 
+  /** userId ignored server-side, identity from initData */
   toggleFeedLike(postId: string, userId: string): Promise<FeedPost> {
     return this.request(`/feed/${postId}/like?userId=${encodeURIComponent(userId)}`, FeedPostSchema, { method: "POST" });
   }
@@ -795,10 +799,12 @@ export class ApiClient {
     return this.request("/micro-events", MicroEventSchema, { body: payload });
   }
 
+  /** userId ignored server-side, identity from initData */
   joinMicroEvent(id: string, userId: string): Promise<MicroEvent> {
     return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventSchema, { method: "POST" });
   }
 
+  /** userId ignored server-side, identity from initData */
   leaveMicroEvent(id: string, userId: string): Promise<MicroEvent> {
     return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventSchema, { method: "DELETE" });
   }
