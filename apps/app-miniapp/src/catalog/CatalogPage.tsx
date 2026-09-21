@@ -11,6 +11,7 @@
 // - formatStartsAt - ru "day month, hh:mm" formatting (re-exported from ./format.js, reused by the event page)
 // - CatalogViewName - "list" | "map" view switch on the catalog route
 // - CatalogView - presentational: filter bar + segmented «Список ↔ Карта» toggle + state-driven body (skeleton, error, empty, clickable event cards with the «Промо» badge on promoted events (#205) or map with event/place popups)
+// - EventCard - event card (media, title, time/category, city/price, «Промо» badge); exported for the search tab
 // - CatalogPage - filters from window.location on mount; view is controlled by the parent (HomePage hides the today block in map view); fetches via useCatalog and writes filter changes back to the URL; header search query (useHomeSearch) narrows the loaded list client-side
 // - filterEventsByQuery - case-insensitive title/city match; identity on a blank query
 // END_MODULE_MAP
@@ -81,7 +82,7 @@ function ViewToggle({ view, onView }: { view: CatalogViewName; onView: (view: Ca
   );
 }
 
-function EventCard({ event, onOpen }: { event: Event; onOpen?: (id: string) => void }) {
+export function EventCard({ event, onOpen }: { event: Event; onOpen?: (id: string) => void }) {
   return (
     <button type="button" className="app-card app-card--link" onClick={() => onOpen?.(event.id)}>
       <AppMedia category={event.category} />

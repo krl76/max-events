@@ -1,7 +1,26 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function enterAsUser(page: Page): Promise<void> {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Войти через MAX" }).click();
+}
+
+test("tabbar shows feed, search, map, plans and profile tabs", async ({ page }) => {
+  await enterAsUser(page);
+  const tabbar = page.locator(".app-tabbar");
+
+  for (const label of ["Лента", "Поиск", "Карта", "Планы", "Профиль"]) {
+    await expect(tabbar.getByRole("button", { name: label })).toBeVisible();
+  }
+  await expect(tabbar.getByRole("button", { name: "Лента" })).toHaveAttribute("aria-current", "page");
+
+  await tabbar.getByRole("button", { name: "Поиск" }).click();
+  await expect(tabbar.getByRole("button", { name: "Поиск" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByLabel("Поиск событий")).toBeVisible();
+});
 
 test("header back button returns to home via history", async ({ page }) => {
-  await page.goto("/");
+  await enterAsUser(page);
   // The event also appears in the promo rail above the catalog; the catalog card
   // is the one whose accessible name carries the city line.
   await page.getByRole("button", { name: /Вечер Рахманинова.*Москва/ }).click();

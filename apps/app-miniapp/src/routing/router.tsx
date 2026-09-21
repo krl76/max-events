@@ -1,14 +1,14 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Minimal router (home / event / place / friends / calendar / profile / whereto / nearby / discovery / people / plans / lists / organizer / we-groups) synced with window.history, with deep-link resolution from start_param.
+// PURPOSE: Minimal router (home / search / map / event / place / friends / calendar / profile / whereto / nearby / discovery / people / plans / lists / organizer / we-groups) synced with window.history, with deep-link resolution from start_param.
 // SCOPE: Route type, start_param parsing, history push/replace/popstate sync, back(); no URL path mapping (state-only history entries).
 // DEPENDS: ../max/bridge.js (getStartParam, webApp)
 // LINKS: M-APP-MINIAPP, DF-MAX-IDENTITY
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - Route - home | event(id) | place(id) | friends | calendar | profile | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | day-route | lists | list(id) | achievements | my-city | micro-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
+// - Route - home | search | map | event(id) | place(id) | friends | calendar | profile | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | day-route | lists | list(id) | achievements | my-city | micro-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote- prefixes) to a Route, home fallback
-// - isTabRoute - the five tabbar routes; tab-to-tab switches replace the history entry instead of pushing
+// - isTabRoute - the five tabbar routes (home/search/map/plans/profile); tab-to-tab switches replace the history entry instead of pushing
 // - RouteHistoryState - history entry payload: route + sequential idx (idx drives back/forward detection)
 // - nextHistory - pure history decision: tab-to-tab -> replace (idx kept), anything else -> push (idx + 1)
 // - routeFromHistoryState - validate a popstate payload back into a RouteHistoryState, null when malformed
@@ -21,7 +21,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getStartParam, webApp } from "../max/bridge";
 
-export type Route = { name: "home" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "day-route" } | { name: "lists" } | { name: "list"; id: string } | { name: "achievements" } | { name: "my-city" } | { name: "micro-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string };
+export type Route = { name: "home" } | { name: "search" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "day-route" } | { name: "lists" } | { name: "list"; id: string } | { name: "achievements" } | { name: "my-city" } | { name: "micro-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -42,7 +42,7 @@ export function routeFromStartParam(startParam: string | null): Route {
   return { name: "home" };
 }
 
-const TAB_ROUTE_NAMES: ReadonlySet<Route["name"]> = new Set(["home", "plans", "friends", "calendar", "profile"]);
+const TAB_ROUTE_NAMES: ReadonlySet<Route["name"]> = new Set(["home", "search", "map", "plans", "profile"]);
 
 export function isTabRoute(name: Route["name"]): boolean {
   return TAB_ROUTE_NAMES.has(name);
@@ -66,6 +66,8 @@ function toRoute(value: unknown): Route | null {
   if (typeof name !== "string") return null;
   switch (name) {
     case "home":
+    case "search":
+    case "map":
     case "friends":
     case "calendar":
     case "profile":

@@ -6,7 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - TabIcon - union of the five tabbar icon names
+// - TabIcon - union of the five tabbar icon names (feed/search/map/plans/profile)
 // - TabIconGlyph - inline stroke SVG for a tabbar icon, filled variant for the active tab
 // - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron)
 // - ActionIcon - inline stroke SVG by ActionIconName; filled=true fills the glyph (liked heart, saved bookmark, active tab)
@@ -14,25 +14,23 @@
 
 import type { ReactNode } from "react";
 
-export type TabIcon = "feed" | "plans" | "friends" | "calendar" | "profile";
+export type TabIcon = "feed" | "search" | "map" | "plans" | "profile";
 
 const OUTLINE: Record<TabIcon, ReactNode> = {
   feed: <path d="M3.8 10.4 12 3.9l8.2 6.5v8.2a1.4 1.4 0 0 1-1.4 1.4H5.2a1.4 1.4 0 0 1-1.4-1.4Z" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20.2 20.2-4-4" />
+    </>
+  ),
+  map: (
+    <>
+      <path d="M12 21s-6.8-5.4-6.8-10.4a6.8 6.8 0 0 1 13.6 0C18.8 15.6 12 21 12 21Z" />
+      <circle cx="12" cy="10.4" r="2.4" />
+    </>
+  ),
   plans: <path d="M6.5 4.5h11v15.4L12 16.2l-5.5 3.7Z" />,
-  friends: (
-    <>
-      <circle cx="9" cy="8.5" r="3.2" />
-      <path d="M3.5 19.5c.7-3 2.9-4.6 5.5-4.6s4.8 1.6 5.5 4.6" />
-      <path d="M15.5 5.6a3.2 3.2 0 0 1 0 5.8" />
-      <path d="M17.4 15.2c1.6.6 2.7 2 3.1 4" />
-    </>
-  ),
-  calendar: (
-    <>
-      <rect x="3.8" y="5.3" width="16.4" height="15" rx="1.6" />
-      <path d="M3.8 9.8h16.4M8.2 3.4v3.4M15.8 3.4v3.4" />
-    </>
-  ),
   profile: (
     <>
       <circle cx="12" cy="8" r="3.6" />
@@ -43,23 +41,8 @@ const OUTLINE: Record<TabIcon, ReactNode> = {
 
 const FILLED: Partial<Record<TabIcon, ReactNode>> = {
   feed: <path d="M12 2.9 2.8 10.1v8.5a2.4 2.4 0 0 0 2.4 2.4h4.3v-6.2h5v6.2h4.3a2.4 2.4 0 0 0 2.4-2.4v-8.5Z" />,
+  map: <path d="M12 21s-6.8-5.4-6.8-10.4a6.8 6.8 0 0 1 13.6 0C18.8 15.6 12 21 12 21Z" />,
   plans: <path d="M5.5 3.5h13v17.6L12 17.2l-6.5 3.9Z" />,
-  friends: (
-    <>
-      <circle cx="9" cy="8.5" r="3.7" />
-      <path d="M2.8 20.5c.8-3.4 3.2-5.3 6.2-5.3s5.4 1.9 6.2 5.3Z" />
-      <circle cx="16.4" cy="9.3" r="2.6" />
-      <path d="M16.1 14.6c2.6.1 4.4 1.8 5.1 5.9h-4.9" />
-    </>
-  ),
-  calendar: (
-    <>
-      <path d="M3.3 5.3a2 2 0 0 1 2-2h13.4a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2H5.3a2 2 0 0 1-2-2Z" opacity="0" />
-      <rect x="3.3" y="4.8" width="17.4" height="16" rx="2" />
-      <path d="M3.3 9.3h17.4" stroke="var(--app-card, #fff)" />
-      <path d="M8.2 2.9v3M15.8 2.9v3" />
-    </>
-  ),
   profile: (
     <>
       <circle cx="12" cy="8" r="4.1" />

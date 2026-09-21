@@ -58,11 +58,31 @@ describe("RoutedPages", () => {
   it("maps the profile route to the profile screen with its nav tiles", async () => {
     const html = await routedHtml({ name: "profile" }, "Достижения");
 
-    for (const label of ["Достижения", "Мой город", "Сохранённое"]) {
+    for (const label of ["Друзья", "Достижения", "Мой город", "Сохранённое"]) {
       expect(html).toContain(label);
     }
     expect(html).not.toContain("Панель организатора");
     expect(html).not.toContain("Твои люди открыли места");
+  });
+
+  it("maps the plans route to the plans screen with the calendar nav tile", async () => {
+    const html = await routedHtml({ name: "plans" }, "Календарь");
+
+    expect(html).toContain("Календарь");
+  });
+
+  it("maps the search route to the search screen", async () => {
+    const html = await routedHtml({ name: "search" }, "Начните вводить");
+
+    expect(html).toContain("Начните вводить");
+    expect(html).not.toContain("Куда пойдём?");
+  });
+
+  it("maps the map route to the map screen", async () => {
+    const html = await routedHtml({ name: "map" }, "Загружаем");
+
+    expect(html).toContain("Загружаем");
+    expect(html).not.toContain("Куда пойдём?");
   });
 
   it("renders the event page skeleton for an event deep link", async () => {

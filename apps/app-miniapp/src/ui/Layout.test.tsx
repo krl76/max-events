@@ -15,9 +15,27 @@ describe("Layout tabbar active predicates", () => {
     expect(TABS.find((tab) => tab.route === "plans")?.active("plan")).toBe(true);
   });
 
+  it("highlights the Plans tab on the calendar screen", () => {
+    const active = TABS.filter((tab) => tab.active("calendar"));
+
+    expect(active).toHaveLength(1);
+    expect(active[0].route).toBe("plans");
+  });
+
+  it("highlights the Profile tab on the friends screen", () => {
+    const active = TABS.filter((tab) => tab.active("friends"));
+
+    expect(active).toHaveLength(1);
+    expect(active[0].route).toBe("profile");
+  });
+
   it("keeps other screens off the Plans tab", () => {
     expect(TABS.find((tab) => tab.route === "plans")?.active("home")).toBe(false);
-    expect(TABS.find((tab) => tab.route === "plans")?.active("friends")).toBe(false);
+    expect(TABS.find((tab) => tab.route === "plans")?.active("search")).toBe(false);
+  });
+
+  it("defines exactly the five tabbar tabs in order", () => {
+    expect(TABS.map((tab) => tab.route)).toEqual(["home", "search", "map", "plans", "profile"]);
   });
 });
 
