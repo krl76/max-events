@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Nest module wiring the events feature (entity repositories, services, HTTP controller).
-// SCOPE: Registers EventEntity plus Booking/CheckIn/Participation/User repos for the details aggregate, EventsService, EventDetailsService, EventChatScheduler and EventsController; imports PlacesModule, MaxBotModule, ReviewsModule.
+// SCOPE: Registers EventEntity plus Booking/CheckIn/Participation/User repos for the details aggregate, EventsService, EventDetailsService, EventWeatherService, EventChatScheduler and EventsController; imports PlacesModule, MaxBotModule, ReviewsModule.
 // DEPENDS: @nestjs/typeorm, ../places/places.module, ../max-bot/max-bot.module, ../reviews/reviews.module, ./event.entity, ./events.service, ./event-details.service, ./events.controller
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -26,12 +26,14 @@ import { EventChatScheduler } from "./event-chat.scheduler";
 import { EventDetailsService } from "./event-details.service";
 import { EventEntity } from "./event.entity";
 import { EventsController } from "./events.controller";
+import { EventWeatherService } from "./event-weather.service";
 import { EventsService } from "./events.service";
+import { WeatherClient } from "../smart-alerts/weather.client";
 
 @Module({
   imports: [TypeOrmModule.forFeature([EventEntity, BookingEntity, CheckInEntity, ParticipationEntity, UserEntity]), PlacesModule, MaxBotModule, SubscriptionsModule, UsersModule, WaitlistModule, PromotionModule, ReviewsModule],
   controllers: [EventsController],
-  providers: [EventsService, EventDetailsService, EventChatScheduler],
+  providers: [WeatherClient, EventWeatherService, EventsService, EventDetailsService, EventChatScheduler],
   exports: [EventsService],
 })
 export class EventsModule {}

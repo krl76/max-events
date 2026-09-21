@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import type { FindOperator, Repository } from "typeorm";
-import { CreateEventSchema, type CreateEvent, type Place } from "@max-events/api-contracts";
+import { CreateEventSchema, type CreateEvent, type Event, type Place } from "@max-events/api-contracts";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
 import type { SubscriptionsService } from "../subscriptions/subscriptions.service";
@@ -9,6 +9,7 @@ import type { UsersService } from "../users/users.service";
 import type { PromotionService } from "../promotion/promotion.service";
 import type { WaitlistService } from "../waitlist/waitlist.service";
 import { EventEntity } from "./event.entity";
+import type { EventWeatherService } from "./event-weather.service";
 import { EVENT_LIST_MAX_LIMIT, EventsService, toEventDto } from "./events.service";
 
 const placeId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f";
@@ -81,7 +82,11 @@ function matchesDateOperator(value: Date, operator: FindOperator<Date>): boolean
   throw new Error(`unsupported find operator in fake repository: ${operator.type}`);
 }
 
-function createService(options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean; promotions?: PromotionService } = {}) {
+function passthroughWeather(): EventWeatherService {
+  return { attach: async (events: Event[]) => events } as unknown as EventWeatherService;
+}
+
+function createService(options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean; promotions?: PromotionService; weather?: EventWeatherService } = {}) {
   const knownPlaces = new Set(options.placeIds ?? []);
   const draftPlaces = new Set(options.draftPlaceIds ?? []);
   const chatCalls: string[] = [];
@@ -118,7 +123,8 @@ function createService(options: { placeIds?: string[]; draftPlaceIds?: string[];
   } as unknown as UsersService;
   const waitlist = options.waitlist ?? ({ fillVacancies: async () => undefined } as unknown as WaitlistService);
   const promotions = options.promotions ?? ({ listActive: async () => [], promotedEventIds: async () => new Set<string>() } as unknown as PromotionService);
-  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist, promotions);
+  const weather = options.weather ?? passthroughWeather();
+  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist, promotions, weather);
   return { repo, service, waitlist, chatCalls, notifyCalls };
 }
 
@@ -267,6 +273,15 @@ describe("EventsService", () => {
     await service.create(payload);
     // The ceiling is what protects the query; asking past it must not widen the read.
     await expect(service.list({ limit: EVENT_LIST_MAX_LIMIT + 50 })).resolves.toHaveLength(1);
+  });
+
+  it("attaches weather snapshots from EventWeatherService on the catalog list", async () => {
+    const snapshot = { temperatureC: 12, condition: "ясно", conditionCode: 0, precipitationProbability: 0 };
+    const { service } = createService({
+      weather: { attach: async (events: Event[]) => events.map((row) => ({ ...row, weather: snapshot })) } as unknown as EventWeatherService,
+    });
+    await service.create(payload);
+    expect((await service.list({}))[0]?.weather).toEqual(snapshot);
   });
 
   it("lifts a boosted event to the front of the catalog and marks it promoted", async () => {

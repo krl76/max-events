@@ -22,6 +22,7 @@ import { ReviewsService } from "../reviews/reviews.service";
 import { UserEntity } from "../users/user.entity";
 import { toUserDto } from "../users/users.service";
 import { EventEntity } from "./event.entity";
+import { EventWeatherService } from "./event-weather.service";
 import { toEventDto } from "./event.mapper";
 
 @Injectable()
@@ -35,14 +36,17 @@ export class EventDetailsService {
     @Inject(PlacesService) private readonly places: PlacesService,
     @Inject(ReviewsService) private readonly reviews: ReviewsService,
     @Inject(PromotionService) private readonly promotions: PromotionService,
+    @Inject(EventWeatherService) private readonly eventWeather: EventWeatherService,
   ) {}
 
   async get(eventId: string, viewerId: string): Promise<EventDetails> {
     const event = await this.events.findOneBy({ id: eventId });
     if (!event || event.published === false) throw new NotFoundException("Event not found");
     const [place, organizer, activeBooking, checkIn, participation, rating, promoted] = await Promise.all([this.placeFor(event.placeId), this.organizerFor(event.organizerUserId), this.bookings.findOneBy({ userId: viewerId, eventId, status: "active" }), this.checkIns.findOneBy({ userId: viewerId, eventId }), this.participations.findOneBy({ userId: viewerId, eventId }), this.reviews.eventRating(eventId), this.promotions.promotedEventIds()]);
+    const mapped = toEventDto(event, { promoted: promoted.has(event.id) });
+    const [withWeather] = await this.eventWeather.attach([mapped]);
     return {
-      event: toEventDto(event, { promoted: promoted.has(event.id) }),
+      event: withWeather ?? mapped,
       place,
       organizer,
       remainingSeats: event.capacity === null ? null : Math.max(0, event.capacity - event.bookedCount),

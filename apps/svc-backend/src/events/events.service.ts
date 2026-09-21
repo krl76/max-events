@@ -25,6 +25,7 @@ import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { PromotionService } from "../promotion/promotion.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { EventEntity } from "./event.entity";
+import { EventWeatherService } from "./event-weather.service";
 import { toEventDto } from "./event.mapper";
 
 export { toEventDto } from "./event.mapper";
@@ -60,6 +61,7 @@ export class EventsService {
     @Inject(UsersService) private readonly users: UsersService,
     @Inject(WaitlistService) private readonly waitlist: WaitlistService,
     @Inject(PromotionService) private readonly promotions: PromotionService,
+    @Inject(EventWeatherService) private readonly eventWeather: EventWeatherService,
   ) {}
 
   async create(payload: CreateEvent, organizerUserId?: string, options?: { draft?: boolean }): Promise<Event> {
@@ -91,7 +93,8 @@ export class EventsService {
     const found = await this.events.findOneBy({ id });
     if (!found || found.published === false) throw new NotFoundException("Event not found");
     const promoted = (await this.promotions.promotedEventIds()).has(found.id);
-    return toEventDto(found, { promoted });
+    const [withWeather] = await this.eventWeather.attach([toEventDto(found, { promoted })]);
+    return withWeather ?? toEventDto(found, { promoted });
   }
 
   async update(id: string, patch: Record<string, unknown>, actorId?: string): Promise<Event> {
@@ -192,7 +195,7 @@ export class EventsService {
     const [boosts, promoted] = await Promise.all([this.promotions.listActive(now, "boost"), this.promotions.promotedEventIds(now)]);
     const boosted = new Set(boosts.map((row) => row.eventId));
     const ordered = [...visible].sort((a, b) => Number(boosted.has(b.id)) - Number(boosted.has(a.id)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
-    return ordered.map((row) => toEventDto(row, { promoted: promoted.has(row.id) }));
+    return this.eventWeather.attach(ordered.map((row) => toEventDto(row, { promoted: promoted.has(row.id) })));
   }
 }
 

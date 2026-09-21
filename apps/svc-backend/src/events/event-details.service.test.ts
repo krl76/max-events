@@ -12,6 +12,7 @@ import { ReviewsService } from "../reviews/reviews.service";
 import { UserEntity } from "../users/user.entity";
 import { EventDetailsService } from "./event-details.service";
 import { EventEntity } from "./event.entity";
+import type { EventWeatherService } from "./event-weather.service";
 
 const eventId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f";
 const placeId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d70";
@@ -99,7 +100,8 @@ function createService(
   } as unknown as PlacesService;
   const reviews = new ReviewsService(reviewRows as unknown as Repository<ReviewEntity>, bookings as unknown as Repository<BookingEntity>, events as unknown as Repository<EventEntity>);
   const promotions = { promotedEventIds: async () => new Set<string>() } as unknown as PromotionService;
-  const service = new EventDetailsService(events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, checkIns as unknown as Repository<CheckInEntity>, participations as unknown as Repository<ParticipationEntity>, users as unknown as Repository<UserEntity>, places, reviews, promotions);
+  const weather = { attach: async (rows: { weather?: unknown }[]) => rows } as unknown as EventWeatherService;
+  const service = new EventDetailsService(events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, checkIns as unknown as Repository<CheckInEntity>, participations as unknown as Repository<ParticipationEntity>, users as unknown as Repository<UserEntity>, places, reviews, promotions, weather);
   return { service };
 }
 

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Open-Meteo forecast client — precipitation at a lat/lng/hour, never throws.
-// SCOPE: precipitationAt returns mm + probability for the UTC hour, or null on HTTP/parse/network failure.
+// PURPOSE: Open-Meteo forecast client — precipitation and hourly snapshot at a lat/lng/hour, never throws.
+// SCOPE: precipitationAt for smart-alerts; forecastAt for event cards (temp + WMO code + rain chance); null on HTTP/parse/network failure.
 // DEPENDS: none (injectable fetch)
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -9,9 +9,11 @@
 // - OPEN_METEO_FORECAST_URL - documented forecast host
 // - WeatherFetch - injectable GET fetch
 // - HourlyPrecip - mm and probability at one hour
+// - HourlyForecast - temp, WMO code, mm and probability at one hour
 // - utcHourKey - YYYY-MM-DDTHH:00 in UTC
 // - isRainy - precipitation or high probability
-// - WeatherClient - precipitationAt
+// - weatherConditionLabel - WMO weathercode -> short ru label
+// - WeatherClient - precipitationAt, forecastAt
 // END_MODULE_MAP
 
 import { Injectable, Optional } from "@nestjs/common";
@@ -28,12 +30,31 @@ export type HourlyPrecip = {
   precipitationProbability: number;
 };
 
+export type HourlyForecast = HourlyPrecip & {
+  temperatureC: number;
+  conditionCode: number;
+};
+
 export function utcHourKey(date: Date): string {
   return `${date.toISOString().slice(0, 13)}:00`;
 }
 
 export function isRainy(hour: HourlyPrecip, probabilityThreshold = 50): boolean {
   return hour.precipitationMm > 0 || hour.precipitationProbability >= probabilityThreshold;
+}
+
+export function weatherConditionLabel(code: number): string {
+  if (code === 0 || code === 1) return "ясно";
+  if (code === 2) return "облачно";
+  if (code === 3) return "пасмурно";
+  if (code === 45 || code === 48) return "туман";
+  if (code >= 51 && code <= 57) return "морось";
+  if (code >= 61 && code <= 67) return "дождь";
+  if (code >= 71 && code <= 77) return "снег";
+  if (code >= 80 && code <= 82) return "ливень";
+  if (code >= 85 && code <= 86) return "снег";
+  if (code >= 95) return "гроза";
+  return "облачно";
 }
 
 @Injectable()
@@ -49,26 +70,59 @@ export class WeatherClient {
     try {
       const response = await this.fetchImpl(url);
       if (!response.ok) return null;
-      return pickHour(await response.json(), hour);
+      return pickPrecip(await response.json(), hour);
+    } catch {
+      return null;
+    }
+  }
+
+  async forecastAt(latitude: number, longitude: number, at: Date): Promise<HourlyForecast | null> {
+    const hour = utcHourKey(at);
+    const url = `${this.baseUrl}?latitude=${encodeURIComponent(String(latitude))}&longitude=${encodeURIComponent(String(longitude))}&hourly=temperature_2m,weather_code,precipitation,precipitation_probability&timezone=UTC`;
+    try {
+      const response = await this.fetchImpl(url);
+      if (!response.ok) return null;
+      return pickForecast(await response.json(), hour);
     } catch {
       return null;
     }
   }
 }
 
-function pickHour(body: unknown, hour: string): HourlyPrecip | null {
+function hourlyIndex(body: unknown, hour: string): { hourly: Record<string, unknown>; index: number } | null {
   if (!body || typeof body !== "object") return null;
   const hourly = (body as { hourly?: unknown }).hourly;
   if (!hourly || typeof hourly !== "object") return null;
   const time = (hourly as { time?: unknown }).time;
-  const precipitation = (hourly as { precipitation?: unknown }).precipitation;
-  const probability = (hourly as { precipitation_probability?: unknown }).precipitation_probability;
-  if (!Array.isArray(time) || !Array.isArray(precipitation)) return null;
+  if (!Array.isArray(time)) return null;
   const index = time.findIndex((value) => value === hour);
   if (index < 0) return null;
-  const mm = precipitation[index];
-  const prob = Array.isArray(probability) ? probability[index] : 0;
+  return { hourly: hourly as Record<string, unknown>, index };
+}
+
+function pickPrecip(body: unknown, hour: string): HourlyPrecip | null {
+  const found = hourlyIndex(body, hour);
+  if (!found) return null;
+  const precipitation = found.hourly.precipitation;
+  const probability = found.hourly.precipitation_probability;
+  if (!Array.isArray(precipitation)) return null;
+  const mm = precipitation[found.index];
+  const prob = Array.isArray(probability) ? probability[found.index] : 0;
   if (typeof mm !== "number" || !Number.isFinite(mm)) return null;
-  const chance = typeof prob === "number" && Number.isFinite(prob) ? prob : 0;
+  const chance = typeof prob === "number" && Number.isFinite(prob) ? Math.round(prob) : 0;
   return { precipitationMm: mm, precipitationProbability: chance };
+}
+
+function pickForecast(body: unknown, hour: string): HourlyForecast | null {
+  const precip = pickPrecip(body, hour);
+  const found = hourlyIndex(body, hour);
+  if (!precip || !found) return null;
+  const temperatures = found.hourly.temperature_2m;
+  const codes = found.hourly.weather_code ?? found.hourly.weathercode;
+  if (!Array.isArray(temperatures) || !Array.isArray(codes)) return null;
+  const temperatureC = temperatures[found.index];
+  const conditionCode = codes[found.index];
+  if (typeof temperatureC !== "number" || !Number.isFinite(temperatureC)) return null;
+  if (typeof conditionCode !== "number" || !Number.isFinite(conditionCode)) return null;
+  return { ...precip, temperatureC, conditionCode };
 }

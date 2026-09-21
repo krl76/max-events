@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { describe, expect, it } from "vitest";
-import { isRainy, OPEN_METEO_FORECAST_URL, utcHourKey, WeatherClient, type WeatherFetch } from "./weather.client";
+import { isRainy, OPEN_METEO_FORECAST_URL, utcHourKey, weatherConditionLabel, WeatherClient, type WeatherFetch } from "./weather.client";
 
 const at = new Date("2026-09-12T16:30:00Z");
 
@@ -51,6 +51,50 @@ describe("WeatherClient.precipitationAt", () => {
       throw new Error("ECONNREFUSED");
     });
     await expect(network.precipitationAt(1, 2, at)).resolves.toBeNull();
+  });
+});
+
+describe("weatherConditionLabel", () => {
+  it("maps WMO weather codes to short Russian labels", () => {
+    expect(weatherConditionLabel(0)).toBe("ясно");
+    expect(weatherConditionLabel(2)).toBe("облачно");
+    expect(weatherConditionLabel(3)).toBe("пасмурно");
+    expect(weatherConditionLabel(61)).toBe("дождь");
+    expect(weatherConditionLabel(71)).toBe("снег");
+    expect(weatherConditionLabel(95)).toBe("гроза");
+  });
+});
+
+describe("WeatherClient.forecastAt", () => {
+  it("reads temperature, weather code and rain chance at the UTC hour", async () => {
+    const fetchImpl: WeatherFetch = async (url) => {
+      expect(url).toContain("hourly=temperature_2m,weather_code,precipitation,precipitation_probability");
+      return jsonResponse(200, {
+        hourly: {
+          time: ["2026-09-12T15:00", "2026-09-12T16:00"],
+          temperature_2m: [11.1, 12.4],
+          weather_code: [1, 2],
+          precipitation: [0, 0],
+          precipitation_probability: [10, 40],
+        },
+      });
+    };
+    const client = new WeatherClient(OPEN_METEO_FORECAST_URL, fetchImpl);
+    await expect(client.forecastAt(55.75, 37.62, at)).resolves.toEqual({
+      temperatureC: 12.4,
+      conditionCode: 2,
+      precipitationMm: 0,
+      precipitationProbability: 40,
+    });
+  });
+
+  it("returns null when temperature is missing or the provider fails", async () => {
+    const missingTemp = new WeatherClient(OPEN_METEO_FORECAST_URL, async () =>
+      jsonResponse(200, { hourly: { time: ["2026-09-12T16:00"], precipitation: [0], precipitation_probability: [0] } }),
+    );
+    await expect(missingTemp.forecastAt(1, 2, at)).resolves.toBeNull();
+    const down = new WeatherClient(OPEN_METEO_FORECAST_URL, async () => jsonResponse(503, {}));
+    await expect(down.forecastAt(1, 2, at)).resolves.toBeNull();
   });
 });
 
