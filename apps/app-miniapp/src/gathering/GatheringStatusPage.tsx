@@ -7,7 +7,6 @@
 //
 // START_MODULE_MAP
 // - INVITEE_RESPONSE_LABELS - ru labels for invitee responses (accepted/considering/busy)
-// - RESPONSE_ACTIONS - answer buttons offered to an invitee (accepted/busy; considering is the unanswered default, not an answer to send)
 // - gatheringSummary - «Ты + accepted из total» aggregate line
 // - GatheringStatusState - union of gathering fetch states (loading / error / ready)
 // - GatheringStatusView - presentational: summary title, event hint, answer buttons for the current invitee (current answer pressed), chat link button, invitee answer list

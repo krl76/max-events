@@ -299,7 +299,7 @@ async function main() {
   // but the backend exposes no such route and no organizer credentials exist in code — organizer
   // endpoints are guarded by the regular MAX initData session, which the write phase uses instead.
   let failures = 0;
-  const orgLogin = await fetch(`${BASE}/auth/organizer/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ login: "smoke", password: "smoke" }) }).catch((e) => ({ error: String(e) }));
+  const orgLogin = await fetch(`${BASE}/auth/organizer/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ login: process.env.SMOKE_ORGANIZER_LOGIN ?? "demo", password: process.env.SMOKE_ORGANIZER_PASSWORD ?? "demo" }) }).catch((e) => ({ error: String(e) }));
   if (orgLogin.error || orgLogin.status === 404) {
     console.log(`SKIP    POST /auth/organizer/login — http ${orgLogin.status ?? 0} ${orgLogin.error ?? ""}(route not implemented on the backend; organizer endpoints use the MAX initData session instead)`);
   } else {
