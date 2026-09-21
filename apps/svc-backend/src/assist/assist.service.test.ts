@@ -8,7 +8,7 @@ import { FriendshipEntity } from "../friends/friendship.entity";
 import { ListItemEntity } from "../lists/list-item.entity";
 import { ListEntity } from "../lists/list.entity";
 import type { PlansService } from "../plans/plans.service";
-import { AssistService, formatAssistSummary } from "./assist.service";
+import { AssistService, formatAssistSummary, formatDaySummary } from "./assist.service";
 import { AssistRateLimiter } from "./rate-limit";
 import { NoneLlmProvider } from "./none-llm.provider";
 import { SandboxLlmProvider } from "./sandbox-llm.provider";
@@ -94,6 +94,30 @@ describe("AssistService", () => {
     expect(saved.plan).toBeTruthy();
   });
 
+  it("lets the query shape the day instead of taking the bill in order", async () => {
+    const { service, events } = createService();
+    events.push(eventRow("00000000-0000-4000-8000-0000000000f1", "Утренняя пробежка", "2026-09-12T09:00:00+03:00", null, "sport"));
+    events.push(eventRow("00000000-0000-4000-8000-0000000000f2", "Вечер джаза в парке", "2026-09-12T19:00:00+03:00", 1200));
+    const day = await service.planSaturday(userId, "Сделай нам план на субботу вечером, музыка", false, new Date("2026-09-11T10:00:00Z"));
+    expect(day.stops.map((stop) => stop.event.title)).toEqual(["Вечер джаза в парке"]);
+    expect(day.stops[0]?.explanation).toBe("Подходит по запросу");
+    expect(day.summary).toContain("по запросу");
+  });
+
+  it("falls back to the Saturday bill and says so when nothing matches the query", async () => {
+    const { service, events } = createService();
+    events.push(eventRow("00000000-0000-4000-8000-0000000000f3", "Утренняя пробежка", "2026-09-12T09:00:00+03:00", null, "sport"));
+    const day = await service.planSaturday(userId, "Сделай нам план на субботу вечером, музыка", false, new Date("2026-09-11T10:00:00Z"));
+    expect(day.stops.map((stop) => stop.event.title)).toEqual(["Утренняя пробежка"]);
+    expect(day.stops[0]?.explanation).toBe("Из субботней афиши");
+    expect(day.summary).toContain("Ничего точно по запросу");
+  });
+
+  it("fails closed when the LLM cannot read the day request", async () => {
+    const service = new AssistService(new NoneLlmProvider(), { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { create: async () => ({}) } as never, new AssistRateLimiter());
+    await expect(service.planSaturday(userId, "Сделай нам план на субботу")).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+
   it("skips Saturday events that already started", async () => {
     const { service, events } = createService();
     events.push(eventRow("00000000-0000-4000-8000-0000000000e7", "Утро в парке", "2026-09-12T10:00:00+03:00", null));
@@ -119,6 +143,11 @@ describe("AssistService", () => {
     const second = await service.planSaturday(userId, "Сделай нам план на субботу", true, at);
     expect(plansStore).toHaveLength(1);
     expect(second.plan?.plan.id).toBe(first.plan?.plan.id);
+  });
+
+  it("names the day it built and admits a fallback", () => {
+    expect(formatDaySummary("2026-09-12", 3, true)).toBe("Собрал день на субботу 2026-09-12: 3 событий по запросу");
+    expect(formatDaySummary("2026-09-12", 1, false)).toBe("Ничего точно по запросу на субботу 2026-09-12 — собрал день из афиши: 1 событий");
   });
 
   it("strips injection wrappers and still parses the README query", async () => {

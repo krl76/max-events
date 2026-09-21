@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: NL event assist — parse via LlmProvider, match catalog, explain from history and a friend's lists.
-// SCOPE: suggest(userId, query); keys never logged; max 7 picks.
+// SCOPE: suggest(userId, query) and planSaturday (the query shapes the day through the same LLM parse); keys never logged; max 7 picks, max 4 day stops.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, events/checkins/lists/friends
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -9,7 +9,8 @@
 // - matchAssistEvents - filter catalog by parsed criteria
 // - formatAssistSummary - README-style copy
 // - nextSaturdayKey - next Saturday YYYY-MM-DD in Moscow
-// - AssistService - suggest, planSaturday (skips past Saturday hours, idempotent save)
+// - formatDaySummary - README-style copy for a generated day
+// - AssistService - suggest, planSaturday (LLM criteria shape the day, skips past Saturday hours, idempotent save)
 // END_MODULE_MAP
 
 import { BadRequestException, HttpException, HttpStatus, Inject, Injectable, ServiceUnavailableException } from "@nestjs/common";
@@ -44,13 +45,7 @@ export class AssistService {
 
   async suggest(userId: string, query: string, now = new Date()): Promise<AssistResponse> {
     const cleaned = this.prepareQuery(userId, query);
-    let criteria: AssistCriteria;
-    try {
-      criteria = await this.llm.parseQuery(cleaned);
-    } catch (error) {
-      if (error instanceof LlmProviderError) throw new ServiceUnavailableException(error.message);
-      throw error;
-    }
+    const criteria = await this.parseCriteria(cleaned);
     const catalog = (await this.events.find()).filter((row) => row.published !== false && row.startsAt.getTime() >= now.getTime()).map((row) => toEventDto(row));
     const matched = matchAssistEvents(catalog, criteria);
     const historyIds = await this.historyEventIds(userId);
@@ -66,17 +61,25 @@ export class AssistService {
     return { summary: formatAssistSummary(items.length, historyCount, savedCount), criteria, items };
   }
 
+  /**
+   * «Сделай нам план на субботу»: the query goes through the same LLM parse as suggest, and the
+   * criteria choose what the day is made of. When nothing matches, the day falls back to the plain
+   * Saturday bill and the summary says so rather than pretending the request was honoured.
+   */
   async planSaturday(userId: string, query: string, save = false, now = new Date()): Promise<AssistDayResponse> {
-    this.prepareQuery(userId, query);
+    const cleaned = this.prepareQuery(userId, query);
+    const criteria = await this.parseCriteria(cleaned);
     const date = nextSaturdayKey(now);
-    const catalog = (await this.events.find())
+    const saturday = (await this.events.find())
       .filter((row) => row.published !== false && moscowDateKey(row.startsAt) === date && row.startsAt.getTime() >= now.getTime())
       .map((row) => toEventDto(row))
-      .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
-      .slice(0, 4);
-    if (catalog.length === 0) throw new BadRequestException("No Saturday events found");
-    const stops = catalog.map((event) => ({ at: event.startsAt, event, explanation: "Слот субботнего дня" }));
-    const first = catalog[0]!;
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+    if (saturday.length === 0) throw new BadRequestException("No Saturday events found");
+    const wanted = matchAssistEvents(saturday, criteria);
+    const matchedIds = new Set(wanted.map((event) => event.id));
+    const chosen = (wanted.length > 0 ? wanted : saturday).slice(0, 4);
+    const stops = chosen.map((event) => ({ at: event.startsAt, event, explanation: matchedIds.has(event.id) ? "Подходит по запросу" : "Из субботней афиши" }));
+    const first = chosen[0]!;
     const planDraft = {
       eventId: first.id,
       participantIds: [] as string[],
@@ -88,12 +91,21 @@ export class AssistService {
       plan = (await this.plans.findExisting(userId, planDraft.eventId, new Date(planDraft.meetingAt))) ?? (await this.plans.create(userId, planDraft));
     }
     return {
-      summary: `Собрал день на субботу ${date}: ${stops.length} событий`,
+      summary: formatDaySummary(date, stops.length, matchedIds.size > 0),
       date,
       stops,
       planDraft,
       plan,
     };
+  }
+
+  private async parseCriteria(cleaned: string): Promise<AssistCriteria> {
+    try {
+      return await this.llm.parseQuery(cleaned);
+    } catch (error) {
+      if (error instanceof LlmProviderError) throw new ServiceUnavailableException(error.message);
+      throw error;
+    }
   }
 
   private async historyEventIds(userId: string): Promise<Set<string>> {
@@ -139,6 +151,11 @@ export function matchAssistEvents(events: Event[], criteria: AssistCriteria): Ev
     .filter((event) => matchesGenre(event, criteria.genre))
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
     .slice(0, 7);
+}
+
+export function formatDaySummary(date: string, stops: number, matched: boolean): string {
+  if (!matched) return `Ничего точно по запросу на субботу ${date} — собрал день из афиши: ${stops} событий`;
+  return `Собрал день на субботу ${date}: ${stops} событий по запросу`;
 }
 
 export function formatAssistSummary(total: number, history: number, saved: number): string {
