@@ -377,6 +377,7 @@ describe("toEventDto", () => {
       placeId: null,
       published: true,
       bookingOpensAt: null,
+      weather: null,
     });
     expect(toEventDto({ ...entity, published: false }).published).toBe(false);
   });

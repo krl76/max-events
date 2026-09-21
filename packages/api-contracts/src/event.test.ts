@@ -49,6 +49,20 @@ describe("EventSchema", () => {
   it("rejects paymentUrl on free events", () => {
     expect(EventSchema.safeParse({ ...validEvent, isPaid: false, paymentUrl: "https://organizer.example.com/pay" }).success).toBe(false);
   });
+
+  it("defaults weather to null when the server omits it", () => {
+    expect(EventSchema.parse(validEvent).weather).toBeNull();
+  });
+
+  it("round-trips a forecast snapshot", () => {
+    const weather = { temperatureC: 12.4, condition: "облачно", conditionCode: 2, precipitationProbability: 40 };
+    expect(EventSchema.parse({ ...validEvent, weather }).weather).toEqual(weather);
+  });
+
+  it("rejects precipitationProbability outside 0..100", () => {
+    const weather = { temperatureC: 12, condition: "ясно", conditionCode: 0, precipitationProbability: 101 };
+    expect(EventSchema.safeParse({ ...validEvent, weather }).success).toBe(false);
+  });
 });
 
 describe("CreateEventSchema", () => {
@@ -67,6 +81,15 @@ describe("CreateEventSchema", () => {
     const { id: _id, ...withoutId } = validEvent;
     const parsed = CreateEventSchema.parse({ ...withoutId, bookingOpensAt: "2026-09-20T09:00:00+03:00" });
     expect("bookingOpensAt" in parsed).toBe(false);
+  });
+
+  it("strips server-owned weather", () => {
+    const { id: _id, ...withoutId } = validEvent;
+    const parsed = CreateEventSchema.parse({
+      ...withoutId,
+      weather: { temperatureC: 12, condition: "ясно", conditionCode: 0, precipitationProbability: 0 },
+    });
+    expect("weather" in parsed).toBe(false);
   });
 
   it("keeps the paid/free payment link invariant", () => {

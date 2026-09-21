@@ -185,7 +185,7 @@ export const mockPlaces: Place[] = [place({ id: "b0000001-0000-4000-8000-0000000
 type EventInput = Pick<Event, "id" | "title" | "category" | "city" | "startsAt" | "isPaid" | "priceRub"> & Partial<Event>;
 
 function event(input: EventInput): Event {
-  return { published: true, description: "", placeId: null, endsAt: null, paymentUrl: null, capacity: null, chatLink: null, promoted: false, bookingOpensAt: null, ...input };
+  return { published: true, description: "", placeId: null, endsAt: null, paymentUrl: null, capacity: null, chatLink: null, promoted: false, bookingOpensAt: null, weather: null, ...input };
 }
 
 /** "Today" for the place social page (P2-11-c): the demo day the today-block fixtures were curated for. */
