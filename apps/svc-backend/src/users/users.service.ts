@@ -29,6 +29,7 @@ export class UsersService {
     const fields = {
       firstName: payload.first_name,
       lastName: payload.last_name ?? null,
+      username: payload.username ?? null,
       avatarUrl: payload.photo_url ?? null,
     };
     const existing = await this.users.findOneBy({ maxUserId });
@@ -43,7 +44,7 @@ export class UsersService {
         throw error;
       }
     }
-    if (existing.firstName !== fields.firstName || existing.lastName !== fields.lastName || existing.avatarUrl !== fields.avatarUrl) {
+    if (existing.firstName !== fields.firstName || existing.lastName !== fields.lastName || existing.username !== fields.username || existing.avatarUrl !== fields.avatarUrl) {
       return this.users.save(this.users.merge(existing, fields));
     }
     return existing;
@@ -69,8 +70,7 @@ export function toUserDto(user: UserEntity): User {
     maxUserId: user.maxUserId,
     firstName: user.firstName,
     lastName: user.lastName,
-    // ponytail: entity has no username column yet — issue #429 persists MAX username and fills this
-    username: null,
+    username: user.username ?? null,
     avatarUrl: user.avatarUrl,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
