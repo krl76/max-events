@@ -103,6 +103,11 @@ describe("validateInitData", () => {
     expect(validateInitData(buildInitData({ auth_date: String(NOW), user: JSON.stringify({ id: 1 }) }), BOT_TOKEN, NOW)).toBeNull();
   });
 
+  it("rejects a username longer than the varchar(64) column", () => {
+    const user = { ...JSON.parse(USER_JSON), username: "u".repeat(65) };
+    expect(validateInitData(buildInitData({ auth_date: String(NOW), user: JSON.stringify(user) }), BOT_TOKEN, NOW)).toBeNull();
+  });
+
   it("rejects malformed pairs and invalid percent-encoding", () => {
     expect(validateInitData("no-equals-sign", BOT_TOKEN, NOW)).toBeNull();
     expect(validateInitData(buildInitData({ auth_date: String(NOW), user: USER_JSON }).replace("%7B", "%zz"), BOT_TOKEN, NOW)).toBeNull();
