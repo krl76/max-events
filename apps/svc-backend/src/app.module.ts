@@ -55,6 +55,7 @@ import { WeGroupsModule } from "./wegroups/we-groups.module";
 import { VotesModule } from "./votes/votes.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { AssistModule } from "./assist/assist.module";
+import { StoriesModule } from "./stories/stories.module";
 
 @Module({
   imports: [
@@ -110,6 +111,7 @@ import { AssistModule } from "./assist/assist.module";
     VotesModule,
     PaymentsModule,
     AssistModule,
+    StoriesModule,
   ],
 })
 export class AppModule {}
