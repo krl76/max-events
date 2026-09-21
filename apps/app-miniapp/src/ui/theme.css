@@ -886,7 +886,37 @@ body {
   flex-direction: column;
   gap: var(--app-space-s);
   margin: 0 calc(-1 * var(--app-space-l));
-  padding: var(--app-space-s) var(--app-space-l) var(--app-space-m);
+  padding: 0 var(--app-space-l) var(--app-space-m);
+}
+
+.app-profile-topbar {
+  align-items: center;
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  margin: 0 calc(-1 * var(--app-space-l));
+  padding: var(--app-space-s) var(--app-space-m);
+}
+
+.app-profile-topbar-action {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  justify-content: flex-start;
+  padding: var(--app-space-xs) 0;
+}
+
+.app-profile-topbar-name {
+  font-size: var(--app-type-screen-size);
+  font-weight: 700;
+  grid-column: 2;
+  letter-spacing: -0.02em;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-profile-header {
@@ -922,13 +952,6 @@ body {
 .app-profile-stat-label {
   color: var(--app-text-tertiary);
   font-size: 0.75rem;
-}
-
-.app-profile-name {
-  color: var(--app-text);
-  font-size: var(--app-font-size-body);
-  font-weight: 700;
-  margin: 0;
 }
 
 .app-profile-city {
@@ -967,17 +990,22 @@ body {
   padding: 0;
 }
 
-.app-profile-edit {
-  align-self: flex-start;
-}
-
 .app-profile-form {
-  border-top: var(--app-hairline);
   display: flex;
   flex-direction: column;
   gap: var(--app-space-s);
-  margin-top: var(--app-space-m);
-  padding-top: var(--app-space-m);
+}
+
+.app-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-xs);
+}
+
+.app-settings-label {
+  color: var(--app-text-tertiary);
+  font-size: 0.75rem;
+  padding-left: var(--app-space-m);
 }
 
 .app-profile-input {

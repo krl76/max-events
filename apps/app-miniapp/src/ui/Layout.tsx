@@ -11,7 +11,7 @@
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
 // - routeTitle - header title for the current route
 // - routeHasBack - back button shown on every non-tab route
-// - routeHasHeader - header hidden on the search/map/plans tab screens
+// - routeHasHeader - header hidden on the search/map/plans/profile tab screens (profile renders its own Instagram-style topbar)
 // END_MODULE_MAP
 
 import type { ReactNode } from "react";
@@ -34,6 +34,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   friends: "Друзья",
   calendar: "Календарь",
   profile: "Профиль",
+  settings: "Настройки",
   event: "Событие",
   place: "Место",
   whereto: "Куда пойдём?",
@@ -62,7 +63,7 @@ export function routeHasBack(route: Route): boolean {
   return !isTabRoute(route.name);
 }
 
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "map", "plans"]);
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "map", "plans", "profile"]);
 
 export function routeHasHeader(route: Route): boolean {
   return !HEADERLESS_ROUTES.has(route.name);

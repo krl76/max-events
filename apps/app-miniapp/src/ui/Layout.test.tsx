@@ -72,15 +72,16 @@ describe("routeHasBack", () => {
 });
 
 describe("routeHasHeader", () => {
-  it("hides the header on the search, map and plans screens", () => {
+  it("hides the header on the search, map, plans and profile screens", () => {
     expect(routeHasHeader({ name: "search" })).toBe(false);
     expect(routeHasHeader({ name: "map" })).toBe(false);
     expect(routeHasHeader({ name: "plans" })).toBe(false);
+    expect(routeHasHeader({ name: "profile" })).toBe(false);
   });
 
-  it("keeps the header on the home and profile tabs and detail routes", () => {
+  it("keeps the header on the home tab and detail routes", () => {
     expect(routeHasHeader({ name: "home" })).toBe(true);
-    expect(routeHasHeader({ name: "profile" })).toBe(true);
+    expect(routeHasHeader({ name: "settings" })).toBe(true);
     expect(routeHasHeader({ name: "event", id: "e1" })).toBe(true);
     expect(routeHasHeader({ name: "calendar" })).toBe(true);
   });

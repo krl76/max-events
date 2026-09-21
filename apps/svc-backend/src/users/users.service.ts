@@ -69,6 +69,8 @@ export function toUserDto(user: UserEntity): User {
     maxUserId: user.maxUserId,
     firstName: user.firstName,
     lastName: user.lastName,
+    // ponytail: entity has no username column yet — issue #429 persists MAX username and fills this
+    username: null,
     avatarUrl: user.avatarUrl,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),

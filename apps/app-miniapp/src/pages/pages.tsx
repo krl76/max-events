@@ -35,6 +35,7 @@ const FriendsPage = lazyNamed(() => import("../friends/FriendsPage"), "FriendsPa
 const DiscoveryPage = lazyNamed(() => import("../discovery/DiscoveryPage"), "DiscoveryPage");
 const PeoplePage = lazyNamed(() => import("../people/PeoplePage"), "PeoplePage");
 const ProfilePage = lazyNamed(() => import("../profile/ProfilePage"), "ProfilePage");
+const SettingsPage = lazyNamed(() => import("../profile/SettingsPage"), "SettingsPage");
 const OrganizerPage = lazyNamed(() => import("../organizer/OrganizerPage"), "OrganizerPage");
 const ListPage = lazyNamed(() => import("../lists/ListsPage"), "ListPage");
 const AchievementsPage = lazyNamed(() => import("../profile/AchievementsPage"), "AchievementsPage");
@@ -136,6 +137,7 @@ function Routed() {
         />
       </>
     );
+  if (route.name === "settings") return <SettingsPage />;
   if (route.name === "organizer") return <OrganizerPage />;
   if (route.name === "list") return <ListPage id={route.id} />;
   if (route.name === "achievements") return <AchievementsPage />;

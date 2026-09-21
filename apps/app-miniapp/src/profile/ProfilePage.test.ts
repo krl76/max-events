@@ -11,6 +11,7 @@ const user: User = {
   maxUserId: "1001",
   firstName: "Иван",
   lastName: "Петров",
+  username: null,
   avatarUrl: null,
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",
@@ -28,7 +29,7 @@ function entry(overrides: Partial<CalendarEntry> = {}): CalendarEntry {
 }
 
 function renderProfileView(overrides: Partial<Parameters<typeof ProfileView>[0]> = {}): string {
-  const props = { user, profile, stats: { events: 5, places: 3 }, friendsCount: 7, posts: [], visitStats: null, saving: false, onSave: () => {}, onOpenEvents: () => {}, onOpenFriends: () => {}, ...overrides };
+  const props = { user, profile, stats: { events: 5, places: 3 }, friendsCount: 7, posts: [], visitStats: null, onOpenSettings: () => {}, onOpenEvents: () => {}, onOpenFriends: () => {}, ...overrides };
   return renderToStaticMarkup(createElement(ProfileView, props));
 }
 
@@ -117,11 +118,26 @@ describe("ProfileView", () => {
     expect(html).not.toContain("app-profile-interest");
   });
 
-  it("hides the edit form behind the «Редактировать» button in view mode", () => {
+  it("renders the Instagram-style topbar with the settings gear and the centered name", () => {
     const html = renderProfileView();
 
-    expect(html).toContain("Редактировать");
+    expect(html).toContain("app-profile-topbar");
+    expect(html).toContain('aria-label="Настройки профиля"');
+    expect(html).toContain('class="app-profile-topbar-name">Иван Петров');
+  });
+
+  it("shows the @username in the topbar when MAX provides one", () => {
+    const html = renderProfileView({ user: { ...user, username: "ivan_petrov" } });
+
+    expect(html).toContain('class="app-profile-topbar-name">@ivan_petrov');
+    expect(html).not.toContain("Иван Петров</span>");
+  });
+
+  it("keeps editing on the settings route, not on the profile screen", () => {
+    const html = renderProfileView();
+
     expect(html).not.toContain("app-profile-form");
+    expect(html).not.toContain("Редактировать");
     expect(html).not.toContain("Сохранить");
   });
 

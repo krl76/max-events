@@ -112,6 +112,7 @@ describe("toUserDto", () => {
       maxUserId: "67890",
       firstName: "Max",
       lastName: null,
+      username: null,
       avatarUrl: null,
       createdAt: "2026-09-01T07:00:00.000Z",
       updatedAt: "2026-09-01T07:00:00.000Z",
