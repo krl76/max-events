@@ -9,8 +9,7 @@
 // - MOSCOW_CENTER - fixed Moscow city center coords (shared with the nearby screen)
 // - MOSCOW_ZOOM - shared Leaflet initial zoom (imported by the MyCity map)
 // - OSM_TILE_URL - shared OpenStreetMap tile URL (imported by the MyCity map)
-// - OSM_ATTRIBUTION - shared OSM attribution (imported by the MyCity map)
-// - initEventMap - create Leaflet map (Moscow center) + OSM tile layer with the required attribution + markers with popup mini-cards (promoted events get the highlighted pin and the «Промо» chip, #205); returns a dispose function
+// - initEventMap - create Leaflet map (Moscow center) + OSM tile layer without the attribution bar + markers with popup mini-cards (promoted events get the highlighted pin and the «Промо» chip, #205); returns a dispose function
 // - MapScreen - places loading state + container ref; wires initEventMap to the React lifecycle via useLeafletMap
 // END_MODULE_MAP
 
@@ -26,7 +25,6 @@ import { AppState } from "../ui/primitives";
 export const MOSCOW_CENTER: [number, number] = [55.7522, 37.6156];
 export const MOSCOW_ZOOM = 11;
 export const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-export const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 function popupNode(marker: MapMarker, onOpenEvent: (id: string) => void, onOpenPlace: (id: string) => void): HTMLElement {
   const root = document.createElement("div");
@@ -66,8 +64,8 @@ function popupNode(marker: MapMarker, onOpenEvent: (id: string) => void, onOpenP
 
 export async function initEventMap(container: HTMLElement, input: { events: Event[]; places: Place[]; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void }): Promise<() => void> {
   const L = await import("leaflet");
-  const map = L.map(container, { center: MOSCOW_CENTER, zoom: MOSCOW_ZOOM });
-  L.tileLayer(OSM_TILE_URL, { maxZoom: 19, attribution: OSM_ATTRIBUTION }).addTo(map);
+  const map = L.map(container, { center: MOSCOW_CENTER, zoom: MOSCOW_ZOOM, attributionControl: false });
+  L.tileLayer(OSM_TILE_URL, { maxZoom: 19 }).addTo(map);
   for (const marker of buildMapMarkers(input.events, input.places)) {
     L.marker([marker.lat, marker.lng], { icon: L.divIcon({ className: marker.promoted ? "app-map-pin app-map-pin--promo" : "app-map-pin", iconSize: [18, 18] }) })
       .addTo(map)

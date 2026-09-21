@@ -52,11 +52,11 @@ afterEach(() => {
 });
 
 describe("initEventMap", () => {
-  it("initializes the map centered on Moscow with an attributed OSM tile layer", async () => {
+  it("initializes the map centered on Moscow without the Leaflet attribution bar", async () => {
     const dispose = await initEventMap(container, { events: [], places: [], onOpenEvent: vi.fn(), onOpenPlace: vi.fn() });
 
-    expect(leaflet.map).toHaveBeenCalledWith(container, { center: [55.7522, 37.6156], zoom: 11 });
-    expect(leaflet.tileLayer).toHaveBeenCalledWith("https://tile.openstreetmap.org/{z}/{x}/{y}.png", expect.objectContaining({ attribution: expect.stringContaining("OpenStreetMap") }));
+    expect(leaflet.map).toHaveBeenCalledWith(container, { center: [55.7522, 37.6156], zoom: 11, attributionControl: false });
+    expect(leaflet.tileLayer).toHaveBeenCalledWith("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
     expect(typeof dispose).toBe("function");
   });
 
