@@ -1,16 +1,16 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Auth endpoints — public login by initData and protected /me returning the current user.
-// SCOPE: POST /api/auth/login (public, body { initData }), GET /api/auth/me (guarded by header).
+// PURPOSE: Auth endpoints — public login by initData, public organizer login by env credentials, and protected /me returning the current user.
+// SCOPE: POST /api/auth/login (public, body { initData }), POST /api/auth/organizer/login (public, body { login, password } -> Bearer session; 503 when organizer credentials are not configured), GET /api/auth/me (guarded by header).
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ./auth.service, ./auth.guard, ../users/users.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - AuthController - login (public) and me (protected) endpoints
+// - AuthController - login (public), organizer login (public) and me (protected) endpoints
 // END_MODULE_MAP
 
-import { Body, Controller, Get, Inject, Post, UnauthorizedException } from "@nestjs/common";
-import { AuthRequestSchema, type AuthResponse } from "@max-events/api-contracts";
+import { BadRequestException, Body, Controller, Get, Inject, Post, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { AuthRequestSchema, OrganizerLoginWriteSchema, type AuthResponse, type OrganizerSession } from "@max-events/api-contracts";
 import { toUserDto } from "../users/users.service";
 import { UserEntity } from "../users/user.entity";
 import { AuthService } from "./auth.service";
@@ -28,6 +28,17 @@ export class AuthController {
     const user = await this.auth.authenticate(parsed.data.initData);
     if (!user) throw new UnauthorizedException("Invalid MAX initData");
     return { user: toUserDto(user) };
+  }
+
+  @Public()
+  @Post("organizer/login")
+  async organizerLogin(@Body() body: unknown): Promise<OrganizerSession> {
+    const parsed = OrganizerLoginWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("login and password are required");
+    const result = await this.auth.organizerLogin(parsed.data.login, parsed.data.password);
+    if (result === "disabled") throw new ServiceUnavailableException("Organizer login is not configured");
+    if (!result) throw new UnauthorizedException("Invalid organizer credentials");
+    return { token: result.token, organization: { id: result.user.id, name: parsed.data.login, contacts: null } };
   }
 
   @Get("me")
