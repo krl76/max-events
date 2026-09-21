@@ -44,6 +44,16 @@ describe("EventDetailsView", () => {
     expect(html).toContain(free.city);
   });
 
+  it("renders the forecast row when weather is present and hides it otherwise", () => {
+    const without = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor({ ...free, weather: null }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    expect(without).not.toContain("дождь");
+
+    const withWeather = { ...free, weather: { temperatureC: 12.4, condition: "облачно", conditionCode: 2, precipitationProbability: 40 } };
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(withWeather), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    expect(html).toContain("Погода");
+    expect(html).toContain("+12°, облачно · дождь 40%");
+  });
+
   it("renders a paid event price", () => {
     const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(paid), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
 

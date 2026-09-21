@@ -48,6 +48,13 @@ describe("CatalogView", () => {
     expect(html).not.toContain("<article");
   });
 
+  it("renders a weather chip only when the event has a forecast", () => {
+    const withWeather = { ...free, weather: { temperatureC: 12.4, condition: "облачно", conditionCode: 2, precipitationProbability: 40 } };
+    const html = renderToStaticMarkup(createElement(CatalogView, { state: { status: "ready", events: [{ ...free, weather: null }, withWeather] }, filters: {}, onFilters: () => {} }));
+    expect(html).toContain("+12°, облачно");
+    expect(html.match(/\+12°, облачно/g)).toHaveLength(1);
+  });
+
   it("renders the «Промо» badge on promoted cards only", () => {
     const promotedEvent = { ...free, id: "c00000ff-0000-4000-8000-0000000000ff", promoted: true };
     const state: CatalogState = { status: "ready", events: [free, promotedEvent] };

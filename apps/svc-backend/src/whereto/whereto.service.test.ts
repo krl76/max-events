@@ -20,6 +20,7 @@ function event(overrides: Partial<Event> & Pick<Event, "id" | "title" | "categor
     promoted: false,
     published: true,
     bookingOpensAt: null,
+    weather: null,
     ...overrides,
   };
 }

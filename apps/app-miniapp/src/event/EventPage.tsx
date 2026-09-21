@@ -9,7 +9,7 @@
 // - EventDetailsState - union of details fetch states (loading / error / ready)
 // - bookingErrorMessage - booking failure -> inline text: 403 = promo code rejected / early access needs a code, 409 = sold out (#202)
 // - PromoCodeState - promo code fields state of the booking flow (discount code, referral/campaign code, inline error, onCode/onReferral) (#372)
-// - EventDetailsView - presentational: 16:9 media with the title/date/category overlay (+ «Промо» marker), meta rows (place title opens the place page), description, booking CTA with the promo code field, check-in and buy buttons in one secondary row
+// - EventDetailsView - presentational: 16:9 media with the title/date/category overlay (+ «Промо» marker), meta rows (place, optional weather, category), description, booking CTA with the promo code field, check-in and buy buttons in one secondary row
 // - EventPage - route container: resolves the user id from the auth context (loading until authenticated), wires booking/check-in actions and the payment link, loads/keeps the booking payment via payBooking (silent auto-load for paid bookings; errors only on an explicit tap, keyed to the failed booking so a re-book resets them), entry to the gathering flow; records the page view fire-and-forget once auth resolved (#196) and shows the organizer rating card (#199)
 // - AutoPlanEntry - «Собрать план» autoplan section gate: rendered only with an active booking
 // - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
@@ -22,6 +22,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiClient, trackPageView, type EventDetails, type ParticipationStats } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { formatEventWeatherDetail } from "../catalog/format";
 import { ParticipationStatusSchema, type ParticipationStatus, type Payment } from "@max-events/api-contracts";
 import { openExternalLink } from "../max/bridge";
 import { useRoute } from "../routing/router";
@@ -180,6 +181,12 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, 
             </dd>
             {place && <dd className="app-place-meta-address">{place.address}</dd>}
           </div>
+          {event.weather && (
+            <div className="app-event-meta-row">
+              <dt>Погода</dt>
+              <dd>{formatEventWeatherDetail(event.weather)}</dd>
+            </div>
+          )}
           <div className="app-event-meta-row">
             <dt>Категория</dt>
             <dd>{CATEGORY_LABELS[event.category]}</dd>

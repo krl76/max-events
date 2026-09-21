@@ -43,6 +43,7 @@ const validEvent: Event = {
   promoted: false,
   published: true,
   bookingOpensAt: null,
+  weather: null,
 };
 
 describe("ApiClient", () => {

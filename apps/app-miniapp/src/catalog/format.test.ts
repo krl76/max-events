@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatStartsAt, pluralRu } from "./format";
+import { formatEventWeather, formatEventWeatherDetail, formatStartsAt, pluralRu } from "./format";
 
 describe("formatStartsAt", () => {
   it("renders the numeric day before the ru genitive month word", () => {
@@ -21,6 +21,20 @@ describe("formatStartsAt", () => {
 
   it("surfaces stdlib Invalid Date for garbage input instead of throwing", () => {
     expect(formatStartsAt("not-a-date")).toBe("Invalid Date");
+  });
+});
+
+describe("formatEventWeather", () => {
+  const cloudy = { temperatureC: 12.4, condition: "облачно", conditionCode: 2, precipitationProbability: 40 };
+
+  it("renders a catalog chip as signed degrees and condition", () => {
+    expect(formatEventWeather(cloudy)).toBe("+12°, облачно");
+    expect(formatEventWeather({ ...cloudy, temperatureC: -3.2 })).toBe("-3°, облачно");
+    expect(formatEventWeather({ ...cloudy, temperatureC: 0 })).toBe("0°, облачно");
+  });
+
+  it("adds rain probability on the event page line", () => {
+    expect(formatEventWeatherDetail(cloudy)).toBe("+12°, облачно · дождь 40%");
   });
 });
 

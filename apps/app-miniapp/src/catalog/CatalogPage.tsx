@@ -11,7 +11,7 @@
 // - formatStartsAt - ru "day month, hh:mm" formatting (re-exported from ./format.js, reused by the event page)
 // - CatalogViewName - "list" | "map" view switch on the catalog route
 // - CatalogView - presentational: filter bar + segmented «Список ↔ Карта» toggle + state-driven body (skeleton, error, empty, clickable event cards with the «Промо» badge on promoted events (#205) or map with event/place popups)
-// - EventCard - event card (media, title, time/category, city/price, «Промо» badge); exported for the search tab
+// - EventCard - event card (media, title, time/category, city/price, weather chip, «Промо» badge); exported for the search tab
 // - CatalogPage - filters from window.location on mount; view is controlled by the parent (HomePage hides the today block in map view); fetches via useCatalog and writes filter changes back to the URL
 // - filterEventsByQuery - case-insensitive title/city match; identity on a blank query
 // END_MODULE_MAP
@@ -22,7 +22,7 @@ import { EventCategorySchema } from "@max-events/api-contracts";
 import { apiClient, parseEventFilters, serializeEventFilters, type EventFilters } from "../api/client";
 import { useRoute } from "../routing/router";
 import { AppChip, AppState, AppMedia } from "../ui/primitives";
-import { formatStartsAt } from "./format";
+import { formatEventWeather, formatStartsAt } from "./format";
 import { MapScreen } from "./MapScreen";
 
 export { formatStartsAt };
@@ -93,6 +93,7 @@ export function EventCard({ event, onOpen }: { event: Event; onOpen?: (id: strin
         <span className="app-card-subtitle">
           {event.city} · {event.priceRub === null ? "Бесплатно" : `${event.priceRub} ₽`}
         </span>
+        {event.weather && <span className="app-today-chip">{formatEventWeather(event.weather)}</span>}
         {event.promoted && <span className="app-today-chip">Промо</span>}
       </div>
     </button>

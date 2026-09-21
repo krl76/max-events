@@ -7,11 +7,25 @@
 //
 // START_MODULE_MAP
 // - formatStartsAt - ru "day month, hh:mm" formatting (reused by the event page and other screens)
+// - formatEventWeather - catalog chip: "+12°, облачно"
+// - formatEventWeatherDetail - event page line: chip plus rain probability
 // - pluralRu - ru plural form (one/few/many) via Intl.PluralRules, backs every counter label across screens
 // END_MODULE_MAP
 
+import type { EventWeather } from "@max-events/api-contracts";
+
 export function formatStartsAt(startsAt: string): string {
   return new Date(startsAt).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+}
+
+export function formatEventWeather(weather: EventWeather): string {
+  const rounded = Math.round(weather.temperatureC);
+  const signed = rounded > 0 ? `+${rounded}` : `${rounded}`;
+  return `${signed}°, ${weather.condition}`;
+}
+
+export function formatEventWeatherDetail(weather: EventWeather): string {
+  return `${formatEventWeather(weather)} · дождь ${weather.precipitationProbability}%`;
 }
 
 export function pluralRu(n: number, one: string, few: string, many: string): string {
