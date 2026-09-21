@@ -14,6 +14,22 @@ bun run check                # гейт: test:quality + secrets + format + lint 
 
 Структура: `apps/app-miniapp` (React/Vite, MAX Bridge), `apps/svc-backend` (NestJS + TypeORM), `packages/api-contracts` (zod-контракты API).
 
+### Локальный live-режим (фронт против реального бэкенда)
+
+Без `VITE_USE_MOCK=1` мини-апп можно прогнать против реального API: vite dev server проксирует `/api` на :3100, а initData подписывается локальным токеном.
+
+```bash
+bun run dev:foundation                  # postgres + redis
+bun --filter svc-backend migration:run  # миграции
+bun --filter svc-backend seed           # сиды
+# apps/svc-backend/.env: MAX_BOT_TOKEN=local-dev-token
+bun run dev:backend                     # API на :3100
+bun run dev:miniapp                     # vite на :5173
+open "http://localhost:5173/?initData=$(bun tools/dev-initdata.mjs)"
+```
+
+Вне клиента MAX dev-сборка ставит shim `window.WebApp` из `?initData=` (сохраняется в localStorage и переживает перезагрузку); в прод-сборке этот код отсутствует.
+
 ## Идея
 
 Главный объект продукта — не событие, а **план**: не «вот концерт», а «вот куда вы можете пойти вместе». Вокруг плана естественно складывается весь цикл: друзья, чат, приглашение, голосование, билет, маршрут, напоминание и фотографии после события.
