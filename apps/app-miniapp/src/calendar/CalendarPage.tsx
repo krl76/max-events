@@ -9,7 +9,7 @@
 // - CalendarState - union of calendar fetch states (loading / error / ready)
 // - splitCalendarEntries - split entries into upcoming (>= now, soonest first) and past (< now, latest first)
 // - CalendarView - presentational: two sections with booking cards and empty states
-// - CalendarPage - route container: resolves the user id, loads the calendar, wires cancel + refetch
+// - CalendarPage - container (the calendar tab of the «Моё» screen): resolves the user id, loads the calendar, wires cancel + refetch
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";

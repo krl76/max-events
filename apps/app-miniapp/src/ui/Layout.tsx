@@ -24,7 +24,7 @@ export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string)
   { icon: "feed", label: "Лента", route: "home", active: (name) => name === "home" },
   { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" },
   { icon: "map", label: "Карта", route: "map", active: (name) => name === "map" },
-  { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" },
+  { icon: "plans", label: "Моё", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "list" },
   { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "friends" },
 ];
 
@@ -32,7 +32,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   home: "Лента",
   search: "Поиск",
   map: "Карта",
-  plans: "Планы",
+  plans: "Моё",
   friends: "Друзья",
   calendar: "Календарь",
   profile: "Профиль",
@@ -46,10 +46,8 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   gathering: "Сбор компании",
   plan: "План",
   "day-route": "Маршрут на день",
-  lists: "Сохранённое",
   list: "Список",
   achievements: "Достижения",
-  "my-city": "Мой город",
   "micro-new": "Новое микро-событие",
   "feed-new": "Новое впечатление",
   organizer: "Панель организатора",

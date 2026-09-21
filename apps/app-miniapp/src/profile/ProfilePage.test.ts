@@ -28,7 +28,7 @@ function entry(overrides: Partial<CalendarEntry> = {}): CalendarEntry {
 }
 
 function renderProfileView(overrides: Partial<Parameters<typeof ProfileView>[0]> = {}): string {
-  const props = { user, profile, stats: { events: 5, places: 3 }, friendsCount: 7, posts: [], visitStats: null, saving: false, onSave: () => {}, ...overrides };
+  const props = { user, profile, stats: { events: 5, places: 3 }, friendsCount: 7, posts: [], visitStats: null, saving: false, onSave: () => {}, onOpenEvents: () => {}, onOpenFriends: () => {}, ...overrides };
   return renderToStaticMarkup(createElement(ProfileView, props));
 }
 
@@ -100,6 +100,15 @@ describe("ProfileView", () => {
     expect(html).toContain("Москва");
     expect(html).toContain("бег");
     expect(html).toContain("джаз");
+  });
+
+  it("renders the events and friends stats as navigation buttons, places as a plain counter", () => {
+    const html = renderProfileView();
+
+    expect(html.match(/<button[^>]*class="app-profile-stat"/g)).toHaveLength(2);
+    expect(html).toContain('aria-label="События: открыть календарь"');
+    expect(html).toContain('aria-label="Друзья: открыть друзей"');
+    expect(html).toContain('<span class="app-profile-stat"><span class="app-profile-stat-value">3</span><span class="app-profile-stat-label">Места</span></span>');
   });
 
   it("hides the interest chips while the list is empty", () => {
