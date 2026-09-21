@@ -40,7 +40,10 @@ describe("installBrowserWebAppShim", () => {
   it("returns false when the endpoint is disabled", async () => {
     vi.stubEnv("VITE_BROWSER_AUTH", "1");
     vi.stubGlobal("window", { WebApp: undefined });
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => ({}) })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, json: async () => ({}) })),
+    );
     expect(await installBrowserWebAppShim()).toBe(false);
     expect(window.WebApp).toBeUndefined();
   });
