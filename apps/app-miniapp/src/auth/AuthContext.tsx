@@ -12,7 +12,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { apiClient } from "../api/client";
-import { webApp } from "../max/bridge";
+import { getWebApp } from "../max/bridge";
 import { authenticate, type AuthState } from "./auth";
 
 const AuthContext = createContext<AuthState>({ status: "loading" });
@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let alive = true;
     const demoUser = import.meta.env.VITE_USE_MOCK === "1" ? import("../api/mock").then((module) => module.mockDemoUser) : Promise.resolve(null);
     demoUser
-      .then((mockUser) => authenticate(webApp, (payload) => apiClient.login(payload), mockUser))
+      .then((mockUser) => authenticate(getWebApp(), (payload) => apiClient.login(payload), mockUser))
       .then((resolved) => {
         if (alive) setState(resolved);
       })

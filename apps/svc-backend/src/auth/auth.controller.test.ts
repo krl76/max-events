@@ -1,4 +1,4 @@
-import { BadRequestException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, NotFoundException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { OrganizerSessionSchema } from "@max-events/api-contracts";
 import { AuthController } from "./auth.controller";
@@ -8,6 +8,18 @@ function createController(config: Record<string, string>) {
   const { service } = createOrganizerAuthService(config);
   return new AuthController(service);
 }
+
+describe("AuthController.browserInitData", () => {
+  it("answers 404 when browser auth is disabled", () => {
+    const controller = createController({ MAX_BOT_TOKEN: "token" });
+    expect(() => controller.browserInitData()).toThrow(NotFoundException);
+  });
+
+  it("returns signed initData when AUTH_ALLOW_BROWSER is on", () => {
+    const controller = createController({ MAX_BOT_TOKEN: "token", AUTH_ALLOW_BROWSER: "true" });
+    expect(controller.browserInitData().initData.length).toBeGreaterThan(10);
+  });
+});
 
 describe("AuthController.organizerLogin", () => {
   it("returns a session matching the OrganizerSession contract", async () => {

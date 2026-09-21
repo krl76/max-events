@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: zod-validated environment variables, fail-fast on missing or invalid values.
-// SCOPE: env schema + validator shared by the Nest process and the TypeORM CLI datasource; optional payment provider keys; opt-in demo switches; optional organizer panel credentials (fail-closed when unset).
+// SCOPE: env schema + validator shared by the Nest process and the TypeORM CLI datasource; optional payment provider keys; opt-in demo switches; optional organizer panel credentials (fail-closed when unset); AUTH_ALLOW_BROWSER staging switch.
 // DEPENDS: zod, dotenv
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -53,6 +53,11 @@ export const envSchema = z.object({
   // MAX Bridge exposes no friend list. Treating every app user as a friend is a demo convenience
   // that leaks who else uses the app, so it is opt-in and off by default.
   FRIENDS_DEMO_ALL_USERS: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  // Staging-only: mint signed initData for a browser session. Must stay false on the MAX-only host.
+  AUTH_ALLOW_BROWSER: z
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),

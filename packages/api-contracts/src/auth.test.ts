@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AuthRequestSchema, AuthResponseSchema, OrganizerLoginWriteSchema, OrganizerSessionSchema } from "./auth.js";
+import { AuthRequestSchema, AuthResponseSchema, BrowserInitDataSchema, OrganizerLoginWriteSchema, OrganizerSessionSchema } from "./auth.js";
 
 const validOrganization = {
   id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f",
@@ -58,5 +58,15 @@ describe("OrganizerSessionSchema", () => {
 
   it("rejects an empty token", () => {
     expect(OrganizerSessionSchema.safeParse({ token: "", organization: validOrganization }).success).toBe(false);
+  });
+});
+
+describe("BrowserInitDataSchema", () => {
+  it("accepts a non-empty initData string", () => {
+    expect(BrowserInitDataSchema.parse({ initData: "auth_date=1&hash=abc" }).initData).toBe("auth_date=1&hash=abc");
+  });
+
+  it("rejects an empty initData", () => {
+    expect(BrowserInitDataSchema.safeParse({ initData: "" }).success).toBe(false);
   });
 });

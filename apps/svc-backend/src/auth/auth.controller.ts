@@ -6,11 +6,11 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - AuthController - login (public), organizer login (public) and me (protected) endpoints
+// - AuthController - login (public), browser-initdata (public, staging-only), organizer login (public) and me (protected) endpoints
 // END_MODULE_MAP
 
-import { BadRequestException, Body, Controller, Get, Inject, Post, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
-import { AuthRequestSchema, OrganizerLoginWriteSchema, type AuthResponse, type OrganizerSession } from "@max-events/api-contracts";
+import { BadRequestException, Body, Controller, Get, Inject, NotFoundException, Post, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { AuthRequestSchema, OrganizerLoginWriteSchema, type AuthResponse, type BrowserInitData, type OrganizerSession } from "@max-events/api-contracts";
 import { toUserDto } from "../users/users.service";
 import { UserEntity } from "../users/user.entity";
 import { AuthService } from "./auth.service";
@@ -19,6 +19,14 @@ import { CurrentUser, Public } from "./auth.guard";
 @Controller("auth")
 export class AuthController {
   constructor(@Inject(AuthService) private readonly auth: AuthService) {}
+
+  @Public()
+  @Post("browser-initdata")
+  browserInitData(): BrowserInitData {
+    const initData = this.auth.issueBrowserInitData();
+    if (initData === "disabled") throw new NotFoundException();
+    return { initData };
+  }
 
   @Public()
   @Post("login")

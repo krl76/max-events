@@ -14,6 +14,8 @@
 // - OrganizerLoginWrite - organizer credentials type
 // - OrganizerSessionSchema - organizer session: bearer token + organization
 // - OrganizerSession - organizer session type
+// - BrowserInitDataSchema - staging browser-session initData payload
+// - BrowserInitData - staging browser-session type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -41,3 +43,8 @@ export const OrganizerSessionSchema = z.object({
   organization: OrganizationSchema,
 });
 export type OrganizerSession = z.infer<typeof OrganizerSessionSchema>;
+
+export const BrowserInitDataSchema = z.object({
+  initData: z.string().min(1),
+});
+export type BrowserInitData = z.infer<typeof BrowserInitDataSchema>;

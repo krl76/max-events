@@ -10,7 +10,8 @@
 // - MaxWebAppInitDataUnsafe - untrusted launch params shape
 // - MaxWebAppShareParams - { text?, link? } payload of shareMaxContent
 // - MaxWebApp - window.WebApp interface (shareMaxContent optional: не во всех клиентах)
-// - webApp - nullable WebApp instance (null outside MAX client)
+// - getWebApp - live window.WebApp (null outside MAX / before a browser-auth shim)
+// - webApp - snapshot of getWebApp() at module load (tests that stub window then import)
 // - getStartParam - extract start_param from initDataUnsafe
 // - openExternalLink - open link via MAX or browser fallback
 // - ShareChannel - where the shared text went (bridge / clipboard / unavailable)
@@ -57,15 +58,21 @@ declare global {
   }
 }
 
-/** null вне клиента MAX (обычный браузер при разработке). */
-export const webApp: MaxWebApp | null = typeof window !== "undefined" ? (window.WebApp ?? null) : null;
+/** Live window.WebApp so a browser-auth shim installed during bootstrap is visible. */
+export function getWebApp(): MaxWebApp | null {
+  return typeof window !== "undefined" ? (window.WebApp ?? null) : null;
+}
+
+/** Snapshot at module load. Prefer getWebApp() after a late shim. */
+export const webApp: MaxWebApp | null = getWebApp();
 
 export function getStartParam(app: Pick<MaxWebApp, "initDataUnsafe"> | null): string | null {
   return app?.initDataUnsafe.start_param ?? null;
 }
 
 export function openExternalLink(url: string): void {
-  if (webApp) webApp.openLink(url);
+  const app = getWebApp();
+  if (app) app.openLink(url);
   else window.open(url, "_blank", "noopener,noreferrer");
 }
 

@@ -11,6 +11,8 @@
 // - OrganizerLoginResult - organizerLogin outcome: { token, user } | "disabled" (env unset) | null (bad credentials)
 // - AuthService.organizerLogin - env-credential check, find-or-create organizer user, store token in Redis
 // - AuthService.authenticateOrganizerToken - Bearer token -> Redis lookup -> organizer user
+// - BROWSER_DEMO_USER - MAX user payload minted for AUTH_ALLOW_BROWSER sessions
+// - AuthService.issueBrowserInitData - signed initData for the staging browser host, or "disabled"
 // END_MODULE_MAP
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
@@ -23,7 +25,9 @@ import { UserEntity } from "../users/user.entity";
 import { FriendsService } from "../friends/friends.service";
 import { UsersService } from "../users/users.service";
 import { REDIS_CLIENT } from "../redis/redis.module";
-import { validateInitData } from "./max-init-data";
+import { signInitData, validateInitData } from "./max-init-data";
+
+export const BROWSER_DEMO_USER = { id: 1001, first_name: "Демо", username: "kku_demo" };
 
 export const ORGANIZER_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
@@ -32,6 +36,10 @@ export type OrganizerLoginResult = { token: string; user: UserEntity } | "disabl
 // Hashing both sides normalizes length so timingSafeEqual never throws and leaks nothing about length.
 function credentialsEqual(a: string, b: string): boolean {
   return timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
+}
+
+function isEnabled(value: unknown): boolean {
+  return value === true || value === "true";
 }
 
 @Injectable()
@@ -51,6 +59,13 @@ export class AuthService {
     if (!this.config.get<string>("ORGANIZER_LOGIN") || !this.config.get<string>("ORGANIZER_PASSWORD")) {
       this.logger.warn("ORGANIZER_LOGIN/ORGANIZER_PASSWORD are not set: organizer login is disabled (fail-closed)");
     }
+  }
+
+  issueBrowserInitData(nowSeconds: number = Math.floor(Date.now() / 1000)): string | "disabled" {
+    if (!isEnabled(this.config.get("AUTH_ALLOW_BROWSER"))) return "disabled";
+    const botToken = this.config.get<string>("MAX_BOT_TOKEN");
+    if (!botToken) return "disabled";
+    return signInitData({ auth_date: String(nowSeconds), user: JSON.stringify(BROWSER_DEMO_USER) }, botToken);
   }
 
   async authenticate(initData: string): Promise<UserEntity | null> {

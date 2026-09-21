@@ -44,6 +44,12 @@ describe("validateEnv", () => {
     expect(() => validateEnv({ ...valid, PAYMENT_PROVIDER: "live" })).toThrow(/PAYMENT_PROVIDER/);
   });
 
+  it("keeps browser auth off unless AUTH_ALLOW_BROWSER is explicitly true", () => {
+    expect(validateEnv(valid).AUTH_ALLOW_BROWSER).toBe(false);
+    expect(validateEnv({ ...valid, AUTH_ALLOW_BROWSER: "true" }).AUTH_ALLOW_BROWSER).toBe(true);
+    expect(() => validateEnv({ ...valid, AUTH_ALLOW_BROWSER: "yes" })).toThrow(/AUTH_ALLOW_BROWSER/);
+  });
+
   it("keeps the friends demo fallback off unless it is switched on explicitly", () => {
     expect(validateEnv(valid).FRIENDS_DEMO_ALL_USERS).toBe(false);
     expect(validateEnv({ ...valid, FRIENDS_DEMO_ALL_USERS: "true" }).FRIENDS_DEMO_ALL_USERS).toBe(true);

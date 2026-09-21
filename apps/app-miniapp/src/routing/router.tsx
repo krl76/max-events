@@ -19,7 +19,7 @@
 // END_MODULE_MAP
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { getStartParam, webApp } from "../max/bridge";
+import { getStartParam, getWebApp } from "../max/bridge";
 
 export type Route = { name: "home" } | { name: "search" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "settings" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "micro-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string };
 
@@ -150,7 +150,7 @@ interface NavState {
 
 export function RouteProvider({ children }: { children: ReactNode }) {
   const [nav, setNav] = useState<NavState>(() => {
-    const initial: RouteHistoryState = { route: routeFromStartParam(getStartParam(webApp)), idx: 0 };
+    const initial: RouteHistoryState = { route: routeFromStartParam(getStartParam(getWebApp())), idx: 0 };
     writeHistory(initial, "replace");
     return { history: initial, transition: "none", seq: 0 };
   });

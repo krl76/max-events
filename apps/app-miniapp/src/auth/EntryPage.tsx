@@ -15,7 +15,7 @@ import { AppButton } from "../ui/primitives";
 
 export type EntryMode = "user" | "organizer";
 
-export function EntryPage({ onSelect }: { onSelect: (mode: EntryMode) => void }) {
+export function EntryPage({ onSelect, userLabel = "Войти через MAX" }: { onSelect: (mode: EntryMode) => void; userLabel?: string }) {
   return (
     <section className="app-entry">
       <div className="app-entry-hero">
@@ -27,7 +27,7 @@ export function EntryPage({ onSelect }: { onSelect: (mode: EntryMode) => void })
       </div>
       <div className="app-entry-actions">
         <AppButton stretched onClick={() => onSelect("user")}>
-          Войти через MAX
+          {userLabel}
         </AppButton>
         <AppButton tone="secondary" stretched onClick={() => onSelect("organizer")}>
           Вход организатора

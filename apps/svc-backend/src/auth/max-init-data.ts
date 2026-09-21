@@ -14,6 +14,7 @@
 // - MaxInitDataUserSchema - shape of the user object embedded in initData
 // - MaxInitDataUser - user payload type
 // - ValidatedInitData - parsed params, authDate and user after successful validation
+// - signInitData - HMAC-SHA256 initData string (same algorithm as validateInitData)
 // - validateInitData - returns ValidatedInitData or null on any signature, freshness or shape failure
 // END_MODULE_MAP
 
@@ -38,6 +39,19 @@ export interface ValidatedInitData {
   params: Record<string, string>;
   authDate: number;
   user: MaxInitDataUser;
+}
+
+export function signInitData(params: Record<string, string>, botToken: string): string {
+  const dataCheckString = Object.entries(params)
+    .filter(([key]) => key !== "hash")
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
+  const secretKey = createHmac("sha256", "WebAppData").update(botToken).digest();
+  const hash = createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
+  return Object.entries({ ...params, hash })
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join("&");
 }
 
 export function validateInitData(initData: string, botToken: string, nowSeconds: number = Math.floor(Date.now() / 1000)): ValidatedInitData | null {

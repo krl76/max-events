@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { MAX_AUTH_DATE_AGE_SECONDS, validateInitData } from "./max-init-data";
+import { MAX_AUTH_DATE_AGE_SECONDS, signInitData, validateInitData } from "./max-init-data";
 
 const BOT_TOKEN = "test-bot-token";
 const NOW = 1_800_000_000;
@@ -106,6 +106,13 @@ describe("validateInitData", () => {
   it("rejects a username longer than the varchar(64) column", () => {
     const user = { ...JSON.parse(USER_JSON), username: "u".repeat(65) };
     expect(validateInitData(buildInitData({ auth_date: String(NOW), user: JSON.stringify(user) }), BOT_TOKEN, NOW)).toBeNull();
+  });
+
+  it("round-trips a payload signed with signInitData", () => {
+    const signed = signInitData({ auth_date: String(NOW), user: USER_JSON }, BOT_TOKEN);
+    const result = validateInitData(signed, BOT_TOKEN, NOW);
+    expect(result?.user.id).toBe(67890);
+    expect(result?.user.first_name).toBe("Max");
   });
 
   it("rejects malformed pairs and invalid percent-encoding", () => {
