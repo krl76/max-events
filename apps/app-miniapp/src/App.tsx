@@ -51,7 +51,7 @@ export function App() {
   );
 }
 
-function UserShell({ children, onExit }: { children: ReactNode; onExit: () => void }) {
+export function UserShell({ children, onExit }: { children: ReactNode; onExit: () => void }) {
   const auth = useAuth();
   if (auth.status === "loading") return <AppState>Загрузка…</AppState>;
   if (auth.status === "unavailable" || auth.status === "error") {
