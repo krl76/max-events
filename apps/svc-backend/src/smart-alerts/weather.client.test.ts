@@ -90,9 +90,7 @@ describe("WeatherClient.forecastAt", () => {
   });
 
   it("returns null when temperature is missing or the provider fails", async () => {
-    const missingTemp = new WeatherClient(OPEN_METEO_FORECAST_URL, async () =>
-      jsonResponse(200, { hourly: { time: ["2026-09-12T16:00"], precipitation: [0], precipitation_probability: [0] } }),
-    );
+    const missingTemp = new WeatherClient(OPEN_METEO_FORECAST_URL, async () => jsonResponse(200, { hourly: { time: ["2026-09-12T16:00"], precipitation: [0], precipitation_probability: [0] } }));
     await expect(missingTemp.forecastAt(1, 2, at)).resolves.toBeNull();
     const down = new WeatherClient(OPEN_METEO_FORECAST_URL, async () => jsonResponse(503, {}));
     await expect(down.forecastAt(1, 2, at)).resolves.toBeNull();
