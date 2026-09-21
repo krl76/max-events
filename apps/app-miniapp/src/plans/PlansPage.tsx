@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Plans list screen: plan cards per the README example (event, «Ты + N друзей», «Сбор <время> <место>», «<расстояние> от тебя»).
-// SCOPE: Data via apiClient.listPlans (mock or live) at the fixed Moscow center origin; presentational rendering; navigation to the plan screen; no budget (P4-8) and no route (P3-2/3-3).
-// DEPENDS: ../api/client.js (apiClient), ../catalog/MapScreen.js (MOSCOW_CENTER), ../catalog/format.js (pluralRu), ../routing/router.js, @max-events/api-contracts (PlanCard, Plan), ../ui/primitives.js, ../ui/theme.css
+// PURPOSE: «Моё» screen: personal space with segmented tabs — plans (plan cards per the README example: event, «Ты + N друзей», «Сбор <время> <место>», «<расстояние> от тебя»), calendar (own bookings) and saved lists.
+// SCOPE: Data via apiClient.listPlans (mock or live) at the fixed Moscow center origin; presentational rendering; navigation to the plan screen; calendar and saved tabs reuse the CalendarPage/ListsPage containers; no budget (P4-8) and no route (P3-2/3-3).
+// DEPENDS: ../api/client.js (apiClient), ../catalog/MapScreen.js (MOSCOW_CENTER), ../catalog/format.js (pluralRu), ../calendar/CalendarPage.js (CalendarPage), ../lists/ListsPage.js (ListsPage), ../routing/router.js, @max-events/api-contracts (PlanCard, Plan), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -11,7 +11,8 @@
 // - planMeetingLabel - «Сбор <время> <место>» line shared by the card and the plan screen
 // - PlansState - union of plans fetch states (loading / error / ready)
 // - PlansView - presentational: one card per plan per the README example
-// - PlansPage - route container: loads the plan list, entries to the «Мы» groups and the day route builder
+// - PlansTab - «Моё» segments: plans | calendar | saved
+// - PlansPage - «Моё» route container: segmented tabs over the plans list, the calendar and the saved lists; entries to the «Мы» groups and the day route builder
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
@@ -19,9 +20,11 @@ import type { Plan, PlanCard } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { MOSCOW_CENTER } from "../catalog/MapScreen";
 import { pluralRu } from "../catalog/format";
+import { CalendarPage } from "../calendar/CalendarPage";
+import { ListsPage } from "../lists/ListsPage";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppNavTiles, AppState, AppSkeleton, AppMedia } from "../ui/primitives";
+import { AppChip, AppNavTiles, AppState, AppSkeleton, AppMedia } from "../ui/primitives";
 
 // ponytail: fixed Moscow center as the plans origin; user geolocation when the bridge exposes it
 const [PLANS_LAT, PLANS_LNG] = MOSCOW_CENTER;
@@ -79,8 +82,17 @@ export function PlansView({ state, onOpen, onExplore }: { state: PlansState; onO
   );
 }
 
-export function PlansPage() {
+export type PlansTab = "plans" | "calendar" | "saved";
+
+const PLANS_TABS: Array<{ id: PlansTab; label: string }> = [
+  { id: "plans", label: "Планы" },
+  { id: "calendar", label: "Календарь" },
+  { id: "saved", label: "Сохранённое" },
+];
+
+export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
   const { navigate } = useRoute();
+  const [active, setActive] = useState<PlansTab>(tab);
   const [state, setState] = useState<PlansState>({ status: "loading" });
   useEffect(() => {
     let alive = true;
@@ -99,13 +111,26 @@ export function PlansPage() {
   }, []);
   return (
     <>
-      <AppNavTiles
-        items={[
-          { icon: "user", label: "Мы", onClick: () => navigate({ name: "we-groups" }) },
-          { icon: "pin", label: "Маршрут на день", onClick: () => navigate({ name: "day-route" }) },
-        ]}
-      />
-      <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} />
+      <div className="app-view-toggle" role="group" aria-label="Разделы «Моё»">
+        {PLANS_TABS.map((item) => (
+          <AppChip key={item.id} pressed={active === item.id} onClick={() => setActive(item.id)}>
+            {item.label}
+          </AppChip>
+        ))}
+      </div>
+      {active === "plans" && (
+        <>
+          <AppNavTiles
+            items={[
+              { icon: "user", label: "Мы", onClick: () => navigate({ name: "we-groups" }) },
+              { icon: "pin", label: "Маршрут на день", onClick: () => navigate({ name: "day-route" }) },
+            ]}
+          />
+          <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} />
+        </>
+      )}
+      {active === "calendar" && <CalendarPage />}
+      {active === "saved" && <ListsPage />}
     </>
   );
 }

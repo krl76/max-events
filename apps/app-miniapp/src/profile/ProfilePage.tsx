@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Profile screen: MAX avatar and name, Instagram-style stats, city/interests editing through the profile API, visit statistics block.
+// PURPOSE: Profile screen: MAX avatar and name, Instagram-style stats («События»/«Друзья» navigate to the calendar/friends screens), city/interests editing through the profile API, visit statistics block.
 // SCOPE: Data via apiClient.getProfile/updateProfile/listCalendar/getVisitStats (mock or live); stats derived from calendar entries; no navigation logic.
 // DEPENDS: ../api/client.js (apiClient, CalendarEntry), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CATEGORY_LABELS), @max-events/api-contracts (Profile, UpdateProfile, User, VisitStats), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
@@ -11,7 +11,7 @@
 // - toProfilePatch - form drafts (city, comma-separated interests) -> UpdateProfile payload
 // - VisitStatsView - presentational: visit counters per event category (hidden hint when empty)
 // - ProfileState - union of profile fetch states (loading / error / ready)
-// - ProfileView - presentational: avatar, three-column stats row, name/city, interests, impressions grid (3 columns), visit statistics, edit form
+// - ProfileView - presentational: avatar, three-column stats row («События»/«Друзья» as navigation buttons, «Места» as a plain counter), name/city, interests, impressions grid (3 columns), visit statistics, edit form
 // - ProfilePage - route container: resolves auth, loads profile + stats + friends count + own posts + visit stats, wires saving and grid navigation
 // END_MODULE_MAP
 
@@ -74,10 +74,12 @@ interface ProfileViewProps {
   visitStats: VisitStats | null;
   saving: boolean;
   onSave: (patch: UpdateProfile) => void;
+  onOpenEvents: () => void;
+  onOpenFriends: () => void;
   onOpenEvent?: (eventId: string) => void;
 }
 
-export function ProfileView({ user, profile, stats, friendsCount, posts, visitStats, saving, onSave, onOpenEvent }: ProfileViewProps) {
+export function ProfileView({ user, profile, stats, friendsCount, posts, visitStats, saving, onSave, onOpenEvents, onOpenFriends, onOpenEvent }: ProfileViewProps) {
   const [editing, setEditing] = useState(false);
   const [cityDraft, setCityDraft] = useState(profile.city);
   const [interestsDraft, setInterestsDraft] = useState(profile.interests.join(", "));
@@ -93,14 +95,14 @@ export function ProfileView({ user, profile, stats, friendsCount, posts, visitSt
           {user.firstName.charAt(0).toUpperCase()}
         </AppAvatar>
         <div className="app-profile-stats">
-          <span className="app-profile-stat">
+          <button type="button" className="app-profile-stat" aria-label="События: открыть календарь" onClick={onOpenEvents}>
             <span className="app-profile-stat-value">{stats.events}</span>
             <span className="app-profile-stat-label">События</span>
-          </span>
-          <span className="app-profile-stat">
+          </button>
+          <button type="button" className="app-profile-stat" aria-label="Друзья: открыть друзей" onClick={onOpenFriends}>
             <span className="app-profile-stat-value">{friendsCount}</span>
             <span className="app-profile-stat-label">Друзья</span>
-          </span>
+          </button>
           <span className="app-profile-stat">
             <span className="app-profile-stat-value">{stats.places}</span>
             <span className="app-profile-stat-label">Места</span>
@@ -250,7 +252,7 @@ function AuthenticatedProfile({ user }: { user: User }) {
         </div>
       </div>
     );
-  return <ProfileView user={user} profile={profile} stats={stats} friendsCount={friendsCount} posts={posts} visitStats={visitStats} saving={saving} onSave={save} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
+  return <ProfileView user={user} profile={profile} stats={stats} friendsCount={friendsCount} posts={posts} visitStats={visitStats} saving={saving} onSave={save} onOpenEvents={() => navigate({ name: "calendar" })} onOpenFriends={() => navigate({ name: "friends" })} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
 }
 
 export function ProfilePage() {

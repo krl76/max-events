@@ -1,13 +1,13 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Page composition for the shell routing (home feed with whereto/nearby CTAs, event, place, friends with the discovery/people entries, calendar, profile, whereto wizard, nearby screen, reverse discovery, people matching, plans, day route builder).
+// PURPOSE: Page composition for the shell routing (home feed with whereto/nearby CTAs, event, place, friends with the discovery/people entries, «Моё» (plans/calendar/saved), profile, whereto wizard, nearby screen, reverse discovery, people matching, plans, day route builder).
 // SCOPE: Thin route-to-page mapping; page internals live in their own modules.
-// DEPENDS: ../routing/router.js, ../catalog/CatalogPage.js, ../catalog/MapPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../calendar/CalendarPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../today/TodaySection.js, ../assist/AssistSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../organizer/OrganizerPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js, ../search/SearchPage.js, ../ui/primitives.js (AppNavTiles)
+// DEPENDS: ../routing/router.js, ../catalog/CatalogPage.js, ../catalog/MapPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../today/TodaySection.js, ../assist/AssistSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../organizer/OrganizerPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js, ../search/SearchPage.js, ../ui/primitives.js (AppNavTiles)
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - HomePage - stories rail (StoriesRow) + «Куда пойдём?»/«Рядом со мной» CTA pair (primary/secondary) + NL assist section (AssistSection) + today digest (TodaySection) + impressions feed (FeedSection) + micro-events section (MicroSection) + promotion banners/collections (PromotionSections, #205) + catalog screen (CatalogPage) on the home route; all sections hidden in map view so the map gets the viewport
-// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders the search screen, map renders the full-screen map, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar/profile routes render their screens (profile + friends/achievements/my-city/lists nav tiles, plans + calendar nav tile), whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the plans list and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, lists renders the saved lists and list(id) one list, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen
+// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders the search screen, map renders the full-screen map, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar renders the «Моё» screen on the calendar tab, profile renders the profile screen with achievements/my-city (full map) nav tiles, whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the «Моё» screen (plans/calendar/saved tabs) and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, list(id) renders one saved list, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen
 // END_MODULE_MAP
 
 import { lazy, Suspense, useState, type ElementType, type LazyExoticComponent } from "react";
@@ -34,13 +34,10 @@ const PlacePage = lazyNamed(() => import("../place/PlacePage"), "PlacePage");
 const FriendsPage = lazyNamed(() => import("../friends/FriendsPage"), "FriendsPage");
 const DiscoveryPage = lazyNamed(() => import("../discovery/DiscoveryPage"), "DiscoveryPage");
 const PeoplePage = lazyNamed(() => import("../people/PeoplePage"), "PeoplePage");
-const CalendarPage = lazyNamed(() => import("../calendar/CalendarPage"), "CalendarPage");
 const ProfilePage = lazyNamed(() => import("../profile/ProfilePage"), "ProfilePage");
 const OrganizerPage = lazyNamed(() => import("../organizer/OrganizerPage"), "OrganizerPage");
-const ListsPage = lazyNamed(() => import("../lists/ListsPage"), "ListsPage");
 const ListPage = lazyNamed(() => import("../lists/ListsPage"), "ListPage");
 const AchievementsPage = lazyNamed(() => import("../profile/AchievementsPage"), "AchievementsPage");
-const MyCityPage = lazyNamed(() => import("../profile/MyCityPage"), "MyCityPage");
 const WheretoPage = lazyNamed(() => import("../whereto/WheretoPage"), "WheretoPage");
 const NearbyPage = lazyNamed(() => import("../nearby/NearbyPage"), "NearbyPage");
 const GatheringFlowPage = lazyNamed(() => import("../gathering/GatheringFlowPage"), "GatheringFlowPage");
@@ -124,7 +121,7 @@ function Routed() {
     );
   if (route.name === "discovery") return <DiscoveryPage />;
   if (route.name === "people") return <PeoplePage />;
-  if (route.name === "calendar") return <CalendarPage />;
+  if (route.name === "calendar") return <PlansPage tab="calendar" />;
   if (route.name === "search") return <SearchPage />;
   if (route.name === "map") return <MapPage />;
   if (route.name === "profile")
@@ -133,19 +130,15 @@ function Routed() {
         <ProfilePage />
         <AppNavTiles
           items={[
-            { icon: "user", label: "Друзья", onClick: () => navigate({ name: "friends" }) },
             { icon: "star", label: "Достижения", onClick: () => navigate({ name: "achievements" }) },
-            { icon: "pin", label: "Мой город", onClick: () => navigate({ name: "my-city" }) },
-            { icon: "bookmark", label: "Сохранённое", onClick: () => navigate({ name: "lists" }) },
+            { icon: "pin", label: "Мой город", onClick: () => navigate({ name: "map" }) },
           ]}
         />
       </>
     );
   if (route.name === "organizer") return <OrganizerPage />;
-  if (route.name === "lists") return <ListsPage />;
   if (route.name === "list") return <ListPage id={route.id} />;
   if (route.name === "achievements") return <AchievementsPage />;
-  if (route.name === "my-city") return <MyCityPage />;
   if (route.name === "whereto") return <WheretoPage />;
   if (route.name === "nearby") return <NearbyPage />;
   if (route.name === "micro-new") return <MicroEventCreatePage />;
@@ -153,13 +146,7 @@ function Routed() {
   if (route.name === "gathering-new") return <GatheringFlowPage eventId={route.eventId} />;
   if (route.name === "gathering") return <GatheringStatusPage id={route.id} />;
   if (route.name === "vote") return <VotePage id={route.id} />;
-  if (route.name === "plans")
-    return (
-      <>
-        <AppNavTiles items={[{ icon: "clock", label: "Календарь", onClick: () => navigate({ name: "calendar" }) }]} />
-        <PlansPage />
-      </>
-    );
+  if (route.name === "plans") return <PlansPage />;
   if (route.name === "plan") return <PlanPage id={route.id} />;
   if (route.name === "we-groups") return <WeGroupsPage />;
   if (route.name === "we-group") return <WeGroupPage id={route.id} />;

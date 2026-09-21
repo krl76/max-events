@@ -10,9 +10,10 @@ describe("Layout tabbar active predicates", () => {
     expect(active[0].route).toBe("plans");
   });
 
-  it("highlights the Plans tab on the plans and plan screens", () => {
+  it("highlights the Plans tab on the plans, plan and saved-list screens", () => {
     expect(TABS.find((tab) => tab.route === "plans")?.active("plans")).toBe(true);
     expect(TABS.find((tab) => tab.route === "plans")?.active("plan")).toBe(true);
+    expect(TABS.find((tab) => tab.route === "plans")?.active("list")).toBe(true);
   });
 
   it("highlights the Plans tab on the calendar screen", () => {

@@ -11,7 +11,7 @@
 // - shareCollection - sends the collection share text through the given share channel
 // - ListsState - union of the lists fetch states (loading / error / ready)
 // - ListsView - presentational: one card per list with its counter; shared collections carry the badge and participants
-// - ListsPage - route container: loads the preset lists of the current user
+// - ListsPage - container (the saved tab of the «Моё» screen): loads the preset lists of the current user
 // - ListState - union of the list items fetch states (loading / error / ready)
 // - ListScreenState - union of the one-list aggregate fetch states (loading / error / ready)
 // - ListView - presentational: saved event cards (with the author line for shared collections), navigation to the event page

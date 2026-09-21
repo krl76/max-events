@@ -55,20 +55,29 @@ describe("RoutedPages", () => {
     expect(html).not.toContain("Куда пойдём?");
   });
 
-  it("maps the profile route to the profile screen with its nav tiles", async () => {
+  it("maps the profile route to the profile screen with the achievements/my-city nav tiles", async () => {
     const html = await routedHtml({ name: "profile" }, "Достижения");
 
-    for (const label of ["Друзья", "Достижения", "Мой город", "Сохранённое"]) {
-      expect(html).toContain(label);
-    }
+    expect(html).toContain("Достижения");
+    expect(html).toContain("Мой город");
+    expect(html).not.toContain("Друзья");
+    expect(html).not.toContain("Сохранённое");
     expect(html).not.toContain("Панель организатора");
     expect(html).not.toContain("Твои люди открыли места");
   });
 
-  it("maps the plans route to the plans screen with the calendar nav tile", async () => {
-    const html = await routedHtml({ name: "plans" }, "Календарь");
+  it("maps the plans route to the «Моё» screen with the plans/calendar/saved tabs", async () => {
+    const html = await routedHtml({ name: "plans" }, "Сохранённое");
 
+    expect(html).toContain("Планы");
     expect(html).toContain("Календарь");
+    expect(html).toContain("Сохранённое");
+  });
+
+  it("maps the calendar route to the «Моё» screen opened on the calendar tab", async () => {
+    const html = await routedHtml({ name: "calendar" }, "Сохранённое");
+
+    expect(html).toMatch(/<button[^>]*app-chip--on[^>]*>Календарь</);
   });
 
   it("maps the search route to the search screen", async () => {

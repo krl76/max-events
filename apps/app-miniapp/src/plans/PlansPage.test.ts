@@ -75,4 +75,24 @@ describe("PlansPage", () => {
 
     expect(html).toContain("Мы");
   });
+
+  it("opens the plans tab by default and offers the calendar/saved segments", () => {
+    const html = renderToStaticMarkup(createElement(PlansPage));
+
+    expect(html).toContain("Календарь");
+    expect(html).toContain("Сохранённое");
+    expect(html).toMatch(/<button[^>]*app-chip--on[^>]*>Планы</);
+  });
+
+  it("opens on the calendar tab when the calendar route asks for it", () => {
+    const html = renderToStaticMarkup(createElement(PlansPage, { tab: "calendar" }));
+
+    expect(html).toMatch(/<button[^>]*app-chip--on[^>]*>Календарь</);
+  });
+
+  it("opens on the saved tab when asked", () => {
+    const html = renderToStaticMarkup(createElement(PlansPage, { tab: "saved" }));
+
+    expect(html).toMatch(/<button[^>]*app-chip--on[^>]*>Сохранённое</);
+  });
 });
