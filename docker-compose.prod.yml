@@ -48,7 +48,7 @@ services:
       REDIS_URL: redis://redis:6379
       PORT: "3100"
     ports:
-      - "127.0.0.1:3100:3100"
+      - "127.0.0.1:${HOST_PORT:-3100}:3100"
     restart: unless-stopped
 
 volumes:
