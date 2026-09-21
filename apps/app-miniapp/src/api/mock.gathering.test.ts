@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { GatheringSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { createMockGathering, friendAvailability, installMockApi, mockEvents, mockFriendIds, mockFriends, resetMockGatherings } from "./mock";
+import { createMockGathering, friendAvailability, installMockApi, MOCK_GATHERING_ID, mockDemoUser, mockEvents, mockFriendIds, mockFriends, resetMockGatherings, respondMockGathering } from "./mock";
 
 const MEETING_AT = "2026-09-19T18:00:00.000Z";
 
@@ -49,6 +49,27 @@ describe("createMockGathering", () => {
   });
 });
 
+describe("respondMockGathering", () => {
+  afterEach(() => {
+    resetMockGatherings();
+  });
+
+  it("writes the demo user's answer without touching the other invitees", () => {
+    const answered = respondMockGathering(MOCK_GATHERING_ID, "accepted");
+    if (typeof answered === "string") throw new Error("expected the seeded gathering to accept the demo answer");
+
+    expect(GatheringSchema.safeParse(answered)).toMatchObject({ success: true });
+    expect(answered.invitees.find((invitee) => invitee.friend.id === mockDemoUser.id)?.response).toBe("accepted");
+    expect(answered.invitees.find((invitee) => invitee.friend.id === mockFriendIds[1])?.response).toBe("accepted");
+  });
+
+  it("rejects unknown gatherings and the host with backend parity", () => {
+    expect(respondMockGathering("d0000000-0000-4000-8000-000000000099", "accepted")).toBe("unknown");
+    const created = createMockGathering({ eventId: mockEvents[0].id, friendIds: [mockFriendIds[0]], proposedMeetingAt: MEETING_AT });
+    expect(respondMockGathering(created!.id, "busy")).toBe("forbidden");
+  });
+});
+
 describe("gathering mock endpoints", () => {
   let restore: (() => void) | null = null;
 
@@ -92,5 +113,30 @@ describe("gathering mock endpoints", () => {
     await expect(client.createGathering({ eventId: "c0000000-0000-4000-8000-000000000000", friendIds: [mockFriendIds[0]], proposedMeetingAt: MEETING_AT })).rejects.toMatchObject({ status: 404 });
     await expect(client.createGathering({ eventId: mockEvents[0].id, friendIds: ["not-a-friend"], proposedMeetingAt: MEETING_AT })).rejects.toMatchObject({ status: 400 });
     await expect(client.createGathering({ eventId: mockEvents[0].id, friendIds: [mockFriendIds[0]], proposedMeetingAt: "2026-09-19 18:00" })).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("serves the seeded demo gathering and answers the demo user's PATCH through the typed client", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+
+    const seeded = await client.getGathering(MOCK_GATHERING_ID);
+    expect(seeded.invitees.find((invitee) => invitee.friend.id === mockDemoUser.id)?.response).toBe("considering");
+
+    const answered = await client.respondToGathering(MOCK_GATHERING_ID, "accepted");
+    expect(answered.invitees.find((invitee) => invitee.friend.id === mockDemoUser.id)?.response).toBe("accepted");
+    expect(await client.getGathering(MOCK_GATHERING_ID)).toEqual(answered);
+
+    resetMockGatherings();
+    const restored = await client.getGathering(MOCK_GATHERING_ID);
+    expect(restored.invitees.find((invitee) => invitee.friend.id === mockDemoUser.id)?.response).toBe("considering");
+  });
+
+  it("returns 403 when the demo user is the host and 404 for an unknown gathering on PATCH response", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+
+    const created = await client.createGathering({ eventId: mockEvents[0].id, friendIds: [mockFriendIds[0]], proposedMeetingAt: MEETING_AT });
+    await expect(client.respondToGathering(created.id, "accepted")).rejects.toMatchObject({ status: 403 });
+    await expect(client.respondToGathering("d0000000-0000-4000-8000-000000000099", "accepted")).rejects.toMatchObject({ status: 404 });
   });
 });
