@@ -17,6 +17,14 @@ test("tabbar shows feed, search, map, plans and profile tabs", async ({ page }) 
   await tabbar.getByRole("button", { name: "Поиск" }).click();
   await expect(tabbar.getByRole("button", { name: "Поиск" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByLabel("Поиск событий")).toBeVisible();
+  await expect(page.locator(".app-header")).toBeHidden();
+
+  await tabbar.getByRole("button", { name: "Карта" }).click();
+  await expect(page.locator(".app-header")).toBeHidden();
+  await expect(page.locator(".app-content")).toHaveClass(/app-content--flush/);
+
+  await tabbar.getByRole("button", { name: "Планы" }).click();
+  await expect(page.locator(".app-header")).toBeHidden();
 });
 
 test("header back button returns to home via history", async ({ page }) => {

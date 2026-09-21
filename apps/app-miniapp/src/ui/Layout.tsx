@@ -11,6 +11,7 @@
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
 // - routeTitle - header title for the current route
 // - routeHasBack - back button shown on every non-tab route
+// - routeHasHeader - header hidden on the search/map/plans tab screens
 // - HomeSearchContext - home header search query ("" when inactive)
 // - useHomeSearch - read/update the home search query
 // END_MODULE_MAP
@@ -65,6 +66,12 @@ export function routeHasBack(route: Route): boolean {
   return !isTabRoute(route.name);
 }
 
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "map", "plans"]);
+
+export function routeHasHeader(route: Route): boolean {
+  return !HEADERLESS_ROUTES.has(route.name);
+}
+
 interface HomeSearch {
   query: string;
   setQuery: (query: string) => void;
@@ -83,27 +90,29 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <HomeSearchContext.Provider value={search}>
-      <header className="app-header">
-        {route.name === "home" ? (
-          <>
-            <span className="app-header-wordmark">MAX Events</span>
-            <label className="app-header-search">
-              <ActionIcon name="search" size={16} />
-              <input type="search" placeholder="Поиск" aria-label="Поиск" value={query} onChange={(change) => setQuery(change.target.value)} />
-            </label>
-          </>
-        ) : (
-          <>
-            {routeHasBack(route) && (
-              <button type="button" className="app-header-back" aria-label="Назад" onClick={back}>
-                <ActionIcon name="chevron" size={20} strokeWidth={2} />
-              </button>
-            )}
-            <span className="app-header-title">{routeTitle(route)}</span>
-          </>
-        )}
-      </header>
-      <main key={navSeq} className={`app-content app-screen--${transition}`}>
+      {routeHasHeader(route) && (
+        <header className="app-header">
+          {route.name === "home" ? (
+            <>
+              <span className="app-header-wordmark">MAX Events</span>
+              <label className="app-header-search">
+                <ActionIcon name="search" size={16} />
+                <input type="search" placeholder="Поиск" aria-label="Поиск" value={query} onChange={(change) => setQuery(change.target.value)} />
+              </label>
+            </>
+          ) : (
+            <>
+              {routeHasBack(route) && (
+                <button type="button" className="app-header-back" aria-label="Назад" onClick={back}>
+                  <ActionIcon name="chevron" size={20} strokeWidth={2} />
+                </button>
+              )}
+              <span className="app-header-title">{routeTitle(route)}</span>
+            </>
+          )}
+        </header>
+      )}
+      <main key={navSeq} className={`app-content app-screen--${transition}${route.name === "map" ? " app-content--flush" : ""}`}>
         {children}
       </main>
       <nav className="app-tabbar">

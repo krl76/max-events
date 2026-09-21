@@ -222,6 +222,10 @@ body {
   }
 }
 
+.app-content--flush {
+  padding: 0 0 calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
 .app-tabbar {
   align-items: center;
   background: var(--app-card);
@@ -601,6 +605,12 @@ body {
   min-height: 420px;
   overflow: hidden;
   width: 100%;
+}
+
+/* Таб «Карта»: карта заполняет весь контент вплоть до таббара, без скругления */
+.app-content--flush .app-map {
+  border-radius: 0;
+  min-height: 0;
 }
 
 .app-map .leaflet-popup-content-wrapper {
