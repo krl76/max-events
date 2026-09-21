@@ -228,10 +228,10 @@ export function filterMockEvents(events: Event[], filters: EventFilters): Event[
   return events.filter((item) => (filters.category === undefined || item.category === filters.category) && (city === undefined || item.city.toLowerCase() === city) && (filters.date === undefined || item.startsAt.slice(0, 10) === filters.date));
 }
 
-export const mockOrganizers: User[] = [{ id: "d0000001-0000-4000-8000-000000000001", maxUserId: "organizer-1", firstName: "Анна", lastName: "Соколова", avatarUrl: null, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP }];
+export const mockOrganizers: User[] = [{ id: "d0000001-0000-4000-8000-000000000001", maxUserId: "organizer-1", firstName: "Анна", lastName: "Соколова", username: null, avatarUrl: null, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP }];
 
 /** Demo identity for mock auth outside MAX (VITE_USE_MOCK=1); the id matches the demo user id used by the booking/profile fixtures. */
-export const mockDemoUser: User = { id: "a0000000-0000-4000-8000-000000000001", maxUserId: "demo", firstName: "Демо", lastName: null, avatarUrl: null, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
+export const mockDemoUser: User = { id: "a0000000-0000-4000-8000-000000000001", maxUserId: "demo", firstName: "Демо", lastName: null, username: "demo", avatarUrl: null, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
 
 /** Demo organization and its login/password for the organizer space in mock mode. */
 export const mockOrganization: Organization = { id: "e0000000-0000-4000-8000-000000000001", name: "Городские события", contacts: "org@example.com" };

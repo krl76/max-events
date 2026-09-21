@@ -6,7 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - Route - home | search | map | event(id) | place(id) | friends | calendar | profile | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | day-route | list(id) | achievements | micro-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
+// - Route - home | search | map | event(id) | place(id) | friends | calendar | profile | settings | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | day-route | list(id) | achievements | micro-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote- prefixes) to a Route, home fallback
 // - isTabRoute - the five tabbar routes (home/search/map/plans/profile); tab-to-tab switches replace the history entry instead of pushing
 // - RouteHistoryState - history entry payload: route + sequential idx (idx drives back/forward detection)
@@ -21,7 +21,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getStartParam, webApp } from "../max/bridge";
 
-export type Route = { name: "home" } | { name: "search" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "micro-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string };
+export type Route = { name: "home" } | { name: "search" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "settings" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "micro-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -71,6 +71,7 @@ function toRoute(value: unknown): Route | null {
     case "friends":
     case "calendar":
     case "profile":
+    case "settings":
     case "whereto":
     case "nearby":
     case "discovery":

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Profile screen: MAX avatar and name, Instagram-style stats («События»/«Друзья» navigate to the calendar/friends screens), city/interests editing through the profile API, visit statistics block.
-// SCOPE: Data via apiClient.getProfile/updateProfile/listCalendar/getVisitStats (mock or live); stats derived from calendar entries; no navigation logic.
+// PURPOSE: Profile screen: Instagram-style topbar (settings gear + name), MAX avatar, stats («События»/«Друзья» navigate to the calendar/friends screens), city/interests display, visit statistics block. Editing lives on the settings route.
+// SCOPE: Data via apiClient.getProfile/listCalendar/getVisitStats (mock or live); stats derived from calendar entries; no navigation logic.
 // DEPENDS: ../api/client.js (apiClient, CalendarEntry), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CATEGORY_LABELS), @max-events/api-contracts (Profile, UpdateProfile, User, VisitStats), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -8,19 +8,20 @@
 // START_MODULE_MAP
 // - ProfileStats - counters derived from calendar entries (events, unique places)
 // - profileStats - derive ProfileStats from calendar entries
-// - toProfilePatch - form drafts (city, comma-separated interests) -> UpdateProfile payload
+// - toProfilePatch - form drafts (city, comma-separated interests) -> UpdateProfile payload (used by the settings screen)
 // - VisitStatsView - presentational: visit counters per event category (hidden hint when empty)
 // - ProfileState - union of profile fetch states (loading / error / ready)
-// - ProfileView - presentational: avatar, three-column stats row («События»/«Друзья» as navigation buttons, «Места» as a plain counter), name/city, interests, impressions grid (3 columns), visit statistics, edit form
-// - ProfilePage - route container: resolves auth, loads profile + stats + friends count + own posts + visit stats, wires saving and grid navigation
+// - ProfileView - presentational: topbar (settings gear, centered name), avatar, three-column stats row («События»/«Друзья» as navigation buttons, «Места» as a plain counter), city, interests, impressions grid (3 columns), visit statistics
+// - ProfilePage - route container: resolves auth, loads profile + stats + friends count + own posts + visit stats, wires settings and grid navigation
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Profile, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
 import { apiClient, type CalendarEntry, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS } from "../catalog/CatalogPage";
-import { AppAvatar, AppButton, AppTitle, AppState, AppSkeleton, AppSection } from "../ui/primitives";
+import { AppAvatar, AppState, AppSkeleton, AppSection } from "../ui/primitives";
+import { ActionIcon } from "../ui/icons";
 import { useRoute } from "../routing/router";
 
 export interface ProfileStats {
@@ -72,24 +73,21 @@ interface ProfileViewProps {
   friendsCount: number;
   posts: FeedPost[];
   visitStats: VisitStats | null;
-  saving: boolean;
-  onSave: (patch: UpdateProfile) => void;
+  onOpenSettings: () => void;
   onOpenEvents: () => void;
   onOpenFriends: () => void;
   onOpenEvent?: (eventId: string) => void;
 }
 
-export function ProfileView({ user, profile, stats, friendsCount, posts, visitStats, saving, onSave, onOpenEvents, onOpenFriends, onOpenEvent }: ProfileViewProps) {
-  const [editing, setEditing] = useState(false);
-  const [cityDraft, setCityDraft] = useState(profile.city);
-  const [interestsDraft, setInterestsDraft] = useState(profile.interests.join(", "));
-  useEffect(() => {
-    setCityDraft(profile.city);
-    setInterestsDraft(profile.interests.join(", "));
-  }, [profile]);
-
+export function ProfileView({ user, profile, stats, friendsCount, posts, visitStats, onOpenSettings, onOpenEvents, onOpenFriends, onOpenEvent }: ProfileViewProps) {
   return (
     <section className="app-profile">
+      <div className="app-profile-topbar">
+        <button type="button" className="app-profile-topbar-action" aria-label="Настройки профиля" onClick={onOpenSettings}>
+          <ActionIcon name="settings" size={24} />
+        </button>
+        <span className="app-profile-topbar-name">{user.username ? `@${user.username}` : [user.firstName, user.lastName].filter(Boolean).join(" ")}</span>
+      </div>
       <div className="app-profile-header">
         <AppAvatar size={86} src={user.avatarUrl}>
           {user.firstName.charAt(0).toUpperCase()}
@@ -109,9 +107,6 @@ export function ProfileView({ user, profile, stats, friendsCount, posts, visitSt
           </span>
         </div>
       </div>
-      <AppTitle asChild>
-        <h1 className="app-profile-name">{[user.firstName, user.lastName].filter(Boolean).join(" ")}</h1>
-      </AppTitle>
       <p className="app-profile-city">{profile.city}</p>
       {profile.interests.length > 0 && (
         <div className="app-profile-interests">
@@ -121,38 +116,6 @@ export function ProfileView({ user, profile, stats, friendsCount, posts, visitSt
             </span>
           ))}
         </div>
-      )}
-      {editing ? (
-        <form
-          className="app-profile-form"
-          onSubmit={(submit) => {
-            submit.preventDefault();
-            onSave(toProfilePatch(cityDraft, interestsDraft));
-            setEditing(false);
-          }}
-        >
-          <input className="app-profile-input" type="text" aria-label="Город" value={cityDraft} onChange={(change) => setCityDraft(change.target.value)} />
-          <input className="app-profile-input" type="text" aria-label="Интересы" placeholder="Интересы через запятую" value={interestsDraft} onChange={(change) => setInterestsDraft(change.target.value)} />
-          <div className="app-event-actions-row">
-            <AppButton disabled={saving} type="submit">
-              {saving ? "Сохранение…" : "Сохранить"}
-            </AppButton>
-            <AppButton
-              tone="secondary"
-              onClick={() => {
-                setCityDraft(profile.city);
-                setInterestsDraft(profile.interests.join(", "));
-                setEditing(false);
-              }}
-            >
-              Отмена
-            </AppButton>
-          </div>
-        </form>
-      ) : (
-        <AppButton className="app-profile-edit" tone="secondary" onClick={() => setEditing(true)}>
-          Редактировать
-        </AppButton>
       )}
       {posts.length > 0 && (
         <div className="app-profile-grid" aria-label="Впечатления">
@@ -169,19 +132,18 @@ export function ProfileView({ user, profile, stats, friendsCount, posts, visitSt
 interface ProfileData {
   profile: Profile | null;
   failed: boolean;
-  saving: boolean;
   stats: ProfileStats;
   friendsCount: number;
   posts: FeedPost[];
   visitStats: VisitStats | null;
 }
 
-function useProfileData(userId: string): [ProfileData, (patch: UpdateProfile) => void] {
-  const [data, setData] = useState<ProfileData>({ profile: null, failed: false, saving: false, stats: { events: 0, places: 0 }, friendsCount: 0, posts: [], visitStats: null });
+function useProfileData(userId: string): ProfileData {
+  const [data, setData] = useState<ProfileData>({ profile: null, failed: false, stats: { events: 0, places: 0 }, friendsCount: 0, posts: [], visitStats: null });
 
   useEffect(() => {
     let alive = true;
-    setData({ profile: null, failed: false, saving: false, stats: { events: 0, places: 0 }, friendsCount: 0, posts: [], visitStats: null });
+    setData({ profile: null, failed: false, stats: { events: 0, places: 0 }, friendsCount: 0, posts: [], visitStats: null });
     apiClient.getProfile().then(
       (profile) => {
         if (alive) setData((current) => ({ ...current, profile }));
@@ -219,27 +181,12 @@ function useProfileData(userId: string): [ProfileData, (patch: UpdateProfile) =>
     };
   }, [userId]);
 
-  const save = useCallback(
-    (patch: UpdateProfile) => {
-      setData((current) => ({ ...current, saving: true }));
-      apiClient.updateProfile(patch).then(
-        (profile) => {
-          setData((current) => ({ ...current, profile, saving: false }));
-        },
-        () => {
-          setData((current) => ({ ...current, saving: false }));
-        },
-      );
-    },
-    [userId],
-  );
-
-  return [data, save];
+  return data;
 }
 
 function AuthenticatedProfile({ user }: { user: User }) {
   const { navigate } = useRoute();
-  const [{ profile, failed, saving, stats, friendsCount, posts, visitStats }, save] = useProfileData(user.id);
+  const { profile, failed, stats, friendsCount, posts, visitStats } = useProfileData(user.id);
 
   if (failed) return <AppState error>Не удалось загрузить профиль.</AppState>;
   if (profile === null)
@@ -252,7 +199,7 @@ function AuthenticatedProfile({ user }: { user: User }) {
         </div>
       </div>
     );
-  return <ProfileView user={user} profile={profile} stats={stats} friendsCount={friendsCount} posts={posts} visitStats={visitStats} saving={saving} onSave={save} onOpenEvents={() => navigate({ name: "calendar" })} onOpenFriends={() => navigate({ name: "friends" })} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
+  return <ProfileView user={user} profile={profile} stats={stats} friendsCount={friendsCount} posts={posts} visitStats={visitStats} onOpenSettings={() => navigate({ name: "settings" })} onOpenEvents={() => navigate({ name: "calendar" })} onOpenFriends={() => navigate({ name: "friends" })} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
 }
 
 export function ProfilePage() {
