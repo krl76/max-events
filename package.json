@@ -23,6 +23,7 @@
     "format": "prettier --write . --ignore-path .gitignore --ignore-path .prettierignore",
     "format:check": "prettier --check . --ignore-path .gitignore --ignore-path .prettierignore",
     "test": "turbo run test --concurrency=1",
+    "smoke:live": "bun tools/live-smoke.mjs",
     "test:quality": "node tools/checks/check-test-quality.mjs",
     "check:secrets": "node tools/security/check-secrets.mjs",
     "grace:lint": "bun ./node_modules/@osovv/grace-cli/src/grace.ts lint --path .",
