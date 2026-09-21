@@ -1,8 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CatalogView, type CatalogState } from "./CatalogPage";
+import { CatalogView, filterEventsByQuery, type CatalogState } from "./CatalogPage";
 import { mockEvents } from "../api/mock";
+
+describe("filterEventsByQuery", () => {
+  it("returns the list untouched on a blank query", () => {
+    expect(filterEventsByQuery(mockEvents, "")).toBe(mockEvents);
+    expect(filterEventsByQuery(mockEvents, "   ")).toBe(mockEvents);
+  });
+
+  it("matches by title and city case-insensitively", () => {
+    const byTitle = filterEventsByQuery(mockEvents, mockEvents[0].title.slice(0, 6).toUpperCase());
+    expect(byTitle.map((event) => event.id)).toContain(mockEvents[0].id);
+
+    const byCity = filterEventsByQuery(mockEvents, mockEvents[0].city.toLowerCase());
+    expect(byCity.every((event) => event.city.toLowerCase().includes(mockEvents[0].city.toLowerCase()))).toBe(true);
+  });
+
+  it("returns an empty list when nothing matches", () => {
+    expect(filterEventsByQuery(mockEvents, "несуществующий запрос 42")).toEqual([]);
+  });
+});
 
 const free = mockEvents.find((item) => item.priceRub === null)!;
 const paid = mockEvents.find((item) => item.priceRub !== null)!;

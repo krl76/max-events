@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - OrganizerRatingView - presentational rating card; renders nothing for null (too few reviews, loading or failed — #199)
 // - EventOrganizerRatingCard - rating card container keyed by event (GET /events/:id/organizer-rating)
-// - MyOrganizerRatingCard - rating card container keyed by the organizer user id (GET /organizers/:userId/rating)
+// - MyOrganizerRatingCard - rating card container keyed by the organization id (GET /organizers/:id/rating)
 // - EventStatsState - union of the stats+sales fetch states (loading / error / ready)
 // - EventStatsView - presentational counters plus the sales summary and frozen sale rows
 // - EventStatsSection - expandable container loading OrganizerEventStats + EventSalesReport on first open; re-open after an error retries the load
@@ -94,8 +94,8 @@ export function EventOrganizerRatingCard({ eventId }: { eventId: string }) {
   return <OrganizerRatingView rating={rating} />;
 }
 
-export function MyOrganizerRatingCard({ userId }: { userId: string }) {
-  const rating = useOrganizerRating(userId, () => apiClient.getOrganizerRating(userId));
+export function MyOrganizerRatingCard({ organizationId }: { organizationId: string }) {
+  const rating = useOrganizerRating(organizationId, () => apiClient.getOrganizerRating(organizationId));
   return <OrganizerRatingView rating={rating} />;
 }
 

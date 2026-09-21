@@ -11,7 +11,8 @@
 // - formatStartsAt - ru "day month, hh:mm" formatting (re-exported from ./format.js, reused by the event page)
 // - CatalogViewName - "list" | "map" view switch on the catalog route
 // - CatalogView - presentational: filter bar + segmented «Список ↔ Карта» toggle + state-driven body (skeleton, error, empty, clickable event cards with the «Промо» badge on promoted events (#205) or map with event/place popups)
-// - CatalogPage - filters from window.location on mount; view is controlled by the parent (HomePage hides the today block in map view); fetches via useCatalog and writes filter changes back to the URL
+// - CatalogPage - filters from window.location on mount; view is controlled by the parent (HomePage hides the today block in map view); fetches via useCatalog and writes filter changes back to the URL; header search query (useHomeSearch) narrows the loaded list client-side
+// - filterEventsByQuery - case-insensitive title/city match; identity on a blank query
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
@@ -19,6 +20,7 @@ import type { Event, EventCategory } from "@max-events/api-contracts";
 import { EventCategorySchema } from "@max-events/api-contracts";
 import { apiClient, parseEventFilters, serializeEventFilters, type EventFilters } from "../api/client";
 import { useRoute } from "../routing/router";
+import { useHomeSearch } from "../ui/Layout";
 import { AppChip, AppState, AppMedia } from "../ui/primitives";
 import { formatStartsAt } from "./format";
 import { MapScreen } from "./MapScreen";
@@ -35,6 +37,12 @@ export const CATEGORY_LABELS: Record<EventCategory, string> = {
 };
 
 export type CatalogState = { status: "loading" } | { status: "error" } | { status: "ready"; events: Event[] };
+
+export function filterEventsByQuery(events: Event[], query: string): Event[] {
+  const needle = query.trim().toLowerCase();
+  if (needle === "") return events;
+  return events.filter((event) => event.title.toLowerCase().includes(needle) || event.city.toLowerCase().includes(needle));
+}
 
 function useCatalog(filters: EventFilters): CatalogState {
   const [state, setState] = useState<CatalogState>({ status: "loading" });
@@ -183,6 +191,7 @@ export function CatalogView({ state, filters, onFilters, view = "list", onView, 
 export function CatalogPage({ view, onView }: { view: CatalogViewName; onView: (view: CatalogViewName) => void }) {
   const [filters, setFilters] = useState<EventFilters>(() => parseEventFilters(window.location.search));
   const catalog = useCatalog(filters);
+  const { query } = useHomeSearch();
   const { navigate } = useRoute();
   const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
   const openPlace = useCallback((id: string) => navigate({ name: "place", id }), [navigate]);
@@ -192,5 +201,6 @@ export function CatalogPage({ view, onView }: { view: CatalogViewName; onView: (
     window.history.replaceState(null, "", query ? `/?${query}` : "/");
   }, [filters]);
 
-  return <CatalogView state={catalog} filters={filters} onFilters={setFilters} view={view} onView={onView} onOpenEvent={openEvent} onOpenPlace={openPlace} />;
+  const shown: CatalogState = catalog.status === "ready" ? { status: "ready", events: filterEventsByQuery(catalog.events, query) } : catalog;
+  return <CatalogView state={shown} filters={filters} onFilters={setFilters} view={view} onView={onView} onOpenEvent={openEvent} onOpenPlace={openPlace} />;
 }

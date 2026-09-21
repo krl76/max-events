@@ -1,13 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Impressions feed (Instagram-стилистика): post cards with a photo placeholder, likes and comments, the event wall (block of the event's posts) and the publish form (photo placeholder + text).
 // SCOPE: Data via apiClient.listFeedPosts/toggleFeedLike/addFeedComment/createFeedPost + listEvents (event titles) + listFriends (stories rail); the wall is the same section filtered by eventId; no photo upload (placeholder button).
-// DEPENDS: ../api/client.js (apiClient, FeedPost), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../routing/router.js, ../max/bridge.js (webApp, shareResult), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, FeedPost), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../routing/router.js, ../max/bridge.js (webApp, shareResult), ../stories/StoryViewer.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - FeedPostCard - presentational Instagram-style post: author header, 4:5 media placeholder, icon actions (like/comment/share), likes line, caption, comments, add form and a «Пожаловаться» report control
-// - StoriesRow - decorative stories rail over the home feed (friends from the API + own story ring)
+// - StoriesRow - stories rail over the home feed: own ring publishes a picked photo or opens the viewer, friend rings with stories open the viewer
 // - FeedState - union of the feed fetch states (loading / error / ready)
 // - FeedSection - container: posts (optionally one event — the wall), event titles for the cards, like/comment wiring, «+» publish CTA
 // - FeedDraft - publish form draft (event title, text)
@@ -18,15 +18,15 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Event, Friend } from "@max-events/api-contracts";
+import type { Event, Friend, Story } from "@max-events/api-contracts";
 import { apiClient, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { shareResult, webApp } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { ReportButton } from "../event/ReportButton";
-import { AppAvatar, AppButton, AppChip, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
+import { StoryViewer, type StoryGroup } from "../stories/StoryViewer";
+import { AppAvatar, AppButton, AppChip, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
-import { IconButton } from "@maxhub/max-ui";
 import { pluralRu } from "../catalog/format";
 
 interface FeedPostCardProps {
@@ -163,9 +163,9 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
     <AppSection
       title="Впечатления"
       action={
-        <IconButton aria-label="Поделиться впечатлением" size="small" variant="primary" onClick={onCreate}>
+        <AppIconButton aria-label="Поделиться впечатлением" onClick={onCreate}>
           +
-        </IconButton>
+        </AppIconButton>
       }
     >
       {state.status === "loading" ? (
@@ -190,6 +190,15 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
 
 export function StoriesRow() {
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [viewer, setViewer] = useState<number | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const auth = useAuth();
+
+  const reloadStories = useCallback(() => {
+    apiClient.listStories().then(setStories, () => {});
+  }, []);
+
   useEffect(() => {
     let alive = true;
     apiClient.listFriends().then(
@@ -198,26 +207,65 @@ export function StoriesRow() {
       },
       () => {},
     );
+    reloadStories();
     return () => {
       alive = false;
     };
-  }, []);
+  }, [reloadStories]);
+
+  const myId = auth.status === "authenticated" ? auth.user.id : null;
+  const ownStories = myId === null ? [] : stories.filter((item) => item.userId === myId);
+  const friendStories = (id: string) => stories.filter((item) => item.userId === id);
+
+  const groups: StoryGroup[] = [...(ownStories.length > 0 ? [{ authorName: "Вы", stories: ownStories }] : []), ...friends.map((friend) => ({ authorName: friend.name, stories: friendStories(friend.id) })).filter((group) => group.stories.length > 0)];
+
+  const publish = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") void apiClient.createStory(reader.result).then(reloadStories, () => {});
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const openOwn = () => {
+    if (ownStories.length > 0) setViewer(0);
+    else fileRef.current?.click();
+  };
+
+  const openFriend = (friend: Friend) => {
+    const groupIndex = groups.findIndex((group) => group.stories[0]?.userId === friend.id);
+    if (groupIndex >= 0) setViewer(groupIndex);
+  };
+
   return (
     <div className="app-stories" aria-label="Друзья и планы">
-      <div className="app-story">
-        <span className="app-story-ring app-story-ring--own">
-          <AppAvatar size={58}>Д</AppAvatar>
-        </span>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        aria-label="Выбрать фото для истории"
+        hidden
+        onChange={(change) => {
+          const file = change.target.files?.[0];
+          if (file) publish(file);
+          change.target.value = "";
+        }}
+      />
+      <button type="button" className="app-story" onClick={openOwn}>
+        <span className={ownStories.length > 0 ? "app-story-ring app-story-ring--own app-story-ring--active" : "app-story-ring app-story-ring--own"}>{ownStories.length > 0 ? <img className="app-story-thumb" src={ownStories[0].imageUrl} alt="" /> : <AppAvatar size={58}>Д</AppAvatar>}</span>
         <span className="app-story-name">Твоя история</span>
-      </div>
-      {friends.map((friend) => (
-        <div key={friend.id} className="app-story">
-          <span className="app-story-ring">
-            <AppAvatar size={58}>{friend.name[0]}</AppAvatar>
-          </span>
-          <span className="app-story-name">{friend.name.split(" ")[0]}</span>
-        </div>
-      ))}
+      </button>
+      {friends.map((friend) => {
+        const items = friendStories(friend.id);
+        const active = items.length > 0;
+        return (
+          <button key={friend.id} type="button" className="app-story" disabled={!active} onClick={() => active && openFriend(friend)}>
+            <span className={active ? "app-story-ring app-story-ring--active" : "app-story-ring"}>{active ? <img className="app-story-thumb" src={items[0].imageUrl} alt="" /> : <AppAvatar size={58}>{friend.name[0]}</AppAvatar>}</span>
+            <span className="app-story-name">{friend.name.split(" ")[0]}</span>
+          </button>
+        );
+      })}
+      {viewer !== null && groups.length > 0 && <StoryViewer groups={groups} startGroup={viewer} onClose={() => setViewer(null)} />}
     </div>
   );
 }

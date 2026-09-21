@@ -20,7 +20,12 @@
 // - leaveMockMicroEvent - leave with the counter, idempotent (mock DELETE /join)
 // - resetMockFeed - restore seeded impression posts (test isolation)
 // - feedPosts - impression posts newest first, optionally only one event (the event wall)
-// - mockDemoUser - demo user returned by mock auth outside MAX (VITE_USE_MOCK=1)
+// - mockDemoUser - demo user returned by mock auth outside MAX (VITE_USE_MOCK=1); the id matches the booking/profile fixtures
+// - mockOrganization - demo organization returned by the mock organizer login
+// - MOCK_ORGANIZER_CREDENTIALS - demo login/password accepted by the mock /api/auth/organizer/login
+// - mockFriendStories - seeded friend story fixtures (gradient placeholder images)
+// - listMockStories - own story (localStorage) + friend fixtures
+// - createMockStory - publish the own mock story from a data-URL photo (localStorage)
 // - mockFriendIds - friend user ids of the demo user (social counters fixtures)
 // - mockFriends - friend fixtures for the "Your people are going" feed
 // - friendActivityByFriend - friend participations grouped by friend (feed payload)
@@ -164,9 +169,9 @@ import type {
   WheretoQuery,
   WheretoResponse,
 } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, StatsPeriodSchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
-import { CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
-import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EventSalesReport, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
+import { CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, OrganizerLoginWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
+import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EventSalesReport, Organization, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, OrganizerSession, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod, Story } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -228,6 +233,10 @@ export const mockOrganizers: User[] = [{ id: "d0000001-0000-4000-8000-0000000000
 /** Demo identity for mock auth outside MAX (VITE_USE_MOCK=1); the id matches the demo user id used by the booking/profile fixtures. */
 export const mockDemoUser: User = { id: "a0000000-0000-4000-8000-000000000001", maxUserId: "demo", firstName: "Демо", lastName: null, avatarUrl: null, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
 
+/** Demo organization and its login/password for the organizer space in mock mode. */
+export const mockOrganization: Organization = { id: "e0000000-0000-4000-8000-000000000001", name: "Городские события", contacts: "org@example.com" };
+export const MOCK_ORGANIZER_CREDENTIALS = { login: "demo", password: "demo" } as const;
+
 export const mockFriendIds: string[] = ["a0000000-0000-4000-8000-0000000000b1", "a0000000-0000-4000-8000-0000000000b2", "a0000000-0000-4000-8000-0000000000b3", "a0000000-0000-4000-8000-0000000000b4", "a0000000-0000-4000-8000-0000000000b5", "a0000000-0000-4000-8000-0000000000b6", "a0000000-0000-4000-8000-0000000000b7"];
 
 /** Friend fixtures for the friends feed; avatarUrl is null so the UI renders initials avatars. */
@@ -240,6 +249,53 @@ export const mockFriends: Friend[] = [
   { id: mockFriendIds[5], name: "Игорь Фомин", avatarUrl: null },
   { id: mockFriendIds[6], name: "Лена Гусева", avatarUrl: null },
 ];
+
+/** Gradient placeholder image (data URL) for seeded story fixtures. */
+function storyImage(colorFrom: string, colorTo: string, emoji: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1280"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${colorFrom}"/><stop offset="1" stop-color="${colorTo}"/></linearGradient></defs><rect width="720" height="1280" fill="url(#g)"/><text x="360" y="680" font-size="220" text-anchor="middle">${emoji}</text></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+const MOCK_OWN_STORY_KEY = "max-events.mock-own-story";
+
+/** Seeded friend stories: every friend has 1–3 stories so the rail is fully active. */
+export const mockFriendStories: Story[] = [
+  { id: "e1000000-0000-4000-8000-000000000001", userId: mockFriendIds[0], imageUrl: storyImage("#bf97ff", "#526eff", "🎉"), createdAt: "2026-09-16T09:00:00+03:00" },
+  { id: "e1000000-0000-4000-8000-000000000002", userId: mockFriendIds[0], imageUrl: storyImage("#ffc93d", "#ff832a", "🎨"), createdAt: "2026-09-16T10:00:00+03:00" },
+  { id: "e1000000-0000-4000-8000-000000000003", userId: mockFriendIds[1], imageUrl: storyImage("#14e1d5", "#03c722", "🏃"), createdAt: "2026-09-16T11:00:00+03:00" },
+  { id: "e1000000-0000-4000-8000-000000000004", userId: mockFriendIds[2], imageUrl: storyImage("#ff48b6", "#ff8a35", "🎧"), createdAt: "2026-09-16T11:30:00+03:00" },
+  { id: "e1000000-0000-4000-8000-000000000005", userId: mockFriendIds[2], imageUrl: storyImage("#08d7f3", "#5398ff", "🌊"), createdAt: "2026-09-16T12:00:00+03:00" },
+  { id: "e1000000-0000-4000-8000-000000000006", userId: mockFriendIds[3], imageUrl: storyImage("#ffc93d", "#ff832a", "🍜"), createdAt: "2026-09-16T12:30:00+03:00" },
+  { id: "e1000000-0000-4000-8000-000000000007", userId: mockFriendIds[4], imageUrl: storyImage("#bf97ff", "#526eff", "📚"), createdAt: "2026-09-16T13:00:00+03:00" },
+  { id: "e1000000-0000-4000-8000-000000000008", userId: mockFriendIds[4], imageUrl: storyImage("#14e1d5", "#03c722", "🌿"), createdAt: "2026-09-16T13:30:00+03:00" },
+  { id: "e1000000-0000-4000-8000-000000000009", userId: mockFriendIds[4], imageUrl: storyImage("#ff48b6", "#ff8a35", "🌅"), createdAt: "2026-09-16T14:00:00+03:00" },
+  { id: "e1000000-0000-4000-8000-00000000000b", userId: mockFriendIds[5], imageUrl: storyImage("#08d7f3", "#5398ff", "🎸"), createdAt: "2026-09-16T14:30:00+03:00" },
+  { id: "e1000000-0000-4000-8000-00000000000c", userId: mockFriendIds[6], imageUrl: storyImage("#ffc93d", "#ff832a", "🧘"), createdAt: "2026-09-16T15:00:00+03:00" },
+];
+
+/** Own mock story persists in localStorage so it survives reloads. */
+function readOwnStory(): Story | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(MOCK_OWN_STORY_KEY);
+  if (raw === null) return null;
+  try {
+    const parsed = StorySchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+export function listMockStories(): Story[] {
+  const own = readOwnStory();
+  return own ? [own, ...mockFriendStories] : [...mockFriendStories];
+}
+
+export function createMockStory(imageUrl: string): Story {
+  const story: Story = { id: "e1000000-0000-4000-8000-00000000000a", userId: mockDemoUser.id, imageUrl, createdAt: new Date().toISOString() };
+  if (typeof window !== "undefined") window.localStorage.setItem(MOCK_OWN_STORY_KEY, JSON.stringify(story));
+  return story;
+}
 
 /** Friend participations seed: [friendIndex, eventIndex, status]. The showcase event has 7 friends, 4 of them looking for company. The showcase friends from README: Анна → выставка, Дима → матч, Катя → фестиваль. */
 const MOCK_PARTICIPATION_SEED: [number, number, ParticipationStatus][] = [
@@ -2586,6 +2642,20 @@ export function installMockApi(): () => void {
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     if (input instanceof Request) return real(input, init);
     const url = new URL(input, "http://mock.local");
+    if (url.pathname === "/api/stories" && init?.method === "POST") {
+      const body = parseBookingBody(init);
+      const imageUrl = typeof body?.imageUrl === "string" ? body.imageUrl : null;
+      if (imageUrl === null || imageUrl === "") return new Response(null, { status: 400 });
+      return Response.json(createMockStory(imageUrl));
+    }
+    if (url.pathname === "/api/stories") {
+      return Response.json(listMockStories());
+    }
+    if (url.pathname === "/api/auth/organizer/login") {
+      const parsed = OrganizerLoginWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success || parsed.data.login !== MOCK_ORGANIZER_CREDENTIALS.login || parsed.data.password !== MOCK_ORGANIZER_CREDENTIALS.password) return new Response(null, { status: 401 });
+      return Response.json({ token: "mock-organizer-token", organization: mockOrganization } satisfies OrganizerSession);
+    }
     if (url.pathname === "/api/friends/activity") {
       return Response.json(friendActivityByFriend());
     }

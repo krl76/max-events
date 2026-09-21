@@ -58,9 +58,10 @@ describe("RoutedPages", () => {
   it("maps the profile route to the profile screen with its nav tiles", async () => {
     const html = await routedHtml({ name: "profile" }, "Достижения");
 
-    for (const label of ["Достижения", "Мой город", "Сохранённое", "Панель организатора"]) {
+    for (const label of ["Достижения", "Мой город", "Сохранённое"]) {
       expect(html).toContain(label);
     }
+    expect(html).not.toContain("Панель организатора");
     expect(html).not.toContain("Твои люди открыли места");
   });
 

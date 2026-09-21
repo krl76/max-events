@@ -6,6 +6,8 @@ export * from "./place.js";
 export * from "./booking.js";
 export * from "./calendar.js";
 export * from "./auth.js";
+export * from "./organization.js";
+export * from "./story.js";
 export * from "./participation.js";
 export * from "./friends.js";
 export * from "./whereto.js";

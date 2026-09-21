@@ -1,12 +1,30 @@
 /*
  * Дизайн-токены MAX Events. Стилистика — Instagram (плоская лента, хайрлайны, медиа 4:5,
  * stories-ряд, pill-кнопки, профиль-сетка), цвета — мессенджера MAX.
- * Источник палитры: @maxhub/max-ui (официальная дизайн-система MAX),
- * классы .MaxUI_colorScheme_light|dark подключаются layout'ом через styles.css библиотеки.
+ * Компонентный слой — Ionic React (mode: ios), палитра MAX задана ниже через --ion-color-*.
  * MAX Bridge themeParams не существует (сверено с https://dev.max.ru/docs/webapps/bridge):
- * платформа не отдаёт параметры темы, поэтому fallback — light-схема MAX UI.
+ * платформа не отдаёт параметры темы, поэтому схема фиксированная светлая.
  * Все последующие UI-задачи обращаются к переменным --app-* отсюда.
  */
+
+/* Палитра MAX для Ionic (primary = MAX-синий, danger = MAX-красный) */
+:root {
+  --ion-color-primary: #007aff;
+  --ion-color-primary-rgb: 0, 122, 255;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #006be0;
+  --ion-color-primary-tint: #1a87ff;
+
+  --ion-color-danger: #ff303c;
+  --ion-color-danger-rgb: 255, 48, 60;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast-rgb: 255, 255, 255;
+  --ion-color-danger-shade: #e02a35;
+  --ion-color-danger-tint: #ff4550;
+
+  --ion-font-family: system-ui, -apple-system, "Roboto", sans-serif;
+}
 
 /* Сброс UA-рамки документа: без него мини-апп получает 8px поля и системный
  * скроллбар документа, которые ломают full-bleed медиа */
@@ -105,6 +123,43 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Главная: wordmark + поисковая строка в стиле IG */
+.app-header-wordmark {
+  flex-shrink: 0;
+  font-size: var(--app-type-screen-size);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.app-header-search {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 999px;
+  color: var(--app-text-tertiary);
+  display: flex;
+  flex: 1;
+  gap: var(--app-space-xs);
+  min-width: 0;
+  padding: var(--app-space-xs) var(--app-space-m);
+}
+
+.app-header-search input {
+  background: none;
+  border: none;
+  color: var(--app-text);
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  font-weight: 400;
+  letter-spacing: normal;
+  min-width: 0;
+  outline: none;
+}
+
+.app-header-search input::placeholder {
+  color: var(--app-text-tertiary);
 }
 
 .app-content {
@@ -354,16 +409,51 @@ body {
   height: auto;
 }
 
-/* Pill-кнопки (AppButton): primary — акцентная заливка, secondary — светло-серая с тёмным текстом */
+/* Pill-кнопки (AppButton поверх IonButton): primary — акцентная заливка, secondary — светло-серая с тёмным текстом */
 .app-root .app-btn {
-  border-radius: 999px;
+  --border-radius: 999px;
 }
 
 /* Обводка обязательна: #f5f7fa surface на #fafafa фоне страницы нечитаем без неё */
 .app-root .app-btn--secondary {
+  --background: var(--app-surface);
+  --border-color: var(--app-divider);
+  --border-style: solid;
+  --border-width: 1px;
+  --color: var(--app-text);
+}
+
+/* Круглые icon-кнопки (AppIconButton) */
+.app-root .app-icon-btn {
+  --border-radius: 999px;
+  --padding-start: 0;
+  --padding-end: 0;
+}
+
+/* Аватар-заглушка с инициалами (AppAvatar без src) */
+.app-avatar {
   background: var(--app-surface);
-  border: 1px solid var(--app-divider);
-  color: var(--app-text);
+}
+
+.app-avatar-label {
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  font-weight: var(--app-font-weight-title);
+  height: 100%;
+  justify-content: center;
+  width: 100%;
+}
+
+.app-title {
+  font-size: var(--app-type-screen-size);
+  font-weight: var(--app-font-weight-title);
+  margin: 0;
+}
+
+.app-text {
+  font-size: var(--app-font-size-body);
+  margin: 0;
 }
 
 /* Компактные кнопки внутри строк-карточек: не растягиваются flex-колонкой */
@@ -1447,43 +1537,59 @@ body {
 
 .app-story {
   align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   flex: none;
+  font: inherit;
   gap: 2px;
+  padding: 0;
   width: 66px;
 }
 
+.app-story:disabled {
+  cursor: default;
+}
+
 .app-story-ring {
-  background: var(--app-media-gradient-1);
+  background: var(--app-divider);
   border-radius: 50%;
   display: flex;
   padding: 2.5px;
 }
 
-.app-story-ring--own {
-  background: var(--app-divider);
+.app-story-ring--active {
+  background: var(--app-media-gradient-1);
 }
 
-.app-story:nth-child(5n + 2) .app-story-ring {
+.app-story:nth-child(5n + 2) .app-story-ring--active {
   background: var(--app-media-gradient-2);
 }
 
-.app-story:nth-child(5n + 3) .app-story-ring {
+.app-story:nth-child(5n + 3) .app-story-ring--active {
   background: var(--app-media-gradient-3);
 }
 
-.app-story:nth-child(5n + 4) .app-story-ring {
+.app-story:nth-child(5n + 4) .app-story-ring--active {
   background: var(--app-media-gradient-4);
 }
 
-.app-story:nth-child(5n) .app-story-ring {
+.app-story:nth-child(5n) .app-story-ring--active {
   background: var(--app-media-gradient-5);
 }
 
 .app-story-ring > * {
   border-radius: 50%;
   box-shadow: 0 0 0 2.5px var(--app-page);
+}
+
+.app-story-thumb {
+  display: block;
+  height: 58px;
+  object-fit: cover;
+  width: 58px;
 }
 
 .app-story-name {
@@ -1715,4 +1821,181 @@ body {
   color: var(--app-accent);
   font-size: 0.75rem;
   font-weight: var(--app-font-weight-title);
+}
+
+/* Экран входа: hero с градиентным логотипом, действия прижаты к низу */
+
+.app-entry {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: var(--app-space-xl, 24px);
+}
+
+.app-entry-hero {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--app-space-m);
+  justify-content: center;
+  text-align: center;
+}
+
+.app-entry-logo {
+  align-items: center;
+  background: var(--app-media-gradient-2);
+  border-radius: 28px;
+  box-shadow: 0 12px 32px rgba(82, 110, 255, 0.35);
+  color: #fff;
+  display: grid;
+  height: 88px;
+  justify-items: center;
+  width: 88px;
+}
+
+.app-entry-title {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.app-entry-tagline {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-body);
+  margin: 0;
+  max-width: 300px;
+}
+
+.app-entry-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+}
+
+/* Вход организатора: центрированная форма */
+
+.app-entry-logo--small {
+  border-radius: 18px;
+  height: 56px;
+  width: 56px;
+}
+
+.app-organizer-login {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+  justify-content: center;
+  min-height: 100dvh;
+  padding: var(--app-space-xl, 24px);
+}
+
+.app-organizer-login .app-profile-input {
+  font-size: var(--app-font-size-body);
+  padding: var(--app-space-m) var(--app-space-l, 20px);
+}
+
+.app-organizer-login-brand {
+  display: flex;
+  justify-content: center;
+}
+
+.app-organizer-login-title {
+  font-size: var(--app-type-screen-size);
+  font-weight: var(--app-font-weight-title);
+  margin: 0 0 var(--app-space-s);
+  text-align: center;
+}
+
+.app-organizer-login-hint {
+  color: var(--app-text-tertiary);
+  font-size: var(--app-font-size-description);
+  margin: 0;
+  text-align: center;
+}
+
+/* Просмотрщик историй: полноэкранный оверлей с сегментами и тап-зонами */
+
+.app-story-viewer {
+  background: #000;
+  inset: 0;
+  position: fixed;
+  z-index: 100;
+}
+
+.app-story-viewer-image {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-story-viewer-top {
+  background: linear-gradient(rgba(0, 0, 0, 0.45), transparent);
+  left: 0;
+  padding: var(--app-space-s) var(--app-space-m);
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.app-story-viewer-segments {
+  display: flex;
+  gap: 4px;
+}
+
+.app-story-segment {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 2px;
+  flex: 1;
+  height: 3px;
+}
+
+.app-story-segment--done,
+.app-story-segment--current {
+  background: #fff;
+}
+
+.app-story-viewer-head {
+  align-items: center;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  padding-top: var(--app-space-s);
+}
+
+.app-story-viewer-author {
+  font-weight: var(--app-font-weight-title);
+}
+
+.app-story-viewer-close {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1.75rem;
+  line-height: 1;
+  padding: 0 var(--app-space-xs);
+}
+
+.app-story-viewer-tap {
+  background: none;
+  border: none;
+  bottom: 0;
+  cursor: pointer;
+  padding: 0;
+  position: absolute;
+  top: 64px;
+  width: 35%;
+}
+
+.app-story-viewer-tap--left {
+  left: 0;
+}
+
+.app-story-viewer-tap--right {
+  right: 0;
+  width: 65%;
 }

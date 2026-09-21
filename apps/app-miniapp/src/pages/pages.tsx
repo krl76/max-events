@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - HomePage - stories rail (StoriesRow) + «Куда пойдём?»/«Рядом со мной» CTA pair (primary/secondary) + NL assist section (AssistSection) + today digest (TodaySection) + impressions feed (FeedSection) + micro-events section (MicroSection) + promotion banners/collections (PromotionSections, #205) + catalog screen (CatalogPage) on the home route; all sections hidden in map view so the map gets the viewport
-// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar/profile routes render their screens (profile + achievements/my-city/lists/organizer nav tiles), whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the plans list and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, lists renders the saved lists and list(id) one list, organizer renders the organizer panel, vote(id) renders the shared vote screen
+// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar/profile routes render their screens (profile + achievements/my-city/lists nav tiles), whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the plans list and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, lists renders the saved lists and list(id) one list, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen
 // END_MODULE_MAP
 
 import { lazy, Suspense, useState, type ElementType, type LazyExoticComponent } from "react";
@@ -132,7 +132,6 @@ function Routed() {
             { icon: "star", label: "Достижения", onClick: () => navigate({ name: "achievements" }) },
             { icon: "pin", label: "Мой город", onClick: () => navigate({ name: "my-city" }) },
             { icon: "bookmark", label: "Сохранённое", onClick: () => navigate({ name: "lists" }) },
-            { icon: "ticket", label: "Панель организатора", onClick: () => navigate({ name: "organizer" }) },
           ]}
         />
       </>

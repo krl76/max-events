@@ -22,8 +22,7 @@ import { apiClient } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
-import { AppButton, AppState, AppSkeleton, AppSection } from "../ui/primitives";
-import { IconButton } from "@maxhub/max-ui";
+import { AppIconButton, AppButton, AppState, AppSkeleton, AppSection } from "../ui/primitives";
 
 export function microWhere(item: MicroEvent, places: Place[]): string {
   return item.locationText ?? places.find((place) => place.id === item.placeId)?.title ?? "";
@@ -127,9 +126,9 @@ export function MicroSection({ onCreate }: { onCreate: () => void }) {
       title="Микро-события"
       className="app-cards-flat"
       action={
-        <IconButton aria-label="Создать микро-событие" size="small" variant="primary" onClick={onCreate}>
+        <AppIconButton aria-label="Создать микро-событие" onClick={onCreate}>
           +
-        </IconButton>
+        </AppIconButton>
       }
     >
       {state.status === "loading" ? (

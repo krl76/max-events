@@ -6,27 +6,26 @@ import { AppAvatar, AppButton, AppChip, AppMedia, AppNavTiles, AppSection, AppSk
 const noop = () => {};
 
 describe("AppButton", () => {
-  it("renders the default primary tone class", () => {
+  it("renders the default primary tone as a solid primary ion-button", () => {
     const html = renderToStaticMarkup(<AppButton>Текст</AppButton>);
 
-    expect(html).toContain("app-btn app-btn--primary");
+    expect(html).toContain('<ion-button color="primary"');
     expect(html).toContain("Текст");
   });
 
-  it("maps the danger tone to the max-ui destructive variant and appends className", () => {
+  it("maps the danger tone to the ionic danger color", () => {
     const html = renderToStaticMarkup(
       <AppButton tone="danger" className="extra">
         x
       </AppButton>,
     );
 
-    expect(html).toContain("Button_variant_destructive");
-    expect(html).toContain("app-btn app-btn--danger extra");
+    expect(html).toContain('<ion-button color="danger"');
   });
 
-  it("renders the other tones with their own modifier", () => {
-    expect(renderToStaticMarkup(<AppButton tone="secondary" />)).toContain("app-btn--secondary");
-    expect(renderToStaticMarkup(<AppButton tone="ghost" />)).toContain("app-btn--ghost");
+  it("renders the secondary tone without an ionic color and ghost as clear fill", () => {
+    expect(renderToStaticMarkup(<AppButton tone="secondary" />)).toContain("<ion-button");
+    expect(renderToStaticMarkup(<AppButton tone="ghost" />)).toContain('fill="clear"');
   });
 });
 

@@ -11,6 +11,9 @@
 // - apiClient - default singleton instance
 // - ApiClient.login - POST /auth/login with raw MAX initData
 // - ApiClient.setInitData - attach the raw MAX initData sent as the x-max-init-data header on every request (backend global auth guard)
+// - ApiClient.setOrganizerToken - attach the organizer bearer token sent as the authorization header on every request
+// - ApiClient.organizerLogin - POST /auth/organizer/login with login/password, returns OrganizerSession
+// - ApiClient.listStories / createStory - GET /stories and POST /stories (own story from a data-URL photo)
 // - EventFilters - optional catalog list filters (category/city/date)
 // - ApiClient.listEvents - GET /events with serialized filters
 // - ApiClient.listPlaces - GET /places: venues for the catalog map markers
@@ -120,8 +123,8 @@
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
 import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
 import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, Vote, WaitlistEntry, WeGroupScreen, WheretoQuery, WheretoResponse, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
-import { EarlyAccessWriteSchema, EventSalesReportSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, PromoCampaignSchema, PromoCodeSchema, PromotionCampaignSchema } from "@max-events/api-contracts";
-import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EarlyAccessWrite, EventSalesReport, OrganizerEventStats, OrganizerRatingResponse, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite } from "@max-events/api-contracts";
+import { EarlyAccessWriteSchema, EventSalesReportSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, OrganizerSessionSchema, PromoCampaignSchema, PromoCodeSchema, PromotionCampaignSchema, StorySchema } from "@max-events/api-contracts";
+import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EarlyAccessWrite, EventSalesReport, OrganizerEventStats, OrganizerLoginWrite, OrganizerRatingResponse, OrganizerSession, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, Story } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -519,6 +522,7 @@ const PageViewResultSchema: ZodSchema<{ recorded: boolean }> = {
 
 export class ApiClient {
   private initData: string | null = null;
+  private organizerToken: string | null = null;
 
   constructor(private readonly baseUrl: string = DEFAULT_BASE_URL) {}
 
@@ -527,14 +531,34 @@ export class ApiClient {
     this.initData = initData;
   }
 
+  /** Attach (or clear) the organizer bearer token sent as the authorization header on every request. */
+  setOrganizerToken(token: string | null): void {
+    this.organizerToken = token;
+  }
+
   login(payload: AuthRequest): Promise<AuthResponse> {
     return this.request("/auth/login", AuthResponseSchema, { body: payload });
+  }
+
+  organizerLogin(payload: OrganizerLoginWrite): Promise<OrganizerSession> {
+    return this.request("/auth/organizer/login", OrganizerSessionSchema, { body: payload });
+  }
+
+  listStories(): Promise<Story[]> {
+    return this.request("/stories", StorySchema.array());
+  }
+
+  createStory(imageUrl: string): Promise<Story> {
+    return this.request("/stories", StorySchema, { body: { imageUrl } });
   }
 
   private async request<T>(path: string, schema: ZodSchema<T>, options: MethodOptions = {}): Promise<T> {
     const headers: Record<string, string> = { accept: "application/json" };
     if (this.initData !== null) {
       headers["x-max-init-data"] = this.initData;
+    }
+    if (this.organizerToken !== null) {
+      headers["authorization"] = `Bearer ${this.organizerToken}`;
     }
     if (options.body !== undefined) {
       headers["content-type"] = "application/json";

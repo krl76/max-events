@@ -38,8 +38,7 @@ describe("CalendarView", () => {
     expect(html).toContain("Прошедшие");
     expect(html).toContain(mockEvents[3].title);
     expect(html).toContain(mockEvents[2].title);
-    expect(html).toContain("Отменить запись");
-    expect(html.match(/app-calendar-cancel/g)).toHaveLength(1);
+    expect(html.match(/Отменить запись/g)).toHaveLength(1);
   });
 
   it("renders the card facts from the booking aggregate", () => {

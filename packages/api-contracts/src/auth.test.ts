@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { AuthRequestSchema, AuthResponseSchema } from "./auth.js";
+import { AuthRequestSchema, AuthResponseSchema, OrganizerLoginWriteSchema, OrganizerSessionSchema } from "./auth.js";
+
+const validOrganization = {
+  id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f",
+  name: "Городские события",
+  contacts: "org@example.com",
+};
 
 const validUser = {
   id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f",
@@ -30,5 +36,27 @@ describe("AuthResponseSchema", () => {
 
   it("rejects a response without a valid user", () => {
     expect(AuthResponseSchema.safeParse({ user: { ...validUser, maxUserId: "" } }).success).toBe(false);
+  });
+});
+
+describe("OrganizerLoginWriteSchema", () => {
+  it("accepts non-empty credentials", () => {
+    expect(OrganizerLoginWriteSchema.safeParse({ login: "demo", password: "demo" }).success).toBe(true);
+  });
+
+  it("rejects empty login or password", () => {
+    expect(OrganizerLoginWriteSchema.safeParse({ login: "", password: "x" }).success).toBe(false);
+    expect(OrganizerLoginWriteSchema.safeParse({ login: "x", password: "" }).success).toBe(false);
+  });
+});
+
+describe("OrganizerSessionSchema", () => {
+  it("accepts a token with an organization", () => {
+    const parsed = OrganizerSessionSchema.parse({ token: "jwt", organization: validOrganization });
+    expect(parsed.organization.name).toBe("Городские события");
+  });
+
+  it("rejects an empty token", () => {
+    expect(OrganizerSessionSchema.safeParse({ token: "", organization: validOrganization }).success).toBe(false);
   });
 });

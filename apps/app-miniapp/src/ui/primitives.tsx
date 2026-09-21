@@ -1,16 +1,17 @@
 // START_MODULE_CONTRACT
-// PURPOSE: App UI primitives over MAX UI: AppButton, AppTitle, AppText, AppAvatar, AppChip.
-// SCOPE: Thin typed wrappers; AppChip is token-styled (MAX UI 0.4.0 has no chip component); visual styling in ./theme.css.
-// DEPENDS: @maxhub/max-ui (Button, Typography, Avatar), ./theme.css
+// PURPOSE: App UI primitives over Ionic React: AppButton, AppTitle, AppText, AppAvatar, AppChip.
+// SCOPE: Thin typed wrappers; AppChip is token-styled (no Ionic equivalent); visual styling in ./theme.css.
+// DEPENDS: @ionic/react (IonButton, IonAvatar), ./theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - AppButton - MAX Button wrapper; tone primary|secondary|danger|ghost, stretched = full width; app-btn classes carry the pill skin in theme.css
+// - AppButton - IonButton wrapper; tone primary|secondary|danger|ghost, stretched = full width; app-btn classes carry the pill skin in theme.css
 // - AppButtonTone - union of AppButton tones
-// - AppTitle - MAX Typography.Title wrapper, asChild for semantic h1/h2 headings
-// - AppText - MAX Typography.Text wrapper
-// - AppAvatar - MAX Avatar.Container: image when src given, otherwise the label children
+// - AppIconButton - round icon-only IonButton (create/share actions)
+// - AppTitle - heading text (app-title class)
+// - AppText - body text (app-text class)
+// - AppAvatar - IonAvatar: image when src given, otherwise the label children
 // - AppChip - toggle chip button (aria-pressed)
 // - AppNavTiles - grid of navigation tiles (icon + label) replacing full-width entry buttons
 // - AppNavTileItem - one navigation tile (icon, label, onClick)
@@ -22,35 +23,53 @@
 // - AppMedia - media placeholder: category-fixed MAX gradient + category icon (neutral gradient without a category)
 // END_MODULE_MAP
 
-import type { ComponentProps, ReactNode } from "react";
-import { Avatar, Button, Typography } from "@maxhub/max-ui";
+import { isValidElement, type ComponentProps, type ReactNode } from "react";
+import { IonAvatar, IonButton } from "@ionic/react";
 import type { EventCategory } from "@max-events/api-contracts";
 import { ActionIcon, type ActionIconName } from "./icons";
 
 export type AppButtonTone = "primary" | "secondary" | "danger" | "ghost";
 
-const TONE_VARIANT: Record<AppButtonTone, NonNullable<ComponentProps<typeof Button>["variant"]>> = {
-  primary: "primary",
-  secondary: "secondary",
-  danger: "destructive",
-  ghost: "ghost",
+const TONE_PROPS: Record<AppButtonTone, { color?: string; fill?: "clear" }> = {
+  primary: { color: "primary" },
+  secondary: {},
+  danger: { color: "danger" },
+  ghost: { fill: "clear" },
 };
 
-export function AppButton({ tone = "primary", stretched = false, className, ...props }: ComponentProps<typeof Button> & { tone?: AppButtonTone; stretched?: boolean }) {
+export function AppButton({ tone = "primary", stretched = false, className, ...props }: ComponentProps<typeof IonButton> & { tone?: AppButtonTone; stretched?: boolean }) {
   const buttonClass = `app-btn app-btn--${tone}${className ? ` ${className}` : ""}`;
-  return <Button className={buttonClass} stretched={stretched} variant={TONE_VARIANT[tone]} {...props} />;
+  return <IonButton className={buttonClass} expand={stretched ? "block" : undefined} {...TONE_PROPS[tone]} {...props} />;
 }
 
-export function AppTitle({ variant = "medium-strong", ...props }: ComponentProps<typeof Typography.Title>) {
-  return <Typography.Title variant={variant} {...props} />;
+export function AppIconButton({ className, children, ...props }: ComponentProps<typeof IonButton>) {
+  const buttonClass = `app-icon-btn${className ? ` ${className}` : ""}`;
+  return (
+    <IonButton className={buttonClass} color="primary" shape="round" size="small" {...props}>
+      {children}
+    </IonButton>
+  );
 }
 
-export function AppText({ variant = "body", ...props }: ComponentProps<typeof Typography.Text>) {
-  return <Typography.Text variant={variant} {...props} />;
+export function AppTitle({ asChild = false, children, ...props }: ComponentProps<"h1"> & { asChild?: boolean }) {
+  if (asChild && isValidElement(children)) return children;
+  return (
+    <h1 className="app-title" {...props}>
+      {children}
+    </h1>
+  );
+}
+
+export function AppText({ className, ...props }: ComponentProps<"p">) {
+  return <p className={className ? `app-text ${className}` : "app-text"} {...props} />;
 }
 
 export function AppAvatar({ src, size = 44, children }: { src?: string | null; size?: number; children?: ReactNode }) {
-  return <Avatar.Container size={size}>{src ? <Avatar.Image alt="" src={src} /> : <Avatar.Text>{children}</Avatar.Text>}</Avatar.Container>;
+  return (
+    <IonAvatar className="app-avatar" style={{ width: size, height: size }}>
+      {src ? <img alt="" src={src} /> : <span className="app-avatar-label">{children}</span>}
+    </IonAvatar>
+  );
 }
 
 export function AppChip({ pressed = false, className, ...props }: ComponentProps<"button"> & { pressed?: boolean }) {
@@ -111,9 +130,7 @@ export function AppSection({ title, action, className, ariaLabel, children }: { 
     <section className={sectionClass} aria-label={ariaLabel ?? title}>
       {title !== undefined && (
         <div className="app-section-head">
-          <AppTitle asChild>
-            <h2 className="app-section-title">{title}</h2>
-          </AppTitle>
+          <h2 className="app-section-title">{title}</h2>
           {action}
         </div>
       )}

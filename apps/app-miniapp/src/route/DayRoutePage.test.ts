@@ -47,7 +47,7 @@ describe("DayRouteView stop picker", () => {
     expect(html).toContain("Выбрано: 1 из 8");
     expect(html).toContain("Выберите минимум 2 точки");
     expect(html).toContain("Построить");
-    expect(html.match(/<button[^>]*disabled/g)).toHaveLength(1);
+    expect(html.match(/<ion-button[^>]*disabled/g)).toHaveLength(1);
   });
 
   it("enables the build from two selected stops", () => {

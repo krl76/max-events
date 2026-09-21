@@ -1,10 +1,16 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { setupIonicReact } from "@ionic/react";
 import { App } from "./App";
 import { apiClient } from "./api/client";
 import { webApp } from "./max/bridge";
-import "@maxhub/max-ui/dist/styles.css";
+import "@ionic/react/css/core.css";
+import "@ionic/react/css/normalize.css";
+import "@ionic/react/css/structure.css";
+import "@ionic/react/css/typography.css";
 import "./ui/theme.css";
+
+setupIonicReact({ mode: "ios" });
 
 // Attach the MAX auth header synchronously before the first render: child
 // effects (the initial request wave) run before the AuthProvider effect.

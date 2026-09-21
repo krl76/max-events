@@ -10,9 +10,14 @@
 // - AuthRequest - login payload type
 // - AuthResponseSchema - authenticated session response (reuses UserSchema from F3)
 // - AuthResponse - authenticated session response type
+// - OrganizerLoginWriteSchema - organizer login/password credentials
+// - OrganizerLoginWrite - organizer credentials type
+// - OrganizerSessionSchema - organizer session: bearer token + organization
+// - OrganizerSession - organizer session type
 // END_MODULE_MAP
 
 import { z } from "zod";
+import { OrganizationSchema } from "./organization.js";
 import { UserSchema } from "./user.js";
 
 export const AuthRequestSchema = z.object({
@@ -24,3 +29,15 @@ export const AuthResponseSchema = z.object({
   user: UserSchema,
 });
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
+
+export const OrganizerLoginWriteSchema = z.object({
+  login: z.string().min(1),
+  password: z.string().min(1),
+});
+export type OrganizerLoginWrite = z.infer<typeof OrganizerLoginWriteSchema>;
+
+export const OrganizerSessionSchema = z.object({
+  token: z.string().min(1),
+  organization: OrganizationSchema,
+});
+export type OrganizerSession = z.infer<typeof OrganizerSessionSchema>;
