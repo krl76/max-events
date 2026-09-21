@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Base mini-app layout: header (home: wordmark + search; other routes: per-route title + back button), content, bottom tabbar with icons.
-// SCOPE: Tab navigation between home/search/map/plans/profile; children render routed pages; the home search query lives in HomeSearchContext for the catalog to consume.
+// PURPOSE: Base mini-app layout: header (home: wordmark; other routes: per-route title + back button), content, bottom tabbar with icons.
+// SCOPE: Tab navigation between home/search/map/plans/profile; children render routed pages.
 // DEPENDS: ../routing/router.js, ./theme.css, ./icons.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -12,11 +12,9 @@
 // - routeTitle - header title for the current route
 // - routeHasBack - back button shown on every non-tab route
 // - routeHasHeader - header hidden on the search/map/plans tab screens
-// - HomeSearchContext - home header search query ("" when inactive)
-// - useHomeSearch - read/update the home search query
 // END_MODULE_MAP
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { isTabRoute, useRoute, type Route } from "../routing/router";
 import { ActionIcon, TabIconGlyph, type TabIcon } from "./icons";
 
@@ -70,34 +68,15 @@ export function routeHasHeader(route: Route): boolean {
   return !HEADERLESS_ROUTES.has(route.name);
 }
 
-interface HomeSearch {
-  query: string;
-  setQuery: (query: string) => void;
-}
-
-export const HomeSearchContext = createContext<HomeSearch>({ query: "", setQuery: () => {} });
-
-export function useHomeSearch(): HomeSearch {
-  return useContext(HomeSearchContext);
-}
-
 export function Layout({ children }: { children: ReactNode }) {
   const { route, navigate, back, transition, navSeq } = useRoute();
-  const [query, setQuery] = useState("");
-  const search = useMemo<HomeSearch>(() => ({ query, setQuery }), [query]);
 
   return (
-    <HomeSearchContext.Provider value={search}>
+    <>
       {routeHasHeader(route) && (
         <header className="app-header">
           {route.name === "home" ? (
-            <>
-              <span className="app-header-wordmark">MAX Events</span>
-              <label className="app-header-search">
-                <ActionIcon name="search" size={16} />
-                <input type="search" placeholder="Поиск" aria-label="Поиск" value={query} onChange={(change) => setQuery(change.target.value)} />
-              </label>
-            </>
+            <span className="app-header-wordmark">MAX Events</span>
           ) : (
             <>
               {routeHasBack(route) && (
@@ -121,6 +100,6 @@ export function Layout({ children }: { children: ReactNode }) {
           </button>
         ))}
       </nav>
-    </HomeSearchContext.Provider>
+    </>
   );
 }
