@@ -62,4 +62,34 @@ describe("GatheringStatusView", () => {
     const withoutChat = renderToStaticMarkup(createElement(GatheringStatusView, { state: { status: "ready", gathering: { ...gathering, chatLink: null } } }));
     expect(withoutChat).not.toContain("В чат сбора");
   });
+
+  it("shows the answer buttons to an invitee and highlights the current answer", () => {
+    const html = renderToStaticMarkup(createElement(GatheringStatusView, { state: readyState(0, [1, 2, 3]), myUserId: mockFriendIds[1] }));
+
+    expect(html).toMatch(/<ion-button[^>]*aria-pressed[^>]*>Иду<\/ion-button>/);
+    expect(html).not.toMatch(/<ion-button[^>]*aria-pressed[^>]*>Занят<\/ion-button>/);
+    expect(html.match(/aria-pressed/g)).toHaveLength(1);
+  });
+
+  it("marks the declined answer as current instead", () => {
+    const html = renderToStaticMarkup(createElement(GatheringStatusView, { state: readyState(0, [1, 2, 3]), myUserId: mockFriendIds[3] }));
+
+    expect(html).not.toMatch(/<ion-button[^>]*aria-pressed[^>]*>Иду<\/ion-button>/);
+    expect(html).toMatch(/<ion-button[^>]*aria-pressed[^>]*>Занят<\/ion-button>/);
+  });
+
+  it("hides the answer buttons from the host and without a known user", () => {
+    const host = renderToStaticMarkup(createElement(GatheringStatusView, { state: readyState(0, [1, 2, 3]), myUserId: "e0000000-0000-4000-8000-0000000000ff" }));
+    expect(host).not.toContain("Иду");
+    expect(host).not.toContain("Занят");
+
+    const anonymous = renderToStaticMarkup(createElement(GatheringStatusView, { state: readyState(0, [1, 2, 3]) }));
+    expect(anonymous).not.toContain("Иду");
+    expect(anonymous).not.toContain("Занят");
+  });
+
+  it("renders the response failure state", () => {
+    const html = renderToStaticMarkup(createElement(GatheringStatusView, { state: readyState(0, [1, 2, 3]), myUserId: mockFriendIds[1], failed: true }));
+    expect(html).toContain("Не удалось отправить ответ.");
+  });
 });

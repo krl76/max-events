@@ -31,7 +31,9 @@
 // - friendActivityByFriend - friend participations grouped by friend (feed payload)
 // - friendAvailability - per-friend free/busy/unknown for the gathering flow (mock)
 // - createMockGathering - in-memory gathering with deterministic invitee responses and a sent chat card (chatLink set, successful MaxBot parity) (mock POST)
-// - resetMockGatherings - clear in-memory gatherings (test isolation)
+// - MOCK_GATHERING_ID - seeded deep-link demo gathering (hosted by a friend; the demo user is an invitee so the response flow is reachable in mock mode)
+// - respondMockGathering - demo-user invitee answer write (mock PATCH /gatherings/:id/response; 404 unknown, 403 host-or-outsider, backend respond parity)
+// - resetMockGatherings - restore the seeded demo gathering and clear created ones (test isolation)
 // - resetMockVotes - restore the two seeded votes (test isolation)
 // - MOCK_VOTE_ID - seeded deep-link demo vote (the demo user is a participant; seeded winner)
 // - MOCK_FOREIGN_VOTE_ID - seeded vote the demo user can neither view nor vote on (403 parity)
@@ -90,7 +92,7 @@
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings, /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings[/:id|/:id/response], /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
 // - resetMockCampaigns - clear in-memory promo campaigns (test isolation)
 // - resetMockPromotions - clear in-memory promotion campaigns (test isolation)
 // - resetMockPromoCodes - clear in-memory promocodes (test isolation)
@@ -169,7 +171,7 @@ import type {
   WheretoQuery,
   WheretoResponse,
 } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, GatheringResponseWriteSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
 import { CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, OrganizerLoginWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
 import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EventSalesReport, Organization, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, OrganizerSession, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod, Story } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
@@ -350,9 +352,32 @@ const MOCK_INVITEE_RESPONSE: InviteeResponse[] = ["accepted", "accepted", "consi
 const mockGatherings = new Map<string, Gathering>();
 let mockGatheringSeq = 0;
 
-export function resetMockGatherings(): void {
+/** Seeded deep-link demo gathering (gathering-<id>): the demo user is an invitee awaiting their answer; the host stays outside the invitee list like on the backend. */
+export const MOCK_GATHERING_ID = "d0000000-0000-4000-8000-0000000000a1";
+
+function seedMockGatherings(): void {
   mockGatherings.clear();
   mockGatheringSeq = 0;
+  mockGatherings.set(MOCK_GATHERING_ID, {
+    id: MOCK_GATHERING_ID,
+    event: mockEvents[0],
+    invitees: [
+      { friend: { id: mockDemoUser.id, name: mockDemoUser.firstName, avatarUrl: null }, response: "considering" },
+      { friend: mockFriends[1], response: "accepted" },
+      { friend: mockFriends[2], response: "considering" },
+    ],
+    proposedMeetingAt: "2026-09-19T16:00:00.000Z",
+    status: "awaiting_responses",
+    chatLink: "https://max.ru/chat/mock-gathering-demo",
+    createdAt: PLACE_STAMP,
+    updatedAt: PLACE_STAMP,
+  });
+}
+
+seedMockGatherings();
+
+export function resetMockGatherings(): void {
+  seedMockGatherings();
 }
 
 /** Creates an in-memory gathering: known event, known friends, valid proposed time, deterministic per-fixture responses. */
@@ -376,6 +401,17 @@ export function createMockGathering(payload: CreateGathering): Gathering | null 
     updatedAt: now,
   };
   mockGatherings.set(gathering.id, gathering);
+  return gathering;
+}
+
+/** Demo-user invitee answer (backend GatheringsService.respond parity): unknown -> "unknown", host or outsider -> "forbidden". */
+export function respondMockGathering(id: string, response: InviteeResponse): Gathering | "unknown" | "forbidden" {
+  const gathering = mockGatherings.get(id);
+  if (!gathering) return "unknown";
+  const invitee = gathering.invitees.find((item) => item.friend.id === mockDemoUser.id);
+  if (!invitee) return "forbidden";
+  invitee.response = response;
+  gathering.updatedAt = new Date().toISOString();
   return gathering;
 }
 
@@ -2863,6 +2899,14 @@ export function installMockApi(): () => void {
       if (!mockEvents.some((item) => item.id === payload.eventId)) return new Response(null, { status: 404 });
       const gathering = createMockGathering(payload);
       return gathering ? Response.json(gathering) : new Response(null, { status: 400 });
+    }
+    const gatheringResponse = /^\/api\/gatherings\/([^/]+)\/response$/.exec(url.pathname);
+    if (gatheringResponse && init?.method === "PATCH") {
+      if (!IdSchema.safeParse(gatheringResponse[1]).success) return new Response(null, { status: 400 });
+      const parsed = GatheringResponseWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const result = respondMockGathering(gatheringResponse[1], parsed.data.response);
+      return result === "unknown" ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
     }
     const gathering = /^\/api\/gatherings\/([^/]+)$/.exec(url.pathname);
     if (gathering) {

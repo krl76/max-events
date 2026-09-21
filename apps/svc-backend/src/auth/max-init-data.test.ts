@@ -103,8 +103,8 @@ describe("validateInitData", () => {
     expect(validateInitData(buildInitData({ auth_date: String(NOW), user: JSON.stringify({ id: 1 }) }), BOT_TOKEN, NOW)).toBeNull();
   });
 
-  it("rejects a username longer than 64 characters", () => {
-    const user = { id: 67890, first_name: "Max", username: "a".repeat(65) };
+  it("rejects a username longer than the varchar(64) column", () => {
+    const user = { ...JSON.parse(USER_JSON), username: "u".repeat(65) };
     expect(validateInitData(buildInitData({ auth_date: String(NOW), user: JSON.stringify(user) }), BOT_TOKEN, NOW)).toBeNull();
   });
 

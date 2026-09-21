@@ -50,6 +50,12 @@ describe("validateEnv", () => {
     expect(() => validateEnv({ ...valid, FRIENDS_DEMO_ALL_USERS: "yes" })).toThrow(/FRIENDS_DEMO_ALL_USERS/);
   });
 
+  it("accepts optional organizer panel credentials and defaults them to unset", () => {
+    expect(validateEnv(valid).ORGANIZER_LOGIN).toBeUndefined();
+    expect(validateEnv({ ...valid, ORGANIZER_LOGIN: "demo", ORGANIZER_PASSWORD: "s3cret" })).toMatchObject({ ORGANIZER_LOGIN: "demo", ORGANIZER_PASSWORD: "s3cret" });
+    expect(() => validateEnv({ ...valid, ORGANIZER_PASSWORD: "" })).toThrow(/ORGANIZER_PASSWORD/);
+  });
+
   it("defaults the LLM provider to none and accepts sandbox", () => {
     expect(validateEnv(valid).LLM_PROVIDER).toBe("none");
     expect(validateEnv({ ...valid, LLM_PROVIDER: "sandbox" }).LLM_PROVIDER).toBe("sandbox");

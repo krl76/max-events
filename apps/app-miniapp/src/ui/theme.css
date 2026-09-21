@@ -1224,6 +1224,19 @@ body {
   margin: 0;
 }
 
+/* Ответ приглашённого: текущий ответ подсвечен заливкой (наличие aria-pressed; SSR Ionic даёт пустое значение атрибута) */
+.app-gathering-response {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+}
+
+.app-gathering-response .app-btn[aria-pressed] {
+  --background: var(--app-accent);
+  --border-color: var(--app-accent);
+  --color: var(--app-accent-contrast);
+}
+
 .app-gathering-friends {
   display: flex;
   flex-wrap: wrap;
