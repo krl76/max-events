@@ -1,8 +1,10 @@
 import { NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import { QueryFailedError, type Repository } from "typeorm";
+import { FindOperator, QueryFailedError, type Repository } from "typeorm";
 import { EventEntity } from "../events/event.entity";
 import type { MaxBotClient } from "../max-bot/max-bot.client";
+import { OrganizationEntity } from "../organizations/organization.entity";
+import type { OrganizationsService } from "../organizations/organizations.service";
 import { PlaceEntity } from "../places/place.entity";
 import { UserEntity } from "../users/user.entity";
 import { SubscriptionEntity } from "./subscription.entity";
@@ -17,17 +19,23 @@ function user(id: string, maxUserId: string): UserEntity {
   return { id, maxUserId, firstName: "Демо", lastName: null, avatarUrl: null, createdAt: now, updatedAt: now } as UserEntity;
 }
 
+/** Understands the two shapes the service asks for: an exact value and In([...]). */
+function matchesWhere(row: unknown, where: Record<string, unknown>): boolean {
+  return Object.entries(where).every(([key, expected]) => {
+    const actual = (row as Record<string, unknown>)[key];
+    if (expected instanceof FindOperator) return (expected.value as unknown[]).includes(actual);
+    return actual === expected;
+  });
+}
+
 function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
   const store = [...initial];
   let seq = 0;
   return {
     store,
     create: (fields: Partial<T>) => ({ ...fields }) as T,
-    find: async (opts: { where?: Record<string, string> } = {}) => {
-      const where = opts.where ?? {};
-      return store.filter((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value));
-    },
-    findOneBy: async (where: Record<string, string>) => store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
+    find: async (opts: { where?: Record<string, unknown> } = {}) => store.filter((row) => matchesWhere(row, opts.where ?? {})),
+    findOneBy: async (where: Record<string, unknown>) => store.find((row) => matchesWhere(row, where)) ?? null,
     save: async (entity: T) => {
       if (!store.includes(entity)) {
         entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
@@ -45,10 +53,15 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
   };
 }
 
-function createService() {
+function createService(options: { organizationName?: string } = {}) {
   const subscriptions = createStoreRepo<SubscriptionEntity>();
   const places = createStoreRepo<PlaceEntity>([{ id: placeId, title: "Парк" } as PlaceEntity]);
   const users = createStoreRepo<UserEntity>([user(userId, "1"), user(organizerId, "2")]);
+  // Argument-aware on purpose: a lookup by the wrong id would otherwise still return a name.
+  const organizations = {
+    findByOrganizerUserId: async (id: string) => (options.organizationName && id === organizerId ? ({ organizerUserId: id, name: options.organizationName } as OrganizationEntity) : null),
+    findByOrganizerUserIds: async (ids: string[]) => (options.organizationName ? ids.filter((id) => id === organizerId).map((id) => ({ organizerUserId: id, name: options.organizationName }) as OrganizationEntity) : []),
+  } as unknown as OrganizationsService;
   const messages: string[] = [];
   const bot = {
     sendMessage: async (_id: string, text: string) => {
@@ -56,7 +69,7 @@ function createService() {
       return true;
     },
   } as unknown as MaxBotClient;
-  const service = new SubscriptionsService(subscriptions as unknown as Repository<SubscriptionEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, bot);
+  const service = new SubscriptionsService(subscriptions as unknown as Repository<SubscriptionEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, bot, organizations);
   return { service, messages, subscriptions };
 }
 
@@ -83,6 +96,26 @@ describe("SubscriptionsService", () => {
     await service.create(userId, { type: "organizer", organizerUserId: organizerId });
     const listed = await service.list(userId);
     expect(listed.map((row) => row.type).sort()).toEqual(["organizer", "place"]);
+  });
+
+  it("names the target, because a uuid tells the subscriber nothing", async () => {
+    const { service } = createService({ organizationName: "Культурный центр" });
+
+    expect((await service.create(userId, { type: "place", placeId })).title).toBe("Парк");
+    expect((await service.create(userId, { type: "interest", interest: "походы" })).title).toBe("походы");
+    // The organization name, the same one the event page shows — not the account behind it.
+    expect((await service.create(userId, { type: "organizer", organizerUserId: organizerId })).title).toBe("Культурный центр");
+    expect((await service.list(userId)).map((row) => row.title).sort()).toEqual(["Культурный центр", "Парк", "походы"]);
+  });
+
+  it("falls back to the organizer's own name, and to a label when the target is gone", async () => {
+    const { service, subscriptions } = createService();
+
+    // No organization behind the organizer: the account name is the next best thing.
+    expect((await service.create(userId, { type: "organizer", organizerUserId: organizerId })).title).toBe("Демо");
+    // A place deleted after the subscription was made must not blank the whole list.
+    subscriptions.store.push({ id: "00000000-0000-4000-8000-0000000000d7", userId, type: "place", placeId: "00000000-0000-4000-8000-0000000000p9", organizerUserId: null, interest: null, createdAt: now } as SubscriptionEntity);
+    expect((await service.list(userId)).map((row) => row.title).sort()).toEqual(["Демо", "Место"]);
   });
 
   it("unsubscribes and 404s unknown places", async () => {

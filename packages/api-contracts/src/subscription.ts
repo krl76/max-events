@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for catalog subscriptions (organizer, place, interest).
-// SCOPE: Subscription type enum, subscription record, create payload (discriminated by type).
+// SCOPE: Subscription type enum, subscription record (with the target's display title, since a uuid is not something a person can read in a list), create payload (discriminated by type).
 // DEPENDS: zod, ./primitives.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -28,6 +28,8 @@ export const SubscriptionSchema = z
     organizerUserId: IdSchema.nullable().default(null),
     placeId: IdSchema.nullable().default(null),
     interest: z.string().min(1).max(200).nullable().default(null),
+    /** What the subscription is called on screen: the place, the organization or the interest itself. */
+    title: z.string().min(1).max(200),
     createdAt: TimestampSchema,
   })
   .superRefine((data, ctx) => {

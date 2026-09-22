@@ -6,13 +6,13 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - OrganizationsService - count, countWithPassword, findByLogin, findByOrganizerUserId, organizerUserIdOf, linkOrganizerUser, verifyPassword, setPassword, provision, provisionWithoutPassword
+// - OrganizationsService - count, countWithPassword, findByLogin, findByOrganizerUserId, findByOrganizerUserIds, organizerUserIdOf, linkOrganizerUser, verifyPassword, setPassword, provision, provisionWithoutPassword
 // - toOrganizationDto - entity to the Organization contract (never carries the password hash)
 // END_MODULE_MAP
 
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Not, QueryFailedError, Repository } from "typeorm";
+import { In, Not, QueryFailedError, Repository } from "typeorm";
 import type { Organization } from "@max-events/api-contracts";
 import { OrganizationEntity } from "./organization.entity";
 import { hashPassword, UNSET_PASSWORD_HASH, verifyPassword } from "./password";
@@ -38,6 +38,12 @@ export class OrganizationsService {
   /** The other direction of the link: which organization publishes as this organizer user. */
   findByOrganizerUserId(organizerUserId: string): Promise<OrganizationEntity | null> {
     return this.organizations.findOneBy({ organizerUserId });
+  }
+
+  /** Same link, resolved for a whole list at once, so a caller does not pay one query per row. */
+  findByOrganizerUserIds(organizerUserIds: string[]): Promise<OrganizationEntity[]> {
+    if (organizerUserIds.length === 0) return Promise.resolve([]);
+    return this.organizations.find({ where: { organizerUserId: In(organizerUserIds) } });
   }
 
   /** null when the id is not an organization, so callers can fall back to treating it as a user id. */

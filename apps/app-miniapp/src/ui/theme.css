@@ -775,6 +775,14 @@ body {
   padding: var(--app-space-m) 0 0;
 }
 
+/* Профиль: «Мои подписки» — название цели и кнопка отписки в одной строке */
+.app-subscription-row {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+}
+
 /* Отзывы «Как прошло?» и «Пожаловаться» */
 .app-review-summary {
   display: flex;

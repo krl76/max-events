@@ -34,6 +34,10 @@
 // - MOCK_GATHERING_ID - seeded deep-link demo gathering (hosted by a friend; the demo user is an invitee so the response flow is reachable in mock mode)
 // - respondMockGathering - demo-user invitee answer write (mock PATCH /gatherings/:id/response; 404 unknown, 403 host-or-outsider, backend respond parity)
 // - resetMockGatherings - restore the seeded demo gathering and clear created ones (test isolation)
+// - listMockSubscriptions - mock GET /subscriptions for the demo user
+// - createMockSubscription - mock POST /subscriptions: idempotent per target, "unknown" for an unknown place or organizer (backend 404 parity)
+// - removeMockSubscription - mock DELETE /subscriptions/:id, "unknown" when it is already gone
+// - resetMockSubscriptions - clear in-memory follows (test isolation)
 // - resetMockVotes - restore the two seeded votes (test isolation)
 // - MOCK_VOTE_ID - seeded deep-link demo vote (the demo user is a participant; seeded winner)
 // - MOCK_FOREIGN_VOTE_ID - seeded vote the demo user can neither view nor vote on (403 parity)
@@ -171,9 +175,9 @@ import type {
   WheretoQuery,
   WheretoResponse,
 } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, GatheringResponseWriteSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateSubscriptionSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, GatheringResponseWriteSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
 import { CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, OrganizerLoginWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
-import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EventSalesReport, Organization, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, OrganizerSession, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod, Story } from "@max-events/api-contracts";
+import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, CreateSubscription, EventSalesReport, Organization, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, OrganizerSession, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod, Story, Subscription } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -378,6 +382,60 @@ seedMockGatherings();
 
 export function resetMockGatherings(): void {
   seedMockGatherings();
+}
+
+const mockSubscriptions: Subscription[] = [];
+let mockSubscriptionSeq = 0;
+
+export function resetMockSubscriptions(): void {
+  mockSubscriptions.length = 0;
+  mockSubscriptionSeq = 0;
+}
+
+/** Backend parity: the follow carries the name of its target, since the screens cannot resolve a uuid. */
+function mockSubscriptionTitle(payload: CreateSubscription): string | null {
+  if (payload.type === "interest") return payload.interest;
+  if (payload.type === "place") return mockPlaces.find((place) => place.id === payload.placeId)?.title ?? null;
+  return mockOrganizers.some((organizer) => organizer.id === payload.organizerUserId) ? mockOrganization.name : null;
+}
+
+function sameMockTarget(row: Subscription, payload: CreateSubscription): boolean {
+  if (row.type !== payload.type) return false;
+  if (payload.type === "organizer") return row.organizerUserId === payload.organizerUserId;
+  if (payload.type === "place") return row.placeId === payload.placeId;
+  return (row.interest ?? "").toLowerCase() === payload.interest.toLowerCase();
+}
+
+export function listMockSubscriptions(): Subscription[] {
+  return [...mockSubscriptions];
+}
+
+/** Mock POST /subscriptions: idempotent per target like the backend, "unknown" for a target that does not exist. */
+export function createMockSubscription(payload: CreateSubscription): Subscription | "unknown" {
+  const title = mockSubscriptionTitle(payload);
+  if (title === null) return "unknown";
+  const existing = mockSubscriptions.find((row) => sameMockTarget(row, payload));
+  if (existing) return existing;
+  mockSubscriptionSeq += 1;
+  const subscription: Subscription = {
+    id: `d0000008-0000-4000-8000-${String(mockSubscriptionSeq).padStart(12, "0")}`,
+    userId: mockDemoUser.id,
+    type: payload.type,
+    organizerUserId: payload.type === "organizer" ? payload.organizerUserId : null,
+    placeId: payload.type === "place" ? payload.placeId : null,
+    interest: payload.type === "interest" ? payload.interest : null,
+    title,
+    createdAt: new Date().toISOString(),
+  };
+  mockSubscriptions.push(subscription);
+  return subscription;
+}
+
+/** Mock DELETE /subscriptions/:id: returns the removed follow, "unknown" when there is nothing to remove. */
+export function removeMockSubscription(id: string): Subscription | "unknown" {
+  const index = mockSubscriptions.findIndex((row) => row.id === id);
+  if (index < 0) return "unknown";
+  return mockSubscriptions.splice(index, 1)[0]!;
 }
 
 /** Creates an in-memory gathering: known event, known friends, valid proposed time, deterministic per-fixture responses. */
@@ -3011,6 +3069,20 @@ export function installMockApi(): () => void {
     if (listById) {
       const screen = listScreen(listById[1]);
       return screen ? Response.json(screen) : new Response(null, { status: 404 });
+    }
+    if (url.pathname === "/api/subscriptions" && init?.method === "POST") {
+      const parsed = CreateSubscriptionSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const created = createMockSubscription(parsed.data);
+      return created === "unknown" ? new Response(null, { status: 404 }) : Response.json(created);
+    }
+    if (url.pathname === "/api/subscriptions") {
+      return Response.json(listMockSubscriptions());
+    }
+    const subscriptionRemove = /^\/api\/subscriptions\/([^/]+)$/.exec(url.pathname);
+    if (subscriptionRemove && init?.method === "DELETE") {
+      const removed = removeMockSubscription(subscriptionRemove[1]);
+      return removed === "unknown" ? new Response(null, { status: 404 }) : Response.json(removed);
     }
     if (url.pathname === "/api/lists") {
       return Response.json(listSummaries(url.searchParams.get("userId") ?? "", url.searchParams.get("eventId")));

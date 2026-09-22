@@ -25,6 +25,7 @@ import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { formatEventWeatherDetail } from "../catalog/format";
 import { ParticipationStatusSchema, type ParticipationStatus, type Payment } from "@max-events/api-contracts";
 import { openChatLink, openExternalLink } from "../max/bridge";
+import { SubscribeToggle } from "../subscriptions/SubscribeToggle";
 import { useRoute } from "../routing/router";
 import { AppButton, AppText, AppTitle, AppState } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
@@ -469,6 +470,13 @@ export function EventPage({ id }: { id: string }) {
         }}
       />
       <EventOrganizerRatingCard eventId={id} />
+      {state.details.organizer !== null && (
+        <section className="app-event">
+          <div className="app-event-body">
+            <SubscribeToggle target={{ type: "organizer", organizerUserId: state.details.organizer.id }} subscribeLabel="Подписаться на организатора" unsubscribeLabel="Отписаться от организатора" />
+          </div>
+        </section>
+      )}
       <PaymentSection payment={currentPayment} busy={paymentBusy} error={paymentError !== null && paymentError === state.details.activeBookingId} onPay={pay} />
       <AutoPlanEntry activeBookingId={state.details.activeBookingId} eventId={id} />
       {state.details.remainingSeats === 0 && state.details.activeBookingId === null && <WaitlistSection eventId={id} userId={userId} onChanged={refetch} />}

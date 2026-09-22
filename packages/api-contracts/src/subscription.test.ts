@@ -4,6 +4,7 @@ import { CreateSubscriptionSchema, SubscriptionSchema } from "./subscription.js"
 const base = {
   id: "018f3c5a-0000-7000-8000-000000000040",
   userId: "018f3c5a-0000-7000-8000-000000000001",
+  title: "Культурный центр",
   createdAt: "2026-09-11T10:00:00+03:00",
 };
 
@@ -24,6 +25,13 @@ describe("SubscriptionSchema", () => {
 
   it("rejects a type/target mismatch", () => {
     expect(SubscriptionSchema.safeParse({ ...base, type: "place", organizerUserId: "018f3c5a-0000-7000-8000-000000000002", placeId: null, interest: null }).success).toBe(false);
+  });
+
+  it("requires a readable title, since the target is otherwise only a uuid", () => {
+    const organizer = { ...base, type: "organizer", organizerUserId: "018f3c5a-0000-7000-8000-000000000002", placeId: null, interest: null };
+    expect(SubscriptionSchema.parse(organizer).title).toBe("Культурный центр");
+    expect(SubscriptionSchema.safeParse({ ...organizer, title: undefined }).success).toBe(false);
+    expect(SubscriptionSchema.safeParse({ ...organizer, title: "" }).success).toBe(false);
   });
 });
 
