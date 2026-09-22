@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CreateWeGroupWriteSchema, WeGroupSchema, WeGroupScreenSchema } from "./we-group.js";
+import { CreateWeGroupWriteSchema, WeGroupSchema, WeGroupScreenSchema, WeGroupSummarySchema } from "./we-group.js";
 
 const ownerUserId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f";
 const memberId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90";
@@ -50,5 +50,28 @@ describe("WeGroupScreenSchema", () => {
     expect(screen.route).toBeNull();
     expect(screen.budget).toBeNull();
     expect(screen.photos).toEqual([]);
+    expect(screen.photosTotal).toBe(0);
+    expect(screen.goingByEvent).toEqual([]);
+  });
+});
+
+describe("WeGroupSummarySchema", () => {
+  it("accepts a list-row summary", () => {
+    const summary = WeGroupSummarySchema.parse({
+      group: {
+        id: ownerUserId,
+        ownerUserId,
+        title: "Поездка в Казань",
+        status: "active",
+        createdAt: "2026-09-12T10:00:00+03:00",
+        updatedAt: "2026-09-12T10:00:00+03:00",
+        archivedAt: null,
+      },
+      membersCount: 5,
+      upcomingEventsCount: 3,
+      photosTotal: 62,
+    });
+    expect(summary.budgetTotalRub).toBeNull();
+    expect(summary.nextEventTitle).toBeNull();
   });
 });

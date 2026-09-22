@@ -15,7 +15,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Between, In, Repository } from "typeorm";
-import type { LeisureMood, LeisureOption, NearbyBucket, NearbyCard, NearbyTimeline } from "@max-events/api-contracts";
+import type { LeisureMood, LeisureOption, LeisureStop, NearbyBucket, NearbyCard, NearbyTimeline } from "@max-events/api-contracts";
 import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService } from "../friends/friends.service";
@@ -26,6 +26,18 @@ import { PromotionService } from "../promotion/promotion.service";
 
 const HOUR_MS = 60 * 60 * 1000;
 const MAX_KM = 15;
+
+function roundKm(km: number): number {
+  return Math.round(km * 10) / 10;
+}
+
+function placeStop(title: string, placeId: string, km: number): LeisureStop {
+  return { kind: "place", placeId, eventId: null, title, startsAt: null, distanceKm: roundKm(km), priceRub: null };
+}
+
+function eventStop(card: NearbyCard): LeisureStop {
+  return { kind: "event", placeId: card.place.id, eventId: card.event.id, title: card.event.title, startsAt: card.event.startsAt, distanceKm: card.distanceKm, priceRub: card.event.priceRub };
+}
 
 export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -93,10 +105,10 @@ export class NearbyService {
       const food = places.find((row) => row.place.category === "food");
       const event = cards.find((card) => card.event.category === "afisha");
       const stops = [];
-      if (park) stops.push({ kind: "place" as const, placeId: park.place.id, eventId: null, title: park.place.title, startsAt: null });
-      if (event) stops.push({ kind: "event" as const, placeId: event.place.id, eventId: event.event.id, title: event.event.title, startsAt: event.event.startsAt });
-      else if (museum) stops.push({ kind: "place" as const, placeId: museum.place.id, eventId: null, title: museum.place.title, startsAt: null });
-      if (food) stops.push({ kind: "place" as const, placeId: food.place.id, eventId: null, title: food.place.title, startsAt: null });
+      if (park) stops.push(placeStop(park.place.title, park.place.id, park.km));
+      if (event) stops.push(eventStop(event));
+      else if (museum) stops.push(placeStop(museum.place.title, museum.place.id, museum.km));
+      if (food) stops.push(placeStop(food.place.title, food.place.id, food.km));
       return stops.length === 0 ? [] : [{ mood, title: "Расслабиться", stops }];
     }
 
@@ -105,9 +117,9 @@ export class NearbyService {
       const sportPlace = places.find((row) => row.place.category === "sport");
       const park = places.find((row) => row.place.category === "park");
       const stops = [];
-      if (sportEvent) stops.push({ kind: "event" as const, placeId: sportEvent.place.id, eventId: sportEvent.event.id, title: sportEvent.event.title, startsAt: sportEvent.event.startsAt });
-      else if (sportPlace) stops.push({ kind: "place" as const, placeId: sportPlace.place.id, eventId: null, title: sportPlace.place.title, startsAt: null });
-      if (park) stops.push({ kind: "place" as const, placeId: park.place.id, eventId: null, title: park.place.title, startsAt: null });
+      if (sportEvent) stops.push(eventStop(sportEvent));
+      else if (sportPlace) stops.push(placeStop(sportPlace.place.title, sportPlace.place.id, sportPlace.km));
+      if (park) stops.push(placeStop(park.place.title, park.place.id, park.km));
       return stops.length === 0 ? [] : [{ mood, title: "Активно", stops }];
     }
 
@@ -115,7 +127,7 @@ export class NearbyService {
     const going = friendIds.length === 0 ? [] : await this.participations.find({ where: { userId: In(friendIds) } });
     const friendEventIds = new Set(going.filter((row) => row.status === "going" || row.status === "wants_to_go").map((row) => row.eventId));
     const withFriends = cards.filter((card) => friendEventIds.has(card.event.id));
-    const stops = withFriends.slice(0, 3).map((card) => ({ kind: "event" as const, placeId: card.place.id, eventId: card.event.id, title: card.event.title, startsAt: card.event.startsAt }));
+    const stops = withFriends.slice(0, 3).map(eventStop);
     return stops.length === 0 ? [] : [{ mood, title: "С друзьями", stops }];
   }
 

@@ -25,6 +25,7 @@ const draftEvent: OrganizerEvent = {
   published: false,
   bookingOpensAt: null,
   weather: null,
+  coverUrl: null,
 };
 
 const publishedPlace: OrganizerPlace = {

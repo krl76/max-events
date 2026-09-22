@@ -129,13 +129,17 @@ export function WeGroupView({ state, ownId, picker, pickerOptions, pickerLoading
       )}
       {screen.events.length > 0 && (
         <ul className="app-plan-participants" aria-label="События группы">
-          {screen.events.map((event) => (
-            <li key={event.id} className="app-plan-participant">
-              <button type="button" className="app-plan-event" onClick={() => onOpenEvent(event.id)}>
-                {event.title}
-              </button>
-            </li>
-          ))}
+          {screen.events.map((event) => {
+            const going = screen.goingByEvent.find((row) => row.eventId === event.id)?.going ?? [];
+            return (
+              <li key={event.id} className="app-plan-participant">
+                <button type="button" className="app-plan-event" onClick={() => onOpenEvent(event.id)}>
+                  {event.title}
+                </button>
+                <span className="app-card-subtitle">{going.length === 0 ? "пока никто не идёт" : going.map((friend) => nameOf(screen.members, friend.id, ownId)).join(", ")}</span>
+              </li>
+            );
+          })}
         </ul>
       )}
       {screen.places.length > 0 && (
@@ -156,14 +160,17 @@ export function WeGroupView({ state, ownId, picker, pickerOptions, pickerLoading
         </section>
       )}
       {screen.budget !== null && <WeGroupBudgetSummary budget={screen.budget} members={screen.members} ownId={ownId} />}
-      {screen.photos.length > 0 && (
-        <ul className="app-plan-participants" aria-label="Фото группы">
-          {screen.photos.map((photo) => (
-            <li key={photo.url} className="app-plan-participant">
-              <img src={photo.url} alt="Фото группы" />
-            </li>
-          ))}
-        </ul>
+      {(screen.photos.length > 0 || screen.photosTotal > 0) && (
+        <section aria-label="Фото группы">
+          <p className="app-card-title">Все {screen.photosTotal}</p>
+          <ul className="app-plan-participants">
+            {screen.photos.map((photo) => (
+              <li key={photo.url} className="app-plan-participant">
+                <img src={photo.url} alt="Фото группы" />
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       {isActive && (
         <>

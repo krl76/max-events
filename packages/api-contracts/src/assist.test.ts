@@ -42,6 +42,7 @@ describe("AssistDayResponseSchema", () => {
     published: true,
     bookingOpensAt: null,
     weather: null,
+    coverUrl: null,
   };
   const planCard = {
     plan: {

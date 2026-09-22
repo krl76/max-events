@@ -18,7 +18,7 @@
 // - filterEventsByQuery - case-insensitive title/city match; identity on a blank query
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Event, EventCategory } from "@max-events/api-contracts";
 import { EventCategorySchema } from "@max-events/api-contracts";
 import { apiClient, parseEventFilters, serializeEventFilters, type EventFilters } from "../api/client";
@@ -46,37 +46,53 @@ export function filterEventsByQuery(events: Event[], query: string): Event[] {
   return events.filter((event) => event.title.toLowerCase().includes(needle) || event.city.toLowerCase().includes(needle));
 }
 
-export const CATALOG_PAGE_SIZE = 20;
+export type CatalogViewName = "list" | "map";
 
-function useCatalog(filters: EventFilters, offset: number): CatalogState & { hasMore: boolean } {
+export const CATALOG_PAGE_SIZE = 20;
+export const CATALOG_MAP_LIMIT = 100;
+
+function useCatalog(filters: EventFilters, offset: number, view: CatalogViewName, attempt: number): CatalogState & { hasMore: boolean; loadingMore: boolean; loadFailed: boolean } {
   const [state, setState] = useState<CatalogState>({ status: "loading" });
-  const [accumulated, setAccumulated] = useState<Event[]>([]);
   const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const generationRef = useRef(0);
+  const pagesRef = useRef<Map<number, Event[]>>(new Map());
+  const pageSize = view === "map" ? CATALOG_MAP_LIMIT : CATALOG_PAGE_SIZE;
 
   useEffect(() => {
-    let alive = true;
+    generationRef.current += 1;
+    pagesRef.current = new Map();
+  }, [filters, view]);
+
+  useEffect(() => {
+    const generation = generationRef.current;
     if (offset === 0) setState({ status: "loading" });
-    apiClient.listEvents({ ...filters, limit: CATALOG_PAGE_SIZE, offset }).then(
+    else setLoadingMore(true);
+    apiClient.listEvents({ ...filters, limit: pageSize, offset }).then(
       (events) => {
-        if (!alive) return;
-        const next = offset === 0 ? events : [...accumulated, ...events];
-        setAccumulated(next);
-        setHasMore(events.length === CATALOG_PAGE_SIZE);
+        if (generation !== generationRef.current) return;
+        pagesRef.current.set(offset, events);
+        const next = [...pagesRef.current.entries()].sort((left, right) => left[0] - right[0]).flatMap(([, page]) => page);
+        setHasMore(events.length === pageSize);
+        setLoadFailed(false);
+        setLoadingMore(false);
         setState({ status: "ready", events: next });
       },
       () => {
-        if (alive && offset === 0) setState({ status: "error" });
+        if (generation !== generationRef.current) return;
+        setLoadingMore(false);
+        if (offset === 0) setState({ status: "error" });
+        else {
+          setLoadFailed(true);
+          setHasMore(true);
+        }
       },
     );
-    return () => {
-      alive = false;
-    };
-  }, [filters, offset]);
+  }, [filters, offset, view, pageSize, attempt]);
 
-  return { ...state, hasMore };
+  return { ...state, hasMore, loadingMore, loadFailed };
 }
-
-export type CatalogViewName = "list" | "map";
 
 function ViewToggle({ view, onView }: { view: CatalogViewName; onView: (view: CatalogViewName) => void }) {
   return (
@@ -102,9 +118,10 @@ export function EventCard({ event, onOpen }: { event: Event; onOpen?: (id: strin
         </span>
         <span className="app-card-subtitle">
           {event.city} · {event.priceRub === null ? "Бесплатно" : `${event.priceRub} ₽`}
+          {event.remainingSeats !== undefined && event.remainingSeats !== null ? ` · осталось ${event.remainingSeats}` : event.bookedCount !== undefined ? ` · ${event.bookedCount} идут` : ""}
         </span>
+        {event.hitOfTheWeek ? <span className="app-today-chip">ХИТ НЕДЕЛИ</span> : event.promoted ? <span className="app-today-chip">Промо</span> : null}
         {event.weather && <span className="app-today-chip">{formatEventWeather(event.weather)}</span>}
-        {event.promoted && <span className="app-today-chip">Промо</span>}
       </div>
     </button>
   );
@@ -201,15 +218,28 @@ interface CatalogViewProps {
   onOpenPlace?: (id: string) => void;
   hasMore?: boolean;
   onMore?: () => void;
+  loadingMore?: boolean;
 }
 
-export function CatalogView({ state, filters, onFilters, view = "list", onView, onOpenEvent, onOpenPlace, hasMore = false, onMore }: CatalogViewProps) {
+function MoreButton({ hasMore, onMore, loadingMore }: { hasMore: boolean; onMore?: () => void; loadingMore: boolean }) {
+  if (!hasMore || onMore === undefined) return null;
+  return (
+    <button type="button" className="app-filters-reset" onClick={onMore} disabled={loadingMore}>
+      {loadingMore ? "Загрузка…" : "Ещё"}
+    </button>
+  );
+}
+
+export function CatalogView({ state, filters, onFilters, view = "list", onView, onOpenEvent, onOpenPlace, hasMore = false, onMore, loadingMore = false }: CatalogViewProps) {
   return (
     <>
       <FilterBar filters={filters} onFilters={onFilters} />
       {onView !== undefined && <ViewToggle view={view} onView={onView} />}
       {view === "map" && state.status === "ready" ? (
-        <MapScreen events={state.events} onOpenEvent={onOpenEvent ?? (() => {})} onOpenPlace={onOpenPlace ?? (() => {})} />
+        <>
+          <MapScreen events={state.events} onOpenEvent={onOpenEvent ?? (() => {})} onOpenPlace={onOpenPlace ?? (() => {})} />
+          <MoreButton hasMore={hasMore} onMore={onMore} loadingMore={loadingMore} />
+        </>
       ) : (
         <>
           {state.status === "loading" && (
@@ -222,11 +252,7 @@ export function CatalogView({ state, filters, onFilters, view = "list", onView, 
           {state.status === "error" && <AppState error>Не удалось загрузить события. Попробуйте изменить фильтры.</AppState>}
           {state.status === "ready" && state.events.length === 0 && <AppState>Ничего не найдено. Попробуйте изменить фильтры.</AppState>}
           {state.status === "ready" && state.events.map((item) => <EventCard key={item.id} event={item} onOpen={onOpenEvent} />)}
-          {state.status === "ready" && hasMore && onMore !== undefined && (
-            <button type="button" className="app-filters-reset" onClick={onMore}>
-              Ещё
-            </button>
-          )}
+          {state.status === "ready" && <MoreButton hasMore={hasMore} onMore={onMore} loadingMore={loadingMore} />}
         </>
       )}
     </>
@@ -236,10 +262,12 @@ export function CatalogView({ state, filters, onFilters, view = "list", onView, 
 export function CatalogPage({ view, onView }: { view: CatalogViewName; onView: (view: CatalogViewName) => void }) {
   const [filters, setFilters] = useState<EventFilters>(() => parseEventFilters(window.location.search));
   const [offset, setOffset] = useState(0);
-  const catalog = useCatalog(filters, offset);
+  const [attempt, setAttempt] = useState(0);
+  const catalog = useCatalog(filters, offset, view, attempt);
   const { navigate } = useRoute();
   const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
   const openPlace = useCallback((id: string) => navigate({ name: "place", id }), [navigate]);
+  const pageSize = view === "map" ? CATALOG_MAP_LIMIT : CATALOG_PAGE_SIZE;
 
   useEffect(() => {
     const query = serializeEventFilters({ ...filters, limit: undefined, offset: undefined });
@@ -248,8 +276,34 @@ export function CatalogPage({ view, onView }: { view: CatalogViewName; onView: (
 
   const onFilters = useCallback((next: EventFilters) => {
     setOffset(0);
+    setAttempt(0);
     setFilters(next);
   }, []);
 
-  return <CatalogView state={catalog} filters={filters} onFilters={onFilters} view={view} onView={onView} onOpenEvent={openEvent} onOpenPlace={openPlace} hasMore={catalog.hasMore} onMore={() => setOffset((current) => current + CATALOG_PAGE_SIZE)} />;
+  const setView = useCallback(
+    (next: CatalogViewName) => {
+      setOffset(0);
+      setAttempt(0);
+      onView(next);
+    },
+    [onView],
+  );
+
+  return (
+    <CatalogView
+      state={catalog}
+      filters={filters}
+      onFilters={onFilters}
+      view={view}
+      onView={setView}
+      onOpenEvent={openEvent}
+      onOpenPlace={openPlace}
+      hasMore={catalog.hasMore}
+      loadingMore={catalog.loadingMore}
+      onMore={() => {
+        if (catalog.loadFailed) setAttempt((current) => current + 1);
+        else setOffset((current) => current + pageSize);
+      }}
+    />
+  );
 }

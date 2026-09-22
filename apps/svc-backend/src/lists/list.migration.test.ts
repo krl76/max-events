@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { QueryRunner } from "typeorm";
 import { CreateLists20260911220000 } from "../database/migrations/20260911220000-CreateLists";
+import { AddListItemPlaceUnique20260919120400 } from "../database/migrations/20260919120400-AddListItemPlaceUnique";
 
 describe("CreateLists20260911220000", () => {
   it("creates lists and list_items and drops them on revert", async () => {
@@ -26,5 +27,24 @@ describe("CreateLists20260911220000", () => {
     expect(queries[0]).toContain("UQ_list_items_list_event");
     expect(queries[1]).toContain('DROP TABLE "list_items"');
     expect(queries[3]).toContain('DROP TABLE "lists"');
+  });
+});
+
+describe("AddListItemPlaceUnique20260919120400", () => {
+  it("adds a partial unique index on list place items", async () => {
+    const queries: string[] = [];
+    const queryRunner = {
+      query: async (sql: string) => {
+        queries.push(sql);
+      },
+    } as unknown as QueryRunner;
+    const migration = new AddListItemPlaceUnique20260919120400();
+    await migration.up(queryRunner);
+    expect(queries[0]).toContain("DELETE FROM \"list_items\"");
+    expect(queries[1]).toContain("UQ_list_items_list_place");
+    expect(queries[1]).toContain('WHERE "placeId" IS NOT NULL');
+    queries.length = 0;
+    await migration.down(queryRunner);
+    expect(queries[0]).toContain("UQ_list_items_list_place");
   });
 });

@@ -18,8 +18,8 @@ function seededVote(): Vote {
   return vote;
 }
 
-function viewHtml(over: { state?: VoteState; myChoice?: string | null; voting?: boolean; failed?: boolean; onShare?: () => void; onClose?: () => void } = {}): string {
-  return renderToStaticMarkup(createElement(VoteView, { state: over.state ?? { status: "ready", vote: seededVote() }, myChoice: over.myChoice ?? null, voting: over.voting ?? false, failed: over.failed ?? false, onVote: noop, onShare: over.onShare, onClose: over.onClose }));
+function viewHtml(over: { state?: VoteState; myChoice?: string | null; voting?: boolean; failed?: boolean; closeFailed?: boolean; onShare?: () => void; onClose?: () => void } = {}): string {
+  return renderToStaticMarkup(createElement(VoteView, { state: over.state ?? { status: "ready", vote: seededVote() }, myChoice: over.myChoice ?? null, voting: over.voting ?? false, failed: over.failed ?? false, closeFailed: over.closeFailed ?? false, onVote: noop, onShare: over.onShare, onClose: over.onClose }));
 }
 
 describe("ru ballot counter label", () => {
@@ -60,6 +60,19 @@ describe("VoteView", () => {
     const html = viewHtml({ onClose: noop });
     expect(html).toContain("Проголосовали");
     expect(html).toContain("Завершить");
+    expect(viewHtml()).not.toContain("Завершить");
+  });
+
+  it("counts only participant ballots and reports a failed close", () => {
+    const vote = seededVote();
+    const hostId = vote.hostUserId;
+    const html = viewHtml({
+      state: { status: "ready", vote: { ...vote, votedUserIds: [hostId, vote.participants[0]!.id] } },
+      closeFailed: true,
+      onClose: noop,
+    });
+    expect(html).toContain(`Проголосовали 1 из ${vote.participants.length}`);
+    expect(html).toContain("Не удалось завершить голосование");
   });
 
   it("marks the option the user voted for and keeps a re-vote possible", () => {

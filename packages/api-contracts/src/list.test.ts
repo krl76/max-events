@@ -83,23 +83,45 @@ describe("ListSummarySchema", () => {
 });
 
 describe("ListItemCardSchema", () => {
-  it("requires an event on the card", () => {
-    const event = {
-      id: item.eventId,
-      title: "Джаз",
-      description: "",
-      category: "afisha" as const,
-      city: "Москва",
-      placeId: null,
-      startsAt: "2026-09-20T18:00:00+03:00",
-      endsAt: null,
-      isPaid: false,
-      priceRub: null,
-      paymentUrl: null,
-      capacity: null,
-      chatLink: null,
-      promoted: false,
-    };
-    expect(ListItemCardSchema.parse({ item, event, addedBy: null })).toMatchObject({ item, addedBy: null });
+  const event = {
+    id: item.eventId,
+    title: "Джаз",
+    description: "",
+    category: "afisha" as const,
+    city: "Москва",
+    placeId: null,
+    startsAt: "2026-09-20T18:00:00+03:00",
+    endsAt: null,
+    isPaid: false,
+    priceRub: null,
+    paymentUrl: null,
+    capacity: null,
+    chatLink: null,
+    promoted: false,
+  };
+  const place = {
+    id: "018f3c5a-0000-7000-8000-000000000099",
+    title: "Парк",
+    address: "Москва",
+    city: "Москва",
+    category: "park" as const,
+    latitude: 55.75,
+    longitude: 37.62,
+    published: true,
+    createdAt: "2026-09-11T10:00:00+03:00",
+    updatedAt: "2026-09-11T10:00:00+03:00",
+  };
+
+  it("accepts a card with an event and no place", () => {
+    expect(ListItemCardSchema.parse({ item, event, addedBy: null })).toMatchObject({ item, event, place: null, addedBy: null });
+  });
+
+  it("accepts a card with a place and no event", () => {
+    const placeItem = { ...item, eventId: null, placeId: place.id };
+    expect(ListItemCardSchema.parse({ item: placeItem, event: null, place, addedBy: null })).toMatchObject({ item: placeItem, event: null, place, addedBy: null });
+  });
+
+  it("rejects a card without event and place", () => {
+    expect(ListItemCardSchema.safeParse({ item, event: null, place: null, addedBy: null }).success).toBe(false);
   });
 });

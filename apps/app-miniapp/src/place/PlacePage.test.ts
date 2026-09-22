@@ -59,7 +59,7 @@ describe("PlacePageView", () => {
   it("renders all five social blocks with data", () => {
     const html = viewHtml(
       page({
-        todayEvents: [{ id: "c0000001-0000-4000-8000-000000000001", title: "Летний концерт", description: "", category: "afisha", city: "Москва", placeId: park.id, startsAt: "2026-09-12T19:00:00+03:00", endsAt: null, isPaid: false, priceRub: null, paymentUrl: null, capacity: 200, chatLink: null, promoted: false, published: true, bookingOpensAt: null, weather: null }],
+        todayEvents: [{ id: "c0000001-0000-4000-8000-000000000001", title: "Летний концерт", description: "", category: "afisha", city: "Москва", placeId: park.id, startsAt: "2026-09-12T19:00:00+03:00", endsAt: null, isPaid: false, priceRub: null, paymentUrl: null, capacity: 200, chatLink: null, promoted: false, published: true, bookingOpensAt: null, weather: null, coverUrl: null }],
         friends: [{ friend: { id: "f1", name: "Анна Соколова", avatarUrl: null }, visitsCount: 3, goingToday: false }],
         rating: { summary: { eventId: null, placeId: park.id, averageStars: 4.5, reviewsCount: 2 }, categoryAverages: { atmosphere: 4.5, organization: null, price: null, place: 4.5 } },
         popularityToday: 482,

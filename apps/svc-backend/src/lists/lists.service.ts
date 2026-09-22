@@ -19,6 +19,7 @@ import { QueryFailedError, Repository } from "typeorm";
 import { ListPresetSchema, type List, type ListItem, type ListItemCard, type ListPreset, type ListScreen, type ListSummary } from "@max-events/api-contracts";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
+import { toPlaceDto } from "../places/places.service";
 import { PlaceEntity } from "../places/place.entity";
 import { ListItemEntity } from "./list-item.entity";
 import { ListEntity } from "./list.entity";
@@ -89,7 +90,14 @@ export class ListsService {
     if (!place) throw new NotFoundException("Place not found");
     const existing = await this.findPlaceItem(listId, placeId);
     if (existing) return toItemDto(existing);
-    return toItemDto(await this.items.save(this.items.create({ listId, eventId: null, placeId })));
+    try {
+      return toItemDto(await this.items.save(this.items.create({ listId, eventId: null, placeId })));
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      const winner = await this.findPlaceItem(listId, placeId);
+      if (!winner) throw error;
+      return toItemDto(winner);
+    }
   }
 
   private async findEventItem(listId: string, eventId: string): Promise<ListItemEntity | undefined> {
@@ -165,12 +173,21 @@ export class ListsService {
   }
 
   private async itemCards(listId: string): Promise<ListItemCard[]> {
-    const rows = (await this.items.find({ where: { listId } })).filter((row) => row.eventId !== null).sort((a, b) => b.addedAt.getTime() - a.addedAt.getTime() || b.id.localeCompare(a.id));
+    const rows = (await this.items.find({ where: { listId } })).sort((a, b) => b.addedAt.getTime() - a.addedAt.getTime() || b.id.localeCompare(a.id));
     const events = await this.events.find();
+    const places = await this.places.find();
     const eventById = new Map(events.map((row) => [row.id, row]));
-    return rows.flatMap((row) => {
-      const event = eventById.get(row.eventId!);
-      return event ? [{ item: toItemDto(row), event: toEventDto(event), addedBy: null }] : [];
+    const placeById = new Map(places.map((row) => [row.id, row]));
+    return rows.flatMap((row): ListItemCard[] => {
+      if (row.eventId !== null) {
+        const event = eventById.get(row.eventId);
+        return event ? [{ item: toItemDto(row), event: toEventDto(event), place: null, addedBy: null }] : [];
+      }
+      if (row.placeId !== null) {
+        const place = placeById.get(row.placeId);
+        return place ? [{ item: toItemDto(row), event: null, place: toPlaceDto(place), addedBy: null }] : [];
+      }
+      return [];
     });
   }
 }

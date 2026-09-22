@@ -7,6 +7,7 @@ import type { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlanExpenseEntity } from "../plans/plan-expense.entity";
 import { PlanEntity } from "../plans/plan.entity";
 import { PlaceEntity } from "../places/place.entity";
+import { ParticipationEntity } from "../participations/participation.entity";
 import { ReviewEntity } from "../reviews/review.entity";
 import { UserEntity } from "../users/user.entity";
 import { WeGroupEntity, WeGroupItemEntity, WeGroupMemberEntity } from "./we-group.entity";
@@ -119,8 +120,9 @@ function createService() {
   const plans = createStoreRepo<PlanEntity>();
   const expenses = createStoreRepo<PlanExpenseEntity>();
   const reviews = createStoreRepo<ReviewEntity>();
+  const participations = createStoreRepo<ParticipationEntity>([{ id: "p1", userId: member, eventId, status: "going" } as ParticipationEntity]);
   const bot = { createChat: async () => ({ chatId: 1, link: "https://max.ru/join/we" }) } as unknown as MaxBotClient;
-  const service = new WeGroupsService(groups as unknown as Repository<WeGroupEntity>, members as unknown as Repository<WeGroupMemberEntity>, items as unknown as Repository<WeGroupItemEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, bookings as unknown as Repository<BookingEntity>, plans as unknown as Repository<PlanEntity>, expenses as unknown as Repository<PlanExpenseEntity>, reviews as unknown as Repository<ReviewEntity>, bot);
+  const service = new WeGroupsService(groups as unknown as Repository<WeGroupEntity>, members as unknown as Repository<WeGroupMemberEntity>, items as unknown as Repository<WeGroupItemEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, bookings as unknown as Repository<BookingEntity>, plans as unknown as Repository<PlanEntity>, expenses as unknown as Repository<PlanExpenseEntity>, reviews as unknown as Repository<ReviewEntity>, participations as unknown as Repository<ParticipationEntity>, bot);
   return { service, groups, events, bookings, plans, expenses, reviews };
 }
 
@@ -133,6 +135,8 @@ describe("WeGroupsService", () => {
     expect(created.members.map((row) => row.name).sort()).toEqual(["Кирилл", "Саша"]);
     const withEvent = await service.addEvent(member, created.group.id, eventId);
     expect(withEvent.events.map((row) => row.title)).toEqual(["Джаз"]);
+    expect(withEvent.photosTotal).toBe(0);
+    expect(withEvent.goingByEvent[0]?.going.map((row) => row.name)).toEqual(["Кирилл"]);
     const withPlace = await service.addPlace(owner, created.group.id, placeId);
     expect(withPlace.places.map((row) => row.title)).toEqual(["Кремль"]);
   });
@@ -147,6 +151,7 @@ describe("WeGroupsService", () => {
     await expect(service.addEvent(owner, created.group.id, eventId)).rejects.toBeInstanceOf(ConflictException);
     const listed = await service.listForUser(owner);
     expect(listed.map((row) => row.group.status)).toEqual(["archived"]);
+    expect(listed[0]?.membersCount).toBe(2);
   });
 
   it("forbids strangers and missing catalog rows", async () => {
@@ -206,8 +211,8 @@ describe("WeGroupsService", () => {
     expect(archived.budget?.totalRub).toBe(850);
     expect(archived.photos).toHaveLength(1);
     const listed = await service.listForUser(owner);
-    expect(listed[0]?.bookings).toHaveLength(1);
-    expect(listed[0]?.budget?.totalRub).toBe(850);
+    expect(listed[0]?.photosTotal).toBe(1);
+    expect(listed[0]?.budgetTotalRub).toBe(850);
     await expect(service.addPlace(owner, created.group.id, placeId)).rejects.toBeInstanceOf(ConflictException);
   });
 });

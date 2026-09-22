@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { nameOf, WeGroupBudgetSummary, WeGroupView, type WeGroupState } from "./WeGroupPage";
-import { listMockWeGroups, mockDemoUser } from "../api/mock";
+import { getMockWeGroup, mockDemoUser } from "../api/mock";
 
-const SEED = listMockWeGroups().find((screen) => screen.group.id === "91000000-0000-4000-8000-000000000001")!;
+const loaded = getMockWeGroup("91000000-0000-4000-8000-000000000001");
+if (typeof loaded === "string") throw new Error("seed we-group missing");
+const SEED = loaded;
 const OWN_ID = mockDemoUser.id;
 
 function render(state: WeGroupState, ownId: string | null = OWN_ID): string {

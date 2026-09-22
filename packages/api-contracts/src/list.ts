@@ -20,7 +20,7 @@
 // - AddListItemWrite - add-event payload type
 // - ListSummarySchema - list with counters and optional saved-item id
 // - ListSummary - list summary type
-// - ListItemCardSchema - list item plus its event
+// - ListItemCardSchema - list item plus exactly one of event or place
 // - ListItemCard - list item card type
 // - ListScreenSchema - one list with its event cards
 // - ListScreen - list screen type
@@ -29,6 +29,7 @@
 import { z } from "zod";
 import { EventSchema } from "./event.js";
 import { FriendSchema } from "./friends.js";
+import { PlaceSchema } from "./place.js";
 import { IdSchema, TimestampSchema } from "./primitives.js";
 
 export const ListPresetSchema = z.enum(["want_to_go", "favorites", "weekend", "with_children", "with_friends", "try_later"]);
@@ -86,11 +87,17 @@ export const ListSummarySchema = z.object({
 });
 export type ListSummary = z.infer<typeof ListSummarySchema>;
 
-export const ListItemCardSchema = z.object({
-  item: ListItemSchema,
-  event: EventSchema,
-  addedBy: FriendSchema.nullable().default(null),
-});
+export const ListItemCardSchema = z
+  .object({
+    item: ListItemSchema,
+    event: EventSchema.nullable().default(null),
+    place: PlaceSchema.nullable().default(null),
+    addedBy: FriendSchema.nullable().default(null),
+  })
+  .refine((data) => (data.event !== null) !== (data.place !== null), {
+    message: "list item card must reference exactly one of event or place",
+    path: ["event"],
+  });
 export type ListItemCard = z.infer<typeof ListItemCardSchema>;
 
 export const ListScreenSchema = z.object({

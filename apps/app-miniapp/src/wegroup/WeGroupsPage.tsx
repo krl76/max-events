@@ -17,14 +17,14 @@
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import type { Friend, WeGroupScreen } from "@max-events/api-contracts";
+import type { Friend, WeGroupSummary } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppState } from "../ui/primitives";
 
-export type WeGroupsState = { status: "loading" } | { status: "error" } | { status: "ready"; groups: WeGroupScreen[] };
+export type WeGroupsState = { status: "loading" } | { status: "error" } | { status: "ready"; groups: WeGroupSummary[] };
 
 export interface CreateDraft {
   title: string;
@@ -37,7 +37,7 @@ export function createDraftErrors(draft: CreateDraft): string[] {
   return draft.title.trim() === "" ? ["Укажите название группы"] : [];
 }
 
-export function WeGroupCard({ screen, onOpen }: { screen: WeGroupScreen; onOpen: (id: string) => void }) {
+export function WeGroupCard({ screen, onOpen }: { screen: WeGroupSummary; onOpen: (id: string) => void }) {
   return (
     <button type="button" className="app-card app-card--link" onClick={() => onOpen(screen.group.id)}>
       <div className="app-card-body">
@@ -45,9 +45,14 @@ export function WeGroupCard({ screen, onOpen }: { screen: WeGroupScreen; onOpen:
           {screen.group.status === "archived" && <span className="app-micro-badge">Архив</span>} {screen.group.title}
         </span>
         <span className="app-card-subtitle">
-          {screen.members.length} {pluralRu(screen.members.length, "участник", "участника", "участников")}
+          {screen.membersCount} {pluralRu(screen.membersCount, "участник", "участника", "участников")}
         </span>
-        {screen.events.length > 0 && <span className="app-card-subtitle">{screen.events[0].title}</span>}
+        {screen.nextEventTitle !== null && <span className="app-card-subtitle">{screen.nextEventTitle}</span>}
+        {screen.photosTotal > 0 && (
+          <span className="app-card-subtitle">
+            {screen.photosTotal} {pluralRu(screen.photosTotal, "фотография", "фотографии", "фотографий")}
+          </span>
+        )}
       </div>
       <span className="app-row-chevron" aria-hidden="true">
         <ActionIcon name="chevron" size={16} strokeWidth={2} />

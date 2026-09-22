@@ -197,12 +197,14 @@ describe("FriendsService", () => {
     expect(status.friends.map((row) => row.name)).toEqual(["Анна Соколова"]);
 
     const hints = await service.suggestions(meId);
-    expect(hints.find((row) => row.friend.id === annaId)?.following).toBe(true);
-    expect(hints.find((row) => row.friend.id === dimaId)?.following).toBe(false);
-    expect(hints.find((row) => row.friend.id === dimaId)?.hint).toBe("пользуется Афишей");
+    expect(hints.map((row) => row.friend.id)).toEqual([annaId]);
+    expect(hints[0]?.following).toBe(true);
+    expect(hints[0]?.hint).toBe("уже в друзьях");
+    expect(await service.replaceFollows(meId, [dimaId, dimaId, meId])).toEqual([]);
 
-    const saved = await service.replaceFollows(meId, [dimaId, dimaId, meId]);
+    const withDima = createService({ botFriends: ["2", "3"] });
+    const saved = await withDima.service.replaceFollows(meId, [dimaId, dimaId, meId]);
     expect(saved).toEqual([dimaId]);
-    expect((await service.list(meId)).map((row) => row.id)).toEqual([dimaId]);
+    expect((await withDima.service.list(meId)).map((row) => row.id)).toEqual([dimaId]);
   });
 });

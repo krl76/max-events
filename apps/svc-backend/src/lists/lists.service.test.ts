@@ -72,7 +72,7 @@ function createService() {
   const lists = createStoreRepo<ListEntity>();
   const items = createStoreRepo<ListItemEntity>();
   const events = createStoreRepo<EventEntity>([eventRow(eventId, "Джаз"), eventRow(otherEventId, "Пробежка")]);
-  const places = createStoreRepo<PlaceEntity>([{ id: placeId, title: "Парк", published: true } as PlaceEntity]);
+  const places = createStoreRepo<PlaceEntity>([{ id: placeId, title: "Парк", address: "Москва", city: "Москва", category: "park", latitude: 55.75, longitude: 37.62, published: true, createdAt: now, updatedAt: now } as PlaceEntity]);
   const service = new ListsService(lists as unknown as Repository<ListEntity>, items as unknown as Repository<ListItemEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>);
   return { service, items };
 }
@@ -176,7 +176,8 @@ describe("ListsService", () => {
     expect(after.itemsCount).toBe(1);
     expect(after.savedItemId).toBe(item.id);
     const cards = await service.itemsFor(userId, want.list.id);
-    expect(cards.map((card) => card.event.id)).toEqual([eventId]);
+    expect(cards.map((card) => card.event?.id)).toEqual([eventId]);
+    expect(cards[0].place).toBeNull();
     expect(cards[0].addedBy).toBeNull();
   });
 
@@ -207,6 +208,9 @@ describe("ListsService", () => {
     expect(item.eventId).toBeNull();
     const again = await service.addPlace(userId, want.list.id, placeId);
     expect(again.id).toBe(item.id);
+    const cards = await service.itemsFor(userId, want.list.id);
+    expect(cards.map((card) => card.place?.id)).toEqual([placeId]);
+    expect(cards[0].event).toBeNull();
     await expect(service.addPlace(userId, want.list.id, "00000000-0000-4000-8000-0000000000p9")).rejects.toBeInstanceOf(NotFoundException);
   });
 });

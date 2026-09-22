@@ -13,7 +13,7 @@
 import type { Subscription, SubscriptionType } from "@max-events/api-contracts";
 import { AppButton, AppSection, AppState } from "../ui/primitives";
 
-export const SUBSCRIPTION_TYPE_LABELS: Record<SubscriptionType, string> = { organizer: "Организатор", place: "Место", interest: "Интерес" };
+export const SUBSCRIPTION_TYPE_LABELS: Record<SubscriptionType, string> = { organizer: "Организатор", place: "Место", interest: "Интерес", user: "Пользователь" };
 
 interface MySubscriptionsViewProps {
   subscriptions: Subscription[];

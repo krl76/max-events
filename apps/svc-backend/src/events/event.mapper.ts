@@ -32,5 +32,8 @@ export function toEventDto(event: EventEntity, options?: { promoted?: boolean })
     bookingOpensAt: event.bookingOpensAt ? event.bookingOpensAt.toISOString() : null,
     weather: null,
     coverUrl: event.coverUrl ?? null,
+    bookedCount: event.bookedCount,
+    remainingSeats: event.capacity === null ? null : Math.max(0, event.capacity - event.bookedCount),
+    hitOfTheWeek: options?.promoted === true,
   };
 }

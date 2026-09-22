@@ -25,7 +25,7 @@ function summary(overrides: Partial<ListSummary> = {}): ListSummary {
 }
 
 const item = { id: "71000000-0000-4000-8000-000000000001", listId: list.id, eventId: mockEvents[0].id, placeId: null, addedAt: "2026-09-11T11:00:00+03:00" } as const;
-const card: ListItemCard = { item, event: mockEvents[0], addedBy: null };
+const card: ListItemCard = { item, event: mockEvents[0], place: null, addedBy: null };
 
 describe("list items label", () => {
   it("pluralizes the counter and collapses the empty list", () => {
@@ -43,8 +43,8 @@ describe("listShareText", () => {
   it("calls a personal list a list, and a shared one a collection", () => {
     const cards = [card];
 
-    expect(listShareText(list, cards, false)).toBe(`Список «Хочу сходить»: ${cards[0]!.event.title}`);
-    expect(listShareText(list, cards, true)).toBe(`Совместная коллекция «Хочу сходить»: ${cards[0]!.event.title}`);
+    expect(listShareText(list, cards, false)).toBe(`Список «Хочу сходить»: ${cards[0]!.event?.title}`);
+    expect(listShareText(list, cards, true)).toBe(`Совместная коллекция «Хочу сходить»: ${cards[0]!.event?.title}`);
   });
 });
 
@@ -53,7 +53,7 @@ describe("ListView removal", () => {
     const cards = [card];
     const withRemove = renderToStaticMarkup(createElement(ListView, { state: { status: "ready", cards }, onOpenEvent: () => {}, onRemove: () => {} }));
 
-    expect(withRemove).toContain(`aria-label="Убрать из списка: ${cards[0]!.event.title}"`);
+    expect(withRemove).toContain(`aria-label="Убрать из списка: ${cards[0]!.event?.title}"`);
     expect(renderToStaticMarkup(createElement(ListView, { state: { status: "ready", cards }, onOpenEvent: () => {} }))).not.toContain("Убрать");
   });
 });

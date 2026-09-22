@@ -62,7 +62,9 @@ function FriendDiscoveryCard({ entry, route, onShowRoute, onOpenPlace }: FriendD
         <span className="app-friends-name">{entry.friend.name}</span>
       </div>
       <p className="app-today-summary">
-        {firstName}: {entry.newPlacesCount} {pluralRu(entry.newPlacesCount, "новое место", "новых места", "новых мест")}
+        {entry.visitHistoryHidden
+          ? `${firstName} скрыл историю посещений`
+          : `${firstName}: ${entry.newPlacesCount} ${pluralRu(entry.newPlacesCount, "новое место", "новых места", "новых мест")}`}
       </p>
       {entry.places.length > 0 && (
         <details className="app-card app-nearby-option">

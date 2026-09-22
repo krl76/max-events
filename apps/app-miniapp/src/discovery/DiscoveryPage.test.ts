@@ -80,4 +80,16 @@ describe("DiscoveryView", () => {
     expect(empty).toContain("Пока ничего нового");
     expect(empty).not.toContain("Посмотреть маршрут");
   });
+
+  it("explains a hidden visit history instead of zero new places", () => {
+    const hidden = viewHtml({
+      status: "ready",
+      data: {
+        newPlacesCount: 0,
+        byFriend: [{ friend: { id: mockFriendIds[0], name: "Анна Соколова", avatarUrl: null }, newPlacesCount: 0, places: [], visitHistoryHidden: true }],
+      },
+    });
+    expect(hidden).toContain("Анна скрыл историю посещений");
+    expect(hidden).not.toContain("Анна: 0");
+  });
 });

@@ -120,6 +120,7 @@ export function toCreateEvent(draft: EventDraft): CreateEvent {
     priceRub: price,
     paymentUrl: paid ? draft.paymentUrl.trim() : null,
     capacity: draft.capacity.trim() === "" ? null : Number(draft.capacity),
+    coverUrl: null,
   };
 }
 

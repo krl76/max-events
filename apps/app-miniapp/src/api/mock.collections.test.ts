@@ -52,7 +52,7 @@ describe("shared collection endpoints", () => {
     expect(screen.participants.map((participant) => participant.id)).toEqual([DEMO_USER_ID, ANNA_ID]);
     expect(screen.items).toHaveLength(2);
     expect(screen.items.map((item) => item.addedBy?.id)).toEqual([ANNA_ID, DEMO_USER_ID]);
-    expect(screen.items.map((item) => item.event.id)).toEqual([mockEvents[7].id, mockEvents[6].id]);
+    expect(screen.items.map((item) => item.event?.id)).toEqual([mockEvents[7].id, mockEvents[6].id]);
   });
 
   it("let both participants add items to the collection", async () => {
@@ -65,7 +65,7 @@ describe("shared collection endpoints", () => {
     const after = await client.getList(shared.list.id);
     expect(after.items).toHaveLength(3);
     expect(after.items[0].addedBy?.id).toBe(ANNA_ID);
-    expect(after.items[0].event.id).toBe(mockEvents[8].id);
+    expect(after.items[0].event?.id).toBe(mockEvents[8].id);
     const summaries = await client.listLists(ANNA_ID);
     expect(summaries.find((summary) => summary.list.id === shared.list.id)!.itemsCount).toBe(3);
   });

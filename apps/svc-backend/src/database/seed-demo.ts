@@ -509,9 +509,9 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
   for (let i = 0; i < c.subscriptions; i += 1) {
     const createdAt = shiftDays(now, -int(1, 30), int(10, 22));
     const base = { id: uuid(), userId: pick(users).id, createdAt };
-    if (i % 3 === 0) subscriptions.push({ ...base, type: "organizer", organizerUserId: pick(organizers).id, placeId: null, interest: null });
-    else if (i % 3 === 1) subscriptions.push({ ...base, type: "place", organizerUserId: null, placeId: pick(places).id, interest: null });
-    else subscriptions.push({ ...base, type: "interest", organizerUserId: null, placeId: null, interest: pick(INTEREST_POOL) });
+    if (i % 3 === 0) subscriptions.push({ ...base, type: "organizer", organizerUserId: pick(organizers).id, placeId: null, interest: null, targetUserId: null });
+    else if (i % 3 === 1) subscriptions.push({ ...base, type: "place", organizerUserId: null, placeId: pick(places).id, interest: null, targetUserId: null });
+    else subscriptions.push({ ...base, type: "interest", organizerUserId: null, placeId: null, interest: pick(INTEREST_POOL), targetUserId: null });
   }
 
   // page views: deduped (user, targetType, targetId, viewedOn) tuples

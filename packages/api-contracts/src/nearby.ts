@@ -54,6 +54,8 @@ export const LeisureStopSchema = z.object({
   eventId: IdSchema.nullable().default(null),
   title: z.string().min(1),
   startsAt: z.string().nullable().default(null),
+  distanceKm: z.number().nonnegative().nullable().default(null),
+  priceRub: z.number().int().nonnegative().nullable().default(null),
 });
 export type LeisureStop = z.infer<typeof LeisureStopSchema>;
 

@@ -51,7 +51,7 @@ export const CHAT_SYNC_BATCH = 20;
 
 const DAY_MS = 86_400_000;
 
-const EVENT_PATCH_KEYS = ["title", "description", "category", "city", "placeId", "startsAt", "endsAt", "isPaid", "priceRub", "paymentUrl", "capacity"] as const;
+const EVENT_PATCH_KEYS = ["title", "description", "category", "city", "placeId", "startsAt", "endsAt", "isPaid", "priceRub", "paymentUrl", "capacity", "coverUrl"] as const;
 
 @Injectable()
 export class EventsService {
@@ -231,6 +231,7 @@ function toColumns(payload: CreateEvent | Event): Omit<CreateEvent, "startsAt" |
     priceRub: parsed.priceRub,
     paymentUrl: parsed.paymentUrl,
     capacity: parsed.capacity,
+    coverUrl: parsed.coverUrl ?? null,
   };
 }
 

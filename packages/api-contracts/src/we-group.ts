@@ -61,6 +61,12 @@ export const AddWeGroupPlaceWriteSchema = z.object({
 });
 export type AddWeGroupPlaceWrite = z.infer<typeof AddWeGroupPlaceWriteSchema>;
 
+export const WeGroupEventGoingSchema = z.object({
+  eventId: IdSchema,
+  going: z.array(FriendSchema),
+});
+export type WeGroupEventGoing = z.infer<typeof WeGroupEventGoingSchema>;
+
 export const WeGroupScreenSchema = z.object({
   group: WeGroupSchema,
   members: z.array(FriendSchema),
@@ -70,5 +76,17 @@ export const WeGroupScreenSchema = z.object({
   route: DayRouteSchema.nullable().default(null),
   budget: PlanBudgetSchema.nullable().default(null),
   photos: z.array(ReviewPhotoSchema).default([]),
+  photosTotal: z.number().int().nonnegative().default(0),
+  goingByEvent: z.array(WeGroupEventGoingSchema).default([]),
 });
 export type WeGroupScreen = z.infer<typeof WeGroupScreenSchema>;
+
+export const WeGroupSummarySchema = z.object({
+  group: WeGroupSchema,
+  membersCount: z.number().int().nonnegative(),
+  upcomingEventsCount: z.number().int().nonnegative(),
+  photosTotal: z.number().int().nonnegative(),
+  budgetTotalRub: z.number().nonnegative().nullable().default(null),
+  nextEventTitle: z.string().nullable().default(null),
+});
+export type WeGroupSummary = z.infer<typeof WeGroupSummarySchema>;

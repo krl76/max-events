@@ -20,6 +20,7 @@ const event: Event = {
   published: true,
   bookingOpensAt: null,
   weather: null,
+  coverUrl: null,
 };
 
 describe("WheretoQuerySchema", () => {

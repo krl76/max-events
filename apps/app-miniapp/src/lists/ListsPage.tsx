@@ -37,7 +37,7 @@ export function participantsLabel(participants: Friend[]): string {
 
 /** A personal list is not a «совместная коллекция»; the noun follows who the list belongs to. */
 export function listShareText(list: List, cards: ListItemCard[], shared: boolean): string {
-  return `${shared ? "Совместная коллекция" : "Список"} «${list.title}»: ${cards.map((card) => card.event.title).join(", ")}`;
+  return `${shared ? "Совместная коллекция" : "Список"} «${list.title}»: ${cards.map((card) => card.event?.title ?? card.place?.title ?? "").filter((title) => title !== "").join(", ")}`;
 }
 
 export type ListsState = { status: "loading" } | { status: "error" } | { status: "ready"; summaries: ListSummary[] };
@@ -232,34 +232,44 @@ export function ListsPage() {
 
 export type ListState = { status: "loading" } | { status: "error" } | { status: "ready"; cards: ListItemCard[] };
 
-export function ListView({ state, onOpenEvent, showAuthors = false, onRemove }: { state: ListState; onOpenEvent: (eventId: string) => void; showAuthors?: boolean; onRemove?: (itemId: string) => void }) {
+export function ListView({ state, onOpenEvent, onOpenPlace, showAuthors = false, onRemove }: { state: ListState; onOpenEvent: (eventId: string) => void; onOpenPlace?: (placeId: string) => void; showAuthors?: boolean; onRemove?: (itemId: string) => void }) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "error") return <AppState error>Не удалось загрузить список.</AppState>;
   if (state.cards.length === 0) return <AppState>Пока ничего не сохранено.</AppState>;
   return (
     <>
-      {state.cards.map(({ item, event, addedBy }) => (
-        // The remove action sits beside the card, not inside it: a button inside a button is invalid.
-        <div key={item.id} className="app-list-row">
-          <button type="button" className="app-card app-card--link" onClick={() => onOpenEvent(event.id)}>
-            <div className="app-card-body">
-              <span className="app-card-title">{event.title}</span>
-              <span className="app-card-subtitle">{formatStartsAt(event.startsAt)}</span>
-              {showAuthors && addedBy !== null && <span className="app-card-subtitle">Добавил: {addedBy.name}</span>}
-            </div>
-            <span className="app-row-chevron" aria-hidden="true">
-              <ActionIcon name="chevron" size={16} strokeWidth={2} />
-            </span>
-          </button>
-          {onRemove !== undefined && (
-            <div className="app-list-actions">
-              <AppButton size="small" tone="secondary" onClick={() => onRemove(item.id)} aria-label={`Убрать из списка: ${event.title}`}>
-                Убрать
-              </AppButton>
-            </div>
-          )}
-        </div>
-      ))}
+      {state.cards.map(({ item, event, place, addedBy }) => {
+        const title = event?.title ?? place?.title ?? "";
+        const subtitle = event ? formatStartsAt(event.startsAt) : (place?.address ?? "");
+        return (
+          <div key={item.id} className="app-list-row">
+            <button
+              type="button"
+              className="app-card app-card--link"
+              onClick={() => {
+                if (event) onOpenEvent(event.id);
+                else if (place) onOpenPlace?.(place.id);
+              }}
+            >
+              <div className="app-card-body">
+                <span className="app-card-title">{title}</span>
+                <span className="app-card-subtitle">{subtitle}</span>
+                {showAuthors && addedBy !== null && <span className="app-card-subtitle">Добавил: {addedBy.name}</span>}
+              </div>
+              <span className="app-row-chevron" aria-hidden="true">
+                <ActionIcon name="chevron" size={16} strokeWidth={2} />
+              </span>
+            </button>
+            {onRemove !== undefined && (
+              <div className="app-list-actions">
+                <AppButton size="small" tone="secondary" onClick={() => onRemove(item.id)} aria-label={`Убрать из списка: ${title}`}>
+                  Убрать
+                </AppButton>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </>
   );
 }
@@ -354,7 +364,7 @@ export function ListPage({ id }: { id: string }) {
           </AppButton>
         </div>
       </section>
-      <ListView state={listState} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} showAuthors={isShared} onRemove={removeItem} />
+      <ListView state={listState} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} showAuthors={isShared} onRemove={removeItem} />
     </>
   );
 }

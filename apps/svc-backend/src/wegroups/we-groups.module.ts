@@ -16,6 +16,7 @@ import { EventEntity } from "../events/event.entity";
 import { MaxBotModule } from "../max-bot/max-bot.module";
 import { PlanExpenseEntity } from "../plans/plan-expense.entity";
 import { PlanEntity } from "../plans/plan.entity";
+import { ParticipationEntity } from "../participations/participation.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { ReviewEntity } from "../reviews/review.entity";
 import { UserEntity } from "../users/user.entity";
@@ -24,7 +25,7 @@ import { WeGroupsController } from "./we-groups.controller";
 import { WeGroupsService } from "./we-groups.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([WeGroupEntity, WeGroupMemberEntity, WeGroupItemEntity, EventEntity, PlaceEntity, UserEntity, BookingEntity, PlanEntity, PlanExpenseEntity, ReviewEntity]), MaxBotModule],
+  imports: [TypeOrmModule.forFeature([WeGroupEntity, WeGroupMemberEntity, WeGroupItemEntity, EventEntity, PlaceEntity, UserEntity, BookingEntity, PlanEntity, PlanExpenseEntity, ReviewEntity, ParticipationEntity]), MaxBotModule],
   controllers: [WeGroupsController],
   providers: [WeGroupsService],
   exports: [WeGroupsService],

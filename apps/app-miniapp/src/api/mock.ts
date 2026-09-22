@@ -194,6 +194,7 @@ import type {
   WaitlistEntry,
   WeGroup,
   WeGroupScreen,
+  WeGroupSummary,
   WheretoMood,
   WheretoQuery,
   WheretoResponse,
@@ -980,6 +981,8 @@ function mockWeGroupScreen(row: MockWeGroupRow): WeGroupScreen {
     route: mockWeGroupRoute(events, places),
     budget: mockWeGroupBudget(memberSet, eventSet),
     photos: [],
+    photosTotal: 0,
+    goingByEvent: events.map((item) => ({ eventId: item.id, going: [] })),
   };
 }
 
@@ -1021,16 +1024,27 @@ function isMockWeGroupMember(row: MockWeGroupRow, userId: string): boolean {
   return row.group.ownerUserId === userId || row.memberIds.includes(userId);
 }
 
-/** Mock GET /we-groups: screens of the demo user's groups, newest first (backend listForUser parity). */
-export function listMockWeGroups(): WeGroupScreen[] {
+/** Mock GET /we-groups: summaries of the demo user's groups, newest first (backend listForUser parity). */
+export function listMockWeGroups(): WeGroupSummary[] {
   return [...mockWeGroups]
     .filter((row) => isMockWeGroupMember(row, mockDemoUser.id))
     .sort((a, b) => Date.parse(b.group.createdAt) - Date.parse(a.group.createdAt) || a.group.id.localeCompare(b.group.id))
-    .map(mockWeGroupScreen);
+    .map((row) => {
+      const screen = mockWeGroupScreen(row);
+      const upcoming = screen.events.filter((event) => Date.parse(event.startsAt) >= Date.now()).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      return {
+        group: screen.group,
+        membersCount: screen.members.length,
+        upcomingEventsCount: upcoming.length,
+        photosTotal: screen.photosTotal,
+        budgetTotalRub: screen.budget?.totalRub ?? null,
+        nextEventTitle: upcoming[0]?.title ?? null,
+      };
+    });
 }
 
 /** Mock GET /we-groups/:id: "unknown" -> 404, "forbidden" non-member -> 403 (backend requireMember parity). */
-function getMockWeGroup(id: string): WeGroupScreen | "unknown" | "forbidden" {
+export function getMockWeGroup(id: string): WeGroupScreen | "unknown" | "forbidden" {
   const row = findMockWeGroup(id);
   if (!row) return "unknown";
   if (!isMockWeGroupMember(row, mockDemoUser.id)) return "forbidden";
@@ -1174,14 +1188,21 @@ export function listSummaries(userId: string, eventId: string | null): ListSumma
   });
 }
 
-/** Items of one list enriched with their events and the participant who added them (null outside shared collections), newest first; null for an unknown list. */
+/** Items of one list enriched with their events or places and the participant who added them (null outside shared collections), newest first; null for an unknown list. */
 export function listItemCards(listId: string): ListItemCard[] | null {
   if (!findList(listId)) return null;
   return mockListItems
-    .filter((item) => item.listId === listId && item.eventId !== null)
-    .flatMap((item) => {
-      const event = mockEvents.find((candidate) => candidate.id === item.eventId);
-      return event ? [{ item, event, addedBy: mockListItemAuthors.get(item.id) ?? null }] : [];
+    .filter((item) => item.listId === listId)
+    .flatMap((item): ListItemCard[] => {
+      if (item.eventId !== null) {
+        const event = mockEvents.find((candidate) => candidate.id === item.eventId);
+        return event ? [{ item, event, place: null, addedBy: mockListItemAuthors.get(item.id) ?? null }] : [];
+      }
+      if (item.placeId !== null) {
+        const place = mockPlaces.find((candidate) => candidate.id === item.placeId);
+        return place ? [{ item, event: null, place, addedBy: mockListItemAuthors.get(item.id) ?? null }] : [];
+      }
+      return [];
     })
     .reverse();
 }
@@ -1312,7 +1333,7 @@ export function eventRating(eventId: string): EventRating | null {
 function createMockReview(payload: CreateReview): Review | "no_event" | "invalid" {
   if (!mockEvents.some((item) => item.id === payload.eventId)) return "no_event";
   mockReviewSeq += 1;
-  const review: Review = { id: `80000000-0000-4000-8000-${String(mockReviewSeq).padStart(12, "0")}`, userId: payload.userId, eventId: payload.eventId, placeId: null, stars: payload.stars, categoryScores: payload.categoryScores ?? {}, wouldGoAgain: payload.wouldGoAgain, photos: [], text: payload.text ?? null, createdAt: new Date().toISOString() };
+  const review: Review = { id: `80000000-0000-4000-8000-${String(mockReviewSeq).padStart(12, "0")}`, userId: payload.userId, eventId: payload.eventId, placeId: null, stars: payload.stars, categoryScores: payload.categoryScores ?? {}, wouldGoAgain: payload.wouldGoAgain, photos: payload.photos ?? [], text: payload.text ?? null, createdAt: new Date().toISOString() };
   if (!ReviewSchema.safeParse(review).success) return "invalid";
   const existing = mockReviews.findIndex((item) => item.userId === payload.userId && item.eventId === payload.eventId);
   if (existing !== -1) {
@@ -2230,28 +2251,34 @@ export function leisureOptions(hours: number, mood: LeisureMood, latitude: numbe
     .map((place) => ({ place, km: haversineKm(latitude, longitude, place.latitude, place.longitude) }))
     .filter((row) => row.km <= NEARBY_MAX_KM)
     .sort((a, b) => a.km - b.km);
-  const placeStop = (place: Place): LeisureStop => ({ kind: "place", placeId: place.id, eventId: null, title: place.title, startsAt: null });
-  const eventStop = (item: Event): LeisureStop => ({ kind: "event", placeId: item.placeId, eventId: item.id, title: item.title, startsAt: item.startsAt });
+  const placeStop = (place: Place, km: number): LeisureStop => ({ kind: "place", placeId: place.id, eventId: null, title: place.title, startsAt: null, distanceKm: Math.round(km * 10) / 10, priceRub: null });
+  const eventStop = (item: Event, km: number): LeisureStop => ({ kind: "event", placeId: item.placeId, eventId: item.id, title: item.title, startsAt: item.startsAt, distanceKm: Math.round(km * 10) / 10, priceRub: item.priceRub });
   let stops: LeisureStop[] = [];
   if (mood === "relax") {
     const park = places.find((row) => row.place.category === "park");
     const show = events.find((item) => item.category === "afisha");
     const museum = places.find((row) => row.place.category === "museum");
     const food = places.find((row) => row.place.category === "food");
-    if (park) stops.push(placeStop(park.place));
-    if (show) stops.push(eventStop(show));
-    else if (museum) stops.push(placeStop(museum.place));
-    if (food) stops.push(placeStop(food.place));
+    if (park) stops.push(placeStop(park.place, park.km));
+    if (show) {
+      const showPlace = places.find((row) => row.place.id === show.placeId);
+      stops.push(eventStop(show, showPlace?.km ?? 0));
+    } else if (museum) stops.push(placeStop(museum.place, museum.km));
+    if (food) stops.push(placeStop(food.place, food.km));
   } else if (mood === "active") {
     const sport = events.find((item) => item.category === "sport");
     const sportPlace = places.find((row) => row.place.category === "sport");
     const park = places.find((row) => row.place.category === "park");
-    if (sport) stops.push(eventStop(sport));
-    else if (sportPlace) stops.push(placeStop(sportPlace.place));
-    if (park) stops.push(placeStop(park.place));
+    if (sport) {
+      const sportEventPlace = places.find((row) => row.place.id === sport.placeId);
+      stops.push(eventStop(sport, sportEventPlace?.km ?? 0));
+    } else if (sportPlace) stops.push(placeStop(sportPlace.place, sportPlace.km));
+    if (park) stops.push(placeStop(park.place, park.km));
   } else {
-    // ponytail: the mock has no friend-participation feed for the demo window — friends chain = the window events, soonest first
-    stops = events.slice(0, 3).map(eventStop);
+    stops = events.slice(0, 3).map((item) => {
+      const eventPlace = places.find((row) => row.place.id === item.placeId);
+      return eventStop(item, eventPlace?.km ?? 0);
+    });
   }
   if (stops.length === 0) return [];
   return [{ mood, title: stops.map((stop) => stop.title).join(" → "), stops }];
@@ -2880,7 +2907,7 @@ function organizerPlaces(): MockOrganizerPlace[] {
 /** Backend organizer create parity: the payload is CreateEventSchema-validated by the interceptor; the draft belongs to the demo user. */
 function createMockOrganizerEvent(payload: CreateEvent): MockOrganizerEvent {
   mockOrganizerSeq += 1;
-  const created: MockOrganizerEvent = { ...payload, id: `f1000000-0000-4000-8000-${String(mockOrganizerSeq).padStart(12, "0")}`, chatLink: null, promoted: false, published: false, bookingOpensAt: null, weather: null };
+  const created: MockOrganizerEvent = { ...payload, id: `f1000000-0000-4000-8000-${String(mockOrganizerSeq).padStart(12, "0")}`, chatLink: null, promoted: false, published: false, bookingOpensAt: null, weather: null, coverUrl: payload.coverUrl ?? null };
   mockOrganizerState.events.push(created);
   return created;
 }

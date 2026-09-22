@@ -10,7 +10,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post } from "@nestjs/common";
-import { AddWeGroupEventWriteSchema, AddWeGroupPlaceWriteSchema, CreateWeGroupWriteSchema, type WeGroupScreen } from "@max-events/api-contracts";
+import { AddWeGroupEventWriteSchema, AddWeGroupPlaceWriteSchema, CreateWeGroupWriteSchema, type ReviewPhoto, type WeGroupScreen, type WeGroupSummary } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { WeGroupsService } from "./we-groups.service";
@@ -27,8 +27,13 @@ export class WeGroupsController {
   }
 
   @Get()
-  list(@CurrentUser() user: UserEntity): Promise<WeGroupScreen[]> {
+  list(@CurrentUser() user: UserEntity): Promise<WeGroupSummary[]> {
     return this.groups.listForUser(user.id);
+  }
+
+  @Get(":id/photos")
+  photos(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<ReviewPhoto[]> {
+    return this.groups.photos(user.id, id);
   }
 
   @Get(":id")

@@ -42,7 +42,7 @@ describe("WeGroupsView", () => {
     const html = render({ status: "ready", groups: GROUPS });
 
     expect(html).toContain("Создать");
-    expect(html).toContain(`${GROUPS[0].members.length} ${pluralRu(GROUPS[0].members.length, "участник", "участника", "участников")}`);
+    expect(html).toContain(`${GROUPS[0].membersCount} ${pluralRu(GROUPS[0].membersCount, "участник", "участника", "участников")}`);
   });
 
   it("renders loading, error and empty states", () => {

@@ -27,7 +27,7 @@ describe("preset list fixtures", () => {
     expect(byPreset.get("weekend")!.itemsCount).toBe(0);
     const cards = listItemCards(byPreset.get("want_to_go")!.list.id)!;
     expect(cards).toHaveLength(1);
-    expect(cards[0].event.id).toBe(mockEvents[0].id);
+    expect(cards[0].event?.id).toBe(mockEvents[0].id);
     expect(ListItemSchema.safeParse(cards[0].item).success).toBe(true);
   });
 

@@ -49,6 +49,9 @@ const EventObjectSchema = z.object({
   bookingOpensAt: TimestampSchema.nullable().default(null),
   weather: EventWeatherSchema.nullable().default(null),
   coverUrl: z.string().url().nullable().default(null),
+  bookedCount: z.number().int().nonnegative().optional(),
+  remainingSeats: z.number().int().nonnegative().nullable().optional(),
+  hitOfTheWeek: z.boolean().optional(),
 });
 
 const hasValidPaymentLink = (data: { isPaid: boolean; paymentUrl: string | null }) => (data.isPaid ? data.paymentUrl !== null : data.paymentUrl === null);
@@ -61,5 +64,5 @@ const paymentLinkInvariant = {
 export const EventSchema = EventObjectSchema.refine(hasValidPaymentLink, paymentLinkInvariant);
 export type Event = z.infer<typeof EventSchema>;
 
-export const CreateEventSchema = EventObjectSchema.omit({ id: true, chatLink: true, promoted: true, published: true, bookingOpensAt: true, weather: true }).refine(hasValidPaymentLink, paymentLinkInvariant);
+export const CreateEventSchema = EventObjectSchema.omit({ id: true, chatLink: true, promoted: true, published: true, bookingOpensAt: true, weather: true, bookedCount: true, remainingSeats: true, hitOfTheWeek: true }).refine(hasValidPaymentLink, paymentLinkInvariant);
 export type CreateEvent = z.infer<typeof CreateEventSchema>;

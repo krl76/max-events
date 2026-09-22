@@ -138,4 +138,17 @@ describe("CatalogView", () => {
     expect(html).toContain("Загружаем карту");
     expect(html).not.toContain("app-card-title");
   });
+
+  it("renders load-more on the list and the map and disables it while a page is in flight", () => {
+    const list = renderToStaticMarkup(createElement(CatalogView, { state: { status: "ready", events: mockEvents }, filters: {}, onFilters: () => {}, hasMore: true, onMore: () => {} }));
+    expect(list).toContain("Ещё");
+    expect(list).not.toContain("disabled");
+
+    const busy = renderToStaticMarkup(createElement(CatalogView, { state: { status: "ready", events: mockEvents }, filters: {}, onFilters: () => {}, hasMore: true, loadingMore: true, onMore: () => {} }));
+    expect(busy).toContain("Загрузка…");
+    expect(busy).toContain("disabled");
+
+    const map = renderToStaticMarkup(createElement(CatalogView, { state: { status: "ready", events: mockEvents }, filters: {}, onFilters: () => {}, view: "map", hasMore: true, onMore: () => {}, onOpenEvent: () => {} }));
+    expect(map).toContain("Ещё");
+  });
 });

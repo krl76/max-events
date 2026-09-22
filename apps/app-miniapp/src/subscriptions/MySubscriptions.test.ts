@@ -8,7 +8,12 @@ function subscription(overrides: Partial<Subscription>): Subscription {
   return { id: "d0000008-0000-4000-8000-000000000001", userId: "a0000000-0000-4000-8000-000000000001", type: "organizer", organizerUserId: "d0000001-0000-4000-8000-000000000001", placeId: null, interest: null, title: "Культурный центр", createdAt: "2026-09-12T10:00:00+03:00", ...overrides } as Subscription;
 }
 
-const rows = [subscription({}), subscription({ id: "d0000008-0000-4000-8000-000000000002", type: "place", organizerUserId: null, placeId: "b0000001-0000-4000-8000-000000000001", title: "Парк Горького" }), subscription({ id: "d0000008-0000-4000-8000-000000000003", type: "interest", organizerUserId: null, interest: "походы", title: "походы" })];
+const rows = [
+  subscription({}),
+  subscription({ id: "d0000008-0000-4000-8000-000000000002", type: "place", organizerUserId: null, placeId: "b0000001-0000-4000-8000-000000000001", title: "Парк Горького" }),
+  subscription({ id: "d0000008-0000-4000-8000-000000000003", type: "interest", organizerUserId: null, interest: "походы", title: "походы" }),
+  subscription({ id: "d0000008-0000-4000-8000-000000000004", type: "user", organizerUserId: null, targetUserId: "a0000000-0000-4000-8000-0000000000b1", title: "Анна Соколова" }),
+];
 
 describe("MySubscriptionsView", () => {
   it("names every followed target rather than showing its id", () => {
@@ -17,6 +22,7 @@ describe("MySubscriptionsView", () => {
     expect(html).toContain("Культурный центр");
     expect(html).toContain("Парк Горького");
     expect(html).toContain("походы");
+    expect(html).toContain("Анна Соколова");
     expect(html).not.toContain("d0000001-0000-4000-8000-000000000001");
     for (const label of Object.values(SUBSCRIPTION_TYPE_LABELS)) expect(html).toContain(label);
   });

@@ -13,7 +13,7 @@
 import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import type { EventFriendsSummary, Friend, FriendActivityByFriend, FriendSuggestion, FriendsSyncStatus } from "@max-events/api-contracts";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
@@ -88,13 +88,17 @@ export class FriendsService {
   }
 
   async suggestions(userId: string): Promise<FriendSuggestion[]> {
+    const me = await this.users.findOneBy({ id: userId });
+    if (!me) throw new NotFoundException("User not found");
+    const fromBot = await this.bot.listFriends(me.maxUserId);
+    if (fromBot === null || fromBot.length === 0) return [];
     const following = await this.friendIds(userId);
-    const users = await this.users.find();
+    const users = await this.users.find({ where: { maxUserId: In(fromBot) } });
     return users
-      .filter((row) => row.id !== userId)
+      .filter((row) => row.id !== userId && fromBot.includes(row.maxUserId))
       .map((row) => ({
         friend: toFriendDto(row),
-        hint: following.has(row.id) ? "уже в друзьях" : "пользуется Афишей",
+        hint: following.has(row.id) ? "уже в друзьях" : "из контактов MAX",
         following: following.has(row.id),
       }))
       .slice(0, 20);
@@ -103,9 +107,11 @@ export class FriendsService {
   async replaceFollows(userId: string, userIds: string[]): Promise<string[]> {
     const me = await this.users.findOneBy({ id: userId });
     if (!me) throw new NotFoundException("User not found");
+    const fromBot = await this.bot.listFriends(me.maxUserId);
+    if (fromBot === null) return [...(await this.friendIds(userId))];
     const unique = [...new Set(userIds)].filter((id) => id !== userId);
-    const all = await this.users.find();
-    const known = new Set(all.map((row) => row.id));
+    const allowed = fromBot.length === 0 ? [] : await this.users.find({ where: { maxUserId: In(fromBot) } });
+    const known = new Set(allowed.filter((row) => fromBot.includes(row.maxUserId)).map((row) => row.id));
     const nextIds = unique.filter((id) => known.has(id));
     const next = new Set(nextIds);
     const existing = await this.friendships.find({ where: { userId } });

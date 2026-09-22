@@ -136,7 +136,7 @@
 // - ApiClient.listOrganizerPromos / createOrganizerPromo / setOrganizerEarlyAccess - organizer promocodes and the early-access window (GET/POST /organizer/events/:id/promocodes, POST .../early-access, #372)
 // END_MODULE_MAP
 
-import { IdSchema, LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
+import { IdSchema, LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, WeGroupSummarySchema, type PlacePage } from "@max-events/api-contracts";
 import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendPlaceVisitSchema, FriendRouteSchema, FriendSchema, FriendSuggestionSchema, FriendsSyncStatusSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, AfterMeResponseSchema, MyCitySummarySchema, OptimizeRouteSchema, OrganizationSchema, ParticipationSchema, SubscriptionSchema, TasteProfileSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
 import type {
   AfterMeResponse,
@@ -202,6 +202,7 @@ import type {
   Vote,
   WaitlistEntry,
   WeGroupScreen,
+  WeGroupSummary,
   WheretoQuery,
   WheretoResponse,
   AssistResponse,
@@ -402,10 +403,11 @@ const ListSummaryArraySchema: ZodSchema<ListSummary[]> = {
   },
 };
 
-/** List screen aggregate: a list item enriched with its event and the participant who added it (null outside shared collections). */
+/** List screen aggregate: a list item enriched with exactly one of event or place and the participant who added it (null outside shared collections). */
 export interface ListItemCard {
   item: ListItem;
-  event: Event;
+  event: Event | null;
+  place: Place | null;
   addedBy: Friend | null;
 }
 
@@ -417,15 +419,13 @@ const ListItemCardArraySchema: ZodSchema<ListItemCard[]> = {
       if (typeof entry !== "object" || entry === null) return { success: false as const, error: "expected a list item card" };
       const raw = entry as Record<string, unknown>;
       const item = ListItemSchema.safeParse(raw.item);
-      const event = EventSchema.safeParse(raw.event);
-      if (!item.success || !event.success) return { success: false as const, error: "invalid list item card" };
-      if (raw.addedBy === undefined || raw.addedBy === null) {
-        cards.push({ item: item.data, event: event.data, addedBy: null });
-        continue;
-      }
-      const addedBy = FriendSchema.safeParse(raw.addedBy);
+      const event = raw.event === undefined || raw.event === null ? { success: true as const, data: null } : EventSchema.safeParse(raw.event);
+      const place = raw.place === undefined || raw.place === null ? { success: true as const, data: null } : PlaceSchema.safeParse(raw.place);
+      if (!item.success || !event.success || !place.success) return { success: false as const, error: "invalid list item card" };
+      if ((event.data !== null) === (place.data !== null)) return { success: false as const, error: "invalid list item card" };
+      const addedBy = raw.addedBy === undefined || raw.addedBy === null ? { success: true as const, data: null } : FriendSchema.safeParse(raw.addedBy);
       if (!addedBy.success) return { success: false as const, error: "invalid list item card" };
-      cards.push({ item: item.data, event: event.data, addedBy: addedBy.data });
+      cards.push({ item: item.data, event: event.data, place: place.data, addedBy: addedBy.data });
     }
     return { success: true as const, data: cards };
   },
@@ -512,6 +512,7 @@ export interface CreateReview {
   categoryScores?: ReviewCategoryScores;
   wouldGoAgain: boolean;
   text?: string;
+  photos?: { url: string }[];
 }
 
 /** Report reason presets offered by the report button. */
@@ -1168,8 +1169,8 @@ export class ApiClient {
     return this.request("/we-groups", WeGroupScreenSchema, { body: payload });
   }
 
-  listWeGroups(): Promise<WeGroupScreen[]> {
-    return this.request("/we-groups", WeGroupScreenSchema.array());
+  listWeGroups(): Promise<WeGroupSummary[]> {
+    return this.request("/we-groups", WeGroupSummarySchema.array());
   }
 
   getWeGroup(id: string): Promise<WeGroupScreen> {

@@ -18,6 +18,7 @@ import { apiClient, type EventRating } from "../api/client";
 import type { ReviewCategoryScores, TasteProfile } from "@max-events/api-contracts";
 import { CATEGORY_LABELS } from "../catalog/CatalogPage";
 import { pluralRu } from "../catalog/format";
+import { readFeedPhoto } from "../feed/photo";
 import { AppButton, AppChip, AppTitle } from "../ui/primitives";
 
 export const CATEGORY_SCORE_LABELS: Record<keyof ReviewCategoryScores, string> = {
@@ -53,6 +54,7 @@ export interface ReviewDraft {
   categoryScores: ReviewCategoryScores;
   wouldGoAgain: boolean;
   text: string;
+  photos: { url: string }[];
 }
 
 export function ReviewForm({ onSubmit, sending }: { onSubmit: (draft: ReviewDraft) => void; sending: boolean }) {
@@ -60,7 +62,10 @@ export function ReviewForm({ onSubmit, sending }: { onSubmit: (draft: ReviewDraf
   const [scores, setScores] = useState<ReviewCategoryScores>({});
   const [wouldGoAgain, setWouldGoAgain] = useState<boolean | null>(null);
   const [text, setText] = useState("");
+  const [photos, setPhotos] = useState<{ url: string }[]>([]);
+  const [photoFailed, setPhotoFailed] = useState(false);
   const ready = stars > 0 && wouldGoAgain !== null;
+  const photosFull = photos.length >= 4;
 
   const starButtons = (picked: number, pick: (value: number) => void) => (
     <div className="app-review-stars">
@@ -78,7 +83,7 @@ export function ReviewForm({ onSubmit, sending }: { onSubmit: (draft: ReviewDraf
       onSubmit={(event) => {
         event.preventDefault();
         if (!ready) return;
-        onSubmit({ stars, categoryScores: scores, wouldGoAgain: wouldGoAgain as boolean, text });
+        onSubmit({ stars, categoryScores: scores, wouldGoAgain: wouldGoAgain as boolean, text, photos });
       }}
     >
       {starButtons(stars, setStars)}
@@ -97,10 +102,35 @@ export function ReviewForm({ onSubmit, sending }: { onSubmit: (draft: ReviewDraf
         </AppChip>
       </div>
       <textarea className="app-review-text" placeholder="Расскажи, как всё прошло (необязательно)" value={text} onChange={(event) => setText(event.target.value)} />
-      {/* ponytail: photo upload is a placeholder until the backend accepts review photos */}
-      <button type="button" className="app-review-photo" disabled>
+      {photos.length > 0 && (
+        <ul className="app-plan-participants" aria-label="Фото отзыва">
+          {photos.map((photo) => (
+            <li key={photo.url}>
+              <img src={photo.url} alt="" className="app-card-media-img" />
+            </li>
+          ))}
+        </ul>
+      )}
+      {photoFailed && <p className="app-state app-state--error">Не удалось добавить фото. Выберите файл поменьше.</p>}
+      <label className="app-review-photo">
         Добавить фото
-      </button>
+        <input
+          type="file"
+          accept="image/*"
+          hidden
+          disabled={photosFull}
+          onChange={(change) => {
+            const file = change.target.files?.[0];
+            change.target.value = "";
+            if (!file || photosFull) return;
+            setPhotoFailed(false);
+            void readFeedPhoto(file).then((url) => {
+              if (url) setPhotos((current) => (current.length >= 4 ? current : [...current, { url }]));
+              else setPhotoFailed(true);
+            });
+          }}
+        />
+      </label>
       <AppButton disabled={!ready || sending} type="submit" stretched>
         Отправить отзыв
       </AppButton>
@@ -132,7 +162,7 @@ export function ReviewSection({ eventId, userId, canReview }: { eventId: string;
     (draft: ReviewDraft) => {
       setSending(true);
       apiClient
-        .createReview({ userId, eventId, ...draft, text: draft.text === "" ? undefined : draft.text })
+        .createReview({ userId, eventId, ...draft, text: draft.text === "" ? undefined : draft.text, photos: draft.photos })
         .then(() => {
           setSent(true);
           load();

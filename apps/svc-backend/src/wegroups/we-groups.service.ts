@@ -13,7 +13,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, QueryFailedError, Repository } from "typeorm";
-import type { Booking, CreateWeGroupWrite, DayRoute, PlanBudget, ReviewPhoto, RoutePoint, WeGroup, WeGroupScreen } from "@max-events/api-contracts";
+import type { Booking, CreateWeGroupWrite, DayRoute, Friend, PlanBudget, ReviewPhoto, RoutePoint, WeGroup, WeGroupScreen, WeGroupSummary } from "@max-events/api-contracts";
 import { BookingEntity } from "../bookings/booking.entity";
 import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
@@ -24,6 +24,7 @@ import { PlanEntity } from "../plans/plan.entity";
 import { budgetFromExpenses } from "../plans/plans.service";
 import { toPlaceDto } from "../places/places.service";
 import { PlaceEntity } from "../places/place.entity";
+import { ParticipationEntity } from "../participations/participation.entity";
 import { ReviewEntity } from "../reviews/review.entity";
 import { toDayRoute } from "../routes/routes.service";
 import { UserEntity } from "../users/user.entity";
@@ -44,6 +45,7 @@ export class WeGroupsService {
     @InjectRepository(PlanEntity) private readonly plans: Repository<PlanEntity>,
     @InjectRepository(PlanExpenseEntity) private readonly expenses: Repository<PlanExpenseEntity>,
     @InjectRepository(ReviewEntity) private readonly reviews: Repository<ReviewEntity>,
+    @InjectRepository(ParticipationEntity) private readonly participations: Repository<ParticipationEntity>,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
   ) {}
 
@@ -65,12 +67,17 @@ export class WeGroupsService {
     return this.get(ownerUserId, saved.id);
   }
 
-  async listForUser(userId: string): Promise<WeGroupScreen[]> {
+  async listForUser(userId: string): Promise<WeGroupSummary[]> {
     const memberships = await this.members.find({ where: { userId } });
     const groupIds = memberships.map((row) => row.groupId);
     if (groupIds.length === 0) return [];
     const groups = await this.groups.find({ where: { id: In(groupIds) }, order: { createdAt: "DESC", id: "ASC" } });
-    return Promise.all(groups.map((group) => this.toScreen(group)));
+    return Promise.all(groups.map((group) => this.toSummary(group)));
+  }
+
+  async photos(actorId: string, groupId: string): Promise<ReviewPhoto[]> {
+    const screen = await this.get(actorId, groupId);
+    return screen.photos;
   }
 
   async get(actorId: string, groupId: string): Promise<WeGroupScreen> {
@@ -136,12 +143,17 @@ export class WeGroupsService {
     const events = eventIds.length === 0 ? [] : await this.events.find({ where: { id: In(eventIds), published: true } });
     const places = placeIds.length === 0 ? [] : await this.places.find({ where: { id: In(placeIds), published: true } });
     const memberIds = [...new Set([group.ownerUserId, ...memberRows.map((row) => row.userId)])];
+    const members = memberRows
+      .map((row) => userById.get(row.userId))
+      .filter((row): row is UserEntity => row !== undefined)
+      .map(toFriendDto);
+    const photos = await this.memberPhotos(
+      memberIds,
+      events.map((row) => row.id),
+    );
     return {
       group: toWeGroupDto(group),
-      members: memberRows
-        .map((row) => userById.get(row.userId))
-        .filter((row): row is UserEntity => row !== undefined)
-        .map(toFriendDto),
+      members,
       events: events.map((row) => toEventDto(row)),
       places: places.map(toPlaceDto),
       bookings: await this.memberBookings(
@@ -153,11 +165,37 @@ export class WeGroupsService {
         memberIds,
         events.map((row) => row.id),
       ),
-      photos: await this.memberPhotos(
-        memberIds,
-        events.map((row) => row.id),
-      ),
+      photos,
+      photosTotal: photos.length,
+      goingByEvent: await this.goingByEvent(memberIds, events, members),
     };
+  }
+
+  private async toSummary(group: WeGroupEntity): Promise<WeGroupSummary> {
+    const screen = await this.toScreen(group);
+    const now = Date.now();
+    const upcoming = screen.events.filter((event) => Date.parse(event.startsAt) >= now).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    return {
+      group: screen.group,
+      membersCount: screen.members.length,
+      upcomingEventsCount: upcoming.length,
+      photosTotal: screen.photosTotal,
+      budgetTotalRub: screen.budget?.totalRub ?? null,
+      nextEventTitle: upcoming[0]?.title ?? null,
+    };
+  }
+
+  private async goingByEvent(memberIds: string[], events: EventEntity[], members: Friend[]): Promise<Array<{ eventId: string; going: Friend[] }>> {
+    if (memberIds.length === 0 || events.length === 0) return events.map((event) => ({ eventId: event.id, going: [] }));
+    const rows = await this.participations.find({ where: { userId: In(memberIds), eventId: In(events.map((row) => row.id)) } });
+    const memberById = new Map(members.map((member) => [member.id, member]));
+    return events.map((event) => ({
+      eventId: event.id,
+      going: rows.filter((row) => row.eventId === event.id && row.status === "going").flatMap((row) => {
+        const member = memberById.get(row.userId);
+        return member ? [member] : [];
+      }),
+    }));
   }
 
   private async memberBookings(memberIds: string[], eventIds: string[]): Promise<Booking[]> {

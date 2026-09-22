@@ -82,6 +82,8 @@ function LeisureOptionCard({ option, onOpenEvent, onOpenPlace }: { option: Leisu
             <span className="app-nearby-stop-title">
               {stop.title}
               {stop.startsAt !== null ? ` · ${formatStartsAt(stop.startsAt)}` : ""}
+              {stop.distanceKm !== null ? ` · ${formatDistanceKm(stop.distanceKm)}` : ""}
+              {stop.priceRub !== null ? ` · ${stop.priceRub} ₽` : ""}
             </span>
             <button type="button" className="app-nearby-stop-open" onClick={() => (stop.kind === "event" && stop.eventId !== null ? onOpenEvent(stop.eventId) : stop.placeId !== null ? onOpenPlace(stop.placeId) : undefined)}>
               Открыть

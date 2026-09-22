@@ -23,6 +23,7 @@ const event: Event = {
   published: true,
   bookingOpensAt: null,
   weather: null,
+  coverUrl: null,
 };
 
 function createController() {

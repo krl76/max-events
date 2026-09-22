@@ -44,6 +44,7 @@ const validEvent: Event = {
   published: true,
   bookingOpensAt: null,
   weather: null,
+  coverUrl: null,
 };
 
 describe("ApiClient", () => {
