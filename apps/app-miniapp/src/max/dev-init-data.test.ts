@@ -38,10 +38,10 @@ describe("isInitDataShimAllowed", () => {
     expect(isInitDataShimAllowed()).toBe(false);
   });
 
-  it("rejects the MAX-only production host", () => {
+  it("allows the production host for signed ?initData= (mint endpoint stays off)", () => {
     vi.stubEnv("DEV", false);
     stubWindow({ hostname: "events.versacegus.cc" });
-    expect(isInitDataShimAllowed()).toBe(false);
+    expect(isInitDataShimAllowed()).toBe(true);
   });
 });
 
