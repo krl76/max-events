@@ -70,11 +70,14 @@ export class AuthService {
     }
   }
 
-  issueBrowserInitData(nowSeconds: number = Math.floor(Date.now() / 1000)): string | "disabled" {
+  async issueBrowserInitData(nowSeconds: number = Math.floor(Date.now() / 1000)): Promise<string | "disabled"> {
     if (!isEnabled(this.config.get("AUTH_ALLOW_BROWSER"))) return "disabled";
     const botToken = this.config.get<string>("MAX_BOT_TOKEN");
     if (!botToken) return "disabled";
-    return signInitData({ auth_date: String(nowSeconds), user: JSON.stringify(this.browserUser()) }, botToken);
+    const base = this.browserUser();
+    const row = await this.userRepo.findOneBy({ maxUserId: String(base.id) });
+    const user = row?.avatarUrl ? { ...base, photo_url: row.avatarUrl } : base;
+    return signInitData({ auth_date: String(nowSeconds), user: JSON.stringify(user) }, botToken);
   }
 
   private browserUser(): { id: number; first_name: string; username?: string | null; language_code?: string } {
