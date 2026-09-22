@@ -1,17 +1,18 @@
 // START_MODULE_CONTRACT
 // PURPOSE: FIFO waitlist — join when full, offer the freed seat with a confirmation timer, expire and pass on.
-// SCOPE: join, confirm, decline, getMe, expireOffers; every path that drops an offer releases its reserved seat; onSeatFreed is called inside the booking-cancel transaction.
+// SCOPE: join, confirm, decline, getMe, expireOffers; every path that drops an offer releases its reserved seat; onSeatFreed is called inside the booking-cancel transaction; notifyOffer DMs the offer with the event and the confirmation window.
 // DEPENDS: typeorm, @max-events/api-contracts, bookings/events/users, max-bot
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - OFFER_TTL_MS - confirmation window
+// - formatWaitlistOfferText - offer DM: which event and until when
 // - WaitlistService - join/confirm/decline/getMe/expire/onSeatFreed/fillVacancies
 // - toWaitlistDto - entity plus FIFO position
 // END_MODULE_MAP
 
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, EntityManager, In, LessThanOrEqual, QueryFailedError, Repository } from "typeorm";
 import type { WaitlistEntry, WaitlistStatus } from "@max-events/api-contracts";
@@ -20,14 +21,25 @@ import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PaymentsService } from "../payments/payments.service";
 import { PromoService } from "../promo/promo.service";
+import { moscowTimeLabel } from "../time/moscow-date";
 import { UserEntity } from "../users/user.entity";
 import { WaitlistEntryEntity } from "./waitlist-entry.entity";
 
 export const OFFER_TTL_MS = 15 * 60 * 1000;
+
+/**
+ * The offer expires on a timer, so the DM has to say which event freed a seat and by when. A bare ISO
+ * timestamp told the person neither. The deadline is absolute on purpose: a "N minutes left" countdown
+ * would be computed here and read later, so a slow batch or a delayed DM would make it a lie.
+ */
+export function formatWaitlistOfferText(eventTitle: string, offeredUntil: Date): string {
+  return `Место освободилось: «${eventTitle}». Подтверди до ${moscowTimeLabel(offeredUntil)} МСК — иначе место уйдёт следующему в очереди.`;
+}
 const QUEUE_STATUSES: WaitlistStatus[] = ["waiting", "offered"];
 
 @Injectable()
 export class WaitlistService {
+  private readonly logger = new Logger(WaitlistService.name);
   private expiring = false;
 
   constructor(
@@ -235,8 +247,13 @@ export class WaitlistService {
   async notifyOffer(entry: WaitlistEntryEntity): Promise<void> {
     const user = await this.users.findOneBy({ id: entry.userId });
     if (!user || !entry.offeredUntil) return;
-    const deadline = entry.offeredUntil.toISOString();
-    await this.bot.sendMessage(user.maxUserId, `Место освободилось — подтверди до ${deadline}.`);
+    const event = await this.events.findOneBy({ id: entry.eventId });
+    if (!event) {
+      // The seat stays reserved for the full window either way, so a silent skip would hide it.
+      this.logger.warn(`Waitlist offer ${entry.id} has no event ${entry.eventId}: no DM sent`);
+      return;
+    }
+    await this.bot.sendMessage(user.maxUserId, formatWaitlistOfferText(event.title, entry.offeredUntil));
   }
 }
 

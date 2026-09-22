@@ -111,7 +111,7 @@ function createHarness(event: EventEntity) {
       paymentCalls.push(bookingId);
     },
   };
-  const service = new WaitlistService(dataSource, entriesRepo as unknown as Repository<WaitlistEntryEntity>, { findOneBy: async () => event } as unknown as Repository<EventEntity>, { findOneBy: async (where: { id: string }) => users.find((row) => row.id === where.id) ?? null } as unknown as Repository<UserEntity>, bot, promo as never, payments as never);
+  const service = new WaitlistService(dataSource, entriesRepo as unknown as Repository<WaitlistEntryEntity>, { findOneBy: async (where: { id: string }) => (where.id === event.id ? event : null) } as unknown as Repository<EventEntity>, { findOneBy: async (where: { id: string }) => users.find((row) => row.id === where.id) ?? null } as unknown as Repository<UserEntity>, bot, promo as never, payments as never);
   return { service, entries, events, bookings, sent, manager, entriesRepo, bot, promoCalls, paymentCalls };
 }
 
@@ -282,11 +282,23 @@ describe("WaitlistService.onSeatFreed, confirm and expiry", () => {
     expect(harness.events[0]!.bookedCount).toBe(1);
     await harness.service.notifyOffer(offered!);
     expect(harness.sent[0]).toContain("1:");
-    expect(harness.sent[0]).toContain("подтверди");
+    // The DM has to name the event and the deadline, not a bare timestamp.
+    expect(harness.sent[0]).toContain("Jazz");
+    expect(harness.sent[0]).toContain("Подтверди до");
     const confirmed = await harness.service.confirm(userA, joined.id, now);
     expect(confirmed.status).toBe("confirmed");
     expect(harness.bookings).toHaveLength(1);
     expect(harness.bookings[0]?.userId).toBe(userA);
+  });
+
+  it("sends nothing rather than an unnamed offer when the event row is gone", async () => {
+    const harness = createHarness(seedEvent(1, 1));
+    await harness.service.join(userA, eventId);
+    harness.events[0]!.bookedCount = 0;
+    const offered = await harness.service.onSeatFreed(harness.manager as unknown as EntityManager, harness.events[0]!, now);
+    offered!.eventId = "00000000-0000-4000-8000-00000000dead";
+    await harness.service.notifyOffer(offered!);
+    expect(harness.sent).toHaveLength(0);
   });
 
   it("passes an expired offer to the next waiter without double-counting the reserved seat", async () => {
