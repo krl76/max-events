@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Authenticate requests by MAX initData or organizer Bearer token — validate and upsert/load the user.
-// SCOPE: authenticate(initData) returns the upserted user or null (fail-closed without MAX_BOT_TOKEN); organizerLogin issues a Redis-backed Bearer token against ORGANIZER_LOGIN/ORGANIZER_PASSWORD env credentials (fail-closed 503-worthy "disabled" when unset); authenticateOrganizerToken resolves a Bearer token to the organizer user.
+// SCOPE: authenticate(initData) returns the upserted user or null (fail-closed without MAX_BOT_TOKEN); organizerLogin issues a Redis-backed Bearer token against ORGANIZER_LOGIN/ORGANIZER_PASSWORD env credentials (fail-closed 503-worthy "disabled" when unset, "locked" after 5 failed attempts for 60s); organizerLogout revokes a Bearer session; authenticateOrganizerToken resolves a Bearer token to the organizer user.
 // DEPENDS: @nestjs/common, @nestjs/config, @nestjs/typeorm, typeorm, ioredis, node:crypto, ./max-init-data, ../users/users.service, ../users/user.entity, ../friends/friends.service, ../redis/redis.module
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -8,8 +8,11 @@
 // START_MODULE_MAP
 // - AuthService - initData validation + user upsert entrypoint shared by guard and login endpoint
 // - ORGANIZER_SESSION_TTL_SECONDS - organizer Bearer token lifetime (7 days)
-// - OrganizerLoginResult - organizerLogin outcome: { token, user } | "disabled" (env unset) | null (bad credentials)
-// - AuthService.organizerLogin - env-credential check, find-or-create organizer user, store token in Redis
+// - ORGANIZER_LOGIN_MAX_FAILS - failed organizer login attempts per login name before the lock kicks in
+// - ORGANIZER_LOGIN_WINDOW_SECONDS - TTL of the failure counter and the lock key (60s)
+// - OrganizerLoginResult - organizerLogin outcome: { token, user } | "disabled" (env unset) | "locked" (rate limited) | null (bad credentials)
+// - AuthService.organizerLogin - env-credential check, rate limit, find-or-create organizer user, store token in Redis
+// - AuthService.organizerLogout - delete organizer-session:{token} from Redis
 // - AuthService.authenticateOrganizerToken - Bearer token -> Redis lookup -> organizer user
 // - BROWSER_DEMO_USER - MAX user payload minted for AUTH_ALLOW_BROWSER sessions
 // - AuthService.issueBrowserInitData - signed initData for the staging browser host, or "disabled"
@@ -31,7 +34,10 @@ export const BROWSER_DEMO_USER = { id: 1001, first_name: "Демо", username: "
 
 export const ORGANIZER_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-export type OrganizerLoginResult = { token: string; user: UserEntity } | "disabled" | null;
+export const ORGANIZER_LOGIN_MAX_FAILS = 5;
+export const ORGANIZER_LOGIN_WINDOW_SECONDS = 60;
+
+export type OrganizerLoginResult = { token: string; user: UserEntity } | "disabled" | "locked" | null;
 
 // Hashing both sides normalizes length so timingSafeEqual never throws and leaks nothing about length.
 function credentialsEqual(a: string, b: string): boolean {
@@ -86,11 +92,25 @@ export class AuthService {
     const expectedLogin = this.config.get<string>("ORGANIZER_LOGIN");
     const expectedPassword = this.config.get<string>("ORGANIZER_PASSWORD");
     if (!expectedLogin || !expectedPassword) return "disabled";
-    if (!credentialsEqual(login, expectedLogin) || !credentialsEqual(password, expectedPassword)) return null;
+    const failKey = `organizer-login-fail:${login}`;
+    if (await this.redis.get(`organizer-login-lock:${login}`)) return "locked";
+    if (!credentialsEqual(login, expectedLogin) || !credentialsEqual(password, expectedPassword)) {
+      const fails = await this.redis.incr(failKey);
+      await this.redis.expire(failKey, ORGANIZER_LOGIN_WINDOW_SECONDS);
+      if (fails >= ORGANIZER_LOGIN_MAX_FAILS) {
+        await this.redis.set(`organizer-login-lock:${login}`, "1", "EX", ORGANIZER_LOGIN_WINDOW_SECONDS);
+      }
+      return null;
+    }
+    await this.redis.del(failKey);
     const user = await this.findOrCreateOrganizer(login);
     const token = randomBytes(32).toString("hex");
     await this.redis.set(`organizer-session:${token}`, user.id, "EX", ORGANIZER_SESSION_TTL_SECONDS);
     return { token, user };
+  }
+
+  async organizerLogout(token: string): Promise<void> {
+    await this.redis.del(`organizer-session:${token}`);
   }
 
   async authenticateOrganizerToken(token: string): Promise<UserEntity | null> {

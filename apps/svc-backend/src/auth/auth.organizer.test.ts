@@ -14,7 +14,7 @@ describe("AuthService.organizerLogin", () => {
     await expect(service.organizerLogin("demo", "wrong")).resolves.toBeNull();
     await expect(service.organizerLogin("nobody", "s3cret")).resolves.toBeNull();
     expect(userRepo.store).toHaveLength(0);
-    expect(redis.store.size).toBe(0);
+    expect([...redis.store.keys()].filter((key) => key.startsWith("organizer-session:"))).toHaveLength(0);
   });
 
   it("creates the organizer user on first login and stores the session token in Redis", async () => {
@@ -22,7 +22,7 @@ describe("AuthService.organizerLogin", () => {
     const result = await service.organizerLogin("demo", "s3cret");
     expect(result).not.toBeNull();
     expect(result).not.toBe("disabled");
-    if (result === "disabled" || result === null) throw new Error("unreachable");
+    if (result === "disabled" || result === "locked" || result === null) throw new Error("unreachable");
     expect(result.token).toMatch(/^[0-9a-f]{64}$/);
     expect(result.user.maxUserId).toBe("organizer:demo");
     expect(result.user.firstName).toBe("demo");
@@ -36,7 +36,7 @@ describe("AuthService.organizerLogin", () => {
     const { service, userRepo } = createOrganizerAuthService(credentials);
     const first = await service.organizerLogin("demo", "s3cret");
     const second = await service.organizerLogin("demo", "s3cret");
-    if (first === "disabled" || first === null || second === "disabled" || second === null) throw new Error("unreachable");
+    if (typeof first !== "object" || first === null || typeof second !== "object" || second === null) throw new Error("unreachable");
     expect(userRepo.store).toHaveLength(1);
     expect(second.user.id).toBe(first.user.id);
     expect(second.token).not.toBe(first.token);
@@ -45,8 +45,73 @@ describe("AuthService.organizerLogin", () => {
   it("keeps sessions of different logins apart", async () => {
     const { service } = createOrganizerAuthService(credentials);
     const first = await service.organizerLogin("demo", "s3cret");
-    if (first === "disabled" || first === null) throw new Error("unreachable");
+    if (typeof first !== "object" || first === null) throw new Error("unreachable");
     await expect(service.authenticateOrganizerToken(first.token)).resolves.toMatchObject({ maxUserId: "organizer:demo" });
     await expect(service.authenticateOrganizerToken("0".repeat(64))).resolves.toBeNull();
+  });
+});
+
+describe("AuthService.organizerLogin rate limiting", () => {
+  it("locks the login after 5 failed attempts, rejecting even correct credentials", async () => {
+    const { service } = createOrganizerAuthService(credentials);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await expect(service.organizerLogin("demo", "wrong")).resolves.toBeNull();
+    }
+    await expect(service.organizerLogin("demo", "wrong")).resolves.toBe("locked");
+    await expect(service.organizerLogin("demo", "s3cret")).resolves.toBe("locked");
+  });
+
+  it("sets the lock key with a 60s TTL and expires the failure counter", async () => {
+    const { service, redis } = createOrganizerAuthService(credentials);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await service.organizerLogin("demo", "wrong");
+    }
+    expect(redis.store.get("organizer-login-fail:demo")).toBe("5");
+    expect(redis.store.get("organizer-login-lock:demo")).toBe("1");
+    const lockCall = redis.setCalls.find((call) => call.key === "organizer-login-lock:demo");
+    expect(lockCall?.args).toEqual(["EX", 60]);
+  });
+
+  it("resets the failure counter on a successful login", async () => {
+    const { service, redis } = createOrganizerAuthService(credentials);
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await service.organizerLogin("demo", "wrong");
+    }
+    const login = await service.organizerLogin("demo", "s3cret");
+    if (typeof login !== "object" || login === null) throw new Error("unreachable");
+    expect(redis.store.has("organizer-login-fail:demo")).toBe(false);
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await service.organizerLogin("demo", "wrong");
+    }
+    await expect(service.organizerLogin("demo", "s3cret")).resolves.not.toBe("locked");
+  });
+
+  it("counts failures per login name", async () => {
+    const { service } = createOrganizerAuthService(credentials);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await service.organizerLogin("other", "wrong");
+    }
+    const login = await service.organizerLogin("demo", "s3cret");
+    if (typeof login !== "object" || login === null) throw new Error("unreachable");
+    expect(login.token).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+describe("AuthService.organizerLogout", () => {
+  it("deletes the session so the Bearer token no longer resolves", async () => {
+    const { service } = createOrganizerAuthService(credentials);
+    const login = await service.organizerLogin("demo", "s3cret");
+    if (typeof login !== "object" || login === null) throw new Error("unreachable");
+    await service.organizerLogout(login.token);
+    await expect(service.authenticateOrganizerToken(login.token)).resolves.toBeNull();
+  });
+
+  it("leaves other sessions untouched", async () => {
+    const { service } = createOrganizerAuthService(credentials);
+    const first = await service.organizerLogin("demo", "s3cret");
+    const second = await service.organizerLogin("demo", "s3cret");
+    if (typeof first !== "object" || first === null || typeof second !== "object" || second === null) throw new Error("unreachable");
+    await service.organizerLogout(first.token);
+    await expect(service.authenticateOrganizerToken(second.token)).resolves.toMatchObject({ maxUserId: "organizer:demo" });
   });
 });
