@@ -50,6 +50,8 @@ export class TasteService {
   }
 
   async afterMe(userId: string, now = new Date()): Promise<AfterMeResponse> {
+    const prefs = await this.profiles.findOneBy({ userId });
+    if (prefs?.recommendationsEnabled === false) return { suggestions: [] };
     const graph = await this.loadGraph(userId);
     const suggestion = strongestAfterMe(graph);
     if (!suggestion) return { suggestions: [] };

@@ -18,12 +18,15 @@ export function icsStamp(iso: string): string {
   return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}Z`;
 }
 
+const DEFAULT_DURATION_MS = 60 * 60 * 1000;
+
 export function buildCalendarIcs(entries: CalendarEntry[]): string {
   const events = entries
     .map((entry) => {
+      const startMs = Date.parse(entry.event.startsAt);
       const start = icsStamp(entry.event.startsAt);
-      const endSource = entry.event.endsAt ?? entry.event.startsAt;
-      const end = icsStamp(endSource);
+      const endMs = entry.event.endsAt !== null && Date.parse(entry.event.endsAt) > startMs ? Date.parse(entry.event.endsAt) : startMs + DEFAULT_DURATION_MS;
+      const end = icsStamp(new Date(endMs).toISOString());
       const summary = entry.event.title.replace(/[,\\;]/g, " ");
       return ["BEGIN:VEVENT", `UID:${entry.booking.id}@max-events`, `DTSTAMP:${start}`, `DTSTART:${start}`, `DTEND:${end}`, `SUMMARY:${summary}`, "END:VEVENT"].join("\r\n");
     })

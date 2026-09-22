@@ -16,8 +16,21 @@ describe("buildCalendarIcs", () => {
     expect(ics).toContain("BEGIN:VEVENT");
     expect(ics).toContain(`UID:${entry.booking.id}@max-events`);
     expect(ics).toContain(`SUMMARY:${event.title}`);
-    expect(ics).toContain(`DTSTART:${icsStamp(event.startsAt)}`);
+    expect(ics).toContain("DTSTART:20260919T160000Z");
+    expect(ics).toContain("DTEND:20260919T170000Z");
     expect(ics).toContain("END:VCALENDAR");
+  });
+
+  it("uses the event endsAt when it is after startsAt", () => {
+    const event = { ...mockEvents[1], endsAt: "2026-09-19T21:00:00+03:00" };
+    const entry: CalendarEntry = {
+      booking: { id: "e0000000-0000-4000-8000-000000000098", userId: "u1", eventId: event.id, status: "active", createdAt: event.startsAt, updatedAt: event.startsAt },
+      event,
+      place: mockPlaces[1] ?? null,
+    };
+    const ics = buildCalendarIcs([entry]);
+    expect(ics).toContain("DTSTART:20260919T090000Z");
+    expect(ics).toContain("DTEND:20260919T180000Z");
   });
 
   it("returns an empty calendar when there are no bookings", () => {

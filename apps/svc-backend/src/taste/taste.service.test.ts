@@ -128,4 +128,12 @@ describe("TasteService", () => {
     expect(after.suggestions[0]?.toCategory).toBe("sport");
     expect(after.suggestions[0]?.events.map((row) => row.id)).toEqual([nextId]);
   });
+
+  it("returns no after-me suggestions when the viewer disabled recommendations", async () => {
+    const checkIns = createStoreRepo<CheckInEntity>([{ id: "c1", userId, eventId: jazzId, placeId: null, checkedInAt: new Date("2026-09-01T10:00:00Z") } as CheckInEntity, { id: "c2", userId, eventId: runId, placeId: null, checkedInAt: new Date("2026-09-04T10:00:00Z") } as CheckInEntity]);
+    const events = createStoreRepo<EventEntity>([{ id: jazzId, category: "afisha", placeId: null, published: true, startsAt: new Date("2026-08-01T10:00:00Z") } as EventEntity, { id: runId, category: "sport", placeId: null, published: true, startsAt: new Date("2026-08-02T10:00:00Z") } as EventEntity]);
+    const profiles = createStoreRepo<ProfileEntity>([{ userId, city: "Москва", interests: [], recommendationsEnabled: false } as unknown as ProfileEntity]);
+    const service = new TasteService(checkIns as unknown as Repository<CheckInEntity>, events as unknown as Repository<EventEntity>, createStoreRepo<PlaceEntity>() as unknown as Repository<PlaceEntity>, createStoreRepo<ReviewEntity>() as unknown as Repository<ReviewEntity>, profiles as unknown as Repository<ProfileEntity>);
+    expect(await service.afterMe(userId, now)).toEqual({ suggestions: [] });
+  });
 });
