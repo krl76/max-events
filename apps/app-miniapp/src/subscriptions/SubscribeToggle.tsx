@@ -21,6 +21,7 @@ export function matchesSubscriptionTarget(row: Subscription, target: CreateSubsc
   if (row.type !== target.type) return false;
   if (target.type === "organizer") return row.organizerUserId === target.organizerUserId;
   if (target.type === "place") return row.placeId === target.placeId;
+  if (target.type === "user") return row.targetUserId === target.userId;
   return (row.interest ?? "").toLowerCase() === target.interest.toLowerCase();
 }
 

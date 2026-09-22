@@ -1,4 +1,4 @@
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { FindOperator, QueryFailedError, type Repository } from "typeorm";
 import { EventEntity } from "../events/event.entity";
@@ -83,6 +83,7 @@ describe("matchesSubscription", () => {
     expect(matchesSubscription(event, { type: "place", placeId, organizerUserId: null, interest: null } as SubscriptionEntity)).toBe(true);
     expect(matchesSubscription(event, { type: "organizer", organizerUserId: organizerId, placeId: null, interest: null } as SubscriptionEntity)).toBe(true);
     expect(matchesSubscription(event, { type: "interest", interest: "поход", organizerUserId: null, placeId: null } as SubscriptionEntity)).toBe(true);
+    expect(matchesSubscription(event, { type: "user", targetUserId: organizerId, organizerUserId: null, placeId: null, interest: null } as SubscriptionEntity)).toBe(true);
     expect(matchesSubscription(event, { type: "place", placeId: "00000000-0000-4000-8000-0000000000p9", organizerUserId: null, interest: null } as SubscriptionEntity)).toBe(false);
   });
 });
@@ -163,5 +164,14 @@ describe("SubscriptionsService", () => {
     const result = await service.notifyNewEvent(event);
     expect(result.sent).toBe(1);
     expect(messages).toHaveLength(1);
+  });
+
+  it("follows a user by targetUserId and refuses a self-follow", async () => {
+    const { service } = createService();
+    const created = await service.create(userId, { type: "user", userId: organizerId });
+    expect(created.type).toBe("user");
+    expect(created.targetUserId).toBe(organizerId);
+    expect(created.title).toBe("Демо");
+    await expect(service.create(userId, { type: "user", userId })).rejects.toBeInstanceOf(BadRequestException);
   });
 });

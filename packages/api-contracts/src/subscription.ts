@@ -17,7 +17,7 @@
 import { z } from "zod";
 import { IdSchema, TimestampSchema } from "./primitives.js";
 
-export const SubscriptionTypeSchema = z.enum(["organizer", "place", "interest"]);
+export const SubscriptionTypeSchema = z.enum(["organizer", "place", "interest", "user"]);
 export type SubscriptionType = z.infer<typeof SubscriptionTypeSchema>;
 
 export const SubscriptionSchema = z
@@ -27,20 +27,22 @@ export const SubscriptionSchema = z
     type: SubscriptionTypeSchema,
     organizerUserId: IdSchema.nullable().default(null),
     placeId: IdSchema.nullable().default(null),
+    targetUserId: IdSchema.nullable().default(null),
     interest: z.string().min(1).max(200).nullable().default(null),
     /** What the subscription is called on screen: the place, the organization or the interest itself. */
     title: z.string().min(1).max(200),
     createdAt: TimestampSchema,
   })
   .superRefine((data, ctx) => {
-    const organizer = data.type === "organizer" && data.organizerUserId !== null && data.placeId === null && data.interest === null;
-    const place = data.type === "place" && data.placeId !== null && data.organizerUserId === null && data.interest === null;
-    const interest = data.type === "interest" && data.interest !== null && data.organizerUserId === null && data.placeId === null;
-    if (!organizer && !place && !interest) {
+    const organizer = data.type === "organizer" && data.organizerUserId !== null && data.placeId === null && data.interest === null && data.targetUserId === null;
+    const place = data.type === "place" && data.placeId !== null && data.organizerUserId === null && data.interest === null && data.targetUserId === null;
+    const interest = data.type === "interest" && data.interest !== null && data.organizerUserId === null && data.placeId === null && data.targetUserId === null;
+    const user = data.type === "user" && data.targetUserId !== null && data.organizerUserId === null && data.placeId === null && data.interest === null;
+    if (!organizer && !place && !interest && !user) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "subscription target must match type" });
     }
   });
 export type Subscription = z.infer<typeof SubscriptionSchema>;
 
-export const CreateSubscriptionSchema = z.discriminatedUnion("type", [z.object({ type: z.literal("organizer"), organizerUserId: IdSchema }), z.object({ type: z.literal("place"), placeId: IdSchema }), z.object({ type: z.literal("interest"), interest: z.string().min(1).max(200) })]);
+export const CreateSubscriptionSchema = z.discriminatedUnion("type", [z.object({ type: z.literal("organizer"), organizerUserId: IdSchema }), z.object({ type: z.literal("place"), placeId: IdSchema }), z.object({ type: z.literal("interest"), interest: z.string().min(1).max(200) }), z.object({ type: z.literal("user"), userId: IdSchema })]);
 export type CreateSubscription = z.infer<typeof CreateSubscriptionSchema>;

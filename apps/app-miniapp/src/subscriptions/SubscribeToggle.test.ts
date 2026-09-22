@@ -26,6 +26,7 @@ function viewHtml(over: { state?: Parameters<typeof SubscribeToggleView>[0]["sta
 describe("matchesSubscriptionTarget", () => {
   it("matches a follow to its own target and to nothing else", () => {
     expect(matchesSubscriptionTarget(subscription({}), { type: "organizer", organizerUserId: organizerId })).toBe(true);
+    expect(matchesSubscriptionTarget(subscription({ type: "user", organizerUserId: null, targetUserId: organizerId }), { type: "user", userId: organizerId })).toBe(true);
     expect(matchesSubscriptionTarget(subscription({}), { type: "organizer", organizerUserId: placeId })).toBe(false);
     // Same uuid, different kind of target: a place follow is not an organizer follow.
     expect(matchesSubscriptionTarget(subscription({}), { type: "place", placeId: organizerId })).toBe(false);

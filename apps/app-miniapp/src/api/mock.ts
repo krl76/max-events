@@ -430,6 +430,11 @@ export function resetMockSubscriptions(): void {
 function mockSubscriptionTitle(payload: CreateSubscription): string | null {
   if (payload.type === "interest") return payload.interest;
   if (payload.type === "place") return mockPlaces.find((place) => place.id === payload.placeId)?.title ?? null;
+  if (payload.type === "user") {
+    const friend = mockFriends.find((item) => item.id === payload.userId);
+    if (friend) return friend.name;
+    return payload.userId === mockDemoUser.id ? mockDemoUser.firstName : null;
+  }
   return mockOrganizers.some((organizer) => organizer.id === payload.organizerUserId) ? mockOrganization.name : null;
 }
 
@@ -437,6 +442,7 @@ function sameMockTarget(row: Subscription, payload: CreateSubscription): boolean
   if (row.type !== payload.type) return false;
   if (payload.type === "organizer") return row.organizerUserId === payload.organizerUserId;
   if (payload.type === "place") return row.placeId === payload.placeId;
+  if (payload.type === "user") return row.targetUserId === payload.userId;
   return (row.interest ?? "").toLowerCase() === payload.interest.toLowerCase();
 }
 
@@ -457,6 +463,7 @@ export function createMockSubscription(payload: CreateSubscription): Subscriptio
     type: payload.type,
     organizerUserId: payload.type === "organizer" ? payload.organizerUserId : null,
     placeId: payload.type === "place" ? payload.placeId : null,
+    targetUserId: payload.type === "user" ? payload.userId : null,
     interest: payload.type === "interest" ? payload.interest : null,
     title,
     createdAt: new Date().toISOString(),

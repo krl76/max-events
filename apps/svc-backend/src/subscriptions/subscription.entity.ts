@@ -30,6 +30,9 @@ export class SubscriptionEntity {
   @Column({ type: "uuid", nullable: true })
   placeId!: string | null;
 
+  @Column({ type: "uuid", nullable: true })
+  targetUserId!: string | null;
+
   @Column({ type: "varchar", nullable: true })
   interest!: string | null;
 

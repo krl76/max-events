@@ -14,7 +14,7 @@
 // - SubscriptionsService - create, list, remove, notifyNewEvent
 // END_MODULE_MAP
 
-import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, QueryFailedError, Repository } from "typeorm";
 import type { CreateSubscription, Subscription } from "@max-events/api-contracts";
@@ -38,6 +38,7 @@ export type EventMatchInput = {
 export function matchesSubscription(event: EventMatchInput, row: SubscriptionEntity): boolean {
   if (row.type === "place") return row.placeId !== null && row.placeId === event.placeId;
   if (row.type === "organizer") return row.organizerUserId !== null && row.organizerUserId === event.organizerUserId;
+  if (row.type === "user") return row.targetUserId !== null && row.targetUserId === event.organizerUserId;
   if (!row.interest) return false;
   const needle = row.interest.toLowerCase();
   return `${event.category} ${event.title} ${event.description}`.toLowerCase().includes(needle);
@@ -68,7 +69,7 @@ export class SubscriptionsService {
     const rows = await this.subscriptions.find({ where: { userId }, order: { createdAt: "ASC" } });
     if (rows.length === 0) return [];
     const placeIds = unique(rows.map((row) => row.placeId));
-    const organizerIds = unique(rows.map((row) => row.organizerUserId));
+    const organizerIds = unique([...rows.map((row) => row.organizerUserId), ...rows.map((row) => row.targetUserId)]);
     const places = placeIds.length === 0 ? [] : await this.places.find({ where: { id: In(placeIds) } });
     const organizerTitles = await this.organizerTitles(organizerIds);
     const placeTitles = new Map(places.map((place) => [place.id, place.title]));
@@ -83,6 +84,7 @@ export class SubscriptionsService {
   private titleOf(row: SubscriptionEntity, placeTitles: Map<string, string>, organizerTitles: Map<string, string>): string {
     if (row.type === "interest") return row.interest ?? "Интерес";
     if (row.type === "place") return (row.placeId ? placeTitles.get(row.placeId) : null) ?? "Место";
+    if (row.type === "user") return (row.targetUserId ? organizerTitles.get(row.targetUserId) : null) ?? "Пользователь";
     return (row.organizerUserId ? organizerTitles.get(row.organizerUserId) : null) ?? "Организатор";
   }
 
@@ -101,7 +103,7 @@ export class SubscriptionsService {
   /** One row, through the same resolvers the list uses. */
   private async withTitle(row: SubscriptionEntity): Promise<Subscription> {
     const places = row.placeId ? await this.places.find({ where: { id: In([row.placeId]) } }) : [];
-    const organizerTitles = await this.organizerTitles(row.organizerUserId ? [row.organizerUserId] : []);
+    const organizerTitles = await this.organizerTitles([row.organizerUserId, row.targetUserId].filter((id): id is string => id !== null));
     return toSubscriptionDto(row, this.titleOf(row, new Map(places.map((place) => [place.id, place.title])), organizerTitles));
   }
 
@@ -111,6 +113,7 @@ export class SubscriptionsService {
       type: payload.type,
       organizerUserId: payload.type === "organizer" ? payload.organizerUserId : null,
       placeId: payload.type === "place" ? payload.placeId : null,
+      targetUserId: payload.type === "user" ? payload.userId : null,
       interest: payload.type === "interest" ? payload.interest : null,
     };
     if (fields.placeId) {
@@ -120,6 +123,11 @@ export class SubscriptionsService {
     if (fields.organizerUserId) {
       const organizer = await this.users.findOneBy({ id: fields.organizerUserId });
       if (!organizer) throw new NotFoundException("Organizer not found");
+    }
+    if (fields.targetUserId) {
+      if (fields.targetUserId === userId) throw new BadRequestException("Cannot follow yourself");
+      const target = await this.users.findOneBy({ id: fields.targetUserId });
+      if (!target) throw new NotFoundException("User not found");
     }
     const existing = await this.findSameTarget(userId, fields);
     if (existing) return this.withTitle(existing);
@@ -176,7 +184,7 @@ export class SubscriptionsService {
   }
 }
 
-type SubscriptionTarget = { type: SubscriptionEntity["type"]; organizerUserId: string | null; placeId: string | null; interest: string | null };
+type SubscriptionTarget = { type: SubscriptionEntity["type"]; organizerUserId: string | null; placeId: string | null; targetUserId: string | null; interest: string | null };
 
 function unique(values: (string | null)[]): string[] {
   return [...new Set(values.filter((value): value is string => value !== null))];
@@ -190,6 +198,7 @@ function sameTarget(row: SubscriptionEntity, fields: SubscriptionTarget): boolea
   if (row.type !== fields.type) return false;
   if (fields.type === "organizer") return row.organizerUserId === fields.organizerUserId;
   if (fields.type === "place") return row.placeId === fields.placeId;
+  if (fields.type === "user") return row.targetUserId === fields.targetUserId;
   return (row.interest ?? "").toLowerCase() === (fields.interest ?? "").toLowerCase();
 }
 
@@ -200,6 +209,7 @@ export function toSubscriptionDto(row: SubscriptionEntity, title: string): Subsc
     type: row.type,
     organizerUserId: row.organizerUserId,
     placeId: row.placeId,
+    targetUserId: row.targetUserId,
     interest: row.interest,
     title,
     createdAt: row.createdAt.toISOString(),

@@ -21,6 +21,7 @@ describe("SubscriptionSchema", () => {
     ).toBe("organizer");
     expect(SubscriptionSchema.parse({ ...base, type: "place", organizerUserId: null, placeId: "018f3c5a-0000-7000-8000-000000000003", interest: null }).type).toBe("place");
     expect(SubscriptionSchema.parse({ ...base, type: "interest", organizerUserId: null, placeId: null, interest: "электронная музыка" }).interest).toBe("электронная музыка");
+    expect(SubscriptionSchema.parse({ ...base, type: "user", organizerUserId: null, placeId: null, interest: null, targetUserId: "018f3c5a-0000-7000-8000-000000000002" }).type).toBe("user");
   });
 
   it("rejects a type/target mismatch", () => {
@@ -42,6 +43,10 @@ describe("CreateSubscriptionSchema", () => {
       placeId: "018f3c5a-0000-7000-8000-000000000003",
     });
     expect(CreateSubscriptionSchema.parse({ type: "interest", interest: "походы" })).toEqual({ type: "interest", interest: "походы" });
+    expect(CreateSubscriptionSchema.parse({ type: "user", userId: "018f3c5a-0000-7000-8000-000000000002" })).toEqual({
+      type: "user",
+      userId: "018f3c5a-0000-7000-8000-000000000002",
+    });
     expect(CreateSubscriptionSchema.safeParse({ type: "place", interest: "походы" }).success).toBe(false);
   });
 });
