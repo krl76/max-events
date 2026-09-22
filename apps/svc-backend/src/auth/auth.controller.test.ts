@@ -10,14 +10,15 @@ function createController(config: Record<string, string>) {
 }
 
 describe("AuthController.browserInitData", () => {
-  it("answers 404 when browser auth is disabled", () => {
+  it("answers 404 when browser auth is disabled", async () => {
     const controller = createController({ MAX_BOT_TOKEN: "token" });
-    expect(() => controller.browserInitData()).toThrow(NotFoundException);
+    await expect(controller.browserInitData()).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it("returns signed initData when AUTH_ALLOW_BROWSER is on", () => {
+  it("returns signed initData when AUTH_ALLOW_BROWSER is on", async () => {
     const controller = createController({ MAX_BOT_TOKEN: "token", AUTH_ALLOW_BROWSER: "true" });
-    expect(controller.browserInitData().initData.length).toBeGreaterThan(10);
+    const body = await controller.browserInitData();
+    expect(body.initData.length).toBeGreaterThan(10);
   });
 });
 

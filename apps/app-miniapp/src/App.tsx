@@ -24,7 +24,7 @@ import { AppButton, AppState } from "./ui/primitives";
 const BROWSER_AUTH = import.meta.env.VITE_BROWSER_AUTH === "1";
 
 export function App() {
-  const [mode, setMode] = useState<EntryMode | null>(() => (getWebApp()?.initData ? "user" : null));
+  const [mode, setMode] = useState<EntryMode | null>(() => (BROWSER_AUTH || getWebApp()?.initData ? "user" : null));
 
   useEffect(() => {
     getWebApp()?.ready();

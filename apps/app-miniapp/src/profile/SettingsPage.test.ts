@@ -14,6 +14,9 @@ describe("SettingsView", () => {
     expect(html).toContain('value="бег, джаз"');
     expect(html).toContain("Сохранить");
     expect(html).toContain("Отмена");
+    expect(html).toContain('aria-label="Выход сейчас"');
+    expect(html).toContain('aria-label="Рекомендации"');
+    expect(html).toContain('aria-label="История посещений"');
   });
 
   it("disables saving while a save is in flight", () => {

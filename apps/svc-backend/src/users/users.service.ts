@@ -26,13 +26,13 @@ export class UsersService {
 
   async upsertFromMax(payload: MaxInitDataUser): Promise<UserEntity> {
     const maxUserId = String(payload.id);
+    const existing = await this.users.findOneBy({ maxUserId });
     const fields = {
       firstName: payload.first_name,
       lastName: payload.last_name ?? null,
       username: payload.username ?? null,
-      avatarUrl: payload.photo_url ?? null,
+      avatarUrl: payload.photo_url || existing?.avatarUrl || null,
     };
-    const existing = await this.users.findOneBy({ maxUserId });
     if (!existing) {
       try {
         return await this.users.save(this.users.create({ maxUserId, ...fields }));

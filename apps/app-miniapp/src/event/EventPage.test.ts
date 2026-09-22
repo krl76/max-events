@@ -24,7 +24,7 @@ function detailsFor(event: Event, overrides: Partial<EventDetails> = {}): EventD
 
 describe("EventDetailsView", () => {
   it("renders every event field from the fixture", () => {
-    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
 
     expect(html).toContain(free.title);
     expect(html).toContain(free.description.slice(0, 20));
@@ -39,29 +39,29 @@ describe("EventDetailsView", () => {
 
   it("renders the city instead of an unknown place", () => {
     const withoutPlace = { ...free, placeId: null };
-    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(withoutPlace, { place: null }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(withoutPlace, { place: null }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
 
     expect(html).toContain(free.city);
   });
 
   it("renders the forecast row when weather is present and hides it otherwise", () => {
-    const without = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor({ ...free, weather: null }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    const without = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor({ ...free, weather: null }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
     expect(without).not.toContain("дождь");
 
     const withWeather = { ...free, weather: { temperatureC: 12.4, condition: "облачно", conditionCode: 2, precipitationProbability: 40 } };
-    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(withWeather), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(withWeather), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
     expect(html).toContain("Погода");
     expect(html).toContain("+12°, облачно · дождь 40%");
   });
 
   it("renders a paid event price", () => {
-    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(paid), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(paid), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
 
     expect(html).toContain(`${paid.priceRub} ₽`);
   });
 
   it("shows the organizer fallback when organizer is null", () => {
-    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { organizer: null }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { organizer: null }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
 
     expect(html).toContain("Организатор не указан");
     expect(html).not.toContain("Анна Соколова");
@@ -70,7 +70,7 @@ describe("EventDetailsView", () => {
 
 describe("booking button states", () => {
   it("offers booking when seats are available", () => {
-    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
 
     expect(html).toContain("Записаться");
     expect(html).not.toContain("Вы записаны");
@@ -78,31 +78,38 @@ describe("booking button states", () => {
   });
 
   it("shows the booked state that cancels", () => {
-    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { activeBookingId: "e0000000-0000-4000-8000-000000000001" }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { activeBookingId: "e0000000-0000-4000-8000-000000000001" }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
 
     expect(html).toContain("Вы записаны");
     expect(html).not.toContain("Записаться");
   });
 
   it("disables booking when no seats remain", () => {
-    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { remainingSeats: 0 }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { remainingSeats: 0 }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
 
     expect(html).toContain("Мест нет");
     expect(html).toContain("disabled");
     expect(html).not.toContain("Записаться");
   });
+
+  it("shows Open chat only when chatLink is set", () => {
+    const without = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
+    expect(without).not.toContain("Открыть чат");
+    const withChat = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor({ ...free, chatLink: "https://max.ru/join/abc" }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
+    expect(withChat).toContain("Открыть чат");
+  });
 });
 
 describe("check-in button states", () => {
   it("offers the check-in before visiting", () => {
-    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
 
     expect(html).toContain("Я здесь");
     expect(html).not.toContain("Вы были здесь");
   });
 
   it("shows the visited state and disables the button after a check-in", () => {
-    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { checkInId: "60000000-0000-4000-8000-000000000001" }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { checkInId: "60000000-0000-4000-8000-000000000001" }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
 
     expect(html).toContain("Вы были здесь");
     expect(html).toContain("disabled");
@@ -112,7 +119,7 @@ describe("check-in button states", () => {
 
 describe("promo code field, booking errors and promoted badge", () => {
   const promo = (overrides: Partial<PromoCodeState> = {}): PromoCodeState => ({ code: "", referral: "", error: null, onCode: () => {}, onReferral: () => {}, ...overrides });
-  const baseProps = { onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} };
+  const baseProps = { onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} };
 
   it("renders the promo code input while the event is bookable", () => {
     const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), ...baseProps, promo: promo() }));
@@ -161,7 +168,7 @@ describe("promo code field, booking errors and promoted badge", () => {
 
 describe("early-access bookingOpensAt line", () => {
   const promo: PromoCodeState = { code: "", referral: "", error: null, onCode: () => {}, onReferral: () => {} };
-  const baseProps = { onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, promo };
+  const baseProps = { onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {}, promo };
 
   it("shows when booking opens while the window is in the future", () => {
     const opensAt = "2027-06-01T10:00:00+03:00";
@@ -182,13 +189,13 @@ describe("early-access bookingOpensAt line", () => {
 
 describe("payment link button", () => {
   it("renders the buy button for a paid event with a payment url", () => {
-    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(paid), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(paid), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
 
     expect(html).toContain("Купить билет");
   });
 
   it("does not render the buy button for a free event", () => {
-    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {} }));
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
 
     expect(html).not.toContain("Купить билет");
   });

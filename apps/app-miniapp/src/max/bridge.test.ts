@@ -45,6 +45,36 @@ describe("openExternalLink", () => {
   });
 });
 
+describe("openChatLink", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("uses openMaxLink for max.ru join links", async () => {
+    const openMaxLink = vi.fn();
+    const openLink = vi.fn();
+    vi.stubGlobal("window", { WebApp: { openMaxLink, openLink } });
+    const { openChatLink } = await import("./bridge");
+    openChatLink("https://max.ru/join/abc");
+    expect(openMaxLink).toHaveBeenCalledWith("https://max.ru/join/abc");
+    expect(openLink).not.toHaveBeenCalled();
+  });
+
+  it("uses openLink for non-max hosts", async () => {
+    const openMaxLink = vi.fn();
+    const openLink = vi.fn();
+    vi.stubGlobal("window", { WebApp: { openMaxLink, openLink } });
+    const { openChatLink } = await import("./bridge");
+    openChatLink("https://example.com/chat");
+    expect(openLink).toHaveBeenCalledWith("https://example.com/chat");
+    expect(openMaxLink).not.toHaveBeenCalled();
+  });
+});
+
 describe("shareResult", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

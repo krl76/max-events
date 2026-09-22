@@ -22,8 +22,8 @@ export class AuthController {
 
   @Public()
   @Post("browser-initdata")
-  browserInitData(): BrowserInitData {
-    const initData = this.auth.issueBrowserInitData();
+  async browserInitData(): Promise<BrowserInitData> {
+    const initData = await this.auth.issueBrowserInitData();
     if (initData === "disabled") throw new NotFoundException();
     return { initData };
   }

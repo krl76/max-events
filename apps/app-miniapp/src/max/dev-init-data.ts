@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Browser MAX-contour shim: signed initData as window.WebApp so the miniapp can run outside the MAX client against a real backend (HMAC still verified server-side).
-// SCOPE: ?initData= (persisted in localStorage) or stored value; overlays empty official WebApp from st.max.ru; no-op on unknown hosts, inside a real MAX session, or when ?clearInitData=1. Allowed on DEV, VITE_ALLOW_INITDATA_SHIM=1, or INITDATA_SHIM_HOSTS. Public mint (POST /auth/browser-initdata) stays off on events.versacegus.cc; signed ?initData= is for agents/devs who have the bot token.
+// SCOPE: ?initData= (persisted in localStorage) or stored value; overlays empty official WebApp from st.max.ru; no-op on unknown hosts, inside a real MAX session, or when ?clearInitData=1. Allowed on DEV, VITE_ALLOW_INITDATA_SHIM=1, or INITDATA_SHIM_HOSTS (staging only — not events.versacegus.cc).
 // DEPENDS: ./bridge (MaxWebApp type), tools/dev-initdata.mjs generates the signed initData
 // LINKS: M-APP-MINIAPP, DF-MAX-IDENTITY, https://dev.max.ru/docs/webapps/validation
 // END_MODULE_CONTRACT
@@ -18,7 +18,7 @@ import type { MaxWebAppInitDataUnsafe } from "./bridge";
 
 export const DEV_INIT_DATA_STORAGE_KEY = "max-events-dev-initdata";
 
-export const INITDATA_SHIM_HOSTS: readonly string[] = ["localhost", "127.0.0.1", "dev.events.versacegus.cc", "events.versacegus.cc"];
+export const INITDATA_SHIM_HOSTS: readonly string[] = ["localhost", "127.0.0.1", "dev.events.versacegus.cc"];
 
 export function isInitDataShimAllowed(): boolean {
   if (typeof window === "undefined") return false;

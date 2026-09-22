@@ -18,16 +18,13 @@
 import { useEffect, useState } from "react";
 import type { Plan, PlanCard } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
-import { MOSCOW_CENTER } from "../catalog/MapScreen";
+import { useViewerOrigin } from "../geo/viewer-origin";
 import { pluralRu } from "../catalog/format";
 import { CalendarPage } from "../calendar/CalendarPage";
 import { ListsPage } from "../lists/ListsPage";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppNavTiles, AppState, AppSkeleton, AppMedia } from "../ui/primitives";
-
-// ponytail: fixed Moscow center as the plans origin; user geolocation when the bridge exposes it
-const [PLANS_LAT, PLANS_LNG] = MOSCOW_CENTER;
 
 export function formatMeetingTime(meetingAt: string): string {
   return new Date(meetingAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -92,12 +89,13 @@ const PLANS_TABS: Array<{ id: PlansTab; label: string }> = [
 
 export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
   const { navigate } = useRoute();
+  const origin = useViewerOrigin();
   const [active, setActive] = useState<PlansTab>(tab);
   const [state, setState] = useState<PlansState>({ status: "loading" });
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
-    apiClient.listPlans({ latitude: PLANS_LAT, longitude: PLANS_LNG }).then(
+    apiClient.listPlans({ latitude: origin.latitude, longitude: origin.longitude }).then(
       (cards) => {
         if (alive) setState({ status: "ready", cards });
       },
@@ -108,7 +106,7 @@ export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [origin.latitude, origin.longitude]);
   return (
     <>
       <div className="app-view-toggle" role="group" aria-label="Разделы «Моё»">

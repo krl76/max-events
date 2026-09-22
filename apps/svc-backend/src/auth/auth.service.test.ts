@@ -11,7 +11,7 @@ import { validateInitData } from "./max-init-data";
 
 const friends = { sync: async () => [] } as unknown as FriendsService;
 const redis = {} as Redis;
-const userRepo = {} as Repository<UserEntity>;
+const userRepo = { findOneBy: async () => null } as unknown as Repository<UserEntity>;
 
 function createService(config: Record<string, string>) {
   return new AuthService(new ConfigService(config), {} as UsersService, friends, redis, userRepo);
@@ -31,9 +31,9 @@ describe("AuthService bootstrap", () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it("mints signed browser initData only when AUTH_ALLOW_BROWSER is on", () => {
-    expect(createService({ MAX_BOT_TOKEN: "token" }).issueBrowserInitData(1_800_000_000)).toBe("disabled");
-    const signed = createService({ MAX_BOT_TOKEN: "token", AUTH_ALLOW_BROWSER: "true" }).issueBrowserInitData(1_800_000_000);
+  it("mints signed browser initData only when AUTH_ALLOW_BROWSER is on", async () => {
+    await expect(createService({ MAX_BOT_TOKEN: "token" }).issueBrowserInitData(1_800_000_000)).resolves.toBe("disabled");
+    const signed = await createService({ MAX_BOT_TOKEN: "token", AUTH_ALLOW_BROWSER: "true" }).issueBrowserInitData(1_800_000_000);
     expect(signed).not.toBe("disabled");
     const parsed = validateInitData(signed as string, "token", 1_800_000_000);
     expect(parsed?.user.id).toBe(BROWSER_DEMO_USER.id);

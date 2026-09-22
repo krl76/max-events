@@ -101,6 +101,13 @@ describe("UsersService.upsertFromMax", () => {
     expect(updated).toBe(first);
   });
 
+  it("does not wipe an existing avatar when a later sign-in omits photo_url", async () => {
+    const { service } = createService();
+    await service.upsertFromMax({ ...maxUser, photo_url: "https://example.com/a.png" });
+    const again = await service.upsertFromMax({ ...maxUser, photo_url: null });
+    expect(again.avatarUrl).toBe("https://example.com/a.png");
+  });
+
   it("survives a create-create race: concurrent first sign-ins both succeed and store one record", async () => {
     const { repo, service } = createService();
     const [a, b] = await Promise.all([service.upsertFromMax(maxUser), service.upsertFromMax(maxUser)]);
