@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AutoPlanEntry, bookingErrorMessage, EventDetailsView, PARTICIPATION_STATUS_LABELS, ParticipationView, type PromoCodeState } from "./EventPage";
+import { AutoPlanEntry, bookingErrorMessage, EventDetailsView, participationSummary, PARTICIPATION_STATUS_LABELS, ParticipationView, type PromoCodeState } from "./EventPage";
 import { ApiError, type EventDetails, type ParticipationStats } from "../api/client";
 import { mockEvents, mockOrganization, mockOrganizers, mockPlaces } from "../api/mock";
 import type { Event, ParticipationStatus, Place } from "@max-events/api-contracts";
@@ -224,6 +224,23 @@ function statsFor(overrides: Partial<ParticipationStats> = {}): ParticipationSta
   return { counts: { ...ZERO_COUNTS }, friendsCount: 0, myStatus: null, ...overrides };
 }
 
+describe("participationSummary", () => {
+  const stats = (counts: Partial<Record<keyof typeof ZERO_COUNTS, number>>, friendsCount: number) => statsFor({ counts: { ...ZERO_COUNTS, ...counts }, friendsCount });
+
+  it("declines each noun for its own number", () => {
+    expect(participationSummary(stats({ going: 1, looking_for_company: 1 }, 1))).toBe("1 идёт · 1 знакомый отметился · 1 ищет компанию");
+    expect(participationSummary(stats({ going: 2, looking_for_company: 3 }, 4))).toBe("2 идут · 4 знакомых отметились · 3 ищут компанию");
+    expect(participationSummary(stats({ going: 5, looking_for_company: 11 }, 25))).toBe("5 идут · 25 знакомых отметились · 11 ищут компанию");
+    // 21 is the trap: «21 идёт», not «21 идут».
+    expect(participationSummary(stats({ going: 21, looking_for_company: 21 }, 21))).toBe("21 идёт · 21 знакомый отметился · 21 ищет компанию");
+  });
+
+  it("counts only «ищут компанию», not every looking-for status", () => {
+    // A travel buddy and an after-event companion are different asks; folding them in would misreport.
+    expect(participationSummary(stats({ going: 9, looking_for_travel_buddy: 3, looking_for_after_event_company: 2 }, 7))).toBe("9 идут · 7 знакомых отметились · 0 ищут компанию");
+  });
+});
+
 describe("ParticipationView", () => {
   const props = { onSet: () => {}, onClear: () => {} };
 
@@ -237,21 +254,38 @@ describe("ParticipationView", () => {
     }
   });
 
-  it("renders only non-zero status counters and the friends line", () => {
-    const html = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor({ counts: { ...ZERO_COUNTS, looking_for_company: 4, going: 2 }, friendsCount: 7 }), ...props }));
+  it("drops the counter list entirely when the summary already said everything", () => {
+    // The list carries a top border and padding, so rendering it empty left a divider over nothing.
+    const html = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor({ counts: { ...ZERO_COUNTS, going: 3, looking_for_company: 2 }, friendsCount: 1 }), ...props }));
 
-    expect(html).toContain("Идут: 2");
-    expect(html).toContain("Ищут компанию: 4");
-    expect(html).toContain("Твои знакомые: 7");
-    expect(html).not.toContain("Хотят пойти:");
+    expect(html).toContain("3 идут");
+    expect(html).not.toContain("app-participation-counters");
+  });
+
+  it("lists the non-zero statuses the summary does not already name", () => {
+    const html = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor({ counts: { ...ZERO_COUNTS, looking_for_company: 4, going: 2, wants_to_go: 5 }, friendsCount: 7 }), ...props }));
+
+    expect(html).toContain("Хотят пойти: 5");
+    // "Идут: 2" under "2 идут" is the same fact twice.
+    expect(html).not.toContain("Идут: 2");
+    expect(html).not.toContain("Ищут компанию: 4");
     expect(html).not.toContain("Ищут попутчика:");
   });
 
-  it("hides zero counters and the friends line on an empty event", () => {
+  it("puts the matchmaking line on the event, including the zeros", () => {
+    const peopled = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor({ counts: { ...ZERO_COUNTS, looking_for_company: 4, going: 2 }, friendsCount: 7 }), ...props }));
+    expect(peopled).toContain("2 идут · 7 знакомых отметились · 4 ищут компанию");
+
+    // "0 друзей" is what the friend graph actually says; hiding it read as "we have no idea".
+    const alone = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor({ counts: { ...ZERO_COUNTS, going: 3 }, friendsCount: 0 }), ...props }));
+    expect(alone).toContain("3 идут · 0 знакомых отметились · 0 ищут компанию");
+  });
+
+  it("hides the zero counter rows but still answers the question on an empty event", () => {
     const html = renderToStaticMarkup(createElement(ParticipationView, { stats: statsFor(), ...props }));
 
     expect(html).not.toContain("Ищут компанию:");
-    expect(html).not.toContain("Твои знакомые");
+    expect(html).toContain("0 идут · 0 знакомых отметились · 0 ищут компанию");
   });
 });
 

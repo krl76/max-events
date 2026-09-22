@@ -777,6 +777,14 @@ body {
   cursor: pointer;
 }
 
+/* Страница мероприятия: строка мэтчмейкинга «N идут · N друзей · N ищут компанию» */
+.app-participation-summary {
+  color: var(--app-text);
+  font-size: var(--app-font-size-description);
+  /* Zero: the card body is a flex column with its own gap, and a margin would double it. */
+  margin: 0;
+}
+
 .app-participation-counters {
   border-top: var(--app-hairline);
   color: var(--app-text-secondary);
