@@ -6,7 +6,11 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - DemoScale - small | normal | big scale name
+// - DemoCounts - per-table row volumes for a scale
 // - DEMO_COUNTS - per-scale row volumes (normal follows issue #463)
+// - DemoBuildConfig - pure-generator inputs (clock, scale, owner ids)
+// - DemoSeedOptions - seedDemoDatabase options
 // - parseDemoScale - SEED_DEMO_SCALE value to DemoScale, default normal
 // - assertLocalDatabaseUrl - throw unless the DATABASE_URL host is localhost/127.0.0.1
 // - buildDemoData - pure generation of all demo rows (deterministic ids via fakerRU.seed(42))
