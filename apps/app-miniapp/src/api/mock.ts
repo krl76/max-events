@@ -93,6 +93,8 @@
 // - myCityFor - my-city summary and memory points derived from the check-ins of a user
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
+// - tasteProfile - taste graph of a user, derived from their mock check-ins (empty until they visit something)
+// - afterMePicks - mock GET /taste/after-me: more of the strongest visited category, backend wording parity
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
@@ -105,6 +107,7 @@
 
 import type {
   Achievement,
+  AfterMeResponse,
   AssistCriteria,
   AssistDayResponse,
   AssistPick,
@@ -163,6 +166,8 @@ import type {
   RouteLeg,
   RoutePoint,
   TargetedPromotionsResponse,
+  TasteProfile,
+  TasteTransition,
   TodayEventCard,
   TodayResponse,
   User,
@@ -175,7 +180,7 @@ import type {
   WheretoQuery,
   WheretoResponse,
 } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateSubscriptionSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, GatheringResponseWriteSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateSubscriptionSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, formatAfterMeExplanation, GatheringResponseWriteSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, PlaceCategorySchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
 import { CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, OrganizerLoginWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
 import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, CreateSubscription, EventSalesReport, Organization, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, OrganizerSession, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod, Story, Subscription } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
@@ -1756,6 +1761,108 @@ export function calendarEntries(userId: string): { booking: Booking; event: Even
   return entries;
 }
 
+/**
+ * Taste is computed from what the demo user actually did, not from a fixture: a fresh demo has an
+ * empty graph and the «После меня» block stays hidden, and it appears once they tap «Я здесь» — the
+ * same two states the backend produces. Weights follow TasteService.buildTasteGraph: a visit is 1,
+ * a review adds stars/5 plus half a point for «пойду ещё раз».
+ */
+export function tasteProfile(userId: string, now: Date = MOCK_NOW): TasteProfile {
+  const eventWeights = new Map<EventCategory, number>();
+  for (const category of visitedEventCategories(userId)) eventWeights.set(category, (eventWeights.get(category) ?? 0) + 1);
+  for (const review of mockReviews.filter((row) => row.userId === userId)) {
+    const event = mockEvents.find((candidate) => candidate.id === review.eventId);
+    if (!event) continue;
+    eventWeights.set(event.category, (eventWeights.get(event.category) ?? 0) + review.stars / 5 + (review.wouldGoAgain ? 0.5 : 0));
+  }
+  const placeWeights = new Map<string, number>();
+  for (const item of mockCheckIns.filter((row) => row.userId === userId && row.placeId !== null)) {
+    const place = mockPlaces.find((candidate) => candidate.id === item.placeId);
+    if (place) placeWeights.set(place.category, (placeWeights.get(place.category) ?? 0) + 1);
+  }
+  return {
+    userId,
+    // Schema order, like the backend: a consumer reading [0] as "the strongest" would be wrong there.
+    eventCategories: EventCategorySchema.options.flatMap((category) => (eventWeights.has(category) ? [{ category, weight: eventWeights.get(category)! }] : [])),
+    placeCategories: PlaceCategorySchema.options.flatMap((category) => (placeWeights.has(category) ? [{ category, weight: placeWeights.get(category)! }] : [])),
+    transitions: visitTransitions(userId),
+    updatedAt: now.toISOString(),
+  };
+}
+
+function visitedEventCategories(userId: string): EventCategory[] {
+  return visitedEventsInOrder(userId).map((event) => event.category);
+}
+
+function visitedEventsInOrder(userId: string): Event[] {
+  return mockCheckIns
+    .filter((item) => item.userId === userId && item.eventId !== null)
+    .slice()
+    .sort((a, b) => a.checkedInAt.localeCompare(b.checkedInAt))
+    .flatMap((item) => {
+      const event = mockEvents.find((candidate) => candidate.id === item.eventId);
+      return event ? [event] : [];
+    });
+}
+
+/** Consecutive visits of different categories, the same "what did they do after X" the backend counts. */
+function visitTransitions(userId: string): TasteTransition[] {
+  const counts = new Map<string, number>();
+  const visited = visitedEventsInOrder(userId);
+  for (let index = 1; index < visited.length; index += 1) {
+    const from = visited[index - 1]!.category;
+    const to = visited[index]!.category;
+    if (from === to) continue;
+    counts.set(`${from}>${to}`, (counts.get(`${from}>${to}`) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([key, count]) => {
+      const [fromCategory, toCategory] = key.split(">") as [EventCategory, EventCategory];
+      return { fromCategory, toCategory, count };
+    })
+    .sort((a, b) => b.count - a.count || a.fromCategory.localeCompare(b.fromCategory));
+}
+
+/** TasteService.strongestAfterMe parity, including the tie-break: schema order wins, not the alphabet. */
+function strongestMockAfterMe(profile: TasteProfile): { fromCategory: EventCategory; toCategory: EventCategory; afterCount: number } | null {
+  let topFrom: EventCategory | null = null;
+  let topWeight = 0;
+  for (const category of EventCategorySchema.options) {
+    const weight = profile.eventCategories.find((row) => row.category === category)?.weight ?? 0;
+    if (weight > topWeight) {
+      topFrom = category;
+      topWeight = weight;
+    }
+  }
+  if (!topFrom || topWeight <= 0) return null;
+  let toCategory = topFrom;
+  let toCount = 0;
+  for (const transition of profile.transitions) {
+    if (transition.fromCategory !== topFrom || transition.toCategory === topFrom) continue;
+    if (transition.count > toCount || (transition.count === toCount && transition.toCategory.localeCompare(toCategory) < 0)) {
+      toCategory = transition.toCategory;
+      toCount = transition.count;
+    }
+  }
+  return { fromCategory: topFrom, toCategory, afterCount: Math.round(topWeight) };
+}
+
+/**
+ * Mock of GET /taste/after-me: upcoming events of the suggested category in the viewer's city, soonest
+ * first, five at most — the same query the backend runs, so a suggestion can also come back with no
+ * events at all when the city has nothing upcoming.
+ */
+export function afterMePicks(userId: string, now: Date = MOCK_NOW): AfterMeResponse {
+  const suggestion = strongestMockAfterMe(tasteProfile(userId, now));
+  if (!suggestion) return { suggestions: [] };
+  const city = profileFor(userId).city;
+  const events = mockEvents
+    .filter((event) => event.category === suggestion.toCategory && event.city === city && new Date(event.startsAt).getTime() >= now.getTime())
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
+    .slice(0, 5);
+  return { suggestions: [{ ...suggestion, explanation: formatAfterMeExplanation(suggestion.afterCount, suggestion.fromCategory, suggestion.toCategory), events }] };
+}
+
 /** "What to do today?" digest: curated cards from fixtures; the showcase friends (Анна → выставка, Катя → фестиваль) back the friends counter. */
 export function todayPicks(): TodayResponse {
   const cards: TodayEventCard[] = [
@@ -2764,6 +2871,12 @@ export function installMockApi(): () => void {
     }
     if (url.pathname === "/api/friends") {
       return Response.json(mockFriends);
+    }
+    if (url.pathname === "/api/taste") {
+      return Response.json(tasteProfile(mockDemoUser.id));
+    }
+    if (url.pathname === "/api/taste/after-me") {
+      return Response.json(afterMePicks(mockDemoUser.id));
     }
     if (url.pathname === "/api/today") {
       return Response.json(todayPicks());
