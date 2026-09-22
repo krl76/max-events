@@ -90,10 +90,20 @@ describe("EventsController", () => {
     expect(() => parseEventListQuery({ limit: "0" })).toThrow(BadRequestException);
     expect(() => parseEventListQuery({ limit: "1000" })).toThrow(BadRequestException);
     expect(() => parseEventListQuery({ offset: "-1" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ min_rating: "0" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ min_rating: "6" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ min_rating: "4.5" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ min_rating: "четыре" })).toThrow(BadRequestException);
   });
 
   it("passes a valid page window through to the service", () => {
     expect(parseEventListQuery({ limit: "20", offset: "40" })).toMatchObject({ limit: 20, offset: 40 });
+  });
+
+  it("passes the rating threshold through, and leaves it unset when absent", () => {
+    expect(parseEventListQuery({ min_rating: "4" })).toMatchObject({ minRating: 4 });
+    expect(parseEventListQuery({}).minRating).toBeUndefined();
+    expect(parseEventListQuery({ min_rating: "" }).minRating).toBeUndefined();
   });
 
   it("serves the details aggregate for the current user", async () => {

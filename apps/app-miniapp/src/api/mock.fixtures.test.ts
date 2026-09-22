@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EventSchema, PlaceSchema } from "@max-events/api-contracts";
-import { filterMockEvents, mockEvents, mockPlaces } from "./mock";
+import { eventRating, filterMockEvents, mockEvents, mockPlaces } from "./mock";
 
 describe("mock fixtures", () => {
   it("every event fixture passes the event contract", () => {
@@ -48,6 +48,33 @@ describe("filterMockEvents", () => {
     const events = filterMockEvents(mockEvents, { date: day });
     expect(events.length).toBeGreaterThan(0);
     expect(events.every((item) => item.startsAt.startsWith(day))).toBe(true);
+  });
+
+  it("keeps only events whose average review score reaches the threshold", () => {
+    const rated = filterMockEvents(mockEvents, { minRating: 4 });
+
+    expect(rated.length).toBeGreaterThan(0);
+    expect(rated.every((item) => (eventRating(item.id)?.summary.averageStars ?? 0) >= 4)).toBe(true);
+    // Backend parity: no reviews means no average, so an unrated event is not "at least 4 stars".
+    expect(rated.every((item) => (eventRating(item.id)?.summary.reviewsCount ?? 0) > 0)).toBe(true);
+    expect(rated.length).toBeLessThan(mockEvents.length);
+  });
+
+  it("drops an event nobody reviewed, whatever the threshold", () => {
+    // ".every(...)" over the whole pool is vacuously true on an empty result, so the empty case is
+    // proved against an event that is known to have no reviews.
+    const unrated = mockEvents.find((item) => (eventRating(item.id)?.summary.reviewsCount ?? 0) === 0);
+
+    expect(unrated).toBeDefined();
+    expect(filterMockEvents([unrated!], { minRating: 1 })).toEqual([]);
+  });
+
+  it("narrows the pool as the threshold rises", () => {
+    const fromThree = filterMockEvents(mockEvents, { minRating: 3 }).length;
+    const fromFive = filterMockEvents(mockEvents, { minRating: 5 }).length;
+
+    expect(fromFive).toBeLessThan(fromThree);
+    expect(filterMockEvents(mockEvents, { minRating: 5 }).every((item) => (eventRating(item.id)?.summary.averageStars ?? 0) >= 5)).toBe(true);
   });
 
   it("combines several filters", () => {

@@ -7,8 +7,8 @@ import { addRecentSearch, RECENT_SEARCHES_LIMIT, SearchView, type SearchState } 
 const noop = () => {};
 const READY: SearchState = { status: "ready", events: mockEvents };
 
-function viewHtml(over: { query?: string; recents?: string[]; state?: SearchState } = {}): string {
-  return renderToStaticMarkup(createElement(SearchView, { query: over.query ?? "", onQuery: noop, onSubmit: noop, recents: over.recents ?? [], state: over.state ?? READY, onOpenEvent: noop }));
+function viewHtml(over: { query?: string; recents?: string[]; state?: SearchState; minRating?: number } = {}): string {
+  return renderToStaticMarkup(createElement(SearchView, { query: over.query ?? "", onQuery: noop, onSubmit: noop, recents: over.recents ?? [], state: over.state ?? READY, onOpenEvent: noop, minRating: over.minRating }));
 }
 
 describe("addRecentSearch", () => {
@@ -64,6 +64,17 @@ describe("SearchView", () => {
     const html = viewHtml({ query: kazan.city.toLowerCase() });
 
     expect(html).toContain(kazan.title);
+  });
+
+  it("offers the rating filter next to the search field, and marks the chosen threshold", () => {
+    const any = viewHtml();
+    expect(any).toContain("Любой рейтинг");
+    expect(any).toContain("от 4★");
+
+    // The rating is a server filter, so the chosen chip has to survive into the request the page makes.
+    const rated = viewHtml({ minRating: 4 });
+    expect(rated).toMatch(/<button[^>]*aria-pressed="true"[^>]*class="[^"]*app-chip[^"]*"[^>]*>от 4★</);
+    expect(rated).not.toMatch(/<button[^>]*aria-pressed="true"[^>]*class="[^"]*app-chip[^"]*"[^>]*>Любой рейтинг</);
   });
 
   it("renders the empty state when nothing matches", () => {

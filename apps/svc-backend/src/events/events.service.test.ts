@@ -8,6 +8,7 @@ import type { SubscriptionsService } from "../subscriptions/subscriptions.servic
 import type { UsersService } from "../users/users.service";
 import type { PromotionService } from "../promotion/promotion.service";
 import type { WaitlistService } from "../waitlist/waitlist.service";
+import type { ReviewsService } from "../reviews/reviews.service";
 import { EventEntity } from "./event.entity";
 import type { EventWeatherService } from "./event-weather.service";
 import { EVENT_LIST_MAX_LIMIT, EventsService, toEventDto } from "./events.service";
@@ -47,9 +48,12 @@ function createRepo(initial: EventEntity[] = []) {
       return entity;
     },
     findOneBy: async (where: { id: string }) => store.find((row) => row.id === where.id) ?? null,
-    find: async (opts: { where?: { published?: boolean; city?: string; category?: string; organizerUserId?: string; startsAt?: FindOperator<Date>; chatSyncPending?: boolean; chatLink?: FindOperator<string> }; order?: { startsAt?: "ASC" | "DESC"; id?: "ASC" | "DESC"; createdAt?: "ASC" | "DESC" }; skip?: number; take?: number }) => {
+    find: async (opts: { where?: { published?: boolean; city?: string; category?: string; organizerUserId?: string; startsAt?: FindOperator<Date>; chatSyncPending?: boolean; chatLink?: FindOperator<string>; id?: FindOperator<string> }; order?: { startsAt?: "ASC" | "DESC"; id?: "ASC" | "DESC"; createdAt?: "ASC" | "DESC" }; skip?: number; take?: number }) => {
       let rows = [...store];
       if (opts.where?.published === true) rows = rows.filter((row) => row.published);
+      // The rating filter narrows by id before the page is read, so the fake has to honour In() too.
+      const ids = opts.where?.id;
+      if (ids) rows = rows.filter((row) => (ids.value as unknown as string[]).includes(row.id));
       if (opts.where?.city) rows = rows.filter((row) => row.city === opts.where?.city);
       if (opts.where?.category) rows = rows.filter((row) => row.category === opts.where?.category);
       if (opts.where?.organizerUserId) rows = rows.filter((row) => row.organizerUserId === opts.where?.organizerUserId);
@@ -86,7 +90,7 @@ function passthroughWeather(): EventWeatherService {
   return { attach: async (events: Event[]) => events } as unknown as EventWeatherService;
 }
 
-function createService(options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean; promotions?: PromotionService; weather?: EventWeatherService } = {}) {
+function createService(options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean; promotions?: PromotionService; weather?: EventWeatherService; ratedIds?: Record<number, string[]> } = {}) {
   const knownPlaces = new Set(options.placeIds ?? []);
   const draftPlaces = new Set(options.draftPlaceIds ?? []);
   const chatCalls: string[] = [];
@@ -124,7 +128,10 @@ function createService(options: { placeIds?: string[]; draftPlaceIds?: string[];
   const waitlist = options.waitlist ?? ({ fillVacancies: async () => undefined } as unknown as WaitlistService);
   const promotions = options.promotions ?? ({ listActive: async () => [], promotedEventIds: async () => new Set<string>() } as unknown as PromotionService);
   const weather = options.weather ?? passthroughWeather();
-  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist, promotions, weather);
+  // Argument-aware: a filter that asked for the wrong threshold would otherwise still look right.
+  const ratedIdsByThreshold = options.ratedIds ?? {};
+  const reviews = { eventIdsRatedAtLeast: async (minStars: number) => ratedIdsByThreshold[minStars] ?? [] } as unknown as ReviewsService;
+  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist, promotions, weather, reviews);
   return { repo, service, waitlist, chatCalls, notifyCalls };
 }
 
@@ -266,6 +273,29 @@ describe("EventsService", () => {
     const secondPage = await service.list({ limit: 2, offset: 2 });
     expect(secondPage.map((item) => item.title)).toEqual(["День 15"]);
     expect(repo.store).toHaveLength(3);
+  });
+
+  it("keeps the rating filter in the query, so a page is a page of matches", async () => {
+    const { repo, service } = createService();
+    for (const day of ["13", "14", "15"]) {
+      await service.create(CreateEventSchema.parse({ ...payload, title: `День ${day}`, startsAt: `2026-09-${day}T19:00:00+03:00` }));
+    }
+    const [first, , third] = repo.store;
+    const rated = createService({ store: repo.store, ratedIds: { 4: [first!.id, third!.id] } }).service;
+
+    // Post-filtering a page would have returned one row here and made limit lie about the rest.
+    const page = await rated.list({ minRating: 4, limit: 2 });
+
+    expect(page.map((item) => item.title)).toEqual(["День 13", "День 15"]);
+  });
+
+  it("finds nothing when no event reaches the asked-for rating", async () => {
+    const { repo, service } = createService();
+    await service.create(payload);
+    const rated = createService({ store: repo.store, ratedIds: {} }).service;
+
+    // An event nobody reviewed has no average, so it is not "at least five stars" — it is unrated.
+    await expect(rated.list({ minRating: 5 })).resolves.toEqual([]);
   });
 
   it("caps a limit above the hard ceiling instead of reading the whole table", async () => {

@@ -231,7 +231,15 @@ export const mockEvents: Event[] = [
 
 export function filterMockEvents(events: Event[], filters: EventFilters): Event[] {
   const city = filters.city?.toLowerCase();
-  return events.filter((item) => (filters.category === undefined || item.category === filters.category) && (city === undefined || item.city.toLowerCase() === city) && (filters.date === undefined || item.startsAt.slice(0, 10) === filters.date));
+  return events.filter((item) => {
+    if (filters.category !== undefined && item.category !== filters.category) return false;
+    if (city !== undefined && item.city.toLowerCase() !== city) return false;
+    if (filters.date !== undefined && item.startsAt.slice(0, 10) !== filters.date) return false;
+    if (filters.minRating === undefined) return true;
+    // Backend parity: an event nobody reviewed has no average, so it is not "at least N stars".
+    const summary = eventRating(item.id)?.summary;
+    return summary !== undefined && summary.reviewsCount > 0 && summary.averageStars >= filters.minRating;
+  });
 }
 
 export const mockOrganizers: User[] = [{ id: "d0000001-0000-4000-8000-000000000001", maxUserId: "organizer-1", firstName: "Анна", lastName: "Соколова", username: null, avatarUrl: null, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP }];

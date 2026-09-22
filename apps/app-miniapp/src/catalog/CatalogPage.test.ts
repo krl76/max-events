@@ -26,6 +26,11 @@ describe("filterEventsByQuery", () => {
 const free = mockEvents.find((item) => item.priceRub === null)!;
 const paid = mockEvents.find((item) => item.priceRub !== null)!;
 
+/** Labels of the chips rendered as pressed, in document order; anchored to app-chip so the view toggle never leaks in. */
+function pressedChips(html: string): string[] {
+  return [...html.matchAll(/<button[^>]*aria-pressed="true"[^>]*class="[^"]*app-chip[^"]*"[^>]*>([^<]*)</g)].map((match) => match[1] ?? "");
+}
+
 describe("CatalogView", () => {
   it("renders event cards from fixtures with title, city, price and category", () => {
     const state: CatalogState = { status: "ready", events: [free, paid] };
@@ -88,7 +93,24 @@ describe("CatalogView", () => {
     const html = renderToStaticMarkup(createElement(CatalogView, { state: { status: "loading" }, filters: { category: "sport" }, onFilters: () => {} }));
 
     expect(html).toContain("Спорт");
-    expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
+    // One per group: the chosen category, and «Любой рейтинг» while no rating is asked for.
+    expect(pressedChips(html)).toEqual(["Спорт", "Любой рейтинг"]);
+  });
+
+  it("offers rating thresholds and marks the chosen one", () => {
+    const any = renderToStaticMarkup(createElement(CatalogView, { state: { status: "loading" }, filters: {}, onFilters: () => {} }));
+    expect(any).toContain("от 4★");
+    expect(pressedChips(any)).toEqual(["Все", "Любой рейтинг"]);
+
+    const rated = renderToStaticMarkup(createElement(CatalogView, { state: { status: "loading" }, filters: { minRating: 4 }, onFilters: () => {} }));
+    expect(pressedChips(rated)).toEqual(["Все", "от 4★"]);
+  });
+
+  it("offers the reset once a rating filter alone is set", () => {
+    const html = renderToStaticMarkup(createElement(CatalogView, { state: { status: "ready", events: [] }, filters: { minRating: 5 }, onFilters: () => {} }));
+
+    expect(html).toContain("Сбросить");
+    expect(html).toContain("Ничего не найдено");
   });
 
   it("renders the list/map toggle and marks the active view", () => {

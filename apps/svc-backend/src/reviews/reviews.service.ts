@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Post-event reviews — only booked users, one review per user+event, rating aggregates.
-// SCOPE: create for CurrentUser with an active booking (a cancelled booking loses the right to review, matching the UI gate); rating for event and for place (via event.placeId). Unpublished events 404.
+// SCOPE: create for CurrentUser with an active booking (a cancelled booking loses the right to review, matching the UI gate); rating for event and for place (via event.placeId); eventIdsRatedAtLeast answers the catalog rating filter in SQL. Unpublished events 404.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, bookings/events
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - ReviewsService - create, eventRating, placeRating
+// - ReviewsService - create, eventRating, placeRating, eventIdsRatedAtLeast
 // - toReviewDto - entity to Review contract
 // - buildRating - average stars and category scores
 // END_MODULE_MAP
@@ -60,6 +60,17 @@ export class ReviewsService {
     if (!event) throw new NotFoundException("Event not found");
     const rows = await this.reviews.find({ where: { eventId } });
     return buildRating(rows, { eventId, placeId: null });
+  }
+
+  /**
+   * Ids whose average review score reaches minStars, resolved in SQL so the catalog can put the
+   * rating filter in its WHERE. Filtering a page after it was read would drop rows the caller already
+   * paid for and make limit/offset lie about how much is left.
+   * An event nobody reviewed has no average, so it is not "at least three stars" — it is unrated.
+   */
+  async eventIdsRatedAtLeast(minStars: number): Promise<string[]> {
+    const rows = await this.reviews.createQueryBuilder("review").select("review.eventId", "eventId").groupBy("review.eventId").having("AVG(review.stars) >= :minStars", { minStars }).getRawMany<{ eventId: string }>();
+    return rows.map((row) => row.eventId);
   }
 
   async placeRating(placeId: string): Promise<EventRating> {

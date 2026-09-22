@@ -462,7 +462,7 @@ body {
   font-weight: var(--app-font-weight-title);
 }
 
-/* Каталог: панель фильтров (дата / категория / город) */
+/* Каталог: панель фильтров (категория / рейтинг / дата / город) */
 .app-filters {
   border-top: var(--app-hairline);
   display: flex;

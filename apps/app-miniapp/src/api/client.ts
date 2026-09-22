@@ -14,7 +14,7 @@
 // - ApiClient.setOrganizerToken - attach the organizer bearer token sent as the authorization header on every request
 // - ApiClient.organizerLogin - POST /auth/organizer/login with login/password, returns OrganizerSession
 // - ApiClient.listStories / createStory - GET /stories and POST /stories (own story from a data-URL photo)
-// - EventFilters - optional catalog list filters (category/city/date)
+// - EventFilters - optional catalog list filters (category/city/date/minRating)
 // - ApiClient.listEvents - GET /events with serialized filters
 // - ApiClient.listPlaces - GET /places: venues for the catalog map markers
 // - serializeEventFilters - filters -> query string ("" when empty)
@@ -160,6 +160,8 @@ export interface EventFilters {
   city?: string;
   /** ISO date (YYYY-MM-DD) of the event start day. */
   date?: string;
+  /** Average review score the event must reach, 1..5; an event nobody reviewed never qualifies. */
+  minRating?: number;
 }
 
 export function serializeEventFilters(filters: EventFilters): string {
@@ -167,6 +169,8 @@ export function serializeEventFilters(filters: EventFilters): string {
   if (filters.category) params.set("category", filters.category);
   if (filters.city) params.set("city", filters.city);
   if (filters.date) params.set("date", filters.date);
+  // snake_case: the backend query contract spells it min_rating, next to date_from/date_to.
+  if (filters.minRating) params.set("min_rating", String(filters.minRating));
   return params.toString();
 }
 
@@ -174,10 +178,13 @@ export function parseEventFilters(search: string): EventFilters {
   const params = new URLSearchParams(search);
   const category = EventCategorySchema.safeParse(params.get("category"));
   const date = params.get("date");
+  const minRating = Number(params.get("min_rating"));
   return {
     category: category.success ? category.data : undefined,
     city: params.get("city")?.trim() || undefined,
     date: date !== null && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
+    // A value the backend would reject with a 400 is dropped here, like an unknown category.
+    minRating: Number.isInteger(minRating) && minRating >= 1 && minRating <= 5 ? minRating : undefined,
   };
 }
 

@@ -399,6 +399,16 @@ describe("event filter serialization", () => {
     expect(serializeEventFilters({ category: "sport", city: "Москва", date: "2026-09-20" })).toBe("category=sport&city=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0&date=2026-09-20");
   });
 
+  it("spells the rating threshold the way the backend query contract does", () => {
+    expect(serializeEventFilters({ minRating: 4 })).toBe("min_rating=4");
+    expect(parseEventFilters("?min_rating=4")).toEqual({ minRating: 4 });
+  });
+
+  it("drops a rating threshold the backend would reject", () => {
+    // Same rule as an unknown category: a value that would come back 400 never leaves the app.
+    for (const raw of ["0", "6", "4.5", "четыре"]) expect(parseEventFilters(`?min_rating=${raw}`).minRating).toBeUndefined();
+  });
+
   it("omits empty filters from the query string", () => {
     expect(serializeEventFilters({})).toBe("");
     expect(serializeEventFilters({ city: "" })).toBe("");
@@ -415,5 +425,11 @@ describe("event filter serialization", () => {
   it("drops unknown category values and malformed dates, trims the city", () => {
     expect(parseEventFilters("?category=everything&date=yesterday&city=  Тула ")).toEqual({ city: "Тула" });
     expect(parseEventFilters("")).toEqual({});
+  });
+
+  it("round-trips a full filter set through the query string", () => {
+    const filters = { category: "sport" as const, city: "Москва", date: "2026-09-20", minRating: 5 };
+
+    expect(parseEventFilters(`?${serializeEventFilters(filters)}`)).toEqual(filters);
   });
 });
