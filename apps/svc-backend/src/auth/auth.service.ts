@@ -31,6 +31,7 @@ import { UsersService } from "../users/users.service";
 import { OrganizationEntity } from "../organizations/organization.entity";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { REDIS_CLIENT } from "../redis/redis.module";
+import { organizerSessionKey } from "./organizer-session-key";
 import { signInitData, validateInitData } from "./max-init-data";
 
 /** Staging browser contour. Same person as tools/max-dev-accounts.json `owner`. Override with AUTH_BROWSER_USER JSON. */
@@ -132,7 +133,7 @@ export class AuthService {
     // row keeps the link until T-004 moves the binding onto the organization itself.
     const linked = await this.organizations.linkOrganizerUser(organization, user.id);
     const token = randomBytes(32).toString("hex");
-    await this.redis.set(`organizer-session:${token}`, user.id, "EX", ORGANIZER_SESSION_TTL_SECONDS);
+    await this.redis.set(organizerSessionKey(token), user.id, "EX", ORGANIZER_SESSION_TTL_SECONDS);
     return { token, user, organization: linked };
   }
 
@@ -149,11 +150,11 @@ export class AuthService {
   }
 
   async organizerLogout(token: string): Promise<void> {
-    await this.redis.del(`organizer-session:${token}`);
+    await this.redis.del(organizerSessionKey(token));
   }
 
   async authenticateOrganizerToken(token: string): Promise<UserEntity | null> {
-    const userId = await this.redis.get(`organizer-session:${token}`);
+    const userId = await this.redis.get(organizerSessionKey(token));
     if (!userId) return null;
     return this.userRepo.findOneBy({ id: userId });
   }

@@ -13,7 +13,8 @@
     "migration:run": "bun --bun typeorm migration:run -d src/database/data-source.ts",
     "migration:revert": "bun --bun typeorm migration:revert -d src/database/data-source.ts",
     "seed": "tsx src/database/seed-cli.ts",
-    "seed:demo": "tsx src/database/seed-demo-cli.ts"
+    "seed:demo": "tsx src/database/seed-demo-cli.ts",
+    "org:password": "tsx src/database/set-organization-password-cli.ts"
   },
   "dependencies": {
     "@max-events/api-contracts": "*",
