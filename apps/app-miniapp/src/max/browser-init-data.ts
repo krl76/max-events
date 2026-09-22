@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Production-build WebApp shim for the staging host that talks to the live backend without the MAX client.
-// SCOPE: POST /api/auth/browser-initdata when VITE_BROWSER_AUTH=1 and window.WebApp is absent; no-op otherwise.
+// SCOPE: POST /api/auth/browser-initdata when VITE_BROWSER_AUTH=1 and a real MAX session (non-empty initData) is absent. Replaces the official empty WebApp from st.max.ru (initData is getter-only).
 // DEPENDS: ./bridge (MaxWebApp)
 // LINKS: M-APP-MINIAPP, DF-MAX-IDENTITY
 // END_MODULE_CONTRACT
@@ -22,12 +22,9 @@ export async function installBrowserWebAppShim(): Promise<boolean> {
     const initData = body && typeof body === "object" && "initData" in body ? (body as { initData: unknown }).initData : null;
     if (typeof initData !== "string" || initData.length === 0) return false;
     const unsafe = parseInitDataUnsafe(initData);
-    if (window.WebApp) {
-      window.WebApp.initData = initData;
-      window.WebApp.initDataUnsafe = unsafe;
-      return true;
-    }
-    const shim: MaxWebApp = {
+    // Official max-web-app.js always assigns window.WebApp; initData is a getter
+    // with no setter, so writing onto that object throws and leaves initData empty.
+    window.WebApp = {
       platform: "web",
       version: "browser-auth",
       initData,
@@ -41,7 +38,6 @@ export async function installBrowserWebAppShim(): Promise<boolean> {
       },
       close() {},
     };
-    window.WebApp = shim;
     return true;
   } catch {
     return false;
