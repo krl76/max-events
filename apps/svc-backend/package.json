@@ -12,7 +12,8 @@
     "migration:generate": "bun --bun typeorm migration:generate -d src/database/data-source.ts",
     "migration:run": "bun --bun typeorm migration:run -d src/database/data-source.ts",
     "migration:revert": "bun --bun typeorm migration:revert -d src/database/data-source.ts",
-    "seed": "tsx src/database/seed-cli.ts"
+    "seed": "tsx src/database/seed-cli.ts",
+    "seed:demo": "tsx src/database/seed-demo-cli.ts"
   },
   "dependencies": {
     "@max-events/api-contracts": "*",
@@ -30,6 +31,7 @@
     "zod": "^4.6.2"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.6.0",
     "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
     "tsx": "^4.19.0",
