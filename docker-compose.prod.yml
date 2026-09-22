@@ -47,6 +47,7 @@ services:
       DATABASE_URL: postgres://max_events:${POSTGRES_PASSWORD}@postgres:5432/max_events
       REDIS_URL: redis://redis:6379
       PORT: "3100"
+      AUTH_ALLOW_BROWSER: "true"
     ports:
       - "127.0.0.1:${HOST_PORT:-3100}:3100"
     restart: unless-stopped

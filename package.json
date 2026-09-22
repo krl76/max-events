@@ -26,6 +26,7 @@
     "smoke:live": "bun tools/live-smoke.mjs",
     "dev:login-url": "bun tools/dev-initdata.mjs --url https://events.versacegus.cc",
     "verify:live": "bun tools/agent-verify.mjs",
+    "verify:browse": "bun tools/agent-browse.mjs",
     "test:quality": "node tools/checks/check-test-quality.mjs",
     "check:secrets": "node tools/security/check-secrets.mjs",
     "grace:lint": "bun ./node_modules/@osovv/grace-cli/src/grace.ts lint --path .",
