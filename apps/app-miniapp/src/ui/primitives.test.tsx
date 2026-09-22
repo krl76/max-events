@@ -167,4 +167,11 @@ describe("layout primitives", () => {
     expect(html).toContain('class="app-card-media"');
     expect(html).not.toContain("<svg");
   });
+
+  it("renders a cover image when src is set", () => {
+    const html = renderToStaticMarkup(<AppMedia category="afisha" src="https://cdn.example/cover.jpg" />);
+    expect(html).toContain("app-card-media-img");
+    expect(html).toContain("https://cdn.example/cover.jpg");
+    expect(html).not.toContain("<svg");
+  });
 });

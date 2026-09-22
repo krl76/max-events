@@ -69,6 +69,9 @@ export class EventEntity {
   @Column({ type: "boolean", default: true })
   chatSyncPending!: boolean;
 
+  @Column({ type: "varchar", nullable: true })
+  coverUrl?: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

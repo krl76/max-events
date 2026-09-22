@@ -539,6 +539,13 @@ body {
   object-fit: cover;
 }
 
+.app-card-media-img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
 .app-card--link .app-card-media {
   align-self: flex-start;
   aspect-ratio: 1;

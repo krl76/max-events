@@ -48,6 +48,7 @@ const EventObjectSchema = z.object({
   published: z.boolean().default(true),
   bookingOpensAt: TimestampSchema.nullable().default(null),
   weather: EventWeatherSchema.nullable().default(null),
+  coverUrl: z.string().url().nullable().default(null),
 });
 
 const hasValidPaymentLink = (data: { isPaid: boolean; paymentUrl: string | null }) => (data.isPaid ? data.paymentUrl !== null : data.paymentUrl === null);

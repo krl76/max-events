@@ -17,6 +17,7 @@ describe("EventSchema", () => {
     expect(parsed.chatLink).toBeNull();
     expect(parsed.published).toBe(true);
     expect(parsed.bookingOpensAt).toBeNull();
+    expect(parsed.coverUrl).toBeNull();
   });
 
   it("parses bookingOpensAt as ISO timestamp or null", () => {

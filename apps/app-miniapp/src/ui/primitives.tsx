@@ -146,7 +146,14 @@ export const CATEGORY_MEDIA_ICON: Record<EventCategory, ActionIconName> = {
   sport: "star",
 };
 
-export function AppMedia({ category, className }: { category?: EventCategory; className?: string }) {
+export function AppMedia({ category, className, src }: { category?: EventCategory; className?: string; src?: string | null }) {
   const mediaClass = ["app-card-media", category !== undefined ? `app-media--${category}` : "", className ?? ""].filter(Boolean).join(" ");
+  if (src) {
+    return (
+      <div className={mediaClass}>
+        <img alt="" className="app-card-media-img" src={src} />
+      </div>
+    );
+  }
   return <div className={mediaClass}>{category !== undefined && <ActionIcon name={CATEGORY_MEDIA_ICON[category]} size={22} />}</div>;
 }

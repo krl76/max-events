@@ -147,6 +147,7 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, 
   return (
     <article className="app-event">
       <div className={`app-card-media app-event-media app-media--${event.category}`}>
+        {event.coverUrl ? <img alt="" className="app-card-media-img" src={event.coverUrl} /> : null}
         <div className="app-event-media-overlay">
           <AppTitle asChild>
             <h1 className="app-event-title">{event.title}</h1>

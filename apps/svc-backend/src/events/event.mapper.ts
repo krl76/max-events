@@ -31,5 +31,6 @@ export function toEventDto(event: EventEntity, options?: { promoted?: boolean })
     published: event.published,
     bookingOpensAt: event.bookingOpensAt ? event.bookingOpensAt.toISOString() : null,
     weather: null,
+    coverUrl: event.coverUrl ?? null,
   };
 }

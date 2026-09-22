@@ -94,7 +94,7 @@ function ViewToggle({ view, onView }: { view: CatalogViewName; onView: (view: Ca
 export function EventCard({ event, onOpen }: { event: Event; onOpen?: (id: string) => void }) {
   return (
     <button type="button" className="app-card app-card--link" onClick={() => onOpen?.(event.id)}>
-      <AppMedia category={event.category} />
+      <AppMedia category={event.category} src={event.coverUrl} />
       <div className="app-card-body">
         <span className="app-card-title">{event.title}</span>
         <span className="app-card-subtitle">

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { QueryRunner } from "typeorm";
 import { CreateEvents20260911130000 } from "../database/migrations/20260911130000-CreateEvents";
+import { AddEventCoverUrl20260919120300 } from "../database/migrations/20260919120300-AddEventCoverUrl";
 
 describe("CreateEvents20260911130000", () => {
   it("creates events with place FK and paid/free payment CHECK, and drops the table on revert", async () => {
@@ -22,5 +23,22 @@ describe("CreateEvents20260911130000", () => {
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries).toEqual(['DROP TABLE "events"']);
+  });
+});
+
+describe("AddEventCoverUrl20260919120300", () => {
+  it("adds coverUrl and drops it on revert", async () => {
+    const queries: string[] = [];
+    const queryRunner = {
+      query: async (sql: string) => {
+        queries.push(sql);
+      },
+    } as unknown as QueryRunner;
+    const migration = new AddEventCoverUrl20260919120300();
+    await migration.up(queryRunner);
+    expect(queries[0]).toContain("coverUrl");
+    queries.length = 0;
+    await migration.down(queryRunner);
+    expect(queries[0]).toContain('DROP COLUMN "coverUrl"');
   });
 });
