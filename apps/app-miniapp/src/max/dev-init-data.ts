@@ -14,7 +14,7 @@
 // - installDevWebAppShim - overlay signed initData onto window.WebApp
 // END_MODULE_MAP
 
-import type { MaxWebApp, MaxWebAppInitDataUnsafe } from "./bridge";
+import type { MaxWebAppInitDataUnsafe } from "./bridge";
 
 export const DEV_INIT_DATA_STORAGE_KEY = "max-events-dev-initdata";
 
