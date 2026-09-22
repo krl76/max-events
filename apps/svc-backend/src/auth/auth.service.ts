@@ -29,7 +29,7 @@ import { REDIS_CLIENT } from "../redis/redis.module";
 import { signInitData, validateInitData } from "./max-init-data";
 
 /** Staging browser contour. Same person as tools/max-dev-accounts.json `owner`. Override with AUTH_BROWSER_USER JSON. */
-export const BROWSER_DEFAULT_USER = { id: 14352055, first_name: "seaG7", username: "seaG7", language_code: "ru" };
+export const BROWSER_DEFAULT_USER = { id: 88847255, first_name: "Михаил", username: "seaG7", language_code: "ru" };
 export const BROWSER_DEMO_USER = BROWSER_DEFAULT_USER;
 
 export const ORGANIZER_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
