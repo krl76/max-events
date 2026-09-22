@@ -105,6 +105,7 @@
 // - ApiClient.assistQuery - POST /assist: NL query -> explained picks (summary + criteria + items)
 // - ApiClient.assistDay - POST /assist/day: "План на субботу" -> stops timeline + planDraft (+ persisted plan when save=true)
 // - ApiClient.getDiscovery - GET /discovery: reverse discovery summary "Твои люди открыли N мест"
+// - ApiClient.listFriendPlaces - GET /discovery/friend-places: places friends visited, for the map layer
 // - ApiClient.getFriendRoute - GET /discovery/friends/:userId/route: a friend's chronological route of unseen places
 // - ApiClient.getPeople - GET /people[?lat=&lng=]: people matching with shared-interest/event context (lat/lng mirror the backend parseOrigin names)
 // - ApiClient.getPromotionPlacements - GET /promotions/placements: banners, pins, boosted ids (#205)
@@ -136,7 +137,7 @@
 // END_MODULE_MAP
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
-import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, AfterMeResponseSchema, MyCitySummarySchema, OptimizeRouteSchema, OrganizationSchema, ParticipationSchema, SubscriptionSchema, TasteProfileSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendPlaceVisitSchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, AfterMeResponseSchema, MyCitySummarySchema, OptimizeRouteSchema, OrganizationSchema, ParticipationSchema, SubscriptionSchema, TasteProfileSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
 import type {
   AfterMeResponse,
   CreatePlanWrite,
@@ -165,6 +166,7 @@ import type {
   Friend,
   FriendActivityByFriend,
   FriendAvailability,
+  FriendPlaceVisit,
   FriendRoute,
   Gathering,
   InviteeResponse,
@@ -987,6 +989,11 @@ export class ApiClient {
 
   getDiscovery(): Promise<DiscoveryResponse> {
     return this.request("/discovery", DiscoveryResponseSchema);
+  }
+
+  /** The «друзья были здесь» map layer: places friends checked in at, the viewer's own visits included. */
+  listFriendPlaces(): Promise<FriendPlaceVisit[]> {
+    return this.request("/discovery/friend-places", FriendPlaceVisitSchema.array());
   }
 
   getFriendRoute(userId: string): Promise<FriendRoute> {

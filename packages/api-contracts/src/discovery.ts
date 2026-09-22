@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for reverse discovery — places friends opened that the viewer has not visited.
-// SCOPE: summary counts, per-friend new places, friend route of unseen places.
+// SCOPE: summary counts, per-friend new places, friend route of unseen places, and the map layer of places friends actually visited.
 // DEPENDS: zod, ./friends.js, ./place.js, ./primitives.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -12,6 +12,8 @@
 // - DiscoveryResponse - discovery payload
 // - FriendRouteSchema - friend's unseen place trail
 // - FriendRoute - route type
+// - FriendPlaceVisitSchema - one place friends were at: the place, who was there, when the last of them was
+// - FriendPlaceVisit - map-layer marker type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -36,3 +38,15 @@ export const FriendRouteSchema = z.object({
   places: z.array(PlaceSchema),
 });
 export type FriendRoute = z.infer<typeof FriendRouteSchema>;
+
+/**
+ * The «друзья были здесь» map layer, not a discovery: unlike the schemas above it keeps the places the
+ * viewer has visited too, because the layer is about where friends were, not about what is new. Both
+ * privacy switches still gate it — a marker tells as much as the place list the summary withholds.
+ */
+export const FriendPlaceVisitSchema = z.object({
+  place: PlaceSchema,
+  friends: z.array(FriendSchema).min(1),
+  lastVisitAt: z.string().datetime({ offset: true }),
+});
+export type FriendPlaceVisit = z.infer<typeof FriendPlaceVisitSchema>;

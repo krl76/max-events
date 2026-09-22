@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock API layer for the catalog, event page, profile, calendar, friends feed, shared plans, check-ins, achievements, my-city, post-event reviews, reports, UGC micro-events, the place social page, the nearby timeline/leisure surface, reverse discovery and people matching while backend endpoints (M2–M5, P2) do not exist yet.
 // SCOPE: In-memory Moscow fixtures (events/places/organizers, incl. two past events with a seeded demo booking for the review flow, plus MOCK_TODAY-curated events filling the nearby buckets), in-memory bookings with a two-phase demo model of the sandbox fail rule (pending at booking, settle on POST /bookings/:id/payment; the real sandbox provider settles instantly at create), FIFO waitlist with timed confirmation offers, check-ins, seeded friend profiles (interests/privacy) and friend place visits, plan cards, autoplan drafts, day routes, preset lists, seeded reviews with rating aggregates and deduplicated reports, open micro-events with join/leave counters, achievements and my-city derived from check-ins, pure fixture filtering, nearby timeline buckets and leisure chains relative to MOCK_NOW, reverse discovery of friend places the demo user has not visited, people matching on seeded interests/participations, NL assist with deterministic criteria parsing, history/partner explanations, Saturday stops and rate-limit parity, promotion placements/targeted fixtures and promo-code booking validation (#202/#205), fetch interceptor enabled by VITE_USE_MOCK=1 in main.tsx.
-// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, AutoPlanProposal, DayRoute, OptimizeRoute, RoutePoint, AssistCriteria, AssistQueryWrite, AssistResponse, AssistPick, AssistDayResponse, DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute, PeopleCandidate, PeopleMatchContext, PeopleResponse, CreateBookingSchema, CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema, AssistQueryWriteSchema, IdSchema, CreateEventSchema, CreatePlaceSchema, EventSchema, CreateEvent, CreatePlace; PromotionPlacements, TargetedPromotionsResponse)
+// DEPENDS: ./client.js (parseEventFilters, EventFilters, CreateGathering, AddListItem, ListSummary, ListItemCard, CreateMicroEvent, CreateReview, CreateReport, Report, EventRating), @max-events/api-contracts (Event, Place, User, Booking, Profile, PlanCard, List, ListItem, CheckIn, VisitStats, Achievement, MyCitySummary, MemoryPoint, MicroEvent, Review, WaitlistEntry, NearbyCard, NearbyTimeline, NearbyBucket, LeisureMood, LeisureOption, AutoPlanProposal, DayRoute, OptimizeRoute, RoutePoint, AssistCriteria, AssistQueryWrite, AssistResponse, AssistPick, AssistDayResponse, DiscoveryFriendPlaces, DiscoveryResponse, FriendPlaceVisit, FriendRoute, PeopleCandidate, PeopleMatchContext, PeopleResponse, CreateBookingSchema, CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, MicroEventSchema, ReviewSchema, UpdateProfileSchema, LeisureMoodSchema, AssistQueryWriteSchema, IdSchema, CreateEventSchema, CreatePlaceSchema, EventSchema, CreateEvent, CreatePlace; PromotionPlacements, TargetedPromotionsResponse)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -110,8 +110,9 @@
 // - afterMePicks - mock GET /taste/after-me: more of the strongest visited category, backend wording parity
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
+// - friendPlaceLayer - mock GET /discovery/friend-places: places friends checked in at, grouped, privacy-gated
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings[/:id|/:id/response], /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings[/:id|/:id/response], /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friend-places|/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
 // - resetMockCampaigns - clear in-memory promo campaigns (test isolation)
 // - resetMockPromotions - clear in-memory promotion campaigns (test isolation)
 // - resetMockPromoCodes - clear in-memory promocodes (test isolation)
@@ -147,6 +148,7 @@ import type {
   Friend,
   FriendActivityByFriend,
   FriendAvailability,
+  FriendPlaceVisit,
   FriendRoute,
   Gathering,
   InviteeResponse,
@@ -2330,6 +2332,29 @@ function unseenFriendPlaces(friendIndex: number, myPlaceIds: Set<string>): Place
   return unseen;
 }
 
+/**
+ * The «друзья были здесь» layer (mock GET /discovery/friend-places): every seeded friend visit, not
+ * only the ones the demo user missed, grouped by place. The seed carries no clock, so each visit is
+ * dated back from MOCK_NOW in seed order — deterministic, and recent enough to look alive in the demo.
+ */
+export function friendPlaceLayer(): FriendPlaceVisit[] {
+  const byPlace = new Map<string, FriendPlaceVisit>();
+  MOCK_DISCOVERY_VISIT_SEED.forEach(([friendIndex, placeIndex], order) => {
+    const friend = mockFriends[friendIndex];
+    const place = mockPlaces[placeIndex];
+    // Backend parity: either privacy switch takes the friend out, an unpublished place is not served.
+    if (!friend || !place || place.published === false) return;
+    const privacy = profileFor(friend.id).privacy;
+    if (privacy.visitHistory === "hidden" || privacy.routes === "hidden") return;
+    const visitedAt = new Date(MOCK_NOW.getTime() - (MOCK_DISCOVERY_VISIT_SEED.length - order) * 86_400_000).toISOString();
+    const entry = byPlace.get(place.id) ?? { place, friends: [], lastVisitAt: visitedAt };
+    if (!entry.friends.some((row) => row.id === friend.id)) entry.friends.push(friend);
+    if (Date.parse(visitedAt) > Date.parse(entry.lastVisitAt)) entry.lastVisitAt = visitedAt;
+    byPlace.set(place.id, entry);
+  });
+  return [...byPlace.values()].sort((a, b) => Date.parse(b.lastVisitAt) - Date.parse(a.lastVisitAt) || a.place.title.localeCompare(b.place.title));
+}
+
 /** Reverse discovery summary (mock GET /discovery): per-friend unseen places minus the demo user's check-ins, privacy-gated (backend DiscoveryService.summary parity). */
 export function discoverySummary(): DiscoveryResponse {
   const myPlaceIds = myVisitedPlaceIds();
@@ -3122,6 +3147,9 @@ export function installMockApi(): () => void {
       if (route === "own" || route === "hidden") return new Response(null, { status: 403 });
       if (route === "not_friend") return new Response(null, { status: 404 });
       return Response.json(route);
+    }
+    if (url.pathname === "/api/discovery/friend-places") {
+      return Response.json(friendPlaceLayer());
     }
     if (url.pathname === "/api/discovery") {
       return Response.json(discoverySummary());

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mockEvents, mockPlaces } from "../api/mock";
+import { mockEvents, mockFriends, mockPlaces } from "../api/mock";
 import { buildMapMarkers } from "./mapMarkers";
 import { initEventMap } from "./MapScreen";
 
@@ -126,5 +126,18 @@ describe("initEventMap", () => {
 
     const popup = leaflet.marker.mock.results[0].value.bindPopup.mock.calls[0][0] as FakeNode;
     expect(popup.appended.some((node) => node.textContent === "Промо")).toBe(false);
+  });
+
+  it("gives the «друзья были здесь» marker its own pin and opens the place from its popup", async () => {
+    const onOpenPlace = vi.fn();
+    const visit = { place: mockPlaces[0], friends: [mockFriends[0]], lastVisitAt: "2026-09-16T20:00:00+03:00" };
+    await initEventMap(container, { events: [], places: [mockPlaces[0]], friendVisits: [visit], onOpenEvent: vi.fn(), onOpenPlace });
+
+    expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin app-map-pin--friends" }));
+
+    const popup = leaflet.marker.mock.results[0].value.bindPopup.mock.calls[0][0] as FakeNode;
+    expect(popup.appended.some((node) => node.textContent === `Были: ${mockFriends[0].name}`)).toBe(true);
+    popup.appended.find((node) => node.textContent === "Открыть место")!.click!();
+    expect(onOpenPlace).toHaveBeenCalledWith(mockPlaces[0].id);
   });
 });

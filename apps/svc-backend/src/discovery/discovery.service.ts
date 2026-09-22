@@ -1,18 +1,18 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Reverse discovery — places friends visited that the viewer has not, with privacy gates.
-// SCOPE: summary() unique unseen places by friend; route() chronological unseen trail; hidden history/routes skipped.
+// SCOPE: summary() unique unseen places by friend; route() chronological unseen trail; friendPlaces() every place a friend checked in at, for the map layer; hidden history/routes skipped.
 // DEPENDS: typeorm, @max-events/api-contracts, check-ins/events/places/friends/profiles
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - DiscoveryService - summary and friend route
+// - DiscoveryService - summary, friend route and the visited-places map layer
 // END_MODULE_MAP
 
 import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
-import type { DiscoveryResponse, FriendRoute } from "@max-events/api-contracts";
+import type { DiscoveryResponse, FriendPlaceVisit, FriendRoute } from "@max-events/api-contracts";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
@@ -65,6 +65,34 @@ export class DiscoveryService {
     if (privacy.routes === "hidden" || privacy.visitHistory === "hidden") throw new ForbiddenException("Friend hid their route");
     const unseen = unseenPlaces(ctx.visitsByUser.get(friendId) ?? [], ctx.myPlaceIds, ctx.placeById, ctx.eventById);
     return { friend: toFriendDto(friend), places: unseen.map(toPlaceDto) };
+  }
+
+  /**
+   * The map layer: every published place a friend checked in at, the friends who were there and the
+   * latest of their visits. Deliberately not filtered against the viewer's own check-ins — «друзья
+   * были здесь» is about company, not about what is new. Both privacy switches gate it, the way summary()
+   * and route() already read them: hiding routes here means hiding where you have been, not merely the
+   * order of it, and a layer marker says exactly as much as the place list those two withhold.
+   */
+  async friendPlaces(viewerId: string): Promise<FriendPlaceVisit[]> {
+    const ctx = await this.loadContext(viewerId);
+    const byPlace = new Map<string, { place: PlaceEntity; friends: Map<string, UserEntity>; lastVisitAt: Date }>();
+    for (const friendId of ctx.friendIds) {
+      const privacy = readPrivacy(ctx.profileById.get(friendId));
+      if (privacy.visitHistory === "hidden" || privacy.routes === "hidden") continue;
+      const friend = ctx.userById.get(friendId);
+      if (!friend) continue;
+      for (const row of ctx.visitsByUser.get(friendId) ?? []) {
+        const placeId = row.placeId ?? (row.eventId ? ctx.eventById.get(row.eventId)?.placeId : null) ?? null;
+        const place = placeId === null ? undefined : ctx.placeById.get(placeId);
+        if (!place) continue;
+        const entry = byPlace.get(place.id) ?? { place, friends: new Map<string, UserEntity>(), lastVisitAt: row.checkedInAt };
+        entry.friends.set(friend.id, friend);
+        if (row.checkedInAt.getTime() > entry.lastVisitAt.getTime()) entry.lastVisitAt = row.checkedInAt;
+        byPlace.set(place.id, entry);
+      }
+    }
+    return [...byPlace.values()].sort((a, b) => b.lastVisitAt.getTime() - a.lastVisitAt.getTime() || a.place.title.localeCompare(b.place.title)).map((entry) => ({ place: toPlaceDto(entry.place), friends: [...entry.friends.values()].map(toFriendDto), lastVisitAt: entry.lastVisitAt.toISOString() }));
   }
 
   private async loadContext(viewerId: string) {

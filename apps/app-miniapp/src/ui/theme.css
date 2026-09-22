@@ -2084,3 +2084,28 @@ body {
   flex-wrap: wrap;
   gap: var(--app-space-xs);
 }
+
+/* Карта: слой «друзья были здесь» — свой пин и плавающий переключатель поверх карты */
+.app-map-wrap {
+  display: flex;
+  flex: 1;
+  min-height: 420px;
+  position: relative;
+}
+
+.app-content--flush .app-map-wrap {
+  min-height: 0;
+}
+
+/* Справа и выше контролов Leaflet: зум занимает левый верхний угол и лежит в z-index 800/1000 */
+.app-map-layers {
+  position: absolute;
+  right: var(--app-space-m);
+  top: var(--app-space-m);
+  z-index: 1001;
+}
+
+.app-map-pin--friends {
+  background: var(--app-accent-contrast);
+  border-color: var(--app-accent);
+}
