@@ -38,12 +38,14 @@ describe("assist API via mock", () => {
     expect(result.criteria).toEqual({ when: "evening", budgetMaxRub: 3000, company: "partner", genre: "music" });
     expect(result.items.length).toBeGreaterThan(0);
     expect(result.items.length).toBeLessThanOrEqual(7);
-    expect(result.summary).toBe(`Нашел ${result.items.length} вариантов, 0 по твоей истории, 1 уже сохранила твоя девушка`);
+    expect(result.summary).toMatch(/^Нашёл \d+ вариант/);
+    expect(result.summary).toContain("по твоей истории");
+    expect(result.summary).not.toContain("девушк");
     for (const pick of result.items) {
       expect(pick.explanation.length).toBeGreaterThan(0);
     }
     const saved = result.items.find((pick) => pick.event.title.includes("Рахманинова"));
-    expect(saved?.explanation).toBe("Уже сохранила твоя девушка");
+    expect(saved?.explanation).toBe("Уже в сохранённых");
   });
 
   it("rejects an empty query with 400", async () => {

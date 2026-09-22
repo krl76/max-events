@@ -19,6 +19,7 @@ import type { Event, Friend, Vote } from "@max-events/api-contracts";
 import { ApiError, apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { pluralRu } from "../catalog/format";
+import { shareResult, webApp } from "../max/bridge";
 import { AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
 
 export type VoteState = { status: "loading" } | { status: "notfound" } | { status: "forbidden" } | { status: "error" } | { status: "ready"; vote: Vote };
@@ -29,9 +30,10 @@ interface VoteViewProps {
   voting: boolean;
   failed: boolean;
   onVote: (eventId: string) => void;
+  onShare?: () => void;
 }
 
-export function VoteView({ state, myChoice, voting, failed, onVote }: VoteViewProps) {
+export function VoteView({ state, myChoice, voting, failed, onVote, onShare }: VoteViewProps) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "notfound") return <AppState>Голосование не найдено.</AppState>;
   if (state.status === "forbidden") return <AppState error>Голосование недоступно.</AppState>;
@@ -45,6 +47,11 @@ export function VoteView({ state, myChoice, voting, failed, onVote }: VoteViewPr
       </AppTitle>
       <p className="app-vote-hint">Участники: {vote.participants.map((friend) => friend.name).join(", ")}</p>
       {vote.chatLink !== null && <p className="app-vote-hint">Отправлено в чат</p>}
+      {onShare !== undefined && (
+        <AppButton tone="secondary" onClick={onShare}>
+          Поделиться
+        </AppButton>
+      )}
       <div className="app-vote-options">
         {vote.options.map((option) => {
           const winner = vote.winnerEventId === option.event.id;
@@ -115,7 +122,14 @@ export function VotePage({ id }: { id: string }) {
     );
   };
 
-  return <VoteView state={state} myChoice={myChoice} voting={voting} failed={failed} onVote={vote} />;
+  const share = () => {
+    if (state.status !== "ready") return;
+    const winner = state.vote.options.find((option) => option.event.id === state.vote.winnerEventId);
+    const text = winner ? `${state.vote.title}: лучший вариант — ${winner.event.title}` : state.vote.title;
+    void shareResult(webApp, text);
+  };
+
+  return <VoteView state={state} myChoice={myChoice} voting={voting} failed={failed} onVote={vote} onShare={share} />;
 }
 
 export function voteCreateReady(title: string, eventIds: string[], friendIds: string[]): boolean {

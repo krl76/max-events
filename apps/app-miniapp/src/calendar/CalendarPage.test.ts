@@ -32,12 +32,13 @@ describe("splitCalendarEntries", () => {
 
 describe("CalendarView", () => {
   it("renders both sections with cancel buttons only on upcoming cards", () => {
-    const html = renderToStaticMarkup(createElement(CalendarView, { state: { status: "ready", entries: [entry(2, "b1"), entry(3, "b2")] }, now: NOW, onCancel: () => {}, onExplore: () => {} }));
+    const html = renderToStaticMarkup(createElement(CalendarView, { state: { status: "ready", entries: [entry(2, "b1"), entry(3, "b2")] }, now: NOW, onCancel: () => {}, onExplore: () => {}, onExport: () => {} }));
 
     expect(html).toContain("Запланированные");
     expect(html).toContain("Прошедшие");
     expect(html).toContain(mockEvents[3].title);
     expect(html).toContain(mockEvents[2].title);
+    expect(html).toContain("Экспорт в календарь");
     expect(html.match(/Отменить запись/g)).toHaveLength(1);
   });
 

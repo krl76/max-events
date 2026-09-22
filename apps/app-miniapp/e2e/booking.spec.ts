@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { enterAsUser } from "./enter";
 
 test("event booking toggles between book and booked, then cancels", async ({ page }) => {
-  await page.goto("/");
+  await enterAsUser(page);
   await page.getByRole("button", { name: /Вечер Рахманинова.*Москва/ }).click();
   await expect(page.getByRole("button", { name: "Записаться" })).toBeVisible();
 

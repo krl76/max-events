@@ -13,9 +13,9 @@ function ready(cardIndex: number): Extract<PlanState, { status: "ready" }> {
 
 describe("PLAN_STATUS_LABELS", () => {
   it("covers every participant status with a ru label", () => {
-    expect(PLAN_STATUS_LABELS.invited).toBe("приглашён");
-    expect(PLAN_STATUS_LABELS.confirmed).toBe("подтвердил");
-    expect(PLAN_STATUS_LABELS.declined).toBe("отказался");
+    expect(PLAN_STATUS_LABELS.invited).toBe("ждёт ответа");
+    expect(PLAN_STATUS_LABELS.confirmed).toBe("идёт");
+    expect(PLAN_STATUS_LABELS.declined).toBe("не идёт");
   });
 });
 

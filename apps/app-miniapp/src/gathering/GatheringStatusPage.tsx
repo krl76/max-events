@@ -20,7 +20,7 @@ import { useAuth } from "../auth/AuthContext";
 import { openExternalLink } from "../max/bridge";
 import { AppButton, AppTitle, AppState } from "../ui/primitives";
 
-export const INVITEE_RESPONSE_LABELS: Record<InviteeResponse, string> = { accepted: "подтвердил", considering: "смотрит", busy: "занят" };
+export const INVITEE_RESPONSE_LABELS: Record<InviteeResponse, string> = { accepted: "идёт", considering: "ждёт ответа", busy: "не идёт" };
 
 // All three answers the contract carries. "considering" is what an invite starts as, so without a
 // button for it an invitee could never say it — nor take back "Иду"/"Занят" while they think.

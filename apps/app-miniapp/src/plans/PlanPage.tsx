@@ -23,7 +23,7 @@ import { planMeetingLabel } from "./PlansPage";
 import { openExternalLink } from "../max/bridge";
 import { AppButton, AppState } from "../ui/primitives";
 
-export const PLAN_STATUS_LABELS: Record<PlanParticipantStatus, string> = { invited: "приглашён", confirmed: "подтвердил", declined: "отказался" };
+export const PLAN_STATUS_LABELS: Record<PlanParticipantStatus, string> = { invited: "ждёт ответа", confirmed: "идёт", declined: "не идёт" };
 
 export type PlanState = { status: "loading" } | { status: "error" } | { status: "ready"; card: PlanCard };
 

@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { enterAsUser } from "./enter";
 
 test("join and leave a micro event updates the participant counter", async ({ page }) => {
-  await page.goto("/");
+  await enterAsUser(page);
 
   const card = page.locator(".app-card", { hasText: "Играем в баскетбол" });
   const counter = card.getByText(/участников/);

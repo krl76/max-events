@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { enterAsUser } from "./enter";
 
 test("place page: load from an event, check in and report (regression #414)", async ({ page }) => {
-  await page.goto("/");
+  await enterAsUser(page);
   // The «Лекция об импрессионистах» today-block event belongs to «ГМИИ им. А. С. Пушкина»;
   // the catalog card's accessible name carries the city line (same pattern as event.spec).
   await page.getByRole("button", { name: /Лекция об импрессионистах.*Москва/ }).click();

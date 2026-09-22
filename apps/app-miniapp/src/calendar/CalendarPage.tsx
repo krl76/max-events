@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 import { apiClient, type CalendarEntry } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { buildCalendarIcs } from "./calendar-ics";
 import { MyMicroEventsSection } from "../micro/MicroEvents";
 import { useRoute } from "../routing/router";
 import { AppButton, AppState, AppSection, AppMedia } from "../ui/primitives";
@@ -58,15 +59,22 @@ interface CalendarViewProps {
   now: Date;
   onCancel: (bookingId: string) => void;
   onExplore: () => void;
+  onExport?: () => void;
 }
 
-export function CalendarView({ state, now, onCancel, onExplore }: CalendarViewProps) {
+export function CalendarView({ state, now, onCancel, onExplore, onExport }: CalendarViewProps) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "error") return <AppState error>Не удалось загрузить календарь.</AppState>;
 
   const { upcoming, past } = splitCalendarEntries(state.entries, now);
   return (
     <>
+      {state.entries.length > 0 && onExport !== undefined && (
+        <AppButton tone="secondary" onClick={onExport}>
+          Экспорт в календарь
+        </AppButton>
+      )}
+      {state.entries.length === 0 && <AppState>Нечего экспортировать — запишитесь на событие.</AppState>}
       <AppSection title="Запланированные" className="app-cards-flat">
         {upcoming.length === 0 ? <AppState action={{ label: "Найти событие", onClick: onExplore }}>Нет запланированных событий.</AppState> : upcoming.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={() => onCancel(entry.booking.id)} />)}
       </AppSection>
@@ -110,7 +118,25 @@ export function CalendarPage() {
 
   return (
     <>
-      <CalendarView state={state} now={new Date()} onCancel={cancel} onExplore={() => navigate({ name: "home" })} />
+      <CalendarView
+        state={state}
+        now={new Date()}
+        onCancel={cancel}
+        onExplore={() => navigate({ name: "home" })}
+        onExport={
+          state.status === "ready"
+            ? () => {
+                const blob = new Blob([buildCalendarIcs(state.entries)], { type: "text/calendar;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = "max-events.ics";
+                link.click();
+                URL.revokeObjectURL(url);
+              }
+            : undefined
+        }
+      />
       {/* Below the bookings: a micro-event the viewer joined is a record of their own too, and it used to live nowhere but the feed. */}
       <MyMicroEventsSection />
     </>

@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { enterAsUser } from "./enter";
 
 test("home renders CTA pair and catalog cards", async ({ page }) => {
-  await page.goto("/");
+  await enterAsUser(page);
   await expect(page.getByRole("button", { name: "Куда пойдём?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Рядом со мной" })).toBeVisible();
   // The event also appears in the promo rail above the catalog; the catalog card

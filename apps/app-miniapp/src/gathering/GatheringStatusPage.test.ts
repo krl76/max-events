@@ -40,11 +40,11 @@ describe("GatheringStatusView", () => {
 
     expect(html).toContain(mockEvents[0].title);
     expect(html).toContain("Дима Кузнецов");
-    expect(html).toContain("подтвердил");
+    expect(html).toContain("идёт");
     expect(html).toContain("Катя Орлова");
-    expect(html).toContain("смотрит");
+    expect(html).toContain("ждёт ответа");
     expect(html).toContain("Пётр Новиков");
-    expect(html).toContain("занят");
+    expect(html).toContain("не идёт");
     expect(html).toContain("Ты + 1 из 3");
   });
 

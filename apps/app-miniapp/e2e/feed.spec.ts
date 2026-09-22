@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { enterAsUser } from "./enter";
 
 test("feed like increments the counter and publishing an impression shows the post", async ({ page }) => {
-  await page.goto("/");
+  await enterAsUser(page);
 
   const firstPost = page.locator(".app-card--post").first();
   const likes = firstPost.locator(".app-post-likes");

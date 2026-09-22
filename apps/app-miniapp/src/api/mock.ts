@@ -202,6 +202,7 @@ import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, BanOrganizerWriteSch
 import { CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, OrganizerLoginWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
 import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, CreateSubscription, EventSalesReport, Organization, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, OrganizerSession, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod, Story, Subscription } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
+import { pluralRu } from "../catalog/format";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
 
@@ -2694,16 +2695,16 @@ function mockAssistMatches(criteria: AssistCriteria, now: Date = MOCK_NOW): Even
 
 /** Backend explainPick parity. */
 function mockAssistExplanation(fromHistory: boolean, fromPartner: boolean): string {
-  if (fromHistory && fromPartner) return "По твоей истории, и уже сохранила твоя девушка";
+  if (fromHistory && fromPartner) return "По твоей истории и уже в сохранённых";
   if (fromHistory) return "По твоей истории";
-  if (fromPartner) return "Уже сохранила твоя девушка";
+  if (fromPartner) return "Уже в сохранённых";
   return "Подходит по запросу";
 }
 
 /** Backend formatAssistSummary parity. */
 function mockAssistSummary(total: number, history: number, saved: number): string {
-  if (total === 0) return "Не нашел вариантов по запросу.";
-  return `Нашел ${total} вариантов, ${history} по твоей истории, ${saved} уже сохранила твоя девушка`;
+  if (total === 0) return "Не нашёл вариантов по запросу.";
+  return `Нашёл ${total} ${pluralRu(total, "вариант", "варианта", "вариантов")}, ${history} по твоей истории, ${saved} уже в сохранённых`;
 }
 
 type MockAssistError = "rate_limited" | "invalid" | "no_events";
@@ -2754,7 +2755,8 @@ export function mockAssistDay(payload: AssistQueryWrite, now: Date = MOCK_NOW): 
     plan = { plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, hostUserId: mockDemoUser.id, eventId: planDraft.eventId, participants: [], meetingPoint: planDraft.meetingPoint, meetingAt: planDraft.meetingAt, chatLink: null, recurringRule: null, seriesId: null, createdAt: now, updatedAt: now }, event: first, distanceMeters: 0 };
     mockPlans.push(plan);
   }
-  return { summary: `Собрал день на субботу ${date}: ${stops.length} событий`, date, stops, planDraft, plan };
+  const dateLabel = new Date(`${date}T12:00:00+03:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+  return { summary: `Собрал день на субботу ${dateLabel}: ${stops.length} ${pluralRu(stops.length, "событие", "события", "событий")}`, date, stops, planDraft, plan };
 }
 
 /** Organizer panel store item: the contract entity plus the published flag the backend keeps server-side (organizer DTOs omit it; the mock surfaces it so the client can badge drafts). */

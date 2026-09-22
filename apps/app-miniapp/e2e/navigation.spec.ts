@@ -1,15 +1,11 @@
-import { expect, test, type Page } from "@playwright/test";
-
-async function enterAsUser(page: Page): Promise<void> {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Войти через MAX" }).click();
-}
+import { expect, test } from "@playwright/test";
+import { enterAsUser } from "./enter";
 
 test("tabbar shows feed, search, map, plans and profile tabs", async ({ page }) => {
   await enterAsUser(page);
   const tabbar = page.locator(".app-tabbar");
 
-  for (const label of ["Лента", "Поиск", "Карта", "Планы", "Профиль"]) {
+  for (const label of ["Лента", "Поиск", "Карта", "Моё", "Профиль"]) {
     await expect(tabbar.getByRole("button", { name: label })).toBeVisible();
   }
   await expect(tabbar.getByRole("button", { name: "Лента" })).toHaveAttribute("aria-current", "page");
@@ -23,7 +19,7 @@ test("tabbar shows feed, search, map, plans and profile tabs", async ({ page }) 
   await expect(page.locator(".app-header")).toBeHidden();
   await expect(page.locator(".app-content")).toHaveClass(/app-content--flush/);
 
-  await tabbar.getByRole("button", { name: "Планы" }).click();
+  await tabbar.getByRole("button", { name: "Моё" }).click();
   await expect(page.locator(".app-header")).toBeHidden();
 });
 

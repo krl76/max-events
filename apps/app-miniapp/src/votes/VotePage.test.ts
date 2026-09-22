@@ -18,8 +18,8 @@ function seededVote(): Vote {
   return vote;
 }
 
-function viewHtml(over: { state?: VoteState; myChoice?: string | null; voting?: boolean; failed?: boolean } = {}): string {
-  return renderToStaticMarkup(createElement(VoteView, { state: over.state ?? { status: "ready", vote: seededVote() }, myChoice: over.myChoice ?? null, voting: over.voting ?? false, failed: over.failed ?? false, onVote: noop }));
+function viewHtml(over: { state?: VoteState; myChoice?: string | null; voting?: boolean; failed?: boolean; onShare?: () => void } = {}): string {
+  return renderToStaticMarkup(createElement(VoteView, { state: over.state ?? { status: "ready", vote: seededVote() }, myChoice: over.myChoice ?? null, voting: over.voting ?? false, failed: over.failed ?? false, onVote: noop, onShare: over.onShare }));
 }
 
 describe("ru ballot counter label", () => {
@@ -39,6 +39,7 @@ describe("VoteView", () => {
 
     expect(html).toContain(vote.title);
     expect(html).toContain("Отправлено в чат");
+    expect(viewHtml({ onShare: noop })).toContain("Поделиться");
     expect(html).toContain("Участники:");
     for (const option of vote.options) {
       expect(html).toContain(option.event.title);
