@@ -12,7 +12,7 @@
 
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { QueryFailedError, Repository } from "typeorm";
+import { In, QueryFailedError, Repository } from "typeorm";
 import type { User } from "@max-events/api-contracts";
 import type { MaxInitDataUser } from "../auth/max-init-data";
 import { UserEntity } from "./user.entity";
@@ -48,6 +48,11 @@ export class UsersService {
       return this.users.save(this.users.merge(existing, fields));
     }
     return existing;
+  }
+
+  async findByIds(ids: string[]): Promise<UserEntity[]> {
+    if (ids.length === 0) return [];
+    return this.users.find({ where: { id: In(ids) } });
   }
 
   async assertCanPublish(userId: string): Promise<void> {

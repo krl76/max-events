@@ -51,7 +51,7 @@ function createService() {
   const events = createStoreRepo<MicroEventEntity>();
   const participants = createStoreRepo<MicroEventParticipantEntity>();
   const places = createStoreRepo<PlaceEntity>();
-  const users = { assertCanPublish: async () => undefined } as unknown as UsersService;
+  const users = { assertCanPublish: async () => undefined, findByIds: async () => [] } as unknown as UsersService;
   const dataSource = {
     transaction: async <T>(run: (em: EntityManager) => Promise<T>) => {
       const manager = {

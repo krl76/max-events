@@ -46,26 +46,34 @@ export function filterEventsByQuery(events: Event[], query: string): Event[] {
   return events.filter((event) => event.title.toLowerCase().includes(needle) || event.city.toLowerCase().includes(needle));
 }
 
-function useCatalog(filters: EventFilters): CatalogState {
+export const CATALOG_PAGE_SIZE = 20;
+
+function useCatalog(filters: EventFilters, offset: number): CatalogState & { hasMore: boolean } {
   const [state, setState] = useState<CatalogState>({ status: "loading" });
+  const [accumulated, setAccumulated] = useState<Event[]>([]);
+  const [hasMore, setHasMore] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    setState({ status: "loading" });
-    apiClient.listEvents(filters).then(
+    if (offset === 0) setState({ status: "loading" });
+    apiClient.listEvents({ ...filters, limit: CATALOG_PAGE_SIZE, offset }).then(
       (events) => {
-        if (alive) setState({ status: "ready", events });
+        if (!alive) return;
+        const next = offset === 0 ? events : [...accumulated, ...events];
+        setAccumulated(next);
+        setHasMore(events.length === CATALOG_PAGE_SIZE);
+        setState({ status: "ready", events: next });
       },
       () => {
-        if (alive) setState({ status: "error" });
+        if (alive && offset === 0) setState({ status: "error" });
       },
     );
     return () => {
       alive = false;
     };
-  }, [filters]);
+  }, [filters, offset]);
 
-  return state;
+  return { ...state, hasMore };
 }
 
 export type CatalogViewName = "list" | "map";
@@ -137,7 +145,7 @@ function FilterBar({ filters, onFilters }: { filters: EventFilters; onFilters: (
   const [cityDraft, setCityDraft] = useState(filters.city ?? "");
   useEffect(() => setCityDraft(filters.city ?? ""), [filters.city]);
   const commitCity = () => onFilters({ ...filters, city: cityDraft.trim() || undefined });
-  const hasFilters = filters.category !== undefined || filters.city !== undefined || filters.date !== undefined || filters.minRating !== undefined;
+  const hasFilters = filters.category !== undefined || filters.city !== undefined || filters.date !== undefined || filters.dateFrom !== undefined || filters.dateTo !== undefined || filters.minRating !== undefined;
 
   return (
     <div className="app-filters">
@@ -153,7 +161,14 @@ function FilterBar({ filters, onFilters }: { filters: EventFilters; onFilters: (
       </div>
       <RatingChips value={filters.minRating} onChange={(minRating) => onFilters({ ...filters, minRating })} />
       <div className="app-filters-inputs">
-        <input className="app-filters-input" type="date" aria-label="Дата" value={filters.date ?? ""} onChange={(change) => onFilters({ ...filters, date: change.target.value || undefined })} />
+        <input
+          className="app-filters-input"
+          type="date"
+          aria-label="Дата от"
+          value={filters.dateFrom ?? filters.date ?? ""}
+          onChange={(change) => onFilters({ ...filters, date: undefined, dateFrom: change.target.value || undefined })}
+        />
+        <input className="app-filters-input" type="date" aria-label="Дата до" value={filters.dateTo ?? ""} onChange={(change) => onFilters({ ...filters, dateTo: change.target.value || undefined })} />
         <input
           className="app-filters-input"
           type="text"
@@ -184,9 +199,11 @@ interface CatalogViewProps {
   onView?: (view: CatalogViewName) => void;
   onOpenEvent?: (id: string) => void;
   onOpenPlace?: (id: string) => void;
+  hasMore?: boolean;
+  onMore?: () => void;
 }
 
-export function CatalogView({ state, filters, onFilters, view = "list", onView, onOpenEvent, onOpenPlace }: CatalogViewProps) {
+export function CatalogView({ state, filters, onFilters, view = "list", onView, onOpenEvent, onOpenPlace, hasMore = false, onMore }: CatalogViewProps) {
   return (
     <>
       <FilterBar filters={filters} onFilters={onFilters} />
@@ -205,6 +222,11 @@ export function CatalogView({ state, filters, onFilters, view = "list", onView, 
           {state.status === "error" && <AppState error>Не удалось загрузить события. Попробуйте изменить фильтры.</AppState>}
           {state.status === "ready" && state.events.length === 0 && <AppState>Ничего не найдено. Попробуйте изменить фильтры.</AppState>}
           {state.status === "ready" && state.events.map((item) => <EventCard key={item.id} event={item} onOpen={onOpenEvent} />)}
+          {state.status === "ready" && hasMore && onMore !== undefined && (
+            <button type="button" className="app-filters-reset" onClick={onMore}>
+              Ещё
+            </button>
+          )}
         </>
       )}
     </>
@@ -213,15 +235,21 @@ export function CatalogView({ state, filters, onFilters, view = "list", onView, 
 
 export function CatalogPage({ view, onView }: { view: CatalogViewName; onView: (view: CatalogViewName) => void }) {
   const [filters, setFilters] = useState<EventFilters>(() => parseEventFilters(window.location.search));
-  const catalog = useCatalog(filters);
+  const [offset, setOffset] = useState(0);
+  const catalog = useCatalog(filters, offset);
   const { navigate } = useRoute();
   const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
   const openPlace = useCallback((id: string) => navigate({ name: "place", id }), [navigate]);
 
   useEffect(() => {
-    const query = serializeEventFilters(filters);
+    const query = serializeEventFilters({ ...filters, limit: undefined, offset: undefined });
     window.history.replaceState(null, "", query ? `/?${query}` : "/");
   }, [filters]);
 
-  return <CatalogView state={catalog} filters={filters} onFilters={setFilters} view={view} onView={onView} onOpenEvent={openEvent} onOpenPlace={openPlace} />;
+  const onFilters = useCallback((next: EventFilters) => {
+    setOffset(0);
+    setFilters(next);
+  }, []);
+
+  return <CatalogView state={catalog} filters={filters} onFilters={onFilters} view={view} onView={onView} onOpenEvent={openEvent} onOpenPlace={openPlace} hasMore={catalog.hasMore} onMore={() => setOffset((current) => current + CATALOG_PAGE_SIZE)} />;
 }

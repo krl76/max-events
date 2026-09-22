@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { QueryRunner } from "typeorm";
 import { CreateVotes20260912200000 } from "../database/migrations/20260912200000-CreateVotes";
 import { AddVoteOptionPosition20260912201000 } from "../database/migrations/20260912201000-AddVoteOptionPosition";
+import { AddVoteStatus20260919120100 } from "../database/migrations/20260919120100-AddVoteStatus";
 
 describe("CreateVotes20260912200000", () => {
   it("creates vote tables and drops them on revert", async () => {
@@ -39,5 +40,24 @@ describe("AddVoteOptionPosition20260912201000", () => {
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries).toEqual([`ALTER TABLE "vote_options" DROP COLUMN "position"`]);
+  });
+});
+
+describe("AddVoteStatus20260919120100", () => {
+  it("adds status and winnerEventId and drops them on revert", async () => {
+    const queries: string[] = [];
+    const queryRunner = {
+      query: async (sql: string) => {
+        queries.push(sql);
+      },
+    } as unknown as QueryRunner;
+    const migration = new AddVoteStatus20260919120100();
+    await migration.up(queryRunner);
+    expect(queries[0]).toContain('"status"');
+    expect(queries[1]).toContain("winnerEventId");
+    queries.length = 0;
+    await migration.down(queryRunner);
+    expect(queries[0]).toContain("winnerEventId");
+    expect(queries[1]).toContain('"status"');
   });
 });

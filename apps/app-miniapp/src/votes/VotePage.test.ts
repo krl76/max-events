@@ -18,8 +18,8 @@ function seededVote(): Vote {
   return vote;
 }
 
-function viewHtml(over: { state?: VoteState; myChoice?: string | null; voting?: boolean; failed?: boolean; onShare?: () => void } = {}): string {
-  return renderToStaticMarkup(createElement(VoteView, { state: over.state ?? { status: "ready", vote: seededVote() }, myChoice: over.myChoice ?? null, voting: over.voting ?? false, failed: over.failed ?? false, onVote: noop, onShare: over.onShare }));
+function viewHtml(over: { state?: VoteState; myChoice?: string | null; voting?: boolean; failed?: boolean; onShare?: () => void; onClose?: () => void } = {}): string {
+  return renderToStaticMarkup(createElement(VoteView, { state: over.state ?? { status: "ready", vote: seededVote() }, myChoice: over.myChoice ?? null, voting: over.voting ?? false, failed: over.failed ?? false, onVote: noop, onShare: over.onShare, onClose: over.onClose }));
 }
 
 describe("ru ballot counter label", () => {
@@ -54,6 +54,12 @@ describe("VoteView", () => {
     expect(vote.winnerEventId).not.toBeNull();
     expect(html.match(/app-vote-option--winner/g)).toHaveLength(1);
     expect(html).toContain("Лучший вариант");
+  });
+
+  it("shows who has not voted and a close action", () => {
+    const html = viewHtml({ onClose: noop });
+    expect(html).toContain("Проголосовали");
+    expect(html).toContain("Завершить");
   });
 
   it("marks the option the user voted for and keeps a re-vote possible", () => {

@@ -29,23 +29,37 @@ interface VoteViewProps {
   myChoice: string | null;
   voting: boolean;
   failed: boolean;
+  closing?: boolean;
   onVote: (eventId: string) => void;
   onShare?: () => void;
+  onClose?: () => void;
 }
 
-export function VoteView({ state, myChoice, voting, failed, onVote, onShare }: VoteViewProps) {
+export function VoteView({ state, myChoice, voting, failed, closing = false, onVote, onShare, onClose }: VoteViewProps) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "notfound") return <AppState>Голосование не найдено.</AppState>;
   if (state.status === "forbidden") return <AppState error>Голосование недоступно.</AppState>;
   if (state.status === "error") return <AppState error>Не удалось загрузить голосование.</AppState>;
   const { vote } = state;
   const myBallotEventId = vote.myBallotEventId ?? myChoice;
+  const closed = vote.status === "closed";
+  const voted = new Set(vote.votedUserIds);
+  const pending = vote.participants.filter((friend) => !voted.has(friend.id));
   return (
     <section className="app-vote">
       <AppTitle asChild>
         <h2 className="app-vote-title">{vote.title}</h2>
       </AppTitle>
+      <p className="app-vote-hint">
+        Проголосовали {voted.size} из {vote.participants.length}
+      </p>
       <p className="app-vote-hint">Участники: {vote.participants.map((friend) => friend.name).join(", ")}</p>
+      {pending.length > 0 && !closed && (
+        <p className="app-vote-hint">
+          {pending.map((friend) => friend.name).join(", ")} ещё не {pending.length === 1 ? "голосовал" : "голосовали"}. Напомнить можно в чате MAX.
+        </p>
+      )}
+      {closed && <p className="app-vote-hint">Голосование завершено</p>}
       {vote.chatLink !== null && <p className="app-vote-hint">Отправлено в чат</p>}
       {onShare !== undefined && (
         <AppButton tone="secondary" onClick={onShare}>
@@ -57,7 +71,7 @@ export function VoteView({ state, myChoice, voting, failed, onVote, onShare }: V
           const winner = vote.winnerEventId === option.event.id;
           const mine = myBallotEventId === option.event.id;
           return (
-            <button type="button" key={option.event.id} disabled={voting} className={winner ? "app-card app-card--link app-vote-option app-vote-option--winner" : "app-card app-card--link app-vote-option"} onClick={() => onVote(option.event.id)}>
+            <button type="button" key={option.event.id} disabled={voting || closed} className={winner ? "app-card app-card--link app-vote-option app-vote-option--winner" : "app-card app-card--link app-vote-option"} onClick={() => onVote(option.event.id)}>
               <div className="app-card-body">
                 <span className="app-card-title">{option.event.title}</span>
                 <span className="app-card-subtitle">{formatStartsAt(option.event.startsAt)}</span>
@@ -72,6 +86,11 @@ export function VoteView({ state, myChoice, voting, failed, onVote, onShare }: V
         })}
       </div>
       {failed && <AppState error>Не удалось отправить голос.</AppState>}
+      {onClose !== undefined && !closed && (
+        <AppButton tone="secondary" onClick={onClose} disabled={closing}>
+          Завершить
+        </AppButton>
+      )}
     </section>
   );
 }
@@ -80,6 +99,7 @@ export function VotePage({ id }: { id: string }) {
   const [state, setState] = useState<VoteState>({ status: "loading" });
   const [myChoice, setMyChoice] = useState<string | null>(null);
   const [voting, setVoting] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -106,7 +126,7 @@ export function VotePage({ id }: { id: string }) {
   }, [id]);
 
   const vote = (eventId: string) => {
-    if (state.status !== "ready" || voting) return;
+    if (state.status !== "ready" || voting || state.vote.status === "closed") return;
     setVoting(true);
     setFailed(false);
     apiClient.castBallot(state.vote.id, eventId).then(
@@ -122,6 +142,20 @@ export function VotePage({ id }: { id: string }) {
     );
   };
 
+  const close = () => {
+    if (state.status !== "ready" || closing || state.vote.status === "closed") return;
+    setClosing(true);
+    apiClient.closeVote(state.vote.id).then(
+      (next) => {
+        setState({ status: "ready", vote: next });
+        setClosing(false);
+      },
+      () => {
+        setClosing(false);
+      },
+    );
+  };
+
   const share = () => {
     if (state.status !== "ready") return;
     const winner = state.vote.options.find((option) => option.event.id === state.vote.winnerEventId);
@@ -129,7 +163,7 @@ export function VotePage({ id }: { id: string }) {
     void shareResult(webApp, text);
   };
 
-  return <VoteView state={state} myChoice={myChoice} voting={voting} failed={failed} onVote={vote} onShare={share} />;
+  return <VoteView state={state} myChoice={myChoice} voting={voting} closing={closing} failed={failed} onVote={vote} onShare={share} onClose={close} />;
 }
 
 export function voteCreateReady(title: string, eventIds: string[], friendIds: string[]): boolean {

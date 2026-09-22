@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for shared event votes.
-// SCOPE: POST/GET /votes, GET /votes/:id, POST /votes/:id/ballots.
+// SCOPE: POST/GET /votes, GET /votes/:id, POST /votes/:id/ballots, POST /votes/:id/close.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth, ./votes.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -34,6 +34,11 @@ export class VotesController {
   @Get(":id")
   get(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<Vote> {
     return this.votes.get(user.id, id);
+  }
+
+  @Post(":id/close")
+  close(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<Vote> {
+    return this.votes.close(user.id, id);
   }
 
   @Post(":id/ballots")

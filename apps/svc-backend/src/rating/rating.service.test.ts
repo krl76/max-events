@@ -47,6 +47,8 @@ describe("buildOrganizerRating", () => {
     expect(rating?.visitsCount).toBe(1);
     expect(rating?.onTimePercent).toBe(100);
     expect(rating?.reviewsCount).toBe(3);
+    expect(rating?.eventsCount).toBe(1);
+    expect(rating?.attendancePercent).toBe(100);
   });
 });
 

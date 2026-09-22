@@ -7,7 +7,7 @@ import type { EventSalesReport, OrganizerEventStats, OrganizerRating, PromoCampa
 
 const noop = () => {};
 
-const rating: OrganizerRating = { organizerUserId: "d0000001-0000-4000-8000-000000000001", averageStars: 4.6, recommendPercent: 80, visitsCount: 3, onTimePercent: 95, reviewsCount: 5 };
+const rating: OrganizerRating = { organizerUserId: "d0000001-0000-4000-8000-000000000001", averageStars: 4.6, recommendPercent: 80, visitsCount: 3, onTimePercent: 95, reviewsCount: 5, attendancePercent: 87, eventsCount: 34 };
 
 const stats: OrganizerEventStats = {
   period: { from: null, to: null },
@@ -49,6 +49,8 @@ describe("OrganizerRatingView", () => {
     expect(html).toContain("80% рекомендуют");
     expect(html).toContain("3 посещения");
     expect(html).toContain("95% вовремя");
+    expect(html).toContain("87% дошли до события");
+    expect(html).toContain("34 события в афише");
   });
 
   it("omits the on-time line when it is null", () => {

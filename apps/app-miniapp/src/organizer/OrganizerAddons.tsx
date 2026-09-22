@@ -64,6 +64,8 @@ export function OrganizerRatingView({ rating }: { rating: OrganizerRating | null
             {rating.visitsCount} {pluralRu(rating.visitsCount, "посещение", "посещения", "посещений")}
           </li>
           {rating.onTimePercent !== null && <li>{Math.round(rating.onTimePercent)}% вовремя</li>}
+          {rating.attendancePercent !== null && <li>{Math.round(rating.attendancePercent)}% дошли до события</li>}
+          <li>{rating.eventsCount} {pluralRu(rating.eventsCount, "событие", "события", "событий")} в афише</li>
         </ul>
       </div>
     </section>
@@ -129,17 +131,22 @@ export function EventStatsView({ stats, report }: { stats: OrganizerEventStats; 
 export function EventStatsSection({ eventId }: { eventId: string }) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<EventStatsState | null>(null);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  const load = (periodFrom = from, periodTo = to) => {
+    setState({ status: "loading" });
+    const period = { from: periodFrom ? `${periodFrom}T00:00:00.000Z` : undefined, to: periodTo ? `${periodTo}T23:59:59.999Z` : undefined };
+    Promise.all([apiClient.getOrganizerEventStats(eventId, period), apiClient.getEventSales(eventId, period)]).then(
+      ([stats, report]) => setState({ status: "ready", stats, report }),
+      () => setState({ status: "error" }),
+    );
+  };
 
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    if (next && (state === null || state.status === "error")) {
-      setState({ status: "loading" });
-      Promise.all([apiClient.getOrganizerEventStats(eventId), apiClient.getEventSales(eventId)]).then(
-        ([stats, report]) => setState({ status: "ready", stats, report }),
-        () => setState({ status: "error" }),
-      );
-    }
+    if (next && (state === null || state.status === "error")) load();
   };
 
   return (
@@ -147,6 +154,26 @@ export function EventStatsSection({ eventId }: { eventId: string }) {
       <AppButton size="small" tone="ghost" onClick={toggle}>
         {open ? "Скрыть статистику" : "Статистика"}
       </AppButton>
+      {open && (
+        <div className="app-filters-inputs">
+          <input className="app-filters-input" type="date" aria-label="Период с" value={from} onChange={(change) => setFrom(change.target.value)} />
+          <input className="app-filters-input" type="date" aria-label="Период по" value={to} onChange={(change) => setTo(change.target.value)} />
+          <button type="button" className="app-filters-reset" onClick={() => load()}>
+            Применить
+          </button>
+          <button
+            type="button"
+            className="app-filters-reset"
+            onClick={() => {
+              setFrom("");
+              setTo("");
+              load("", "");
+            }}
+          >
+            Всё время
+          </button>
+        </div>
+      )}
       {open && state?.status === "loading" && <AppState>Загрузка…</AppState>}
       {open && state?.status === "error" && <AppState error>Не удалось загрузить статистику.</AppState>}
       {open && state?.status === "ready" && <EventStatsView stats={state.stats} report={state.report} />}

@@ -74,6 +74,12 @@ function createUserRepo(initial: UserEntity[]) {
     store,
     find: async () => [...store],
     findOneBy: async (where: { id: string }) => store.find((row) => row.id === where.id) ?? null,
+    save: async (entity: UserEntity) => {
+      const index = store.findIndex((row) => row.id === entity.id);
+      if (index >= 0) store[index] = entity;
+      else store.push(entity);
+      return entity;
+    },
   };
 }
 
@@ -180,5 +186,23 @@ describe("FriendsService", () => {
   it("returns 404 when syncing an unknown user", async () => {
     const { service } = createService();
     await expect(service.sync("00000000-0000-4000-8000-0000000000ff")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("stamps lastSyncedAt only after a real MAX list and serves suggestions plus replace-all follows", async () => {
+    const { service } = createService({ botFriends: ["2"] });
+    expect((await service.syncStatus(meId)).lastSyncedAt).toBeNull();
+    await service.sync(meId);
+    const status = await service.syncStatus(meId);
+    expect(status.lastSyncedAt).not.toBeNull();
+    expect(status.friends.map((row) => row.name)).toEqual(["Анна Соколова"]);
+
+    const hints = await service.suggestions(meId);
+    expect(hints.find((row) => row.friend.id === annaId)?.following).toBe(true);
+    expect(hints.find((row) => row.friend.id === dimaId)?.following).toBe(false);
+    expect(hints.find((row) => row.friend.id === dimaId)?.hint).toBe("пользуется Афишей");
+
+    const saved = await service.replaceFollows(meId, [dimaId, dimaId, meId]);
+    expect(saved).toEqual([dimaId]);
+    expect((await service.list(meId)).map((row) => row.id)).toEqual([dimaId]);
   });
 });

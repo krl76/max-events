@@ -68,6 +68,7 @@ function user(): UserEntity {
     avatarUrl: null,
     username: null,
     bannedFromPublishing: false,
+    friendsSyncedAt: null,
     createdAt: now,
     updatedAt: now,
   };

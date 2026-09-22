@@ -11,12 +11,13 @@
 
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { FriendsModule } from "../friends/friends.module";
 import { StoryEntity } from "./story.entity";
 import { StoriesController } from "./stories.controller";
 import { StoriesService } from "./stories.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([StoryEntity])],
+  imports: [TypeOrmModule.forFeature([StoryEntity]), FriendsModule],
   controllers: [StoriesController],
   providers: [StoriesService],
   exports: [StoriesService],

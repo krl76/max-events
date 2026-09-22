@@ -39,9 +39,12 @@ export class DiscoveryService {
     const unique = new Set<string>();
     for (const friendId of ctx.friendIds) {
       const privacy = readPrivacy(ctx.profileById.get(friendId));
-      if (privacy.visitHistory === "hidden") continue;
       const friend = ctx.userById.get(friendId);
       if (!friend) continue;
+      if (privacy.visitHistory === "hidden") {
+        byFriend.push({ friend: toFriendDto(friend), newPlacesCount: 0, places: [], visitHistoryHidden: true });
+        continue;
+      }
       const unseen = unseenPlaces(ctx.visitsByUser.get(friendId) ?? [], ctx.myPlaceIds, ctx.placeById, ctx.eventById);
       for (const place of unseen) unique.add(place.id);
       if (unseen.length === 0) continue;
@@ -49,6 +52,7 @@ export class DiscoveryService {
         friend: toFriendDto(friend),
         newPlacesCount: unseen.length,
         places: privacy.routes === "hidden" ? [] : unseen.map(toPlaceDto),
+        visitHistoryHidden: false,
       });
     }
     byFriend.sort((a, b) => b.newPlacesCount - a.newPlacesCount || a.friend.name.localeCompare(b.friend.name));
@@ -64,7 +68,17 @@ export class DiscoveryService {
     const privacy = readPrivacy(ctx.profileById.get(friendId));
     if (privacy.routes === "hidden" || privacy.visitHistory === "hidden") throw new ForbiddenException("Friend hid their route");
     const unseen = unseenPlaces(ctx.visitsByUser.get(friendId) ?? [], ctx.myPlaceIds, ctx.placeById, ctx.eventById);
-    return { friend: toFriendDto(friend), places: unseen.map(toPlaceDto) };
+    const visits = ctx.visitsByUser.get(friendId) ?? [];
+    const lastVisit = (placeId: string) => {
+      const hit = visits.find((row) => (row.placeId ?? (row.eventId ? ctx.eventById.get(row.eventId)?.placeId : null) ?? null) === placeId);
+      return hit ? hit.checkedInAt.toISOString() : null;
+    };
+    const places = unseen.map(toPlaceDto);
+    return {
+      friend: toFriendDto(friend),
+      places,
+      stops: places.map((place) => ({ place, visitedAt: lastVisit(place.id), note: null })),
+    };
   }
 
   /**

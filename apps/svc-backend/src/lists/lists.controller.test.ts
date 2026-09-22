@@ -24,6 +24,10 @@ function createController() {
       calls.add = { listId: id, eventId: bookedEventId };
       return item;
     },
+    addPlace: async (_userId: string, id: string, bookedPlaceId: string) => {
+      calls.add = { listId: id, eventId: bookedPlaceId };
+      return { ...item, eventId: null, placeId: bookedPlaceId };
+    },
     removeItem: async () => item,
     create: async (_userId: string, title: string) => {
       calls.title = title;

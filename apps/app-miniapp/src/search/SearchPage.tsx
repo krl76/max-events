@@ -14,10 +14,11 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import type { Event } from "@max-events/api-contracts";
+import type { AfterMeResponse, Event } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { EventCard, filterEventsByQuery, RatingChips } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
+import { AfterMeView } from "../taste/AfterMeSection";
 import { AppChip, AppState } from "../ui/primitives";
 
 export type SearchState = { status: "loading" } | { status: "error" } | { status: "ready"; events: Event[] };
@@ -57,9 +58,10 @@ interface SearchViewProps {
   onOpenEvent: (id: string) => void;
   minRating?: number;
   onMinRating?: (minRating: number | undefined) => void;
+  forYou?: AfterMeResponse | null;
 }
 
-export function SearchView({ query, onQuery, onSubmit, recents, state, onOpenEvent, minRating, onMinRating = () => {} }: SearchViewProps) {
+export function SearchView({ query, onQuery, onSubmit, recents, state, onOpenEvent, minRating, onMinRating = () => {}, forYou = null }: SearchViewProps) {
   const blank = query.trim() === "";
   const results = state.status === "ready" ? filterEventsByQuery(state.events, query) : [];
 
@@ -76,6 +78,7 @@ export function SearchView({ query, onQuery, onSubmit, recents, state, onOpenEve
         </div>
         <RatingChips value={minRating} onChange={onMinRating} />
       </form>
+      {blank && <AfterMeView response={forYou} onOpen={onOpenEvent} title="Для вас" />}
       {blank && recents.length > 0 && (
         <div className="app-filters-chips" role="group" aria-label="Недавние запросы">
           {recents.map((item) => (
@@ -100,6 +103,20 @@ export function SearchPage() {
   const [recents, setRecents] = useState<string[]>(readRecentSearches);
   const [minRating, setMinRating] = useState<number | undefined>(undefined);
   const [state, setState] = useState<SearchState>({ status: "loading" });
+  const [forYou, setForYou] = useState<AfterMeResponse | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    apiClient.getAfterMe().then(
+      (loaded) => {
+        if (alive) setForYou(loaded);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -127,5 +144,5 @@ export function SearchPage() {
     });
   }, [query]);
 
-  return <SearchView query={query} onQuery={setQuery} onSubmit={submit} recents={recents} state={state} onOpenEvent={openEvent} minRating={minRating} onMinRating={setMinRating} />;
+  return <SearchView query={query} onQuery={setQuery} onSubmit={submit} recents={recents} state={state} onOpenEvent={openEvent} minRating={minRating} onMinRating={setMinRating} forYou={forYou} />;
 }

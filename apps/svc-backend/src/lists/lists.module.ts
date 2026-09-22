@@ -12,13 +12,14 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { EventEntity } from "../events/event.entity";
+import { PlaceEntity } from "../places/place.entity";
 import { ListItemEntity } from "./list-item.entity";
 import { ListEntity } from "./list.entity";
 import { ListsController } from "./lists.controller";
 import { ListsService } from "./lists.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ListEntity, ListItemEntity, EventEntity])],
+  imports: [TypeOrmModule.forFeature([ListEntity, ListItemEntity, EventEntity, PlaceEntity])],
   controllers: [ListsController],
   providers: [ListsService],
 })

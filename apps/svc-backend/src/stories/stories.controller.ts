@@ -23,8 +23,8 @@ export class StoriesController {
   constructor(@Inject(StoriesService) private readonly stories: StoriesService) {}
 
   @Get()
-  list(): Promise<Story[]> {
-    return this.stories.list();
+  list(@CurrentUser() user: UserEntity): Promise<Story[]> {
+    return this.stories.list(user.id);
   }
 
   @Post()

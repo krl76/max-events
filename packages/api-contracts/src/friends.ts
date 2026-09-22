@@ -21,10 +21,13 @@
 // - FriendActivityByEvent - grouped-by-event type
 // - EventFriendsSummarySchema - friends on one event plus going / looking_for_company counts
 // - EventFriendsSummary - friends-on-event summary type
+// - FriendSuggestionSchema - onboarding suggestion (friend, hint, already-following)
+// - FriendsSyncStatusSchema - last successful MAX sync plus the current graph
+// - ReplaceFollowsWriteSchema - replace-all follows payload
 // END_MODULE_MAP
 
 import { z } from "zod";
-import { IdSchema } from "./primitives.js";
+import { IdSchema, TimestampSchema } from "./primitives.js";
 import { EventSchema } from "./event.js";
 import { ParticipationStatusSchema } from "./participation.js";
 
@@ -72,3 +75,21 @@ export const EventFriendsSummarySchema = z.object({
   lookingForCompany: z.number().int().nonnegative(),
 });
 export type EventFriendsSummary = z.infer<typeof EventFriendsSummarySchema>;
+
+export const FriendSuggestionSchema = z.object({
+  friend: FriendSchema,
+  hint: z.string().min(1).max(200),
+  following: z.boolean(),
+});
+export type FriendSuggestion = z.infer<typeof FriendSuggestionSchema>;
+
+export const FriendsSyncStatusSchema = z.object({
+  lastSyncedAt: TimestampSchema.nullable(),
+  friends: z.array(FriendSchema),
+});
+export type FriendsSyncStatus = z.infer<typeof FriendsSyncStatusSchema>;
+
+export const ReplaceFollowsWriteSchema = z.object({
+  userIds: z.array(IdSchema),
+});
+export type ReplaceFollowsWrite = z.infer<typeof ReplaceFollowsWriteSchema>;

@@ -22,6 +22,8 @@ export const OrganizerRatingSchema = z.object({
   visitsCount: z.number().int().min(0),
   onTimePercent: z.number().min(0).max(100).nullable(),
   reviewsCount: z.number().int().min(0),
+  attendancePercent: z.number().min(0).max(100).nullable().default(null),
+  eventsCount: z.number().int().min(0).default(0),
 });
 export type OrganizerRating = z.infer<typeof OrganizerRatingSchema>;
 

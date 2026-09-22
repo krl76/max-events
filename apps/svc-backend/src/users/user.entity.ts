@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: TypeORM entity for the users table (MAX-identified account).
-// SCOPE: UserEntity columns: uuid id, unique maxUserId, profile fields, timestamps.
+// SCOPE: UserEntity columns: uuid id, unique maxUserId, profile fields, friendsSyncedAt, timestamps.
 // DEPENDS: typeorm
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -34,6 +34,9 @@ export class UserEntity {
 
   @Column({ type: "boolean", default: false })
   bannedFromPublishing!: boolean;
+
+  @Column({ type: "timestamptz", nullable: true })
+  friendsSyncedAt!: Date | null;
 
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;

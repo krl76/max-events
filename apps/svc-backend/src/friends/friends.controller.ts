@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for friend graph sync, activity feed, and per-event friend summary.
-// SCOPE: POST /friends/sync, GET /friends, GET /friends/activity, GET /events/:eventId/friends; CurrentUser identity.
+// SCOPE: POST /friends/sync, GET /friends, GET /friends/activity, GET /friends/suggestions, GET /friends/sync, PUT /friends/follows, GET /events/:eventId/friends; CurrentUser identity.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./friends.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -10,8 +10,8 @@
 // - EventFriendsController - /events/:eventId/friends summary
 // END_MODULE_MAP
 
-import { Controller, Get, Inject, Param, ParseUUIDPipe, Post } from "@nestjs/common";
-import type { EventFriendsSummary, Friend, FriendActivityByFriend } from "@max-events/api-contracts";
+import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Put } from "@nestjs/common";
+import { ReplaceFollowsWriteSchema, type EventFriendsSummary, type Friend, type FriendActivityByFriend, type FriendSuggestion, type FriendsSyncStatus } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { FriendsService } from "./friends.service";
@@ -30,9 +30,26 @@ export class FriendsController {
     return this.friends.activity(user.id);
   }
 
+  @Get("suggestions")
+  async suggestions(@CurrentUser() user: UserEntity): Promise<FriendSuggestion[]> {
+    return this.friends.suggestions(user.id);
+  }
+
+  @Get("sync")
+  async syncStatus(@CurrentUser() user: UserEntity): Promise<FriendsSyncStatus> {
+    return this.friends.syncStatus(user.id);
+  }
+
   @Post("sync")
   async sync(@CurrentUser() user: UserEntity): Promise<Friend[]> {
     return this.friends.sync(user.id);
+  }
+
+  @Put("follows")
+  async replaceFollows(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<string[]> {
+    const parsed = ReplaceFollowsWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid follows payload");
+    return this.friends.replaceFollows(user.id, parsed.data.userIds);
   }
 }
 

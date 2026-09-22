@@ -51,7 +51,7 @@ export class VotesService {
     const byId = new Map(eventRows.map((row) => [row.id, row]));
     const ordered = eventIds.map((id) => byId.get(id)).filter((row): row is EventEntity => Boolean(row && row.published !== false));
     if (ordered.length !== eventIds.length) throw new NotFoundException("Event not found");
-    const saved = await this.votes.save(this.votes.create({ hostUserId, title: payload.title, chatLink: null }));
+    const saved = await this.votes.save(this.votes.create({ hostUserId, title: payload.title, chatLink: null, status: "open", winnerEventId: null }));
     for (const [position, event] of ordered.entries()) {
       await this.options.save(this.options.create({ voteId: saved.id, eventId: event.id, position }));
     }
@@ -97,8 +97,20 @@ export class VotesService {
     return this.toVote(vote, userId);
   }
 
+  async close(userId: string, voteId: string): Promise<Vote> {
+    const vote = await this.requireVote(voteId);
+    if (vote.hostUserId !== userId) throw new ForbiddenException("Only the host can close this poll");
+    if (vote.status === "closed") return this.toVote(vote, userId);
+    const live = await this.toVote(vote, userId);
+    vote.status = "closed";
+    vote.winnerEventId = live.winnerEventId;
+    await this.votes.save(vote);
+    return this.toVote(vote, userId);
+  }
+
   async castBallot(userId: string, voteId: string, eventId: string): Promise<Vote> {
     const vote = await this.requireVote(voteId);
+    if (vote.status === "closed") throw new ForbiddenException("This poll is closed");
     if (!(await this.canView(userId, vote))) throw new ForbiddenException("Cannot vote on this poll");
     const option = (await this.options.find({ where: { voteId } })).find((row) => row.eventId === eventId);
     if (!option) throw new BadRequestException("Invalid vote payload");
@@ -158,15 +170,18 @@ export class VotesService {
       const user = userById.get(row.userId);
       return user ? [toFriendDto(user)] : [];
     });
+    const liveWinner = top && topVotes > 0 ? top.eventId : null;
     return {
       id: vote.id,
       hostUserId: vote.hostUserId,
       title: vote.title,
       chatLink: vote.chatLink,
+      status: vote.status === "closed" ? "closed" : "open",
       participants,
       options,
-      winnerEventId: top && topVotes > 0 ? top.eventId : null,
+      winnerEventId: vote.status === "closed" ? (vote.winnerEventId ?? liveWinner) : liveWinner,
       myBallotEventId: ballotRows.find((row) => row.userId === viewerId)?.eventId ?? null,
+      votedUserIds: ballotRows.map((row) => row.userId),
       createdAt: vote.createdAt.toISOString(),
       updatedAt: vote.updatedAt.toISOString(),
     };

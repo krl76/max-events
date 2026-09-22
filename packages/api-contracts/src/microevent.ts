@@ -15,6 +15,7 @@
 // END_MODULE_MAP
 
 import { z } from "zod";
+import { FriendSchema } from "./friends.js";
 import { IdSchema, TimestampSchema } from "./primitives.js";
 
 export const MicroEventStatusSchema = z.enum(["open", "cancelled"]);
@@ -32,6 +33,7 @@ export const MicroEventSchema = z
     participantsCount: z.number().int().min(0).default(0),
     // Who is in, so a client can tell whether the current user joined instead of guessing.
     participantIds: z.array(IdSchema).default([]),
+    participants: z.array(FriendSchema).default([]),
     status: MicroEventStatusSchema,
     createdAt: TimestampSchema,
   })

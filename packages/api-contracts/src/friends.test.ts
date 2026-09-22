@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EventFriendsSummarySchema, FriendActivityByEventSchema, FriendActivityByFriendSchema, FriendActivitySchema, FriendSchema } from "./friends.js";
+import { EventFriendsSummarySchema, FriendActivityByEventSchema, FriendActivityByFriendSchema, FriendActivitySchema, FriendSchema, FriendSuggestionSchema, FriendsSyncStatusSchema } from "./friends.js";
 import type { Event } from "./event.js";
 
 const friend = {
@@ -27,6 +27,13 @@ const event: Event = {
   bookingOpensAt: null,
   weather: null,
 };
+
+describe("FriendSuggestionSchema and FriendsSyncStatusSchema", () => {
+  it("accepts an onboarding suggestion and a sync status envelope", () => {
+    expect(FriendSuggestionSchema.parse({ friend, hint: "пользуется Афишей", following: false })).toMatchObject({ following: false, hint: "пользуется Афишей" });
+    expect(FriendsSyncStatusSchema.parse({ lastSyncedAt: null, friends: [friend] }).friends).toHaveLength(1);
+  });
+});
 
 describe("FriendSchema", () => {
   it("accepts a friend with a nullable avatar", () => {

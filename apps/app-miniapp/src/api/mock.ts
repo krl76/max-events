@@ -259,6 +259,8 @@ export function filterMockEvents(events: Event[], filters: EventFilters): Event[
     if (filters.category !== undefined && item.category !== filters.category) return false;
     if (city !== undefined && item.city.toLowerCase() !== city) return false;
     if (filters.date !== undefined && item.startsAt.slice(0, 10) !== filters.date) return false;
+    if (filters.dateFrom !== undefined && item.startsAt.slice(0, 10) < filters.dateFrom) return false;
+    if (filters.dateTo !== undefined && item.startsAt.slice(0, 10) > filters.dateTo) return false;
     if (filters.minRating === undefined) return true;
     // Backend parity: an event nobody reviewed has no average, so it is not "at least N stars".
     const summary = eventRating(item.id)?.summary;
@@ -511,6 +513,8 @@ interface MockVoteRow {
   hostUserId: string;
   title: string;
   chatLink: string | null;
+  status: "open" | "closed";
+  winnerEventId: string | null;
   participantIds: string[];
   options: { id: string; eventId: string; position: number }[];
   ballots: { userId: string; eventId: string }[];
@@ -543,7 +547,21 @@ function mockVoteDto(row: MockVoteRow): Vote {
     if (friend) return [friend];
     return userId === mockDemoUser.id ? [{ id: mockDemoUser.id, name: mockDemoUser.firstName, avatarUrl: null }] : [];
   });
-  return { id: row.id, hostUserId: row.hostUserId, title: row.title, chatLink: row.chatLink, participants, options, winnerEventId: top && topVotes > 0 ? top.eventId : null, myBallotEventId: row.ballots.find((ballot) => ballot.userId === mockDemoUser.id)?.eventId ?? null, createdAt: row.createdAt, updatedAt: row.updatedAt };
+  const liveWinner = top && topVotes > 0 ? top.eventId : null;
+  return {
+    id: row.id,
+    hostUserId: row.hostUserId,
+    title: row.title,
+    chatLink: row.chatLink,
+    status: row.status ?? "open",
+    participants,
+    options,
+    winnerEventId: row.status === "closed" ? (row.winnerEventId ?? liveWinner) : liveWinner,
+    myBallotEventId: row.ballots.find((ballot) => ballot.userId === mockDemoUser.id)?.eventId ?? null,
+    votedUserIds: row.ballots.map((ballot) => ballot.userId),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
 }
 
 function seedMockVotes(): void {
@@ -554,6 +572,8 @@ function seedMockVotes(): void {
     hostUserId: mockFriendIds[0],
     title: "Куда идем в пятницу?",
     chatLink: "https://max.ru/chat/mock-vote-1",
+    status: "open",
+    winnerEventId: null,
     participantIds: [mockDemoUser.id, mockFriendIds[1], mockFriendIds[2]],
     // option ids deliberately run against positions so a winner tie discriminates the position tie-break from the id order
     options: [
@@ -573,6 +593,8 @@ function seedMockVotes(): void {
     id: MOCK_FOREIGN_VOTE_ID,
     hostUserId: mockFriendIds[1],
     title: "Закрытое голосование",
+    status: "open",
+    winnerEventId: null,
     chatLink: null,
     participantIds: [mockFriendIds[2]],
     options: [
@@ -608,6 +630,8 @@ export function createMockVote(payload: CreateVoteWrite): Vote | "invalid" | "no
     hostUserId,
     title: payload.title,
     chatLink: `https://max.ru/chat/mock-vote-${mockVoteSeq}`,
+    status: "open",
+    winnerEventId: null,
     participantIds,
     options: eventIds.map((eventId, position) => ({ id: `${id}-o${position + 1}`, eventId, position })),
     ballots: [],
@@ -627,9 +651,21 @@ export function getMockVote(id: string): Vote | "unknown" | "forbidden" {
 }
 
 /** Casts the demo user's ballot; a repeated ballot replaces the previous one (backend castBallot parity). */
+export function closeMockVote(id: string): Vote | "unknown" | "forbidden" {
+  const row = mockVotes.get(id);
+  if (!row) return "unknown";
+  if (row.hostUserId !== mockDemoUser.id) return "forbidden";
+  const live = mockVoteDto(row);
+  row.status = "closed";
+  row.winnerEventId = live.winnerEventId;
+  row.updatedAt = new Date().toISOString();
+  return mockVoteDto(row);
+}
+
 export function castMockBallot(id: string, eventId: string): Vote | "unknown" | "forbidden" | "invalid" {
   const row = mockVotes.get(id);
   if (!row) return "unknown";
+  if (row.status === "closed") return "forbidden";
   if (row.hostUserId !== mockDemoUser.id && !row.participantIds.includes(mockDemoUser.id)) return "forbidden";
   if (!row.options.some((option) => option.eventId === eventId)) return "invalid";
   const existing = row.ballots.find((ballot) => ballot.userId === mockDemoUser.id);
@@ -1046,10 +1082,10 @@ function archiveMockWeGroup(id: string): WeGroupScreen | "unknown" | "forbidden"
 export const LIST_PRESET_TITLES: Record<ListPreset, string> = {
   want_to_go: "Хочу сходить",
   favorites: "Избранное",
-  weekend: "На выходные",
+  weekend: "Выходные",
   with_children: "С детьми",
   with_friends: "С друзьями",
-  try_later: "Попробовать потом",
+  try_later: "Попробовать позже",
 };
 
 /** Preset list items seeded on list creation: [preset, mockEvents index]. */
@@ -1198,7 +1234,16 @@ export function removeMockList(listId: string): List | "no_list" | "preset" {
 /** Adds an event to a list, idempotent, attributed to the adding user; "no_list"/"no_event" map to 404 in the interceptor. */
 function addMockListItem(listId: string, payload: AddListItem): ListItem | "no_list" | "no_event" {
   if (!findList(listId)) return "no_list";
-  if (!mockEvents.some((event) => event.id === payload.eventId)) return "no_event";
+  if (payload.placeId) {
+    if (!mockPlaces.some((place) => place.id === payload.placeId)) return "no_event";
+    const existing = mockListItems.find((item) => item.listId === listId && item.placeId === payload.placeId);
+    if (existing) return existing;
+    mockListItemSeq += 1;
+    const item: ListItem = { id: `71000000-0000-4000-8000-${String(mockListItemSeq).padStart(12, "0")}`, listId, eventId: null, placeId: payload.placeId, addedAt: PLACE_STAMP };
+    mockListItems.push(item);
+    return item;
+  }
+  if (!payload.eventId || !mockEvents.some((event) => event.id === payload.eventId)) return "no_event";
   const existing = mockListItems.find((item) => item.listId === listId && item.eventId === payload.eventId);
   if (existing) return existing;
   const item = listItem(listId, payload.eventId, mockUserAsFriend(payload.userId));
@@ -1401,6 +1446,7 @@ const MICRO_EVENT_SEED: MicroEventSeed[] = [
     participantsLimit: 6,
     participantsCount: 3,
     participantIds: [mockFriendIds[0], mockFriendIds[1], mockFriendIds[2]],
+    participants: [mockFriends[0], mockFriends[1], mockFriends[2]],
     status: "open",
   },
   {
@@ -1413,6 +1459,7 @@ const MICRO_EVENT_SEED: MicroEventSeed[] = [
     participantsLimit: 4,
     participantsCount: 2,
     participantIds: [mockFriendIds[1], mockFriendIds[3]],
+    participants: [mockFriends[1], mockFriends[3]],
     status: "open",
   },
 ];
@@ -1457,6 +1504,7 @@ export function createMockMicroEvent(payload: CreateMicroEvent): MicroEvent | "n
     participantsLimit: payload.participantsLimit,
     participantsCount: 1,
     participantIds: [payload.userId],
+    participants: payload.userId === mockDemoUser.id ? [{ id: mockDemoUser.id, name: mockDemoUser.firstName, avatarUrl: mockDemoUser.avatarUrl }] : mockFriends.filter((friend) => friend.id === payload.userId),
     status: "open",
     createdAt: new Date().toISOString(),
   };
@@ -2363,11 +2411,14 @@ export function discoverySummary(): DiscoveryResponse {
   const byFriend: DiscoveryFriendPlaces[] = [];
   for (const [index, friend] of mockFriends.entries()) {
     const privacy = profileFor(friend.id).privacy;
-    if (privacy.visitHistory === "hidden") continue;
+    if (privacy.visitHistory === "hidden") {
+      byFriend.push({ friend, newPlacesCount: 0, places: [], visitHistoryHidden: true });
+      continue;
+    }
     const unseen = unseenFriendPlaces(index, myPlaceIds);
     for (const place of unseen) unique.add(place.id);
     if (unseen.length === 0) continue;
-    byFriend.push({ friend, newPlacesCount: unseen.length, places: privacy.routes === "hidden" ? [] : unseen });
+    byFriend.push({ friend, newPlacesCount: unseen.length, places: privacy.routes === "hidden" ? [] : unseen, visitHistoryHidden: false });
   }
   byFriend.sort((a, b) => b.newPlacesCount - a.newPlacesCount || a.friend.name.localeCompare(b.friend.name));
   return { newPlacesCount: unique.size, byFriend };
@@ -2380,7 +2431,8 @@ export function friendRoute(userId: string): FriendRoute | "own" | "not_friend" 
   if (index === -1) return "not_friend";
   const privacy = profileFor(userId).privacy;
   if (privacy.routes === "hidden" || privacy.visitHistory === "hidden") return "hidden";
-  return { friend: mockFriends[index], places: unseenFriendPlaces(index, myVisitedPlaceIds()) };
+  const places = unseenFriendPlaces(index, myVisitedPlaceIds());
+  return { friend: mockFriends[index], places, stops: places.map((place) => ({ place, visitedAt: null, note: null })) };
 }
 
 const PEOPLE_MAX_KM = 15;
@@ -2962,6 +3014,8 @@ function mockOrganizerRating(userId: string, now: Date = new Date()): OrganizerR
     visitsCount: checkIns.length,
     onTimePercent,
     reviewsCount: reviews.length,
+    attendancePercent: past.length === 0 ? null : Math.min(100, (checkIns.length / past.length) * 100),
+    eventsCount: owned.filter((item) => item.published !== false).length,
   };
   return { rating };
 }
@@ -3113,6 +3167,18 @@ export function installMockApi(): () => void {
     if (url.pathname === "/api/friends/activity") {
       return Response.json(friendActivityByFriend());
     }
+    if (url.pathname === "/api/friends/suggestions") {
+      return Response.json(mockFriends.map((friend, index) => ({ friend, hint: index === 0 ? "из чатов MAX" : "пользуется Афишей", following: false })));
+    }
+    if (url.pathname === "/api/friends/sync" && (init?.method ?? "GET") === "GET") {
+      return Response.json({ lastSyncedAt: PLACE_STAMP, friends: mockFriends });
+    }
+    if (url.pathname === "/api/friends/follows" && init?.method === "PUT") {
+      const body = parseBookingBody(init) as { userIds?: unknown } | undefined;
+      const ids = Array.isArray(body?.userIds) ? body.userIds.filter((id): id is string => typeof id === "string") : null;
+      if (ids === null) return new Response(null, { status: 400 });
+      return Response.json(ids);
+    }
     if (url.pathname === "/api/friends") {
       return Response.json(mockFriends);
     }
@@ -3185,13 +3251,16 @@ export function installMockApi(): () => void {
     }
     if (url.pathname === "/api/events") {
       // EventsService.findAll queries where published: true, so a draft or an unpublished event is not listed.
+      const parsedFilters = parseEventFilters(url.search);
       const events = filterMockEvents(
         mockEvents.filter((row) => row.published !== false),
-        parseEventFilters(url.search),
+        parsedFilters,
       )
         .map(eventPromoted)
         .sort((a, b) => Number(MOCK_BOOSTED_EVENT_IDS.has(b.id)) - Number(MOCK_BOOSTED_EVENT_IDS.has(a.id)) || Date.parse(a.startsAt) - Date.parse(b.startsAt) || a.id.localeCompare(b.id));
-      return Response.json(events);
+      const offset = parsedFilters.offset ?? 0;
+      const limit = parsedFilters.limit;
+      return Response.json(limit === undefined ? events : events.slice(offset, offset + limit));
     }
     const details = /^\/api\/events\/([^/]+)\/details$/.exec(url.pathname);
     if (details) {
@@ -3352,6 +3421,12 @@ export function installMockApi(): () => void {
       if (!parsed.success) return new Response(null, { status: 400 });
       const created = createMockVote(parsed.data);
       return created === "invalid" ? new Response(null, { status: 400 }) : created === "no_event" ? new Response(null, { status: 404 }) : Response.json(created);
+    }
+    const voteClose = /^\/api\/votes\/([^/]+)\/close$/.exec(url.pathname);
+    if (voteClose && init?.method === "POST") {
+      if (!IdSchema.safeParse(voteClose[1]).success) return new Response(null, { status: 400 });
+      const result = closeMockVote(voteClose[1]);
+      return result === "unknown" ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
     }
     const voteBallots = /^\/api\/votes\/([^/]+)\/ballots$/.exec(url.pathname);
     if (voteBallots && init?.method === "POST") {

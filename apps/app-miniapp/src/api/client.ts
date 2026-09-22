@@ -136,8 +136,8 @@
 // - ApiClient.listOrganizerPromos / createOrganizerPromo / setOrganizerEarlyAccess - organizer promocodes and the early-access window (GET/POST /organizer/events/:id/promocodes, POST .../early-access, #372)
 // END_MODULE_MAP
 
-import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
-import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendPlaceVisitSchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, AfterMeResponseSchema, MyCitySummarySchema, OptimizeRouteSchema, OrganizationSchema, ParticipationSchema, SubscriptionSchema, TasteProfileSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
+import { IdSchema, LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendPlaceVisitSchema, FriendRouteSchema, FriendSchema, FriendSuggestionSchema, FriendsSyncStatusSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, AfterMeResponseSchema, MyCitySummarySchema, OptimizeRouteSchema, OrganizationSchema, ParticipationSchema, SubscriptionSchema, TasteProfileSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
 import type {
   AfterMeResponse,
   CreatePlanWrite,
@@ -166,6 +166,8 @@ import type {
   Friend,
   FriendActivityByFriend,
   FriendAvailability,
+  FriendSuggestion,
+  FriendsSyncStatus,
   FriendPlaceVisit,
   FriendRoute,
   Gathering,
@@ -213,6 +215,19 @@ interface ZodSchema<T> {
   safeParse(data: unknown): { success: true; data: T } | { success: false; error: unknown };
 }
 
+const IdArraySchema: ZodSchema<string[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected ids" };
+    const ids: string[] = [];
+    for (const item of data) {
+      const parsed = IdSchema.safeParse(item);
+      if (!parsed.success) return { success: false as const, error: "invalid id" };
+      ids.push(parsed.data);
+    }
+    return { success: true as const, data: ids };
+  },
+};
+
 const DEFAULT_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 export class ApiError extends Error {
@@ -238,8 +253,14 @@ export interface EventFilters {
   city?: string;
   /** ISO date (YYYY-MM-DD) of the event start day. */
   date?: string;
+  /** Inclusive range start (YYYY-MM-DD); sent as date_from. */
+  dateFrom?: string;
+  /** Inclusive range end (YYYY-MM-DD); sent as date_to. */
+  dateTo?: string;
   /** Average review score the event must reach, 1..5; an event nobody reviewed never qualifies. */
   minRating?: number;
+  limit?: number;
+  offset?: number;
 }
 
 export function serializeEventFilters(filters: EventFilters): string {
@@ -247,8 +268,12 @@ export function serializeEventFilters(filters: EventFilters): string {
   if (filters.category) params.set("category", filters.category);
   if (filters.city) params.set("city", filters.city);
   if (filters.date) params.set("date", filters.date);
+  if (filters.dateFrom) params.set("date_from", filters.dateFrom);
+  if (filters.dateTo) params.set("date_to", filters.dateTo);
   // snake_case: the backend query contract spells it min_rating, next to date_from/date_to.
   if (filters.minRating) params.set("min_rating", String(filters.minRating));
+  if (filters.limit) params.set("limit", String(filters.limit));
+  if (filters.offset) params.set("offset", String(filters.offset));
   return params.toString();
 }
 
@@ -256,14 +281,30 @@ export function parseEventFilters(search: string): EventFilters {
   const params = new URLSearchParams(search);
   const category = EventCategorySchema.safeParse(params.get("category"));
   const date = params.get("date");
-  const minRating = Number(params.get("min_rating"));
-  return {
-    category: category.success ? category.data : undefined,
-    city: params.get("city")?.trim() || undefined,
-    date: date !== null && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
-    // A value the backend would reject with a 400 is dropped here, like an unknown category.
-    minRating: Number.isInteger(minRating) && minRating >= 1 && minRating <= 5 ? minRating : undefined,
-  };
+  const dateFrom = params.get("date_from");
+  const dateTo = params.get("date_to");
+  const minRatingRaw = params.get("min_rating");
+  const minRating = minRatingRaw === null ? Number.NaN : Number(minRatingRaw);
+  const limitRaw = params.get("limit");
+  const offsetRaw = params.get("offset");
+  const limit = limitRaw === null ? Number.NaN : Number(limitRaw);
+  const offset = offsetRaw === null ? Number.NaN : Number(offsetRaw);
+  const day = (value: string | null) => (value !== null && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined);
+  const filters: EventFilters = {};
+  if (category.success) filters.category = category.data;
+  const city = params.get("city")?.trim();
+  if (city) filters.city = city;
+  const parsedDate = day(date);
+  if (parsedDate) filters.date = parsedDate;
+  const parsedFrom = day(dateFrom);
+  if (parsedFrom) filters.dateFrom = parsedFrom;
+  const parsedTo = day(dateTo);
+  if (parsedTo) filters.dateTo = parsedTo;
+  // A value the backend would reject with a 400 is dropped here, like an unknown category.
+  if (Number.isInteger(minRating) && minRating >= 1 && minRating <= 5) filters.minRating = minRating;
+  if (Number.isInteger(limit) && limit >= 1 && limit <= 100) filters.limit = limit;
+  if (Number.isInteger(offset) && offset >= 0) filters.offset = offset;
+  return filters;
 }
 
 /** Aggregate for the event page: everything the details screen renders in one request. */
@@ -453,7 +494,8 @@ export interface CreateGathering {
 /** Save-to-list payload: the owner user and the saved event; the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token). */
 export interface AddListItem {
   userId: string;
-  eventId: string;
+  eventId?: string;
+  placeId?: string;
 }
 
 /** Rating aggregate for the event page: contract summary plus per-category averages (null when nobody scored that category). */
@@ -805,6 +847,22 @@ export class ApiClient {
 
   listFriends(): Promise<Friend[]> {
     return this.request("/friends", FriendSchema.array());
+  }
+
+  listFriendSuggestions(): Promise<FriendSuggestion[]> {
+    return this.request("/friends/suggestions", FriendSuggestionSchema.array());
+  }
+
+  getFriendsSyncStatus(): Promise<FriendsSyncStatus> {
+    return this.request("/friends/sync", FriendsSyncStatusSchema);
+  }
+
+  replaceFriendFollows(userIds: string[]): Promise<string[]> {
+    return this.request("/friends/follows", IdArraySchema, { method: "PUT", body: { userIds } });
+  }
+
+  closeVote(voteId: string): Promise<Vote> {
+    return this.request(`/votes/${voteId}/close`, VoteSchema, { method: "POST" });
   }
 
   getFriendsActivity(userId: string): Promise<FriendActivityByFriend[]> {

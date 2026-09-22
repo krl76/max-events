@@ -14,7 +14,7 @@ import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import type { EventFriendsSummary, Friend, FriendActivityByFriend } from "@max-events/api-contracts";
+import type { EventFriendsSummary, Friend, FriendActivityByFriend, FriendSuggestion, FriendsSyncStatus } from "@max-events/api-contracts";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
@@ -76,7 +76,48 @@ export class FriendsService {
       if (have.has(friend.id)) continue;
       await this.friendships.save(this.friendships.create({ userId, friendUserId: friend.id }));
     }
+    me.friendsSyncedAt = new Date();
+    await this.users.save(me);
     return this.list(userId);
+  }
+
+  async syncStatus(userId: string): Promise<FriendsSyncStatus> {
+    const me = await this.users.findOneBy({ id: userId });
+    if (!me) throw new NotFoundException("User not found");
+    return { lastSyncedAt: me.friendsSyncedAt ? me.friendsSyncedAt.toISOString() : null, friends: await this.list(userId) };
+  }
+
+  async suggestions(userId: string): Promise<FriendSuggestion[]> {
+    const following = await this.friendIds(userId);
+    const users = await this.users.find();
+    return users
+      .filter((row) => row.id !== userId)
+      .map((row) => ({
+        friend: toFriendDto(row),
+        hint: following.has(row.id) ? "уже в друзьях" : "пользуется Афишей",
+        following: following.has(row.id),
+      }))
+      .slice(0, 20);
+  }
+
+  async replaceFollows(userId: string, userIds: string[]): Promise<string[]> {
+    const me = await this.users.findOneBy({ id: userId });
+    if (!me) throw new NotFoundException("User not found");
+    const unique = [...new Set(userIds)].filter((id) => id !== userId);
+    const all = await this.users.find();
+    const known = new Set(all.map((row) => row.id));
+    const nextIds = unique.filter((id) => known.has(id));
+    const next = new Set(nextIds);
+    const existing = await this.friendships.find({ where: { userId } });
+    for (const row of existing) {
+      if (!next.has(row.friendUserId)) await this.friendships.delete({ id: row.id });
+    }
+    const have = new Set(existing.filter((row) => next.has(row.friendUserId)).map((row) => row.friendUserId));
+    for (const id of nextIds) {
+      if (have.has(id)) continue;
+      await this.friendships.save(this.friendships.create({ userId, friendUserId: id }));
+    }
+    return nextIds;
   }
 
   private demoFallbackEnabled(): boolean {

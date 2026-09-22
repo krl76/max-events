@@ -27,12 +27,12 @@ export function afterMeSuggestions(response: AfterMeResponse | null): AfterMeSug
   return (response?.suggestions ?? []).filter((suggestion) => suggestion.events.length > 0);
 }
 
-export function AfterMeView({ response, onOpen = () => {} }: { response: AfterMeResponse | null; onOpen?: (eventId: string) => void }) {
+export function AfterMeView({ response, onOpen = () => {}, title = "После меня" }: { response: AfterMeResponse | null; onOpen?: (eventId: string) => void; title?: string }) {
   const suggestions = afterMeSuggestions(response);
   // Nothing to say: a visitor with no visits yet gets no block at all, not an empty one.
   if (suggestions.length === 0) return null;
   return (
-    <AppSection title="После меня" className="app-cards-flat">
+    <AppSection title={title} className="app-cards-flat">
       {suggestions.map((suggestion) => (
         <div key={`${suggestion.fromCategory}>${suggestion.toCategory}`}>
           <p className="app-today-summary">{suggestion.explanation}</p>

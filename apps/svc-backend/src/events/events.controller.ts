@@ -75,7 +75,7 @@ export function parseEventListQuery(query: Record<string, string | undefined>): 
     date = query.date;
   }
   const dateFrom = parseOptionalTimestamp(query.date_from);
-  const dateTo = parseOptionalTimestamp(query.date_to);
+  const dateTo = parseOptionalTimestamp(query.date_to, true);
   const minRating = query.min_rating === undefined || query.min_rating === "" ? undefined : Number(query.min_rating);
   if (minRating !== undefined && (!Number.isInteger(minRating) || minRating < 1 || minRating > 5)) throw new BadRequestException("Invalid event query");
   const offset = query.offset === undefined || query.offset === "" ? undefined : Number(query.offset);
@@ -85,8 +85,9 @@ export function parseEventListQuery(query: Record<string, string | undefined>): 
   return { city, category, date, dateFrom, dateTo, minRating, limit, offset };
 }
 
-function parseOptionalTimestamp(value: string | undefined): Date | undefined {
+function parseOptionalTimestamp(value: string | undefined, endOfDay = false): Date | undefined {
   if (value === undefined || value === "") return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(endOfDay ? `${value}T23:59:59.999Z` : `${value}T00:00:00.000Z`);
   const parsed = TimestampSchema.safeParse(value);
   if (!parsed.success) throw new BadRequestException("Invalid event query");
   return new Date(parsed.data);

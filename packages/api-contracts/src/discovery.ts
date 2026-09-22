@@ -24,6 +24,7 @@ export const DiscoveryFriendPlacesSchema = z.object({
   friend: FriendSchema,
   newPlacesCount: z.number().int().min(0),
   places: z.array(PlaceSchema),
+  visitHistoryHidden: z.boolean().default(false),
 });
 export type DiscoveryFriendPlaces = z.infer<typeof DiscoveryFriendPlacesSchema>;
 
@@ -33,9 +34,17 @@ export const DiscoveryResponseSchema = z.object({
 });
 export type DiscoveryResponse = z.infer<typeof DiscoveryResponseSchema>;
 
+export const FriendRouteStopSchema = z.object({
+  place: PlaceSchema,
+  visitedAt: z.string().datetime({ offset: true }).nullable().default(null),
+  note: z.string().max(200).nullable().default(null),
+});
+export type FriendRouteStop = z.infer<typeof FriendRouteStopSchema>;
+
 export const FriendRouteSchema = z.object({
   friend: FriendSchema,
   places: z.array(PlaceSchema),
+  stops: z.array(FriendRouteStopSchema).default([]),
 });
 export type FriendRoute = z.infer<typeof FriendRouteSchema>;
 

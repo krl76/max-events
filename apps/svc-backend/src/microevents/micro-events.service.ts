@@ -13,7 +13,8 @@
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
-import { MicroEventSchema, type CreateMicroEventWrite, type MicroEvent } from "@max-events/api-contracts";
+import { MicroEventSchema, type CreateMicroEventWrite, type Friend, type MicroEvent } from "@max-events/api-contracts";
+import { toFriendDto } from "../friends/friends.service";
 import { PlaceEntity } from "../places/place.entity";
 import { UsersService } from "../users/users.service";
 import { MicroEventEntity, MicroEventParticipantEntity } from "./micro-event.entity";
@@ -35,7 +36,8 @@ export class MicroEventsService {
     const participants = await this.participants.find({ where: { microEventId: In(rows.map((row) => row.id)) } });
     const byEvent = new Map<string, string[]>();
     for (const row of participants) byEvent.set(row.microEventId, [...(byEvent.get(row.microEventId) ?? []), row.userId]);
-    return rows.map((row) => toMicroEventDto(row, byEvent.get(row.id) ?? []));
+    const friends = await this.friendsOf([...new Set(participants.map((row) => row.userId))]);
+    return rows.map((row) => toMicroEventDto(row, byEvent.get(row.id) ?? [], friends));
   }
 
   async create(userId: string, payload: CreateMicroEventWrite): Promise<MicroEvent> {
@@ -66,10 +68,11 @@ export class MicroEventsService {
       if (!event || !event.published || event.status !== "open") throw new NotFoundException("Micro-event not found");
       const taken = await manager.find(MicroEventParticipantEntity, { where: { microEventId: id } });
       const ids = taken.map((row) => row.userId);
-      if (ids.includes(userId)) return toMicroEventDto(event, ids);
+      if (ids.includes(userId)) return toMicroEventDto(event, ids, await this.friendsOf(ids));
       if (ids.length >= event.participantsLimit) throw new ConflictException("No seats left");
       await manager.save(MicroEventParticipantEntity, manager.create(MicroEventParticipantEntity, { microEventId: id, userId }));
-      return toMicroEventDto(event, [...ids, userId]);
+      const next = [...ids, userId];
+      return toMicroEventDto(event, next, await this.friendsOf(next));
     });
   }
 
@@ -91,15 +94,19 @@ export class MicroEventsService {
 
   private async toDto(row: MicroEventEntity): Promise<MicroEvent> {
     const participants = await this.participants.find({ where: { microEventId: row.id } });
-    return toMicroEventDto(
-      row,
-      participants.map((item) => item.userId),
-    );
+    const ids = participants.map((item) => item.userId);
+    return toMicroEventDto(row, ids, await this.friendsOf(ids));
+  }
+
+  private async friendsOf(ids: string[]): Promise<Friend[]> {
+    const users = await this.users.findByIds(ids);
+    return users.map(toFriendDto);
   }
 }
 
-export function toMicroEventDto(row: MicroEventEntity, participantIds: string[]): MicroEvent {
+export function toMicroEventDto(row: MicroEventEntity, participantIds: string[], friends: Friend[] = []): MicroEvent {
   const ids = [...participantIds].sort();
+  const byId = new Map(friends.map((friend) => [friend.id, friend]));
   return MicroEventSchema.parse({
     id: row.id,
     authorId: row.authorId,
@@ -110,6 +117,10 @@ export function toMicroEventDto(row: MicroEventEntity, participantIds: string[])
     participantsLimit: row.participantsLimit,
     participantsCount: ids.length,
     participantIds: ids,
+    participants: ids.flatMap((id) => {
+      const friend = byId.get(id);
+      return friend ? [friend] : [];
+    }),
     status: row.status,
     createdAt: row.createdAt.toISOString(),
   });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
+import type { FriendsService } from "../friends/friends.service";
 import { StoryEntity } from "./story.entity";
 import { StoriesService } from "./stories.service";
 
@@ -31,9 +32,10 @@ function createStoreRepo(initial: StoryEntity[] = []) {
   };
 }
 
-function createService() {
+function createService(friendIds: string[] = []) {
   const stories = createStoreRepo();
-  const service = new StoriesService(stories as unknown as Repository<StoryEntity>);
+  const friends = { friendIds: async () => new Set(friendIds) } as unknown as FriendsService;
+  const service = new StoriesService(stories as unknown as Repository<StoryEntity>, friends);
   return { service, stories };
 }
 
@@ -47,10 +49,23 @@ describe("StoriesService", () => {
     expect(created.createdAt).not.toHaveLength(0);
   });
 
-  it("lists stories freshest first", async () => {
+  it("lists own and friends' stories from the last 24 hours, freshest author first", async () => {
+    const { service, stories } = createService([other]);
+    const now = new Date("2026-09-16T12:00:00Z");
+    stories.store.push(
+      { id: "00000000-0000-4000-8000-0000000000f1", userId: author, imageUrl: "own", createdAt: new Date("2026-09-16T09:00:00Z") },
+      { id: "00000000-0000-4000-8000-0000000000f2", userId: other, imageUrl: "friend", createdAt: new Date("2026-09-16T10:00:00Z") },
+      { id: "00000000-0000-4000-8000-0000000000f3", userId: "00000000-0000-4000-8000-0000000000cc", imageUrl: "stranger", createdAt: new Date("2026-09-16T11:00:00Z") },
+    );
+    const listed = await service.list(author, now);
+    expect(listed.map((story) => story.imageUrl)).toEqual(["friend", "own"]);
+  });
+
+  it("keeps a just-created own story and drops one older than 24 hours", async () => {
     const { service, stories } = createService();
-    stories.store.push({ id: "00000000-0000-4000-8000-0000000000f1", userId: author, imageUrl: "old", createdAt: new Date("2026-09-15T10:00:00Z") }, { id: "00000000-0000-4000-8000-0000000000f2", userId: other, imageUrl: "new", createdAt: new Date("2026-09-16T10:00:00Z") });
-    const listed = await service.list();
-    expect(listed.map((story) => story.imageUrl)).toEqual(["new", "old"]);
+    const now = new Date("2026-09-16T12:00:00Z");
+    stories.store.push({ id: "00000000-0000-4000-8000-0000000000f1", userId: author, imageUrl: "expired", createdAt: new Date("2026-09-15T11:59:00Z") }, { id: "00000000-0000-4000-8000-0000000000f2", userId: author, imageUrl: "fresh", createdAt: new Date("2026-09-15T12:01:00Z") });
+    const listed = await service.list(author, now);
+    expect(listed.map((story) => story.imageUrl)).toEqual(["fresh"]);
   });
 });

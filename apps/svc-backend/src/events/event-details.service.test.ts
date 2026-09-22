@@ -72,6 +72,7 @@ const organizer: UserEntity = {
   lastName: null,
   avatarUrl: null,
   username: null,
+  friendsSyncedAt: null,
   bannedFromPublishing: false,
   createdAt: now,
   updatedAt: now,

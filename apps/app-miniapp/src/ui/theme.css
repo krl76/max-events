@@ -874,6 +874,11 @@ body {
   justify-content: space-between;
 }
 
+.app-review-category-label {
+  color: var(--app-text-secondary, var(--app-text));
+  font-size: 0.875rem;
+}
+
 .app-review-again {
   display: flex;
   gap: var(--app-space-s);
@@ -2108,4 +2113,34 @@ body {
 .app-map-pin--friends {
   background: var(--app-accent-contrast);
   border-color: var(--app-accent);
+}
+
+.app-feed-chip--live {
+  background: var(--app-accent);
+  color: var(--app-accent-contrast, #fff);
+}
+
+.app-feed-post--place {
+  border-left: 3px solid var(--app-accent);
+}
+
+.app-swipe-action--undo {
+  color: var(--app-text);
+}
+
+.app-swipe-action--gather {
+  color: var(--app-accent);
+}
+
+.app-poll-voter--more {
+  color: var(--app-text-secondary, var(--app-text));
+  font-size: 0.875rem;
+}
+
+.app-post-compose-row--event {
+  background: var(--app-surface);
+}
+
+.app-onboarding--intro {
+  padding: var(--app-space-l, var(--app-space-m));
 }

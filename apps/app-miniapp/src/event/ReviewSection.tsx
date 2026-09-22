@@ -15,7 +15,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { apiClient, type EventRating } from "../api/client";
-import type { ReviewCategoryScores } from "@max-events/api-contracts";
+import type { ReviewCategoryScores, TasteProfile } from "@max-events/api-contracts";
+import { CATEGORY_LABELS } from "../catalog/CatalogPage";
 import { pluralRu } from "../catalog/format";
 import { AppButton, AppChip, AppTitle } from "../ui/primitives";
 
@@ -112,6 +113,7 @@ export function ReviewSection({ eventId, userId, canReview }: { eventId: string;
   const [failed, setFailed] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [taste, setTaste] = useState<TasteProfile | null>(null);
 
   const load = useCallback(() => {
     apiClient.getEventRating(eventId).then(
@@ -134,6 +136,7 @@ export function ReviewSection({ eventId, userId, canReview }: { eventId: string;
         .then(() => {
           setSent(true);
           load();
+          apiClient.getTaste().then(setTaste, () => {});
         })
         .finally(() => setSending(false));
     },
@@ -148,6 +151,22 @@ export function ReviewSection({ eventId, userId, canReview }: { eventId: string;
           <h2 className="app-section-title">{canReview ? "Как прошло?" : "Отзывы"}</h2>
         </AppTitle>
         {sent ? <p className="app-review-sent">Спасибо! Твой отзыв отправлен.</p> : canReview && <ReviewForm onSubmit={submit} sending={sending} />}
+        {sent && taste !== null && taste.eventCategories.length > 0 && (
+          <div>
+            <p className="app-section-title">Твой вкус уточнился</p>
+            <ul className="app-participation-counters">
+              {taste.eventCategories
+                .slice()
+                .sort((a, b) => b.weight - a.weight)
+                .slice(0, 3)
+                .map((row) => (
+                  <li key={row.category}>
+                    {CATEGORY_LABELS[row.category]} {Math.round(row.weight)}
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
         {!failed && rating !== null && <RatingView rating={rating} />}
       </div>
     </section>

@@ -17,12 +17,12 @@ const microEvent = {
 
 describe("MicroEventSchema", () => {
   it("accepts the README example: «Играем в баскетбол сегодня в 19:00 — сейчас 3/6 человек»", () => {
-    expect(MicroEventSchema.parse(microEvent)).toEqual(microEvent);
+    expect(MicroEventSchema.parse(microEvent)).toEqual({ ...microEvent, participants: [] });
   });
 
   it("accepts a placeId instead of location text", () => {
     const withPlace = { ...microEvent, locationText: null, placeId: "018f3c5a-0000-7000-8000-000000000099" };
-    expect(MicroEventSchema.parse(withPlace)).toEqual(withPlace);
+    expect(MicroEventSchema.parse(withPlace)).toEqual({ ...withPlace, participants: [] });
   });
 
   it("rejects an event with neither location text nor placeId", () => {

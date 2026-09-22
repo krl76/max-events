@@ -29,15 +29,20 @@ export const VoteOptionTallySchema = z.object({
 });
 export type VoteOptionTally = z.infer<typeof VoteOptionTallySchema>;
 
+export const VoteStatusSchema = z.enum(["open", "closed"]);
+export type VoteStatus = z.infer<typeof VoteStatusSchema>;
+
 export const VoteSchema = z.object({
   id: IdSchema,
   hostUserId: IdSchema,
   title: z.string().min(1).max(200),
   chatLink: z.string().nullable().default(null),
+  status: VoteStatusSchema.default("open"),
   participants: z.array(FriendSchema),
   options: z.array(VoteOptionTallySchema),
   winnerEventId: IdSchema.nullable(),
   myBallotEventId: IdSchema.nullable().default(null),
+  votedUserIds: z.array(IdSchema).default([]),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 });

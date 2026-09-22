@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
 import { ListPresetSchema } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
+import { PlaceEntity } from "../places/place.entity";
 import { ListItemEntity } from "./list-item.entity";
 import { ListEntity } from "./list.entity";
 import { LIST_PRESET_TITLES, ListsService, MAX_CUSTOM_LISTS } from "./lists.service";
@@ -12,6 +13,7 @@ const userId = "00000000-0000-4000-8000-00000000000a";
 const otherUserId = "00000000-0000-4000-8000-00000000000b";
 const eventId = "00000000-0000-4000-8000-0000000000e1";
 const otherEventId = "00000000-0000-4000-8000-0000000000e2";
+const placeId = "00000000-0000-4000-8000-0000000000p1";
 
 function eventRow(id: string, title: string): EventEntity {
   return {
@@ -70,7 +72,8 @@ function createService() {
   const lists = createStoreRepo<ListEntity>();
   const items = createStoreRepo<ListItemEntity>();
   const events = createStoreRepo<EventEntity>([eventRow(eventId, "Джаз"), eventRow(otherEventId, "Пробежка")]);
-  const service = new ListsService(lists as unknown as Repository<ListEntity>, items as unknown as Repository<ListItemEntity>, events as unknown as Repository<EventEntity>);
+  const places = createStoreRepo<PlaceEntity>([{ id: placeId, title: "Парк", published: true } as PlaceEntity]);
+  const service = new ListsService(lists as unknown as Repository<ListEntity>, items as unknown as Repository<ListItemEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>);
   return { service, items };
 }
 
@@ -193,5 +196,17 @@ describe("ListsService", () => {
     const { service } = createService();
     const want = (await service.list(userId)).find((row) => row.list.preset === "weekend")!;
     await expect(service.addEvent(otherUserId, want.list.id, eventId)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("adds a place to a list and rewrites stale preset titles on read", async () => {
+    const { service } = createService();
+    const want = (await service.list(userId)).find((row) => row.list.preset === "weekend")!;
+    expect(want.list.title).toBe("Выходные");
+    const item = await service.addPlace(userId, want.list.id, placeId);
+    expect(item.placeId).toBe(placeId);
+    expect(item.eventId).toBeNull();
+    const again = await service.addPlace(userId, want.list.id, placeId);
+    expect(again.id).toBe(item.id);
+    await expect(service.addPlace(userId, want.list.id, "00000000-0000-4000-8000-0000000000p9")).rejects.toBeInstanceOf(NotFoundException);
   });
 });

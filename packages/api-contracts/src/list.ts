@@ -58,9 +58,15 @@ export const ListItemSchema = z
   });
 export type ListItem = z.infer<typeof ListItemSchema>;
 
-export const AddListItemWriteSchema = z.object({
-  eventId: IdSchema,
-});
+export const AddListItemWriteSchema = z
+  .object({
+    eventId: IdSchema.optional(),
+    placeId: IdSchema.optional(),
+  })
+  .refine((data) => (data.eventId !== undefined) !== (data.placeId !== undefined), {
+    message: "list item must reference exactly one of eventId or placeId",
+    path: ["eventId"],
+  });
 export type AddListItemWrite = z.infer<typeof AddListItemWriteSchema>;
 
 /** A list of one's own carries a title and no preset; the six presets are created by the backend. */

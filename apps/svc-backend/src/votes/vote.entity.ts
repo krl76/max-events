@@ -29,6 +29,12 @@ export class VoteEntity {
   @Column({ type: "varchar", nullable: true })
   chatLink!: string | null;
 
+  @Column({ type: "varchar", length: 16, default: "open" })
+  status!: "open" | "closed";
+
+  @Column({ type: "uuid", nullable: true })
+  winnerEventId!: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

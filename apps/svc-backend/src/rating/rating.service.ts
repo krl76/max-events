@@ -72,6 +72,9 @@ export function buildOrganizerRating(organizerUserId: string, events: EventEntit
     ).length;
     onTimePercent = (onTime / past.length) * 100;
   }
+  const published = events.filter((row) => row.published !== false);
+  const attendancePercent = past.length === 0 ? null : (checkIns.filter((row) => row.eventId !== null && past.some((event) => event.id === row.eventId)).length / Math.max(past.length, 1)) * 100;
+  const boundedAttendance = attendancePercent === null ? null : Math.min(100, attendancePercent);
   return {
     organizerUserId,
     averageStars,
@@ -79,5 +82,7 @@ export function buildOrganizerRating(organizerUserId: string, events: EventEntit
     visitsCount,
     onTimePercent,
     reviewsCount: reviews.length,
+    attendancePercent: boundedAttendance,
+    eventsCount: published.length,
   };
 }

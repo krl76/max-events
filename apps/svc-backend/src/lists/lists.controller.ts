@@ -61,10 +61,10 @@ export class ListsController {
 
   @Post(":id/items")
   async add(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<ListItem> {
-    const eventId = body !== null && typeof body === "object" && !Array.isArray(body) ? (body as { eventId?: unknown }).eventId : undefined;
-    const parsed = AddListItemWriteSchema.safeParse({ eventId });
+    const parsed = AddListItemWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid list payload");
-    return this.lists.addEvent(user.id, id, parsed.data.eventId);
+    if (parsed.data.eventId) return this.lists.addEvent(user.id, id, parsed.data.eventId);
+    return this.lists.addPlace(user.id, id, parsed.data.placeId!);
   }
 
   @Delete(":id/items/:itemId")

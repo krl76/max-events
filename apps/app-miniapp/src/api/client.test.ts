@@ -432,4 +432,9 @@ describe("event filter serialization", () => {
 
     expect(parseEventFilters(`?${serializeEventFilters(filters)}`)).toEqual(filters);
   });
+
+  it("serializes a date range and a page window the way the backend query contract does", () => {
+    expect(serializeEventFilters({ dateFrom: "2026-09-01", dateTo: "2026-09-07", limit: 20, offset: 20 })).toBe("date_from=2026-09-01&date_to=2026-09-07&limit=20&offset=20");
+    expect(parseEventFilters("?date_from=2026-09-01&date_to=2026-09-07&limit=20&offset=20")).toEqual({ dateFrom: "2026-09-01", dateTo: "2026-09-07", limit: 20, offset: 20 });
+  });
 });

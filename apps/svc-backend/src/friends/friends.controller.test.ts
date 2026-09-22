@@ -11,7 +11,7 @@ const activity: FriendActivityByFriend[] = [{ friend: friends[0], events: [] }];
 const summary: EventFriendsSummary = { friends: [], going: 0, lookingForCompany: 0 };
 
 function createService() {
-  const calls: { list?: string; sync?: string; activity?: string; eventFriends?: { userId: string; eventId: string } } = {};
+  const calls: { list?: string; sync?: string; activity?: string; suggestions?: string; syncStatus?: string; follows?: string[]; eventFriends?: { userId: string; eventId: string } } = {};
   const service = {
     list: async (userId: string) => {
       calls.list = userId;
@@ -24,6 +24,18 @@ function createService() {
     activity: async (userId: string) => {
       calls.activity = userId;
       return activity;
+    },
+    suggestions: async (userId: string) => {
+      calls.suggestions = userId;
+      return [{ friend: friends[0], hint: "пользуется Афишей", following: false }];
+    },
+    syncStatus: async (userId: string) => {
+      calls.syncStatus = userId;
+      return { lastSyncedAt: null, friends };
+    },
+    replaceFollows: async (_userId: string, userIds: string[]) => {
+      calls.follows = userIds;
+      return userIds;
     },
     eventFriends: async (userId: string, bookedEventId: string) => {
       calls.eventFriends = { userId, eventId: bookedEventId };
@@ -40,7 +52,10 @@ describe("FriendsController", () => {
     await expect(controller.list(user)).resolves.toEqual(friends);
     await expect(controller.sync(user)).resolves.toEqual(friends);
     await expect(controller.activity(user)).resolves.toEqual(activity);
-    expect(calls).toEqual({ list: user.id, sync: user.id, activity: user.id });
+    await expect(controller.suggestions(user)).resolves.toMatchObject([{ following: false }]);
+    await expect(controller.syncStatus(user)).resolves.toMatchObject({ lastSyncedAt: null, friends });
+    await expect(controller.replaceFollows(user, { userIds: [friends[0]!.id] })).resolves.toEqual([friends[0]!.id]);
+    expect(calls).toEqual({ list: user.id, sync: user.id, activity: user.id, suggestions: user.id, syncStatus: user.id, follows: [friends[0]!.id] });
   });
 });
 

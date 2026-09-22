@@ -212,4 +212,16 @@ describe("VotesService", () => {
     const tiedReversed = await service.castBallot(katyaId, reversed.id, jazzId);
     expect(tiedReversed.winnerEventId).toBe(concertId);
   });
+
+  it("closes a poll, freezes the winner and refuses further ballots", async () => {
+    const { service } = createService();
+    const vote = await service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [jazzId, concertId], participantIds: [dimaId, katyaId] });
+    await service.castBallot(dimaId, vote.id, jazzId);
+    const closed = await service.close(hostId, vote.id);
+    expect(closed.status).toBe("closed");
+    expect(closed.winnerEventId).toBe(jazzId);
+    expect(closed.votedUserIds).toEqual([dimaId]);
+    await expect(service.castBallot(katyaId, vote.id, concertId)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.close(dimaId, vote.id)).rejects.toBeInstanceOf(ForbiddenException);
+  });
 });

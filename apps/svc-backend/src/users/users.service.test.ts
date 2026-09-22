@@ -137,6 +137,7 @@ describe("toUserDto", () => {
       username: "maxuser",
       avatarUrl: null,
       bannedFromPublishing: false,
+      friendsSyncedAt: null,
       createdAt: new Date("2026-09-01T07:00:00Z"),
       updatedAt: new Date("2026-09-01T07:00:00Z"),
     };

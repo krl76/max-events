@@ -76,11 +76,11 @@ describe("DiscoveryService", () => {
     expect(payload.byFriend).toEqual([]);
   });
 
-  it("hides a friend who turned visit history off", async () => {
+  it("keeps a friend who turned visit history off as a hidden-state row", async () => {
     const { service } = createService({ hidden: true });
     const payload = await service.summary(me);
     expect(payload.newPlacesCount).toBe(0);
-    expect(payload.byFriend).toEqual([]);
+    expect(payload.byFriend).toEqual([{ friend: { id: anna, name: "Анна", avatarUrl: null }, newPlacesCount: 0, places: [], visitHistoryHidden: true }]);
     await expect(service.route(me, anna)).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

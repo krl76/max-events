@@ -32,7 +32,7 @@ describe("ListPresetSchema", () => {
 });
 
 describe("ListSchema", () => {
-  it("accepts a README preset list: Хочу сходить, Избранное, На выходные, С детьми, С друзьями, Попробовать потом", () => {
+  it("accepts a README preset list: Хочу сходить, Избранное, Выходные, С детьми, С друзьями, Попробовать позже", () => {
     expect(ListSchema.parse(list)).toEqual(list);
   });
 
@@ -67,9 +67,11 @@ describe("ListItemSchema", () => {
 });
 
 describe("AddListItemWriteSchema", () => {
-  it("requires an event id", () => {
+  it("accepts exactly one of eventId or placeId", () => {
     expect(AddListItemWriteSchema.parse({ eventId: item.eventId })).toEqual({ eventId: item.eventId });
+    expect(AddListItemWriteSchema.parse({ placeId: "018f3c5a-0000-7000-8000-000000000099" }).placeId).toBe("018f3c5a-0000-7000-8000-000000000099");
     expect(AddListItemWriteSchema.safeParse({}).success).toBe(false);
+    expect(AddListItemWriteSchema.safeParse({ eventId: item.eventId, placeId: "018f3c5a-0000-7000-8000-000000000099" }).success).toBe(false);
   });
 });
 

@@ -253,6 +253,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       username: i % 3 === 0 ? fakerRU.internet.username() : null,
       avatarUrl: i % 2 === 1 ? picsum(`demo-user-${i}`) : null,
       bannedFromPublishing: false,
+      friendsSyncedAt: null,
       createdAt,
       updatedAt: createdAt,
     });
@@ -564,7 +565,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
   for (let i = 0; i < c.votes; i += 1) {
     const voteId = uuid();
     const createdAt = shiftDays(now, -int(1, 7), int(10, 22));
-    votes.push({ id: voteId, hostUserId: ownerUserId, title: VOTE_TITLES[i % VOTE_TITLES.length]!, chatLink: null, createdAt, updatedAt: createdAt });
+    votes.push({ id: voteId, hostUserId: ownerUserId, title: VOTE_TITLES[i % VOTE_TITLES.length]!, chatLink: null, status: "open", winnerEventId: null, createdAt, updatedAt: createdAt });
     const optionEvents = fakerRU.helpers.arrayElements(futureEvents, Math.min(3, futureEvents.length));
     optionEvents.forEach((event, position) => voteOptions.push({ id: uuid(), voteId, eventId: event.id, position }));
     const participants = ownerFriends.slice(0, Math.min(6, ownerFriends.length));

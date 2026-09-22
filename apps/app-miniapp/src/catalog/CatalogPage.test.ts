@@ -32,6 +32,14 @@ function pressedChips(html: string): string[] {
 }
 
 describe("CatalogView", () => {
+  it("renders inclusive date-range inputs", () => {
+    const html = renderToStaticMarkup(createElement(CatalogView, { state: { status: "ready", events: [] }, filters: { dateFrom: "2026-09-19", dateTo: "2026-09-21" }, onFilters: () => {} }));
+    expect(html).toContain('aria-label="Дата от"');
+    expect(html).toContain('aria-label="Дата до"');
+    expect(html).toContain('value="2026-09-19"');
+    expect(html).toContain('value="2026-09-21"');
+  });
+
   it("renders event cards from fixtures with title, city, price and category", () => {
     const state: CatalogState = { status: "ready", events: [free, paid] };
     const html = renderToStaticMarkup(createElement(CatalogView, { state, filters: {}, onFilters: () => {} }));

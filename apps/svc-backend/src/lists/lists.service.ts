@@ -19,6 +19,7 @@ import { QueryFailedError, Repository } from "typeorm";
 import { ListPresetSchema, type List, type ListItem, type ListItemCard, type ListPreset, type ListScreen, type ListSummary } from "@max-events/api-contracts";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
+import { PlaceEntity } from "../places/place.entity";
 import { ListItemEntity } from "./list-item.entity";
 import { ListEntity } from "./list.entity";
 
@@ -28,10 +29,10 @@ export const MAX_CUSTOM_LISTS = 20;
 export const LIST_PRESET_TITLES: Record<ListPreset, string> = {
   want_to_go: "Хочу сходить",
   favorites: "Избранное",
-  weekend: "На выходные",
+  weekend: "Выходные",
   with_children: "С детьми",
   with_friends: "С друзьями",
-  try_later: "Попробовать потом",
+  try_later: "Попробовать позже",
 };
 
 @Injectable()
@@ -40,6 +41,7 @@ export class ListsService {
     @InjectRepository(ListEntity) private readonly lists: Repository<ListEntity>,
     @InjectRepository(ListItemEntity) private readonly items: Repository<ListItemEntity>,
     @InjectRepository(EventEntity) private readonly events: Repository<EventEntity>,
+    @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
   ) {}
 
   async list(userId: string, eventId: string | null = null): Promise<ListSummary[]> {
@@ -68,21 +70,34 @@ export class ListsService {
     await this.requireOwnedList(userId, listId);
     const event = await this.events.findOneBy({ id: eventId });
     if (!event) throw new NotFoundException("Event not found");
-    const existing = await this.findItem(listId, eventId);
+    const existing = await this.findEventItem(listId, eventId);
     if (existing) return toItemDto(existing);
     try {
       return toItemDto(await this.items.save(this.items.create({ listId, eventId, placeId: null })));
     } catch (error) {
       // UQ_list_items_list_event: a parallel "save to list" tap must read back the winner, not 500.
       if (!isUniqueViolation(error)) throw error;
-      const winner = await this.findItem(listId, eventId);
+      const winner = await this.findEventItem(listId, eventId);
       if (!winner) throw error;
       return toItemDto(winner);
     }
   }
 
-  private async findItem(listId: string, eventId: string): Promise<ListItemEntity | undefined> {
+  async addPlace(userId: string, listId: string, placeId: string): Promise<ListItem> {
+    await this.requireOwnedList(userId, listId);
+    const place = await this.places.findOneBy({ id: placeId });
+    if (!place) throw new NotFoundException("Place not found");
+    const existing = await this.findPlaceItem(listId, placeId);
+    if (existing) return toItemDto(existing);
+    return toItemDto(await this.items.save(this.items.create({ listId, eventId: null, placeId })));
+  }
+
+  private async findEventItem(listId: string, eventId: string): Promise<ListItemEntity | undefined> {
     return (await this.items.find({ where: { listId } })).find((row) => row.eventId === eventId);
+  }
+
+  private async findPlaceItem(listId: string, placeId: string): Promise<ListItemEntity | undefined> {
+    return (await this.items.find({ where: { listId } })).find((row) => row.placeId === placeId);
   }
 
   async removeItem(userId: string, listId: string, itemId: string): Promise<ListItem> {
@@ -128,7 +143,14 @@ export class ListsService {
     const existing = (await this.lists.find({ where: { userId } })).filter((row) => row.preset !== null);
     const byPreset = new Map(existing.map((row) => [row.preset, row]));
     for (const preset of ListPresetSchema.options) {
-      if (byPreset.has(preset)) continue;
+      const existing = byPreset.get(preset);
+      if (existing) {
+        if (existing.title !== LIST_PRESET_TITLES[preset]) {
+          existing.title = LIST_PRESET_TITLES[preset];
+          await this.lists.save(existing);
+        }
+        continue;
+      }
       const saved = await this.lists.save(this.lists.create({ userId, preset, title: LIST_PRESET_TITLES[preset] }));
       byPreset.set(preset, saved);
     }
