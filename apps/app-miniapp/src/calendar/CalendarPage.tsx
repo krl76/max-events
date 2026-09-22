@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Calendar screen: own bookings split into upcoming/past sections, booking cards, cancel action.
-// SCOPE: Data via apiClient.listCalendar (mock or live), cancel via apiClient.cancelBooking; sectioning by the event start date.
-// DEPENDS: ../api/client.js (apiClient, CalendarEntry), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../ui/theme.css
+// PURPOSE: Calendar screen: own bookings split into upcoming/past sections, booking cards, cancel action, and the micro-events the viewer joined.
+// SCOPE: Data via apiClient.listCalendar (mock or live), cancel via apiClient.cancelBooking; sectioning by the event start date. Micro-events are not bookings and never reach GET /calendar, so they come as their own block from MyMicroEventsSection.
+// DEPENDS: ../api/client.js (apiClient, CalendarEntry), ../auth/AuthContext.js, ../micro/MicroEvents.js (MyMicroEventsSection), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -9,13 +9,14 @@
 // - CalendarState - union of calendar fetch states (loading / error / ready)
 // - splitCalendarEntries - split entries into upcoming (>= now, soonest first) and past (< now, latest first)
 // - CalendarView - presentational: two sections with booking cards and empty states
-// - CalendarPage - container (the calendar tab of the «Моё» screen): resolves the user id, loads the calendar, wires cancel + refetch
+// - CalendarPage - container (the calendar tab of the «Моё» screen): resolves the user id, loads the calendar, wires cancel + refetch, and renders the joined micro-events under it
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
 import { apiClient, type CalendarEntry } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { MyMicroEventsSection } from "../micro/MicroEvents";
 import { useRoute } from "../routing/router";
 import { AppButton, AppState, AppSection, AppMedia } from "../ui/primitives";
 
@@ -107,5 +108,11 @@ export function CalendarPage() {
     );
   }, []);
 
-  return <CalendarView state={state} now={new Date()} onCancel={cancel} onExplore={() => navigate({ name: "home" })} />;
+  return (
+    <>
+      <CalendarView state={state} now={new Date()} onCancel={cancel} onExplore={() => navigate({ name: "home" })} />
+      {/* Below the bookings: a micro-event the viewer joined is a record of their own too, and it used to live nowhere but the feed. */}
+      <MyMicroEventsSection />
+    </>
+  );
 }
