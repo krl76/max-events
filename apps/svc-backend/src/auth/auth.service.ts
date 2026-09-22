@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Authenticate requests by MAX initData or organizer Bearer token — validate and upsert/load the user.
-// SCOPE: authenticate(initData) returns the upserted user or null (fail-closed without MAX_BOT_TOKEN); organizerLogin issues a Redis-backed Bearer token against ORGANIZER_LOGIN/ORGANIZER_PASSWORD env credentials (fail-closed 503-worthy "disabled" when unset, "locked" after 5 failed attempts for 60s); organizerLogout revokes a Bearer session; authenticateOrganizerToken resolves a Bearer token to the organizer user.
-// DEPENDS: @nestjs/common, @nestjs/config, @nestjs/typeorm, typeorm, ioredis, node:crypto, ./max-init-data, ../users/users.service, ../users/user.entity, ../friends/friends.service, ../redis/redis.module
+// SCOPE: authenticate(initData) returns the upserted user or null (fail-closed without MAX_BOT_TOKEN); organizerLogin issues a Redis-backed Bearer token against the Organization account row (ORGANIZER_LOGIN/ORGANIZER_PASSWORD provision that row once, fail-closed 503-worthy "disabled" when there is neither row nor env, "locked" after 5 failed attempts for 60s); organizerLogout revokes a Bearer session; authenticateOrganizerToken resolves a Bearer token to the organizer user.
+// DEPENDS: @nestjs/common, @nestjs/config, @nestjs/typeorm, typeorm, ioredis, node:crypto, ./max-init-data, ../users/users.service, ../users/user.entity, ../friends/friends.service, ../organizations/organizations.service, ../redis/redis.module
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -10,8 +10,8 @@
 // - ORGANIZER_SESSION_TTL_SECONDS - organizer Bearer token lifetime (7 days)
 // - ORGANIZER_LOGIN_MAX_FAILS - failed organizer login attempts per login name before the lock kicks in
 // - ORGANIZER_LOGIN_WINDOW_SECONDS - TTL of the failure counter (60s), which doubles as the lock
-// - OrganizerLoginResult - organizerLogin outcome: { token, user } | "disabled" (env unset) | "locked" (rate limited) | null (bad credentials)
-// - AuthService.organizerLogin - env-credential check, rate limit, find-or-create organizer user, store token in Redis
+// - OrganizerLoginResult - organizerLogin outcome: { token, user, organization } | "disabled" (no account and no env credentials) | "locked" (rate limited) | null (bad credentials)
+// - AuthService.organizerLogin - organization-account credential check, rate limit, find-or-create organizer user, store token in Redis
 // - AuthService.organizerLogout - delete organizer-session:{token} from Redis
 // - AuthService.authenticateOrganizerToken - Bearer token -> Redis lookup -> organizer user
 // - BROWSER_DEFAULT_USER - owner MAX payload minted for AUTH_ALLOW_BROWSER (keep in sync with tools/max-dev-accounts.json)
@@ -28,6 +28,8 @@ import { QueryFailedError, Repository } from "typeorm";
 import { UserEntity } from "../users/user.entity";
 import { FriendsService } from "../friends/friends.service";
 import { UsersService } from "../users/users.service";
+import { OrganizationEntity } from "../organizations/organization.entity";
+import { OrganizationsService } from "../organizations/organizations.service";
 import { REDIS_CLIENT } from "../redis/redis.module";
 import { signInitData, validateInitData } from "./max-init-data";
 
@@ -40,7 +42,7 @@ export const ORGANIZER_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 export const ORGANIZER_LOGIN_MAX_FAILS = 5;
 export const ORGANIZER_LOGIN_WINDOW_SECONDS = 60;
 
-export type OrganizerLoginResult = { token: string; user: UserEntity } | "disabled" | "locked" | null;
+export type OrganizerLoginResult = { token: string; user: UserEntity; organization: OrganizationEntity } | "disabled" | "locked" | null;
 
 // Hashing both sides normalizes length so timingSafeEqual never throws and leaks nothing about length.
 function credentialsEqual(a: string, b: string): boolean {
@@ -61,12 +63,13 @@ export class AuthService {
     @Inject(FriendsService) private readonly friends: FriendsService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @InjectRepository(UserEntity) private readonly userRepo: Repository<UserEntity>,
+    @Inject(OrganizationsService) private readonly organizations: OrganizationsService,
   ) {
     if (!this.config.get<string>("MAX_BOT_TOKEN")) {
       this.logger.warn("MAX_BOT_TOKEN is not set: every initData authentication will be rejected (fail-closed)");
     }
     if (!this.config.get<string>("ORGANIZER_LOGIN") || !this.config.get<string>("ORGANIZER_PASSWORD")) {
-      this.logger.warn("ORGANIZER_LOGIN/ORGANIZER_PASSWORD are not set: organizer login is disabled (fail-closed)");
+      this.logger.warn("ORGANIZER_LOGIN/ORGANIZER_PASSWORD are not set: only organization accounts already in the database can log in");
     }
   }
 
@@ -107,9 +110,11 @@ export class AuthService {
   }
 
   async organizerLogin(login: string, password: string): Promise<OrganizerLoginResult> {
-    const expectedLogin = this.config.get<string>("ORGANIZER_LOGIN");
-    const expectedPassword = this.config.get<string>("ORGANIZER_PASSWORD");
-    if (!expectedLogin || !expectedPassword) return "disabled";
+    const stored = await this.organizations.findByLogin(login);
+    const envLogin = this.config.get<string>("ORGANIZER_LOGIN");
+    const envPassword = this.config.get<string>("ORGANIZER_PASSWORD");
+    // Nothing to authenticate against: no account row and no admin credentials to provision one from.
+    if (!stored && (!envLogin || !envPassword)) return "disabled";
     // INCR-first: the counter itself is the lock. Redis serializes INCR, so a concurrent burst
     // cannot slip past the limit. TTL is set once via SET NX — never refreshed, so flooding
     // cannot extend the lock — and the key always carries a TTL (no INCR/EXPIRE crash gap).
@@ -117,12 +122,25 @@ export class AuthService {
     await this.redis.set(failKey, "0", "EX", ORGANIZER_LOGIN_WINDOW_SECONDS, "NX");
     const fails = await this.redis.incr(failKey);
     if (fails > ORGANIZER_LOGIN_MAX_FAILS) return "locked";
-    if (!credentialsEqual(login, expectedLogin) || !credentialsEqual(password, expectedPassword)) return null;
+    const organization = stored ? ((await this.organizations.verifyPassword(stored, password)) ? stored : null) : await this.provisionFromEnv(login, password);
+    if (!organization) return null;
     await this.redis.del(failKey);
     const user = await this.findOrCreateOrganizer(login);
     const token = randomBytes(32).toString("hex");
     await this.redis.set(`organizer-session:${token}`, user.id, "EX", ORGANIZER_SESSION_TTL_SECONDS);
-    return { token, user };
+    return { token, user, organization };
+  }
+
+  /**
+   * First login for operator-configured credentials creates the account row, after which the database is
+   * the only source of truth. The env pair is supplied by the operator, so this is provisioning, not sign-up.
+   */
+  private async provisionFromEnv(login: string, password: string): Promise<OrganizationEntity | null> {
+    const envLogin = this.config.get<string>("ORGANIZER_LOGIN");
+    const envPassword = this.config.get<string>("ORGANIZER_PASSWORD");
+    if (!envLogin || !envPassword) return null;
+    if (!credentialsEqual(login, envLogin) || !credentialsEqual(password, envPassword)) return null;
+    return this.organizations.provision({ login, password });
   }
 
   async organizerLogout(token: string): Promise<void> {

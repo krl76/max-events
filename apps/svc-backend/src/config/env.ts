@@ -39,7 +39,8 @@ export const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3100),
   MAX_BOT_TOKEN: z.string().min(1).optional(),
   MODERATOR_MAX_USER_IDS: z.string().optional(),
-  // Organizer panel credentials. Both must be set for POST /auth/organizer/login to work; unset = 503 (fail-closed).
+  // Organizer panel bootstrap credentials: the first successful login provisions the organizations row from them.
+  // Once an account row exists it wins; with neither row nor these vars POST /auth/organizer/login is 503 (fail-closed).
   ORGANIZER_LOGIN: z.string().min(1).optional(),
   ORGANIZER_PASSWORD: z.string().min(1).optional(),
   PAYMENT_PROVIDER: z.enum(["sandbox", "none"]).default("none"),
