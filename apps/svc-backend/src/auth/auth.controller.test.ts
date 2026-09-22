@@ -52,7 +52,10 @@ describe("AuthController.organizerLogin", () => {
     for (let attempt = 0; attempt < 5; attempt++) {
       await expect(controller.organizerLogin({ login: "demo", password: "wrong" })).rejects.toBeInstanceOf(UnauthorizedException);
     }
-    for (const body of [{ login: "demo", password: "wrong" }, { login: "demo", password: "demo" }]) {
+    for (const body of [
+      { login: "demo", password: "wrong" },
+      { login: "demo", password: "demo" },
+    ]) {
       const error = await controller.organizerLogin(body).catch((caught: unknown) => caught);
       expect(error).toBeInstanceOf(HttpException);
       expect((error as HttpException).getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
