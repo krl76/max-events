@@ -77,6 +77,13 @@ describe("installDevWebAppShim", () => {
     expect(replaceState).toHaveBeenCalled();
   });
 
+  it("ignores stale localStorage when VITE_BROWSER_AUTH will mint", () => {
+    vi.stubEnv("VITE_BROWSER_AUTH", "1");
+    stubWindow({ stored: "stale-seaG7" });
+    expect(installDevWebAppShim()).toBe(false);
+    expect(window.WebApp).toBeUndefined();
+  });
+
   it("falls back to localStorage when the query param is absent", () => {
     const { setItem } = stubWindow({ stored: "stored-data" });
 

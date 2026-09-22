@@ -58,6 +58,8 @@ function readDevInitData(): string | null {
     stripInitDataQuery();
     return fromQuery;
   }
+  // Stale localStorage must not block POST /auth/browser-initdata (owner id can change).
+  if (import.meta.env.VITE_BROWSER_AUTH === "1") return null;
   return window.localStorage.getItem(DEV_INIT_DATA_STORAGE_KEY);
 }
 
@@ -72,23 +74,6 @@ function stripInitDataQuery(): void {
   } catch {
     /* history may be missing in tests */
   }
-}
-
-function emptyWebApp(): MaxWebApp {
-  return {
-    platform: "web",
-    version: "dev",
-    initData: "",
-    initDataUnsafe: {},
-    ready() {},
-    openLink(url: string) {
-      window.open(url, "_blank", "noopener,noreferrer");
-    },
-    openMaxLink(url: string) {
-      window.open(url, "_blank", "noopener,noreferrer");
-    },
-    close() {},
-  };
 }
 
 /** Replace window.WebApp. Official Bridge exposes initData as a getter with no setter. */
