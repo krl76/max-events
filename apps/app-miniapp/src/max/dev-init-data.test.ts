@@ -38,10 +38,10 @@ describe("isInitDataShimAllowed", () => {
     expect(isInitDataShimAllowed()).toBe(false);
   });
 
-  it("rejects the MAX-only production host", () => {
+  it("allows the production host for signed ?initData= (mint endpoint stays off)", () => {
     vi.stubEnv("DEV", false);
     stubWindow({ hostname: "events.versacegus.cc" });
-    expect(isInitDataShimAllowed()).toBe(false);
+    expect(isInitDataShimAllowed()).toBe(true);
   });
 });
 
@@ -77,6 +77,13 @@ describe("installDevWebAppShim", () => {
     expect(replaceState).toHaveBeenCalled();
   });
 
+  it("ignores stale localStorage when VITE_BROWSER_AUTH will mint", () => {
+    vi.stubEnv("VITE_BROWSER_AUTH", "1");
+    stubWindow({ stored: "stale-seaG7" });
+    expect(installDevWebAppShim()).toBe(false);
+    expect(window.WebApp).toBeUndefined();
+  });
+
   it("falls back to localStorage when the query param is absent", () => {
     const { setItem } = stubWindow({ stored: "stored-data" });
 
@@ -93,12 +100,21 @@ describe("installDevWebAppShim", () => {
     expect(window.WebApp).toBe(real);
   });
 
-  it("overlays signed initData onto the empty official WebApp object", () => {
-    const official = { initData: "", initDataUnsafe: {}, ready() {}, openLink() {}, openMaxLink() {}, close() {} };
+  it("replaces a getter-only official WebApp so signed initData is readable", () => {
+    const official = {
+      get initData() {
+        return "";
+      },
+      initDataUnsafe: {},
+      ready() {},
+      openLink() {},
+      openMaxLink() {},
+      close() {},
+    };
     stubWindow({ search: "?initData=user%3D%7B%22id%22%3A1%2C%22first_name%22%3A%22A%22%7D", webApp: official });
 
     expect(installDevWebAppShim()).toBe(true);
-    expect(window.WebApp).toBe(official);
+    expect(window.WebApp).not.toBe(official);
     expect(window.WebApp?.initData).toContain("user=");
     expect(window.WebApp?.initDataUnsafe.user).toEqual({ id: 1, first_name: "A" });
   });

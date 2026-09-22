@@ -17,7 +17,7 @@ describe("installBrowserWebAppShim", () => {
 
   it("installs window.WebApp from POST /api/auth/browser-initdata", async () => {
     vi.stubEnv("VITE_BROWSER_AUTH", "1");
-    vi.stubGlobal("window", { WebApp: undefined });
+    vi.stubGlobal("window", { WebApp: undefined, open: vi.fn() });
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({ ok: true, json: async () => ({ initData: "auth_date=1&hash=abc" }) })),
@@ -25,6 +25,27 @@ describe("installBrowserWebAppShim", () => {
     expect(await installBrowserWebAppShim()).toBe(true);
     expect(window.WebApp?.initData).toBe("auth_date=1&hash=abc");
     expect(window.WebApp?.platform).toBe("web");
+  });
+
+  it("replaces a getter-only empty official WebApp", async () => {
+    vi.stubEnv("VITE_BROWSER_AUTH", "1");
+    const official = {
+      get initData() {
+        return "";
+      },
+      ready() {},
+      openLink() {},
+      openMaxLink() {},
+      close() {},
+    };
+    vi.stubGlobal("window", { WebApp: official, open: vi.fn() });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ initData: "signed" }) })),
+    );
+    expect(await installBrowserWebAppShim()).toBe(true);
+    expect(window.WebApp).not.toBe(official);
+    expect(window.WebApp?.initData).toBe("signed");
   });
 
   it("leaves a real MAX WebApp untouched", async () => {

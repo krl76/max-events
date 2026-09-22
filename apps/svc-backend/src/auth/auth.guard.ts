@@ -9,6 +9,7 @@
 // - Public - route/class decorator opting out of the global guard (health, login)
 // - MAX_INIT_DATA_HEADER - header carrying the raw initData string
 // - AUTHORIZATION_HEADER - header carrying the organizer Bearer token
+// - BEARER_PREFIX - scheme prefix of the organizer Bearer token
 // - AuthenticatedRequest - express Request with the attached currentUser
 // - AuthGuard - global guard: Bearer token -> Redis session, else initData -> validate + upsert -> request.currentUser
 // - CurrentUser - param decorator extracting request.currentUser
@@ -27,7 +28,7 @@ export const MAX_INIT_DATA_HEADER = "x-max-init-data";
 
 export const AUTHORIZATION_HEADER = "authorization";
 
-const BEARER_PREFIX = "Bearer ";
+export const BEARER_PREFIX = "Bearer ";
 
 export type AuthenticatedRequest = Request & { currentUser: UserEntity };
 

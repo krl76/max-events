@@ -1,23 +1,24 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Browser MAX-contour shim: signed initData as window.WebApp so the miniapp can run outside the MAX client against a real backend (HMAC still verified server-side).
-// SCOPE: ?initData= (persisted in localStorage) or stored value; overlays empty official WebApp from st.max.ru; no-op on unknown hosts, inside a real MAX session, or when ?clearInitData=1. Allowed on DEV, VITE_ALLOW_INITDATA_SHIM=1, or INITDATA_SHIM_HOSTS (staging/dev only — not events.versacegus.cc).
+// SCOPE: ?initData= (persisted in localStorage) or stored value; overlays empty official WebApp from st.max.ru; no-op on unknown hosts, inside a real MAX session, or when ?clearInitData=1. Allowed on DEV, VITE_ALLOW_INITDATA_SHIM=1, or INITDATA_SHIM_HOSTS. Public mint (POST /auth/browser-initdata) stays off on events.versacegus.cc; signed ?initData= is for agents/devs who have the bot token.
 // DEPENDS: ./bridge (MaxWebApp type), tools/dev-initdata.mjs generates the signed initData
 // LINKS: M-APP-MINIAPP, DF-MAX-IDENTITY, https://dev.max.ru/docs/webapps/validation
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - DEV_INIT_DATA_STORAGE_KEY - localStorage key where query initData is persisted across reloads
-// - INITDATA_SHIM_HOSTS - staging/dev hostnames that may install the shim (MAX-only prod host excluded)
+// - INITDATA_SHIM_HOSTS - hostnames that may install the signed ?initData= shim
 // - isInitDataShimAllowed - DEV / env flag / allowlisted hostname
 // - parseInitDataUnsafe - user/start_param/auth_date from a signed initData query string
+// - applySignedWebApp - replace window.WebApp (Bridge initData is a getter)
 // - installDevWebAppShim - overlay signed initData onto window.WebApp
 // END_MODULE_MAP
 
-import type { MaxWebApp, MaxWebAppInitDataUnsafe } from "./bridge";
+import type { MaxWebAppInitDataUnsafe } from "./bridge";
 
 export const DEV_INIT_DATA_STORAGE_KEY = "max-events-dev-initdata";
 
-export const INITDATA_SHIM_HOSTS: readonly string[] = ["localhost", "127.0.0.1", "dev.events.versacegus.cc"];
+export const INITDATA_SHIM_HOSTS: readonly string[] = ["localhost", "127.0.0.1", "dev.events.versacegus.cc", "events.versacegus.cc"];
 
 export function isInitDataShimAllowed(): boolean {
   if (typeof window === "undefined") return false;
@@ -57,6 +58,8 @@ function readDevInitData(): string | null {
     stripInitDataQuery();
     return fromQuery;
   }
+  // Stale localStorage must not block POST /auth/browser-initdata (owner id can change).
+  if (import.meta.env.VITE_BROWSER_AUTH === "1") return null;
   return window.localStorage.getItem(DEV_INIT_DATA_STORAGE_KEY);
 }
 
@@ -73,20 +76,30 @@ function stripInitDataQuery(): void {
   }
 }
 
-function emptyWebApp(): MaxWebApp {
-  return {
-    platform: "web",
-    version: "dev",
-    initData: "",
-    initDataUnsafe: {},
-    ready() {},
+/** Replace window.WebApp. Official Bridge exposes initData as a getter with no setter. */
+export function applySignedWebApp(initData: string): void {
+  const previous = window.WebApp;
+  const unsafe = parseInitDataUnsafe(initData);
+  window.WebApp = {
+    platform: previous?.platform || "web",
+    version: previous?.version || "dev",
+    initData,
+    initDataUnsafe: unsafe,
+    ready() {
+      previous?.ready();
+    },
     openLink(url: string) {
-      window.open(url, "_blank", "noopener,noreferrer");
+      if (previous) previous.openLink(url);
+      else window.open(url, "_blank", "noopener,noreferrer");
     },
     openMaxLink(url: string) {
-      window.open(url, "_blank", "noopener,noreferrer");
+      if (previous) previous.openMaxLink(url);
+      else window.open(url, "_blank", "noopener,noreferrer");
     },
-    close() {},
+    close() {
+      previous?.close();
+    },
+    shareMaxContent: previous?.shareMaxContent?.bind(previous),
   };
 }
 
@@ -99,13 +112,7 @@ export function installDevWebAppShim(): boolean {
   if (window.WebApp?.initData) return false;
   const initData = readDevInitData();
   if (!initData) return false;
-  const unsafe = parseInitDataUnsafe(initData);
-  if (window.WebApp) {
-    window.WebApp.initData = initData;
-    window.WebApp.initDataUnsafe = unsafe;
-  } else {
-    window.WebApp = { ...emptyWebApp(), initData, initDataUnsafe: unsafe };
-  }
+  applySignedWebApp(initData);
   return true;
 }
 
