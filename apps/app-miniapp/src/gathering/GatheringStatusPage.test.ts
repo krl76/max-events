@@ -71,6 +71,17 @@ describe("GatheringStatusView", () => {
     expect(html.match(/aria-pressed/g)).toHaveLength(1);
   });
 
+  it("offers «Смотрю», so an invitee can say they are still deciding", () => {
+    // An invite starts as "considering", but the buttons only had "Иду" and "Занят": that state was
+    // unreachable by choice, and an invitee who had answered could never step back into it.
+    const undecided = renderToStaticMarkup(createElement(GatheringStatusView, { state: readyState(0, [1, 2, 3]), myUserId: mockFriendIds[2] }));
+    expect(undecided).toMatch(/<ion-button[^>]*aria-pressed[^>]*>Смотрю<\/ion-button>/);
+
+    const going = renderToStaticMarkup(createElement(GatheringStatusView, { state: readyState(0, [1, 2, 3]), myUserId: mockFriendIds[1] }));
+    expect(going).toContain("Смотрю");
+    expect(going).not.toMatch(/<ion-button[^>]*aria-pressed[^>]*>Смотрю<\/ion-button>/);
+  });
+
   it("marks the declined answer as current instead", () => {
     const html = renderToStaticMarkup(createElement(GatheringStatusView, { state: readyState(0, [1, 2, 3]), myUserId: mockFriendIds[3] }));
 
@@ -81,10 +92,12 @@ describe("GatheringStatusView", () => {
   it("hides the answer buttons from the host and without a known user", () => {
     const host = renderToStaticMarkup(createElement(GatheringStatusView, { state: readyState(0, [1, 2, 3]), myUserId: "e0000000-0000-4000-8000-0000000000ff" }));
     expect(host).not.toContain("Иду");
+    expect(host).not.toContain("Смотрю");
     expect(host).not.toContain("Занят");
 
     const anonymous = renderToStaticMarkup(createElement(GatheringStatusView, { state: readyState(0, [1, 2, 3]) }));
     expect(anonymous).not.toContain("Иду");
+    expect(anonymous).not.toContain("Смотрю");
     expect(anonymous).not.toContain("Занят");
   });
 
