@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Friends feed screen "Твои люди идут": friends grouped with the events they attend, join CTA to the event page.
-// SCOPE: Data via apiClient.getFriendsActivity (mock or live backend); grouping by friend; CTA navigates to the event route; empty/loading/error states.
-// DEPENDS: ../api/client.js (apiClient, FriendActivityByFriend), @max-events/api-contracts (FriendActivityByFriendSchema), ../routing/router.js, ../catalog/CatalogPage.js (formatStartsAt), ../event/EventPage.js (PARTICIPATION_STATUS_LABELS), ../auth/AuthContext.js, ../ui/theme.css
+// SCOPE: Data via apiClient.getFriendsActivity plus apiClient.listFriends (mock or live backend); grouping by friend; CTA navigates to the event route; loading/error states and two different empty states — no friends at all vs friends with nothing planned.
+// DEPENDS: ../api/client.js (apiClient, FriendActivityByFriend), @max-events/api-contracts (FriendActivityByFriendSchema), ./friends-empty.js, ../routing/router.js, ../catalog/CatalogPage.js (formatStartsAt), ../event/EventPage.js (PARTICIPATION_STATUS_LABELS), ../auth/AuthContext.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -20,8 +20,10 @@ import { formatStartsAt } from "../catalog/CatalogPage";
 import { PARTICIPATION_STATUS_LABELS } from "../event/EventPage";
 import { useRoute } from "../routing/router";
 import { AppAvatar, AppButton, AppState, AppMedia } from "../ui/primitives";
+import { FRIENDS_GRAPH_EMPTY_TEXT } from "./friends-empty";
 
-export type FriendsState = { status: "loading" } | { status: "error" } | { status: "ready"; groups: FriendActivityByFriend[] };
+/** `friendCount: null` = the friend list did not load; the feed itself is still worth showing. */
+export type FriendsState = { status: "loading" } | { status: "error" } | { status: "ready"; groups: FriendActivityByFriend[]; friendCount: number | null };
 
 export function initials(name: string): string {
   return name
@@ -40,7 +42,8 @@ interface FriendsViewProps {
 export function FriendsView({ state, onJoin }: FriendsViewProps) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "error") return <AppState error>Не удалось загрузить события друзей.</AppState>;
-  if (state.groups.length === 0) return <AppState>Пока никто из друзей никуда не идёт</AppState>;
+  // An empty feed has two very different causes, and "никто никуда не идёт" was a lie for the first one.
+  if (state.groups.length === 0) return <AppState>{state.friendCount === 0 ? FRIENDS_GRAPH_EMPTY_TEXT : "Пока никто из друзей никуда не идёт"}</AppState>;
 
   return (
     <>
@@ -79,9 +82,10 @@ export function FriendsPage() {
     if (userId === null) return;
     let alive = true;
     setState({ status: "loading" });
-    apiClient.getFriendsActivity(userId).then(
-      (groups) => {
-        if (alive) setState({ status: "ready", groups });
+    // The friend list only picks which empty text to show, so its failure must not blank the feed.
+    Promise.all([apiClient.getFriendsActivity(userId), apiClient.listFriends().catch(() => null)]).then(
+      ([groups, friends]) => {
+        if (alive) setState({ status: "ready", groups, friendCount: friends?.length ?? null });
       },
       () => {
         if (alive) setState({ status: "error" });

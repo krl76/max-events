@@ -50,6 +50,11 @@ describe("validateEnv", () => {
     expect(() => validateEnv({ ...valid, AUTH_ALLOW_BROWSER: "yes" })).toThrow(/AUTH_ALLOW_BROWSER/);
   });
 
+  it("reads an unset NODE_ENV as production, so demo-only switches stay locked", () => {
+    expect(validateEnv(valid).NODE_ENV).toBe("production");
+    expect(validateEnv({ ...valid, NODE_ENV: "development" }).NODE_ENV).toBe("development");
+  });
+
   it("keeps the friends demo fallback off unless it is switched on explicitly", () => {
     expect(validateEnv(valid).FRIENDS_DEMO_ALL_USERS).toBe(false);
     expect(validateEnv({ ...valid, FRIENDS_DEMO_ALL_USERS: "true" }).FRIENDS_DEMO_ALL_USERS).toBe(true);

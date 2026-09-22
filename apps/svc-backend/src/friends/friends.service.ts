@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Friend graph sync, "your people are going" activity, and per-event friend counters.
-// SCOPE: Replace-on-sync from MaxBotClient.listFriends; without a list the graph is left untouched unless FRIENDS_DEMO_ALL_USERS opts into the demo fallback; activity grouped by friend; event summary.
+// SCOPE: Replace-on-sync from MaxBotClient.listFriends; without a list the graph is left untouched unless FRIENDS_DEMO_ALL_USERS opts into the demo fallback, which only a development or test NODE_ENV can unlock; activity grouped by friend; event summary.
 // DEPENDS: @nestjs/common, @nestjs/config, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../max-bot, ../users, ../events, ../participations
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -10,7 +10,7 @@
 // - toFriendDto - map UserEntity to api-contracts Friend
 // END_MODULE_MAP
 
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
@@ -24,6 +24,9 @@ import { FriendshipEntity } from "./friendship.entity";
 
 @Injectable()
 export class FriendsService {
+  private readonly logger = new Logger(FriendsService.name);
+  private demoFallbackRefused = false;
+
   constructor(
     @InjectRepository(FriendshipEntity)
     private readonly friendships: Repository<FriendshipEntity>,
@@ -77,7 +80,18 @@ export class FriendsService {
   }
 
   private demoFallbackEnabled(): boolean {
-    return this.config.get<boolean>("FRIENDS_DEMO_ALL_USERS") === true;
+    if (this.config.get<boolean>("FRIENDS_DEMO_ALL_USERS") !== true) return false;
+    // The switch makes every app user everyone's friend, so on a real host it would hand each visitor
+    // the whole user table. The environment has to say out loud that it is not a real host; anything
+    // other than development or test — including an unset NODE_ENV — counts as production.
+    const environment = this.config.get<string>("NODE_ENV")?.toLowerCase();
+    if (environment === "development" || environment === "test") return true;
+    // sync() runs inside the auth guard, so this is reached once per request: say it once per process.
+    if (!this.demoFallbackRefused) {
+      this.demoFallbackRefused = true;
+      this.logger.error(`FRIENDS_DEMO_ALL_USERS is on but NODE_ENV is "${environment ?? "unset"}": the demo friend graph stays off. Set NODE_ENV=development to use it locally.`);
+    }
+    return false;
   }
 
   async activity(userId: string): Promise<FriendActivityByFriend[]> {

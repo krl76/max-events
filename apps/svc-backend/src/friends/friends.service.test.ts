@@ -92,14 +92,21 @@ function createEventRepo(initial: EventEntity[]) {
   };
 }
 
-function createService(options: { botFriends?: string[] | null; users?: UserEntity[]; participations?: ParticipationEntity[]; events?: EventEntity[]; demoAllUsers?: boolean } = {}) {
+function createService(options: { botFriends?: string[] | null; users?: UserEntity[]; participations?: ParticipationEntity[]; events?: EventEntity[]; demoAllUsers?: boolean; nodeEnv?: string } = {}) {
   const users = options.users ?? [user(meId, "1", "Демо"), user(annaId, "2", "Анна", "Соколова"), user(dimaId, "3", "Дима", "Кузнецов")];
   const events = options.events ?? [eventRow(eventJazz, "Джаз в парке", "2026-09-20T16:00:00.000Z"), eventRow(eventMatch, "Матч", "2026-09-18T16:00:00.000Z")];
   const participations = options.participations ?? [{ userId: annaId, eventId: eventJazz, status: "going" } as ParticipationEntity, { userId: dimaId, eventId: eventMatch, status: "looking_for_company" } as ParticipationEntity, { userId: annaId, eventId: eventMatch, status: "wants_to_go" } as ParticipationEntity];
   const friendships = createFriendshipRepo();
   const botState: { friends: string[] | null } = { friends: options.botFriends ?? null };
   const bot = { listFriends: async () => botState.friends } as Pick<MaxBotClient, "listFriends">;
-  const config = { get: (key: string) => (key === "FRIENDS_DEMO_ALL_USERS" ? (options.demoAllUsers ?? false) : undefined) } as unknown as ConfigService;
+  const config = {
+    get: (key: string) => {
+      if (key === "FRIENDS_DEMO_ALL_USERS") return options.demoAllUsers ?? false;
+      // "in" and not "??": a test that passes nodeEnv: undefined is asking for an unset NODE_ENV.
+      if (key === "NODE_ENV") return "nodeEnv" in options ? options.nodeEnv : "development";
+      return undefined;
+    },
+  } as unknown as ConfigService;
   const service = new FriendsService(friendships as unknown as Repository<FriendshipEntity>, createUserRepo(users) as unknown as Repository<UserEntity>, createParticipationRepo(participations) as unknown as Repository<ParticipationEntity>, createEventRepo(events) as unknown as Repository<EventEntity>, bot as MaxBotClient, config);
   return { friendships, botState, service };
 }
@@ -121,6 +128,16 @@ describe("FriendsService", () => {
     const { friendships, service } = createService({ botFriends: null });
     await expect(service.sync(meId)).resolves.toEqual([]);
     expect(friendships.store).toHaveLength(0);
+  });
+
+  it("refuses the demo fallback outside development, whatever the switch says", async () => {
+    // The switch alone used to be enough, so a production host that set it handed every visitor the
+    // whole user table. An unset NODE_ENV has to count as production too.
+    for (const nodeEnv of ["production", "staging", undefined]) {
+      const { friendships, service } = createService({ botFriends: null, demoAllUsers: true, nodeEnv });
+      await expect(service.sync(meId)).resolves.toEqual([]);
+      expect(friendships.store).toHaveLength(0);
+    }
   });
 
   it("falls back to every app user only when the demo switch is on", async () => {
