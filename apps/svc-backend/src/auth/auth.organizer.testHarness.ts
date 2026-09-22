@@ -61,6 +61,7 @@ export function createOrganizationRepoFake(initial: OrganizationEntity[] = []) {
   let seq = 0;
   const repo = {
     store,
+    count: async () => store.length,
     findOneBy: async (where: Partial<OrganizationEntity>) => store.find((row) => Object.entries(where).every(([key, value]) => row[key as keyof OrganizationEntity] === value)) ?? null,
     create: (fields: Partial<OrganizationEntity>) => ({ ...fields }) as OrganizationEntity,
     save: async (entity: OrganizationEntity) => {

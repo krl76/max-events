@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hashPassword, SCRYPT_PARAMS, verifyPassword } from "./password";
+import { hashPassword, MAX_SCRYPT_N, SCRYPT_PARAMS, verifyPassword } from "./password";
 
 describe("hashPassword", () => {
   it("accepts the password it hashed and rejects any other", async () => {
@@ -37,5 +37,17 @@ describe("verifyPassword", () => {
     await expect(verifyPassword("s3cret", "$2b$10$abcdefghijklmnopqrstuv")).resolves.toBe(false);
     await expect(verifyPassword("s3cret", "scrypt$0$8$1$c2FsdA==$aGFzaA==")).resolves.toBe(false);
     await expect(verifyPassword("s3cret", "scrypt$32768$8$1$$")).resolves.toBe(false);
+  });
+
+  it("rejects costs scrypt itself refuses, so a corrupt row is a failed login and not a 500", async () => {
+    // scrypt throws unless N is a power of two: the guard has to catch that before the call.
+    await expect(verifyPassword("s3cret", "scrypt$3$8$1$c2FsdA==$aGFzaA==")).resolves.toBe(false);
+    await expect(verifyPassword("s3cret", "scrypt$32769$8$1$c2FsdA==$aGFzaA==")).resolves.toBe(false);
+    await expect(verifyPassword("s3cret", "scrypt$1.5$8$1$c2FsdA==$aGFzaA==")).resolves.toBe(false);
+  });
+
+  it("refuses a cost above the ceiling instead of allocating a gigabyte per attempt", async () => {
+    await expect(verifyPassword("s3cret", `scrypt$${MAX_SCRYPT_N * 2}$8$1$c2FsdA==$aGFzaA==`)).resolves.toBe(false);
+    await expect(verifyPassword("s3cret", "scrypt$32768$64$1$c2FsdA==$aGFzaA==")).resolves.toBe(false);
   });
 });

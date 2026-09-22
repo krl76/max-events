@@ -63,4 +63,28 @@ describe("AuthService.organizerLogin against an organization account", () => {
     await expect(service.organizerLogin("stranger", "any-pass")).resolves.toBeNull();
     expect(organizationRepo.store).toHaveLength(0);
   });
+
+  it("links the organization to the organizer user the panel's content is keyed by", async () => {
+    const { service, userRepo } = createOrganizerAuthService(envCredentials);
+    const result = await service.organizerLogin("demo", "s3cret");
+    if (typeof result !== "object" || result === null) throw new Error("unreachable");
+    expect(result.organization.organizerUserId).toBe(result.user.id);
+    expect(userRepo.store[0]?.maxUserId).toBe("organizer:demo");
+  });
+
+  it("answers the same way for a known and an unknown login, so 503 cannot enumerate accounts", async () => {
+    // Env cleared after bootstrap is the documented steady state; the reply must not depend on the name.
+    const { service } = createOrganizerAuthService({}, [await organization("gorky", "park-pass")]);
+    await expect(service.organizerLogin("gorky", "wrong")).resolves.toBeNull();
+    await expect(service.organizerLogin("nobody", "wrong")).resolves.toBeNull();
+  });
+
+  it("counts a probe of an unknown login against the rate limit", async () => {
+    const { service, redis } = createOrganizerAuthService({}, [await organization("gorky", "park-pass")]);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await service.organizerLogin("nobody", "wrong");
+    }
+    expect(redis.store.get("organizer-login-fail:nobody")).toBe("5");
+    await expect(service.organizerLogin("nobody", "wrong")).resolves.toBe("locked");
+  });
 });

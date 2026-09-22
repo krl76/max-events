@@ -110,25 +110,30 @@ export class AuthService {
   }
 
   async organizerLogin(login: string, password: string): Promise<OrganizerLoginResult> {
-    const stored = await this.organizations.findByLogin(login);
+    // "disabled" must not depend on the submitted login, or the 503/401 split would tell an
+    // anonymous caller which organizer logins exist. Both checks below are login-independent.
     const envLogin = this.config.get<string>("ORGANIZER_LOGIN");
     const envPassword = this.config.get<string>("ORGANIZER_PASSWORD");
-    // Nothing to authenticate against: no account row and no admin credentials to provision one from.
-    if (!stored && (!envLogin || !envPassword)) return "disabled";
+    if ((!envLogin || !envPassword) && (await this.organizations.count()) === 0) return "disabled";
     // INCR-first: the counter itself is the lock. Redis serializes INCR, so a concurrent burst
     // cannot slip past the limit. TTL is set once via SET NX — never refreshed, so flooding
     // cannot extend the lock — and the key always carries a TTL (no INCR/EXPIRE crash gap).
+    // It also runs before any lookup, so an anonymous caller cannot probe the table for free.
     const failKey = `organizer-login-fail:${login}`;
     await this.redis.set(failKey, "0", "EX", ORGANIZER_LOGIN_WINDOW_SECONDS, "NX");
     const fails = await this.redis.incr(failKey);
     if (fails > ORGANIZER_LOGIN_MAX_FAILS) return "locked";
+    const stored = await this.organizations.findByLogin(login);
     const organization = stored ? ((await this.organizations.verifyPassword(stored, password)) ? stored : null) : await this.provisionFromEnv(login, password);
     if (!organization) return null;
     await this.redis.del(failKey);
     const user = await this.findOrCreateOrganizer(login);
+    // The panel reads the organization id; its content is still keyed by the organizer user, so the
+    // row keeps the link until T-004 moves the binding onto the organization itself.
+    const linked = await this.organizations.linkOrganizerUser(organization, user.id);
     const token = randomBytes(32).toString("hex");
     await this.redis.set(`organizer-session:${token}`, user.id, "EX", ORGANIZER_SESSION_TTL_SECONDS);
-    return { token, user, organization };
+    return { token, user, organization: linked };
   }
 
   /**

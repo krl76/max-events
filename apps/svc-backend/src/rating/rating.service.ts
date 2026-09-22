@@ -13,12 +13,13 @@
 // - RatingService - forOrganizer / forEvent
 // END_MODULE_MAP
 
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import type { OrganizerRating, OrganizerRatingResponse } from "@max-events/api-contracts";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { EventEntity } from "../events/event.entity";
+import { OrganizationsService } from "../organizations/organizations.service";
 import { ReviewEntity } from "../reviews/review.entity";
 
 export const MIN_REVIEWS = 3;
@@ -31,9 +32,15 @@ export class RatingService {
     @InjectRepository(EventEntity) private readonly events: Repository<EventEntity>,
     @InjectRepository(ReviewEntity) private readonly reviews: Repository<ReviewEntity>,
     @InjectRepository(CheckInEntity) private readonly checkIns: Repository<CheckInEntity>,
+    @Inject(OrganizationsService) private readonly organizations: OrganizationsService,
   ) {}
 
-  async forOrganizer(organizerUserId: string, now = new Date()): Promise<OrganizerRatingResponse> {
+  /**
+   * The organizer panel holds an organization id while events are still keyed by organizerUserId, so an
+   * id naming an organization resolves to its organizer user first (C-ORGANIZER-SPACE T-004 removes this).
+   */
+  async forOrganizer(id: string, now = new Date()): Promise<OrganizerRatingResponse> {
+    const organizerUserId = (await this.organizations.organizerUserIdOf(id)) ?? id;
     const owned = await this.events.find({ where: { organizerUserId } });
     const eventIds = owned.map((row) => row.id);
     const [reviewRows, checkInRows] = await Promise.all([eventIds.length === 0 ? Promise.resolve([] as ReviewEntity[]) : this.reviews.find({ where: { eventId: In(eventIds) } }), eventIds.length === 0 ? Promise.resolve([] as CheckInEntity[]) : this.checkIns.find({ where: { eventId: In(eventIds) } })]);

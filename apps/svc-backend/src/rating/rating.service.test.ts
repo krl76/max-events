@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { EventEntity } from "../events/event.entity";
+import type { OrganizationsService } from "../organizations/organizations.service";
 import { ReviewEntity } from "../reviews/review.entity";
 import { buildOrganizerRating, MIN_REVIEWS, RatingService } from "./rating.service";
 
@@ -49,10 +50,13 @@ describe("buildOrganizerRating", () => {
   });
 });
 
+// No organization row matches these ids, so the service treats them as organizer user ids.
+const organizationsFake = { organizerUserIdOf: async () => null } as unknown as OrganizationsService;
+
 describe("RatingService.forEvent", () => {
   it("returns null without an organizer and 404 for unpublished events", async () => {
     const events = createStoreRepo<EventEntity>([{ id: eventId, organizerUserId: null, published: true, startsAt: now } as EventEntity, { id: "00000000-0000-4000-8000-0000000000e2", organizerUserId: organizer, published: false, startsAt: now } as EventEntity]);
-    const service = new RatingService(events as unknown as Repository<EventEntity>, createStoreRepo<ReviewEntity>() as unknown as Repository<ReviewEntity>, createStoreRepo<CheckInEntity>() as unknown as Repository<CheckInEntity>);
+    const service = new RatingService(events as unknown as Repository<EventEntity>, createStoreRepo<ReviewEntity>() as unknown as Repository<ReviewEntity>, createStoreRepo<CheckInEntity>() as unknown as Repository<CheckInEntity>, organizationsFake);
     await expect(service.forEvent(eventId, now)).resolves.toEqual({ rating: null });
     await expect(service.forEvent("00000000-0000-4000-8000-0000000000e2", now)).rejects.toBeInstanceOf(NotFoundException);
   });

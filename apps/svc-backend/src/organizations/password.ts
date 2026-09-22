@@ -1,12 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Password hashing for organization accounts — scrypt from node:crypto, no native build in the image.
-// SCOPE: hashPassword / verifyPassword over the self-describing "scrypt$N$r$p$salt$hash" format; comparison is constant-time.
+// SCOPE: hashPassword / verifyPassword over the self-describing "scrypt$N$r$p$salt$hash" format; comparison is constant-time; a stored value scrypt would reject is a failed verification, never a throw.
 // DEPENDS: node:crypto
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - SCRYPT_PARAMS - cost parameters stamped into every new hash
+// - MAX_SCRYPT_N - largest cost a stored hash may ask us to spend on one verification
 // - hashPassword - password to a storable "scrypt$..." string
 // - verifyPassword - constant-time check of a password against a stored hash
 // END_MODULE_MAP
@@ -15,6 +16,9 @@ import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 
 /** OWASP-recommended baseline for scrypt (N=2^15). Stamped per hash so cost can be raised later without breaking old rows. */
 export const SCRYPT_PARAMS = { N: 32_768, r: 8, p: 1, keyLength: 32, saltLength: 16 } as const;
+
+/** Ceiling on the cost a row can demand: N=2^20 with r=8 would ask for ~1 GiB per login attempt. */
+export const MAX_SCRYPT_N = 1 << 17;
 
 function derive(password: string, salt: Buffer, params: { N: number; r: number; p: number; keyLength: number }): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -38,16 +42,16 @@ export async function verifyPassword(password: string, stored: string): Promise<
   const N = Number(parts[1]);
   const r = Number(parts[2]);
   const p = Number(parts[3]);
-  if (!Number.isInteger(N) || !Number.isInteger(r) || !Number.isInteger(p) || N <= 1 || r <= 0 || p <= 0) return false;
-  let salt: Buffer;
-  let expected: Buffer;
-  try {
-    salt = Buffer.from(parts[4], "base64");
-    expected = Buffer.from(parts[5], "base64");
-  } catch {
-    return false;
-  }
+  // scrypt throws on a non-power-of-two N, so a corrupt row must fail the check here rather than 500 the login.
+  if (!isPowerOfTwo(N) || N < 2 || N > MAX_SCRYPT_N) return false;
+  if (!Number.isInteger(r) || !Number.isInteger(p) || r <= 0 || p <= 0 || r > 32 || p > 16) return false;
+  const salt = Buffer.from(parts[4], "base64");
+  const expected = Buffer.from(parts[5], "base64");
   if (salt.length === 0 || expected.length === 0) return false;
   const actual = await derive(password, salt, { N, r, p, keyLength: expected.length });
   return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+function isPowerOfTwo(value: number): boolean {
+  return Number.isInteger(value) && value > 0 && (value & (value - 1)) === 0;
 }

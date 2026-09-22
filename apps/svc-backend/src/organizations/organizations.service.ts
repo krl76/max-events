@@ -6,7 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - OrganizationsService - findByLogin, verifyPassword, provision
+// - OrganizationsService - count, findByLogin, organizerUserIdOf, linkOrganizerUser, verifyPassword, provision
 // - toOrganizationDto - entity to the Organization contract (never carries the password hash)
 // END_MODULE_MAP
 
@@ -21,8 +21,25 @@ import { hashPassword, verifyPassword } from "./password";
 export class OrganizationsService {
   constructor(@InjectRepository(OrganizationEntity) private readonly organizations: Repository<OrganizationEntity>) {}
 
+  /** Login-independent, so callers can decide "organizer login is unconfigured" without probing a name. */
+  count(): Promise<number> {
+    return this.organizations.count();
+  }
+
   findByLogin(login: string): Promise<OrganizationEntity | null> {
     return this.organizations.findOneBy({ login });
+  }
+
+  /** null when the id is not an organization, so callers can fall back to treating it as a user id. */
+  async organizerUserIdOf(organizationId: string): Promise<string | null> {
+    const organization = await this.organizations.findOneBy({ id: organizationId });
+    return organization?.organizerUserId ?? null;
+  }
+
+  async linkOrganizerUser(organization: OrganizationEntity, organizerUserId: string): Promise<OrganizationEntity> {
+    if (organization.organizerUserId === organizerUserId) return organization;
+    organization.organizerUserId = organizerUserId;
+    return this.organizations.save(organization);
   }
 
   /** Keeps the hash format inside this module: callers hold the row, never the stored string. */
