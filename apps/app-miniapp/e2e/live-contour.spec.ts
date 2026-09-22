@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 
 const live = process.env.LIVE_BASE_URL;
 
-test("plain browser session is the owner MAX contour, not the messenger-only gate", async ({ page }) => {
-  test.skip(!live, "set LIVE_BASE_URL to run against a deployed stack");
+test("plain browser session is the owner MAX contour, not the messenger-only gate", async ({ page }, testInfo) => {
+  testInfo.skip(!live, "set LIVE_BASE_URL to run against a deployed stack");
   await page.goto(live.endsWith("/") ? live : `${live}/`);
   await page.waitForLoadState("networkidle");
   const body = await page.locator("body").innerText();
