@@ -8,5 +8,6 @@ test("plain browser session is the owner MAX contour, not the messenger-only gat
   await page.waitForLoadState("networkidle");
   const body = await page.locator("body").innerText();
   expect(body).not.toMatch(/Откройте MAX Events в мессенджере MAX/);
-  expect(body).toMatch(/Лента|События|MAX Events|Войти/);
+  expect(body).not.toMatch(/Войти через MAX/);
+  expect(body).toMatch(/Лента/);
 });
