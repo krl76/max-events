@@ -9,8 +9,7 @@
 // - installBrowserWebAppShim - fetch signed initData and install window.WebApp
 // END_MODULE_MAP
 
-import type { MaxWebApp } from "./bridge";
-import { parseInitDataUnsafe } from "./dev-init-data";
+import { applySignedWebApp } from "./dev-init-data";
 
 export async function installBrowserWebAppShim(): Promise<boolean> {
   if (import.meta.env.VITE_BROWSER_AUTH !== "1") return false;
@@ -21,27 +20,7 @@ export async function installBrowserWebAppShim(): Promise<boolean> {
     const body: unknown = await response.json();
     const initData = body && typeof body === "object" && "initData" in body ? (body as { initData: unknown }).initData : null;
     if (typeof initData !== "string" || initData.length === 0) return false;
-    const unsafe = parseInitDataUnsafe(initData);
-    if (window.WebApp) {
-      window.WebApp.initData = initData;
-      window.WebApp.initDataUnsafe = unsafe;
-      return true;
-    }
-    const shim: MaxWebApp = {
-      platform: "web",
-      version: "browser-auth",
-      initData,
-      initDataUnsafe: unsafe,
-      ready() {},
-      openLink(url: string) {
-        window.open(url, "_blank", "noopener,noreferrer");
-      },
-      openMaxLink(url: string) {
-        window.open(url, "_blank", "noopener,noreferrer");
-      },
-      close() {},
-    };
-    window.WebApp = shim;
+    applySignedWebApp(initData);
     return true;
   } catch {
     return false;

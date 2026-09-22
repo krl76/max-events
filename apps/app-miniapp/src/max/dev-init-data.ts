@@ -10,6 +10,7 @@
 // - INITDATA_SHIM_HOSTS - hostnames that may install the signed ?initData= shim
 // - isInitDataShimAllowed - DEV / env flag / allowlisted hostname
 // - parseInitDataUnsafe - user/start_param/auth_date from a signed initData query string
+// - applySignedWebApp - replace window.WebApp (Bridge initData is a getter)
 // - installDevWebAppShim - overlay signed initData onto window.WebApp
 // END_MODULE_MAP
 
@@ -90,6 +91,33 @@ function emptyWebApp(): MaxWebApp {
   };
 }
 
+/** Replace window.WebApp. Official Bridge exposes initData as a getter with no setter. */
+export function applySignedWebApp(initData: string): void {
+  const previous = window.WebApp;
+  const unsafe = parseInitDataUnsafe(initData);
+  window.WebApp = {
+    platform: previous?.platform || "web",
+    version: previous?.version || "dev",
+    initData,
+    initDataUnsafe: unsafe,
+    ready() {
+      previous?.ready();
+    },
+    openLink(url: string) {
+      if (previous) previous.openLink(url);
+      else window.open(url, "_blank", "noopener,noreferrer");
+    },
+    openMaxLink(url: string) {
+      if (previous) previous.openMaxLink(url);
+      else window.open(url, "_blank", "noopener,noreferrer");
+    },
+    close() {
+      previous?.close();
+    },
+    shareMaxContent: previous?.shareMaxContent?.bind(previous),
+  };
+}
+
 /** Overlay signed initData onto window.WebApp. Returns true when the contour was applied. */
 export function installDevWebAppShim(): boolean {
   if (!isInitDataShimAllowed()) return false;
@@ -99,13 +127,7 @@ export function installDevWebAppShim(): boolean {
   if (window.WebApp?.initData) return false;
   const initData = readDevInitData();
   if (!initData) return false;
-  const unsafe = parseInitDataUnsafe(initData);
-  if (window.WebApp) {
-    window.WebApp.initData = initData;
-    window.WebApp.initDataUnsafe = unsafe;
-  } else {
-    window.WebApp = { ...emptyWebApp(), initData, initDataUnsafe: unsafe };
-  }
+  applySignedWebApp(initData);
   return true;
 }
 
