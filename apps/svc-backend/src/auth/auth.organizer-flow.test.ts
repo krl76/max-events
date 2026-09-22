@@ -44,7 +44,7 @@ describe("organizer Bearer flow", () => {
   it("creates an event via Bearer token and lists it in GET /organizer/events", async () => {
     const { service } = createOrganizerAuthService({ ORGANIZER_LOGIN: "demo", ORGANIZER_PASSWORD: "demo" });
     const login = await service.organizerLogin("demo", "demo");
-    if (login === "disabled" || login === null) throw new Error("unreachable");
+    if (typeof login !== "object" || login === null) throw new Error("unreachable");
 
     const guard = new AuthGuard(service, new Reflector());
     const { context, request } = bearerContext(login.token);

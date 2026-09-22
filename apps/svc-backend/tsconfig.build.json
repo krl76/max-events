@@ -8,5 +8,5 @@
       "@max-events/api-contracts": ["../../packages/api-contracts/dist/index.d.ts"]
     }
   },
-  "exclude": ["src/**/*.test.ts"]
+  "exclude": ["src/**/*.test.ts", "src/**/*.testHarness.ts"]
 }
