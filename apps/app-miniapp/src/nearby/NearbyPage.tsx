@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: «Рядом со мной» screen (#170/#171): four-segment timeline (Сейчас → Через час → Вечером → Завтра) of nearby event cards with distance, plus the «Свободно N часов» leisure-chain mode.
-// SCOPE: Data via apiClient.getNearbyTimeline/getLeisureOptions at the fixed Moscow center; segment/hours/mood local UI state; expandable leisure chains via native <details>; navigation to the event/place routes; loading/error/empty states for both blocks.
-// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (NearbyBucket, NearbyCard, NearbyTimeline, LeisureMood, LeisureOption), ../catalog/CatalogPage.js (formatStartsAt), ../catalog/MapScreen.js (MOSCOW_CENTER), ../routing/router.js, ../ui/primitives.js, ../ui/theme.css
+// SCOPE: Data via apiClient.getNearbyTimeline/getLeisureOptions at useViewerOrigin; segment/hours/mood local UI state; expandable leisure chains via native <details>; navigation to the event/place routes; loading/error/empty states for both blocks.
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (NearbyBucket, NearbyCard, NearbyTimeline, LeisureMood, LeisureOption), ../catalog/CatalogPage.js (formatStartsAt), ../geo/viewer-origin.js, ../routing/router.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -21,12 +21,9 @@ import { useEffect, useState } from "react";
 import type { LeisureMood, LeisureOption, NearbyBucket, NearbyCard, NearbyTimeline } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/CatalogPage";
-import { MOSCOW_CENTER } from "../catalog/MapScreen";
+import { useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
 import { AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
-
-// ponytail: fixed Moscow center; user geolocation/city picker when bridge exposes it
-const [NEARBY_LAT, NEARBY_LNG] = MOSCOW_CENTER;
 
 export const NEARBY_BUCKETS = ["now", "inAnHour", "evening", "tomorrow"] as const satisfies readonly NearbyBucket[];
 
@@ -155,6 +152,7 @@ export function NearbyView({ state, bucket, onBucket, leisure, hours, mood, onHo
 
 export function NearbyPage() {
   const { navigate } = useRoute();
+  const origin = useViewerOrigin();
   const [state, setState] = useState<NearbyState>({ status: "loading" });
   const [bucket, setBucket] = useState<NearbyBucket>("now");
   const [hours, setHours] = useState<number>(2);
@@ -164,7 +162,7 @@ export function NearbyPage() {
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
-    apiClient.getNearbyTimeline(NEARBY_LAT, NEARBY_LNG).then(
+    apiClient.getNearbyTimeline(origin.latitude, origin.longitude).then(
       (timeline) => {
         if (alive) setState({ status: "ready", timeline });
       },
@@ -175,11 +173,11 @@ export function NearbyPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [origin.latitude, origin.longitude]);
 
   const showLeisure = () => {
     setLeisure({ status: "loading" });
-    apiClient.getLeisureOptions({ hours, mood, latitude: NEARBY_LAT, longitude: NEARBY_LNG }).then(
+    apiClient.getLeisureOptions({ hours, mood, latitude: origin.latitude, longitude: origin.longitude }).then(
       (options) => setLeisure({ status: "ready", options }),
       () => setLeisure({ status: "error" }),
     );

@@ -24,7 +24,7 @@ import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { formatEventWeatherDetail } from "../catalog/format";
 import { ParticipationStatusSchema, type ParticipationStatus, type Payment } from "@max-events/api-contracts";
-import { openExternalLink } from "../max/bridge";
+import { openChatLink, openExternalLink } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { AppButton, AppText, AppTitle, AppState } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
@@ -113,6 +113,7 @@ interface EventDetailsViewProps {
   onCheckIn: () => void;
   onBuy: (url: string) => void;
   onOpenPlace: (id: string) => void;
+  onOpenChat: (url: string) => void;
   promo?: PromoCodeState;
 }
 
@@ -134,7 +135,7 @@ export function bookingErrorMessage(error: unknown, hadCode: boolean): string {
   return "Не удалось записаться. Попробуйте ещё раз.";
 }
 
-export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, onOpenPlace, promo }: EventDetailsViewProps) {
+export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, onOpenPlace, onOpenChat, promo }: EventDetailsViewProps) {
   const { event, place, organizer } = details;
   const paymentUrl = event.isPaid ? event.paymentUrl : null;
   const organizerName = organizer === null ? null : [organizer.firstName, organizer.lastName].filter(Boolean).join(" ");
@@ -227,6 +228,11 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, 
             </div>
           )}
           <BookingCta details={details} onBook={onBook} onCancel={onCancel} />
+          {event.chatLink !== null && event.chatLink !== "" && (
+            <AppButton onClick={() => onOpenChat(event.chatLink!)} tone="secondary" stretched>
+              Открыть чат
+            </AppButton>
+          )}
           <div className="app-event-actions-row">
             <CheckInCta checkedIn={details.checkInId !== null} onCheckIn={onCheckIn} />
             {paymentUrl !== null && (
@@ -438,6 +444,7 @@ export function EventPage({ id }: { id: string }) {
         onCancel={cancel}
         onCheckIn={checkIn}
         onBuy={openExternalLink}
+        onOpenChat={openChatLink}
         onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })}
         promo={{
           code: promoCode,

@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: "What to do today?" home block: digest summary counters and curated event cards with contextual typed labels.
-// SCOPE: Data via apiClient.getToday (mock or live backend) at the fixed Moscow center origin; label texts from the TodayCardLabel union; card click navigates to the event route; empty/loading/error states.
-// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (TodayResponse, TodayCardLabel), ../catalog/CatalogPage.js (formatStartsAt, CATEGORY_LABELS), ../catalog/MapScreen.js (MOSCOW_CENTER), ../routing/router.js, ../ui/theme.css
+// SCOPE: Data via apiClient.getToday at useViewerOrigin; label texts from the TodayCardLabel union; card click navigates to the event route; empty/loading/error states.
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (TodayResponse, TodayCardLabel), ../catalog/CatalogPage.js (formatStartsAt, CATEGORY_LABELS), ../geo/viewer-origin.js, ../routing/router.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -16,12 +16,9 @@ import { useEffect, useState } from "react";
 import type { TodayCardLabel, TodayResponse } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
-import { MOSCOW_CENTER } from "../catalog/MapScreen";
+import { useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
 import { AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
-
-// ponytail: fixed Moscow center as the digest origin; user geolocation when the bridge exposes it
-const [TODAY_LAT, TODAY_LNG] = MOSCOW_CENTER;
 
 export type TodayState = { status: "loading" } | { status: "error" } | { status: "ready"; today: TodayResponse };
 
@@ -88,13 +85,14 @@ export function TodayView({ state, onOpen, onRetry }: TodayViewProps) {
 
 export function TodaySection() {
   const { navigate } = useRoute();
+  const origin = useViewerOrigin();
   const [state, setState] = useState<TodayState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
-    apiClient.getToday({ latitude: TODAY_LAT, longitude: TODAY_LNG }).then(
+    apiClient.getToday({ latitude: origin.latitude, longitude: origin.longitude }).then(
       (today) => {
         if (alive) setState({ status: "ready", today });
       },
@@ -105,7 +103,7 @@ export function TodaySection() {
     return () => {
       alive = false;
     };
-  }, [attempt]);
+  }, [attempt, origin.latitude, origin.longitude]);
 
   return <TodayView state={state} onOpen={(eventId) => navigate({ name: "event", id: eventId })} onRetry={() => setAttempt((n) => n + 1)} />;
 }

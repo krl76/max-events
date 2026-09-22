@@ -24,11 +24,8 @@ import { useEffect, useState } from "react";
 import type { DayRoute, OptimizeRoute, RouteLeg, RouteStopWrite } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/CatalogPage";
-import { MOSCOW_CENTER } from "../catalog/MapScreen";
+import { useViewerOrigin } from "../geo/viewer-origin";
 import { AppButton, AppState } from "../ui/primitives";
-
-// ponytail: fixed Moscow center as the route start point; user geolocation/city picker when the bridge exposes it
-const [ROUTE_LAT, ROUTE_LNG] = MOSCOW_CENTER;
 
 export const MIN_ROUTE_STOPS = 2;
 export const MAX_ROUTE_STOPS = 8;
@@ -132,6 +129,7 @@ export function DayRouteView({ options, selected, onToggle, onBuild, built, opti
 }
 
 export function DayRoutePage() {
+  const origin = useViewerOrigin();
   const [options, setOptions] = useState<RouteOptionsState>({ status: "loading" });
   const [selected, setSelected] = useState<string[]>([]);
   const [built, setBuilt] = useState<DayRouteBuildState>({ status: "idle" });
@@ -175,7 +173,7 @@ export function DayRoutePage() {
     if (selected.length < MIN_ROUTE_STOPS) return;
     setBuilt({ status: "loading" });
     setOptimize({ status: "idle" });
-    apiClient.createDayRoute(selectedStops(), ROUTE_LAT, ROUTE_LNG).then(
+    apiClient.createDayRoute(selectedStops(), origin.latitude, origin.longitude).then(
       (route) => setBuilt({ status: "ready", route }),
       () => setBuilt({ status: "error" }),
     );
@@ -183,7 +181,7 @@ export function DayRoutePage() {
 
   const runOptimize = () => {
     setOptimize({ status: "loading" });
-    apiClient.optimizeDayRoute(selectedStops(), ROUTE_LAT, ROUTE_LNG).then(
+    apiClient.optimizeDayRoute(selectedStops(), origin.latitude, origin.longitude).then(
       (result) => setOptimize({ status: "ready", result }),
       () => setOptimize({ status: "error" }),
     );

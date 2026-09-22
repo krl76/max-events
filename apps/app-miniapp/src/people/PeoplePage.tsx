@@ -17,15 +17,12 @@
 import { useEffect, useState } from "react";
 import type { PeopleCandidate, PeopleResponse } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
-import { MOSCOW_CENTER } from "../catalog/MapScreen";
+import { useViewerOrigin } from "../geo/viewer-origin";
 import { initials } from "../friends/FriendsPage";
 import { formatDistanceKm } from "../nearby/NearbyPage";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { AppAvatar, AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
-
-// ponytail: fixed Moscow center; user geolocation when the bridge exposes it
-const [PEOPLE_LAT, PEOPLE_LNG] = MOSCOW_CENTER;
 
 export function lookingLabel(count: number): string {
   const mod10 = count % 10;
@@ -120,6 +117,7 @@ export function PeopleView({ state, chips, selected, onToggle, onOpenEvent }: Pe
 
 export function PeoplePage() {
   const { navigate } = useRoute();
+  const origin = useViewerOrigin();
   const [state, setState] = useState<PeopleState>({ status: "loading" });
   const [profileInterests, setProfileInterests] = useState<string[] | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -127,7 +125,7 @@ export function PeoplePage() {
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
-    apiClient.getPeople({ latitude: PEOPLE_LAT, longitude: PEOPLE_LNG }).then(
+    apiClient.getPeople({ latitude: origin.latitude, longitude: origin.longitude }).then(
       (data) => {
         if (alive) setState({ status: "ready", data });
       },
@@ -144,7 +142,7 @@ export function PeoplePage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [origin.latitude, origin.longitude]);
 
   const toggle = (interest: string) => {
     setSelected((current) => {

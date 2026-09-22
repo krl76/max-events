@@ -14,6 +14,7 @@
 // - webApp - snapshot of getWebApp() at module load (tests that stub window then import)
 // - getStartParam - extract start_param from initDataUnsafe
 // - openExternalLink - open link via MAX or browser fallback
+// - openChatLink - openMaxLink for max.ru chat links, else openLink
 // - ShareChannel - where the shared text went (bridge / clipboard / unavailable)
 // - shareResult - share text into a MAX chat via documented shareMaxContent, clipboard fallback
 // END_MODULE_MAP
@@ -74,6 +75,17 @@ export function openExternalLink(url: string): void {
   const app = getWebApp();
   if (app) app.openLink(url);
   else window.open(url, "_blank", "noopener,noreferrer");
+}
+
+/** Event/plan chats live on max.ru — prefer openMaxLink so they stay in the messenger. */
+export function openChatLink(url: string): void {
+  const app = getWebApp();
+  if (app) {
+    if (/^https?:\/\/([a-z0-9-]+\.)*max\.ru(\/|$)/i.test(url)) app.openMaxLink(url);
+    else app.openLink(url);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 export type ShareChannel = "bridge" | "clipboard" | "unavailable";

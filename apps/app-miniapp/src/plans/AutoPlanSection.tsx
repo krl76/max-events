@@ -15,12 +15,9 @@
 import { useState } from "react";
 import type { AutoPlanProposal } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
-import { MOSCOW_CENTER } from "../catalog/MapScreen";
+import { useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
 import { AppButton, AppTitle, AppState } from "../ui/primitives";
-
-// ponytail: fixed Moscow center as the autoplan origin; user geolocation when the bridge exposes it
-const [AUTOPLAN_LAT, AUTOPLAN_LNG] = MOSCOW_CENTER;
 
 export type AutoPlanState = { status: "idle" } | { status: "loading" } | { status: "error" } | { status: "ready"; proposal: AutoPlanProposal };
 
@@ -76,11 +73,12 @@ export function AutoPlanView({ state, onBuild, onOpenPlan }: { state: AutoPlanSt
 
 export function AutoPlanSection({ eventId }: { eventId: string }) {
   const { navigate } = useRoute();
+  const origin = useViewerOrigin();
   const [state, setState] = useState<AutoPlanState>({ status: "idle" });
 
   const build = () => {
     setState({ status: "loading" });
-    apiClient.createAutoPlan(eventId, AUTOPLAN_LAT, AUTOPLAN_LNG).then(
+    apiClient.createAutoPlan(eventId, origin.latitude, origin.longitude).then(
       (proposal) => setState({ status: "ready", proposal }),
       () => setState({ status: "error" }),
     );
