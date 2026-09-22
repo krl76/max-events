@@ -30,6 +30,8 @@ import { FriendsService } from "../friends/friends.service";
 import { UsersService } from "../users/users.service";
 import { OrganizationEntity } from "../organizations/organization.entity";
 import { OrganizationsService } from "../organizations/organizations.service";
+import { organizerMaxUserId } from "../organizations/organizer-account";
+import { isPasswordUnset } from "../organizations/password";
 import { REDIS_CLIENT } from "../redis/redis.module";
 import { organizerSessionKey } from "./organizer-session-key";
 import { signInitData, validateInitData } from "./max-init-data";
@@ -115,7 +117,9 @@ export class AuthService {
     // anonymous caller which organizer logins exist. Both checks below are login-independent.
     const envLogin = this.config.get<string>("ORGANIZER_LOGIN");
     const envPassword = this.config.get<string>("ORGANIZER_PASSWORD");
-    if ((!envLogin || !envPassword) && (await this.organizations.count()) === 0) return "disabled";
+    // countWithPassword, not count: the seeded account has no credentials, so a host with nothing
+    // configured still answers "disabled" instead of failing logins against a row nobody can use.
+    if ((!envLogin || !envPassword) && (await this.organizations.countWithPassword()) === 0) return "disabled";
     // INCR-first: the counter itself is the lock. Redis serializes INCR, so a concurrent burst
     // cannot slip past the limit. TTL is set once via SET NX — never refreshed, so flooding
     // cannot extend the lock — and the key always carries a TTL (no INCR/EXPIRE crash gap).
@@ -125,7 +129,7 @@ export class AuthService {
     const fails = await this.redis.incr(failKey);
     if (fails > ORGANIZER_LOGIN_MAX_FAILS) return "locked";
     const stored = await this.organizations.findByLogin(login);
-    const organization = stored ? ((await this.organizations.verifyPassword(stored, password)) ? stored : null) : await this.provisionFromEnv(login, password);
+    const organization = stored ? await this.openStored(stored, login, password) : await this.provisionFromEnv(login, password);
     if (!organization) return null;
     await this.redis.del(failKey);
     const user = await this.findOrCreateOrganizer(login);
@@ -138,15 +142,31 @@ export class AuthService {
   }
 
   /**
+   * The seed creates the account that owns the starter catalog, but chooses no password for it, so the
+   * documented env pair has to be able to claim an existing credential-less row — otherwise seeding a
+   * host would lock its operator out of the panel forever.
+   */
+  private async openStored(stored: OrganizationEntity, login: string, password: string): Promise<OrganizationEntity | null> {
+    if (await this.organizations.verifyPassword(stored, password)) return stored;
+    if (!isPasswordUnset(stored.passwordHash) || !this.envCredentialsMatch(login, password)) return null;
+    this.logger.warn(`Organizer account "${login}" had no password: claimed by the configured credentials`);
+    return this.organizations.setPassword(stored, password);
+  }
+
+  /**
    * First login for operator-configured credentials creates the account row, after which the database is
    * the only source of truth. The env pair is supplied by the operator, so this is provisioning, not sign-up.
    */
   private async provisionFromEnv(login: string, password: string): Promise<OrganizationEntity | null> {
+    if (!this.envCredentialsMatch(login, password)) return null;
+    return this.organizations.provision({ login, password });
+  }
+
+  private envCredentialsMatch(login: string, password: string): boolean {
     const envLogin = this.config.get<string>("ORGANIZER_LOGIN");
     const envPassword = this.config.get<string>("ORGANIZER_PASSWORD");
-    if (!envLogin || !envPassword) return null;
-    if (!credentialsEqual(login, envLogin) || !credentialsEqual(password, envPassword)) return null;
-    return this.organizations.provision({ login, password });
+    if (!envLogin || !envPassword) return false;
+    return credentialsEqual(login, envLogin) && credentialsEqual(password, envPassword);
   }
 
   async organizerLogout(token: string): Promise<void> {
@@ -160,7 +180,7 @@ export class AuthService {
   }
 
   private async findOrCreateOrganizer(login: string): Promise<UserEntity> {
-    const maxUserId = `organizer:${login}`;
+    const maxUserId = organizerMaxUserId(login);
     const existing = await this.userRepo.findOneBy({ maxUserId });
     if (existing) return existing;
     try {

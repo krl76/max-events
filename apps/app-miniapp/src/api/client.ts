@@ -122,10 +122,10 @@
 // END_MODULE_MAP
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
-import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, OrganizationSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
 import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, Vote, WaitlistEntry, WeGroupScreen, WheretoQuery, WheretoResponse, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
 import { EarlyAccessWriteSchema, EventSalesReportSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, OrganizerSessionSchema, PromoCampaignSchema, PromoCodeSchema, PromotionCampaignSchema, StorySchema } from "@max-events/api-contracts";
-import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EarlyAccessWrite, EventSalesReport, OrganizerEventStats, OrganizerLoginWrite, OrganizerRatingResponse, OrganizerSession, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, Story } from "@max-events/api-contracts";
+import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EarlyAccessWrite, EventSalesReport, Organization, OrganizerEventStats, OrganizerLoginWrite, OrganizerRatingResponse, OrganizerSession, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, Story } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -182,8 +182,10 @@ export function parseEventFilters(search: string): EventFilters {
 export interface EventDetails {
   event: Event;
   place: Place | null;
-  /** The event organizer; null for seed events without an organizerUserId. */
+  /** The event organizer; null for events without an organizerUserId. */
   organizer: User | null;
+  /** The organization that organizer publishes for; null when they belong to none. */
+  organization: Organization | null;
   remainingSeats: number | null;
   activeBookingId: string | null;
   checkInId: string | null;
@@ -195,14 +197,16 @@ const EventDetailsSchema: ZodSchema<EventDetails> = {
     const raw = data as Record<string, unknown>;
     const event = EventSchema.safeParse(raw.event);
     const organizer = raw.organizer === null ? { success: true as const, data: null } : UserSchema.safeParse(raw.organizer);
+    // Absent, not just null: a backend that predates the organization field must not blank the page.
+    const organization = raw.organization === null || raw.organization === undefined ? { success: true as const, data: null } : OrganizationSchema.safeParse(raw.organization);
     const place = raw.place === null ? { success: true as const, data: null } : PlaceSchema.safeParse(raw.place);
-    if (!event.success || !organizer.success || !place.success) return { success: false as const, error: "invalid event details" };
+    if (!event.success || !organizer.success || !organization.success || !place.success) return { success: false as const, error: "invalid event details" };
     if (raw.remainingSeats !== null && typeof raw.remainingSeats !== "number") return { success: false as const, error: "invalid event details" };
     if (raw.activeBookingId !== null && typeof raw.activeBookingId !== "string") return { success: false as const, error: "invalid event details" };
     if (raw.checkInId !== null && typeof raw.checkInId !== "string") return { success: false as const, error: "invalid event details" };
     return {
       success: true as const,
-      data: { event: event.data, place: place.data, organizer: organizer.data, remainingSeats: raw.remainingSeats, activeBookingId: raw.activeBookingId, checkInId: raw.checkInId },
+      data: { event: event.data, place: place.data, organizer: organizer.data, organization: organization.data, remainingSeats: raw.remainingSeats, activeBookingId: raw.activeBookingId, checkInId: raw.checkInId },
     };
   },
 };

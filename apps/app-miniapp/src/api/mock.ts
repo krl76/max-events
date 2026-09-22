@@ -2043,6 +2043,7 @@ function eventDetails(eventId: string, userId: string): object | null {
     event: eventPromoted(event),
     place: mockPlaces.find((item) => item.id === event.placeId) ?? null,
     organizer: mockOrganizers[0],
+    organization: mockOrganization,
     remainingSeats: remainingSeats(eventId),
     activeBookingId: active?.id ?? null,
     checkInId: checkInFor(userId, eventId)?.id ?? null,

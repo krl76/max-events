@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AutoPlanEntry, bookingErrorMessage, EventDetailsView, PARTICIPATION_STATUS_LABELS, ParticipationView, type PromoCodeState } from "./EventPage";
 import { ApiError, type EventDetails, type ParticipationStats } from "../api/client";
-import { mockEvents, mockOrganizers, mockPlaces } from "../api/mock";
+import { mockEvents, mockOrganization, mockOrganizers, mockPlaces } from "../api/mock";
 import type { Event, ParticipationStatus, Place } from "@max-events/api-contracts";
 
 const paid = mockEvents[0];
@@ -15,6 +15,7 @@ function detailsFor(event: Event, overrides: Partial<EventDetails> = {}): EventD
     event,
     place,
     organizer: mockOrganizers[0],
+    organization: mockOrganization,
     remainingSeats: event.capacity,
     activeBookingId: null,
     checkInId: null,
@@ -33,7 +34,8 @@ describe("EventDetailsView", () => {
     expect(html).toContain("Крымский Вал, 9");
     expect(html).toContain("Волонтёрство");
     expect(html).toContain("Бесплатно");
-    expect(html).toContain("Анна Соколова");
+    // The organizer row names the organization; "Анна Соколова" is only its account.
+    expect(html).toContain(mockOrganization.name);
     expect(html).toContain(`Осталось ${free.capacity}`);
   });
 
@@ -60,11 +62,27 @@ describe("EventDetailsView", () => {
     expect(html).toContain(`${paid.priceRub} ₽`);
   });
 
-  it("shows the organizer fallback when organizer is null", () => {
-    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { organizer: null }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
+  it("shows the organizer fallback when neither an organization nor an organizer is known", () => {
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { organizer: null, organization: null }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
 
     expect(html).toContain("Организатор не указан");
     expect(html).not.toContain("Анна Соколова");
+  });
+
+  it("names the organization rather than the account behind it", () => {
+    // The visitor deals with the organization; the organizer user row is an account, not a brand.
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
+
+    expect(html).toContain(mockOrganization.name);
+    expect(html).toContain(mockOrganization.contacts!);
+    expect(html).not.toContain("Организатор не указан");
+  });
+
+  it("falls back to the organizer name while an event has no organization", () => {
+    const html = renderToStaticMarkup(createElement(EventDetailsView, { details: detailsFor(free, { organization: null }), onBook: () => {}, onCancel: () => {}, onCheckIn: () => {}, onBuy: () => {}, onOpenPlace: () => {}, onOpenChat: () => {} }));
+
+    expect(html).toContain("Анна Соколова");
+    expect(html).not.toContain("Связаться");
   });
 });
 

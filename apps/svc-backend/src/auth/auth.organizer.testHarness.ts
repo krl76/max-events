@@ -6,6 +6,7 @@ import type { Repository } from "typeorm";
 import type { FriendsService } from "../friends/friends.service";
 import { OrganizationEntity } from "../organizations/organization.entity";
 import { OrganizationsService } from "../organizations/organizations.service";
+import { UNSET_PASSWORD_HASH } from "../organizations/password";
 import type { UsersService } from "../users/users.service";
 import { UserEntity } from "../users/user.entity";
 import { AuthService } from "./auth.service";
@@ -61,7 +62,8 @@ export function createOrganizationRepoFake(initial: OrganizationEntity[] = []) {
   let seq = 0;
   const repo = {
     store,
-    count: async () => store.length,
+    // Models the one filter OrganizationsService uses: rows that carry a real password.
+    count: async (options?: { where?: { passwordHash?: unknown } }) => (options?.where?.passwordHash === undefined ? store.length : store.filter((row) => row.passwordHash !== UNSET_PASSWORD_HASH).length),
     findOneBy: async (where: Partial<OrganizationEntity>) => store.find((row) => Object.entries(where).every(([key, value]) => row[key as keyof OrganizationEntity] === value)) ?? null,
     create: (fields: Partial<OrganizationEntity>) => ({ ...fields }) as OrganizationEntity,
     save: async (entity: OrganizationEntity) => {

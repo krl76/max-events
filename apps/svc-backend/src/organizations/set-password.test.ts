@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { Repository } from "typeorm";
 import { createOrganizationRepoFake } from "../auth/auth.organizer.testHarness";
 import { ORGANIZER_SESSION_PREFIX } from "../auth/organizer-session-key";
 import { OrganizationEntity } from "./organization.entity";
-import { hashPassword, verifyPassword } from "./password";
+import { OrganizationsService } from "./organizations.service";
+import { hashPassword, UNSET_PASSWORD_HASH, verifyPassword } from "./password";
 import { formatRotationReport, MIN_PASSWORD_LENGTH, parseNewPassword, revokeOrganizerSessions, setOrganizationPassword, type OrganizerSessionStore } from "./set-password";
 
 const oldPassword = "leakedPassword01";
@@ -25,7 +25,7 @@ async function recordingRepo(rows: OrganizationEntity[]) {
       return base.save(entity);
     },
   };
-  return { repo: repo as unknown as Repository<OrganizationEntity>, saved, store: base.store };
+  return { repo: new OrganizationsService(repo as unknown as typeof base), saved, store: base.store };
 }
 
 describe("setOrganizationPassword", () => {
@@ -64,6 +64,16 @@ describe("setOrganizationPassword", () => {
 
     await expect(setOrganizationPassword(repo, "demo-org", oldPassword)).rejects.toThrow(/lock nobody out/);
     expect(saved).toHaveLength(0);
+  });
+
+  it("gives a password to a seeded account that never had one", async () => {
+    const seeded = await organization();
+    seeded.passwordHash = UNSET_PASSWORD_HASH;
+    const { repo } = await recordingRepo([seeded]);
+
+    const updated = await setOrganizationPassword(repo, "demo-org", newPassword);
+
+    await expect(verifyPassword(newPassword, updated.passwordHash)).resolves.toBe(true);
   });
 
   it("refuses an unknown login instead of creating an account", async () => {

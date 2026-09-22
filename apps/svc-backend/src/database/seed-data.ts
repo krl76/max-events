@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - SEED_CITY - default seed city
+// - SEED_ORGANIZER - the account the starter pool is published under
 // - SeedEventSpec - seed event record shape
 // - SEED_PLACES - Moscow venues
 // - SEED_EVENTS - catalog events keyed by place title and dayOffset
@@ -15,6 +16,17 @@
 import type { CreatePlace, EventCategory } from "@max-events/api-contracts";
 
 export const SEED_CITY = "Москва";
+
+/**
+ * The starter pool is the project's own content, so it is published under the project's own account
+ * rather than left ownerless. `contacts` stays null: an invented contact on a live event page would be
+ * a lie, and the organizer panel can fill it in.
+ */
+export const SEED_ORGANIZER = {
+  login: "max-events",
+  name: "MAX Events",
+  contacts: null,
+} as const;
 
 export const SEED_PLACES: CreatePlace[] = [
   { title: "Парк Горького", address: "ул. Крымский Вал, 9", city: SEED_CITY, category: "park", latitude: 55.7297, longitude: 37.6014 },

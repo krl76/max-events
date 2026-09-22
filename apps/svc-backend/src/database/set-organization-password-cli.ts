@@ -15,6 +15,7 @@ import "reflect-metadata";
 import { AppDataSource } from "./data-source";
 import { validateEnv } from "../config/env";
 import { OrganizationEntity } from "../organizations/organization.entity";
+import { OrganizationsService } from "../organizations/organizations.service";
 import { formatRotationReport, parseNewPassword, revokeOrganizerSessions, setOrganizationPassword, type OrganizerSessionStore } from "../organizations/set-password";
 import { createRedisClient } from "../redis/redis.module";
 
@@ -49,7 +50,7 @@ export async function runSetOrganizationPasswordCli() {
   const redisUrl = validateEnv().REDIS_URL;
   await AppDataSource.initialize();
   try {
-    const organization = await setOrganizationPassword(AppDataSource.getRepository(OrganizationEntity), login, password);
+    const organization = await setOrganizationPassword(new OrganizationsService(AppDataSource.getRepository(OrganizationEntity)), login, password);
     const sessions = createRedisClient(redisUrl);
     let revoked = 0;
     try {

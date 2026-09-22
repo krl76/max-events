@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OrganizationEntity } from "../organizations/organization.entity";
-import { hashPassword } from "../organizations/password";
+import { hashPassword, UNSET_PASSWORD_HASH } from "../organizations/password";
 import { createOrganizerAuthService } from "./auth.organizer.testHarness";
 
 const envCredentials = { ORGANIZER_LOGIN: "demo", ORGANIZER_PASSWORD: "s3cret" };
@@ -35,6 +35,38 @@ describe("AuthService.organizerLogin against an organization account", () => {
   it("reports disabled only when there is neither an account nor env credentials", async () => {
     const { service } = createOrganizerAuthService({});
     await expect(service.organizerLogin("gorky", "park-pass")).resolves.toBe("disabled");
+  });
+
+  it("still reports disabled when the only account is the seeded one nobody can log into", async () => {
+    const seeded = await organization("max-events", "irrelevant", { passwordHash: UNSET_PASSWORD_HASH });
+    const { service } = createOrganizerAuthService({}, [seeded]);
+
+    await expect(service.organizerLogin("max-events", "guess")).resolves.toBe("disabled");
+  });
+
+  it("lets the configured credentials claim the seeded account instead of locking them out", async () => {
+    // The seed publishes the starter catalog under an account with no password. Without this the
+    // documented ORGANIZER_LOGIN/ORGANIZER_PASSWORD pair could never open its own panel again.
+    const seeded = await organization("demo", "irrelevant", { passwordHash: UNSET_PASSWORD_HASH, organizerUserId: null });
+    const { service, organizationRepo } = createOrganizerAuthService(envCredentials, [seeded]);
+
+    const claimed = await service.organizerLogin("demo", "s3cret");
+
+    if (typeof claimed !== "object" || claimed === null) throw new Error("unreachable");
+    expect(claimed.organization.id).toBe(seeded.id);
+    expect(organizationRepo.store).toHaveLength(1);
+    expect(organizationRepo.store[0]!.passwordHash.startsWith("scrypt$")).toBe(true);
+    // And it is a real account afterwards: the password now verifies, a wrong one does not.
+    await expect(service.organizerLogin("demo", "s3cret")).resolves.toMatchObject({ organization: { id: seeded.id } });
+    await expect(service.organizerLogin("demo", "wrong")).resolves.toBeNull();
+  });
+
+  it("does not let a wrong password claim a seeded account", async () => {
+    const seeded = await organization("demo", "irrelevant", { passwordHash: UNSET_PASSWORD_HASH });
+    const { service, organizationRepo } = createOrganizerAuthService(envCredentials, [seeded]);
+
+    await expect(service.organizerLogin("demo", "not-the-env-one")).resolves.toBeNull();
+    expect(organizationRepo.store[0]!.passwordHash).toBe(UNSET_PASSWORD_HASH);
   });
 
   it("provisions the account from env credentials on the first login and keeps it afterwards", async () => {

@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Rotate the password of an existing organization and lock out the sessions the old one opened.
 // SCOPE: parseNewPassword validates the replacement; setOrganizationPassword rewrites passwordHash through the shared scrypt helper and refuses a no-op rotation; revokeOrganizerSessions drops that organization's Redis sessions, without which a leaked password keeps its Bearer token alive for the full 7-day TTL; formatRotationReport builds the operator line. Nothing here returns, throws or logs the plaintext; no self-service registration, no password reads.
-// DEPENDS: typeorm, ../auth/organizer-session-key, ./organization.entity, ./password
+// DEPENDS: ../auth/organizer-session-key, ./organization.entity, ./organizations.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -14,10 +14,9 @@
 // - formatRotationReport - operator-facing line: login, id, revoked sessions, never the password
 // END_MODULE_MAP
 
-import { Repository } from "typeorm";
 import { ORGANIZER_SESSION_PREFIX } from "../auth/organizer-session-key";
 import { OrganizationEntity } from "./organization.entity";
-import { hashPassword, verifyPassword } from "./password";
+import { OrganizationsService } from "./organizations.service";
 
 export const MIN_PASSWORD_LENGTH = 12;
 
@@ -35,14 +34,13 @@ export function parseNewPassword(raw: string | undefined, source: string): strin
   return raw;
 }
 
-export async function setOrganizationPassword(organizations: Repository<OrganizationEntity>, login: string, password: string): Promise<OrganizationEntity> {
-  const organization = await organizations.findOneBy({ login });
+export async function setOrganizationPassword(organizations: OrganizationsService, login: string, password: string): Promise<OrganizationEntity> {
+  const organization = await organizations.findByLogin(login);
   if (!organization) throw new Error(`No organization with login "${login}"`);
   // Re-hashing the leaked password would change the stored hash and report success while the leaked
   // password still works. A rotation that locks nobody out is worse than a refusal.
-  if (await verifyPassword(password, organization.passwordHash)) throw new Error("The new password is the current one: rotating to it would lock nobody out");
-  organization.passwordHash = await hashPassword(password);
-  return organizations.save(organization);
+  if (await organizations.verifyPassword(organization, password)) throw new Error("The new password is the current one: rotating to it would lock nobody out");
+  return organizations.setPassword(organization, password);
 }
 
 /** The subset of ioredis the revocation uses, so the logic can be exercised without a server. */

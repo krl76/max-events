@@ -136,9 +136,11 @@ export function bookingErrorMessage(error: unknown, hadCode: boolean): string {
 }
 
 export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, onOpenPlace, onOpenChat, promo }: EventDetailsViewProps) {
-  const { event, place, organizer } = details;
+  const { event, place, organizer, organization } = details;
   const paymentUrl = event.isPaid ? event.paymentUrl : null;
   const organizerName = organizer === null ? null : [organizer.firstName, organizer.lastName].filter(Boolean).join(" ");
+  // The organization is who the visitor is actually dealing with; the user row behind it is an account.
+  const organizationName = organization?.name ?? null;
 
   return (
     <article className="app-event">
@@ -208,8 +210,14 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, 
               </span>
               Организатор
             </dt>
-            <dd>{organizerName ?? "Организатор не указан"}</dd>
+            <dd>{organizationName ?? organizerName ?? "Организатор не указан"}</dd>
           </div>
+          {organization?.contacts && (
+            <div className="app-event-meta-row">
+              <dt>Связаться</dt>
+              <dd>{organization.contacts}</dd>
+            </div>
+          )}
           {details.remainingSeats !== null && (
             <div className="app-event-meta-row">
               <dt>Свободные места</dt>
