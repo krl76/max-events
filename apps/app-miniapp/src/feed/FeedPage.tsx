@@ -1,19 +1,19 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Impressions feed (Instagram-стилистика): post cards with a photo placeholder, likes and comments, the event wall (block of the event's posts) and the publish form (photo placeholder + text).
-// SCOPE: Data via apiClient.listFeedPosts/toggleFeedLike/addFeedComment/createFeedPost + listEvents (event titles) + listFriends (stories rail); the wall is the same section filtered by eventId; no photo upload (placeholder button).
-// DEPENDS: ../api/client.js (apiClient, FeedPost), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../routing/router.js, ../max/bridge.js (webApp, shareResult), ../stories/StoryViewer.js, ../ui/theme.css
+// PURPOSE: Impressions feed (Instagram-стилистика): post cards showing the post photo, likes and comments, the event or place wall and the publish form with a photo picker.
+// SCOPE: Data via apiClient.listFeedPosts/toggleFeedLike/addFeedComment/createFeedPost + listEvents (event titles) + listFriends (stories rail); the wall is the same section filtered by eventId or by placeId; a picked photo is downscaled by ./photo and travels as a data URL until object storage lands (#477).
+// DEPENDS: ../api/client.js (apiClient, FeedPost), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ./photo.js (readFeedPhoto), ../routing/router.js, ../max/bridge.js (webApp, shareResult), ../stories/StoryViewer.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - FeedPostCard - presentational Instagram-style post: author header, 4:5 media placeholder, icon actions (like/comment/share), likes line, caption, comments, add form and a «Пожаловаться» report control
+// - FeedPostCard - presentational Instagram-style post: author header, the post photo in the 4:5 frame (category placeholder without one), icon actions (like/comment/share), likes line, caption, comments, add form and a «Пожаловаться» report control
 // - StoriesRow - stories rail over the home feed: own ring publishes a picked photo or opens the viewer, friend rings with stories open the viewer
 // - FeedState - union of the feed fetch states (loading / error / ready)
-// - FeedSection - container: posts (optionally one event — the wall), event titles for the cards, like/comment wiring, «+» publish CTA
+// - FeedSection - container: posts (optionally one event or one place — the wall), event titles for the cards, like/comment wiring, «+» publish CTA
 // - FeedDraft - publish form draft (event title, text)
 // - feedDraftReady - the event is picked and the text is non-empty
 // - feedEventPicked - resolve the free-text event to a real event id; matched=false means the typed title matches no known event
-// - FeedCreateView - presentational publish form: photo placeholder, event datalist, text
+// - FeedCreateView - presentational publish form: photo picker with a preview, event datalist, text
 // - FeedCreatePage - route container: author id from the auth context, event options via apiClient.listEvents, draft state, publish via createFeedPost
 // END_MODULE_MAP
 
@@ -22,6 +22,7 @@ import type { Event, Friend, Story } from "@max-events/api-contracts";
 import { apiClient, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { shareResult, webApp } from "../max/bridge";
+import { readFeedPhoto } from "./photo";
 import { useRoute } from "../routing/router";
 import { ReportButton } from "../event/ReportButton";
 import { StoryViewer, type StoryGroup } from "../stories/StoryViewer";
@@ -58,7 +59,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
           {eventTitle !== "" && <span className="app-post-place">{eventLink}</span>}
         </span>
       </header>
-      <AppMedia category={eventCategory} />
+      {post.photoUrl === null ? <AppMedia category={eventCategory} /> : <img className="app-card-media app-post-photo" src={post.photoUrl} alt="" />}
       <div className="app-post-actions">
         <button type="button" className="app-post-action" aria-pressed={post.likedByMe} aria-label="Нравится" onClick={onToggleLike}>
           <ActionIcon filled={post.likedByMe} name="heart" />
@@ -107,7 +108,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
 
 export type FeedState = { status: "loading" } | { status: "error" } | { status: "ready"; posts: FeedPost[] };
 
-export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate: () => void }) {
+export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; placeId?: string; onCreate: () => void }) {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
@@ -115,11 +116,11 @@ export function FeedSection({ eventId, onCreate }: { eventId?: string; onCreate:
   const [events, setEvents] = useState<Event[]>([]);
 
   const load = useCallback(() => {
-    apiClient.listFeedPosts(eventId).then(
+    apiClient.listFeedPosts(eventId, placeId).then(
       (posts) => setState({ status: "ready", posts }),
       () => setState({ status: "error" }),
     );
-  }, [eventId]);
+  }, [eventId, placeId]);
   useEffect(() => {
     load();
   }, [load]);
@@ -273,6 +274,8 @@ export function StoriesRow() {
 export interface FeedDraft {
   event: string;
   text: string;
+  /** Data URL of the picked photo, null until one is chosen; a post may still be text only. */
+  photoUrl?: string | null;
 }
 
 export function feedDraftReady(draft: FeedDraft): boolean {
@@ -291,18 +294,39 @@ interface FeedCreateViewProps {
   submitting: boolean;
   failed: boolean;
   eventMissing: boolean;
+  photoRejected?: boolean;
+  /** A photo is still being prepared; publishing now would post without it. */
+  photoPending?: boolean;
   onChange: (field: keyof FeedDraft, value: string) => void;
+  onPhoto?: (file: File) => void;
+  onPhotoClear?: () => void;
   onSubmit: () => void;
 }
 
-export function FeedCreateView({ draft, events, submitting, failed, eventMissing, onChange, onSubmit }: FeedCreateViewProps) {
+export function FeedCreateView({ draft, events, submitting, failed, eventMissing, photoRejected = false, photoPending = false, onChange, onPhoto = () => {}, onPhotoClear = () => {}, onSubmit }: FeedCreateViewProps) {
+  const photoRef = useRef<HTMLInputElement | null>(null);
+  const photoUrl = draft.photoUrl ?? null;
   return (
     <section className="app-gathering">
-      <p className="app-gathering-hint">Фото-заглушка и пара слов — пост в ленте</p>
-      {/* ponytail: photo upload is a placeholder until the backend accepts post photos */}
-      <button type="button" className="app-review-photo" disabled>
-        Добавить фото
+      <p className="app-gathering-hint">Фото и пара слов — пост в ленте</p>
+      {photoUrl !== null && <img className="app-card-media app-post-photo" src={photoUrl} alt="Выбранное фото" />}
+      <input
+        ref={photoRef}
+        type="file"
+        accept="image/*"
+        aria-label="Выбрать фото для поста"
+        hidden
+        onChange={(change) => {
+          const file = change.target.files?.[0];
+          if (file) onPhoto(file);
+          // Cleared so picking the same file twice still fires a change event.
+          change.target.value = "";
+        }}
+      />
+      <button type="button" className="app-review-photo" disabled={photoPending} onClick={() => (photoUrl === null ? photoRef.current?.click() : onPhotoClear())}>
+        {photoPending ? "Готовим фото…" : photoUrl === null ? "Добавить фото" : "Убрать фото"}
       </button>
+      {photoRejected && <AppState error>Не удалось подготовить фото. Попробуйте другое.</AppState>}
       <label className="app-gathering-time">
         К какому событию
         <input className="app-gathering-time-input" list="feed-event-options" value={draft.event} placeholder="Событие" onChange={(change) => onChange("event", change.target.value)} />
@@ -313,7 +337,8 @@ export function FeedCreateView({ draft, events, submitting, failed, eventMissing
         </datalist>
       </label>
       <textarea className="app-review-text" placeholder="Расскажи, как всё прошло" value={draft.text} onChange={(change) => onChange("text", change.target.value)} />
-      <AppButton disabled={!feedDraftReady(draft) || submitting} onClick={onSubmit} stretched>
+      {/* Blocked while a photo is being prepared: publishing now would quietly post without it. */}
+      <AppButton disabled={!feedDraftReady(draft) || submitting || photoPending} onClick={onSubmit} stretched>
         {submitting ? "Публикуем…" : "Опубликовать"}
       </AppButton>
       {failed && <AppState error>Не удалось опубликовать впечатление.</AppState>}
@@ -326,11 +351,30 @@ export function FeedCreatePage({ eventId }: { eventId: string | null }) {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
-  const [draft, setDraft] = useState<FeedDraft>({ event: "", text: "" });
+  const [draft, setDraft] = useState<FeedDraft>({ event: "", text: "", photoUrl: null });
   const [events, setEvents] = useState<Event[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
   const [eventMissing, setEventMissing] = useState(false);
+  const [photoRejected, setPhotoRejected] = useState(false);
+  const [photoPending, setPhotoPending] = useState(false);
+  // Only the newest pick may land: a big photo picked first can resolve after a small one picked
+  // second, and would otherwise overwrite it — or come back after the author removed it.
+  const photoPick = useRef(0);
+
+  const pickPhoto = useCallback((file: File) => {
+    const pick = ++photoPick.current;
+    setPhotoRejected(false);
+    setPhotoPending(true);
+    // A photo too heavy to send is said out loud: dropping it silently would publish a post the
+    // author believes carries their picture.
+    void readFeedPhoto(file).then((photoUrl) => {
+      if (pick !== photoPick.current) return;
+      setPhotoPending(false);
+      if (photoUrl === null) setPhotoRejected(true);
+      else setDraft((current) => ({ ...current, photoUrl }));
+    });
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -361,7 +405,7 @@ export function FeedCreatePage({ eventId }: { eventId: string | null }) {
     setSubmitting(true);
     setFailed(false);
     setEventMissing(false);
-    apiClient.createFeedPost({ userId, eventId: picked.eventId, text: draft.text.trim() }).then(
+    apiClient.createFeedPost({ userId, eventId: picked.eventId, text: draft.text.trim(), photoUrl: draft.photoUrl ?? null }).then(
       () => navigate({ name: "home" }),
       () => {
         setSubmitting(false);
@@ -377,9 +421,19 @@ export function FeedCreatePage({ eventId }: { eventId: string | null }) {
       submitting={submitting}
       failed={failed}
       eventMissing={eventMissing}
+      photoRejected={photoRejected}
+      photoPending={photoPending}
       onChange={(field, value) => {
         if (field === "event") setEventMissing(false);
         setDraft((current) => ({ ...current, [field]: value }));
+      }}
+      onPhoto={pickPhoto}
+      onPhotoClear={() => {
+        // Bumped so a pick still in flight cannot put the photo back after it was removed.
+        photoPick.current += 1;
+        setPhotoRejected(false);
+        setPhotoPending(false);
+        setDraft((current) => ({ ...current, photoUrl: null }));
       }}
       onSubmit={publish}
     />

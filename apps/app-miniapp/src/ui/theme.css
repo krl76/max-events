@@ -525,6 +525,20 @@ body {
   width: 100%;
 }
 
+/* Сетка впечатлений в профиле: снимок заполняет ячейку */
+.app-profile-cell-photo {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+/* Пост с фотографией: снимок занимает ту же рамку 4:5, что и категорийная заглушка */
+.app-post-photo {
+  display: block;
+  object-fit: cover;
+}
+
 .app-card--link .app-card-media {
   align-self: flex-start;
   aspect-ratio: 1;

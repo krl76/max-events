@@ -24,7 +24,7 @@ const readyDraft: FeedDraft = { event: mockEvents[0].title, text: "Как про
 describe("FeedPostCard", () => {
   const card = (over: Partial<FeedPost> = {}, withEventLink = false) => renderToStaticMarkup(createElement(FeedPostCard, { post: { ...post, ...over }, eventTitle: mockEvents[0].title, userId: DEMO_USER_ID, onToggleLike: noop, onAddComment: noop, ...(withEventLink ? { onOpenEvent: noop } : {}) }));
 
-  it("renders the photo placeholder, author, event title, text and comments", () => {
+  it("renders the photo frame, author, event title, text and comments", () => {
     const html = card();
 
     expect(html).toContain("app-card-media");
@@ -33,6 +33,16 @@ describe("FeedPostCard", () => {
     expect(html).toContain("Было здорово");
     expect(html).toContain("Дима Кузнецов");
     expect(html).toContain("Класс!");
+  });
+
+  it("shows the post photo in the 4:5 frame, and the category placeholder only without one", () => {
+    const withPhoto = card({ photoUrl: "https://cdn.example.com/post.jpg" });
+
+    expect(withPhoto).toContain('src="https://cdn.example.com/post.jpg"');
+    // Same 4:5 frame as the placeholder, and it replaces it rather than sitting under it.
+    expect(withPhoto).toContain('class="app-card-media app-post-photo"');
+    expect((withPhoto.match(/app-card-media/g) ?? []).length).toBe(1);
+    expect(card({ photoUrl: null })).not.toContain("<img");
   });
 
   it("reflects the like state and counter on the like button", () => {
@@ -77,22 +87,47 @@ describe("feedEventPicked", () => {
 });
 
 describe("FeedCreateView", () => {
-  const view = (over: { draft?: FeedDraft; submitting?: boolean; failed?: boolean; eventMissing?: boolean } = {}) => renderToStaticMarkup(createElement(FeedCreateView, { draft: over.draft ?? { event: "", text: "" }, events: mockEvents, submitting: over.submitting ?? false, failed: over.failed ?? false, eventMissing: over.eventMissing ?? false, onChange: noop, onSubmit: noop }));
+  const view = (over: { draft?: FeedDraft; submitting?: boolean; failed?: boolean; eventMissing?: boolean; photoRejected?: boolean; photoPending?: boolean } = {}) => renderToStaticMarkup(createElement(FeedCreateView, { draft: over.draft ?? { event: "", text: "" }, events: mockEvents, submitting: over.submitting ?? false, failed: over.failed ?? false, eventMissing: over.eventMissing ?? false, photoRejected: over.photoRejected ?? false, photoPending: over.photoPending ?? false, onChange: noop, onSubmit: noop }));
 
-  it("renders the photo placeholder, the event datalist and the text field", () => {
+  it("offers a real photo picker, the event datalist and the text field", () => {
     const html = view();
 
     expect(html).toContain("Добавить фото");
-    expect(html).toContain("disabled");
+    expect(html).toContain('type="file"');
+    expect(html).toContain('aria-label="Выбрать фото для поста"');
     expect(html).toContain("К какому событию");
     expect(html).toContain('id="feed-event-options"');
     expect(html).toContain("Расскажи, как всё прошло");
   });
 
+  it("previews the picked photo and offers to drop it", () => {
+    const html = view({ draft: { ...readyDraft, photoUrl: "data:image/jpeg;base64,AAAA" } });
+
+    expect(html).toContain('src="data:image/jpeg;base64,AAAA"');
+    expect(html).toContain("Убрать фото");
+    expect(html).not.toContain("Добавить фото");
+  });
+
+  it("blocks publishing while a photo is still being prepared", () => {
+    // Publishing mid-preparation posted without the photo, silently — the author believed it was there.
+    const html = view({ draft: readyDraft, photoPending: true });
+
+    expect(html).toContain("Готовим фото…");
+    expect((html.match(/disabled=""/g) ?? []).length).toBe(2);
+    expect(view({ draft: readyDraft }).match(/disabled=""/g) ?? []).toHaveLength(0);
+  });
+
+  it("says when a picked photo could not be prepared", () => {
+    // Silence would publish a post the author believes carries their picture.
+    expect(view({ photoRejected: true })).toContain("Не удалось подготовить фото.");
+    expect(view()).not.toContain("Не удалось подготовить фото.");
+  });
+
   it("keeps publish disabled until the draft is ready and shows submitting and failure states", () => {
-    expect((view().match(/disabled=""/g) ?? []).length).toBe(2);
+    // Only the publish button: the photo picker is no longer a dead placeholder.
+    expect((view().match(/disabled=""/g) ?? []).length).toBe(1);
     expect(view({ draft: readyDraft })).toContain("Опубликовать");
-    expect((view({ draft: readyDraft }).match(/disabled=""/g) ?? []).length).toBe(1);
+    expect((view({ draft: readyDraft }).match(/disabled=""/g) ?? []).length).toBe(0);
     expect(view({ draft: readyDraft, submitting: true })).toContain("Публикуем…");
     expect(view({ draft: readyDraft, failed: true })).toContain("Не удалось опубликовать впечатление.");
   });

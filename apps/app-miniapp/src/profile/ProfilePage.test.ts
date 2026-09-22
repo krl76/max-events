@@ -33,6 +33,19 @@ function renderProfileView(overrides: Partial<Parameters<typeof ProfileView>[0]>
   return renderToStaticMarkup(createElement(ProfileView, props));
 }
 
+describe("ProfileView impressions grid", () => {
+  const post = { id: "30000000-0000-4000-8000-000000000001", author: { id: user.id, name: user.firstName, avatarUrl: null }, eventId: mockEvents[0].id, text: "Как прошло", photoUrl: null as string | null, likesCount: 0, likedByMe: false, comments: [] };
+
+  it("shows the photo of a post instead of an empty square", () => {
+    // The grid already pays for the photo in the feed payload; drawing a grey box wastes it twice.
+    const html = renderProfileView({ posts: [{ ...post, photoUrl: "https://cdn.example.com/p.jpg" }] });
+
+    expect(html).toContain('src="https://cdn.example.com/p.jpg"');
+    expect(html).toContain("app-profile-cell-photo");
+    expect(renderProfileView({ posts: [post] })).not.toContain("app-profile-cell-photo");
+  });
+});
+
 describe("profileStats", () => {
   it("counts events and unique places, skipping entries without a place", () => {
     const otherEvent = mockEvents[1];

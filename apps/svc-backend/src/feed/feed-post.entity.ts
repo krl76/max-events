@@ -28,7 +28,8 @@ export class FeedPostEntity {
   @Column({ type: "varchar", length: 5000 })
   text!: string;
 
-  @Column({ type: "varchar", length: 500, nullable: true })
+  // text, not varchar(500): until object storage lands (#477) a picked photo is stored as a data URL.
+  @Column({ type: "text", nullable: true })
   photoUrl!: string | null;
 
   @Column({ type: "boolean", default: true })
