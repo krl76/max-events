@@ -28,7 +28,8 @@ describe("AuthService.organizerLogin", () => {
     expect(result.user.firstName).toBe("demo");
     expect(result.user.lastName).toBeNull();
     expect(redis.store.get(`organizer-session:${result.token}`)).toBe(result.user.id);
-    expect(redis.setCalls[0]?.args).toEqual(["EX", 7 * 24 * 60 * 60]);
+    const sessionCall = redis.setCalls.find((call) => call.key === `organizer-session:${result.token}`);
+    expect(sessionCall?.args).toEqual(["EX", 7 * 24 * 60 * 60]);
     expect(userRepo.store).toHaveLength(1);
   });
 
@@ -61,15 +62,24 @@ describe("AuthService.organizerLogin rate limiting", () => {
     await expect(service.organizerLogin("demo", "s3cret")).resolves.toBe("locked");
   });
 
-  it("sets the lock key with a 60s TTL and expires the failure counter", async () => {
+  it("keeps the failure counter as the only lock state, created with a 60s TTL", async () => {
     const { service, redis } = createOrganizerAuthService(credentials);
     for (let attempt = 0; attempt < 5; attempt++) {
       await service.organizerLogin("demo", "wrong");
     }
     expect(redis.store.get("organizer-login-fail:demo")).toBe("5");
-    expect(redis.store.get("organizer-login-lock:demo")).toBe("1");
-    const lockCall = redis.setCalls.find((call) => call.key === "organizer-login-lock:demo");
-    expect(lockCall?.args).toEqual(["EX", 60]);
+    expect([...redis.store.keys()].filter((key) => key.includes("lock"))).toHaveLength(0);
+    const counterCall = redis.setCalls.find((call) => call.key === "organizer-login-fail:demo");
+    expect(counterCall?.args).toEqual(["EX", 60, "NX"]);
+  });
+
+  it("sets the counter TTL exactly once, on the first failed attempt", async () => {
+    const { service, redis } = createOrganizerAuthService(credentials);
+    await service.organizerLogin("demo", "wrong");
+    await service.organizerLogin("demo", "wrong");
+    const counterCalls = redis.setCalls.filter((call) => call.key === "organizer-login-fail:demo");
+    expect(counterCalls).toHaveLength(1);
+    expect(counterCalls[0]?.args).toEqual(["EX", 60, "NX"]);
   });
 
   it("resets the failure counter on a successful login", async () => {

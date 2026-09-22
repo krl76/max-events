@@ -13,14 +13,18 @@ export function createRedisFake() {
   return {
     store,
     setCalls,
-    set: async (key: string, value: string, ...args: unknown[]) => (store.set(key, value), setCalls.push({ key, value, args }), "OK"),
+    set: async (key: string, value: string, ...args: unknown[]) => {
+      if (args.includes("NX") && store.has(key)) return null;
+      store.set(key, value);
+      setCalls.push({ key, value, args });
+      return "OK";
+    },
     get: async (key: string) => store.get(key) ?? null,
     incr: async (key: string) => {
       const next = Number(store.get(key) ?? "0") + 1;
       store.set(key, String(next));
       return next;
     },
-    expire: async () => 1,
     del: async (...keys: string[]) => keys.reduce((removed, key) => removed + (store.delete(key) ? 1 : 0), 0),
   } as unknown as Redis & { store: Map<string, string>; setCalls: { key: string; value: string; args: unknown[] }[] };
 }

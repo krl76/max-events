@@ -9,7 +9,7 @@
 // - AuthService - initData validation + user upsert entrypoint shared by guard and login endpoint
 // - ORGANIZER_SESSION_TTL_SECONDS - organizer Bearer token lifetime (7 days)
 // - ORGANIZER_LOGIN_MAX_FAILS - failed organizer login attempts per login name before the lock kicks in
-// - ORGANIZER_LOGIN_WINDOW_SECONDS - TTL of the failure counter and the lock key (60s)
+// - ORGANIZER_LOGIN_WINDOW_SECONDS - TTL of the failure counter (60s), which doubles as the lock
 // - OrganizerLoginResult - organizerLogin outcome: { token, user } | "disabled" (env unset) | "locked" (rate limited) | null (bad credentials)
 // - AuthService.organizerLogin - env-credential check, rate limit, find-or-create organizer user, store token in Redis
 // - AuthService.organizerLogout - delete organizer-session:{token} from Redis
@@ -92,16 +92,14 @@ export class AuthService {
     const expectedLogin = this.config.get<string>("ORGANIZER_LOGIN");
     const expectedPassword = this.config.get<string>("ORGANIZER_PASSWORD");
     if (!expectedLogin || !expectedPassword) return "disabled";
+    // INCR-first: the counter itself is the lock. Redis serializes INCR, so a concurrent burst
+    // cannot slip past the limit. TTL is set once via SET NX — never refreshed, so flooding
+    // cannot extend the lock — and the key always carries a TTL (no INCR/EXPIRE crash gap).
     const failKey = `organizer-login-fail:${login}`;
-    if (await this.redis.get(`organizer-login-lock:${login}`)) return "locked";
-    if (!credentialsEqual(login, expectedLogin) || !credentialsEqual(password, expectedPassword)) {
-      const fails = await this.redis.incr(failKey);
-      await this.redis.expire(failKey, ORGANIZER_LOGIN_WINDOW_SECONDS);
-      if (fails >= ORGANIZER_LOGIN_MAX_FAILS) {
-        await this.redis.set(`organizer-login-lock:${login}`, "1", "EX", ORGANIZER_LOGIN_WINDOW_SECONDS);
-      }
-      return null;
-    }
+    await this.redis.set(failKey, "0", "EX", ORGANIZER_LOGIN_WINDOW_SECONDS, "NX");
+    const fails = await this.redis.incr(failKey);
+    if (fails > ORGANIZER_LOGIN_MAX_FAILS) return "locked";
+    if (!credentialsEqual(login, expectedLogin) || !credentialsEqual(password, expectedPassword)) return null;
     await this.redis.del(failKey);
     const user = await this.findOrCreateOrganizer(login);
     const token = randomBytes(32).toString("hex");
