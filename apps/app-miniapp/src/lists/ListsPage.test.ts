@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ListPresetSchema } from "@max-events/api-contracts";
-import { collectionShareText, ListsView, ListView, shareCollection } from "./ListsPage";
+import { listShareText, ListsView, ListView } from "./ListsPage";
 import { pluralRu } from "../catalog/format";
 import { SaveToList, SaveToListView } from "../event/SaveToList";
 import type { ListItemCard, ListSummary } from "../api/client";
@@ -39,6 +39,86 @@ describe("list items label", () => {
   });
 });
 
+describe("listShareText", () => {
+  it("calls a personal list a list, and a shared one a collection", () => {
+    const cards = [card];
+
+    expect(listShareText(list, cards, false)).toBe(`Список «Хочу сходить»: ${cards[0]!.event.title}`);
+    expect(listShareText(list, cards, true)).toBe(`Совместная коллекция «Хочу сходить»: ${cards[0]!.event.title}`);
+  });
+});
+
+describe("ListView removal", () => {
+  it("offers to take an event out of the list, and nothing when the caller wires no handler", () => {
+    const cards = [card];
+    const withRemove = renderToStaticMarkup(createElement(ListView, { state: { status: "ready", cards }, onOpenEvent: () => {}, onRemove: () => {} }));
+
+    expect(withRemove).toContain(`aria-label="Убрать из списка: ${cards[0]!.event.title}"`);
+    expect(renderToStaticMarkup(createElement(ListView, { state: { status: "ready", cards }, onOpenEvent: () => {} }))).not.toContain("Убрать");
+  });
+});
+
+describe("ListsView management", () => {
+  const own = summary({ list: { ...list, id: "70000000-0000-4000-8000-000000000009", preset: null, title: "Сводить маму" } });
+
+  it("offers create, rename and delete for a list of one's own", () => {
+    const html = renderToStaticMarkup(createElement(ListsView, { state: { status: "ready", summaries: [own] }, onOpen: () => {}, newTitle: "", onNewTitle: () => {} }));
+
+    expect(html).toContain("Создать список");
+    expect(html).toContain('aria-label="Переименовать: Сводить маму"');
+    expect(html).toContain('aria-label="Удалить: Сводить маму"');
+  });
+
+  it("offers neither rename nor delete on a preset", () => {
+    // The backend recreates a missing preset, so the change would not stick.
+    const html = renderToStaticMarkup(createElement(ListsView, { state: { status: "ready", summaries: [summary()] }, onOpen: () => {}, newTitle: "", onNewTitle: () => {} }));
+
+    expect(html).toContain("Хочу сходить");
+    expect(html).not.toContain("Переименовать");
+    expect(html).not.toContain("Удалить");
+  });
+
+  it("offers neither on a shared collection either", () => {
+    const shared = summary({ list: { ...list, preset: null, title: "Идеи на выходные" }, participants: [anna] });
+    const html = renderToStaticMarkup(createElement(ListsView, { state: { status: "ready", summaries: [shared] }, onOpen: () => {}, newTitle: "", onNewTitle: () => {} }));
+
+    expect(html).not.toContain("Переименовать");
+    expect(html).not.toContain("Удалить");
+  });
+
+  it("swaps the card for an input while renaming, and keeps the create button out of reach when blank", () => {
+    const renaming = renderToStaticMarkup(createElement(ListsView, { state: { status: "ready", summaries: [own] }, onOpen: () => {}, newTitle: "", onNewTitle: () => {}, renamingId: own.list.id, renameTitle: "Сводить папу" }));
+    expect(renaming).toContain('aria-label="Новое название: Сводить маму"');
+    expect(renaming).toContain("Сохранить");
+    expect(renaming).not.toContain("app-card--link");
+
+    // A blank title is not a list name: the button stays disabled rather than failing at the backend.
+    expect(renderToStaticMarkup(createElement(ListsView, { state: { status: "ready", summaries: [own] }, onOpen: () => {}, newTitle: "   ", onNewTitle: () => {} }))).toContain("disabled");
+  });
+
+  it("hides the management controls entirely when the caller wires none", () => {
+    const html = renderToStaticMarkup(createElement(ListsView, { state: { status: "ready", summaries: [own] }, onOpen: () => {} }));
+
+    expect(html).not.toContain("Создать список");
+    expect(html).toContain("Сводить маму");
+  });
+
+  it("asks again before deleting, because a delete takes the saved events with it", () => {
+    const armed = renderToStaticMarkup(createElement(ListsView, { state: { status: "ready", summaries: [own] }, onOpen: () => {}, newTitle: "", onNewTitle: () => {}, confirmingId: own.list.id }));
+
+    expect(armed).toContain("Точно удалить?");
+    expect(armed).toContain(`aria-label="Точно удалить: ${own.list.title}"`);
+    // Another list is not armed by the first one's confirmation.
+    expect(renderToStaticMarkup(createElement(ListsView, { state: { status: "ready", summaries: [own] }, onOpen: () => {}, newTitle: "", onNewTitle: () => {} }))).not.toContain("Точно удалить");
+  });
+
+  it("says when a change did not go through", () => {
+    const html = renderToStaticMarkup(createElement(ListsView, { state: { status: "ready", summaries: [own] }, onOpen: () => {}, newTitle: "", onNewTitle: () => {}, error: "Не удалось изменить списки." }));
+
+    expect(html).toContain("Не удалось изменить списки.");
+  });
+});
+
 describe("ListsView", () => {
   it("renders one card per list with its counter", () => {
     const html = renderToStaticMarkup(createElement(ListsView, { state: { status: "ready", summaries: [summary(), summary({ itemsCount: 0 })] }, onOpen: () => {} }));
@@ -66,18 +146,7 @@ describe("ListsView", () => {
 
 describe("shared collection screen", () => {
   it("builds the share text from the list title and item titles", () => {
-    expect(collectionShareText({ ...list, title: "Идеи на выходные" }, [card, { ...card, event: mockEvents[1] }])).toBe(`Совместная коллекция «Идеи на выходные»: ${mockEvents[0].title}, ${mockEvents[1].title}`);
-  });
-
-  it("sends the built text through the given share channel", async () => {
-    const shared: string[] = [];
-    const channel = await shareCollection(list, [card], async (text) => {
-      shared.push(text);
-      return "bridge";
-    });
-
-    expect(channel).toBe("bridge");
-    expect(shared).toEqual([collectionShareText(list, [card])]);
+    expect(listShareText({ ...list, title: "Идеи на выходные" }, [card, { ...card, event: mockEvents[1] }], true)).toBe(`Совместная коллекция «Идеи на выходные»: ${mockEvents[0].title}, ${mockEvents[1].title}`);
   });
 
   it("attributes items to their authors on the shared screen", () => {

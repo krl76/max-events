@@ -9,10 +9,11 @@
 // - LIST_PRESET_TITLES - ru titles for the six presets
 // - toListDto - list entity to List contract
 // - toItemDto - item entity to ListItem contract
-// - ListsService - ensure, list, get, items, addEvent, removeItem
+// - MAX_CUSTOM_LISTS - ceiling on the lists one user may create
+// - ListsService - ensure, list (presets plus the user's own), get, items, addEvent, removeItem, create, rename, remove
 // END_MODULE_MAP
 
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 import { ListPresetSchema, type List, type ListItem, type ListItemCard, type ListPreset, type ListScreen, type ListSummary } from "@max-events/api-contracts";
@@ -20,6 +21,9 @@ import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
 import { ListItemEntity } from "./list-item.entity";
 import { ListEntity } from "./list.entity";
+
+/** Nothing else bounds how many lists one user may create, and every list is read on the save sheet. */
+export const MAX_CUSTOM_LISTS = 20;
 
 export const LIST_PRESET_TITLES: Record<ListPreset, string> = {
   want_to_go: "Хочу сходить",
@@ -40,8 +44,10 @@ export class ListsService {
 
   async list(userId: string, eventId: string | null = null): Promise<ListSummary[]> {
     const presets = await this.ensurePresets(userId);
+    // Presets first, then the lists the user made, newest last — the order the screen reads top down.
+    const own = (await this.lists.find({ where: { userId } })).filter((row) => row.preset === null).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
     const items = await this.items.find();
-    return presets.map((list) => {
+    return [...presets, ...own].map((list) => {
       const listItems = items.filter((row) => row.listId === list.id);
       const saved = eventId ? listItems.find((row) => row.eventId === eventId) : undefined;
       return { list: toListDto(list), itemsCount: listItems.length, savedItemId: saved?.id ?? null, participants: [] };
@@ -85,6 +91,37 @@ export class ListsService {
     if (!item) throw new NotFoundException("List item not found");
     await this.items.delete({ id: item.id });
     return toItemDto(item);
+  }
+
+  async create(userId: string, title: string): Promise<List> {
+    const own = (await this.lists.find({ where: { userId } })).filter((row) => row.preset === null);
+    // A ceiling, because nothing else bounds this: the six presets are fixed, these are not.
+    if (own.length >= MAX_CUSTOM_LISTS) throw new ConflictException(`A user may keep at most ${MAX_CUSTOM_LISTS} lists of their own`);
+    return toListDto(await this.lists.save(this.lists.create({ userId, preset: null, title })));
+  }
+
+  async rename(userId: string, listId: string, title: string): Promise<List> {
+    const list = await this.requireOwnList(userId, listId);
+    list.title = title;
+    return toListDto(await this.lists.save(list));
+  }
+
+  async remove(userId: string, listId: string): Promise<List> {
+    const list = await this.requireOwnList(userId, listId);
+    const dto = toListDto(list);
+    // FK_list_items_list is ON DELETE CASCADE, so the items go with it.
+    await this.lists.delete({ id: list.id });
+    return dto;
+  }
+
+  /**
+   * A preset is not editable: ensurePresets recreates every missing preset on the next read, so a
+   * rename would be undone and a delete would come back as a new row with the default title.
+   */
+  private async requireOwnList(userId: string, listId: string): Promise<ListEntity> {
+    const list = await this.requireOwnedList(userId, listId);
+    if (list.preset !== null) throw new ForbiddenException("A preset list cannot be renamed or deleted");
+    return list;
   }
 
   private async ensurePresets(userId: string): Promise<ListEntity[]> {

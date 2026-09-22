@@ -67,6 +67,9 @@
 // - SHARED_COLLECTION_TITLE - ru title of the seeded shared collection
 // - listSummaries - preset lists of a user with item counters, the saved-item id for the checked event and shared-collection participants
 // - listItemCards - items of one list enriched with their events and the participant who added them, newest first (mock)
+// - createMockList - mock POST /lists: a list of one's own (409 past the ceiling)
+// - renameMockList - mock PATCH /lists/:id (403 for a preset)
+// - removeMockList - mock DELETE /lists/:id with its items (403 for a preset)
 // - resetMockLists - clear in-memory lists (test isolation)
 // - resetMockReviews - restore seeded reviews (test isolation)
 // - eventRating - rating summary and per-category averages for an event from the mock reviews
@@ -180,7 +183,7 @@ import type {
   WheretoQuery,
   WheretoResponse,
 } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateSubscriptionSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, formatAfterMeExplanation, GatheringResponseWriteSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, PlaceCategorySchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateListWriteSchema, CreateSubscriptionSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, formatAfterMeExplanation, GatheringResponseWriteSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, PlaceCategorySchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
 import { CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, OrganizerLoginWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
 import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, CreateSubscription, EventSalesReport, Organization, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, OrganizerSession, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod, Story, Subscription } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
@@ -1068,6 +1071,51 @@ function listScreen(listId: string): { list: List; participants: Friend[]; items
   const list = findList(listId);
   if (!list) return null;
   return { list, participants: list.id === SHARED_LIST_ID ? SHARED_LIST_PARTICIPANTS() : [], items: listItemCards(listId) ?? [] };
+}
+
+/** Backend MAX_CUSTOM_LISTS parity. */
+const MOCK_MAX_CUSTOM_LISTS = 20;
+
+/** Backend parity: a list of one's own, appended after the six presets; "too_many" maps to 409. */
+export function createMockList(userId: string, title: string): List | "too_many" {
+  const lists = listsFor(userId);
+  // The seeded shared collection is nobody's "own list", so it does not eat into the ceiling.
+
+  if (lists.filter((row) => row.preset === null && row.id !== SHARED_LIST_ID).length >= MOCK_MAX_CUSTOM_LISTS) return "too_many";
+  mockListSeq += 1;
+  const now = new Date().toISOString();
+  const list: List = { id: `70000000-0000-4000-8000-${String(mockListSeq).padStart(12, "0")}`, userId, preset: null, title, createdAt: now, updatedAt: now };
+  lists.push(list);
+  return list;
+}
+
+/** A preset refuses both rename and delete: the backend recreates it, so the change would not stick. */
+export function renameMockList(listId: string, title: string): List | "no_list" | "preset" {
+  const list = findList(listId);
+  if (!list) return "no_list";
+  // A preset comes back from the backend, and a shared collection belongs to more than one person.
+  if (list.preset !== null || listId === SHARED_LIST_ID) return "preset";
+  list.title = title;
+  list.updatedAt = new Date().toISOString();
+  return list;
+}
+
+export function removeMockList(listId: string): List | "no_list" | "preset" {
+  const list = findList(listId);
+  if (!list) return "no_list";
+  if (list.preset !== null || listId === SHARED_LIST_ID) return "preset";
+  for (const [userId, lists] of mockLists) {
+    const index = lists.findIndex((row) => row.id === listId);
+    if (index !== -1) mockLists.set(userId, [...lists.slice(0, index), ...lists.slice(index + 1)]);
+  }
+  // The database drops the items through ON DELETE CASCADE; here they are swept by hand.
+  for (let index = mockListItems.length - 1; index >= 0; index -= 1) {
+    if (mockListItems[index]!.listId === listId) {
+      mockListItemAuthors.delete(mockListItems[index]!.id);
+      mockListItems.splice(index, 1);
+    }
+  }
+  return list;
 }
 
 /** Adds an event to a list, idempotent, attributed to the adding user; "no_list"/"no_event" map to 404 in the interceptor. */
@@ -3187,6 +3235,19 @@ export function installMockApi(): () => void {
       return found ? Response.json(found) : new Response(null, { status: 404 });
     }
     const listById = /^\/api\/lists\/([^/]+)$/.exec(url.pathname);
+    if (listById && init?.method === "PATCH") {
+      // ParseUUIDPipe answers 400 on the backend, so a non-uuid must not read as "no such list".
+      if (!IdSchema.safeParse(listById[1]).success) return new Response(null, { status: 400 });
+      const parsed = CreateListWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const renamed = renameMockList(listById[1], parsed.data.title);
+      return renamed === "no_list" ? new Response(null, { status: 404 }) : renamed === "preset" ? new Response(null, { status: 403 }) : Response.json(renamed);
+    }
+    if (listById && init?.method === "DELETE") {
+      if (!IdSchema.safeParse(listById[1]).success) return new Response(null, { status: 400 });
+      const removed = removeMockList(listById[1]);
+      return removed === "no_list" ? new Response(null, { status: 404 }) : removed === "preset" ? new Response(null, { status: 403 }) : Response.json(removed);
+    }
     if (listById) {
       const screen = listScreen(listById[1]);
       return screen ? Response.json(screen) : new Response(null, { status: 404 });
@@ -3204,6 +3265,12 @@ export function installMockApi(): () => void {
     if (subscriptionRemove && init?.method === "DELETE") {
       const removed = removeMockSubscription(subscriptionRemove[1]);
       return removed === "unknown" ? new Response(null, { status: 404 }) : Response.json(removed);
+    }
+    if (url.pathname === "/api/lists" && init?.method === "POST") {
+      const parsed = CreateListWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const created = createMockList(mockDemoUser.id, parsed.data.title);
+      return created === "too_many" ? new Response(null, { status: 409 }) : Response.json(created);
     }
     if (url.pathname === "/api/lists") {
       return Response.json(listSummaries(url.searchParams.get("userId") ?? "", url.searchParams.get("eventId")));

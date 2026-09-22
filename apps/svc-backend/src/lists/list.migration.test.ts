@@ -16,6 +16,11 @@ describe("CreateLists20260911220000", () => {
     expect(queries[1]).toContain("UQ_lists_user_preset");
     expect(queries[2]).toContain('CREATE TABLE "list_items"');
     expect(queries[3]).toContain("UQ_list_items_list_event");
+    // Deleting a list of one's own takes its items with it; without the cascade they would be orphans
+    // the service would have to sweep by hand.
+    expect(queries[2]).toContain('FOREIGN KEY ("listId") REFERENCES "lists"("id") ON DELETE CASCADE');
+    // A custom list is preset NULL, so the uniqueness index must not cover it.
+    expect(queries[1]).toContain('WHERE "preset" IS NOT NULL');
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries[0]).toContain("UQ_list_items_list_event");

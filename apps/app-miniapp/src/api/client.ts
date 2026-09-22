@@ -69,6 +69,9 @@
 // - ListScreen - one-list aggregate: list + participants + item cards (shared collections surface)
 // - ApiClient.getList - GET /lists/:id
 // - AddListItem - save-to-list payload (owner user + saved event)
+// - ApiClient.createList - POST /lists: a list of one's own
+// - ApiClient.renameList - PATCH /lists/:id (a preset refuses, 403)
+// - ApiClient.deleteList - DELETE /lists/:id, returns the removed list (a preset refuses, 403)
 // - ApiClient.addListItem - POST /lists/:id/items with { userId, eventId }
 // - ApiClient.removeListItem - DELETE /lists/:id/items/:itemId
 // - FeedPost - impression post aggregate: author, event, text, like counter/state, comments
@@ -784,6 +787,18 @@ export class ApiClient {
     const query = new URLSearchParams({ userId });
     if (eventId !== undefined) query.set("eventId", eventId);
     return this.request(`/lists?${query.toString()}`, ListSummaryArraySchema);
+  }
+
+  createList(title: string): Promise<List> {
+    return this.request("/lists", ListSchema, { body: { title } });
+  }
+
+  renameList(listId: string, title: string): Promise<List> {
+    return this.request(`/lists/${listId}`, ListSchema, { method: "PATCH", body: { title } });
+  }
+
+  deleteList(listId: string): Promise<List> {
+    return this.request(`/lists/${listId}`, ListSchema, { method: "DELETE" });
   }
 
   addListItem(listId: string, payload: AddListItem): Promise<ListItem> {

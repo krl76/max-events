@@ -38,6 +38,65 @@ describe("preset list fixtures", () => {
   });
 });
 
+describe("mock list management", () => {
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+    resetMockLists();
+  });
+
+  it("creates a list of one's own next to the presets, renames it and deletes it with its items", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+
+    const created = await client.createList("Сводить маму");
+    expect(created).toMatchObject({ preset: null, title: "Сводить маму" });
+    await client.addListItem(created.id, { userId: DEMO_USER_ID, eventId: mockEvents[0].id });
+
+    expect((await client.listLists(DEMO_USER_ID)).map((row) => row.list.id)).toContain(created.id);
+    expect((await client.renameList(created.id, "Сводить папу")).title).toBe("Сводить папу");
+
+    const removed = await client.deleteList(created.id);
+    expect(removed.id).toBe(created.id);
+    expect((await client.listLists(DEMO_USER_ID)).map((row) => row.list.id)).not.toContain(created.id);
+    // The items go with the list; the backend gets this from ON DELETE CASCADE.
+    await expect(client.getList(created.id)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("refuses to rename or delete a preset, and refuses a blank title", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+    const preset = (await client.listLists(DEMO_USER_ID)).find((row) => row.list.preset !== null)!;
+
+    await expect(client.renameList(preset.list.id, "Моё")).rejects.toMatchObject({ status: 403 });
+    await expect(client.deleteList(preset.list.id)).rejects.toMatchObject({ status: 403 });
+    await expect(client.createList("   ")).rejects.toMatchObject({ status: 400 });
+    expect((await client.listLists(DEMO_USER_ID)).find((row) => row.list.id === preset.list.id)!.list.title).toBe(preset.list.title);
+  });
+
+  it("refuses to rename or delete the shared collection, which is not one person's to remove", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+    const shared = (await client.listLists(DEMO_USER_ID)).find((row) => row.participants.length > 0)!;
+
+    await expect(client.renameList(shared.list.id, "Моё")).rejects.toMatchObject({ status: 403 });
+    await expect(client.deleteList(shared.list.id)).rejects.toMatchObject({ status: 403 });
+    expect((await client.listLists(DEMO_USER_ID)).map((row) => row.list.id)).toContain(shared.list.id);
+  });
+
+  it("404s a list that is not there, and 400s an id that is not one", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+
+    await expect(client.renameList("70000000-0000-4000-8000-0000000000ff", "Моё")).rejects.toMatchObject({ status: 404 });
+    await expect(client.deleteList("70000000-0000-4000-8000-0000000000ff")).rejects.toMatchObject({ status: 404 });
+    // ParseUUIDPipe answers 400 on the backend; the mock has to say the same thing.
+    await expect(client.deleteList("not-a-uuid")).rejects.toMatchObject({ status: 400 });
+  });
+});
+
 describe("lists mock endpoints", () => {
   let restore: (() => void) | null = null;
 

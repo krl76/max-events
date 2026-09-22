@@ -797,6 +797,19 @@ body {
   padding: var(--app-space-m) 0 0;
 }
 
+/* Списки: карточка и её действия (переименовать / удалить / убрать) одной колонкой */
+.app-list-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+}
+
+.app-list-actions {
+  display: flex;
+  gap: var(--app-space-s);
+  justify-content: flex-end;
+}
+
 /* Профиль: «Мои подписки» — название цели и кнопка отписки в одной строке */
 .app-subscription-row {
   align-items: center;
