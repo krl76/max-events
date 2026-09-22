@@ -8,9 +8,10 @@
 // END_MODULE_CONTRACT
 //
 // Usage:
-//   bun tools/dev-initdata.mjs
+//   bun tools/dev-initdata.mjs                         # default account = owner (tools/max-dev-accounts.json)
 //   bun tools/dev-initdata.mjs --url https://dev.events.versacegus.cc
-//   bun tools/dev-initdata.mjs --user '{"id":1001,"first_name":"Иван"}'
+//   bun tools/dev-initdata.mjs --account owner
+//   bun tools/dev-initdata.mjs --user '{"id":1001,"first_name":"Иван"}'   # teammate's own MAX user
 
 import { createHmac } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -64,16 +65,38 @@ export function loginUrl(origin, initData) {
   return url.toString();
 }
 
+export function loadAccounts() {
+  const path = join(ROOT, "tools/max-dev-accounts.json");
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+
+/** Owner account by default; MAX_DEV_USER / --user wins; MAX_DEV_ACCOUNT / --account picks a named row. */
+export function resolveDevUser({ account, userJson } = {}) {
+  const file = loadAccounts();
+  const named = account || process.env.MAX_DEV_ACCOUNT || file.default || "owner";
+  const override = userJson || process.env.MAX_DEV_USER;
+  if (override) {
+    const user = typeof override === "string" ? JSON.parse(override) : override;
+    return { name: "env", user };
+  }
+  const user = file.accounts[named];
+  if (!user) throw new Error(`Unknown MAX_DEV_ACCOUNT=${named}. Known: ${Object.keys(file.accounts).join(", ")}`);
+  return { name: named, user };
+}
+
 loadDotenv();
 
 if (import.meta.main) {
   const token = arg("token", process.env.MAX_BOT_TOKEN ?? "local-dev-token");
-  const user = arg("user", process.env.MAX_DEV_USER ?? JSON.stringify({ id: 1001, first_name: "Иван", username: "ivan_dev", language_code: "ru" }));
+  const { name, user } = resolveDevUser({ account: arg("account", ""), userJson: arg("user", "") });
   const startParam = arg("start", "");
   const extras = {};
   if (startParam) extras.start_param = startParam;
   const initData = signInitData(token, user, extras);
   const origin = arg("url", "");
+  if (process.argv.includes("--who")) {
+    process.stderr.write(`account=${name} id=${user.id} username=${user.username ?? ""}\n`);
+  }
   if (origin) process.stdout.write(`${loginUrl(origin, initData)}\n`);
   else process.stdout.write(`${initData}\n`);
 }

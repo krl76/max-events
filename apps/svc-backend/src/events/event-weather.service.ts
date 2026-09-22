@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - WEATHER_CACHE_TTL_SECONDS - Redis TTL for a successful hourly snapshot
 // - WEATHER_MISS_TTL_SECONDS - shorter TTL for cached provider/out-of-range misses
-// - EventWeatherService.attach - fill weather on a batch of Event DTOs; Redis/provider failures stay null
+// - EventWeatherService - fill weather on a batch of Event DTOs (attach); Redis/provider failures stay null
 // END_MODULE_MAP
 
 import { Inject, Injectable } from "@nestjs/common";
@@ -32,7 +32,7 @@ type PlaceLookup = {
 @Injectable()
 export class EventWeatherService {
   constructor(
-    private readonly weather: WeatherClient,
+    @Inject(WeatherClient) private readonly weather: WeatherClient,
     @Inject(PlacesService) private readonly places: PlaceLookup,
     @Inject(REDIS_CLIENT) private readonly redis: WeatherCache,
   ) {}

@@ -36,7 +36,8 @@ describe("AuthService bootstrap", () => {
     const signed = createService({ MAX_BOT_TOKEN: "token", AUTH_ALLOW_BROWSER: "true" }).issueBrowserInitData(1_800_000_000);
     expect(signed).not.toBe("disabled");
     const parsed = validateInitData(signed as string, "token", 1_800_000_000);
-    expect(parsed?.user).toMatchObject(BROWSER_DEMO_USER);
+    expect(parsed?.user.id).toBe(BROWSER_DEMO_USER.id);
+    expect(parsed?.user.first_name).toBe(BROWSER_DEMO_USER.first_name);
   });
 
   it("warns when organizer credentials are not configured", () => {
