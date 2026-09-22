@@ -20,8 +20,9 @@
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { QueryFailedError, Repository } from "typeorm";
-import type { AutoPlanProposal, CreatePlanExpenseWrite, CreatePlanWrite, Plan, PlanBudget, PlanCard, PlanDebt, PlanParticipantStatus, Place } from "@max-events/api-contracts";
+import { IsNull, QueryFailedError, Repository } from "typeorm";
+import type { AutoPlanProposal, CreatePlanExpenseWrite, CreatePlanWrite, Plan, PlanBudget, PlanCancelScope, PlanCard, PlanDebt, PlanParticipantStatus, Place } from "@max-events/api-contracts";
+import { moscowIsoWeekday, PlanRecurringRuleSchema, upcomingRecurringAts } from "@max-events/api-contracts";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
@@ -33,7 +34,6 @@ import { UserEntity } from "../users/user.entity";
 import { PlanExpenseEntity } from "./plan-expense.entity";
 import { PlanParticipantEntity } from "./plan-participant.entity";
 import { PlanEntity } from "./plan.entity";
-import { moscowIsoWeekday, upcomingRecurringAts } from "./recurring";
 
 export type GeoOrigin = { latitude: number; longitude: number };
 export type PlanRemindResult = { sent: number; failed: number };
@@ -209,7 +209,9 @@ export class PlansService {
         this.logger.warn(`Plan invite DM failed for ${saved.id}`);
       }
     }
-    if (payload.recurringRule) await this.spawnRecurring(saved.meetingAt);
+    // Only this series: spawnRecurring walks every template in the table and would push each of them
+    // four meetings past this plan's date — other people's series, on a date they never chose.
+    if (payload.recurringRule) await this.spawnSeries(saved, await this.plans.find(), saved.meetingAt);
     return this.toCard(saved, event, origin);
   }
 
@@ -338,11 +340,12 @@ export class PlansService {
       if (await this.canView(userId, plan)) mine.push(plan);
     }
     mine.sort((a, b) => a.meetingAt.getTime() - b.meetingAt.getTime() || a.id.localeCompare(b.id));
+    const templates = new Map(all.map((row) => [row.id, row]));
     const cards: PlanCard[] = [];
     for (const plan of mine) {
       const event = await this.events.findOneBy({ id: plan.eventId });
       if (!event) continue;
-      cards.push(await this.toCard(plan, event, origin));
+      cards.push(await this.toCard(plan, event, origin, templates));
     }
     return cards;
   }
@@ -377,12 +380,16 @@ export class PlansService {
     return this.get(userId, planId);
   }
 
-  async remove(hostUserId: string, planId: string): Promise<void> {
+  async remove(hostUserId: string, planId: string, scope: PlanCancelScope = "occurrence"): Promise<void> {
     const plan = await this.requireActivePlan(planId);
     if (plan.hostUserId !== hostUserId) throw new ForbiddenException("Cannot delete another user's plan");
     if (plan.seriesId) {
-      plan.cancelledAt = new Date();
-      await this.plans.save(plan);
+      const now = new Date();
+      // Cancelling the template alone stopped new occurrences but left the ones already spawned
+      // alive, still sending reminders for meetings nobody plans to hold.
+      const affected = scope === "series" ? await this.plans.find({ where: { seriesId: plan.seriesId, cancelledAt: IsNull() } }) : [plan];
+      for (const row of affected) row.cancelledAt = now;
+      await this.plans.save(affected);
       return;
     }
     const rows = await this.participants.find({ where: { planId } });
@@ -528,12 +535,26 @@ export class PlansService {
     return rows.some((row) => row.userId === userId);
   }
 
-  private async toCard(plan: PlanEntity, event: EventEntity, origin: GeoOrigin | null): Promise<PlanCard> {
+  /**
+   * An occurrence carries no rule of its own, but the screen still has to say «каждый четверг» and to
+   * offer cancelling the series — so the template's rule is resolved for it. `templates` lets a list
+   * resolve every row from what it already read instead of one query per occurrence.
+   */
+  private async seriesRule(plan: PlanEntity, templates?: Map<string, PlanEntity>): Promise<Plan["recurringRule"]> {
+    const raw = plan.recurringRule ?? (plan.seriesId ? ((templates ? templates.get(plan.seriesId) : await this.plans.findOneBy({ id: plan.seriesId }))?.recurringRule ?? null) : null);
+    if (raw === null) return null;
+    // jsonb is whatever was written; a row the schema rejects must not fail the whole response.
+    const parsed = PlanRecurringRuleSchema.safeParse(raw);
+    return parsed.success ? parsed.data : null;
+  }
+
+  private async toCard(plan: PlanEntity, event: EventEntity, origin: GeoOrigin | null, templates?: Map<string, PlanEntity>): Promise<PlanCard> {
     const rows = await this.participants.find({ where: { planId: plan.id } });
     const users = await this.users.find();
     const userById = new Map(users.map((row) => [row.id, row]));
     const planDto: Plan = {
       id: plan.id,
+      hostUserId: plan.hostUserId,
       eventId: plan.eventId,
       participants: rows.flatMap((row) => {
         const user = userById.get(row.userId);
@@ -542,6 +563,8 @@ export class PlansService {
       meetingPoint: plan.meetingPoint,
       meetingAt: plan.meetingAt.toISOString(),
       chatLink: plan.chatLink,
+      recurringRule: await this.seriesRule(plan, templates),
+      seriesId: plan.seriesId ?? null,
       createdAt: plan.createdAt.toISOString(),
       updatedAt: plan.updatedAt.toISOString(),
     };

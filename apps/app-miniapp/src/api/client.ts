@@ -60,6 +60,8 @@
 // - LeisureQuery - free-window leisure payload (hours 1..8, mood, coordinates)
 // - ApiClient.listPlans - GET /plans[?lat=&lng=]: plan cards (plan + event + distance to the meeting point)
 // - ApiClient.getPlan - GET /plans/:id: single plan card
+// - ApiClient.createPlan - POST /plans: a plan made by hand, optionally repeating
+// - ApiClient.cancelPlan - DELETE /plans/:id?scope=occurrence|series
 // - ApiClient.createAutoPlan - POST /plans/auto: saved draft plan + travel minutes + food picks + dinner->road->meetup->event timeline
 // - ApiClient.createDayRoute - POST /routes: day route timeline from 2..8 event/place stops with walking legs
 // - ApiClient.optimizeDayRoute - POST /routes/optimize: same stops reordered with saved minutes/km
@@ -131,7 +133,71 @@
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
 import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, AfterMeResponseSchema, MyCitySummarySchema, OptimizeRouteSchema, OrganizationSchema, ParticipationSchema, SubscriptionSchema, TasteProfileSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
-import type { AfterMeResponse, TasteProfile, Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, Vote, WaitlistEntry, WeGroupScreen, WheretoQuery, WheretoResponse, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
+import type {
+  AfterMeResponse,
+  CreatePlanWrite,
+  PlanCancelScope,
+  TasteProfile,
+  Achievement,
+  AuthRequest,
+  AuthResponse,
+  AutoPlanProposal,
+  Booking,
+  BookingWithSeats,
+  CheckIn,
+  CreateBooking,
+  CreateEvent,
+  CreatePlace,
+  CreatePlanExpenseWrite,
+  CreateVoteWrite,
+  CreateWeGroupWrite,
+  DayRoute,
+  DiscoveryResponse,
+  Event,
+  EventCategory,
+  FeedComment as ContractFeedComment,
+  FeedPost as ContractFeedPost,
+  Friend,
+  FriendActivityByFriend,
+  FriendAvailability,
+  FriendRoute,
+  Gathering,
+  InviteeResponse,
+  LeisureMood,
+  LeisureOption,
+  List,
+  ListItem,
+  MemoryPoint,
+  MicroEvent,
+  MyCitySummary,
+  NearbyTimeline,
+  OptimizeRoute,
+  Participation,
+  ParticipationStatus,
+  PeopleResponse,
+  Place,
+  PlanBudget,
+  PlanCard,
+  Profile,
+  PromotionPlacements,
+  RatingSummary,
+  Report as ContractReport,
+  Review,
+  ReviewCategoryScores,
+  RouteStopWrite,
+  TargetedPromotionsResponse,
+  TodayResponse,
+  UpdateProfile,
+  User,
+  VisitStats,
+  Vote,
+  WaitlistEntry,
+  WeGroupScreen,
+  WheretoQuery,
+  WheretoResponse,
+  AssistResponse,
+  AssistDayResponse,
+} from "@max-events/api-contracts";
 import { EarlyAccessWriteSchema, EventSalesReportSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, OrganizerSessionSchema, PromoCampaignSchema, PromoCodeSchema, PromotionCampaignSchema, StorySchema } from "@max-events/api-contracts";
 import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, CreateSubscription, EarlyAccessWrite, EventSalesReport, Organization, OrganizerEventStats, OrganizerLoginWrite, OrganizerRatingResponse, OrganizerSession, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, Story, Subscription } from "@max-events/api-contracts";
 
@@ -572,6 +638,20 @@ export class ApiClient {
     return this.request("/stories", StorySchema, { body: { imageUrl } });
   }
 
+  /** For an endpoint that answers 204: there is no body to validate, only a status to respect. */
+  private async requestVoid(path: string, options: MethodOptions = {}): Promise<void> {
+    const headers: Record<string, string> = { accept: "application/json" };
+    if (this.initData !== null) headers["x-max-init-data"] = this.initData;
+    if (this.organizerToken !== null) headers["authorization"] = `Bearer ${this.organizerToken}`;
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, { method: options.method ?? "POST", headers });
+    } catch {
+      throw new ApiError(0, `network error while fetching ${path}`);
+    }
+    if (!response.ok) throw new ApiError(response.status, `API ${path} failed with ${response.status}`);
+  }
+
   private async request<T>(path: string, schema: ZodSchema<T>, options: MethodOptions = {}): Promise<T> {
     const headers: Record<string, string> = { accept: "application/json" };
     if (this.initData !== null) {
@@ -769,6 +849,15 @@ export class ApiClient {
 
   getPlan(id: string): Promise<PlanCard> {
     return this.request(`/plans/${id}`, PlanCardSchema);
+  }
+
+  createPlan(payload: CreatePlanWrite): Promise<PlanCard> {
+    return this.request("/plans", PlanCardSchema, { body: payload });
+  }
+
+  /** Cancels one meeting by default; "series" takes the repeats with it. */
+  async cancelPlan(planId: string, scope: PlanCancelScope = "occurrence"): Promise<void> {
+    await this.requestVoid(`/plans/${planId}?scope=${scope}`, { method: "DELETE" });
   }
 
   createAutoPlan(eventId: string, latitude: number, longitude: number): Promise<AutoPlanProposal> {

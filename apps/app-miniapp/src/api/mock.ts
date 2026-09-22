@@ -46,6 +46,8 @@
 // - castMockBallot - mock POST /votes/:id/ballots: one ballot per user, a repeated ballot replaces the previous one; winner = max votes then option position, null without ballots (backend parity)
 // - mockPlans - plan card fixtures for the plans list and plan screens; the demo plan carries a chat link, the second one none (backend P1-7-b does not exist yet)
 // - resetMockPlans - restore seeded plan cards, dropping autoplan drafts (test isolation)
+// - createMockPlan - mock POST /plans: the manual plan plus the occurrences of its series
+// - cancelMockPlan - mock DELETE /plans/:id: one meeting or the whole series
 // - planCards - plan fixtures sorted by the soonest meeting first
 // - planCard - single plan card by plan id (or null)
 // - mockBudgetFromExpenses - expenses -> per-person nets + debts (backend budgetFromExpenses parity, incl. the id-rotated remainder split)
@@ -125,6 +127,7 @@ import type {
   CreateDayRouteWrite,
   CreateEvent,
   CreatePlace,
+  CreatePlanWrite,
   CreatePlanExpenseWrite,
   CreateVoteWrite,
   CreateWeGroupWrite,
@@ -161,6 +164,7 @@ import type {
   Place,
   PlacePage,
   PlanBudget,
+  PlanCancelScope,
   PlanCard,
   PlanDebt,
   Profile,
@@ -183,7 +187,7 @@ import type {
   WheretoQuery,
   WheretoResponse,
 } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateListWriteSchema, CreateSubscriptionSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, formatAfterMeExplanation, GatheringResponseWriteSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, PlaceCategorySchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateListWriteSchema, CreatePlanWriteSchema, upcomingRecurringAts, PlanCancelScopeSchema, CreateSubscriptionSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, formatAfterMeExplanation, GatheringResponseWriteSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, PlaceCategorySchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
 import { CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, OrganizerLoginWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
 import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, CreateSubscription, EventSalesReport, Organization, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, OrganizerSession, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod, Story, Subscription } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
@@ -631,6 +635,7 @@ export const mockPlans: PlanCard[] = [
   {
     plan: {
       id: "90000000-0000-4000-8000-000000000001",
+      hostUserId: "a0000000-0000-4000-8000-000000000001",
       eventId: mockEvents[0].id,
       participants: [
         { friend: mockFriends[0], status: "confirmed" },
@@ -640,6 +645,8 @@ export const mockPlans: PlanCard[] = [
       meetingPoint: "у метро Смоленская",
       meetingAt: "2026-09-19T18:20:00+03:00",
       chatLink: "https://max.ru/chat/mock-plan-1",
+      recurringRule: null,
+      seriesId: null,
       createdAt: PLACE_STAMP,
       updatedAt: PLACE_STAMP,
     },
@@ -649,6 +656,7 @@ export const mockPlans: PlanCard[] = [
   {
     plan: {
       id: "90000000-0000-4000-8000-000000000002",
+      hostUserId: "a0000000-0000-4000-8000-000000000001",
       eventId: mockEvents[2].id,
       participants: [
         { friend: mockFriends[3], status: "confirmed" },
@@ -657,6 +665,8 @@ export const mockPlans: PlanCard[] = [
       meetingPoint: "у входа в Парк Горького",
       meetingAt: "2026-09-20T09:30:00+03:00",
       chatLink: null,
+      recurringRule: null,
+      seriesId: null,
       createdAt: PLACE_STAMP,
       updatedAt: PLACE_STAMP,
     },
@@ -665,11 +675,65 @@ export const mockPlans: PlanCard[] = [
   },
 ];
 
+/** Backend parity: a new series spawns its four nearest occurrences up front (PlansService.spawnSeries). */
+const MOCK_SERIES_SPAWN = 4;
+
+/** Cancelled plans stay out of the list, the way the backend hides a soft-cancelled one. */
+const mockCancelledPlanIds = new Set<string>();
+
+/**
+ * Mock POST /plans: the manual plan, plus the occurrences of its series. The template carries the rule
+ * and every plan of the series carries the seriesId, so the screen can offer «эта встреча» or «вся серия».
+ */
+export function createMockPlan(payload: CreatePlanWrite, now = new Date()): PlanCard | "no_event" {
+  const event = mockEvents.find((item) => item.id === payload.eventId);
+  if (!event) return "no_event";
+  const stamp = new Date().toISOString();
+  const nextId = () => {
+    mockPlanSeq += 1;
+    return `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`;
+  };
+  const participants = payload.participantIds.flatMap((id) => {
+    const friend = mockFriends.find((row) => row.id === id);
+    return friend ? [{ friend, status: "invited" as const }] : [];
+  });
+  const rule = payload.recurringRule ?? null;
+  const templateId = nextId();
+  const template: PlanCard = {
+    plan: { id: templateId, hostUserId: mockDemoUser.id, eventId: event.id, participants, meetingPoint: payload.meetingPoint, meetingAt: payload.meetingAt, chatLink: null, recurringRule: rule, seriesId: rule === null ? null : templateId, createdAt: stamp, updatedAt: stamp },
+    event,
+    distanceMeters: 0,
+  };
+  mockPlans.push(template);
+  if (rule === null) return template;
+  const meetingAt = new Date(payload.meetingAt);
+  for (const at of upcomingRecurringAts(meetingAt, rule, meetingAt > now ? meetingAt : now, MOCK_SERIES_SPAWN)) {
+    mockPlans.push({
+      // An occurrence carries no rule of its own; the backend resolves the series rule for the DTO.
+      plan: { ...template.plan, id: nextId(), meetingAt: at.toISOString(), recurringRule: rule, seriesId: templateId, createdAt: stamp, updatedAt: stamp },
+      event,
+      distanceMeters: 0,
+    });
+  }
+  return template;
+}
+
+/** Mock DELETE /plans/:id: one meeting, or every plan of the series when scope says so. */
+export function cancelMockPlan(planId: string, scope: PlanCancelScope): "ok" | "no_plan" {
+  const card = mockPlans.find((row) => row.plan.id === planId && !mockCancelledPlanIds.has(row.plan.id));
+  if (!card) return "no_plan";
+  const seriesId = card.plan.seriesId;
+  const doomed = scope === "series" && seriesId !== null ? mockPlans.filter((row) => row.plan.seriesId === seriesId) : [card];
+  for (const row of doomed) mockCancelledPlanIds.add(row.plan.id);
+  return "ok";
+}
+
 const MOCK_PLAN_SEED = [...mockPlans];
 let mockPlanSeq = MOCK_PLAN_SEED.length;
 
 /** Restore the seeded plan cards, dropping autoplan drafts (test isolation). */
 export function resetMockPlans(): void {
+  mockCancelledPlanIds.clear();
   mockPlans.length = 0;
   mockPlans.push(...MOCK_PLAN_SEED);
   mockPlanSeq = MOCK_PLAN_SEED.length;
@@ -677,12 +741,13 @@ export function resetMockPlans(): void {
 
 /** Plans of the demo user enriched with event and distance, soonest meeting first. */
 export function planCards(): PlanCard[] {
-  return [...mockPlans].sort((a, b) => a.plan.meetingAt.localeCompare(b.plan.meetingAt));
+  // A cancelled plan is hidden rather than deleted, the way the backend soft-cancels a series slot.
+  return mockPlans.filter((row) => !mockCancelledPlanIds.has(row.plan.id)).sort((a, b) => a.plan.meetingAt.localeCompare(b.plan.meetingAt));
 }
 
 /** Single plan card by plan id, or null. */
 export function planCard(id: string): PlanCard | null {
-  return mockPlans.find((card) => card.plan.id === id) ?? null;
+  return mockPlans.find((card) => card.plan.id === id && !mockCancelledPlanIds.has(card.plan.id)) ?? null;
 }
 
 /** In-memory plan expense row (PlanExpenseEntity parity: createdAt stored as ISO). */
@@ -2317,7 +2382,7 @@ export function createMockAutoPlan(payload: CreateAutoPlanWrite): AutoPlanPropos
   const now = new Date().toISOString();
   mockPlanSeq += 1;
   const card: PlanCard = {
-    plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, eventId: event.id, participants: [], meetingPoint, meetingAt: meetupAt.toISOString(), chatLink: null, createdAt: now, updatedAt: now },
+    plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, hostUserId: mockDemoUser.id, eventId: event.id, participants: [], meetingPoint, meetingAt: meetupAt.toISOString(), chatLink: null, recurringRule: null, seriesId: null, createdAt: now, updatedAt: now },
     event,
     distanceMeters: meters,
   };
@@ -2557,7 +2622,7 @@ export function mockAssistDay(payload: AssistQueryWrite, now: Date = MOCK_NOW): 
   if (payload.save === true) {
     const now = new Date().toISOString();
     mockPlanSeq += 1;
-    plan = { plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, eventId: planDraft.eventId, participants: [], meetingPoint: planDraft.meetingPoint, meetingAt: planDraft.meetingAt, chatLink: null, createdAt: now, updatedAt: now }, event: first, distanceMeters: 0 };
+    plan = { plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, hostUserId: mockDemoUser.id, eventId: planDraft.eventId, participants: [], meetingPoint: planDraft.meetingPoint, meetingAt: planDraft.meetingAt, chatLink: null, recurringRule: null, seriesId: null, createdAt: now, updatedAt: now }, event: first, distanceMeters: 0 };
     mockPlans.push(plan);
   }
   return { summary: `Собрал день на субботу ${date}: ${stops.length} событий`, date, stops, planDraft, plan };
@@ -3183,6 +3248,12 @@ export function installMockApi(): () => void {
       if (result === "event_without_place") return new Response(null, { status: 400 });
       return Response.json(result);
     }
+    if (url.pathname === "/api/plans" && init?.method === "POST") {
+      const parsed = CreatePlanWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const created = createMockPlan(parsed.data);
+      return created === "no_event" ? new Response(null, { status: 404 }) : Response.json(created);
+    }
     if (url.pathname === "/api/plans") {
       return Response.json(planCards());
     }
@@ -3230,6 +3301,13 @@ export function installMockApi(): () => void {
       return screen === "unknown" ? new Response(null, { status: 404 }) : screen === "forbidden" ? new Response(null, { status: 403 }) : Response.json(screen);
     }
     const plan = /^\/api\/plans\/([^/]+)$/.exec(url.pathname);
+    if (plan && init?.method === "DELETE") {
+      if (!IdSchema.safeParse(plan[1]).success) return new Response(null, { status: 400 });
+      const scope = PlanCancelScopeSchema.safeParse(url.searchParams.get("scope") ?? "occurrence");
+      if (!scope.success) return new Response(null, { status: 400 });
+      const cancelled = cancelMockPlan(plan[1], scope.data);
+      return cancelled === "no_plan" ? new Response(null, { status: 404 }) : new Response(null, { status: 204 });
+    }
     if (plan) {
       const found = planCard(plan[1]);
       return found ? Response.json(found) : new Response(null, { status: 404 });

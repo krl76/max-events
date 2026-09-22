@@ -14,6 +14,7 @@ export * from "./whereto.js";
 export * from "./today.js";
 export * from "./gathering.js";
 export * from "./plan.js";
+export * from "./plan-recurring.js";
 export * from "./list.js";
 export * from "./subscription.js";
 export * from "./checkin.js";

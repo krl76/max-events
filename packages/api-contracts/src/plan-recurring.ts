@@ -1,8 +1,8 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Recurring plan occurrence math in Europe/Moscow — weekly weekday and nth weekday of month.
 // SCOPE: nextRecurringAt / upcomingRecurringAts; ISO weekday 1=Mon..7=Sun.
-// DEPENDS: @max-events/api-contracts
-// LINKS: M-SVC-BACKEND
+// DEPENDS: ./plan.js
+// LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
@@ -11,7 +11,7 @@
 // - upcomingRecurringAts - next N occurrences
 // END_MODULE_MAP
 
-import type { PlanRecurringRule } from "@max-events/api-contracts";
+import type { PlanRecurringRule } from "./plan.js";
 
 const WEEKDAY_ISO: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
 const DAY_MS = 86_400_000;

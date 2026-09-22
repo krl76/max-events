@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Page composition for the shell routing (home feed with whereto/nearby CTAs, event, place, friends with the discovery/people entries, «Моё» (plans/calendar/saved), profile, whereto wizard, nearby screen, reverse discovery, people matching, plans, day route builder).
 // SCOPE: Thin route-to-page mapping; page internals live in their own modules.
-// DEPENDS: ../routing/router.js, ../catalog/CatalogPage.js, ../catalog/MapPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../today/TodaySection.js, ../assist/AssistSection.js, ../taste/AfterMeSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../organizer/OrganizerPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js, ../search/SearchPage.js, ../ui/primitives.js (AppNavTiles)
+// DEPENDS: ../routing/router.js, ../catalog/CatalogPage.js, ../catalog/MapPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../today/TodaySection.js, ../assist/AssistSection.js, ../taste/AfterMeSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../plans/PlanCreatePage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../organizer/OrganizerPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js, ../search/SearchPage.js, ../ui/primitives.js (AppNavTiles)
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -47,6 +47,7 @@ const GatheringStatusPage = lazyNamed(() => import("../gathering/GatheringStatus
 const VotePage = lazyNamed(() => import("../votes/VotePage"), "VotePage");
 const PlansPage = lazyNamed(() => import("../plans/PlansPage"), "PlansPage");
 const PlanPage = lazyNamed(() => import("../plans/PlanPage"), "PlanPage");
+const PlanCreatePage = lazyNamed(() => import("../plans/PlanCreatePage"), "PlanCreatePage");
 const SearchPage = lazyNamed(() => import("../search/SearchPage"), "SearchPage");
 const MapPage = lazyNamed(() => import("../catalog/MapPage"), "MapPage");
 const WeGroupsPage = lazyNamed(() => import("../wegroup/WeGroupsPage"), "WeGroupsPage");
@@ -152,6 +153,7 @@ function Routed() {
   if (route.name === "vote") return <VotePage id={route.id} />;
   if (route.name === "plans") return <PlansPage />;
   if (route.name === "plan") return <PlanPage id={route.id} />;
+  if (route.name === "plan-new") return <PlanCreatePage />;
   if (route.name === "we-groups") return <WeGroupsPage />;
   if (route.name === "we-group") return <WeGroupPage id={route.id} />;
   if (route.name === "day-route") return <DayRoutePage />;
