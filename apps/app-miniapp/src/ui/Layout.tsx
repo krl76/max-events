@@ -54,6 +54,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   "we-groups": "Группы «Мы»",
   "we-group": "Группа «Мы»",
   vote: "Голосование",
+  moderation: "Жалобы",
 };
 
 export function routeTitle(route: Route): string {

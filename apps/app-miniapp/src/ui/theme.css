@@ -2069,3 +2069,18 @@ body {
   right: 0;
   width: 65%;
 }
+
+/* Очередь модератора: жалоба одной колонкой, действия в строку под ней */
+.app-moderation-row {
+  border-top: var(--app-hairline);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-xs);
+  padding: var(--app-space-m) 0 0;
+}
+
+.app-moderation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-xs);
+}

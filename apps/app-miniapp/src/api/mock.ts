@@ -75,7 +75,15 @@
 // - resetMockLists - clear in-memory lists (test isolation)
 // - resetMockReviews - restore seeded reviews (test isolation)
 // - eventRating - rating summary and per-category averages for an event from the mock reviews
-// - resetMockReports - clear in-memory reports (test isolation)
+// - MOCK_MODERATOR_USER_ID - the demo user, standing in for MODERATOR_MAX_USER_IDS
+// - isMockModerator - whether this viewer may see the moderation queue
+// - setMockModerator - put the demo user in or out of MODERATOR_MAX_USER_IDS (demo / tests)
+// - openMockReports - mock GET /reports?status=open
+// - resolveMockReport - mock POST /reports/:id/resolve
+// - unpublishMockTarget - mock POST /moderation/unpublish
+// - banMockOrganizer - mock POST /moderation/ban
+// - bannedMockOrganizers - who the mock has banned (test isolation)
+// - resetMockReports - clear in-memory reports and bans, republish what moderation hid (test isolation)
 // - createMockReport - in-memory deduplicated report (mock POST /reports, duplicate -> 409, unknown target -> "no_target")
 // - resetMockBookings - clear in-memory bookings and payments (test isolation)
 // - MOCK_SANDBOX_FAIL_AMOUNT - sandbox fail amount: a charge of exactly this sum is declined (#213)
@@ -169,6 +177,7 @@ import type {
   PlanDebt,
   Profile,
   PromotionPlacements,
+  ReportTargetType,
   Review,
   RouteLeg,
   RoutePoint,
@@ -187,7 +196,7 @@ import type {
   WheretoQuery,
   WheretoResponse,
 } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateListWriteSchema, CreatePlanWriteSchema, upcomingRecurringAts, PlanCancelScopeSchema, CreateSubscriptionSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, formatAfterMeExplanation, GatheringResponseWriteSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, PlaceCategorySchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, BanOrganizerWriteSchema, UnpublishWriteSchema, CreateListWriteSchema, CreatePlanWriteSchema, upcomingRecurringAts, PlanCancelScopeSchema, CreateSubscriptionSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, formatAfterMeExplanation, GatheringResponseWriteSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, PlaceCategorySchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
 import { CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, OrganizerLoginWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
 import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, CreateSubscription, EventSalesReport, Organization, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, OrganizerSession, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod, Story, Subscription } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
@@ -1260,9 +1269,23 @@ function createMockReview(payload: CreateReview): Review | "no_event" | "invalid
 }
 
 const mockReports: Report[] = [];
+const mockUnpublishedByModeration = new Set<string>();
+let mockModerationRemovedFeed = false;
+let mockModerationRemovedMicro = false;
 let mockReportSeq = 0;
 
 export function resetMockReports(): void {
+  // Undo exactly what moderation unpublished, and nothing else: the organizer fixtures keep their own drafts.
+  for (const row of [...mockEvents, ...mockPlaces]) if (mockUnpublishedByModeration.has(row.id)) row.published = true;
+  mockUnpublishedByModeration.clear();
+  // Feed posts and micro-events carry no published flag here, so hiding them meant dropping them:
+  // putting them back means re-seeding, and only when moderation was the one that took them away.
+  if (mockModerationRemovedFeed) seedMockFeed();
+  if (mockModerationRemovedMicro) seedMockMicroEvents();
+  mockModerationRemovedFeed = false;
+  mockModerationRemovedMicro = false;
+  mockBannedOrganizers.clear();
+  mockModeratorEnabled = true;
   mockReports.length = 0;
   mockReportSeq = 0;
 }
@@ -1281,6 +1304,85 @@ export function createMockReport(payload: CreateReport): Report | "duplicate" | 
   const report: Report = { id: `81000000-0000-4000-8000-${String(mockReportSeq).padStart(12, "0")}`, userId: payload.userId, targetType, targetId, reason: payload.reason, status: "open", source: "user", createdAt: new Date().toISOString() };
   mockReports.push(report);
   return report;
+}
+
+/**
+ * The real gate is MODERATOR_MAX_USER_IDS on the backend, which the mock has no access to. The demo
+ * user stands in for a moderator so the queue can be seen at all; everyone else gets the same 403.
+ */
+export const MOCK_MODERATOR_USER_ID = "a0000000-0000-4000-8000-000000000001";
+
+/**
+ * The demo user stands in for MODERATOR_MAX_USER_IDS, so the queue is demonstrable without a backend.
+ * The other half of the feature — a regular viewer, for whom the screen does not exist — needs the
+ * demo user to step out of the list, which is what this switch is for.
+ */
+let mockModeratorEnabled = true;
+
+export function setMockModerator(enabled: boolean): void {
+  mockModeratorEnabled = enabled;
+}
+
+export function isMockModerator(userId: string): boolean {
+  return mockModeratorEnabled && userId === MOCK_MODERATOR_USER_ID;
+}
+
+/** Mock GET /reports?status=open. */
+export function openMockReports(): Report[] {
+  return mockReports.filter((row) => row.status === "open");
+}
+
+/** Mock POST /reports/:id/resolve; null when the report is unknown. */
+export function resolveMockReport(reportId: string): Report | null {
+  const report = mockReports.find((row) => row.id === reportId);
+  if (!report) return null;
+  report.status = "resolved";
+  return report;
+}
+
+/** Mock POST /moderation/unpublish: the row stops being served, the way the backend unpublishes it. */
+export function unpublishMockTarget(targetType: ReportTargetType, targetId: string): "ok" | "no_target" {
+  if (targetType === "event") {
+    const event = mockEvents.find((row) => row.id === targetId);
+    if (!event) return "no_target";
+    event.published = false;
+    mockUnpublishedByModeration.add(event.id);
+    return "ok";
+  }
+  if (targetType === "feed_post") {
+    const index = mockFeedPosts.findIndex((row) => row.id === targetId);
+    if (index === -1) return "no_target";
+    mockFeedPosts.splice(index, 1);
+    mockModerationRemovedFeed = true;
+    return "ok";
+  }
+  if (targetType === "place") {
+    const place = mockPlaces.find((row) => row.id === targetId);
+    if (!place) return "no_target";
+    place.published = false;
+    mockUnpublishedByModeration.add(place.id);
+    return "ok";
+  }
+  // The micro-event DTO carries no published flag, so hiding it means dropping it from what the mock serves.
+  const index = mockMicroEvents.findIndex((row) => row.id === targetId);
+  if (index === -1) return "no_target";
+  mockMicroEvents.splice(index, 1);
+  mockModerationRemovedMicro = true;
+  return "ok";
+}
+
+const mockBannedOrganizers = new Set<string>();
+
+export function bannedMockOrganizers(): string[] {
+  return [...mockBannedOrganizers];
+}
+
+/** Mock POST /moderation/ban. */
+export function banMockOrganizer(userId: string): "ok" | "no_user" {
+  const known = mockOrganizers.some((row) => row.id === userId) || mockFriends.some((row) => row.id === userId) || userId === mockDemoUser.id;
+  if (!known) return "no_user";
+  mockBannedOrganizers.add(userId);
+  return "ok";
 }
 
 type MicroEventSeed = Omit<MicroEvent, "createdAt">;
@@ -2322,7 +2424,9 @@ function remainingSeats(eventId: string): number | null {
 }
 
 function eventDetails(eventId: string, userId: string): object | null {
-  const event = mockEvents.find((item) => item.id === eventId);
+  // EventDetailsService throws NotFound for published === false: once moderation hides an event, its
+  // page stops answering, organizer and all.
+  const event = mockEvents.find((item) => item.id === eventId && item.published !== false);
   if (!event) return null;
   const active = mockBookings.find((booking) => booking.eventId === eventId && booking.userId === userId && booking.status === "active");
   return {
@@ -3035,7 +3139,8 @@ export function installMockApi(): () => void {
       return Response.json(mockTargetedPromotions());
     }
     if (url.pathname === "/api/places") {
-      return Response.json(mockPlaces);
+      // PlacesService.findAll lists published places only; an unpublished one is invisible, not just unopenable.
+      return Response.json(mockPlaces.filter((row) => row.published !== false));
     }
     const placePage = /^\/api\/places\/([^/]+)\/page$/.exec(url.pathname);
     if (placePage) {
@@ -3044,11 +3149,16 @@ export function installMockApi(): () => void {
     }
     const placeById = /^\/api\/places\/([^/]+)$/.exec(url.pathname);
     if (placeById && (init?.method ?? "GET") === "GET" && IdSchema.safeParse(placeById[1]).success) {
-      const found = mockPlaces.find((item) => item.id === placeById[1]);
+      // PlacesService.findOne treats published === false as absent, so an unpublished place 404s here too.
+      const found = mockPlaces.find((item) => item.id === placeById[1] && item.published !== false);
       return found ? Response.json(found) : new Response(null, { status: 404 });
     }
     if (url.pathname === "/api/events") {
-      const events = filterMockEvents(mockEvents, parseEventFilters(url.search))
+      // EventsService.findAll queries where published: true, so a draft or an unpublished event is not listed.
+      const events = filterMockEvents(
+        mockEvents.filter((row) => row.published !== false),
+        parseEventFilters(url.search),
+      )
         .map(eventPromoted)
         .sort((a, b) => Number(MOCK_BOOSTED_EVENT_IDS.has(b.id)) - Number(MOCK_BOOSTED_EVENT_IDS.has(a.id)) || Date.parse(a.startsAt) - Date.parse(b.startsAt) || a.id.localeCompare(b.id));
       return Response.json(events);
@@ -3064,7 +3174,8 @@ export function installMockApi(): () => void {
       return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
     }
     if (byId) {
-      const found = mockEvents.find((item) => item.id === byId[1]);
+      // Same as EventsService.findOne: an unpublished event is not found, not merely unlisted.
+      const found = mockEvents.find((item) => item.id === byId[1] && item.published !== false);
       return found ? Response.json(eventPromoted(found)) : new Response(null, { status: 404 });
     }
     const rating = /^\/api\/events\/([^/]+)\/rating$/.exec(url.pathname);
@@ -3374,6 +3485,30 @@ export function installMockApi(): () => void {
       if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || typeof payload.eventId !== "string" || typeof payload.stars !== "number" || typeof payload.wouldGoAgain !== "boolean") return new Response(null, { status: 400 });
       const result = createMockReview(payload);
       return result === "no_event" ? new Response(null, { status: 404 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
+    }
+    if (url.pathname === "/api/reports" && init?.method !== "POST") {
+      // The backend answers 403 to anyone outside MODERATOR_MAX_USER_IDS; the screen is hidden by it.
+      if (!isMockModerator(mockDemoUser.id)) return new Response(null, { status: 403 });
+      if ((url.searchParams.get("status") ?? "open") !== "open") return new Response(null, { status: 400 });
+      return Response.json(openMockReports());
+    }
+    const reportResolve = /^\/api\/reports\/([^/]+)\/resolve$/.exec(url.pathname);
+    if (reportResolve && init?.method === "POST") {
+      if (!isMockModerator(mockDemoUser.id)) return new Response(null, { status: 403 });
+      const resolved = resolveMockReport(reportResolve[1]);
+      return resolved ? Response.json(resolved) : new Response(null, { status: 404 });
+    }
+    if (url.pathname === "/api/moderation/unpublish" && init?.method === "POST") {
+      if (!isMockModerator(mockDemoUser.id)) return new Response(null, { status: 403 });
+      const parsed = UnpublishWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      return unpublishMockTarget(parsed.data.targetType, parsed.data.targetId) === "no_target" ? new Response(null, { status: 404 }) : Response.json({ ok: true });
+    }
+    if (url.pathname === "/api/moderation/ban" && init?.method === "POST") {
+      if (!isMockModerator(mockDemoUser.id)) return new Response(null, { status: 403 });
+      const parsed = BanOrganizerWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      return banMockOrganizer(parsed.data.userId) === "no_user" ? new Response(null, { status: 404 }) : Response.json({ ok: true });
     }
     if (url.pathname === "/api/reports" && init?.method === "POST") {
       const payload = parseBookingBody(init) as CreateReport | undefined;

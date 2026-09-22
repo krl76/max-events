@@ -97,6 +97,10 @@
 // - ReportReason - union of the report reason presets
 // - CreateReport - report submission payload (user + exactly one of event/place/feed post + reason); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
 // - Report - report entity (contract shape)
+// - ApiClient.listOpenReports - GET /reports?status=open (moderators only, 403 otherwise)
+// - ApiClient.resolveReport - POST /reports/:id/resolve
+// - ApiClient.unpublishTarget - POST /moderation/unpublish
+// - ApiClient.banOrganizer - POST /moderation/ban
 // - ApiClient.createReport - POST /reports
 // - ApiClient.assistQuery - POST /assist: NL query -> explained picks (summary + criteria + items)
 // - ApiClient.assistDay - POST /assist/day: "План на субботу" -> stops timeline + planDraft (+ persisted plan when save=true)
@@ -137,6 +141,7 @@ import type {
   AfterMeResponse,
   CreatePlanWrite,
   PlanCancelScope,
+  UnpublishWrite,
   TasteProfile,
   Achievement,
   AuthRequest,
@@ -643,9 +648,10 @@ export class ApiClient {
     const headers: Record<string, string> = { accept: "application/json" };
     if (this.initData !== null) headers["x-max-init-data"] = this.initData;
     if (this.organizerToken !== null) headers["authorization"] = `Bearer ${this.organizerToken}`;
+    if (options.body !== undefined) headers["content-type"] = "application/json";
     let response: Response;
     try {
-      response = await fetch(`${this.baseUrl}${path}`, { method: options.method ?? "POST", headers });
+      response = await fetch(`${this.baseUrl}${path}`, { method: options.method ?? "POST", headers, body: options.body !== undefined ? JSON.stringify(options.body) : undefined });
     } catch {
       throw new ApiError(0, `network error while fetching ${path}`);
     }
@@ -930,6 +936,23 @@ export class ApiClient {
 
   createReview(payload: CreateReview): Promise<Review> {
     return this.request("/reviews", ReviewSchema, { body: payload });
+  }
+
+  /** Moderator queue: the backend answers 403 unless the viewer is in MODERATOR_MAX_USER_IDS. */
+  listOpenReports(): Promise<Report[]> {
+    return this.request("/reports?status=open", ReportSchema.array());
+  }
+
+  resolveReport(reportId: string): Promise<Report> {
+    return this.request(`/reports/${reportId}/resolve`, ReportSchema, { body: {} });
+  }
+
+  async unpublishTarget(payload: UnpublishWrite): Promise<void> {
+    await this.requestVoid("/moderation/unpublish", { method: "POST", body: payload });
+  }
+
+  async banOrganizer(userId: string): Promise<void> {
+    await this.requestVoid("/moderation/ban", { method: "POST", body: { userId } });
   }
 
   createReport(payload: CreateReport): Promise<Report> {
