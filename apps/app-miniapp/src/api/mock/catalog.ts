@@ -22,12 +22,21 @@
 // - participationStats - per-event status counters, friends count and own status
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
 // - eventDetails - shared with catalog.routes
+// - MOCK_FORECAST_SOURCE - who the mock forecast is attributed to; the backend reads Open-Meteo, so the screen must not print another provider
+// - MOCK_FORECAST_STEP_HOURS - spacing of the hourly strip columns (макет, экран 17: 14:00 · 16:00 · 18:00 …)
+// - MOCK_FORECAST_COLUMNS - how many columns the strip draws
+// - eventForecast - mock GET /events/:id/weather/hourly: the strip derived from the single stored snapshot (#495)
+// - eventMoodTags - mock GET /events/:id/mood-tags: «Обстановка» tags with counters derived from the participations
+// - MOCK_NEARBY_RADIUS_M - how far around the venue the «Рядом» list looks
+// - eventNearby - mock GET /events/:id/nearby: published venues around the event venue, nearest first
+// - eventCompanions - mock GET /events/:id/companions: экран 23 counters, the viewer status, the people and the gathering teaser
+// - bookingOfferFor - mock GET /events/:id/booking-offer: the queue length and the friends already holding tickets (#496)
 // END_MODULE_MAP
 
-import type { Event, Participation, ParticipationStatus, Place, PlacePage } from "@max-events/api-contracts";
-import { type CatalogCard, type EventFilters, type EventRating, type MapWeather, type ParticipationStats, type TravelOption } from "../client";
-import { checkInFor, mockBookings, mockCheckIns, remainingSeats } from "./bookings";
-import { MOCK_TODAY, PLACE_STAMP, haversineKm, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganization, mockOrganizers, mockPlaces, moscowDateKey } from "./fixtures";
+import type { Event, EventCategory, Friend, Participation, ParticipationStatus, Place, PlacePage } from "@max-events/api-contracts";
+import { type BookingOffer, type CatalogCard, type EventCompanion, type EventCompanions, type EventFilters, type EventForecast, type EventMoodTag, type EventNearbySpot, type EventRating, type EventWeatherHour, type MapWeather, type ParticipationStats, type TravelOption } from "../client";
+import { checkInFor, mockBookings, mockCheckIns, remainingSeats, waitlistAheadCount } from "./bookings";
+import { HOUR_MS, MOCK_TODAY, PLACE_STAMP, haversineKm, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganization, mockOrganizers, mockPlaces, moscowDateKey } from "./fixtures";
 import { eventPromoted } from "./promo";
 import { eventRating, mockReviews } from "./reviews";
 
@@ -257,5 +266,213 @@ export function eventDetails(eventId: string, userId: string): object | null {
     remainingSeats: remainingSeats(eventId),
     activeBookingId: active?.id ?? null,
     checkInId: checkInFor(userId, eventId)?.id ?? null,
+    // Every fixture event belongs to the one demo organization, so «в афише» is the published catalogue (#496).
+    organizerEventsCount: mockEvents.filter((item) => item.published !== false).length,
   };
+}
+
+const publishedEvent = (eventId: string): Event | undefined => mockEvents.find((item) => item.id === eventId && item.published !== false);
+
+const moscowTime = (at: number): string => new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit" }).format(new Date(at));
+
+/** The backend forecast comes from Open-Meteo (EventWeatherService), so the strip credits Open-Meteo and not some other provider. */
+export const MOCK_FORECAST_SOURCE = "Open-Meteo";
+
+/** Spacing of the strip columns (макет, экран 17: 14:00 · 16:00 · 18:00 · 20:00 · 22:00). */
+export const MOCK_FORECAST_STEP_HOURS = 2;
+
+/** How many columns the strip draws. */
+export const MOCK_FORECAST_COLUMNS = 5;
+
+/** WMO code the mock switches to once the stored probability says rain is coming (Open-Meteo «slight rain»). */
+const MOCK_RAIN_CODE = 61;
+
+/**
+ * Mock GET /events/:id/weather/hourly (#495). The domain stores exactly one reading, taken at the
+ * event start, so every column past the first is derived rather than measured: the temperature cools
+ * off by a degree and a half per step and the rain, whose probability is the only thing the snapshot
+ * knows about it, is placed five hours in. The shape is what the hourly endpoint will answer; the
+ * numbers are a fixture and say so by never pretending to a provider we do not read.
+ */
+export function eventForecast(eventId: string): EventForecast | null {
+  const event = publishedEvent(eventId);
+  if (!event) return null;
+  const start = new Date(event.startsAt).getTime();
+  const end = event.endsAt === null ? start + 4 * HOUR_MS : new Date(event.endsAt).getTime();
+  const base = event.weather?.temperatureC ?? 18;
+  const rainChance = event.weather?.precipitationProbability ?? 0;
+  const rainFrom = rainChance >= 50 ? start + 5 * HOUR_MS : null;
+  const hours: EventWeatherHour[] = [];
+  for (let index = 0; index < MOCK_FORECAST_COLUMNS; index += 1) {
+    const at = start + index * MOCK_FORECAST_STEP_HOURS * HOUR_MS;
+    const raining = rainFrom !== null && at >= rainFrom;
+    hours.push({
+      at: new Date(at).toISOString(),
+      temperatureC: Math.round(base - index * 1.5),
+      conditionCode: raining ? MOCK_RAIN_CODE : (event.weather?.conditionCode ?? 1),
+      condition: raining ? "дождь" : (event.weather?.condition ?? "ясно"),
+      withinEvent: at <= end,
+    });
+  }
+  return { source: MOCK_FORECAST_SOURCE, hours, note: rainFrom === null ? null : `Дождь после ${moscowTime(rainFrom)}, вероятность ${rainChance}%` };
+}
+
+/** «Обстановка» wording per category: the same three questions a visitor asks, phrased for what they are going to. */
+const MOCK_MOOD_TAGS: Record<EventCategory, Array<[string, string]>> = {
+  afisha: [
+    ["calm", "Спокойно"],
+    ["kids_ok", "С детьми ок"],
+    ["newcomers_ok", "Новичкам легко"],
+  ],
+  volunteering: [
+    ["friendly", "Дружелюбно"],
+    ["kids_ok", "С детьми ок"],
+    ["newcomers_ok", "Новичкам легко"],
+  ],
+  tourism: [
+    ["calm", "Спокойно"],
+    ["walking", "Много ходить"],
+    ["newcomers_ok", "Новичкам легко"],
+  ],
+  sport: [
+    ["energetic", "Заряженно"],
+    ["newcomers_ok", "Новичкам легко"],
+    ["kids_ok", "С детьми ок"],
+  ],
+};
+
+/** Shares of the participants behind each tag, in design order (12 · 9 · 6 out of sixteen on экран 17). */
+const MOCK_MOOD_SHARES = [0.75, 0.56, 0.38];
+
+/**
+ * Mock GET /events/:id/mood-tags. There is no mood dictionary in the domain and no vote to count, so
+ * the counters ride the participations: an event nobody reacted to answers an empty list rather than
+ * three tags with a zero next to them.
+ */
+export function eventMoodTags(eventId: string): EventMoodTag[] | null {
+  const event = publishedEvent(eventId);
+  if (!event) return null;
+  const total = [...mockParticipations.values()].filter((row) => row.eventId === eventId).length;
+  return MOCK_MOOD_TAGS[event.category].flatMap(([code, label], index) => {
+    const count = Math.ceil(total * MOCK_MOOD_SHARES[index]);
+    return count === 0 ? [] : [{ code, label, count }];
+  });
+}
+
+/** How far around the venue the «Рядом» list looks: a walk, not a trip. */
+export const MOCK_NEARBY_RADIUS_M = 1200;
+
+/**
+ * Mock GET /events/:id/nearby. Nothing selects places around an event today, so the list is the
+ * published venues within walking distance of this one — real fixtures at a real distance, rather
+ * than invented amenities. An event without a venue has nothing to be near and answers an empty list.
+ */
+export function eventNearby(eventId: string): EventNearbySpot[] | null {
+  const event = publishedEvent(eventId);
+  if (!event) return null;
+  const venue = mockPlaces.find((item) => item.id === event.placeId);
+  if (venue === undefined) return [];
+  return mockPlaces
+    .filter((item) => item.id !== venue.id && item.published !== false)
+    .map((item) => ({ id: item.id, title: item.title, category: item.category, distanceM: Math.round(haversineKm(venue.latitude, venue.longitude, item.latitude, item.longitude) * 100) * 10 }))
+    .filter((spot) => spot.distanceM <= MOCK_NEARBY_RADIUS_M)
+    .sort((a, b) => a.distanceM - b.distanceM);
+}
+
+/** Chats the viewer shares with a friend, by friend index; the fourth slot is «не в твоих чатах», which the design names out loud. */
+const MOCK_COMPANION_CHATS: Array<string | null> = ["Двор", "Падел", "Соседи", null];
+
+/** What the viewer is into; the overlap with the lists below is the «N совпадений» badge. */
+const MOCK_VIEWER_INTERESTS = ["концерты", "джаз", "прогулки", "кофе"];
+
+/** Interests per friend index — no interest graph exists for a person, so the lists are fixtures. */
+const MOCK_COMPANION_INTERESTS: string[][] = [
+  ["джаз", "концерты", "ночная жизнь"],
+  ["бег", "концерты", "кофе"],
+  ["выставки", "прогулки"],
+  ["футбол", "бар"],
+  ["йога", "кофе", "прогулки"],
+  ["велоспорт", "джаз"],
+  ["театр", "концерты", "кофе"],
+];
+
+/** The line a person left under their status; most leave none, and the design draws the expanded card only for those who did. */
+const MOCK_COMPANION_NOTES: Array<string | null> = ["Иду одна, была на прошлом концерте — огонь. Кто со мной к сцене?", null, "Возьму термос и плед. Если кто-то хочет присоединиться — пишите.", null, null, null, null];
+
+/** How early the company agrees to meet: «у входа в 19:30» before a 20:00 start. */
+const MOCK_GATHERING_LEAD_MIN = 30;
+
+/** Faces the gathering teaser draws before it starts counting «и ещё N». */
+const MOCK_GATHERING_FACES = 2;
+
+/** Events both the viewer and this friend marked, this one aside: the «5 общих планов» of the design. */
+function sharedParticipationCount(friendId: string, userId: string, eventId: string): number {
+  const mine = new Set([...mockParticipations.values()].filter((row) => row.userId === userId && row.eventId !== eventId).map((row) => row.eventId));
+  return [...mockParticipations.values()].filter((row) => row.userId === friendId && row.eventId !== eventId && mine.has(row.eventId)).length;
+}
+
+function companionFor(friend: Friend, index: number, status: ParticipationStatus, userId: string, eventId: string): EventCompanion {
+  const interests = MOCK_COMPANION_INTERESTS[index] ?? [];
+  return {
+    friend,
+    status,
+    chatTitle: MOCK_COMPANION_CHATS[index % MOCK_COMPANION_CHATS.length],
+    sharedPlansCount: sharedParticipationCount(friend.id, userId, eventId),
+    matchesCount: interests.filter((interest) => MOCK_VIEWER_INTERESTS.includes(interest)).length,
+    interests,
+    note: MOCK_COMPANION_NOTES[index] ?? null,
+  };
+}
+
+/**
+ * Mock GET /events/:id/companions (макет, экран 23). The counters and the statuses are real
+ * participations; everything that makes a row worth reading — the shared chat, the interest matches,
+ * the note — has no field in the contract and is a fixture keyed to the friend, so the same person
+ * reads the same way on every visit. The gathering teaser stands in for a group that no gathering
+ * record backs yet: it appears only once enough people are actually looking.
+ */
+export function eventCompanions(eventId: string, userId: string): EventCompanions | null {
+  const event = publishedEvent(eventId);
+  if (!event) return null;
+  const stats = participationStats(eventId, userId);
+  const companions = mockFriends.flatMap((friend, index) => {
+    const record = mockParticipations.get(`${friend.id}:${eventId}`);
+    return record === undefined || friend.id === userId ? [] : [companionFor(friend, index, record.status, userId, eventId)];
+  });
+  const gathering =
+    companions.length > MOCK_GATHERING_FACES
+      ? {
+          members: companions.slice(0, MOCK_GATHERING_FACES).map((companion) => companion.friend),
+          extraCount: companions.length - MOCK_GATHERING_FACES,
+          meetingNote: `у входа в ${moscowTime(new Date(event.startsAt).getTime() - MOCK_GATHERING_LEAD_MIN * 60 * 1000)}`,
+        }
+      : null;
+  return {
+    counts: {
+      going: stats.counts.going,
+      wants: stats.counts.wants_to_go + stats.counts.probably_going,
+      looking: stats.counts.looking_for_company + stats.counts.looking_for_travel_buddy + stats.counts.looking_for_after_event_company,
+    },
+    myStatus: stats.myStatus,
+    companions,
+    gathering,
+  };
+}
+
+/**
+ * Mock GET /events/:id/booking-offer (#496). The queue length is real; who holds a ticket is not
+ * reported by any DTO, so a friend with an active booking counts, and on a paid event so does a
+ * friend who marked «иду» — the fixtures book almost nobody, and a «going» on a ticketed event is
+ * the closest honest stand-in until the endpoint exists.
+ */
+export function bookingOfferFor(eventId: string, userId: string): BookingOffer | null {
+  const event = publishedEvent(eventId);
+  if (!event) return null;
+  const holders = new Set(mockBookings.filter((booking) => booking.eventId === eventId && booking.status === "active").map((booking) => booking.userId));
+  if (event.isPaid) {
+    for (const row of mockParticipations.values()) {
+      if (row.eventId === eventId && row.status === "going") holders.add(row.userId);
+    }
+  }
+  return { waitlistAhead: waitlistAheadCount(eventId), friendsWithTickets: mockFriends.filter((friend) => friend.id !== userId && holders.has(friend.id)) };
 }

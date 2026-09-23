@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock route table for the catalog: the event and place listings, the card list of экран 08, the map context of экран 16, the event page aggregate and the participation block.
-// SCOPE: GET /api/places[/:id[/page]], PUT /api/places/:id/participation, GET /api/events[/cards][/:id[/details]], GET /api/events/:id/participation/stats, PUT/DELETE /api/events/:id/participation, GET /api/weather, GET /api/travel. The PATCH variants of /api/events/:id and /api/places/:id belong to the organizer table, which runs before this one.
+// SCOPE: GET /api/places[/:id[/page]], PUT /api/places/:id/participation, GET /api/events[/cards][/:id[/details]], GET /api/events/:id/participation/stats, PUT/DELETE /api/events/:id/participation, GET /api/events/:id/(weather/hourly|mood-tags|nearby|companions|booking-offer), GET /api/weather, GET /api/travel. The PATCH variants of /api/events/:id and /api/places/:id belong to the organizer table, which runs before this one.
 // DEPENDS: ./catalog.js, ./fixtures.js, ./promo.js, ../client.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -12,7 +12,7 @@
 import { IdSchema, ParticipationStatusSchema } from "@max-events/api-contracts";
 import type { Participation } from "@max-events/api-contracts";
 import { parseEventFilters } from "../client";
-import { catalogCards, eventDetails, filterMockEvents, mapWeatherFor, mockParticipations, mockPlaceStatuses, nextMockParticipationSeq, participationStats, placePageFor, travelOptionsFor } from "./catalog";
+import { bookingOfferFor, catalogCards, eventCompanions, eventDetails, eventForecast, eventMoodTags, eventNearby, filterMockEvents, mapWeatherFor, mockParticipations, mockPlaceStatuses, nextMockParticipationSeq, participationStats, placePageFor, travelOptionsFor } from "./catalog";
 import { mockEvents, mockPlaces, parseBookingBody, parseMockCoords } from "./fixtures";
 import { MOCK_BOOSTED_EVENT_IDS, eventPromoted } from "./promo";
 
@@ -104,6 +104,34 @@ export function catalogRoutes(url: URL, init: RequestInit | undefined): Response
     if (!existing) return new Response(null, { status: 404 });
     mockParticipations.delete(key);
     return Response.json(existing);
+  }
+  // Экраны 17, 23 и 18. None of the five has an endpoint behind it yet (#495, #496), and each 404s for
+  // an unknown or unpublished event exactly like the details aggregate above, so a hidden event stays
+  // hidden section by section rather than leaking its weather or its company.
+  const forecast = /^\/api\/events\/([^/]+)\/weather\/hourly$/.exec(url.pathname);
+  if (forecast) {
+    const payload = eventForecast(forecast[1]);
+    return payload ? Response.json(payload) : new Response(null, { status: 404 });
+  }
+  const moodTags = /^\/api\/events\/([^/]+)\/mood-tags$/.exec(url.pathname);
+  if (moodTags) {
+    const payload = eventMoodTags(moodTags[1]);
+    return payload ? Response.json(payload) : new Response(null, { status: 404 });
+  }
+  const nearby = /^\/api\/events\/([^/]+)\/nearby$/.exec(url.pathname);
+  if (nearby) {
+    const payload = eventNearby(nearby[1]);
+    return payload ? Response.json(payload) : new Response(null, { status: 404 });
+  }
+  const companions = /^\/api\/events\/([^/]+)\/companions$/.exec(url.pathname);
+  if (companions) {
+    const payload = eventCompanions(companions[1], url.searchParams.get("userId") ?? "");
+    return payload ? Response.json(payload) : new Response(null, { status: 404 });
+  }
+  const bookingOffer = /^\/api\/events\/([^/]+)\/booking-offer$/.exec(url.pathname);
+  if (bookingOffer) {
+    const payload = bookingOfferFor(bookingOffer[1], url.searchParams.get("userId") ?? "");
+    return payload ? Response.json(payload) : new Response(null, { status: 404 });
   }
   return null;
 }

@@ -31,6 +31,7 @@
 // - checkInFor - Check-in of a user for an event, or null (mock state for the event page button)
 // - createMockCheckIn - in-memory check-in for an event or a place, idempotent (mock POST)
 // - remainingSeats - shared with bookings.routes, catalog, discover
+// - waitlistAheadCount - how many people are already queued for an event: the «7 впереди» of экран 18 (#496)
 // END_MODULE_MAP
 
 import type { Booking, BookingWithSeats, CheckIn, Payment, WaitlistEntry } from "@max-events/api-contracts";
@@ -290,6 +291,16 @@ export function createMockCheckIn(userId: string, payload: { eventId?: string; p
   const checkIn: CheckIn = { id: `60000000-0000-4000-8000-${String(mockCheckInSeq).padStart(12, "0")}`, userId, eventId: payload.eventId ?? null, placeId: payload.placeId ?? null, checkedInAt: new Date().toISOString() };
   mockCheckIns.push(checkIn);
   return checkIn;
+}
+
+/**
+ * How many people already stand in the queue (макет, экран 18, «Встать в лист ожидания · 7 впереди»).
+ * GET /waitlist/me answers a position only to the person holding an entry, so nobody can see the
+ * length of the queue before joining it (#496); this is the number that endpoint will report.
+ */
+export function waitlistAheadCount(eventId: string): number {
+  refreshMockWaitlist(eventId);
+  return waitlistQueue(eventId).length;
 }
 
 export function remainingSeats(eventId: string): number | null {

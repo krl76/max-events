@@ -18,11 +18,19 @@
 // - EventDetails - event page aggregate: event, place, organizer (nullable), free seats, own active booking
 // - ParticipationStats - event page social aggregate: per-status counters, friends count, own status
 // - PlaceParticipation - viewer status on a venue (макет, экран 03); the place-level twin of Participation, which the slot domain will own (#492)
-// - withCatalog - ApiClient.listEvents / listEventCards / listPlaces / getEvent / getEventDetails / getPlace / getPlacePage / getMapWeather / getTravelOptions / getParticipationStats / setParticipationStatus / deleteParticipation / setPlaceParticipationStatus
+// - EventWeatherHour - one column of the hourly weather strip of экран 17 (#495)
+// - EventForecast - hourly forecast for the event window: attribution source, the columns and the warning line (#495)
+// - EventMoodTag - one «Обстановка» tag of экран 17 with how many participants marked it; no such dictionary exists yet
+// - EventNearbySpot - one «Рядом» row of экран 17: a venue around the event with the walking distance in metres
+// - EventCompanion - one person of экран 23: their participation status, where you know them from, interest matches and their note
+// - EventGatheringTeaser - the «Собирается компания» block of экран 23: who is already agreeing and where they meet
+// - EventCompanions - экран 23 aggregate: the three tab counters, the viewer status, the people and the gathering teaser
+// - BookingOffer - экран 18 aggregate the booking sheet needs on top of EventDetails: the queue length ahead and the friends already holding tickets (#496)
+// - withCatalog - ApiClient.listEvents / listEventCards / listPlaces / getEvent / getEventDetails / getPlace / getPlacePage / getMapWeather / getTravelOptions / getParticipationStats / setParticipationStatus / deleteParticipation / setPlaceParticipationStatus / getEventForecast / listEventMoodTags / listEventNearby / getEventCompanions / getBookingOffer
 // END_MODULE_MAP
 
-import { EventCategorySchema, EventSchema, OrganizationSchema, ParticipationSchema, ParticipationStatusSchema, PlacePageSchema, PlaceSchema, UserSchema } from "@max-events/api-contracts";
-import type { Event, EventCategory, Organization, Participation, ParticipationStatus, Place, PlacePage, User } from "@max-events/api-contracts";
+import { EventCategorySchema, EventSchema, FriendSchema, OrganizationSchema, ParticipationSchema, ParticipationStatusSchema, PlacePageSchema, PlaceSchema, UserSchema } from "@max-events/api-contracts";
+import type { Event, EventCategory, Friend, Organization, Participation, ParticipationStatus, Place, PlacePage, User } from "@max-events/api-contracts";
 import type { ApiMixin, ZodSchema } from "./transport";
 
 /**
@@ -184,6 +192,8 @@ export interface EventDetails {
   remainingSeats: number | null;
   activeBookingId: string | null;
   checkInId: string | null;
+  /** «34 события в афише» under the organizer name (макет, экран 17); optional and null until a backend counts them (#496). */
+  organizerEventsCount?: number | null;
 }
 
 const EventDetailsSchema: ZodSchema<EventDetails> = {
@@ -199,9 +209,11 @@ const EventDetailsSchema: ZodSchema<EventDetails> = {
     if (raw.remainingSeats !== null && typeof raw.remainingSeats !== "number") return { success: false as const, error: "invalid event details" };
     if (raw.activeBookingId !== null && typeof raw.activeBookingId !== "string") return { success: false as const, error: "invalid event details" };
     if (raw.checkInId !== null && typeof raw.checkInId !== "string") return { success: false as const, error: "invalid event details" };
+    // Absent, not just null: a backend that predates the organizer counter must not blank the page either.
+    if (raw.organizerEventsCount !== null && raw.organizerEventsCount !== undefined && typeof raw.organizerEventsCount !== "number") return { success: false as const, error: "invalid event details" };
     return {
       success: true as const,
-      data: { event: event.data, place: place.data, organizer: organizer.data, organization: organization.data, remainingSeats: raw.remainingSeats, activeBookingId: raw.activeBookingId, checkInId: raw.checkInId },
+      data: { event: event.data, place: place.data, organizer: organizer.data, organization: organization.data, remainingSeats: raw.remainingSeats, activeBookingId: raw.activeBookingId, checkInId: raw.checkInId, organizerEventsCount: raw.organizerEventsCount ?? null },
     };
   },
 };
@@ -247,6 +259,200 @@ const PlaceParticipationSchema: ZodSchema<PlaceParticipation> = {
     const status = raw.status === null ? { success: true as const, data: null } : ParticipationStatusSchema.safeParse(raw.status);
     if (typeof raw.placeId !== "string" || !status.success) return { success: false as const, error: "invalid place participation" };
     return { success: true as const, data: { placeId: raw.placeId, status: status.data } };
+  },
+};
+
+/**
+ * One column of the hourly strip of экран 17. The events domain snapshots a single forecast taken at
+ * the event start (EventWeatherService.attach, #495) — there is no hourly surface at all — so this is
+ * the shape that endpoint will answer. `withinEvent` marks the hours the event actually covers: the
+ * design dims the tail past the end rather than dropping it, because «что будет, когда всё кончится»
+ * is exactly what the strip is read for.
+ */
+export interface EventWeatherHour {
+  /** ISO timestamp of the hour this column stands for. */
+  at: string;
+  temperatureC: number;
+  /** WMO code, so a screen picks its glyph without parsing the ru wording. */
+  conditionCode: number;
+  condition: string;
+  withinEvent: boolean;
+}
+
+/** Hourly forecast for the event window plus the attribution and the warning under it (#495). */
+export interface EventForecast {
+  /** Who the forecast comes from. It is printed on screen, so the provider is data, never a literal in the markup. */
+  source: string;
+  hours: EventWeatherHour[];
+  /** «Дождь после 19:00, вероятность 70%»; null when nothing is expected. */
+  note: string | null;
+}
+
+const parseWeatherHour = (raw: unknown): EventWeatherHour | null => {
+  if (typeof raw !== "object" || raw === null) return null;
+  const hour = raw as Record<string, unknown>;
+  if (typeof hour.at !== "string" || typeof hour.temperatureC !== "number") return null;
+  if (typeof hour.conditionCode !== "number" || typeof hour.condition !== "string" || typeof hour.withinEvent !== "boolean") return null;
+  return { at: hour.at, temperatureC: hour.temperatureC, conditionCode: hour.conditionCode, condition: hour.condition, withinEvent: hour.withinEvent };
+};
+
+const EventForecastSchema: ZodSchema<EventForecast> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected an event forecast object" };
+    const raw = data as Record<string, unknown>;
+    if (typeof raw.source !== "string" || !Array.isArray(raw.hours) || !isNullableString(raw.note)) return { success: false as const, error: "invalid event forecast" };
+    const hours: EventWeatherHour[] = [];
+    for (const item of raw.hours) {
+      const hour = parseWeatherHour(item);
+      if (hour === null) return { success: false as const, error: "invalid event forecast" };
+      hours.push(hour);
+    }
+    return { success: true as const, data: { source: raw.source, hours, note: raw.note } };
+  },
+};
+
+/**
+ * One «Обстановка» tag of экран 17: what the room felt like, and how many participants said so. The
+ * domain has no tag dictionary — the post-event fact tags (#500) are a different, review-time list —
+ * so both the codes and the counters are mock-backed behind the signature the endpoint will take.
+ */
+export interface EventMoodTag {
+  code: string;
+  label: string;
+  count: number;
+}
+
+const EventMoodTagsSchema: ZodSchema<EventMoodTag[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected a mood tag array" };
+    const tags: EventMoodTag[] = [];
+    for (const item of data) {
+      if (typeof item !== "object" || item === null) return { success: false as const, error: "invalid mood tag" };
+      const raw = item as Record<string, unknown>;
+      if (typeof raw.code !== "string" || typeof raw.label !== "string" || typeof raw.count !== "number") return { success: false as const, error: "invalid mood tag" };
+      tags.push({ code: raw.code, label: raw.label, count: raw.count });
+    }
+    return { success: true as const, data: tags };
+  },
+};
+
+/**
+ * One «Рядом» row of экран 17: a venue around the event and how far it is on foot. Nothing selects
+ * places around an event today, so this stands in for that endpoint; the distance is in metres,
+ * because the design prints «200 м» and rounding to kilometres would erase the whole answer.
+ */
+export interface EventNearbySpot {
+  id: string;
+  title: string;
+  distanceM: number;
+  category: Place["category"];
+}
+
+const EventNearbySchema: ZodSchema<EventNearbySpot[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected a nearby spot array" };
+    const spots: EventNearbySpot[] = [];
+    for (const item of data) {
+      if (typeof item !== "object" || item === null) return { success: false as const, error: "invalid nearby spot" };
+      const raw = item as Record<string, unknown>;
+      const category = PlaceSchema.shape.category.safeParse(raw.category);
+      if (typeof raw.id !== "string" || typeof raw.title !== "string" || typeof raw.distanceM !== "number" || !category.success) return { success: false as const, error: "invalid nearby spot" };
+      spots.push({ id: raw.id, title: raw.title, distanceM: raw.distanceM, category: category.data });
+    }
+    return { success: true as const, data: spots };
+  },
+};
+
+/**
+ * One person of экран 23. Participation carries the status and nothing else, so everything that makes
+ * the row worth reading — the chat you both sit in, the plans you shared, the interests that overlap
+ * and the line they wrote — is mock-backed behind this signature.
+ */
+export interface EventCompanion {
+  friend: Friend;
+  status: ParticipationStatus;
+  /** «Из чата «Двор»»; null for someone outside your chats — the design says so out loud. */
+  chatTitle: string | null;
+  sharedPlansCount: number;
+  /** How many interests overlap with yours; 0 renders no badge rather than «0 совпадений». */
+  matchesCount: number;
+  interests: string[];
+  /** The line they left under their status; null when they left none. */
+  note: string | null;
+}
+
+/** The «Собирается компания» block of экран 23: who is already agreeing and where they meet. */
+export interface EventGatheringTeaser {
+  members: Friend[];
+  /** Everyone past the faces the block draws, so «и ещё 2» is a number and not a guess. */
+  extraCount: number;
+  /** «у входа в 19:30» — the place and time they settled on. */
+  meetingNote: string;
+}
+
+/** Экран 23 aggregate: the three tab counters, the viewer status, the people and the gathering teaser. */
+export interface EventCompanions {
+  counts: { going: number; wants: number; looking: number };
+  myStatus: ParticipationStatus | null;
+  companions: EventCompanion[];
+  gathering: EventGatheringTeaser | null;
+}
+
+const parseCompanion = (raw: unknown): EventCompanion | null => {
+  if (typeof raw !== "object" || raw === null) return null;
+  const row = raw as Record<string, unknown>;
+  const friend = FriendSchema.safeParse(row.friend);
+  const status = ParticipationStatusSchema.safeParse(row.status);
+  if (!friend.success || !status.success || !isNullableString(row.chatTitle) || !isNullableString(row.note)) return null;
+  if (typeof row.sharedPlansCount !== "number" || typeof row.matchesCount !== "number" || !Array.isArray(row.interests)) return null;
+  if (row.interests.some((interest) => typeof interest !== "string")) return null;
+  return { friend: friend.data, status: status.data, chatTitle: row.chatTitle, sharedPlansCount: row.sharedPlansCount, matchesCount: row.matchesCount, interests: row.interests as string[], note: row.note };
+};
+
+const EventCompanionsSchema: ZodSchema<EventCompanions> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected an event companions object" };
+    const raw = data as Record<string, unknown>;
+    const counts = raw.counts as Record<string, unknown> | undefined;
+    if (typeof counts !== "object" || counts === null) return { success: false as const, error: "invalid event companions" };
+    if (typeof counts.going !== "number" || typeof counts.wants !== "number" || typeof counts.looking !== "number") return { success: false as const, error: "invalid event companions" };
+    const myStatus = raw.myStatus === null ? { success: true as const, data: null } : ParticipationStatusSchema.safeParse(raw.myStatus);
+    if (!myStatus.success || !Array.isArray(raw.companions)) return { success: false as const, error: "invalid event companions" };
+    const companions: EventCompanion[] = [];
+    for (const item of raw.companions) {
+      const companion = parseCompanion(item);
+      if (companion === null) return { success: false as const, error: "invalid event companions" };
+      companions.push(companion);
+    }
+    let gathering: EventGatheringTeaser | null = null;
+    if (raw.gathering !== null && raw.gathering !== undefined) {
+      const teaser = raw.gathering as Record<string, unknown>;
+      const members = FriendSchema.array().safeParse(teaser.members);
+      if (!members.success || typeof teaser.extraCount !== "number" || typeof teaser.meetingNote !== "string") return { success: false as const, error: "invalid event companions" };
+      gathering = { members: members.data, extraCount: teaser.extraCount, meetingNote: teaser.meetingNote };
+    }
+    return { success: true as const, data: { counts: { going: counts.going, wants: counts.wants, looking: counts.looking }, myStatus: myStatus.data, companions, gathering } };
+  },
+};
+
+/**
+ * What экран 18 needs on top of EventDetails, which already carries the price, the capacity and the
+ * free seats. Neither number below exists in a DTO today (#496): the waitlist answers a position only
+ * to the person standing in it, and nothing reports who among your friends already has a ticket.
+ */
+export interface BookingOffer {
+  /** How many people are already queued — «7 впереди» before you join. */
+  waitlistAhead: number;
+  friendsWithTickets: Friend[];
+}
+
+const BookingOfferSchema: ZodSchema<BookingOffer> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a booking offer object" };
+    const raw = data as Record<string, unknown>;
+    const friends = FriendSchema.array().safeParse(raw.friendsWithTickets);
+    if (typeof raw.waitlistAhead !== "number" || !friends.success) return { success: false as const, error: "invalid booking offer" };
+    return { success: true as const, data: { waitlistAhead: raw.waitlistAhead, friendsWithTickets: friends.data } };
   },
 };
 
@@ -323,6 +529,31 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
     /** Set the viewer status on a venue (PUT); status null clears it. Mock-only until the slot domain lands (#492). */
     setPlaceParticipationStatus(placeId: string, userId: string, status: ParticipationStatus | null): Promise<PlaceParticipation> {
       return this.request(`/places/${placeId}/participation?userId=${encodeURIComponent(userId)}`, PlaceParticipationSchema, { method: "PUT", body: { status } });
+    }
+
+    /** Hourly weather over the event window (макет, экран 17); mock-only, the domain stores one snapshot (#495). */
+    getEventForecast(eventId: string): Promise<EventForecast> {
+      return this.request(`/events/${eventId}/weather/hourly`, EventForecastSchema);
+    }
+
+    /** «Обстановка» tags of экран 17; mock-only, there is no such dictionary in the domain. */
+    listEventMoodTags(eventId: string): Promise<EventMoodTag[]> {
+      return this.request(`/events/${eventId}/mood-tags`, EventMoodTagsSchema);
+    }
+
+    /** «Рядом» venues around the event (макет, экран 17); mock-only, nothing selects places around an event. */
+    listEventNearby(eventId: string): Promise<EventNearbySpot[]> {
+      return this.request(`/events/${eventId}/nearby`, EventNearbySchema);
+    }
+
+    /** Экран 23 aggregate: counters, the viewer status, the people and the gathering teaser; the matches are mock-only. */
+    getEventCompanions(eventId: string, userId: string): Promise<EventCompanions> {
+      return this.request(`/events/${eventId}/companions?userId=${encodeURIComponent(userId)}`, EventCompanionsSchema);
+    }
+
+    /** What экран 18 needs past EventDetails: the queue length and the friends already holding tickets (#496). */
+    getBookingOffer(eventId: string, userId: string): Promise<BookingOffer> {
+      return this.request(`/events/${eventId}/booking-offer?userId=${encodeURIComponent(userId)}`, BookingOfferSchema);
     }
   };
 }
