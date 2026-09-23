@@ -33,13 +33,22 @@
 // - listMockPromoCodes - Backend PromoService.list parity: createdAt ASC
 // - createMockPromoCode - Backend PromoService.create parity: uppercased code, duplicate code per event -> "duplicate" (409)
 // - setMockEarlyAccess - Backend PromoService.setEarlyAccess parity: sets the owned event's booking window
+// - MOCK_ORGANIZER_BASELINE - the seven-day demo baseline of the organizer summary; nothing on the backend counts bookings per weekday or attributes traffic yet
+// - resetMockOrganizerDay - clear the event-day state the mock owns alone (options, check-ins, waitlist offers)
+// - mockOrganizerSummary - mock GET /organizer/summary: the demo baseline plus the store's own organizer bookings, the attendance split and the traffic shares
+// - mockOrganizerEventOptions - mock GET /organizer/events/:id/options: the four экран 43 switches, defaulted on first read
+// - updateMockOrganizerEventOptions - mock PATCH of the same sub-resource
+// - mockOrganizerAttendance - mock GET /organizer/events/:id/attendance: counters, the roster built from the store's bookings, the seeded waitlist and the venue slots
+// - checkInMockOrganizerGuest - mock POST /organizer/events/:id/check-ins: mark a booking arrived by its entry code
+// - inviteMockOrganizerWaitlist - mock POST /organizer/events/:id/waitlist/invites: offer the freed seats to the head of the waitlist
 // END_MODULE_MAP
 
 import { CreatePlaceSchema, EventSchema, StatsPeriodSchema } from "@max-events/api-contracts";
 import type { Booking, CreateEvent, CreatePlace, CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, Event, EventSalesReport, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, PageViewTarget, Payment, Place, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod } from "@max-events/api-contracts";
+import { organizerEntryCode, type OrganizerAttendance, type OrganizerEventOptions, type OrganizerParticipant, type OrganizerSlot, type OrganizerSummary, type OrganizerWaitlistEntry, type UpdateOrganizerEventOptions } from "../client";
 import { MOCK_COMMISSION_BPS, mockBookings, mockCheckIns, mockPayments } from "./bookings";
 
-import { PLACE_STAMP, event, mockDemoUser, mockEvents, mockFriendIds, mockOrganizers, mockPlaces, moscowDateKey, place } from "./fixtures";
+import { PLACE_STAMP, event, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganizers, mockPlaces, moscowDateKey, place } from "./fixtures";
 import { mockReviews } from "./reviews";
 
 interface MockPageView {
@@ -86,6 +95,7 @@ export function resetMockOrganizer(): void {
   mockOrganizerState = seedMockOrganizer();
   mockOrganizerSeq = 0;
   seedMockOrganizerAddons();
+  resetMockOrganizerDay();
 }
 
 const MOCK_ADDON_BOOKING_IDS = ["e00000f2-0000-4000-8000-0000000000f1", "e00000f2-0000-4000-8000-0000000000f2", "e00000f2-0000-4000-8000-0000000000f3"];
@@ -397,4 +407,145 @@ export function setMockEarlyAccess(eventId: string, bookingOpensAt: string): { b
   if (owned === null || owned === "forbidden") return owned;
   owned.bookingOpensAt = bookingOpensAt;
   return { bookingOpensAt };
+}
+
+/**
+ * Nothing on the backend buckets bookings by weekday or attributes where a guest came from, so the
+ * summary of экраны 42 и 45 rides a fixed demo baseline (Monday first). The store's own organizer
+ * bookings are added on top, so the screens still move when something is actually booked here.
+ */
+export const MOCK_ORGANIZER_BASELINE = { byWeekday: [18, 26, 22, 37, 48, 61, 33], previousBookings: 208, sources: [62, 24, 14] } as const;
+
+const MOCK_TRAFFIC_SOURCES = ["chats", "feed", "search"] as const;
+
+/** Monday-first index of an ISO instant, matching the пн…вс order of the histogram. */
+function mondayFirstIndex(at: string): number {
+  return (new Date(at).getDay() + 6) % 7;
+}
+
+/** Mock GET /organizer/summary: the demo baseline plus the organizer's own bookings over the period. */
+export function mockOrganizerSummary(period: StatsPeriod = ALL_TIME): OrganizerSummary {
+  const ownedIds = new Set(mockOrganizerState.events.map((item) => item.id));
+  const bookings = mockBookings.filter((booking) => ownedIds.has(booking.eventId) && mockInPeriod(booking.createdAt, period));
+  const byWeekday = [...MOCK_ORGANIZER_BASELINE.byWeekday];
+  for (const booking of bookings) byWeekday[mondayFirstIndex(booking.createdAt)] += 1;
+  const total = byWeekday.reduce((sum, value) => sum + value, 0);
+  const cancelled = bookings.filter((booking) => booking.status === "cancelled").length;
+  const attended = mockCheckIns.filter((item) => item.eventId !== null && ownedIds.has(item.eventId)).length;
+  const previous: number = MOCK_ORGANIZER_BASELINE.previousBookings;
+  return {
+    bookings: total,
+    bookingsDeltaPercent: previous === 0 ? null : Math.round(((total - previous) / previous) * 100),
+    attendedPercent: bookings.length === 0 ? null : Math.round((attended / bookings.length) * 100),
+    cancelledPercent: bookings.length === 0 ? null : Math.round((cancelled / bookings.length) * 100),
+    byWeekday,
+    sources: MOCK_TRAFFIC_SOURCES.map((source, index) => ({ source, percent: MOCK_ORGANIZER_BASELINE.sources[index] })),
+  };
+}
+
+const mockEventOptions = new Map<string, OrganizerEventOptions>();
+
+/** Guests a booking brings along: no column carries them, so the mock derives a stable 0..1 from the id. */
+function mockGuests(id: string): number {
+  return id.charCodeAt(id.length - 1) % 2;
+}
+
+function mockOrganizerName(userId: string): string {
+  return mockFriends.find((friend) => friend.id === userId)?.name ?? "Участник";
+}
+
+/** Who is waiting for a seat. The waitlist store lives in the bookings domain and holds only the viewer's own entry, so the organizer view of it is seeded here, deterministically per event. */
+function seedMockWaitlist(eventId: string): OrganizerWaitlistEntry[] {
+  return mockFriendIds.slice(3, 6).map((userId, index) => ({ entryId: `${eventId.slice(0, 8)}-0000-4000-8000-${String(index + 1).padStart(12, "0")}`, userId, name: mockOrganizerName(userId), guests: mockGuests(userId), joinedAt: new Date(new Date(PLACE_STAMP).getTime() + index * 3_600_000).toISOString() }));
+}
+
+const mockCheckedInAt = new Map<string, string>();
+
+const mockInvitedFromWaitlist = new Map<string, number>();
+
+/** Clear the event-day state no other domain owns (options, door check-ins, waitlist offers). */
+export function resetMockOrganizerDay(): void {
+  mockEventOptions.clear();
+  mockCheckedInAt.clear();
+  mockInvitedFromWaitlist.clear();
+}
+
+/** Mock GET /organizer/events/:id/options: the экран 43 switches, defaulted the first time they are read. */
+export function mockOrganizerEventOptions(eventId: string): OrganizerEventOptions | "forbidden" | null {
+  const owned = mockOwnedEvent(eventId);
+  if (owned === null || owned === "forbidden") return owned;
+  const stored = mockEventOptions.get(eventId);
+  if (stored) return stored;
+  // Defaults follow what the event itself already says: a capped event takes a waitlist, a paid one
+  // with an external payment link registers off-site.
+  const created: OrganizerEventOptions = { eventId, waitlistEnabled: owned.capacity !== null, registrationInApp: owned.paymentUrl === null, externalUrl: owned.paymentUrl, recurrence: null };
+  mockEventOptions.set(eventId, created);
+  return created;
+}
+
+/** Mock PATCH /organizer/events/:id/options. */
+export function updateMockOrganizerEventOptions(eventId: string, patch: UpdateOrganizerEventOptions): OrganizerEventOptions | "forbidden" | "invalid" | null {
+  const current = mockOrganizerEventOptions(eventId);
+  if (current === null || current === "forbidden") return current;
+  if (patch.recurrence != null && (patch.recurrence.rule !== "weekly" || Number.isNaN(new Date(patch.recurrence.until).getTime()))) return "invalid";
+  if (patch.registrationInApp === false && (patch.externalUrl ?? current.externalUrl) === null) return "invalid";
+  const next: OrganizerEventOptions = { ...current, ...patch };
+  mockEventOptions.set(eventId, next);
+  return next;
+}
+
+/** Venue slots around the event start; the slots domain does not exist yet (#492), so the event day carries them. */
+function mockSlots(start: string): OrganizerSlot[] {
+  const base = new Date(start).getTime();
+  return [0, 1, 2].map((index) => {
+    const from = new Date(base + index * 3.5 * 60 * 60 * 1000);
+    return { id: `slot-${index}`, startsAt: from.toISOString(), endsAt: new Date(from.getTime() + 3 * 60 * 60 * 1000).toISOString(), busy: index === 0 };
+  });
+}
+
+/** Mock GET /organizer/events/:id/attendance: the roster of экран 44 built from the bookings the store already has. */
+export function mockOrganizerAttendance(eventId: string): OrganizerAttendance | "forbidden" | null {
+  const owned = mockOwnedEvent(eventId);
+  if (owned === null || owned === "forbidden") return owned;
+  const bookings = mockBookings.filter((booking) => booking.eventId === eventId).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+  const active = bookings.filter((booking) => booking.status === "active");
+  const participants: OrganizerParticipant[] = active.map((booking) => ({ bookingId: booking.id, userId: booking.userId, name: mockOrganizerName(booking.userId), guests: mockGuests(booking.id), checkedInAt: mockCheckedInAt.get(booking.id) ?? null, bookedAt: booking.createdAt }));
+  const invited = mockInvitedFromWaitlist.get(eventId) ?? 0;
+  const waitlist = seedMockWaitlist(eventId).slice(invited);
+  const cancelled = bookings.length - active.length;
+  return {
+    eventId,
+    capacity: owned.capacity,
+    bookedCount: active.length,
+    waitlistCount: waitlist.length,
+    checkedInCount: participants.filter((row) => row.checkedInAt !== null).length,
+    freedSeats: Math.max(cancelled - invited, 0),
+    chatMessages: owned.chatLink === null ? null : active.length * 2,
+    participants,
+    waitlist,
+    slots: mockSlots(owned.startsAt),
+  };
+}
+
+/** Mock POST /organizer/events/:id/check-ins: the door marks a guest arrived by the code on their ticket. */
+export function checkInMockOrganizerGuest(eventId: string, code: string, now: Date = new Date()): OrganizerParticipant | "forbidden" | "no_guest" | null {
+  const owned = mockOwnedEvent(eventId);
+  if (owned === null || owned === "forbidden") return owned;
+  const wanted = code.trim().toUpperCase();
+  const booking = mockBookings.find((row) => row.eventId === eventId && row.status === "active" && organizerEntryCode(row.id) === wanted);
+  if (!booking) return "no_guest";
+  // Идемпотентно: второй скан той же брони не сдвигает время прихода.
+  const checkedInAt = mockCheckedInAt.get(booking.id) ?? now.toISOString();
+  mockCheckedInAt.set(booking.id, checkedInAt);
+  return { bookingId: booking.id, userId: booking.userId, name: mockOrganizerName(booking.userId), guests: mockGuests(booking.id), checkedInAt, bookedAt: booking.createdAt };
+}
+
+/** Mock POST /organizer/events/:id/waitlist/invites: never offers more seats than were actually freed. */
+export function inviteMockOrganizerWaitlist(eventId: string, count: number): { invited: number } | "forbidden" | "invalid" | null {
+  const attendance = mockOrganizerAttendance(eventId);
+  if (attendance === null || attendance === "forbidden") return attendance;
+  if (!Number.isInteger(count) || count < 1) return "invalid";
+  const invited = Math.min(count, attendance.freedSeats, attendance.waitlist.length);
+  mockInvitedFromWaitlist.set(eventId, (mockInvitedFromWaitlist.get(eventId) ?? 0) + invited);
+  return { invited };
 }

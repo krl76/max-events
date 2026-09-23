@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock route table for reporting and moderation: the queue, the resolve action and the two irreversible moderator writes.
-// SCOPE: GET/POST /api/reports, POST /api/reports/:id/resolve, POST /api/moderation/unpublish, POST /api/moderation/ban.
+// PURPOSE: Mock route table for reporting and moderation: the queue, what its rows are about, the spot check, the resolve action and the two irreversible moderator writes.
+// SCOPE: GET/POST /api/reports, POST /api/reports/spot-check, POST /api/reports/:id/resolve, GET /api/moderation/targets, POST /api/moderation/unpublish, POST /api/moderation/ban.
 // DEPENDS: ./moderation.js, ./fixtures.js, ../client.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -12,7 +12,7 @@
 import { BanOrganizerWriteSchema, UnpublishWriteSchema } from "@max-events/api-contracts";
 import { type CreateReport } from "../client";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
-import { banMockOrganizer, createMockReport, isMockModerator, openMockReports, resolveMockReport, unpublishMockTarget } from "./moderation";
+import { banMockOrganizer, createMockReport, isMockModerator, mockModerationTargets, openMockReports, resolveMockReport, spotCheckMockReport, unpublishMockTarget } from "./moderation";
 
 export function moderationRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/reports" && init?.method !== "POST") {
@@ -20,6 +20,17 @@ export function moderationRoutes(url: URL, init: RequestInit | undefined): Respo
     if (!isMockModerator(mockDemoUser.id)) return new Response(null, { status: 403 });
     if ((url.searchParams.get("status") ?? "open") !== "open") return new Response(null, { status: 400 });
     return Response.json(openMockReports());
+  }
+  if (url.pathname === "/api/moderation/targets") {
+    if (!isMockModerator(mockDemoUser.id)) return new Response(null, { status: 403 });
+    return Response.json(mockModerationTargets());
+  }
+  if (url.pathname === "/api/reports/spot-check" && init?.method === "POST") {
+    if (!isMockModerator(mockDemoUser.id)) return new Response(null, { status: 403 });
+    const payload = parseBookingBody(init) as CreateReport | undefined;
+    if (typeof payload !== "object" || payload === null || typeof payload.reason !== "string") return new Response(null, { status: 400 });
+    const result = spotCheckMockReport({ ...payload, userId: mockDemoUser.id });
+    return result === "no_target" ? new Response(null, { status: 404 }) : result === "invalid" ? new Response(null, { status: 400 }) : result === "duplicate" ? new Response(null, { status: 409 }) : Response.json(result);
   }
   const reportResolve = /^\/api\/reports\/([^/]+)\/resolve$/.exec(url.pathname);
   if (reportResolve && init?.method === "POST") {

@@ -138,6 +138,16 @@
 // - unpublishMockTarget - mock POST /moderation/unpublish
 // - visitedPlacesFor - impressions grid of экран 36: visited places with their visit counts, most visited first
 // - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
+// - MOCK_ORGANIZER_BASELINE - the seven-day demo baseline of the organizer summary (nothing counts bookings per weekday or attributes traffic yet)
+// - checkInMockOrganizerGuest - mock POST /organizer/events/:id/check-ins: mark a booking arrived by its entry code
+// - inviteMockOrganizerWaitlist - mock POST /organizer/events/:id/waitlist/invites
+// - mockModerationTargets - mock GET /moderation/targets: one row per reported object
+// - mockOrganizerAttendance - mock GET /organizer/events/:id/attendance: the event day of экран 44
+// - mockOrganizerEventOptions - mock GET /organizer/events/:id/options: the экран 43 switches
+// - mockOrganizerSummary - mock GET /organizer/summary: the period report of экраны 42 и 45
+// - resetMockOrganizerDay - clear the event-day state the mock owns alone (options, check-ins, waitlist offers)
+// - spotCheckMockReport - mock POST /reports/spot-check: the queue's second stream
+// - updateMockOrganizerEventOptions - mock PATCH /organizer/events/:id/options
 // END_MODULE_MAP
 
 export { MOCK_PROMO_CODE, MOCK_SANDBOX_FAIL_AMOUNT, MOCK_SINGLE_USE_PROMO_CODE, OFFER_TTL_MS, createMockCheckIn, resetMockBookings, resetMockCheckIns, resetMockPromo, resetMockWaitlist } from "./mock/bookings";
@@ -148,8 +158,8 @@ export { MOCK_EARLY_ACCESS_EVENT_ID, MOCK_NOW, MOCK_ORGANIZER_CREDENTIALS, MOCK_
 export { MOCK_FOREIGN_VOTE_ID, MOCK_VOTE_ID, castMockBallot, createMockVote, getMockVote, listMockWeGroups, resetMockVotes, resetMockWeGroups } from "./mock/groups";
 export { installMockApi } from "./mock/install";
 export { LIST_PRESET_TITLES, SHARED_COLLECTION_TITLE, createMockList, createMockSubscription, listItemCards, listMockSubscriptions, listSummaries, removeMockList, removeMockSubscription, renameMockList, resetMockLists, resetMockSubscriptions } from "./mock/lists";
-export { MOCK_MODERATOR_USER_ID, banMockOrganizer, bannedMockOrganizers, createMockReport, isMockModerator, openMockReports, resetMockReports, resolveMockReport, setMockModerator, unpublishMockTarget } from "./mock/moderation";
-export { MOCK_ORGANIZER_PAID_EVENT_ID, resetMockCampaigns, resetMockOrganizer, resetMockPromoCodes, resetMockPromotions } from "./mock/organizer";
+export { MOCK_MODERATOR_USER_ID, banMockOrganizer, bannedMockOrganizers, createMockReport, isMockModerator, mockModerationTargets, openMockReports, resetMockReports, resolveMockReport, setMockModerator, spotCheckMockReport, unpublishMockTarget } from "./mock/moderation";
+export { MOCK_ORGANIZER_BASELINE, MOCK_ORGANIZER_PAID_EVENT_ID, checkInMockOrganizerGuest, inviteMockOrganizerWaitlist, mockOrganizerAttendance, mockOrganizerEventOptions, mockOrganizerSummary, resetMockCampaigns, resetMockOrganizer, resetMockOrganizerDay, resetMockPromoCodes, resetMockPromotions, updateMockOrganizerEventOptions } from "./mock/organizer";
 export { buildMockDayRoute, calendarEntries, cancelMockPlan, createMockAutoPlan, createMockPlan, mockBudgetFromExpenses, mockPlanBudget, mockPlans, optimizeMockDayRoute, planCard, planCards, resetMockPlans } from "./mock/plans";
 export { DEFAULT_APP_SETTINGS, achievementsFor, afterMePicks, appSettingsFor, myCityFor, profileCountersFor, resetMockAppSettings, resetMockProfiles, tasteProfile, visitedPlacesFor } from "./mock/profile";
 export { mockPromotionPlacements, mockTargetedPromotions } from "./mock/promo";

@@ -74,6 +74,19 @@
 // - serializeEventFilters - filters -> query string ("" when empty)
 // - statsPeriodQuery - period into a ?from&to query string
 // - trackPageView - fire-and-forget page helper over recordPageView (errors swallowed, #196)
+// - ModerationTarget - what a queue row is about: the reported object's title, its author and its reach (макет, экраны 46 и 47)
+// - ORGANIZER_TRAFFIC_SOURCES - where a booking came from, in the order экраны 42 и 45 list it
+// - OrganizerAttendance - the event day of экран 44: counters, participants, waitlist, slots
+// - OrganizerEventOptions - the экран 43 switches the Event contract has no field for (waitlist, in-app registration, external link, recurrence)
+// - OrganizerParticipant - one «Отметились»/«Ждём» row of экран 44
+// - OrganizerRecurrence - «Повторять каждую неделю» of экран 43: rule + the date the series runs to
+// - OrganizerSlot - one venue slot chip of экран 44 (#492)
+// - OrganizerSummary - organizer-wide period report of экраны 42 и 45
+// - OrganizerTrafficShare - one «Откуда приходят» row: source + percent
+// - OrganizerTrafficSource - union of the traffic sources
+// - OrganizerWaitlistEntry - one waitlist row of экран 44
+// - UpdateOrganizerEventOptions - partial OrganizerEventOptions patch
+// - organizerEntryCode - entry code of a booking, derived from its id (no code column exists yet)
 // END_MODULE_MAP
 
 import type { RecordPageViewWrite } from "@max-events/api-contracts";
@@ -93,7 +106,7 @@ import { withSocial } from "./endpoints/social";
 import { ApiTransport } from "./endpoints/transport";
 
 export { REPORT_REASONS } from "./endpoints/moderation";
-export type { OrganizerEvent, OrganizerPlace, StatsPeriodQuery, UpdateOrganizerEvent, UpdateOrganizerPlace } from "./endpoints/organizer";
+export type { OrganizerAttendance, OrganizerEvent, OrganizerEventOptions, OrganizerParticipant, OrganizerPlace, OrganizerRecurrence, OrganizerSlot, OrganizerSummary, OrganizerTrafficShare, OrganizerTrafficSource, OrganizerWaitlistEntry, StatsPeriodQuery, UpdateOrganizerEvent, UpdateOrganizerEventOptions, UpdateOrganizerPlace } from "./endpoints/organizer";
 export type { CalendarEntry } from "./endpoints/plans";
 export type { CreateGathering, CreateMicroEvent, FriendSuggestion } from "./endpoints/social";
 export { ApiError } from "./endpoints/transport";
@@ -108,8 +121,8 @@ export type { MyCityPayload } from "./endpoints/profile";
 export { SWIPE_CATEGORIES } from "./endpoints/discover";
 export type { LeisureQuery, SwipeCandidate, SwipeCategory, SwipeDecision, TodayCard, TodayDigest } from "./endpoints/discover";
 export type { AppSettings, ProfileCounters, UpdateAppSettings, VisitedPlace } from "./endpoints/profile";
-export { statsPeriodQuery } from "./endpoints/organizer";
-export type { CreateReport, Report, ReportReason } from "./endpoints/moderation";
+export { ORGANIZER_TRAFFIC_SOURCES, organizerEntryCode, statsPeriodQuery } from "./endpoints/organizer";
+export type { CreateReport, ModerationTarget, Report, ReportReason } from "./endpoints/moderation";
 // One mixin per domain, applied in a flat chain: a new domain is one more line here plus its own file, and
 // adding an endpoint to an existing domain never touches this file at all.
 const WithAuth = withAuth(ApiTransport);
