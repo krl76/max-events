@@ -11,6 +11,7 @@
 // - CalendarView - presentational: two sections with booking cards and empty states
 // - CalendarTab - сегменты экрана 22: мои брони | календарь
 // - SharedState - union of the shared-calendar fetch states (loading / error / ready)
+// - instrumentalName - имя в творительном падеже по его же окончанию («Анна» -> «Анной»)
 // - peersLabel - «Общий с Анной» под заголовком месяца
 // - calendarShareText - что уходит в чат MAX по «Поделиться» и «Ссылка на календарь»
 // - SharedCalendarView - презентационно: месяц, сетка, легенда, день со списком записей и низ экрана
@@ -26,7 +27,7 @@ import { shareResult, webApp } from "../max/bridge";
 import { MyMicroEventsSection } from "../micro/MicroEvents";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppButton, AppChip, AppState, AppSection, AppMedia } from "../ui/primitives";
+import { AppButton, AppState, AppSection, AppMedia } from "../ui/primitives";
 import { MonthGrid, calendarReminder, dayTitle, entriesOn, entryTime, mergeCalendarEntries, monthTitle, overlapWarnings, type CalendarDayEntry } from "./MonthCalendar";
 
 export type CalendarState = { status: "loading" } | { status: "error" } | { status: "ready"; entries: CalendarEntry[] };
@@ -90,9 +91,30 @@ export type CalendarTab = "bookings" | "month";
 
 export type SharedState = { status: "loading" } | { status: "error" } | { status: "ready"; shared: SharedCalendar };
 
-/** «Общий с Анной»: имя одного, счёт — когда их больше; пустой календарь про совместность молчит. */
+const HUSHING = new Set(["ж", "ч", "ш", "щ", "ц"]);
+
+/**
+ * Творительный падеж имени для «Общий с Анной». Падеж выводится из окончания самого имени, а не
+ * из пола: пола в контракте Friend нет, а окончание есть у любой строки. Имена, которые в русском
+ * не склоняются (кончаются на -о, -е, -и, -у, -ю, -э) и всё нерусское остаются как есть — «Общий
+ * с Николь» верно ровно потому, что ничего не сделано.
+ */
+export function instrumentalName(name: string): string {
+  if (!/^[а-яё]+$/i.test(name)) return name;
+  const stem = name.slice(0, -1);
+  const last = name.slice(-1).toLowerCase();
+  const beforeLast = stem.slice(-1).toLowerCase();
+  if (last === "а") return `${stem}${HUSHING.has(beforeLast) ? "ей" : "ой"}`;
+  if (last === "я") return `${stem}ей`;
+  if (last === "й") return `${stem}ем`;
+  if (last === "ь") return `${stem}ем`;
+  if ("оеиуюэы".includes(last)) return name;
+  return `${name}${HUSHING.has(last) ? "ем" : "ом"}`;
+}
+
+/** «Общий с Анной»: имена тех, кому календарь открыт; пустой календарь про совместность молчит. */
 export function peersLabel(shared: SharedCalendar): string | null {
-  const names = shared.peers.map((peer) => peer.friend.name.split(" ")[0]);
+  const names = shared.peers.map((peer) => instrumentalName(peer.friend.name.split(" ")[0]));
   if (names.length === 0) return null;
   return `Общий с ${names.join(", ")}`;
 }
@@ -345,11 +367,11 @@ export function CalendarPage() {
 
   return (
     <>
-      <div className="app-view-toggle" role="group" aria-label="Разделы календаря">
+      <div className="app-cal-switch" role="group" aria-label="Разделы календаря">
         {CALENDAR_TABS.map((item) => (
-          <AppChip key={item.id} pressed={tab === item.id} onClick={() => setTab(item.id)}>
+          <button key={item.id} type="button" className={tab === item.id ? "app-cal-switch-item app-cal-switch-item--on" : "app-cal-switch-item"} aria-pressed={tab === item.id} onClick={() => setTab(item.id)}>
             {item.label}
-          </AppChip>
+          </button>
         ))}
       </div>
       {tab === "month" ? (

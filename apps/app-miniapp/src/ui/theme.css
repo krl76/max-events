@@ -7845,10 +7845,13 @@ button.app-set-row {
 
 /* --- Экран 10: MAX AI ассистент --- */
 
+/* Экран занимает высоту прокрутки целиком: иначе на пустой переписке строка ввода встаёт
+ * сразу под приветствием, а под ней остаётся полполотна белого. */
 .app-assist {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-m);
+  min-height: 100%;
 }
 
 /* Шапка занимает ширину целиком: поля экрана снимаются отрицательным полем и возвращаются
@@ -7911,8 +7914,10 @@ button.app-set-row {
   width: 36px;
 }
 
+/* Ветка забирает весь свободный остаток — это она и прижимает подсказки со строкой ввода к низу */
 .app-assist-thread {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--app-space-m);
 }
@@ -8082,11 +8087,13 @@ button.app-set-row {
 }
 
 /* Строка ввода приклеена над таббаром: переписка уезжает под неё, а спросить можно
- * не доскроллив до низа. */
+ * не доскроллив до низа. Отступ под таббар уже лежит в поле .app-content, поэтому смещение
+ * здесь нулевое: повтори его — и панель встанет на 72px выше, а нижняя реплика навсегда
+ * останется под ней. */
 .app-assist-composer {
   align-items: center;
   background: var(--app-card);
-  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  bottom: 0;
   display: flex;
   gap: 10px;
   margin: 0 calc(-1 * var(--app-space-screen));
@@ -8181,6 +8188,12 @@ button.app-set-row {
   margin: 0;
 }
 
+.app-plan-top-line {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
 .app-plan-top-sub {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);
@@ -8194,8 +8207,9 @@ button.app-set-row {
   flex: none;
   font-size: var(--app-font-size-caption);
   font-weight: 800;
-  letter-spacing: 0.04em;
-  padding: 6px 10px;
+  letter-spacing: 0.03em;
+  padding: 5px 9px;
+  white-space: nowrap;
 }
 
 .app-plan-steps {
@@ -8450,10 +8464,11 @@ button.app-set-row {
   gap: var(--app-space-s);
 }
 
+/* Низ экрана приклеен над таббаром; отступ под таббар уже лежит в поле .app-content — см. .app-assist-composer */
 .app-plan-cta {
   background: var(--app-card);
   border-top: var(--app-hairline);
-  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  bottom: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -8489,6 +8504,8 @@ button.app-set-row {
   gap: 10px;
 }
 
+/* «Отправить в чат MAX» — самая длинная подпись экрана, и она обязана лечь в одну строку:
+ * в две кнопка вырастает и ломает пару с «В календарь». Отсюда описательный кегль и nowrap. */
 .app-plan-cta-side {
   align-items: center;
   background: none;
@@ -8499,12 +8516,17 @@ button.app-set-row {
   display: flex;
   flex: 1;
   font: inherit;
-  font-size: var(--app-font-size-callout);
+  font-size: var(--app-font-size-description);
   font-weight: 800;
-  gap: var(--app-space-s);
+  gap: 6px;
   height: 48px;
   justify-content: center;
   min-width: 0;
+  white-space: nowrap;
+}
+
+.app-plan-cta-side svg {
+  flex: none;
 }
 
 .app-plan-cta-side:hover {
@@ -8523,6 +8545,39 @@ button.app-set-row {
   display: flex;
   flex-direction: column;
   gap: 0;
+}
+
+/* Вкладка «Календарь» уже стоит в переключателе разделов «Планы», поэтому второй ряд таких же
+ * пилюль читался бы как повтор того же выбора. Этот переключатель мельче и живёт в одной
+ * подложке: он делит календарь надвое, а не переключает раздел. */
+.app-cal-switch {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-pill);
+  display: flex;
+  gap: 2px;
+  margin: var(--app-space-m) 0 var(--app-space-l);
+  padding: 3px;
+}
+
+.app-cal-switch-item {
+  background: none;
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 7px 0;
+}
+
+/* Выбранный сегмент — подложкой холста, а не заливкой подтверждения: заливка тут спорила бы
+ * за внимание с пилюлей разделов над ней, а это выбор внутри одного экрана. */
+.app-cal-switch-item--on {
+  background: var(--app-card);
+  color: var(--app-text);
+  font-weight: 800;
 }
 
 .app-cal-head {
@@ -8817,10 +8872,11 @@ button.app-set-row {
   padding: 0 var(--app-space-l);
 }
 
+/* Низ экрана приклеен над таббаром; отступ под таббар уже лежит в поле .app-content — см. .app-assist-composer */
 .app-cal-cta {
   background: var(--app-card);
   border-top: var(--app-hairline);
-  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  bottom: 0;
   display: flex;
   gap: 10px;
   margin: var(--app-space-m) calc(-1 * var(--app-space-screen)) 0;

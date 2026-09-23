@@ -110,11 +110,15 @@ export function PlanView({ state, timeline, budget, onBack = () => {}, onOpenEve
           <ActionIcon name="chevron" size={20} strokeWidth={2} />
         </button>
         <span className="app-plan-top-text">
-          <h1 className="app-plan-top-title">План на вечер</h1>
+          <span className="app-plan-top-line">
+            <h1 className="app-plan-top-title">План на вечер</h1>
+            {/* Бейдж — один на экран, и он занят: вечер собрал ассистент, а не пользователь.
+                Стоит он у заголовка, а не у строки даты: у даты он отнял бы треть ширины и
+                разломил «Суббота, 19 сентября · 4 человека» на две строки. */}
+            {timeline.status === "ready" && timeline.timeline.assembledByMax && <span className="app-plan-badge">MAX СОБРАЛ</span>}
+          </span>
           <span className="app-plan-top-sub">{planHeaderSubtitle(state.card)}</span>
         </span>
-        {/* Бейдж — один на экран, и он занят: вечер собрал ассистент, а не пользователь. */}
-        {timeline.status === "ready" && timeline.timeline.assembledByMax && <span className="app-plan-badge">MAX СОБРАЛ</span>}
       </header>
 
       {timeline.status === "loading" && <AppState>Собираем вечер…</AppState>}

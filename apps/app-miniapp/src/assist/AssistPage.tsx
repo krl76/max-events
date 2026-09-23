@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 10 «MAX AI ассистент»: переписка с подборщиком — реплики, карточки вариантов под ответом, сборка плана на вечер, подсказки и строка ввода.
 // SCOPE: Данные только через реальные эндпоинты ассистента — apiClient.assistQuery (POST /assist) и apiClient.assistDay (POST /assist/day); 429 отдаёт текст про частые запросы; «Открыть» ведёт на событие, собранный план — на экран плана. Ветка переписки хранится в состоянии экрана: истории диалогов на бэкенде нет и она ей не нужна.
-// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (AssistDayResponse, AssistPick, AssistResponse, Event, PlanCardSchema), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./AssistSection.js (assistErrorMessage), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (AssistDayResponse, AssistPick, AssistResponse, Event, PlanCardSchema), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../plans/PlanTimeline.js (planStepTime), ./AssistSection.js (assistErrorMessage), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -25,6 +25,7 @@ import type { AssistDayResponse, AssistPick, AssistResponse, Event } from "@max-
 import { PlanCardSchema } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { planStepTime } from "../plans/PlanTimeline";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppMedia, AppState } from "../ui/primitives";
@@ -90,7 +91,8 @@ function DayCard({ day, onOpenEvent, onOpenPlan }: { day: AssistDayResponse; onO
         {day.stops.map((stop) => (
           <li key={stop.event.id}>
             <button type="button" className="app-assist-day-stop" onClick={() => onOpenEvent(stop.event.id)}>
-              <span className="app-assist-day-at">{formatStartsAt(stop.at)}</span>
+              {/* Внутри дня дата у каждой точки лишняя — какой это день, сказано репликой над карточкой */}
+              <span className="app-assist-day-at">{planStepTime(stop.at)}</span>
               <span className="app-assist-day-title">{stop.event.title}</span>
               <span className="app-assist-day-why">{stop.explanation}</span>
             </button>
