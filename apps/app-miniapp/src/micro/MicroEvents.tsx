@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Micro-events (UGC): feed section with the participants counter and the ≤30-seconds creation form ("Играем в баскетбол сегодня в 19:00 — 3/6").
-// SCOPE: Data via apiClient.listMicroEvents/joinMicroEvent/leaveMicroEvent/createMicroEvent + listPlaces (place titles for cards and the create-form datalist); the section shows open micro events with a join/leave toggle; the form has exactly four fields (title, when, where, limit) and resolves a picked place into placeId, free text into locationText; membership is client-session state until the backend owns it.
+// SCOPE: Data via apiClient.listMicroEvents/joinMicroEvent/leaveMicroEvent/createMicroEvent + listPlaces (place titles for cards and the create-form datalist); the section shows open micro events with a join/leave toggle; the form has exactly four fields (title, when, where, limit) and resolves a picked place into placeId, free text into locationText; membership is read from participantIds of the DTO, so it survives a reload, and the same reading feeds the «Микро-события» block of the calendar.
 // DEPENDS: ../api/client.js (apiClient), ../catalog/CatalogPage.js (formatStartsAt), ../auth/AuthContext.js, ../routing/router.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -9,6 +9,8 @@
 // - microWhere - locationText or the title of the picked place from the loaded places list
 // - MicroCard - presentational: «Микро» badge, title, when/where, «3/6» counter, join/leave button
 // - MicroState - union of the section fetch states (loading / error / ready)
+// - joinedMicroEvents - open micro-events the viewer joined that have not started yet, soonest first
+// - MyMicroEventsSection - «Микро-события» block of the calendar: what the viewer signed up for, with the leave action
 // - MicroSection - container: loads open micro events and the places list, wires join/leave and the create CTA
 // - MicroDraft - creation form draft (title, when, where, limit)
 // - microDraftReady - the four fields are filled with a positive limit
@@ -63,6 +65,85 @@ export function MicroCard({ item, places, joined, onJoin, onLeave }: MicroCardPr
   );
 }
 
+/**
+ * What the viewer signed up for and has not attended yet. A micro-event is not a booking, so it never
+ * reaches the calendar through GET /calendar; the membership list of the DTO is the whole source here.
+ */
+export function joinedMicroEvents(events: MicroEvent[], userId: string | null, now: Date): MicroEvent[] {
+  if (userId === null) return [];
+  return events.filter((item) => item.status === "open" && item.participantIds.includes(userId) && Date.parse(item.startsAt) >= now.getTime()).sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
+}
+
+export function MyMicroEventsSection({ now = new Date() }: { now?: Date }) {
+  const auth = useAuth();
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
+  const [events, setEvents] = useState<MicroEvent[] | null>(null);
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [failed, setFailed] = useState(false);
+  const [reloads, setReloads] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    apiClient.listMicroEvents().then(
+      (list) => {
+        if (!alive) return;
+        setEvents(list);
+        setFailed(false);
+      },
+      () => {
+        // Silence here would look exactly like the bug this block exists to disprove — an empty calendar.
+        if (alive) setFailed(true);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [reloads]);
+
+  useEffect(() => {
+    let alive = true;
+    apiClient.listPlaces().then(
+      (list) => {
+        if (alive) setPlaces(list);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const leave = useCallback(
+    (id: string) => {
+      if (userId === null) return;
+      apiClient.leaveMicroEvent(id, userId).then(
+        (next) => setEvents((current) => (current ?? []).map((row) => (row.id === next.id ? next : row))),
+        // The backend answers 403 to someone who is not a participant, which means this view is stale:
+        // reloading is the honest answer, not a card frozen mid-action.
+        () => setReloads((value) => value + 1),
+      );
+    },
+    [userId],
+  );
+
+  if (failed && events === null)
+    return (
+      <AppState error action={{ label: "Повторить", onClick: () => setReloads((value) => value + 1) }}>
+        Не удалось загрузить микро-события.
+      </AppState>
+    );
+  const mine = joinedMicroEvents(events ?? [], userId, now);
+  // The calendar has its own empty state for bookings; an empty micro block would only add noise.
+  if (mine.length === 0) return null;
+  return (
+    <AppSection title="Микро-события" className="app-cards-flat">
+      {mine.map((item) => (
+        <MicroCard key={item.id} item={item} places={places} joined onJoin={() => {}} onLeave={() => leave(item.id)} />
+      ))}
+    </AppSection>
+  );
+}
+
 export type MicroState = { status: "loading" } | { status: "error" } | { status: "ready"; events: MicroEvent[] };
 
 export function MicroSection({ onCreate }: { onCreate: () => void }) {
@@ -70,7 +151,6 @@ export function MicroSection({ onCreate }: { onCreate: () => void }) {
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const [state, setState] = useState<MicroState>({ status: "loading" });
   const [places, setPlaces] = useState<Place[]>([]);
-  const [joined, setJoined] = useState<string[]>([]);
 
   const load = useCallback(() => {
     apiClient.listMicroEvents().then(
@@ -102,10 +182,8 @@ export function MicroSection({ onCreate }: { onCreate: () => void }) {
   const join = useCallback(
     (id: string) => {
       if (userId === null) return;
-      apiClient.joinMicroEvent(id, userId).then((next) => {
-        setJoined((current) => (current.includes(id) ? current : [...current, id]));
-        update(next);
-      });
+      // The answer carries participantIds, so membership comes back from the server and survives a reload.
+      apiClient.joinMicroEvent(id, userId).then(update);
     },
     [userId, update],
   );
@@ -113,10 +191,7 @@ export function MicroSection({ onCreate }: { onCreate: () => void }) {
   const leave = useCallback(
     (id: string) => {
       if (userId === null) return;
-      apiClient.leaveMicroEvent(id, userId).then((next) => {
-        setJoined((current) => current.filter((item) => item !== id));
-        update(next);
-      });
+      apiClient.leaveMicroEvent(id, userId).then(update);
     },
     [userId, update],
   );
@@ -145,7 +220,7 @@ export function MicroSection({ onCreate }: { onCreate: () => void }) {
       ) : state.events.length === 0 ? (
         <AppState>Пока нет открытых микро-событий. Создай первое!</AppState>
       ) : (
-        state.events.map((item) => <MicroCard key={item.id} item={item} places={places} joined={joined.includes(item.id)} onJoin={() => join(item.id)} onLeave={() => leave(item.id)} />)
+        state.events.map((item) => <MicroCard key={item.id} item={item} places={places} joined={userId !== null && item.participantIds.includes(userId)} onJoin={() => join(item.id)} onLeave={() => leave(item.id)} />)
       )}
     </AppSection>
   );

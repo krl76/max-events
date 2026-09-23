@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { microDraftReady, microWhere, MicroCard, MicroEventCreateView, type MicroDraft } from "./MicroEvents";
-import { microEvents, mockPlaces } from "../api/mock";
+import { joinedMicroEvents, microDraftReady, microWhere, MicroCard, MicroEventCreateView, type MicroDraft } from "./MicroEvents";
+import { joinMockMicroEvent, microEvents, mockDemoUser, mockPlaces, resetMockMicroEvents } from "../api/mock";
 
 const events = microEvents();
 const noop = () => {};
@@ -77,5 +77,41 @@ describe("MicroEventCreateView", () => {
     expect(view({ draft: readyDraft })).not.toContain("disabled");
     expect(view({ draft: readyDraft, submitting: true })).toContain("Публикуем…");
     expect(view({ draft: readyDraft, failed: true })).toContain("Не удалось опубликовать микро-событие.");
+  });
+});
+
+describe("joinedMicroEvents", () => {
+  afterEach(resetMockMicroEvents);
+
+  it("reads membership from the answer, so it no longer dies with the page", () => {
+    const target = microEvents()[0];
+    const before = new Date(Date.parse(target.startsAt) - 3_600_000);
+
+    expect(joinedMicroEvents(microEvents(), mockDemoUser.id, before)).toEqual([]);
+    joinMockMicroEvent(target.id, mockDemoUser.id);
+    // A fresh list — as after a reload — still knows the viewer is in.
+    expect(joinedMicroEvents(microEvents(), mockDemoUser.id, before).map((item) => item.id)).toEqual([target.id]);
+  });
+
+  it("keeps only what is joined and still ahead, soonest first", () => {
+    const all = microEvents();
+    for (const item of all) joinMockMicroEvent(item.id, mockDemoUser.id);
+    const byStart = [...all].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
+
+    expect(joinedMicroEvents(microEvents(), mockDemoUser.id, new Date(0)).map((item) => item.id)).toEqual(byStart.map((item) => item.id));
+    // Only the second one is still ahead of a viewer standing between the two earliest starts.
+    const between = new Date(Date.parse(byStart[0].startsAt) + 1);
+    expect(joinedMicroEvents(microEvents(), mockDemoUser.id, between).map((item) => item.id)).toEqual(byStart.slice(1).map((item) => item.id));
+    // Nothing belongs to a viewer who is not signed in, and nothing that has already started shows up.
+    expect(joinedMicroEvents(microEvents(), null, new Date(0))).toEqual([]);
+    expect(joinedMicroEvents(microEvents(), mockDemoUser.id, new Date("2099-01-01T00:00:00Z"))).toEqual([]);
+  });
+
+  it("drops a cancelled micro-event even from the one who joined it", () => {
+    const target = microEvents()[0];
+    joinMockMicroEvent(target.id, mockDemoUser.id);
+    const cancelled = microEvents().map((item) => (item.id === target.id ? { ...item, status: "cancelled" as const } : item));
+
+    expect(joinedMicroEvents(cancelled, mockDemoUser.id, new Date(0)).some((item) => item.id === target.id)).toBe(false);
   });
 });
