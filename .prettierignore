@@ -1,3 +1,6 @@
+# Материалы дизайна (выгрузка Claude Design: рантайм-скаффолд и макеты) — не наш код, не форматировать
+MAXAFISHA DESIGN/
+
 # Сторонние скиллы (устанавливаются через skills CLI, хеши в skills-lock.json) — не форматировать
 .claude/
 .agents/skills/brainstorming/
