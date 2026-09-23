@@ -3904,3 +3904,1497 @@ html[data-theme="dark"] body {
   margin: 0 0 var(--app-space-s);
   text-align: center;
 }
+
+/* --- Экран 08 «Поиск», экран 16 «Карта», экран 09 «Подбор свайпами» ---------------------------
+ * Общий заголовок секции этих трёх экранов — 24px/800: в макете разделы «Для вас», «Сегодня рядом»
+ * и «Подбор мест» звучат одним голосом, тогда как .app-section-title (13px) остаётся заголовком
+ * служебных блоков остальных экранов. */
+.app-screen-title {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.app-search {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--app-space-l);
+}
+
+.app-search-top {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-s);
+  justify-content: space-between;
+}
+
+.app-search-city-wrap {
+  position: relative;
+}
+
+.app-search-city {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  gap: var(--app-space-s);
+  height: 40px;
+  padding: 0 14px;
+}
+
+/* Шеврон нарисован вправо: переключатель города доворачивает его вниз */
+.app-search-city-caret {
+  display: flex;
+  transform: rotate(90deg);
+}
+
+.app-search-city-menu {
+  background: var(--app-card);
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow-lift);
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  min-width: 160px;
+  overflow: hidden;
+  position: absolute;
+  top: 44px;
+  z-index: 3;
+}
+
+.app-search-city-option {
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  padding: var(--app-space-m) var(--app-space-l);
+  text-align: left;
+}
+
+.app-search-city-option--on {
+  font-weight: 700;
+}
+
+.app-search-id {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.app-search-avatar {
+  align-items: center;
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan));
+  border-radius: 50%;
+  color: var(--brand-white);
+  display: flex;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+/* Тёмный круг поиска инвертируется вместе со схемой, как и кнопка подтверждения */
+.app-search-icon-btn {
+  align-items: center;
+  background: var(--app-confirm);
+  border: none;
+  border-radius: 50%;
+  color: var(--app-confirm-contrast);
+  cursor: pointer;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+.app-search-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
+}
+
+.app-search-field {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text-secondary);
+  display: flex;
+  gap: var(--app-space-s);
+  height: 44px;
+  padding: 0 var(--app-space-l);
+}
+
+.app-search-input {
+  background: none;
+  border: none;
+  color: var(--app-text);
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  min-width: 0;
+  outline: none;
+}
+
+.app-search-recents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+}
+
+.app-search-chips {
+  display: flex;
+  gap: var(--app-space-s);
+  margin: var(--app-space-l) calc(-1 * var(--app-space-screen)) 0;
+  overflow-x: auto;
+  padding: 0 var(--app-space-screen);
+  scrollbar-width: none;
+}
+
+.app-search-chips::-webkit-scrollbar,
+.app-swipe-chips-row::-webkit-scrollbar,
+.app-rail-strip::-webkit-scrollbar,
+.app-map16-layers::-webkit-scrollbar {
+  display: none;
+}
+
+.app-search-chip {
+  flex: none;
+  font-size: var(--app-font-size-callout);
+  padding: 9px 16px;
+}
+
+.app-search-tiles {
+  display: flex;
+  gap: 10px;
+  margin-top: var(--app-space-l);
+}
+
+.app-search-tile {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  gap: 10px;
+  min-width: 0;
+  padding: var(--app-space-m) 14px;
+  text-align: left;
+  transition:
+    transform 0.16s ease-out,
+    box-shadow 0.16s ease-out;
+}
+
+.app-search-tile:hover {
+  box-shadow: var(--app-shadow-lift);
+  transform: translateY(-2px);
+}
+
+.app-search-tile-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-search-tile-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-search-tile-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+}
+
+.app-today {
+  margin-top: 18px;
+}
+
+.app-today-head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+.app-today-title {
+  flex: 1;
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.app-today-date {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+}
+
+.app-today-stats {
+  display: flex;
+  gap: 10px;
+  margin-top: var(--app-space-m);
+}
+
+.app-today-stat {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--app-space-m);
+  position: relative;
+}
+
+/* Голубой фон плитки «с друзьями»: канал brand-cyan палитра как rgba-литерал не раскрывает,
+ * поэтому подложка — отдельный слой с opacity, а текст остаётся на полной непрозрачности. */
+.app-today-stat--friends {
+  background: none;
+}
+
+.app-today-stat--friends::before {
+  background: var(--brand-cyan);
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  opacity: 0.09;
+  position: absolute;
+}
+
+.app-today-stat-value {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  position: relative;
+}
+
+.app-today-stat-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  line-height: 1.3;
+  margin-top: 2px;
+  position: relative;
+}
+
+.app-search-ways {
+  display: flex;
+  gap: 10px;
+  margin-top: var(--app-space-l);
+}
+
+.app-search-way {
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font: inherit;
+  min-width: 0;
+  padding: 14px;
+  text-align: left;
+  transition: transform 0.16s ease-out;
+}
+
+.app-search-way:hover {
+  transform: translateY(-2px);
+}
+
+/* Одна тёмная плитка на блок: точка внимания, вторая держится рамкой */
+.app-search-way--dark {
+  background: var(--app-confirm);
+  border-color: transparent;
+  color: var(--app-confirm-contrast);
+}
+
+.app-search-way-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  line-height: 1.2;
+  margin-top: 10px;
+}
+
+.app-search-way-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin-top: 2px;
+}
+
+.app-search-way--dark .app-search-way-hint {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.app-picks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+  margin-top: 20px;
+}
+
+.app-picks-skeleton {
+  border-radius: var(--app-radius-card);
+  height: 280px;
+}
+
+.app-picks-grid {
+  display: grid;
+  gap: var(--app-space-m);
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Карточка подборки: медиа-градиент задаёт .app-media--<категория>, здесь только геометрия */
+.app-pick {
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--brand-white);
+  cursor: pointer;
+  font: inherit;
+  height: 200px;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  text-align: left;
+  transition:
+    transform 0.16s ease-out,
+    box-shadow 0.16s ease-out;
+  width: 100%;
+}
+
+.app-pick:hover {
+  box-shadow: var(--app-shadow-lift);
+  transform: translateY(-2px);
+}
+
+.app-pick--hero {
+  height: 280px;
+}
+
+.app-pick-glow {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  height: 130px;
+  position: absolute;
+  right: -30px;
+  top: -40px;
+  width: 130px;
+}
+
+.app-pick--hero .app-pick-glow {
+  height: 220px;
+  right: -60px;
+  top: -70px;
+  width: 220px;
+}
+
+.app-pick-glow--cool {
+  background: var(--brand-cyan);
+  bottom: -80px;
+  height: 200px;
+  left: -50px;
+  opacity: 0.28;
+  right: auto;
+  top: auto;
+  width: 200px;
+}
+
+.app-pick-kind {
+  background: rgba(13, 0, 26, 0.45);
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  left: 10px;
+  padding: 5px 9px;
+  position: absolute;
+  top: 10px;
+}
+
+.app-pick--hero .app-pick-kind {
+  font-size: var(--app-font-size-description);
+  left: var(--app-space-l);
+  padding: 6px 10px;
+  top: var(--app-space-l);
+}
+
+.app-pick-save {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.45);
+  border-radius: 50%;
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 28px;
+}
+
+.app-pick--hero .app-pick-save {
+  height: 36px;
+  right: var(--app-space-l);
+  top: var(--app-space-l);
+  width: 36px;
+}
+
+.app-pick-veil {
+  background: linear-gradient(180deg, rgba(13, 0, 26, 0), rgba(13, 0, 26, 0.8));
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  padding: 44px var(--app-space-m) var(--app-space-m);
+  position: absolute;
+  right: 0;
+}
+
+.app-pick--hero .app-pick-veil {
+  padding: 60px var(--app-space-l) var(--app-space-l);
+}
+
+.app-pick-title {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.app-pick--hero .app-pick-title {
+  font-size: var(--app-font-size-headline);
+  letter-spacing: -0.02em;
+}
+
+.app-pick-where {
+  font-size: var(--app-font-size-caption);
+  margin-top: 1px;
+  opacity: 0.9;
+}
+
+.app-pick--hero .app-pick-where {
+  font-size: var(--app-font-size-description);
+  margin-top: 2px;
+  opacity: 0.92;
+}
+
+.app-pick-meta {
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.app-pick-meta-item {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.app-pick-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.app-pick-label {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: var(--app-radius-pill);
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  padding: 5px 9px;
+}
+
+.app-pick-foot {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--app-space-s);
+}
+
+.app-pick--hero .app-pick-foot {
+  margin-top: 14px;
+}
+
+.app-pick-more {
+  align-items: center;
+  background: var(--brand-white);
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-void);
+  display: flex;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  height: 40px;
+  padding: 0 18px;
+}
+
+.app-pick-price {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: var(--app-radius-pill);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  padding: 4px 8px;
+}
+
+.app-pick--hero .app-pick-price {
+  font-size: var(--app-font-size-description);
+  padding: 7px 12px;
+}
+
+.app-pick-rating {
+  align-items: center;
+  display: flex;
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  gap: 4px;
+}
+
+.app-afterme {
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  margin-top: var(--app-space-l);
+  padding: var(--app-space-l);
+}
+
+.app-afterme-head {
+  align-items: center;
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: 10px;
+  margin: 0;
+}
+
+.app-afterme-text {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  line-height: var(--app-line-height-body);
+  margin: 6px 0 0;
+  max-width: var(--app-measure);
+}
+
+.app-afterme-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--app-space-m);
+}
+
+.app-afterme-chip {
+  align-items: center;
+  background: rgba(var(--app-scheme-neutral), 0.06);
+  border-radius: var(--app-radius-pill);
+  display: inline-flex;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  gap: 5px;
+  padding: 5px 9px;
+}
+
+.app-afterme-actions {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
+}
+
+.app-afterme-go {
+  background: var(--app-confirm);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-confirm-contrast);
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 44px;
+}
+
+.app-afterme-skip {
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-media);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 44px;
+  padding: 0 14px;
+}
+
+.app-rail {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--app-space-xl);
+}
+
+.app-rail-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.app-rail-all {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-accent-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  gap: var(--app-space-xs);
+  padding: 0;
+}
+
+.app-rail-strip {
+  display: flex;
+  gap: var(--app-space-m);
+  margin: var(--app-space-m) calc(-1 * var(--app-space-screen)) 0;
+  overflow-x: auto;
+  padding: 0 var(--app-space-screen);
+  scrollbar-width: none;
+}
+
+.app-rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+  margin-top: var(--app-space-m);
+}
+
+.app-rail-skeleton {
+  border-radius: var(--app-radius-card);
+  flex: none;
+  height: 170px;
+  width: 150px;
+}
+
+.app-rail-card {
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--brand-white);
+  cursor: pointer;
+  font: inherit;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  text-align: left;
+}
+
+.app-rail-strip .app-rail-card {
+  flex: none;
+  height: 170px;
+  width: 150px;
+}
+
+.app-rail-list .app-rail-card {
+  height: 140px;
+  width: 100%;
+}
+
+.app-rail-kind {
+  background: rgba(13, 0, 26, 0.45);
+  border-radius: var(--app-radius-pill);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  left: 10px;
+  padding: 4px 8px;
+  position: absolute;
+  top: 10px;
+}
+
+.app-rail-veil {
+  background: linear-gradient(180deg, rgba(13, 0, 26, 0), rgba(13, 0, 26, 0.8));
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  padding: 32px var(--app-space-m) var(--app-space-m);
+  position: absolute;
+  right: 0;
+}
+
+.app-rail-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.app-rail-meta {
+  font-size: var(--app-font-size-caption);
+  opacity: 0.9;
+}
+
+/* --- Экран 16 «Карта»: хром поверх полотна ---------------------------------------------------
+ * Карта занимает весь экран, поэтому шапка, слои, карточка объекта и строка поиска живут
+ * абсолютно поверх неё. Полупрозрачные подложки взяты от холста схемы, а не от белого:
+ * в тёмной схеме плашки становятся тёмными вместе с ней. */
+.app-map16 {
+  overflow: hidden;
+  position: relative;
+}
+
+.app-map16 .app-map {
+  border-radius: 0;
+}
+
+.app-map16-top {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-s);
+  justify-content: space-between;
+  left: var(--app-space-screen);
+  position: absolute;
+  right: var(--app-space-screen);
+  top: var(--app-space-l);
+  z-index: 2;
+}
+
+.app-map16-back {
+  align-items: center;
+  background: var(--app-card);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  box-shadow: var(--app-shadow-lift);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px 0 10px;
+}
+
+/* Шеврон нарисован вправо; кнопка назад разворачивает его */
+.app-map16-back-caret {
+  display: flex;
+  transform: rotate(180deg);
+}
+
+.app-map16-top-right {
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+.app-map16-weather {
+  align-items: center;
+  background: var(--app-card);
+  border-radius: var(--app-radius-pill);
+  box-shadow: var(--app-shadow-lift);
+  display: flex;
+  gap: 6px;
+  height: 40px;
+  padding: 0 var(--app-space-m);
+}
+
+.app-map16-weather-value {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+/* Перемена погоды — «живой» индикатор, единственная роль, в которой brand-cyan разрешён текстом;
+ * на светлом холсте он даёт 2.1:1, поэтому вес здесь несёт не цвет, а соседнее значение. */
+.app-map16-weather-note {
+  color: var(--app-status);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+}
+
+.app-map16-round {
+  align-items: center;
+  background: var(--app-card);
+  border: none;
+  border-radius: 50%;
+  box-shadow: var(--app-shadow-lift);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+.app-map16-layers {
+  display: flex;
+  gap: var(--app-space-s);
+  left: var(--app-space-screen);
+  overflow-x: auto;
+  position: absolute;
+  right: var(--app-space-screen);
+  scrollbar-width: none;
+  top: 68px;
+  z-index: 2;
+}
+
+.app-map16-layer {
+  box-shadow: var(--app-shadow-lift);
+  flex: none;
+  font-size: var(--app-font-size-description);
+  padding: 8px var(--app-space-m);
+}
+
+.app-map16-card {
+  background: var(--app-card);
+  border-radius: 20px;
+  bottom: 96px;
+  box-shadow: var(--app-shadow-lift);
+  left: var(--app-space-l);
+  padding: 14px;
+  position: absolute;
+  right: var(--app-space-l);
+  z-index: 2;
+}
+
+.app-map16-card-close {
+  background: none;
+  border: none;
+  color: var(--app-text-tertiary);
+  cursor: pointer;
+  padding: var(--app-space-xs);
+  position: absolute;
+  right: var(--app-space-s);
+  top: var(--app-space-s);
+}
+
+.app-map16-card-head {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.app-map16-card-media {
+  background: var(--app-gradient-dark);
+  border-radius: 14px;
+  flex: none;
+  height: 52px;
+  width: 52px;
+}
+
+.app-map16-card-id {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-map16-card-friends {
+  align-items: center;
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  gap: 6px;
+}
+
+/* «Живой» индикатор присутствия — точка, не текст */
+.app-map16-card-dot {
+  background: var(--app-status);
+  border-radius: 50%;
+  height: 7px;
+  width: 7px;
+}
+
+.app-map16-card-title {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+.app-map16-card-meta {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-map16-travel {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
+}
+
+.app-map16-travel-item {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 14px;
+  display: flex;
+  flex: 1;
+  gap: var(--app-space-s);
+  min-width: 0;
+  padding: 10px var(--app-space-m);
+}
+
+.app-map16-travel-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-map16-travel-value {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-map16-travel-note {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+}
+
+.app-map16-rain {
+  align-items: center;
+  border-top: var(--app-hairline);
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+  gap: var(--app-space-s);
+  margin: 10px 0 0;
+  max-width: var(--app-measure);
+  padding-top: 10px;
+}
+
+.app-map16-card-actions {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: 10px;
+}
+
+.app-map16-route {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: 14px;
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  height: 48px;
+  justify-content: center;
+}
+
+.app-map16-route:hover,
+.app-map16-route[aria-pressed="true"] {
+  background: var(--app-accent-press);
+}
+
+.app-map16-discuss {
+  align-items: center;
+  background: none;
+  border: var(--app-hairline);
+  border-radius: 14px;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  height: 48px;
+  justify-content: center;
+  padding: 0;
+  width: 48px;
+}
+
+.app-map16-search {
+  align-items: center;
+  background: var(--app-card);
+  border-radius: var(--app-radius-pill);
+  bottom: var(--app-space-xl);
+  box-shadow: var(--app-shadow-lift);
+  color: var(--app-text-secondary);
+  display: flex;
+  gap: 10px;
+  height: 44px;
+  left: var(--app-space-l);
+  padding: 0 var(--app-space-l);
+  position: absolute;
+  right: var(--app-space-l);
+  z-index: 2;
+}
+
+.app-map16-search-input {
+  background: none;
+  border: none;
+  color: var(--app-text);
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  min-width: 0;
+  outline: none;
+}
+
+.app-map16-locate {
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  display: flex;
+  padding: 0;
+}
+
+.app-map16-locate[aria-pressed="true"] {
+  color: var(--app-accent-text);
+}
+
+/* Пин друга — плитка с инициалом и подписью места, а не точка (макет, экран 16) */
+.app-map-pin-tile {
+  align-items: center;
+  background: var(--app-gradient-dark);
+  border: 3px solid var(--app-card);
+  border-radius: 20px;
+  box-shadow: var(--app-shadow-lift);
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+}
+
+.app-map-pin-face {
+  align-items: center;
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-purple));
+  border: 2px solid var(--app-card);
+  border-radius: 50%;
+  color: var(--brand-white);
+  display: flex;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  left: -6px;
+  position: absolute;
+  top: -6px;
+  width: 28px;
+}
+
+.app-map-pin-label {
+  background: rgba(13, 0, 26, 0.5);
+  border-radius: var(--app-radius-pill);
+  bottom: 3px;
+  color: var(--brand-white);
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  max-width: 90%;
+  overflow: hidden;
+  padding: 2px 6px;
+  position: absolute;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* «Вы здесь»: точка позиции и подпись справа от неё */
+.app-map-pin--me {
+  background: var(--brand-white);
+  border: 5px solid var(--app-accent);
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.app-map-me-label {
+  background: var(--app-card);
+  border-radius: var(--app-radius-pill);
+  box-shadow: var(--app-shadow-lift);
+  color: var(--app-text);
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  left: 28px;
+  padding: 5px 10px;
+  position: absolute;
+  top: -2px;
+  white-space: nowrap;
+}
+
+.app-map-route {
+  stroke: var(--app-accent);
+}
+
+/* --- Экран 09 «Подбор мест свайпами» ---------------------------------------------------------- */
+.app-swipe {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--app-space-l);
+}
+
+.app-swipe-head {
+  align-items: flex-end;
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+}
+
+.app-swipe-back {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 50%;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+/* Шеврон нарисован вправо; кнопка назад разворачивает его */
+.app-swipe-back svg {
+  transform: rotate(180deg);
+}
+
+.app-swipe-head-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-swipe-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin-top: 2px;
+}
+
+.app-swipe-filter {
+  align-items: center;
+  background: var(--app-confirm);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-confirm-contrast);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+.app-swipe-chips-row {
+  display: flex;
+  gap: var(--app-space-s);
+  margin: var(--app-space-l) calc(-1 * var(--app-space-screen)) 0;
+  overflow-x: auto;
+  padding: 0 var(--app-space-screen);
+  scrollbar-width: none;
+}
+
+.app-swipe-deck {
+  margin-top: 20px;
+  min-height: 460px;
+  position: relative;
+}
+
+.app-swipe-skeleton {
+  border-radius: 24px;
+  height: 100%;
+  min-height: 460px;
+}
+
+/* Две тени под верхней карточкой: видно, что это колода, а не одна карточка */
+.app-swipe-shadow {
+  background: linear-gradient(135deg, var(--brand-violet), var(--brand-cyan));
+  border-radius: 24px;
+  bottom: -6px;
+  left: 14px;
+  opacity: 0.55;
+  position: absolute;
+  right: -4px;
+  top: 6px;
+}
+
+.app-swipe-shadow--far {
+  background: linear-gradient(135deg, var(--brand-purple), var(--brand-blue));
+  bottom: 0;
+  left: 24px;
+  opacity: 0.35;
+  right: -14px;
+  top: 12px;
+}
+
+.app-swipe-card {
+  background: linear-gradient(160deg, var(--brand-blue), var(--brand-purple) 60%, var(--brand-cyan));
+  border-radius: 24px;
+  bottom: 0;
+  color: var(--brand-white);
+  inset-inline: 0;
+  overflow: hidden;
+  position: absolute;
+  top: 0;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.app-swipe-glow {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  height: 220px;
+  position: absolute;
+  right: -60px;
+  top: -70px;
+  width: 220px;
+}
+
+.app-swipe-glow--cool {
+  background: var(--brand-cyan);
+  bottom: -60px;
+  height: 200px;
+  left: -50px;
+  opacity: 0.28;
+  right: auto;
+  top: auto;
+  width: 200px;
+}
+
+.app-swipe-chips {
+  display: flex;
+  gap: 6px;
+  left: var(--app-space-l);
+  position: absolute;
+  top: var(--app-space-l);
+}
+
+.app-swipe-chip {
+  background: rgba(13, 0, 26, 0.5);
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+.app-swipe-save {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.5);
+  border-radius: 50%;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  position: absolute;
+  right: var(--app-space-l);
+  top: var(--app-space-l);
+  width: 40px;
+}
+
+/* Штамп решения: голубой на тёмной подложке — 8.1:1, и это ровно роль «живого» индикатора */
+.app-swipe-stamp {
+  background: rgba(13, 0, 26, 0.35);
+  border: 2px solid var(--brand-cyan);
+  border-radius: 10px;
+  color: var(--brand-cyan);
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  left: 14px;
+  padding: 7px var(--app-space-m);
+  position: absolute;
+  top: 66px;
+  transform: rotate(-8deg);
+}
+
+.app-swipe-stamp--skip {
+  border-color: var(--brand-white);
+  color: var(--brand-white);
+  left: auto;
+  right: 14px;
+  transform: rotate(8deg);
+}
+
+.app-swipe-veil {
+  background: linear-gradient(180deg, rgba(13, 0, 26, 0), rgba(13, 0, 26, 0.82));
+  bottom: 0;
+  left: 0;
+  padding: 70px 18px 18px;
+  position: absolute;
+  right: 0;
+}
+
+.app-swipe-area {
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+  margin: 0;
+  opacity: 0.92;
+}
+
+.app-swipe-title {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: var(--app-space-xs) 0 0;
+}
+
+.app-swipe-facts {
+  align-items: center;
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  gap: var(--app-space-m);
+  margin: var(--app-space-s) 0 0;
+}
+
+.app-swipe-rating {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-xs);
+}
+
+.app-swipe-price {
+  opacity: 0.7;
+}
+
+.app-swipe-amenities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: var(--app-space-m) 0 0;
+}
+
+.app-swipe-amenity {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: var(--app-radius-pill);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  padding: 5px 9px;
+}
+
+.app-swipe-social {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.app-swipe-faces {
+  display: flex;
+  padding-left: 6px;
+}
+
+.app-swipe-face {
+  align-items: center;
+  background: linear-gradient(135deg, var(--brand-violet), var(--brand-cyan));
+  border: 2px solid var(--brand-void);
+  border-radius: 50%;
+  display: flex;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  height: 24px;
+  justify-content: center;
+  margin-left: -6px;
+  width: 24px;
+}
+
+.app-swipe-social-text {
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+}
+
+.app-swipe-foot {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--app-space-l);
+}
+
+.app-swipe-more {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.5);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 44px;
+  padding: 0 20px;
+}
+
+.app-swipe-open {
+  align-items: center;
+  background: var(--brand-white);
+  border: none;
+  border-radius: 50%;
+  color: var(--brand-void);
+  cursor: pointer;
+  display: flex;
+  height: 48px;
+  justify-content: center;
+  padding: 0;
+  width: 48px;
+}
+
+.app-swipe-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-l);
+  justify-content: center;
+  padding: var(--app-space-l) 0 var(--app-space-s);
+}
+
+.app-swipe-action {
+  align-items: center;
+  background: none;
+  border: var(--app-hairline);
+  border-radius: 50%;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  height: 48px;
+  justify-content: center;
+  padding: 0;
+  width: 48px;
+}
+
+.app-swipe-action:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.app-swipe-action--skip {
+  height: 56px;
+  width: 56px;
+}
+
+/* Единственная залитая кнопка ряда: главное действие подбора */
+.app-swipe-action--like {
+  background: var(--app-accent);
+  border-color: transparent;
+  color: var(--app-accent-contrast);
+  height: 64px;
+  width: 64px;
+}
+
+.app-swipe-action--like:hover {
+  background: var(--app-accent-press);
+}

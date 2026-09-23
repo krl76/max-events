@@ -37,7 +37,8 @@ describe("Layout tabbar active predicates", () => {
     expect(active[0].route).toBe("profile");
   });
 
-  it("keeps the map on the Search tab, because it is a view inside search", () => {
+  it("keeps the map and the swipe deck on the Search tab, because both are entered from search", () => {
+    expect(TABS.filter((tab) => tab.active("swipe")).map((tab) => tab.route)).toEqual(["search"]);
     const active = TABS.filter((tab) => tab.active("map"));
 
     expect(active).toHaveLength(1);
@@ -103,15 +104,17 @@ describe("routeHasBack", () => {
 });
 
 describe("routeHasHeader", () => {
-  it("hides the header on the search, plans and profile screens", () => {
+  it("hides the header on the screens that draw their own chrome", () => {
     expect(routeHasHeader({ name: "search" })).toBe(false);
     expect(routeHasHeader({ name: "plans" })).toBe(false);
     expect(routeHasHeader({ name: "profile" })).toBe(false);
+    // Карта показывает пилюлю «Поиск» поверх полотна, подбор свайпами — свою строку с кнопкой назад.
+    expect(routeHasHeader({ name: "map" })).toBe(false);
+    expect(routeHasHeader({ name: "swipe" })).toBe(false);
   });
 
-  it("keeps the header on the home tab, the map and detail routes", () => {
+  it("keeps the header on the home tab and the detail routes", () => {
     expect(routeHasHeader({ name: "home" })).toBe(true);
-    expect(routeHasHeader({ name: "map" })).toBe(true);
     expect(routeHasHeader({ name: "settings" })).toBe(true);
     expect(routeHasHeader({ name: "event", id: "e1" })).toBe(true);
     expect(routeHasHeader({ name: "calendar" })).toBe(true);

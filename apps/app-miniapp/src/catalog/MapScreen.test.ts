@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockEvents, mockFriends, mockPlaces } from "../api/mock";
 import { buildMapMarkers } from "./mapMarkers";
-import { initEventMap } from "./MapScreen";
+import { escapeHtml, formatMapChange, formatMapTemperature, formatTravelOption, initEventMap, mapFriendsLine, mapRainHint } from "./MapScreen";
 
 const leaflet = vi.hoisted(() => ({
   map: vi.fn(),
@@ -139,5 +139,46 @@ describe("initEventMap", () => {
     expect(popup.appended.some((node) => node.textContent === `Были: ${mockFriends[0].name}`)).toBe(true);
     popup.appended.find((node) => node.textContent === "Открыть место")!.click!();
     expect(onOpenPlace).toHaveBeenCalledWith(mockPlaces[0].id);
+  });
+});
+
+const WEATHER = { temperatureC: 19, condition: "ясно", changesAt: "2026-09-12T19:00:00+03:00", changesTo: "дождь" };
+const WALK = { mode: "walk" as const, minutes: 18, distanceKm: 1.4, transfers: null };
+const METRO = { mode: "metro" as const, minutes: 9, distanceKm: 1.4, transfers: 1 };
+
+describe("map chrome formatting", () => {
+  it("signs the temperature and names the change that is coming", () => {
+    expect(formatMapTemperature(WEATHER)).toBe("+19°");
+    expect(formatMapTemperature({ ...WEATHER, temperatureC: -4.4 })).toBe("-4°");
+    expect(formatMapChange(WEATHER)).toMatch(/^дождь в \d\d:\d\d$/);
+    expect(formatMapChange({ ...WEATHER, changesAt: null, changesTo: null })).toBeNull();
+  });
+
+  it("advises the metro only when there is rain to dodge and a metro to dodge it with", () => {
+    expect(mapRainHint(WEATHER, [WALK, METRO])).toMatch(/^Дождь с \d\d:\d\d — метро суше, зонт не понадобится$/);
+    expect(mapRainHint(WEATHER, [WALK])).toBeNull();
+    expect(mapRainHint({ ...WEATHER, changesTo: "ясно" }, [WALK, METRO])).toBeNull();
+    expect(mapRainHint(null, [WALK, METRO])).toBeNull();
+  });
+
+  it("splits a travel option into the minutes and the reason under them", () => {
+    expect(formatTravelOption(WALK)).toEqual({ value: "18 мин", note: "пешком · 1,4 км" });
+    expect(formatTravelOption(METRO)).toEqual({ value: "9 мин", note: "метро · 1 пересадка" });
+    expect(formatTravelOption({ ...METRO, transfers: 0 })).toEqual({ value: "9 мин", note: "метро · без пересадок" });
+    expect(formatTravelOption({ ...METRO, transfers: 2 })).toEqual({ value: "9 мин", note: "метро · 2 пересадки" });
+  });
+
+  it("names the friends who were at the selected place, in the past tense the layer answers in", () => {
+    const place = mockPlaces[0];
+    const visit = (names: string[]) => ({ place, friends: names.map((name, index) => ({ id: String(index), name, avatarUrl: null })), lastVisitAt: "2026-09-16T20:00:00+03:00" });
+
+    expect(mapFriendsLine(undefined)).toBeNull();
+    expect(mapFriendsLine(visit(["Анна Соколова"]))).toBe("Были здесь: Анна");
+    expect(mapFriendsLine(visit(["Анна Соколова", "Дима Кузнецов"]))).toBe("Анна и Дима были здесь");
+    expect(mapFriendsLine(visit(["Анна Соколова", "Дима Кузнецов", "Катя Орлова"]))).toBe("Анна, Дима и ещё 1 были здесь");
+  });
+
+  it("escapes the venue title before it goes into a divIcon, which takes html and not nodes", () => {
+    expect(escapeHtml('<b>"Депо" & Co</b>')).toBe("&lt;b&gt;&quot;Депо&quot; &amp; Co&lt;/b&gt;");
   });
 });

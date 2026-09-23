@@ -8,11 +8,11 @@
 // START_MODULE_MAP
 // - FeedHeader - шапка ленты (макет, экран 03): словомарк «афиша MAX», поиск и колокольчик со счётчиком непрочитанных (индикатор: экрана уведомлений ещё нет, #494)
 // - Layout - header + routed children + tabbar (icon + label per tab)
-// - TABS - tabbar definitions with per-tab active predicate; the map belongs to the Поиск tab, because it is a view inside search (экран 16)
+// - TABS - tabbar definitions with per-tab active predicate; the map (экран 16) and the swipe deck (экран 09) belong to the Поиск tab, because both are entered from search
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
 // - routeTitle - header title for the current route
 // - routeHasBack - back button shown on every non-tab route, the map included
-// - routeHasHeader - header hidden on the search/plans/profile tab screens (profile renders its own Instagram-style topbar)
+// - routeHasHeader - header hidden on the search/plans/profile tab screens (profile renders its own Instagram-style topbar) and on the map and swipe screens, which draw their own chrome over the content
 // END_MODULE_MAP
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -22,7 +22,7 @@ import { ActionIcon, TabIconGlyph, type TabIcon } from "./icons";
 
 export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string) => boolean; route: "home" | "search" | "create" | "plans" | "profile" }> = [
   { icon: "feed", label: "Лента", route: "home", active: (name) => name === "home" },
-  { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" || name === "map" },
+  { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" || name === "map" || name === "swipe" },
   { icon: "create", label: "Создать", route: "create", active: (name) => name === "create" || name === "story-new" || name === "feed-new" || name === "micro-new" || name === "plan-new" },
   { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "list" },
   { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "friends" || name === "subscriptions" },
@@ -31,6 +31,7 @@ export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string)
 export const ROUTE_TITLES: Record<Route["name"], string> = {
   home: "Лента",
   search: "Поиск",
+  swipe: "Подбор мест",
   create: "Создать",
   map: "Карта",
   plans: "Планы",
@@ -70,8 +71,9 @@ export function routeHasBack(route: Route): boolean {
   return !isTabRoute(route.name);
 }
 
-// The map keeps its header: since it stopped being a tab it is reached from Поиск, and a pushed screen needs its back button.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "plans", "profile"]);
+// Экраны 08, 16 и 09 рисуют собственную шапку: карта — плавающую пилюлю «Поиск» поверх полотна,
+// подбор свайпами — свою строку с кнопкой назад. Общая шапка перекрыла бы и то и другое.
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile"]);
 
 export function routeHasHeader(route: Route): boolean {
   return !HEADERLESS_ROUTES.has(route.name);

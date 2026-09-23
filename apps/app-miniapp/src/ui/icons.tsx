@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - TabIcon - union of the tabbar icon names: the user bar (feed/search/create/plans/profile) plus map and the organizer bar (dashboard/events/create/promo/profile)
 // - TabIconGlyph - inline stroke SVG for a tabbar icon, filled variant for the active tab
-// - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron/star/alert/search/settings/bell/check/plus/building)
+// - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron/star/alert/search/settings/bell/check/plus/building and the search/map/swipe glyphs: spark/cards/calendar/arrow/seat/filter/close/undo/users/weather/rain/navigation/metro/layers/locate)
 // - ActionIcon - inline stroke SVG by ActionIconName; filled=true fills the glyph (liked heart, saved bookmark, active tab)
 // END_MODULE_MAP
 
@@ -89,7 +89,7 @@ export function TabIconGlyph({ name, size = 24, filled = false }: { name: TabIco
   return <Glyph paths={filled ? (FILLED[name] ?? OUTLINE[name]) : OUTLINE[name]} size={size} filled={filled} />;
 }
 
-export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings" | "bell" | "check" | "plus" | "building";
+export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings" | "bell" | "check" | "plus" | "building" | "spark" | "cards" | "calendar" | "arrow" | "seat" | "filter" | "close" | "undo" | "users" | "weather" | "rain" | "navigation" | "metro" | "layers" | "locate";
 
 const ACTIONS: Record<ActionIconName, ReactNode> = {
   heart: <path d="M12 20.3S3.4 15.4 3.4 9.6a4.6 4.6 0 0 1 8.6-2.3A4.6 4.6 0 0 1 20.6 9.6c0 5.8-8.6 10.7-8.6 10.7Z" />,
@@ -150,6 +150,79 @@ const ACTIONS: Record<ActionIconName, ReactNode> = {
     <>
       <path d="M4 21V9l8-5 8 5v12" />
       <path d="M9 21v-6h6v6" />
+    </>
+  ),
+  // Четырёхлучевая искра: подсказка и «Куда пойдём?» (макет, экран 08)
+  spark: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />,
+  // Колода карточек — вход в подбор свайпами (макет, экран 08 → 09)
+  cards: (
+    <>
+      <rect x="4" y="3" width="13" height="18" rx="4" />
+      <path d="M20 7v10" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="3" y="4" width="18" height="17" rx="4" />
+      <path d="M3 9h18" />
+    </>
+  ),
+  // Стрелка вправо: «Подробнее» и заголовок подсказки «после меня» (макет, экран 08)
+  arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
+  // Скамья: «Осталось 12 мест» — счётчик мест, а не ещё один кружок (макет, экран 08)
+  seat: (
+    <>
+      <path d="M5 18v-7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7" />
+      <path d="M3 18h18M8 9V6h8v3" />
+    </>
+  ),
+  filter: <path d="M4 7h16M7 12h10M10 17h4" />,
+  close: <path d="M6 6l12 12M18 6L6 18" />,
+  // Кнопка «вернуть карточку» подбора свайпами (макет, экран 09)
+  undo: (
+    <>
+      <path d="M4 12a8 8 0 1 1 3 6.2" />
+      <path d="M4 6v6h6" />
+    </>
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6M15 15.5c3 0 6 1.5 6 4.5" />
+    </>
+  ),
+  // Чип погоды на карте: солнце за облаком (макет, экран 16)
+  weather: (
+    <>
+      <circle cx="17.4" cy="6.6" r="2.6" />
+      <path d="M7 18.5h9.4a3.4 3.4 0 0 0 .3-6.8A5 5 0 0 0 7.5 11.6 3.5 3.5 0 0 0 7 18.5z" />
+    </>
+  ),
+  rain: (
+    <>
+      <path d="M7 16.5h9.4a3.4 3.4 0 0 0 .3-6.8A5 5 0 0 0 7.5 9.6 3.5 3.5 0 0 0 7 16.5z" />
+      <path d="M9.4 19.4l-.9 2.2M13 19.4l-.9 2.2M16.6 19.4l-.9 2.2" />
+    </>
+  ),
+  // Стрелка курса: пеший маршрут и кнопка «Построить маршрут» (макет, экран 16)
+  navigation: <path d="M5 20l6-16 3 7 5 2z" />,
+  metro: (
+    <>
+      <rect x="3" y="6" width="18" height="11" rx="3" />
+      <path d="M7 17v2M17 17v2M3 11h18" />
+    </>
+  ),
+  layers: (
+    <>
+      <path d="M12 3a9 9 0 1 0 9 9h-9z" />
+      <path d="M12 3v9h9" />
+    </>
+  ),
+  locate: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
     </>
   ),
   settings: (
