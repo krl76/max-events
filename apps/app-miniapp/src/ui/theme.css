@@ -8427,6 +8427,8 @@ button.app-set-row {
   min-width: 0;
 }
 
+/* Полоса маршрута прокручивается, а не ужимается: в макете остановки короткие («Двор — Парк — Бар»),
+ * у нас это названия событий и мест, и в трёх урезанных словах маршрут перестаёт читаться. */
 .app-we-route {
   align-items: center;
   border: 1px solid var(--app-divider);
@@ -8434,28 +8436,28 @@ button.app-set-row {
   display: flex;
   gap: var(--app-space-s);
   margin-top: 10px;
+  overflow-x: auto;
   padding: 14px var(--app-space-l);
+  scrollbar-width: none;
 }
 
 .app-we-route-stop {
   align-items: center;
   display: flex;
-  flex: 1;
+  flex: none;
   gap: var(--app-space-s);
-  min-width: 0;
 }
 
 .app-we-route-line {
   background: rgba(var(--app-scheme-neutral), 0.12);
-  flex: 1;
+  flex: none;
   height: 2px;
+  width: 24px;
 }
 
 .app-we-route-name {
   font-size: var(--app-font-size-description);
   font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -8548,6 +8550,12 @@ button.app-set-row {
 .app-poll-new {
   display: flex;
   flex-direction: column;
+}
+
+/* На экране 31 отступ между разделами несёт .app-we-block; здесь заголовки стоят сами по себе,
+ * поэтому тот же ритм задаётся им напрямую. */
+.app-poll-new .app-we-block-head {
+  margin-top: 20px;
 }
 
 .app-poll-new-label {
