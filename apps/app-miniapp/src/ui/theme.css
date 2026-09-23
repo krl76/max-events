@@ -8199,9 +8199,13 @@ button.app-set-row {
   white-space: nowrap;
 }
 
+/* Одна строка, как в макете: имя организации бывает длинным, и перенос растил бы шапку вниз */
 .app-org-topbar-sub {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Основное действие шапки — залитая пилюля */
@@ -8281,9 +8285,12 @@ button.app-set-row {
   width: 140px;
 }
 
+/* Подпись обложки несёт название категории: на длинном («Волонтёрство») пара пилюль переносится, а не уезжает под край */
 .app-org-cover-chips {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--app-space-s);
+  max-width: 100%;
   position: relative;
 }
 
@@ -8478,9 +8485,17 @@ button.app-set-row {
   gap: 10px;
 }
 
+/* Ряд сканера в макете — одна высота 48 и радиус 14 на все три кнопки, а не пилюля рядом с квадратами */
 .app-org-scan-row .app-btn {
+  --border-radius: 14px;
   flex: 1;
+  font-size: var(--app-type-card-size);
+  height: 48px;
   margin: 0;
+}
+
+.app-org-scan-row .app-btn svg {
+  margin-right: var(--app-space-s);
 }
 
 .app-org-icon-btn {
@@ -8671,7 +8686,10 @@ button.app-set-row {
 
 .app-org-offer-actions .app-btn,
 .app-org-actions .app-btn {
+  --border-radius: 12px;
   flex: 1;
+  font-size: var(--app-type-card-size);
+  height: 44px;
   margin: 0;
 }
 
@@ -9092,11 +9110,22 @@ button.app-set-row {
   margin-top: 14px;
 }
 
+/* Прямоугольник 48 с радиусом 14, как в макете; на своём кегле подпись встаёт в одну строку */
 .app-mod-confirm-actions .app-btn,
 .app-mod-actions .app-btn {
+  --border-radius: 14px;
+  --padding-end: var(--app-space-s);
+  --padding-start: var(--app-space-s);
   flex: 1;
+  font-size: var(--app-type-card-size);
+  height: 48px;
   margin: 0;
   min-width: 140px;
+}
+
+/* Снятие с публикации — решение по объекту, поэтому оно занимает свою строку над парой решений по жалобе */
+.app-mod-actions .app-btn--wide {
+  flex-basis: 100%;
 }
 
 .app-mod-note {

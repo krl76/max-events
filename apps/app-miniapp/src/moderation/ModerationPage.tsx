@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: The moderator contour: «Очередь» (макет, экран 46) with its two streams grouped by reported object, and «Разбор» (макет, экран 47) with the irreversible actions behind an explicit confirmation.
 // SCOPE: ModerationQueueView / ModerationCaseView are presentational; ModerationPage loads GET /reports?status=open plus GET /moderation/targets and answers a 403 with the «не в списке модераторов» state of экран 48, because that is what the backend says to everyone outside MODERATOR_MAX_USER_IDS. A sanction leaves the row open so both sanctions stay reachable; only «Решить без действий» closes it.
-// DEPENDS: react, @max-events/api-contracts (Report), ../api/client.js (ApiError, apiClient, ModerationTarget), ../routing/router.js, ./ModerationQueue.js, ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
+// DEPENDS: react, @max-events/api-contracts (Report), ../api/client.js (ApiError, apiClient, ModerationTarget), ../catalog/format.js (pluralRu), ../routing/router.js, ./ModerationQueue.js, ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Report } from "@max-events/api-contracts";
 import { ApiError, apiClient, type ModerationTarget } from "../api/client";
+import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppEmptyState, AppNavTiles, AppSkeletonList, AppState } from "../ui/primitives";
@@ -104,7 +105,8 @@ export function ModerationCaseView({ group, confirm, busy, done, failed, onConfi
         <span className="app-mod-target-media" aria-hidden="true" />
         <span className="app-mod-target-body">
           <span className="app-mod-target-title">{group.title}</span>
-          <span className="app-mod-target-note">{[group.target?.organizerName === null || group.target?.organizerName === undefined ? null : `Автор: ${group.target.organizerName}`, group.target?.reachCount == null ? null : `${group.target.reachCount} записей`, group.target?.subtitle ?? null].filter((part) => part !== null).join(" · ")}</span>
+          {/* Ноль записей не пишем: строка про охват имеет смысл, только когда охват есть. */}
+          <span className="app-mod-target-note">{[group.target?.organizerName == null ? null : `Автор: ${group.target.organizerName}`, group.target?.reachCount ? `${group.target.reachCount} ${pluralRu(group.target.reachCount, "запись", "записи", "записей")}` : null, group.target?.subtitle ?? null].filter((part) => part !== null).join(" · ")}</span>
         </span>
         {group.targetType === "event" || group.targetType === "place" ? (
           <button type="button" className="app-mod-target-open" onClick={onOpenTarget}>
@@ -136,21 +138,22 @@ export function ModerationCaseView({ group, confirm, busy, done, failed, onConfi
           </div>
         </div>
       )}
-      {confirm === null && (
-        <div className="app-mod-actions">
-          <AppButton tone="danger" disabled={busy || done.includes("unpublish")} onClick={() => onConfirm("unpublish")}>
+      {/* Открытое подтверждение убирает только свою кнопку: остальные решения по жалобе остаются под ним, как в макете. */}
+      <div className="app-mod-actions">
+        {confirm !== "unpublish" && (
+          <AppButton tone="danger" className="app-btn--wide" disabled={busy || done.includes("unpublish")} onClick={() => onConfirm("unpublish")}>
             {MODERATION_CONFIRM_COPY.unpublish.open}
           </AppButton>
-          <AppButton tone="secondary" disabled={busy || done.includes("dismiss")} onClick={() => onRun("dismiss")}>
-            Решить без действий
+        )}
+        <AppButton tone="secondary" disabled={busy || done.includes("dismiss")} onClick={() => onRun("dismiss")}>
+          Решить без действий
+        </AppButton>
+        {group.target?.organizerId != null && confirm !== "ban" && (
+          <AppButton tone="danger" disabled={busy || done.includes("ban")} onClick={() => onConfirm("ban")}>
+            {MODERATION_CONFIRM_COPY.ban.open}
           </AppButton>
-          {group.target?.organizerId != null && (
-            <AppButton tone="danger" disabled={busy || done.includes("ban")} onClick={() => onConfirm("ban")}>
-              {MODERATION_CONFIRM_COPY.ban.open}
-            </AppButton>
-          )}
-        </div>
-      )}
+        )}
+      </div>
       {failed && <AppState error>Не удалось выполнить действие.</AppState>}
       <p className="app-mod-note">{MODERATION_IRREVERSIBLE_NOTE}</p>
     </section>

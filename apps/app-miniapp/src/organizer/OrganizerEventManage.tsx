@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: «Управление событием» (макет, экран 44): the counters of the day, the participants, the waitlist, the venue slots and the check-in by entry code.
-// SCOPE: Pure helpers plus OrganizerEventManageView (presentational) and OrganizerEventManage (container over apiClient.getOrganizerAttendance / checkInOrganizerGuest / inviteFromOrganizerWaitlist). Offering freed seats to the waitlist is confirmed before it runs, because the invitation leaves the app.
+// SCOPE: Pure helpers plus OrganizerEventManageView (presentational) and OrganizerEventManage (container over apiClient.getOrganizerAttendance / checkInOrganizerGuest / inviteFromOrganizerWaitlist). The freed-seats card is itself the confirmation: it asks the question out loud and only its dark-filled verb sends the invitation, which cannot be recalled.
 // DEPENDS: react, ../api/client.js (apiClient, OrganizerAttendance, OrganizerEvent, OrganizerParticipant, OrganizerSlot, OrganizerWaitlistEntry), ../catalog/format.js (pluralRu), ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -89,23 +89,21 @@ interface OrganizerEventManageViewProps {
   busy: boolean;
   notice: string | null;
   failed: string | null;
-  inviteOpen: boolean;
   onTab: (tab: ManageTab) => void;
   onScan: () => void;
   onCode: (code: string) => void;
   onSubmitCode: () => void;
   onCheckIn: (row: OrganizerParticipant) => void;
-  onInviteOpen: (open: boolean) => void;
   onInvite: () => void;
   onRefresh: () => void;
   onBack: () => void;
   onPromo: () => void;
 }
 
-export function OrganizerEventManageView({ event, attendance, tab, scanning, code, busy, notice, failed, inviteOpen, onTab, onScan, onCode, onSubmitCode, onCheckIn, onInviteOpen, onInvite, onRefresh, onBack, onPromo }: OrganizerEventManageViewProps) {
+export function OrganizerEventManageView({ event, attendance, tab, scanning, code, busy, notice, failed, onTab, onScan, onCode, onSubmitCode, onCheckIn, onInvite, onRefresh, onBack, onPromo }: OrganizerEventManageViewProps) {
   const groups = splitParticipants(attendance?.participants ?? []);
   const waitlist: OrganizerWaitlistEntry[] = attendance?.waitlist ?? [];
-  const when = new Date(event.startsAt).toLocaleString("ru-RU", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const when = `${new Date(event.startsAt).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" })} · ${hhmm(event.startsAt)}`;
   return (
     <section className="app-org-screen" aria-label="Управление событием">
       <div className="app-org-day-hero">
@@ -216,31 +214,19 @@ export function OrganizerEventManageView({ event, attendance, tab, scanning, cod
               />
             ))}
             {attendance.freedSeats > 0 && waitlist.length > 0 && (
+              /* Карточка сама и есть подтверждение: вопрос назван вслух, а делает дело только тёмная заливка. */
               <div className="app-org-offer">
                 <span className="app-org-offer-title">
                   Освободилось {attendance.freedSeats} {pluralRu(attendance.freedSeats, "место", "места", "мест")}
                 </span>
-                <span className="app-org-offer-note">{inviteOpen ? "Приглашение уйдёт первым из листа ожидания и отменить его нельзя." : "Позвать первых из листа ожидания?"}</span>
+                <span className="app-org-offer-note">Позвать первых из листа ожидания?</span>
                 <div className="app-org-offer-actions">
-                  {inviteOpen ? (
-                    <>
-                      <AppButton tone="confirm" disabled={busy} onClick={onInvite}>
-                        Позвать {Math.min(attendance.freedSeats, waitlist.length)}
-                      </AppButton>
-                      <AppButton tone="secondary" disabled={busy} onClick={() => onInviteOpen(false)}>
-                        Отмена
-                      </AppButton>
-                    </>
-                  ) : (
-                    <>
-                      <AppButton tone="danger" disabled={busy} onClick={() => onInviteOpen(true)}>
-                        Позвать {Math.min(attendance.freedSeats, waitlist.length)}
-                      </AppButton>
-                      <AppButton tone="secondary" disabled={busy} onClick={onRefresh}>
-                        Оставить
-                      </AppButton>
-                    </>
-                  )}
+                  <AppButton tone="confirm" disabled={busy} onClick={onInvite}>
+                    Позвать {Math.min(attendance.freedSeats, waitlist.length)}
+                  </AppButton>
+                  <AppButton tone="secondary" disabled={busy} onClick={onRefresh}>
+                    Оставить
+                  </AppButton>
                 </div>
               </div>
             )}
@@ -273,7 +259,6 @@ export function OrganizerEventManage({ event, onBack, onPromo }: { event: Organi
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const [inviteOpen, setInviteOpen] = useState(false);
   const [reloads, setReloads] = useState(0);
 
   useEffect(() => {
@@ -292,7 +277,6 @@ export function OrganizerEventManage({ event, onBack, onPromo }: { event: Organi
   }, [event.id, reloads]);
 
   const reload = useCallback(() => {
-    setInviteOpen(false);
     setReloads((value) => value + 1);
   }, []);
 
@@ -324,13 +308,11 @@ export function OrganizerEventManage({ event, onBack, onPromo }: { event: Organi
       busy={busy}
       notice={notice}
       failed={failed}
-      inviteOpen={inviteOpen}
       onTab={setTab}
       onScan={() => setScanning((value) => !value)}
       onCode={setCode}
       onSubmitCode={() => checkIn(code)}
       onCheckIn={(row) => checkIn(organizerEntryCode(row.bookingId))}
-      onInviteOpen={setInviteOpen}
       onInvite={() => {
         if (attendance === null) return;
         setBusy(true);

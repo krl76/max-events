@@ -4,6 +4,9 @@ import { MOCK_ORGANIZER_PAID_EVENT_ID, installMockApi, mockEvents, resetMockOrga
 
 const UNKNOWN_ID = "99999999-0000-4000-8000-000000000999";
 
+/** Слоты приходят ISO-мгновениями, а макет говорит о часах площадки — сравниваем в них же. */
+const hhmm = (at: string) => new Date(at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+
 describe("mock organizer day and summary", () => {
   let restore: (() => void) | null = null;
 
@@ -23,6 +26,9 @@ describe("mock organizer day and summary", () => {
     expect(summary.bookings).toBe(summary.byWeekday.reduce((sum, value) => sum + value, 0));
     expect(summary.sources.map((row) => row.source)).toEqual(["chats", "feed", "search"]);
     expect(summary.sources.reduce((sum, row) => sum + row.percent, 0)).toBe(100);
+    // Доли берутся от того же ряда, что и число записей, иначе панель показывает «0% пришли» рядом с сотнями записей.
+    expect(summary.attendedPercent).toBe(92);
+    expect(summary.cancelledPercent).toBe(4);
   });
 
   it("defaults the экран 43 switches from the event itself and keeps a patch", async () => {
@@ -58,7 +64,9 @@ describe("mock organizer day and summary", () => {
     // One cancelled booking of the seeded fixtures is exactly one seat back on the table.
     expect(day.freedSeats).toBe(1);
     expect(day.waitlist.length).toBeGreaterThan(0);
-    expect(day.slots).toHaveLength(3);
+    // Слоты — это день площадки, а не часы вокруг события: занят тот, в который событие попадает (19:00).
+    expect(day.slots.map((slot) => `${hhmm(slot.startsAt)}–${hhmm(slot.endsAt)}`)).toEqual(["14:00–17:00", "17:30–20:30", "21:00–23:30"]);
+    expect(day.slots.map((slot) => slot.busy)).toEqual([false, true, false]);
     expect(await api.listOrganizerBookings(MOCK_ORGANIZER_PAID_EVENT_ID)).toHaveLength(day.participants.length + 1);
   });
 

@@ -414,7 +414,7 @@ export function setMockEarlyAccess(eventId: string, bookingOpensAt: string): { b
  * summary of экраны 42 и 45 rides a fixed demo baseline (Monday first). The store's own organizer
  * bookings are added on top, so the screens still move when something is actually booked here.
  */
-export const MOCK_ORGANIZER_BASELINE = { byWeekday: [18, 26, 22, 37, 48, 61, 33], previousBookings: 208, sources: [62, 24, 14] } as const;
+export const MOCK_ORGANIZER_BASELINE = { byWeekday: [18, 26, 22, 37, 48, 61, 33], previousBookings: 208, sources: [62, 24, 14], attended: 228, cancelled: 10 } as const;
 
 const MOCK_TRAFFIC_SOURCES = ["chats", "feed", "search"] as const;
 
@@ -430,14 +430,15 @@ export function mockOrganizerSummary(period: StatsPeriod = ALL_TIME): OrganizerS
   const byWeekday = [...MOCK_ORGANIZER_BASELINE.byWeekday];
   for (const booking of bookings) byWeekday[mondayFirstIndex(booking.createdAt)] += 1;
   const total = byWeekday.reduce((sum, value) => sum + value, 0);
-  const cancelled = bookings.filter((booking) => booking.status === "cancelled").length;
-  const attended = mockCheckIns.filter((item) => item.eventId !== null && ownedIds.has(item.eventId)).length;
+  // Доли считаются от того же ряда, что и число записей: иначе две брони стора дали бы «0% пришли» на фоне 248 записей.
+  const cancelled = MOCK_ORGANIZER_BASELINE.cancelled + bookings.filter((booking) => booking.status === "cancelled").length;
+  const attended = MOCK_ORGANIZER_BASELINE.attended + mockCheckIns.filter((item) => item.eventId !== null && ownedIds.has(item.eventId)).length;
   const previous: number = MOCK_ORGANIZER_BASELINE.previousBookings;
   return {
     bookings: total,
     bookingsDeltaPercent: previous === 0 ? null : Math.round(((total - previous) / previous) * 100),
-    attendedPercent: bookings.length === 0 ? null : Math.round((attended / bookings.length) * 100),
-    cancelledPercent: bookings.length === 0 ? null : Math.round((cancelled / bookings.length) * 100),
+    attendedPercent: total === 0 ? null : Math.round((attended / total) * 100),
+    cancelledPercent: total === 0 ? null : Math.round((cancelled / total) * 100),
     byWeekday,
     sources: MOCK_TRAFFIC_SOURCES.map((source, index) => ({ source, percent: MOCK_ORGANIZER_BASELINE.sources[index] })),
   };
@@ -494,14 +495,21 @@ export function updateMockOrganizerEventOptions(eventId: string, patch: UpdateOr
   return next;
 }
 
+/** The venue day of экран 44 as the design draws it: 14:00–17:00, 17:30–20:30, 21:00–23:30, in minutes from midnight. */
+const MOCK_SLOT_WINDOWS = [
+  [14 * 60, 17 * 60],
+  [17 * 60 + 30, 20 * 60 + 30],
+  [21 * 60, 23 * 60 + 30],
+] as const;
+
 /** Venue slots around the event start; the slots domain does not exist yet (#492), so the event day carries them. */
 function mockSlots(start: string): OrganizerSlot[] {
   const at = new Date(start);
-  // The venue day, not the event clock: three windows from 14:00, and the one the event falls into is taken.
-  const first = new Date(at.getFullYear(), at.getMonth(), at.getDate(), 14, 0, 0, 0);
-  return [0, 1, 2].map((index) => {
-    const from = new Date(first.getTime() + index * 3.5 * 60 * 60 * 1000);
-    const to = new Date(from.getTime() + 3 * 60 * 60 * 1000);
+  // The venue day, not the event clock: the windows are the venue's, and the one the event falls into is taken.
+  const midnight = new Date(at.getFullYear(), at.getMonth(), at.getDate()).getTime();
+  return MOCK_SLOT_WINDOWS.map(([opens, closes], index) => {
+    const from = new Date(midnight + opens * 60_000);
+    const to = new Date(midnight + closes * 60_000);
     return { id: `slot-${index}`, startsAt: from.toISOString(), endsAt: to.toISOString(), busy: at.getTime() >= from.getTime() && at.getTime() < to.getTime() };
   });
 }
