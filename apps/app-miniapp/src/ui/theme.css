@@ -8009,13 +8009,15 @@ button.app-set-row {
   display: flex;
   flex: 1;
   font: inherit;
-  font-size: var(--app-font-size-callout);
+  font-size: var(--app-font-size-description);
   font-weight: 800;
   gap: var(--app-space-s);
   height: 44px;
   justify-content: center;
   min-width: 0;
   padding: 0 var(--app-space-m);
+  /* «Вы подписаны на место» в две строки распирало бы строку подписки выше кнопки рядом */
+  white-space: nowrap;
 }
 
 .app-place-follow-toggle:disabled {
@@ -9277,9 +9279,11 @@ button.app-set-row {
   cursor: pointer;
   flex: none;
   font: inherit;
-  font-size: var(--app-font-size-callout);
-  font-weight: 600;
-  padding: 9px var(--app-space-l);
+  /* Четыре фильтра макета должны умещаться в 390 px без прокрутки: на callout «Прошедшие» срезается */
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 10px var(--app-space-m);
+  white-space: nowrap;
 }
 
 .app-book-filter--on {
@@ -9535,7 +9539,7 @@ button.app-set-row {
   border: var(--app-hairline);
   border-radius: var(--app-radius-card);
   display: flex;
-  gap: var(--app-space-m);
+  gap: var(--app-space-s);
   margin-top: 10px;
   padding: 10px;
 }
@@ -9544,9 +9548,10 @@ button.app-set-row {
   aspect-ratio: auto;
   border-radius: 14px;
   flex: none;
-  height: 64px;
+  height: 56px;
+  margin-right: 2px;
   opacity: 0.75;
-  width: 64px;
+  width: 56px;
 }
 
 .app-book-past-body {
@@ -9557,8 +9562,13 @@ button.app-set-row {
 }
 
 .app-book-past-title {
+  /* Две строки и многоточие: длинное название иначе распирает карточку вчетверо против макета */
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
   font-size: var(--app-font-size-callout);
   font-weight: 800;
+  overflow: hidden;
 }
 
 .app-book-past-meta {

@@ -327,10 +327,15 @@ function companyOf(booking: SlotBooking): Friend[] {
   return mockFriends.slice(0, Math.max(0, booking.partySize - 1));
 }
 
-/** Rough «2,4 км · 15 мин»: the distance is real, the minutes are the city average this stands in for (#504). */
+/**
+ * Rough «2,4 км · 15 мин»: the distance is real, the minutes are the city average this stands in for
+ * until a routing service answers (#504). Six minutes of getting there and back out plus 16 km/h —
+ * a flat rate per kilometre would read the short hop of the design right and turn a cross-town trip
+ * into an hour and a quarter.
+ */
 function travelTo(place: Place): { distanceKm: number; travelMinutes: number } {
   const distanceKm = Math.round(haversineKm(mockPlaces[0].latitude, mockPlaces[0].longitude, place.latitude, place.longitude) * 10) / 10;
-  return { distanceKm, travelMinutes: Math.max(5, Math.round(distanceKm * 6)) };
+  return { distanceKm, travelMinutes: Math.max(5, Math.round(6 + (distanceKm * 60) / 16)) };
 }
 
 export function mockSlotBookingScreen(bookingId: string, now = new Date()): SlotBookingScreen | null {
