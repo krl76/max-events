@@ -401,6 +401,31 @@ export function createMockPromoCode(eventId: string, payload: CreatePromoCodeWri
   return created;
 }
 
+/**
+ * «Активные кампании» экрана 45 читаются из трёх настоящих эндпоинтов, а таблицы за ними пустые:
+ * без строки-другой раздел живёт только пустым состоянием и макет по нему не проверить. Сеется один
+ * раз при загрузке модуля, а не из resetMockOrganizer, чтобы resetMockPromotions/resetMockPromoCodes
+ * остались тем, чем их считают тесты, — способом получить чистые таблицы.
+ */
+function seedMockPromoDemo(now: Date = new Date()): void {
+  mockPromotionCampaigns.push({
+    id: "f4000000-0000-4000-8000-0000000000d1",
+    eventId: MOCK_ORGANIZER_PAID_EVENT_ID,
+    type: "boost",
+    status: "active",
+    startsAt: new Date(now.getTime() - 10 * 3_600_000).toISOString(),
+    endsAt: new Date(now.getTime() + 14 * 3_600_000).toISOString(),
+    tariffCode: "boost-24h",
+    priceRub: 0,
+    paidAt: null,
+    audience: null,
+    createdAt: new Date(now.getTime() - 10 * 3_600_000).toISOString(),
+    completedAt: null,
+  });
+  mockOrganizerPromoCodes.push({ id: "f2000000-0000-4000-8000-0000000000d1", eventId: MOCK_ORGANIZER_PAID_EVENT_ID, code: "ОСЕНЬ20", maxRedemptions: null, redeemedCount: 47, expiresAt: null, createdAt: PLACE_STAMP });
+}
+seedMockPromoDemo();
+
 /** Backend PromoService.setEarlyAccess parity: sets the owned event's booking window. */
 export function setMockEarlyAccess(eventId: string, bookingOpensAt: string): { bookingOpensAt: string } | "forbidden" | null {
   const owned = mockOwnedEvent(eventId);
