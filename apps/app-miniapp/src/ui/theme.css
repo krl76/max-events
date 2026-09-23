@@ -746,7 +746,9 @@ html[data-theme="dark"] body {
 .app-whereto-option,
 .app-vote-option,
 .app-promo-banner {
-  transition: box-shadow 120ms ease-out, transform 120ms ease-out;
+  transition:
+    box-shadow 120ms ease-out,
+    transform 120ms ease-out;
 }
 
 .app-card--link:active,

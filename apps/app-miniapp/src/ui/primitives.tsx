@@ -149,11 +149,7 @@ export const APP_STATE_COPY: Record<AppStateKind, { text: string; hint?: string;
 export function AppEmptyState({ kind, onAction, onSecondaryAction }: { kind: AppStateKind; onAction?: () => void; onSecondaryAction?: () => void }) {
   const copy = APP_STATE_COPY[kind];
   return (
-    <AppState
-      hint={copy.hint}
-      action={copy.action !== undefined && onAction !== undefined ? { label: copy.action, onClick: onAction } : undefined}
-      secondaryAction={copy.secondaryAction !== undefined && onSecondaryAction !== undefined ? { label: copy.secondaryAction, onClick: onSecondaryAction } : undefined}
-    >
+    <AppState hint={copy.hint} action={copy.action !== undefined && onAction !== undefined ? { label: copy.action, onClick: onAction } : undefined} secondaryAction={copy.secondaryAction !== undefined && onSecondaryAction !== undefined ? { label: copy.secondaryAction, onClick: onSecondaryAction } : undefined}>
       {copy.text}
     </AppState>
   );
