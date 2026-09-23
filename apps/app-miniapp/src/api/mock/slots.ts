@@ -46,6 +46,8 @@ interface MockSlotUnit {
   place: Place;
   /** The bookable unit inside the venue: what экран 19 puts in its title. */
   title: string;
+  /** What the unit is booked for — the headline of a card on экран 21, where the unit itself is the line above it. */
+  activity: string;
   pricePerHourRub: number;
   capacity: number;
   amenities: string[];
@@ -65,6 +67,7 @@ export const mockSlotUnits: MockSlotUnit[] = [
   {
     place: mockPlaces[0],
     title: "Мангальная зона у пруда",
+    activity: "Мангал у пруда",
     pricePerHourRub: 800,
     capacity: 12,
     amenities: ["мангал и решётки", "навес от дождя", "розетка 220 В", "стол на 12 человек"],
@@ -77,6 +80,7 @@ export const mockSlotUnits: MockSlotUnit[] = [
   {
     place: MOCK_SILVER_FOREST,
     title: "Беседка №4 у залива",
+    activity: "Мангал у залива",
     pricePerHourRub: 800,
     capacity: 12,
     amenities: ["мангал и решётки", "навес от дождя", "розетка 220 В", "стол на 12 человек"],
@@ -91,11 +95,14 @@ export const mockSlotUnits: MockSlotUnit[] = [
   {
     place: mockPlaces[2],
     title: "Корт №3",
+    activity: "Падел по четвергам",
     pricePerHourRub: 800,
     capacity: 4,
     amenities: ["ракетки напрокат", "душевые", "освещение"],
     windows: [[19, 30, 21, 0]],
     weekdays: [4],
+    // Единственное окно корта занято — иначе позиция в листе ожидания (экран 21) висела бы на свободном окне
+    reservedWindow: 0,
   },
 ];
 
@@ -232,40 +239,56 @@ function publishes(unit: MockSlotUnit, day: string): boolean {
   return unit.weekdays.includes(new Date(`${day}T12:00:00${MSK_OFFSET}`).getDay());
 }
 
+/** One window as the unit's schedule describes it, with whatever the store did to it applied on top. */
+function slotShape(unit: MockSlotUnit, unitIndex: number, day: string, windowIndex: number): PlaceSlot {
+  const window = unit.windows[windowIndex];
+  const id = slotId(unitIndex, day, windowIndex);
+  const startsAt = windowAt(day, [window[0], window[1]]);
+  const endsAt = windowAt(day, [window[2], window[3]]);
+  const minutes = (new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 60000;
+  const booking = mockSlotBookings.find((item) => item.slotId === id && item.status === "active");
+  const reserved = unit.reservedWindow === windowIndex;
+  const status: PlaceSlot["status"] = booking !== undefined || reserved ? "booked" : "free";
+  return {
+    id,
+    placeId: unit.place.id,
+    startsAt,
+    endsAt,
+    capacity: unit.capacity,
+    takenSeats: booking?.partySize ?? (reserved ? unit.capacity : 0),
+    priceRub: windowPrice(unit, minutes),
+    status,
+    busyUntil: status === "booked" ? endsAt : null,
+    weather: mockSlotWeather(day, windowIndex),
+  };
+}
+
+function daysAhead(day: string, now: Date): number {
+  return (new Date(`${day}T00:00:00${MSK_OFFSET}`).getTime() - new Date(`${moscowDayKey(now)}T00:00:00${MSK_OFFSET}`).getTime()) / DAY_MS;
+}
+
 /** The windows of one unit on one day: the published shape first, then whatever the store did to it. */
 export function slotsOfDay(unitIndex: number, day: string, now = new Date()): PlaceSlot[] {
   const unit = mockSlotUnits[unitIndex];
   if (unit === undefined || !publishes(unit, day)) return [];
   // Past the published horizon the venue has simply not opened its calendar: the day exists in the
   // strip (dimmed) but carries no windows at all, which is not the same as every window being taken.
-  const ahead = (new Date(`${day}T00:00:00${MSK_OFFSET}`).getTime() - new Date(`${moscowDayKey(now)}T00:00:00${MSK_OFFSET}`).getTime()) / DAY_MS;
+  const ahead = daysAhead(day, now);
   if (ahead < 0 || ahead >= PUBLISHED_DAYS) return [];
-  return unit.windows.map((window, index) => {
-    const id = slotId(unitIndex, day, index);
-    const startsAt = windowAt(day, [window[0], window[1]]);
-    const endsAt = windowAt(day, [window[2], window[3]]);
-    const minutes = (new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 60000;
-    const booking = mockSlotBookings.find((item) => item.slotId === id && item.status === "active");
-    const reserved = unit.reservedWindow === index;
-    const status: PlaceSlot["status"] = booking !== undefined || reserved ? "booked" : "free";
-    return {
-      id,
-      placeId: unit.place.id,
-      startsAt,
-      endsAt,
-      capacity: unit.capacity,
-      takenSeats: booking?.partySize ?? (reserved ? unit.capacity : 0),
-      priceRub: windowPrice(unit, minutes),
-      status,
-      busyUntil: status === "booked" ? endsAt : null,
-      weather: mockSlotWeather(day, index),
-    };
-  });
+  return unit.windows.map((_window, index) => slotShape(unit, unitIndex, day, index));
 }
 
-export function slotById(id: string, now = new Date()): PlaceSlot | null {
+/**
+ * One window by its id. `beyondHorizon` is what a waiting position needs: you queue for a window
+ * precisely because the venue has not put it up for booking yet, so the entry itself is the proof the
+ * window exists and the horizon must not hide it. Booking keeps the horizon — nothing unopened is sold.
+ */
+export function slotById(id: string, now = new Date(), { beyondHorizon = false }: { beyondHorizon?: boolean } = {}): PlaceSlot | null {
   const parsed = parseSlotId(id);
   if (parsed === null) return null;
+  const unit = mockSlotUnits[parsed.unitIndex];
+  if (!publishes(unit, parsed.day) || daysAhead(parsed.day, now) < 0) return null;
+  if (beyondHorizon) return slotShape(unit, parsed.unitIndex, parsed.day, parsed.windowIndex);
   return slotsOfDay(parsed.unitIndex, parsed.day, now)[parsed.windowIndex] ?? null;
 }
 
@@ -372,15 +395,15 @@ export function mockMySlots(userId: string, now = new Date()): MySlotsBoard {
       const unitIndex = unitIndexOfPlace(booking.placeId);
       const slot = slotById(booking.slotId, now);
       if (unitIndex === -1 || slot === null) return [];
-      return [{ booking, slot, place: mockSlotUnits[unitIndex].place, unitTitle: mockSlotUnits[unitIndex].title, company: companyOf(booking) }];
+      return [{ booking, slot, place: mockSlotUnits[unitIndex].place, unitTitle: mockSlotUnits[unitIndex].title, activity: mockSlotUnits[unitIndex].activity, company: companyOf(booking) }];
     });
   const waitlist = mockSlotWaitlist
     .filter((entry) => entry.userId === userId)
     .flatMap((entry) => {
       const unitIndex = unitIndexOfPlace(entry.placeId);
-      const slot = slotById(entry.slotId, now);
+      const slot = slotById(entry.slotId, now, { beyondHorizon: true });
       if (unitIndex === -1 || slot === null) return [];
-      return [{ entry, slot, place: mockSlotUnits[unitIndex].place, unitTitle: mockSlotUnits[unitIndex].title }];
+      return [{ entry, slot, place: mockSlotUnits[unitIndex].place, unitTitle: mockSlotUnits[unitIndex].title, activity: mockSlotUnits[unitIndex].activity }];
     });
   return { bookings, waitlist };
 }
@@ -401,8 +424,12 @@ export function mockCheckInCodes(userId: string): { bookingId: string; code: str
 /** Closing hours per venue kind: a Place carries no schedule at all, so the board answers this line instead. */
 const OPEN_UNTIL: Record<string, string> = { park: "23:00", museum: "20:00", food: "23:00", sport: "22:00", other: "21:00" };
 
-/** Average load per hour, 10:00..22:00 — the curve of «Когда людно»; venue analytics do not exist. */
-const OCCUPANCY_CURVE: number[] = [0.2, 0.25, 0.35, 0.5, 0.4, 0.7, 1, 0.9, 0.6, 0.3];
+/**
+ * Average load per hour of the open day, 10:00..22:00 — the curve of «Когда людно»; venue analytics
+ * do not exist. Thirteen points, one per hour, because the axis of the design reads 10 … 22 and the
+ * «Сейчас» marker has to find the current hour in here on an evening too.
+ */
+const OCCUPANCY_CURVE: number[] = [0.2, 0.25, 0.35, 0.5, 0.45, 0.4, 0.55, 0.7, 0.85, 1, 0.9, 0.6, 0.3];
 
 const OCCUPANCY_FIRST_HOUR = 10;
 

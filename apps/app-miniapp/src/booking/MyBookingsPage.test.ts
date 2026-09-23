@@ -24,6 +24,7 @@ function slots(): MySlotsBoard {
         slot: slot(),
         place: park,
         unitTitle: "Беседка №4",
+        activity: "Мангал у залива",
         company: [
           { id: "f1", name: "Анна Соколова", avatarUrl: null },
           { id: "f2", name: "Дима Кузнецов", avatarUrl: null },
@@ -36,6 +37,7 @@ function slots(): MySlotsBoard {
         slot: slot({ id: "f0000002-0000-4000-8000-202609240000", placeId: luzhniki.id, startsAt: "2026-09-24T19:30:00+03:00", endsAt: "2026-09-24T21:00:00+03:00", priceRub: 800, capacity: 4, takenSeats: 4 }),
         place: luzhniki,
         unitTitle: "Корт №3",
+        activity: "Падел по четвергам",
       },
     ],
   };
@@ -92,7 +94,8 @@ describe("bookingCards", () => {
     const card = board().active[0];
 
     expect(card.venue).toBe("Парк Горького, беседка №4");
-    expect(card.title).toBe("Беседка №4");
+    // Заголовок карточки — то, ради чего бронировали, а не сам объект: объект стоит строкой выше
+    expect(card.title).toBe("Мангал у залива");
     expect(plain(card.meta)).toBe("Сб, 19 сентября · 17:30 – 20:30 · 3 000 ₽");
     expect(card.badge).toBe("Слот забронирован");
     expect(card.faces).toEqual(["Я", "А", "Д"]);
@@ -130,7 +133,7 @@ describe("filterBookingCards", () => {
   it("matches the needle against the title and the venue, case-insensitively", () => {
     const cards = board().active;
 
-    expect(filterBookingCards(cards, "active", "корт").map((card) => card.title)).toEqual(["Корт №3"]);
+    expect(filterBookingCards(cards, "active", "корт").map((card) => card.title)).toEqual(["Падел по четвергам"]);
     expect(filterBookingCards(cards, "active", "ГОРЬКОГО").map((card) => card.kind)).toEqual(["slot", "ticket"]);
     expect(filterBookingCards(cards, "active", "ничего")).toEqual([]);
   });

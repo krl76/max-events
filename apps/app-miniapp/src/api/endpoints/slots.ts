@@ -228,21 +228,27 @@ export interface SlotWaitlistEntry {
   seats: number;
 }
 
-/** Экран 21 card of a booked window. */
+/**
+ * Экран 21 card of a booked window. The two names are not the same thing and the design prints both:
+ * `unitTitle` identifies the thing inside the venue («беседка №4») and rides the line over the card,
+ * `activity` is what you booked it for («Мангал у залива») and is the headline.
+ */
 export interface MySlotBookingCard {
   booking: SlotBooking;
   slot: PlaceSlot;
   place: Place;
   unitTitle: string;
+  activity: string;
   company: Friend[];
 }
 
-/** Экран 21 card of a waiting position. */
+/** Экран 21 card of a waiting position; the two names are split the same way as on a booked window. */
 export interface MySlotWaitlistCard {
   entry: SlotWaitlistEntry;
   slot: PlaceSlot;
   place: Place;
   unitTitle: string;
+  activity: string;
 }
 
 /** What the slot domain contributes to экран 21; the tickets of the screen come from the calendar. */
@@ -435,21 +441,21 @@ function parseWaitlistEntry(raw: unknown): SlotWaitlistEntry | null {
 function parseMySlots(raw: unknown): MySlotsBoard | null {
   if (!isRecord(raw)) return null;
   const bookings = arrayOf((item) => {
-    if (!isRecord(item) || typeof item.unitTitle !== "string") return null;
+    if (!isRecord(item) || typeof item.unitTitle !== "string" || typeof item.activity !== "string") return null;
     const booking = parseBooking(item.booking);
     const slot = parseSlot(item.slot);
     const place = parsePlace(item.place);
     const company = parseFriends(item.company);
     if (booking === null || slot === null || place === null || company === null) return null;
-    return { booking, slot, place, unitTitle: item.unitTitle, company };
+    return { booking, slot, place, unitTitle: item.unitTitle, activity: item.activity, company };
   })(raw.bookings);
   const waitlist = arrayOf((item) => {
-    if (!isRecord(item) || typeof item.unitTitle !== "string") return null;
+    if (!isRecord(item) || typeof item.unitTitle !== "string" || typeof item.activity !== "string") return null;
     const entry = parseWaitlistEntry(item.entry);
     const slot = parseSlot(item.slot);
     const place = parsePlace(item.place);
     if (entry === null || slot === null || place === null) return null;
-    return { entry, slot, place, unitTitle: item.unitTitle };
+    return { entry, slot, place, unitTitle: item.unitTitle, activity: item.activity };
   })(raw.waitlist);
   return bookings === null || waitlist === null ? null : { bookings, waitlist };
 }
