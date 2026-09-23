@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { FriendSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { feedPosts, installMockApi, mockEvents, mockPlaces, resetMockFeed, resetMockParticipations } from "./mock";
+import { feedPosts, installMockApi, mockEvents, mockFeedPostExtras, mockFriends, mockPlaces, mockPostDrafts, mockStoryCompositions, resetMockFeed, resetMockParticipations } from "./mock";
 
 const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
@@ -224,5 +224,67 @@ describe("home feed cards", () => {
     restore = installMockApi();
 
     expect((await new ApiClient("/api").getNotificationsSummary(DEMO_USER_ID)).unreadCount).toBeGreaterThan(0);
+  });
+});
+
+describe("publication payloads of the composers (#502)", () => {
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+    resetMockFeed();
+  });
+
+  const client = () => new ApiClient("/api");
+
+  it("keeps the caption, the place sticker, the poll and the audience the story table cannot hold", async () => {
+    restore = installMockApi();
+    const composition = { text: "Мангал в Горьком. Кто с нами?", sticker: { eventId: mockEvents[0].id, title: "Мангальная зона", subtitle: "Парк Горького · 14:00", seatsLeft: 4 }, poll: { question: "Во сколько удобнее?", options: ["14:00", "17:00"], answer: 0 }, audience: "close-friends" as const };
+
+    const story = await client().createStory("data:image/svg+xml;utf8,<svg/>", composition);
+
+    expect(story.imageUrl).toContain("data:image/svg+xml");
+    expect(mockStoryCompositions).toEqual([composition]);
+  });
+
+  it("still publishes a bare story, the way the stories rail does", async () => {
+    restore = installMockApi();
+
+    await client().createStory("data:image/svg+xml;utf8,<svg/>");
+
+    expect(mockStoryCompositions).toEqual([]);
+  });
+
+  it("refuses a half-built composition with 400 instead of publishing it silently stripped", async () => {
+    restore = installMockApi();
+
+    await expect(client().createStory("data:image/svg+xml;utf8,<svg/>", { text: "Мангал", sticker: { eventId: mockEvents[0].id, title: "Мангальная зона", subtitle: "Парк Горького · 14:00", seatsLeft: "четыре" } as never, poll: null, audience: "close-friends" })).rejects.toMatchObject({ name: "ApiError", status: 400 });
+    expect(mockStoryCompositions).toEqual([]);
+  });
+
+  it("keeps the place, the tagged friends, the audience and the join switch beside the published post", async () => {
+    restore = installMockApi();
+
+    const post = await client().createFeedPost({ userId: DEMO_USER_ID, eventId: mockEvents[0].id, text: "Собираемся в субботу", photoUrl: null, photoUrls: [], placeId: mockPlaces[0].id, taggedFriendIds: [mockFriends[0].id, mockFriends[1].id], audience: "company", allowJoin: true });
+
+    expect(mockFeedPostExtras.get(post.id)).toEqual({ photoUrls: [], placeId: mockPlaces[0].id, taggedFriendIds: [mockFriends[0].id, mockFriends[1].id], audience: "company", allowJoin: true });
+  });
+
+  it("stores the autosaved draft and answers when it was saved", async () => {
+    restore = installMockApi();
+    const draft = { userId: DEMO_USER_ID, eventId: null, text: "Собираемся", photoUrls: [], placeId: null, taggedFriendIds: [], audience: "friends" as const, allowJoin: false };
+
+    const receipt = await client().savePostDraft(draft);
+
+    expect(Number.isNaN(Date.parse(receipt.savedAt))).toBe(false);
+    expect(mockPostDrafts.get(DEMO_USER_ID)).toEqual(draft);
+  });
+
+  it("refuses a draft without an author with 400, since drafts are stored per author", async () => {
+    restore = installMockApi();
+
+    await expect(client().savePostDraft({ userId: "", eventId: null, text: "Собираемся", photoUrls: [], placeId: null, taggedFriendIds: [], audience: "friends", allowJoin: false })).rejects.toMatchObject({ name: "ApiError", status: 400 });
+    expect(mockPostDrafts.size).toBe(0);
   });
 });

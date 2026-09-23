@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Route } from "../routing/router";
-import { ROUTE_TITLES, routeHasBack, routeHasHeader, routeTitle, TABS } from "./Layout";
+import { ROUTE_TITLES, routeHasBack, routeHasHeader, routeIsFullscreen, routeTitle, TABS } from "./Layout";
 
 describe("Layout tabbar active predicates", () => {
   it("highlights only the Plans tab on the day-route screen", () => {
@@ -118,5 +118,24 @@ describe("routeHasHeader", () => {
     expect(routeHasHeader({ name: "settings" })).toBe(true);
     expect(routeHasHeader({ name: "event", id: "e1" })).toBe(true);
     expect(routeHasHeader({ name: "calendar" })).toBe(true);
+  });
+
+  it("hides the header on the composers, which draw their own top bar", () => {
+    expect(routeHasHeader({ name: "story-new" })).toBe(false);
+    expect(routeHasHeader({ name: "feed-new", eventId: null })).toBe(false);
+  });
+});
+
+describe("routeIsFullscreen", () => {
+  it("gives the whole viewport to the story and post composers, whose own bottom rail the tabbar would cover", () => {
+    expect(routeIsFullscreen({ name: "story-new" })).toBe(true);
+    expect(routeIsFullscreen({ name: "feed-new", eventId: null })).toBe(true);
+  });
+
+  it("leaves the shell in place everywhere else, the «Создать» hub included", () => {
+    expect(routeIsFullscreen({ name: "create" })).toBe(false);
+    expect(routeIsFullscreen({ name: "micro-new" })).toBe(false);
+    expect(routeIsFullscreen({ name: "home" })).toBe(false);
+    expect(routeIsFullscreen({ name: "event", id: "e1" })).toBe(false);
   });
 });

@@ -12,7 +12,8 @@
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
 // - routeTitle - header title for the current route
 // - routeHasBack - back button shown on every non-tab route, the map included
-// - routeHasHeader - header hidden on the search/plans/profile tab screens (profile renders its own Instagram-style topbar) and on the map and swipe screens, which draw their own chrome over the content
+// - routeHasHeader - header hidden on the search/plans/profile tab screens (profile renders its own Instagram-style topbar), on the map and swipe screens, which draw their own chrome over the content, and on the fullscreen composers
+// - routeIsFullscreen - the story and post composers (макет, экраны 05 и 06) own the whole viewport: no shell header, no tabbar, no gutters
 // END_MODULE_MAP
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -75,8 +76,20 @@ export function routeHasBack(route: Route): boolean {
 // подбор свайпами — свою строку с кнопкой назад. Общая шапка перекрыла бы и то и другое.
 const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile"]);
 
+/**
+ * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и
+ * собственный низ — рельс фонов с кнопками «Близкие друзья»/«В историю» у истории, панель вложений
+ * со строкой «Черновик сохранён» у поста. Фиксированный таббар накрыл бы этот низ, а шапка оболочки
+ * стала бы второй шапкой, поэтому на этих двух маршрутах экран забирает вьюпорт целиком.
+ */
+const FULLSCREEN_ROUTES: ReadonlySet<Route["name"]> = new Set(["story-new", "feed-new"]);
+
+export function routeIsFullscreen(route: Route): boolean {
+  return FULLSCREEN_ROUTES.has(route.name);
+}
+
 export function routeHasHeader(route: Route): boolean {
-  return !HEADERLESS_ROUTES.has(route.name);
+  return !HEADERLESS_ROUTES.has(route.name) && !routeIsFullscreen(route);
 }
 
 /**
@@ -148,17 +161,19 @@ export function Layout({ children }: { children: ReactNode }) {
           )}
         </header>
       )}
-      <main key={navSeq} className={`app-content app-screen--${transition}${route.name === "map" ? " app-content--flush" : ""}`}>
+      <main key={navSeq} className={`app-content app-screen--${transition}${route.name === "map" ? " app-content--flush" : ""}${routeIsFullscreen(route) ? " app-content--full" : ""}`}>
         {children}
       </main>
-      <nav className="app-tabbar">
-        {TABS.map((tab) => (
-          <button key={tab.route} type="button" aria-current={tab.active(route.name) ? "page" : undefined} onClick={() => navigate({ name: tab.route })}>
-            <TabIconGlyph name={tab.icon} size={24} filled={tab.active(route.name)} />
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </nav>
+      {!routeIsFullscreen(route) && (
+        <nav className="app-tabbar">
+          {TABS.map((tab) => (
+            <button key={tab.route} type="button" aria-current={tab.active(route.name) ? "page" : undefined} onClick={() => navigate({ name: tab.route })}>
+              <TabIconGlyph name={tab.icon} size={24} filled={tab.active(route.name)} />
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
     </>
   );
 }

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock feed store: the stories rail, the home feed cards (макет, экран 03) and the impression wall with its likes and comments.
-// SCOPE: Story fixtures (brandbook gradients, no glyph), the seeded feed cards and the in-memory posts; the HTTP surface is in ./feed.routes.ts.
+// PURPOSE: Mock feed store: the stories rail, the home feed cards (макет, экран 03), the impression wall with its likes and comments, and the publication payloads of макет, экраны 05 и 06 that no backend column holds yet (#502).
+// SCOPE: Story fixtures (brandbook gradients, no glyph), the seeded feed cards, the in-memory posts and the composed story/post extras; the HTTP surface is in ./feed.routes.ts.
 // DEPENDS: @max-events/api-contracts, ../client.js and the sibling ./mock domain modules it imports
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -10,7 +10,8 @@
 // - mockNotificationsSummary - unread count behind the header bell; a fixture until the notifications domain exists (#494)
 // - mockFriendStories - seeded friend story fixtures (gradient placeholder images)
 // - listMockStories - own story (localStorage) + friend fixtures
-// - createMockStory - publish the own mock story from a data-URL photo (localStorage)
+// - createMockStory - publish the own mock story from a data-URL photo (localStorage), keeping the composition the backend still strips (#502)
+// - mockStoryCompositions - compositions published through the mock, newest last; the store #502 will replace
 // - mockFeedPosts - shared with moderation
 // - seedMockFeed - shared with moderation
 // - resetMockFeed - restore seeded impression posts (test isolation)
@@ -19,11 +20,14 @@
 // - toggleMockFeedLike - Likes/unlikes a post as the user; the returned post carries the new counter and state; null for an unknown post
 // - addMockFeedComment - Appends a comment attributed to its author; null for an unknown post (mock 404)
 // - createMockFeedPost - Publishes an impression post as its author; null for an unknown event (mock 404)
+// - mockFeedPostExtras - by post id: the place/friends/audience/join/photo-grid fields of макет, экран 06 the post entity cannot hold (#502)
+// - mockPostDrafts - by author: the last autosaved post draft (макет, экран 06); no draft table exists (#502)
+// - saveMockPostDraft - stores one author's draft and answers when it was saved
 // END_MODULE_MAP
 
 import { StorySchema } from "@max-events/api-contracts";
 import type { Event, ParticipationStatus, Story } from "@max-events/api-contracts";
-import { type CreateFeedPost, type FeedCard, type FeedCardCounts, type FeedComment, type FeedFriendCard, type FeedPlaceCard, type FeedPost } from "../client";
+import { type CreateFeedPost, type FeedCard, type FeedCardCounts, type FeedComment, type FeedFriendCard, type FeedPlaceCard, type FeedPost, type PostDraft, type PostDraftSaved, type StoryComposition } from "../client";
 import { mockParticipations, mockPlaceStatuses } from "./catalog";
 import { mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockPlaces } from "./fixtures";
 
@@ -79,8 +83,16 @@ export function listMockStories(): Story[] {
   return own ? [own, ...mockFriendStories] : [...mockFriendStories];
 }
 
-export function createMockStory(imageUrl: string): Story {
+/**
+ * What POST /stories keeps beyond the image (макет, экран 05). The story entity has columns for the
+ * image and nothing else, and the controller strips the rest, so the composed sticker/poll/audience
+ * live here until #502 gives them a home — same arrangement the screen tests read.
+ */
+export const mockStoryCompositions: StoryComposition[] = [];
+
+export function createMockStory(imageUrl: string, composition: StoryComposition | null = null): Story {
   const story: Story = { id: "e1000000-0000-4000-8000-00000000000a", userId: mockDemoUser.id, imageUrl, createdAt: new Date().toISOString() };
+  if (composition !== null) mockStoryCompositions.push(composition);
   if (typeof window !== "undefined") window.localStorage.setItem(MOCK_OWN_STORY_KEY, JSON.stringify(story));
   return story;
 }
@@ -96,6 +108,12 @@ const MOCK_FEED_SEED: FeedSeed[] = [
 
 export const mockFeedPosts: FeedPost[] = [];
 
+/** The publication fields of макет, экран 06 the FeedPost entity has nowhere to put, kept by post id (#502). */
+export const mockFeedPostExtras = new Map<string, Pick<CreateFeedPost, "photoUrls" | "placeId" | "taggedFriendIds" | "audience" | "allowJoin">>();
+
+/** One autosaved draft per author (макет, экран 06, «Черновик сохранён»); drafts are not a domain (#502). */
+export const mockPostDrafts = new Map<string, PostDraft>();
+
 const mockFeedLikes = new Set<string>();
 
 let mockFeedSeq = 0;
@@ -105,6 +123,9 @@ let mockFeedCommentSeq = 0;
 export function seedMockFeed(): void {
   mockFeedPosts.length = 0;
   mockFeedLikes.clear();
+  mockFeedPostExtras.clear();
+  mockPostDrafts.clear();
+  mockStoryCompositions.length = 0;
   mockFeedCommentSeq = 0;
   MOCK_FEED_SEED.forEach((seed, index) => {
     mockFeedSeq = index + 1;
@@ -300,5 +321,13 @@ export function createMockFeedPost(payload: CreateFeedPost): FeedPost | null {
   mockFeedSeq += 1;
   const post: FeedPost = { id: `30000000-0000-4000-8000-${String(mockFeedSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), eventId: payload.eventId, text: payload.text, photoUrl: payload.photoUrl ?? null, likesCount: 0, likedByMe: false, comments: [] };
   mockFeedPosts.push(post);
+  // Kept beside the post rather than inside it: none of these has a column, and when #502 lands only this table goes away.
+  mockFeedPostExtras.set(post.id, { photoUrls: payload.photoUrls ?? [], placeId: payload.placeId ?? null, taggedFriendIds: payload.taggedFriendIds ?? [], audience: payload.audience ?? "friends", allowJoin: payload.allowJoin ?? false });
   return post;
+}
+
+/** Stores one author's draft and answers when it was saved; a later draft replaces the earlier one. */
+export function saveMockPostDraft(draft: PostDraft): PostDraftSaved {
+  mockPostDrafts.set(draft.userId, draft);
+  return { savedAt: new Date().toISOString() };
 }

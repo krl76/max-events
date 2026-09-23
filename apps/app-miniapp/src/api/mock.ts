@@ -38,7 +38,7 @@
 // - createMockMicroEvent - create a micro event, author counts as the first participant (mock POST)
 // - createMockPlan - mock POST /plans: the manual plan plus the occurrences of its series
 // - createMockReport - in-memory deduplicated report (mock POST /reports, duplicate -> 409, unknown target -> "no_target")
-// - createMockStory - publish the own mock story from a data-URL photo (localStorage)
+// - createMockStory - publish the own mock story from a data-URL photo (localStorage), keeping the composition the backend still strips (#502)
 // - createMockSubscription - mock POST /subscriptions: idempotent per target, "unknown" for an unknown place or organizer (backend 404 parity)
 // - createMockVote - in-memory vote with a sent chat card (chatLink set, successful MaxBot parity); participants must be friends of the demo host, events must exist (mock POST /votes, backend VotesService parity)
 // - discoverySummary - per-friend unseen places minus the demo user's check-ins, privacy-gated (mock GET /discovery, backend DiscoveryService.summary parity)
@@ -69,11 +69,15 @@
 // - mockBudgetFromExpenses - expenses -> per-person nets + debts (backend budgetFromExpenses parity, incl. the id-rotated remainder split)
 // - mockDemoUser - demo user returned by mock auth outside MAX (VITE_USE_MOCK=1); the id matches the booking/profile fixtures
 // - mockEvents - Moscow event fixtures (all four categories, paid and free, incl. two past events for the review flow, one event "today" for the place page, two MOCK_TODAY daytime events filling the nearby now/inAnHour buckets)
+// - mockFeedPostExtras - by post id: the place/friends/audience/join/photo-grid fields of макет, экран 06 the post entity cannot hold (#502)
 // - mockFeedCards - seeded home feed cards (макет, экран 03): three friend posts around one venue post, own statuses read from the participation stores
 // - mockFriendIds - friend user ids of the demo user (social counters fixtures)
 // - mockFriendStories - seeded friend story fixtures (gradient placeholder images)
 // - mockFriends - friend fixtures for the "Your people are going" feed
 // - mockNotificationsSummary - unread count behind the feed header bell; a fixture until the notifications domain exists (#494)
+// - mockPostDrafts - by author: the last autosaved post draft (макет, экран 06); drafts are not a domain (#502)
+// - mockStoryCompositions - compositions published through the mock, newest last; the store #502 will replace
+// - saveMockPostDraft - stores one author's draft and answers when it was saved
 // - mockOnboardingContacts - the twelve MAX contacts the onboarding friends step offers: the seven friend fixtures plus five contacts who are not friends yet
 // - mockOrganization - demo organization returned by the mock organizer login
 // - mockOrganizers - demo organizer fixture for event details
@@ -132,8 +136,8 @@
 
 export { MOCK_PROMO_CODE, MOCK_SANDBOX_FAIL_AMOUNT, MOCK_SINGLE_USE_PROMO_CODE, OFFER_TTL_MS, createMockCheckIn, resetMockBookings, resetMockCheckIns, resetMockPromo, resetMockWaitlist } from "./mock/bookings";
 export { catalogCards, filterMockEvents, mapWeatherFor, participationStats, placePageFor, resetMockParticipations, travelOptionsFor } from "./mock/catalog";
-export { MOCK_ASSIST_RATE_LIMIT, leisureOptions, mockAssistDay, mockAssistSaturdayKey, mockAssistSuggest, mockParseAssistQuery, nearbyTimeline, recordSwipeDecision, resetMockAssist, resetMockSwipeDecisions, swipeCandidates, todayPicks, wheretoSuggestions } from "./mock/discover";
-export { createMockStory, feedPosts, listMockStories, mockFeedCards, mockFriendStories, mockNotificationsSummary, resetMockFeed } from "./mock/feed";
+export { leisureOptions, MOCK_ASSIST_RATE_LIMIT, mockAssistDay, mockAssistSaturdayKey, mockAssistSuggest, mockParseAssistQuery, nearbyTimeline, recordSwipeDecision, resetMockAssist, resetMockSwipeDecisions, swipeCandidates, todayPicks, wheretoSuggestions } from "./mock/discover";
+export { createMockStory, feedPosts, listMockStories, mockFeedCards, mockFeedPostExtras, mockFriendStories, mockNotificationsSummary, mockPostDrafts, mockStoryCompositions, resetMockFeed, saveMockPostDraft } from "./mock/feed";
 export { MOCK_EARLY_ACCESS_EVENT_ID, MOCK_NOW, MOCK_ORGANIZER_CREDENTIALS, MOCK_TODAY, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganization, mockOrganizers, mockPlaces } from "./mock/fixtures";
 export { MOCK_FOREIGN_VOTE_ID, MOCK_VOTE_ID, castMockBallot, createMockVote, getMockVote, listMockWeGroups, resetMockVotes, resetMockWeGroups } from "./mock/groups";
 export { installMockApi } from "./mock/install";

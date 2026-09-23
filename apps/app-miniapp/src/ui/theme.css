@@ -4732,6 +4732,103 @@ html[data-theme="dark"] body {
   color: var(--app-text);
   cursor: pointer;
   display: flex;
+/* ===========================================================================
+ * Публикация истории и поста (макет, экраны 05 и 06).
+ * Оба композера забирают вьюпорт целиком: шапку и таббар оболочки снимает
+ * routeIsFullscreen в ./Layout.tsx, поля контента — .app-content--full ниже.
+ * У истории холст — это сама картинка публикации, поэтому её белые стикеры и
+ * тёмные кружки чрома одинаковы в обеих схемах: они впечатаны в историю, а не
+ * принадлежат интерфейсу. Пост, наоборот, живёт на холсте схемы целиком.
+ * =========================================================================== */
+
+.app-content--full {
+  padding: 0;
+}
+
+.app-story-compose,
+.app-post-compose {
+  box-sizing: border-box;
+  height: 100%;
+}
+
+.app-story-compose {
+  color: var(--brand-white);
+  overflow: hidden;
+  position: relative;
+}
+
+.app-story-compose--gradient-1 {
+  background: linear-gradient(160deg, #471aff, #9500ff 60%, #00bfff);
+}
+
+.app-story-compose--gradient-2 {
+  background: linear-gradient(135deg, #6e1aff, #00bfff);
+}
+
+.app-story-compose--gradient-3 {
+  background: linear-gradient(135deg, #0d001a, #471aff);
+}
+
+.app-story-compose--photo {
+  background: var(--brand-void);
+}
+
+.app-story-photo {
+  height: 100%;
+  left: 0;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+
+.app-story-orb {
+  border-radius: 50%;
+  position: absolute;
+}
+
+.app-story-orb--light {
+  background: rgba(255, 255, 255, 0.12);
+  height: 240px;
+  right: -70px;
+  top: 60px;
+  width: 240px;
+}
+
+/* Голубой круг макета — rgba(0,191,255,0.26); голубого rgba-литерала палитра не знает, поэтому прозрачность даёт opacity */
+.app-story-orb--status {
+  background: var(--brand-cyan);
+  bottom: 120px;
+  height: 220px;
+  left: -60px;
+  opacity: 0.26;
+  width: 220px;
+}
+
+.app-story-bar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  left: var(--app-space-l);
+  position: absolute;
+  right: var(--app-space-l);
+  top: 56px;
+}
+
+.app-story-bar-actions {
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+.app-story-round {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.45);
+  border: none;
+  border-radius: 50%;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  flex: none;
   height: 40px;
   justify-content: center;
   padding: 0;
@@ -5008,6 +5105,68 @@ html[data-theme="dark"] body {
   overflow: hidden;
   padding: 2px 6px;
   position: absolute;
+.app-story-round--muted {
+  cursor: default;
+}
+
+/* Подпись поверх истории: 24/800 по центру, тень тёмной материи — ровно как её пишет макет.
+ * Вертикали заданы долями кадра макета (874px), чтобы на более коротком экране стикер,
+ * остаток мест и опрос не наезжали на нижний рельс. */
+.app-story-caption {
+  background: none;
+  border: none;
+  color: var(--brand-white);
+  font: inherit;
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  left: var(--app-space-xl);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  position: absolute;
+  resize: none;
+  right: var(--app-space-xl);
+  text-align: center;
+  text-shadow: 0 2px 16px rgba(13, 0, 26, 0.35);
+  top: 20.6%;
+}
+
+.app-story-caption::placeholder {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.app-story-sticker {
+  align-items: center;
+  background: var(--brand-white);
+  border-radius: var(--app-radius-pill);
+  box-shadow: 0 6px 20px rgba(13, 0, 26, 0.2);
+  color: var(--brand-void);
+  display: flex;
+  gap: 10px;
+  left: 28px;
+  max-width: calc(100% - 56px);
+  padding: var(--app-space-s) 14px var(--app-space-s) var(--app-space-s);
+  position: absolute;
+  top: 34.3%;
+}
+
+.app-story-sticker-dot {
+  background: linear-gradient(160deg, #471aff, #9500ff 60%, #00bfff);
+  border-radius: 50%;
+  flex: none;
+  height: 32px;
+  width: 32px;
+}
+
+.app-story-sticker-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-story-sticker-title {
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5053,6 +5212,221 @@ html[data-theme="dark"] body {
 }
 
 .app-swipe-back {
+.app-story-sticker-subtitle {
+  color: rgba(13, 0, 26, 0.62);
+  font-size: var(--app-font-size-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Стикер сам себе выбор события: отдельной строки макет не рисует, а нативный список лежит поверх пилюли прозрачным слоем */
+.app-story-sticker-pick {
+  cursor: pointer;
+  height: 100%;
+  left: 0;
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+
+.app-story-seats {
+  background: var(--brand-void);
+  border-radius: var(--app-radius-card);
+  box-shadow: 0 6px 20px rgba(13, 0, 26, 0.25);
+  color: var(--brand-white);
+  padding: 10px var(--app-space-l);
+  position: absolute;
+  right: 28px;
+  top: 44.6%;
+}
+
+.app-story-seats-label {
+  display: block;
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  opacity: 0.7;
+}
+
+.app-story-seats-count {
+  display: block;
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+}
+
+.app-story-poll {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: var(--app-radius-card);
+  box-shadow: 0 8px 24px rgba(13, 0, 26, 0.18);
+  box-sizing: border-box;
+  color: var(--brand-void);
+  left: var(--app-space-xl);
+  padding: 14px var(--app-space-l);
+  position: absolute;
+  right: var(--app-space-xl);
+  top: 53.8%;
+}
+
+.app-story-poll-kind {
+  color: rgba(13, 0, 26, 0.62);
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  margin: 0;
+}
+
+.app-story-poll-question {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  margin: var(--app-space-xs) 0 0;
+}
+
+.app-story-poll-options {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: 10px;
+}
+
+.app-story-poll-option {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.06);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--brand-void);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 44px;
+  justify-content: center;
+}
+
+.app-story-poll-option--on {
+  background: var(--brand-blue);
+  color: var(--brand-white);
+}
+
+.app-story-foot {
+  bottom: var(--app-space-l);
+  left: var(--app-space-l);
+  position: absolute;
+  right: var(--app-space-l);
+}
+
+.app-story-rail {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: var(--app-space-m);
+  scrollbar-width: none;
+}
+
+.app-story-tile {
+  background-position: center;
+  background-size: cover;
+  border: 2px solid transparent;
+  border-radius: var(--app-radius-media);
+  box-sizing: border-box;
+  color: var(--brand-white);
+  cursor: pointer;
+  flex: none;
+  height: 52px;
+  padding: 0;
+  width: 52px;
+}
+
+.app-story-tile--gradient-1 {
+  background-image: linear-gradient(160deg, #471aff, #9500ff 60%, #00bfff);
+}
+
+.app-story-tile--gradient-2 {
+  background-image: linear-gradient(135deg, #6e1aff, #00bfff);
+  opacity: 0.92;
+}
+
+.app-story-tile--gradient-3 {
+  background-image: linear-gradient(135deg, #0d001a, #471aff);
+  opacity: 0.92;
+}
+
+.app-story-tile--on {
+  border-color: var(--brand-white);
+  opacity: 1;
+}
+
+.app-story-tile--add {
+  align-items: center;
+  background: none;
+  border: 2px dashed rgba(255, 255, 255, 0.6);
+  display: flex;
+  justify-content: center;
+}
+
+.app-story-error {
+  color: var(--brand-white);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  margin: 0 0 var(--app-space-s);
+  text-align: center;
+}
+
+.app-story-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.app-story-audience,
+.app-story-publish {
+  align-items: center;
+  border: none;
+  border-radius: var(--app-radius-card);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  height: 52px;
+  justify-content: center;
+}
+
+.app-story-audience {
+  background: rgba(13, 0, 26, 0.45);
+  color: var(--brand-white);
+}
+
+.app-story-publish {
+  background: var(--brand-white);
+  color: var(--brand-void);
+}
+
+.app-story-publish:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* --- Экран 06: публикация поста --- */
+
+.app-post-compose {
+  background: var(--app-page);
+  color: var(--app-text);
+  display: flex;
+  flex-direction: column;
+}
+
+.app-post-compose-head {
+  align-items: center;
+  border-bottom: var(--app-hairline);
+  display: flex;
+  flex: none;
+  gap: var(--app-space-m);
+  padding: 60px var(--app-space-screen) 14px;
+}
+
+.app-post-compose-close {
   align-items: center;
   background: var(--app-surface);
   border: none;
@@ -5073,6 +5447,65 @@ html[data-theme="dark"] body {
 }
 
 .app-swipe-head-text {
+.app-post-compose-title {
+  flex: 1;
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  min-width: 0;
+}
+
+.app-post-compose-publish {
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 40px;
+  padding: 0 18px;
+}
+
+.app-post-compose-publish:active:not(:disabled) {
+  background: var(--app-accent-press);
+}
+
+.app-post-compose-publish:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.app-post-compose-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--app-space-l) var(--app-space-screen) var(--app-space-xl);
+  scrollbar-width: none;
+}
+
+.app-post-compose-author {
+  display: flex;
+  gap: var(--app-space-m);
+}
+
+.app-post-compose-avatar {
+  align-items: center;
+  background: linear-gradient(135deg, #471aff, #00bfff);
+  border-radius: 50%;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.app-post-compose-id {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -5397,4 +5830,332 @@ html[data-theme="dark"] body {
 
 .app-swipe-action--like:hover {
   background: var(--app-accent-press);
+.app-post-compose-name {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-post-compose-text {
+  background: none;
+  border: none;
+  color: rgba(var(--app-scheme-neutral), 0.85);
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  line-height: var(--app-line-height-body);
+  margin-top: 6px;
+  max-width: var(--app-measure);
+  padding: 0;
+  resize: none;
+}
+
+.app-post-compose-photos {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 2fr 1fr;
+  margin-top: var(--app-space-l);
+}
+
+.app-post-compose-photos--empty {
+  grid-template-columns: 1fr;
+}
+
+.app-post-compose-shot {
+  background-position: center;
+  background-size: cover;
+  border-radius: var(--app-radius-card);
+  overflow: hidden;
+  position: relative;
+}
+
+.app-post-compose-shot--lead {
+  height: 200px;
+}
+
+.app-post-compose-shot-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-post-compose-shot-column > * {
+  flex: 1;
+}
+
+.app-post-compose-shot-orb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  height: 90px;
+  position: absolute;
+  right: -24px;
+  top: -24px;
+  width: 90px;
+}
+
+.app-post-compose-shot-drop {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.5);
+  border: none;
+  border-radius: 50%;
+  bottom: var(--app-space-s);
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  height: 26px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: var(--app-space-s);
+  width: 26px;
+}
+
+.app-post-compose-add {
+  align-items: center;
+  background: none;
+  border: 1px dashed rgba(var(--app-scheme-neutral), 0.25);
+  border-radius: var(--app-radius-card);
+  color: var(--app-accent);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  width: 100%;
+}
+
+.app-post-compose-add--lead {
+  height: 200px;
+}
+
+.app-post-compose-rows {
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  margin-top: 20px;
+  overflow: hidden;
+}
+
+.app-post-compose-row {
+  align-items: center;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(var(--app-scheme-neutral), 0.08);
+  box-sizing: border-box;
+  color: var(--app-text);
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  padding: 14px var(--app-space-l);
+  position: relative;
+  text-align: left;
+  width: 100%;
+}
+
+.app-post-compose-row--button {
+  cursor: pointer;
+}
+
+.app-post-compose-rows > :last-child {
+  border-bottom: none;
+}
+
+.app-post-compose-row-media {
+  background: linear-gradient(160deg, #471aff, #9500ff 60%, #00bfff);
+  border-radius: var(--app-radius-media);
+  flex: none;
+  height: 40px;
+  width: 40px;
+}
+
+.app-post-compose-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-post-compose-row-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-post-compose-row-note {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-post-compose-row-label {
+  flex: 1;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  min-width: 0;
+}
+
+.app-post-compose-row-chevron {
+  align-items: center;
+  color: var(--app-text-tertiary);
+  display: flex;
+  flex: none;
+}
+
+.app-post-compose-row-drop {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text-tertiary);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  padding: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* Строка и есть кнопка выбора: нативный список лежит поверх неё прозрачным слоем, как у стикера истории */
+.app-post-compose-row-pick {
+  cursor: pointer;
+  height: 100%;
+  left: 0;
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+
+.app-post-compose-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+  padding: 0 var(--app-space-l) 14px;
+}
+
+.app-post-compose-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin: 20px 0 0;
+  text-transform: uppercase;
+}
+
+.app-post-compose-audience {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: 10px;
+}
+
+.app-post-compose-chip,
+.app-post-compose-tag {
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 9px 14px;
+}
+
+/* Выбранное — заливка чернилами схемы: в светлой это тёмная материя макета, в тёмной она инвертируется вместе с холстом */
+.app-post-compose-chip--on,
+.app-post-compose-tag--on {
+  background: var(--app-ink);
+  border-color: var(--app-ink);
+  color: var(--app-canvas);
+}
+
+.app-post-compose-join {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  gap: var(--app-space-m);
+  margin-top: 20px;
+  padding: 14px var(--app-space-l);
+}
+
+.app-post-compose-join-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-post-compose-join-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-post-compose-join-note {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-post-compose-switch {
+  background: var(--app-divider);
+  border: none;
+  border-radius: 13px;
+  cursor: pointer;
+  flex: none;
+  height: 26px;
+  padding: 0;
+  position: relative;
+  width: 44px;
+}
+
+.app-post-compose-switch--on {
+  background: var(--app-accent);
+}
+
+.app-post-compose-switch-knob {
+  background: var(--brand-white);
+  border-radius: 50%;
+  height: 20px;
+  left: 3px;
+  position: absolute;
+  top: 3px;
+  transition: left 0.16s ease-out;
+  width: 20px;
+}
+
+.app-post-compose-switch--on .app-post-compose-switch-knob {
+  left: 21px;
+}
+
+.app-post-compose-error {
+  color: var(--app-danger-label);
+  font-size: var(--app-font-size-description);
+  margin: var(--app-space-m) 0 0;
+}
+
+.app-post-compose-foot {
+  align-items: center;
+  border-top: var(--app-hairline);
+  display: flex;
+  flex: none;
+  gap: 18px;
+  padding: var(--app-space-m) var(--app-space-screen) 40px;
+}
+
+.app-post-compose-attach {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  padding: 0;
+}
+
+.app-post-compose-attach:disabled {
+  color: var(--app-text-tertiary);
+  cursor: default;
+}
+
+.app-post-compose-foot-gap {
+  flex: 1;
+}
+
+.app-post-compose-saved {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
 }

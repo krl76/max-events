@@ -12,7 +12,7 @@
 // - CalendarEntry - calendar item: active booking enriched with its event and place
 // - CatalogCard - list card of экран 08: event plus distance, rating and venue line, nullable until the list DTO carries them (#496)
 // - CreateCheckIn - check-in payload (user + exactly one of event/place)
-// - CreateFeedPost - impression publication payload (author, event, text, optional photo); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
+// - CreateFeedPost - impression publication payload (author, event, text, optional photo, plus the place/friends/audience/join fields of макет, экран 06 that the backend still strips, #502); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
 // - CreateGathering - gathering launch payload (event + friend ids + proposed meeting time)
 // - CreateMicroEvent - micro-event creation payload (author, what/when/where, limit)
 // - CreateReport - report submission payload (user + exactly one of event/place/feed post + reason); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
@@ -38,13 +38,22 @@
 // - NotificationsSummary - unread count behind the feed header bell; mock-only until the notifications domain exists (#494)
 // - OrganizerEvent - contract event plus the draft flag read from the raw `published` field (returned by toEventDto; a missing flag reads as published)
 // - OrganizerPlace - contract place plus the draft flag read from the raw `published` field (returned by toPlaceDto; a missing flag reads as published)
+// - POST_AUDIENCES - «Кто увидит» chips of the post composer in design order (макет, экран 06)
 // - ParticipationStats - event page social aggregate: per-status counters, friends count, own status
 // - PlaceParticipation - viewer status on a venue (макет, экран 03); the place-level twin of Participation (#492)
+// - PostAudience - who a published post is shown to: friends / city / the company only (#502)
+// - PostDraft - autosave payload of the post composer (макет, экран 06); no draft table exists (#502)
+// - PostDraftSaved - when the draft was last stored, behind the «Черновик сохранён» line
 // - REPORT_REASONS - report reason presets
 // - Report - report entity (contract shape)
 // - ReportReason - union of the report reason presets
-// - SWIPE_CATEGORIES - the four filter chips of экран 09 in design order
 // - StatsPeriodQuery - optional from/to window for the organizer reports
+// - STORY_AUDIENCES - audiences of the story composer in design order (макет, экран 05)
+// - StoryAudience - who a published story is shown to: close friends / friends / city (#502)
+// - StoryComposition - caption, place sticker, poll and audience a composed story carries (#502)
+// - StoryPlaceSticker - place sticker of a story: title, venue line, free seats (макет, экран 05)
+// - StoryPoll - poll drawn on a story: question, options, highlighted answer (макет, экран 05)
+// - SWIPE_CATEGORIES - the four filter chips of экран 09 in design order
 // - SwipeCandidate - one card of the swipe deck: venue, amenities, friends and the match score (#498)
 // - SwipeCategory - the filter chips of экран 09 (Все / Еда / На природе / Спорт)
 // - SwipeDecision - what a swipe meant: right into favourites, left past it
@@ -81,7 +90,8 @@ export { ApiError } from "./endpoints/transport";
 export { EVENT_SORTS, parseEventFilters, serializeEventFilters } from "./endpoints/catalog";
 export type { CatalogCard, EventDetails, EventFilters, EventSort, MapWeather, ParticipationStats, PlaceParticipation, TravelMode, TravelOption } from "./endpoints/catalog";
 export type { CreateReview, EventRating } from "./endpoints/reviews";
-export type { CreateFeedPost, FeedCard, FeedCardCounts, FeedComment, FeedFriendCard, FeedPlaceCard, FeedPost, NotificationsSummary } from "./endpoints/feed";
+export { POST_AUDIENCES, STORY_AUDIENCES } from "./endpoints/feed";
+export type { CreateFeedPost, FeedCard, FeedCardCounts, FeedComment, FeedFriendCard, FeedPlaceCard, FeedPost, NotificationsSummary, PostAudience, PostDraft, PostDraftSaved, StoryAudience, StoryComposition, StoryPlaceSticker, StoryPoll } from "./endpoints/feed";
 export type { CreateGathering, CreateMicroEvent, FriendSuggestion } from "./endpoints/social";
 export type { CreateCheckIn } from "./endpoints/bookings";
 export type { CalendarEntry } from "./endpoints/plans";

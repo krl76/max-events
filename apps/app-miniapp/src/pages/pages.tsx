@@ -1,13 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Page composition for the shell routing (home feed, search with the map and the swipe deck, event, place, friends with the discovery/people entries, «Моё» (plans/calendar/saved), profile, whereto wizard, nearby screen, reverse discovery, people matching, plans, day route builder).
 // SCOPE: Thin route-to-page mapping; page internals live in their own modules.
-// DEPENDS: ../routing/router.js, ../catalog/MapPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../assist/AssistSection.js, ../taste/AfterMeSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../plans/PlanCreatePage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../feed/FeedScreen.js, ../organizer/OrganizerPage.js, ../moderation/ModerationPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js, ../search/SearchPage.js, ../swipe/SwipePage.js, ../ui/primitives.js (AppNavTiles)
+// DEPENDS: ../routing/router.js, ../catalog/MapPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../assist/AssistSection.js, ../taste/AfterMeSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../plans/PlanCreatePage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../feed/FeedScreen.js, ../organizer/OrganizerPage.js, ../moderation/ModerationPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js, ../search/SearchPage.js, ../swipe/SwipePage.js, ../ui/primitives.js (AppNavTiles), ../catalog/CatalogPage.js, ../today/TodaySection.js, ../create/CreatePage.js, ../create/StoryCreatePage.js, ../create/PostCreatePage.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - HomePage - the feed screen (FeedScreen: stories rail, «Куда пойдём?», friend and venue posts — макет, экран 03) + micro-events section (MicroSection) + NL assist section (AssistSection) + «После меня» taste suggestions (AfterMeSection, hidden until the taste graph has something) + promotion banners/collections (PromotionSections, #205). The catalog and the today digest moved to экран 08, which is their home in the design
-// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders экран 08 (its tiles push the map and the swipe deck), map renders экран 16, swipe renders экран 09, create renders the publication hub of the «Создать» tab and story-new its story screen, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar renders the «Планы» screen on the calendar tab, profile renders the profile screen with achievements/subscriptions/my-city nav tiles, subscriptions renders the follows screen, whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the «Планы» screen (plans/calendar/saved tabs) and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, list(id) renders one saved list, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen, moderation renders the moderator queue (hidden behind the backend's 403 for everyone else)
+// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders экран 08 (its tiles push the map and the swipe deck), map renders экран 16, swipe renders экран 09, create renders the publication hub of the «Создать» tab and story-new its story screen, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar renders the «Планы» screen on the calendar tab, profile renders the profile screen with achievements/subscriptions/my-city nav tiles, subscriptions renders the follows screen, whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the post composer (макет, экран 06), plans renders the «Планы» screen (plans/calendar/saved tabs) and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, list(id) renders one saved list, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen, moderation renders the moderator queue (hidden behind the backend's 403 for everyone else)
 // END_MODULE_MAP
 
 import { lazy, Suspense, type ElementType, type LazyExoticComponent } from "react";
@@ -15,7 +15,6 @@ import { useRoute } from "../routing/router";
 import { AfterMeSection } from "../taste/AfterMeSection";
 import { AssistSection } from "../assist/AssistSection";
 import { PromotionSections } from "../promo/PromoSections";
-import { FeedCreatePage } from "../feed/FeedPage";
 import { FeedScreen } from "../feed/FeedScreen";
 import { MicroEventCreatePage, MicroSection } from "../micro/MicroEvents";
 import { AppNavTiles, AppSkeleton } from "../ui/primitives";
@@ -28,7 +27,7 @@ function lazyNamed<T extends Record<string, unknown>>(load: () => Promise<T>, ke
   return lazy(() => load().then((m) => ({ default: m[key] as AnyComponent })));
 }
 
-// ponytail: MicroEventCreatePage/FeedCreatePage share their module with eager home sections, so they stay eager too.
+// ponytail: MicroEventCreatePage shares its module with an eager home section, so it stays eager too.
 const EventPage = lazyNamed(() => import("../event/EventPage"), "EventPage");
 const PlacePage = lazyNamed(() => import("../place/PlacePage"), "PlacePage");
 const FriendsPage = lazyNamed(() => import("../friends/FriendsPage"), "FriendsPage");
@@ -54,6 +53,7 @@ const SwipePage = lazyNamed(() => import("../swipe/SwipePage"), "SwipePage");
 const MapPage = lazyNamed(() => import("../catalog/MapPage"), "MapPage");
 const CreatePage = lazyNamed(() => import("../create/CreatePage"), "CreatePage");
 const StoryCreatePage = lazyNamed(() => import("../create/StoryCreatePage"), "StoryCreatePage");
+const PostCreatePage = lazyNamed(() => import("../create/PostCreatePage"), "PostCreatePage");
 const SubscriptionsPage = lazyNamed(() => import("../subscriptions/MySubscriptions"), "SubscriptionsPage");
 const WeGroupsPage = lazyNamed(() => import("../wegroup/WeGroupsPage"), "WeGroupsPage");
 const WeGroupPage = lazyNamed(() => import("../wegroup/WeGroupPage"), "WeGroupPage");
@@ -151,7 +151,7 @@ function Routed() {
   if (route.name === "whereto") return <WheretoPage />;
   if (route.name === "nearby") return <NearbyPage />;
   if (route.name === "micro-new") return <MicroEventCreatePage />;
-  if (route.name === "feed-new") return <FeedCreatePage eventId={route.eventId} />;
+  if (route.name === "feed-new") return <PostCreatePage eventId={route.eventId} />;
   if (route.name === "gathering-new") return <GatheringFlowPage eventId={route.eventId} />;
   if (route.name === "gathering") return <GatheringStatusPage id={route.id} />;
   if (route.name === "vote") return <VotePage id={route.id} />;
