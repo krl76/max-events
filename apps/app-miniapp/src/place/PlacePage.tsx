@@ -411,19 +411,5 @@ export function PlacePage({ id }: { id: string }) {
       () => {},
     );
   };
-  return (
-    <PlacePageView
-      place={state.place}
-      page={state.page}
-      board={state.board}
-      checkedIn={checkedIn}
-      onBack={back}
-      onCheckIn={checkIn}
-      onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })}
-      onOpenSlots={() => navigate({ name: "slot-booking", placeId: id })}
-      onOpenSubscriptions={() => navigate({ name: "subscriptions" })}
-      onCreateHere={() => navigate({ name: "micro-new" })}
-      onSave={() => navigate({ name: "lists" })}
-    />
-  );
+  return <PlacePageView place={state.place} page={state.page} board={state.board} checkedIn={checkedIn} onBack={back} onCheckIn={checkIn} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} onOpenSlots={() => navigate({ name: "slot-booking", placeId: id })} onOpenSubscriptions={() => navigate({ name: "subscriptions" })} onCreateHere={() => navigate({ name: "micro-new" })} onSave={() => navigate({ name: "lists" })} />;
 }

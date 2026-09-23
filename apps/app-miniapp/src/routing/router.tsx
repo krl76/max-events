@@ -25,7 +25,41 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getStartParam, getWebApp } from "../max/bridge";
 
-export type Route = { name: "home" } | { name: "search" } | { name: "swipe" } | { name: "create" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "settings" } | { name: "subscriptions" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "plan-new" } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "micro-new" } | { name: "story-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string } | { name: "moderation" } | { name: "after-event"; eventId: string } | { name: "lists" }
+export type Route =
+  | { name: "home" }
+  | { name: "search" }
+  | { name: "swipe" }
+  | { name: "create" }
+  | { name: "map" }
+  | { name: "event"; id: string }
+  | { name: "place"; id: string }
+  | { name: "friends" }
+  | { name: "calendar" }
+  | { name: "profile" }
+  | { name: "settings" }
+  | { name: "subscriptions" }
+  | { name: "whereto" }
+  | { name: "nearby" }
+  | { name: "discovery" }
+  | { name: "people" }
+  | { name: "gathering-new"; eventId: string }
+  | { name: "gathering"; id: string }
+  | { name: "plans" }
+  | { name: "plan"; id: string }
+  | { name: "plan-new" }
+  | { name: "day-route" }
+  | { name: "list"; id: string }
+  | { name: "achievements" }
+  | { name: "micro-new" }
+  | { name: "story-new" }
+  | { name: "feed-new"; eventId: string | null }
+  | { name: "organizer" }
+  | { name: "we-groups" }
+  | { name: "we-group"; id: string }
+  | { name: "vote"; id: string }
+  | { name: "moderation" }
+  | { name: "after-event"; eventId: string }
+  | { name: "lists" }
   // Экран 19: бронирование окна площадки открывается от места, а не от своего id — окно выбирается уже внутри
   | { name: "slot-booking"; placeId: string }
   // Экран 20: подтверждённая бронь с кодом входа

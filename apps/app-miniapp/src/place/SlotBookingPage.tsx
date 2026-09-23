@@ -9,8 +9,6 @@
 // - slotMetaLine - «3 часа · 2 400 ₽» under a window; a taken window says when it frees instead
 // - slotBoardSubtitle - «Серебряный Бор · 800 ₽/час» under the unit name
 // - splitNote - «счёт делится на 3» next to the company
-// - SlotDayStrip - the week of the design: weekday, day number and the forecast glyph, dimmed where nothing is published
-// - SlotRow - one window: clock, hours, price with its forecast, and what it is («Свободно» / «Выбрано» / «Занято»)
 // - SlotBookingState - union of the board fetch states (loading / error / ready)
 // - SlotBookingView - presentational: the whole screen with the day, window, add-on and company choices lifted out
 // - SlotBookingPage - route container: loads the board of a venue, holds the choices, books the window

@@ -286,14 +286,7 @@ export function MyBookingsView({ board, tab, query, searching, menuId, onTab, on
         ))}
       </div>
 
-      {showActive &&
-        (cards.length === 0 ? (
-          <AppState>{query.trim() === "" ? "Здесь пока пусто — забронируй окно или запишись на событие." : "Ничего не нашлось."}</AppState>
-        ) : (
-          cards.map((card) => (
-            <BookingCardView key={`${card.kind}-${card.id}`} card={card} menuOpen={menuId === card.id} onOpenTicket={() => onOpenTicket(card)} onLeaveWaitlist={() => onLeaveWaitlist(card.id)} onMenu={() => onMenu(menuId === card.id ? null : card.id)} onShare={() => onShare(card)} />
-          ))
-        ))}
+      {showActive && (cards.length === 0 ? <AppState>{query.trim() === "" ? "Здесь пока пусто — забронируй окно или запишись на событие." : "Ничего не нашлось."}</AppState> : cards.map((card) => <BookingCardView key={`${card.kind}-${card.id}`} card={card} menuOpen={menuId === card.id} onOpenTicket={() => onOpenTicket(card)} onLeaveWaitlist={() => onLeaveWaitlist(card.id)} onMenu={() => onMenu(menuId === card.id ? null : card.id)} onShare={() => onShare(card)} />))}
 
       {showPast && board.past.length > 0 && (
         <section className="app-book-past" aria-label="Прошедшие">
@@ -367,23 +360,5 @@ export function MyBookingsPage() {
     setMenuId(null);
     void shareResult(webApp, `${card.title} · ${card.venue}, ${card.meta}`);
   };
-  return (
-    <MyBookingsView
-      board={state.board}
-      tab={tab}
-      query={query}
-      searching={searching}
-      menuId={menuId}
-      onTab={setTab}
-      onQuery={setQuery}
-      onToggleSearch={() => setSearching((current) => !current)}
-      onCalendar={() => navigate({ name: "calendar" })}
-      onOpenTicket={open}
-      onLeaveWaitlist={leave}
-      onMenu={setMenuId}
-      onShare={share}
-      onRate={(eventId) => navigate({ name: "after-event", eventId })}
-      onRepeat={(eventId) => navigate({ name: "event", id: eventId })}
-    />
-  );
+  return <MyBookingsView board={state.board} tab={tab} query={query} searching={searching} menuId={menuId} onTab={setTab} onQuery={setQuery} onToggleSearch={() => setSearching((current) => !current)} onCalendar={() => navigate({ name: "calendar" })} onOpenTicket={open} onLeaveWaitlist={leave} onMenu={setMenuId} onShare={share} onRate={(eventId) => navigate({ name: "after-event", eventId })} onRepeat={(eventId) => navigate({ name: "event", id: eventId })} />;
 }

@@ -71,7 +71,12 @@ describe("partyLabel and inviteLine", () => {
 describe("chatMembersLabel", () => {
   it("names the company and ends with the venue, which is always in the chat", () => {
     expect(chatMembersLabel([])).toBe("Ты и площадка");
-    expect(chatMembersLabel([{ id: "f1", name: "Анна Соколова", avatarUrl: null }, { id: "f2", name: "Дима Кузнецов", avatarUrl: null }])).toBe("Ты, Анна, Дима и площадка");
+    expect(
+      chatMembersLabel([
+        { id: "f1", name: "Анна Соколова", avatarUrl: null },
+        { id: "f2", name: "Дима Кузнецов", avatarUrl: null },
+      ]),
+    ).toBe("Ты, Анна, Дима и площадка");
   });
 });
 

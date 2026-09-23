@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Place, PlacePage as PlacePageAggregate } from "@max-events/api-contracts";
+import type { PlacePage as PlacePageAggregate } from "@max-events/api-contracts";
 import type { PlaceBoard, PlaceUpcomingEvent } from "../api/client";
 import { mockPlaces } from "../api/mock";
 import { pluralRu } from "../catalog/format";
