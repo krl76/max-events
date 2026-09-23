@@ -64,15 +64,18 @@ describe("RoutedPages", () => {
     expect(html).not.toContain("app-feed-skeleton");
   });
 
-  it("maps the profile route to the profile screen with the achievements/my-city nav tiles", async () => {
-    const html = await routedHtml({ name: "profile" }, "Достижения");
+  it("maps the profile route to экран 36, whose own rows replaced the nav tiles above it", async () => {
+    const html = await routedHtml({ name: "profile" }, "Загрузка…");
 
-    expect(html).toContain("Достижения");
-    expect(html).toContain("Мой город");
-    expect(html).not.toContain("Друзья");
-    expect(html).not.toContain("Сохранённое");
-    expect(html).not.toContain("Панель организатора");
+    expect(html).not.toContain("app-nav-tile");
+    expect(html).not.toContain("Мой город");
     expect(html).not.toContain("Твои люди открыли места");
+  });
+
+  it("maps the after-event route to экран 35 for the event its deep link names", async () => {
+    const html = await routedHtml({ name: "after-event", eventId: "c0000001-0000-4000-8000-000000000001" }, "Загрузка…");
+
+    expect(html).not.toContain("app-feed-skeleton");
   });
 
   it("maps the plans route to the «Моё» screen with the plans/calendar/saved tabs", async () => {

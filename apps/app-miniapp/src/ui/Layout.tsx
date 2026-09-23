@@ -12,7 +12,7 @@
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
 // - routeTitle - header title for the current route
 // - routeHasBack - back button shown on every non-tab route, the map included
-// - routeHasHeader - header hidden on the search/plans/profile tab screens (profile renders its own Instagram-style topbar), on the map and swipe screens, which draw their own chrome over the content, and on the fullscreen composers
+// - routeHasHeader - header hidden on the search/plans/profile tab screens (profile renders its own gradient hero), on the map and swipe screens, which draw their own chrome over the content, on «После события», whose hero carries the close button instead of a back arrow, and on the fullscreen composers
 // - routeIsFullscreen - the story and post composers (макет, экраны 05 и 06) own the whole viewport: no shell header, no tabbar, no gutters
 // END_MODULE_MAP
 
@@ -54,6 +54,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   "day-route": "Маршрут на день",
   list: "Список",
   achievements: "Достижения",
+  "after-event": "После события",
   "micro-new": "Новое микро-событие",
   "story-new": "Новая история",
   "feed-new": "Новое впечатление",
@@ -74,7 +75,7 @@ export function routeHasBack(route: Route): boolean {
 
 // Экраны 08, 16 и 09 рисуют собственную шапку: карта — плавающую пилюлю «Поиск» поверх полотна,
 // подбор свайпами — свою строку с кнопкой назад. Общая шапка перекрыла бы и то и другое.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile"]);
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event"]);
 
 /**
  * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и

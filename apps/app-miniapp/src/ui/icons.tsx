@@ -9,6 +9,7 @@
 // - TabIcon - union of the tabbar icon names: the user bar (feed/search/create/plans/profile) plus map and the organizer bar (dashboard/events/create/promo/profile)
 // - TabIconGlyph - inline stroke SVG for a tabbar icon, filled variant for the active tab
 // - ActionIconName - union of post-action, meta, search, map and composer icon names
+// - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron/star/alert/search/settings/bell/check/plus/building/upload/dots/medal/group/close/camera/sparkle)
 // - ActionIcon - inline stroke SVG by ActionIconName; filled=true fills the glyph (liked heart, saved bookmark, active tab)
 // END_MODULE_MAP
 
@@ -89,7 +90,7 @@ export function TabIconGlyph({ name, size = 24, filled = false }: { name: TabIco
   return <Glyph paths={filled ? (FILLED[name] ?? OUTLINE[name]) : OUTLINE[name]} size={size} filled={filled} />;
 }
 
-export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings" | "bell" | "check" | "plus" | "building" | "spark" | "cards" | "calendar" | "arrow" | "seat" | "filter" | "close" | "undo" | "users" | "weather" | "rain" | "navigation" | "metro" | "layers" | "locate" | "text" | "adjust" | "sparkle" | "friends" | "camera" | "lines";
+export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings" | "bell" | "check" | "plus" | "building" | "spark" | "cards" | "calendar" | "arrow" | "seat" | "filter" | "close" | "undo" | "users" | "weather" | "rain" | "navigation" | "metro" | "layers" | "locate" | "text" | "adjust" | "sparkle" | "friends" | "camera" | "lines" | "upload" | "dots" | "medal" | "group";
 
 const ACTIONS: Record<ActionIconName, ReactNode> = {
   heart: <path d="M12 20.3S3.4 15.4 3.4 9.6a4.6 4.6 0 0 1 8.6-2.3A4.6 4.6 0 0 1 20.6 9.6c0 5.8-8.6 10.7-8.6 10.7Z" />,
@@ -245,6 +246,36 @@ const ACTIONS: Record<ActionIconName, ReactNode> = {
     </>
   ),
   // Добавить фото (макет, экран 06): плитка-заглушка и нижняя панель композера
+  // Шапка профиля (макет, экран 36): поделиться профилем — стрелка из коробки, и «ещё» тремя точками
+  upload: (
+    <>
+      <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
+      <path d="M12 3v12M7 8l5-5 5 5" />
+    </>
+  ),
+  dots: (
+    <>
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="19" cy="12" r="2" />
+    </>
+  ),
+  // Достижения (макет, экраны 36 и 40): медаль с лентой — не ещё одна звезда, звезда занята рейтингом
+  medal: (
+    <>
+      <circle cx="12" cy="9" r="5.5" />
+      <path d="M8.5 13.5 7 21l5-2.6L17 21l-1.5-7.5" />
+    </>
+  ),
+  // «Мы»-группы (макет, экран 36): двое, а не один силуэт
+  group: (
+    <>
+      <circle cx="9" cy="8" r="3.4" />
+      <path d="M3 20c0-3.3 2.7-5.4 6-5.4s6 2.1 6 5.4" />
+      <path d="M16 5.2A3.4 3.4 0 0 1 16 12M18 20c0-2.3-.8-3.9-2-5" />
+    </>
+  ),
+  // «Добавить фото» в сетке компании (макет, экран 35)
   camera: (
     <>
       <path d="M4 8a2 2 0 0 1 2-2h2l2-2h4l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
@@ -254,6 +285,7 @@ const ACTIONS: Record<ActionIconName, ReactNode> = {
   // Привязать событие (макет, экран 06); тот же смысл, что у таббарного events, но в 20px-размере списков
   // Текст поста (макет, экран 06): строки по левому краю, в отличие от центрированного text
   lines: <path d="M4 6h16M4 12h10M4 18h13" />,
+  // Четырёхлучевая искра выбранной оценки (макет, экран 35) — форма отличает её от пятиконечной звезды рейтинга
   settings: (
     <>
       <circle cx="12" cy="12" r="3.2" />

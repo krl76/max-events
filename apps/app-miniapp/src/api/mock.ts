@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - DEFAULT_APP_SETTINGS - the экран 41 preferences a user starts with
 // - LIST_PRESET_TITLES - ru titles of the six preset lists (mock seeds them as List.title)
 // - MOCK_ASSIST_RATE_LIMIT - assist rate limit (backend AssistRateLimiter parity: 20 hits / 10 min)
 // - MOCK_EARLY_ACCESS_EVENT_ID - fixture event whose booking opens in the future (early access, #202)
@@ -21,9 +22,11 @@
 // - MOCK_TODAY - the fixed demo "today" (Moscow day key) the place page fixtures are curated for
 // - MOCK_VOTE_ID - seeded deep-link demo vote (the demo user is a participant; seeded winner)
 // - OFFER_TTL_MS - 15-minute confirmation window of a waitlist offer
+// - REVIEW_FACT_TAGS - the five «Что было правдой?» tags of экран 35, in design order
 // - SHARED_COLLECTION_TITLE - ru title of the seeded shared collection
 // - achievementsFor - the four README achievements with progress derived from visit stats
 // - afterMePicks - mock GET /taste/after-me: more of the strongest visited category, backend wording parity
+// - appSettingsFor - stored экран 41 app settings of a user, seeded from the defaults
 // - banMockOrganizer - mock POST /moderation/ban
 // - bannedMockOrganizers - who the mock has banned (test isolation)
 // - buildMockDayRoute - resolve 2..8 event/place stops to points and haversine walking legs (mock POST /routes, backend parity)
@@ -97,9 +100,11 @@
 // - planCard - single plan card by plan id (or null)
 // - planCards - plan fixtures sorted by the soonest meeting first
 // - recordSwipeDecision - mock POST /discover/swipe/:placeId: remember the swipe; false for an unknown venue
+// - profileCountersFor - экран 36 counters: events and places from the visit history, «компании» = visits that happened with company (#496)
 // - removeMockList - mock DELETE /lists/:id with its items (403 for a preset)
 // - removeMockSubscription - mock DELETE /subscriptions/:id, "unknown" when it is already gone
 // - renameMockList - mock PATCH /lists/:id (403 for a preset)
+// - resetMockAppSettings - drop the stored экран 41 app settings (test isolation)
 // - resetMockAssist - clear the assist rate-limit window (test isolation)
 // - resetMockBookings - clear in-memory bookings and payments (test isolation)
 // - resetMockCampaigns - clear in-memory promo campaigns (test isolation)
@@ -131,6 +136,7 @@
 // - todayPicks - digest of экран 08 from fixtures: summary counters plus curated cards, one of them carrying the after_me hint
 // - travelOptionsFor - mock GET /travel: walking and metro estimates from the distance alone (#504)
 // - unpublishMockTarget - mock POST /moderation/unpublish
+// - visitedPlacesFor - impressions grid of экран 36: visited places with their visit counts, most visited first
 // - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
 // END_MODULE_MAP
 
@@ -145,7 +151,7 @@ export { LIST_PRESET_TITLES, SHARED_COLLECTION_TITLE, createMockList, createMock
 export { MOCK_MODERATOR_USER_ID, banMockOrganizer, bannedMockOrganizers, createMockReport, isMockModerator, openMockReports, resetMockReports, resolveMockReport, setMockModerator, unpublishMockTarget } from "./mock/moderation";
 export { MOCK_ORGANIZER_PAID_EVENT_ID, resetMockCampaigns, resetMockOrganizer, resetMockPromoCodes, resetMockPromotions } from "./mock/organizer";
 export { buildMockDayRoute, calendarEntries, cancelMockPlan, createMockAutoPlan, createMockPlan, mockBudgetFromExpenses, mockPlanBudget, mockPlans, optimizeMockDayRoute, planCard, planCards, resetMockPlans } from "./mock/plans";
-export { achievementsFor, afterMePicks, myCityFor, resetMockProfiles, tasteProfile } from "./mock/profile";
+export { DEFAULT_APP_SETTINGS, achievementsFor, afterMePicks, appSettingsFor, myCityFor, profileCountersFor, resetMockAppSettings, resetMockProfiles, tasteProfile, visitedPlacesFor } from "./mock/profile";
 export { mockPromotionPlacements, mockTargetedPromotions } from "./mock/promo";
-export { eventRating, resetMockReviews } from "./mock/reviews";
+export { REVIEW_FACT_TAGS, eventRating, resetMockReviews } from "./mock/reviews";
 export { MOCK_GATHERING_ID, createMockGathering, createMockMicroEvent, discoverySummary, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, joinMockMicroEvent, leaveMockMicroEvent, microEvents, mockOnboardingContacts, peopleSuggest, resetMockFollows, resetMockGatherings, resetMockMicroEvents, respondMockGathering } from "./mock/social";

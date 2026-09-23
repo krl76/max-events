@@ -34,6 +34,11 @@ describe("routeFromStartParam", () => {
     expect(routeFromStartParam("gathering-g1")).toEqual({ name: "gathering", id: "g1" });
   });
 
+  it("maps the push that follows an event to экран 35, which carries an eventId rather than an id", () => {
+    expect(routeFromStartParam("after-c0000001-0000-4000-8000-000000000001")).toEqual({ name: "after-event", eventId: "c0000001-0000-4000-8000-000000000001" });
+    expect(routeFromStartParam("after-")).toEqual({ name: "home" });
+  });
+
   it("opens the vote route from a vote-* deep link", () => {
     expect(routeFromStartParam("vote-d7000000-0000-4000-8000-000000000001")).toEqual({ name: "vote", id: "d7000000-0000-4000-8000-000000000001" });
   });

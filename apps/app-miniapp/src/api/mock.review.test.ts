@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ApiClient } from "./client";
-import { createMockReport, eventRating, feedPosts, installMockApi, mockEvents, mockPlaces, resetMockReports, resetMockReviews } from "./mock";
+import { REVIEW_FACT_TAGS, createMockReport, eventRating, feedPosts, installMockApi, mockEvents, mockPlaces, resetMockReports, resetMockReviews } from "./mock";
 
 const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 const UNKNOWN_ID = "00000000-0000-4000-8000-000000000000";
@@ -70,6 +70,38 @@ describe("mock reviews and rating aggregate", () => {
 
     await expect(api.createReview({ userId: DEMO_USER_ID, eventId: mockEvents[0].id, stars: 9, wouldGoAgain: true })).rejects.toMatchObject({ status: 400 });
     await expect(api.createReview({ userId: DEMO_USER_ID, eventId: UNKNOWN_ID, stars: 4, wouldGoAgain: true })).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("mock «Что было правдой?» tags", () => {
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+    resetMockReviews();
+  });
+
+  it("serves the five tags of the design for a known event and 404 for an unknown one", async () => {
+    restore = installMockApi();
+    const api = new ApiClient("/api");
+
+    const tags = await api.listReviewFactTags(mockEvents[0].id);
+    expect(tags.map((tag) => tag.label)).toEqual(["Спокойно", "С детьми ок", "Многолюдно", "Дорого", "Новичкам легко"]);
+    expect(REVIEW_FACT_TAGS).toHaveLength(5);
+
+    await expect(api.listReviewFactTags(UNKNOWN_ID)).rejects.toMatchObject({ name: "ApiError", status: 404 });
+  });
+
+  it("accepts a review carrying tags from the dictionary and rejects one carrying an unknown code", async () => {
+    restore = installMockApi();
+    const api = new ApiClient("/api");
+    const target = mockEvents[5];
+
+    const review = await api.createReview({ userId: DEMO_USER_ID, eventId: target.id, stars: 5, wouldGoAgain: true, factTags: ["calm", "kids_ok"] });
+    expect(review).toMatchObject({ userId: DEMO_USER_ID, eventId: target.id, stars: 5 });
+
+    await expect(api.createReview({ userId: DEMO_USER_ID, eventId: target.id, stars: 5, wouldGoAgain: true, factTags: ["loud"] })).rejects.toMatchObject({ status: 400 });
   });
 });
 

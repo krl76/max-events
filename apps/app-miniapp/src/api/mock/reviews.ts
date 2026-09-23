@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock review store: the seeded reviews and the rating aggregate they add up to.
-// SCOPE: Review state and eventRating; the HTTP surface is in ./reviews.routes.ts.
+// PURPOSE: Mock review store: the seeded reviews, the rating aggregate they add up to and the «Что было правдой?» fact tags of экран 35.
+// SCOPE: Review state, eventRating and the fact tag dictionary; the HTTP surface is in ./reviews.routes.ts.
 // DEPENDS: @max-events/api-contracts, ../client.js and the sibling ./mock domain modules it imports
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -9,12 +9,15 @@
 // - mockReviews - shared with catalog, organizer, profile
 // - resetMockReviews - restore seeded reviews (test isolation)
 // - eventRating - rating summary and per-category averages for an event from the mock reviews
+// - REVIEW_FACT_TAGS - the five «Что было правдой?» tags of экран 35, in design order
+// - reviewFactTags - mock GET /events/:id/review-facts: the dictionary, empty for an unknown event
+// - mockReviewFacts - fact tags submitted per review author and event (test isolation, shared with reviews.routes)
 // - createMockReview - Creates or replaces the review of a user for an event (one review per user and event); "no_event"/"invalid" map to 404/400 in the interceptor
 // END_MODULE_MAP
 
 import { ReviewSchema } from "@max-events/api-contracts";
 import type { Review } from "@max-events/api-contracts";
-import { type CreateReview, type EventRating } from "../client";
+import { type CreateReview, type EventRating, type ReviewFactTag } from "../client";
 import { PLACE_STAMP, mockEvents, mockFriendIds } from "./fixtures";
 
 type ReviewSeed = { friend: number; event: number; stars: number; categoryScores?: Review["categoryScores"]; wouldGoAgain: boolean; text?: string };
@@ -44,6 +47,7 @@ seedMockReviews();
 
 export function resetMockReviews(): void {
   seedMockReviews();
+  mockReviewFacts.clear();
 }
 
 /** Rating summary and per-category averages for an event from the mock reviews; null for an unknown event. */
@@ -61,9 +65,32 @@ export function eventRating(eventId: string): EventRating | null {
   };
 }
 
+/**
+ * The five «Что было правдой?» tags of экран 35. There is no tag dictionary in the domain (#500), so
+ * the mock is the dictionary: one flat list, the same for every event, in the order the design prints it.
+ */
+export const REVIEW_FACT_TAGS: readonly ReviewFactTag[] = [
+  { code: "calm", label: "Спокойно" },
+  { code: "kids_ok", label: "С детьми ок" },
+  { code: "crowded", label: "Многолюдно" },
+  { code: "pricey", label: "Дорого" },
+  { code: "beginner_friendly", label: "Новичкам легко" },
+];
+
+/** Mock GET /events/:id/review-facts: the dictionary for a known event, nothing to tag for an unknown one. */
+export function reviewFactTags(eventId: string): ReviewFactTag[] | "no_event" {
+  return mockEvents.some((item) => item.id === eventId) ? [...REVIEW_FACT_TAGS] : "no_event";
+}
+
+/** What each author tagged an event with, keyed «userId>eventId» — the store the tag dictionary will get a column for (#500). */
+export const mockReviewFacts = new Map<string, string[]>();
+
 /** Creates or replaces the review of a user for an event (one review per user and event); "no_event"/"invalid" map to 404/400 in the interceptor. */
 export function createMockReview(payload: CreateReview): Review | "no_event" | "invalid" {
   if (!mockEvents.some((item) => item.id === payload.eventId)) return "no_event";
+  const known = new Set(REVIEW_FACT_TAGS.map((tag) => tag.code));
+  if ((payload.factTags ?? []).some((code) => !known.has(code))) return "invalid";
+  mockReviewFacts.set(`${payload.userId}>${payload.eventId}`, [...(payload.factTags ?? [])]);
   mockReviewSeq += 1;
   const review: Review = { id: `80000000-0000-4000-8000-${String(mockReviewSeq).padStart(12, "0")}`, userId: payload.userId, eventId: payload.eventId, placeId: null, stars: payload.stars, categoryScores: payload.categoryScores ?? {}, wouldGoAgain: payload.wouldGoAgain, photos: [], text: payload.text ?? null, createdAt: new Date().toISOString() };
   if (!ReviewSchema.safeParse(review).success) return "invalid";
