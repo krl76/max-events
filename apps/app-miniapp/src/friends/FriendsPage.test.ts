@@ -65,6 +65,16 @@ describe("activeFriends", () => {
 
     expect(activeFriends([far, tomorrow, soon], NOW).map((entry) => entry.friend.id)).toEqual([mockFriends[0].id, mockFriends[1].id]);
   });
+
+  it("keeps the group short so «ВСЕ ДРУЗЬЯ» below it does not disappear", () => {
+    const busy = mockFriends.slice(0, 6).map((_, index) => group(new Date(NOW.getTime() + (index + 1) * HOUR).toISOString(), "going", index));
+
+    const active = activeFriends(busy, NOW);
+
+    expect(active).toHaveLength(3);
+    // Срез берёт ближайших, а не первых попавшихся.
+    expect(active.map((entry) => entry.friend.id)).toEqual(mockFriends.slice(0, 3).map((friend) => friend.id));
+  });
 });
 
 describe("FriendsView", () => {

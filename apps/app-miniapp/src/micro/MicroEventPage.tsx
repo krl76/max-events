@@ -120,8 +120,8 @@ export function MicroEventView({ state, viewerId, busy = false, now = new Date()
               {card.event.participantsCount} из {card.event.participantsLimit}
             </span>
           </div>
-          <div className="app-micro-bar-track" role="img" aria-label={`Занято ${card.event.participantsCount} из ${card.event.participantsLimit}`}>
-            <span className="app-micro-bar-fill" style={{ width: `${filled}%` }} />
+          <div className="app-micro-gauge" role="img" aria-label={`Занято ${card.event.participantsCount} из ${card.event.participantsLimit}`}>
+            <span className="app-micro-gauge-fill" style={{ width: `${filled}%` }} />
           </div>
           <ul className="app-micro-people">
             {card.participants.map((participant) => (

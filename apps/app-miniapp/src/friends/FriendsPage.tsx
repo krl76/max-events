@@ -74,6 +74,13 @@ export function friendNowLine(group: FriendActivityByFriend, now: Date = new Dat
   return `Идёт на «${next.event.title}»${today ? " сегодня" : tomorrow ? " завтра" : ""}`;
 }
 
+/**
+ * Верхняя группа — витрина, а не второй список: в макете в ней три человека, а все остальные стоят
+ * ниже под «ВСЕ ДРУЗЬЯ». Без предела активный день уводит в неё весь список, и экран теряет роcтер
+ * целиком — остаются одни статусы. Срез идёт по ближайшему событию, так что видны самые срочные.
+ */
+const FRIENDS_NOW_LIMIT = 3;
+
 /** «Сейчас что-то делают» is about today and tomorrow; a plan for next month is not something a friend is doing. */
 export function activeFriends(groups: FriendActivityByFriend[], now: Date = new Date()): FriendActivityByFriend[] {
   const horizon = now.getTime() + 2 * DAY_MS;
@@ -82,7 +89,8 @@ export function activeFriends(groups: FriendActivityByFriend[], now: Date = new 
       const next = group.events[0];
       return next !== undefined && Date.parse(next.event.startsAt) <= horizon;
     })
-    .sort((a, b) => a.events[0].event.startsAt.localeCompare(b.events[0].event.startsAt));
+    .sort((a, b) => a.events[0].event.startsAt.localeCompare(b.events[0].event.startsAt))
+    .slice(0, FRIENDS_NOW_LIMIT);
 }
 
 export type FriendsState = { status: "loading" } | { status: "error" } | { status: "ready"; friends: Friend[]; groups: FriendActivityByFriend[]; syncedAt: string | null };

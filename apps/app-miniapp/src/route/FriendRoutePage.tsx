@@ -31,6 +31,13 @@ export function firstName(name: string): string {
 }
 
 /**
+ * Имена, у которых в косвенных падежах меняется основа: беглая гласная («Павел» -> «Павла») и «ё»,
+ * уходящее под сдвигом ударения («Пётр» -> «Петра»). Правилом это не выводится — нужно ударение,
+ * которого в строке нет: «Фёдор» ударение не двигает и остаётся «Фёдора». Поэтому список явный.
+ */
+const OBLIQUE_STEMS: Record<string, string> = { пётр: "Петр", павел: "Павл", лев: "Льв" };
+
+/**
  * «Маршрут Анны», «Маршрут Олега» — the title of the design declines the name. Russian genitive of a
  * first name is regular enough to write down: -ия -> -ии, -а -> -ы (-и after a hushing or velar stem),
  * -я -> -и, -й/-ь -> -я, otherwise a consonant takes -а. A name the rules do not fit stays as it is,
@@ -39,6 +46,8 @@ export function firstName(name: string): string {
 export function genitiveName(name: string): string {
   const word = firstName(name);
   if (word.length < 3) return word;
+  const irregular = OBLIQUE_STEMS[word.toLowerCase()];
+  if (irregular !== undefined) return `${irregular}а`;
   const last = word.slice(-1).toLowerCase();
   const stem = word.slice(0, -1);
   const beforeLast = stem.slice(-1).toLowerCase();

@@ -34,6 +34,15 @@ describe("name forms", () => {
     expect(accusativeName("Мария Белова")).toBe("Марию");
   });
 
+  it("moves the stem of a name that does not keep it, «Пётр» -> «Петра»", () => {
+    expect(genitiveName("Пётр Новиков")).toBe("Петра");
+    expect(accusativeName("Пётр Новиков")).toBe("Петра");
+    expect(genitiveName("Павел Ефимов")).toBe("Павла");
+    expect(genitiveName("Лев")).toBe("Льва");
+    // «Фёдор» ударение не двигает: общего правила «ё -> е» здесь быть не должно.
+    expect(genitiveName("Фёдор Кузьмин")).toBe("Фёдора");
+  });
+
   it("leaves a name the rules do not cover alone rather than inventing a form", () => {
     expect(genitiveName("Ли")).toBe("Ли");
     expect(accusativeName("Ли")).toBe("Ли");
