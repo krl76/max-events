@@ -10,6 +10,7 @@
 // - TabIconGlyph - inline stroke SVG for a tabbar icon, filled variant for the active tab
 // - ActionIconName - union of post-action, meta, search, map and composer icon names
 // - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron/star/alert/search/settings/bell/check/plus/building/upload/dots/medal/group/close/camera/sparkle)
+// - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron/star/alert/search/settings/bell/check/plus/building/tag/close)
 // - ActionIcon - inline stroke SVG by ActionIconName; filled=true fills the glyph (liked heart, saved bookmark, active tab)
 // END_MODULE_MAP
 
@@ -90,7 +91,7 @@ export function TabIconGlyph({ name, size = 24, filled = false }: { name: TabIco
   return <Glyph paths={filled ? (FILLED[name] ?? OUTLINE[name]) : OUTLINE[name]} size={size} filled={filled} />;
 }
 
-export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings" | "bell" | "check" | "plus" | "building" | "spark" | "cards" | "calendar" | "arrow" | "seat" | "filter" | "close" | "undo" | "users" | "weather" | "rain" | "navigation" | "metro" | "layers" | "locate" | "text" | "adjust" | "sparkle" | "friends" | "camera" | "lines" | "upload" | "dots" | "medal" | "group";
+export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "bell" | "check" | "plus" | "building" | "spark" | "cards" | "calendar" | "arrow" | "seat" | "filter" | "close" | "undo" | "users" | "text" | "adjust" | "sparkle" | "friends" | "weather" | "rain" | "navigation" | "metro" | "layers" | "locate" | "upload" | "dots" | "medal" | "group" | "camera" | "lines" | "tag" | "settings";
 
 const ACTIONS: Record<ActionIconName, ReactNode> = {
   heart: <path d="M12 20.3S3.4 15.4 3.4 9.6a4.6 4.6 0 0 1 8.6-2.3A4.6 4.6 0 0 1 20.6 9.6c0 5.8-8.6 10.7-8.6 10.7Z" />,
@@ -286,6 +287,14 @@ const ACTIONS: Record<ActionIconName, ReactNode> = {
   // Текст поста (макет, экран 06): строки по левому краю, в отличие от центрированного text
   lines: <path d="M4 6h16M4 12h10M4 18h13" />,
   // Четырёхлучевая искра выбранной оценки (макет, экран 35) — форма отличает её от пятиконечной звезды рейтинга
+  // Интерес как цель подписки (макет, экран 38): ярлык с отверстием, а не ещё один кружок
+  tag: (
+    <>
+      <path d="M4 12V5a1 1 0 0 1 1-1h7l8 8-8 8Z" />
+      <circle cx="8.5" cy="8.5" r="1.4" />
+    </>
+  ),
+  // Убрать элемент из списка (макет, экран 39)
   settings: (
     <>
       <circle cx="12" cy="12" r="3.2" />

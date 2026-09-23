@@ -7,14 +7,14 @@
 //
 // START_MODULE_MAP
 // - resetMockSubscriptions - clear in-memory follows (test isolation)
-// - listMockSubscriptions - mock GET /subscriptions for the demo user
+// - listMockSubscriptions - mock GET /subscriptions for the demo user; the seeded follows of экран 38 (one organizer, three places, three interests) appear on first access
 // - createMockSubscription - mock POST /subscriptions: idempotent per target, "unknown" for an unknown place or organizer (backend 404 parity)
 // - removeMockSubscription - mock DELETE /subscriptions/:id, "unknown" when it is already gone
 // - LIST_PRESET_TITLES - ru titles of the six preset lists (mock seeds them as List.title)
 // - mockListItems - shared with discover
 // - resetMockLists - clear in-memory lists (test isolation)
 // - SHARED_COLLECTION_TITLE - ru title of the seeded shared collection
-// - listsFor - The six preset lists of a user plus the shared collection for its participants, created with their seed items on first request
+// - listsFor - The six preset lists of a user, the shared collection for its participants and the demo user's own lists, created with their seed items on first request
 // - listSummaries - preset lists of a user with item counters, the saved-item id for the checked event and shared-collection participants
 // - listItemCards - items of one list enriched with their events and the participant who added them, newest first (mock)
 // - listScreen - One-list aggregate for the list screen: the list, its participants (shared collections) and its item cards; null for an unknown list
@@ -35,9 +35,12 @@ const mockSubscriptions: Subscription[] = [];
 
 let mockSubscriptionSeq = 0;
 
+let mockSubscriptionsSeeded = false;
+
 export function resetMockSubscriptions(): void {
   mockSubscriptions.length = 0;
   mockSubscriptionSeq = 0;
+  mockSubscriptionsSeeded = false;
 }
 
 /** Backend parity: the follow carries the name of its target, since the screens cannot resolve a uuid. */
@@ -54,12 +57,40 @@ function sameMockTarget(row: Subscription, payload: CreateSubscription): boolean
   return (row.interest ?? "").toLowerCase() === payload.interest.toLowerCase();
 }
 
+/**
+ * What the demo user already follows (макет, экран 38): one organizer, three places and three
+ * interests. Seeded rather than left empty because the screen groups and counts them — an empty
+ * list demonstrates nothing, and every target here is a fixture the rest of the mock already has.
+ */
+const MOCK_SUBSCRIPTION_SEED: CreateSubscription[] = [
+  { type: "organizer", organizerUserId: mockOrganizers[0].id },
+  { type: "place", placeId: mockPlaces[0].id },
+  { type: "place", placeId: mockPlaces[2].id },
+  { type: "place", placeId: mockPlaces[3].id },
+  { type: "interest", interest: "Джаз" },
+  { type: "interest", interest: "Падел" },
+  { type: "interest", interest: "Волонтёрство" },
+];
+
+function seedMockSubscriptions(): void {
+  if (mockSubscriptionsSeeded) return;
+  // Set before the loop: pushMockSubscription is what the seed itself calls.
+  mockSubscriptionsSeeded = true;
+  for (const payload of MOCK_SUBSCRIPTION_SEED) pushMockSubscription(payload);
+}
+
 export function listMockSubscriptions(): Subscription[] {
+  seedMockSubscriptions();
   return [...mockSubscriptions];
 }
 
 /** Mock POST /subscriptions: idempotent per target like the backend, "unknown" for a target that does not exist. */
 export function createMockSubscription(payload: CreateSubscription): Subscription | "unknown" {
+  seedMockSubscriptions();
+  return pushMockSubscription(payload);
+}
+
+function pushMockSubscription(payload: CreateSubscription): Subscription | "unknown" {
   const title = mockSubscriptionTitle(payload);
   if (title === null) return "unknown";
   const existing = mockSubscriptions.find((row) => sameMockTarget(row, payload));
@@ -81,6 +112,7 @@ export function createMockSubscription(payload: CreateSubscription): Subscriptio
 
 /** Mock DELETE /subscriptions/:id: returns the removed follow, "unknown" when there is nothing to remove. */
 export function removeMockSubscription(id: string): Subscription | "unknown" {
+  seedMockSubscriptions();
   const index = mockSubscriptions.findIndex((row) => row.id === id);
   if (index < 0) return "unknown";
   return mockSubscriptions.splice(index, 1)[0]!;
@@ -123,7 +155,13 @@ export function resetMockLists(): void {
 /** The seeded shared collection of the demo user and the first friend; both add items, «Отправить в чат» shares it. */
 const SHARED_LIST_ID = "70000000-0000-4000-8000-0000000000c0";
 
-export const SHARED_COLLECTION_TITLE = "Совместное: идеи на выходные";
+export const SHARED_COLLECTION_TITLE = "Куда с родителями";
+
+/** Lists of one's own seeded for the demo user (макет, экран 37): [title, mockEvents indexes]. */
+const MOCK_OWN_LIST_SEED: [string, number[]][] = [
+  ["Джаз по четвергам", [3, 4]],
+  ["Летний список", [5]],
+];
 
 const SHARED_LIST_PARTICIPANTS = (): Friend[] => [{ id: mockDemoUser.id, name: "Демо", avatarUrl: null }, mockFriends[0]];
 
@@ -158,6 +196,16 @@ export function listsFor(userId: string): List[] {
       for (const [eventIndex, authorIndex] of MOCK_SHARED_LIST_SEED) {
         mockListItems.push(listItem(SHARED_LIST_ID, mockEvents[eventIndex].id, authorIndex === -1 ? SHARED_LIST_PARTICIPANTS()[0] : mockFriends[authorIndex]));
       }
+    }
+  }
+  // The demo user is the one «Списки» is shown for, so only they get lists of their own; the shared
+  // collection stays first among them, which is where the one-collection fixtures look for it.
+  if (userId === mockDemoUser.id) {
+    for (const [title, eventIndexes] of MOCK_OWN_LIST_SEED) {
+      mockListSeq += 1;
+      const own: List = { id: `70000000-0000-4000-8000-${String(mockListSeq).padStart(12, "0")}`, userId, preset: null, title, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
+      lists.push(own);
+      for (const eventIndex of eventIndexes) mockListItems.push(listItem(own.id, mockEvents[eventIndex].id));
     }
   }
   mockLists.set(userId, lists);

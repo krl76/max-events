@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - Route - moderation | home | search | swipe | create | map | event(id) | place(id) | friends | calendar | profile | settings | subscriptions | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | plan-new | day-route | list(id) | achievements | micro-new | story-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
+// - Route - moderation | home | search | create | map | event(id) | place(id) | friends | calendar | profile | settings | subscriptions | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | plan-new | day-route | lists | list(id) | achievements | micro-new | story-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote- prefixes) to a Route, home fallback
 // - Route - moderation | home | search | create | map | event(id) | place(id) | friends | calendar | profile | settings | subscriptions | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | plan-new | day-route | list(id) | achievements | after-event(eventId) | micro-new | story-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote-/after- prefixes) to a Route, home fallback
@@ -23,7 +24,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getStartParam, getWebApp } from "../max/bridge";
 
-export type Route = { name: "home" } | { name: "search" } | { name: "swipe" } | { name: "create" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "settings" } | { name: "subscriptions" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "plan-new" } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "after-event"; eventId: string } | { name: "micro-new" } | { name: "story-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string } | { name: "moderation" };
+export type Route = { name: "home" } | { name: "search" } | { name: "swipe" } | { name: "create" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "settings" } | { name: "subscriptions" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "plan-new" } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "micro-new" } | { name: "story-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string } | { name: "moderation" } | { name: "after-event"; eventId: string } | { name: "lists" };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -90,6 +91,7 @@ function toRoute(value: unknown): Route | null {
     case "plans":
     case "plan-new":
     case "day-route":
+    case "lists":
     case "achievements":
     case "micro-new":
     case "story-new":

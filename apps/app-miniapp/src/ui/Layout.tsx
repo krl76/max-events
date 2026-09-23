@@ -14,6 +14,7 @@
 // - routeHasBack - back button shown on every non-tab route, the map included
 // - routeHasHeader - header hidden on the search/plans/profile tab screens (profile renders its own gradient hero), on the map and swipe screens, which draw their own chrome over the content, on «После события», whose hero carries the close button instead of a back arrow, and on the fullscreen composers
 // - routeIsFullscreen - the story and post composers (макет, экраны 05 и 06) own the whole viewport: no shell header, no tabbar, no gutters
+// - routeHasHeader - header hidden where the screen draws its own topbar: the search/plans/profile tabs and the two list screens (макет, экраны 37 и 39)
 // END_MODULE_MAP
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -25,7 +26,7 @@ export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string)
   { icon: "feed", label: "Лента", route: "home", active: (name) => name === "home" },
   { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" || name === "map" || name === "swipe" },
   { icon: "create", label: "Создать", route: "create", active: (name) => name === "create" || name === "story-new" || name === "feed-new" || name === "micro-new" || name === "plan-new" },
-  { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "list" },
+  { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "lists" || name === "list" },
   { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "friends" || name === "subscriptions" },
 ];
 
@@ -52,6 +53,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   plan: "План",
   "plan-new": "Свой план",
   "day-route": "Маршрут на день",
+  lists: "Списки",
   list: "Список",
   achievements: "Достижения",
   "after-event": "После события",
@@ -75,7 +77,7 @@ export function routeHasBack(route: Route): boolean {
 
 // Экраны 08, 16 и 09 рисуют собственную шапку: карта — плавающую пилюлю «Поиск» поверх полотна,
 // подбор свайпами — свою строку с кнопкой назад. Общая шапка перекрыла бы и то и другое.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event"]);
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list"]);
 
 /**
  * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и

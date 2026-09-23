@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Subscription } from "@max-events/api-contracts";
-import { MySubscriptionsView, SUBSCRIPTION_TYPE_LABELS } from "./MySubscriptions";
+import { groupSubscriptions, MySubscriptionsView, PEOPLE_SUBSCRIPTION_NOTE, SUBSCRIPTION_TYPE_LABELS, subscriptionFilterLabel, SubscriptionsView } from "./MySubscriptions";
 
 function subscription(overrides: Partial<Subscription>): Subscription {
   return { id: "d0000008-0000-4000-8000-000000000001", userId: "a0000000-0000-4000-8000-000000000001", type: "organizer", organizerUserId: "d0000001-0000-4000-8000-000000000001", placeId: null, interest: null, title: "Культурный центр", createdAt: "2026-09-12T10:00:00+03:00", ...overrides } as Subscription;
@@ -49,5 +49,72 @@ describe("MySubscriptionsView", () => {
     expect(html).toContain("Мои подписки");
     expect(html).toContain("Пока нет подписок");
     expect(html).not.toContain("Отписаться");
+  });
+});
+
+describe("groupSubscriptions", () => {
+  it("splits the follows into organizers, places and interests, in that order", () => {
+    expect(groupSubscriptions(rows).map((group) => group.type)).toEqual(["organizer", "place", "interest"]);
+    expect(groupSubscriptions(rows).map((group) => group.rows.length)).toEqual([1, 1, 1]);
+  });
+
+  it("drops a group nobody follows rather than printing a zero", () => {
+    expect(groupSubscriptions([rows[1]!]).map((group) => group.type)).toEqual(["place"]);
+  });
+});
+
+describe("subscriptionFilterLabel", () => {
+  it("counts the follows on the all-chip and names the type on the others", () => {
+    expect(subscriptionFilterLabel("all", rows)).toBe("Все · 3");
+    expect(subscriptionFilterLabel("organizer", rows)).toBe("Организаторы");
+    expect(subscriptionFilterLabel("interest", rows)).toBe("Интересы");
+  });
+});
+
+describe("SubscriptionsView", () => {
+  it("heads every group with its own count and gives every follow a way out", () => {
+    const html = renderToStaticMarkup(createElement(SubscriptionsView, { subscriptions: rows }));
+
+    expect(html).toContain("Организаторы · 1");
+    expect(html).toContain("Места · 1");
+    expect(html).toContain("Интересы · 1");
+    expect(html.match(/aria-label="Отписаться: /g)).toHaveLength(rows.length);
+  });
+
+  it("keeps following a person out of the three types the backend has", () => {
+    const html = renderToStaticMarkup(createElement(SubscriptionsView, { subscriptions: rows }));
+
+    expect(html).toContain(PEOPLE_SUBSCRIPTION_NOTE);
+    expect(html).not.toContain("Люди");
+  });
+
+  it("narrows to one type when a filter chip is pressed", () => {
+    const html = renderToStaticMarkup(createElement(SubscriptionsView, { subscriptions: rows, filter: "place" }));
+
+    expect(html).toContain("Парк Горького");
+    expect(html).not.toContain("Культурный центр");
+    expect(html).toContain("Места · 1");
+  });
+
+  it("leads to a place, which has a screen, and leaves the other two as plain rows", () => {
+    const html = renderToStaticMarkup(createElement(SubscriptionsView, { subscriptions: rows, onOpenPlace: () => {} }));
+
+    expect(html.match(/app-subs-target--link/g)).toHaveLength(1);
+    expect(html).toMatch(/<button[^>]*app-subs-target--link[^>]*>[\s\S]*?Парк Горького/);
+  });
+
+  it("blocks the button of the follow being removed, and only that one", () => {
+    const html = renderToStaticMarkup(createElement(SubscriptionsView, { subscriptions: rows, removingId: rows[1]!.id }));
+
+    expect(html).toMatch(new RegExp(`<button[^>]*disabled[^>]*aria-label="Отписаться: ${rows[1]!.title}"`));
+    expect(html).not.toMatch(new RegExp(`<button[^>]*disabled[^>]*aria-label="Отписаться: ${rows[0]!.title}"`));
+  });
+
+  it("explains an empty screen and still says where people subscriptions live", () => {
+    const html = renderToStaticMarkup(createElement(SubscriptionsView, { subscriptions: [] }));
+
+    expect(html).toContain("Пока нет подписок");
+    expect(html).toContain(PEOPLE_SUBSCRIPTION_NOTE);
+    expect(html).not.toContain('aria-label="Отписаться: ');
   });
 });
