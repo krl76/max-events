@@ -318,6 +318,13 @@ const ACTIONS = {
       <circle cx="16.5" cy="16.8" r="1.7" />
     </>
   ),
+  // Ясное небо в полосе дат и в слотах (макет, экран 19): солнце с лучами — третий прогноз рядом с weather (облако) и rain
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4.2" />
+      <path d="M12 2.6v2.3M12 19.1v2.3M2.6 12h2.3M19.1 12h2.3M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type ActionIconName = keyof typeof ACTIONS;

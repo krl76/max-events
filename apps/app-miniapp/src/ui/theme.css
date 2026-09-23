@@ -11011,6 +11011,12 @@ button.app-poll-result {
   font-weight: 800;
 }
 
+/* Число и точки под ним — одна группа: межстрочный интервал полотна развёл бы их на пару
+ * пикселей, и точки уехали бы к нижнему краю клетки. */
+.app-cal-day-num {
+  line-height: 1;
+}
+
 .app-cal-day-dots {
   display: flex;
   gap: 3px;
@@ -11216,4 +11222,1769 @@ button.app-poll-result {
 
 .app-cal-cta-main:hover {
   background: var(--app-accent-press);
+}
+
+/* ===== Волна 9: место и слоты (экраны 34, 19, 20, 21) =====
+ * Четыре экрана одного сюжета: площадка → окно → бронь → список броней. Каждый рисует
+ * собственную шапку и собственный низ, поэтому 34, 19 и 20 идут как fullscreen-маршруты
+ * (поля задаёт сам экран), а 21 живёт под таббаром «Планы» и пользуется полями оболочки.
+ * Градиенты — только в hero и в заглушках медиа; счета, слоты и списки живут на холсте схемы. */
+
+/* --- Экран 34 «Место» --- */
+.app-place {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.app-place-hero {
+  background: linear-gradient(160deg, var(--brand-blue), var(--brand-purple) 60%, var(--brand-cyan));
+  flex: none;
+  height: 300px;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-place-blob {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  height: 280px;
+  position: absolute;
+  right: -80px;
+  top: -60px;
+  width: 280px;
+}
+
+/* Голубое пятно задаётся прозрачностью элемента: cyan в брендбуке живёт как цвет, а не как rgba-литерал */
+.app-place-blob--cyan {
+  background: var(--brand-cyan);
+  bottom: -40px;
+  height: 240px;
+  left: -60px;
+  opacity: 0.3;
+  right: auto;
+  top: auto;
+  width: 240px;
+}
+
+.app-place-back {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.45);
+  border: none;
+  border-radius: 50%;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  left: var(--app-space-l);
+  padding: 0;
+  position: absolute;
+  top: var(--app-space-l);
+  width: 40px;
+  z-index: 1;
+}
+
+/* Шеврон нарисован вправо; кнопка назад разворачивает его */
+.app-place-back svg {
+  transform: rotate(180deg);
+}
+
+.app-place-hero-veil {
+  background: linear-gradient(180deg, rgba(13, 0, 26, 0), rgba(13, 0, 26, 0.8));
+  bottom: 0;
+  color: var(--brand-white);
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  padding: 60px var(--app-space-screen) var(--app-space-screen);
+  position: absolute;
+  right: 0;
+}
+
+.app-place-kind {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: var(--app-radius-pill);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 5px 10px;
+}
+
+.app-place-title {
+  font-size: var(--app-font-size-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 10px 0 0;
+}
+
+.app-place-hero-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: 14px;
+}
+
+.app-place-checkin {
+  align-items: center;
+  background: var(--brand-white);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-void);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  height: 44px;
+  padding: 0 18px;
+}
+
+.app-place-checkin:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.app-place-checked {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.45);
+  border-radius: var(--app-radius-pill);
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  gap: var(--app-space-s);
+  height: 44px;
+  padding: 0 var(--app-space-l);
+}
+
+.app-place-create {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.45);
+  border: none;
+  border-radius: 50%;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 44px;
+  justify-content: center;
+  margin-left: auto;
+  padding: 0;
+  width: 44px;
+}
+
+.app-place-hero-hint {
+  font-size: var(--app-font-size-caption);
+  margin: var(--app-space-s) 0 0;
+  opacity: 0.75;
+}
+
+.app-place-follow {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  padding: 18px var(--app-space-screen) 0;
+}
+
+.app-place-follow-toggle {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 14px;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  height: 44px;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 var(--app-space-m);
+  /* «Вы подписаны на место» в две строки распирало бы строку подписки выше кнопки рядом */
+  white-space: nowrap;
+}
+
+.app-place-follow-toggle:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.app-place-follow-all {
+  align-items: center;
+  background: none;
+  border: var(--app-hairline);
+  border-radius: 14px;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 44px;
+  padding: 0 14px;
+}
+
+.app-place-stats {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, 1fr);
+  padding: var(--app-space-screen);
+}
+
+.app-place-stat {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  flex-direction: column;
+  padding: var(--app-space-m);
+}
+
+.app-place-stat-value {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+}
+
+.app-place-stat-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-place-block {
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--app-space-screen);
+}
+
+.app-place-block + .app-place-block {
+  padding-top: var(--app-space-xl);
+}
+
+.app-place-block-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.app-place-block-title {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  margin: 0;
+}
+
+.app-place-block-note {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+}
+
+.app-place-friends {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  margin-top: var(--app-space-m);
+}
+
+/* Стопка лиц: сдвиг внутрь, обводка холстом — соседние аватары не сливаются в пятно */
+.app-place-faces {
+  display: flex;
+  flex: none;
+  padding-left: var(--app-space-s);
+}
+
+.app-place-face {
+  align-items: center;
+  background: var(--app-media-gradient-5);
+  border: 2px solid var(--app-canvas);
+  border-radius: 50%;
+  color: var(--brand-white);
+  display: flex;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 40px;
+  justify-content: center;
+  margin-left: calc(-1 * var(--app-space-s));
+  width: 40px;
+}
+
+.app-place-face:nth-child(2) {
+  background: var(--app-media-gradient-2);
+}
+
+.app-place-face:nth-child(3) {
+  background: var(--app-media-gradient-1);
+}
+
+.app-place-face--small {
+  font-size: var(--app-font-size-description);
+  height: 32px;
+  margin-left: -6px;
+  width: 32px;
+}
+
+.app-place-friends-lines {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-place-friends-lead {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-place-friends-note {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-place-now {
+  align-items: center;
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  gap: 6px;
+}
+
+.app-place-now-dot {
+  background: var(--app-status);
+  border-radius: 50%;
+  height: 7px;
+  width: 7px;
+}
+
+.app-place-bars {
+  align-items: flex-end;
+  display: flex;
+  gap: var(--app-space-xs);
+  height: 56px;
+  margin-top: var(--app-space-m);
+}
+
+.app-place-bar {
+  background: rgba(var(--app-scheme-neutral), 0.12);
+  border-radius: 3px;
+  flex: 1;
+}
+
+.app-place-bar--now {
+  background: var(--app-status);
+}
+
+.app-place-axis {
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: var(--app-font-size-caption);
+  font-weight: 600;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.app-place-months {
+  display: grid;
+  gap: 3px;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 10px;
+}
+
+.app-place-month {
+  aspect-ratio: 1;
+  background: var(--app-media-gradient-3);
+  border-radius: var(--app-space-xs);
+  position: relative;
+}
+
+.app-place-month:nth-child(2) {
+  background: var(--app-media-gradient-1);
+}
+
+.app-place-month:nth-child(3) {
+  background: var(--app-media-gradient-4);
+}
+
+.app-place-month-label {
+  bottom: 6px;
+  color: var(--brand-white);
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  left: 6px;
+  position: absolute;
+}
+
+.app-place-month--more {
+  align-items: center;
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  justify-content: center;
+}
+
+/* Надзаголовок раздела: капс, разрядка — тот же ярлык на экранах 34, 19 и 21 */
+.app-place-label {
+  align-items: center;
+  color: var(--app-text-tertiary);
+  display: flex;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.app-place-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.app-place-slot {
+  align-items: center;
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  padding: 14px var(--app-space-l);
+  text-align: left;
+  width: 100%;
+}
+
+.app-place-slot:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.app-place-slot-window {
+  flex: 1;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+}
+
+.app-place-slot-status {
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  gap: 6px;
+}
+
+.app-place-slot-status--free {
+  color: var(--app-text);
+}
+
+.app-place-slot-dot {
+  background: var(--app-status);
+  border-radius: 50%;
+  height: 8px;
+  width: 8px;
+}
+
+.app-place-slots-note {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: 10px 0 0;
+}
+
+.app-place-upcoming {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.app-place-event {
+  align-items: center;
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  padding: var(--app-space-m);
+  text-align: left;
+  width: 100%;
+}
+
+.app-place-event-media {
+  aspect-ratio: auto;
+  border-radius: var(--app-radius-media);
+  flex: none;
+  height: 56px;
+  width: 56px;
+}
+
+.app-place-event-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-place-event-when {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-place-event-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-place-event-line {
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* Нижняя панель экрана: липнет ко дну, потому что скроллер здесь — сам .app-content */
+.app-place-cta {
+  background: var(--app-canvas);
+  border-top: var(--app-hairline);
+  bottom: 0;
+  display: flex;
+  gap: 10px;
+  margin-top: var(--app-space-xl);
+  padding: var(--app-space-m) var(--app-space-screen) calc(var(--app-space-xl) + env(safe-area-inset-bottom, 0px));
+  position: sticky;
+}
+
+.app-place-save {
+  align-items: center;
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 56px;
+  justify-content: center;
+  width: 56px;
+}
+
+.app-place-plan {
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  height: 56px;
+}
+
+.app-place-plan:active {
+  background: var(--app-accent-press);
+}
+
+/* --- Экран 19 «Бронирование слота» --- */
+.app-slots {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.app-slots-bar {
+  align-items: center;
+  background: var(--app-canvas);
+  border-bottom: var(--app-hairline);
+  display: flex;
+  gap: var(--app-space-m);
+  padding: var(--app-space-l) var(--app-space-screen) 14px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.app-slots-back {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 50%;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+.app-slots-back svg {
+  transform: rotate(180deg);
+}
+
+.app-slots-bar-titles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-slots-bar-title {
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-slots-bar-subtitle {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-slots-bar-thumb {
+  background: linear-gradient(160deg, var(--brand-blue), var(--brand-purple) 60%, var(--brand-cyan));
+  border-radius: var(--app-radius-media);
+  flex: none;
+  height: 40px;
+  width: 40px;
+}
+
+.app-slots-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: var(--app-space-l) var(--app-space-screen) var(--app-space-xl);
+}
+
+.app-slots-days {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 22px;
+}
+
+.app-slots-day {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font: inherit;
+  gap: 2px;
+  min-width: 0;
+  padding: 9px 2px;
+  text-align: center;
+}
+
+.app-slots-day--on {
+  background: var(--app-accent);
+  color: var(--app-accent-contrast);
+}
+
+.app-slots-day--off {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.app-slots-day-weekday {
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  opacity: 0.7;
+}
+
+.app-slots-day--on .app-slots-day-weekday {
+  opacity: 0.9;
+}
+
+.app-slots-day-number {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+}
+
+.app-slots-day-weather {
+  align-items: center;
+  display: flex;
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  gap: 2px;
+  justify-content: center;
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
+.app-slots-day--on .app-slots-day-weather {
+  opacity: 1;
+}
+
+.app-slots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.app-slot {
+  align-items: center;
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  padding: var(--app-space-l);
+  text-align: left;
+  width: 100%;
+}
+
+/* Выбранное окно держат рамка и лёгкая подложка акцента: рядом стоит счёт, и сплошная заливка перетянула бы его */
+.app-slot--picked {
+  background: rgba(71, 26, 255, 0.06);
+  border: 1.5px solid var(--app-accent);
+  padding: 14.5px 15.5px;
+}
+
+.app-slot--busy {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.app-slot-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-slot-window {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+}
+
+.app-slot-meta {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin-top: 1px;
+}
+
+.app-slot-weather {
+  align-items: center;
+  display: inline-flex;
+  gap: 3px;
+  vertical-align: -2px;
+  white-space: nowrap;
+}
+
+.app-slot-status {
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  gap: 6px;
+}
+
+.app-slot-status--free {
+  color: var(--app-text);
+}
+
+.app-slot-status--picked {
+  color: var(--app-accent-text);
+  font-weight: 800;
+}
+
+.app-slot-dot {
+  background: var(--app-status);
+  border-radius: 50%;
+  height: 8px;
+  width: 8px;
+}
+
+.app-slots-included {
+  border-top: var(--app-hairline);
+  display: flex;
+  flex-direction: column;
+  margin-top: 22px;
+  padding-top: 18px;
+}
+
+.app-slots-section-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  margin: 0;
+}
+
+.app-slots-amenities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+  margin-top: 10px;
+}
+
+.app-slots-amenity {
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-pill);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 7px 11px;
+}
+
+.app-slots-extra {
+  align-items: center;
+  border-top: var(--app-hairline);
+  display: flex;
+  gap: var(--app-space-m);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.app-slots-extra-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-slots-extra-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-slots-extra-price {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-slots-switch {
+  background: var(--app-surface);
+  border: none;
+  border-radius: 13px;
+  cursor: pointer;
+  flex: none;
+  height: 26px;
+  padding: 0;
+  position: relative;
+  transition: background-color 0.16s ease-out;
+  width: 44px;
+}
+
+.app-slots-switch--on {
+  background: var(--app-accent);
+}
+
+.app-slots-switch-knob {
+  background: var(--app-canvas);
+  border-radius: 50%;
+  height: 20px;
+  left: 3px;
+  position: absolute;
+  top: 3px;
+  transition: left 0.16s ease-out;
+  width: 20px;
+}
+
+.app-slots-switch--on .app-slots-switch-knob {
+  background: var(--brand-white);
+  left: 21px;
+}
+
+.app-slots-company {
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--app-space-l);
+  padding: var(--app-space-l);
+}
+
+.app-slots-company-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.app-slots-company-add {
+  background: none;
+  border: none;
+  color: var(--app-accent-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  padding: 0;
+}
+
+.app-slots-company-add:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.app-slots-company-row {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-top: var(--app-space-m);
+}
+
+.app-slots-company-line {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+}
+
+.app-slots-bill {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--app-space-l);
+}
+
+.app-slots-bill-row {
+  align-items: center;
+  border-bottom: var(--app-hairline);
+  display: flex;
+  justify-content: space-between;
+  padding: var(--app-space-m) 0;
+}
+
+.app-slots-bill-row--total {
+  border-bottom: none;
+  padding: 14px 0;
+}
+
+.app-slots-bill-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-callout);
+  font-weight: 600;
+}
+
+.app-slots-bill-amount {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-slots-bill-total-label {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+}
+
+.app-slots-bill-total {
+  color: var(--app-accent-text);
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+}
+
+.app-slots-note {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  line-height: var(--app-line-height-body);
+  margin: var(--app-space-m) 0 0;
+}
+
+.app-slots-cta {
+  align-items: center;
+  background: var(--app-canvas);
+  border-top: var(--app-hairline);
+  bottom: 0;
+  display: flex;
+  gap: var(--app-space-m);
+  padding: var(--app-space-m) var(--app-space-screen) calc(var(--app-space-xl) + env(safe-area-inset-bottom, 0px));
+  position: sticky;
+}
+
+.app-slots-cta-sum {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+}
+
+.app-slots-cta-window {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+}
+
+.app-slots-cta-total {
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+}
+
+.app-slots-book {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  height: 56px;
+  justify-content: center;
+}
+
+.app-slots-book:active {
+  background: var(--app-accent-press);
+}
+
+.app-slots-book:disabled {
+  background: var(--app-surface);
+  color: var(--app-text-tertiary);
+  cursor: default;
+}
+
+/* --- Экран 20 «Бронь и код входа» --- */
+.app-ticket {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.app-ticket-bar {
+  align-items: center;
+  background: var(--app-canvas);
+  border-bottom: var(--app-hairline);
+  display: flex;
+  gap: var(--app-space-m);
+  padding: var(--app-space-l) var(--app-space-screen) 14px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.app-ticket-bar-title {
+  flex: 1;
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.app-ticket-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: var(--app-space-l) var(--app-space-screen) var(--app-space-xl);
+}
+
+.app-ticket-card {
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  overflow: hidden;
+}
+
+/* Градиент держит только короткую шапку брони: длинный текст живёт ниже, на холсте схемы */
+.app-ticket-hero {
+  background: var(--app-gradient-dark);
+  color: var(--brand-white);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 18px 18px 20px;
+  position: relative;
+}
+
+.app-ticket-blob {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  height: 180px;
+  position: absolute;
+  right: -50px;
+  top: -60px;
+  width: 180px;
+}
+
+.app-ticket-when {
+  align-items: center;
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  gap: var(--app-space-s);
+  position: relative;
+}
+
+.app-ticket-when-dot {
+  background: var(--app-status);
+  border-radius: 50%;
+  height: 7px;
+  width: 7px;
+}
+
+.app-ticket-title {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-top: 6px;
+  position: relative;
+}
+
+.app-ticket-place {
+  font-size: var(--app-font-size-description);
+  margin-top: 2px;
+  opacity: 0.92;
+  position: relative;
+}
+
+.app-ticket-code {
+  align-items: center;
+  background: var(--app-canvas);
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+}
+
+.app-ticket-matrix {
+  background: var(--app-ink);
+  border-radius: var(--app-radius-card);
+  box-sizing: border-box;
+  display: grid;
+  gap: 3px;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(7, 1fr);
+  height: 160px;
+  padding: 14px;
+  width: 160px;
+}
+
+.app-ticket-cell {
+  border-radius: 2px;
+}
+
+.app-ticket-cell--on {
+  background: var(--app-canvas);
+}
+
+.app-ticket-cell--accent {
+  background: var(--brand-cyan);
+}
+
+.app-ticket-value {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-top: 14px;
+}
+
+.app-ticket-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin-top: 2px;
+  text-align: center;
+}
+
+/* Пунктир — линия отрыва билета: она отделяет код от условий брони */
+.app-ticket-facts {
+  border-top: 1px dashed var(--app-divider);
+  display: grid;
+  gap: var(--app-space-m);
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+  padding: var(--app-space-l) 18px;
+}
+
+.app-ticket-fact dt {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+}
+
+.app-ticket-fact dd {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  margin: 0;
+}
+
+.app-ticket-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: var(--app-space-l);
+}
+
+.app-ticket-action {
+  align-items: center;
+  background: none;
+  border: var(--app-hairline);
+  border-radius: 14px;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  height: 48px;
+  justify-content: center;
+}
+
+.app-ticket-chat {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--app-space-l);
+  padding: 14px var(--app-space-l);
+}
+
+.app-ticket-chat-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  margin: 0;
+}
+
+.app-ticket-chat-members {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: 2px 0 0;
+}
+
+.app-ticket-message {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.app-ticket-message-face {
+  align-items: center;
+  background: var(--app-media-gradient-4);
+  border-radius: 50%;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.app-ticket-message-text {
+  background: var(--app-canvas);
+  border-radius: 0 14px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  font-size: var(--app-font-size-callout);
+  line-height: 1.4;
+  padding: var(--app-space-s) var(--app-space-m);
+}
+
+.app-ticket-message-author {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+}
+
+.app-ticket-invite {
+  align-items: center;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+  margin-top: var(--app-space-l);
+  padding: 14px var(--app-space-l);
+}
+
+.app-ticket-invite-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-ticket-invite-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-ticket-invite-line {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-ticket-share {
+  background: none;
+  border: none;
+  color: var(--app-accent-text);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  padding: 0;
+}
+
+.app-ticket-share:disabled {
+  color: var(--app-text-tertiary);
+  cursor: default;
+}
+
+.app-ticket-shared {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: var(--app-space-m) 0 0;
+  text-align: center;
+}
+
+/* Отмена необратима, поэтому по брендбуку это обводка, а не залитая пилюля — макет рисует её текстом */
+.app-ticket-cancel {
+  background: none;
+  border: 1px solid var(--app-danger-border);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-danger-label);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  height: 44px;
+  margin-top: var(--app-space-l);
+}
+
+.app-ticket-cancel--confirm {
+  background: var(--app-danger-wash);
+}
+
+.app-ticket-cancel:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* --- Экран 21 «Мои брони» --- */
+.app-book {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-book-bar {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+  padding-top: var(--app-space-l);
+}
+
+.app-book-bar-titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-book-bar-title {
+  font-size: var(--app-font-size-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.app-book-bar-note {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: 2px 0 0;
+}
+
+.app-book-search {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 50%;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.app-book-search-field {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-text);
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  height: 44px;
+  margin-top: var(--app-space-m);
+  padding: 0 var(--app-space-l);
+}
+
+.app-book-segments {
+  display: flex;
+  gap: var(--app-space-s);
+  padding-top: var(--app-space-l);
+}
+
+.app-book-segment {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  padding: 9px 0;
+  text-align: center;
+}
+
+.app-book-segment--on {
+  background: var(--app-confirm);
+  color: var(--app-confirm-contrast);
+  font-weight: 800;
+}
+
+.app-book-filters {
+  display: flex;
+  gap: var(--app-space-s);
+  margin: 0 calc(-1 * var(--app-space-screen));
+  overflow-x: auto;
+  padding: var(--app-space-l) var(--app-space-screen) 0;
+  scrollbar-width: none;
+}
+
+.app-book-filter {
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  /* Четыре фильтра макета должны умещаться в 390 px без прокрутки: на callout «Прошедшие» срезается */
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 10px var(--app-space-m);
+  white-space: nowrap;
+}
+
+.app-book-filter--on {
+  background: var(--app-confirm);
+  border-color: transparent;
+  color: var(--app-confirm-contrast);
+  font-weight: 700;
+}
+
+/* Три вида броней в одном списке, но врозь: группы разделяет полоса во всю ширину экрана */
+.app-book-group {
+  display: flex;
+  flex-direction: column;
+  margin: 0 calc(-1 * var(--app-space-screen));
+  padding: var(--app-space-screen) var(--app-space-screen) 0;
+}
+
+.app-book-group + .app-book-group {
+  border-top: var(--app-space-s) solid var(--app-surface);
+  margin-top: var(--app-space-screen);
+}
+
+.app-book-group-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+.app-book-group-title {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+}
+
+.app-book-hero {
+  background: none;
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--brand-white);
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  height: 200px;
+  margin-top: var(--app-space-m);
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  text-align: left;
+  width: 100%;
+}
+
+.app-book-hero-media {
+  aspect-ratio: auto;
+  height: 100%;
+  left: 0;
+  position: absolute;
+  top: 0;
+}
+
+.app-book-badge {
+  background: rgba(13, 0, 26, 0.55);
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  left: 14px;
+  padding: 6px 10px;
+  position: absolute;
+  top: 14px;
+}
+
+.app-book-badge--slot {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--brand-void);
+}
+
+.app-book-badge--waiting {
+  background: var(--app-badge);
+  color: var(--app-badge-contrast);
+}
+
+.app-book-hero-veil {
+  background: linear-gradient(180deg, rgba(13, 0, 26, 0), rgba(13, 0, 26, 0.82));
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  padding: 54px var(--app-space-l) var(--app-space-l);
+  position: absolute;
+  right: 0;
+}
+
+.app-book-hero-title {
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.app-book-hero-meta {
+  font-size: var(--app-font-size-description);
+  margin-top: 3px;
+  opacity: 0.92;
+}
+
+.app-book-row {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+  margin-top: var(--app-space-m);
+}
+
+.app-book-company {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-book-company-line {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-book-action {
+  align-items: center;
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: 6px;
+  height: 44px;
+  padding: 0 var(--app-space-l);
+}
+
+.app-book-action--primary {
+  background: var(--app-accent);
+  border-color: transparent;
+  color: var(--app-accent-contrast);
+}
+
+.app-book-action--primary:active {
+  background: var(--app-accent-press);
+}
+
+.app-book-more {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 44px;
+  justify-content: center;
+  padding: 0;
+  width: 32px;
+}
+
+.app-book-menu {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-s);
+}
+
+.app-book-menu button {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 8px 14px;
+}
+
+.app-book-code {
+  align-items: center;
+  border-top: var(--app-hairline);
+  display: flex;
+  gap: 10px;
+  margin-top: var(--app-space-m);
+  padding-top: var(--app-space-m);
+}
+
+.app-book-code-matrix {
+  background: var(--app-ink);
+  border-radius: 10px;
+  box-sizing: border-box;
+  display: grid;
+  flex: none;
+  gap: 2px;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  height: 36px;
+  padding: 6px;
+  width: 36px;
+}
+
+.app-book-code-matrix .app-ticket-cell {
+  border-radius: 1px;
+}
+
+.app-book-code-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-book-code-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-book-code-value {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.app-book-code-show {
+  background: none;
+  border: none;
+  color: var(--app-accent-text);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  padding: 0;
+}
+
+.app-book-past {
+  display: flex;
+  flex-direction: column;
+  padding-top: 26px;
+}
+
+.app-book-past-card {
+  align-items: center;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: 10px;
+  padding: 10px;
+}
+
+.app-book-past-media {
+  aspect-ratio: auto;
+  border-radius: 14px;
+  flex: none;
+  height: 56px;
+  margin-right: 2px;
+  opacity: 0.75;
+  width: 56px;
+}
+
+.app-book-past-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-book-past-title {
+  /* Две строки и многоточие: длинное название иначе распирает карточку вчетверо против макета */
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  overflow: hidden;
+}
+
+.app-book-past-meta {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-book-past-action {
+  background: none;
+  border: none;
+  color: var(--app-accent-text);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  padding: 0;
+}
+
+.app-book-past-repeat {
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 0;
 }

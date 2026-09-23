@@ -22,6 +22,7 @@
 // - useRoute - current route + navigate + back + canGoBack + transition + navSeq
 // - Route - ... | vote-new(groupId): создание голосования (макет, экран 32), groupId непустой, когда экран открыт из группы
 // - Route - ... | assist(ask): экран 10 «MAX AI ассистент», ask — вопрос, с которым его открыли (чипы экрана 15)
+// - Route - … | slot-booking(placeId) экран 19 | slot-ticket(id) экран 20 | bookings экран 21; the «booking-» start_param opens the ticket of экран 20
 // END_MODULE_MAP
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -68,7 +69,13 @@ export type Route =
   | { name: "micro-event"; id: string }
   | { name: "friend-route"; id: string }
   // Экран 10 «MAX AI ассистент»: ask непустой, когда его открыли чипом уточнения с экрана 15
-  | { name: "assist"; ask: string | null };
+  | { name: "assist"; ask: string | null }
+  // Экран 19: бронирование окна площадки открывается от места, а не от своего id — окно выбирается уже внутри
+  | { name: "slot-booking"; placeId: string }
+  // Экран 20: подтверждённая бронь с кодом входа
+  | { name: "slot-ticket"; id: string }
+  // Экран 21: «Мои брони» — билеты, слоты и лист ожидания в одном списке
+  | { name: "bookings" };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -77,6 +84,8 @@ const START_PARAM_PREFIXES = [
   ["list-", "list"],
   ["gathering-", "gathering"],
   ["vote-", "vote"],
+  // Пуш после брони ведёт на экран 20 с кодом входа
+  ["booking-", "slot-ticket"],
 ] as const satisfies ReadonlyArray<readonly [string, Route["name"]]>;
 
 export function routeFromStartParam(startParam: string | null): Route {
@@ -142,7 +151,12 @@ function toRoute(value: unknown): Route | null {
     case "organizer":
     case "we-groups":
     case "moderation":
+    case "bookings":
       return { name };
+    case "slot-booking": {
+      const { placeId } = value as { placeId?: unknown };
+      return typeof placeId === "string" ? { name, placeId } : null;
+    }
     case "feed-new": {
       const { eventId } = value as { eventId?: unknown };
       if (eventId !== null && eventId !== undefined && typeof eventId !== "string") return null;
@@ -165,7 +179,8 @@ function toRoute(value: unknown): Route | null {
     case "plan":
     case "list":
     case "we-group":
-    case "vote": {
+    case "vote":
+    case "slot-ticket": {
       const { id } = value as { id?: unknown };
       return typeof id === "string" ? ({ name, id } as Route) : null;
     }

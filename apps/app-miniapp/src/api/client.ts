@@ -91,6 +91,25 @@
 // - SharedCalendarPeer - whom the calendar is shared with and whether they may edit it (mock)
 // - SharedCalendarEntry - one record the peer put into the shared calendar (mock)
 // - SharedCalendar - shared calendar of макет экрана 22: peers, their records and the invite link (mock)
+// - CheckInCode - entry code of one booking, keyed by booking id; no booking carries such a field yet (#492)
+// - CreateSlotBooking - slot booking payload (slot + companions + add-ons)
+// - MySlotBookingCard - экран 21 card of a booked window: booking + window + venue + company
+// - MySlotWaitlistCard - экран 21 card of a waiting position: entry + window + venue
+// - MySlotsBoard - экран 21 aggregate of the slot domain: own bookings and own waiting positions
+// - PlaceBoard - экран 34 aggregate beyond PlacePage: opening hours, today's check-in, occupancy, visit months, windows, what is coming
+// - PlaceOccupancyHour - one bar of «Когда людно»: the hour and how full the venue is, 0..1
+// - PlaceSlot - one bookable window: place + time window + capacity + price (#492)
+// - PlaceUpcomingEvent - one card of «Здесь скоро»: event, friends going, counter, own participation
+// - PlaceVisitMonth - one cell of «Твоя история здесь»: month key and visits in it
+// - SLOT_STATUSES - the window statuses in design order
+// - SlotBoard - экран 19 aggregate: venue, unit, date strip, windows of one day, what is included, add-ons, company
+// - SlotBooking - a booked window: entry code, party size, add-ons, total, cancellation deadline
+// - SlotBookingScreen - экран 20 aggregate: booking, window, venue, company, free seats, travel estimate, chat
+// - SlotChatMessage - one line of the booking chat (макет, экран 20); no chat domain exists
+// - SlotDay - one cell of the date strip of экран 19: day key, forecast, whether anything is free
+// - SlotExtra - a paid add-on of a booking
+// - SlotStatus - availability of one window: free / held / booked
+// - SlotWaitlistEntry - a waiting position on a taken window (макет, экран 21)
 // END_MODULE_MAP
 
 import type { RecordPageViewWrite } from "@max-events/api-contracts";
@@ -106,6 +125,7 @@ import { withOrganizer } from "./endpoints/organizer";
 import { withPlans } from "./endpoints/plans";
 import { withProfile } from "./endpoints/profile";
 import { withReviews } from "./endpoints/reviews";
+import { withSlots } from "./endpoints/slots";
 import { withSocial } from "./endpoints/social";
 import { ApiTransport } from "./endpoints/transport";
 
@@ -128,6 +148,8 @@ export type { AppSettings, ProfileCounters, UpdateAppSettings, VisitedPlace } fr
 export { statsPeriodQuery } from "./endpoints/organizer";
 export type { CreateReport, Report, ReportReason } from "./endpoints/moderation";
 export type { VoteScreen, VoteStatus, WeGroupCard } from "./endpoints/groups";
+export { SLOT_STATUSES } from "./endpoints/slots";
+export type { CheckInCode, CreateSlotBooking, MySlotBookingCard, MySlotWaitlistCard, MySlotsBoard, PlaceBoard, PlaceOccupancyHour, PlaceSlot, PlaceUpcomingEvent, PlaceVisitMonth, SlotBoard, SlotBooking, SlotBookingScreen, SlotChatMessage, SlotDay, SlotExtra, SlotStatus, SlotWaitlistEntry } from "./endpoints/slots";
 // One mixin per domain, applied in a flat chain: a new domain is one more line here plus its own file, and
 // adding an endpoint to an existing domain never touches this file at all.
 const WithAuth = withAuth(ApiTransport);
@@ -143,8 +165,9 @@ const WithProfile = withProfile(WithLists);
 const WithDiscover = withDiscover(WithProfile);
 const WithOrganizer = withOrganizer(WithDiscover);
 const WithModeration = withModeration(WithOrganizer);
+const WithSlots = withSlots(WithModeration);
 
-export class ApiClient extends WithModeration {}
+export class ApiClient extends WithSlots {}
 
 export const apiClient = new ApiClient();
 

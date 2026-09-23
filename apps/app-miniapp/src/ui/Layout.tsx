@@ -14,6 +14,7 @@
 // - routeHasBack - back button shown on every non-tab route, the map included
 // - routeHasHeader - header hidden wherever the screen draws its own chrome: the search/plans/profile tabs (profile renders its own gradient hero), the map and the swipe deck, which draw over the content, «После события», whose hero carries a close button instead of a back arrow, the two list screens (экраны 37 и 39), the we-groups and the votes (экраны 30-33), the micro-event feed and card (экраны 24 и 25), the friends list with its counter (экран 26) and the friend route (экран 28), the plan with its date, party size and «MAX СОБРАЛ» badge (экран 15), the assistant with its gradient hero (экран 10), and the fullscreen composers
 // - routeIsFullscreen - the story and post composers (макет, экраны 05 и 06) own the whole viewport: no shell header, no tabbar, no gutters
+// - routeIsFullscreen - the story and post composers (макет, экраны 05 и 06), the place page (34) and the two booking screens (19 и 20) own the whole viewport: each carries its own back control and its own bottom bar, so neither the shell header nor the tabbar belongs there
 // END_MODULE_MAP
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -25,7 +26,7 @@ export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string)
   { icon: "feed", label: "Лента", route: "home", active: (name) => name === "home" || name === "micro" || name === "micro-event" },
   { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" || name === "map" || name === "swipe" || name === "assist" },
   { icon: "create", label: "Создать", route: "create", active: (name) => name === "create" || name === "story-new" || name === "feed-new" || name === "micro-new" || name === "plan-new" },
-  { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "lists" || name === "list" },
+  { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "lists" || name === "list" || name === "bookings" || name === "slot-ticket" },
   { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "friends" || name === "subscriptions" || name === "discovery" || name === "people" || name === "friend-route" },
 ];
 
@@ -69,6 +70,9 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   "micro-event": "Микро-событие",
   "friend-route": "Маршрут друга",
   assist: "MAX AI ассистент",
+  "slot-booking": "Бронирование слота",
+  "slot-ticket": "Бронь",
+  bookings: "Мои брони",
 };
 
 export function routeTitle(route: Route): string {
@@ -87,7 +91,7 @@ export function routeHasBack(route: Route): boolean {
 // микро-события и у маршрута друга — свой заголовок с кнопкой назад.
 // План (15) несёт под названием дату, размер компании и бейдж «MAX СОБРАЛ», ассистент (10) — свой
 // градиентный герой: и то и другое не помещается в строку общей шапки.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "assist"]);
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list", "bookings", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "assist"]);
 
 /**
  * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и
@@ -95,7 +99,7 @@ const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe"
  * со строкой «Черновик сохранён» у поста. Фиксированный таббар накрыл бы этот низ, а шапка оболочки
  * стала бы второй шапкой, поэтому на этих двух маршрутах экран забирает вьюпорт целиком.
  */
-const FULLSCREEN_ROUTES: ReadonlySet<Route["name"]> = new Set(["story-new", "feed-new"]);
+const FULLSCREEN_ROUTES: ReadonlySet<Route["name"]> = new Set(["story-new", "feed-new", "place", "slot-booking", "slot-ticket"]);
 
 export function routeIsFullscreen(route: Route): boolean {
   return FULLSCREEN_ROUTES.has(route.name);
