@@ -2133,6 +2133,713 @@ html[data-theme="dark"] body {
 
 /* Ротации градиентов по позиции больше нет: цвет медиа-плейсхолдера задаётся категорией (.app-media--*) */
 
+/* --- Экран 03 «Лента»: ряд сторис, «Куда пойдём?», посты друзей и посты площадок --- */
+
+/* «Мой план» — ведущая плитка ряда: пунктирное кольцо с плюсом, а не человек */
+.app-story-add {
+  align-items: center;
+  border: 2px dashed var(--app-divider);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--app-text-tertiary);
+  display: flex;
+  font-size: var(--app-font-size-title);
+  font-weight: 700;
+  height: 63px;
+  justify-content: center;
+  line-height: 1;
+  width: 63px;
+}
+
+.app-feed {
+  display: flex;
+  flex-direction: column;
+}
+
+/* «Куда пойдём?»: поверхность и единственная градиентная кнопка экрана */
+.app-feed-whereto {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+  margin-top: var(--app-space-m);
+  padding: var(--app-space-m) var(--app-space-l);
+}
+
+.app-feed-whereto-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-feed-whereto-title {
+  font-size: var(--app-font-size-body);
+  font-weight: 700;
+}
+
+.app-feed-whereto-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-feed-whereto-start {
+  align-items: center;
+  background: var(--app-gradient-dark);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  gap: var(--app-space-xs);
+  height: 44px;
+  padding: 0 var(--app-space-l);
+}
+
+.app-feed-whereto-start:active {
+  opacity: 0.9;
+}
+
+.app-feed-posts {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Посты во всю ширину: поля экрана гасит отрицательный отступ, как у .app-card--post */
+.app-feed-post {
+  border-bottom: var(--app-hairline);
+  display: flex;
+  flex-direction: column;
+  margin: 0 calc(-1 * var(--app-space-screen));
+  padding-bottom: var(--app-space-m);
+}
+
+.app-feed-post:first-child {
+  border-top: var(--app-hairline);
+  margin-top: var(--app-space-l);
+}
+
+.app-feed-post-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-s);
+  padding: var(--app-space-m) var(--app-space-screen);
+}
+
+/* Кольцо автора — фирменный gradient-light, тот же, что у сторис */
+.app-feed-ring {
+  background: var(--app-gradient-light);
+  border-radius: 50%;
+  display: flex;
+  flex: none;
+  padding: 2px;
+}
+
+.app-feed-ring-inner {
+  align-items: center;
+  background: var(--app-gradient-dark);
+  border: 2px solid var(--app-card);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--brand-white);
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.app-feed-post-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-feed-post-author {
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+}
+
+.app-feed-post-where {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Hero поста: цвет даёт категория (.app-media--*), поэтому фон здесь только обнуляется как у кнопки */
+.app-feed-hero {
+  align-items: flex-start;
+  aspect-ratio: 6 / 5;
+  background-color: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  text-align: left;
+  width: 100%;
+}
+
+/* Пост площадки категории не имеет — тогда hero берёт фирменный gradient-dark */
+.app-feed-hero--place {
+  background-image: var(--app-media-veil), var(--app-gradient-dark);
+}
+
+/* Абстрактные пятна брендбука вместо фотографий */
+.app-feed-hero-glow {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  height: 230px;
+  position: absolute;
+  right: -70px;
+  top: -80px;
+  width: 230px;
+}
+
+.app-feed-hero-glow--cool {
+  background: var(--brand-cyan);
+  bottom: -90px;
+  height: 210px;
+  left: -50px;
+  opacity: 0.28;
+  right: auto;
+  top: auto;
+  width: 210px;
+}
+
+.app-feed-hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-xs);
+  padding: var(--app-space-m);
+  position: relative;
+}
+
+.app-feed-chip {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.45);
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  gap: var(--app-space-xs);
+  padding: 5px 10px;
+}
+
+/* Свободный слот — акцентная плашка, а не полупрозрачная */
+.app-feed-chip--slot {
+  background: var(--app-accent);
+}
+
+/* Живой индикатор — только точка: brand-cyan текстом не бывает */
+.app-feed-live-dot {
+  background: var(--app-status);
+  border-radius: 50%;
+  flex: none;
+  height: 7px;
+  width: 7px;
+}
+
+/* Бейдж недели — единственная залитая пурпурная плашка на экране */
+.app-feed-hit {
+  background: var(--app-badge);
+  border-radius: var(--app-space-s);
+  color: var(--app-badge-contrast);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 6px 10px;
+}
+
+/* Заголовок лежит не на градиенте, а на затемнении поверх него */
+.app-feed-hero-veil {
+  background: linear-gradient(180deg, rgba(13, 0, 26, 0), rgba(13, 0, 26, 0.78));
+  box-sizing: border-box;
+  color: var(--brand-white);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 52px var(--app-space-l) var(--app-space-m);
+  position: relative;
+  width: 100%;
+}
+
+.app-feed-hero-title {
+  font-size: var(--app-font-size-headline);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  max-width: var(--app-measure);
+}
+
+.app-feed-hero-meta {
+  font-size: var(--app-font-size-description);
+  opacity: 0.92;
+}
+
+.app-feed-hero-foot {
+  align-items: flex-end;
+  box-sizing: border-box;
+  display: flex;
+  gap: var(--app-space-s);
+  justify-content: space-between;
+  padding: var(--app-space-m);
+  position: relative;
+  width: 100%;
+}
+
+.app-feed-hero-pill {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.55);
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  gap: var(--app-space-s);
+  padding: 5px 12px;
+}
+
+.app-feed-hero-pill--price {
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+.app-feed-faces {
+  display: flex;
+}
+
+.app-feed-face {
+  align-items: center;
+  background: var(--app-gradient-dark);
+  border: 2px solid var(--brand-white);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--brand-white);
+  display: flex;
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.app-feed-face + .app-feed-face {
+  margin-left: -6px;
+}
+
+.app-feed-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-l);
+  padding: var(--app-space-m) calc(var(--app-space-screen) - var(--app-space-xs)) 0;
+}
+
+.app-feed-count {
+  align-items: center;
+  display: flex;
+  font-size: var(--app-font-size-callout);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  gap: var(--app-space-xs);
+  padding: var(--app-space-xs);
+}
+
+.app-feed-going {
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  height: 44px;
+  margin-left: auto;
+  padding: 0 var(--app-space-xl);
+}
+
+.app-feed-going:active {
+  background: var(--app-accent-press);
+}
+
+/* Подтверждённое участие — тёмная заливка: та же третья форма, что у .app-btn--confirm */
+.app-feed-going--on {
+  background: var(--app-confirm);
+  color: var(--app-confirm-contrast);
+}
+
+.app-feed-counts {
+  font-size: var(--app-font-size-description);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  margin: 0;
+  padding: var(--app-space-s) var(--app-space-screen) 0;
+}
+
+.app-feed-caption {
+  font-size: var(--app-font-size-callout);
+  line-height: 1.4;
+  margin: 0;
+  max-width: var(--app-measure);
+  padding: var(--app-space-xs) var(--app-space-screen) 0;
+}
+
+.app-feed-caption-author {
+  font-weight: 700;
+}
+
+.app-feed-comments {
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  max-width: var(--app-measure);
+  padding: var(--app-space-xs) var(--app-space-screen) 0;
+  text-align: left;
+}
+
+.app-feed-time {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  margin: 0;
+  padding: var(--app-space-xs) var(--app-space-screen) 0;
+}
+
+/* Пост площадки: шапка аккаунта места */
+.app-feed-place-avatar {
+  align-items: center;
+  background: var(--app-gradient-dark);
+  border-radius: 50%;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.app-feed-place-name {
+  align-items: center;
+  display: flex;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  gap: var(--app-space-xs);
+  min-width: 0;
+}
+
+.app-feed-place-name > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-feed-verified {
+  color: var(--app-accent-text);
+  display: flex;
+  flex: none;
+}
+
+.app-feed-place-where {
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: var(--app-font-size-caption);
+  gap: var(--app-space-xs);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.app-feed-travel {
+  color: var(--app-accent-text);
+  font-weight: 700;
+}
+
+.app-feed-rating {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-pill);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-description);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  gap: var(--app-space-xs);
+  margin-left: auto;
+  padding: 5px 9px;
+}
+
+.app-feed-place-title {
+  font-size: var(--app-font-size-body);
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0;
+  max-width: var(--app-measure);
+  padding: var(--app-space-m) var(--app-space-screen) 0;
+}
+
+.app-feed-place-text {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-callout);
+  line-height: var(--app-line-height-body);
+  margin: 0;
+  max-width: var(--app-measure);
+  padding: var(--app-space-s) var(--app-space-screen) 0;
+}
+
+/* Цитата друга — реплика чата: срезан левый верхний угол */
+.app-feed-quote {
+  background: var(--app-surface);
+  border-radius: 0 14px 14px 14px;
+  font-size: var(--app-font-size-callout);
+  line-height: 1.4;
+  margin: var(--app-space-m) var(--app-space-screen) 0;
+  max-width: var(--app-measure);
+  padding: 10px 12px;
+}
+
+.app-feed-quote-author {
+  color: var(--app-accent-text);
+  font-weight: 700;
+}
+
+.app-feed-quote-text {
+  color: var(--app-text-secondary);
+  font-style: italic;
+}
+
+.app-feed-status-label {
+  color: var(--app-text-tertiary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin: 0;
+  padding: var(--app-space-l) var(--app-space-screen) 0;
+  text-transform: uppercase;
+}
+
+.app-feed-status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+  padding: var(--app-space-s) var(--app-space-screen) 0;
+}
+
+.app-feed-place-actions {
+  display: flex;
+  gap: var(--app-space-s);
+  padding: var(--app-space-m) var(--app-space-screen) 0;
+}
+
+/* Заливка, а не градиент: под этой подписью правый конец gradient-dark дал бы 2.1:1 */
+.app-feed-slot {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  gap: var(--app-space-xs);
+  height: 52px;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 var(--app-space-s);
+  white-space: nowrap;
+}
+
+.app-feed-slot:active {
+  background: var(--app-accent-press);
+}
+
+.app-feed-gather {
+  align-items: center;
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  gap: var(--app-space-xs);
+  height: 52px;
+  padding: 0 var(--app-space-m);
+  white-space: nowrap;
+}
+
+.app-feed-gather:active {
+  background: var(--app-surface);
+}
+
+/* --- Экран 04 «Лента · загрузка»: пульсация наследуется от .app-skeleton-*, здесь только размеры --- */
+.app-feed-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-l);
+  padding-top: var(--app-space-m);
+}
+
+.app-feed-skeleton-stories {
+  display: flex;
+  gap: var(--app-space-m);
+  overflow: hidden;
+}
+
+.app-feed-skeleton-story {
+  align-items: center;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  width: 66px;
+}
+
+.app-feed-skeleton-ring {
+  border-radius: 50%;
+  height: 62px;
+  width: 62px;
+}
+
+.app-feed-skeleton-post {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+}
+
+.app-feed-skeleton-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+.app-feed-skeleton-avatar {
+  border-radius: 50%;
+  flex: none;
+  height: 36px;
+  width: 36px;
+}
+
+.app-feed-skeleton-lines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-feed-skeleton-hero {
+  aspect-ratio: 6 / 5;
+  border-radius: 0;
+  height: auto;
+  margin: 0 calc(-1 * var(--app-space-screen));
+  width: calc(100% + 2 * var(--app-space-screen));
+}
+
+.app-feed-skeleton-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-l);
+}
+
+.app-feed-skeleton-action {
+  border-radius: 50%;
+  flex: none;
+  height: 26px;
+  width: 26px;
+}
+
+.app-feed-skeleton-cta {
+  border-radius: var(--app-radius-pill);
+  flex: none;
+  height: 36px;
+  margin-left: auto;
+  width: 88px;
+}
+
+.app-feed-skeleton-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+}
+
+/* Шапка ленты: словомарк и колокольчик уведомлений */
+.app-header-wordmark-dot {
+  background: var(--app-status);
+  border-radius: 50%;
+  display: inline-block;
+  height: 6px;
+  margin: 0 2px;
+  width: 6px;
+}
+
+.app-header-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  margin-left: auto;
+}
+
+.app-header-action {
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  padding: 0;
+}
+
+.app-header-bell {
+  color: var(--app-text);
+  display: flex;
+  position: relative;
+}
+
+.app-header-bell-count {
+  align-items: center;
+  background: var(--app-accent);
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  color: var(--app-accent-contrast);
+  display: flex;
+  font-size: var(--app-font-size-caption);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  height: 16px;
+  justify-content: center;
+  min-width: 16px;
+  padding: 0 4px;
+  position: absolute;
+  right: -3px;
+  top: -3px;
+}
+
 /* Экран «Рядом со мной»: действия карточки и цепочки досуга */
 .app-nearby-actions {
   display: flex;

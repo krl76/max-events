@@ -67,9 +67,11 @@
 // - mockBudgetFromExpenses - expenses -> per-person nets + debts (backend budgetFromExpenses parity, incl. the id-rotated remainder split)
 // - mockDemoUser - demo user returned by mock auth outside MAX (VITE_USE_MOCK=1); the id matches the booking/profile fixtures
 // - mockEvents - Moscow event fixtures (all four categories, paid and free, incl. two past events for the review flow, one event "today" for the place page, two MOCK_TODAY daytime events filling the nearby now/inAnHour buckets)
+// - mockFeedCards - seeded home feed cards (макет, экран 03): three friend posts around one venue post, own statuses read from the participation stores
 // - mockFriendIds - friend user ids of the demo user (social counters fixtures)
 // - mockFriendStories - seeded friend story fixtures (gradient placeholder images)
 // - mockFriends - friend fixtures for the "Your people are going" feed
+// - mockNotificationsSummary - unread count behind the feed header bell; a fixture until the notifications domain exists (#494)
 // - mockOnboardingContacts - the twelve MAX contacts the onboarding friends step offers: the seven friend fixtures plus five contacts who are not friends yet
 // - mockOrganization - demo organization returned by the mock organizer login
 // - mockOrganizers - demo organizer fixture for event details
@@ -101,7 +103,7 @@
 // - resetMockLists - clear in-memory lists (test isolation)
 // - resetMockMicroEvents - restore seeded micro-events (test isolation)
 // - resetMockOrganizer - restore the seeded organizer drafts (test isolation)
-// - resetMockParticipations - restore seeded participations (test isolation)
+// - resetMockParticipations - restore seeded participations and clear the venue statuses (test isolation)
 // - resetMockPlans - restore seeded plan cards, dropping autoplan drafts (test isolation)
 // - resetMockProfiles - restore the seeded friend profiles (test isolation)
 // - resetMockPromo - restore seeded promo codes and redemption counters (test isolation)
@@ -125,7 +127,7 @@
 export { MOCK_PROMO_CODE, MOCK_SANDBOX_FAIL_AMOUNT, MOCK_SINGLE_USE_PROMO_CODE, OFFER_TTL_MS, createMockCheckIn, resetMockBookings, resetMockCheckIns, resetMockPromo, resetMockWaitlist } from "./mock/bookings";
 export { filterMockEvents, participationStats, placePageFor, resetMockParticipations } from "./mock/catalog";
 export { MOCK_ASSIST_RATE_LIMIT, leisureOptions, mockAssistDay, mockAssistSaturdayKey, mockAssistSuggest, mockParseAssistQuery, nearbyTimeline, resetMockAssist, todayPicks, wheretoSuggestions } from "./mock/discover";
-export { createMockStory, feedPosts, listMockStories, mockFriendStories, resetMockFeed } from "./mock/feed";
+export { createMockStory, feedPosts, listMockStories, mockFeedCards, mockFriendStories, mockNotificationsSummary, resetMockFeed } from "./mock/feed";
 export { MOCK_EARLY_ACCESS_EVENT_ID, MOCK_NOW, MOCK_ORGANIZER_CREDENTIALS, MOCK_TODAY, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganization, mockOrganizers, mockPlaces } from "./mock/fixtures";
 export { MOCK_FOREIGN_VOTE_ID, MOCK_VOTE_ID, castMockBallot, createMockVote, getMockVote, listMockWeGroups, resetMockVotes, resetMockWeGroups } from "./mock/groups";
 export { installMockApi } from "./mock/install";

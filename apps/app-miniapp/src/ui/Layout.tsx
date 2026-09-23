@@ -1,11 +1,12 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Base mini-app layout: header (home: wordmark; other routes: per-route title + back button), content, bottom tabbar with icons.
+// PURPOSE: Base mini-app layout: header (home: the feed header — wordmark, search, notifications bell; other routes: per-route title + back button), content, bottom tabbar with icons.
 // SCOPE: Tab navigation between home/search/create/plans/profile (макет, экраны 03 и 08); children render routed pages. The organizer contour carries its own bar in ../organizer/OrganizerSpace.tsx.
-// DEPENDS: ../routing/router.js, ./theme.css, ./icons.js
+// DEPENDS: ../api/client.js (apiClient), ../routing/router.js, ./theme.css, ./icons.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - FeedHeader - шапка ленты (макет, экран 03): словомарк «афиша MAX», поиск и колокольчик со счётчиком непрочитанных (индикатор: экрана уведомлений ещё нет, #494)
 // - Layout - header + routed children + tabbar (icon + label per tab)
 // - TABS - tabbar definitions with per-tab active predicate; the map belongs to the Поиск tab, because it is a view inside search (экран 16)
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
@@ -14,7 +15,8 @@
 // - routeHasHeader - header hidden on the search/plans/profile tab screens (profile renders its own Instagram-style topbar)
 // END_MODULE_MAP
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { apiClient } from "../api/client";
 import { isTabRoute, useRoute, type Route } from "../routing/router";
 import { ActionIcon, TabIconGlyph, type TabIcon } from "./icons";
 
@@ -75,6 +77,53 @@ export function routeHasHeader(route: Route): boolean {
   return !HEADERLESS_ROUTES.has(route.name);
 }
 
+/**
+ * Шапка ленты (макет, экран 03): словомарк, поиск и колокольчик со счётчиком.
+ *
+ * Колокольчик — индикатор, а не кнопка: экран уведомлений (07) ещё не построен, а домена уведомлений
+ * нет вовсе (#494, smart-alerts — планировщик, не входящие). Счётчик приходит с мока за той сигнатурой,
+ * которую примет будущий эндпоинт; кнопкой колокольчик станет вместе с экраном.
+ */
+export function FeedHeader({ onSearch }: { onSearch: () => void }) {
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    apiClient.getNotificationsSummary("").then(
+      (summary) => {
+        if (alive) setUnread(summary.unreadCount);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return (
+    <>
+      <span className="app-header-wordmark">
+        афиша
+        <span className="app-header-wordmark-dot" aria-hidden="true" />
+        MAX
+      </span>
+      <span className="app-header-actions">
+        <button type="button" className="app-header-action" aria-label="Поиск" onClick={onSearch}>
+          <ActionIcon name="search" size={24} />
+        </button>
+        <span className="app-header-bell" aria-label={unread === 0 ? "Уведомления" : `Уведомления: ${unread} новых`}>
+          <ActionIcon name="bell" size={24} />
+          {unread > 0 && (
+            <span className="app-header-bell-count" aria-hidden="true">
+              {unread}
+            </span>
+          )}
+        </span>
+      </span>
+    </>
+  );
+}
+
 export function Layout({ children }: { children: ReactNode }) {
   const { route, navigate, back, transition, navSeq } = useRoute();
 
@@ -83,7 +132,7 @@ export function Layout({ children }: { children: ReactNode }) {
       {routeHasHeader(route) && (
         <header className="app-header">
           {route.name === "home" ? (
-            <span className="app-header-wordmark">MAX Events</span>
+            <FeedHeader onSearch={() => navigate({ name: "search" })} />
           ) : (
             <>
               {routeHasBack(route) && (

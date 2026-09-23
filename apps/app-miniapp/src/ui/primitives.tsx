@@ -21,7 +21,7 @@
 // - AppStateKind - the reusable empty/blocked states of the design (screen 48)
 // - APP_STATE_COPY - wording per AppStateKind, so screens do not each invent their own
 // - AppEmptyState - AppState preconfigured from APP_STATE_COPY; actions render only when a handler is given
-// - AppSkeleton - pulsing placeholder block (lines or media) for loading states
+// - AppSkeleton - pulsing placeholder block (lines or media) for loading states; className shapes one placeholder while the variant keeps the pulse
 // - AppSkeletonList - the loading state of a list: N skeleton rows announced as a single status
 // - AppSection - section rhythm primitive: title row with an optional right-side action, unified top margin
 // - CATEGORY_MEDIA_ICON - event category -> placeholder icon mapping
@@ -168,9 +168,10 @@ export function AppEmptyState({ kind, onAction, onSecondaryAction }: { kind: App
   );
 }
 
-export function AppSkeleton({ variant = "line", width }: { variant?: "line" | "line-short" | "block" | "media"; width?: string }) {
-  const className = variant === "media" ? "app-skeleton-block app-skeleton-block--media" : variant === "block" ? "app-skeleton-block" : variant === "line-short" ? "app-skeleton-line app-skeleton-line--short" : "app-skeleton-line";
-  return <span className={className} style={width ? { width } : undefined} aria-hidden="true" />;
+export function AppSkeleton({ variant = "line", width, className }: { variant?: "line" | "line-short" | "block" | "media"; width?: string; className?: string }) {
+  const variantClass = variant === "media" ? "app-skeleton-block app-skeleton-block--media" : variant === "block" ? "app-skeleton-block" : variant === "line-short" ? "app-skeleton-line app-skeleton-line--short" : "app-skeleton-line";
+  // The extra class shapes one placeholder (a ring, a hero) while the pulse keeps coming from the variant.
+  return <span className={className ? `${variantClass} ${className}` : variantClass} style={width ? { width } : undefined} aria-hidden="true" />;
 }
 
 /** The rows are aria-hidden on their own, so the status label is what assistive tech reads. */

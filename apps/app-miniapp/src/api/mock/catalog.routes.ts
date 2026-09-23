@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock route table for the catalog: the event and place listings, the event page aggregate and the participation block.
-// SCOPE: GET /api/places[/:id[/page]], GET /api/events[/:id[/details]], GET /api/events/:id/participation/stats, PUT/DELETE /api/events/:id/participation. The PATCH variants of /api/events/:id and /api/places/:id belong to the organizer table, which runs before this one.
+// SCOPE: GET /api/places[/:id[/page]], PUT /api/places/:id/participation, GET /api/events[/:id[/details]], GET /api/events/:id/participation/stats, PUT/DELETE /api/events/:id/participation. The PATCH variants of /api/events/:id and /api/places/:id belong to the organizer table, which runs before this one.
 // DEPENDS: ./catalog.js, ./fixtures.js, ./promo.js, ../client.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -12,7 +12,7 @@
 import { IdSchema, ParticipationStatusSchema } from "@max-events/api-contracts";
 import type { Participation } from "@max-events/api-contracts";
 import { parseEventFilters } from "../client";
-import { eventDetails, filterMockEvents, mockParticipations, nextMockParticipationSeq, participationStats, placePageFor } from "./catalog";
+import { eventDetails, filterMockEvents, mockParticipations, mockPlaceStatuses, nextMockParticipationSeq, participationStats, placePageFor } from "./catalog";
 import { mockEvents, mockPlaces, parseBookingBody } from "./fixtures";
 import { MOCK_BOOSTED_EVENT_IDS, eventPromoted } from "./promo";
 
@@ -25,6 +25,18 @@ export function catalogRoutes(url: URL, init: RequestInit | undefined): Response
   if (placePage) {
     const page = placePageFor(placePage[1], url.searchParams.get("userId") ?? "");
     return page ? Response.json(page) : new Response(null, { status: 404 });
+  }
+  const placeParticipation = /^\/api\/places\/([^/]+)\/participation$/.exec(url.pathname);
+  if (placeParticipation && init?.method === "PUT") {
+    const userId = url.searchParams.get("userId") ?? "";
+    const body = parseBookingBody(init);
+    const status = body?.status === null ? null : ParticipationStatusSchema.safeParse(body?.status);
+    if (userId === "" || (status !== null && !status.success)) return new Response(null, { status: 400 });
+    if (!mockPlaces.some((item) => item.id === placeParticipation[1] && item.published !== false)) return new Response(null, { status: 404 });
+    const key = `${userId}:${placeParticipation[1]}`;
+    if (status === null) mockPlaceStatuses.delete(key);
+    else mockPlaceStatuses.set(key, status.data);
+    return Response.json({ placeId: placeParticipation[1], status: status === null ? null : status.data });
   }
   const placeById = /^\/api\/places\/([^/]+)$/.exec(url.pathname);
   if (placeById && (init?.method ?? "GET") === "GET" && IdSchema.safeParse(placeById[1]).success) {

@@ -19,7 +19,11 @@
 // - EventDetails - event page aggregate: event, place, organizer (nullable), free seats, own active booking
 // - EventFilters - optional catalog list filters (category/city/date/minRating)
 // - EventRating - event page rating aggregate: RatingSummary + per-category averages
+// - FeedCard - discriminated union of the two home feed card kinds (макет, экран 03)
+// - FeedCardCounts - social counters of one feed card (wants to go / going / waitlist / free seats), nullable until the list DTO carries them (#496)
 // - FeedComment - post comment attributed to its author
+// - FeedFriendCard - friend post of the home feed: author, event hero, counters, caption, comments
+// - FeedPlaceCard - venue post of the home feed: place header, slot offer, friend quote, viewer status block
 // - FeedPost - impression post aggregate: author, event, text, like counter/state, comments
 // - FriendSuggestion - one person of the onboarding friends step: friend + the hint line under the name + whether the viewer follows them
 // - LeisureQuery - free-window leisure payload (hours 1..8, mood, coordinates)
@@ -27,9 +31,11 @@
 // - ListScreen - one-list aggregate: list + participants + item cards (shared collections surface)
 // - ListSummary - lists screen aggregate: list + item count + id of the item saving the checked event (null when not saved) + participants (shared collections, mock)
 // - MyCityPayload - my-city screen aggregate: summary counters + memory points
+// - NotificationsSummary - unread count behind the feed header bell; mock-only until the notifications domain exists (#494)
 // - OrganizerEvent - contract event plus the draft flag read from the raw `published` field (returned by toEventDto; a missing flag reads as published)
 // - OrganizerPlace - contract place plus the draft flag read from the raw `published` field (returned by toPlaceDto; a missing flag reads as published)
 // - ParticipationStats - event page social aggregate: per-status counters, friends count, own status
+// - PlaceParticipation - viewer status on a venue (макет, экран 03); the place-level twin of Participation (#492)
 // - REPORT_REASONS - report reason presets
 // - Report - report entity (contract shape)
 // - ReportReason - union of the report reason presets
@@ -61,9 +67,9 @@ import { ApiTransport } from "./endpoints/transport";
 
 export { ApiError } from "./endpoints/transport";
 export { parseEventFilters, serializeEventFilters } from "./endpoints/catalog";
-export type { EventDetails, EventFilters, ParticipationStats } from "./endpoints/catalog";
+export type { EventDetails, EventFilters, ParticipationStats, PlaceParticipation } from "./endpoints/catalog";
 export type { CreateReview, EventRating } from "./endpoints/reviews";
-export type { CreateFeedPost, FeedComment, FeedPost } from "./endpoints/feed";
+export type { CreateFeedPost, FeedCard, FeedCardCounts, FeedComment, FeedFriendCard, FeedPlaceCard, FeedPost, NotificationsSummary } from "./endpoints/feed";
 export type { CreateGathering, CreateMicroEvent, FriendSuggestion } from "./endpoints/social";
 export type { CreateCheckIn } from "./endpoints/bookings";
 export type { CalendarEntry } from "./endpoints/plans";

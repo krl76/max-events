@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - TabIcon - union of the tabbar icon names: the user bar (feed/search/create/plans/profile) plus map and the organizer bar (dashboard/events/create/promo/profile)
 // - TabIconGlyph - inline stroke SVG for a tabbar icon, filled variant for the active tab
-// - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron/check/plus/building)
+// - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron/star/alert/search/settings/bell/check/plus/building)
 // - ActionIcon - inline stroke SVG by ActionIconName; filled=true fills the glyph (liked heart, saved bookmark, active tab)
 // END_MODULE_MAP
 
@@ -89,7 +89,7 @@ export function TabIconGlyph({ name, size = 24, filled = false }: { name: TabIco
   return <Glyph paths={filled ? (FILLED[name] ?? OUTLINE[name]) : OUTLINE[name]} size={size} filled={filled} />;
 }
 
-export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings" | "check" | "plus" | "building";
+export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings" | "bell" | "check" | "plus" | "building";
 
 const ACTIONS: Record<ActionIconName, ReactNode> = {
   heart: <path d="M12 20.3S3.4 15.4 3.4 9.6a4.6 4.6 0 0 1 8.6-2.3A4.6 4.6 0 0 1 20.6 9.6c0 5.8-8.6 10.7-8.6 10.7Z" />,
@@ -133,6 +133,13 @@ const ACTIONS: Record<ActionIconName, ReactNode> = {
     <>
       <circle cx="11" cy="11" r="7" />
       <path d="m20.2 20.2-4-4" />
+    </>
+  ),
+  // Колокольчик уведомлений в шапке ленты (макет, экран 03)
+  bell: (
+    <>
+      <path d="M12 3.4a5.7 5.7 0 0 0-5.7 5.7c0 4.3-1.7 5.6-1.7 5.6h14.8s-1.7-1.3-1.7-5.6A5.7 5.7 0 0 0 12 3.4Z" />
+      <path d="M13.8 18.2a2.1 2.1 0 0 1-3.6 0" />
     </>
   ),
   // Галочка онбординга: подписка на человека и выбранный город/интерес (макет, экран 02)
