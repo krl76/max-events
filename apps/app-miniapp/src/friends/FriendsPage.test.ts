@@ -1,92 +1,124 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { FriendsView, initials } from "./FriendsPage";
-import { FRIENDS_GRAPH_EMPTY_TEXT } from "./friends-empty";
-import { friendActivityByFriend, mockEvents, resetMockParticipations } from "../api/mock";
+import type { FriendActivityByFriend } from "@max-events/api-contracts";
+import { activeFriends, friendNowLine, initials, syncLabel, FriendsView, type FriendsState } from "./FriendsPage";
+import { personGradient, personLetter } from "./avatar";
+import { friendActivityByFriend, mockEvents, mockFriends } from "../api/mock";
 
-const fixture = () => {
-  resetMockParticipations();
-  return friendActivityByFriend();
-};
+const noop = () => {};
+const NOW = new Date("2026-09-19T12:00:00+03:00");
+const HOUR = 60 * 60 * 1000;
 
-describe("initials", () => {
-  it("builds two-letter initials from a full name", () => {
+function group(startsAt: string, participationStatus: FriendActivityByFriend["events"][number]["participationStatus"] = "going", index = 0): FriendActivityByFriend {
+  return { friend: mockFriends[index], events: [{ event: { ...mockEvents[0], startsAt }, participationStatus }] };
+}
+
+function state(over: Partial<Extract<FriendsState, { status: "ready" }>> = {}): FriendsState {
+  return { status: "ready", friends: mockFriends, groups: friendActivityByFriend(), syncedAt: new Date(NOW.getTime() - 2 * HOUR).toISOString(), ...over };
+}
+
+describe("initials and the avatar disc", () => {
+  it("still gives two letters where the old avatar is used, and one on the disc", () => {
     expect(initials("Анна Соколова")).toBe("АС");
+    expect(personLetter("анна соколова")).toBe("А");
   });
 
-  it("falls back to a single letter for a one-word name", () => {
-    expect(initials("Анна")).toBe("А");
+  it("keeps a colour attached to the person, not to their place in a list", () => {
+    expect(personGradient(mockFriends[0].id)).toBe(personGradient(mockFriends[0].id));
+    expect(personGradient(mockFriends[0].id)).toBeLessThan(5);
+  });
+});
+
+describe("syncLabel", () => {
+  it("writes the age of the sync, the way the design does", () => {
+    expect(syncLabel(new Date(NOW.getTime() - 2 * HOUR).toISOString(), NOW)).toBe("Синхронизировано 2 часа назад");
+    expect(syncLabel(new Date(NOW.getTime() - 30 * 1000).toISOString(), NOW)).toBe("Синхронизировано только что");
+    expect(syncLabel(new Date(NOW.getTime() - 20 * 60 * 1000).toISOString(), NOW)).toBe("Синхронизировано 20 мин назад");
+    expect(syncLabel(new Date(NOW.getTime() - 5 * HOUR).toISOString(), NOW)).toBe("Синхронизировано 5 часов назад");
+    expect(syncLabel(new Date(NOW.getTime() - 26 * HOUR).toISOString(), NOW)).toBe("Синхронизировано вчера");
+    expect(syncLabel(new Date(NOW.getTime() - 5 * 24 * HOUR).toISOString(), NOW)).toBe("Синхронизировано 5 дн назад");
+  });
+
+  it("says outright that the contacts were never pulled in", () => {
+    expect(syncLabel(null, NOW)).toBe("Контакты ещё не синхронизированы");
+  });
+});
+
+describe("friendNowLine", () => {
+  it("builds the three lines of the design out of the status and the clock", () => {
+    expect(friendNowLine(group(new Date(NOW.getTime() - HOUR).toISOString()), NOW)).toBe(`На «${mockEvents[0].title}»`);
+    expect(friendNowLine(group(new Date(NOW.getTime() + 26 * HOUR).toISOString()), NOW)).toBe(`Идёт на «${mockEvents[0].title}» завтра`);
+    expect(friendNowLine(group(new Date(NOW.getTime() + 5 * HOUR).toISOString(), "looking_for_company"), NOW)).toBe(`Собирает компанию на «${mockEvents[0].title}»`);
+  });
+
+  it("has nothing to say about a friend with no events at all", () => {
+    expect(friendNowLine({ friend: mockFriends[0], events: [] }, NOW)).toBeNull();
+  });
+});
+
+describe("activeFriends", () => {
+  it("keeps only what happens within the next two days, soonest first", () => {
+    const soon = group(new Date(NOW.getTime() + 5 * HOUR).toISOString(), "going", 0);
+    const tomorrow = group(new Date(NOW.getTime() + 26 * HOUR).toISOString(), "going", 1);
+    const far = group(new Date(NOW.getTime() + 20 * 24 * HOUR).toISOString(), "going", 2);
+
+    expect(activeFriends([far, tomorrow, soon], NOW).map((entry) => entry.friend.id)).toEqual([mockFriends[0].id, mockFriends[1].id]);
   });
 });
 
 describe("FriendsView", () => {
-  it("renders the README showcase friends with their events and statuses", () => {
-    const groups = fixture();
-    const html = renderToStaticMarkup(createElement(FriendsView, { state: { status: "ready", groups, friendCount: groups.length }, onJoin: () => {} }));
+  const view = (value: FriendsState) => renderToStaticMarkup(createElement(FriendsView, { state: value, now: NOW, onSync: noop, onOpenFriend: noop, onOpenDiscovery: noop, onOpenPeople: noop, onRetry: noop }));
 
-    expect(html).toContain("Анна Соколова");
-    expect(html).toContain(mockEvents[1].title);
-    expect(html).toContain("Дима Кузнецов");
-    expect(html).toContain(mockEvents[5].title);
-    expect(html).toContain("Катя Орлова");
-    expect(html).toContain(mockEvents[11].title);
-    expect(html).toContain("Ищу компанию");
+  it("renders the counter topbar, the MAX contacts row and its explicit sync action", () => {
+    const html = view(state());
+
+    expect(html).toContain("Друзья");
+    expect(html).toContain(`>${mockFriends.length}<`);
+    expect(html).toContain("Контакты MAX");
+    expect(html).toContain("Синхронизировано 2 часа назад");
+    expect(html).toContain("Обновить");
   });
 
-  it("puts the friend with the soonest event first (Анна → выставка)", () => {
-    const groups = fixture();
+  it("carries the entries to «Друзья открыли» and «Люди рядом» itself", () => {
+    const html = view(state());
 
-    expect(groups[0].friend.name).toBe("Анна Соколова");
-    expect(groups[0].events[0].event.id).toBe(mockEvents[1].id);
+    expect(html).toContain("Друзья открыли");
+    expect(html).toContain("Люди рядом");
   });
 
-  it("sorts groups by the soonest event of each friend", () => {
-    const groups = fixture();
-    const soonest = groups.map((group) => group.events[0].event.startsAt);
+  it("names the active group with its count and lists everyone else below", () => {
+    const soon = group(new Date(NOW.getTime() + 5 * HOUR).toISOString(), "going", 0);
+    const html = view(state({ groups: [soon] }));
 
-    expect([...soonest].sort((a, b) => a.localeCompare(b))).toEqual(soonest);
+    expect(html).toContain("Сейчас что-то делают · 1");
+    expect(html).toContain("Все друзья");
+    expect(html).toContain(mockEvents[0].title);
   });
 
-  it("renders a join CTA per attended event", () => {
-    const groups = fixture();
-    const total = groups.reduce((count, group) => count + group.events.length, 0);
-    const html = renderToStaticMarkup(createElement(FriendsView, { state: { status: "ready", groups, friendCount: groups.length }, onJoin: () => {} }));
+  it("shows nobody twice: an active friend does not repeat in the list below", () => {
+    const soon = group(new Date(NOW.getTime() + 5 * HOUR).toISOString(), "going", 0);
+    const html = view(state({ groups: [soon] }));
 
-    expect(total).toBeGreaterThan(0);
-    expect(html.match(/Присоединиться/g)).toHaveLength(total);
+    expect([...html.matchAll(new RegExp(mockFriends[0].name, "g"))]).toHaveLength(1);
   });
 
-  it("renders the empty state without cards when friends have nothing planned", () => {
-    const html = renderToStaticMarkup(createElement(FriendsView, { state: { status: "ready", groups: [], friendCount: 3 }, onJoin: () => {} }));
+  it("hides the active group when nobody is up to anything", () => {
+    const html = view(state({ groups: [] }));
 
-    expect(html).toContain("Пока никто из друзей никуда не идёт");
-    expect(html).not.toContain("Присоединиться");
-    expect(html).not.toContain("app-friends-avatar");
+    expect(html).not.toContain("Сейчас что-то делают");
+    expect(html).toContain("Все друзья");
   });
 
-  it("keeps the old wording when the friend list itself did not load", () => {
-    const html = renderToStaticMarkup(createElement(FriendsView, { state: { status: "ready", groups: [], friendCount: null }, onJoin: () => {} }));
+  it("explains an empty graph and keeps the sync within reach", () => {
+    const html = view(state({ friends: [], groups: [] }));
 
-    expect(html).toContain("Пока никто из друзей никуда не идёт");
-    expect(html).not.toContain(FRIENDS_GRAPH_EMPTY_TEXT);
-  });
-
-  it("says why the feed is empty when there are no friends at all", () => {
-    // "Никто никуда не идёт" implies friends who are staying home. With an empty graph there is
-    // nobody to stay home, and the person deserves the real reason.
-    const html = renderToStaticMarkup(createElement(FriendsView, { state: { status: "ready", groups: [], friendCount: 0 }, onJoin: () => {} }));
-
-    expect(html).toContain(FRIENDS_GRAPH_EMPTY_TEXT);
-    expect(html).not.toContain("Пока никто из друзей никуда не идёт");
+    expect(html).toContain("Обновить контакты");
+    expect(html).not.toContain("Все друзья");
   });
 
   it("renders loading and error states", () => {
-    const loading = renderToStaticMarkup(createElement(FriendsView, { state: { status: "loading" }, onJoin: () => {} }));
-    const error = renderToStaticMarkup(createElement(FriendsView, { state: { status: "error" }, onJoin: () => {} }));
-
-    expect(loading).toContain("Загрузка…");
-    expect(error).toContain("app-state--error");
-    expect(error).toContain("Не удалось загрузить события друзей");
+    expect(view({ status: "loading" })).toContain("app-skeleton");
+    expect(view({ status: "error" })).toContain("Не удалось загрузить друзей.");
   });
 });

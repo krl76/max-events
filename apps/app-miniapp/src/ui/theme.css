@@ -7834,3 +7834,1077 @@ button.app-set-row {
 .app-subs-note svg {
   flex: none;
 }
+
+/* ===== Волна 9: соцграф (экраны 24, 25, 26, 27, 28, 29) ===== */
+
+/* Аватар человека — один инициал на фирменном градиенте: фотографий людей в продукте нет,
+ * поэтому это сам аватар, а не заглушка. Цвет закреплён за id, чтобы лицо не меняло оттенок
+ * при переходе с ленты на карточку. */
+.app-person-face {
+  align-items: center;
+  border-radius: 50%;
+  color: var(--brand-white);
+  display: inline-flex;
+  flex: none;
+  font-weight: 800;
+  justify-content: center;
+  line-height: 1;
+}
+
+.app-person-face--g0 {
+  background: var(--app-media-gradient-1);
+}
+
+.app-person-face--g1 {
+  background: var(--app-media-gradient-2);
+}
+
+.app-person-face--g2 {
+  background: var(--app-media-gradient-3);
+}
+
+.app-person-face--g3 {
+  background: var(--app-media-gradient-4);
+}
+
+.app-person-face--g4 {
+  background: var(--app-media-gradient-5);
+}
+
+/* --- Экран 24 «Микро-события»: заголовок с пилюлей «Собрать», вводная строка и группы по времени --- */
+
+.app-micro-screen,
+.app-micro-card,
+.app-friends-screen,
+.app-disco,
+.app-froute,
+.app-people {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-micro-bar {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+  padding: var(--app-space-m) 0 var(--app-space-xs);
+}
+
+.app-micro-bar-title {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+/* Единственная синяя заливка экрана: создать свой сбор */
+.app-micro-new {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+}
+
+.app-micro-new:hover,
+.app-micro-new:active {
+  background: var(--app-accent-press);
+}
+
+.app-micro-lead {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: var(--app-space-s) 0 0;
+  max-width: var(--app-measure);
+}
+
+/* Ссылка «Все» в шапке секции на главной — вход на экран 24 */
+.app-micro-all {
+  background: none;
+  border: none;
+  color: var(--app-accent-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  padding: 0 var(--app-space-s);
+}
+
+.app-micro-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.app-micro-group-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.app-micro-row {
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  box-sizing: border-box;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 6px;
+  padding: var(--app-space-l);
+  text-align: left;
+  transition: transform 0.16s ease-out;
+  width: 100%;
+}
+
+.app-micro-row:hover,
+.app-micro-row:active {
+  transform: translateY(-1px);
+}
+
+.app-micro-head {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+}
+
+.app-micro-title {
+  flex: 1;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.app-micro-clock {
+  flex: none;
+  font-size: var(--app-font-size-callout);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.app-micro-where {
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: var(--app-font-size-description);
+  gap: 6px;
+}
+
+.app-micro-where svg {
+  flex: none;
+}
+
+.app-micro-foot {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+/* Стек лиц: кольцо каждой аватарки — цвет холста, поэтому он работает в обеих схемах */
+.app-micro-faces {
+  display: flex;
+  flex: none;
+}
+
+.app-micro-face {
+  border: 2px solid var(--app-canvas);
+  box-sizing: border-box;
+}
+
+.app-micro-face + .app-micro-face {
+  margin-left: -8px;
+}
+
+.app-micro-count {
+  color: var(--app-text-secondary);
+  flex: 1;
+  font-size: var(--app-font-size-description);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.app-micro-cta {
+  align-items: center;
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+}
+
+/* «Иду» — подтверждение, а не акцент: тёмная заливка, третья форма брендбука */
+.app-micro-cta--join {
+  background: var(--app-confirm);
+  color: var(--app-confirm-contrast);
+}
+
+.app-micro-cta--in {
+  background: var(--app-surface);
+  padding: 0 14px;
+}
+
+.app-micro-cta--full {
+  border: 1px solid var(--app-divider);
+  color: var(--app-text-secondary);
+  font-weight: 700;
+  padding: 0 14px;
+}
+
+/* --- Экран 25 «Микро-событие · карточка» --- */
+
+.app-micro-topbar,
+.app-froute-topbar {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  padding: var(--app-space-m) 0 var(--app-space-xs);
+}
+
+.app-micro-back,
+.app-froute-back {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 50%;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+/* Шеврон нарисован вправо; кнопка назад разворачивает его */
+.app-micro-back svg,
+.app-froute-back svg {
+  transform: rotate(180deg);
+}
+
+.app-micro-topbar-title,
+.app-froute-title {
+  flex: 1;
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-micro-card-title {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: var(--app-space-l) 0 0;
+}
+
+.app-micro-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.app-micro-meta-row {
+  align-items: center;
+  display: flex;
+  font-size: var(--app-font-size-body);
+  font-weight: 700;
+  gap: 10px;
+  text-align: left;
+}
+
+.app-micro-meta-row svg {
+  flex: none;
+}
+
+/* Площадка открывается карточкой места; адрес, набранный руками, открывать нечем */
+.app-micro-meta-row--link {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  font-weight: 700;
+  padding: 0;
+}
+
+.app-micro-who {
+  align-items: baseline;
+  border-top: var(--app-hairline);
+  display: flex;
+  gap: var(--app-space-s);
+  justify-content: space-between;
+  margin-top: 22px;
+  padding-top: 18px;
+}
+
+.app-micro-who-title {
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  margin: 0;
+}
+
+.app-micro-who-count {
+  font-size: var(--app-font-size-callout);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.app-micro-gauge {
+  background: var(--app-surface);
+  border-radius: 3px;
+  height: 6px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.app-micro-gauge-fill {
+  background: var(--app-accent);
+  display: block;
+  height: 100%;
+}
+
+.app-micro-people {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+
+.app-micro-person {
+  align-items: center;
+  border-bottom: var(--app-hairline);
+  display: flex;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.app-micro-person-name {
+  flex: 1;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  min-width: 0;
+}
+
+.app-micro-person-role {
+  color: var(--app-text-secondary);
+  flex: none;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+}
+
+/* Голубая подложка подсказки: канал brand-cyan палитра как литерал не раскрывает, поэтому прозрачность даёт opacity */
+.app-micro-hint {
+  align-items: center;
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  display: flex;
+  font-size: var(--app-font-size-description);
+  gap: 10px;
+  isolation: isolate;
+  line-height: 1.4;
+  margin: 18px 0 0;
+  padding: 14px var(--app-space-l);
+  position: relative;
+}
+
+.app-micro-hint::before {
+  background: var(--app-status);
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  opacity: 0.09;
+  position: absolute;
+  z-index: -1;
+}
+
+/* Голубой здесь — графика, а не текст: сам глиф несёт «живой» сигнал */
+.app-micro-hint svg {
+  color: var(--app-status);
+  flex: none;
+}
+
+.app-micro-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.app-micro-act {
+  align-items: center;
+  border-radius: var(--app-radius-card);
+  box-sizing: border-box;
+  display: flex;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  height: 56px;
+  justify-content: center;
+}
+
+.app-micro-act--go,
+.app-micro-act--in {
+  background: var(--app-confirm);
+  border: none;
+  color: var(--app-confirm-contrast);
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+}
+
+.app-micro-act--go {
+  cursor: pointer;
+}
+
+.app-micro-act--go:hover:not(:disabled),
+.app-micro-act--go:active:not(:disabled) {
+  background: var(--app-accent);
+  color: var(--app-accent-contrast);
+}
+
+.app-micro-act--leave {
+  background: none;
+  border: 1px solid var(--app-divider);
+  color: inherit;
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  padding: 0 18px;
+}
+
+.app-micro-act--closed {
+  border: 1px solid var(--app-divider);
+  color: var(--app-text-secondary);
+  flex: 1;
+  font-size: var(--app-font-size-callout);
+}
+
+.app-micro-act:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* --- Экран 26 «Друзья»: счётчик в шапке, строка контактов MAX и две группы --- */
+
+.app-friends-bar {
+  align-items: baseline;
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+  padding: var(--app-space-m) 0 var(--app-space-xs);
+}
+
+.app-friends-bar-title {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.app-friends-bar-count {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-callout);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.app-friends-contacts {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  gap: var(--app-space-m);
+  margin-top: 14px;
+  padding: 14px var(--app-space-l);
+}
+
+/* Знак MAX — скруглённый квадрат, а не ещё один кружок рядом с аватарками */
+.app-friends-contacts-mark {
+  align-items: center;
+  background: linear-gradient(140deg, var(--brand-violet), var(--brand-cyan));
+  border-radius: 10px;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.app-friends-contacts-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-friends-contacts-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-friends-contacts-line {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin-top: 1px;
+}
+
+.app-friends-resync {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 36px;
+  padding: 0 14px;
+}
+
+.app-friends-resync:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.app-friends-sec {
+  display: flex;
+  flex-direction: column;
+  margin-top: 20px;
+}
+
+.app-friends-sec-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.app-friend-row {
+  align-items: center;
+  background: none;
+  border: none;
+  border-bottom: var(--app-hairline);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  padding: 14px 0;
+  text-align: left;
+  width: 100%;
+}
+
+.app-friend-row svg {
+  color: var(--app-text-tertiary);
+  flex: none;
+}
+
+.app-friend-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-friend-name {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+}
+
+.app-friend-line {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Экран 27 «Друзья открыли»: градиентный счётчик, карточки друзей, состояние «история скрыта» --- */
+
+/* Единственный градиент экрана и единственное место, где под ним стоит текст: две короткие строки
+ * лежат на тёмном начале градиента, до голубого конца они не доходят */
+.app-disco-hero {
+  background: var(--app-gradient-dark);
+  border-radius: var(--app-radius-card);
+  color: var(--brand-white);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-xs);
+  margin-top: var(--app-space-l);
+  padding: 18px;
+}
+
+.app-disco-hero-count {
+  font-size: var(--app-font-size-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.app-disco-hero-text {
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  max-width: 20ch;
+}
+
+.app-disco-card,
+.app-people-card {
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  margin-top: 10px;
+  padding: var(--app-space-l);
+}
+
+.app-disco-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+}
+
+.app-disco-person {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-disco-name {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+}
+
+.app-disco-line {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin-top: 1px;
+}
+
+.app-disco-route {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 36px;
+  padding: 0 14px;
+}
+
+/* Замок — не ошибка, а чужая настройка: приглушённый глиф вместо кнопки */
+.app-disco-lock {
+  align-items: center;
+  color: var(--app-text-tertiary);
+  display: flex;
+  flex: none;
+}
+
+.app-disco-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--app-space-m);
+}
+
+.app-disco-chip {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+.app-disco-note,
+.app-people-note {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  line-height: var(--app-line-height-body);
+  margin: 14px 0 0;
+  max-width: var(--app-measure);
+}
+
+/* --- Экран 28 «Маршрут друга»: нумерованная лента точек и карточка закрытого доступа --- */
+
+.app-froute-person {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  margin-top: var(--app-space-l);
+}
+
+.app-froute-person-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-froute-person-name {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+}
+
+.app-froute-person-line {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-froute-stops {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+}
+
+.app-froute-stop {
+  display: flex;
+  gap: var(--app-space-m);
+}
+
+.app-froute-rail {
+  align-items: center;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 28px;
+}
+
+/* Номер точки — тёмная заливка: порядок, а не акцент */
+.app-froute-dot {
+  align-items: center;
+  background: var(--app-confirm);
+  border-radius: 50%;
+  color: var(--app-confirm-contrast);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-description);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.app-froute-line {
+  background: var(--app-divider);
+  flex: 1;
+  margin: var(--app-space-xs) 0;
+  width: 2px;
+}
+
+.app-froute-stop--last .app-froute-line {
+  display: none;
+}
+
+.app-froute-stop-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding-bottom: 18px;
+}
+
+.app-froute-stop--last .app-froute-stop-body {
+  padding-bottom: 0;
+}
+
+.app-froute-stop-title {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.app-froute-stop-meta {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin-top: 2px;
+}
+
+.app-froute-save {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 32px;
+  padding: 0 12px;
+}
+
+.app-froute-repeat {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-card);
+  box-sizing: border-box;
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 52px;
+  justify-content: center;
+  margin-top: 20px;
+  width: 100%;
+}
+
+.app-froute-repeat:hover,
+.app-froute-repeat:active {
+  background: var(--app-accent-press);
+}
+
+.app-froute-closed {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+  padding: 20px;
+  text-align: center;
+}
+
+.app-froute-closed-mark {
+  align-items: center;
+  background: var(--app-canvas);
+  border-radius: 50%;
+  color: var(--app-text-secondary);
+  display: flex;
+  flex: none;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.app-froute-closed-title {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  margin-top: var(--app-space-m);
+}
+
+.app-froute-closed-text {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  line-height: var(--app-line-height-body);
+  margin-top: 6px;
+  max-width: var(--app-measure);
+}
+
+.app-froute-invite {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: 14px;
+  box-sizing: border-box;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 44px;
+  justify-content: center;
+  margin-top: 14px;
+  width: 100%;
+}
+
+/* --- Экран 29 «Люди рядом»: две плитки-счётчика, строка приватности и карточки совпадений --- */
+
+.app-people-stats {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.app-people-stat {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px var(--app-space-l);
+}
+
+/* Вторая плитка — «живая»: голубой берётся прозрачностью, литерала его каналов палитра не знает */
+.app-people-stat--live {
+  background: none;
+  isolation: isolate;
+  position: relative;
+}
+
+.app-people-stat--live::before {
+  background: var(--app-status);
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  opacity: 0.09;
+  position: absolute;
+  z-index: -1;
+}
+
+.app-people-stat-count {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.app-people-stat-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-people-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+}
+
+.app-people-person {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-people-name {
+  align-items: center;
+  display: flex;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  gap: var(--app-space-s);
+}
+
+/* Присутствие — точка, а не слово: brand-cyan текстом не бывает */
+.app-people-live {
+  background: var(--app-status);
+  border-radius: 50%;
+  flex: none;
+  height: 7px;
+  width: 7px;
+}
+
+.app-people-meta {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin-top: 1px;
+}
+
+.app-people-why {
+  color: rgba(var(--app-scheme-neutral), 0.75);
+  font-size: var(--app-font-size-description);
+  line-height: 1.4;
+  margin: 10px 0 0;
+  max-width: var(--app-measure);
+}
+
+.app-people-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.app-people-tag {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-pill);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+.app-people-actions {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
+}
+
+.app-people-invite {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 14px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 44px;
+  justify-content: center;
+}
+
+.app-people-hide {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: 14px;
+  box-sizing: border-box;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 44px;
+  justify-content: center;
+  padding: 0;
+  width: 44px;
+}

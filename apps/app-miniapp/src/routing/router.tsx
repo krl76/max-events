@@ -11,6 +11,7 @@
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote- prefixes) to a Route, home fallback
 // - Route - moderation | home | search | create | map | event(id) | place(id) | friends | calendar | profile | settings | subscriptions | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | plan-new | day-route | list(id) | achievements | after-event(eventId) | micro-new | story-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote-/after- prefixes) to a Route, home fallback
+// - Route - … | micro (макет, экран 24) | micro-event(id) (экран 25) | friend-route(id) (экран 28)
 // - isTabRoute - the five tabbar routes (home/search/create/plans/profile); tab-to-tab switches replace the history entry instead of pushing. The map is no longer a tab — it is a view pushed from Поиск (макет, экран 16)
 // - RouteHistoryState - history entry payload: route + sequential idx (idx drives back/forward detection)
 // - nextHistory - pure history decision: tab-to-tab -> replace (idx kept), anything else -> push (idx + 1)
@@ -24,7 +25,44 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getStartParam, getWebApp } from "../max/bridge";
 
-export type Route = { name: "home" } | { name: "search" } | { name: "swipe" } | { name: "create" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "settings" } | { name: "subscriptions" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "plan-new" } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "micro-new" } | { name: "story-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string } | { name: "moderation" } | { name: "after-event"; eventId: string } | { name: "lists" };
+export type Route =
+  | { name: "home" }
+  | { name: "search" }
+  | { name: "swipe" }
+  | { name: "create" }
+  | { name: "map" }
+  | { name: "event"; id: string }
+  | { name: "place"; id: string }
+  | { name: "friends" }
+  | { name: "calendar" }
+  | { name: "profile" }
+  | { name: "settings" }
+  | { name: "subscriptions" }
+  | { name: "whereto" }
+  | { name: "nearby" }
+  | { name: "discovery" }
+  | { name: "people" }
+  | { name: "gathering-new"; eventId: string }
+  | { name: "gathering"; id: string }
+  | { name: "plans" }
+  | { name: "plan"; id: string }
+  | { name: "plan-new" }
+  | { name: "day-route" }
+  | { name: "list"; id: string }
+  | { name: "achievements" }
+  | { name: "micro-new" }
+  | { name: "story-new" }
+  | { name: "feed-new"; eventId: string | null }
+  | { name: "organizer" }
+  | { name: "we-groups" }
+  | { name: "we-group"; id: string }
+  | { name: "vote"; id: string }
+  | { name: "moderation" }
+  | { name: "after-event"; eventId: string }
+  | { name: "lists" }
+  | { name: "micro" }
+  | { name: "micro-event"; id: string }
+  | { name: "friend-route"; id: string };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -116,6 +154,13 @@ function toRoute(value: unknown): Route | null {
     case "list":
     case "we-group":
     case "vote": {
+      const { id } = value as { id?: unknown };
+      return typeof id === "string" ? ({ name, id } as Route) : null;
+    }
+    case "micro":
+      return { name };
+    case "micro-event":
+    case "friend-route": {
       const { id } = value as { id?: unknown };
       return typeof id === "string" ? ({ name, id } as Route) : null;
     }

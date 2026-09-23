@@ -1,82 +1,100 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { peopleSuggest, mockEvents } from "../api/mock";
-import { candidateInterests, filterCandidates, lookingLabel, PeopleView, type PeopleState } from "./PeoplePage";
+import { lookingLabel, peopleDistance, personMetaLine, sentenceCase, PeopleView, type PeopleState } from "./PeoplePage";
+import { peopleSuggest } from "../api/mock";
 
-const MOSCOW: [number, number] = [55.7522, 37.6156];
 const noop = () => {};
+/** The centre of Moscow, the same origin the people screen asks from without a geo fix. */
+const data = peopleSuggest(55.7522, 37.6156);
+const none: ReadonlySet<string> = new Set();
 
-function readyPeople() {
-  return peopleSuggest(...MOSCOW);
-}
+const view = (state: PeopleState, hidden: ReadonlySet<string> = none) => renderToStaticMarkup(createElement(PeopleView, { state, hidden, onInvite: noop, onHide: noop, onRetry: noop }));
 
-function viewHtml(over: { state?: PeopleState; chips?: string[]; selected?: ReadonlySet<string> } = {}): string {
-  return renderToStaticMarkup(createElement(PeopleView, { state: over.state ?? { status: "ready", data: readyPeople() }, chips: over.chips ?? candidateInterests(readyPeople().people), selected: over.selected ?? new Set<string>(), onToggle: noop, onOpenEvent: noop }));
-}
+describe("peopleDistance", () => {
+  it("writes the distance with a russian decimal comma", () => {
+    expect(peopleDistance(1.2)).toBe("1,2 км");
+    expect(peopleDistance(4)).toBe("4,0 км");
+  });
+});
+
+describe("personMetaLine", () => {
+  const candidate = data.people[0];
+
+  it("joins the distance and the looking-for-company flag the way the design does", () => {
+    expect(personMetaLine({ ...candidate, distanceKm: 1.2, lookingForCompanyToday: true })).toBe("1,2 км · сегодня ищет компанию");
+    expect(personMetaLine({ ...candidate, distanceKm: 4.1, lookingForCompanyToday: false })).toBe("4,1 км");
+    expect(personMetaLine({ ...candidate, distanceKm: null, lookingForCompanyToday: true })).toBe("сегодня ищет компанию");
+  });
+
+  it("stays empty when neither half is known, instead of printing a lone separator", () => {
+    expect(personMetaLine({ ...candidate, distanceKm: null, lookingForCompanyToday: false })).toBe("");
+  });
+});
 
 describe("lookingLabel", () => {
   it("picks the right russian plural form", () => {
-    expect(lookingLabel(1)).toBe("1 ищет компанию сегодня");
-    expect(lookingLabel(3)).toBe("3 ищут компанию сегодня");
-    expect(lookingLabel(11)).toBe("11 ищут компанию сегодня");
-    expect(lookingLabel(21)).toBe("21 ищет компанию сегодня");
+    expect(lookingLabel(1)).toBe("сегодня ищет компанию");
+    expect(lookingLabel(5)).toBe("сегодня ищут компанию");
+    expect(lookingLabel(0)).toBe("сегодня ищут компанию");
   });
 });
 
-describe("candidateInterests", () => {
-  it("collects the sorted union of shared interests", () => {
-    expect(candidateInterests(readyPeople().people)).toEqual(["гастрономия", "кино", "музыка"]);
-  });
-});
-
-describe("filterCandidates", () => {
-  it("keeps everyone without a selection and filters by the selected interests", () => {
-    const people = readyPeople().people;
-
-    expect(filterCandidates(people, new Set())).toHaveLength(people.length);
-    const filtered = filterCandidates(people, new Set(["музыка"]));
-    expect(filtered).toHaveLength(3);
-    expect(filtered.every((candidate) => candidate.sharedInterests.includes("музыка"))).toBe(true);
+describe("sentenceCase", () => {
+  it("raises the first letter of an explanation that arrives lowercase", () => {
+    expect(sentenceCase("общий интерес: джаз")).toBe("Общий интерес: джаз");
+    expect(sentenceCase("")).toBe("");
   });
 });
 
 describe("PeopleView", () => {
-  it("renders the counters, chips and candidate cards with match context", () => {
-    const html = viewHtml();
+  it("opens with the two counters and the privacy line", () => {
+    const html = view({ status: "ready", data });
 
-    expect(html).toContain("5 человек рядом с похожими интересами, 2 ищут компанию сегодня");
-    expect(html).toContain("Катя Орлова");
-    expect(html).toContain(`вы оба хотите на «${mockEvents[11].title}»`);
-    expect(html).toContain("общий интерес: музыка");
-    expect(html).toContain("км");
-    expect(html.match(/Ищет компанию сегодня/g)).toHaveLength(2);
-    expect(html.match(/aria-pressed/g)!.length).toBeGreaterThanOrEqual(3);
+    expect(html).toContain(`>${data.nearbyCount}<`);
+    expect(html).toContain(`>${data.lookingForCompanyTodayCount}<`);
+    expect(html).toContain("рядом");
+    expect(html).toContain(lookingLabel(data.lookingForCompanyTodayCount));
+    expect(html).toContain("Точное местоположение не передаётся — только расстояние.");
   });
 
-  it("renders the event CTA only for shared_event contexts", () => {
-    const html = viewHtml();
+  it("shows a first name, the match context and the shared interests as chips", () => {
+    const html = view({ status: "ready", data });
+    const candidate = data.people[0];
 
-    expect(html.match(/Открыть событие/g)).toHaveLength(1);
+    expect(html).toContain(candidate.person.name.split(" ")[0]);
+    expect(html).toContain(sentenceCase(candidate.context.explanation));
+    expect(html).toContain(sentenceCase(candidate.sharedInterests[0]));
   });
 
-  it("filters candidates by the selected interest", () => {
-    const html = viewHtml({ selected: new Set(["музыка"]) });
+  it("keeps the calm register: an invite and a dismiss, no messaging and no likes", () => {
+    const html = view({ status: "ready", data });
 
-    expect(html).toContain("Катя Орлова");
-    expect(html).toContain("Анна Соколова");
-    expect(html).not.toContain("Игорь Фомин");
+    expect(html).toContain("Позвать на событие");
+    expect(html).toContain("Скрыть");
+    expect(html).not.toContain("Написать");
+    expect(html).not.toContain("Знакомств");
+  });
+
+  it("marks who is looking for company with a dot rather than with cyan text", () => {
+    const looking = data.people.find((candidate) => candidate.lookingForCompanyToday)!;
+    const html = view({ status: "ready", data: { ...data, people: [looking] } });
+
+    expect(html).toContain("app-people-live");
+    expect(html).toContain("сегодня ищет компанию");
+  });
+
+  it("drops a hidden candidate without touching the counters above", () => {
+    const hidden = new Set([data.people[0].person.id]);
+    const html = view({ status: "ready", data }, hidden);
+
+    expect(html).not.toContain(`Скрыть ${data.people[0].person.name.split(" ")[0]}`);
+    expect(html).toContain(`>${data.nearbyCount}<`);
   });
 
   it("renders loading, error and empty states", () => {
-    expect(viewHtml({ state: { status: "loading" } })).toContain("Ищем людей рядом");
-
-    const error = viewHtml({ state: { status: "error" } });
-    expect(error).toContain("app-state--error");
-    expect(error).toContain("Не удалось найти людей рядом");
-
-    const empty = viewHtml({ state: { status: "ready", data: { nearbyCount: 0, lookingForCompanyTodayCount: 0, people: [] } }, chips: [] });
-    expect(empty).toContain("Никого рядом с такими интересами не нашлось");
-    expect(empty).not.toContain("Открыть событие");
+    expect(view({ status: "loading" })).toContain("app-skeleton");
+    expect(view({ status: "error" })).toContain("Не удалось найти людей рядом.");
+    expect(view({ status: "ready", data: { nearbyCount: 0, lookingForCompanyTodayCount: 0, people: [] } })).toContain("Рядом пока никого с общими интересами.");
   });
 });
