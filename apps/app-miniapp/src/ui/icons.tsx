@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - TabIcon - union of the tabbar icon names: the user bar (feed/search/create/plans/profile) plus map and the organizer bar (dashboard/events/create/promo/profile)
 // - TabIconGlyph - inline stroke SVG for a tabbar icon, filled variant for the active tab
-// - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron/star/alert/search/settings/bell/check/plus/building)
+// - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron/star/alert/search/settings/bell/check/plus/building/close/text/adjust/sparkle/friends/camera/calendar/lines)
 // - ActionIcon - inline stroke SVG by ActionIconName; filled=true fills the glyph (liked heart, saved bookmark, active tab)
 // END_MODULE_MAP
 
@@ -89,7 +89,7 @@ export function TabIconGlyph({ name, size = 24, filled = false }: { name: TabIco
   return <Glyph paths={filled ? (FILLED[name] ?? OUTLINE[name]) : OUTLINE[name]} size={size} filled={filled} />;
 }
 
-export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings" | "bell" | "check" | "plus" | "building";
+export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings" | "bell" | "check" | "plus" | "building" | "close" | "text" | "adjust" | "sparkle" | "friends" | "camera" | "calendar" | "lines";
 
 const ACTIONS: Record<ActionIconName, ReactNode> = {
   heart: <path d="M12 20.3S3.4 15.4 3.4 9.6a4.6 4.6 0 0 1 8.6-2.3A4.6 4.6 0 0 1 20.6 9.6c0 5.8-8.6 10.7-8.6 10.7Z" />,
@@ -152,6 +152,43 @@ const ACTIONS: Record<ActionIconName, ReactNode> = {
       <path d="M9 21v-6h6v6" />
     </>
   ),
+  // Закрыть композер истории и поста (макет, экраны 05 и 06) — крест, а не развёрнутый шеврон «назад»
+  close: <path d="M6 6l12 12M18 6L6 18" />,
+  // Подпись поверх истории (макет, экран 05): строки по центру
+  text: <path d="M4 7h16M8 12h8M10 17h4" />,
+  // Настройка кадра истории (макет, экран 05): ползунок с точкой посередине
+  adjust: (
+    <>
+      <path d="M12 3v5M12 16v5M5 12h14" />
+      <circle cx="12" cy="12" r="2.5" />
+    </>
+  ),
+  // Эффекты истории (макет, экран 05): четырёхлучевая искра
+  sparkle: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />,
+  // Двое: аудитория истории и отметка друзей в посте (макет, экраны 05 и 06) — в отличие от одиночного user
+  friends: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6M15 15.5c3 0 6 1.5 6 4.5" />
+    </>
+  ),
+  // Добавить фото (макет, экран 06): плитка-заглушка и нижняя панель композера
+  camera: (
+    <>
+      <path d="M4 8a2 2 0 0 1 2-2h2l2-2h4l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </>
+  ),
+  // Привязать событие (макет, экран 06); тот же смысл, что у таббарного events, но в 20px-размере списков
+  calendar: (
+    <>
+      <rect x="3" y="4" width="18" height="17" rx="4" />
+      <path d="M3 9h18M8 2v4M16 2v4" />
+    </>
+  ),
+  // Текст поста (макет, экран 06): строки по левому краю, в отличие от центрированного text
+  lines: <path d="M4 6h16M4 12h10M4 18h13" />,
   settings: (
     <>
       <circle cx="12" cy="12" r="3.2" />

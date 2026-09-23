@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: The «Создать» tab of the user contour: one entry point to everything a viewer can publish — a story, a post, a plan, a micro-event.
-// SCOPE: Navigation only. Every destination is an existing screen; the publication screens themselves live in their own modules (story: ../create/StoryCreatePage.js, post: ../feed/FeedPage.js, plan: ../plans/PlanCreatePage.js, micro-event: ../micro/MicroEvents.js).
+// SCOPE: Navigation only. Every destination is an existing screen; the publication screens themselves live in their own modules (story: ../create/StoryCreatePage.js, post: ../create/PostCreatePage.js, plan: ../plans/PlanCreatePage.js, micro-event: ../micro/MicroEvents.js).
 // DEPENDS: ../routing/router.js (useRoute), ../ui/primitives.js (AppSection), ../ui/icons.js (ActionIcon), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT

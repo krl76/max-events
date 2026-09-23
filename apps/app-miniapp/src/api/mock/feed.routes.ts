@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock route table for the stories rail and the impression wall.
-// SCOPE: GET/POST /api/stories, GET /api/feed/cards, GET /api/notifications/summary, GET/POST /api/feed, POST /api/feed/:id/like, POST /api/feed/:id/comments.
+// PURPOSE: Mock route table for the stories rail, the impression wall and the two publication screens (макет, экраны 05 и 06).
+// SCOPE: GET/POST /api/stories, GET /api/feed/cards, GET /api/notifications/summary, GET/POST /api/feed, POST /api/feed/drafts, POST /api/feed/:id/like, POST /api/feed/:id/comments.
 // DEPENDS: ./feed.js, ./fixtures.js, ../client.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -9,16 +9,46 @@
 // - feedRoutes - route table entry: null when the path belongs to another domain
 // END_MODULE_MAP
 
-import { type CreateFeedPost } from "../client";
-import { addMockFeedComment, createMockFeedPost, createMockStory, feedPosts, listMockStories, mockFeedCards, mockNotificationsSummary, toggleMockFeedLike } from "./feed";
+import { type CreateFeedPost, type PostDraft, type StoryComposition } from "../client";
+import { addMockFeedComment, createMockFeedPost, createMockStory, feedPosts, listMockStories, mockFeedCards, mockNotificationsSummary, saveMockPostDraft, toggleMockFeedLike } from "./feed";
 import { parseBookingBody } from "./fixtures";
+
+const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
+
+/**
+ * The composed part of a story body (макет, экран 05). Absent is a valid answer — the stories rail
+ * publishes a bare photo — but a half-built composition is not: the real endpoint will refuse it too,
+ * so a malformed sticker or poll has to come back as a 400 rather than publish silently stripped.
+ */
+function parseStoryComposition(body: Record<string, unknown> | null | undefined): { ok: true; value: StoryComposition | null } | { ok: false } {
+  if (body === undefined || body === null || body.audience === undefined) return { ok: true, value: null };
+  if (body.audience !== "close-friends" && body.audience !== "friends" && body.audience !== "city") return { ok: false };
+  if (typeof body.text !== "string") return { ok: false };
+  let sticker: StoryComposition["sticker"] = null;
+  if (body.sticker !== null && body.sticker !== undefined) {
+    const raw = body.sticker as Record<string, unknown>;
+    if (typeof raw.eventId !== "string" || typeof raw.title !== "string" || typeof raw.subtitle !== "string") return { ok: false };
+    if (raw.seatsLeft !== null && typeof raw.seatsLeft !== "number") return { ok: false };
+    sticker = { eventId: raw.eventId, title: raw.title, subtitle: raw.subtitle, seatsLeft: raw.seatsLeft };
+  }
+  let poll: StoryComposition["poll"] = null;
+  if (body.poll !== null && body.poll !== undefined) {
+    const raw = body.poll as Record<string, unknown>;
+    if (typeof raw.question !== "string" || !isStringArray(raw.options)) return { ok: false };
+    if (raw.answer !== null && typeof raw.answer !== "number") return { ok: false };
+    poll = { question: raw.question, options: raw.options, answer: raw.answer };
+  }
+  return { ok: true, value: { text: body.text, sticker, poll, audience: body.audience } };
+}
 
 export function feedRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/stories" && init?.method === "POST") {
     const body = parseBookingBody(init);
     const imageUrl = typeof body?.imageUrl === "string" ? body.imageUrl : null;
     if (imageUrl === null || imageUrl === "") return new Response(null, { status: 400 });
-    return Response.json(createMockStory(imageUrl));
+    const composition = parseStoryComposition(body);
+    if (!composition.ok) return new Response(null, { status: 400 });
+    return Response.json(createMockStory(imageUrl, composition.value));
   }
   if (url.pathname === "/api/stories") {
     return Response.json(listMockStories());
@@ -29,6 +59,12 @@ export function feedRoutes(url: URL, init: RequestInit | undefined): Response | 
   // Answered here rather than in a table of its own: the notifications domain does not exist yet (#494), only the header that reads it.
   if (url.pathname === "/api/notifications/summary") {
     return Response.json(mockNotificationsSummary());
+  }
+  // Ahead of /api/feed on purpose only for readability — the paths are matched exactly, so the order is free.
+  if (url.pathname === "/api/feed/drafts" && init?.method === "POST") {
+    const draft = parseBookingBody(init) as PostDraft | undefined;
+    if (typeof draft !== "object" || draft === null || typeof draft.userId !== "string" || draft.userId === "" || typeof draft.text !== "string") return new Response(null, { status: 400 });
+    return Response.json(saveMockPostDraft(draft));
   }
   if (url.pathname === "/api/feed" && init?.method === "POST") {
     const payload = parseBookingBody(init) as CreateFeedPost | undefined;
