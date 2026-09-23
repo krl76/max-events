@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Search tab screen: query input, rating filter, recent queries (localStorage), event results filtered client-side from the fetched event list.
-// SCOPE: apiClient.listEvents({ minRating }) refetched when the threshold changes — the rating is a server filter, unlike the text query, which stays client-side via the catalog filterEventsByQuery; result cards reuse the catalog EventCard; recents persist in localStorage only.
-// DEPENDS: ../api/client.js (apiClient), ../catalog/CatalogPage.js (EventCard, filterEventsByQuery, RatingChips), ../routing/router.js (useRoute), ../ui/primitives.js (AppChip, AppState)
+// SCOPE: apiClient.listEvents({ minRating }) refetched when the threshold changes — the rating is a server filter, unlike the text query, which stays client-side via the catalog filterEventsByQuery; result cards reuse the catalog EventCard; recents persist in localStorage only. The map is entered from here (макет, экран 08 → 16), it is not a tab.
+// DEPENDS: ../api/client.js (apiClient), ../catalog/CatalogPage.js (EventCard, filterEventsByQuery, RatingChips), ../routing/router.js (useRoute), ../ui/primitives.js (AppChip, AppNavTiles, AppState)
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -18,7 +18,7 @@ import type { Event } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { EventCard, filterEventsByQuery, RatingChips } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
-import { AppChip, AppState } from "../ui/primitives";
+import { AppChip, AppNavTiles, AppState } from "../ui/primitives";
 
 export type SearchState = { status: "loading" } | { status: "error" } | { status: "ready"; events: Event[] };
 
@@ -57,9 +57,11 @@ interface SearchViewProps {
   onOpenEvent: (id: string) => void;
   minRating?: number;
   onMinRating?: (minRating: number | undefined) => void;
+  /** «На карте» (макет, экран 08 → 16): the map is a view of search, not a tab of its own. */
+  onOpenMap?: () => void;
 }
 
-export function SearchView({ query, onQuery, onSubmit, recents, state, onOpenEvent, minRating, onMinRating = () => {} }: SearchViewProps) {
+export function SearchView({ query, onQuery, onSubmit, recents, state, onOpenEvent, minRating, onMinRating = () => {}, onOpenMap = () => {} }: SearchViewProps) {
   const blank = query.trim() === "";
   const results = state.status === "ready" ? filterEventsByQuery(state.events, query) : [];
 
@@ -76,6 +78,7 @@ export function SearchView({ query, onQuery, onSubmit, recents, state, onOpenEve
         </div>
         <RatingChips value={minRating} onChange={onMinRating} />
       </form>
+      <AppNavTiles items={[{ icon: "pin", label: "На карте", onClick: onOpenMap }]} />
       {blank && recents.length > 0 && (
         <div className="app-filters-chips" role="group" aria-label="Недавние запросы">
           {recents.map((item) => (
@@ -127,5 +130,7 @@ export function SearchPage() {
     });
   }, [query]);
 
-  return <SearchView query={query} onQuery={setQuery} onSubmit={submit} recents={recents} state={state} onOpenEvent={openEvent} minRating={minRating} onMinRating={setMinRating} />;
+  const openMap = useCallback(() => navigate({ name: "map" }), [navigate]);
+
+  return <SearchView query={query} onQuery={setQuery} onSubmit={submit} recents={recents} state={state} onOpenEvent={openEvent} minRating={minRating} onMinRating={setMinRating} onOpenMap={openMap} />;
 }

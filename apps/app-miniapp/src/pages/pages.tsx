@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - HomePage - stories rail (StoriesRow) + «Куда пойдём?»/«Рядом со мной» CTA pair (primary/secondary) + NL assist section (AssistSection) + «После меня» taste suggestions (AfterMeSection, hidden until the taste graph has something) + today digest (TodaySection) + impressions feed (FeedSection) + micro-events section (MicroSection) + promotion banners/collections (PromotionSections, #205) + catalog screen (CatalogPage) on the home route; all sections hidden in map view so the map gets the viewport
-// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders the search screen, map renders the full-screen map, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar renders the «Моё» screen on the calendar tab, profile renders the profile screen with achievements/my-city (full map) nav tiles, whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the «Моё» screen (plans/calendar/saved tabs) and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, list(id) renders one saved list, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen, moderation renders the moderator queue (hidden behind the backend's 403 for everyone else)
+// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders the search screen (its «На карте» entry pushes the map), map renders the full-screen map, create renders the publication hub of the «Создать» tab and story-new its story screen, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar renders the «Планы» screen on the calendar tab, profile renders the profile screen with achievements/subscriptions/my-city nav tiles, subscriptions renders the follows screen, whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the «Планы» screen (plans/calendar/saved tabs) and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, list(id) renders one saved list, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen, moderation renders the moderator queue (hidden behind the backend's 403 for everyone else)
 // END_MODULE_MAP
 
 import { lazy, Suspense, useState, type ElementType, type LazyExoticComponent } from "react";
@@ -52,6 +52,9 @@ const PlanPage = lazyNamed(() => import("../plans/PlanPage"), "PlanPage");
 const PlanCreatePage = lazyNamed(() => import("../plans/PlanCreatePage"), "PlanCreatePage");
 const SearchPage = lazyNamed(() => import("../search/SearchPage"), "SearchPage");
 const MapPage = lazyNamed(() => import("../catalog/MapPage"), "MapPage");
+const CreatePage = lazyNamed(() => import("../create/CreatePage"), "CreatePage");
+const StoryCreatePage = lazyNamed(() => import("../create/StoryCreatePage"), "StoryCreatePage");
+const SubscriptionsPage = lazyNamed(() => import("../subscriptions/MySubscriptions"), "SubscriptionsPage");
 const WeGroupsPage = lazyNamed(() => import("../wegroup/WeGroupsPage"), "WeGroupsPage");
 const WeGroupPage = lazyNamed(() => import("../wegroup/WeGroupPage"), "WeGroupPage");
 const DayRoutePage = lazyNamed(() => import("../route/DayRoutePage"), "DayRoutePage");
@@ -130,6 +133,8 @@ function Routed() {
   if (route.name === "calendar") return <PlansPage tab="calendar" />;
   if (route.name === "search") return <SearchPage />;
   if (route.name === "map") return <MapPage />;
+  if (route.name === "create") return <CreatePage />;
+  if (route.name === "story-new") return <StoryCreatePage />;
   if (route.name === "profile")
     return (
       <>
@@ -137,6 +142,7 @@ function Routed() {
         <AppNavTiles
           items={[
             { icon: "star", label: "Достижения", onClick: () => navigate({ name: "achievements" }) },
+            { icon: "bookmark", label: "Подписки", onClick: () => navigate({ name: "subscriptions" }) },
             { icon: "pin", label: "Мой город", onClick: () => navigate({ name: "map" }) },
           ]}
         />
@@ -147,6 +153,7 @@ function Routed() {
         </Suspense>
       </>
     );
+  if (route.name === "subscriptions") return <SubscriptionsPage />;
   if (route.name === "settings") return <SettingsPage />;
   if (route.name === "organizer") return <OrganizerPage />;
   if (route.name === "moderation") return <ModerationPage />;

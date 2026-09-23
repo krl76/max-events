@@ -1,0 +1,214 @@
+// START_MODULE_CONTRACT
+// PURPOSE: Mock profile store: the seeded profiles, the visit statistics they derive, achievements, my-city and the taste graph.
+// SCOPE: Profile state and everything computed from check-ins; the HTTP surface is in ./profile.routes.ts.
+// DEPENDS: @max-events/api-contracts, ../client.js and the sibling ./mock domain modules it imports
+// LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+// - visitStatsFor - Visit statistics derived from the check-ins of a user: events, unique places, their districts, per-category counters
+// - achievementsFor - the four README achievements with progress derived from visit stats
+// - myCityFor - my-city summary and memory points derived from the check-ins of a user
+// - tasteProfile - taste graph of a user, derived from their mock check-ins (empty until they visit something)
+// - afterMePicks - mock GET /taste/after-me: more of the strongest visited category, backend wording parity
+// - mockProfiles - shared with profile.routes
+// - resetMockProfiles - restore the seeded friend profiles (test isolation)
+// - profileFor - shared with profile.routes, social
+// END_MODULE_MAP
+
+import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, PlaceCategorySchema, formatAfterMeExplanation } from "@max-events/api-contracts";
+import type { Achievement, AfterMeResponse, Event, EventCategory, MemoryPoint, MyCitySummary, Profile, TasteProfile, TasteTransition, VisitStats } from "@max-events/api-contracts";
+import { mockCheckIns } from "./bookings";
+import { MOCK_NOW, PLACE_STAMP, mockEvents, mockFriends, mockPlaces } from "./fixtures";
+import { mockReviews } from "./reviews";
+
+/** Backend districtKey parity: a neighbourhood is a 0.01° geo cell of a visited place. */
+function mockDistrictKey(latitude: number, longitude: number): string {
+  return `${latitude.toFixed(2)},${longitude.toFixed(2)}`;
+}
+
+/** Visit statistics derived from the check-ins of a user: events, unique places, their districts, per-category counters. */
+export function visitStatsFor(userId: string): VisitStats {
+  const mine = mockCheckIns.filter((item) => item.userId === userId);
+  const placeIds = new Set<string>();
+  const byCategory = new Map<string, number>();
+  for (const item of mine) {
+    const event = item.eventId === null ? undefined : mockEvents.find((candidate) => candidate.id === item.eventId);
+    if (item.placeId !== null) placeIds.add(item.placeId);
+    if (event !== undefined) {
+      if (event.placeId !== null) placeIds.add(event.placeId);
+      byCategory.set(event.category, (byCategory.get(event.category) ?? 0) + 1);
+    }
+  }
+  const districts = new Set(
+    [...placeIds].flatMap((id) => {
+      const place = mockPlaces.find((candidate) => candidate.id === id);
+      return place ? [mockDistrictKey(place.latitude, place.longitude)] : [];
+    }),
+  );
+  return {
+    userId,
+    placesCount: placeIds.size,
+    eventsCount: mine.filter((item) => item.eventId !== null).length,
+    districtsCount: districts.size,
+    byCategory: EventCategorySchema.options.map((category) => ({ category, count: byCategory.get(category) ?? 0 })),
+  };
+}
+
+/** The four README achievements («Исследователь города», «Музыкальный фанат», «Город за выходные», «Волонтер») with progress from visit stats. */
+export function achievementsFor(stats: VisitStats): Achievement[] {
+  const count = (category: string) => stats.byCategory.find((item) => item.category === category)?.count ?? 0;
+  return [
+    { code: "city_explorer", title: "Исследователь города", threshold: 10, progress: Math.min(stats.placesCount, 10), grantedAt: stats.placesCount >= 10 ? PLACE_STAMP : null },
+    { code: "music_fan", title: "Музыкальный фанат", threshold: 5, progress: Math.min(count("afisha"), 5), grantedAt: count("afisha") >= 5 ? PLACE_STAMP : null },
+    { code: "weekend_city", title: "Город за выходные", threshold: 3, progress: Math.min(stats.districtsCount, 3), grantedAt: stats.districtsCount >= 3 ? PLACE_STAMP : null },
+    { code: "volunteer", title: "Волонтёр", threshold: 5, progress: Math.min(count("volunteering"), 5), grantedAt: count("volunteering") >= 5 ? PLACE_STAMP : null },
+  ];
+}
+
+/** My-city summary and memory points derived from the check-ins of a user. */
+export function myCityFor(userId: string): { summary: MyCitySummary; points: MemoryPoint[] } {
+  const stats = visitStatsFor(userId);
+  const summary: MyCitySummary = { userId, placesCount: stats.placesCount, eventsCount: stats.eventsCount, districtsCount: stats.districtsCount };
+  const points = mockCheckIns
+    .filter((item) => item.userId === userId && item.eventId !== null)
+    .flatMap((item) => {
+      const event = mockEvents.find((candidate) => candidate.id === item.eventId)!;
+      const lat = event.placeId === null ? null : (mockPlaces.find((candidate) => candidate.id === event.placeId)?.latitude ?? null);
+      const lng = event.placeId === null ? null : (mockPlaces.find((candidate) => candidate.id === event.placeId)?.longitude ?? null);
+      return lat === null || lng === null ? [] : [{ latitude: lat, longitude: lng, eventId: item.eventId, placeId: null, visitedAt: item.checkedInAt }];
+    });
+  return { summary, points };
+}
+
+/**
+ * Taste is computed from what the demo user actually did, not from a fixture: a fresh demo has an
+ * empty graph and the «После меня» block stays hidden, and it appears once they tap «Я здесь» — the
+ * same two states the backend produces. Weights follow TasteService.buildTasteGraph: a visit is 1,
+ * a review adds stars/5 plus half a point for «пойду ещё раз».
+ */
+export function tasteProfile(userId: string, now: Date = MOCK_NOW): TasteProfile {
+  const eventWeights = new Map<EventCategory, number>();
+  for (const category of visitedEventCategories(userId)) eventWeights.set(category, (eventWeights.get(category) ?? 0) + 1);
+  for (const review of mockReviews.filter((row) => row.userId === userId)) {
+    const event = mockEvents.find((candidate) => candidate.id === review.eventId);
+    if (!event) continue;
+    eventWeights.set(event.category, (eventWeights.get(event.category) ?? 0) + review.stars / 5 + (review.wouldGoAgain ? 0.5 : 0));
+  }
+  const placeWeights = new Map<string, number>();
+  for (const item of mockCheckIns.filter((row) => row.userId === userId && row.placeId !== null)) {
+    const place = mockPlaces.find((candidate) => candidate.id === item.placeId);
+    if (place) placeWeights.set(place.category, (placeWeights.get(place.category) ?? 0) + 1);
+  }
+  return {
+    userId,
+    // Schema order, like the backend: a consumer reading [0] as "the strongest" would be wrong there.
+    eventCategories: EventCategorySchema.options.flatMap((category) => (eventWeights.has(category) ? [{ category, weight: eventWeights.get(category)! }] : [])),
+    placeCategories: PlaceCategorySchema.options.flatMap((category) => (placeWeights.has(category) ? [{ category, weight: placeWeights.get(category)! }] : [])),
+    transitions: visitTransitions(userId),
+    updatedAt: now.toISOString(),
+  };
+}
+
+function visitedEventCategories(userId: string): EventCategory[] {
+  return visitedEventsInOrder(userId).map((event) => event.category);
+}
+
+function visitedEventsInOrder(userId: string): Event[] {
+  return mockCheckIns
+    .filter((item) => item.userId === userId && item.eventId !== null)
+    .slice()
+    .sort((a, b) => a.checkedInAt.localeCompare(b.checkedInAt))
+    .flatMap((item) => {
+      const event = mockEvents.find((candidate) => candidate.id === item.eventId);
+      return event ? [event] : [];
+    });
+}
+
+/** Consecutive visits of different categories, the same "what did they do after X" the backend counts. */
+function visitTransitions(userId: string): TasteTransition[] {
+  const counts = new Map<string, number>();
+  const visited = visitedEventsInOrder(userId);
+  for (let index = 1; index < visited.length; index += 1) {
+    const from = visited[index - 1]!.category;
+    const to = visited[index]!.category;
+    if (from === to) continue;
+    counts.set(`${from}>${to}`, (counts.get(`${from}>${to}`) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([key, count]) => {
+      const [fromCategory, toCategory] = key.split(">") as [EventCategory, EventCategory];
+      return { fromCategory, toCategory, count };
+    })
+    .sort((a, b) => b.count - a.count || a.fromCategory.localeCompare(b.fromCategory));
+}
+
+/** TasteService.strongestAfterMe parity, including the tie-break: schema order wins, not the alphabet. */
+function strongestMockAfterMe(profile: TasteProfile): { fromCategory: EventCategory; toCategory: EventCategory; afterCount: number } | null {
+  let topFrom: EventCategory | null = null;
+  let topWeight = 0;
+  for (const category of EventCategorySchema.options) {
+    const weight = profile.eventCategories.find((row) => row.category === category)?.weight ?? 0;
+    if (weight > topWeight) {
+      topFrom = category;
+      topWeight = weight;
+    }
+  }
+  if (!topFrom || topWeight <= 0) return null;
+  let toCategory = topFrom;
+  let toCount = 0;
+  for (const transition of profile.transitions) {
+    if (transition.fromCategory !== topFrom || transition.toCategory === topFrom) continue;
+    if (transition.count > toCount || (transition.count === toCount && transition.toCategory.localeCompare(toCategory) < 0)) {
+      toCategory = transition.toCategory;
+      toCount = transition.count;
+    }
+  }
+  return { fromCategory: topFrom, toCategory, afterCount: Math.round(topWeight) };
+}
+
+/**
+ * Mock of GET /taste/after-me: upcoming events of the suggested category in the viewer's city, soonest
+ * first, five at most — the same query the backend runs, so a suggestion can also come back with no
+ * events at all when the city has nothing upcoming.
+ */
+export function afterMePicks(userId: string, now: Date = MOCK_NOW): AfterMeResponse {
+  const suggestion = strongestMockAfterMe(tasteProfile(userId, now));
+  if (!suggestion) return { suggestions: [] };
+  const city = profileFor(userId).city;
+  const events = mockEvents
+    .filter((event) => event.category === suggestion.toCategory && event.city === city && new Date(event.startsAt).getTime() >= now.getTime())
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
+    .slice(0, 5);
+  return { suggestions: [{ ...suggestion, explanation: formatAfterMeExplanation(suggestion.afterCount, suggestion.fromCategory, suggestion.toCategory), events }] };
+}
+
+export const mockProfiles = new Map<string, Profile>();
+
+/** Friend profile seeds for the discovery/people mocks: matching interests plus Лена hiding her routes (privacy gates parity). */
+const MOCK_FRIEND_PROFILE_SEED: { interests: string[]; routesHidden: boolean }[] = [
+  { interests: ["музыка", "выставки"], routesHidden: false },
+  { interests: ["спорт"], routesHidden: false },
+  { interests: ["кино", "музыка"], routesHidden: false },
+  { interests: ["гастрономия"], routesHidden: false },
+  { interests: ["музыка", "кино"], routesHidden: false },
+  { interests: ["гастрономия", "спорт"], routesHidden: false },
+  { interests: ["йога"], routesHidden: true },
+];
+
+function seedMockProfiles(): void {
+  mockProfiles.clear();
+  mockFriends.forEach((friend, index) => {
+    const seed = MOCK_FRIEND_PROFILE_SEED[index];
+    mockProfiles.set(friend.id, { userId: friend.id, city: "Москва", interests: [...seed.interests], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: seed.routesHidden ? { visitHistory: "friends", routes: "hidden" } : { ...DEFAULT_PRIVACY }, recommendationsEnabled: true });
+  });
+}
+seedMockProfiles();
+
+export function resetMockProfiles(): void {
+  seedMockProfiles();
+}
+
+export function profileFor(userId: string): Profile {
+  return mockProfiles.get(userId) ?? { userId, city: "Москва", interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY }, recommendationsEnabled: true };
+}

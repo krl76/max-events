@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { EventCategorySchema } from "@max-events/api-contracts";
-import { AppAvatar, AppButton, AppChip, AppMedia, AppNavTiles, AppSection, AppSkeleton, AppState, AppText, AppTitle, CATEGORY_MEDIA_ICON } from "./primitives";
+import { APP_STATE_COPY, AppAvatar, appButtonClass, AppButton, AppChip, AppEmptyState, AppMedia, AppNavTiles, AppSection, AppSkeleton, AppSkeletonList, AppState, AppText, AppTitle, CATEGORY_MEDIA_ICON, type AppStateKind } from "./primitives";
 
 const noop = () => {};
 
@@ -26,6 +26,26 @@ describe("AppButton", () => {
   it("renders the secondary tone without an ionic color and ghost as clear fill", () => {
     expect(renderToStaticMarkup(<AppButton tone="secondary" />)).toContain("<ion-button");
     expect(renderToStaticMarkup(<AppButton tone="ghost" />)).toContain('fill="clear"');
+  });
+
+  // Asserted through appButtonClass, not the markup: @ionic/react attaches className to the DOM
+  // node on mount, so renderToStaticMarkup emits <ion-button> with no class attribute whatsoever.
+  it("gives every tone its own skin hook, so form and not hue tells them apart", () => {
+    expect(appButtonClass("danger")).toContain("app-btn--danger");
+    expect(appButtonClass("confirm")).toContain("app-btn--confirm");
+    expect(appButtonClass("primary")).toBe("app-btn app-btn--primary");
+  });
+
+  it("keeps the caller's own class alongside the tone class", () => {
+    expect(appButtonClass("danger", "extra")).toBe("app-btn app-btn--danger extra");
+  });
+
+  it("styles the confirmation tone from its class alone, without an ionic colour", () => {
+    const html = renderToStaticMarkup(<AppButton tone="confirm">Да, снять</AppButton>);
+
+    expect(html).toContain("Да, снять");
+    expect(html).not.toContain('color="primary"');
+    expect(html).not.toContain('color="danger"');
   });
 });
 
@@ -62,6 +82,75 @@ describe("toggle and state primitives", () => {
     expect(html).toContain("app-state--error");
     expect(html).toContain("app-state-icon");
     expect(html).toContain("Повторить");
+  });
+
+  it("omits the hint line and the action row when neither is given", () => {
+    const html = renderToStaticMarkup(<AppState>Пока пусто</AppState>);
+
+    expect(html).not.toContain("app-state-hint");
+    expect(html).not.toContain("app-state-actions");
+  });
+
+  it("renders the hint under the text and both actions side by side", () => {
+    const html = renderToStaticMarkup(
+      <AppState hint="Твои планы доступны офлайн" action={{ label: "Обновить", onClick: noop }} secondaryAction={{ label: "Ответить заново", onClick: noop }}>
+        Показываем сохранённое
+      </AppState>,
+    );
+
+    expect(html).toContain("app-state-hint");
+    expect(html.indexOf("Показываем сохранённое")).toBeLessThan(html.indexOf("Твои планы доступны офлайн"));
+    expect(html).toContain("app-state-actions");
+    expect(html).toContain("Обновить");
+    expect(html).toContain("Ответить заново");
+  });
+});
+
+describe("reusable empty states", () => {
+  const KINDS: AppStateKind[] = ["empty-feed", "offline", "forbidden", "not-moderator", "empty-match", "friends-unsynced"];
+
+  it("covers every state of the design with non-empty wording", () => {
+    expect(Object.keys(APP_STATE_COPY).sort()).toEqual([...KINDS].sort());
+    for (const kind of KINDS) {
+      expect(APP_STATE_COPY[kind].text.trim()).not.toBe("");
+    }
+  });
+
+  it("renders the empty feed wording and its call to action", () => {
+    const html = renderToStaticMarkup(<AppEmptyState kind="empty-feed" onAction={noop} />);
+
+    expect(html).toContain("На эти выходные у друзей пока нет планов");
+    expect(html).toContain("Предложить первым");
+  });
+
+  it("renders the offline state as text plus hint", () => {
+    const html = renderToStaticMarkup(<AppEmptyState kind="offline" onAction={noop} />);
+
+    expect(html).toContain("Показываем сохранённое");
+    expect(html).toContain("Твои планы доступны офлайн");
+    expect(html).toContain("Обновить");
+  });
+
+  it("offers both ways out of an empty match", () => {
+    const html = renderToStaticMarkup(<AppEmptyState kind="empty-match" onAction={noop} onSecondaryAction={noop} />);
+
+    expect(html).toContain("Под такие ответы ничего нет");
+    expect(html).toContain("Изменить бюджет");
+    expect(html).toContain("Ответить заново");
+  });
+
+  it("drops the action when no handler is wired, rather than rendering a dead button", () => {
+    const html = renderToStaticMarkup(<AppEmptyState kind="friends-unsynced" />);
+
+    expect(html).toContain("Пока никого нет");
+    expect(html).not.toContain("Синхронизировать контакты");
+  });
+
+  it("states without an action render as plain text", () => {
+    const html = renderToStaticMarkup(<AppEmptyState kind="not-moderator" onAction={noop} />);
+
+    expect(html).toContain("Раздел модерации недоступен");
+    expect(html).not.toContain("app-state-actions");
   });
 });
 
@@ -123,6 +212,14 @@ describe("layout primitives", () => {
 
     expect(html).toContain('style="width:40%"');
     expect(html).toContain('aria-hidden="true"');
+  });
+
+  it("announces a skeleton list once instead of once per placeholder row", () => {
+    const html = renderToStaticMarkup(<AppSkeletonList rows={4} />);
+
+    expect(html.match(/class="app-skeleton-row"/g)).toHaveLength(4);
+    expect(html.match(/role="status"/g)).toHaveLength(1);
+    expect(html).toContain('aria-label="Загрузка"');
   });
 
   it("renders the section head with the title as the accessible name", () => {

@@ -30,13 +30,40 @@ describe("Layout tabbar active predicates", () => {
     expect(active[0].route).toBe("profile");
   });
 
+  it("highlights the Profile tab on the subscriptions screen", () => {
+    const active = TABS.filter((tab) => tab.active("subscriptions"));
+
+    expect(active).toHaveLength(1);
+    expect(active[0].route).toBe("profile");
+  });
+
+  it("keeps the map on the Search tab, because it is a view inside search", () => {
+    const active = TABS.filter((tab) => tab.active("map"));
+
+    expect(active).toHaveLength(1);
+    expect(active[0].route).toBe("search");
+  });
+
+  it("highlights the Create tab on every publication screen", () => {
+    for (const name of ["create", "story-new", "feed-new", "micro-new", "plan-new"]) {
+      const active = TABS.filter((tab) => tab.active(name));
+
+      expect(active).toHaveLength(1);
+      expect(active[0].route).toBe("create");
+    }
+  });
+
   it("keeps other screens off the Plans tab", () => {
     expect(TABS.find((tab) => tab.route === "plans")?.active("home")).toBe(false);
     expect(TABS.find((tab) => tab.route === "plans")?.active("search")).toBe(false);
   });
 
   it("defines exactly the five tabbar tabs in order", () => {
-    expect(TABS.map((tab) => tab.route)).toEqual(["home", "search", "map", "plans", "profile"]);
+    expect(TABS.map((tab) => tab.route)).toEqual(["home", "search", "create", "plans", "profile"]);
+  });
+
+  it("labels the tabs as the design does", () => {
+    expect(TABS.map((tab) => tab.label)).toEqual(["Лента", "Поиск", "Создать", "Планы", "Профиль"]);
   });
 });
 
@@ -69,18 +96,22 @@ describe("routeHasBack", () => {
     expect(routeHasBack({ name: "whereto" })).toBe(true);
     expect(routeHasBack({ name: "plan", id: "p1" })).toBe(true);
   });
+
+  it("shows the back button on the map, which is pushed from search rather than tabbed to", () => {
+    expect(routeHasBack({ name: "map" })).toBe(true);
+  });
 });
 
 describe("routeHasHeader", () => {
-  it("hides the header on the search, map, plans and profile screens", () => {
+  it("hides the header on the search, plans and profile screens", () => {
     expect(routeHasHeader({ name: "search" })).toBe(false);
-    expect(routeHasHeader({ name: "map" })).toBe(false);
     expect(routeHasHeader({ name: "plans" })).toBe(false);
     expect(routeHasHeader({ name: "profile" })).toBe(false);
   });
 
-  it("keeps the header on the home tab and detail routes", () => {
+  it("keeps the header on the home tab, the map and detail routes", () => {
     expect(routeHasHeader({ name: "home" })).toBe(true);
+    expect(routeHasHeader({ name: "map" })).toBe(true);
     expect(routeHasHeader({ name: "settings" })).toBe(true);
     expect(routeHasHeader({ name: "event", id: "e1" })).toBe(true);
     expect(routeHasHeader({ name: "calendar" })).toBe(true);
