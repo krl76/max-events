@@ -21,6 +21,7 @@
 // - EventRating - event page rating aggregate: RatingSummary + per-category averages
 // - FeedComment - post comment attributed to its author
 // - FeedPost - impression post aggregate: author, event, text, like counter/state, comments
+// - FriendSuggestion - one person of the onboarding friends step: friend + the hint line under the name + whether the viewer follows them
 // - LeisureQuery - free-window leisure payload (hours 1..8, mood, coordinates)
 // - ListItemCard - list screen aggregate: list item enriched with its event and the participant who added it (null outside shared collections)
 // - ListScreen - one-list aggregate: list + participants + item cards (shared collections surface)
@@ -63,7 +64,7 @@ export { parseEventFilters, serializeEventFilters } from "./endpoints/catalog";
 export type { EventDetails, EventFilters, ParticipationStats } from "./endpoints/catalog";
 export type { CreateReview, EventRating } from "./endpoints/reviews";
 export type { CreateFeedPost, FeedComment, FeedPost } from "./endpoints/feed";
-export type { CreateGathering, CreateMicroEvent } from "./endpoints/social";
+export type { CreateGathering, CreateMicroEvent, FriendSuggestion } from "./endpoints/social";
 export type { CreateCheckIn } from "./endpoints/bookings";
 export type { CalendarEntry } from "./endpoints/plans";
 export type { AddListItem, ListItemCard, ListScreen, ListSummary } from "./endpoints/lists";

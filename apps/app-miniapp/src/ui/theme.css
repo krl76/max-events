@@ -2240,14 +2240,28 @@ html[data-theme="dark"] body {
   font-weight: var(--app-font-weight-title);
 }
 
-/* Экран входа: hero с градиентным логотипом, действия прижаты к низу */
+/* Экран входа (макет, экран 01): фирменная подложка под затемняющей вуалью, лого-плитка,
+ * «Войти через MAX» / «Вход организатора», строка условий.
+ * Экран остаётся тёмным в обеих схемах: это брендовая заставка со своей землёй и белыми
+ * чернилами, а не страница приложения — в макете у неё один вариант. */
 
 .app-entry {
+  background: var(--app-gradient-dark);
   box-sizing: border-box;
+  color: var(--brand-white);
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  padding: var(--app-space-xl) var(--app-space-screen);
+  padding: var(--app-space-xl) var(--app-space-screen) 40px;
+  position: relative;
+}
+
+/* Вертикальная вуаль макета: тёмные края держат текст, светлая середина — подложку */
+.app-entry-veil {
+  background: linear-gradient(180deg, rgba(13, 0, 26, 0.72) 0%, rgba(13, 0, 26, 0.34) 34%, rgba(13, 0, 26, 0.6) 60%, rgba(13, 0, 26, 0.92) 100%);
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
 }
 
 .app-entry-hero {
@@ -2257,41 +2271,130 @@ html[data-theme="dark"] body {
   flex-direction: column;
   gap: var(--app-space-m);
   justify-content: center;
+  position: relative;
   text-align: center;
 }
 
-/* Онбординг — gradient-light. Глиф тёмный: светлый конец градиента упирается в белый лист,
- * белый знак там бы пропал. На дальнем конце (brand-cyan) brand-void даёт 9.4:1. */
+/* Плитка знака: violet → cyan из макета. Глиф белый и декоративный (aria-hidden),
+ * смысл несут словесный знак и подпись под ним. */
 .app-entry-logo {
   align-items: center;
-  background: var(--app-gradient-light);
-  border-radius: 28px;
+  background: linear-gradient(140deg, var(--brand-violet), var(--brand-cyan));
+  border-radius: var(--app-space-xl);
   box-shadow: var(--app-shadow-lift);
-  color: var(--brand-void);
+  color: var(--brand-white);
   display: grid;
-  height: 88px;
+  height: 82px;
   justify-items: center;
-  width: 88px;
+  width: 82px;
 }
 
 .app-entry-title {
   font-size: var(--app-font-size-display);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: -0.02em;
   margin: 0;
 }
 
-.app-entry-tagline {
-  color: var(--app-text-secondary);
+/* Словесный знак «афиша · MAX»: точка между словами — brand-cyan, разрешённая роль «живого» индикатора */
+.app-wordmark {
+  align-items: center;
+  display: inline-flex;
+  gap: 7px;
+}
+
+.app-wordmark-dot {
+  background: var(--brand-cyan);
+  border-radius: 50%;
+  flex-shrink: 0;
+  height: 8px;
+  width: 8px;
+}
+
+.app-wordmark--on-media {
+  color: var(--brand-white);
   font-size: var(--app-font-size-body);
+  font-weight: 800;
+}
+
+.app-wordmark--on-media .app-wordmark-dot {
+  height: 6px;
+  width: 6px;
+}
+
+.app-entry-tagline {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: var(--app-font-size-body);
+  font-weight: 600;
   margin: 0;
-  max-width: min(var(--app-measure), 300px);
+  max-width: min(var(--app-measure), 250px);
+  position: relative;
 }
 
 .app-entry-actions {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-s);
+  gap: 10px;
+  position: relative;
+}
+
+/* На тёмной заставке главная кнопка белая, а не синяя: brand-blue на gradient-dark — 3.9:1,
+ * и синим здесь уже залита сама подложка. Вторая — обводка, как в макете. */
+.app-entry-btn {
+  align-items: center;
+  border: none;
+  border-radius: var(--app-radius-card);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  height: 56px;
+  justify-content: center;
+  width: 100%;
+}
+
+.app-entry-btn--max {
+  background: var(--brand-white);
+  color: var(--brand-void);
+  font-weight: 800;
+}
+
+.app-entry-btn--organizer {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: var(--brand-white);
+  font-weight: 700;
+}
+
+.app-entry-btn--organizer:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.app-entry-btn svg {
+  margin-inline-end: 10px;
+}
+
+.app-entry-max-mark {
+  align-items: center;
+  background: linear-gradient(140deg, var(--brand-violet), var(--brand-cyan));
+  border-radius: var(--app-space-s);
+  color: var(--brand-white);
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 26px;
+  justify-content: center;
+  margin-inline-end: 10px;
+  width: 26px;
+}
+
+.app-entry-legal {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: var(--app-font-size-caption);
+  font-weight: 500;
+  margin: var(--app-space-xs) 0 0;
+  position: relative;
+  text-align: center;
 }
 
 /* Вход организатора: центрированная форма. Шапка организатора — gradient-dark,
@@ -2544,4 +2647,553 @@ html[data-theme="dark"] body {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-s);
+}
+
+/* Онбординг (макет, экран 02): вступление → город → друзья → интересы.
+ * Экран живёт до шапки и таббара, поэтому собирает собственную колонку:
+ * шапка шага сверху, скроллящаяся середина, прижатый подвал с кнопкой. */
+
+.app-onboarding {
+  background: var(--app-page);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Hero вступления: один из трёх фирменных градиентов и две «планеты» из макета */
+.app-onboarding-hero {
+  border-radius: var(--app-radius-card);
+  display: flex;
+  flex: 0 1 440px;
+  flex-direction: column;
+  justify-content: space-between;
+  margin: 60px var(--app-space-m) 0;
+  min-height: 200px;
+  overflow: hidden;
+  padding: 18px var(--app-space-screen) var(--app-space-xl);
+  position: relative;
+}
+
+.app-onboarding-hero--1 {
+  background: var(--app-gradient-dark);
+}
+
+.app-onboarding-hero--2 {
+  background: linear-gradient(160deg, var(--brand-blue), var(--brand-purple) 60%, var(--brand-cyan));
+}
+
+.app-onboarding-hero--3 {
+  background: linear-gradient(200deg, var(--brand-void), var(--brand-blue) 55%, var(--brand-cyan));
+}
+
+.app-onboarding-hero::before,
+.app-onboarding-hero::after {
+  border-radius: 50%;
+  content: "";
+  height: 260px;
+  pointer-events: none;
+  position: absolute;
+  width: 260px;
+}
+
+.app-onboarding-hero::before {
+  background: rgba(255, 255, 255, 0.1);
+  right: -70px;
+  top: -50px;
+}
+
+/* Голубой круг — через opacity, а не rgba: канал brand-cyan палитра как литерал не раскрывает */
+.app-onboarding-hero::after {
+  background: var(--brand-cyan);
+  bottom: -60px;
+  left: -80px;
+  opacity: 0.28;
+}
+
+/* Содержимое hero лежит над «планетами»: те позиционированы и иначе перекрыли бы текст */
+.app-onboarding-hero-top,
+.app-onboarding-hero-label {
+  position: relative;
+  z-index: 1;
+}
+
+.app-onboarding-hero-top {
+  align-items: center;
+  color: var(--brand-white);
+  display: flex;
+  justify-content: space-between;
+}
+
+.app-onboarding-skip {
+  background: none;
+  border: none;
+  color: var(--brand-white);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  opacity: 0.75;
+  padding: var(--app-space-s);
+}
+
+.app-onboarding-hero-label {
+  color: var(--brand-white);
+  font-size: var(--app-font-size-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.app-onboarding-intro-body {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--app-space-xl) 28px;
+  text-align: center;
+}
+
+.app-onboarding-intro-title {
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.app-onboarding-intro-text {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-callout);
+  margin: var(--app-space-s) 0 0;
+  max-width: var(--app-measure);
+}
+
+.app-onboarding-dots {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: 20px;
+}
+
+.app-onboarding-dot {
+  background: rgba(var(--app-scheme-neutral), 0.15);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  height: 6px;
+  padding: 0;
+  width: 6px;
+}
+
+.app-onboarding-dot--on {
+  background: var(--app-accent);
+  width: 24px;
+}
+
+.app-onboarding-footer {
+  padding: 0 var(--app-space-screen) 40px;
+}
+
+.app-onboarding-footer--divided {
+  border-top: var(--app-hairline);
+  padding-top: var(--app-space-m);
+}
+
+/* Полоса шагов Город · Друзья · Интересы. Линия идёт по центрам точек:
+ * 64px верхнего отступа плюс половина точки в 12px — отсюда top: 70px. */
+.app-onboarding-rail {
+  display: flex;
+  justify-content: space-between;
+  list-style: none;
+  margin: 0;
+  padding: 64px 40px 0;
+  position: relative;
+}
+
+.app-onboarding-rail::before,
+.app-onboarding-rail::after {
+  content: "";
+  height: 2px;
+  left: 40px;
+  position: absolute;
+  top: 70px;
+  transform: translateY(-50%);
+}
+
+.app-onboarding-rail::before {
+  background: var(--app-divider);
+  right: 40px;
+}
+
+.app-onboarding-rail::after {
+  background: var(--app-accent);
+  width: 0;
+}
+
+.app-onboarding-rail--1::after {
+  width: calc((100% - 80px) / 2);
+}
+
+.app-onboarding-rail--2::after {
+  width: calc(100% - 80px);
+}
+
+.app-onboarding-rail-step {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  width: 70px;
+}
+
+.app-onboarding-rail-dot {
+  background: var(--app-canvas);
+  border: 2px solid var(--app-divider);
+  border-radius: 50%;
+  box-sizing: border-box;
+  height: 12px;
+  width: 12px;
+}
+
+.app-onboarding-rail-step--on .app-onboarding-rail-dot {
+  background: var(--app-accent);
+  border-color: var(--app-accent);
+}
+
+.app-onboarding-rail-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 600;
+}
+
+.app-onboarding-rail-step[aria-current] .app-onboarding-rail-label {
+  color: var(--app-text);
+  font-weight: 700;
+}
+
+.app-onboarding-head {
+  padding: var(--app-space-xl) var(--app-space-screen) 0;
+}
+
+.app-onboarding-head--center {
+  text-align: center;
+}
+
+.app-onboarding-title {
+  font-size: var(--app-font-size-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+  max-width: var(--app-measure);
+}
+
+.app-onboarding-title--headline {
+  font-size: var(--app-font-size-headline);
+}
+
+.app-onboarding-accent {
+  color: var(--app-accent-text);
+}
+
+.app-onboarding-lead {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-body);
+  margin: var(--app-space-s) 0 0;
+  max-width: var(--app-measure);
+}
+
+.app-onboarding-head--center .app-onboarding-title,
+.app-onboarding-head--center .app-onboarding-lead {
+  margin-inline: auto;
+}
+
+.app-onboarding-head--center .app-onboarding-lead {
+  font-size: var(--app-font-size-callout);
+  margin-top: 6px;
+}
+
+.app-onboarding-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--app-space-xl) var(--app-space-screen);
+}
+
+/* Шаг «Город»: определённый город карточкой, под ней список из пяти */
+.app-onboarding-city-card {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  gap: var(--app-space-m);
+  margin-bottom: var(--app-space-l);
+  padding: var(--app-space-l);
+}
+
+.app-onboarding-city-icon {
+  align-items: center;
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan));
+  border-radius: 14px;
+  color: var(--brand-white);
+  display: flex;
+  flex-shrink: 0;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.app-onboarding-city-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-onboarding-city-name {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+}
+
+.app-onboarding-city-meta {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-onboarding-city-live {
+  background: var(--app-status);
+  border-radius: 50%;
+  flex-shrink: 0;
+  height: var(--app-space-s);
+  width: var(--app-space-s);
+}
+
+.app-onboarding-city-list {
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  list-style: none;
+  margin: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.app-onboarding-city-option {
+  align-items: center;
+  background: none;
+  border: none;
+  border-bottom: var(--app-hairline);
+  box-sizing: border-box;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  font-weight: 600;
+  height: 56px;
+  justify-content: space-between;
+  padding: 0 var(--app-space-l);
+  width: 100%;
+}
+
+.app-onboarding-city-list li:last-child .app-onboarding-city-option {
+  border-bottom: none;
+}
+
+.app-onboarding-city-option[aria-pressed="true"] {
+  color: var(--app-accent-text);
+}
+
+/* Шаг «Друзья»: сетка по трое, подписанный — с фирменной обводкой и галочкой */
+.app-onboarding-people {
+  display: grid;
+  gap: 20px var(--app-space-s);
+  grid-template-columns: repeat(3, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-onboarding-person {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: var(--app-space-s);
+  padding: 0;
+  width: 100%;
+}
+
+.app-onboarding-person-avatar {
+  border-radius: 50%;
+  box-sizing: border-box;
+  height: 84px;
+  padding: 3px;
+  position: relative;
+  width: 84px;
+}
+
+.app-onboarding-person-avatar--on {
+  background: var(--app-gradient-light);
+}
+
+.app-onboarding-person-face {
+  align-items: center;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--brand-white);
+  display: flex;
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  height: 100%;
+  justify-content: center;
+  overflow: hidden;
+  width: 100%;
+}
+
+.app-onboarding-person-avatar--on .app-onboarding-person-face {
+  border-color: var(--app-canvas);
+}
+
+.app-onboarding-person-face img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-onboarding-person-face--1 {
+  background: var(--app-media-gradient-1);
+}
+
+.app-onboarding-person-face--2 {
+  background: var(--app-media-gradient-2);
+}
+
+.app-onboarding-person-face--3 {
+  background: var(--app-media-gradient-3);
+}
+
+.app-onboarding-person-face--4 {
+  background: var(--app-media-gradient-4);
+}
+
+.app-onboarding-person-face--5 {
+  background: var(--app-media-gradient-5);
+}
+
+.app-onboarding-person-mark {
+  align-items: center;
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: 50%;
+  bottom: 0;
+  box-sizing: border-box;
+  color: var(--app-text);
+  display: flex;
+  height: 26px;
+  justify-content: center;
+  position: absolute;
+  right: 0;
+  width: 26px;
+}
+
+.app-onboarding-person-avatar--on .app-onboarding-person-mark {
+  background: var(--app-accent);
+  border: 2px solid var(--app-canvas);
+  color: var(--app-accent-contrast);
+}
+
+.app-onboarding-person-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-align: center;
+}
+
+.app-onboarding-person-name {
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+}
+
+.app-onboarding-person-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+}
+
+/* Шаг «Интересы»: чипы крупнее каталожных — это единственное содержимое экрана */
+.app-onboarding-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.app-onboarding-chip {
+  align-items: center;
+  align-self: auto;
+  display: flex;
+  font-size: var(--app-font-size-body);
+  font-weight: 600;
+  gap: var(--app-space-s);
+  padding: var(--app-space-m) 18px;
+  white-space: normal;
+}
+
+.app-onboarding-chip.app-chip--on {
+  font-weight: 700;
+}
+
+/* Галочка на выбранном чипе — brand-cyan: заливка чипа в светлой схеме тёмная, там это 8.1:1.
+ * В тёмной схеме чип инвертируется в белый, и голубой на нём даёт 2.1:1 — галочка берёт
+ * контрастный цвет самого чипа. */
+.app-onboarding-chip.app-chip--on svg {
+  color: var(--brand-cyan);
+}
+
+.app-root[data-theme="dark"] .app-onboarding-chip.app-chip--on svg,
+[data-theme="dark"] .app-root:not([data-theme="light"]) .app-onboarding-chip.app-chip--on svg {
+  color: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .app-root:not([data-theme]) .app-onboarding-chip.app-chip--on svg {
+    color: inherit;
+  }
+}
+
+/* Кнопка шагов «Друзья» и «Интересы»: gradient-dark и радиус карточки из макета.
+ * Форма отличает её от синей pill-кнопки, которой ведут вступление и город. */
+.app-onboarding-cta {
+  align-items: center;
+  background: var(--app-gradient-dark);
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  height: 56px;
+  justify-content: center;
+  width: 100%;
+}
+
+.app-onboarding-cta:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.app-onboarding-error {
+  color: var(--app-danger-label);
+  font-size: var(--app-font-size-description);
+  margin: 0 0 var(--app-space-s);
+  text-align: center;
 }

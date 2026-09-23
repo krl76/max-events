@@ -7,6 +7,10 @@
 //
 // START_MODULE_MAP
 // - friendAvailability - per-friend free/busy/unknown for the gathering flow (mock)
+// - mockOnboardingContacts - the twelve MAX contacts the onboarding friends step offers: the seven friend fixtures plus five contacts who are not friends yet
+// - resetMockFollows - restore the three seeded follows (test isolation)
+// - friendSuggestions - mock GET /friends/suggestions: the onboarding contacts with their hint line and current follow state
+// - followMockFriends - mock PUT /friends/follows: replace the followed set, "unknown" when an id is not a contact
 // - mockGatherings - shared with social.routes
 // - MOCK_GATHERING_ID - seeded deep-link demo gathering (hosted by a friend; the demo user is an invitee so the response flow is reachable in mock mode)
 // - resetMockGatherings - restore the seeded demo gathering and clear created ones (test isolation)
@@ -27,8 +31,8 @@
 // END_MODULE_MAP
 
 import { MicroEventSchema, TimestampSchema } from "@max-events/api-contracts";
-import type { DiscoveryFriendPlaces, DiscoveryResponse, FriendActivityByFriend, FriendAvailability, FriendPlaceVisit, FriendRoute, Gathering, InviteeResponse, MicroEvent, ParticipationStatus, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place } from "@max-events/api-contracts";
-import { type CreateGathering, type CreateMicroEvent } from "../client";
+import type { DiscoveryFriendPlaces, DiscoveryResponse, Friend, FriendActivityByFriend, FriendAvailability, FriendPlaceVisit, FriendRoute, Gathering, InviteeResponse, MicroEvent, ParticipationStatus, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place } from "@max-events/api-contracts";
+import { type CreateGathering, type CreateMicroEvent, type FriendSuggestion } from "../client";
 import { mockCheckIns } from "./bookings";
 import { mockParticipations } from "./catalog";
 import { MOCK_NOW, PLACE_STAMP, haversineKm, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockPlaces } from "./fixtures";
@@ -39,6 +43,36 @@ const MOCK_AVAILABILITY: FriendAvailability["availability"][] = ["free", "busy",
 
 export function friendAvailability(): FriendAvailability[] {
   return mockFriends.map((friend, index) => ({ friend, availability: MOCK_AVAILABILITY[index] }));
+}
+
+/**
+ * The onboarding friends step (макет, экран 02) shows twelve «контактов из чатов MAX»: the seven friend
+ * fixtures plus five people the demo user shares chats with but has not added yet. They live here rather
+ * than in ./fixtures.ts because only this screen knows them — mockFriends stays the friends list.
+ */
+export const mockOnboardingContacts: readonly Friend[] = [...mockFriends, { id: "a0000000-0000-4000-8000-0000000000b8", name: "Марина Ким", avatarUrl: null }, { id: "a0000000-0000-4000-8000-0000000000b9", name: "Олег Савин", avatarUrl: null }, { id: "a0000000-0000-4000-8000-0000000000ba", name: "Сергей Ильин", avatarUrl: null }, { id: "a0000000-0000-4000-8000-0000000000bb", name: "Юля Крылова", avatarUrl: null }, { id: "a0000000-0000-4000-8000-0000000000bc", name: "Максим Зотов", avatarUrl: null }];
+
+/** The макет hint under each name; the backend has nothing to compute it from, so it is fixture text by position. */
+const MOCK_CONTACT_HINTS: readonly string[] = ["12 общих планов", "8 общих чатов", "была на джазе", "играет в падел", "5 общих планов", "из чата «Двор»", "ходит на лекции", "из чата «Падел»", "3 общих плана", "из чата «Работа»", "волонтёрит", "из чата «Дача»"];
+
+/** The макет opens the step with three people already followed, so the CTA reads «Подписаться на 3 и продолжить». */
+const MOCK_SEEDED_FOLLOWS: readonly string[] = mockOnboardingContacts.slice(0, 3).map((contact) => contact.id);
+
+let mockFollowedIds = new Set<string>(MOCK_SEEDED_FOLLOWS);
+
+export function resetMockFollows(): void {
+  mockFollowedIds = new Set<string>(MOCK_SEEDED_FOLLOWS);
+}
+
+export function friendSuggestions(): FriendSuggestion[] {
+  return mockOnboardingContacts.map((friend, index) => ({ friend, hint: MOCK_CONTACT_HINTS[index] ?? null, followed: mockFollowedIds.has(friend.id) }));
+}
+
+/** Replacing the whole set rather than toggling: the onboarding screen owns its selection until the viewer confirms it. */
+export function followMockFriends(userIds: string[]): string[] | "unknown" {
+  if (!userIds.every((id) => mockOnboardingContacts.some((contact) => contact.id === id))) return "unknown";
+  mockFollowedIds = new Set<string>(userIds);
+  return mockOnboardingContacts.filter((contact) => mockFollowedIds.has(contact.id)).map((contact) => contact.id);
 }
 
 /** Deterministic invitee answer per friend (by mockFriends index): Дима accepted, Катя considering, Андрей-like busy mix. */
