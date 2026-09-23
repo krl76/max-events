@@ -35,13 +35,14 @@ import { ActionIcon, type ActionIconName } from "./icons";
 
 export type AppButtonTone = "primary" | "secondary" | "danger" | "ghost" | "confirm";
 
-// Skins live in theme.css on .app-btn--<tone>; the ionic colour here only carries semantics.
-// danger keeps color="danger" but renders as an outline, so it cannot be mistaken for the
-// filled purple badge; confirm is styled entirely by its class.
+// Skins live in theme.css on .app-btn--<tone>. Only primary keeps an ionic colour: any `color` makes
+// ionic paint --background/--color inside its shadow root, which outranks the light-DOM class and turns
+// the button into a filled pill. danger and confirm are drawn entirely by their class, so the outline
+// of an irreversible action survives — form, not hue, tells the tones apart.
 const TONE_PROPS: Record<AppButtonTone, { color?: string; fill?: "clear" }> = {
   primary: { color: "primary" },
   secondary: {},
-  danger: { color: "danger" },
+  danger: {},
   ghost: { fill: "clear" },
   confirm: {},
 };

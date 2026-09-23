@@ -263,12 +263,17 @@ export function createMockList(userId: string, title: string): List | "too_many"
   return list;
 }
 
-/** A preset refuses both rename and delete: the backend recreates it, so the change would not stick. */
+/**
+ * A preset refuses both rename and delete: the backend recreates it, so the change would not stick.
+ *
+ * The shared collection is not refused. It is a mock-side fiction — the server has no shared-list
+ * concept at all, so PATCH/DELETE there check the preset flag and nothing else. Banning it here made
+ * the mock stricter than the thing it stands in for and hid the rename/delete of экран 39.
+ */
 export function renameMockList(listId: string, title: string): List | "no_list" | "preset" {
   const list = findList(listId);
   if (!list) return "no_list";
-  // A preset comes back from the backend, and a shared collection belongs to more than one person.
-  if (list.preset !== null || listId === SHARED_LIST_ID) return "preset";
+  if (list.preset !== null) return "preset";
   list.title = title;
   list.updatedAt = new Date().toISOString();
   return list;
@@ -277,7 +282,7 @@ export function renameMockList(listId: string, title: string): List | "no_list" 
 export function removeMockList(listId: string): List | "no_list" | "preset" {
   const list = findList(listId);
   if (!list) return "no_list";
-  if (list.preset !== null || listId === SHARED_LIST_ID) return "preset";
+  if (list.preset !== null) return "preset";
   for (const [userId, lists] of mockLists) {
     const index = lists.findIndex((row) => row.id === listId);
     if (index !== -1) mockLists.set(userId, [...lists.slice(0, index), ...lists.slice(index + 1)]);

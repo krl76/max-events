@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 37 «Списки» and экран 39 «Один список»: the six preset shelves, the lists of one's own up to twenty, and one list with its saved events, the author of every addition and its participants.
-// SCOPE: Data via apiClient.listLists/getList/createList/renameList/deleteList/addListItem/removeListItem (mock or live); presentational rendering; create from экран 37, rename and delete from экран 39 (a preset refuses both, the backend recreates it; a shared collection is not one person's to rename); sharing via bridge.shareResult.
+// SCOPE: Data via apiClient.listLists/getList/createList/renameList/deleteList/addListItem/removeListItem (mock or live); presentational rendering; create from экран 37, rename and delete from экран 39 (only a preset refuses both, the backend recreates it); sharing via bridge.shareResult.
 // DEPENDS: ../api/client.js (apiClient, ListItemCard, ListScreen, ListSummary), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../max/bridge.js (webApp, shareResult, ShareChannel), ../routing/router.js, ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, DF-MAX-IDENTITY
 // END_MODULE_CONTRACT
@@ -359,9 +359,10 @@ export function ListPage({ id }: { id: string }) {
 
   const { screen } = state;
   const shared = screen.participants.length > 0;
-  // A preset comes back from the backend and a shared collection belongs to more than one person:
-  // both refuse the rename and the delete, so neither gets a button that undoes itself.
-  const editable = screen.list.preset === null && !shared;
+  // Only a preset refuses the rename and the delete — the backend recreates it, so the button would
+  // undo itself. A shared collection keeps both: sharing is a mock-side fiction the server does not
+  // model, and макет, экран 39 draws the pair of actions on exactly such a list.
+  const editable = screen.list.preset === null;
   const addReady = events.some((event) => event.title === draft.trim());
   const meta = [shared ? "Общий список" : null, listCountLabel(screen.items.length)].filter((part): part is string => part !== null).join(" · ");
 

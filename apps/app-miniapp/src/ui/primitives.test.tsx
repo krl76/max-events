@@ -13,14 +13,18 @@ describe("AppButton", () => {
     expect(html).toContain("Текст");
   });
 
-  it("maps the danger tone to the ionic danger color", () => {
+  // Regression: color="danger" made ionic paint --background in its shadow root, which outranks the
+  // light-DOM .app-btn--danger class, so the irreversible action rendered as a filled pill instead of
+  // the outline the design gives it.
+  it("leaves the danger tone without an ionic colour, so its outline survives", () => {
     const html = renderToStaticMarkup(
       <AppButton tone="danger" className="extra">
         x
       </AppButton>,
     );
 
-    expect(html).toContain('<ion-button color="danger"');
+    expect(html).toContain("<ion-button");
+    expect(html).not.toContain("color=");
   });
 
   it("renders the secondary tone without an ionic color and ghost as clear fill", () => {

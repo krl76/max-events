@@ -83,14 +83,17 @@ describe("mock list management", () => {
     expect((await client.listLists(DEMO_USER_ID)).find((row) => row.list.id === preset.list.id)!.list.title).toBe(preset.list.title);
   });
 
-  it("refuses to rename or delete the shared collection, which is not one person's to remove", async () => {
+  // The shared collection exists only in the mock: the server knows lists, presets and items, and
+  // nothing about sharing. Its PATCH/DELETE therefore look at the preset flag alone, and the mock has
+  // to be no stricter, or экран 39 would show a rename the real backend would have allowed.
+  it("renames and deletes the shared collection, because the server has no rule against it", async () => {
     restore = installMockApi();
     const client = new ApiClient("/api");
     const shared = (await client.listLists(DEMO_USER_ID)).find((row) => row.participants.length > 0)!;
 
-    await expect(client.renameList(shared.list.id, "Моё")).rejects.toMatchObject({ status: 403 });
-    await expect(client.deleteList(shared.list.id)).rejects.toMatchObject({ status: 403 });
-    expect((await client.listLists(DEMO_USER_ID)).map((row) => row.list.id)).toContain(shared.list.id);
+    expect((await client.renameList(shared.list.id, "Наше лето")).title).toBe("Наше лето");
+    await client.deleteList(shared.list.id);
+    expect((await client.listLists(DEMO_USER_ID)).map((row) => row.list.id)).not.toContain(shared.list.id);
   });
 
   it("404s a list that is not there, and 400s an id that is not one", async () => {
