@@ -1,12 +1,19 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock discovery store: the today digest, the guided suggestion wizard, the nearby timeline with its free-window chains and the NL assistant.
-// SCOPE: Time-relative fixture selection and the deterministic assist heuristics; the HTTP surface is in ./discover.routes.ts.
+// PURPOSE: Mock discovery store: the today digest of экран 08, the guided suggestion wizard, the nearby timeline with its free-window chains, the NL assistant and the swipe deck of экран 09.
+// SCOPE: Time-relative fixture selection, the deterministic assist heuristics and the seeded swipe deck; the HTTP surface is in ./discover.routes.ts.
 // DEPENDS: @max-events/api-contracts, ../client.js and the sibling ./mock domain modules it imports
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
+// - MOCK_TODAY_ORIGIN - viewer coords the digest measures its distances from when the request carries none
+// - todayPicks - digest of экран 08 from fixtures: summary counters plus curated cards, one of them carrying the after_me hint
+// - SWIPE_CATEGORY_PLACES - which place categories each filter chip of экран 09 admits
+// - mockSwipeSeeds - per-venue swipe fixtures: the offer, the area line, the amenities, the friends and the match score (#498)
+// - mockSwipeDecisions - swipes taken in this session, keyed by place id; a decided venue leaves the deck
+// - resetMockSwipeDecisions - clear the taken swipes (test isolation)
+// - swipeCandidates - mock GET /discover/swipe: undecided venues of the chosen category, best match first
+// - recordSwipeDecision - mock POST /discover/swipe/:placeId: remember the swipe; false for an unknown venue
 // - nearbyTimeline - four-bucket nearby timeline from fixtures, haversine distance from the requested coords (mock GET /nearby)
 // - leisureOptions - deterministic per-mood leisure chains from fixtures inside the free window (mock GET /nearby/free)
 // - MOCK_ASSIST_RATE_LIMIT - assist rate limit (backend AssistRateLimiter parity: 20 hits / 10 min)
@@ -18,30 +25,47 @@
 // - mockAssistDay - upcoming Saturday stops (startsAt >= now) + planDraft, plan persisted when save=true (mock POST /assist/day, backend planSaturday parity)
 // END_MODULE_MAP
 
-import type { AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, Event, EventCategory, LeisureMood, LeisureOption, LeisureStop, NearbyBucket, NearbyCard, NearbyTimeline, Place, PlanCard, TodayEventCard, TodayResponse, WheretoMood, WheretoQuery, WheretoResponse } from "@max-events/api-contracts";
+import type { AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, Event, EventCategory, Friend, LeisureMood, LeisureOption, LeisureStop, NearbyBucket, NearbyCard, NearbyTimeline, Place, PlaceCategory, PlanCard, WheretoMood, WheretoQuery, WheretoResponse } from "@max-events/api-contracts";
+import type { SwipeCandidate, SwipeCategory, SwipeDecision, TodayCard, TodayDigest } from "../client";
 import { mockCheckIns, remainingSeats } from "./bookings";
-import { HOUR_MS, MOCK_NOW, haversineKm, mockDemoUser, mockEvents, mockFriendIds, mockPlaces, moscowDateKey, moscowHour } from "./fixtures";
+import { mockEventDistanceKm, mockEventRatingValue, placePageFor } from "./catalog";
+import { HOUR_MS, MOCK_NOW, haversineKm, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockPlaces, moscowDateKey, moscowHour } from "./fixtures";
 import { listsFor, mockListItems } from "./lists";
 import { mockPlans, nextMockPlanId } from "./plans";
 
-/** "What to do today?" digest: curated cards from fixtures; the showcase friends (Анна → выставка, Катя → фестиваль) back the friends counter. */
-export function todayPicks(): TodayResponse {
-  const cards: TodayEventCard[] = [
-    {
-      event: mockEvents[1],
-      labels: [
-        { kind: "distance", minutes: 15 },
-        { kind: "friend_attending", friendName: "Анна" },
-      ],
-    },
-    {
-      event: mockEvents[11],
-      labels: [
-        { kind: "distance", minutes: 20 },
-        { kind: "friend_attending", friendName: "Катя" },
-      ],
-    },
-    { event: mockEvents[9], labels: [{ kind: "free_entry" }, { kind: "spots_left", count: remainingSeats(mockEvents[9].id) ?? 0 }] },
+/** Where the digest measures from when the request carries no coordinates: the city centre the map opens on. */
+export const MOCK_TODAY_ORIGIN = { latitude: 55.7522, longitude: 37.6156 };
+
+/**
+ * Digest of экран 08: curated cards from fixtures; the showcase friends (Анна → выставка, Катя →
+ * фестиваль) back the friends counter. The last card carries the after_me hint — the label the design
+ * shows as a dismissible card — next to the distance and the free seats it prints as its chips.
+ * fromCategory is the word the sentence is built from (the contract types it as free text, not as the
+ * EventCategory enum), so the mock answers the genitive the hint reads with.
+ */
+export function todayPicks(origin: { latitude: number; longitude: number } = MOCK_TODAY_ORIGIN): TodayDigest {
+  const enrich = (event: Event, labels: TodayCard["labels"]): TodayCard => ({
+    event,
+    labels,
+    distanceKm: mockEventDistanceKm(event, origin),
+    rating: mockEventRatingValue(event.id),
+    placeTitle: mockPlaces.find((place) => place.id === event.placeId)?.title ?? null,
+  });
+  const cards: TodayCard[] = [
+    enrich(mockEvents[1], [
+      { kind: "distance", minutes: 15 },
+      { kind: "friend_attending", friendName: "Анна" },
+    ]),
+    enrich(mockEvents[11], [
+      { kind: "distance", minutes: 20 },
+      { kind: "friend_attending", friendName: "Катя" },
+    ]),
+    enrich(mockEvents[9], [{ kind: "free_entry" }, { kind: "spots_left", count: remainingSeats(mockEvents[9].id) ?? 0 }]),
+    enrich(mockEvents[14], [
+      { kind: "after_me", fromCategory: "джаза", afterCount: 4 },
+      { kind: "distance", minutes: 8 },
+      { kind: "spots_left", count: 12 },
+    ]),
   ];
   return {
     summary: {
@@ -51,6 +75,69 @@ export function todayPicks(): TodayResponse {
     },
     cards,
   };
+}
+
+/** Which venue categories each filter chip of экран 09 admits; «all» admits every category there is. */
+export const SWIPE_CATEGORY_PLACES: Record<SwipeCategory, readonly PlaceCategory[]> = {
+  all: ["park", "museum", "food", "sport", "other"],
+  food: ["food"],
+  outdoors: ["park"],
+  sport: ["sport"],
+};
+
+/**
+ * Per-venue swipe fixtures (#498). None of this is in the backend: there is no candidate feed, no
+ * amenity list on a place and nothing that scores a venue against a person, so the deck is seeded by
+ * place id and answers the shape the future endpoint will.
+ */
+export const mockSwipeSeeds: Record<string, { offerLabel: string; areaLine: string; amenities: string[]; pricePerHourRub: number | null; matchPercent: number; friendIndexes: number[] }> = {
+  [mockPlaces[0].id]: { offerLabel: "Мангальная зона", areaLine: "Парк Горького · набережная у пруда", amenities: ["навес от дождя", "розетка", "мангал и решётки"], pricePerHourRub: 800, matchPercent: 92, friendIndexes: [0, 1] },
+  [mockPlaces[1].id]: { offerLabel: "Постоянная экспозиция", areaLine: "Волхонка · десять минут от метро", amenities: ["гардероб", "аудиогид", "кафе на первом этаже"], pricePerHourRub: null, matchPercent: 74, friendIndexes: [0] },
+  [mockPlaces[2].id]: { offerLabel: "Падел-корты", areaLine: "Лужники · южное ядро", amenities: ["раздевалка", "аренда ракеток", "душ"], pricePerHourRub: 1200, matchPercent: 86, friendIndexes: [1, 3] },
+  [mockPlaces[3].id]: { offerLabel: "Фудмолл", areaLine: "Тверская Застава · три этажа корнеров", amenities: ["веранда", "детский уголок", "работает до полуночи"], pricePerHourRub: null, matchPercent: 68, friendIndexes: [2] },
+  [mockPlaces[4].id]: { offerLabel: "Летняя веранда", areaLine: "Крымский Вал · у входа в парк", amenities: ["навес от дождя", "розетка", "завтраки весь день"], pricePerHourRub: null, matchPercent: 81, friendIndexes: [2, 4] },
+};
+
+/** Swipes taken in this session; a venue the viewer has already judged does not come back in the deck. */
+export const mockSwipeDecisions = new Map<string, SwipeDecision>();
+
+/** Clear the taken swipes (test isolation). */
+export function resetMockSwipeDecisions(): void {
+  mockSwipeDecisions.clear();
+}
+
+function swipeCandidate(place: Place, origin: { latitude: number; longitude: number } | null): SwipeCandidate {
+  const seed = mockSwipeSeeds[place.id];
+  const page = placePageFor(place.id, mockDemoUser.id);
+  const friends: Friend[] = (seed?.friendIndexes ?? []).flatMap((index) => (mockFriends[index] === undefined ? [] : [mockFriends[index]]));
+  return {
+    place,
+    areaLine: seed?.areaLine ?? null,
+    offerLabel: seed?.offerLabel ?? null,
+    distanceKm: origin === null ? null : Math.round(haversineKm(origin.latitude, origin.longitude, place.latitude, place.longitude) * 10) / 10,
+    rating: page?.rating === null || page?.rating === undefined ? null : Math.round(page.rating.summary.averageStars * 10) / 10,
+    reviewsCount: page?.rating?.summary.reviewsCount ?? null,
+    pricePerHourRub: seed?.pricePerHourRub ?? null,
+    amenities: seed?.amenities ?? [],
+    friendsHere: friends,
+    matchPercent: seed?.matchPercent ?? null,
+  };
+}
+
+/** Mock GET /discover/swipe: published venues of the chosen category the viewer has not judged yet, best match first. */
+export function swipeCandidates(category: SwipeCategory = "all", origin: { latitude: number; longitude: number } | null = null): SwipeCandidate[] {
+  const admitted = SWIPE_CATEGORY_PLACES[category];
+  return mockPlaces
+    .filter((place) => place.published !== false && admitted.includes(place.category) && !mockSwipeDecisions.has(place.id))
+    .map((place) => swipeCandidate(place, origin))
+    .sort((a, b) => (b.matchPercent ?? -1) - (a.matchPercent ?? -1) || a.place.id.localeCompare(b.place.id));
+}
+
+/** Mock POST /discover/swipe/:placeId: remember the swipe; false for a venue that does not exist. */
+export function recordSwipeDecision(placeId: string, decision: SwipeDecision): boolean {
+  if (!mockPlaces.some((place) => place.id === placeId && place.published !== false)) return false;
+  mockSwipeDecisions.set(placeId, decision);
+  return true;
 }
 
 const NEARBY_MAX_KM = 15;

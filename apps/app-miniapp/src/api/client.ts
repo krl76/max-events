@@ -10,15 +10,18 @@
 // - ApiClient - configurable fetch wrapper with typed methods
 // - ApiError - unified API error with HTTP status
 // - CalendarEntry - calendar item: active booking enriched with its event and place
+// - CatalogCard - list card of экран 08: event plus distance, rating and venue line, nullable until the list DTO carries them (#496)
 // - CreateCheckIn - check-in payload (user + exactly one of event/place)
 // - CreateFeedPost - impression publication payload (author, event, text, optional photo); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
 // - CreateGathering - gathering launch payload (event + friend ids + proposed meeting time)
 // - CreateMicroEvent - micro-event creation payload (author, what/when/where, limit)
 // - CreateReport - report submission payload (user + exactly one of event/place/feed post + reason); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
 // - CreateReview - review submission payload (user + event + scores)
+// - EVENT_SORTS - the catalog orderings экран 08 may ask for (#497)
 // - EventDetails - event page aggregate: event, place, organizer (nullable), free seats, own active booking
-// - EventFilters - optional catalog list filters (category/city/date/minRating)
+// - EventFilters - optional catalog list filters (category/city/date/minRating/query/sort)
 // - EventRating - event page rating aggregate: RatingSummary + per-category averages
+// - EventSort - catalog ordering: soonest / nearest / best rated (#497)
 // - FeedCard - discriminated union of the two home feed card kinds (макет, экран 03)
 // - FeedCardCounts - social counters of one feed card (wants to go / going / waitlist / free seats), nullable until the list DTO carries them (#496)
 // - FeedComment - post comment attributed to its author
@@ -30,6 +33,7 @@
 // - ListItemCard - list screen aggregate: list item enriched with its event and the participant who added it (null outside shared collections)
 // - ListScreen - one-list aggregate: list + participants + item cards (shared collections surface)
 // - ListSummary - lists screen aggregate: list + item count + id of the item saving the checked event (null when not saved) + participants (shared collections, mock)
+// - MapWeather - city weather behind the map chip (макет, экран 16): now plus the change to come (#495)
 // - MyCityPayload - my-city screen aggregate: summary counters + memory points
 // - NotificationsSummary - unread count behind the feed header bell; mock-only until the notifications domain exists (#494)
 // - OrganizerEvent - contract event plus the draft flag read from the raw `published` field (returned by toEventDto; a missing flag reads as published)
@@ -39,7 +43,15 @@
 // - REPORT_REASONS - report reason presets
 // - Report - report entity (contract shape)
 // - ReportReason - union of the report reason presets
+// - SWIPE_CATEGORIES - the four filter chips of экран 09 in design order
 // - StatsPeriodQuery - optional from/to window for the organizer reports
+// - SwipeCandidate - one card of the swipe deck: venue, amenities, friends and the match score (#498)
+// - SwipeCategory - the filter chips of экран 09 (Все / Еда / На природе / Спорт)
+// - SwipeDecision - what a swipe meant: right into favourites, left past it
+// - TodayCard - one card of the digest: a CatalogCard plus its typed labels (макет, экран 08)
+// - TodayDigest - digest response of экран 08: the three counters plus the cards
+// - TravelMode - how the traveller gets to the object: on foot or by metro (#504)
+// - TravelOption - one way to the object: minutes, distance, transfers (#504)
 // - UpdateOrganizerEvent - minimal event edit payload (backend PATCH /events/:id whitelist)
 // - UpdateOrganizerPlace - place edit payload (backend PATCH /places/:id validates CreatePlaceSchema.partial())
 // - apiClient - default singleton instance
@@ -66,8 +78,8 @@ import { withSocial } from "./endpoints/social";
 import { ApiTransport } from "./endpoints/transport";
 
 export { ApiError } from "./endpoints/transport";
-export { parseEventFilters, serializeEventFilters } from "./endpoints/catalog";
-export type { EventDetails, EventFilters, ParticipationStats, PlaceParticipation } from "./endpoints/catalog";
+export { EVENT_SORTS, parseEventFilters, serializeEventFilters } from "./endpoints/catalog";
+export type { CatalogCard, EventDetails, EventFilters, EventSort, MapWeather, ParticipationStats, PlaceParticipation, TravelMode, TravelOption } from "./endpoints/catalog";
 export type { CreateReview, EventRating } from "./endpoints/reviews";
 export type { CreateFeedPost, FeedCard, FeedCardCounts, FeedComment, FeedFriendCard, FeedPlaceCard, FeedPost, NotificationsSummary } from "./endpoints/feed";
 export type { CreateGathering, CreateMicroEvent, FriendSuggestion } from "./endpoints/social";
@@ -75,7 +87,8 @@ export type { CreateCheckIn } from "./endpoints/bookings";
 export type { CalendarEntry } from "./endpoints/plans";
 export type { AddListItem, ListItemCard, ListScreen, ListSummary } from "./endpoints/lists";
 export type { MyCityPayload } from "./endpoints/profile";
-export type { LeisureQuery } from "./endpoints/discover";
+export { SWIPE_CATEGORIES } from "./endpoints/discover";
+export type { LeisureQuery, SwipeCandidate, SwipeCategory, SwipeDecision, TodayCard, TodayDigest } from "./endpoints/discover";
 export { statsPeriodQuery } from "./endpoints/organizer";
 export type { OrganizerEvent, OrganizerPlace, StatsPeriodQuery, UpdateOrganizerEvent, UpdateOrganizerPlace } from "./endpoints/organizer";
 export { REPORT_REASONS } from "./endpoints/moderation";

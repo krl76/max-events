@@ -1,90 +1,128 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { mockEvents } from "../api/mock";
-import { addRecentSearch, RECENT_SEARCHES_LIMIT, SearchView, type SearchState } from "./SearchPage";
+import { catalogCards } from "../api/mock";
+import { addRecentSearch, RECENT_SEARCHES_LIMIT, railMeta, searchCities, SearchEntryTiles, SearchNearby, SearchQueryForm, SearchTopBar, SearchWayTiles, type SearchState } from "./SearchPage";
 
 const noop = () => {};
-const READY: SearchState = { status: "ready", events: mockEvents };
-
-function viewHtml(over: { query?: string; recents?: string[]; state?: SearchState; minRating?: number } = {}): string {
-  return renderToStaticMarkup(createElement(SearchView, { query: over.query ?? "", onQuery: noop, onSubmit: noop, recents: over.recents ?? [], state: over.state ?? READY, onOpenEvent: noop, minRating: over.minRating }));
-}
+const CARDS = catalogCards({ sort: "near" }, { latitude: 55.7522, longitude: 37.6156 });
+const READY: SearchState = { status: "ready", cards: CARDS };
 
 describe("addRecentSearch", () => {
-  it("prepends the trimmed query", () => {
+  it("prepends the trimmed query and dedupes case-insensitively", () => {
     expect(addRecentSearch(["йога"], "  кино ")).toEqual(["кино", "йога"]);
-  });
-
-  it("dedupes case-insensitively and moves the fresh query up", () => {
     expect(addRecentSearch(["Кино", "йога"], "кино")).toEqual(["кино", "йога"]);
   });
 
-  it("caps the list at the limit", () => {
+  it("caps the list at the limit and ignores a blank query", () => {
     const full = Array.from({ length: RECENT_SEARCHES_LIMIT }, (_, index) => `q${index}`);
     const next = addRecentSearch(full, "new");
 
     expect(next).toHaveLength(RECENT_SEARCHES_LIMIT);
     expect(next[0]).toBe("new");
     expect(next).not.toContain(`q${RECENT_SEARCHES_LIMIT - 1}`);
-  });
-
-  it("keeps the list untouched on a blank query", () => {
     expect(addRecentSearch(["йога"], "   ")).toEqual(["йога"]);
   });
 });
 
-describe("SearchView", () => {
-  it("shows the hint and recent chips on a blank query", () => {
-    const html = viewHtml({ recents: ["йога", "Рахманинов"] });
+describe("search helpers", () => {
+  it("offers the cities the loaded catalog names, without repeats", () => {
+    const cities = searchCities(CARDS);
 
-    expect(html).toContain("Начните вводить");
-    expect(html).toContain("йога");
-    expect(html).toContain("Рахманинов");
-    expect(html).not.toContain("app-card--link");
+    expect(cities).toContain("Москва");
+    expect(new Set(cities).size).toBe(cities.length);
+    expect(searchCities([])).toEqual([]);
   });
 
-  it("hides recents once a query is entered", () => {
-    const html = viewHtml({ query: "Рахманинов", recents: ["йога"] });
+  it("puts the distance first on a rail card and falls back to the venue without one", () => {
+    const card = CARDS.find((item) => item.distanceKm !== null)!;
+    expect(railMeta(card)).toMatch(/ км · /);
+    expect(railMeta({ ...card, distanceKm: null, placeTitle: "Парк Горького" })).toContain("Парк Горького · ");
+    expect(railMeta({ ...card, distanceKm: null, placeTitle: null })).toContain(card.event.city);
+  });
+});
 
-    expect(html).not.toContain("Начните вводить");
-    expect(html).not.toContain(">йога<");
+describe("SearchTopBar", () => {
+  const bar = (over: { city?: string; cities?: string[]; initial?: string } = {}) => renderToStaticMarkup(createElement(SearchTopBar, { city: over.city ?? "Москва", cities: over.cities ?? ["Москва"], onCity: noop, initial: over.initial ?? "К", searchOpen: false, onToggleSearch: noop }));
+
+  it("shows the city, the viewer initial and the search toggle", () => {
+    const html = bar();
+
+    expect(html).toContain("Москва");
+    expect(html).toContain(">К<");
+    expect(html).toContain('aria-label="Поиск"');
+    // Меню города закрыто, пока по пилюле не нажали.
+    expect(html).not.toContain("app-search-city-menu");
+  });
+});
+
+describe("SearchQueryForm", () => {
+  it("shows the recents on a blank query and hides them once something is typed", () => {
+    const form = (query: string) => renderToStaticMarkup(createElement(SearchQueryForm, { query, onQuery: noop, onSubmit: noop, recents: ["йога", "Рахманинов"] }));
+
+    expect(form("")).toContain("Рахманинов");
+    expect(form("")).toContain("app-search-recents");
+    expect(form("джаз")).not.toContain("app-search-recents");
+  });
+});
+
+describe("search entries", () => {
+  it("offers the swipe deck and the map as the two tiles of the design", () => {
+    const html = renderToStaticMarkup(createElement(SearchEntryTiles, { onSwipe: noop, onMap: noop }));
+
+    expect(html).toContain("Подбор свайпами");
+    expect(html).toContain("Места под твой вкус");
+    expect(html).toContain("На карте");
+    expect(html).toContain("Друзья и маршруты");
   });
 
-  it("renders only the matching event cards", () => {
-    const html = viewHtml({ query: "Рахманинов" });
+  it("offers the wizard and the nearby screen, and keeps one dark tile between them", () => {
+    const html = renderToStaticMarkup(createElement(SearchWayTiles, { onWhereto: noop, onNearby: noop }));
 
-    expect(html).toContain("Вечер Рахманинова: симфонический оркестр");
-    expect(html).not.toContain("Выставка импрессионистов из частных собраний");
+    expect(html).toContain("Куда пойдём?");
+    expect(html).toContain("Три вопроса — пять вариантов");
+    expect(html).toContain("Рядом со мной");
+    expect(html).toContain("Сейчас, через час, вечером");
+    expect((html.match(/app-search-way--dark/g) ?? []).length).toBe(1);
+  });
+});
+
+describe("SearchNearby", () => {
+  const rail = (over: { state?: SearchState; query?: string; expanded?: boolean } = {}) => renderToStaticMarkup(createElement(SearchNearby, { state: over.state ?? READY, query: over.query ?? "", expanded: over.expanded ?? false, onExpand: noop, onOpenEvent: noop, onRetry: noop }));
+
+  it("shows the horizontal rail with «Смотреть все» while nothing is being searched", () => {
+    const html = rail();
+
+    expect(html).toContain("Сегодня рядом");
+    expect(html).toContain("Смотреть все");
+    expect(html).toContain("app-rail-strip");
+    expect(html).toContain(CARDS[0].event.title);
   });
 
-  it("matches the city case-insensitively", () => {
-    const kazan = mockEvents.find((event) => event.city !== "Москва");
-    if (kazan === undefined) return;
-    const html = viewHtml({ query: kazan.city.toLowerCase() });
-
-    expect(html).toContain(kazan.title);
+  it("drops «Смотреть все» once the catalog is already unfolded", () => {
+    expect(rail({ expanded: true })).not.toContain("Смотреть все");
   });
 
-  it("offers the rating filter next to the search field, and marks the chosen threshold", () => {
-    const any = viewHtml();
-    expect(any).toContain("Любой рейтинг");
-    expect(any).toContain("от 4★");
+  it("turns into a result list under a query, because found things are read down, not sideways", () => {
+    const html = rail({ query: "джаз" });
 
-    // The rating is a server filter, so the chosen chip has to survive into the request the page makes.
-    const rated = viewHtml({ minRating: 4 });
-    expect(rated).toMatch(/<button[^>]*aria-pressed="true"[^>]*class="[^"]*app-chip[^"]*"[^>]*>от 4★</);
-    expect(rated).not.toMatch(/<button[^>]*aria-pressed="true"[^>]*class="[^"]*app-chip[^"]*"[^>]*>Любой рейтинг</);
+    expect(html).toContain("Результаты поиска");
+    expect(html).toContain("app-rail-list");
+    expect(html).not.toContain("app-rail-strip");
+    expect(html).not.toContain("Смотреть все");
   });
 
-  it("renders the empty state when nothing matches", () => {
-    const html = viewHtml({ query: "несуществующий-запрос" });
+  it("says nothing was found under a query and stays neutral without one", () => {
+    const empty: SearchState = { status: "ready", cards: [] };
 
-    expect(html).toContain("Ничего не найдено");
+    expect(rail({ state: empty, query: "несуществующий-запрос" })).toContain("Ничего не найдено");
+    expect(rail({ state: empty })).toContain("Рядом сегодня пусто");
   });
 
-  it("renders loading and error states for an entered query", () => {
-    expect(viewHtml({ query: "йога", state: { status: "loading" } })).toContain("Ищем события");
-    expect(viewHtml({ query: "йога", state: { status: "error" } })).toContain("app-state--error");
+  it("renders the loading and error states of the rail", () => {
+    expect(rail({ state: { status: "loading" } })).toContain("app-skeleton-block");
+    const failed = rail({ state: { status: "error" } });
+    expect(failed).toContain("app-state--error");
+    expect(failed).toContain("Не удалось загрузить события");
   });
 });

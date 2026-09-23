@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock route table for the catalog: the event and place listings, the event page aggregate and the participation block.
-// SCOPE: GET /api/places[/:id[/page]], PUT /api/places/:id/participation, GET /api/events[/:id[/details]], GET /api/events/:id/participation/stats, PUT/DELETE /api/events/:id/participation. The PATCH variants of /api/events/:id and /api/places/:id belong to the organizer table, which runs before this one.
+// PURPOSE: Mock route table for the catalog: the event and place listings, the card list of экран 08, the map context of экран 16, the event page aggregate and the participation block.
+// SCOPE: GET /api/places[/:id[/page]], PUT /api/places/:id/participation, GET /api/events[/cards][/:id[/details]], GET /api/events/:id/participation/stats, PUT/DELETE /api/events/:id/participation, GET /api/weather, GET /api/travel. The PATCH variants of /api/events/:id and /api/places/:id belong to the organizer table, which runs before this one.
 // DEPENDS: ./catalog.js, ./fixtures.js, ./promo.js, ../client.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -12,11 +12,25 @@
 import { IdSchema, ParticipationStatusSchema } from "@max-events/api-contracts";
 import type { Participation } from "@max-events/api-contracts";
 import { parseEventFilters } from "../client";
-import { eventDetails, filterMockEvents, mockParticipations, mockPlaceStatuses, nextMockParticipationSeq, participationStats, placePageFor } from "./catalog";
-import { mockEvents, mockPlaces, parseBookingBody } from "./fixtures";
+import { catalogCards, eventDetails, filterMockEvents, mapWeatherFor, mockParticipations, mockPlaceStatuses, nextMockParticipationSeq, participationStats, placePageFor, travelOptionsFor } from "./catalog";
+import { mockEvents, mockPlaces, parseBookingBody, parseMockCoords } from "./fixtures";
 import { MOCK_BOOSTED_EVENT_IDS, eventPromoted } from "./promo";
 
 export function catalogRoutes(url: URL, init: RequestInit | undefined): Response | null {
+  if (url.pathname === "/api/weather") {
+    return Response.json(mapWeatherFor());
+  }
+  if (url.pathname === "/api/travel") {
+    const coords = parseMockCoords(url);
+    const placeId = url.searchParams.get("placeId") ?? "";
+    if (coords === null || placeId === "") return new Response(null, { status: 400 });
+    const options = travelOptionsFor(placeId, { latitude: coords[0], longitude: coords[1] });
+    return options === null ? new Response(null, { status: 404 }) : Response.json(options);
+  }
+  if (url.pathname === "/api/events/cards") {
+    const coords = parseMockCoords(url);
+    return Response.json(catalogCards(parseEventFilters(url.search), coords === null ? null : { latitude: coords[0], longitude: coords[1] }));
+  }
   if (url.pathname === "/api/places") {
     // PlacesService.findAll lists published places only; an unpublished one is invisible, not just unopenable.
     return Response.json(mockPlaces.filter((row) => row.published !== false));

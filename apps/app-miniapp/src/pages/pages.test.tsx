@@ -39,6 +39,14 @@ describe("HomePage", () => {
     expect(html).not.toContain("app-whereto-cta--secondary");
     expect(html).not.toContain("Твои люди открыли места");
   });
+
+  it("no longer carries the catalog or the today digest: both moved to экран 08", () => {
+    const html = renderToStaticMarkup(<HomePage />);
+
+    expect(html).not.toContain("app-view-toggle");
+    expect(html).not.toContain("Сегодня для тебя");
+    expect(html).not.toContain("Любой рейтинг");
+  });
 });
 
 describe("RoutedPages", () => {
@@ -81,10 +89,19 @@ describe("RoutedPages", () => {
     expect(html).toMatch(/<button[^>]*app-chip--on[^>]*>Календарь</);
   });
 
-  it("maps the search route to the search screen", async () => {
-    const html = await routedHtml({ name: "search" }, "Начните вводить");
+  it("maps the search route to экран 08 with its tiles and blocks", async () => {
+    const html = await routedHtml({ name: "search" }, "Сегодня для тебя");
 
-    expect(html).toContain("Начните вводить");
+    expect(html).toContain("Подбор свайпами");
+    expect(html).toContain("На карте");
+    expect(html).toContain("Куда пойдём?");
+    expect(html).not.toContain("app-feed-skeleton");
+  });
+
+  it("maps the swipe route to экран 09", async () => {
+    const html = await routedHtml({ name: "swipe" }, "Подбор мест");
+
+    expect(html).toContain("Свайпай: вправо — в избранное, влево — мимо");
     expect(html).not.toContain("app-feed-skeleton");
   });
 

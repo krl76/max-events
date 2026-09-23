@@ -30,6 +30,7 @@
 // - calendarEntries - active bookings of a user enriched with event and place
 // - cancelMockPlan - mock DELETE /plans/:id: one meeting or the whole series
 // - castMockBallot - mock POST /votes/:id/ballots: one ballot per user, a repeated ballot replaces the previous one; winner = max votes then option position, null without ballots (backend parity)
+// - catalogCards - mock GET /events/cards: filtered events enriched with distance, rating and venue line (#496)
 // - createMockAutoPlan - autoplan after «Пойду»: saved draft plan + walk estimate + food picks + dinner->road->meetup->event timeline (mock POST /plans/auto, backend parity)
 // - createMockCheckIn - in-memory check-in for an event or a place, idempotent (mock POST)
 // - createMockGathering - in-memory gathering with deterministic invitee responses and a sent chat card (chatLink set, successful MaxBot parity) (mock POST)
@@ -43,14 +44,14 @@
 // - discoverySummary - per-friend unseen places minus the demo user's check-ins, privacy-gated (mock GET /discovery, backend DiscoveryService.summary parity)
 // - eventRating - rating summary and per-category averages for an event from the mock reviews
 // - feedPosts - impression posts newest first, optionally only one event (the event wall)
-// - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt)
+// - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt, q matches title/description/city/venue, sort orders the answer)
 // - friendActivityByFriend - friend participations grouped by friend (feed payload)
 // - friendAvailability - per-friend free/busy/unknown for the gathering flow (mock)
 // - friendPlaceLayer - mock GET /discovery/friend-places: places friends checked in at, grouped, privacy-gated
 // - friendRoute - chronological unseen places of one friend; own/not-friend/hidden map to 403/404/403 (mock GET /discovery/friends/:userId/route, backend parity)
 // - friendSuggestions - mock GET /friends/suggestions: the onboarding contacts with their hint line and current follow state
 // - getMockVote - mock GET /votes/:id (404 unknown, 403 neither host nor participant); myBallotEventId comes from the demo user's stored ballot (backend #324 parity)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability|/suggestions|/follows], /api/gatherings[/:id|/:id/response], /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friend-places|/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability|/suggestions|/follows], /api/gatherings[/:id|/:id/response], /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friend-places|/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], /api/events/cards, /api/weather, /api/travel, /api/discover/swipe[/:placeId], return a restore function
 // - isMockModerator - whether this viewer may see the moderation queue
 // - joinMockMicroEvent - join with the counter, idempotent (mock POST /join)
 // - leaveMockMicroEvent - leave with the counter, idempotent (mock DELETE /join)
@@ -60,6 +61,7 @@
 // - listMockSubscriptions - mock GET /subscriptions for the demo user
 // - listMockWeGroups - mock GET /we-groups: screens of the demo user's groups, newest first
 // - listSummaries - preset lists of a user with item counters, the saved-item id for the checked event and shared-collection participants
+// - mapWeatherFor - mock GET /weather: the fixed demo forecast behind the map chip of экран 16 (#495)
 // - microEvents - open micro-events soonest first
 // - mockAssistDay - upcoming Saturday stops (startsAt >= now) + planDraft, plan persisted when save=true (mock POST /assist/day, backend planSaturday parity)
 // - mockAssistSaturdayKey - next Saturday (today counts) Moscow day key from MOCK_NOW (backend nextSaturdayKey parity)
@@ -90,6 +92,7 @@
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
 // - planCard - single plan card by plan id (or null)
 // - planCards - plan fixtures sorted by the soonest meeting first
+// - recordSwipeDecision - mock POST /discover/swipe/:placeId: remember the swipe; false for an unknown venue
 // - removeMockList - mock DELETE /lists/:id with its items (403 for a preset)
 // - removeMockSubscription - mock DELETE /subscriptions/:id, "unknown" when it is already gone
 // - renameMockList - mock PATCH /lists/:id (403 for a preset)
@@ -112,21 +115,24 @@
 // - resetMockReports - clear in-memory reports and bans, republish what moderation hid (test isolation)
 // - resetMockReviews - restore seeded reviews (test isolation)
 // - resetMockSubscriptions - clear in-memory follows (test isolation)
+// - resetMockSwipeDecisions - clear the taken swipes of экран 09 (test isolation)
 // - resetMockVotes - restore the two seeded votes (test isolation)
 // - resetMockWaitlist - clear the in-memory waitlist (test isolation)
 // - resetMockWeGroups - restore seeded groups and plan expenses (test isolation)
 // - resolveMockReport - mock POST /reports/:id/resolve
 // - respondMockGathering - demo-user invitee answer write (mock PATCH /gatherings/:id/response; 404 unknown, 403 host-or-outsider, backend respond parity)
 // - setMockModerator - put the demo user in or out of MODERATOR_MAX_USER_IDS (demo / tests)
+// - swipeCandidates - mock GET /discover/swipe: undecided venues of the chosen category, best match first (#498)
 // - tasteProfile - taste graph of a user, derived from their mock check-ins (empty until they visit something)
-// - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
+// - todayPicks - digest of экран 08 from fixtures: summary counters plus curated cards, one of them carrying the after_me hint
+// - travelOptionsFor - mock GET /travel: walking and metro estimates from the distance alone (#504)
 // - unpublishMockTarget - mock POST /moderation/unpublish
 // - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
 // END_MODULE_MAP
 
 export { MOCK_PROMO_CODE, MOCK_SANDBOX_FAIL_AMOUNT, MOCK_SINGLE_USE_PROMO_CODE, OFFER_TTL_MS, createMockCheckIn, resetMockBookings, resetMockCheckIns, resetMockPromo, resetMockWaitlist } from "./mock/bookings";
-export { filterMockEvents, participationStats, placePageFor, resetMockParticipations } from "./mock/catalog";
-export { MOCK_ASSIST_RATE_LIMIT, leisureOptions, mockAssistDay, mockAssistSaturdayKey, mockAssistSuggest, mockParseAssistQuery, nearbyTimeline, resetMockAssist, todayPicks, wheretoSuggestions } from "./mock/discover";
+export { catalogCards, filterMockEvents, mapWeatherFor, participationStats, placePageFor, resetMockParticipations, travelOptionsFor } from "./mock/catalog";
+export { MOCK_ASSIST_RATE_LIMIT, leisureOptions, mockAssistDay, mockAssistSaturdayKey, mockAssistSuggest, mockParseAssistQuery, nearbyTimeline, recordSwipeDecision, resetMockAssist, resetMockSwipeDecisions, swipeCandidates, todayPicks, wheretoSuggestions } from "./mock/discover";
 export { createMockStory, feedPosts, listMockStories, mockFeedCards, mockFriendStories, mockNotificationsSummary, resetMockFeed } from "./mock/feed";
 export { MOCK_EARLY_ACCESS_EVENT_ID, MOCK_NOW, MOCK_ORGANIZER_CREDENTIALS, MOCK_TODAY, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganization, mockOrganizers, mockPlaces } from "./mock/fixtures";
 export { MOCK_FOREIGN_VOTE_ID, MOCK_VOTE_ID, castMockBallot, createMockVote, getMockVote, listMockWeGroups, resetMockVotes, resetMockWeGroups } from "./mock/groups";

@@ -14,7 +14,7 @@
 // - RatingChips - «Любой рейтинг / от N★» control, shared with the search tab
 // - CatalogView - presentational: filter bar (category chips, rating chips «от N★», date, city) + segmented «Список ↔ Карта» toggle + state-driven body (skeleton, error, empty, clickable event cards with the «Промо» badge on promoted events (#205) or map with event/place popups)
 // - EventCard - event card (media, title, time/category, city/price, weather chip, «Промо» badge); exported for the search tab
-// - CatalogPage - filters from window.location on mount; view is controlled by the parent (HomePage hides the today block in map view); fetches via useCatalog and writes filter changes back to the URL
+// - CatalogPage - filters from window.location on mount; the view is controlled by the parent, and a parent that offers no switch (экран 08) gets the list alone; fetches via useCatalog and writes filter changes back to the URL
 // - filterEventsByQuery - case-insensitive title/city match; identity on a blank query
 // END_MODULE_MAP
 
@@ -205,7 +205,8 @@ export function CatalogView({ state, filters, onFilters, view = "list", onView, 
   );
 }
 
-export function CatalogPage({ view, onView }: { view: CatalogViewName; onView: (view: CatalogViewName) => void }) {
+/** Both view props are optional: экран 08 embeds the list alone, and a screen without a toggle must not grow one. */
+export function CatalogPage({ view = "list", onView }: { view?: CatalogViewName; onView?: (view: CatalogViewName) => void } = {}) {
   const [filters, setFilters] = useState<EventFilters>(() => parseEventFilters(window.location.search));
   const catalog = useCatalog(filters);
   const { navigate } = useRoute();
