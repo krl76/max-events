@@ -65,6 +65,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   "we-group": "Группа «Мы»",
   vote: "Голосование",
   moderation: "Жалобы",
+  "vote-new": "Новое голосование",
 };
 
 export function routeTitle(route: Route): string {
@@ -77,7 +78,9 @@ export function routeHasBack(route: Route): boolean {
 
 // Экраны 08, 16 и 09 рисуют собственную шапку: карта — плавающую пилюлю «Поиск» поверх полотна,
 // подбор свайпами — свою строку с кнопкой назад. Общая шапка перекрыла бы и то и другое.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list"]);
+// Экраны 30-33 тоже рисуют свою шапку: у списка групп рядом с заголовком «Создать», у группы —
+// её название и меню, у голосований — название вопроса. Общая шапка стала бы второй.
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list", "we-groups", "we-group", "vote", "vote-new"]);
 
 /**
  * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и

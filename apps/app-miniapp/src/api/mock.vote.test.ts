@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { VoteSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { castMockBallot, createMockVote, getMockVote, installMockApi, MOCK_FOREIGN_VOTE_ID, MOCK_VOTE_ID, mockEvents, mockFriendIds, resetMockVotes } from "./mock";
+import { castMockBallot, closeMockVote, createMockVote, getMockVote, installMockApi, MOCK_FOREIGN_VOTE_ID, MOCK_VOTE_ID, mockEvents, mockFriendIds, resetMockVotes } from "./mock";
 
 describe("vote mock endpoints", () => {
   let restore: (() => void) | null = null;
@@ -124,6 +124,42 @@ describe("vote mock store", () => {
     expect(tied.options.find((option) => option.event.id === mockEvents[0].id)!.votes).toBe(2);
     expect(tied.options.find((option) => option.event.id === mockEvents[2].id)!.votes).toBe(2);
     expect(tied.winnerEventId).toBe(mockEvents[0].id);
+  });
+
+  it("names the poll roster host first and marks who already voted", () => {
+    const vote = getMockVote(MOCK_VOTE_ID);
+    if (typeof vote === "string") throw new Error("seeded vote missing");
+
+    // участников DTO хост не содержит, а голосует и он — иначе «Проголосовали 4 из 5» не из чего собрать
+    expect(vote.voters[0].id).toBe(vote.hostUserId);
+    expect(vote.voters.length).toBe(vote.participants.length + 1);
+    expect(vote.votedUserIds).toContain(vote.hostUserId);
+    expect(vote.votedUserIds.length).toBeLessThan(vote.voters.length);
+    expect(vote.status).toBe("open");
+    expect(vote.closedAt).toBeNull();
+  });
+
+  it("lets the host finish a vote once, and stops taking ballots afterwards", () => {
+    const created = createMockVote({ title: "t", eventIds: [mockEvents[0].id, mockEvents[1].id], participantIds: [mockFriendIds[0]] });
+    if (typeof created === "string") throw new Error("unexpected create failure");
+    const voted = castMockBallot(created.id, mockEvents[1].id);
+    if (typeof voted === "string") throw new Error("unexpected ballot failure");
+
+    const closed = closeMockVote(created.id);
+    if (typeof closed === "string") throw new Error("unexpected close failure");
+    expect(closed.status).toBe("closed");
+    expect(closed.closedAt).not.toBeNull();
+    expect(closed.winnerEventId).toBe(mockEvents[1].id);
+
+    const again = closeMockVote(created.id);
+    if (typeof again === "string") throw new Error("unexpected close failure");
+    expect(again.closedAt).toBe(closed.closedAt);
+    expect(castMockBallot(created.id, mockEvents[0].id)).toBe("closed");
+  });
+
+  it("refuses to finish a vote the demo user does not host, and an unknown one", () => {
+    expect(closeMockVote(MOCK_VOTE_ID)).toBe("forbidden");
+    expect(closeMockVote("d7000000-0000-4000-8000-000000000099")).toBe("unknown");
   });
 
   it("returns myBallotEventId of the demo user's stored ballot and null without one", () => {

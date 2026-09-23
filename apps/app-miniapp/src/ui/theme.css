@@ -7834,3 +7834,1218 @@ button.app-set-row {
 .app-subs-note svg {
   flex: none;
 }
+
+/* ===== Волна 9: группы и голосования (экраны 30, 31, 32, 33) ===== */
+
+/* Все четыре экрана рисуют свою шапку (routeHasHeader): у 30 рядом с заголовком «Создать»,
+ * у 31 — название группы и меню, у 32 и 33 — вопрос голосования. Общая шапка стала бы второй. */
+.app-we,
+.app-we-group,
+.app-poll,
+.app-poll-screen {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-we-bar {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  padding: var(--app-space-m) 0 var(--app-space-xs);
+}
+
+.app-we-bar-title {
+  flex: 1;
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.app-we-bar-name {
+  flex: 1;
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Единственная синяя заливка экрана 30: первичное действие «Создать» */
+.app-we-create {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+}
+
+.app-we-create:hover,
+.app-we-create:active {
+  background: var(--app-accent-press);
+}
+
+.app-we-round {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+/* Шеврон нарисован вправо; кнопка назад разворачивает его */
+.app-we-round--back svg {
+  transform: rotate(180deg);
+}
+
+.app-we-lead {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  line-height: var(--app-line-height-body);
+  margin: var(--app-space-s) 0 0;
+  max-width: var(--app-measure);
+}
+
+.app-we-card {
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  box-sizing: border-box;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: var(--app-space-m);
+  margin-top: 10px;
+  padding: var(--app-space-l);
+  text-align: left;
+  transition:
+    transform 0.16s ease-out,
+    background-color 0.16s ease-out;
+  width: 100%;
+}
+
+.app-we-card:hover {
+  background: var(--app-surface);
+  transform: translateY(-1px);
+}
+
+.app-we-card-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+}
+
+.app-we-card-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-we-card-title {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  gap: var(--app-space-s);
+}
+
+/* «В архиве» — нейтральная пилюля: залитая пурпурная закреплена за ролью бейджа */
+.app-we-card-badge {
+  background: rgba(var(--app-scheme-neutral), 0.06);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  padding: 3px var(--app-space-s);
+}
+
+.app-we-card-summary {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-we-card-chevron {
+  color: var(--app-text-tertiary);
+  display: flex;
+  flex: none;
+}
+
+.app-we-card-foot {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.app-we-card-members {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+}
+
+/* Стек участников: кольцо каждой аватарки — цвет холста, поэтому он работает в обеих схемах.
+ * Градиент берётся по позиции, а не по человеку: лиц у нас нет, инициал несёт всю информацию. */
+.app-we-faces {
+  display: flex;
+  flex: none;
+}
+
+.app-we-face {
+  align-items: center;
+  border: 2px solid var(--app-canvas);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.app-we-face + .app-we-face {
+  margin-left: -8px;
+}
+
+.app-we-face:nth-child(5n + 1) {
+  background-image: var(--app-media-gradient-1);
+}
+
+.app-we-face:nth-child(5n + 2) {
+  background-image: var(--app-media-gradient-2);
+}
+
+.app-we-face:nth-child(5n + 3) {
+  background-image: var(--app-media-gradient-3);
+}
+
+.app-we-face:nth-child(5n + 4) {
+  background-image: var(--app-media-gradient-4);
+}
+
+.app-we-face:nth-child(5n + 5) {
+  background-image: var(--app-media-gradient-5);
+}
+
+.app-we-section {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  margin: var(--app-space-xl) 0 0;
+  text-transform: uppercase;
+}
+
+.app-we-note {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  margin-top: var(--app-space-l);
+  padding: var(--app-space-l);
+}
+
+.app-we-note-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  margin: 0;
+}
+
+.app-we-note-text {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  line-height: var(--app-line-height-body);
+  margin: var(--app-space-xs) 0 0;
+}
+
+/* Форма создания: в макете её нет, а имя и люди группе нужны — поэтому карточка того же ритма */
+.app-we-form {
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
+  padding: var(--app-space-l);
+}
+
+.app-we-form-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+}
+
+.app-we-form-input {
+  background: var(--app-surface);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-media);
+  box-sizing: border-box;
+  color: var(--app-text);
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  padding: var(--app-space-m);
+  width: 100%;
+}
+
+.app-we-form-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+}
+
+.app-we-form-submit {
+  background: var(--app-accent);
+  border: none;
+  border-radius: 14px;
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 48px;
+  margin-top: var(--app-space-xs);
+  width: 100%;
+}
+
+.app-we-form-submit:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.app-we-form-why {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  text-align: center;
+}
+
+/* --- Экран 31 «Группа „Мы“»: шесть блоков одной сущности в общем ритме --- */
+
+.app-we-menu {
+  border: 1px solid var(--app-divider);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--app-space-s);
+  overflow: hidden;
+}
+
+.app-we-menu-item {
+  background: none;
+  border: none;
+  border-bottom: var(--app-hairline);
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  padding: 14px var(--app-space-l);
+  text-align: left;
+}
+
+.app-we-menu-item:last-child {
+  border-bottom: none;
+}
+
+/* Архивирование необратимо: в меню оно приглушено подписью, а кнопкой внизу — обводкой */
+.app-we-menu-item--archive {
+  color: var(--app-text-secondary);
+}
+
+.app-we-archived {
+  background: var(--app-surface);
+  border-radius: 14px;
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: var(--app-space-m) 0 0;
+  padding: var(--app-space-m) var(--app-space-l);
+}
+
+.app-we-people {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.app-we-people-text {
+  color: var(--app-text-secondary);
+  flex: 1;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  min-width: 0;
+}
+
+.app-we-chat {
+  align-items: center;
+  background: rgba(var(--app-scheme-neutral), 0.06);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+}
+
+.app-we-chat-mark {
+  align-items: center;
+  background-image: linear-gradient(140deg, var(--brand-violet), var(--brand-cyan));
+  border-radius: 5px;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  height: 18px;
+  justify-content: center;
+  width: 18px;
+}
+
+/* Единственный фирменный градиент экрана — на карточке бюджета. Правый конец у него голубой,
+ * а белый текст на brand-cyan даёт 2.1:1, поэтому поверх лежит вуаль тёмной материи: форма
+ * макета сохраняется, подпись остаётся читаемой. */
+.app-we-budget {
+  background-image: linear-gradient(140deg, rgba(13, 0, 26, 0) 55%, rgba(13, 0, 26, 0.38)), linear-gradient(140deg, var(--brand-blue), var(--brand-purple) 70%, var(--brand-cyan));
+  border-radius: var(--app-radius-card);
+  color: var(--brand-white);
+  margin-top: 18px;
+  padding: var(--app-space-l);
+}
+
+.app-we-budget-head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--app-space-s);
+  justify-content: space-between;
+}
+
+.app-we-budget-label {
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  opacity: 0.92;
+}
+
+.app-we-budget-spent {
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  opacity: 0.92;
+  text-align: right;
+}
+
+.app-we-budget-bar {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  height: 8px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.app-we-budget-fill {
+  background: var(--brand-white);
+  display: block;
+  height: 100%;
+}
+
+.app-we-budget-value {
+  font-size: var(--app-font-size-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: var(--app-space-m) 0 0;
+}
+
+.app-we-budget-note {
+  font-size: var(--app-font-size-description);
+  margin: 0;
+  opacity: 0.92;
+}
+
+/* Общий ритм блоков: 22px между разделами — так шесть списков читаются одной страницей */
+.app-we-block {
+  display: flex;
+  flex-direction: column;
+  margin-top: 22px;
+}
+
+.app-we-block-head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+.app-we-block-title {
+  flex: 1;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  margin: 0;
+}
+
+.app-we-block-count {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.app-we-block-action {
+  background: none;
+  border: none;
+  color: var(--app-accent-text);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  padding: 0;
+}
+
+.app-we-empty {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: 10px 0 0;
+}
+
+.app-we-row {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: 14px;
+  box-sizing: border-box;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  margin-top: var(--app-space-s);
+  padding: var(--app-space-m);
+  text-align: left;
+  width: 100%;
+}
+
+.app-we-row-media {
+  aspect-ratio: 1;
+  border-radius: var(--app-radius-media);
+  flex: none;
+  height: 44px;
+  width: 44px;
+}
+
+.app-we-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-we-row-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-we-row-meta {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-we-pills {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-we-pill {
+  background: rgba(var(--app-scheme-neutral), 0.05);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 10px 14px;
+}
+
+.app-we-booking {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 14px;
+  display: flex;
+  gap: var(--app-space-m);
+  margin-top: 10px;
+  padding: 14px var(--app-space-l);
+}
+
+/* Тёмная плитка — заливка чернил схемы: в светлой это тёмная материя макета, в тёмной она инвертируется */
+.app-we-booking-mark {
+  align-items: center;
+  background: var(--app-confirm);
+  border-radius: 10px;
+  color: var(--app-confirm-contrast);
+  display: flex;
+  flex: none;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.app-we-booking-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-we-route {
+  align-items: center;
+  border: 1px solid var(--app-divider);
+  border-radius: 14px;
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: 10px;
+  padding: 14px var(--app-space-l);
+}
+
+.app-we-route-stop {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  gap: var(--app-space-s);
+  min-width: 0;
+}
+
+.app-we-route-line {
+  background: rgba(var(--app-scheme-neutral), 0.12);
+  flex: 1;
+  height: 2px;
+}
+
+.app-we-route-name {
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-we-photos {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 10px;
+}
+
+/* Фотографии людей бриф запрещает, а альбом группы — это именно они: плитка держит фирменный
+ * градиент, снимок ложится поверх, и любая незагруженная картинка остаётся абстрактным пятном. */
+.app-we-photo {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  display: block;
+  overflow: hidden;
+}
+
+.app-we-photo img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-we-photo--1 {
+  background-image: var(--app-media-gradient-1);
+}
+
+.app-we-photo--2 {
+  background-image: var(--app-media-gradient-2);
+}
+
+.app-we-photo--3 {
+  background-image: var(--app-media-gradient-3);
+}
+
+.app-we-photo--4 {
+  background-image: var(--app-media-gradient-4);
+}
+
+.app-we-photo--5 {
+  background-image: var(--app-media-gradient-5);
+}
+
+.app-we-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+  margin-top: 10px;
+}
+
+.app-we-picker-option {
+  align-items: center;
+  background: none;
+  border: 1px dashed rgba(var(--app-scheme-neutral), 0.2);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-accent-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: 6px;
+  padding: 8px var(--app-space-m);
+}
+
+/* Необратимое действие: обводка на прозрачном фоне, подпись приглушена — форма, а не цвет */
+.app-we-archive {
+  align-items: center;
+  background: none;
+  border: 1px solid rgba(var(--app-scheme-neutral), 0.12);
+  border-radius: 14px;
+  box-sizing: border-box;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 48px;
+  justify-content: center;
+  margin-top: 22px;
+  width: 100%;
+}
+
+/* --- Экран 32 «Создание голосования» --- */
+
+.app-poll-new {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-poll-new-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  margin-top: var(--app-space-l);
+  text-transform: uppercase;
+}
+
+.app-poll-new-title {
+  background: var(--app-surface);
+  border: none;
+  border-radius: 14px;
+  box-sizing: border-box;
+  color: var(--app-text);
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  font-weight: 700;
+  margin-top: var(--app-space-s);
+  padding: 14px var(--app-space-l);
+  width: 100%;
+}
+
+.app-poll-option {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: 14px;
+  box-sizing: border-box;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  margin-top: var(--app-space-s);
+  padding: var(--app-space-m);
+  text-align: left;
+  width: 100%;
+}
+
+/* Выбранное — чернила схемы: в светлой это тёмная материя макета, в тёмной инвертируется с холстом */
+.app-poll-option--on {
+  border-color: var(--app-confirm);
+}
+
+.app-poll-check {
+  align-items: center;
+  border: 2px solid rgba(var(--app-scheme-neutral), 0.2);
+  border-radius: 7px;
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.app-poll-option--on .app-poll-check {
+  background: var(--app-confirm);
+  border-color: var(--app-confirm);
+  color: var(--app-confirm-contrast);
+}
+
+.app-poll-option-media {
+  aspect-ratio: 1;
+  border-radius: 11px;
+  flex: none;
+  height: 40px;
+  width: 40px;
+}
+
+.app-poll-option-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-poll-option-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-poll-option-meta {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-poll-more {
+  align-items: center;
+  background: none;
+  border: 1px dashed rgba(var(--app-scheme-neutral), 0.2);
+  border-radius: 14px;
+  box-sizing: border-box;
+  color: var(--app-accent-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  height: 44px;
+  justify-content: center;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.app-poll-more:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.app-poll-roster {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-poll-voter {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  font: inherit;
+  gap: 6px;
+  padding: 0;
+  width: 56px;
+}
+
+.app-poll-voter-face {
+  align-items: center;
+  background-image: var(--app-media-gradient-1);
+  border: 2px solid transparent;
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  height: 48px;
+  justify-content: center;
+  opacity: 0.45;
+  width: 48px;
+}
+
+/* Приглашённый отличается не другой аватаркой, а полной непрозрачностью и фирменной обводкой */
+.app-poll-voter--on .app-poll-voter-face {
+  border-color: var(--app-accent);
+  opacity: 1;
+}
+
+.app-poll-voter:nth-child(4n + 2) .app-poll-voter-face {
+  background-image: var(--app-media-gradient-2);
+}
+
+.app-poll-voter:nth-child(4n + 3) .app-poll-voter-face {
+  background-image: var(--app-media-gradient-3);
+}
+
+.app-poll-voter:nth-child(4n + 4) .app-poll-voter-face {
+  background-image: var(--app-media-gradient-4);
+}
+
+.app-poll-voter-face--more {
+  background-image: none;
+  border: 2px dashed rgba(var(--app-scheme-neutral), 0.25);
+  color: var(--app-accent-text);
+  opacity: 1;
+}
+
+.app-poll-voter-name {
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+  text-align: center;
+}
+
+/* Голубая подложка плашки MAX: канал brand-cyan палитра как rgba-литерал не раскрывает,
+ * поэтому прозрачность даёт отдельный слой, а текст остаётся на полной непрозрачности. */
+.app-poll-max {
+  align-items: center;
+  border-radius: 14px;
+  color: var(--app-text);
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+  gap: 10px;
+  line-height: 1.4;
+  margin-top: 18px;
+  padding: 14px var(--app-space-l);
+  position: relative;
+}
+
+.app-poll-max::before {
+  background: var(--brand-cyan);
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  opacity: 0.09;
+  position: absolute;
+}
+
+.app-poll-max-mark {
+  align-items: center;
+  background-image: linear-gradient(140deg, var(--brand-violet), var(--brand-cyan));
+  border-radius: 7px;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  height: 24px;
+  justify-content: center;
+  position: relative;
+  width: 24px;
+}
+
+.app-poll-max-text {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.app-poll-foot {
+  border-top: var(--app-hairline);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  margin-top: 18px;
+  padding-top: var(--app-space-m);
+}
+
+/* Кнопка не просто гаснет — рядом сказано, чего не хватает */
+.app-poll-foot-why {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: 0;
+  text-align: center;
+}
+
+.app-poll-launch {
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  height: 56px;
+  width: 100%;
+}
+
+.app-poll-launch:hover:not(:disabled),
+.app-poll-launch:active:not(:disabled) {
+  background: var(--app-accent-press);
+}
+
+.app-poll-launch:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.app-poll-back {
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  height: 44px;
+  width: 100%;
+}
+
+/* --- Экран 33 «Голосование · ход» --- */
+
+/* Лидер — третья форма брендбука: тёмная заливка, инвертируется вместе со схемой */
+.app-poll-lead {
+  background: var(--app-confirm);
+  border-radius: var(--app-radius-card);
+  color: var(--app-confirm-contrast);
+  margin-top: 18px;
+  padding: var(--app-space-l);
+}
+
+.app-poll-lead-label {
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  margin: 0;
+  opacity: 0.75;
+}
+
+.app-poll-lead-title {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: var(--app-space-xs) 0 0;
+}
+
+.app-poll-lead-meta {
+  font-size: var(--app-font-size-description);
+  margin: var(--app-space-xs) 0 0;
+  opacity: 0.9;
+}
+
+.app-poll-lead-actions {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: 14px;
+}
+
+.app-poll-lead-open {
+  background: var(--app-confirm-contrast);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-confirm);
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 44px;
+}
+
+/* Завершение необратимо: обводка на прозрачном, а не вторая заливка */
+.app-poll-lead-close {
+  background: none;
+  border: 1px solid rgba(var(--app-scheme-neutral), 0.35);
+  border-radius: var(--app-radius-media);
+  box-sizing: border-box;
+  color: var(--app-confirm-contrast);
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 44px;
+}
+
+.app-poll-lead-close:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.app-poll-empty {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: 18px 0 0;
+}
+
+.app-poll-section {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  margin: 22px 0 0;
+}
+
+.app-poll-results {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Полоса результата лежит под содержимым, поэтому проценты читаются и на залитой части */
+.app-poll-result {
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  box-sizing: border-box;
+  color: var(--app-text);
+  display: block;
+  font: inherit;
+  margin-top: 10px;
+  overflow: hidden;
+  padding: 14px;
+  position: relative;
+  text-align: left;
+  width: 100%;
+}
+
+button.app-poll-result {
+  cursor: pointer;
+}
+
+.app-poll-result--mine {
+  border-color: var(--app-confirm);
+}
+
+.app-poll-result-fill {
+  background: rgba(71, 26, 255, 0.14);
+  bottom: 0;
+  display: block;
+  left: 0;
+  position: absolute;
+  top: 0;
+}
+
+.app-poll-result--mine .app-poll-result-fill {
+  background: rgba(var(--app-scheme-neutral), 0.08);
+}
+
+.app-poll-result-body {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  position: relative;
+}
+
+.app-poll-result-media {
+  aspect-ratio: 1;
+  border-radius: var(--app-radius-media);
+  flex: none;
+  height: 44px;
+  width: 44px;
+}
+
+.app-poll-result-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-poll-result-title {
+  align-items: center;
+  display: flex;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  gap: 6px;
+}
+
+.app-poll-result-mark {
+  color: var(--app-accent-text);
+  display: flex;
+  flex: none;
+}
+
+.app-poll-result-meta {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin-top: 1px;
+}
+
+.app-poll-result-tally {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  text-align: right;
+}
+
+.app-poll-result-votes {
+  font-size: var(--app-font-size-body);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.app-poll-result-share {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.app-poll-mine {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 14px var(--app-space-l);
+}
+
+.app-poll-mine-mark {
+  display: flex;
+  flex: none;
+}
+
+.app-poll-mine-text {
+  flex: 1;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  min-width: 0;
+}
+
+.app-poll-pending {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: 10px 0 0;
+  max-width: var(--app-measure);
+}

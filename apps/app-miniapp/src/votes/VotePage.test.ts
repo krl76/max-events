@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { castMockBallot, getMockVote, MOCK_VOTE_ID, mockEvents, mockFriends, resetMockVotes } from "../api/mock";
-import type { Vote } from "@max-events/api-contracts";
-import { voteCreateReady, VoteCreateView, VoteView, type VoteState } from "./VotePage";
+import type { VoteScreen } from "../api/client";
+import { castMockBallot, getMockVote, MOCK_VOTE_ID, mockDemoUser, resetMockVotes } from "../api/mock";
 import { pluralRu } from "../catalog/format";
+import { VoteView, voteBallotsCast, voteMineNote, votePendingNote, votePercent, voteProgressLabel, type VoteState } from "./VotePage";
 
 const noop = () => {};
 
@@ -12,144 +12,153 @@ afterEach(() => {
   resetMockVotes();
 });
 
-function seededVote(): Vote {
+function seededVote(): VoteScreen {
   const vote = getMockVote(MOCK_VOTE_ID);
   if (typeof vote === "string") throw new Error("seeded vote missing");
   return vote;
 }
 
-function viewHtml(over: { state?: VoteState; myChoice?: string | null; voting?: boolean; failed?: boolean } = {}): string {
-  return renderToStaticMarkup(createElement(VoteView, { state: over.state ?? { status: "ready", vote: seededVote() }, myChoice: over.myChoice ?? null, voting: over.voting ?? false, failed: over.failed ?? false, onVote: noop }));
+function render(over: { state?: VoteState; ownId?: string | null; myChoice?: string | null; revoting?: boolean; closing?: boolean; failed?: boolean } = {}): string {
+  return renderToStaticMarkup(
+    createElement(VoteView, {
+      state: over.state ?? { status: "ready", vote: seededVote() },
+      ownId: over.ownId === undefined ? mockDemoUser.id : over.ownId,
+      myChoice: over.myChoice ?? null,
+      voting: false,
+      closing: over.closing ?? false,
+      revoting: over.revoting ?? false,
+      failed: over.failed ?? false,
+      onBack: noop,
+      onVote: noop,
+      onRevote: noop,
+      onClose: noop,
+      onChat: noop,
+      onOpenEvent: noop,
+    }),
+  );
 }
 
-describe("ru ballot counter label", () => {
-  it("pluralizes the ballot counter in Russian", () => {
-    expect(`1 ${pluralRu(1, "голос", "голоса", "голосов")}`).toBe("1 голос");
-    expect(`2 ${pluralRu(2, "голос", "голоса", "голосов")}`).toBe("2 голоса");
-    expect(`5 ${pluralRu(5, "голос", "голоса", "голосов")}`).toBe("5 голосов");
-    expect(`11 ${pluralRu(11, "голос", "голоса", "голосов")}`).toBe("11 голосов");
-    expect(`21 ${pluralRu(21, "голос", "голоса", "голосов")}`).toBe("21 голос");
+describe("vote tally labels", () => {
+  it("counts ballots and turns them into whole percents", () => {
+    const vote = seededVote();
+
+    expect(voteBallotsCast(vote)).toBe(vote.options.reduce((sum, option) => sum + option.votes, 0));
+    expect(votePercent(2, 4)).toBe(50);
+    expect(votePercent(1, 4)).toBe(25);
+    expect(votePercent(1, 3)).toBe(33);
+    expect(votePercent(0, 0)).toBe(0);
+  });
+
+  it("writes the roster progress the way the design counts it", () => {
+    expect(voteProgressLabel(4, 5)).toBe("Проголосовали 4 из 5");
+  });
+});
+
+describe("voteMineNote", () => {
+  it("names the option the viewer voted for and stays silent without a ballot", () => {
+    expect(voteMineNote(seededVote())).toBeNull();
+
+    const voted = castMockBallot(MOCK_VOTE_ID, seededVote().options[1].event.id);
+    if (typeof voted === "string") throw new Error("unexpected ballot failure");
+    expect(voteMineNote(voted)).toBe(`Ты проголосовал за «${voted.options[1].event.title}»`);
+  });
+});
+
+describe("votePendingNote", () => {
+  it("names everyone but the viewer who has not voted yet", () => {
+    const vote = seededVote();
+    const note = votePendingNote(vote, mockDemoUser.id);
+
+    const pending = vote.voters.filter((voter) => !vote.votedUserIds.includes(voter.id) && voter.id !== mockDemoUser.id);
+    expect(pending.length).toBeGreaterThan(0);
+    expect(note).not.toBeNull();
+    for (const voter of pending) expect(note).toContain(voter.name.split(" ")[0]);
+    expect(note).toContain("Напомнить можно в чате MAX.");
+  });
+
+  it("says nothing once everyone but the viewer voted", () => {
+    const vote = seededVote();
+    const everyone: VoteScreen = { ...vote, votedUserIds: vote.voters.map((voter) => voter.id) };
+
+    expect(votePendingNote(everyone, mockDemoUser.id)).toBeNull();
   });
 });
 
 describe("VoteView", () => {
-  it("renders the title, the option cards with counters and the chat hint", () => {
+  it("puts the question in its own topbar and counts who already voted", () => {
     const vote = seededVote();
-    const html = viewHtml();
+    const html = render();
 
     expect(html).toContain(vote.title);
-    expect(html).toContain("Отправлено в чат");
-    expect(html).toContain("Участники:");
+    expect(html).toContain(voteProgressLabel(vote.votedUserIds.length, vote.voters.length));
+    expect(html).toContain("Чат");
+  });
+
+  it("shows the api-provided leader once, with its tally", () => {
+    const vote = seededVote();
+    const leader = vote.options.find((option) => option.event.id === vote.winnerEventId);
+    if (leader === undefined) throw new Error("seeded winner missing");
+    const html = render();
+
+    expect(html.match(/app-poll-lead-label/g)).toHaveLength(1);
+    expect(html).toContain("Лидирует");
+    expect(html).toContain(leader.event.title);
+    expect(html).toContain(`${leader.votes} ${pluralRu(leader.votes, "голос", "голоса", "голосов")}`);
+  });
+
+  it("breaks the ballots down per option with counts and shares", () => {
+    const vote = seededVote();
+    const cast = voteBallotsCast(vote);
+    const html = render();
+
+    expect(html).toContain("Все варианты");
     for (const option of vote.options) {
       expect(html).toContain(option.event.title);
-      expect(html).toContain(`${option.votes} ${pluralRu(option.votes, "голос", "голоса", "голосов")}`);
+      expect(html).toContain(`${votePercent(option.votes, cast)}%`);
     }
   });
 
-  it("highlights only the api-provided winner", () => {
-    const vote = seededVote();
-    const html = viewHtml();
-
-    expect(vote.winnerEventId).not.toBeNull();
-    expect(html.match(/app-vote-option--winner/g)).toHaveLength(1);
-    expect(html).toContain("Лучший вариант");
-  });
-
-  it("marks the option the user voted for and keeps a re-vote possible", () => {
-    const vote = seededVote();
-    const mine = vote.options[1].event.id;
-    const html = viewHtml({ myChoice: mine });
-
-    expect(html).toContain("Твой голос");
-    expect(html).not.toContain("disabled");
-  });
-
-  it("highlights «Твой голос» from the api-provided myBallotEventId on load", () => {
-    const vote = seededVote();
-    const voted = castMockBallot(vote.id, vote.options[2].event.id);
+  it("marks the viewer's own ballot and offers to change it", () => {
+    const voted = castMockBallot(MOCK_VOTE_ID, seededVote().options[2].event.id);
     if (typeof voted === "string") throw new Error("unexpected ballot failure");
+    const html = render({ state: { status: "ready", vote: voted } });
 
-    const html = viewHtml({ state: { status: "ready", vote: voted } });
-    expect(voted.myBallotEventId).toBe(vote.options[2].event.id);
-    expect(html).toContain("Твой голос");
+    expect(html).toContain("твой голос");
+    expect(html).toContain("app-poll-result--mine");
+    expect(html).toContain("Изменить");
+    // проголосовавший смотрит раскладку, а не список кнопок — пока не нажал «Изменить»
+    expect(html).toContain('<div class="app-poll-result"');
 
-    const withoutBallot = viewHtml({ state: { status: "ready", vote: { ...voted, myBallotEventId: null } } });
-    expect(withoutBallot).not.toContain("Твой голос");
+    const again = render({ state: { status: "ready", vote: voted }, revoting: true });
+    expect(again).not.toContain('<div class="app-poll-result"');
   });
 
-  it("renders the forbidden state for a vote the user cannot access", () => {
-    expect(viewHtml({ state: { status: "forbidden" } })).toContain("Голосование недоступно");
-  });
-
-  it("renders the not-found, error and ballot-failure states", () => {
-    expect(viewHtml({ state: { status: "notfound" } })).toContain("Голосование не найдено");
-    expect(viewHtml({ state: { status: "error" } })).toContain("Не удалось загрузить голосование");
-    expect(viewHtml({ state: { status: "loading" } })).toContain("Загрузка");
-
-    const failed = viewHtml({ failed: true });
-    expect(failed).toContain("app-state--error");
-    expect(failed).toContain("Не удалось отправить голос");
-  });
-
-  it("shows the fresh tally after a ballot", () => {
+  it("offers «Завершить» to the host only, and only while the vote is open", () => {
     const vote = seededVote();
-    const target = vote.options[2];
-    const next = castMockBallot(vote.id, target.event.id);
-    if (typeof next === "string") throw new Error("unexpected ballot failure");
-    const html = viewHtml({ state: { status: "ready", vote: next }, myChoice: target.event.id });
 
-    expect(html).toContain(`${target.votes + 1} ${pluralRu(target.votes + 1, "голос", "голоса", "голосов")}`);
-    expect(html).toContain("Твой голос");
-  });
-});
-
-describe("voteCreateReady", () => {
-  it("requires a title, at least two events and one friend", () => {
-    expect(voteCreateReady("Куда идем?", ["e1", "e2"], ["f1"])).toBe(true);
-    expect(voteCreateReady("  ", ["e1", "e2"], ["f1"])).toBe(false);
-    expect(voteCreateReady("Куда идем?", ["e1"], ["f1"])).toBe(false);
-    expect(voteCreateReady("Куда идем?", ["e1", "e2"], [])).toBe(false);
-  });
-});
-
-describe("VoteCreateView", () => {
-  function createHtml(over: { title?: string; selectedEvents?: string[]; selectedFriends?: string[]; submitting?: boolean; failed?: boolean } = {}): string {
-    return renderToStaticMarkup(
-      createElement(VoteCreateView, {
-        events: mockEvents.slice(0, 3),
-        friends: mockFriends.slice(0, 3),
-        title: over.title ?? "Куда идем в пятницу?",
-        selectedEvents: over.selectedEvents ?? mockEvents.slice(0, 3).map((event) => event.id),
-        selectedFriends: over.selectedFriends ?? [],
-        submitting: over.submitting ?? false,
-        failed: over.failed ?? false,
-        onTitle: noop,
-        onToggleEvent: noop,
-        onToggleFriend: noop,
-        onSubmit: noop,
-        onCancel: noop,
-      }),
-    );
-  }
-
-  it("renders the question field, the event and friend chips", () => {
-    const html = createHtml();
-
-    expect(html).toContain("Куда идем в пятницу?");
-    for (const event of mockEvents.slice(0, 3)) expect(html).toContain(event.title);
-    for (const friend of mockFriends.slice(0, 3)) expect(html).toContain(friend.name);
-    expect(html).toContain("Назад к подборке");
+    expect(render({ ownId: vote.hostUserId })).toContain("Завершить");
+    expect(render({ ownId: mockDemoUser.id })).not.toContain("Завершить");
   });
 
-  it("disables submit until a friend is picked and reports a creation failure", () => {
-    const notReady = createHtml();
-    expect(notReady).toContain("disabled");
+  it("draws the finished vote with its winner and no more ballots", () => {
+    const closed: VoteScreen = { ...seededVote(), status: "closed", closedAt: "2026-09-15T12:00:00+03:00" };
+    const html = render({ state: { status: "ready", vote: closed }, ownId: closed.hostUserId });
 
-    const ready = createHtml({ selectedFriends: [mockFriends[0].id] });
-    expect(ready).not.toContain("disabled");
+    expect(html).toContain("Победил");
+    expect(html).not.toContain("Лидирует");
+    expect(html).toContain("Голосование завершено");
+    expect(html).not.toContain("Завершить");
+    expect(html).toContain('<div class="app-poll-result"');
+  });
 
-    const failed = createHtml({ failed: true });
+  it("renders the loading, not-found, forbidden, error and ballot-failure states", () => {
+    expect(render({ state: { status: "loading" } })).toContain("Загрузка");
+    expect(render({ state: { status: "notfound" } })).toContain("Голосование не найдено.");
+    expect(render({ state: { status: "forbidden" } })).toContain("Голосование недоступно.");
+    expect(render({ state: { status: "error" } })).toContain("Не удалось загрузить голосование.");
+
+    const failed = render({ failed: true });
     expect(failed).toContain("app-state--error");
-    expect(failed).toContain("Не удалось создать голосование");
+    expect(failed).toContain("Не удалось отправить голос.");
   });
 });
