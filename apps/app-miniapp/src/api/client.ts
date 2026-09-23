@@ -74,6 +74,9 @@
 // - serializeEventFilters - filters -> query string ("" when empty)
 // - statsPeriodQuery - period into a ?from&to query string
 // - trackPageView - fire-and-forget page helper over recordPageView (errors swallowed, #196)
+// - VoteScreen - vote plus the poll roster by name, who has already voted and whether the host finished it (макет, экран 33); mock-backed, the votes domain carries none of the three
+// - VoteStatus - open while ballots are taken, closed once the host finished the vote
+// - WeGroupCard - «Мы» group screen plus the agreed budget ceiling and the full photo count (макет, экраны 30 и 31); mock-backed, neither has a column
 // END_MODULE_MAP
 
 import type { RecordPageViewWrite } from "@max-events/api-contracts";
@@ -110,6 +113,7 @@ export type { LeisureQuery, SwipeCandidate, SwipeCategory, SwipeDecision, TodayC
 export type { AppSettings, ProfileCounters, UpdateAppSettings, VisitedPlace } from "./endpoints/profile";
 export { statsPeriodQuery } from "./endpoints/organizer";
 export type { CreateReport, Report, ReportReason } from "./endpoints/moderation";
+export type { VoteScreen, VoteStatus, WeGroupCard } from "./endpoints/groups";
 // One mixin per domain, applied in a flat chain: a new domain is one more line here plus its own file, and
 // adding an endpoint to an existing domain never touches this file at all.
 const WithAuth = withAuth(ApiTransport);

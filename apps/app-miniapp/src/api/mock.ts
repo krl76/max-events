@@ -32,7 +32,9 @@
 // - buildMockDayRoute - resolve 2..8 event/place stops to points and haversine walking legs (mock POST /routes, backend parity)
 // - calendarEntries - active bookings of a user enriched with event and place
 // - cancelMockPlan - mock DELETE /plans/:id: one meeting or the whole series
-// - castMockBallot - mock POST /votes/:id/ballots: one ballot per user, a repeated ballot replaces the previous one; winner = max votes then option position, null without ballots (backend parity)
+// - castMockBallot - mock POST /votes/:id/ballots: one ballot per user, a repeated ballot replaces the previous one; winner = max votes then option position, null without ballots (backend parity); "closed" once the host finished the vote
+// - closeMockVote - mock POST /votes/:id/close: host only, idempotent; the leader becomes the winner and no more ballots are taken (no backend transition exists yet)
+// - getMockWeGroup - mock GET /we-groups/:id: "unknown" -> 404, "forbidden" non-member -> 403 (backend requireMember parity)
 // - catalogCards - mock GET /events/cards: filtered events enriched with distance, rating and venue line (#496)
 // - createMockAutoPlan - autoplan after «Пойду»: saved draft plan + walk estimate + food picks + dinner->road->meetup->event timeline (mock POST /plans/auto, backend parity)
 // - createMockCheckIn - in-memory check-in for an event or a place, idempotent (mock POST)
@@ -145,7 +147,7 @@ export { catalogCards, filterMockEvents, mapWeatherFor, participationStats, plac
 export { leisureOptions, MOCK_ASSIST_RATE_LIMIT, mockAssistDay, mockAssistSaturdayKey, mockAssistSuggest, mockParseAssistQuery, nearbyTimeline, recordSwipeDecision, resetMockAssist, resetMockSwipeDecisions, swipeCandidates, todayPicks, wheretoSuggestions } from "./mock/discover";
 export { createMockStory, feedPosts, listMockStories, mockFeedCards, mockFeedPostExtras, mockFriendStories, mockNotificationsSummary, mockPostDrafts, mockStoryCompositions, resetMockFeed, saveMockPostDraft } from "./mock/feed";
 export { MOCK_EARLY_ACCESS_EVENT_ID, MOCK_NOW, MOCK_ORGANIZER_CREDENTIALS, MOCK_TODAY, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganization, mockOrganizers, mockPlaces } from "./mock/fixtures";
-export { MOCK_FOREIGN_VOTE_ID, MOCK_VOTE_ID, castMockBallot, createMockVote, getMockVote, listMockWeGroups, resetMockVotes, resetMockWeGroups } from "./mock/groups";
+export { MOCK_FOREIGN_VOTE_ID, MOCK_VOTE_ID, castMockBallot, closeMockVote, createMockVote, getMockVote, getMockWeGroup, listMockWeGroups, resetMockVotes, resetMockWeGroups } from "./mock/groups";
 export { installMockApi } from "./mock/install";
 export { LIST_PRESET_TITLES, SHARED_COLLECTION_TITLE, createMockList, createMockSubscription, listItemCards, listMockSubscriptions, listSummaries, removeMockList, removeMockSubscription, renameMockList, resetMockLists, resetMockSubscriptions } from "./mock/lists";
 export { MOCK_MODERATOR_USER_ID, banMockOrganizer, bannedMockOrganizers, createMockReport, isMockModerator, openMockReports, resetMockReports, resolveMockReport, setMockModerator, unpublishMockTarget } from "./mock/moderation";

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock route table for the «Мы» groups and the shared event vote.
-// SCOPE: GET/POST /api/we-groups, POST /api/we-groups/:id/(events|places|archive), GET /api/we-groups/:id, POST /api/votes, POST /api/votes/:id/ballots, GET /api/votes/:id.
+// SCOPE: GET/POST /api/we-groups, POST /api/we-groups/:id/(events|places|archive), GET /api/we-groups/:id, POST /api/votes, POST /api/votes/:id/(ballots|close), GET /api/votes/:id.
 // DEPENDS: ./groups.js, ./fixtures.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -11,7 +11,7 @@
 
 import { CreateVoteWriteSchema, CreateWeGroupWriteSchema, IdSchema, VoteBallotWriteSchema } from "@max-events/api-contracts";
 import { parseBookingBody } from "./fixtures";
-import { archiveMockWeGroup, bindMockWeGroupItem, castMockBallot, createMockVote, createMockWeGroup, getMockVote, getMockWeGroup, listMockWeGroups } from "./groups";
+import { archiveMockWeGroup, bindMockWeGroupItem, castMockBallot, closeMockVote, createMockVote, createMockWeGroup, getMockVote, getMockWeGroup, listMockWeGroups } from "./groups";
 
 export function groupsRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/we-groups" && init?.method === "POST") {
@@ -55,7 +55,13 @@ export function groupsRoutes(url: URL, init: RequestInit | undefined): Response 
     const parsed = VoteBallotWriteSchema.safeParse(parseBookingBody(init));
     if (!parsed.success) return new Response(null, { status: 400 });
     const result = castMockBallot(voteBallots[1], parsed.data.eventId);
-    return result === "unknown" ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
+    return result === "unknown" ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : result === "closed" ? new Response(null, { status: 409 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
+  }
+  const voteClose = /^\/api\/votes\/([^/]+)\/close$/.exec(url.pathname);
+  if (voteClose && init?.method === "POST") {
+    if (!IdSchema.safeParse(voteClose[1]).success) return new Response(null, { status: 400 });
+    const closed = closeMockVote(voteClose[1]);
+    return closed === "unknown" ? new Response(null, { status: 404 }) : closed === "forbidden" ? new Response(null, { status: 403 }) : Response.json(closed);
   }
   const voteById = /^\/api\/votes\/([^/]+)$/.exec(url.pathname);
   if (voteById) {
