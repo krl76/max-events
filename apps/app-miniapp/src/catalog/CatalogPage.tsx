@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - CatalogState - union of catalog fetch states (loading / error / ready)
-// - CATEGORY_LABELS - ru labels per event category (reused by the event page)
+// - CATEGORY_LABELS - ru labels per event category (re-exported from ./format.js, reused by the event page and the feed)
 // - formatStartsAt - ru "day month, hh:mm" formatting (re-exported from ./format.js, reused by the event page)
 // - CatalogViewName - "list" | "map" view switch on the catalog route
 // - RATING_THRESHOLDS - whole-star minimums the rating filter offers
@@ -24,19 +24,13 @@ import { EventCategorySchema } from "@max-events/api-contracts";
 import { apiClient, parseEventFilters, serializeEventFilters, type EventFilters } from "../api/client";
 import { useRoute } from "../routing/router";
 import { AppChip, AppState, AppMedia } from "../ui/primitives";
-import { formatEventWeather, formatStartsAt } from "./format";
+import { CATEGORY_LABELS, formatEventWeather, formatStartsAt } from "./format";
 import { MapScreen } from "./MapScreen";
 
-export { formatStartsAt };
+// Both live in ./format.ts, the leaf screens without a map can import from; re-exported here because that is where the screens already reach for them.
+export { CATEGORY_LABELS, formatStartsAt };
 
 const CATEGORIES: readonly EventCategory[] = EventCategorySchema.options;
-
-export const CATEGORY_LABELS: Record<EventCategory, string> = {
-  afisha: "Афиша",
-  volunteering: "Волонтёрство",
-  tourism: "Туризм",
-  sport: "Спорт",
-};
 
 export type CatalogState = { status: "loading" } | { status: "error" } | { status: "ready"; events: Event[] };
 

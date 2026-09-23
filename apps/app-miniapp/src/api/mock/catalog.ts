@@ -9,7 +9,8 @@
 // - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt)
 // - mockParticipations - shared with catalog.routes, social
 // - nextMockParticipationSeq - Bumps and returns the participation sequence; the route table writes participations from its own module, and an imported binding is read-only
-// - resetMockParticipations - restore seeded participations (test isolation)
+// - mockPlaceStatuses - viewer statuses on venues (макет, экран 03); mock-only until the slot domain lands (#492), shared with catalog.routes and feed
+// - resetMockParticipations - restore seeded participations and clear the venue statuses (test isolation)
 // - participationStats - per-event status counters, friends count and own status
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
 // - eventDetails - shared with catalog.routes
@@ -57,6 +58,13 @@ const MOCK_PARTICIPATION_SEED: [number, number, ParticipationStatus][] = [
 
 export const mockParticipations = new Map<string, Participation>();
 
+/**
+ * Viewer status on a venue, keyed `${userId}:${placeId}` (макет, экран 03, блок «Твой статус на этой
+ * площадке»). Participation is an event-level domain: a place has no such surface until the slot
+ * domain lands (#492), so this store stands in for it behind the endpoint signature.
+ */
+export const mockPlaceStatuses = new Map<string, ParticipationStatus>();
+
 let mockParticipationSeq = 0;
 
 /** Bumps and returns the participation sequence; the route table writes participations from its own module, and an imported binding is read-only. */
@@ -67,6 +75,7 @@ export function nextMockParticipationSeq(): number {
 
 function seedMockParticipations(): void {
   mockParticipations.clear();
+  mockPlaceStatuses.clear();
   mockParticipationSeq = 0;
   for (const [friend, eventItem, status] of MOCK_PARTICIPATION_SEED) {
     mockParticipationSeq += 1;
@@ -78,6 +87,7 @@ function seedMockParticipations(): void {
 }
 seedMockParticipations();
 
+/** Restores seeded participations and clears the venue statuses (test isolation). */
 export function resetMockParticipations(): void {
   seedMockParticipations();
 }

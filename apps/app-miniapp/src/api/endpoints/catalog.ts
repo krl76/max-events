@@ -11,7 +11,8 @@
 // - parseEventFilters - query string -> filters, invalid values dropped
 // - EventDetails - event page aggregate: event, place, organizer (nullable), free seats, own active booking
 // - ParticipationStats - event page social aggregate: per-status counters, friends count, own status
-// - withCatalog - ApiClient.listEvents / listPlaces / getEvent / getEventDetails / getPlace / getPlacePage / getParticipationStats / setParticipationStatus / deleteParticipation
+// - PlaceParticipation - viewer status on a venue (макет, экран 03); the place-level twin of Participation, which the slot domain will own (#492)
+// - withCatalog - ApiClient.listEvents / listPlaces / getEvent / getEventDetails / getPlace / getPlacePage / getParticipationStats / setParticipationStatus / deleteParticipation / setPlaceParticipationStatus
 // END_MODULE_MAP
 
 import { EventCategorySchema, EventSchema, OrganizationSchema, ParticipationSchema, ParticipationStatusSchema, PlacePageSchema, PlaceSchema, UserSchema } from "@max-events/api-contracts";
@@ -109,6 +110,26 @@ const ParticipationStatsSchema: ZodSchema<ParticipationStats> = {
   },
 };
 
+/**
+ * Viewer status on a venue (макет, экран 03, блок «Твой статус на этой площадке»). Participation is
+ * an event-level domain today — a place has no such surface until the slot domain lands (#492) — so
+ * this is the shape that endpoint will answer: the same closed status enum, keyed by place.
+ */
+export interface PlaceParticipation {
+  placeId: string;
+  status: ParticipationStatus | null;
+}
+
+const PlaceParticipationSchema: ZodSchema<PlaceParticipation> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a place participation object" };
+    const raw = data as Record<string, unknown>;
+    const status = raw.status === null ? { success: true as const, data: null } : ParticipationStatusSchema.safeParse(raw.status);
+    if (typeof raw.placeId !== "string" || !status.success) return { success: false as const, error: "invalid place participation" };
+    return { success: true as const, data: { placeId: raw.placeId, status: status.data } };
+  },
+};
+
 export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
   return class CatalogEndpoints extends Base {
     listEvents(filters: EventFilters = {}): Promise<Event[]> {
@@ -148,6 +169,11 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
     /** Delete participation (DELETE); the userId param is ignored server-side, identity comes from initData. */
     deleteParticipation(eventId: string, userId: string): Promise<Participation> {
       return this.request(`/events/${eventId}/participation?userId=${encodeURIComponent(userId)}`, ParticipationSchema, { method: "DELETE" });
+    }
+
+    /** Set the viewer status on a venue (PUT); status null clears it. Mock-only until the slot domain lands (#492). */
+    setPlaceParticipationStatus(placeId: string, userId: string, status: ParticipationStatus | null): Promise<PlaceParticipation> {
+      return this.request(`/places/${placeId}/participation?userId=${encodeURIComponent(userId)}`, PlaceParticipationSchema, { method: "PUT", body: { status } });
     }
   };
 }

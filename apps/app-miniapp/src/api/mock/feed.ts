@@ -1,11 +1,13 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock feed store: the stories rail and the impression wall with its likes and comments.
-// SCOPE: Story fixtures (brandbook gradients, no glyph) plus the in-memory posts; the HTTP surface is in ./feed.routes.ts.
+// PURPOSE: Mock feed store: the stories rail, the home feed cards (макет, экран 03) and the impression wall with its likes and comments.
+// SCOPE: Story fixtures (brandbook gradients, no glyph), the seeded feed cards and the in-memory posts; the HTTP surface is in ./feed.routes.ts.
 // DEPENDS: @max-events/api-contracts, ../client.js and the sibling ./mock domain modules it imports
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - mockFeedCards - seeded home feed cards (макет, экран 03): three friend posts around one venue post, own statuses read from the participation stores
+// - mockNotificationsSummary - unread count behind the header bell; a fixture until the notifications domain exists (#494)
 // - mockFriendStories - seeded friend story fixtures (gradient placeholder images)
 // - listMockStories - own story (localStorage) + friend fixtures
 // - createMockStory - publish the own mock story from a data-URL photo (localStorage)
@@ -20,9 +22,10 @@
 // END_MODULE_MAP
 
 import { StorySchema } from "@max-events/api-contracts";
-import type { Story } from "@max-events/api-contracts";
-import { type CreateFeedPost, type FeedComment, type FeedPost } from "../client";
-import { mockDemoUser, mockEvents, mockFriendIds, mockFriends } from "./fixtures";
+import type { Event, ParticipationStatus, Story } from "@max-events/api-contracts";
+import { type CreateFeedPost, type FeedCard, type FeedCardCounts, type FeedComment, type FeedFriendCard, type FeedPlaceCard, type FeedPost } from "../client";
+import { mockParticipations, mockPlaceStatuses } from "./catalog";
+import { mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockPlaces } from "./fixtures";
 
 /** Gradient placeholder image (data URL) for seeded story fixtures; both stops are brandbook colours and the frame carries no glyph. */
 function storyImage(colorFrom: string, colorTo: string): string {
@@ -165,6 +168,130 @@ export function addMockFeedComment(postId: string, payload: { userId: string; te
   const comment: FeedComment = { id: `31000000-0000-4000-8000-${String(mockFeedCommentSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), text: payload.text };
   post.comments.push(comment);
   return post;
+}
+
+const MINUTE_MS = 60 * 1000;
+
+/** Relative, not absolute: the seeded cards must keep reading «25 минут назад» whenever the demo is opened. */
+const publishedAgo = (minutes: number): string => new Date(Date.now() - minutes * MINUTE_MS).toISOString();
+
+/**
+ * What the home feed card adds to an impression post. Kept next to the posts rather than inside them:
+ * a card id IS its post id, so «нравится» and the comment form keep hitting /feed/:id, and when the
+ * real endpoint starts answering distance, counters and the hit flag (#496) only this table goes away.
+ */
+type FeedCardExtra = {
+  /** The backend will derive it from startsAt/endsAt; the fixture pins it so the demo screen shows the «Сейчас идёт» chip. */
+  live: boolean;
+  /** «ХИТ НЕДЕЛИ» — the events domain has no such flag (#496), so it is seeded here. */
+  hit: boolean;
+  distanceKm: number;
+  counts: FeedCardCounts;
+  /** Comments the post carries beyond the ones stored, so the card can say «ещё 2 комментария». */
+  extraComments: number;
+  agoMinutes: number;
+};
+
+/** By post index: a live afisha post, a sold-out sport post with the «ХИТ НЕДЕЛИ» badge, a festival post with free seats. */
+const MOCK_FEED_CARD_EXTRAS: FeedCardExtra[] = [
+  { live: true, hit: false, distanceKm: 1.2, counts: { wantsToGo: 12, going: 4, waitlist: null, freeSeats: null }, extraComments: 2, agoMinutes: 25 },
+  { live: false, hit: true, distanceKm: 4.8, counts: { wantsToGo: null, going: 16, waitlist: 7, freeSeats: null }, extraComments: 5, agoMinutes: 120 },
+  { live: false, hit: false, distanceKm: 2.1, counts: { wantsToGo: null, going: 28, waitlist: null, freeSeats: 12 }, extraComments: 1, agoMinutes: 26 * 60 },
+];
+
+/** The venue post of the feed (макет, экран 03): everything behind it — rating, travel time, slots and the price — is mocked (#496, #492). */
+const MOCK_FEED_PLACE_CARD = {
+  place: 0,
+  verified: true,
+  distanceKm: 2.4,
+  travelMinutes: 15,
+  rating: 4.9,
+  pricePerHourRub: 800,
+  slotLabel: "Свободно сегодня с 14:00",
+  offerLabel: "Мангальная зона",
+  goingFriends: [0, 1],
+  title: "Мангальная зона и тёплая беседка №4 у залива",
+  text: "Оборудованная закрытая мангальная территория на берегу. Защита от ветра, удобный подъезд, прокат шампуров и решёток на месте.",
+  quote: [0, "Чистый мангал, навес от дождя, розетка и закат над рекой"] as [number, string],
+  likes: 318,
+  commentsCount: 32,
+  agoMinutes: 60,
+};
+
+/** Own status bumps the counter it belongs to: the backend counts the viewer too, and a card that ignored them would read as stale right after «Пойду». */
+function countsWithMine(counts: FeedCardCounts, mine: ParticipationStatus | null): FeedCardCounts {
+  const bump = (value: number | null, status: ParticipationStatus) => (value === null || mine !== status ? value : value + 1);
+  return { ...counts, wantsToGo: bump(counts.wantsToGo, "wants_to_go"), going: bump(counts.going, "going") };
+}
+
+const NO_COUNTS: FeedCardCounts = { wantsToGo: null, going: null, waitlist: null, freeSeats: null };
+
+/** A card is its post plus the extras; a post published after the seed simply has none of them, and says so with nulls. */
+function friendCard(post: FeedPost, event: Event, extra: FeedCardExtra | undefined, userId: string): FeedFriendCard {
+  const mine = mockParticipations.get(`${userId}:${event.id}`)?.status ?? null;
+  return {
+    kind: "friend",
+    id: post.id,
+    author: post.author,
+    placeTitle: mockPlaces.find((item) => item.id === event.placeId)?.title ?? null,
+    distanceKm: extra?.distanceKm ?? null,
+    event,
+    live: extra?.live ?? false,
+    hit: extra?.hit ?? false,
+    counts: countsWithMine(extra?.counts ?? NO_COUNTS, mine),
+    myStatus: mine,
+    text: post.text,
+    likesCount: post.likesCount,
+    likedByMe: post.likedByMe,
+    comments: post.comments,
+    commentsCount: post.comments.length + (extra?.extraComments ?? 0),
+    publishedAt: publishedAgo(extra?.agoMinutes ?? 0),
+  };
+}
+
+function placeCard(userId: string): FeedPlaceCard {
+  const seed = MOCK_FEED_PLACE_CARD;
+  const place = mockPlaces[seed.place];
+  return {
+    kind: "place",
+    id: "32000000-0000-4000-8000-000000000101",
+    place,
+    verified: seed.verified,
+    distanceKm: seed.distanceKm,
+    travelMinutes: seed.travelMinutes,
+    rating: seed.rating,
+    pricePerHourRub: seed.pricePerHourRub,
+    slotLabel: seed.slotLabel,
+    offerLabel: seed.offerLabel,
+    goingFriends: seed.goingFriends.map((index) => mockFriends[index]),
+    title: seed.title,
+    text: seed.text,
+    quote: { author: mockFriends[seed.quote[0]], text: seed.quote[1] },
+    likesCount: seed.likes,
+    likedByMe: false,
+    commentsCount: seed.commentsCount,
+    myStatus: mockPlaceStatuses.get(`${userId}:${place.id}`) ?? null,
+    publishedAt: publishedAgo(seed.agoMinutes),
+  };
+}
+
+/**
+ * What the header bell shows (макет, экран 03). Notifications are not a domain yet — smart-alerts is
+ * a scheduler, not an inbox (#494) — so the count is a fixture rather than something counted.
+ */
+export function mockNotificationsSummary(): { unreadCount: number } {
+  return { unreadCount: 3 };
+}
+
+/** Home feed cards in the order of the design: freshly published posts on top, then a friend post, the venue post and the rest. */
+export function mockFeedCards(userId: string): FeedCard[] {
+  const cards = mockFeedPosts.flatMap((post, index) => {
+    const event = mockEvents.find((item) => item.id === post.eventId);
+    return event === undefined ? [] : [friendCard(post, event, MOCK_FEED_CARD_EXTRAS[index], userId)];
+  });
+  const seeded = cards.slice(0, MOCK_FEED_CARD_EXTRAS.length);
+  const fresh = cards.slice(MOCK_FEED_CARD_EXTRAS.length).reverse();
+  return [...fresh, ...seeded.slice(0, 1), placeCard(userId), ...seeded.slice(1)];
 }
 
 /** Publishes an impression post as its author; null for an unknown event (mock 404). */

@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - FeedPostCard - presentational Instagram-style post: author header, the post photo in the 4:5 frame (category placeholder without one), icon actions (like/comment/share), likes line, caption, comments, add form and a «Пожаловаться» report control
-// - StoriesRow - stories rail over the home feed: own ring publishes a picked photo or opens the viewer, friend rings with stories open the viewer
+// - StoriesRow - stories rail over the home feed: the «Мой план» tile opens the plan form (макет, экран 03), the own ring publishes a picked photo or opens the viewer, friend rings with stories open the viewer
 // - FeedState - union of the feed fetch states (loading / error / ready)
 // - FeedSection - container: posts (optionally one event or one place — the wall), event titles for the cards, like/comment wiring, «+» publish CTA
 // - FeedDraft - publish form draft (event title, text)
@@ -195,6 +195,7 @@ export function StoriesRow() {
   const [viewer, setViewer] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const auth = useAuth();
+  const { navigate } = useRoute();
 
   const reloadStories = useCallback(() => {
     apiClient.listStories().then(setStories, () => {});
@@ -252,6 +253,13 @@ export function StoriesRow() {
           change.target.value = "";
         }}
       />
+      {/* Макет, экран 03: the rail opens with «Мой план» — a dashed ring, not a person, and it starts a plan rather than a story. */}
+      <button type="button" className="app-story" onClick={() => navigate({ name: "plan-new" })}>
+        <span className="app-story-add" aria-hidden="true">
+          +
+        </span>
+        <span className="app-story-name">Мой план</span>
+      </button>
       <button type="button" className="app-story" onClick={openOwn}>
         <span className={ownStories.length > 0 ? "app-story-ring app-story-ring--own app-story-ring--active" : "app-story-ring app-story-ring--own"}>{ownStories.length > 0 ? <img className="app-story-thumb" src={ownStories[0].imageUrl} alt="" /> : <AppAvatar size={58}>Д</AppAvatar>}</span>
         <span className="app-story-name">Твоя история</span>
