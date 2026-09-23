@@ -2462,3 +2462,86 @@ html[data-theme="dark"] body {
   background: var(--app-accent-contrast);
   border-color: var(--app-accent);
 }
+
+/* Таб «Создать»: список того, что можно опубликовать — строка на вариант, без иерархии между ними */
+.app-create-entries {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-create-entry {
+  align-items: center;
+  background: none;
+  border: none;
+  border-top: var(--app-hairline);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  padding: var(--app-space-m) 0;
+  text-align: left;
+  width: 100%;
+}
+
+.app-create-entry:first-child {
+  border-top: none;
+}
+
+.app-create-entry-icon {
+  align-items: center;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  color: var(--app-accent);
+  display: flex;
+  flex-shrink: 0;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.app-create-entry-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-create-entry-label {
+  font-size: var(--app-font-size-callout);
+  font-weight: var(--app-font-weight-title);
+}
+
+.app-create-entry-description {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-create-entry-chevron {
+  color: var(--app-text-tertiary);
+  display: flex;
+  margin-left: auto;
+}
+
+/* Публикация истории: превью 9:16, кнопки под ним */
+.app-story-create {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+  padding: var(--app-space-m) 0;
+}
+
+.app-story-create-preview {
+  aspect-ratio: 9 / 16;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-media);
+  max-height: 60vh;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-story-create-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+}

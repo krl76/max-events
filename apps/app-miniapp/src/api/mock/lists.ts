@@ -1,0 +1,263 @@
+// START_MODULE_CONTRACT
+// PURPOSE: Mock store for the lists and the follows of the viewer.
+// SCOPE: Preset and own lists with their items and shared-collection participants, plus the subscriptions; the HTTP surface is in ./lists.routes.ts.
+// DEPENDS: @max-events/api-contracts, ../client.js and the sibling ./mock domain modules it imports
+// LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+// - resetMockSubscriptions - clear in-memory follows (test isolation)
+// - listMockSubscriptions - mock GET /subscriptions for the demo user
+// - createMockSubscription - mock POST /subscriptions: idempotent per target, "unknown" for an unknown place or organizer (backend 404 parity)
+// - removeMockSubscription - mock DELETE /subscriptions/:id, "unknown" when it is already gone
+// - LIST_PRESET_TITLES - ru titles of the six preset lists (mock seeds them as List.title)
+// - mockListItems - shared with discover
+// - resetMockLists - clear in-memory lists (test isolation)
+// - SHARED_COLLECTION_TITLE - ru title of the seeded shared collection
+// - listsFor - The six preset lists of a user plus the shared collection for its participants, created with their seed items on first request
+// - listSummaries - preset lists of a user with item counters, the saved-item id for the checked event and shared-collection participants
+// - listItemCards - items of one list enriched with their events and the participant who added them, newest first (mock)
+// - listScreen - One-list aggregate for the list screen: the list, its participants (shared collections) and its item cards; null for an unknown list
+// - createMockList - mock POST /lists: a list of one's own (409 past the ceiling)
+// - renameMockList - mock PATCH /lists/:id (403 for a preset)
+// - removeMockList - mock DELETE /lists/:id with its items (403 for a preset)
+// - addMockListItem - Adds an event to a list, idempotent, attributed to the adding user; "no_list"/"no_event" map to 404 in the interceptor
+// - removeMockListItem - Removes an item from a list; null when the list or the item is unknown
+// END_MODULE_MAP
+
+import { ListPresetSchema } from "@max-events/api-contracts";
+import type { CreateSubscription, Friend, List, ListItem, ListPreset, Subscription } from "@max-events/api-contracts";
+import { type AddListItem, type ListItemCard, type ListSummary } from "../client";
+import { mockUserAsFriend } from "./feed";
+import { PLACE_STAMP, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganization, mockOrganizers, mockPlaces } from "./fixtures";
+
+const mockSubscriptions: Subscription[] = [];
+
+let mockSubscriptionSeq = 0;
+
+export function resetMockSubscriptions(): void {
+  mockSubscriptions.length = 0;
+  mockSubscriptionSeq = 0;
+}
+
+/** Backend parity: the follow carries the name of its target, since the screens cannot resolve a uuid. */
+function mockSubscriptionTitle(payload: CreateSubscription): string | null {
+  if (payload.type === "interest") return payload.interest;
+  if (payload.type === "place") return mockPlaces.find((place) => place.id === payload.placeId)?.title ?? null;
+  return mockOrganizers.some((organizer) => organizer.id === payload.organizerUserId) ? mockOrganization.name : null;
+}
+
+function sameMockTarget(row: Subscription, payload: CreateSubscription): boolean {
+  if (row.type !== payload.type) return false;
+  if (payload.type === "organizer") return row.organizerUserId === payload.organizerUserId;
+  if (payload.type === "place") return row.placeId === payload.placeId;
+  return (row.interest ?? "").toLowerCase() === payload.interest.toLowerCase();
+}
+
+export function listMockSubscriptions(): Subscription[] {
+  return [...mockSubscriptions];
+}
+
+/** Mock POST /subscriptions: idempotent per target like the backend, "unknown" for a target that does not exist. */
+export function createMockSubscription(payload: CreateSubscription): Subscription | "unknown" {
+  const title = mockSubscriptionTitle(payload);
+  if (title === null) return "unknown";
+  const existing = mockSubscriptions.find((row) => sameMockTarget(row, payload));
+  if (existing) return existing;
+  mockSubscriptionSeq += 1;
+  const subscription: Subscription = {
+    id: `d0000008-0000-4000-8000-${String(mockSubscriptionSeq).padStart(12, "0")}`,
+    userId: mockDemoUser.id,
+    type: payload.type,
+    organizerUserId: payload.type === "organizer" ? payload.organizerUserId : null,
+    placeId: payload.type === "place" ? payload.placeId : null,
+    interest: payload.type === "interest" ? payload.interest : null,
+    title,
+    createdAt: new Date().toISOString(),
+  };
+  mockSubscriptions.push(subscription);
+  return subscription;
+}
+
+/** Mock DELETE /subscriptions/:id: returns the removed follow, "unknown" when there is nothing to remove. */
+export function removeMockSubscription(id: string): Subscription | "unknown" {
+  const index = mockSubscriptions.findIndex((row) => row.id === id);
+  if (index < 0) return "unknown";
+  return mockSubscriptions.splice(index, 1)[0]!;
+}
+
+/** Preset list titles per ListPreset; the lists UI renders List.title as-is. */
+export const LIST_PRESET_TITLES: Record<ListPreset, string> = {
+  want_to_go: "Хочу сходить",
+  favorites: "Избранное",
+  weekend: "На выходные",
+  with_children: "С детьми",
+  with_friends: "С друзьями",
+  try_later: "Попробовать потом",
+};
+
+/** Preset list items seeded on list creation: [preset, mockEvents index]. */
+const MOCK_LIST_SEED: [ListPreset, number][] = [
+  ["want_to_go", 0],
+  ["favorites", 1],
+];
+
+const mockLists = new Map<string, List[]>();
+
+export const mockListItems: ListItem[] = [];
+
+const mockListItemAuthors = new Map<string, Friend>();
+
+let mockListSeq = 0;
+
+let mockListItemSeq = 0;
+
+export function resetMockLists(): void {
+  mockLists.clear();
+  mockListItems.length = 0;
+  mockListItemAuthors.clear();
+  mockListSeq = 0;
+  mockListItemSeq = 0;
+}
+
+/** The seeded shared collection of the demo user and the first friend; both add items, «Отправить в чат» shares it. */
+const SHARED_LIST_ID = "70000000-0000-4000-8000-0000000000c0";
+
+export const SHARED_COLLECTION_TITLE = "Совместное: идеи на выходные";
+
+const SHARED_LIST_PARTICIPANTS = (): Friend[] => [{ id: mockDemoUser.id, name: "Демо", avatarUrl: null }, mockFriends[0]];
+
+/** Seeded shared-collection items: [mockEvents index, author friend index] (the demo user is index -1). */
+const MOCK_SHARED_LIST_SEED: [number, number][] = [
+  [6, -1],
+  [7, 0],
+];
+
+function listItem(listId: string, eventId: string, addedBy: Friend | null = null): ListItem {
+  mockListItemSeq += 1;
+  const item: ListItem = { id: `71000000-0000-4000-8000-${String(mockListItemSeq).padStart(12, "0")}`, listId, eventId, placeId: null, addedAt: PLACE_STAMP };
+  if (addedBy !== null) mockListItemAuthors.set(item.id, addedBy);
+  return item;
+}
+
+/** The six preset lists of a user plus the shared collection for its participants, created with their seed items on first request. */
+export function listsFor(userId: string): List[] {
+  let lists = mockLists.get(userId);
+  if (lists) return lists;
+  lists = ListPresetSchema.options.map((preset) => {
+    mockListSeq += 1;
+    return { id: `70000000-0000-4000-8000-${String(mockListSeq).padStart(12, "0")}`, userId, preset, title: LIST_PRESET_TITLES[preset], createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
+  });
+  for (const [preset, eventIndex] of MOCK_LIST_SEED) {
+    const list = lists.find((candidate) => candidate.preset === preset);
+    if (list) mockListItems.push(listItem(list.id, mockEvents[eventIndex].id));
+  }
+  if (userId === mockDemoUser.id || userId === mockFriendIds[0]) {
+    lists.push({ id: SHARED_LIST_ID, userId, preset: null, title: SHARED_COLLECTION_TITLE, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP });
+    if (!mockListItems.some((item) => item.listId === SHARED_LIST_ID)) {
+      for (const [eventIndex, authorIndex] of MOCK_SHARED_LIST_SEED) {
+        mockListItems.push(listItem(SHARED_LIST_ID, mockEvents[eventIndex].id, authorIndex === -1 ? SHARED_LIST_PARTICIPANTS()[0] : mockFriends[authorIndex]));
+      }
+    }
+  }
+  mockLists.set(userId, lists);
+  return lists;
+}
+
+function findList(listId: string): List | undefined {
+  for (const lists of mockLists.values()) {
+    const found = lists.find((list) => list.id === listId);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/** Preset lists of a user with item counters, shared-collection participants; savedItemId points at the item saving eventId (null when not saved). */
+export function listSummaries(userId: string, eventId: string | null): ListSummary[] {
+  return listsFor(userId).map((list) => {
+    const items = mockListItems.filter((item) => item.listId === list.id);
+    return { list, itemsCount: items.length, savedItemId: items.find((item) => item.eventId === eventId)?.id ?? null, participants: list.id === SHARED_LIST_ID ? SHARED_LIST_PARTICIPANTS() : [] };
+  });
+}
+
+/** Items of one list enriched with their events and the participant who added them (null outside shared collections), newest first; null for an unknown list. */
+export function listItemCards(listId: string): ListItemCard[] | null {
+  if (!findList(listId)) return null;
+  return mockListItems
+    .filter((item) => item.listId === listId && item.eventId !== null)
+    .flatMap((item) => {
+      const event = mockEvents.find((candidate) => candidate.id === item.eventId);
+      return event ? [{ item, event, addedBy: mockListItemAuthors.get(item.id) ?? null }] : [];
+    })
+    .reverse();
+}
+
+/** One-list aggregate for the list screen: the list, its participants (shared collections) and its item cards; null for an unknown list. */
+export function listScreen(listId: string): { list: List; participants: Friend[]; items: ListItemCard[] } | null {
+  const list = findList(listId);
+  if (!list) return null;
+  return { list, participants: list.id === SHARED_LIST_ID ? SHARED_LIST_PARTICIPANTS() : [], items: listItemCards(listId) ?? [] };
+}
+
+/** Backend MAX_CUSTOM_LISTS parity. */
+const MOCK_MAX_CUSTOM_LISTS = 20;
+
+/** Backend parity: a list of one's own, appended after the six presets; "too_many" maps to 409. */
+export function createMockList(userId: string, title: string): List | "too_many" {
+  const lists = listsFor(userId);
+  // The seeded shared collection is nobody's "own list", so it does not eat into the ceiling.
+
+  if (lists.filter((row) => row.preset === null && row.id !== SHARED_LIST_ID).length >= MOCK_MAX_CUSTOM_LISTS) return "too_many";
+  mockListSeq += 1;
+  const now = new Date().toISOString();
+  const list: List = { id: `70000000-0000-4000-8000-${String(mockListSeq).padStart(12, "0")}`, userId, preset: null, title, createdAt: now, updatedAt: now };
+  lists.push(list);
+  return list;
+}
+
+/** A preset refuses both rename and delete: the backend recreates it, so the change would not stick. */
+export function renameMockList(listId: string, title: string): List | "no_list" | "preset" {
+  const list = findList(listId);
+  if (!list) return "no_list";
+  // A preset comes back from the backend, and a shared collection belongs to more than one person.
+  if (list.preset !== null || listId === SHARED_LIST_ID) return "preset";
+  list.title = title;
+  list.updatedAt = new Date().toISOString();
+  return list;
+}
+
+export function removeMockList(listId: string): List | "no_list" | "preset" {
+  const list = findList(listId);
+  if (!list) return "no_list";
+  if (list.preset !== null || listId === SHARED_LIST_ID) return "preset";
+  for (const [userId, lists] of mockLists) {
+    const index = lists.findIndex((row) => row.id === listId);
+    if (index !== -1) mockLists.set(userId, [...lists.slice(0, index), ...lists.slice(index + 1)]);
+  }
+  // The database drops the items through ON DELETE CASCADE; here they are swept by hand.
+  for (let index = mockListItems.length - 1; index >= 0; index -= 1) {
+    if (mockListItems[index]!.listId === listId) {
+      mockListItemAuthors.delete(mockListItems[index]!.id);
+      mockListItems.splice(index, 1);
+    }
+  }
+  return list;
+}
+
+/** Adds an event to a list, idempotent, attributed to the adding user; "no_list"/"no_event" map to 404 in the interceptor. */
+export function addMockListItem(listId: string, payload: AddListItem): ListItem | "no_list" | "no_event" {
+  if (!findList(listId)) return "no_list";
+  if (!mockEvents.some((event) => event.id === payload.eventId)) return "no_event";
+  const existing = mockListItems.find((item) => item.listId === listId && item.eventId === payload.eventId);
+  if (existing) return existing;
+  const item = listItem(listId, payload.eventId, mockUserAsFriend(payload.userId));
+  mockListItems.push(item);
+  return item;
+}
+
+/** Removes an item from a list; null when the list or the item is unknown. */
+export function removeMockListItem(listId: string, itemId: string): ListItem | null {
+  const index = mockListItems.findIndex((item) => item.listId === listId && item.id === itemId);
+  if (index === -1) return null;
+  return mockListItems.splice(index, 1)[0];
+}

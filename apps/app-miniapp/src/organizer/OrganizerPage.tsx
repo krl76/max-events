@@ -328,11 +328,12 @@ function upsert<T extends { id: string }>(items: T[], item: T): T[] {
   return items.some((existing) => existing.id === item.id) ? items.map((existing) => (existing.id === item.id ? item : existing)) : [...items, item];
 }
 
-export function OrganizerPanel({ organizationId }: { organizationId: string }) {
+/** createOnMount: the «Создать» tab of the organizer bar (макет, экран 43) lands straight on the empty event draft. */
+export function OrganizerPanel({ organizationId, createOnMount = false }: { organizationId: string; createOnMount?: boolean }) {
   const [tab, setTab] = useState<"events" | "places">("events");
   const [events, setEvents] = useState<OrganizerListState<OrganizerEvent>>({ status: "loading" });
   const [places, setPlaces] = useState<OrganizerListState<OrganizerPlace>>({ status: "loading" });
-  const [eventForm, setEventForm] = useState<EventFormState>(null);
+  const [eventForm, setEventForm] = useState<EventFormState>(createOnMount ? { mode: "create", draft: EMPTY_EVENT_DRAFT } : null);
   const [placeForm, setPlaceForm] = useState<PlaceFormState>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);

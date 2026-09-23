@@ -6,7 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - TabIcon - union of the five tabbar icon names (feed/search/map/plans/profile)
+// - TabIcon - union of the tabbar icon names: the user bar (feed/search/create/plans/profile) plus map and the organizer bar (dashboard/events/create/promo/profile)
 // - TabIconGlyph - inline stroke SVG for a tabbar icon, filled variant for the active tab
 // - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron)
 // - ActionIcon - inline stroke SVG by ActionIconName; filled=true fills the glyph (liked heart, saved bookmark, active tab)
@@ -14,7 +14,7 @@
 
 import type { ReactNode } from "react";
 
-export type TabIcon = "feed" | "search" | "map" | "plans" | "profile";
+export type TabIcon = "feed" | "search" | "create" | "map" | "plans" | "profile" | "dashboard" | "events" | "promo";
 
 const OUTLINE: Record<TabIcon, ReactNode> = {
   feed: <path d="M3.8 10.4 12 3.9l8.2 6.5v8.2a1.4 1.4 0 0 1-1.4 1.4H5.2a1.4 1.4 0 0 1-1.4-1.4Z" />,
@@ -22,6 +22,12 @@ const OUTLINE: Record<TabIcon, ReactNode> = {
     <>
       <circle cx="11" cy="11" r="7" />
       <path d="m20.2 20.2-4-4" />
+    </>
+  ),
+  create: (
+    <>
+      <rect x="3.6" y="3.6" width="16.8" height="16.8" rx="5" />
+      <path d="M12 8.4v7.2M8.4 12h7.2" />
     </>
   ),
   map: (
@@ -35,6 +41,26 @@ const OUTLINE: Record<TabIcon, ReactNode> = {
     <>
       <circle cx="12" cy="8" r="3.6" />
       <path d="M4.8 20c.9-3.4 3.8-5.2 7.2-5.2s6.3 1.8 7.2 5.2" />
+    </>
+  ),
+  dashboard: (
+    <>
+      <rect x="3.6" y="3.6" width="7" height="7" rx="2" />
+      <rect x="13.4" y="3.6" width="7" height="7" rx="2" />
+      <rect x="3.6" y="13.4" width="7" height="7" rx="2" />
+      <rect x="13.4" y="13.4" width="7" height="7" rx="2" />
+    </>
+  ),
+  events: (
+    <>
+      <rect x="3.6" y="5.4" width="16.8" height="15" rx="3" />
+      <path d="M3.6 10.2h16.8M8.2 3.6v3.4M15.8 3.6v3.4" />
+    </>
+  ),
+  promo: (
+    <>
+      <path d="M4 9.4h3.4L14.6 4.8v14.4L7.4 14.6H4a1 1 0 0 1-1-1v-3.2a1 1 0 0 1 1-1Z" />
+      <path d="M17.8 9.2a4.2 4.2 0 0 1 0 5.6" />
     </>
   ),
 };

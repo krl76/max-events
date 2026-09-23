@@ -1,19 +1,23 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Organizer space — a separate area of the miniapp with its own login/password auth (no MAX user context): login form, then the organizer panel with a logout.
-// SCOPE: OrganizerAuthProvider wiring, login form with inline error, header with the organization name and exit; panel content comes from OrganizerPage.
-// DEPENDS: react, ./OrganizerAuthContext.js, ./OrganizerPage.js, ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
+// PURPOSE: Organizer space — a separate area of the miniapp with its own login/password auth (no MAX user context): login form, then the organizer sections behind their own tab bar.
+// SCOPE: OrganizerAuthProvider wiring, login form with inline error, section header and the Дашборд · События · Создать · Промо · Профиль bar (макет, экраны 42–45); section content comes from OrganizerPage/OrganizerAddons. The metric blocks of экран 42, the check-in screen 44 and the campaign screen 45 are wave 13 (T-015) — this wave delivers the bar and routes each section to what already exists.
+// DEPENDS: react, ./OrganizerAuthContext.js, ./OrganizerPage.js, ./OrganizerAddons.js, ./OrganizerTabs.js, ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - OrganizerSpace - auth gate + MaxUI chrome: loading/anonymous/error -> login form, authenticated -> panel header (organization name, exit)
+// - ORGANIZER_SECTION_TITLES - header title per bar section
+// - OrganizerSectionContent - what each section renders today: dashboard -> the organizer rating, events -> the panel, create -> the panel with the empty event draft, promo -> the way into the per-event promo tools, profile -> organization and exit
+// - OrganizerSpace - auth gate + MaxUI chrome: loading/anonymous/error -> login form, authenticated -> header + section + tab bar
 // END_MODULE_MAP
 
 import { useState, type FormEvent } from "react";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppState } from "../ui/primitives";
+import { MyOrganizerRatingCard } from "./OrganizerAddons";
 import { OrganizerAuthProvider, useOrganizerAuth } from "./OrganizerAuthContext";
 import { OrganizerPanel } from "./OrganizerPage";
+import { OrganizerTabBar, type OrganizerSection } from "./OrganizerTabs";
 
 const MOCK_MODE = import.meta.env.VITE_USE_MOCK === "1";
 
@@ -51,21 +55,57 @@ function OrganizerLoginForm({ onExit }: { onExit: () => void }) {
   );
 }
 
+export const ORGANIZER_SECTION_TITLES: Record<OrganizerSection, string> = {
+  dashboard: "Дашборд",
+  events: "События",
+  create: "Новое событие",
+  promo: "Промо и отчёты",
+  profile: "Профиль",
+};
+
+export function OrganizerSectionContent({ section, organizationId, organizationName, onSection, onLogout }: { section: OrganizerSection; organizationId: string; organizationName: string; onSection: (section: OrganizerSection) => void; onLogout: () => void }) {
+  if (section === "dashboard")
+    return (
+      <>
+        <MyOrganizerRatingCard organizationId={organizationId} />
+        <AppState hint="Заполнение, источники записей и отчёты за месяц появятся здесь" action={{ label: "К событиям", onClick: () => onSection("events") }}>
+          Пока дашборд показывает только вашу оценку
+        </AppState>
+      </>
+    );
+  if (section === "create") return <OrganizerPanel organizationId={organizationId} createOnMount />;
+  if (section === "promo")
+    return (
+      <AppState hint="Поднятие в ленте, промокоды и ранний доступ настраиваются внутри события" action={{ label: "К событиям", onClick: () => onSection("events") }}>
+        Промо-инструменты живут в карточке события
+      </AppState>
+    );
+  if (section === "profile")
+    return (
+      <section className="app-gathering">
+        <p className="app-gathering-hint">{organizationName}</p>
+        <AppButton tone="secondary" stretched onClick={onLogout}>
+          Выйти
+        </AppButton>
+      </section>
+    );
+  return <OrganizerPanel organizationId={organizationId} />;
+}
+
 function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   const { state, logout } = useOrganizerAuth();
+  const [section, setSection] = useState<OrganizerSection>("dashboard");
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
   return (
     <>
       <header className="app-header">
-        <span className="app-header-title">{state.session.organization.name}</span>
-        <AppButton tone="secondary" onClick={logout}>
-          Выйти
-        </AppButton>
+        <span className="app-header-title">{ORGANIZER_SECTION_TITLES[section]}</span>
       </header>
       <main className="app-content">
-        <OrganizerPanel organizationId={state.session.organization.id} />
+        <OrganizerSectionContent section={section} organizationId={state.session.organization.id} organizationName={state.session.organization.name} onSection={setSection} onLogout={logout} />
       </main>
+      <OrganizerTabBar section={section} onSection={setSection} />
     </>
   );
 }

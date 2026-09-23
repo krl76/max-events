@@ -73,6 +73,12 @@ describe("routeFromStartParam", () => {
   it("keeps the we-groups screens out of start_param deep links", () => {
     expect(routeFromStartParam("we-groups")).toEqual({ name: "home" });
   });
+
+  it("keeps the new shell screens out of start_param deep links", () => {
+    expect(routeFromStartParam("create")).toEqual({ name: "home" });
+    expect(routeFromStartParam("story-new")).toEqual({ name: "home" });
+    expect(routeFromStartParam("subscriptions")).toEqual({ name: "home" });
+  });
 });
 
 describe("nextHistory", () => {
@@ -83,11 +89,18 @@ describe("nextHistory", () => {
     expect(result.state).toEqual({ route: { name: "plans" }, idx: 0 });
   });
 
-  it("replaces between the new search and map tabs", () => {
+  it("pushes from search to the map, which stopped being a tab and became a view inside search", () => {
     const result = nextHistory({ route: { name: "search" }, idx: 0 }, { name: "map" });
 
+    expect(result.method).toBe("push");
+    expect(result.state).toEqual({ route: { name: "map" }, idx: 1 });
+  });
+
+  it("replaces between the search and create tabs", () => {
+    const result = nextHistory({ route: { name: "search" }, idx: 0 }, { name: "create" });
+
     expect(result.method).toBe("replace");
-    expect(result.state).toEqual({ route: { name: "map" }, idx: 0 });
+    expect(result.state).toEqual({ route: { name: "create" }, idx: 0 });
   });
 
   it("pushes when leaving a tab for the former friends tab", () => {
@@ -121,13 +134,17 @@ describe("nextHistory", () => {
 
 describe("isTabRoute", () => {
   it("marks only the five tabbar routes as tab routes", () => {
-    const tabNames = ["home", "search", "map", "plans", "profile"] as const;
+    const tabNames = ["home", "search", "create", "plans", "profile"] as const;
     for (const name of tabNames) expect(isTabRoute(name)).toBe(true);
 
     expect(isTabRoute("friends")).toBe(false);
     expect(isTabRoute("calendar")).toBe(false);
     expect(isTabRoute("event")).toBe(false);
     expect(isTabRoute("whereto")).toBe(false);
+  });
+
+  it("no longer counts the map as a tab route", () => {
+    expect(isTabRoute("map")).toBe(false);
   });
 });
 
@@ -154,6 +171,12 @@ describe("routeFromHistoryState", () => {
 
   it("rejects an unknown route name", () => {
     expect(routeFromHistoryState({ route: { name: "nope" }, idx: 0 })).toBeNull();
+  });
+
+  it("restores the routes the new shell added", () => {
+    for (const name of ["create", "story-new", "subscriptions"]) {
+      expect(routeFromHistoryState({ route: { name }, idx: 1 })).toEqual({ route: { name }, idx: 1 });
+    }
   });
 
   it("rejects an id route without a string id", () => {
