@@ -138,6 +138,23 @@
 // - unpublishMockTarget - mock POST /moderation/unpublish
 // - visitedPlacesFor - impressions grid of экран 36: visited places with their visit counts, most visited first
 // - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
+// - MOCK_SILVER_FOREST - the Серебряный Бор venue of макет, экраны 19–21; a fixture of the slot domain, invisible to the catalog listing
+// - MOCK_SLOT_EXTRAS - the paid add-ons offered with a window («Уголь и шампуры»)
+// - cancelMockSlotBooking - mock DELETE /slots/bookings/:id
+// - createMockSlotBooking - mock POST /slots/bookings ("no_slot" unknown window, "taken" when it is not free)
+// - leaveMockSlotWaitlist - mock DELETE /slots/waitlist/:id
+// - mockCheckInCodes - entry codes of the viewer's slot and event bookings (#492)
+// - mockMySlots - mock GET /slots/my: own slot bookings and waiting positions
+// - mockPlaceBoard - mock GET /places/:id/board: экран 34 beyond the place page aggregate
+// - mockSlotBoard - mock GET /slots: экран 19 for one venue on one day
+// - mockSlotBookingScreen - mock GET /slots/bookings/:id: экран 20
+// - mockSlotBookings - in-memory slot bookings, seeded with the demo booking of экраны 20 и 21
+// - mockSlotUnits - the bookable units of the fixture venues
+// - mockSlotWaitlist - in-memory waiting positions, seeded with the padel court entry of экран 21
+// - mockSlotWeather - deterministic per-day forecast of the slot domain (#495)
+// - resetMockSlots - restore the seeded slot booking and waiting position (test isolation)
+// - slotById - one window by its id, or null
+// - slotsOfDay - the windows one unit publishes on one day
 // END_MODULE_MAP
 
 export { MOCK_PROMO_CODE, MOCK_SANDBOX_FAIL_AMOUNT, MOCK_SINGLE_USE_PROMO_CODE, OFFER_TTL_MS, createMockCheckIn, resetMockBookings, resetMockCheckIns, resetMockPromo, resetMockWaitlist } from "./mock/bookings";
@@ -155,3 +172,4 @@ export { DEFAULT_APP_SETTINGS, achievementsFor, afterMePicks, appSettingsFor, my
 export { mockPromotionPlacements, mockTargetedPromotions } from "./mock/promo";
 export { REVIEW_FACT_TAGS, eventRating, resetMockReviews } from "./mock/reviews";
 export { MOCK_GATHERING_ID, createMockGathering, createMockMicroEvent, discoverySummary, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, joinMockMicroEvent, leaveMockMicroEvent, microEvents, mockOnboardingContacts, peopleSuggest, resetMockFollows, resetMockGatherings, resetMockMicroEvents, respondMockGathering } from "./mock/social";
+export { MOCK_SILVER_FOREST, MOCK_SLOT_EXTRAS, cancelMockSlotBooking, createMockSlotBooking, leaveMockSlotWaitlist, mockCheckInCodes, mockMySlots, mockPlaceBoard, mockSlotBoard, mockSlotBookingScreen, mockSlotBookings, mockSlotUnits, mockSlotWaitlist, mockSlotWeather, resetMockSlots, slotById, slotsOfDay } from "./mock/slots";

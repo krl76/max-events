@@ -19,12 +19,19 @@
 // - transitionFromIdx - direction from history idx movement (forward -> push, backward -> pop, same -> tab)
 // - RouteProvider - current route synced with window.history (replaceState seed, popstate listener), back() with home fallback, transition direction + navSeq for screen animations
 // - useRoute - current route + navigate + back + canGoBack + transition + navSeq
+// - Route - … | slot-booking(placeId) экран 19 | slot-ticket(id) экран 20 | bookings экран 21; the «booking-» start_param opens the ticket of экран 20
 // END_MODULE_MAP
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getStartParam, getWebApp } from "../max/bridge";
 
-export type Route = { name: "home" } | { name: "search" } | { name: "swipe" } | { name: "create" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "settings" } | { name: "subscriptions" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "plan-new" } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "micro-new" } | { name: "story-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string } | { name: "moderation" } | { name: "after-event"; eventId: string } | { name: "lists" };
+export type Route = { name: "home" } | { name: "search" } | { name: "swipe" } | { name: "create" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "settings" } | { name: "subscriptions" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "plan-new" } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "micro-new" } | { name: "story-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string } | { name: "moderation" } | { name: "after-event"; eventId: string } | { name: "lists" }
+  // Экран 19: бронирование окна площадки открывается от места, а не от своего id — окно выбирается уже внутри
+  | { name: "slot-booking"; placeId: string }
+  // Экран 20: подтверждённая бронь с кодом входа
+  | { name: "slot-ticket"; id: string }
+  // Экран 21: «Мои брони» — билеты, слоты и лист ожидания в одном списке
+  | { name: "bookings" };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -33,6 +40,8 @@ const START_PARAM_PREFIXES = [
   ["list-", "list"],
   ["gathering-", "gathering"],
   ["vote-", "vote"],
+  // Пуш после брони ведёт на экран 20 с кодом входа
+  ["booking-", "slot-ticket"],
 ] as const satisfies ReadonlyArray<readonly [string, Route["name"]]>;
 
 export function routeFromStartParam(startParam: string | null): Route {
@@ -98,7 +107,12 @@ function toRoute(value: unknown): Route | null {
     case "organizer":
     case "we-groups":
     case "moderation":
+    case "bookings":
       return { name };
+    case "slot-booking": {
+      const { placeId } = value as { placeId?: unknown };
+      return typeof placeId === "string" ? { name, placeId } : null;
+    }
     case "feed-new": {
       const { eventId } = value as { eventId?: unknown };
       if (eventId !== null && eventId !== undefined && typeof eventId !== "string") return null;
@@ -115,7 +129,8 @@ function toRoute(value: unknown): Route | null {
     case "plan":
     case "list":
     case "we-group":
-    case "vote": {
+    case "vote":
+    case "slot-ticket": {
       const { id } = value as { id?: unknown };
       return typeof id === "string" ? ({ name, id } as Route) : null;
     }
