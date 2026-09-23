@@ -11,7 +11,8 @@
 // - resetMockVotes - restore the two seeded votes (test isolation)
 // - createMockVote - in-memory vote with a sent chat card (chatLink set, successful MaxBot parity); participants must be friends of the demo host, events must exist (mock POST /votes, backend VotesService parity)
 // - getMockVote - mock GET /votes/:id (404 unknown, 403 neither host nor participant); myBallotEventId comes from the demo user's stored ballot (backend #324 parity)
-// - castMockBallot - mock POST /votes/:id/ballots: one ballot per user, a repeated ballot replaces the previous one; winner = max votes then option position, null without ballots (backend parity)
+// - castMockBallot - mock POST /votes/:id/ballots: one ballot per user, a repeated ballot replaces the previous one; winner = max votes then option position, null without ballots (backend parity); "closed" once the host finished the vote
+// - closeMockVote - mock POST /votes/:id/close: host only, idempotent; the leader becomes the winner and no more ballots are taken (no backend transition exists yet)
 // - resetMockWeGroups - restore seeded groups and plan expenses (test isolation)
 // - listMockWeGroups - mock GET /we-groups: screens of the demo user's groups, newest first
 // - getMockWeGroup - Mock GET /we-groups/:id: "unknown" -> 404, "forbidden" non-member -> 403 (backend requireMember parity)
@@ -20,12 +21,18 @@
 // - archiveMockWeGroup - Mock POST /we-groups/:id/archive (backend archive parity): owner only, idempotent
 // END_MODULE_MAP
 
-import type { CreateVoteWrite, CreateWeGroupWrite, DayRoute, Event, Friend, Place, PlanBudget, RoutePoint, Vote, WeGroup, WeGroupScreen } from "@max-events/api-contracts";
+import type { CreateVoteWrite, CreateWeGroupWrite, DayRoute, Event, Friend, Place, PlanBudget, ReviewPhoto, RoutePoint, WeGroup } from "@max-events/api-contracts";
+import type { VoteScreen, WeGroupCard } from "../client";
 import { mockBookings } from "./bookings";
 import { PLACE_STAMP, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockPlaces } from "./fixtures";
 import { mockBudgetFromExpenses, mockDayRoute, mockPlanExpenses, mockPlans, resetMockPlanExpenses } from "./plans";
 
-/** In-memory vote row: contract fields plus option positions and raw ballots (backend vote.entity parity; option positions tie-break the winner like the backend order does). */
+/**
+ * In-memory vote row: contract fields plus option positions and raw ballots (backend vote.entity
+ * parity; option positions tie-break the winner like the backend order does). `closedAt` has no
+ * backend column: the votes domain never finishes a vote, and экран 33 both offers «Завершить» and
+ * has to draw the finished state, so the mock carries the transition the endpoint will take.
+ */
 interface MockVoteRow {
   id: string;
   hostUserId: string;
@@ -34,6 +41,7 @@ interface MockVoteRow {
   participantIds: string[];
   options: { id: string; eventId: string; position: number }[];
   ballots: { userId: string; eventId: string }[];
+  closedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,7 +56,7 @@ const mockVotes = new Map<string, MockVoteRow>();
 
 let mockVoteSeq = 0;
 
-function mockVoteDto(row: MockVoteRow): Vote {
+function mockVoteDto(row: MockVoteRow): VoteScreen {
   const counts = new Map<string, number>();
   for (const ballot of row.ballots) counts.set(ballot.eventId, (counts.get(ballot.eventId) ?? 0) + 1);
   const options = [...row.options]
@@ -60,12 +68,33 @@ function mockVoteDto(row: MockVoteRow): Vote {
   const ranked = [...row.options].sort((a, b) => (counts.get(b.eventId) ?? 0) - (counts.get(a.eventId) ?? 0) || a.position - b.position || a.id.localeCompare(b.id));
   const top = ranked[0];
   const topVotes = top ? (counts.get(top.eventId) ?? 0) : 0;
-  const participants: Friend[] = row.participantIds.flatMap((userId) => {
-    const friend = mockFriends.find((item) => item.id === userId);
-    if (friend) return [friend];
-    return userId === mockDemoUser.id ? [{ id: mockDemoUser.id, name: mockDemoUser.firstName, avatarUrl: null }] : [];
-  });
-  return { id: row.id, hostUserId: row.hostUserId, title: row.title, chatLink: row.chatLink, participants, options, winnerEventId: top && topVotes > 0 ? top.eventId : null, myBallotEventId: row.ballots.find((ballot) => ballot.userId === mockDemoUser.id)?.eventId ?? null, createdAt: row.createdAt, updatedAt: row.updatedAt };
+  const participants: Friend[] = row.participantIds.flatMap(mockVoterOf);
+  // The roster the design counts «Проголосовали 4 из 5» against: the host votes too, and the Vote DTO
+  // leaves them out of `participants`, so without this list the screen cannot even name them.
+  const voters: Friend[] = [...mockVoterOf(row.hostUserId), ...participants];
+  return {
+    id: row.id,
+    hostUserId: row.hostUserId,
+    title: row.title,
+    chatLink: row.chatLink,
+    participants,
+    options,
+    winnerEventId: top && topVotes > 0 ? top.eventId : null,
+    myBallotEventId: row.ballots.find((ballot) => ballot.userId === mockDemoUser.id)?.eventId ?? null,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    status: row.closedAt === null ? "open" : "closed",
+    closedAt: row.closedAt,
+    voters,
+    votedUserIds: voters.flatMap((voter) => (row.ballots.some((ballot) => ballot.userId === voter.id) ? [voter.id] : [])),
+  };
+}
+
+/** A vote roster entry: friends come from the friend list, the demo user names themselves, anyone else is unknown to this client. */
+function mockVoterOf(userId: string): Friend[] {
+  const friend = mockFriends.find((item) => item.id === userId);
+  if (friend) return [friend];
+  return userId === mockDemoUser.id ? [{ id: mockDemoUser.id, name: mockDemoUser.firstName, avatarUrl: null }] : [];
 }
 
 function seedMockVotes(): void {
@@ -76,7 +105,8 @@ function seedMockVotes(): void {
     hostUserId: mockFriendIds[0],
     title: "Куда идем в пятницу?",
     chatLink: "https://max.ru/chat/mock-vote-1",
-    participantIds: [mockDemoUser.id, mockFriendIds[1], mockFriendIds[2]],
+    // Пётр votes for nobody on purpose: экран 33 has to reach «ещё не голосовал» with a name in it
+    participantIds: [mockDemoUser.id, mockFriendIds[1], mockFriendIds[2], mockFriendIds[3]],
     // option ids deliberately run against positions so a winner tie discriminates the position tie-break from the id order
     options: [
       { id: `${MOCK_VOTE_ID}-o3`, eventId: mockEvents[0].id, position: 0 },
@@ -88,6 +118,7 @@ function seedMockVotes(): void {
       { userId: mockFriendIds[1], eventId: mockEvents[0].id },
       { userId: mockFriendIds[2], eventId: mockEvents[2].id },
     ],
+    closedAt: null,
     createdAt: stamp,
     updatedAt: stamp,
   });
@@ -102,6 +133,7 @@ function seedMockVotes(): void {
       { id: `${MOCK_FOREIGN_VOTE_ID}-o2`, eventId: mockEvents[1].id, position: 1 },
     ],
     ballots: [],
+    closedAt: null,
     createdAt: stamp,
     updatedAt: stamp,
   });
@@ -115,7 +147,7 @@ export function resetMockVotes(): void {
 }
 
 /** Creates an in-memory vote hosted by the demo user; the mock mirrors a successful MaxBot chat card (chatLink is set). */
-export function createMockVote(payload: CreateVoteWrite): Vote | "invalid" | "no_event" {
+export function createMockVote(payload: CreateVoteWrite): VoteScreen | "invalid" | "no_event" {
   const hostUserId = mockDemoUser.id;
   const participantIds = [...new Set(payload.participantIds)];
   if (participantIds.includes(hostUserId) || participantIds.some((id) => !mockFriendIds.includes(id))) return "invalid";
@@ -133,6 +165,7 @@ export function createMockVote(payload: CreateVoteWrite): Vote | "invalid" | "no
     participantIds,
     options: eventIds.map((eventId, position) => ({ id: `${id}-o${position + 1}`, eventId, position })),
     ballots: [],
+    closedAt: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -141,18 +174,19 @@ export function createMockVote(payload: CreateVoteWrite): Vote | "invalid" | "no
 }
 
 /** Reads a vote for the demo user: unknown -> "unknown", neither host nor participant -> "forbidden". */
-export function getMockVote(id: string): Vote | "unknown" | "forbidden" {
+export function getMockVote(id: string): VoteScreen | "unknown" | "forbidden" {
   const row = mockVotes.get(id);
   if (!row) return "unknown";
   if (row.hostUserId !== mockDemoUser.id && !row.participantIds.includes(mockDemoUser.id)) return "forbidden";
   return mockVoteDto(row);
 }
 
-/** Casts the demo user's ballot; a repeated ballot replaces the previous one (backend castBallot parity). */
-export function castMockBallot(id: string, eventId: string): Vote | "unknown" | "forbidden" | "invalid" {
+/** Casts the demo user's ballot; a repeated ballot replaces the previous one (backend castBallot parity). A finished vote takes no more ballots. */
+export function castMockBallot(id: string, eventId: string): VoteScreen | "unknown" | "forbidden" | "invalid" | "closed" {
   const row = mockVotes.get(id);
   if (!row) return "unknown";
   if (row.hostUserId !== mockDemoUser.id && !row.participantIds.includes(mockDemoUser.id)) return "forbidden";
+  if (row.closedAt !== null) return "closed";
   if (!row.options.some((option) => option.eventId === eventId)) return "invalid";
   const existing = row.ballots.find((ballot) => ballot.userId === mockDemoUser.id);
   if (existing) {
@@ -164,48 +198,107 @@ export function castMockBallot(id: string, eventId: string): Vote | "unknown" | 
   return mockVoteDto(row);
 }
 
-/** In-memory «Мы» group row: the group plus its member ids and bound event/place ids. */
+/**
+ * Finishes the vote: the leader stops being «Лидирует» and becomes the winner, and the options stop
+ * taking ballots. Only the host may do it — the design puts «Завершить» on the host's leader card —
+ * and a second call is a no-op, like every other write of this mock. The votes domain has no such
+ * transition at all, so this is the endpoint's future shape, not its current one.
+ */
+export function closeMockVote(id: string): VoteScreen | "unknown" | "forbidden" {
+  const row = mockVotes.get(id);
+  if (!row) return "unknown";
+  if (row.hostUserId !== mockDemoUser.id) return "forbidden";
+  if (row.closedAt === null) {
+    const now = new Date().toISOString();
+    row.closedAt = now;
+    row.updatedAt = now;
+  }
+  return mockVoteDto(row);
+}
+
+/**
+ * In-memory «Мы» group row: the group plus its member ids and bound event/place ids.
+ *
+ * `budgetLimitRub` and `photosTotal` have no backend column. The design prints «потрачено 9 800 из
+ * 14 200 ₽» and «Все 62», and neither number can be derived: PlanBudget knows only what was spent,
+ * and `photos` is the preview grid, not the archive. Both travel under the names the future endpoint
+ * will keep, so a real server answering the screen without them just hides those two blocks.
+ */
 interface MockWeGroupRow {
   group: WeGroup;
   memberIds: string[];
   eventIds: string[];
   placeIds: string[];
+  budgetLimitRub: number | null;
+  photoUrls: string[];
+  photosTotal: number;
+}
+
+/** Group photos are not people photos: the grid draws gradients, and these urls are what a real album would send. */
+function mockWeGroupPhotos(group: number, count: number): string[] {
+  return Array.from({ length: count }, (_, index) => `https://static.max.ru/mock/we-groups/${group}/${index + 1}.jpg`);
 }
 
 const MOCK_WE_GROUP_SEED: MockWeGroupRow[] = [
   {
     group: { id: "91000000-0000-4000-8000-000000000001", ownerUserId: mockDemoUser.id, title: "Субботник и гастровыходные", chatLink: "https://max.ru/join/we-group-demo", status: "active", createdAt: "2026-08-01T12:00:00+03:00", updatedAt: "2026-08-01T12:00:00+03:00", archivedAt: null },
     memberIds: [mockDemoUser.id, mockFriendIds[3], mockFriendIds[4]],
-    eventIds: [mockEvents[2].id],
-    placeIds: [mockPlaces[3].id],
+    eventIds: [mockEvents[2].id, mockEvents[11].id],
+    placeIds: [mockPlaces[3].id, mockPlaces[0].id, mockPlaces[4].id],
+    budgetLimitRub: 14200,
+    photoUrls: mockWeGroupPhotos(1, 8),
+    photosTotal: 62,
   },
   {
     group: { id: "91000000-0000-4000-8000-000000000002", ownerUserId: mockDemoUser.id, title: "Прошлый поход на выставку", chatLink: null, status: "archived", createdAt: "2026-07-01T12:00:00+03:00", updatedAt: "2026-07-02T12:00:00+03:00", archivedAt: "2026-07-02T12:00:00+03:00" },
     memberIds: [mockDemoUser.id, mockFriendIds[0]],
     eventIds: [],
     placeIds: [],
+    budgetLimitRub: null,
+    photoUrls: mockWeGroupPhotos(2, 4),
+    photosTotal: 18,
   },
   {
-    group: { id: "91000000-0000-4000-8000-000000000003", ownerUserId: mockFriendIds[0], title: "Киноклуб", chatLink: null, status: "active", createdAt: "2026-07-10T12:00:00+03:00", updatedAt: "2026-07-10T12:00:00+03:00", archivedAt: null },
+    group: { id: "91000000-0000-4000-8000-000000000003", ownerUserId: mockFriendIds[0], title: "Киноклуб", chatLink: "https://max.ru/join/we-group-cinema", status: "active", createdAt: "2026-07-10T12:00:00+03:00", updatedAt: "2026-07-10T12:00:00+03:00", archivedAt: null },
     memberIds: [mockFriendIds[0], mockDemoUser.id],
-    eventIds: [],
+    eventIds: [mockEvents[10].id],
     placeIds: [],
+    budgetLimitRub: null,
+    photoUrls: mockWeGroupPhotos(3, 4),
+    photosTotal: 24,
   },
   {
     group: { id: "91000000-0000-4000-8000-000000000004", ownerUserId: mockFriendIds[0], title: "Чужая группа", chatLink: null, status: "active", createdAt: "2026-07-05T12:00:00+03:00", updatedAt: "2026-07-05T12:00:00+03:00", archivedAt: null },
     memberIds: [mockFriendIds[0], mockFriendIds[1]],
     eventIds: [],
     placeIds: [],
+    budgetLimitRub: null,
+    photoUrls: [],
+    photosTotal: 0,
+  },
+  {
+    // Nothing ahead, two saved places and a route: the third summary line of экран 30
+    group: { id: "91000000-0000-4000-8000-000000000005", ownerUserId: mockDemoUser.id, title: "Родительский чат 4Б", chatLink: null, status: "active", createdAt: "2026-06-20T12:00:00+03:00", updatedAt: "2026-06-20T12:00:00+03:00", archivedAt: null },
+    memberIds: [mockDemoUser.id, mockFriendIds[5], mockFriendIds[6]],
+    eventIds: [],
+    placeIds: [mockPlaces[1].id, mockPlaces[2].id],
+    budgetLimitRub: null,
+    photoUrls: [],
+    photosTotal: 0,
   },
 ];
 
-let mockWeGroups: MockWeGroupRow[] = MOCK_WE_GROUP_SEED.map((row) => ({ group: { ...row.group }, memberIds: [...row.memberIds], eventIds: [...row.eventIds], placeIds: [...row.placeIds] }));
+function copyMockWeGroups(): MockWeGroupRow[] {
+  return MOCK_WE_GROUP_SEED.map((row) => ({ ...row, group: { ...row.group }, memberIds: [...row.memberIds], eventIds: [...row.eventIds], placeIds: [...row.placeIds], photoUrls: [...row.photoUrls] }));
+}
+
+let mockWeGroups: MockWeGroupRow[] = copyMockWeGroups();
 
 let mockWeGroupSeq = MOCK_WE_GROUP_SEED.length;
 
 /** Restore the seeded groups and plan expenses (test isolation). */
 export function resetMockWeGroups(): void {
-  mockWeGroups = MOCK_WE_GROUP_SEED.map((row) => ({ group: { ...row.group }, memberIds: [...row.memberIds], eventIds: [...row.eventIds], placeIds: [...row.placeIds] }));
+  mockWeGroups = copyMockWeGroups();
   mockWeGroupSeq = MOCK_WE_GROUP_SEED.length;
   resetMockPlanExpenses();
 }
@@ -215,8 +308,8 @@ function mockFriendOf(userId: string): Friend {
   return mockFriends.find((friend) => friend.id === userId) ?? { id: userId, name: "Участник", avatarUrl: null };
 }
 
-/** Screen aggregate (backend WeGroupsService.toScreen parity): members in join order, bound events/places from fixtures, member bookings, group route, shared plan budget, photos (no seeded photos). */
-function mockWeGroupScreen(row: MockWeGroupRow): WeGroupScreen {
+/** Screen aggregate (backend WeGroupsService.toScreen parity): members in join order, bound events/places from fixtures, member bookings, group route, shared plan budget, photos; the budget ceiling and the album size are the two mock-only fields of WeGroupCard. */
+function mockWeGroupScreen(row: MockWeGroupRow): WeGroupCard {
   const events = row.eventIds.flatMap((id) => {
     const found = mockEvents.find((item) => item.id === id && item.published !== false);
     return found ? [found] : [];
@@ -235,7 +328,9 @@ function mockWeGroupScreen(row: MockWeGroupRow): WeGroupScreen {
     bookings: mockBookings.filter((booking) => booking.status === "active" && memberSet.has(booking.userId) && eventSet.has(booking.eventId)).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id.localeCompare(b.id)),
     route: mockWeGroupRoute(events, places),
     budget: mockWeGroupBudget(memberSet, eventSet),
-    photos: [],
+    photos: row.photoUrls.map((url): ReviewPhoto => ({ url })),
+    budgetLimitRub: row.budgetLimitRub,
+    photosTotal: row.photosTotal,
   };
 }
 
@@ -278,7 +373,7 @@ function isMockWeGroupMember(row: MockWeGroupRow, userId: string): boolean {
 }
 
 /** Mock GET /we-groups: screens of the demo user's groups, newest first (backend listForUser parity). */
-export function listMockWeGroups(): WeGroupScreen[] {
+export function listMockWeGroups(): WeGroupCard[] {
   return [...mockWeGroups]
     .filter((row) => isMockWeGroupMember(row, mockDemoUser.id))
     .sort((a, b) => Date.parse(b.group.createdAt) - Date.parse(a.group.createdAt) || a.group.id.localeCompare(b.group.id))
@@ -286,7 +381,7 @@ export function listMockWeGroups(): WeGroupScreen[] {
 }
 
 /** Mock GET /we-groups/:id: "unknown" -> 404, "forbidden" non-member -> 403 (backend requireMember parity). */
-export function getMockWeGroup(id: string): WeGroupScreen | "unknown" | "forbidden" {
+export function getMockWeGroup(id: string): WeGroupCard | "unknown" | "forbidden" {
   const row = findMockWeGroup(id);
   if (!row) return "unknown";
   if (!isMockWeGroupMember(row, mockDemoUser.id)) return "forbidden";
@@ -294,7 +389,7 @@ export function getMockWeGroup(id: string): WeGroupScreen | "unknown" | "forbidd
 }
 
 /** Mock POST /we-groups (backend create parity): owner always a member, every member id must be a known user. */
-export function createMockWeGroup(payload: CreateWeGroupWrite): WeGroupScreen | "unknown_user" {
+export function createMockWeGroup(payload: CreateWeGroupWrite): WeGroupCard | "unknown_user" {
   const known = new Set([mockDemoUser.id, ...mockFriendIds]);
   const memberIds = [...new Set([mockDemoUser.id, ...payload.memberIds])];
   if (memberIds.some((id) => !known.has(id))) return "unknown_user";
@@ -305,13 +400,16 @@ export function createMockWeGroup(payload: CreateWeGroupWrite): WeGroupScreen | 
     memberIds,
     eventIds: [],
     placeIds: [],
+    budgetLimitRub: null,
+    photoUrls: [],
+    photosTotal: 0,
   };
   mockWeGroups.push(row);
   return mockWeGroupScreen(row);
 }
 
 /** Mock POST /we-groups/:id/events|places (backend addEvent/addPlace parity): duplicate binds are idempotent; "archived" -> 409. */
-export function bindMockWeGroupItem(id: string, kind: "event" | "place", itemId: string): WeGroupScreen | "unknown" | "forbidden" | "archived" | "no_target" {
+export function bindMockWeGroupItem(id: string, kind: "event" | "place", itemId: string): WeGroupCard | "unknown" | "forbidden" | "archived" | "no_target" {
   const row = findMockWeGroup(id);
   if (!row) return "unknown";
   if (!isMockWeGroupMember(row, mockDemoUser.id)) return "forbidden";
@@ -327,7 +425,7 @@ export function bindMockWeGroupItem(id: string, kind: "event" | "place", itemId:
 }
 
 /** Mock POST /we-groups/:id/archive (backend archive parity): owner only, idempotent. */
-export function archiveMockWeGroup(id: string): WeGroupScreen | "unknown" | "forbidden" {
+export function archiveMockWeGroup(id: string): WeGroupCard | "unknown" | "forbidden" {
   const row = findMockWeGroup(id);
   if (!row) return "unknown";
   if (!isMockWeGroupMember(row, mockDemoUser.id)) return "forbidden";
