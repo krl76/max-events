@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock route table for plans: the plan cards, the autoplan draft, day routes, the shared budget and the calendar.
-// SCOPE: POST /api/plans/auto, POST /api/routes[/optimize], GET/POST /api/plans, GET /api/plans/:id/budget, POST /api/plans/:id/expenses, DELETE/GET /api/plans/:id, GET /api/calendar.
+// PURPOSE: Mock route table for plans: the plan cards, the autoplan draft, day routes, the shared budget, the evening timeline of макет экрана 15, the calendar and the calendar shared with a friend (макет, экран 22).
+// SCOPE: POST /api/plans/auto, POST /api/routes[/optimize], GET/POST /api/plans, GET /api/plans/:id/{budget,timeline}, POST /api/plans/:id/{expenses,chat,participants}, DELETE/GET /api/plans/:id, GET /api/calendar[/shared], POST /api/calendar/shared/{peers,entries/:id/going}.
 // DEPENDS: ./plans.js, ./fixtures.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -11,7 +11,7 @@
 
 import { CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, CreatePlanExpenseWriteSchema, CreatePlanWriteSchema, IdSchema, PlanCancelScopeSchema } from "@max-events/api-contracts";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
-import { addMockPlanExpense, buildMockDayRoute, calendarEntries, cancelMockPlan, createMockAutoPlan, createMockPlan, mockPlanBudget, optimizeMockDayRoute, planCard, planCards } from "./plans";
+import { addMockPlanExpense, addMockPlanParticipant, addMockSharedCalendarPeer, buildMockDayRoute, calendarEntries, cancelMockPlan, createMockAutoPlan, createMockPlan, joinMockSharedCalendarEntry, mockPlanBudget, mockPlanTimeline, mockSharedCalendar, openMockPlanChat, optimizeMockDayRoute, planCard, planCards } from "./plans";
 
 export function plansRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/plans/auto" && init?.method === "POST") {
@@ -58,6 +58,41 @@ export function plansRoutes(url: URL, init: RequestInit | undefined): Response |
     if (!parsed.success) return new Response(null, { status: 400 });
     const budget = addMockPlanExpense(planExpenses[1], parsed.data);
     return budget === null ? new Response(null, { status: 404 }) : budget === "invalid" ? new Response(null, { status: 400 }) : Response.json(budget);
+  }
+  const planTimeline = /^\/api\/plans\/([^/]+)\/timeline$/.exec(url.pathname);
+  if (planTimeline) {
+    if (!IdSchema.safeParse(planTimeline[1]).success) return new Response(null, { status: 400 });
+    const timeline = mockPlanTimeline(planTimeline[1]);
+    return timeline ? Response.json(timeline) : new Response(null, { status: 404 });
+  }
+  const planChat = /^\/api\/plans\/([^/]+)\/chat$/.exec(url.pathname);
+  if (planChat && init?.method === "POST") {
+    if (!IdSchema.safeParse(planChat[1]).success) return new Response(null, { status: 400 });
+    const card = openMockPlanChat(planChat[1]);
+    return card ? Response.json(card) : new Response(null, { status: 404 });
+  }
+  const planParticipants = /^\/api\/plans\/([^/]+)\/participants$/.exec(url.pathname);
+  if (planParticipants && init?.method === "POST") {
+    if (!IdSchema.safeParse(planParticipants[1]).success) return new Response(null, { status: 400 });
+    const userId = IdSchema.safeParse(parseBookingBody(init)?.userId);
+    if (!userId.success) return new Response(null, { status: 400 });
+    const card = addMockPlanParticipant(planParticipants[1], userId.data);
+    return card === "no_plan" ? new Response(null, { status: 404 }) : card === "invalid" ? new Response(null, { status: 400 }) : Response.json(card);
+  }
+  if (url.pathname === "/api/calendar/shared" && init?.method !== "POST") {
+    return Response.json(mockSharedCalendar());
+  }
+  if (url.pathname === "/api/calendar/shared/peers" && init?.method === "POST") {
+    const userId = IdSchema.safeParse(parseBookingBody(init)?.userId);
+    if (!userId.success) return new Response(null, { status: 400 });
+    const calendar = addMockSharedCalendarPeer(userId.data);
+    return calendar ? Response.json(calendar) : new Response(null, { status: 404 });
+  }
+  const sharedGoing = /^\/api\/calendar\/shared\/entries\/([^/]+)\/going$/.exec(url.pathname);
+  if (sharedGoing && init?.method === "POST") {
+    if (!IdSchema.safeParse(sharedGoing[1]).success) return new Response(null, { status: 400 });
+    const calendar = joinMockSharedCalendarEntry(sharedGoing[1]);
+    return calendar ? Response.json(calendar) : new Response(null, { status: 404 });
   }
   if (url.pathname === "/api/calendar") {
     const entries = calendarEntries(mockDemoUser.id);

@@ -74,6 +74,13 @@
 // - serializeEventFilters - filters -> query string ("" when empty)
 // - statsPeriodQuery - period into a ?from&to query string
 // - trackPageView - fire-and-forget page helper over recordPageView (errors swallowed, #196)
+// - PlanTransferMode - how the party moves between two points of a plan: walk / metro / taxi (#504)
+// - PlanTransfer - one ride between two points of a plan: mode, minutes and fare (#504, mock)
+// - PlanTimelineStep - one line of макет экран 15: a stop, or the ride to the next one
+// - PlanTimeline - the evening step by step plus the «MAX СОБРАЛ» flag (mock)
+// - SharedCalendarPeer - whom the calendar is shared with and whether they may edit it (mock)
+// - SharedCalendarEntry - one record the peer put into the shared calendar (mock)
+// - SharedCalendar - shared calendar of макет экрана 22: peers, their records and the invite link (mock)
 // END_MODULE_MAP
 
 import type { RecordPageViewWrite } from "@max-events/api-contracts";
@@ -94,7 +101,7 @@ import { ApiTransport } from "./endpoints/transport";
 
 export { REPORT_REASONS } from "./endpoints/moderation";
 export type { OrganizerEvent, OrganizerPlace, StatsPeriodQuery, UpdateOrganizerEvent, UpdateOrganizerPlace } from "./endpoints/organizer";
-export type { CalendarEntry } from "./endpoints/plans";
+export type { CalendarEntry, PlanTimeline, PlanTimelineStep, PlanTransfer, PlanTransferMode, SharedCalendar, SharedCalendarEntry, SharedCalendarPeer } from "./endpoints/plans";
 export type { CreateGathering, CreateMicroEvent, FriendSuggestion } from "./endpoints/social";
 export { ApiError } from "./endpoints/transport";
 export { EVENT_SORTS, parseEventFilters, serializeEventFilters } from "./endpoints/catalog";

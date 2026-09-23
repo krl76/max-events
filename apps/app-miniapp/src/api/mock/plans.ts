@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock plan store: plan cards and their series, the shared budget, the autoplan draft, day routes and the calendar.
-// SCOPE: In-memory plans, expenses and route building; the HTTP surface is in ./plans.routes.ts.
+// PURPOSE: Mock plan store: plan cards and their series, the shared budget, the autoplan draft, day routes, the plan timeline of макет экрана 15, the calendar and the calendar shared with a friend (макет, экран 22).
+// SCOPE: In-memory plans, expenses, timelines, the shared calendar and route building; the HTTP surface is in ./plans.routes.ts.
 // DEPENDS: @max-events/api-contracts, ../client.js and the sibling ./mock domain modules it imports
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -23,10 +23,18 @@
 // - mockDayRoute - Ordered points -> walking legs and totals (backend toDayRoute parity)
 // - buildMockDayRoute - resolve 2..8 event/place stops to points and haversine walking legs (mock POST /routes, backend parity)
 // - optimizeMockDayRoute - keep-first permutation minimizing the total distance, with savings (mock POST /routes/optimize)
+// - mockPlanTimeline - dinner -> ride -> meeting -> event steps of макет экрана 15 (mock GET /plans/:id/timeline; the ride is the #504 gap)
+// - openMockPlanChat - mock POST /plans/:id/chat: issues the chat link P1-7-b will issue
+// - addMockPlanParticipant - mock POST /plans/:id/participants (backend addParticipant parity: host only, friends only, no duplicates)
+// - mockSharedCalendar - mock GET /calendar/shared: the peer records of макет экрана 22
+// - joinMockSharedCalendarEntry - mock POST /calendar/shared/entries/:id/going: «Пойду» on a peer record
+// - addMockSharedCalendarPeer - mock POST /calendar/shared/peers: share the calendar with one more friend
+// - resetMockSharedCalendar - restore the seeded shared calendar (test isolation)
 // END_MODULE_MAP
 
 import { upcomingRecurringAts } from "@max-events/api-contracts";
-import type { AutoPlanProposal, AutoPlanTimelineEntry, Booking, CreateAutoPlanWrite, CreateDayRouteWrite, CreatePlanExpenseWrite, CreatePlanWrite, DayRoute, Event, OptimizeRoute, Place, PlanBudget, PlanCancelScope, PlanCard, PlanDebt, RouteLeg, RoutePoint } from "@max-events/api-contracts";
+import type { AutoPlanProposal, AutoPlanTimelineEntry, Booking, CreateAutoPlanWrite, CreateDayRouteWrite, CreatePlanExpenseWrite, CreatePlanWrite, DayRoute, Event, EventCategory, Friend, OptimizeRoute, Place, PlanBudget, PlanCancelScope, PlanCard, PlanDebt, PlanParticipant, RouteLeg, RoutePoint } from "@max-events/api-contracts";
+import type { PlanTimeline, PlanTimelineStep, SharedCalendar, SharedCalendarEntry, SharedCalendarPeer } from "../client";
 import { mockBookings } from "./bookings";
 import { PLACE_STAMP, haversineKm, haversineMeters, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockPlaces } from "./fixtures";
 
@@ -80,6 +88,9 @@ const MOCK_SERIES_SPAWN = 4;
 
 /** Cancelled plans stay out of the list, the way the backend hides a soft-cancelled one. */
 const mockCancelledPlanIds = new Set<string>();
+
+/** Plans the assistant put together — behind the «MAX СОБРАЛ» badge of макета экрана 15; the demo plan is seeded as one, every autoplan draft joins it. */
+const mockMaxAssembledPlanIds = new Set<string>([mockPlans[0].plan.id]);
 
 /**
  * Mock POST /plans: the manual plan, plus the occurrences of its series. The template carries the rule
@@ -138,17 +149,40 @@ export function resetMockPlans(): void {
   mockPlans.length = 0;
   mockPlans.push(...MOCK_PLAN_SEED);
   mockPlanSeq = MOCK_PLAN_SEED.length;
+  mockPlanChatLinks.clear();
+  mockPlanExtraParticipants.clear();
+  mockMaxAssembledPlanIds.clear();
+  mockMaxAssembledPlanIds.add(MOCK_PLAN_SEED[0].plan.id);
+}
+
+/**
+ * What POST /plans/:id/chat and POST /plans/:id/participants wrote, kept beside the seeded cards instead
+ * of inside them: the seed array holds the very objects it restores, so a mutation would survive the reset.
+ */
+const mockPlanChatLinks = new Map<string, string>();
+
+const mockPlanExtraParticipants = new Map<string, PlanParticipant[]>();
+
+function withMockPlanOverlay(card: PlanCard): PlanCard {
+  const chatLink = mockPlanChatLinks.get(card.plan.id);
+  const extra = mockPlanExtraParticipants.get(card.plan.id);
+  if (chatLink === undefined && extra === undefined) return card;
+  return { ...card, plan: { ...card.plan, chatLink: chatLink ?? card.plan.chatLink, participants: extra === undefined ? card.plan.participants : [...card.plan.participants, ...extra] } };
 }
 
 /** Plans of the demo user enriched with event and distance, soonest meeting first. */
 export function planCards(): PlanCard[] {
   // A cancelled plan is hidden rather than deleted, the way the backend soft-cancels a series slot.
-  return mockPlans.filter((row) => !mockCancelledPlanIds.has(row.plan.id)).sort((a, b) => a.plan.meetingAt.localeCompare(b.plan.meetingAt));
+  return mockPlans
+    .filter((row) => !mockCancelledPlanIds.has(row.plan.id))
+    .sort((a, b) => a.plan.meetingAt.localeCompare(b.plan.meetingAt))
+    .map(withMockPlanOverlay);
 }
 
 /** Single plan card by plan id, or null. */
 export function planCard(id: string): PlanCard | null {
-  return mockPlans.find((card) => card.plan.id === id && !mockCancelledPlanIds.has(card.plan.id)) ?? null;
+  const found = mockPlans.find((card) => card.plan.id === id && !mockCancelledPlanIds.has(card.plan.id));
+  return found === undefined ? null : withMockPlanOverlay(found);
 }
 
 /** In-memory plan expense row (PlanExpenseEntity parity: createdAt stored as ISO). */
@@ -322,6 +356,7 @@ export function createMockAutoPlan(payload: CreateAutoPlanWrite): AutoPlanPropos
     distanceMeters: meters,
   };
   mockPlans.push(card);
+  mockMaxAssembledPlanIds.add(card.plan.id);
   const timeline: AutoPlanTimelineEntry[] = [];
   if (foodPlaces[0]) timeline.push({ at: dinnerAt.toISOString(), label: "ужин", detail: foodPlaces[0].title });
   timeline.push({ at: meetupAt.toISOString(), label: "дорога", detail: `${travelMinutes} мин до места` });
@@ -411,4 +446,125 @@ export function optimizeMockDayRoute(payload: CreateDayRouteWrite): OptimizeRout
   }
   const optimized = mockDayRoute(best);
   return { original, optimized, savedMinutes: original.totalMinutes - optimized.totalMinutes, savedKm: Math.round((original.totalKm - optimized.totalKm) * 10) / 10 };
+}
+
+/* ---------- Макет, экран 15 «План на вечер»: таймлайн вечера ---------- */
+
+// City taxi pace and fare the mock quotes until the routing domain learns about transport (#504).
+const TAXI_M_PER_MIN = 420;
+
+const TAXI_BASE_RUB = 200;
+
+const TAXI_RUB_PER_KM = 60;
+
+/** What the closing step of an evening is called: the design writes «Концерт», not «Событие». */
+const MOCK_STEP_TITLE: Record<EventCategory, string> = { afisha: "Концерт", sport: "Спорт", tourism: "Экскурсия", volunteering: "Волонтёрство" };
+
+function mockTaxiLeg(meters: number): { minutes: number; priceRub: number } {
+  return { minutes: Math.max(5, Math.round(meters / TAXI_M_PER_MIN)), priceRub: Math.round((TAXI_BASE_RUB + (meters / 1000) * TAXI_RUB_PER_KM) / 10) * 10 };
+}
+
+function mockMoscowTime(at: Date): string {
+  return at.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" });
+}
+
+/**
+ * Mock GET /plans/:id/timeline: ужин -> дорога -> встреча -> событие (макет, экран 15). The dinner and the
+ * meeting come out of the plan itself; the ride is the gap #504 names — the routing domain measures distance
+ * and knows nothing about transport, so its mode, minutes and fare are the mock's, behind the final shape.
+ * An event whose fixture carries no venue still gets a full evening: the anchor falls back to the first park.
+ */
+export function mockPlanTimeline(planId: string): PlanTimeline | null {
+  const card = planCard(planId);
+  if (card === null) return null;
+  const { plan, event } = card;
+  const anchor = (event.placeId === null ? null : (mockPlaces.find((item) => item.id === event.placeId) ?? null)) ?? mockPlaces[0];
+  const food = mockPlaces
+    .filter((item) => item.category === "food")
+    .map((item) => ({ item, km: haversineKm(anchor.latitude, anchor.longitude, item.latitude, item.longitude) }))
+    .sort((a, b) => a.km - b.km)[0]?.item;
+  const meetingAt = new Date(plan.meetingAt);
+  const steps: PlanTimelineStep[] = [];
+  if (food !== undefined) {
+    const ride = mockTaxiLeg(haversineMeters(food.latitude, food.longitude, anchor.latitude, anchor.longitude));
+    const rideAt = new Date(meetingAt.getTime() - ride.minutes * 60_000);
+    const dinnerAt = new Date(rideAt.getTime() - DINNER_MIN * 60_000);
+    steps.push({ at: dinnerAt.toISOString(), title: "Ужин рядом", detail: `${food.title} · ${food.address}`, transfer: null, eventId: null });
+    steps.push({ at: rideAt.toISOString(), title: "Дорога", detail: `Такси · ${ride.minutes} мин · ${ride.priceRub} ₽`, transfer: { mode: "taxi", minutes: ride.minutes, priceRub: ride.priceRub }, eventId: null });
+  }
+  steps.push({ at: plan.meetingAt, title: "Встреча", detail: `Сбор ${mockMoscowTime(meetingAt)} ${plan.meetingPoint}`, transfer: null, eventId: null });
+  steps.push({ at: event.startsAt, title: MOCK_STEP_TITLE[event.category], detail: event.placeId === null ? `${event.title} · ${event.city}` : `${event.title} · ${anchor.title}`, transfer: null, eventId: event.id });
+  return { assembledByMax: mockMaxAssembledPlanIds.has(planId), steps };
+}
+
+/** Mock POST /plans/:id/chat: hands out the link P1-7-b will hand out once the plan chat exists server-side. */
+export function openMockPlanChat(planId: string): PlanCard | null {
+  const card = planCard(planId);
+  if (card === null) return null;
+  if (card.plan.chatLink === null) mockPlanChatLinks.set(planId, `https://max.ru/chat/mock-plan-${planId.slice(-4)}`);
+  return planCard(planId);
+}
+
+/** Mock POST /plans/:id/participants (backend addParticipant parity): the host only, friends only, no duplicates. */
+export function addMockPlanParticipant(planId: string, userId: string): PlanCard | "no_plan" | "invalid" {
+  const card = planCard(planId);
+  if (card === null) return "no_plan";
+  if (card.plan.hostUserId !== mockDemoUser.id || userId === mockDemoUser.id) return "invalid";
+  const friend = mockFriends.find((row) => row.id === userId);
+  if (friend === undefined) return "invalid";
+  if (!card.plan.participants.some((row) => row.friend.id === userId)) {
+    mockPlanExtraParticipants.set(planId, [...(mockPlanExtraParticipants.get(planId) ?? []), { friend, status: "invited" }]);
+  }
+  return planCard(planId) ?? "no_plan";
+}
+
+/* ---------- Макет, экран 22 «Календарь планов»: общий календарь ---------- */
+
+function sharedEntry(id: string, owner: Friend, source: Event, bothGoing: boolean): SharedCalendarEntry {
+  return { id, owner, title: source.title, startsAt: source.startsAt, endsAt: source.endsAt, bothGoing, needsResponse: !bothGoing, eventId: source.id };
+}
+
+/**
+ * Seeded half of the shared calendar: what Анна put into it. The first record is the event the demo plan is
+ * built around, so the design's «оба идёте» has something to be true about; the second runs from noon to nine
+ * the same evening, which is the overlap the screen has to warn about.
+ */
+const MOCK_SHARED_ENTRY_SEED: SharedCalendarEntry[] = [sharedEntry("97000000-0000-4000-8000-000000000001", mockFriends[0], mockEvents[0], true), sharedEntry("97000000-0000-4000-8000-000000000002", mockFriends[0], mockEvents[1], false), sharedEntry("97000000-0000-4000-8000-000000000003", mockFriends[0], mockEvents[10], false)];
+
+const MOCK_SHARED_PEER_SEED: SharedCalendarPeer[] = [{ friend: mockFriends[0], canEdit: true }];
+
+const MOCK_SHARED_INVITE_URL = "https://max.ru/calendar/mock-shared";
+
+const mockSharedEntries: SharedCalendarEntry[] = MOCK_SHARED_ENTRY_SEED.map((row) => ({ ...row }));
+
+const mockSharedPeers: SharedCalendarPeer[] = MOCK_SHARED_PEER_SEED.map((row) => ({ ...row }));
+
+/** Mock GET /calendar/shared: the peer half of the calendar (макет, экран 22); no notion of a shared record exists server-side. */
+export function mockSharedCalendar(): SharedCalendar {
+  return { peers: mockSharedPeers.map((row) => ({ ...row })), entries: [...mockSharedEntries].sort((a, b) => a.startsAt.localeCompare(b.startsAt)).map((row) => ({ ...row })), inviteUrl: MOCK_SHARED_INVITE_URL };
+}
+
+/** Mock POST /calendar/shared/entries/:id/going: «Пойду» on a record the peer added. */
+export function joinMockSharedCalendarEntry(entryId: string): SharedCalendar | null {
+  const row = mockSharedEntries.find((item) => item.id === entryId);
+  if (row === undefined) return null;
+  row.bothGoing = true;
+  row.needsResponse = false;
+  return mockSharedCalendar();
+}
+
+/** Mock POST /calendar/shared/peers: share the calendar with one more friend, idempotently. */
+export function addMockSharedCalendarPeer(userId: string): SharedCalendar | null {
+  const friend = mockFriends.find((row) => row.id === userId);
+  if (friend === undefined) return null;
+  if (!mockSharedPeers.some((row) => row.friend.id === userId)) mockSharedPeers.push({ friend, canEdit: true });
+  return mockSharedCalendar();
+}
+
+/** Restore the seeded shared calendar (test isolation). */
+export function resetMockSharedCalendar(): void {
+  mockSharedEntries.length = 0;
+  mockSharedEntries.push(...MOCK_SHARED_ENTRY_SEED.map((row) => ({ ...row })));
+  mockSharedPeers.length = 0;
+  mockSharedPeers.push(...MOCK_SHARED_PEER_SEED.map((row) => ({ ...row })));
 }
