@@ -6,11 +6,11 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - EVENT_CATEGORY_RU - Russian labels for explanations
+// - EVENT_CATEGORY_RU - Russian labels for explanations (re-exported from the contract)
 // - TasteGraph - weights and transitions
 // - buildTasteGraph - pure aggregation
 // - strongestAfterMe - follow-on category
-// - formatAfterMeExplanation - README-style copy
+// - formatAfterMeExplanation - README-style copy (re-exported from the contract, so the mock cannot drift)
 // - TasteService - profile/afterMe
 // END_MODULE_MAP
 
@@ -25,12 +25,8 @@ import { PlaceEntity } from "../places/place.entity";
 import { ReviewEntity } from "../reviews/review.entity";
 import { ProfileEntity } from "../users/profile.entity";
 
-export const EVENT_CATEGORY_RU: Record<EventCategory, string> = {
-  afisha: "афиша",
-  volunteering: "волонтёрство",
-  tourism: "туризм",
-  sport: "спорт",
-};
+export { EVENT_CATEGORY_RU, formatAfterMeExplanation } from "@max-events/api-contracts";
+import { formatAfterMeExplanation } from "@max-events/api-contracts";
 
 export type TasteGraph = {
   eventWeights: Map<EventCategory, number>;
@@ -157,13 +153,6 @@ export function strongestAfterMe(graph: TasteGraph): { fromCategory: EventCatego
     }
   }
   return { fromCategory: topFrom, toCategory, afterCount: Math.round(topFromWeight) };
-}
-
-export function formatAfterMeExplanation(afterCount: number, fromCategory: EventCategory, toCategory: EventCategory): string {
-  if (fromCategory === toCategory) {
-    return `После ${afterCount} посещений категории «${EVENT_CATEGORY_RU[fromCategory]}» тебе зайдёт ещё что-то из этой ленты.`;
-  }
-  return `После ${afterCount} посещений категории «${EVENT_CATEGORY_RU[fromCategory]}» тебе зайдёт «${EVENT_CATEGORY_RU[toCategory]}».`;
 }
 
 function toTasteProfile(userId: string, graph: TasteGraph, now: Date): TasteProfile {

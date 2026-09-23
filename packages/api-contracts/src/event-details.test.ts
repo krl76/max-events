@@ -3,6 +3,7 @@ import { EventDetailsSchema } from "./event-details.js";
 
 const eventId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f";
 const organizerId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90";
+const organizationId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93";
 const bookingId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d91";
 const checkInId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d92";
 
@@ -21,6 +22,7 @@ const minimalDetails = {
   },
   place: null,
   organizer: null,
+  organization: null,
   remainingSeats: null,
   activeBookingId: null,
   checkInId: null,
@@ -34,6 +36,7 @@ describe("EventDetailsSchema", () => {
     expect(parsed.event.id).toBe(eventId);
     expect(parsed.place).toBeNull();
     expect(parsed.organizer).toBeNull();
+    expect(parsed.organization).toBeNull();
     expect(parsed.remainingSeats).toBeNull();
     expect(parsed.activeBookingId).toBeNull();
     expect(parsed.checkInId).toBeNull();
@@ -51,6 +54,7 @@ describe("EventDetailsSchema", () => {
         createdAt: "2026-09-01T10:00:00+03:00",
         updatedAt: "2026-09-01T10:00:00+03:00",
       },
+      organization: { id: organizationId, name: "Культурный центр", contacts: "@centre" },
       remainingSeats: 7,
       activeBookingId: bookingId,
       checkInId,
@@ -61,6 +65,8 @@ describe("EventDetailsSchema", () => {
       },
     });
     expect(parsed.organizer?.id).toBe(organizerId);
+    // The public aggregate carries the organization's name and contacts, never its credentials.
+    expect(parsed.organization).toEqual({ id: organizationId, name: "Культурный центр", contacts: "@centre" });
     expect(parsed.remainingSeats).toBe(7);
     expect(parsed.activeBookingId).toBe(bookingId);
     expect(parsed.checkInId).toBe(checkInId);

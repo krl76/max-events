@@ -14,7 +14,7 @@
 // - ApiClient.setOrganizerToken - attach the organizer bearer token sent as the authorization header on every request
 // - ApiClient.organizerLogin - POST /auth/organizer/login with login/password, returns OrganizerSession
 // - ApiClient.listStories / createStory - GET /stories and POST /stories (own story from a data-URL photo)
-// - EventFilters - optional catalog list filters (category/city/date)
+// - EventFilters - optional catalog list filters (category/city/date/minRating)
 // - ApiClient.listEvents - GET /events with serialized filters
 // - ApiClient.listPlaces - GET /places: venues for the catalog map markers
 // - serializeEventFilters - filters -> query string ("" when empty)
@@ -42,6 +42,9 @@
 // - ApiClient.updateProfile - PATCH /profile (current user)
 // - CalendarEntry - calendar item: active booking enriched with its event and place
 // - ApiClient.listCalendar - GET /calendar: active bookings split upcoming/past by the server, flattened for the screens
+// - ApiClient.listSubscriptions - GET /subscriptions: follows of the authenticated user, each with a readable title
+// - ApiClient.createSubscription - POST /subscriptions (organizer | place | interest; idempotent per target on the backend)
+// - ApiClient.removeSubscription - DELETE /subscriptions/:id, returns the removed follow
 // - ApiClient.listFriends - GET /friends: friend list of the authenticated user
 // - ApiClient.getFriendsActivity - GET /friends/activity?userId=
 // - ApiClient.getFriendAvailability - GET /friends/availability?eventId=: free/busy/unknown per friend
@@ -49,12 +52,16 @@
 // - ApiClient.createGathering - POST /gatherings
 // - ApiClient.getGathering - GET /gatherings/:id
 // - ApiClient.respondToGathering - PATCH /gatherings/:id/response with { response } (invitee answer; the host and outsiders get 403 from the backend)
+// - ApiClient.getTaste - GET /taste: the viewer's taste graph (empty arrays until they visit something)
+// - ApiClient.getAfterMe - GET /taste/after-me: what the graph suggests next
 // - ApiClient.getToday - GET /today[?lat=&lng=]: "What to do today?" digest (summary + typed-label cards)
 // - ApiClient.getNearbyTimeline - GET /nearby?latitude=&longitude=: four-bucket nearby timeline (NearbyTimeline)
 // - ApiClient.getLeisureOptions - GET /nearby/free?hours=&mood=&latitude=&longitude=: leisure chains for a free window
 // - LeisureQuery - free-window leisure payload (hours 1..8, mood, coordinates)
 // - ApiClient.listPlans - GET /plans[?lat=&lng=]: plan cards (plan + event + distance to the meeting point)
 // - ApiClient.getPlan - GET /plans/:id: single plan card
+// - ApiClient.createPlan - POST /plans: a plan made by hand, optionally repeating
+// - ApiClient.cancelPlan - DELETE /plans/:id?scope=occurrence|series
 // - ApiClient.createAutoPlan - POST /plans/auto: saved draft plan + travel minutes + food picks + dinner->road->meetup->event timeline
 // - ApiClient.createDayRoute - POST /routes: day route timeline from 2..8 event/place stops with walking legs
 // - ApiClient.optimizeDayRoute - POST /routes/optimize: same stops reordered with saved minutes/km
@@ -64,6 +71,9 @@
 // - ListScreen - one-list aggregate: list + participants + item cards (shared collections surface)
 // - ApiClient.getList - GET /lists/:id
 // - AddListItem - save-to-list payload (owner user + saved event)
+// - ApiClient.createList - POST /lists: a list of one's own
+// - ApiClient.renameList - PATCH /lists/:id (a preset refuses, 403)
+// - ApiClient.deleteList - DELETE /lists/:id, returns the removed list (a preset refuses, 403)
 // - ApiClient.addListItem - POST /lists/:id/items with { userId, eventId }
 // - ApiClient.removeListItem - DELETE /lists/:id/items/:itemId
 // - FeedPost - impression post aggregate: author, event, text, like counter/state, comments
@@ -122,10 +132,74 @@
 // END_MODULE_MAP
 
 import { LeisureOptionSchema, NearbyTimelineSchema, PlacePageSchema, PlanBudgetSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema, VoteSchema, WeGroupScreenSchema, type PlacePage } from "@max-events/api-contracts";
-import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, MyCitySummarySchema, OptimizeRouteSchema, ParticipationSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
-import type { Achievement, AuthRequest, AuthResponse, AutoPlanProposal, Booking, BookingWithSeats, CheckIn, CreateBooking, CreateEvent, CreatePlace, CreatePlanExpenseWrite, CreateVoteWrite, CreateWeGroupWrite, DayRoute, DiscoveryResponse, Event, EventCategory, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, FriendActivityByFriend, FriendAvailability, FriendRoute, Gathering, InviteeResponse, LeisureMood, LeisureOption, List, ListItem, MemoryPoint, MicroEvent, MyCitySummary, NearbyTimeline, OptimizeRoute, Participation, ParticipationStatus, PeopleResponse, Place, PlanBudget, PlanCard, Profile, PromotionPlacements, RatingSummary, Report as ContractReport, Review, ReviewCategoryScores, RouteStopWrite, TargetedPromotionsResponse, TodayResponse, UpdateProfile, User, VisitStats, Vote, WaitlistEntry, WeGroupScreen, WheretoQuery, WheretoResponse, AssistResponse, AssistDayResponse } from "@max-events/api-contracts";
+import { AchievementSchema, AuthResponseSchema, AutoPlanProposalSchema, BookingWithSeatsSchema, CalendarResponseSchema, CheckInSchema, DayRouteSchema, DiscoveryResponseSchema, EventCategorySchema, EventSchema, FeedPostSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendRouteSchema, FriendSchema, GatheringSchema, ListItemSchema, ListSchema, MemoryPointSchema, MicroEventSchema, AfterMeResponseSchema, MyCitySummarySchema, OptimizeRouteSchema, OrganizationSchema, ParticipationSchema, SubscriptionSchema, TasteProfileSchema, ParticipationStatusSchema, PeopleResponseSchema, PlaceSchema, PlanCardSchema, ProfileSchema, RatingSummarySchema, ReportSchema, ReviewSchema, TodayResponseSchema, UserSchema, VisitStatsSchema, WaitlistEntrySchema, AssistResponseSchema, AssistDayResponseSchema, WheretoResponseSchema } from "@max-events/api-contracts";
+import type {
+  AfterMeResponse,
+  CreatePlanWrite,
+  PlanCancelScope,
+  TasteProfile,
+  Achievement,
+  AuthRequest,
+  AuthResponse,
+  AutoPlanProposal,
+  Booking,
+  BookingWithSeats,
+  CheckIn,
+  CreateBooking,
+  CreateEvent,
+  CreatePlace,
+  CreatePlanExpenseWrite,
+  CreateVoteWrite,
+  CreateWeGroupWrite,
+  DayRoute,
+  DiscoveryResponse,
+  Event,
+  EventCategory,
+  FeedComment as ContractFeedComment,
+  FeedPost as ContractFeedPost,
+  Friend,
+  FriendActivityByFriend,
+  FriendAvailability,
+  FriendRoute,
+  Gathering,
+  InviteeResponse,
+  LeisureMood,
+  LeisureOption,
+  List,
+  ListItem,
+  MemoryPoint,
+  MicroEvent,
+  MyCitySummary,
+  NearbyTimeline,
+  OptimizeRoute,
+  Participation,
+  ParticipationStatus,
+  PeopleResponse,
+  Place,
+  PlanBudget,
+  PlanCard,
+  Profile,
+  PromotionPlacements,
+  RatingSummary,
+  Report as ContractReport,
+  Review,
+  ReviewCategoryScores,
+  RouteStopWrite,
+  TargetedPromotionsResponse,
+  TodayResponse,
+  UpdateProfile,
+  User,
+  VisitStats,
+  Vote,
+  WaitlistEntry,
+  WeGroupScreen,
+  WheretoQuery,
+  WheretoResponse,
+  AssistResponse,
+  AssistDayResponse,
+} from "@max-events/api-contracts";
 import { EarlyAccessWriteSchema, EventSalesReportSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, OrganizerSessionSchema, PromoCampaignSchema, PromoCodeSchema, PromotionCampaignSchema, StorySchema } from "@max-events/api-contracts";
-import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EarlyAccessWrite, EventSalesReport, OrganizerEventStats, OrganizerLoginWrite, OrganizerRatingResponse, OrganizerSession, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, Story } from "@max-events/api-contracts";
+import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, CreateSubscription, EarlyAccessWrite, EventSalesReport, Organization, OrganizerEventStats, OrganizerLoginWrite, OrganizerRatingResponse, OrganizerSession, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, Story, Subscription } from "@max-events/api-contracts";
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
 interface ZodSchema<T> {
@@ -157,6 +231,8 @@ export interface EventFilters {
   city?: string;
   /** ISO date (YYYY-MM-DD) of the event start day. */
   date?: string;
+  /** Average review score the event must reach, 1..5; an event nobody reviewed never qualifies. */
+  minRating?: number;
 }
 
 export function serializeEventFilters(filters: EventFilters): string {
@@ -164,6 +240,8 @@ export function serializeEventFilters(filters: EventFilters): string {
   if (filters.category) params.set("category", filters.category);
   if (filters.city) params.set("city", filters.city);
   if (filters.date) params.set("date", filters.date);
+  // snake_case: the backend query contract spells it min_rating, next to date_from/date_to.
+  if (filters.minRating) params.set("min_rating", String(filters.minRating));
   return params.toString();
 }
 
@@ -171,10 +249,13 @@ export function parseEventFilters(search: string): EventFilters {
   const params = new URLSearchParams(search);
   const category = EventCategorySchema.safeParse(params.get("category"));
   const date = params.get("date");
+  const minRating = Number(params.get("min_rating"));
   return {
     category: category.success ? category.data : undefined,
     city: params.get("city")?.trim() || undefined,
     date: date !== null && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
+    // A value the backend would reject with a 400 is dropped here, like an unknown category.
+    minRating: Number.isInteger(minRating) && minRating >= 1 && minRating <= 5 ? minRating : undefined,
   };
 }
 
@@ -182,8 +263,10 @@ export function parseEventFilters(search: string): EventFilters {
 export interface EventDetails {
   event: Event;
   place: Place | null;
-  /** The event organizer; null for seed events without an organizerUserId. */
+  /** The event organizer; null for events without an organizerUserId. */
   organizer: User | null;
+  /** The organization that organizer publishes for; null when they belong to none. */
+  organization: Organization | null;
   remainingSeats: number | null;
   activeBookingId: string | null;
   checkInId: string | null;
@@ -195,14 +278,16 @@ const EventDetailsSchema: ZodSchema<EventDetails> = {
     const raw = data as Record<string, unknown>;
     const event = EventSchema.safeParse(raw.event);
     const organizer = raw.organizer === null ? { success: true as const, data: null } : UserSchema.safeParse(raw.organizer);
+    // Absent, not just null: a backend that predates the organization field must not blank the page.
+    const organization = raw.organization === null || raw.organization === undefined ? { success: true as const, data: null } : OrganizationSchema.safeParse(raw.organization);
     const place = raw.place === null ? { success: true as const, data: null } : PlaceSchema.safeParse(raw.place);
-    if (!event.success || !organizer.success || !place.success) return { success: false as const, error: "invalid event details" };
+    if (!event.success || !organizer.success || !organization.success || !place.success) return { success: false as const, error: "invalid event details" };
     if (raw.remainingSeats !== null && typeof raw.remainingSeats !== "number") return { success: false as const, error: "invalid event details" };
     if (raw.activeBookingId !== null && typeof raw.activeBookingId !== "string") return { success: false as const, error: "invalid event details" };
     if (raw.checkInId !== null && typeof raw.checkInId !== "string") return { success: false as const, error: "invalid event details" };
     return {
       success: true as const,
-      data: { event: event.data, place: place.data, organizer: organizer.data, remainingSeats: raw.remainingSeats, activeBookingId: raw.activeBookingId, checkInId: raw.checkInId },
+      data: { event: event.data, place: place.data, organizer: organizer.data, organization: organization.data, remainingSeats: raw.remainingSeats, activeBookingId: raw.activeBookingId, checkInId: raw.checkInId },
     };
   },
 };
@@ -553,6 +638,20 @@ export class ApiClient {
     return this.request("/stories", StorySchema, { body: { imageUrl } });
   }
 
+  /** For an endpoint that answers 204: there is no body to validate, only a status to respect. */
+  private async requestVoid(path: string, options: MethodOptions = {}): Promise<void> {
+    const headers: Record<string, string> = { accept: "application/json" };
+    if (this.initData !== null) headers["x-max-init-data"] = this.initData;
+    if (this.organizerToken !== null) headers["authorization"] = `Bearer ${this.organizerToken}`;
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, { method: options.method ?? "POST", headers });
+    } catch {
+      throw new ApiError(0, `network error while fetching ${path}`);
+    }
+    if (!response.ok) throw new ApiError(response.status, `API ${path} failed with ${response.status}`);
+  }
+
   private async request<T>(path: string, schema: ZodSchema<T>, options: MethodOptions = {}): Promise<T> {
     const headers: Record<string, string> = { accept: "application/json" };
     if (this.initData !== null) {
@@ -684,6 +783,18 @@ export class ApiClient {
     return [...response.upcoming, ...response.past];
   }
 
+  listSubscriptions(): Promise<Subscription[]> {
+    return this.request("/subscriptions", SubscriptionSchema.array());
+  }
+
+  createSubscription(payload: CreateSubscription): Promise<Subscription> {
+    return this.request("/subscriptions", SubscriptionSchema, { body: payload });
+  }
+
+  removeSubscription(id: string): Promise<Subscription> {
+    return this.request(`/subscriptions/${id}`, SubscriptionSchema, { method: "DELETE" });
+  }
+
   listFriends(): Promise<Friend[]> {
     return this.request("/friends", FriendSchema.array());
   }
@@ -706,6 +817,14 @@ export class ApiClient {
 
   respondToGathering(gatheringId: string, response: InviteeResponse): Promise<Gathering> {
     return this.request(`/gatherings/${gatheringId}/response`, GatheringSchema, { method: "PATCH", body: { response } });
+  }
+
+  getTaste(): Promise<TasteProfile> {
+    return this.request("/taste", TasteProfileSchema);
+  }
+
+  getAfterMe(): Promise<AfterMeResponse> {
+    return this.request("/taste/after-me", AfterMeResponseSchema);
   }
 
   getToday(origin: { latitude: number; longitude: number } | null = null): Promise<TodayResponse> {
@@ -732,6 +851,15 @@ export class ApiClient {
     return this.request(`/plans/${id}`, PlanCardSchema);
   }
 
+  createPlan(payload: CreatePlanWrite): Promise<PlanCard> {
+    return this.request("/plans", PlanCardSchema, { body: payload });
+  }
+
+  /** Cancels one meeting by default; "series" takes the repeats with it. */
+  async cancelPlan(planId: string, scope: PlanCancelScope = "occurrence"): Promise<void> {
+    await this.requestVoid(`/plans/${planId}?scope=${scope}`, { method: "DELETE" });
+  }
+
   createAutoPlan(eventId: string, latitude: number, longitude: number): Promise<AutoPlanProposal> {
     return this.request("/plans/auto", AutoPlanProposalSchema, { body: { eventId, latitude, longitude } });
   }
@@ -748,6 +876,18 @@ export class ApiClient {
     const query = new URLSearchParams({ userId });
     if (eventId !== undefined) query.set("eventId", eventId);
     return this.request(`/lists?${query.toString()}`, ListSummaryArraySchema);
+  }
+
+  createList(title: string): Promise<List> {
+    return this.request("/lists", ListSchema, { body: { title } });
+  }
+
+  renameList(listId: string, title: string): Promise<List> {
+    return this.request(`/lists/${listId}`, ListSchema, { method: "PATCH", body: { title } });
+  }
+
+  deleteList(listId: string): Promise<List> {
+    return this.request(`/lists/${listId}`, ListSchema, { method: "DELETE" });
   }
 
   addListItem(listId: string, payload: AddListItem): Promise<ListItem> {

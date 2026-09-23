@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AVAILABILITY_LABELS, GatheringFlowView, type GatheringFlowState } from "./GatheringFlowPage";
 import { friendAvailability, mockEvents } from "../api/mock";
+import { FRIENDS_GRAPH_EMPTY_TEXT } from "../friends/friends-empty";
 
 const friends = friendAvailability();
 
@@ -32,6 +33,13 @@ function viewHtml(state: GatheringFlowState, over: { selected?: string[]; meetin
 }
 
 describe("GatheringFlowView", () => {
+  it("explains an empty friend picker instead of an empty box above a dead button", () => {
+    const html = viewHtml(readyState({ friends: [] }), { meetingAt: "2026-09-19T19:00" });
+
+    expect(html).toContain(FRIENDS_GRAPH_EMPTY_TEXT);
+    expect(html).toContain("Собрать компанию");
+  });
+
   it("renders every friend with their availability label before the launch", () => {
     const html = viewHtml(readyState(), { meetingAt: "2026-09-19T19:00" });
 

@@ -44,6 +44,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   "gathering-new": "Сбор компании",
   gathering: "Сбор компании",
   plan: "План",
+  "plan-new": "Свой план",
   "day-route": "Маршрут на день",
   list: "Список",
   achievements: "Достижения",

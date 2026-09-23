@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Zod contracts for taste graph weights and «После меня» follow-on recommendations.
-// SCOPE: category weights, transitions, after-me suggestions with upcoming events.
+// SCOPE: category weights, transitions, after-me suggestions with upcoming events; formatAfterMeExplanation builds the explanation the payload carries, so the backend and the mock cannot word it differently.
 // DEPENDS: zod, ./event.js, ./place.js, ./primitives.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -16,6 +16,8 @@
 // - AfterMeSuggestion - suggestion type
 // - AfterMeResponseSchema - list of suggestions
 // - AfterMeResponse - response type
+// - EVENT_CATEGORY_RU - category words the explanation is written with
+// - formatAfterMeExplanation - «После N посещений категории «X» …» exactly as the payload carries it
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -58,3 +60,22 @@ export const AfterMeResponseSchema = z.object({
   suggestions: z.array(AfterMeSuggestionSchema),
 });
 export type AfterMeResponse = z.infer<typeof AfterMeResponseSchema>;
+
+export const EVENT_CATEGORY_RU: Record<z.infer<typeof EventCategorySchema>, string> = {
+  afisha: "афиша",
+  volunteering: "волонтёрство",
+  tourism: "туризм",
+  sport: "спорт",
+};
+
+/**
+ * The explanation travels inside the response, so its wording is part of the contract: the backend
+ * writes it and the mock has to answer the same sentence, or the screen changes when the app switches
+ * from mock to live.
+ */
+export function formatAfterMeExplanation(afterCount: number, fromCategory: z.infer<typeof EventCategorySchema>, toCategory: z.infer<typeof EventCategorySchema>): string {
+  if (fromCategory === toCategory) {
+    return `После ${afterCount} посещений категории «${EVENT_CATEGORY_RU[fromCategory]}» тебе зайдёт ещё что-то из этой ленты.`;
+  }
+  return `После ${afterCount} посещений категории «${EVENT_CATEGORY_RU[fromCategory]}» тебе зайдёт «${EVENT_CATEGORY_RU[toCategory]}».`;
+}

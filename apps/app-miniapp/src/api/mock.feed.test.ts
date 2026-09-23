@@ -91,6 +91,35 @@ describe("feed mock endpoints", () => {
     expect(wall[0].id).toBe(created.id);
   });
 
+  it("keep the photo of a published post and hand it back on the wall", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+    const eventId = mockEvents[2].id;
+    const photoUrl = `data:image/jpeg;base64,${"A".repeat(200)}`;
+
+    const created = await client.createFeedPost({ userId: DEMO_USER_ID, eventId, text: "С фото", photoUrl });
+
+    expect(created.photoUrl).toBe(photoUrl);
+    expect((await client.listFeedPosts(eventId))[0].photoUrl).toBe(photoUrl);
+    // A post without a photo still parses, and the card falls back to the category placeholder.
+    expect((await client.createFeedPost({ userId: DEMO_USER_ID, eventId, text: "Без фото" })).photoUrl).toBeNull();
+  });
+
+  it("serve the wall of one place, not just one event", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+    const seeded = (await client.listFeedPosts()).map((post) => ({ post, event: mockEvents.find((item) => item.id === post.eventId) })).find((row) => row.event?.placeId != null);
+    expect(seeded).toBeDefined();
+    const placeId = seeded!.event!.placeId!;
+
+    const wall = await client.listFeedPosts(undefined, placeId);
+
+    // The place wall is the posts of that place's events; a post from another place must not leak in.
+    const placeEventIds = new Set(mockEvents.filter((event) => event.placeId === placeId).map((event) => event.id));
+    expect(wall.map((post) => post.id)).toContain(seeded!.post.id);
+    expect(wall.every((post) => placeEventIds.has(post.eventId))).toBe(true);
+  });
+
   it("reject unknown posts and events with 404 and empty payloads with 400", async () => {
     restore = installMockApi();
     const client = new ApiClient("/api");

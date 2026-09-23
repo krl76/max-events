@@ -1,14 +1,14 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Catalog subscriptions — follow organizer/place/interest and DM on matching new events.
-// SCOPE: CRUD for CurrentUser; create idempotent per target incl. the 23505 insert race; matchesSubscription; notifyNewEvent unique users; bot failure does not throw.
-// DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, places/users/max-bot
+// SCOPE: CRUD for CurrentUser; create idempotent per target incl. the 23505 insert race; every returned row carries the target's display title (organization name, place title or the interest); matchesSubscription; notifyNewEvent unique users; bot failure does not throw.
+// DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, places/users/organizations/max-bot
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - EventMatchInput - event fields used for matching
 // - SubscriptionNotifyResult - sent/failed counts
-// - toSubscriptionDto - entity to Subscription contract
+// - toSubscriptionDto - entity plus the resolved target title to the Subscription contract
 // - matchesSubscription - place/organizer/interest match against a new event
 // - formatSubscriptionNotice - DM body
 // - SubscriptionsService - create, list, remove, notifyNewEvent
@@ -16,10 +16,11 @@
 
 import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { QueryFailedError, Repository } from "typeorm";
+import { In, QueryFailedError, Repository } from "typeorm";
 import type { CreateSubscription, Subscription } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
+import { OrganizationsService } from "../organizations/organizations.service";
 import { PlaceEntity } from "../places/place.entity";
 import { UserEntity } from "../users/user.entity";
 import { SubscriptionEntity } from "./subscription.entity";
@@ -55,11 +56,53 @@ export class SubscriptionsService {
     @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
+    @Inject(OrganizationsService) private readonly organizations: OrganizationsService,
   ) {}
 
+  /**
+   * Titles are resolved for the whole list at once. Per-row lookups meant 2N+1 queries, and this list
+   * is read on every event and place screen — not only on the profile — to answer whether the viewer
+   * already follows that one target.
+   */
   async list(userId: string): Promise<Subscription[]> {
-    const rows = await this.subscriptions.find({ where: { userId } });
-    return rows.map(toSubscriptionDto);
+    const rows = await this.subscriptions.find({ where: { userId }, order: { createdAt: "ASC" } });
+    if (rows.length === 0) return [];
+    const placeIds = unique(rows.map((row) => row.placeId));
+    const organizerIds = unique(rows.map((row) => row.organizerUserId));
+    const places = placeIds.length === 0 ? [] : await this.places.find({ where: { id: In(placeIds) } });
+    const organizerTitles = await this.organizerTitles(organizerIds);
+    const placeTitles = new Map(places.map((place) => [place.id, place.title]));
+    return rows.map((row) => toSubscriptionDto(row, this.titleOf(row, placeTitles, organizerTitles)));
+  }
+
+  /**
+   * A subscription list of uuids is unreadable, and the miniapp has no way to resolve an organizer id
+   * on its own. The organization name wins over the account name, so the list says what the event page
+   * says. A target that vanished keeps a generic label rather than an empty line.
+   */
+  private titleOf(row: SubscriptionEntity, placeTitles: Map<string, string>, organizerTitles: Map<string, string>): string {
+    if (row.type === "interest") return row.interest ?? "Интерес";
+    if (row.type === "place") return (row.placeId ? placeTitles.get(row.placeId) : null) ?? "Место";
+    return (row.organizerUserId ? organizerTitles.get(row.organizerUserId) : null) ?? "Организатор";
+  }
+
+  private async organizerTitles(organizerIds: string[]): Promise<Map<string, string>> {
+    if (organizerIds.length === 0) return new Map();
+    const organizations = await this.organizations.findByOrganizerUserIds(organizerIds);
+    const titles = new Map(organizations.flatMap((row) => (row.organizerUserId ? [[row.organizerUserId, row.name] as const] : [])));
+    const missing = organizerIds.filter((id) => !titles.has(id));
+    if (missing.length === 0) return titles;
+    // No organization behind the organizer: their own name is the next best thing a reader recognises.
+    const users = await this.users.find({ where: { id: In(missing) } });
+    for (const user of users) titles.set(user.id, [user.firstName, user.lastName].filter(Boolean).join(" "));
+    return titles;
+  }
+
+  /** One row, through the same resolvers the list uses. */
+  private async withTitle(row: SubscriptionEntity): Promise<Subscription> {
+    const places = row.placeId ? await this.places.find({ where: { id: In([row.placeId]) } }) : [];
+    const organizerTitles = await this.organizerTitles(row.organizerUserId ? [row.organizerUserId] : []);
+    return toSubscriptionDto(row, this.titleOf(row, new Map(places.map((place) => [place.id, place.title])), organizerTitles));
   }
 
   async create(userId: string, payload: CreateSubscription): Promise<Subscription> {
@@ -79,15 +122,15 @@ export class SubscriptionsService {
       if (!organizer) throw new NotFoundException("Organizer not found");
     }
     const existing = await this.findSameTarget(userId, fields);
-    if (existing) return toSubscriptionDto(existing);
+    if (existing) return this.withTitle(existing);
     try {
-      return toSubscriptionDto(await this.subscriptions.save(this.subscriptions.create(fields)));
+      return await this.withTitle(await this.subscriptions.save(this.subscriptions.create(fields)));
     } catch (error) {
       // UQ_subscriptions_user_*: a parallel follow tap must read back the winner, not 500.
       if (!isUniqueViolation(error)) throw error;
       const winner = await this.findSameTarget(userId, fields);
       if (!winner) throw error;
-      return toSubscriptionDto(winner);
+      return this.withTitle(winner);
     }
   }
 
@@ -98,8 +141,9 @@ export class SubscriptionsService {
   async remove(userId: string, subscriptionId: string): Promise<Subscription> {
     const row = await this.subscriptions.findOneBy({ id: subscriptionId });
     if (!row || row.userId !== userId) throw new NotFoundException("Subscription not found");
+    const dto = await this.withTitle(row);
     await this.subscriptions.delete({ id: row.id });
-    return toSubscriptionDto(row);
+    return dto;
   }
 
   async notifyNewEvent(event: EventEntity): Promise<SubscriptionNotifyResult> {
@@ -134,6 +178,10 @@ export class SubscriptionsService {
 
 type SubscriptionTarget = { type: SubscriptionEntity["type"]; organizerUserId: string | null; placeId: string | null; interest: string | null };
 
+function unique(values: (string | null)[]): string[] {
+  return [...new Set(values.filter((value): value is string => value !== null))];
+}
+
 function isUniqueViolation(error: unknown): boolean {
   return error instanceof QueryFailedError && error.driverError?.code === "23505";
 }
@@ -145,7 +193,7 @@ function sameTarget(row: SubscriptionEntity, fields: SubscriptionTarget): boolea
   return (row.interest ?? "").toLowerCase() === (fields.interest ?? "").toLowerCase();
 }
 
-export function toSubscriptionDto(row: SubscriptionEntity): Subscription {
+export function toSubscriptionDto(row: SubscriptionEntity, title: string): Subscription {
   return {
     id: row.id,
     userId: row.userId,
@@ -153,6 +201,7 @@ export function toSubscriptionDto(row: SubscriptionEntity): Subscription {
     organizerUserId: row.organizerUserId,
     placeId: row.placeId,
     interest: row.interest,
+    title,
     createdAt: row.createdAt.toISOString(),
   };
 }

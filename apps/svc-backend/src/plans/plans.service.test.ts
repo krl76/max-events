@@ -1,136 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import { QueryFailedError, type Repository } from "typeorm";
-import type { Friend } from "@max-events/api-contracts";
-import { EventEntity } from "../events/event.entity";
-import type { FriendsService } from "../friends/friends.service";
-import type { MaxBotClient } from "../max-bot/max-bot.client";
-import { PlaceEntity } from "../places/place.entity";
-import { UserEntity } from "../users/user.entity";
-import { PlanExpenseEntity } from "./plan-expense.entity";
-import { PlanParticipantEntity } from "./plan-participant.entity";
-import { PlanEntity } from "./plan.entity";
-import { formatPlanPollText, haversineMeters, PlansService, settleBalances } from "./plans.service";
-
-const now = new Date("2026-09-12T10:00:00Z");
-const hostId = "00000000-0000-4000-8000-00000000000a";
-const dimaId = "00000000-0000-4000-8000-0000000000b1";
-const katyaId = "00000000-0000-4000-8000-0000000000b2";
-const eventId = "00000000-0000-4000-8000-0000000000e1";
-const placeId = "00000000-0000-4000-8000-0000000000p1";
-const meetingAt = "2026-09-12T11:00:00.000Z";
-
-function user(id: string, maxUserId: string, firstName: string): UserEntity {
-  return { id, maxUserId, firstName, lastName: null, avatarUrl: null, createdAt: now, updatedAt: now } as UserEntity;
-}
-
-function eventRow(): EventEntity {
-  return {
-    id: eventId,
-    title: "The Weekend Tribute",
-    description: "",
-    category: "afisha",
-    city: "Москва",
-    placeId,
-    startsAt: new Date("2026-09-12T16:00:00Z"),
-    endsAt: null,
-    isPaid: true,
-    priceRub: 850,
-    paymentUrl: "https://example.com/pay",
-    capacity: null,
-    bookedCount: 0,
-    published: true,
-    chatLink: null,
-    chatSyncPending: false,
-    createdAt: now,
-    updatedAt: now,
-  } as EventEntity;
-}
-
-function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
-  const store = [...initial];
-  let seq = 0;
-  return {
-    store,
-    create: (fields: Partial<T>) => ({ ...fields }) as T,
-    find: async (opts: { where?: Record<string, string> } = {}) => {
-      const where = opts.where ?? {};
-      return store.filter((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value));
-    },
-    findOneBy: async (where: Record<string, string>) => store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
-    save: async (entity: T) => {
-      if (!store.includes(entity)) {
-        const rec = entity as { seriesId?: string | null; meetingAt?: Date };
-        const seriesId = rec.seriesId;
-        const meetingAt = rec.meetingAt;
-        if (seriesId && meetingAt instanceof Date) {
-          const stamp = meetingAt.getTime();
-          const dup = store.find((row) => {
-            const other = row as { seriesId?: string | null; meetingAt?: Date };
-            return other.seriesId === seriesId && other.meetingAt instanceof Date && other.meetingAt.getTime() === stamp;
-          });
-          if (dup) throw new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate"), { code: "23505" }));
-        }
-        entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
-        (entity as { createdAt?: Date }).createdAt ??= now;
-        (entity as { updatedAt?: Date }).updatedAt ??= now;
-        store.push(entity);
-      }
-      return entity;
-    },
-    delete: async (where: { id: string }) => {
-      const index = store.findIndex((row) => row.id === where.id);
-      if (index < 0) return { affected: 0 };
-      store.splice(index, 1);
-      return { affected: 1 };
-    },
-  };
-}
-
-function createService() {
-  const users = [user(hostId, "1", "Демо"), user(dimaId, "2", "Дима"), user(katyaId, "3", "Катя")];
-  const place = { id: placeId, title: "Метро", address: "Крымский Вал", city: "Москва", category: "park", published: true, latitude: 55.747, longitude: 37.584, createdAt: now, updatedAt: now } as PlaceEntity;
-  const food = {
-    id: "00000000-0000-4000-8000-0000000000a3",
-    title: "Депо",
-    address: "Лесная, 1",
-    city: "Москва",
-    category: "food",
-    published: true,
-    latitude: 55.748,
-    longitude: 37.585,
-    createdAt: now,
-    updatedAt: now,
-  } as PlaceEntity;
-  const plans = createStoreRepo<PlanEntity>();
-  const participants = createStoreRepo<PlanParticipantEntity>();
-  const events = createStoreRepo<EventEntity>([eventRow()]);
-  const places = createStoreRepo<PlaceEntity>([place, food]);
-  const userRepo = createStoreRepo<UserEntity>(users);
-  const friends = {
-    friendIds: async () => new Set([dimaId, katyaId]),
-    list: async () =>
-      [
-        { id: dimaId, name: "Дима", avatarUrl: null },
-        { id: katyaId, name: "Катя", avatarUrl: null },
-      ] satisfies Friend[],
-  } as unknown as FriendsService;
-  const messages: string[] = [];
-  const chatTitles: string[] = [];
-  const bot = {
-    createChat: async (title: string) => {
-      chatTitles.push(title);
-      return { chatId: 1, link: "https://max.ru/join/plan" };
-    },
-    sendMessage: async (_id: string, text: string) => {
-      messages.push(text);
-      return true;
-    },
-  } as unknown as MaxBotClient;
-  const expenses = createStoreRepo<PlanExpenseEntity>();
-  const service = new PlansService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, userRepo as unknown as Repository<UserEntity>, expenses as unknown as Repository<PlanExpenseEntity>, friends, bot);
-  return { service, messages, plans, participants, chatTitles };
-}
+import { formatPlanPollText, haversineMeters, settleBalances } from "./plans.service";
+import { createService, dimaId, eventId, hostId, katyaId, meetingAt, now } from "./plans.testHarness";
 
 describe("haversineMeters", () => {
   it("is zero at the same point and positive otherwise", () => {
@@ -253,6 +124,52 @@ describe("PlansService", () => {
     expect(budget.perPerson.reduce((sum, row) => sum + row.netRub, 0)).toBe(0);
     const shares = budget.perPerson.map((row) => row.shareRub).sort((a, b) => b - a);
     expect(shares).toEqual([34, 33, 33]);
+  });
+
+  it("cancels the whole series, template and every future copy", async () => {
+    const { service, plans } = createService();
+    const created = await service.create(hostId, { eventId, participantIds: [dimaId], meetingPoint: "корт", meetingAt: "2026-09-10T16:00:00.000Z", recurringRule: { type: "weekly_weekday", weekday: 4 } });
+    const ofSeries = () => plans.store.filter((row) => row.seriesId === created.plan.id && !row.cancelledAt);
+    expect(ofSeries()).toHaveLength(5);
+
+    await service.remove(hostId, created.plan.id, "series");
+
+    // Cancelling the template alone left four meetings alive, still reminding people about them.
+    expect(ofSeries()).toHaveLength(0);
+    await expect(service.list(hostId).then((cards) => cards.filter((card) => card.plan.seriesId === created.plan.id))).resolves.toEqual([]);
+  });
+
+  it("cancels one meeting of a series without touching the rest", async () => {
+    const { service, plans } = createService();
+    const created = await service.create(hostId, { eventId, participantIds: [dimaId], meetingPoint: "корт", meetingAt: "2026-09-10T16:00:00.000Z", recurringRule: { type: "weekly_weekday", weekday: 4 } });
+    const copy = plans.store.find((row) => row.sourcePlanId === created.plan.id)!;
+
+    await service.remove(hostId, copy.id, "occurrence");
+
+    expect(plans.store.filter((row) => row.seriesId === created.plan.id && !row.cancelledAt)).toHaveLength(4);
+    expect(plans.store.find((row) => row.id === copy.id)!.cancelledAt).not.toBeNull();
+  });
+
+  it("tells a copy how its series repeats, so the screen can say so", async () => {
+    const { service, plans } = createService();
+    const created = await service.create(hostId, { eventId, participantIds: [], meetingPoint: "корт", meetingAt: "2026-09-10T16:00:00.000Z", recurringRule: { type: "weekly_weekday", weekday: 4 } });
+    const copy = plans.store.find((row) => row.sourcePlanId === created.plan.id)!;
+
+    const card = await service.get(hostId, copy.id);
+
+    // The copy carries no rule of its own; without resolving it the screen could not offer «вся серия».
+    expect(copy.recurringRule).toBeNull();
+    expect(card.plan.recurringRule).toEqual({ type: "weekly_weekday", weekday: 4 });
+    expect(card.plan.seriesId).toBe(created.plan.id);
+    expect(card.plan.hostUserId).toBe(hostId);
+  });
+
+  it("refuses to cancel someone else's plan, whatever the scope", async () => {
+    const { service } = createService();
+    const created = await service.create(hostId, { eventId, participantIds: [dimaId], meetingPoint: "корт", meetingAt: "2026-09-10T16:00:00.000Z", recurringRule: { type: "weekly_weekday", weekday: 4 } });
+
+    await expect(service.remove(dimaId, created.plan.id, "series")).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.remove(dimaId, created.plan.id)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("spawns four weekly copies then treats a second spawn as a no-op", async () => {

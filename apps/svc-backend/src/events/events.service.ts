@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Event persistence — CRUD and catalog list mapped to api-contracts Event.
-// SCOPE: Create/read/update/delete, optional place FK, payment-link invariant, catalog filters on city/category/start date pushed into SQL and capped by limit/offset.
-// DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../places/places.service, ./event.entity
+// SCOPE: Create/read/update/delete, optional place FK, payment-link invariant, catalog filters on city/category/start date pushed into SQL and capped by limit/offset; the rating filter narrows by event id before the page is read, so limit/offset describe the filtered catalog.
+// DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../places/places.service, ../reviews/reviews.service, ./event.entity
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -16,13 +16,14 @@
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { And, FindOperator, IsNull, LessThan, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
+import { And, FindOperator, In, IsNull, LessThan, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
 import { CreateEventSchema, EventSchema, type CreateEvent, type Event, type EventCategory } from "@max-events/api-contracts";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
 import { UsersService } from "../users/users.service";
 import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { PromotionService } from "../promotion/promotion.service";
+import { ReviewsService } from "../reviews/reviews.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { EventEntity } from "./event.entity";
 import { EventWeatherService } from "./event-weather.service";
@@ -36,6 +37,8 @@ export type EventListQuery = {
   date?: string;
   dateFrom?: Date;
   dateTo?: Date;
+  /** Average review score the event must reach; an event nobody reviewed never qualifies. */
+  minRating?: number;
   limit?: number;
   offset?: number;
 };
@@ -62,6 +65,7 @@ export class EventsService {
     @Inject(WaitlistService) private readonly waitlist: WaitlistService,
     @Inject(PromotionService) private readonly promotions: PromotionService,
     @Inject(EventWeatherService) private readonly eventWeather: EventWeatherService,
+    @Inject(ReviewsService) private readonly reviews: ReviewsService,
   ) {}
 
   async create(payload: CreateEvent, organizerUserId?: string, options?: { draft?: boolean }): Promise<Event> {
@@ -179,9 +183,15 @@ export class EventsService {
   }
 
   async list(query: EventListQuery, now = new Date()): Promise<Event[]> {
-    const where: { published: true; city?: string; category?: EventCategory; startsAt?: FindOperator<Date> } = { published: true };
+    const where: { published: true; city?: string; category?: EventCategory; startsAt?: FindOperator<Date>; id?: FindOperator<string> } = { published: true };
     if (query.city) where.city = query.city;
     if (query.category) where.category = query.category;
+    if (query.minRating !== undefined) {
+      // Resolved before the page is read, so limit/offset still describe the filtered catalog.
+      const rated = await this.reviews.eventIdsRatedAtLeast(query.minRating);
+      if (rated.length === 0) return [];
+      where.id = In(rated);
+    }
     // The start window belongs in SQL: filtering it in memory meant reading every published event
     // to answer "what is on Saturday".
     const window = startWindow(query);

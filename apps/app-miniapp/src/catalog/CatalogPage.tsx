@@ -10,7 +10,9 @@
 // - CATEGORY_LABELS - ru labels per event category (reused by the event page)
 // - formatStartsAt - ru "day month, hh:mm" formatting (re-exported from ./format.js, reused by the event page)
 // - CatalogViewName - "list" | "map" view switch on the catalog route
-// - CatalogView - presentational: filter bar + segmented «Список ↔ Карта» toggle + state-driven body (skeleton, error, empty, clickable event cards with the «Промо» badge on promoted events (#205) or map with event/place popups)
+// - RATING_THRESHOLDS - whole-star minimums the rating filter offers
+// - RatingChips - «Любой рейтинг / от N★» control, shared with the search tab
+// - CatalogView - presentational: filter bar (category chips, rating chips «от N★», date, city) + segmented «Список ↔ Карта» toggle + state-driven body (skeleton, error, empty, clickable event cards with the «Промо» badge on promoted events (#205) or map with event/place popups)
 // - EventCard - event card (media, title, time/category, city/price, weather chip, «Промо» badge); exported for the search tab
 // - CatalogPage - filters from window.location on mount; view is controlled by the parent (HomePage hides the today block in map view); fetches via useCatalog and writes filter changes back to the URL
 // - filterEventsByQuery - case-insensitive title/city match; identity on a blank query
@@ -112,11 +114,30 @@ function SkeletonCard() {
   );
 }
 
+/** Whole stars only: the backend query takes 1..5, and «от 4★» is a filter people read at a glance. */
+export const RATING_THRESHOLDS = [3, 4, 5];
+
+/** Shared by the catalog filter bar and the search tab, so both spell the same thresholds. */
+export function RatingChips({ value, onChange }: { value: number | undefined; onChange: (minRating: number | undefined) => void }) {
+  return (
+    <div className="app-filters-chips" role="group" aria-label="Рейтинг">
+      <AppChip pressed={value === undefined} onClick={() => onChange(undefined)}>
+        Любой рейтинг
+      </AppChip>
+      {RATING_THRESHOLDS.map((stars) => (
+        <AppChip key={stars} pressed={value === stars} onClick={() => onChange(stars)}>
+          {`от ${stars}★`}
+        </AppChip>
+      ))}
+    </div>
+  );
+}
+
 function FilterBar({ filters, onFilters }: { filters: EventFilters; onFilters: (filters: EventFilters) => void }) {
   const [cityDraft, setCityDraft] = useState(filters.city ?? "");
   useEffect(() => setCityDraft(filters.city ?? ""), [filters.city]);
   const commitCity = () => onFilters({ ...filters, city: cityDraft.trim() || undefined });
-  const hasFilters = filters.category !== undefined || filters.city !== undefined || filters.date !== undefined;
+  const hasFilters = filters.category !== undefined || filters.city !== undefined || filters.date !== undefined || filters.minRating !== undefined;
 
   return (
     <div className="app-filters">
@@ -130,6 +151,7 @@ function FilterBar({ filters, onFilters }: { filters: EventFilters; onFilters: (
           </AppChip>
         ))}
       </div>
+      <RatingChips value={filters.minRating} onChange={(minRating) => onFilters({ ...filters, minRating })} />
       <div className="app-filters-inputs">
         <input className="app-filters-input" type="date" aria-label="Дата" value={filters.date ?? ""} onChange={(change) => onFilters({ ...filters, date: change.target.value || undefined })} />
         <input

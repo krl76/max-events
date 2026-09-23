@@ -462,7 +462,7 @@ body {
   font-weight: var(--app-font-weight-title);
 }
 
-/* Каталог: панель фильтров (дата / категория / город) */
+/* Каталог: панель фильтров (категория / рейтинг / дата / город) */
 .app-filters {
   border-top: var(--app-hairline);
   display: flex;
@@ -523,6 +523,20 @@ body {
   padding: 0;
   text-align: left;
   width: 100%;
+}
+
+/* Сетка впечатлений в профиле: снимок заполняет ячейку */
+.app-profile-cell-photo {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+/* Пост с фотографией: снимок занимает ту же рамку 4:5, что и категорийная заглушка */
+.app-post-photo {
+  display: block;
+  object-fit: cover;
 }
 
 .app-card--link .app-card-media {
@@ -763,6 +777,14 @@ body {
   cursor: pointer;
 }
 
+/* Страница мероприятия: строка мэтчмейкинга «N идут · N друзей · N ищут компанию» */
+.app-participation-summary {
+  color: var(--app-text);
+  font-size: var(--app-font-size-description);
+  /* Zero: the card body is a flex column with its own gap, and a margin would double it. */
+  margin: 0;
+}
+
 .app-participation-counters {
   border-top: var(--app-hairline);
   color: var(--app-text-secondary);
@@ -773,6 +795,27 @@ body {
   list-style: none;
   margin: 0;
   padding: var(--app-space-m) 0 0;
+}
+
+/* Списки: карточка и её действия (переименовать / удалить / убрать) одной колонкой */
+.app-list-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+}
+
+.app-list-actions {
+  display: flex;
+  gap: var(--app-space-s);
+  justify-content: flex-end;
+}
+
+/* Профиль: «Мои подписки» — название цели и кнопка отписки в одной строке */
+.app-subscription-row {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
 }
 
 /* Отзывы «Как прошло?» и «Пожаловаться» */

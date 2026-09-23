@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Event details page: full event fields, booking button states (book / booked / sold out) with the promo code field (#202) and the early-access «Запись откроется …» line (#313), «Промо» badge for promoted events, in-app payment block for the active booking (#213), external payment link, participation status selector and counters, «Собрать план» autoplan entry once booked.
 // SCOPE: Data via apiClient.getEventDetails (mock or live), booking create/cancel through apiClient, waitlist section when sold out, in-app payment via apiClient.payBooking (status/amount strictly from BookingWithSeats.payment) plus the external link via openExternalLink, participation stats/status write via apiClient, post-event review section and report button; no navigation logic.
-// DEPENDS: ../api/client.js (apiClient, trackPageView, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus, Payment), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./SaveToList.js (SaveToList), ./ReviewSection.js (ReviewSection), ./ReportButton.js (ReportButton), ./WaitlistSection.js (WaitlistSection), ./PaymentSection.js (PaymentSection), ../plans/AutoPlanSection.js (AutoPlanSection), ../feed/FeedPage.js (FeedSection), ../organizer/OrganizerAddons.js (EventOrganizerRatingCard), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, trackPageView, EventDetails, ParticipationStats), @max-events/api-contracts (ParticipationStatus, Payment), ../auth/AuthContext.js, ../max/bridge.js (openExternalLink), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../catalog/format.js (formatEventWeatherDetail, pluralRu), ./SaveToList.js (SaveToList), ./ReviewSection.js (ReviewSection), ./ReportButton.js (ReportButton), ./WaitlistSection.js (WaitlistSection), ./PaymentSection.js (PaymentSection), ../plans/AutoPlanSection.js (AutoPlanSection), ../feed/FeedPage.js (FeedSection), ../organizer/OrganizerAddons.js (EventOrganizerRatingCard), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -13,7 +13,8 @@
 // - EventPage - route container: resolves the user id from the auth context (loading until authenticated), wires booking/check-in actions and the payment link, loads/keeps the booking payment via payBooking (silent auto-load for paid bookings; errors only on an explicit tap, keyed to the failed booking so a re-book resets them), entry to the gathering flow; records the page view fire-and-forget once auth resolved (#196) and shows the organizer rating card (#199)
 // - AutoPlanEntry - «Собрать план» autoplan section gate: rendered only with an active booking
 // - PARTICIPATION_STATUS_LABELS - human-readable labels for the 6 participation statuses
-// - ParticipationView - presentational: status select (empty option clears), status counters and friends count
+// - participationSummary - «N идут · N друзей · N ищут компанию», zeros included
+// - ParticipationView - presentational: status select (empty option clears), the matchmaking summary line and the per-status counters
 // - ParticipationSection - container: loads participation stats via apiClient and wires set/clear actions
 // - ReviewSection, ReportButton, FeedSection, WaitlistSection - post-event review flow (#144), the report button (#167), the event wall (recent impression posts) and the sold-out waitlist block (#260), see their files
 // END_MODULE_MAP
@@ -22,9 +23,10 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiClient, trackPageView, type EventDetails, type ParticipationStats } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
-import { formatEventWeatherDetail } from "../catalog/format";
+import { formatEventWeatherDetail, pluralRu } from "../catalog/format";
 import { ParticipationStatusSchema, type ParticipationStatus, type Payment } from "@max-events/api-contracts";
 import { openChatLink, openExternalLink } from "../max/bridge";
+import { SubscribeToggle } from "../subscriptions/SubscribeToggle";
 import { useRoute } from "../routing/router";
 import { AppButton, AppText, AppTitle, AppState } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
@@ -136,9 +138,11 @@ export function bookingErrorMessage(error: unknown, hadCode: boolean): string {
 }
 
 export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, onOpenPlace, onOpenChat, promo }: EventDetailsViewProps) {
-  const { event, place, organizer } = details;
+  const { event, place, organizer, organization } = details;
   const paymentUrl = event.isPaid ? event.paymentUrl : null;
   const organizerName = organizer === null ? null : [organizer.firstName, organizer.lastName].filter(Boolean).join(" ");
+  // The organization is who the visitor is actually dealing with; the user row behind it is an account.
+  const organizationName = organization?.name ?? null;
 
   return (
     <article className="app-event">
@@ -208,8 +212,14 @@ export function EventDetailsView({ details, onBook, onCancel, onCheckIn, onBuy, 
               </span>
               Организатор
             </dt>
-            <dd>{organizerName ?? "Организатор не указан"}</dd>
+            <dd>{organizationName ?? organizerName ?? "Организатор не указан"}</dd>
           </div>
+          {organization?.contacts && (
+            <div className="app-event-meta-row">
+              <dt>Связаться</dt>
+              <dd>{organization.contacts}</dd>
+            </div>
+          )}
           {details.remainingSeats !== null && (
             <div className="app-event-meta-row">
               <dt>Свободные места</dt>
@@ -267,6 +277,25 @@ const PARTICIPATION_COUNTER_LABELS: Record<ParticipationStatus, string> = {
 
 const PARTICIPATION_STATUSES = ParticipationStatusSchema.options;
 
+/** Already named by the summary line above the list, so the list below covers the rest. */
+const SUMMARISED_STATUSES: ParticipationStatus[] = ["going", "looking_for_company"];
+
+/**
+ * The matchmaking line the README promises: how many go, how many people you know reacted at all, how
+ * many are looking for company. Zeros are part of the answer — hiding them read as "we have no idea"
+ * instead of "nobody yet".
+ *
+ * «знакомых отметились», not «друзей идут»: friendsCount counts friends with a participation of any
+ * status (participations.service.ts), so between two going/looking clauses the shorter wording would
+ * claim a number the backend never measured — and produce «1 идёт · 7 друзей» on the demo event.
+ */
+export function participationSummary(stats: ParticipationStats): string {
+  const going = stats.counts.going;
+  const friends = stats.friendsCount;
+  const looking = stats.counts.looking_for_company;
+  return [`${going} ${pluralRu(going, "идёт", "идут", "идут")}`, `${friends} ${pluralRu(friends, "знакомый", "знакомых", "знакомых")} ${pluralRu(friends, "отметился", "отметились", "отметились")}`, `${looking} ${pluralRu(looking, "ищет", "ищут", "ищут")} компанию`].join(" · ");
+}
+
 interface ParticipationViewProps {
   stats: ParticipationStats;
   onSet: (status: ParticipationStatus) => void;
@@ -274,6 +303,8 @@ interface ParticipationViewProps {
 }
 
 export function ParticipationView({ stats, onSet, onClear }: ParticipationViewProps) {
+  // An empty list still drew its top border and padding: a divider with nothing under it.
+  const listed = PARTICIPATION_STATUSES.filter((status) => !SUMMARISED_STATUSES.includes(status) && stats.counts[status] > 0);
   return (
     <section className="app-event">
       <div className="app-event-body">
@@ -297,14 +328,16 @@ export function ParticipationView({ stats, onSet, onClear }: ParticipationViewPr
             </option>
           ))}
         </select>
-        <ul className="app-participation-counters">
-          {PARTICIPATION_STATUSES.filter((status) => stats.counts[status] > 0).map((status) => (
-            <li key={status}>
-              {PARTICIPATION_COUNTER_LABELS[status]}: {stats.counts[status]}
-            </li>
-          ))}
-          {stats.friendsCount > 0 && <li>Твои знакомые: {stats.friendsCount}</li>}
-        </ul>
+        <p className="app-participation-summary">{participationSummary(stats)}</p>
+        {listed.length > 0 && (
+          <ul className="app-participation-counters">
+            {listed.map((status) => (
+              <li key={status}>
+                {PARTICIPATION_COUNTER_LABELS[status]}: {stats.counts[status]}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   );
@@ -461,6 +494,13 @@ export function EventPage({ id }: { id: string }) {
         }}
       />
       <EventOrganizerRatingCard eventId={id} />
+      {state.details.organizer !== null && (
+        <section className="app-event">
+          <div className="app-event-body">
+            <SubscribeToggle target={{ type: "organizer", organizerUserId: state.details.organizer.id }} subscribeLabel="Подписаться на организатора" unsubscribeLabel="Отписаться от организатора" />
+          </div>
+        </section>
+      )}
       <PaymentSection payment={currentPayment} busy={paymentBusy} error={paymentError !== null && paymentError === state.details.activeBookingId} onPay={pay} />
       <AutoPlanEntry activeBookingId={state.details.activeBookingId} eventId={id} />
       {state.details.remainingSeats === 0 && state.details.activeBookingId === null && <WaitlistSection eventId={id} userId={userId} onChanged={refetch} />}

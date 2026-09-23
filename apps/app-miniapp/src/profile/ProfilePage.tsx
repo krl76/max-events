@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Profile screen: Instagram-style topbar (settings gear + name), MAX avatar, stats («События»/«Друзья» navigate to the calendar/friends screens), city/interests display, visit statistics block. Editing lives on the settings route.
-// SCOPE: Data via apiClient.getProfile/listCalendar/getVisitStats (mock or live); stats derived from calendar entries; no navigation logic.
-// DEPENDS: ../api/client.js (apiClient, CalendarEntry), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CATEGORY_LABELS), @max-events/api-contracts (Profile, UpdateProfile, User, VisitStats), ../ui/theme.css
+// SCOPE: Data via apiClient.getProfile/listCalendar/getVisitStats/getFriendsActivity/listFeedPosts/listSubscriptions/getAfterMe (mock or live); stats derived from calendar entries; secondary blocks stay silent when their request fails; no navigation logic.
+// DEPENDS: ../api/client.js (apiClient, CalendarEntry, FeedPost), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CATEGORY_LABELS), ../subscriptions/MySubscriptions.js, ../taste/AfterMeSection.js (AfterMeView), ../routing/router.js, ../ui/primitives.js, @max-events/api-contracts (AfterMeResponse, Profile, Subscription, UpdateProfile, User, VisitStats), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -11,17 +11,19 @@
 // - toProfilePatch - form drafts (city, comma-separated interests) -> UpdateProfile payload (used by the settings screen)
 // - VisitStatsView - presentational: visit counters per event category (hidden hint when empty)
 // - ProfileState - union of profile fetch states (loading / error / ready)
-// - ProfileView - presentational: topbar (settings gear, centered name), avatar, three-column stats row («События»/«Друзья» as navigation buttons, «Места» as a plain counter), city, interests, impressions grid (3 columns), visit statistics
-// - ProfilePage - route container: resolves auth, loads profile + stats + friends count + own posts + visit stats, wires settings and grid navigation
+// - ProfileView - presentational: topbar (settings gear, centered name), avatar, three-column stats row («События»/«Друзья» as navigation buttons, «Места» as a plain counter), city, interests, impressions grid (3 columns, the post photo when it has one), visit statistics, «Мои подписки», «После меня» (hidden until the taste graph has something)
+// - ProfilePage - route container: resolves auth, loads profile + stats + friends count + own posts + visit stats + subscriptions + after-me suggestions, wires settings, grid navigation and unsubscribe
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import type { Profile, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
+import type { AfterMeResponse, Profile, Subscription, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
 import { apiClient, type CalendarEntry, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS } from "../catalog/CatalogPage";
 import { AppAvatar, AppState, AppSkeleton, AppSection } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
+import { MySubscriptionsView } from "../subscriptions/MySubscriptions";
+import { AfterMeView } from "../taste/AfterMeSection";
 import { useRoute } from "../routing/router";
 
 export interface ProfileStats {
@@ -73,13 +75,18 @@ interface ProfileViewProps {
   friendsCount: number;
   posts: FeedPost[];
   visitStats: VisitStats | null;
+  subscriptions?: Subscription[];
+  afterMe?: AfterMeResponse | null;
+  removingSubscriptionId?: string | null;
+  unsubscribeFailed?: boolean;
+  onUnsubscribe?: (subscriptionId: string) => void;
   onOpenSettings: () => void;
   onOpenEvents: () => void;
   onOpenFriends: () => void;
   onOpenEvent?: (eventId: string) => void;
 }
 
-export function ProfileView({ user, profile, stats, friendsCount, posts, visitStats, onOpenSettings, onOpenEvents, onOpenFriends, onOpenEvent }: ProfileViewProps) {
+export function ProfileView({ user, profile, stats, friendsCount, posts, visitStats, subscriptions = [], afterMe = null, removingSubscriptionId = null, unsubscribeFailed = false, onUnsubscribe = () => {}, onOpenSettings, onOpenEvents, onOpenFriends, onOpenEvent }: ProfileViewProps) {
   return (
     <section className="app-profile">
       <div className="app-profile-topbar">
@@ -120,11 +127,16 @@ export function ProfileView({ user, profile, stats, friendsCount, posts, visitSt
       {posts.length > 0 && (
         <div className="app-profile-grid" aria-label="Впечатления">
           {posts.map((post) => (
-            <button key={post.id} type="button" className="app-profile-cell" aria-label={post.text.slice(0, 40)} onClick={onOpenEvent ? () => onOpenEvent(post.eventId) : undefined} />
+            <button key={post.id} type="button" className="app-profile-cell" aria-label={post.text.slice(0, 40)} onClick={onOpenEvent ? () => onOpenEvent(post.eventId) : undefined}>
+              {/* The grid already pays for the photo in the payload; leaving it out drew grey squares. */}
+              {post.photoUrl !== null && <img className="app-profile-cell-photo" src={post.photoUrl} alt="" />}
+            </button>
           ))}
         </div>
       )}
       <VisitStatsView stats={visitStats} />
+      <MySubscriptionsView subscriptions={subscriptions} removingId={removingSubscriptionId} failed={unsubscribeFailed} onUnsubscribe={onUnsubscribe} />
+      <AfterMeView response={afterMe} onOpen={onOpenEvent} />
     </section>
   );
 }
@@ -136,14 +148,16 @@ interface ProfileData {
   friendsCount: number;
   posts: FeedPost[];
   visitStats: VisitStats | null;
+  subscriptions: Subscription[];
+  afterMe: AfterMeResponse | null;
 }
 
 function useProfileData(userId: string): ProfileData {
-  const [data, setData] = useState<ProfileData>({ profile: null, failed: false, stats: { events: 0, places: 0 }, friendsCount: 0, posts: [], visitStats: null });
+  const [data, setData] = useState<ProfileData>({ profile: null, failed: false, stats: { events: 0, places: 0 }, friendsCount: 0, posts: [], visitStats: null, subscriptions: [], afterMe: null });
 
   useEffect(() => {
     let alive = true;
-    setData({ profile: null, failed: false, stats: { events: 0, places: 0 }, friendsCount: 0, posts: [], visitStats: null });
+    setData({ profile: null, failed: false, stats: { events: 0, places: 0 }, friendsCount: 0, posts: [], visitStats: null, subscriptions: [], afterMe: null });
     apiClient.getProfile().then(
       (profile) => {
         if (alive) setData((current) => ({ ...current, profile }));
@@ -176,6 +190,18 @@ function useProfileData(userId: string): ProfileData {
       },
       () => {},
     );
+    apiClient.listSubscriptions().then(
+      (subscriptions) => {
+        if (alive) setData((current) => ({ ...current, subscriptions }));
+      },
+      () => {},
+    );
+    apiClient.getAfterMe().then(
+      (afterMe) => {
+        if (alive) setData((current) => ({ ...current, afterMe }));
+      },
+      () => {},
+    );
     return () => {
       alive = false;
     };
@@ -186,7 +212,28 @@ function useProfileData(userId: string): ProfileData {
 
 function AuthenticatedProfile({ user }: { user: User }) {
   const { navigate } = useRoute();
-  const { profile, failed, stats, friendsCount, posts, visitStats } = useProfileData(user.id);
+  const { profile, failed, stats, friendsCount, posts, visitStats, subscriptions, afterMe } = useProfileData(user.id);
+  const [removingSubscriptionId, setRemovingSubscriptionId] = useState<string | null>(null);
+  // Removed ids rather than a rewritten list: the loader owns its state, this only hides what is gone.
+  const [removedSubscriptionIds, setRemovedSubscriptionIds] = useState<string[]>([]);
+
+  const [unsubscribeFailed, setUnsubscribeFailed] = useState(false);
+
+  const unsubscribe = (subscriptionId: string) => {
+    setRemovingSubscriptionId(subscriptionId);
+    setUnsubscribeFailed(false);
+    apiClient.removeSubscription(subscriptionId).then(
+      () => {
+        setRemovedSubscriptionIds((ids) => [...ids, subscriptionId]);
+        setRemovingSubscriptionId(null);
+      },
+      () => {
+        // The row stays, so the failure has to be said out loud or the button just looks dead.
+        setUnsubscribeFailed(true);
+        setRemovingSubscriptionId(null);
+      },
+    );
+  };
 
   if (failed) return <AppState error>Не удалось загрузить профиль.</AppState>;
   if (profile === null)
@@ -199,7 +246,7 @@ function AuthenticatedProfile({ user }: { user: User }) {
         </div>
       </div>
     );
-  return <ProfileView user={user} profile={profile} stats={stats} friendsCount={friendsCount} posts={posts} visitStats={visitStats} onOpenSettings={() => navigate({ name: "settings" })} onOpenEvents={() => navigate({ name: "calendar" })} onOpenFriends={() => navigate({ name: "friends" })} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
+  return <ProfileView user={user} profile={profile} stats={stats} friendsCount={friendsCount} posts={posts} visitStats={visitStats} subscriptions={subscriptions.filter((row) => !removedSubscriptionIds.includes(row.id))} afterMe={afterMe} removingSubscriptionId={removingSubscriptionId} unsubscribeFailed={unsubscribeFailed} onUnsubscribe={unsubscribe} onOpenSettings={() => navigate({ name: "settings" })} onOpenEvents={() => navigate({ name: "calendar" })} onOpenFriends={() => navigate({ name: "friends" })} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
 }
 
 export function ProfilePage() {

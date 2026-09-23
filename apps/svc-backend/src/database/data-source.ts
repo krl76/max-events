@@ -18,6 +18,7 @@ import { CheckInEntity } from "../checkins/check-in.entity";
 import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "../feed/feed-post.entity";
 import { ReportEntity } from "../reports/report.entity";
 import { ReviewEntity } from "../reviews/review.entity";
+import { StoryEntity } from "../stories/story.entity";
 import { WaitlistEntryEntity } from "../waitlist/waitlist-entry.entity";
 import { EventEntity } from "../events/event.entity";
 import { FriendshipEntity } from "../friends/friendship.entity";
@@ -45,12 +46,13 @@ import { WeGroupEntity, WeGroupItemEntity, WeGroupMemberEntity } from "../wegrou
 import { VoteBallotEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity } from "../votes/vote.entity";
 import { PaymentWebhookEventEntity } from "../payments/payment-webhook-event.entity";
 import { PaymentEntity } from "../payments/payment.entity";
+import { OrganizationEntity } from "../organizations/organization.entity";
 
 const env = validateEnv();
 
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: env.DATABASE_URL,
-  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity, PlanExpenseEntity, ListEntity, ListItemEntity, SubscriptionEntity, CheckInEntity, UserAchievementEntity, ReviewEntity, WaitlistEntryEntity, FeedPostEntity, FeedLikeEntity, FeedCommentEntity, ReportEntity, MicroEventEntity, MicroEventParticipantEntity, CollectionEntity, CollectionMemberEntity, CollectionItemEntity, ListDigestSendEntity, PageViewEntity, PromoCodeEntity, PromoCampaignEntity, PromoFulfillmentEntity, PromotionCampaignEntity, WeGroupEntity, WeGroupMemberEntity, WeGroupItemEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity, VoteBallotEntity, PaymentEntity, PaymentWebhookEventEntity],
+  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity, PlanExpenseEntity, ListEntity, ListItemEntity, SubscriptionEntity, CheckInEntity, StoryEntity, UserAchievementEntity, ReviewEntity, WaitlistEntryEntity, FeedPostEntity, FeedLikeEntity, FeedCommentEntity, ReportEntity, MicroEventEntity, MicroEventParticipantEntity, CollectionEntity, CollectionMemberEntity, CollectionItemEntity, ListDigestSendEntity, PageViewEntity, PromoCodeEntity, PromoCampaignEntity, PromoFulfillmentEntity, PromotionCampaignEntity, WeGroupEntity, WeGroupMemberEntity, WeGroupItemEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity, VoteBallotEntity, PaymentEntity, PaymentWebhookEventEntity, OrganizationEntity],
   migrations: ["src/database/migrations/*.ts"],
 });

@@ -1,8 +1,12 @@
-// Shared in-memory harness for organizer-auth tests: real AuthService over a fake Redis and a fake UserEntity repository.
+// Shared in-memory harness for organizer-auth tests: real AuthService and OrganizationsService over a fake Redis
+// and fake UserEntity/OrganizationEntity repositories.
 import { ConfigService } from "@nestjs/config";
 import type Redis from "ioredis";
 import type { Repository } from "typeorm";
 import type { FriendsService } from "../friends/friends.service";
+import { OrganizationEntity } from "../organizations/organization.entity";
+import { OrganizationsService } from "../organizations/organizations.service";
+import { UNSET_PASSWORD_HASH } from "../organizations/password";
 import type { UsersService } from "../users/users.service";
 import { UserEntity } from "../users/user.entity";
 import { AuthService } from "./auth.service";
@@ -53,11 +57,33 @@ export function createUserRepoFake(initial: UserEntity[] = []) {
   return repo as unknown as Repository<UserEntity> & { store: UserEntity[] };
 }
 
-export function createOrganizerAuthService(config: Record<string, string>) {
+export function createOrganizationRepoFake(initial: OrganizationEntity[] = []) {
+  const store: OrganizationEntity[] = [...initial];
+  let seq = 0;
+  const repo = {
+    store,
+    // Models the one filter OrganizationsService uses: rows that carry a real password.
+    count: async (options?: { where?: { passwordHash?: unknown } }) => (options?.where?.passwordHash === undefined ? store.length : store.filter((row) => row.passwordHash !== UNSET_PASSWORD_HASH).length),
+    findOneBy: async (where: Partial<OrganizationEntity>) => store.find((row) => Object.entries(where).every(([key, value]) => row[key as keyof OrganizationEntity] === value)) ?? null,
+    create: (fields: Partial<OrganizationEntity>) => ({ ...fields }) as OrganizationEntity,
+    save: async (entity: OrganizationEntity) => {
+      if (!store.includes(entity)) {
+        entity.id ??= `00000000-0000-4000-8000-0000000000${String(++seq).padStart(2, "0")}`;
+        store.push(entity);
+      }
+      return entity;
+    },
+  };
+  return repo as unknown as Repository<OrganizationEntity> & { store: OrganizationEntity[] };
+}
+
+export function createOrganizerAuthService(config: Record<string, string>, organizations: OrganizationEntity[] = []) {
   const redis = createRedisFake();
   const userRepo = createUserRepoFake();
+  const organizationRepo = createOrganizationRepoFake(organizations);
+  const organizationsService = new OrganizationsService(organizationRepo);
   const users = {} as UsersService;
   const friends = { sync: async () => [] } as unknown as FriendsService;
-  const service = new AuthService(new ConfigService(config), users, friends, redis, userRepo);
-  return { service, redis, userRepo };
+  const service = new AuthService(new ConfigService(config), users, friends, redis, userRepo, organizationsService);
+  return { service, redis, userRepo, organizationRepo, organizations: organizationsService };
 }

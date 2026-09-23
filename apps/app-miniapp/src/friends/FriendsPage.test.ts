@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { FriendsView, initials } from "./FriendsPage";
+import { FRIENDS_GRAPH_EMPTY_TEXT } from "./friends-empty";
 import { friendActivityByFriend, mockEvents, resetMockParticipations } from "../api/mock";
 
 const fixture = () => {
@@ -22,7 +23,7 @@ describe("initials", () => {
 describe("FriendsView", () => {
   it("renders the README showcase friends with their events and statuses", () => {
     const groups = fixture();
-    const html = renderToStaticMarkup(createElement(FriendsView, { state: { status: "ready", groups }, onJoin: () => {} }));
+    const html = renderToStaticMarkup(createElement(FriendsView, { state: { status: "ready", groups, friendCount: groups.length }, onJoin: () => {} }));
 
     expect(html).toContain("Анна Соколова");
     expect(html).toContain(mockEvents[1].title);
@@ -50,18 +51,34 @@ describe("FriendsView", () => {
   it("renders a join CTA per attended event", () => {
     const groups = fixture();
     const total = groups.reduce((count, group) => count + group.events.length, 0);
-    const html = renderToStaticMarkup(createElement(FriendsView, { state: { status: "ready", groups }, onJoin: () => {} }));
+    const html = renderToStaticMarkup(createElement(FriendsView, { state: { status: "ready", groups, friendCount: groups.length }, onJoin: () => {} }));
 
     expect(total).toBeGreaterThan(0);
     expect(html.match(/Присоединиться/g)).toHaveLength(total);
   });
 
-  it("renders the empty state without cards", () => {
-    const html = renderToStaticMarkup(createElement(FriendsView, { state: { status: "ready", groups: [] }, onJoin: () => {} }));
+  it("renders the empty state without cards when friends have nothing planned", () => {
+    const html = renderToStaticMarkup(createElement(FriendsView, { state: { status: "ready", groups: [], friendCount: 3 }, onJoin: () => {} }));
 
     expect(html).toContain("Пока никто из друзей никуда не идёт");
     expect(html).not.toContain("Присоединиться");
     expect(html).not.toContain("app-friends-avatar");
+  });
+
+  it("keeps the old wording when the friend list itself did not load", () => {
+    const html = renderToStaticMarkup(createElement(FriendsView, { state: { status: "ready", groups: [], friendCount: null }, onJoin: () => {} }));
+
+    expect(html).toContain("Пока никто из друзей никуда не идёт");
+    expect(html).not.toContain(FRIENDS_GRAPH_EMPTY_TEXT);
+  });
+
+  it("says why the feed is empty when there are no friends at all", () => {
+    // "Никто никуда не идёт" implies friends who are staying home. With an empty graph there is
+    // nobody to stay home, and the person deserves the real reason.
+    const html = renderToStaticMarkup(createElement(FriendsView, { state: { status: "ready", groups: [], friendCount: 0 }, onJoin: () => {} }));
+
+    expect(html).toContain(FRIENDS_GRAPH_EMPTY_TEXT);
+    expect(html).not.toContain("Пока никто из друзей никуда не идёт");
   });
 
   it("renders loading and error states", () => {

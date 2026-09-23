@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for events — authenticated CRUD and catalog list under /api/events.
-// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to/limit/offset; GET :id/details delegates to EventDetailsService with the current user.
+// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to/min_rating/limit/offset; GET :id/details delegates to EventDetailsService with the current user.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ./events.service, ./event-details.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -76,11 +76,13 @@ export function parseEventListQuery(query: Record<string, string | undefined>): 
   }
   const dateFrom = parseOptionalTimestamp(query.date_from);
   const dateTo = parseOptionalTimestamp(query.date_to);
+  const minRating = query.min_rating === undefined || query.min_rating === "" ? undefined : Number(query.min_rating);
+  if (minRating !== undefined && (!Number.isInteger(minRating) || minRating < 1 || minRating > 5)) throw new BadRequestException("Invalid event query");
   const offset = query.offset === undefined || query.offset === "" ? undefined : Number(query.offset);
   const limit = query.limit === undefined || query.limit === "" ? undefined : Number(query.limit);
   if (offset !== undefined && (!Number.isInteger(offset) || offset < 0)) throw new BadRequestException("Invalid event query");
   if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > EVENT_LIST_MAX_LIMIT)) throw new BadRequestException("Invalid event query");
-  return { city, category, date, dateFrom, dateTo, limit, offset };
+  return { city, category, date, dateFrom, dateTo, minRating, limit, offset };
 }
 
 function parseOptionalTimestamp(value: string | undefined): Date | undefined {

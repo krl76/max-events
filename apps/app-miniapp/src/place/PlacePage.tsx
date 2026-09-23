@@ -20,6 +20,8 @@ import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { pluralRu } from "../catalog/format";
 import { RatingView } from "../event/ReviewSection";
 import { ReportButton } from "../event/ReportButton";
+import { FeedSection } from "../feed/FeedPage";
+import { SubscribeToggle } from "../subscriptions/SubscribeToggle";
 import { useRoute } from "../routing/router";
 import { AppAvatar, AppButton, AppTitle, AppState } from "../ui/primitives";
 
@@ -156,5 +158,15 @@ export function PlacePage({ id }: { id: string }) {
       () => {},
     );
   };
-  return <PlacePageView place={state.place} page={state.page} userId={userId ?? ""} checkedIn={checkedIn} onCheckIn={checkIn} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
+  return (
+    <>
+      <PlacePageView place={state.place} page={state.page} userId={userId ?? ""} checkedIn={checkedIn} onCheckIn={checkIn} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />
+      <section className="app-event">
+        <div className="app-event-body">
+          <SubscribeToggle target={{ type: "place", placeId: id }} subscribeLabel="Подписаться на место" unsubscribeLabel="Отписаться от места" />
+        </div>
+      </section>
+      <FeedSection placeId={id} onCreate={() => navigate({ name: "feed-new", eventId: null })} />
+    </>
+  );
 }

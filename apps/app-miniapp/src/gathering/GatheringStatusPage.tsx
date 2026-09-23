@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Gathering status screen: every invitee answer («подтвердил / смотрит / занят»), the invitee answer buttons («Иду / Занят»), the «Ты + N из M» summary and the chat link button when the gathering chat exists.
+// PURPOSE: Gathering status screen: every invitee answer («подтвердил / смотрит / занят»), the invitee answer buttons («Иду / Смотрю / Занят»), the «Ты + N из M» summary and the chat link button when the gathering chat exists.
 // SCOPE: Data via apiClient.getGathering (mock or live); presentational rendering of invitee responses; the authenticated invitee (not the host) answers via apiClient.respondToGathering and the state updates from the server response.
 // DEPENDS: ../api/client.js (apiClient), ../auth/AuthContext.js (useAuth), @max-events/api-contracts (Gathering, InviteeResponse), ../max/bridge.js (openExternalLink), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
@@ -22,8 +22,11 @@ import { AppButton, AppTitle, AppState } from "../ui/primitives";
 
 export const INVITEE_RESPONSE_LABELS: Record<InviteeResponse, string> = { accepted: "подтвердил", considering: "смотрит", busy: "занят" };
 
+// All three answers the contract carries. "considering" is what an invite starts as, so without a
+// button for it an invitee could never say it — nor take back "Иду"/"Занят" while they think.
 const RESPONSE_ACTIONS: { value: InviteeResponse; label: string }[] = [
   { value: "accepted", label: "Иду" },
+  { value: "considering", label: "Смотрю" },
   { value: "busy", label: "Занят" },
 ];
 

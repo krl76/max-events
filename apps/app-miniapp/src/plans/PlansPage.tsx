@@ -24,7 +24,7 @@ import { CalendarPage } from "../calendar/CalendarPage";
 import { ListsPage } from "../lists/ListsPage";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppChip, AppNavTiles, AppState, AppSkeleton, AppMedia } from "../ui/primitives";
+import { AppChip, AppNavTiles, AppState, AppSkeleton, AppMedia, AppButton } from "../ui/primitives";
 
 export function formatMeetingTime(meetingAt: string): string {
   return new Date(meetingAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -41,7 +41,15 @@ export function planMeetingLabel(plan: Plan): string {
 
 export type PlansState = { status: "loading" } | { status: "error" } | { status: "ready"; cards: PlanCard[] };
 
-export function PlansView({ state, onOpen, onExplore }: { state: PlansState; onOpen: (planId: string) => void; onExplore: () => void }) {
+export function PlansView({ state, onOpen, onExplore, onCreate }: { state: PlansState; onOpen: (planId: string) => void; onExplore: () => void; onCreate?: () => void }) {
+  // Above the early returns on purpose: with no plans yet this was the one screen where making one
+  // by hand was unreachable — the empty state offered only «Найти событие».
+  const create =
+    onCreate === undefined ? null : (
+      <AppButton tone="secondary" stretched onClick={onCreate}>
+        Свой план
+      </AppButton>
+    );
   if (state.status === "loading")
     return (
       <>
@@ -55,10 +63,23 @@ export function PlansView({ state, onOpen, onExplore }: { state: PlansState; onO
         ))}
       </>
     );
-  if (state.status === "error") return <AppState error>Не удалось загрузить планы.</AppState>;
-  if (state.cards.length === 0) return <AppState action={{ label: "Найти событие", onClick: onExplore }}>Пока нет планов. Выбери событие — и собери компанию.</AppState>;
+  if (state.status === "error")
+    return (
+      <>
+        {create}
+        <AppState error>Не удалось загрузить планы.</AppState>
+      </>
+    );
+  if (state.cards.length === 0)
+    return (
+      <>
+        {create}
+        <AppState action={{ label: "Найти событие", onClick: onExplore }}>Пока нет планов. Выбери событие — и собери компанию.</AppState>
+      </>
+    );
   return (
     <>
+      {create}
       {state.cards.map(({ plan, event, distanceMeters }) => (
         <button key={plan.id} type="button" className="app-card app-card--link" onClick={() => onOpen(plan.id)}>
           <AppMedia category={event.category} />
@@ -124,7 +145,7 @@ export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
               { icon: "pin", label: "Маршрут на день", onClick: () => navigate({ name: "day-route" }) },
             ]}
           />
-          <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} />
+          <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} onCreate={() => navigate({ name: "plan-new" })} />
         </>
       )}
       {active === "calendar" && <CalendarPage />}

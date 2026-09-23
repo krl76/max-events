@@ -1,11 +1,11 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
 import { ListPresetSchema } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { ListItemEntity } from "./list-item.entity";
 import { ListEntity } from "./list.entity";
-import { LIST_PRESET_TITLES, ListsService } from "./lists.service";
+import { LIST_PRESET_TITLES, ListsService, MAX_CUSTOM_LISTS } from "./lists.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
 const userId = "00000000-0000-4000-8000-00000000000a";
@@ -87,6 +87,55 @@ describe("ListsService", () => {
     expect(first.every((row) => row.itemsCount === 0 && row.savedItemId === null && row.participants.length === 0)).toBe(true);
     const second = await service.list(userId);
     expect(second.map((row) => row.list.id)).toEqual(first.map((row) => row.list.id));
+  });
+
+  it("keeps a list of one's own next to the presets", async () => {
+    const { service } = createService();
+
+    const created = await service.create(userId, "Сводить маму");
+    const summaries = await service.list(userId);
+
+    expect(created).toMatchObject({ preset: null, title: "Сводить маму" });
+    // Presets first, the user's own after them — the order the screen reads top down.
+    expect(summaries.map((row) => row.list.preset)).toEqual([...ListPresetSchema.options, null]);
+    expect(summaries.at(-1)!.list.id).toBe(created.id);
+  });
+
+  it("renames and deletes a list of one's own, with its items", async () => {
+    const { service, items } = createService();
+    const created = await service.create(userId, "Сводить маму");
+    await service.addEvent(userId, created.id, eventId);
+
+    expect((await service.rename(userId, created.id, "Сводить папу")).title).toBe("Сводить папу");
+    const removed = await service.remove(userId, created.id);
+
+    expect(removed.id).toBe(created.id);
+    expect((await service.list(userId)).map((row) => row.list.id)).not.toContain(created.id);
+    // The items go with the list through FK_list_items_list ON DELETE CASCADE, which is a database
+    // guarantee — asserted on the migration, not here, where the fake repository has no foreign keys.
+    expect(items.store.every((row) => row.listId === created.id)).toBe(true);
+  });
+
+  it("refuses to rename or delete a preset", async () => {
+    // ensurePresets recreates every missing preset on the next read: a rename would be undone and a
+    // delete would come back as a new row with the default title. Better to say no.
+    const { service } = createService();
+    const want = (await service.list(userId)).find((row) => row.list.preset === "want_to_go")!;
+
+    await expect(service.rename(userId, want.list.id, "Моё")).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.remove(userId, want.list.id)).rejects.toBeInstanceOf(ForbiddenException);
+    expect((await service.list(userId)).find((row) => row.list.preset === "want_to_go")!.list.title).toBe(want.list.title);
+  });
+
+  it("refuses to touch another user's list and bounds how many one user may create", async () => {
+    const { service } = createService();
+    const mine = await service.create(userId, "Моё");
+
+    await expect(service.rename("00000000-0000-4000-8000-0000000000ff", mine.id, "Чужое")).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.remove("00000000-0000-4000-8000-0000000000ff", mine.id)).rejects.toBeInstanceOf(ForbiddenException);
+
+    for (let index = 1; index < MAX_CUSTOM_LISTS; index += 1) await service.create(userId, `Список ${index}`);
+    await expect(service.create(userId, "Ещё один")).rejects.toBeInstanceOf(ConflictException);
   });
 
   it("returns the concurrent winner when the list-item insert loses the unique race", async () => {

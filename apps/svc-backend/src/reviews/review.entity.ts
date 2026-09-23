@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: TypeORM entity for post-event reviews (one per user+event).
-// SCOPE: ReviewEntity columns: user, event, stars, category scores JSON, wouldGoAgain, photos, text.
+// SCOPE: ReviewEntity columns: user, event, stars, category scores JSON, wouldGoAgain, photos, text; IDX_reviews_event indexes the per-event reads.
 // DEPENDS: typeorm
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -10,8 +10,11 @@
 // END_MODULE_MAP
 
 import "reflect-metadata";
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 
+// Declared here as well as in the migration so a future migration:generate keeps it instead of
+// dropping the index the catalog rating filter and the event page both read through.
+@Index("IDX_reviews_event", ["eventId"])
 @Entity("reviews")
 export class ReviewEntity {
   @PrimaryGeneratedColumn("uuid")

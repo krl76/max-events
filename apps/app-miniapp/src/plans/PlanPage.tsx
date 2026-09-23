@@ -13,8 +13,10 @@
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import type { PlanCard, PlanParticipantStatus } from "@max-events/api-contracts";
+import type { PlanCard, PlanParticipantStatus, PlanCancelScope } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
+import { planRepeatLabel } from "./PlanCreatePage";
+import { useAuth } from "../auth/AuthContext";
 import { useRoute } from "../routing/router";
 import { BudgetSection } from "./BudgetSection";
 import { planMeetingLabel } from "./PlansPage";
@@ -25,16 +27,31 @@ export const PLAN_STATUS_LABELS: Record<PlanParticipantStatus, string> = { invit
 
 export type PlanState = { status: "loading" } | { status: "error" } | { status: "ready"; card: PlanCard };
 
-export function PlanView({ state, onOpenEvent }: { state: PlanState; onOpenEvent: (eventId: string) => void }) {
+interface PlanViewProps {
+  state: PlanState;
+  onOpenEvent: (eventId: string) => void;
+  /** The viewer: only the host may cancel, so nobody else is offered a button that answers 403. */
+  viewerId?: string | null;
+  /** Set once «Отменить» was pressed: the choice of scope is the second step, not a surprise. */
+  cancelling?: boolean;
+  cancelFailed?: boolean;
+  onCancelStart?: () => void;
+  onCancelDismiss?: () => void;
+  onCancel?: (scope: PlanCancelScope) => void;
+}
+
+export function PlanView({ state, onOpenEvent, viewerId = null, cancelling = false, cancelFailed = false, onCancelStart = () => {}, onCancelDismiss = () => {}, onCancel = () => {} }: PlanViewProps) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "error") return <AppState error>Не удалось загрузить план.</AppState>;
   const { plan, event } = state.card;
+  const repeat = planRepeatLabel(plan.recurringRule);
   return (
     <section className="app-plan">
       <button type="button" className="app-plan-event" onClick={() => onOpenEvent(event.id)}>
         {event.title}
       </button>
       <p className="app-plan-meeting">{planMeetingLabel(plan)}</p>
+      {repeat !== null && <p className="app-gathering-hint">Повторяется {repeat}</p>}
       {plan.chatLink !== null && (
         <AppButton tone="secondary" onClick={() => openExternalLink(plan.chatLink!)}>
           В чат плана
@@ -49,13 +66,38 @@ export function PlanView({ state, onOpenEvent }: { state: PlanState; onOpenEvent
         ))}
       </ul>
       <BudgetSection planId={plan.id} members={plan.participants.map(({ friend }) => friend)} />
+      {viewerId === plan.hostUserId && cancelling ? (
+        <div className="app-plan-cancel">
+          {/* A repeating plan asks which one: cancelling every future meeting by accident cannot be undone. */}
+          <AppButton tone="danger" stretched onClick={() => onCancel("occurrence")}>
+            {plan.seriesId === null ? "Отменить план" : "Отменить эту встречу"}
+          </AppButton>
+          {plan.seriesId !== null && (
+            <AppButton tone="danger" stretched onClick={() => onCancel("series")}>
+              Отменить всю серию
+            </AppButton>
+          )}
+          <AppButton tone="secondary" stretched onClick={onCancelDismiss}>
+            Не отменять
+          </AppButton>
+        </div>
+      ) : viewerId === plan.hostUserId ? (
+        <AppButton tone="secondary" stretched onClick={onCancelStart}>
+          Отменить
+        </AppButton>
+      ) : null}
+      {cancelFailed && <AppState error>Не удалось отменить план.</AppState>}
     </section>
   );
 }
 
 export function PlanPage({ id }: { id: string }) {
   const { navigate } = useRoute();
+  const auth = useAuth();
+  const viewerId = auth.status === "authenticated" ? auth.user.id : null;
   const [state, setState] = useState<PlanState>({ status: "loading" });
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelFailed, setCancelFailed] = useState(false);
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
@@ -71,5 +113,28 @@ export function PlanPage({ id }: { id: string }) {
       alive = false;
     };
   }, [id]);
-  return <PlanView state={state} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
+  return (
+    <PlanView
+      state={state}
+      onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })}
+      viewerId={viewerId}
+      cancelling={cancelling}
+      cancelFailed={cancelFailed}
+      onCancelStart={() => {
+        setCancelFailed(false);
+        setCancelling(true);
+      }}
+      onCancelDismiss={() => setCancelling(false)}
+      onCancel={(scope) => {
+        setCancelFailed(false);
+        apiClient.cancelPlan(id, scope).then(
+          () => navigate({ name: "plans" }),
+          () => {
+            setCancelling(false);
+            setCancelFailed(true);
+          },
+        );
+      }}
+    />
+  );
 }

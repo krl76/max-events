@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: «Собрать компанию» flow: pick friends with their free/busy/unknown availability, propose a meeting time, launch the gathering (mock POST).
-// SCOPE: Data via apiClient.getEvent + apiClient.getFriendAvailability(eventId), local selection state, launch via apiClient.createGathering, then navigation to the gathering screen.
-// DEPENDS: ../api/client.js (apiClient, FriendAvailability), ../routing/router.js, ../ui/theme.css
+// SCOPE: Data via apiClient.getEvent + apiClient.getFriendAvailability(eventId), local selection state, launch via apiClient.createGathering, then navigation to the gathering screen; an empty friend graph says why instead of showing an empty picker.
+// DEPENDS: ../api/client.js (apiClient, FriendAvailability), ../friends/friends-empty.js, ../routing/router.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import type { FriendAvailability } from "@max-events/api-contracts";
+import { FRIENDS_GRAPH_EMPTY_TEXT } from "../friends/friends-empty";
 import { useRoute } from "../routing/router";
 import { AppButton, AppTitle, AppState } from "../ui/primitives";
 
@@ -42,14 +43,19 @@ export function GatheringFlowView({ state, selected, meetingAt, submitting, fail
         <h2 className="app-section-title">Собрать компанию</h2>
       </AppTitle>
       <p className="app-gathering-hint">{state.eventTitle}</p>
-      <div className="app-gathering-friends" role="group" aria-label="Кого позвать">
-        {state.friends.map(({ friend, availability }) => (
-          <button key={friend.id} type="button" className="app-gathering-friend" aria-pressed={selected.includes(friend.id)} onClick={() => onToggle(friend.id)}>
-            <span className="app-gathering-friend-name">{friend.name}</span>
-            <span className={`app-gathering-friend-status app-gathering-friend-status--${availability}`}>{AVAILABILITY_LABELS[availability]}</span>
-          </button>
-        ))}
-      </div>
+      {/* Without this the screen was an empty picker above a dead button, with nothing saying why. */}
+      {state.friends.length === 0 ? (
+        <AppState>{FRIENDS_GRAPH_EMPTY_TEXT}</AppState>
+      ) : (
+        <div className="app-gathering-friends" role="group" aria-label="Кого позвать">
+          {state.friends.map(({ friend, availability }) => (
+            <button key={friend.id} type="button" className="app-gathering-friend" aria-pressed={selected.includes(friend.id)} onClick={() => onToggle(friend.id)}>
+              <span className="app-gathering-friend-name">{friend.name}</span>
+              <span className={`app-gathering-friend-status app-gathering-friend-status--${availability}`}>{AVAILABILITY_LABELS[availability]}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <label className="app-gathering-time">
         Когда встречаемся
         <input className="app-gathering-time-input" type="datetime-local" value={meetingAt} min={state.defaultMeetingAt} onChange={(change) => onMeetingAt(change.target.value)} />

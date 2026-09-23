@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moscowIsoWeekday, nextRecurringAt, upcomingRecurringAts } from "./recurring";
+import { moscowIsoWeekday, nextRecurringAt, upcomingRecurringAts } from "./plan-recurring.js";
 
 describe("recurring plan dates", () => {
   it("steps a weekly Thursday series by seven days", () => {

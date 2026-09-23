@@ -46,6 +46,7 @@ describe("AssistDayResponseSchema", () => {
   const planCard = {
     plan: {
       id: "018f3c5a-0000-7000-8000-000000000020",
+      hostUserId: "018f3c5a-0000-7000-8000-000000000021",
       eventId: event.id,
       participants: [],
       meetingPoint: "Вечер джаза",

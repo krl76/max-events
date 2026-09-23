@@ -11,7 +11,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
-import { CreateAutoPlanWriteSchema, CreatePlanExpenseWriteSchema, CreatePlanWriteSchema, IdSchema, PlanParticipantWriteSchema, type AutoPlanProposal, type PlanBudget, type PlanCard } from "@max-events/api-contracts";
+import { CreateAutoPlanWriteSchema, CreatePlanExpenseWriteSchema, CreatePlanWriteSchema, PlanCancelScopeSchema, IdSchema, PlanParticipantWriteSchema, type AutoPlanProposal, type PlanBudget, type PlanCard } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { PlansService, type GeoOrigin } from "./plans.service";
@@ -58,8 +58,11 @@ export class PlansController {
 
   @Delete(":id")
   @HttpCode(204)
-  async remove(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<void> {
-    return this.plans.remove(user.id, id);
+  async remove(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Query("scope") scope?: string): Promise<void> {
+    // Default "occurrence": a cancel that quietly took the whole series with it would be unrecoverable.
+    const parsed = scope === undefined || scope === "" ? { success: true as const, data: "occurrence" as const } : PlanCancelScopeSchema.safeParse(scope);
+    if (!parsed.success) throw new BadRequestException("Invalid cancel scope");
+    return this.plans.remove(user.id, id, parsed.data);
   }
 
   @Post(":id/participants")

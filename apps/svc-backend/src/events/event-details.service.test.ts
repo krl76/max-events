@@ -4,6 +4,8 @@ import type { Repository } from "typeorm";
 import type { Place } from "@max-events/api-contracts";
 import { BookingEntity } from "../bookings/booking.entity";
 import { CheckInEntity } from "../checkins/check-in.entity";
+import { OrganizationEntity } from "../organizations/organization.entity";
+import type { OrganizationsService } from "../organizations/organizations.service";
 import { ParticipationEntity } from "../participations/participation.entity";
 import type { PlacesService } from "../places/places.service";
 import type { PromotionService } from "../promotion/promotion.service";
@@ -82,6 +84,7 @@ function createService(
     checkIns?: CheckInEntity[];
     participations?: ParticipationEntity[];
     users?: UserEntity[];
+    organization?: OrganizationEntity | null;
     reviews?: ReviewEntity[];
     place?: Place | null;
   } = {},
@@ -101,7 +104,8 @@ function createService(
   const reviews = new ReviewsService(reviewRows as unknown as Repository<ReviewEntity>, bookings as unknown as Repository<BookingEntity>, events as unknown as Repository<EventEntity>);
   const promotions = { promotedEventIds: async () => new Set<string>() } as unknown as PromotionService;
   const weather = { attach: async (rows: { weather?: unknown }[]) => rows } as unknown as EventWeatherService;
-  const service = new EventDetailsService(events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, checkIns as unknown as Repository<CheckInEntity>, participations as unknown as Repository<ParticipationEntity>, users as unknown as Repository<UserEntity>, places, reviews, promotions, weather);
+  const organizations = { findByOrganizerUserId: async (organizerUserId: string) => (opts.organization?.organizerUserId === organizerUserId ? opts.organization : null) } as unknown as OrganizationsService;
+  const service = new EventDetailsService(events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, checkIns as unknown as Repository<CheckInEntity>, participations as unknown as Repository<ParticipationEntity>, users as unknown as Repository<UserEntity>, places, reviews, promotions, weather, organizations);
   return { service };
 }
 
@@ -145,6 +149,26 @@ describe("EventDetailsService.get", () => {
     expect(details.checkInId).toBeNull();
     expect(details.myParticipationStatus).toBeNull();
     expect(details.remainingSeats).toBe(3);
+  });
+
+  it("carries the organization the organizer publishes for", async () => {
+    const { service } = createService({
+      event: makeEvent(),
+      users: [organizer],
+      organization: { id: "00000000-0000-4000-8000-0000000000c1", name: "Культурный центр", contacts: "@centre", organizerUserId: organizerId, passwordHash: "scrypt$never$leaves$the$backend$x" } as OrganizationEntity,
+    });
+
+    const details = await service.get(eventId, viewerId);
+
+    expect(details.organization).toEqual({ id: "00000000-0000-4000-8000-0000000000c1", name: "Культурный центр", contacts: "@centre" });
+    // The hash has no way out of the backend, so the public page cannot carry it.
+    expect(JSON.stringify(details)).not.toContain("scrypt$");
+  });
+
+  it("leaves the organization null when the organizer belongs to none", async () => {
+    const { service } = createService({ event: makeEvent(), users: [organizer] });
+
+    await expect(service.get(eventId, viewerId).then((details) => details.organization)).resolves.toBeNull();
   });
 
   it("returns nulls for an event without place, organizer and capacity", async () => {

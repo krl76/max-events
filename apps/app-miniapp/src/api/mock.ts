@@ -34,6 +34,10 @@
 // - MOCK_GATHERING_ID - seeded deep-link demo gathering (hosted by a friend; the demo user is an invitee so the response flow is reachable in mock mode)
 // - respondMockGathering - demo-user invitee answer write (mock PATCH /gatherings/:id/response; 404 unknown, 403 host-or-outsider, backend respond parity)
 // - resetMockGatherings - restore the seeded demo gathering and clear created ones (test isolation)
+// - listMockSubscriptions - mock GET /subscriptions for the demo user
+// - createMockSubscription - mock POST /subscriptions: idempotent per target, "unknown" for an unknown place or organizer (backend 404 parity)
+// - removeMockSubscription - mock DELETE /subscriptions/:id, "unknown" when it is already gone
+// - resetMockSubscriptions - clear in-memory follows (test isolation)
 // - resetMockVotes - restore the two seeded votes (test isolation)
 // - MOCK_VOTE_ID - seeded deep-link demo vote (the demo user is a participant; seeded winner)
 // - MOCK_FOREIGN_VOTE_ID - seeded vote the demo user can neither view nor vote on (403 parity)
@@ -42,6 +46,8 @@
 // - castMockBallot - mock POST /votes/:id/ballots: one ballot per user, a repeated ballot replaces the previous one; winner = max votes then option position, null without ballots (backend parity)
 // - mockPlans - plan card fixtures for the plans list and plan screens; the demo plan carries a chat link, the second one none (backend P1-7-b does not exist yet)
 // - resetMockPlans - restore seeded plan cards, dropping autoplan drafts (test isolation)
+// - createMockPlan - mock POST /plans: the manual plan plus the occurrences of its series
+// - cancelMockPlan - mock DELETE /plans/:id: one meeting or the whole series
 // - planCards - plan fixtures sorted by the soonest meeting first
 // - planCard - single plan card by plan id (or null)
 // - mockBudgetFromExpenses - expenses -> per-person nets + debts (backend budgetFromExpenses parity, incl. the id-rotated remainder split)
@@ -63,6 +69,9 @@
 // - SHARED_COLLECTION_TITLE - ru title of the seeded shared collection
 // - listSummaries - preset lists of a user with item counters, the saved-item id for the checked event and shared-collection participants
 // - listItemCards - items of one list enriched with their events and the participant who added them, newest first (mock)
+// - createMockList - mock POST /lists: a list of one's own (409 past the ceiling)
+// - renameMockList - mock PATCH /lists/:id (403 for a preset)
+// - removeMockList - mock DELETE /lists/:id with its items (403 for a preset)
 // - resetMockLists - clear in-memory lists (test isolation)
 // - resetMockReviews - restore seeded reviews (test isolation)
 // - eventRating - rating summary and per-category averages for an event from the mock reviews
@@ -89,6 +98,8 @@
 // - myCityFor - my-city summary and memory points derived from the check-ins of a user
 // - participationStats - per-event status counters, friends count and own status
 // - calendarEntries - active bookings of a user enriched with event and place
+// - tasteProfile - taste graph of a user, derived from their mock check-ins (empty until they visit something)
+// - afterMePicks - mock GET /taste/after-me: more of the strongest visited category, backend wording parity
 // - todayPicks - "What to do today?" digest from fixtures (summary counters + three curated cards)
 // - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
 // - placePageFor - place social page aggregate: today events, friend visits, place rating, popularity, personal visits (mock)
@@ -101,6 +112,7 @@
 
 import type {
   Achievement,
+  AfterMeResponse,
   AssistCriteria,
   AssistDayResponse,
   AssistPick,
@@ -115,6 +127,7 @@ import type {
   CreateDayRouteWrite,
   CreateEvent,
   CreatePlace,
+  CreatePlanWrite,
   CreatePlanExpenseWrite,
   CreateVoteWrite,
   CreateWeGroupWrite,
@@ -151,6 +164,7 @@ import type {
   Place,
   PlacePage,
   PlanBudget,
+  PlanCancelScope,
   PlanCard,
   PlanDebt,
   Profile,
@@ -159,6 +173,8 @@ import type {
   RouteLeg,
   RoutePoint,
   TargetedPromotionsResponse,
+  TasteProfile,
+  TasteTransition,
   TodayEventCard,
   TodayResponse,
   User,
@@ -171,9 +187,9 @@ import type {
   WheretoQuery,
   WheretoResponse,
 } from "@max-events/api-contracts";
-import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, GatheringResponseWriteSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
+import { AssistQueryWriteSchema, CreateAutoPlanWriteSchema, CreateListWriteSchema, CreatePlanWriteSchema, upcomingRecurringAts, PlanCancelScopeSchema, CreateSubscriptionSchema, CreateBookingSchema, CreateDayRouteWriteSchema, CreateEventSchema, CreatePlaceSchema, CreatePlanExpenseWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, EventSchema, formatAfterMeExplanation, GatheringResponseWriteSchema, IdSchema, LeisureMoodSchema, ListPresetSchema, MicroEventSchema, ParticipationStatusSchema, PlaceCategorySchema, ReviewSchema, StatsPeriodSchema, StorySchema, TimestampSchema, UpdateProfileSchema, VoteBallotWriteSchema, WheretoQuerySchema } from "@max-events/api-contracts";
 import { CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, OrganizerLoginWriteSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
-import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EventSalesReport, Organization, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, OrganizerSession, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod, Story } from "@max-events/api-contracts";
+import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, CreateSubscription, EventSalesReport, Organization, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, OrganizerSession, PageViewTarget, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod, Story, Subscription } from "@max-events/api-contracts";
 import { parseEventFilters, REPORT_REASONS, type AddListItem, type CreateFeedPost, type CreateGathering, type CreateMicroEvent, type CreateReport, type CreateReview, type EventFilters, type EventRating, type FeedComment, type FeedPost, type ListItemCard, type ListSummary, type ParticipationStats, type Report } from "./client";
 
 const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
@@ -227,7 +243,15 @@ export const mockEvents: Event[] = [
 
 export function filterMockEvents(events: Event[], filters: EventFilters): Event[] {
   const city = filters.city?.toLowerCase();
-  return events.filter((item) => (filters.category === undefined || item.category === filters.category) && (city === undefined || item.city.toLowerCase() === city) && (filters.date === undefined || item.startsAt.slice(0, 10) === filters.date));
+  return events.filter((item) => {
+    if (filters.category !== undefined && item.category !== filters.category) return false;
+    if (city !== undefined && item.city.toLowerCase() !== city) return false;
+    if (filters.date !== undefined && item.startsAt.slice(0, 10) !== filters.date) return false;
+    if (filters.minRating === undefined) return true;
+    // Backend parity: an event nobody reviewed has no average, so it is not "at least N stars".
+    const summary = eventRating(item.id)?.summary;
+    return summary !== undefined && summary.reviewsCount > 0 && summary.averageStars >= filters.minRating;
+  });
 }
 
 export const mockOrganizers: User[] = [{ id: "d0000001-0000-4000-8000-000000000001", maxUserId: "organizer-1", firstName: "Анна", lastName: "Соколова", username: null, avatarUrl: null, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP }];
@@ -378,6 +402,60 @@ seedMockGatherings();
 
 export function resetMockGatherings(): void {
   seedMockGatherings();
+}
+
+const mockSubscriptions: Subscription[] = [];
+let mockSubscriptionSeq = 0;
+
+export function resetMockSubscriptions(): void {
+  mockSubscriptions.length = 0;
+  mockSubscriptionSeq = 0;
+}
+
+/** Backend parity: the follow carries the name of its target, since the screens cannot resolve a uuid. */
+function mockSubscriptionTitle(payload: CreateSubscription): string | null {
+  if (payload.type === "interest") return payload.interest;
+  if (payload.type === "place") return mockPlaces.find((place) => place.id === payload.placeId)?.title ?? null;
+  return mockOrganizers.some((organizer) => organizer.id === payload.organizerUserId) ? mockOrganization.name : null;
+}
+
+function sameMockTarget(row: Subscription, payload: CreateSubscription): boolean {
+  if (row.type !== payload.type) return false;
+  if (payload.type === "organizer") return row.organizerUserId === payload.organizerUserId;
+  if (payload.type === "place") return row.placeId === payload.placeId;
+  return (row.interest ?? "").toLowerCase() === payload.interest.toLowerCase();
+}
+
+export function listMockSubscriptions(): Subscription[] {
+  return [...mockSubscriptions];
+}
+
+/** Mock POST /subscriptions: idempotent per target like the backend, "unknown" for a target that does not exist. */
+export function createMockSubscription(payload: CreateSubscription): Subscription | "unknown" {
+  const title = mockSubscriptionTitle(payload);
+  if (title === null) return "unknown";
+  const existing = mockSubscriptions.find((row) => sameMockTarget(row, payload));
+  if (existing) return existing;
+  mockSubscriptionSeq += 1;
+  const subscription: Subscription = {
+    id: `d0000008-0000-4000-8000-${String(mockSubscriptionSeq).padStart(12, "0")}`,
+    userId: mockDemoUser.id,
+    type: payload.type,
+    organizerUserId: payload.type === "organizer" ? payload.organizerUserId : null,
+    placeId: payload.type === "place" ? payload.placeId : null,
+    interest: payload.type === "interest" ? payload.interest : null,
+    title,
+    createdAt: new Date().toISOString(),
+  };
+  mockSubscriptions.push(subscription);
+  return subscription;
+}
+
+/** Mock DELETE /subscriptions/:id: returns the removed follow, "unknown" when there is nothing to remove. */
+export function removeMockSubscription(id: string): Subscription | "unknown" {
+  const index = mockSubscriptions.findIndex((row) => row.id === id);
+  if (index < 0) return "unknown";
+  return mockSubscriptions.splice(index, 1)[0]!;
 }
 
 /** Creates an in-memory gathering: known event, known friends, valid proposed time, deterministic per-fixture responses. */
@@ -557,6 +635,7 @@ export const mockPlans: PlanCard[] = [
   {
     plan: {
       id: "90000000-0000-4000-8000-000000000001",
+      hostUserId: "a0000000-0000-4000-8000-000000000001",
       eventId: mockEvents[0].id,
       participants: [
         { friend: mockFriends[0], status: "confirmed" },
@@ -566,6 +645,8 @@ export const mockPlans: PlanCard[] = [
       meetingPoint: "у метро Смоленская",
       meetingAt: "2026-09-19T18:20:00+03:00",
       chatLink: "https://max.ru/chat/mock-plan-1",
+      recurringRule: null,
+      seriesId: null,
       createdAt: PLACE_STAMP,
       updatedAt: PLACE_STAMP,
     },
@@ -575,6 +656,7 @@ export const mockPlans: PlanCard[] = [
   {
     plan: {
       id: "90000000-0000-4000-8000-000000000002",
+      hostUserId: "a0000000-0000-4000-8000-000000000001",
       eventId: mockEvents[2].id,
       participants: [
         { friend: mockFriends[3], status: "confirmed" },
@@ -583,6 +665,8 @@ export const mockPlans: PlanCard[] = [
       meetingPoint: "у входа в Парк Горького",
       meetingAt: "2026-09-20T09:30:00+03:00",
       chatLink: null,
+      recurringRule: null,
+      seriesId: null,
       createdAt: PLACE_STAMP,
       updatedAt: PLACE_STAMP,
     },
@@ -591,11 +675,65 @@ export const mockPlans: PlanCard[] = [
   },
 ];
 
+/** Backend parity: a new series spawns its four nearest occurrences up front (PlansService.spawnSeries). */
+const MOCK_SERIES_SPAWN = 4;
+
+/** Cancelled plans stay out of the list, the way the backend hides a soft-cancelled one. */
+const mockCancelledPlanIds = new Set<string>();
+
+/**
+ * Mock POST /plans: the manual plan, plus the occurrences of its series. The template carries the rule
+ * and every plan of the series carries the seriesId, so the screen can offer «эта встреча» or «вся серия».
+ */
+export function createMockPlan(payload: CreatePlanWrite, now = new Date()): PlanCard | "no_event" {
+  const event = mockEvents.find((item) => item.id === payload.eventId);
+  if (!event) return "no_event";
+  const stamp = new Date().toISOString();
+  const nextId = () => {
+    mockPlanSeq += 1;
+    return `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`;
+  };
+  const participants = payload.participantIds.flatMap((id) => {
+    const friend = mockFriends.find((row) => row.id === id);
+    return friend ? [{ friend, status: "invited" as const }] : [];
+  });
+  const rule = payload.recurringRule ?? null;
+  const templateId = nextId();
+  const template: PlanCard = {
+    plan: { id: templateId, hostUserId: mockDemoUser.id, eventId: event.id, participants, meetingPoint: payload.meetingPoint, meetingAt: payload.meetingAt, chatLink: null, recurringRule: rule, seriesId: rule === null ? null : templateId, createdAt: stamp, updatedAt: stamp },
+    event,
+    distanceMeters: 0,
+  };
+  mockPlans.push(template);
+  if (rule === null) return template;
+  const meetingAt = new Date(payload.meetingAt);
+  for (const at of upcomingRecurringAts(meetingAt, rule, meetingAt > now ? meetingAt : now, MOCK_SERIES_SPAWN)) {
+    mockPlans.push({
+      // An occurrence carries no rule of its own; the backend resolves the series rule for the DTO.
+      plan: { ...template.plan, id: nextId(), meetingAt: at.toISOString(), recurringRule: rule, seriesId: templateId, createdAt: stamp, updatedAt: stamp },
+      event,
+      distanceMeters: 0,
+    });
+  }
+  return template;
+}
+
+/** Mock DELETE /plans/:id: one meeting, or every plan of the series when scope says so. */
+export function cancelMockPlan(planId: string, scope: PlanCancelScope): "ok" | "no_plan" {
+  const card = mockPlans.find((row) => row.plan.id === planId && !mockCancelledPlanIds.has(row.plan.id));
+  if (!card) return "no_plan";
+  const seriesId = card.plan.seriesId;
+  const doomed = scope === "series" && seriesId !== null ? mockPlans.filter((row) => row.plan.seriesId === seriesId) : [card];
+  for (const row of doomed) mockCancelledPlanIds.add(row.plan.id);
+  return "ok";
+}
+
 const MOCK_PLAN_SEED = [...mockPlans];
 let mockPlanSeq = MOCK_PLAN_SEED.length;
 
 /** Restore the seeded plan cards, dropping autoplan drafts (test isolation). */
 export function resetMockPlans(): void {
+  mockCancelledPlanIds.clear();
   mockPlans.length = 0;
   mockPlans.push(...MOCK_PLAN_SEED);
   mockPlanSeq = MOCK_PLAN_SEED.length;
@@ -603,12 +741,13 @@ export function resetMockPlans(): void {
 
 /** Plans of the demo user enriched with event and distance, soonest meeting first. */
 export function planCards(): PlanCard[] {
-  return [...mockPlans].sort((a, b) => a.plan.meetingAt.localeCompare(b.plan.meetingAt));
+  // A cancelled plan is hidden rather than deleted, the way the backend soft-cancels a series slot.
+  return mockPlans.filter((row) => !mockCancelledPlanIds.has(row.plan.id)).sort((a, b) => a.plan.meetingAt.localeCompare(b.plan.meetingAt));
 }
 
 /** Single plan card by plan id, or null. */
 export function planCard(id: string): PlanCard | null {
-  return mockPlans.find((card) => card.plan.id === id) ?? null;
+  return mockPlans.find((card) => card.plan.id === id && !mockCancelledPlanIds.has(card.plan.id)) ?? null;
 }
 
 /** In-memory plan expense row (PlanExpenseEntity parity: createdAt stored as ISO). */
@@ -997,6 +1136,51 @@ function listScreen(listId: string): { list: List; participants: Friend[]; items
   const list = findList(listId);
   if (!list) return null;
   return { list, participants: list.id === SHARED_LIST_ID ? SHARED_LIST_PARTICIPANTS() : [], items: listItemCards(listId) ?? [] };
+}
+
+/** Backend MAX_CUSTOM_LISTS parity. */
+const MOCK_MAX_CUSTOM_LISTS = 20;
+
+/** Backend parity: a list of one's own, appended after the six presets; "too_many" maps to 409. */
+export function createMockList(userId: string, title: string): List | "too_many" {
+  const lists = listsFor(userId);
+  // The seeded shared collection is nobody's "own list", so it does not eat into the ceiling.
+
+  if (lists.filter((row) => row.preset === null && row.id !== SHARED_LIST_ID).length >= MOCK_MAX_CUSTOM_LISTS) return "too_many";
+  mockListSeq += 1;
+  const now = new Date().toISOString();
+  const list: List = { id: `70000000-0000-4000-8000-${String(mockListSeq).padStart(12, "0")}`, userId, preset: null, title, createdAt: now, updatedAt: now };
+  lists.push(list);
+  return list;
+}
+
+/** A preset refuses both rename and delete: the backend recreates it, so the change would not stick. */
+export function renameMockList(listId: string, title: string): List | "no_list" | "preset" {
+  const list = findList(listId);
+  if (!list) return "no_list";
+  // A preset comes back from the backend, and a shared collection belongs to more than one person.
+  if (list.preset !== null || listId === SHARED_LIST_ID) return "preset";
+  list.title = title;
+  list.updatedAt = new Date().toISOString();
+  return list;
+}
+
+export function removeMockList(listId: string): List | "no_list" | "preset" {
+  const list = findList(listId);
+  if (!list) return "no_list";
+  if (list.preset !== null || listId === SHARED_LIST_ID) return "preset";
+  for (const [userId, lists] of mockLists) {
+    const index = lists.findIndex((row) => row.id === listId);
+    if (index !== -1) mockLists.set(userId, [...lists.slice(0, index), ...lists.slice(index + 1)]);
+  }
+  // The database drops the items through ON DELETE CASCADE; here they are swept by hand.
+  for (let index = mockListItems.length - 1; index >= 0; index -= 1) {
+    if (mockListItems[index]!.listId === listId) {
+      mockListItemAuthors.delete(mockListItems[index]!.id);
+      mockListItems.splice(index, 1);
+    }
+  }
+  return list;
 }
 
 /** Adds an event to a list, idempotent, attributed to the adding user; "no_list"/"no_event" map to 404 in the interceptor. */
@@ -1690,6 +1874,108 @@ export function calendarEntries(userId: string): { booking: Booking; event: Even
   return entries;
 }
 
+/**
+ * Taste is computed from what the demo user actually did, not from a fixture: a fresh demo has an
+ * empty graph and the «После меня» block stays hidden, and it appears once they tap «Я здесь» — the
+ * same two states the backend produces. Weights follow TasteService.buildTasteGraph: a visit is 1,
+ * a review adds stars/5 plus half a point for «пойду ещё раз».
+ */
+export function tasteProfile(userId: string, now: Date = MOCK_NOW): TasteProfile {
+  const eventWeights = new Map<EventCategory, number>();
+  for (const category of visitedEventCategories(userId)) eventWeights.set(category, (eventWeights.get(category) ?? 0) + 1);
+  for (const review of mockReviews.filter((row) => row.userId === userId)) {
+    const event = mockEvents.find((candidate) => candidate.id === review.eventId);
+    if (!event) continue;
+    eventWeights.set(event.category, (eventWeights.get(event.category) ?? 0) + review.stars / 5 + (review.wouldGoAgain ? 0.5 : 0));
+  }
+  const placeWeights = new Map<string, number>();
+  for (const item of mockCheckIns.filter((row) => row.userId === userId && row.placeId !== null)) {
+    const place = mockPlaces.find((candidate) => candidate.id === item.placeId);
+    if (place) placeWeights.set(place.category, (placeWeights.get(place.category) ?? 0) + 1);
+  }
+  return {
+    userId,
+    // Schema order, like the backend: a consumer reading [0] as "the strongest" would be wrong there.
+    eventCategories: EventCategorySchema.options.flatMap((category) => (eventWeights.has(category) ? [{ category, weight: eventWeights.get(category)! }] : [])),
+    placeCategories: PlaceCategorySchema.options.flatMap((category) => (placeWeights.has(category) ? [{ category, weight: placeWeights.get(category)! }] : [])),
+    transitions: visitTransitions(userId),
+    updatedAt: now.toISOString(),
+  };
+}
+
+function visitedEventCategories(userId: string): EventCategory[] {
+  return visitedEventsInOrder(userId).map((event) => event.category);
+}
+
+function visitedEventsInOrder(userId: string): Event[] {
+  return mockCheckIns
+    .filter((item) => item.userId === userId && item.eventId !== null)
+    .slice()
+    .sort((a, b) => a.checkedInAt.localeCompare(b.checkedInAt))
+    .flatMap((item) => {
+      const event = mockEvents.find((candidate) => candidate.id === item.eventId);
+      return event ? [event] : [];
+    });
+}
+
+/** Consecutive visits of different categories, the same "what did they do after X" the backend counts. */
+function visitTransitions(userId: string): TasteTransition[] {
+  const counts = new Map<string, number>();
+  const visited = visitedEventsInOrder(userId);
+  for (let index = 1; index < visited.length; index += 1) {
+    const from = visited[index - 1]!.category;
+    const to = visited[index]!.category;
+    if (from === to) continue;
+    counts.set(`${from}>${to}`, (counts.get(`${from}>${to}`) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([key, count]) => {
+      const [fromCategory, toCategory] = key.split(">") as [EventCategory, EventCategory];
+      return { fromCategory, toCategory, count };
+    })
+    .sort((a, b) => b.count - a.count || a.fromCategory.localeCompare(b.fromCategory));
+}
+
+/** TasteService.strongestAfterMe parity, including the tie-break: schema order wins, not the alphabet. */
+function strongestMockAfterMe(profile: TasteProfile): { fromCategory: EventCategory; toCategory: EventCategory; afterCount: number } | null {
+  let topFrom: EventCategory | null = null;
+  let topWeight = 0;
+  for (const category of EventCategorySchema.options) {
+    const weight = profile.eventCategories.find((row) => row.category === category)?.weight ?? 0;
+    if (weight > topWeight) {
+      topFrom = category;
+      topWeight = weight;
+    }
+  }
+  if (!topFrom || topWeight <= 0) return null;
+  let toCategory = topFrom;
+  let toCount = 0;
+  for (const transition of profile.transitions) {
+    if (transition.fromCategory !== topFrom || transition.toCategory === topFrom) continue;
+    if (transition.count > toCount || (transition.count === toCount && transition.toCategory.localeCompare(toCategory) < 0)) {
+      toCategory = transition.toCategory;
+      toCount = transition.count;
+    }
+  }
+  return { fromCategory: topFrom, toCategory, afterCount: Math.round(topWeight) };
+}
+
+/**
+ * Mock of GET /taste/after-me: upcoming events of the suggested category in the viewer's city, soonest
+ * first, five at most — the same query the backend runs, so a suggestion can also come back with no
+ * events at all when the city has nothing upcoming.
+ */
+export function afterMePicks(userId: string, now: Date = MOCK_NOW): AfterMeResponse {
+  const suggestion = strongestMockAfterMe(tasteProfile(userId, now));
+  if (!suggestion) return { suggestions: [] };
+  const city = profileFor(userId).city;
+  const events = mockEvents
+    .filter((event) => event.category === suggestion.toCategory && event.city === city && new Date(event.startsAt).getTime() >= now.getTime())
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
+    .slice(0, 5);
+  return { suggestions: [{ ...suggestion, explanation: formatAfterMeExplanation(suggestion.afterCount, suggestion.fromCategory, suggestion.toCategory), events }] };
+}
+
 /** "What to do today?" digest: curated cards from fixtures; the showcase friends (Анна → выставка, Катя → фестиваль) back the friends counter. */
 export function todayPicks(): TodayResponse {
   const cards: TodayEventCard[] = [
@@ -2043,6 +2329,7 @@ function eventDetails(eventId: string, userId: string): object | null {
     event: eventPromoted(event),
     place: mockPlaces.find((item) => item.id === event.placeId) ?? null,
     organizer: mockOrganizers[0],
+    organization: mockOrganization,
     remainingSeats: remainingSeats(eventId),
     activeBookingId: active?.id ?? null,
     checkInId: checkInFor(userId, eventId)?.id ?? null,
@@ -2095,7 +2382,7 @@ export function createMockAutoPlan(payload: CreateAutoPlanWrite): AutoPlanPropos
   const now = new Date().toISOString();
   mockPlanSeq += 1;
   const card: PlanCard = {
-    plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, eventId: event.id, participants: [], meetingPoint, meetingAt: meetupAt.toISOString(), chatLink: null, createdAt: now, updatedAt: now },
+    plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, hostUserId: mockDemoUser.id, eventId: event.id, participants: [], meetingPoint, meetingAt: meetupAt.toISOString(), chatLink: null, recurringRule: null, seriesId: null, createdAt: now, updatedAt: now },
     event,
     distanceMeters: meters,
   };
@@ -2335,7 +2622,7 @@ export function mockAssistDay(payload: AssistQueryWrite, now: Date = MOCK_NOW): 
   if (payload.save === true) {
     const now = new Date().toISOString();
     mockPlanSeq += 1;
-    plan = { plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, eventId: planDraft.eventId, participants: [], meetingPoint: planDraft.meetingPoint, meetingAt: planDraft.meetingAt, chatLink: null, createdAt: now, updatedAt: now }, event: first, distanceMeters: 0 };
+    plan = { plan: { id: `90000000-0000-4000-8000-${String(mockPlanSeq).padStart(12, "0")}`, hostUserId: mockDemoUser.id, eventId: planDraft.eventId, participants: [], meetingPoint: planDraft.meetingPoint, meetingAt: planDraft.meetingAt, chatLink: null, recurringRule: null, seriesId: null, createdAt: now, updatedAt: now }, event: first, distanceMeters: 0 };
     mockPlans.push(plan);
   }
   return { summary: `Собрал день на субботу ${date}: ${stops.length} событий`, date, stops, planDraft, plan };
@@ -2698,6 +2985,12 @@ export function installMockApi(): () => void {
     if (url.pathname === "/api/friends") {
       return Response.json(mockFriends);
     }
+    if (url.pathname === "/api/taste") {
+      return Response.json(tasteProfile(mockDemoUser.id));
+    }
+    if (url.pathname === "/api/taste/after-me") {
+      return Response.json(afterMePicks(mockDemoUser.id));
+    }
     if (url.pathname === "/api/today") {
       return Response.json(todayPicks());
     }
@@ -2955,6 +3248,12 @@ export function installMockApi(): () => void {
       if (result === "event_without_place") return new Response(null, { status: 400 });
       return Response.json(result);
     }
+    if (url.pathname === "/api/plans" && init?.method === "POST") {
+      const parsed = CreatePlanWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const created = createMockPlan(parsed.data);
+      return created === "no_event" ? new Response(null, { status: 404 }) : Response.json(created);
+    }
     if (url.pathname === "/api/plans") {
       return Response.json(planCards());
     }
@@ -3002,14 +3301,54 @@ export function installMockApi(): () => void {
       return screen === "unknown" ? new Response(null, { status: 404 }) : screen === "forbidden" ? new Response(null, { status: 403 }) : Response.json(screen);
     }
     const plan = /^\/api\/plans\/([^/]+)$/.exec(url.pathname);
+    if (plan && init?.method === "DELETE") {
+      if (!IdSchema.safeParse(plan[1]).success) return new Response(null, { status: 400 });
+      const scope = PlanCancelScopeSchema.safeParse(url.searchParams.get("scope") ?? "occurrence");
+      if (!scope.success) return new Response(null, { status: 400 });
+      const cancelled = cancelMockPlan(plan[1], scope.data);
+      return cancelled === "no_plan" ? new Response(null, { status: 404 }) : new Response(null, { status: 204 });
+    }
     if (plan) {
       const found = planCard(plan[1]);
       return found ? Response.json(found) : new Response(null, { status: 404 });
     }
     const listById = /^\/api\/lists\/([^/]+)$/.exec(url.pathname);
+    if (listById && init?.method === "PATCH") {
+      // ParseUUIDPipe answers 400 on the backend, so a non-uuid must not read as "no such list".
+      if (!IdSchema.safeParse(listById[1]).success) return new Response(null, { status: 400 });
+      const parsed = CreateListWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const renamed = renameMockList(listById[1], parsed.data.title);
+      return renamed === "no_list" ? new Response(null, { status: 404 }) : renamed === "preset" ? new Response(null, { status: 403 }) : Response.json(renamed);
+    }
+    if (listById && init?.method === "DELETE") {
+      if (!IdSchema.safeParse(listById[1]).success) return new Response(null, { status: 400 });
+      const removed = removeMockList(listById[1]);
+      return removed === "no_list" ? new Response(null, { status: 404 }) : removed === "preset" ? new Response(null, { status: 403 }) : Response.json(removed);
+    }
     if (listById) {
       const screen = listScreen(listById[1]);
       return screen ? Response.json(screen) : new Response(null, { status: 404 });
+    }
+    if (url.pathname === "/api/subscriptions" && init?.method === "POST") {
+      const parsed = CreateSubscriptionSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const created = createMockSubscription(parsed.data);
+      return created === "unknown" ? new Response(null, { status: 404 }) : Response.json(created);
+    }
+    if (url.pathname === "/api/subscriptions") {
+      return Response.json(listMockSubscriptions());
+    }
+    const subscriptionRemove = /^\/api\/subscriptions\/([^/]+)$/.exec(url.pathname);
+    if (subscriptionRemove && init?.method === "DELETE") {
+      const removed = removeMockSubscription(subscriptionRemove[1]);
+      return removed === "unknown" ? new Response(null, { status: 404 }) : Response.json(removed);
+    }
+    if (url.pathname === "/api/lists" && init?.method === "POST") {
+      const parsed = CreateListWriteSchema.safeParse(parseBookingBody(init));
+      if (!parsed.success) return new Response(null, { status: 400 });
+      const created = createMockList(mockDemoUser.id, parsed.data.title);
+      return created === "too_many" ? new Response(null, { status: 409 }) : Response.json(created);
     }
     if (url.pathname === "/api/lists") {
       return Response.json(listSummaries(url.searchParams.get("userId") ?? "", url.searchParams.get("eventId")));

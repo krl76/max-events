@@ -17,6 +17,7 @@ import { BadRequestException, HttpException, HttpStatus, Inject, Injectable, Ser
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import type { AssistCriteria, AssistDayResponse, AssistPick, AssistResponse, Event, PlanCard } from "@max-events/api-contracts";
+import { moscowIsoWeekday } from "@max-events/api-contracts";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
@@ -24,7 +25,7 @@ import { FriendshipEntity } from "../friends/friendship.entity";
 import { ListItemEntity } from "../lists/list-item.entity";
 import { ListEntity } from "../lists/list.entity";
 import { PlansService } from "../plans/plans.service";
-import { moscowIsoWeekday } from "../plans/recurring";
+
 import { moscowDateKey } from "../time/moscow-date";
 import { LLM_PROVIDER, LlmProviderError, type LlmProvider } from "./llm-provider";
 import { AssistRateLimiter } from "./rate-limit";

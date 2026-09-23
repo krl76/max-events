@@ -13,6 +13,10 @@
 // - ListItemSchema - list entry referencing an event or a place with the time it was added
 // - ListItem - list item type
 // - AddListItemWriteSchema - add-event payload
+// - CreateListWriteSchema - title of a new list of one's own
+// - CreateListWrite - create payload type
+// - RenameListWriteSchema - same shape, used to rename
+// - RenameListWrite - rename payload type
 // - AddListItemWrite - add-event payload type
 // - ListSummarySchema - list with counters and optional saved-item id
 // - ListSummary - list summary type
@@ -58,6 +62,15 @@ export const AddListItemWriteSchema = z.object({
   eventId: IdSchema,
 });
 export type AddListItemWrite = z.infer<typeof AddListItemWriteSchema>;
+
+/** A list of one's own carries a title and no preset; the six presets are created by the backend. */
+export const CreateListWriteSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+});
+export type CreateListWrite = z.infer<typeof CreateListWriteSchema>;
+
+export const RenameListWriteSchema = CreateListWriteSchema;
+export type RenameListWrite = z.infer<typeof RenameListWriteSchema>;
 
 export const ListSummarySchema = z.object({
   list: ListSchema,

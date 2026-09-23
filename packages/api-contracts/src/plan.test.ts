@@ -27,6 +27,7 @@ const friend: Friend = { id: "018f3c5a-0000-7000-8000-000000000001", name: "Ди
 
 const plan = {
   id: "018f3c5a-0000-7000-8000-000000000020",
+  hostUserId: "018f3c5a-0000-7000-8000-000000000021",
   eventId: event.id,
   participants: [
     { friend: { ...friend, name: "Дима" }, status: "confirmed" },
@@ -41,7 +42,8 @@ const plan = {
 
 describe("PlanSchema", () => {
   it("accepts a plan with event link, participants, meeting point and time", () => {
-    expect(PlanSchema.parse(plan)).toEqual({ ...plan, chatLink: null });
+    // recurringRule/seriesId default to null: a plan that does not repeat says so explicitly.
+    expect(PlanSchema.parse(plan)).toEqual({ ...plan, chatLink: null, recurringRule: null, seriesId: null });
   });
 
   it("defaults chatLink to null when absent", () => {
@@ -64,7 +66,7 @@ describe("PlanSchema", () => {
 
 describe("CreatePlanSchema", () => {
   it("accepts a creation payload without id/timestamps", () => {
-    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...payload } = plan;
+    const { id: _id, hostUserId: _hostUserId, createdAt: _createdAt, updatedAt: _updatedAt, ...payload } = plan;
     expect(CreatePlanSchema.parse(payload)).toEqual(payload);
   });
 

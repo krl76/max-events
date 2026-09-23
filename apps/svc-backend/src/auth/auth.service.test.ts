@@ -4,6 +4,7 @@ import type Redis from "ioredis";
 import type { Repository } from "typeorm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FriendsService } from "../friends/friends.service";
+import type { OrganizationsService } from "../organizations/organizations.service";
 import type { UsersService } from "../users/users.service";
 import { UserEntity } from "../users/user.entity";
 import { AuthService, BROWSER_DEMO_USER } from "./auth.service";
@@ -12,9 +13,10 @@ import { validateInitData } from "./max-init-data";
 const friends = { sync: async () => [] } as unknown as FriendsService;
 const redis = {} as Redis;
 const userRepo = { findOneBy: async () => null } as unknown as Repository<UserEntity>;
+const organizations = { findByLogin: async () => null } as unknown as OrganizationsService;
 
 function createService(config: Record<string, string>) {
-  return new AuthService(new ConfigService(config), {} as UsersService, friends, redis, userRepo);
+  return new AuthService(new ConfigService(config), {} as UsersService, friends, redis, userRepo, organizations);
 }
 
 describe("AuthService bootstrap", () => {

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: zod-validated environment variables, fail-fast on missing or invalid values.
-// SCOPE: env schema + validator shared by the Nest process and the TypeORM CLI datasource; optional payment provider keys; opt-in demo switches; optional organizer panel credentials (fail-closed when unset); AUTH_ALLOW_BROWSER staging switch.
+// SCOPE: env schema + validator shared by the Nest process and the TypeORM CLI datasource; optional payment provider keys; opt-in demo switches (NODE_ENV gates the ones that would leak data outside development); optional organizer panel credentials (fail-closed when unset); AUTH_ALLOW_BROWSER staging switch.
 // DEPENDS: zod, dotenv
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -37,9 +37,14 @@ export const envSchema = z.object({
   DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, "must be a postgres connection string (postgres://...)"),
   REDIS_URL: z.string().regex(/^rediss?:\/\//, "must be a redis connection string (redis://...)"),
   PORT: z.coerce.number().int().positive().default(3100),
+  // Which environment this process believes it is. The default is the strict one on purpose: a host
+  // that forgets to set NODE_ENV must not thereby unlock a development-only switch. Note that
+  // ConfigModule writes validated keys back into process.env, so this default also lands there.
+  NODE_ENV: z.string().default("production"),
   MAX_BOT_TOKEN: z.string().min(1).optional(),
   MODERATOR_MAX_USER_IDS: z.string().optional(),
-  // Organizer panel credentials. Both must be set for POST /auth/organizer/login to work; unset = 503 (fail-closed).
+  // Organizer panel bootstrap credentials: the first successful login provisions the organizations row from them.
+  // Once an account row exists it wins; with neither row nor these vars POST /auth/organizer/login is 503 (fail-closed).
   ORGANIZER_LOGIN: z.string().min(1).optional(),
   ORGANIZER_PASSWORD: z.string().min(1).optional(),
   PAYMENT_PROVIDER: z.enum(["sandbox", "none"]).default("none"),
@@ -51,7 +56,8 @@ export const envSchema = z.object({
   XAI_API_URL: z.string().url().default("https://api.x.ai/v1"),
   XAI_MODEL: z.string().min(1).default("grok-4.5"),
   // MAX Bridge exposes no friend list. Treating every app user as a friend is a demo convenience
-  // that leaks who else uses the app, so it is opt-in and off by default.
+  // that leaks who else uses the app, so it is opt-in, off by default, and ignored unless
+  // NODE_ENV is development or test (see FriendsService.demoFallbackEnabled).
   FRIENDS_DEMO_ALL_USERS: z
     .enum(["true", "false"])
     .default("false")
