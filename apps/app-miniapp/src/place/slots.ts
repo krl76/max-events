@@ -16,6 +16,7 @@
 // - slotDayCell - date -> the two lines of a strip cell («ЧТ» / «18»)
 // - formatSlotDayTitle - «пятница, 19 сентября» above the windows
 // - formatBookingDate - «Пт, 19 сентября» of a booking card
+// - formatUpcomingWhen - «Сб, 19 сен · 14:00» of a «Здесь скоро» card
 // - slotStatusLabel - «Свободно» / «Занято» and the «занято до 13:30» line under it
 // - companyLabel - «Ты, Анна и Дима» — the viewer first, then the company
 // - SlotBillRow - one line of the bill: what it is and what it costs
@@ -86,6 +87,19 @@ export function formatBookingDate(at: string): string {
   const date = new Date(at);
   const weekday = date.toLocaleDateString("ru-RU", { timeZone: MSK, weekday: "short" });
   return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${date.toLocaleDateString("ru-RU", { timeZone: MSK, day: "numeric", month: "long" })}`;
+}
+
+/**
+ * «Сб, 19 сен · 14:00» — the when-line of a «Здесь скоро» card. The month is cut to three letters
+ * because the card gives the line one row and the title needs the rest of it.
+ */
+export function formatUpcomingWhen(at: string): string {
+  const date = new Date(at);
+  const weekday = date.toLocaleDateString("ru-RU", { timeZone: MSK, weekday: "short" });
+  const day = date.toLocaleDateString("ru-RU", { timeZone: MSK, day: "numeric" });
+  // ru-RU сокращает сентябрь до «сент.», а макет печатает ровно три буквы — как и в сетке визитов
+  const month = date.toLocaleDateString("ru-RU", { timeZone: MSK, month: "short" }).replace(".", "").slice(0, 3);
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${day} ${month} · ${formatTime(at)}`;
 }
 
 /** The pill on the right of a window row, and the line that replaces its price when it is taken. */

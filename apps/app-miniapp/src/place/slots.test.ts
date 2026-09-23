@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EventWeather, Friend } from "@max-events/api-contracts";
 import type { PlaceSlot, SlotExtra } from "../api/client";
-import { codeMatrix, companyLabel, formatBookingDate, formatRub, formatSlotDayTitle, formatSlotDuration, formatSlotWindow, formatTemperature, formatTime, slotBill, slotDayCell, slotMinutes, slotStatusLabel, weatherIcon } from "./slots";
+import { codeMatrix, companyLabel, formatBookingDate, formatRub, formatSlotDayTitle, formatSlotDuration, formatSlotWindow, formatTemperature, formatTime, formatUpcomingWhen, slotBill, slotDayCell, slotMinutes, slotStatusLabel, weatherIcon } from "./slots";
 
 function slot(overrides: Partial<PlaceSlot> = {}): PlaceSlot {
   return {
@@ -48,6 +48,10 @@ describe("slot dates", () => {
     expect(slotDayCell("2026-09-18")).toEqual({ weekday: "ПТ", day: "18" });
     expect(formatSlotDayTitle("2026-09-18")).toBe("пятница, 18 сентября");
     expect(formatBookingDate("2026-09-18T20:00:00+03:00")).toBe("Пт, 18 сентября");
+  });
+
+  it("cuts the month of a «Здесь скоро» line to three letters and hangs the time off it", () => {
+    expect(formatUpcomingWhen("2026-09-19T14:00:00+03:00")).toBe("Сб, 19 сен · 14:00");
   });
 });
 

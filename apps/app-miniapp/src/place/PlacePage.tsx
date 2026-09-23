@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 34 «Место»: the venue as a social object — gradient hero with the daily check-in, the follow row, the three counters, friends who have been here, «Когда людно», the personal visit grid, the bookable windows and «Здесь скоро».
 // SCOPE: Reads apiClient.getPlace/getPlacePage (the social aggregate) and apiClient.getPlaceBoard (everything the design needs that the place domain has no field for), writes apiClient.createCheckIn and the follow. Navigation only outwards: an event card, the slot booking screen, the follows screen. Empty data per block, not a page error.
-// DEPENDS: ../api/client.js (apiClient, PlaceBoard, PlaceSlot), ../auth/AuthContext.js, ../catalog/format.js (CATEGORY_LABELS, formatStartsAt, pluralRu), ../organizer/OrganizerPage.js (PLACE_CATEGORY_LABELS), ../subscriptions/SubscribeToggle.js (matchesSubscriptionTarget), ./slots.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, @max-events/api-contracts (Place, PlaceFriendVisit, PlacePage), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, PlaceBoard, PlaceSlot), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../organizer/OrganizerPage.js (PLACE_CATEGORY_LABELS), ../subscriptions/SubscribeToggle.js (matchesSubscriptionTarget), ./slots.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, @max-events/api-contracts (Place, PlaceFriendVisit, PlacePage), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -23,13 +23,13 @@ import { useCallback, useEffect, useState } from "react";
 import type { CreateSubscription, Place, PlaceFriendVisit, PlacePage as PlacePageAggregate } from "@max-events/api-contracts";
 import { apiClient, trackPageView, type PlaceBoard, type PlaceSlot, type PlaceUpcomingEvent } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { formatStartsAt, pluralRu } from "../catalog/format";
+import { pluralRu } from "../catalog/format";
 import { PLACE_CATEGORY_LABELS } from "../organizer/OrganizerPage";
 import { matchesSubscriptionTarget } from "../subscriptions/SubscribeToggle";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
-import { formatRub, formatSlotWindow, formatTime, slotStatusLabel } from "./slots";
+import { formatRub, formatSlotWindow, formatTime, formatUpcomingWhen, slotStatusLabel } from "./slots";
 
 /** Friend line: «Анна была здесь 3 раза» / «Дима идёт сегодня»; the going-today line wins when both apply. */
 export function friendVisitLabel(visit: PlaceFriendVisit): string {
@@ -347,7 +347,7 @@ export function PlacePageView({ place, page, board, checkedIn, onBack, onCheckIn
               <button key={card.event.id} type="button" className="app-place-event" onClick={() => onOpenEvent(card.event.id)}>
                 <AppMedia category={card.event.category} className="app-place-event-media" />
                 <span className="app-place-event-body">
-                  <span className="app-place-event-when">{formatStartsAt(card.event.startsAt)}</span>
+                  <span className="app-place-event-when">{formatUpcomingWhen(card.event.startsAt)}</span>
                   <span className="app-place-event-title">{card.event.title}</span>
                   <span className="app-place-event-line">{upcomingLine(card)}</span>
                 </span>
