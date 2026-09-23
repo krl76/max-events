@@ -1,12 +1,16 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock social graph store: friends, the gathering flow, UGC micro-events, reverse discovery and people matching.
-// SCOPE: Friend availability and gatherings, micro-events with their join counters, friend place discovery and the people matcher; the HTTP surface is in ./social.routes.ts.
+// SCOPE: Friend availability, the contacts sync stamp and gatherings, micro-events with their join counters and card aggregate, friend place discovery with the hidden-history state and the people matcher; the HTTP surface is in ./social.routes.ts.
 // DEPENDS: @max-events/api-contracts, ../client.js and the sibling ./mock domain modules it imports
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - friendAvailability - per-friend free/busy/unknown for the gathering flow (mock)
+// - friendsSyncState - mock GET /friends/sync: when the MAX contacts were last pulled in (макет, экран 26)
+// - syncMockFriends - mock POST /friends/sync: re-read the contacts, stamp the moment, answer with the graph
+// - resetMockFriendsSync - restore the «two hours ago» stamp (test isolation)
+// - microEventCard - mock GET /micro-events/:id: the event, its venue and the participants by name (макет, экран 25)
 // - mockOnboardingContacts - the twelve MAX contacts the onboarding friends step offers: the seven friend fixtures plus five contacts who are not friends yet
 // - resetMockFollows - restore the three seeded follows (test isolation)
 // - friendSuggestions - mock GET /friends/suggestions: the onboarding contacts with their hint line and current follow state
@@ -25,17 +29,17 @@
 // - leaveMockMicroEvent - leave with the counter, idempotent (mock DELETE /join)
 // - friendActivityByFriend - friend participations grouped by friend (feed payload)
 // - friendPlaceLayer - mock GET /discovery/friend-places: places friends checked in at, grouped, privacy-gated
-// - discoverySummary - per-friend unseen places minus the demo user's check-ins, privacy-gated (mock GET /discovery, backend DiscoveryService.summary parity)
-// - friendRoute - chronological unseen places of one friend; own/not-friend/hidden map to 403/404/403 (mock GET /discovery/friends/:userId/route, backend parity)
+// - discoverySummary - per-friend unseen places minus the demo user's check-ins, privacy-gated, with the hidden-history rows экран 27 draws (mock GET /discovery, backend DiscoveryService.summary parity)
+// - friendRoute - chronological unseen places of one friend with the clock and the note of экран 28; own/not-friend/hidden map to 403/404/403 (mock GET /discovery/friends/:userId/route, backend parity)
 // - peopleSuggest - mockFriends matched on seeded interests or a shared upcoming event with distances from the requested coords (mock GET /people, backend PeopleService parity)
 // END_MODULE_MAP
 
 import { MicroEventSchema, TimestampSchema } from "@max-events/api-contracts";
-import type { DiscoveryFriendPlaces, DiscoveryResponse, Friend, FriendActivityByFriend, FriendAvailability, FriendPlaceVisit, FriendRoute, Gathering, InviteeResponse, MicroEvent, ParticipationStatus, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place } from "@max-events/api-contracts";
-import { type CreateGathering, type CreateMicroEvent, type FriendSuggestion } from "../client";
+import type { Friend, FriendActivityByFriend, FriendAvailability, FriendPlaceVisit, Gathering, InviteeResponse, MicroEvent, ParticipationStatus, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlaceCategory } from "@max-events/api-contracts";
+import { type CreateGathering, type CreateMicroEvent, type DiscoveryFriendCard, type DiscoveryScreen, type FriendSuggestion, type MicroEventCard, type MicroParticipant } from "../client";
 import { mockCheckIns } from "./bookings";
 import { mockParticipations } from "./catalog";
-import { MOCK_NOW, PLACE_STAMP, haversineKm, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockPlaces } from "./fixtures";
+import { HOUR_MS, MOCK_NOW, PLACE_STAMP, haversineKm, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockPlaces } from "./fixtures";
 import { profileFor } from "./profile";
 
 /** Mock availability per friend (by mockFriends index); the backend P1-6-b does not exist yet. */
@@ -43,6 +47,27 @@ const MOCK_AVAILABILITY: FriendAvailability["availability"][] = ["free", "busy",
 
 export function friendAvailability(): FriendAvailability[] {
   return mockFriends.map((friend, index) => ({ friend, availability: MOCK_AVAILABILITY[index] }));
+}
+
+/**
+ * POST /friends/sync rebuilds the graph from the MAX contact list and answers with it, but nothing
+ * anywhere records *when* it last ran — and экран 26 puts «Синхронизировано 2 часа назад» right under
+ * the contacts row. The stamp is counted off the real clock rather than MOCK_NOW so the demo reads the
+ * way the design does whenever it is opened.
+ */
+let mockFriendsSyncedAt: string = new Date(Date.now() - 2 * HOUR_MS).toISOString();
+
+export function resetMockFriendsSync(): void {
+  mockFriendsSyncedAt = new Date(Date.now() - 2 * HOUR_MS).toISOString();
+}
+
+export function friendsSyncState(): { syncedAt: string | null } {
+  return { syncedAt: mockFriendsSyncedAt };
+}
+
+export function syncMockFriends(): Friend[] {
+  mockFriendsSyncedAt = new Date().toISOString();
+  return mockFriends;
 }
 
 /**
@@ -172,6 +197,32 @@ const MICRO_EVENT_SEED: MicroEventSeed[] = [
     participantIds: [mockFriendIds[1], mockFriendIds[3]],
     status: "open",
   },
+  // Экран 24 показывает четыре состояния карточки, а не одно: заполненный сбор даёт «Мест нет»…
+  {
+    id: "20000000-0000-4000-8000-000000000003",
+    authorId: mockFriendIds[2],
+    title: "Кто со мной на каток",
+    startsAt: "2026-09-19T21:00:00+03:00",
+    locationText: "Каток в Парке Горького",
+    placeId: null,
+    participantsLimit: 6,
+    participantsCount: 6,
+    participantIds: mockFriendIds.slice(0, 6),
+    status: "open",
+  },
+  // …а отменённый — «Сбор отменён автором» на карточке 25 (в ленту он не попадает, она открытые фильтрует).
+  {
+    id: "20000000-0000-4000-8000-000000000004",
+    authorId: mockFriendIds[4],
+    title: "Смотрим матч, у меня дома",
+    startsAt: "2026-09-19T22:00:00+03:00",
+    locationText: "Чистые пруды, адрес в чате",
+    placeId: null,
+    participantsLimit: 10,
+    participantsCount: 4,
+    participantIds: mockFriendIds.slice(0, 4),
+    status: "cancelled",
+  },
 ];
 
 export const mockMicroEvents: MicroEvent[] = [];
@@ -250,6 +301,22 @@ export function leaveMockMicroEvent(id: string, userId: string): MicroEvent | nu
   return target;
 }
 
+/** Who a participant id belongs to: a friend, the demo viewer, or — for a stranger the graph does not know — a nameless row the counter still counts. */
+function mockPerson(userId: string): Friend {
+  if (userId === mockDemoUser.id) return { id: mockDemoUser.id, name: mockDemoUser.firstName, avatarUrl: null };
+  return mockFriends.find((friend) => friend.id === userId) ?? { id: userId, name: "Участник", avatarUrl: null };
+}
+
+/** One micro-event with its venue and the names behind participantIds; the author leads the list, because the card marks them «позвал» (mock GET /micro-events/:id). */
+export function microEventCard(id: string): MicroEventCard | null {
+  const event = mockMicroEvents.find((item) => item.id === id);
+  if (!event) return null;
+  const place = event.placeId === null ? null : (mockPlaces.find((item) => item.id === event.placeId) ?? null);
+  const participants: MicroParticipant[] = event.participantIds.map((userId) => ({ friend: mockPerson(userId), author: userId === event.authorId }));
+  participants.sort((a, b) => Number(b.author) - Number(a.author));
+  return { event, place, participants };
+}
+
 /** Friends feed grouped by friend: every friend with the events they attend, soonest event first, groups by soonest event. */
 export function friendActivityByFriend(): FriendActivityByFriend[] {
   const byFriend = new Map<string, FriendActivityByFriend>();
@@ -317,8 +384,7 @@ export function friendPlaceLayer(): FriendPlaceVisit[] {
     const place = mockPlaces[placeIndex];
     // Backend parity: either privacy switch takes the friend out, an unpublished place is not served.
     if (!friend || !place || place.published === false) return;
-    const privacy = profileFor(friend.id).privacy;
-    if (privacy.visitHistory === "hidden" || privacy.routes === "hidden") return;
+    if (visitHistoryHidden(friend.id) || profileFor(friend.id).privacy.routes === "hidden") return;
     const visitedAt = new Date(MOCK_NOW.getTime() - (MOCK_DISCOVERY_VISIT_SEED.length - order) * 86_400_000).toISOString();
     const entry = byPlace.get(place.id) ?? { place, friends: [], lastVisitAt: visitedAt };
     if (!entry.friends.some((row) => row.id === friend.id)) entry.friends.push(friend);
@@ -328,31 +394,67 @@ export function friendPlaceLayer(): FriendPlaceVisit[] {
   return [...byPlace.values()].sort((a, b) => Date.parse(b.lastVisitAt) - Date.parse(a.lastVisitAt) || a.place.title.localeCompare(b.place.title));
 }
 
-/** Reverse discovery summary (mock GET /discovery): per-friend unseen places minus the demo user's check-ins, privacy-gated (backend DiscoveryService.summary parity). */
-export function discoverySummary(): DiscoveryResponse {
+/**
+ * Who switched their visit history off. The profile fixtures know only the other switch (Лена hides her
+ * routes), and экран 27 has to draw «История посещений скрыта» as a normal row, so the overlay lives here
+ * until a profile fixture sets `visitHistory: "hidden"` itself. Read through everywhere the switch matters,
+ * so the friend disappears from the route too — a demo where the flag lied on one screen would be worse
+ * than no flag at all.
+ */
+const MOCK_VISIT_HISTORY_HIDDEN: ReadonlySet<string> = new Set([mockFriendIds[3]]);
+
+function visitHistoryHidden(userId: string): boolean {
+  return profileFor(userId).privacy.visitHistory === "hidden" || MOCK_VISIT_HISTORY_HIDDEN.has(userId);
+}
+
+/** Reverse discovery summary (mock GET /discovery): per-friend unseen places minus the demo user's check-ins, privacy-gated (backend DiscoveryService.summary parity), plus the hidden-history rows экран 27 draws. */
+export function discoverySummary(): DiscoveryScreen {
   const myPlaceIds = myVisitedPlaceIds();
   const unique = new Set<string>();
-  const byFriend: DiscoveryFriendPlaces[] = [];
+  const byFriend: DiscoveryFriendCard[] = [];
+  const hidden: DiscoveryFriendCard[] = [];
   for (const [index, friend] of mockFriends.entries()) {
-    const privacy = profileFor(friend.id).privacy;
-    if (privacy.visitHistory === "hidden") continue;
+    // Скрытая история не даёт ни счётчика, ни мест — только строку о том, что это выбор друга.
+    if (visitHistoryHidden(friend.id)) {
+      hidden.push({ friend, newPlacesCount: 0, places: [], visitHistoryHidden: true });
+      continue;
+    }
     const unseen = unseenFriendPlaces(index, myPlaceIds);
     for (const place of unseen) unique.add(place.id);
     if (unseen.length === 0) continue;
-    byFriend.push({ friend, newPlacesCount: unseen.length, places: privacy.routes === "hidden" ? [] : unseen });
+    byFriend.push({ friend, newPlacesCount: unseen.length, places: profileFor(friend.id).privacy.routes === "hidden" ? [] : unseen, visitHistoryHidden: false });
   }
   byFriend.sort((a, b) => b.newPlacesCount - a.newPlacesCount || a.friend.name.localeCompare(b.friend.name));
-  return { newPlacesCount: unique.size, byFriend };
+  hidden.sort((a, b) => a.friend.name.localeCompare(b.friend.name));
+  return { newPlacesCount: unique.size, byFriend: [...byFriend, ...hidden] };
 }
 
-/** Friend route of unseen places (mock GET /discovery/friends/:userId/route); "own"/"not_friend"/"hidden" map to 403/404/403 in the interceptor (backend DiscoveryService.route parity). */
-export function friendRoute(userId: string): FriendRoute | "own" | "not_friend" | "hidden" {
+/** What a friend came to a place for (макет, экран 28 — «11:20 · завтрак»); nothing on the backend knows it, so the category speaks for the visit. */
+const MOCK_STOP_NOTE: Record<PlaceCategory, string> = { park: "прогулка", museum: "выставка", food: "гастромаркет", sport: "тренировка", other: "встреча" };
+
+/** The clock of the design, stop by stop; beyond the fourth the day simply keeps going by two hours. */
+const MOCK_STOP_CLOCK = ["11:20", "13:00", "16:30", "20:00"];
+
+function stopClock(index: number): string {
+  if (index < MOCK_STOP_CLOCK.length) return MOCK_STOP_CLOCK[index];
+  return `${String(20 + 2 * (index - MOCK_STOP_CLOCK.length + 1)).padStart(2, "0")}:00`;
+}
+
+/** One route lives inside one day: the day before the demo «now», shifted per friend so two routes never claim the same date. */
+function routeDay(friendIndex: number): string {
+  const day = new Date(MOCK_NOW.getTime() - (friendIndex + 1) * 24 * HOUR_MS);
+  return `${day.getUTCFullYear()}-${String(day.getUTCMonth() + 1).padStart(2, "0")}-${String(day.getUTCDate()).padStart(2, "0")}`;
+}
+
+/** Friend route of unseen places (mock GET /discovery/friends/:userId/route); "own"/"not_friend"/"hidden" map to 403/404/403 in the interceptor (backend DiscoveryService.route parity). `stops` carries the clock and the note экран 28 needs — the contract answer stays in `places`. */
+export function friendRoute(userId: string): { friend: Friend; places: Place[]; stops: { place: Place; visitedAt: string; note: string }[] } | "own" | "not_friend" | "hidden" {
   if (userId === mockDemoUser.id) return "own";
   const index = mockFriendIds.indexOf(userId);
   if (index === -1) return "not_friend";
-  const privacy = profileFor(userId).privacy;
-  if (privacy.routes === "hidden" || privacy.visitHistory === "hidden") return "hidden";
-  return { friend: mockFriends[index], places: unseenFriendPlaces(index, myVisitedPlaceIds()) };
+  if (profileFor(userId).privacy.routes === "hidden" || visitHistoryHidden(userId)) return "hidden";
+  const places = unseenFriendPlaces(index, myVisitedPlaceIds());
+  const day = routeDay(index);
+  return { friend: mockFriends[index], places, stops: places.map((place, order) => ({ place, visitedAt: `${day}T${stopClock(order)}:00+03:00`, note: MOCK_STOP_NOTE[place.category] })) };
 }
 
 const PEOPLE_MAX_KM = 15;
@@ -385,7 +487,7 @@ export function peopleSuggest(latitude: number, longitude: number, now: Date = M
     const sharedInterests = profile.interests.filter((interest) => myInterests.has(interest.toLowerCase()));
     const sharedEvent = [...mockParticipations.values()].find((row) => row.userId === friend.id && PEOPLE_GOING.includes(row.status) && myEventIds.has(row.eventId) && upcoming.has(row.eventId));
     let distanceKm: number | null = null;
-    const visit = profile.privacy.visitHistory === "hidden" ? null : latestVisitPlace(index);
+    const visit = visitHistoryHidden(friend.id) ? null : latestVisitPlace(index);
     if (visit !== null) {
       distanceKm = Math.round(haversineKm(latitude, longitude, visit.latitude, visit.longitude) * 10) / 10;
       if (distanceKm > PEOPLE_MAX_KM) continue;

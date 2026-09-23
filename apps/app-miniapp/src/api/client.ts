@@ -31,6 +31,13 @@
 // - FeedPlaceCard - venue post of the home feed: place header, slot offer, friend quote, viewer status block
 // - FeedPost - impression post aggregate: author, event, text, like counter/state, comments
 // - FriendSuggestion - one person of the onboarding friends step: friend + the hint line under the name + whether the viewer follows them
+// - DiscoveryFriendCard - one friend row of экран 27: unseen places plus the «история посещений скрыта» state
+// - DiscoveryScreen - экран 27 payload: the total of unseen places and the friend rows
+// - FriendRouteScreen - экран 28 payload: the friend and their ordered stops
+// - FriendRouteStop - one stop of a friend route: place, when they were there and what they did
+// - FriendsSync - when the MAX contacts of the viewer were last synchronised (макет, экран 26)
+// - MicroEventCard - micro-event card aggregate (макет, экран 25): the event, its venue and the participants by name
+// - MicroParticipant - one participant of a micro-event card: the person and whether they are the author who called it
 // - LeisureQuery - free-window leisure payload (hours 1..8, mood, coordinates)
 // - ListItemCard - list screen aggregate: list item enriched with its event and the participant who added it (null outside shared collections)
 // - ListScreen - one-list aggregate: list + participants + item cards (shared collections surface)
@@ -95,7 +102,7 @@ import { ApiTransport } from "./endpoints/transport";
 export { REPORT_REASONS } from "./endpoints/moderation";
 export type { OrganizerEvent, OrganizerPlace, StatsPeriodQuery, UpdateOrganizerEvent, UpdateOrganizerPlace } from "./endpoints/organizer";
 export type { CalendarEntry } from "./endpoints/plans";
-export type { CreateGathering, CreateMicroEvent, FriendSuggestion } from "./endpoints/social";
+export type { CreateGathering, CreateMicroEvent, DiscoveryFriendCard, DiscoveryScreen, FriendRouteScreen, FriendRouteStop, FriendSuggestion, FriendsSync, MicroEventCard, MicroParticipant } from "./endpoints/social";
 export { ApiError } from "./endpoints/transport";
 export { EVENT_SORTS, parseEventFilters, serializeEventFilters } from "./endpoints/catalog";
 export type { CatalogCard, EventDetails, EventFilters, EventSort, MapWeather, ParticipationStats, PlaceParticipation, TravelMode, TravelOption } from "./endpoints/catalog";
