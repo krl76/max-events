@@ -12,9 +12,8 @@
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
 // - routeTitle - header title for the current route
 // - routeHasBack - back button shown on every non-tab route, the map included
-// - routeHasHeader - header hidden on the search/plans/profile tab screens (profile renders its own gradient hero), on the map and swipe screens, which draw their own chrome over the content, on «После события», whose hero carries the close button instead of a back arrow, and on the fullscreen composers
+// - routeHasHeader - header hidden wherever the screen draws its own chrome: the search/plans/profile tabs (profile renders its own gradient hero), the map and the swipe deck, which draw over the content, «После события», whose hero carries a close button instead of a back arrow, the two list screens (экраны 37 и 39), the we-groups and the votes (экраны 30-33), the micro-event feed and card (экраны 24 и 25), the friends list with its counter (экран 26) and the friend route (экран 28), the plan with its date, party size and «MAX СОБРАЛ» badge (экран 15), the assistant with its gradient hero (экран 10), and the fullscreen composers
 // - routeIsFullscreen - the story and post composers (макет, экраны 05 и 06) own the whole viewport: no shell header, no tabbar, no gutters
-// - routeHasHeader - header hidden where the screen draws its own topbar: the search/plans/profile tabs, the two list screens (макет, экраны 37 и 39), the micro-event feed and card (экраны 24 и 25), the friends list with its counter (экран 26) and the friend route, whose title carries the name (экран 28)
 // END_MODULE_MAP
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -24,7 +23,7 @@ import { ActionIcon, TabIconGlyph, type TabIcon } from "./icons";
 
 export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string) => boolean; route: "home" | "search" | "create" | "plans" | "profile" }> = [
   { icon: "feed", label: "Лента", route: "home", active: (name) => name === "home" || name === "micro" || name === "micro-event" },
-  { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" || name === "map" || name === "swipe" },
+  { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" || name === "map" || name === "swipe" || name === "assist" },
   { icon: "create", label: "Создать", route: "create", active: (name) => name === "create" || name === "story-new" || name === "feed-new" || name === "micro-new" || name === "plan-new" },
   { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "lists" || name === "list" },
   { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "friends" || name === "subscriptions" || name === "discovery" || name === "people" || name === "friend-route" },
@@ -69,6 +68,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   micro: "Микро-события",
   "micro-event": "Микро-событие",
   "friend-route": "Маршрут друга",
+  assist: "MAX AI ассистент",
 };
 
 export function routeTitle(route: Route): string {
@@ -85,7 +85,9 @@ export function routeHasBack(route: Route): boolean {
 // её название и меню, у голосований — название вопроса. Общая шапка стала бы второй.
 // Экраны 24-29 — то же самое: у ленты микро-событий и у друзей своя строка с действием, у карточки
 // микро-события и у маршрута друга — свой заголовок с кнопкой назад.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route"]);
+// План (15) несёт под названием дату, размер компании и бейдж «MAX СОБРАЛ», ассистент (10) — свой
+// градиентный герой: и то и другое не помещается в строку общей шапки.
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "assist"]);
 
 /**
  * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и

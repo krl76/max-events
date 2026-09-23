@@ -309,6 +309,15 @@ const ACTIONS = {
       <path d="M8 10V7a4 4 0 0 1 8 0v3" />
     </>
   ),
+  // Переезд на такси между точками плана (макет, экран 15): кузов с колёсами, а не стрелка метро
+  car: (
+    <>
+      <path d="M3.5 16.5v-3.2l1.8-4.4A2 2 0 0 1 7.2 7.6h9.6a2 2 0 0 1 1.9 1.3l1.8 4.4v3.2" />
+      <path d="M3.5 13.3h17" />
+      <circle cx="7.5" cy="16.8" r="1.7" />
+      <circle cx="16.5" cy="16.8" r="1.7" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type ActionIconName = keyof typeof ACTIONS;

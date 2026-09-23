@@ -84,6 +84,13 @@
 // - VoteScreen - vote plus the poll roster by name, who has already voted and whether the host finished it (макет, экран 33); mock-backed, the votes domain carries none of the three
 // - VoteStatus - open while ballots are taken, closed once the host finished the vote
 // - WeGroupCard - «Мы» group screen plus the agreed budget ceiling and the full photo count (макет, экраны 30 и 31); mock-backed, neither has a column
+// - PlanTransferMode - how the party moves between two points of a plan: walk / metro / taxi (#504)
+// - PlanTransfer - one ride between two points of a plan: mode, minutes and fare (#504, mock)
+// - PlanTimelineStep - one line of макет экран 15: a stop, or the ride to the next one
+// - PlanTimeline - the evening step by step plus the «MAX СОБРАЛ» flag (mock)
+// - SharedCalendarPeer - whom the calendar is shared with and whether they may edit it (mock)
+// - SharedCalendarEntry - one record the peer put into the shared calendar (mock)
+// - SharedCalendar - shared calendar of макет экрана 22: peers, their records and the invite link (mock)
 // END_MODULE_MAP
 
 import type { RecordPageViewWrite } from "@max-events/api-contracts";
@@ -104,8 +111,8 @@ import { ApiTransport } from "./endpoints/transport";
 
 export { REPORT_REASONS } from "./endpoints/moderation";
 export type { OrganizerEvent, OrganizerPlace, StatsPeriodQuery, UpdateOrganizerEvent, UpdateOrganizerPlace } from "./endpoints/organizer";
-export type { CalendarEntry } from "./endpoints/plans";
 export type { CreateGathering, CreateMicroEvent, DiscoveryFriendCard, DiscoveryScreen, FriendRouteScreen, FriendRouteStop, FriendSuggestion, FriendsSync, MicroEventCard, MicroParticipant } from "./endpoints/social";
+export type { CalendarEntry, PlanTimeline, PlanTimelineStep, PlanTransfer, PlanTransferMode, SharedCalendar, SharedCalendarEntry, SharedCalendarPeer } from "./endpoints/plans";
 export { ApiError } from "./endpoints/transport";
 export { EVENT_SORTS, parseEventFilters, serializeEventFilters } from "./endpoints/catalog";
 export type { CatalogCard, EventDetails, EventFilters, EventSort, MapWeather, ParticipationStats, PlaceParticipation, TravelMode, TravelOption } from "./endpoints/catalog";

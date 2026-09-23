@@ -21,6 +21,7 @@
 // - RouteProvider - current route synced with window.history (replaceState seed, popstate listener), back() with home fallback, transition direction + navSeq for screen animations
 // - useRoute - current route + navigate + back + canGoBack + transition + navSeq
 // - Route - ... | vote-new(groupId): создание голосования (макет, экран 32), groupId непустой, когда экран открыт из группы
+// - Route - ... | assist(ask): экран 10 «MAX AI ассистент», ask — вопрос, с которым его открыли (чипы экрана 15)
 // END_MODULE_MAP
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -65,7 +66,9 @@ export type Route =
   | { name: "vote-new"; groupId: string | null }
   | { name: "micro" }
   | { name: "micro-event"; id: string }
-  | { name: "friend-route"; id: string };
+  | { name: "friend-route"; id: string }
+  // Экран 10 «MAX AI ассистент»: ask непустой, когда его открыли чипом уточнения с экрана 15
+  | { name: "assist"; ask: string | null };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -144,6 +147,12 @@ function toRoute(value: unknown): Route | null {
       const { eventId } = value as { eventId?: unknown };
       if (eventId !== null && eventId !== undefined && typeof eventId !== "string") return null;
       return { name, eventId: eventId ?? null };
+    }
+    case "assist": {
+      // Экран 10 can be opened cold or with a question already typed for it («Дешевле», «Без такси»).
+      const { ask } = value as { ask?: unknown };
+      if (ask !== null && ask !== undefined && typeof ask !== "string") return null;
+      return { name, ask: ask ?? null };
     }
     case "after-event":
     case "gathering-new": {

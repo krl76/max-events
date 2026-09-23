@@ -144,6 +144,13 @@
 // - unpublishMockTarget - mock POST /moderation/unpublish
 // - visitedPlacesFor - impressions grid of экран 36: visited places with their visit counts, most visited first
 // - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
+// - mockPlanTimeline - dinner -> ride -> meeting -> event steps of макет экрана 15 (mock GET /plans/:id/timeline; the ride is the #504 gap)
+// - openMockPlanChat - mock POST /plans/:id/chat: issues the chat link P1-7-b will issue
+// - addMockPlanParticipant - mock POST /plans/:id/participants (backend addParticipant parity: host only, friends only, no duplicates)
+// - mockSharedCalendar - mock GET /calendar/shared: the peer records of макет экрана 22
+// - joinMockSharedCalendarEntry - mock POST /calendar/shared/entries/:id/going: «Пойду» on a peer record
+// - addMockSharedCalendarPeer - mock POST /calendar/shared/peers: share the calendar with one more friend
+// - resetMockSharedCalendar - restore the seeded shared calendar (test isolation)
 // END_MODULE_MAP
 
 export { MOCK_PROMO_CODE, MOCK_SANDBOX_FAIL_AMOUNT, MOCK_SINGLE_USE_PROMO_CODE, OFFER_TTL_MS, createMockCheckIn, resetMockBookings, resetMockCheckIns, resetMockPromo, resetMockWaitlist } from "./mock/bookings";
@@ -156,7 +163,7 @@ export { installMockApi } from "./mock/install";
 export { LIST_PRESET_TITLES, SHARED_COLLECTION_TITLE, createMockList, createMockSubscription, listItemCards, listMockSubscriptions, listSummaries, removeMockList, removeMockSubscription, renameMockList, resetMockLists, resetMockSubscriptions } from "./mock/lists";
 export { MOCK_MODERATOR_USER_ID, banMockOrganizer, bannedMockOrganizers, createMockReport, isMockModerator, openMockReports, resetMockReports, resolveMockReport, setMockModerator, unpublishMockTarget } from "./mock/moderation";
 export { MOCK_ORGANIZER_PAID_EVENT_ID, resetMockCampaigns, resetMockOrganizer, resetMockPromoCodes, resetMockPromotions } from "./mock/organizer";
-export { buildMockDayRoute, calendarEntries, cancelMockPlan, createMockAutoPlan, createMockPlan, mockBudgetFromExpenses, mockPlanBudget, mockPlans, optimizeMockDayRoute, planCard, planCards, resetMockPlans } from "./mock/plans";
+export { addMockPlanParticipant, addMockSharedCalendarPeer, buildMockDayRoute, calendarEntries, cancelMockPlan, createMockAutoPlan, createMockPlan, joinMockSharedCalendarEntry, mockBudgetFromExpenses, mockPlanBudget, mockPlanTimeline, mockPlans, mockSharedCalendar, openMockPlanChat, optimizeMockDayRoute, planCard, planCards, resetMockPlans, resetMockSharedCalendar } from "./mock/plans";
 export { DEFAULT_APP_SETTINGS, achievementsFor, afterMePicks, appSettingsFor, myCityFor, profileCountersFor, resetMockAppSettings, resetMockProfiles, tasteProfile, visitedPlacesFor } from "./mock/profile";
 export { mockPromotionPlacements, mockTargetedPromotions } from "./mock/promo";
 export { REVIEW_FACT_TAGS, eventRating, resetMockReviews } from "./mock/reviews";
