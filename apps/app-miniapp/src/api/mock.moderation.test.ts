@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ReportSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { reportOrganizers } from "../moderation/ModerationPage";
 import { bannedMockOrganizers, createMockReport, installMockApi, mockEvents, mockOrganizers, mockPlaces, resetMockReports, setMockModerator } from "./mock";
 
 const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
@@ -60,20 +59,33 @@ describe("mock moderation queue", () => {
     await expect(api.banOrganizer(UNKNOWN_ID)).rejects.toMatchObject({ status: 404 });
   });
 
-  it("resolves the organizer behind an event report, and only while the event is still published", async () => {
+  it("names what every queue row is about, and the author only where the object has one", async () => {
     restore = installMockApi();
     const api = new ApiClient("/api");
-    const onEvent = createMockReport({ userId: DEMO_USER_ID, eventId: mockEvents[0].id, reason: "spam" }) as { id: string };
-    const onPlace = createMockReport({ userId: DEMO_USER_ID, placeId: mockPlaces[0].id, reason: "spam" }) as { id: string };
+    createMockReport({ userId: DEMO_USER_ID, eventId: mockEvents[0].id, reason: "spam" });
+    createMockReport({ userId: DEMO_USER_ID, placeId: mockPlaces[0].id, reason: "spam" });
 
-    const before = await reportOrganizers(await api.listOpenReports(), DEMO_USER_ID);
-    expect(before[onEvent.id]).toBe(mockOrganizers[0].id);
-    // A place report has no event to read an organizer from, so it never offers a ban.
-    expect(before[onPlace.id]).toBeUndefined();
+    const targets = await api.listModerationTargets();
+    expect(targets.find((row) => row.targetId === mockEvents[0].id)).toMatchObject({ title: mockEvents[0].title, organizerId: mockOrganizers[0].id });
+    // A place has no organizer behind it in the fixtures, so its card never offers a ban.
+    expect(targets.find((row) => row.targetId === mockPlaces[0].id)).toMatchObject({ title: mockPlaces[0].title, organizerId: null });
 
     await api.unpublishTarget({ targetType: "event", targetId: mockEvents[0].id });
-    // The reason the lookup happens up front: afterwards the event answers 404 like any hidden one.
-    expect(await reportOrganizers(await api.listOpenReports(), DEMO_USER_ID)).toEqual({});
+    // The разбор screen must still be able to name what it just took down, so a sanction does not blank the row.
+    expect((await api.listModerationTargets()).find((row) => row.targetId === mockEvents[0].id)?.title).toBe(mockEvents[0].title);
+  });
+
+  it("keeps a moderator's own spot check out of the complaint stream", async () => {
+    restore = installMockApi();
+    const api = new ApiClient("/api");
+
+    const check = await api.createSpotCheck({ userId: DEMO_USER_ID, eventId: mockEvents[1].id, reason: "other" });
+    expect(check.source).toBe("spot_check");
+    expect((await api.listOpenReports()).filter((row) => row.source === "user")).toEqual([]);
+
+    setMockModerator(false);
+    await expect(api.createSpotCheck({ userId: DEMO_USER_ID, eventId: mockEvents[2].id, reason: "other" })).rejects.toMatchObject({ status: 403 });
+    await expect(api.listModerationTargets()).rejects.toMatchObject({ status: 403 });
   });
 
   it("hides a reported feed post and micro-event, and puts every fixture back once the sanctions are reset", async () => {

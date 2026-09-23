@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Organizer endpoints of the api client: the event and place panel, the sales and stats reports, the promo surface and the promotion placements the viewer sees.
-// SCOPE: /organizer/events|places, PATCH /events|places/:id, /organizer/events/:id/{sales,stats,campaigns,promotions,promocodes,early-access}, POST /views, the organizer ratings and GET /promotions/{placements,for-me}.
+// PURPOSE: Organizer endpoints of the api client: the event and place panel, the sales and stats reports, the period summary and the event day (attendance, waitlist, check-in), the promo surface and the promotion placements the viewer sees.
+// SCOPE: /organizer/events|places, PATCH /events|places/:id, /organizer/events/:id/{sales,stats,bookings,options,attendance,check-ins,waitlist/invites,campaigns,promotions,promocodes,early-access}, GET /organizer/summary, POST /views, the organizer ratings and GET /promotions/{placements,for-me}.
 // DEPENDS: ./transport.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -12,11 +12,23 @@
 // - UpdateOrganizerPlace - place edit payload (backend PATCH /places/:id validates CreatePlaceSchema.partial())
 // - StatsPeriodQuery - optional from/to window for the organizer reports
 // - statsPeriodQuery - period into a ?from&to query string
-// - withOrganizer - the organizer event/place surface, the sales/stats reports (#196), the organizer ratings (#199), the campaign/promotion/promocode surface (#206, #372) and the promotion placements (#205)
+// - ORGANIZER_TRAFFIC_SOURCES - where a booking came from, in the order экраны 42 и 45 list it
+// - OrganizerTrafficSource - union of the traffic sources
+// - OrganizerTrafficShare - one «Откуда приходят» row: source + its percent
+// - OrganizerSummary - organizer-wide period report of экраны 42 и 45: totals, the weekday histogram, the traffic split (no backend counts attribution yet)
+// - OrganizerRecurrence - «Повторять каждую неделю» of экран 43: the rule and the date the series runs to
+// - OrganizerEventOptions - the four switches экран 43 owns that the Event contract has no field for (waitlist, in-app registration, external link, recurrence)
+// - UpdateOrganizerEventOptions - partial OrganizerEventOptions patch
+// - OrganizerParticipant - one row of «Отметились»/«Ждём» on экран 44: booking, guest, arrival stamp
+// - OrganizerWaitlistEntry - one row of the waitlist tab of экран 44
+// - OrganizerSlot - one venue slot chip of экран 44 (the slots domain does not exist yet, #492)
+// - OrganizerAttendance - the event day of экран 44: counters, participants, waitlist, slots
+// - organizerEntryCode - entry code of a booking: the last six characters of its id, uppercased (no code column exists yet)
+// - withOrganizer - the organizer event/place surface, the sales/stats reports (#196), the period summary and the event day (макет, экраны 42/44/45), the organizer ratings (#199), the campaign/promotion/promocode surface (#206, #372) and the promotion placements (#205)
 // END_MODULE_MAP
 
-import { EarlyAccessWriteSchema, EventSalesReportSchema, EventSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, PlaceSchema, PromoCampaignSchema, PromoCodeSchema, PromotionCampaignSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema } from "@max-events/api-contracts";
-import type { CreateEvent, CreatePlace, CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EarlyAccessWrite, Event, EventSalesReport, OrganizerEventStats, OrganizerRatingResponse, Place, PromoCampaign, PromoCode, PromotionCampaign, PromotionPlacements, RecordPageViewWrite, TargetedPromotionsResponse } from "@max-events/api-contracts";
+import { EarlyAccessWriteSchema, EventSalesReportSchema, EventSchema, OrganizerBookingRowSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, PlaceSchema, PromoCampaignSchema, PromoCodeSchema, PromotionCampaignSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema } from "@max-events/api-contracts";
+import type { CreateEvent, CreatePlace, CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, EarlyAccessWrite, Event, EventSalesReport, OrganizerBookingRow, OrganizerEventStats, OrganizerRatingResponse, Place, PromoCampaign, PromoCode, PromotionCampaign, PromotionPlacements, RecordPageViewWrite, TargetedPromotionsResponse } from "@max-events/api-contracts";
 import type { ApiMixin, ZodSchema } from "./transport";
 
 /** Organizer panel item: the contract entity plus the draft flag. The backend organizer DTO omits `published`, so a missing flag reads as published (drafts are only distinguishable when the payload carries published=false). */
@@ -92,6 +104,207 @@ export interface StatsPeriodQuery {
 export function statsPeriodQuery(period: StatsPeriodQuery): string {
   const parts = [period.from ? `from=${encodeURIComponent(period.from)}` : "", period.to ? `to=${encodeURIComponent(period.to)}` : ""].filter((part) => part !== "");
   return parts.length === 0 ? "" : `?${parts.join("&")}`;
+}
+
+function record(data: unknown): Record<string, unknown> | null {
+  return typeof data === "object" && data !== null ? (data as Record<string, unknown>) : null;
+}
+
+function nullableNumber(value: unknown): boolean {
+  return value === null || typeof value === "number";
+}
+
+function nullableString(value: unknown): boolean {
+  return value === null || typeof value === "string";
+}
+
+/** Rows come back as arrays of one shape; a single item guard is enough to validate the whole list. */
+function arraySchema<T>(item: (raw: Record<string, unknown>) => T | null, what: string): ZodSchema<T[]> {
+  return {
+    safeParse(data: unknown) {
+      if (!Array.isArray(data)) return { success: false as const, error: `expected an array of ${what}` };
+      const rows: T[] = [];
+      for (const entry of data) {
+        const raw = record(entry);
+        const parsed = raw === null ? null : item(raw);
+        if (parsed === null) return { success: false as const, error: `invalid ${what}` };
+        rows.push(parsed);
+      }
+      return { success: true as const, data: rows };
+    },
+  };
+}
+
+/** Where a booking came from (макет, экраны 42 и 45, «Откуда приходят»), in the order the screens list it. */
+export const ORGANIZER_TRAFFIC_SOURCES = ["chats", "feed", "search"] as const;
+export type OrganizerTrafficSource = (typeof ORGANIZER_TRAFFIC_SOURCES)[number];
+
+export interface OrganizerTrafficShare {
+  source: OrganizerTrafficSource;
+  percent: number;
+}
+
+/** Organizer-wide report over a period: the numbers экран 42 puts in its hero and экран 45 in its tiles and charts. */
+export interface OrganizerSummary {
+  bookings: number;
+  /** Change against the previous window of the same length; null when there is no previous window to compare with. */
+  bookingsDeltaPercent: number | null;
+  attendedPercent: number | null;
+  cancelledPercent: number | null;
+  /** Seven booking counts, Monday first — the bars of «Заполнение за неделю» and «Записи по дням». */
+  byWeekday: number[];
+  sources: OrganizerTrafficShare[];
+}
+
+function trafficShare(raw: Record<string, unknown>): OrganizerTrafficShare | null {
+  const source = raw.source;
+  if (typeof source !== "string" || !ORGANIZER_TRAFFIC_SOURCES.includes(source as OrganizerTrafficSource)) return null;
+  if (typeof raw.percent !== "number") return null;
+  return { source: source as OrganizerTrafficSource, percent: raw.percent };
+}
+
+const OrganizerSummarySchema: ZodSchema<OrganizerSummary> = {
+  safeParse(data: unknown) {
+    const raw = record(data);
+    if (raw === null || typeof raw.bookings !== "number" || !nullableNumber(raw.bookingsDeltaPercent) || !nullableNumber(raw.attendedPercent) || !nullableNumber(raw.cancelledPercent)) return { success: false as const, error: "expected an organizer summary" };
+    if (!Array.isArray(raw.byWeekday) || raw.byWeekday.length !== 7 || raw.byWeekday.some((value) => typeof value !== "number")) return { success: false as const, error: "expected seven weekday counters" };
+    if (!Array.isArray(raw.sources)) return { success: false as const, error: "expected traffic sources" };
+    const sources: OrganizerTrafficShare[] = [];
+    for (const entry of raw.sources) {
+      const parsed = record(entry) === null ? null : trafficShare(entry as Record<string, unknown>);
+      if (parsed === null) return { success: false as const, error: "invalid traffic source" };
+      sources.push(parsed);
+    }
+    return { success: true as const, data: { bookings: raw.bookings, bookingsDeltaPercent: raw.bookingsDeltaPercent as number | null, attendedPercent: raw.attendedPercent as number | null, cancelledPercent: raw.cancelledPercent as number | null, byWeekday: raw.byWeekday as number[], sources } };
+  },
+};
+
+/** «Повторять каждую неделю» (макет, экран 43): the only rule the screen offers, plus the date the series runs to. */
+export interface OrganizerRecurrence {
+  rule: "weekly";
+  until: string;
+}
+
+/**
+ * The switches экран 43 carries that the Event contract has no column for. They travel as one sub-resource
+ * rather than as extra event fields, so the day the backend grows them the screen keeps its calls.
+ */
+export interface OrganizerEventOptions {
+  eventId: string;
+  waitlistEnabled: boolean;
+  registrationInApp: boolean;
+  externalUrl: string | null;
+  recurrence: OrganizerRecurrence | null;
+}
+
+export type UpdateOrganizerEventOptions = Partial<Omit<OrganizerEventOptions, "eventId">>;
+
+function recurrence(value: unknown): OrganizerRecurrence | null | "invalid" {
+  if (value === null) return null;
+  const raw = record(value);
+  if (raw === null || raw.rule !== "weekly" || typeof raw.until !== "string") return "invalid";
+  return { rule: "weekly", until: raw.until };
+}
+
+const OrganizerEventOptionsSchema: ZodSchema<OrganizerEventOptions> = {
+  safeParse(data: unknown) {
+    const raw = record(data);
+    if (raw === null || typeof raw.eventId !== "string" || typeof raw.waitlistEnabled !== "boolean" || typeof raw.registrationInApp !== "boolean" || !nullableString(raw.externalUrl)) return { success: false as const, error: "expected organizer event options" };
+    const repeat = recurrence(raw.recurrence);
+    if (repeat === "invalid") return { success: false as const, error: "invalid recurrence" };
+    return { success: true as const, data: { eventId: raw.eventId, waitlistEnabled: raw.waitlistEnabled, registrationInApp: raw.registrationInApp, externalUrl: raw.externalUrl as string | null, recurrence: repeat } };
+  },
+};
+
+/** One «Отметились»/«Ждём» row of экран 44. `guests` counts the companions a booking brings along. */
+export interface OrganizerParticipant {
+  bookingId: string;
+  userId: string;
+  name: string;
+  guests: number;
+  checkedInAt: string | null;
+  bookedAt: string;
+}
+
+export interface OrganizerWaitlistEntry {
+  entryId: string;
+  userId: string;
+  name: string;
+  guests: number;
+  joinedAt: string;
+}
+
+/** One chip of «Слоты площадки». The slots domain does not exist yet (#492), so this rides the event day. */
+export interface OrganizerSlot {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+  busy: boolean;
+}
+
+export interface OrganizerAttendance {
+  eventId: string;
+  capacity: number | null;
+  bookedCount: number;
+  waitlistCount: number;
+  checkedInCount: number;
+  /** Seats cancellations gave back — what «Освободилось N мест» offers to the waitlist. */
+  freedSeats: number;
+  chatMessages: number | null;
+  participants: OrganizerParticipant[];
+  waitlist: OrganizerWaitlistEntry[];
+  slots: OrganizerSlot[];
+}
+
+function participant(raw: Record<string, unknown>): OrganizerParticipant | null {
+  if (typeof raw.bookingId !== "string" || typeof raw.userId !== "string" || typeof raw.name !== "string" || typeof raw.guests !== "number" || !nullableString(raw.checkedInAt) || typeof raw.bookedAt !== "string") return null;
+  return { bookingId: raw.bookingId, userId: raw.userId, name: raw.name, guests: raw.guests, checkedInAt: raw.checkedInAt as string | null, bookedAt: raw.bookedAt };
+}
+
+function waitlistEntry(raw: Record<string, unknown>): OrganizerWaitlistEntry | null {
+  if (typeof raw.entryId !== "string" || typeof raw.userId !== "string" || typeof raw.name !== "string" || typeof raw.guests !== "number" || typeof raw.joinedAt !== "string") return null;
+  return { entryId: raw.entryId, userId: raw.userId, name: raw.name, guests: raw.guests, joinedAt: raw.joinedAt };
+}
+
+function slot(raw: Record<string, unknown>): OrganizerSlot | null {
+  if (typeof raw.id !== "string" || typeof raw.startsAt !== "string" || typeof raw.endsAt !== "string" || typeof raw.busy !== "boolean") return null;
+  return { id: raw.id, startsAt: raw.startsAt, endsAt: raw.endsAt, busy: raw.busy };
+}
+
+const OrganizerParticipantSchema: ZodSchema<OrganizerParticipant> = {
+  safeParse(data: unknown) {
+    const raw = record(data);
+    const parsed = raw === null ? null : participant(raw);
+    return parsed === null ? { success: false as const, error: "expected an organizer participant" } : { success: true as const, data: parsed };
+  },
+};
+
+const OrganizerAttendanceSchema: ZodSchema<OrganizerAttendance> = {
+  safeParse(data: unknown) {
+    const raw = record(data);
+    if (raw === null || typeof raw.eventId !== "string" || !nullableNumber(raw.capacity) || typeof raw.bookedCount !== "number" || typeof raw.waitlistCount !== "number" || typeof raw.checkedInCount !== "number" || typeof raw.freedSeats !== "number" || !nullableNumber(raw.chatMessages)) return { success: false as const, error: "expected an organizer attendance payload" };
+    const participants = arraySchema(participant, "participants").safeParse(raw.participants);
+    const waitlist = arraySchema(waitlistEntry, "waitlist entries").safeParse(raw.waitlist);
+    const slots = arraySchema(slot, "slots").safeParse(raw.slots);
+    if (!participants.success || !waitlist.success || !slots.success) return { success: false as const, error: "invalid organizer attendance rows" };
+    return { success: true as const, data: { eventId: raw.eventId, capacity: raw.capacity as number | null, bookedCount: raw.bookedCount, waitlistCount: raw.waitlistCount, checkedInCount: raw.checkedInCount, freedSeats: raw.freedSeats, chatMessages: raw.chatMessages as number | null, participants: participants.data, waitlist: waitlist.data, slots: slots.data } };
+  },
+};
+
+const WaitlistInviteResultSchema: ZodSchema<{ invited: number }> = {
+  safeParse(data: unknown) {
+    const raw = record(data);
+    if (raw === null || typeof raw.invited !== "number") return { success: false as const, error: "expected a waitlist invite result" };
+    return { success: true as const, data: { invited: raw.invited } };
+  },
+};
+
+/**
+ * The entry code a guest shows at the door. Bookings carry no code column yet, so the code is derived
+ * from the booking id — the same derivation on both sides, so the scanner and the ticket always agree.
+ */
+export function organizerEntryCode(bookingId: string): string {
+  return bookingId.replace(/-/g, "").slice(-6).toUpperCase();
 }
 
 export function withOrganizer<TBase extends ApiMixin>(Base: TBase) {
@@ -190,6 +403,37 @@ export function withOrganizer<TBase extends ApiMixin>(Base: TBase) {
 
     setOrganizerEarlyAccess(eventId: string, bookingOpensAt: string): Promise<EarlyAccessWrite> {
       return this.request(`/organizer/events/${eventId}/early-access`, EarlyAccessWriteSchema, { body: { bookingOpensAt } });
+    }
+
+    /** Backend OrganizerController.listBookings: who booked this event, with the promo code each used. */
+    listOrganizerBookings(eventId: string): Promise<OrganizerBookingRow[]> {
+      return this.request(`/organizer/events/${eventId}/bookings`, OrganizerBookingRowSchema.array());
+    }
+
+    getOrganizerSummary(period: StatsPeriodQuery = {}): Promise<OrganizerSummary> {
+      return this.request(`/organizer/summary${statsPeriodQuery(period)}`, OrganizerSummarySchema);
+    }
+
+    getOrganizerEventOptions(eventId: string): Promise<OrganizerEventOptions> {
+      return this.request(`/organizer/events/${eventId}/options`, OrganizerEventOptionsSchema);
+    }
+
+    updateOrganizerEventOptions(eventId: string, patch: UpdateOrganizerEventOptions): Promise<OrganizerEventOptions> {
+      return this.request(`/organizer/events/${eventId}/options`, OrganizerEventOptionsSchema, { method: "PATCH", body: patch });
+    }
+
+    getOrganizerAttendance(eventId: string): Promise<OrganizerAttendance> {
+      return this.request(`/organizer/events/${eventId}/attendance`, OrganizerAttendanceSchema);
+    }
+
+    /** Mark a guest as arrived by the code on their ticket (макет, экран 44, «Сканировать код»). */
+    checkInOrganizerGuest(eventId: string, code: string): Promise<OrganizerParticipant> {
+      return this.request(`/organizer/events/${eventId}/check-ins`, OrganizerParticipantSchema, { body: { code } });
+    }
+
+    /** Offer the freed seats to the first `count` people on the waitlist (макет, экран 44). */
+    inviteFromOrganizerWaitlist(eventId: string, count: number): Promise<{ invited: number }> {
+      return this.request(`/organizer/events/${eventId}/waitlist/invites`, WaitlistInviteResultSchema, { body: { count } });
     }
   };
 }

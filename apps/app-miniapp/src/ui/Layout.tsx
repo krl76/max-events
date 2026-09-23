@@ -64,7 +64,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   "we-groups": "Группы «Мы»",
   "we-group": "Группа «Мы»",
   vote: "Голосование",
-  moderation: "Жалобы",
+  moderation: "Модерация",
   "vote-new": "Новое голосование",
   micro: "Микро-события",
   "micro-event": "Микро-событие",
@@ -91,7 +91,7 @@ export function routeHasBack(route: Route): boolean {
 // микро-события и у маршрута друга — свой заголовок с кнопкой назад.
 // План (15) несёт под названием дату, размер компании и бейдж «MAX СОБРАЛ», ассистент (10) — свой
 // градиентный герой: и то и другое не помещается в строку общей шапки.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list", "bookings", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "assist"]);
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list", "bookings", "moderation", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "assist"]);
 
 /**
  * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и

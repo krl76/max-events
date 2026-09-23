@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock route table for the organizer space: the event and place panel, the sales/stats reports, the organizer ratings, the promo surface and the page-view counter.
-// SCOPE: PATCH /api/events|places/:id, /api/organizer/events|places[/:id/publish], POST /api/views, /api/organizer/events/:id/{stats,sales,campaigns,promotions,promocodes,early-access}, /api/events/:id/organizer-rating, /api/organizers/:id/rating.
-// DEPENDS: ./organizer.js, ./fixtures.js, @max-events/api-contracts
+// PURPOSE: Mock route table for the organizer space: the event and place panel, the sales/stats reports, the period summary, the event day (options, attendance, check-in, waitlist offers), the organizer ratings, the promo surface and the page-view counter.
+// SCOPE: PATCH /api/events|places/:id, /api/organizer/events|places[/:id/publish], POST /api/views, GET /api/organizer/summary, /api/organizer/events/:id/{stats,sales,bookings,options,attendance,check-ins,waitlist/invites,campaigns,promotions,promocodes,early-access}, /api/events/:id/organizer-rating, /api/organizers/:id/rating.
+// DEPENDS: ./organizer.js, ./bookings.js, ./fixtures.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -10,10 +10,47 @@
 // END_MODULE_MAP
 
 import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, IdSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
+import { mockBookings } from "./bookings";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
-import { createMockCampaign, createMockOrganizerEvent, createMockOrganizerPlace, createMockPromoCode, createMockPromotion, listMockCampaigns, listMockPromoCodes, listMockPromotions, mockEventOrganizerRating, mockEventSalesReport, mockOrganizerEventStats, mockOrganizerRating, mockStatsPeriod, organizerEvents, organizerPlaces, payMockPromotion, publishMockOrganizerEvent, publishMockOrganizerPlace, recordMockPageView, setMockEarlyAccess, updateMockOrganizerEvent, updateMockOrganizerPlace } from "./organizer";
+import { checkInMockOrganizerGuest, createMockCampaign, createMockOrganizerEvent, createMockOrganizerPlace, createMockPromoCode, createMockPromotion, inviteMockOrganizerWaitlist, listMockCampaigns, listMockPromoCodes, listMockPromotions, mockEventOrganizerRating, mockEventSalesReport, mockOrganizerAttendance, mockOrganizerEventOptions, mockOrganizerEventStats, mockOrganizerRating, mockOrganizerSummary, mockStatsPeriod, organizerEvents, organizerPlaces, payMockPromotion, publishMockOrganizerEvent, publishMockOrganizerPlace, recordMockPageView, setMockEarlyAccess, updateMockOrganizerEvent, updateMockOrganizerEventOptions, updateMockOrganizerPlace } from "./organizer";
 
 export function organizerRoutes(url: URL, init: RequestInit | undefined): Response | null {
+  if (url.pathname === "/api/organizer/summary") {
+    const period = mockStatsPeriod(url);
+    return period === null ? new Response(null, { status: 400 }) : Response.json(mockOrganizerSummary(period));
+  }
+  const organizerEventOptions = /^\/api\/organizer\/events\/([^/]+)\/options$/.exec(url.pathname);
+  if (organizerEventOptions) {
+    const result = init?.method === "PATCH" ? updateMockOrganizerEventOptions(organizerEventOptions[1], parseBookingBody(init) ?? {}) : mockOrganizerEventOptions(organizerEventOptions[1]);
+    return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
+  }
+  const organizerAttendance = /^\/api\/organizer\/events\/([^/]+)\/attendance$/.exec(url.pathname);
+  if (organizerAttendance) {
+    const result = mockOrganizerAttendance(organizerAttendance[1]);
+    return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
+  }
+  const organizerCheckIn = /^\/api\/organizer\/events\/([^/]+)\/check-ins$/.exec(url.pathname);
+  if (organizerCheckIn && init?.method === "POST") {
+    const body = parseBookingBody(init) as { code?: unknown } | undefined;
+    if (typeof body?.code !== "string") return new Response(null, { status: 400 });
+    const result = checkInMockOrganizerGuest(organizerCheckIn[1], body.code);
+    return result === null || result === "no_guest" ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
+  }
+  const organizerWaitlistInvites = /^\/api\/organizer\/events\/([^/]+)\/waitlist\/invites$/.exec(url.pathname);
+  if (organizerWaitlistInvites && init?.method === "POST") {
+    const body = parseBookingBody(init) as { count?: unknown } | undefined;
+    if (typeof body?.count !== "number") return new Response(null, { status: 400 });
+    const result = inviteMockOrganizerWaitlist(organizerWaitlistInvites[1], body.count);
+    return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
+  }
+  const organizerBookings = /^\/api\/organizer\/events\/([^/]+)\/bookings$/.exec(url.pathname);
+  if (organizerBookings && init?.method !== "POST") {
+    const attendance = mockOrganizerAttendance(organizerBookings[1]);
+    if (attendance === null) return new Response(null, { status: 404 });
+    if (attendance === "forbidden") return new Response(null, { status: 403 });
+    // Backend PromoService.listBookings parity: the booking rows themselves, with the promo code each used.
+    return Response.json(mockBookings.filter((booking) => booking.eventId === organizerBookings[1]).map((booking) => ({ id: booking.id, userId: booking.userId, eventId: booking.eventId, status: booking.status, promoCode: null, createdAt: booking.createdAt })));
+  }
   const eventPatch = /^\/api\/events\/([^/]+)$/.exec(url.pathname);
   if (eventPatch && init?.method === "PATCH") {
     const result = updateMockOrganizerEvent(eventPatch[1], parseBookingBody(init) ?? {});
