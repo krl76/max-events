@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { DiscoveryResponseSchema, FriendRouteSchema, PeopleResponseSchema } from "@max-events/api-contracts";
+import { DiscoveryResponseSchema, FriendPlaceVisitSchema, FriendRouteSchema, PeopleResponseSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { createMockCheckIn, discoverySummary, friendRoute, installMockApi, mockDemoUser, mockEvents, mockFriendIds, mockPlaces, peopleSuggest, resetMockCheckIns } from "./mock";
+import { createMockCheckIn, discoverySummary, friendPlaceLayer, friendRoute, installMockApi, mockDemoUser, mockEvents, mockFriendIds, mockPlaces, peopleSuggest, resetMockCheckIns } from "./mock";
 
 const DEMO_USER_ID = mockDemoUser.id;
 const UNKNOWN_UUID = "00000000-0000-4000-8000-000000000000";
@@ -60,6 +60,42 @@ describe("friendRoute mock", () => {
     expect(friendRoute(DEMO_USER_ID)).toBe("own");
     expect(friendRoute(UNKNOWN_UUID)).toBe("not_friend");
     expect(friendRoute(LENA)).toBe("hidden");
+  });
+});
+
+describe("friendPlaceLayer mock", () => {
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+    resetMockCheckIns();
+  });
+
+  it("serves every place friends were at, newest visit first, through the contract", async () => {
+    restore = installMockApi();
+    const layer = await new ApiClient("/api").listFriendPlaces();
+
+    expect(layer.every((row) => FriendPlaceVisitSchema.safeParse(row).success)).toBe(true);
+    expect(layer.map((row) => row.place.id)).toEqual([DEPO, GMII, mockPlaces[2].id, VERANDA]);
+    // One marker per place, with everyone who was there behind it.
+    expect(layer.find((row) => row.place.id === DEPO)!.friends.map((friend) => friend.id)).toEqual([ANNA, DIMA, IGOR]);
+    expect(layer.every((row) => row.friends.length > 0)).toBe(true);
+  });
+
+  it("keeps a place the demo user has already visited, unlike reverse discovery", () => {
+    createMockCheckIn(DEMO_USER_ID, { placeId: DEPO });
+
+    // The summary drops what the viewer has already seen; the map layer is about company, not novelty.
+    expect(discoverySummary().byFriend.flatMap((entry) => entry.places.map((place) => place.id))).not.toContain(DEPO);
+    expect(friendPlaceLayer().map((row) => row.place.id)).toContain(DEPO);
+  });
+
+  it("leaves out a friend who hid her routes, the way the summary withholds her places", () => {
+    // Лена is the only visitor of the park, and she hid her routes: the layer has no marker there at all.
+    expect(discoverySummary().byFriend.find((entry) => entry.friend.id === LENA)!.places).toEqual([]);
+    expect(friendPlaceLayer().some((row) => row.place.id === PARK)).toBe(false);
+    expect(friendPlaceLayer().flatMap((row) => row.friends.map((friend) => friend.id))).not.toContain(LENA);
   });
 });
 

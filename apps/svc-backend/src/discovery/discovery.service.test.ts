@@ -84,3 +84,25 @@ describe("DiscoveryService", () => {
     await expect(service.route(me, anna)).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
+
+describe("DiscoveryService.friendPlaces", () => {
+  it("keeps the places the viewer has been to as well, because the layer is about company", async () => {
+    const { service } = createService();
+    const layer = await service.friendPlaces(me);
+
+    // The park is where both of them checked in; the summary hides it, the map layer must not.
+    expect(layer.map((row) => row.place.title)).toEqual(["Музей", "Парк"]);
+    expect(layer.every((row) => row.friends.map((friend) => friend.name).includes("Анна"))).toBe(true);
+    expect(layer.every((row) => row.lastVisitAt === now.toISOString())).toBe(true);
+  });
+
+  it("drops a friend who hid either their visit history or their routes", async () => {
+    expect(await createService({ hidden: true }).service.friendPlaces(me)).toEqual([]);
+    // A marker says where a friend has been — exactly what summary() withholds when routes are hidden.
+    expect(await createService({ routesHidden: true }).service.friendPlaces(me)).toEqual([]);
+  });
+
+  it("never points at a place that is no longer published", async () => {
+    expect((await createService({ unpublishedMuseum: true }).service.friendPlaces(me)).map((row) => row.place.title)).toEqual(["Парк"]);
+  });
+});

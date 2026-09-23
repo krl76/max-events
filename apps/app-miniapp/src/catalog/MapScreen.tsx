@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Catalog map view: Leaflet map with OSM tiles, event/place markers and popup mini-cards with navigation to the event and place pages.
-// SCOPE: Places fetched via apiClient.listPlaces; Leaflet loaded lazily (dynamic import) so it stays out of the main bundle; map is disposed on unmount or data change.
-// DEPENDS: leaflet (dynamic import + css), ../api/client.js (apiClient), ./mapMarkers.js (buildMapMarkers, MapMarker)
+// PURPOSE: Catalog map view: Leaflet map with OSM tiles, event/place markers, the optional «друзья были здесь» layer, and popup mini-cards with navigation to the event and place pages.
+// SCOPE: Places fetched via apiClient.listPlaces; the friends layer is fetched only when it is switched on, and a failure switches it back off instead of breaking the map; Leaflet loaded lazily (dynamic import) so it stays out of the main bundle; map is disposed on unmount or data change.
+// DEPENDS: leaflet (dynamic import + css), ../api/client.js (apiClient), ./mapMarkers.js (buildMapMarkers, MapMarker), ../ui/primitives.js (AppChip, AppState)
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -9,17 +9,17 @@
 // - MOSCOW_CENTER - fixed Moscow city center coords (shared with the nearby screen)
 // - MOSCOW_ZOOM - shared Leaflet initial zoom (imported by the MyCity map)
 // - OSM_TILE_URL - shared OpenStreetMap tile URL (imported by the MyCity map)
-// - initEventMap - create Leaflet map (Moscow center) + OSM tile layer without the attribution bar + markers with popup mini-cards (promoted events get the highlighted pin and the «Промо» chip, #205); returns a dispose function
-// - MapScreen - places loading state + container ref; wires initEventMap to the React lifecycle via useLeafletMap
+// - initEventMap - create Leaflet map (Moscow center) + OSM tile layer without the attribution bar + markers with popup mini-cards (promoted events get the highlighted pin and the «Промо» chip, #205; the friends layer gets its own pin and a «Были: …» subtitle, #472); returns a dispose function
+// - MapScreen - places loading state, the friends-layer toggle and container ref; wires initEventMap to the React lifecycle via useLeafletMap
 // END_MODULE_MAP
 
-import { useEffect, useState } from "react";
-import type { Event, Place } from "@max-events/api-contracts";
+import { useEffect, useMemo, useState } from "react";
+import type { Event, FriendPlaceVisit, Place } from "@max-events/api-contracts";
 import "leaflet/dist/leaflet.css";
 import { apiClient } from "../api/client";
 import { buildMapMarkers, type MapMarker } from "./mapMarkers";
 import { useLeafletMap } from "./useLeafletMap";
-import { AppState } from "../ui/primitives";
+import { AppChip, AppState } from "../ui/primitives";
 
 /** Fixtures and P0 scope are Moscow-only, so the map opens on the city center; also the anchor point of the nearby screen. */
 export const MOSCOW_CENTER: [number, number] = [55.7522, 37.6156];
@@ -62,22 +62,26 @@ function popupNode(marker: MapMarker, onOpenEvent: (id: string) => void, onOpenP
   return root;
 }
 
-export async function initEventMap(container: HTMLElement, input: { events: Event[]; places: Place[]; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void }): Promise<() => void> {
+export async function initEventMap(container: HTMLElement, input: { events: Event[]; places: Place[]; friendVisits?: FriendPlaceVisit[]; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void }): Promise<() => void> {
   const L = await import("leaflet");
   const map = L.map(container, { center: MOSCOW_CENTER, zoom: MOSCOW_ZOOM, attributionControl: false });
   L.tileLayer(OSM_TILE_URL, { maxZoom: 19 }).addTo(map);
-  for (const marker of buildMapMarkers(input.events, input.places)) {
-    L.marker([marker.lat, marker.lng], { icon: L.divIcon({ className: marker.promoted ? "app-map-pin app-map-pin--promo" : "app-map-pin", iconSize: [18, 18] }) })
+  for (const marker of buildMapMarkers(input.events, input.places, input.friendVisits ?? [])) {
+    L.marker([marker.lat, marker.lng], { icon: L.divIcon({ className: `app-map-pin${marker.promoted ? " app-map-pin--promo" : ""}${marker.friends ? " app-map-pin--friends" : ""}`, iconSize: [18, 18] }) })
       .addTo(map)
       .bindPopup(popupNode(marker, input.onOpenEvent, input.onOpenPlace));
   }
   return () => map.remove();
 }
 
+const EMPTY_VISITS: FriendPlaceVisit[] = [];
+
 type PlacesState = { status: "loading" } | { status: "error" } | { status: "ready"; places: Place[] };
 
 export function MapScreen({ events, onOpenEvent, onOpenPlace }: { events: Event[]; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void }) {
   const [places, setPlaces] = useState<PlacesState>({ status: "loading" });
+  const [friendsLayer, setFriendsLayer] = useState(false);
+  const [friendVisits, setFriendVisits] = useState<FriendPlaceVisit[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -94,10 +98,38 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace }: { events: Event[
     };
   }, []);
 
+  useEffect(() => {
+    if (!friendsLayer) return;
+    let alive = true;
+    apiClient.listFriendPlaces().then(
+      (visits) => {
+        if (alive) setFriendVisits(visits);
+      },
+      () => {
+        // The layer is an extra, not the map: a failed load turns it back off rather than taking the screen down.
+        if (alive) setFriendsLayer(false);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [friendsLayer]);
+
   const readyPlaces = places.status === "ready" ? places.places : [];
-  const containerRef = useLeafletMap(places.status === "ready", (container) => initEventMap(container, { events, places: readyPlaces, onOpenEvent, onOpenPlace }), [events, places, onOpenEvent, onOpenPlace]);
+  // A fresh [] on every render would land in the map's dependency list and rebuild Leaflet each time.
+  const visits = useMemo(() => (friendsLayer ? friendVisits : EMPTY_VISITS), [friendsLayer, friendVisits]);
+  const containerRef = useLeafletMap(places.status === "ready", (container) => initEventMap(container, { events, places: readyPlaces, friendVisits: visits, onOpenEvent, onOpenPlace }), [events, places, visits, onOpenEvent, onOpenPlace]);
 
   if (places.status === "loading") return <AppState>Загружаем карту…</AppState>;
   if (places.status === "error") return <AppState error>Не удалось загрузить места для карты.</AppState>;
-  return <div ref={containerRef} className="app-map" aria-label="Карта событий и мест" />;
+  return (
+    <div className="app-map-wrap">
+      <div className="app-map-layers">
+        <AppChip pressed={friendsLayer} onClick={() => setFriendsLayer((current) => !current)}>
+          Друзья были здесь
+        </AppChip>
+      </div>
+      <div ref={containerRef} className="app-map" aria-label="Карта событий и мест" />
+    </div>
+  );
 }
