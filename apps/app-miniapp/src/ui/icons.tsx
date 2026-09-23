@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - TabIcon - union of the tabbar icon names: the user bar (feed/search/create/plans/profile) plus map and the organizer bar (dashboard/events/create/promo/profile)
 // - TabIconGlyph - inline stroke SVG for a tabbar icon, filled variant for the active tab
-// - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron/star/alert/search/settings/bell/check/plus/building)
+// - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron/star/alert/search/settings/bell/check/plus/building/tag/close)
 // - ActionIcon - inline stroke SVG by ActionIconName; filled=true fills the glyph (liked heart, saved bookmark, active tab)
 // END_MODULE_MAP
 
@@ -89,7 +89,7 @@ export function TabIconGlyph({ name, size = 24, filled = false }: { name: TabIco
   return <Glyph paths={filled ? (FILLED[name] ?? OUTLINE[name]) : OUTLINE[name]} size={size} filled={filled} />;
 }
 
-export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings" | "bell" | "check" | "plus" | "building";
+export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings" | "bell" | "check" | "plus" | "building" | "tag" | "close";
 
 const ACTIONS: Record<ActionIconName, ReactNode> = {
   heart: <path d="M12 20.3S3.4 15.4 3.4 9.6a4.6 4.6 0 0 1 8.6-2.3A4.6 4.6 0 0 1 20.6 9.6c0 5.8-8.6 10.7-8.6 10.7Z" />,
@@ -152,6 +152,15 @@ const ACTIONS: Record<ActionIconName, ReactNode> = {
       <path d="M9 21v-6h6v6" />
     </>
   ),
+  // Интерес как цель подписки (макет, экран 38): ярлык с отверстием, а не ещё один кружок
+  tag: (
+    <>
+      <path d="M4 12V5a1 1 0 0 1 1-1h7l8 8-8 8Z" />
+      <circle cx="8.5" cy="8.5" r="1.4" />
+    </>
+  ),
+  // Убрать элемент из списка (макет, экран 39)
+  close: <path d="M6 6l12 12M18 6L6 18" />,
   settings: (
     <>
       <circle cx="12" cy="12" r="3.2" />

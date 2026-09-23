@@ -31,6 +31,13 @@ describe("preset list fixtures", () => {
     expect(ListItemSchema.safeParse(cards[0].item).success).toBe(true);
   });
 
+  it("seed lists of the demo user's own beside the presets, each with items of its own", () => {
+    const own = listSummaries(DEMO_USER_ID, null).filter((summary) => summary.list.preset === null && summary.participants.length === 0);
+
+    expect(own.map((summary) => summary.list.title)).toEqual(["Джаз по четвергам", "Летний список"]);
+    expect(own.every((summary) => summary.itemsCount > 0)).toBe(true);
+  });
+
   it("report no saved item for an event that is not in any list", () => {
     const summaries = listSummaries(DEMO_USER_ID, mockEvents[2].id);
 

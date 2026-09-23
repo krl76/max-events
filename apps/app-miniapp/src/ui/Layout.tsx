@@ -12,7 +12,7 @@
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
 // - routeTitle - header title for the current route
 // - routeHasBack - back button shown on every non-tab route, the map included
-// - routeHasHeader - header hidden on the search/plans/profile tab screens (profile renders its own Instagram-style topbar)
+// - routeHasHeader - header hidden where the screen draws its own topbar: the search/plans/profile tabs and the two list screens (макет, экраны 37 и 39)
 // END_MODULE_MAP
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -24,7 +24,7 @@ export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string)
   { icon: "feed", label: "Лента", route: "home", active: (name) => name === "home" },
   { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" || name === "map" },
   { icon: "create", label: "Создать", route: "create", active: (name) => name === "create" || name === "story-new" || name === "feed-new" || name === "micro-new" || name === "plan-new" },
-  { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "list" },
+  { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "lists" || name === "list" },
   { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "friends" || name === "subscriptions" },
 ];
 
@@ -50,6 +50,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   plan: "План",
   "plan-new": "Свой план",
   "day-route": "Маршрут на день",
+  lists: "Списки",
   list: "Список",
   achievements: "Достижения",
   "micro-new": "Новое микро-событие",
@@ -71,7 +72,9 @@ export function routeHasBack(route: Route): boolean {
 }
 
 // The map keeps its header: since it stopped being a tab it is reached from Поиск, and a pushed screen needs its back button.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "plans", "profile"]);
+// «Списки» and one list draw their own topbar instead (макет, экраны 37 и 39): the first carries the «Создать» pill
+// beside its title, the second the list title itself, and neither fits the one-title shell header.
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "plans", "profile", "lists", "list"]);
 
 export function routeHasHeader(route: Route): boolean {
   return !HEADERLESS_ROUTES.has(route.name);

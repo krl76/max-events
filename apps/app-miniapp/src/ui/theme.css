@@ -3904,3 +3904,574 @@ html[data-theme="dark"] body {
   margin: 0 0 var(--app-space-s);
   text-align: center;
 }
+
+/* --- Экран 37 «Списки», экран 38 «Подписки», экран 39 «Один список» --- */
+
+/* Оболочка шапку этим экранам не рисует (routeHasHeader): экран 37 держит рядом с заголовком
+ * кнопку «Создать», экран 39 — название самого списка, и ни то ни другое в общую шапку не влезает. */
+.app-lists-screen,
+.app-list-screen,
+.app-subs {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-lists-bar {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+  padding: var(--app-space-m) 0 var(--app-space-xs);
+}
+
+.app-lists-bar-title {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+/* Единственная синяя заливка экрана: первичное действие «Создать» */
+.app-lists-create {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+}
+
+.app-lists-create:hover:not(:disabled),
+.app-lists-create:active:not(:disabled) {
+  background: var(--app-accent-press);
+}
+
+.app-lists-create:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Заголовок группы: «ГОТОВЫЕ ПОЛКИ» слева, счётчик «3 из 20» справа */
+.app-lists-head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--app-space-s);
+  justify-content: space-between;
+  margin-top: var(--app-space-xl);
+}
+
+.app-lists-head-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.app-lists-head-count {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.app-lists-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 10px;
+}
+
+.app-lists-tile {
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  box-sizing: border-box;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  padding: 14px;
+  text-align: left;
+  transition: transform 0.16s ease-out;
+}
+
+.app-lists-tile:hover {
+  transform: translateY(-1px);
+}
+
+.app-lists-tile-top {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  min-height: 36px;
+}
+
+/* Готовую полку от своего списка отличает марка, а не другая карточка: полка — нейтральная
+ * поверхность, свой список — фирменный градиент. Всё остальное в плитке одинаковое. */
+.app-lists-tile-mark {
+  align-items: center;
+  background: rgba(var(--app-scheme-neutral), 0.06);
+  border-radius: 10px;
+  color: var(--app-text);
+  display: flex;
+  flex: none;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.app-lists-tile-mark--own {
+  background: linear-gradient(135deg, var(--brand-violet), var(--brand-cyan));
+  color: var(--brand-white);
+}
+
+.app-lists-tile-title {
+  font-size: var(--app-type-card-size);
+  font-weight: 800;
+  line-height: 1.2;
+  margin-top: var(--app-space-m);
+}
+
+.app-lists-tile-count {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+/* Стек участников: кольцо каждой аватарки — цвет холста, поэтому он работает в обеих схемах */
+.app-lists-faces {
+  display: flex;
+  flex: none;
+}
+
+.app-lists-face {
+  align-items: center;
+  background: linear-gradient(135deg, var(--brand-violet), var(--brand-cyan));
+  border: 2px solid var(--app-canvas);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: 9px;
+  font-weight: 800;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+
+.app-lists-face--alt {
+  background: var(--app-media-gradient-5);
+  margin-left: -6px;
+}
+
+.app-lists-faces--l .app-lists-face {
+  font-size: var(--app-font-size-caption);
+  height: 32px;
+  width: 32px;
+}
+
+.app-lists-faces--l .app-lists-face--alt {
+  margin-left: -8px;
+}
+
+/* Пунктирная плитка «Новый список»: то же действие, что и «Создать» в шапке */
+.app-lists-new {
+  align-items: center;
+  background: none;
+  border: 1px dashed rgba(var(--app-scheme-neutral), 0.2);
+  border-radius: var(--app-radius-card);
+  box-sizing: border-box;
+  color: var(--app-accent-text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  justify-content: center;
+  min-height: 118px;
+  padding: 14px;
+}
+
+.app-lists-new:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Название нового списка вводится строкой: в макете формы нет, а имя списку нужно */
+.app-lists-form {
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
+  padding: var(--app-space-l);
+}
+
+.app-lists-form-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+}
+
+.app-lists-form-input {
+  background: var(--app-surface);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-media);
+  box-sizing: border-box;
+  color: var(--app-text);
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  padding: var(--app-space-m);
+  width: 100%;
+}
+
+.app-lists-form-actions {
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+/* Экран 39: своя шапка — назад, название списка, отправка в чат */
+.app-list-bar {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  padding: var(--app-space-m) 0 var(--app-space-xs);
+}
+
+.app-list-bar-round {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+.app-list-bar-round:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Шеврон нарисован вправо; кнопка назад разворачивает его */
+.app-list-bar-round--back svg {
+  transform: rotate(180deg);
+}
+
+.app-list-bar-title {
+  flex: 1;
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-list-meta {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  padding-top: var(--app-space-m);
+}
+
+.app-list-meta-text {
+  color: var(--app-text-secondary);
+  flex: 1;
+  font-size: var(--app-font-size-description);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.app-list-add {
+  align-items: center;
+  background: rgba(var(--app-scheme-neutral), 0.06);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 36px;
+  padding: 0 14px;
+}
+
+.app-list-items {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--app-space-s);
+}
+
+.app-list-item {
+  align-items: center;
+  border-bottom: 1px solid rgba(var(--app-scheme-neutral), 0.08);
+  display: flex;
+  gap: var(--app-space-m);
+}
+
+.app-list-item-open {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  gap: var(--app-space-m);
+  min-width: 0;
+  padding: 14px 0;
+  text-align: left;
+}
+
+/* Фон плашки даёт категория события (.app-media--*), поэтому здесь только её форма */
+.app-list-item-media {
+  border-radius: 14px;
+  flex: none;
+  height: 52px;
+  width: 52px;
+}
+
+.app-list-item-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-list-item-title {
+  font-size: var(--app-type-card-size);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.app-list-item-meta {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.app-list-item-author {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  margin-top: 3px;
+}
+
+.app-list-item-drop {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: 10px;
+  box-sizing: border-box;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
+  width: 36px;
+}
+
+/* Низ экрана 39: две кнопки в ритме карточки, а не пилюли. Форма несёт смысл — обводка у
+ * необратимого действия, тёмная заливка у подтверждения; пурпурная заливка осталась бейджем. */
+.app-list-footer {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: 18px;
+}
+
+/* Нативная кнопка, а не ion-button: с атрибутом color Ionic кладёт заливку в теневой DOM
+ * (:host(.ion-color) .button-native), и «Удалить» получает ту самую залитую пурпурную пилюлю,
+ * которая в системе закреплена за бейджем. Форму держим сами. */
+.app-list-foot-btn {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: 14px;
+  box-sizing: border-box;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 48px;
+  justify-content: center;
+}
+
+.app-list-foot-btn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Необратимое действие: обводка на прозрачном фоне, подпись приглушена */
+.app-list-foot-btn--danger {
+  color: var(--app-text-secondary);
+}
+
+/* Финальное подтверждение: тёмная заливка — третья форма, ни бейдж, ни акцент */
+.app-list-foot-btn--confirm {
+  background: var(--app-confirm);
+  border-color: var(--app-confirm);
+  color: var(--app-confirm-contrast);
+}
+
+/* Экран 38: фильтры типов, группы со счётчиками, строка подписки */
+.app-subs-filters {
+  display: flex;
+  gap: var(--app-space-s);
+  margin: var(--app-space-m) calc(-1 * var(--app-space-screen)) 0;
+  overflow-x: auto;
+  padding: 0 var(--app-space-screen);
+  scrollbar-width: none;
+}
+
+.app-subs-filters .app-chip {
+  flex: none;
+  font-weight: 700;
+  padding: 9px 14px;
+}
+
+.app-subs-filters .app-chip--on {
+  font-weight: 800;
+}
+
+.app-subs-group {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  margin: 22px 0 0;
+  text-transform: uppercase;
+}
+
+.app-subs-row {
+  align-items: center;
+  border-bottom: 1px solid rgba(var(--app-scheme-neutral), 0.08);
+  display: flex;
+  gap: var(--app-space-m);
+}
+
+.app-subs-target {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  display: flex;
+  flex: 1;
+  font: inherit;
+  gap: var(--app-space-m);
+  min-width: 0;
+  padding: 14px 0;
+  text-align: left;
+}
+
+.app-subs-target--link {
+  cursor: pointer;
+}
+
+/* Глиф по смыслу цели: дом, пин, ярлык — а не три одинаковых кружка */
+.app-subs-mark {
+  align-items: center;
+  border-radius: var(--app-radius-media);
+  box-sizing: border-box;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.app-subs-mark--organizer {
+  background-image: var(--app-media-veil), var(--app-gradient-dark);
+}
+
+.app-subs-mark--place {
+  background: var(--app-media-gradient-5);
+}
+
+/* Интерес — не организация и не точка на карте: плоская поверхность и глиф цветом текста */
+.app-subs-mark--interest {
+  background: rgba(var(--app-scheme-neutral), 0.06);
+  color: var(--app-text);
+}
+
+.app-subs-title {
+  flex: 1;
+  font-size: var(--app-type-card-size);
+  font-weight: 800;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-subs-off {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 36px;
+  padding: 0 14px;
+}
+
+.app-subs-off:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Подписка на человека — не один из этих трёх типов (#501), и экран говорит об этом вслух */
+.app-subs-note {
+  align-items: flex-start;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: var(--app-font-size-description);
+  gap: 10px;
+  line-height: var(--app-line-height-body);
+  margin: 18px 0 0;
+  padding: 14px var(--app-space-l);
+}
+
+.app-subs-note svg {
+  flex: none;
+}
