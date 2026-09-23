@@ -143,6 +143,9 @@ export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
             items={[
               { icon: "user", label: "Мы", onClick: () => navigate({ name: "we-groups" }) },
               { icon: "pin", label: "Маршрут на день", onClick: () => navigate({ name: "day-route" }) },
+              // Экран 10 живёт в контуре Поиска (макет), но собрать план он умеет отсюда — с той вкладки,
+              // где план потом и окажется.
+              { icon: "spark", label: "Спросить MAX", onClick: () => navigate({ name: "assist", ask: null }) },
             ]}
           />
           <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} onCreate={() => navigate({ name: "plan-new" })} />

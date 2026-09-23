@@ -1,0 +1,248 @@
+// START_MODULE_CONTRACT
+// PURPOSE: Экран 10 «MAX AI ассистент»: переписка с подборщиком — реплики, карточки вариантов под ответом, сборка плана на вечер, подсказки и строка ввода.
+// SCOPE: Данные только через реальные эндпоинты ассистента — apiClient.assistQuery (POST /assist) и apiClient.assistDay (POST /assist/day); 429 отдаёт текст про частые запросы; «Открыть» ведёт на событие, собранный план — на экран плана. Ветка переписки хранится в состоянии экрана: истории диалогов на бэкенде нет и она ей не нужна.
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (AssistDayResponse, AssistPick, AssistResponse, Event, PlanCardSchema), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./AssistSection.js (assistErrorMessage), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
+// LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+// - ASSIST_GREETING - первая реплика MAX, с которой открывается экран
+// - ASSIST_PROMPTS - три подсказки над строкой ввода, в порядке макета
+// - ASSIST_PLACEHOLDER - плейсхолдер строки ввода
+// - AssistBubble - одна реплика ветки: чья, текст, приложенные варианты и собранный план
+// - AssistThread - ветка реплик
+// - askedThread - добавить вопрос пользователя в ветку
+// - answeredThread - добавить ответ MAX с вариантами
+// - plannedThread - добавить ответ MAX с планом на вечер
+// - assistPickMeta - «20:00 · Концерт · 1 800 ₽» под названием варианта; бесплатный вход говорит об этом словами
+// - AssistPageState - idle/loading/error статус запроса к ассистенту
+// - AssistPageView - презентационная часть: шапка-градиент, ветка, подсказки и композер
+// - AssistPage - контейнер маршрута assist: ведёт переписку через реальные эндпоинты
+// END_MODULE_MAP
+
+import { useEffect, useRef, useState } from "react";
+import type { AssistDayResponse, AssistPick, AssistResponse, Event } from "@max-events/api-contracts";
+import { PlanCardSchema } from "@max-events/api-contracts";
+import { apiClient } from "../api/client";
+import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { useRoute } from "../routing/router";
+import { ActionIcon } from "../ui/icons";
+import { AppButton, AppMedia, AppState } from "../ui/primitives";
+import { assistErrorMessage } from "./AssistSection";
+
+/** Первая реплика: экран объясняет, о чём его вообще можно спросить, а не ждёт молча (макет, экран 10). */
+export const ASSIST_GREETING = "Привет! Могу собрать план на день, найти свободную мангальную зону или корт под твой бюджет и компанию. О чём думаешь сегодня?";
+
+export const ASSIST_PROMPTS: readonly string[] = ["Что-то бесплатное рядом", "План на субботу: шашлык", "Куда с детьми"];
+
+export const ASSIST_PLACEHOLDER = "Спроси MAX: куда сходить, беседки, корты…";
+
+/** Одна реплика ветки. У ответа MAX могут быть приложены варианты или собранный план — но не оба сразу. */
+export interface AssistBubble {
+  id: number;
+  role: "max" | "me";
+  text: string;
+  picks: AssistPick[];
+  day: AssistDayResponse | null;
+}
+
+export type AssistThread = AssistBubble[];
+
+export function askedThread(thread: AssistThread, question: string): AssistThread {
+  return [...thread, { id: thread.length + 1, role: "me", text: question, picks: [], day: null }];
+}
+
+export function answeredThread(thread: AssistThread, result: AssistResponse): AssistThread {
+  return [...thread, { id: thread.length + 1, role: "max", text: result.summary, picks: result.items, day: null }];
+}
+
+export function plannedThread(thread: AssistThread, result: AssistDayResponse): AssistThread {
+  return [...thread, { id: thread.length + 1, role: "max", text: result.summary, picks: [], day: result }];
+}
+
+/** Строка под названием варианта. Расстояния у события нет — оно живёт у площадки, — поэтому его здесь и нет. */
+export function assistPickMeta(event: Pick<Event, "startsAt" | "category" | "isPaid" | "priceRub">): string {
+  const price = event.isPaid && event.priceRub !== null ? `${event.priceRub.toLocaleString("ru-RU")} ₽` : "вход свободный";
+  return `${formatStartsAt(event.startsAt)} · ${CATEGORY_LABELS[event.category]} · ${price}`;
+}
+
+export type AssistPageState = { status: "idle" } | { status: "loading" } | { status: "error"; message: string };
+
+function PickCard({ pick, onOpen }: { pick: AssistPick; onOpen: () => void }) {
+  return (
+    <button type="button" className="app-assist-pick" onClick={onOpen}>
+      <AppMedia category={pick.event.category} className="app-assist-pick-media" />
+      <span className="app-assist-pick-body">
+        <span className="app-assist-pick-title">{pick.event.title}</span>
+        <span className="app-assist-pick-meta">{assistPickMeta(pick.event)}</span>
+        <span className="app-assist-pick-why">{pick.explanation}</span>
+      </span>
+      <span className="app-assist-pick-open">Открыть</span>
+    </button>
+  );
+}
+
+function DayCard({ day, onOpenEvent, onOpenPlan }: { day: AssistDayResponse; onOpenEvent: (eventId: string) => void; onOpenPlan: (planId: string) => void }) {
+  const plan = PlanCardSchema.safeParse(day.plan);
+  return (
+    <div className="app-assist-day">
+      <ol className="app-assist-day-stops">
+        {day.stops.map((stop) => (
+          <li key={stop.event.id}>
+            <button type="button" className="app-assist-day-stop" onClick={() => onOpenEvent(stop.event.id)}>
+              <span className="app-assist-day-at">{formatStartsAt(stop.at)}</span>
+              <span className="app-assist-day-title">{stop.event.title}</span>
+              <span className="app-assist-day-why">{stop.explanation}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
+      {plan.success && (
+        <AppButton tone="confirm" stretched onClick={() => onOpenPlan(plan.data.plan.id)}>
+          Открыть план
+        </AppButton>
+      )}
+    </div>
+  );
+}
+
+interface AssistPageViewProps {
+  thread: AssistThread;
+  draft: string;
+  state: AssistPageState;
+  /** Пока вопроса не было, кнопки под ответом нечего повторять — их и нет. */
+  lastQuestion: string | null;
+  onDraft: (value: string) => void;
+  onSubmit: () => void;
+  onPlanEvening: () => void;
+  onMoreOptions: () => void;
+  onPrompt: (prompt: string) => void;
+  onOpenEvent: (eventId: string) => void;
+  onOpenPlan: (planId: string) => void;
+  onClose: () => void;
+}
+
+export function AssistPageView({ thread, draft, state, lastQuestion, onDraft, onSubmit, onPlanEvening, onMoreOptions, onPrompt, onOpenEvent, onOpenPlan, onClose }: AssistPageViewProps) {
+  const answered = thread.some((bubble) => bubble.role === "max" && bubble.picks.length > 0);
+  return (
+    <section className="app-assist" aria-label="MAX AI ассистент">
+      <header className="app-assist-hero">
+        <span className="app-assist-mark" aria-hidden="true">
+          <ActionIcon name="spark" size={22} filled />
+        </span>
+        <span className="app-assist-hero-text">
+          <span className="app-assist-hero-title">MAX AI ассистент</span>
+          <span className="app-assist-hero-sub">Подбор по контексту, бюджету и друзьям</span>
+        </span>
+        <button type="button" className="app-assist-hero-close" aria-label="Закрыть ассистента" onClick={onClose}>
+          <ActionIcon name="close" size={18} strokeWidth={2} />
+        </button>
+      </header>
+
+      <div className="app-assist-thread">
+        {thread.map((bubble) => (
+          <div key={bubble.id} className={bubble.role === "me" ? "app-assist-turn app-assist-turn--me" : "app-assist-turn"}>
+            <p className={bubble.role === "me" ? "app-assist-bubble app-assist-bubble--me" : "app-assist-bubble"}>{bubble.text}</p>
+            {bubble.picks.length > 0 && (
+              <div className="app-assist-picks">
+                {bubble.picks.map((pick) => (
+                  <PickCard key={pick.event.id} pick={pick} onOpen={() => onOpenEvent(pick.event.id)} />
+                ))}
+              </div>
+            )}
+            {bubble.day !== null && <DayCard day={bubble.day} onOpenEvent={onOpenEvent} onOpenPlan={onOpenPlan} />}
+          </div>
+        ))}
+        {state.status === "loading" && <AppState>MAX подбирает…</AppState>}
+        {state.status === "error" && <AppState error>{state.message}</AppState>}
+        {answered && lastQuestion !== null && state.status !== "loading" && (
+          <div className="app-assist-actions">
+            <AppButton tone="confirm" size="small" onClick={onPlanEvening}>
+              Собрать план на вечер
+            </AppButton>
+            <AppButton tone="secondary" size="small" onClick={onMoreOptions}>
+              Ещё варианты
+            </AppButton>
+          </div>
+        )}
+      </div>
+
+      <div className="app-assist-prompts" role="group" aria-label="Подсказки">
+        {ASSIST_PROMPTS.map((prompt) => (
+          <button key={prompt} type="button" className="app-assist-prompt" onClick={() => onPrompt(prompt)}>
+            {prompt}
+          </button>
+        ))}
+      </div>
+
+      <form
+        className="app-assist-composer"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit();
+        }}
+      >
+        <input className="app-assist-input" type="text" value={draft} aria-label="Вопрос ассистенту" placeholder={ASSIST_PLACEHOLDER} onChange={(event) => onDraft(event.target.value)} />
+        <button type="submit" className="app-assist-send" aria-label="Спросить" disabled={draft.trim() === "" || state.status === "loading"}>
+          <ActionIcon name="arrow" size={22} strokeWidth={2} />
+        </button>
+      </form>
+    </section>
+  );
+}
+
+export function AssistPage({ ask = null }: { ask?: string | null }) {
+  const { navigate, back } = useRoute();
+  const [thread, setThread] = useState<AssistThread>([{ id: 0, role: "max", text: ASSIST_GREETING, picks: [], day: null }]);
+  const [draft, setDraft] = useState(ask ?? "");
+  const [state, setState] = useState<AssistPageState>({ status: "idle" });
+  const [lastQuestion, setLastQuestion] = useState<string | null>(null);
+  // Состояние живёт в замыканиях обработчиков, поэтому вопрос и ветка читаются через ref — иначе
+  // повторный запрос («Ещё варианты») ушёл бы со старым текстом.
+  const pending = useRef(false);
+
+  useEffect(() => {
+    setDraft(ask ?? "");
+  }, [ask]);
+
+  const askMax = (question: string) => {
+    const text = question.trim();
+    if (text === "" || pending.current) return;
+    pending.current = true;
+    setThread((current) => askedThread(current, text));
+    setLastQuestion(text);
+    setDraft("");
+    setState({ status: "loading" });
+    apiClient.assistQuery(text).then(
+      (result) => {
+        pending.current = false;
+        setThread((current) => answeredThread(current, result));
+        setState({ status: "idle" });
+      },
+      (error: unknown) => {
+        pending.current = false;
+        setState({ status: "error", message: assistErrorMessage(error, "Не удалось подобрать варианты. Попробуйте ещё раз.") });
+      },
+    );
+  };
+
+  const planEvening = () => {
+    if (pending.current) return;
+    pending.current = true;
+    // save=true: кнопка обещает план, а не черновик — бэкенд сохраняет его и возвращает карточку.
+    setState({ status: "loading" });
+    apiClient.assistDay(lastQuestion ?? "План на вечер", true).then(
+      (result) => {
+        pending.current = false;
+        setThread((current) => plannedThread(current, result));
+        setState({ status: "idle" });
+      },
+      (error: unknown) => {
+        pending.current = false;
+        setState({ status: "error", message: assistErrorMessage(error, "Не удалось собрать план на вечер.") });
+      },
+    );
+  };
+
+  return <AssistPageView thread={thread} draft={draft} state={state} lastQuestion={lastQuestion} onDraft={setDraft} onSubmit={() => askMax(draft)} onPlanEvening={planEvening} onMoreOptions={() => askMax(lastQuestion === null ? "Ещё варианты" : `${lastQuestion}, ещё варианты`)} onPrompt={askMax} onOpenEvent={(id) => navigate({ name: "event", id })} onOpenPlan={(id) => navigate({ name: "plan", id })} onClose={back} />;
+}
