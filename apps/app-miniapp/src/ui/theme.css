@@ -8714,6 +8714,12 @@ button.app-set-row {
   font-weight: 800;
 }
 
+/* Число и точки под ним — одна группа: межстрочный интервал полотна развёл бы их на пару
+ * пикселей, и точки уехали бы к нижнему краю клетки. */
+.app-cal-day-num {
+  line-height: 1;
+}
+
 .app-cal-day-dots {
   display: flex;
   gap: 3px;
