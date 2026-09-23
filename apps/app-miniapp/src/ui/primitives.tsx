@@ -6,8 +6,9 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - AppButton - IonButton wrapper; tone primary|secondary|danger|ghost, stretched = full width; app-btn classes carry the pill skin in theme.css
-// - AppButtonTone - union of AppButton tones
+// - AppButton - IonButton wrapper; tone primary|secondary|danger|ghost|confirm, stretched = full width; app-btn classes carry the pill skin in theme.css
+// - AppButtonTone - union of AppButton tones; form carries meaning - filled = badge, outlined = irreversible, dark fill = confirmation
+// - appButtonClass - tone -> class mapping; exported because ionic hides className from rendered markup
 // - AppIconButton - round icon-only IonButton (create/share actions)
 // - AppTitle - heading text (app-title class)
 // - AppText - body text (app-text class)
@@ -32,18 +33,30 @@ import { IonAvatar, IonButton } from "@ionic/react";
 import type { EventCategory } from "@max-events/api-contracts";
 import { ActionIcon, type ActionIconName } from "./icons";
 
-export type AppButtonTone = "primary" | "secondary" | "danger" | "ghost";
+export type AppButtonTone = "primary" | "secondary" | "danger" | "ghost" | "confirm";
 
+// Skins live in theme.css on .app-btn--<tone>; the ionic colour here only carries semantics.
+// danger keeps color="danger" but renders as an outline, so it cannot be mistaken for the
+// filled purple badge; confirm is styled entirely by its class.
 const TONE_PROPS: Record<AppButtonTone, { color?: string; fill?: "clear" }> = {
   primary: { color: "primary" },
   secondary: {},
   danger: { color: "danger" },
   ghost: { fill: "clear" },
+  confirm: {},
 };
 
+/**
+ * The tone -> class mapping, split out because it cannot be asserted through the rendered markup:
+ * @ionic/react drops className before createElement and re-attaches it to the DOM node on mount,
+ * so server-rendered ion-button carries no class at all. This is the seam tests can hold onto.
+ */
+export function appButtonClass(tone: AppButtonTone, className?: string): string {
+  return `app-btn app-btn--${tone}${className ? ` ${className}` : ""}`;
+}
+
 export function AppButton({ tone = "primary", stretched = false, className, ...props }: ComponentProps<typeof IonButton> & { tone?: AppButtonTone; stretched?: boolean }) {
-  const buttonClass = `app-btn app-btn--${tone}${className ? ` ${className}` : ""}`;
-  return <IonButton className={buttonClass} expand={stretched ? "block" : undefined} {...TONE_PROPS[tone]} {...props} />;
+  return <IonButton className={appButtonClass(tone, className)} expand={stretched ? "block" : undefined} {...TONE_PROPS[tone]} {...props} />;
 }
 
 export function AppIconButton({ className, children, ...props }: ComponentProps<typeof IonButton>) {

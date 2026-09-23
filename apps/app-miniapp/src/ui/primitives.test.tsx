@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { EventCategorySchema } from "@max-events/api-contracts";
-import { APP_STATE_COPY, AppAvatar, AppButton, AppChip, AppEmptyState, AppMedia, AppNavTiles, AppSection, AppSkeleton, AppSkeletonList, AppState, AppText, AppTitle, CATEGORY_MEDIA_ICON, type AppStateKind } from "./primitives";
+import { APP_STATE_COPY, AppAvatar, appButtonClass, AppButton, AppChip, AppEmptyState, AppMedia, AppNavTiles, AppSection, AppSkeleton, AppSkeletonList, AppState, AppText, AppTitle, CATEGORY_MEDIA_ICON, type AppStateKind } from "./primitives";
 
 const noop = () => {};
 
@@ -26,6 +26,26 @@ describe("AppButton", () => {
   it("renders the secondary tone without an ionic color and ghost as clear fill", () => {
     expect(renderToStaticMarkup(<AppButton tone="secondary" />)).toContain("<ion-button");
     expect(renderToStaticMarkup(<AppButton tone="ghost" />)).toContain('fill="clear"');
+  });
+
+  // Asserted through appButtonClass, not the markup: @ionic/react attaches className to the DOM
+  // node on mount, so renderToStaticMarkup emits <ion-button> with no class attribute whatsoever.
+  it("gives every tone its own skin hook, so form and not hue tells them apart", () => {
+    expect(appButtonClass("danger")).toContain("app-btn--danger");
+    expect(appButtonClass("confirm")).toContain("app-btn--confirm");
+    expect(appButtonClass("primary")).toBe("app-btn app-btn--primary");
+  });
+
+  it("keeps the caller's own class alongside the tone class", () => {
+    expect(appButtonClass("danger", "extra")).toBe("app-btn app-btn--danger extra");
+  });
+
+  it("styles the confirmation tone from its class alone, without an ionic colour", () => {
+    const html = renderToStaticMarkup(<AppButton tone="confirm">Да, снять</AppButton>);
+
+    expect(html).toContain("Да, снять");
+    expect(html).not.toContain('color="primary"');
+    expect(html).not.toContain('color="danger"');
   });
 });
 

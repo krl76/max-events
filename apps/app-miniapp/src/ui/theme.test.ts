@@ -46,7 +46,7 @@ describe("theme.css brandbook palette", () => {
   });
 
   it("builds every rgb/rgba literal from a brand colour or the scheme-neutral channels", () => {
-    const allowed = new Set(["13, 0, 26", "255, 255, 255", "71, 26, 255", "var(--app-scheme-neutral)"]);
+    const allowed = new Set(["13, 0, 26", "255, 255, 255", "71, 26, 255", "149, 0, 255", "var(--app-scheme-neutral)"]);
     // Channels only: the alpha that follows is free, the colour it tints is not.
     const literals = [...declarations.matchAll(/rgba?\(\s*(var\(--[a-z-]+\)|\d+,\s*\d+,\s*\d+)\s*[,)]/g)].map((match) => match[1]);
 
@@ -58,6 +58,53 @@ describe("theme.css brandbook palette", () => {
     expect(css).toContain("--ion-color-primary: #471aff;");
     expect(css).toContain("--ion-color-primary-shade: #6e1aff;");
     expect(css).not.toContain("#007aff");
+  });
+
+  it("separates the three purple roles by form, since the brandbook has no red to spend", () => {
+    const danger = css.slice(css.indexOf(".app-root .app-btn--danger"));
+    const dangerBlock = danger.slice(0, danger.indexOf("}"));
+    const confirm = css.slice(css.indexOf(".app-root .app-btn--confirm"));
+    const confirmBlock = confirm.slice(0, confirm.indexOf("}"));
+    const badge = css.slice(css.indexOf(".app-micro-badge {"));
+    const badgeBlock = badge.slice(0, badge.indexOf("}"));
+
+    // Irreversible: outline on a transparent ground, never a filled pill.
+    expect(dangerBlock).toContain("--background: transparent;");
+    expect(dangerBlock).toContain("--border-color: var(--app-danger-border);");
+    expect(dangerBlock).toContain("--border-width: 1px;");
+    // Confirmation: dark fill, and it inverts with the scheme instead of hardcoding void.
+    expect(confirmBlock).toContain("--background: var(--app-confirm);");
+    expect(css).toContain("--app-confirm: var(--app-ink);");
+    expect(css).toContain("--app-confirm-contrast: var(--app-canvas);");
+    // Badge: the filled purple pill, and the only thing allowed to look like one.
+    expect(badgeBlock).toContain("background: var(--app-badge);");
+  });
+
+  it("paints the promo pin with the badge role rather than the danger token", () => {
+    const pin = css.slice(css.indexOf(".app-map-pin--promo"));
+    const block = pin.slice(0, pin.indexOf("}"));
+
+    expect(block).toContain("background: var(--app-badge);");
+    expect(block).not.toContain("var(--app-danger)");
+  });
+
+  it("routes danger text through the label token and leaves only the glyph on raw purple", () => {
+    const textRules = [".app-state--error", ".app-gathering-friend-status--busy", ".app-plan-friend-status--declined"];
+
+    for (const selector of textRules) {
+      const rule = css.slice(css.indexOf(`${selector} {`));
+      expect(rule.slice(0, rule.indexOf("}"))).toContain("color: var(--app-danger-label);");
+    }
+
+    // The alert glyph is decor, so it keeps the hue in both schemes and carries the signal.
+    const icon = css.slice(css.indexOf(".app-state-icon {"));
+    expect(icon.slice(0, icon.indexOf("}"))).toContain("color: var(--app-danger);");
+  });
+
+  it("drops the danger label to brand-white in the dark scheme, where purple is decor only", () => {
+    expect(css).toContain("--app-danger-label: var(--brand-purple);");
+    const dark = css.slice(css.indexOf('.app-root[data-theme="dark"]'));
+    expect(dark.slice(0, dark.indexOf("}"))).toContain("--app-danger-label: var(--brand-white);");
   });
 
   it("keeps the only shadow blue-tinted and reserved for the lift", () => {

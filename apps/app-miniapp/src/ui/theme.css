@@ -139,10 +139,24 @@ html[data-theme="dark"] body {
   --app-accent-contrast: var(--brand-white);
   /* Статус — только точка и полоса; текстом brand-cyan не бывает (2.1:1 на белом). */
   --app-status: var(--brand-cyan);
-  /* Бейдж — один на экран. Красного в брендбуке нет, негативную роль тоже несёт brand-purple. */
+  /* Бейдж — один на экран. Залитая пурпурная пилюля закреплена за этой ролью и ни за какой другой. */
   --app-badge: var(--brand-purple);
   --app-badge-contrast: var(--brand-white);
+
+  /* Разрушительное действие. Красного в брендбуке нет, а оттенок у бейджа тот же, поэтому
+   * различает их форма, а не цвет: опасность — обводка на прозрачном фоне (макет, экран 47,
+   * «Забанить автора»), бейдж — заливка. В тёмной схеме пурпур разрешён только как декор,
+   * так что там подпись уходит в brand-white, а смысл держит рамка. */
   --app-danger: var(--brand-purple);
+  --app-danger-label: var(--brand-purple);
+  --app-danger-border: rgba(149, 0, 255, 0.35);
+  --app-danger-wash: rgba(149, 0, 255, 0.12);
+
+  /* Финальное подтверждение («да, снять с публикации») — третья форма: тёмная заливка.
+   * Ни акцент, ни опасность. Инвертируется вместе со схемой, поэтому отдельного
+   * тёмного переопределения не требует. */
+  --app-confirm: var(--app-ink);
+  --app-confirm-contrast: var(--app-canvas);
 
   /* Фирменные градиенты. light — онбординг, обводка сторис, достижения;
    * dark — hero карточек событий и шапка организатора. Под длинный текст не идут. */
@@ -215,6 +229,10 @@ html[data-theme="dark"] body {
   --app-alpha-text-secondary: 0.6;
   --app-alpha-text-tertiary: 0.45;
   --app-accent-text: var(--brand-cyan);
+  /* Пурпур на brand-void — 3.5:1, и по брифу он здесь только декор: подпись белая, рамка держит смысл */
+  --app-danger-label: var(--brand-white);
+  --app-danger-border: rgba(149, 0, 255, 0.55);
+  --app-danger-wash: rgba(149, 0, 255, 0.22);
 }
 
 /* Та же тёмная база по системной настройке — но только пока выбора нет ни на одном уровне.
@@ -230,6 +248,9 @@ html[data-theme="dark"] body {
     --app-alpha-text-secondary: 0.6;
     --app-alpha-text-tertiary: 0.45;
     --app-accent-text: var(--brand-cyan);
+    --app-danger-label: var(--brand-white);
+    --app-danger-border: rgba(149, 0, 255, 0.55);
+    --app-danger-wash: rgba(149, 0, 255, 0.22);
   }
 }
 
@@ -513,7 +534,7 @@ html[data-theme="dark"] body {
 }
 
 .app-state--error {
-  color: var(--app-danger);
+  color: var(--app-danger-label);
 }
 
 /* Блок состояния (AppState): иконка ошибки + текст + пояснение + до двух действий */
@@ -553,6 +574,8 @@ html[data-theme="dark"] body {
   justify-content: center;
 }
 
+/* Глиф — единственное место, где пурпур остаётся собой в обеих схемах: по брифу на brand-void
+ * он допустим как декор, и именно он держит сигнал, пока подпись рядом уходит в brand-white. */
 .app-state-icon {
   color: var(--app-danger);
   display: flex;
@@ -596,6 +619,31 @@ html[data-theme="dark"] body {
   --background-activated: var(--app-accent-press);
   --background-focused: var(--app-accent-press);
   --background-hover: var(--app-accent-press);
+}
+
+/* Необратимое действие: обводка на прозрачном фоне, а не заливка. Так «Удалить» перестаёт
+ * весить больше главной синей кнопки экрана и не путается с залитым бейджем. */
+.app-root .app-btn--danger {
+  --background: transparent;
+  --background-activated: var(--app-danger-wash);
+  --background-focused: var(--app-danger-wash);
+  --background-hover: var(--app-danger-wash);
+  --border-color: var(--app-danger-border);
+  --border-style: solid;
+  --border-width: 1px;
+  --box-shadow: none;
+  --color: var(--app-danger-label);
+}
+
+/* Финальное подтверждение: тёмная заливка, контрастная подпись. Третья форма — её ни с
+ * обведённой опасностью, ни с залитым бейджем, ни с синим акцентом не спутать. */
+.app-root .app-btn--confirm {
+  --background: var(--app-confirm);
+  --background-activated: var(--app-confirm);
+  --background-focused: var(--app-confirm);
+  --background-hover: var(--app-confirm);
+  --box-shadow: none;
+  --color: var(--app-confirm-contrast);
 }
 
 /* Обводка обязательна: поверхность — void 4% на фоне brand-white, без границы край не читается */
@@ -1622,7 +1670,7 @@ html[data-theme="dark"] body {
 }
 
 .app-gathering-friend-status--busy {
-  color: var(--app-danger);
+  color: var(--app-danger-label);
 }
 
 .app-gathering-friend-status--considering {
@@ -1742,7 +1790,7 @@ html[data-theme="dark"] body {
 }
 
 .app-plan-friend-status--declined {
-  color: var(--app-danger);
+  color: var(--app-danger-label);
 }
 
 /* Навигационные входы: плитки с иконкой (2 колонки) вместо столбца полнширинных кнопок */
@@ -2129,8 +2177,9 @@ html[data-theme="dark"] body {
 }
 
 /* Продвижение (#205): выделенный пин карты, баннерная строка на главной, поле промокода (#202) */
+/* Промо — роль бейджа, а не опасности: до этой правки пин красился токеном danger */
 .app-map-pin--promo {
-  background: var(--app-danger);
+  background: var(--app-badge);
   border-color: var(--app-accent-contrast);
 }
 
