@@ -56,7 +56,8 @@ describe("needsPromotion", () => {
 
 describe("formatCount", () => {
   it("groups thousands the way the hero prints them", () => {
-    expect(formatCount(1284)).toBe("1 284");
+    // The separator is a non-breaking space on purpose: a number must not wrap in the middle.
+    expect(formatCount(1284)).toBe("1\u00a0284");
     expect(formatCount(92)).toBe("92");
   });
 });

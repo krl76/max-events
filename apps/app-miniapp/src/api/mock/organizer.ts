@@ -496,10 +496,13 @@ export function updateMockOrganizerEventOptions(eventId: string, patch: UpdateOr
 
 /** Venue slots around the event start; the slots domain does not exist yet (#492), so the event day carries them. */
 function mockSlots(start: string): OrganizerSlot[] {
-  const base = new Date(start).getTime();
+  const at = new Date(start);
+  // The venue day, not the event clock: three windows from 14:00, and the one the event falls into is taken.
+  const first = new Date(at.getFullYear(), at.getMonth(), at.getDate(), 14, 0, 0, 0);
   return [0, 1, 2].map((index) => {
-    const from = new Date(base + index * 3.5 * 60 * 60 * 1000);
-    return { id: `slot-${index}`, startsAt: from.toISOString(), endsAt: new Date(from.getTime() + 3 * 60 * 60 * 1000).toISOString(), busy: index === 0 };
+    const from = new Date(first.getTime() + index * 3.5 * 60 * 60 * 1000);
+    const to = new Date(from.getTime() + 3 * 60 * 60 * 1000);
+    return { id: `slot-${index}`, startsAt: from.toISOString(), endsAt: to.toISOString(), busy: at.getTime() >= from.getTime() && at.getTime() < to.getTime() };
   });
 }
 

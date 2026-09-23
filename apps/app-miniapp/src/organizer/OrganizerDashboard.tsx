@@ -118,7 +118,7 @@ export function OrganizerDashboardView({ organizationName, summary, events, fill
         <p className="app-org-hero-value">{summary === null ? "—" : `${formatCount(summary.bookings)} ${pluralRu(summary.bookings, "запись", "записи", "записей")}`}</p>
         <div className="app-org-hero-stats">
           <span className="app-org-hero-stat">
-            <b>{live.length}</b> активных
+            <b>{live.length}</b> {pluralRu(live.length, "активное", "активных", "активных")}
           </span>
           <span className="app-org-hero-stat">
             <b>{summary?.attendedPercent === null || summary === null ? "—" : `${summary.attendedPercent}%`}</b> пришли
