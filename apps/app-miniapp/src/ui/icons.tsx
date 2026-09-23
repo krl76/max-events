@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - TabIcon - union of the tabbar icon names: the user bar (feed/search/create/plans/profile) plus map and the organizer bar (dashboard/events/create/promo/profile)
 // - TabIconGlyph - inline stroke SVG for a tabbar icon, filled variant for the active tab
-// - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron)
+// - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron/check/plus/building)
 // - ActionIcon - inline stroke SVG by ActionIconName; filled=true fills the glyph (liked heart, saved bookmark, active tab)
 // END_MODULE_MAP
 
@@ -89,7 +89,7 @@ export function TabIconGlyph({ name, size = 24, filled = false }: { name: TabIco
   return <Glyph paths={filled ? (FILLED[name] ?? OUTLINE[name]) : OUTLINE[name]} size={size} filled={filled} />;
 }
 
-export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings";
+export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings" | "check" | "plus" | "building";
 
 const ACTIONS: Record<ActionIconName, ReactNode> = {
   heart: <path d="M12 20.3S3.4 15.4 3.4 9.6a4.6 4.6 0 0 1 8.6-2.3A4.6 4.6 0 0 1 20.6 9.6c0 5.8-8.6 10.7-8.6 10.7Z" />,
@@ -133,6 +133,16 @@ const ACTIONS: Record<ActionIconName, ReactNode> = {
     <>
       <circle cx="11" cy="11" r="7" />
       <path d="m20.2 20.2-4-4" />
+    </>
+  ),
+  // Галочка онбординга: подписка на человека и выбранный город/интерес (макет, экран 02)
+  check: <path d="M5 12l5 5L20 7" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  // Вход организатора (макет, экран 01): дом с дверью, а не ещё один кружок с глифом
+  building: (
+    <>
+      <path d="M4 21V9l8-5 8 5v12" />
+      <path d="M9 21v-6h6v6" />
     </>
   ),
   settings: (

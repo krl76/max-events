@@ -48,8 +48,9 @@
 // - friendAvailability - per-friend free/busy/unknown for the gathering flow (mock)
 // - friendPlaceLayer - mock GET /discovery/friend-places: places friends checked in at, grouped, privacy-gated
 // - friendRoute - chronological unseen places of one friend; own/not-friend/hidden map to 403/404/403 (mock GET /discovery/friends/:userId/route, backend parity)
+// - friendSuggestions - mock GET /friends/suggestions: the onboarding contacts with their hint line and current follow state
 // - getMockVote - mock GET /votes/:id (404 unknown, 403 neither host nor participant); myBallotEventId comes from the demo user's stored ballot (backend #324 parity)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability], /api/gatherings[/:id|/:id/response], /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friend-places|/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability|/suggestions|/follows], /api/gatherings[/:id|/:id/response], /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friend-places|/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], return a restore function
 // - isMockModerator - whether this viewer may see the moderation queue
 // - joinMockMicroEvent - join with the counter, idempotent (mock POST /join)
 // - leaveMockMicroEvent - leave with the counter, idempotent (mock DELETE /join)
@@ -69,6 +70,7 @@
 // - mockFriendIds - friend user ids of the demo user (social counters fixtures)
 // - mockFriendStories - seeded friend story fixtures (gradient placeholder images)
 // - mockFriends - friend fixtures for the "Your people are going" feed
+// - mockOnboardingContacts - the twelve MAX contacts the onboarding friends step offers: the seven friend fixtures plus five contacts who are not friends yet
 // - mockOrganization - demo organization returned by the mock organizer login
 // - mockOrganizers - demo organizer fixture for event details
 // - mockParseAssistQuery - deterministic NL criteria heuristics (backend parse-nl parity)
@@ -94,6 +96,7 @@
 // - resetMockCampaigns - clear in-memory promo campaigns (test isolation)
 // - resetMockCheckIns - clear in-memory check-ins (test isolation)
 // - resetMockFeed - restore seeded impression posts (test isolation)
+// - resetMockFollows - restore the three seeded follows (test isolation)
 // - resetMockGatherings - restore the seeded demo gathering and clear created ones (test isolation)
 // - resetMockLists - clear in-memory lists (test isolation)
 // - resetMockMicroEvents - restore seeded micro-events (test isolation)
@@ -133,4 +136,4 @@ export { buildMockDayRoute, calendarEntries, cancelMockPlan, createMockAutoPlan,
 export { achievementsFor, afterMePicks, myCityFor, resetMockProfiles, tasteProfile } from "./mock/profile";
 export { mockPromotionPlacements, mockTargetedPromotions } from "./mock/promo";
 export { eventRating, resetMockReviews } from "./mock/reviews";
-export { MOCK_GATHERING_ID, createMockGathering, createMockMicroEvent, discoverySummary, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, joinMockMicroEvent, leaveMockMicroEvent, microEvents, peopleSuggest, resetMockGatherings, resetMockMicroEvents, respondMockGathering } from "./mock/social";
+export { MOCK_GATHERING_ID, createMockGathering, createMockMicroEvent, discoverySummary, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, joinMockMicroEvent, leaveMockMicroEvent, microEvents, mockOnboardingContacts, peopleSuggest, resetMockFollows, resetMockGatherings, resetMockMicroEvents, respondMockGathering } from "./mock/social";
