@@ -1,122 +1,288 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Settings screen: city, interests, smart alerts, privacy, recommendations; opened from the profile topbar gear.
-// SCOPE: Data via apiClient.getProfile/updateProfile; drafts reset when the profile loads; back navigation after a successful save.
-// DEPENDS: ../api/client.js (apiClient), ../auth/AuthContext.js, ./ProfilePage.js (toProfilePatch), @max-events/api-contracts (Profile, UpdateProfile), ../ui/theme.css
+// PURPOSE: Экран 41 «Настройки»: the MAX identity row and the five grouped sections — Приложение (город, тема, интересы, радиус), Приватность, Уведомления, Организаторам, Мини-приложение — plus «Отключить мини-приложение».
+// SCOPE: The settings screen only. What the Profile contract carries (city, interests, privacy, smart alerts) is written with apiClient.updateProfile; the rest is apiClient.getAppSettings/updateAppSettings; the colour scheme is the useAppTheme preference, not a server field. Pickers are inline disclosures — no separate screen per row.
+// DEPENDS: ../api/client.js (apiClient, AppSettings), ../auth/AuthContext.js, ../max/bridge.js (getWebApp), ../onboarding/onboarding.js (ONBOARDING_CITIES, ONBOARDING_INTERESTS), ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.js (useAppTheme, ThemePreference), @max-events/api-contracts (Profile, UpdateProfile, User), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - SettingsView - presentational: city/interests/alerts/privacy/recommendations form, save/cancel actions
-// - SettingsPage - route container: resolves auth, loads the profile, saves via updateProfile
+// - APP_VERSION - the version «О приложении» prints; the build injects none, so the design's string is the source
+// - SEARCH_RADIUS_OPTIONS - the radii «Что считать рядом» offers, in km
+// - THEME_OPTIONS - the three colour-scheme choices in design order with their ru labels
+// - themeLabel - ru label of a theme preference
+// - radiusLabel - «5 км»
+// - planVisibilityLabel - «Друзья» / «Никто» for the routes privacy field
+// - quietHoursLabel - «Вкл» / «Выкл»
+// - quietHoursHint - «23:00–09:00, только срочное»
+// - interestsHint - «6 категорий влияют на подборку»
+// - identityHint - «Профиль MAX · @username», and «Профиль MAX» alone without one
+// - APP_PREFERENCE_KEYS - localStorage keys that are settings, not cache, and survive «Очистить кеш»
+// - appCacheBytes - size of the app's cached localStorage entries, preferences excluded
+// - clearAppCache - drop those cached entries, keeping the preferences
+// - formatBytes - «24 МБ» / «860 КБ» / «0 КБ»
+// - SettingsToggle - the 44×26 switch of the design as a real role="switch" button
+// - SettingsValueRow - row with a value and a chevron that opens its inline picker
+// - SettingsSwitchRow - row with a switch
+// - SettingsPicker - the inline option list a value row discloses
+// - SettingsGroup - one bordered section with its uppercase caption
+// - SettingsViewProps - what the settings screen renders and writes
+// - SettingsView - presentational: identity row, the five groups, the disable button
+// - SettingsPage - route container: resolves auth, loads profile + app settings, writes both and binds the theme preference
 // END_MODULE_MAP
 
-import { useEffect, useState } from "react";
-import type { Profile, UpdateProfile } from "@max-events/api-contracts";
-import { apiClient } from "../api/client";
+import { useEffect, useState, type ReactNode } from "react";
+import type { Profile, UpdateProfile, User } from "@max-events/api-contracts";
+import { apiClient, type AppSettings } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { toProfilePatch } from "./ProfilePage";
-import { AppButton, AppState, AppSkeleton } from "../ui/primitives";
+import { pluralRu } from "../catalog/format";
+import { getWebApp } from "../max/bridge";
+import { ONBOARDING_CITIES, ONBOARDING_INTERESTS } from "../onboarding/onboarding";
 import { useRoute } from "../routing/router";
+import { ActionIcon } from "../ui/icons";
+import { AppSkeleton, AppState } from "../ui/primitives";
+import { useAppTheme, type ThemePreference } from "../ui/theme";
 
-interface SettingsViewProps {
-  profile: Profile;
-  saving: boolean;
-  onSave: (patch: UpdateProfile) => void;
-  onCancel: () => void;
+/** The build injects no version, so the string the design prints is the one the screen shows until it does. */
+export const APP_VERSION = "1.4.0";
+
+export const SEARCH_RADIUS_OPTIONS: readonly number[] = [1, 3, 5, 10, 25];
+
+export const THEME_OPTIONS: readonly { value: ThemePreference; label: string }[] = [
+  { value: "light", label: "Светлая" },
+  { value: "dark", label: "Тёмная" },
+  { value: "system", label: "Системная" },
+];
+
+export function themeLabel(preference: ThemePreference): string {
+  return THEME_OPTIONS.find((option) => option.value === preference)?.label ?? "Системная";
 }
 
-export function SettingsView({ profile, saving, onSave, onCancel }: SettingsViewProps) {
-  const [cityDraft, setCityDraft] = useState(profile.city);
-  const [interestsDraft, setInterestsDraft] = useState(profile.interests.join(", "));
-  const [leaveNow, setLeaveNow] = useState(profile.smartAlerts.leaveNow);
-  const [weather, setWeather] = useState(profile.smartAlerts.weather);
-  const [friendLeft, setFriendLeft] = useState(profile.smartAlerts.friendLeft);
-  const [listDigest, setListDigest] = useState(profile.smartAlerts.listDigest);
-  const [visitHistory, setVisitHistory] = useState(profile.privacy.visitHistory);
-  const [routes, setRoutes] = useState(profile.privacy.routes);
-  const [recommendationsEnabled, setRecommendationsEnabled] = useState(profile.recommendationsEnabled);
-  useEffect(() => {
-    setCityDraft(profile.city);
-    setInterestsDraft(profile.interests.join(", "));
-    setLeaveNow(profile.smartAlerts.leaveNow);
-    setWeather(profile.smartAlerts.weather);
-    setFriendLeft(profile.smartAlerts.friendLeft);
-    setListDigest(profile.smartAlerts.listDigest);
-    setVisitHistory(profile.privacy.visitHistory);
-    setRoutes(profile.privacy.routes);
-    setRecommendationsEnabled(profile.recommendationsEnabled);
-  }, [profile]);
+export function radiusLabel(km: number): string {
+  return `${km} км`;
+}
 
+export function planVisibilityLabel(visibility: Profile["privacy"]["routes"]): string {
+  return visibility === "friends" ? "Друзья" : "Никто";
+}
+
+export function quietHoursLabel(enabled: boolean): string {
+  return enabled ? "Вкл" : "Выкл";
+}
+
+export function quietHoursHint(from: string, to: string): string {
+  return `${from}–${to}, только срочное`;
+}
+
+export function interestsHint(interests: string[]): string {
+  return `${interests.length} ${pluralRu(interests.length, "категория влияет", "категории влияют", "категорий влияют")} на подборку`;
+}
+
+/** The MAX identity is the messenger's: the phone the design masks is not in the User contract, the handle is. */
+export function identityHint(user: Pick<User, "username">): string {
+  return user.username === null ? "Профиль MAX" : `Профиль MAX · @${user.username}`;
+}
+
+/** Settings, not cache: the scheme, the "onboarding already ran" flag, the organizer session and the dev initData survive «Очистить кеш». */
+export const APP_PREFERENCE_KEYS: readonly string[] = ["max-events:theme", "max-events:onboarding", "max-events.organizer-session", "max-events.dev-init-data"];
+
+function appCacheKeys(storage: Pick<Storage, "length" | "key">): string[] {
+  const keys: string[] = [];
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (key !== null && key.startsWith("max-events") && !APP_PREFERENCE_KEYS.includes(key)) keys.push(key);
+  }
+  return keys;
+}
+
+/** UTF-16 code units, two bytes each — the same arithmetic a browser quota uses. */
+export function appCacheBytes(storage: Pick<Storage, "length" | "key" | "getItem">): number {
+  return appCacheKeys(storage).reduce((sum, key) => sum + (key.length + (storage.getItem(key)?.length ?? 0)) * 2, 0);
+}
+
+export function clearAppCache(storage: Pick<Storage, "length" | "key" | "removeItem">): void {
+  for (const key of appCacheKeys(storage)) storage.removeItem(key);
+}
+
+export function formatBytes(bytes: number): string {
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${Math.round(kb)} КБ`;
+  return `${(kb / 1024).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} МБ`;
+}
+
+export function SettingsToggle({ checked, label, onChange }: { checked: boolean; label: string; onChange: (next: boolean) => void }) {
   return (
-    <form
-      className="app-profile-form"
-      onSubmit={(submit) => {
-        submit.preventDefault();
-        onSave({
-          ...toProfilePatch(cityDraft, interestsDraft),
-          smartAlerts: { leaveNow, weather, friendLeft, listDigest },
-          privacy: { visitHistory, routes },
-          recommendationsEnabled,
-        });
-      }}
-    >
-      <label className="app-settings-field">
-        <span className="app-settings-label">Город</span>
-        <input className="app-profile-input" type="text" aria-label="Город" value={cityDraft} onChange={(change) => setCityDraft(change.target.value)} />
-      </label>
-      <label className="app-settings-field">
-        <span className="app-settings-label">Интересы</span>
-        <input className="app-profile-input" type="text" aria-label="Интересы" placeholder="Интересы через запятую" value={interestsDraft} onChange={(change) => setInterestsDraft(change.target.value)} />
-      </label>
-      <fieldset className="app-settings-field">
-        <legend className="app-settings-label">Умные уведомления</legend>
-        <label>
-          <input type="checkbox" aria-label="Выход сейчас" checked={leaveNow} onChange={(change) => setLeaveNow(change.target.checked)} /> Выход сейчас
-        </label>
-        <label>
-          <input type="checkbox" aria-label="Погода" checked={weather} onChange={(change) => setWeather(change.target.checked)} /> Погода
-        </label>
-        <label>
-          <input type="checkbox" aria-label="Друг вышел" checked={friendLeft} onChange={(change) => setFriendLeft(change.target.checked)} /> Друг вышел
-        </label>
-        <label>
-          <input type="checkbox" aria-label="Дайджест списков" checked={listDigest} onChange={(change) => setListDigest(change.target.checked)} /> Дайджест списков
-        </label>
-      </fieldset>
-      <label className="app-settings-field">
-        <span className="app-settings-label">История посещений</span>
-        <select className="app-profile-input" aria-label="История посещений" value={visitHistory} onChange={(change) => setVisitHistory(change.target.value as "friends" | "hidden")}>
-          <option value="friends">Друзьям</option>
-          <option value="hidden">Скрыта</option>
-        </select>
-      </label>
-      <label className="app-settings-field">
-        <span className="app-settings-label">Маршруты</span>
-        <select className="app-profile-input" aria-label="Маршруты" value={routes} onChange={(change) => setRoutes(change.target.value as "friends" | "hidden")}>
-          <option value="friends">Друзьям</option>
-          <option value="hidden">Скрыты</option>
-        </select>
-      </label>
-      <label className="app-settings-field">
-        <input type="checkbox" aria-label="Рекомендации" checked={recommendationsEnabled} onChange={(change) => setRecommendationsEnabled(change.target.checked)} /> Рекомендации
-      </label>
-      <div className="app-event-actions-row">
-        <AppButton disabled={saving} type="submit">
-          {saving ? "Сохранение…" : "Сохранить"}
-        </AppButton>
-        <AppButton tone="secondary" onClick={onCancel}>
-          Отмена
-        </AppButton>
-      </div>
-    </form>
+    <button type="button" role="switch" aria-checked={checked} aria-label={label} className={checked ? "app-set-switch app-set-switch--on" : "app-set-switch"} onClick={() => onChange(!checked)}>
+      <span className="app-set-switch-knob" aria-hidden="true" />
+    </button>
   );
 }
 
-function AuthenticatedSettings() {
-  const { back } = useRoute();
+export function SettingsValueRow({ title, hint, value, expanded, onOpen }: { title: string; hint: string; value?: string; expanded: boolean; onOpen: () => void }) {
+  return (
+    <button type="button" className="app-set-row" aria-expanded={expanded} onClick={onOpen}>
+      <span className="app-set-row-text">
+        <span className="app-set-row-title">{title}</span>
+        <span className="app-set-row-hint">{hint}</span>
+      </span>
+      <span className="app-set-row-value">
+        {value !== undefined && <span>{value}</span>}
+        <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+      </span>
+    </button>
+  );
+}
+
+export function SettingsSwitchRow({ title, hint, checked, onChange }: { title: string; hint: string; checked: boolean; onChange: (next: boolean) => void }) {
+  return (
+    <div className="app-set-row">
+      <span className="app-set-row-text">
+        <span className="app-set-row-title">{title}</span>
+        <span className="app-set-row-hint">{hint}</span>
+      </span>
+      <SettingsToggle checked={checked} label={title} onChange={onChange} />
+    </div>
+  );
+}
+
+export function SettingsPicker({ options, selected, multiple = false, onPick }: { options: readonly { value: string; label: string }[]; selected: readonly string[]; multiple?: boolean; onPick: (value: string) => void }) {
+  return (
+    <div className={multiple ? "app-set-picker app-set-picker--chips" : "app-set-picker"} role={multiple ? "group" : "radiogroup"}>
+      {options.map((option) => {
+        const on = selected.includes(option.value);
+        return multiple ? (
+          <button key={option.value} type="button" className={on ? "app-set-chip app-set-chip--on" : "app-set-chip"} aria-pressed={on} onClick={() => onPick(option.value)}>
+            {option.label}
+          </button>
+        ) : (
+          <button key={option.value} type="button" className="app-set-option" role="radio" aria-checked={on} onClick={() => onPick(option.value)}>
+            <span>{option.label}</span>
+            {on && <ActionIcon name="check" size={18} strokeWidth={2.6} />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <>
+      <h2 className="app-set-group-title">{title}</h2>
+      <div className="app-set-group">{children}</div>
+    </>
+  );
+}
+
+type PickerName = "identity" | "city" | "theme" | "interests" | "radius" | "plans" | "quiet" | "about" | "disable" | null;
+
+export interface SettingsViewProps {
+  user: User;
+  profile: Profile;
+  settings: AppSettings | null;
+  theme: { preference: ThemePreference; setPreference: (next: ThemePreference) => void };
+  cacheBytes: number;
+  failed: boolean;
+  onProfile: (patch: UpdateProfile) => void;
+  onSettings: (patch: Partial<Omit<AppSettings, "userId">>) => void;
+  onClearCache: () => void;
+  onOrganizer: () => void;
+  onDisable: () => void;
+}
+
+export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable }: SettingsViewProps) {
+  const [picker, setPicker] = useState<PickerName>(null);
+  const open = (name: Exclude<PickerName, null>) => setPicker((current) => (current === name ? null : name));
+
+  return (
+    <section className="app-set">
+      <button type="button" className="app-set-identity" aria-expanded={picker === "identity"} onClick={() => open("identity")}>
+        <span className="app-set-identity-avatar" aria-hidden="true">
+          {user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={user.avatarUrl} />}
+        </span>
+        <span className="app-set-identity-text">
+          <span className="app-set-identity-name">{[user.firstName, user.lastName].filter(Boolean).join(" ")}</span>
+          <span className="app-set-identity-sub">{identityHint(user)}</span>
+        </span>
+        <span className="app-set-identity-action">Изменить</span>
+      </button>
+      {picker === "identity" && <p className="app-set-note">Имя, фото и телефон — из профиля MAX, меняются в самом мессенджере.</p>}
+      {failed && <p className="app-set-error">Не удалось сохранить настройку. Попробуй ещё раз.</p>}
+
+      <SettingsGroup title="Приложение">
+        <SettingsValueRow title="Город" hint="Определяется по геолокации" value={profile.city} expanded={picker === "city"} onOpen={() => open("city")} />
+        {picker === "city" && <SettingsPicker options={ONBOARDING_CITIES.map((city) => ({ value: city.name, label: city.name }))} selected={[profile.city]} onPick={(city) => onProfile({ city })} />}
+        <SettingsValueRow title="Тема" hint="Светлая, тёмная или как в системе" value={themeLabel(theme.preference)} expanded={picker === "theme"} onOpen={() => open("theme")} />
+        {picker === "theme" && <SettingsPicker options={THEME_OPTIONS.map((option) => ({ value: option.value, label: option.label }))} selected={[theme.preference]} onPick={(value) => theme.setPreference(value as ThemePreference)} />}
+        <SettingsValueRow title="Интересы" hint={interestsHint(profile.interests)} value="Изменить" expanded={picker === "interests"} onOpen={() => open("interests")} />
+        {picker === "interests" && <SettingsPicker multiple options={ONBOARDING_INTERESTS.map((interest) => ({ value: interest, label: interest }))} selected={profile.interests} onPick={(interest) => onProfile({ interests: profile.interests.includes(interest) ? profile.interests.filter((item) => item !== interest) : [...profile.interests, interest] })} />}
+        <SettingsValueRow title="Радиус поиска" hint="Что считать «рядом»" value={settings === null ? undefined : radiusLabel(settings.searchRadiusKm)} expanded={picker === "radius"} onOpen={() => open("radius")} />
+        {picker === "radius" && settings !== null && <SettingsPicker options={SEARCH_RADIUS_OPTIONS.map((km) => ({ value: String(km), label: radiusLabel(km) }))} selected={[String(settings.searchRadiusKm)]} onPick={(km) => onSettings({ searchRadiusKm: Number(km) })} />}
+      </SettingsGroup>
+
+      <SettingsGroup title="Приватность">
+        <SettingsValueRow title="Кто видит мои планы" hint="По умолчанию для новых записей" value={planVisibilityLabel(profile.privacy.routes)} expanded={picker === "plans"} onOpen={() => open("plans")} />
+        {picker === "plans" && (
+          <SettingsPicker
+            options={[
+              { value: "friends", label: "Друзья" },
+              { value: "hidden", label: "Никто" },
+            ]}
+            selected={[profile.privacy.routes]}
+            onPick={(value) => onProfile({ privacy: { routes: value as Profile["privacy"]["routes"] } })}
+          />
+        )}
+        <SettingsSwitchRow title="Показывать меня на карте" hint="Только когда я на событии" checked={settings?.showOnMap ?? false} onChange={(showOnMap) => onSettings({ showOnMap })} />
+        <SettingsSwitchRow title="Статус «ищу компанию»" hint="Виден участникам события" checked={settings?.lookingForCompany ?? false} onChange={(lookingForCompany) => onSettings({ lookingForCompany })} />
+        <SettingsSwitchRow title="История посещений" hint="Используется для подборок" checked={profile.privacy.visitHistory === "friends"} onChange={(on) => onProfile({ privacy: { visitHistory: on ? "friends" : "hidden" } })} />
+      </SettingsGroup>
+
+      <SettingsGroup title="Уведомления">
+        {/* Один переключатель на два поля контракта: маршрут и погода — это ровно то, из чего складывается «когда выходить». */}
+        <SettingsSwitchRow title="Когда выходить" hint="С учётом маршрута и погоды" checked={profile.smartAlerts.leaveNow} onChange={(on) => onProfile({ smartAlerts: { leaveNow: on, weather: on } })} />
+        <SettingsSwitchRow title="Освободилось место" hint="По листу ожидания" checked={settings?.seatFreed ?? false} onChange={(seatFreed) => onSettings({ seatFreed })} />
+        <SettingsSwitchRow title="Планы друзей" hint="Когда друг записался рядом" checked={profile.smartAlerts.friendLeft} onChange={(on) => onProfile({ smartAlerts: { friendLeft: on } })} />
+        <SettingsValueRow title="Тихие часы" hint={quietHoursHint(settings?.quietHoursFrom ?? "23:00", settings?.quietHoursTo ?? "09:00")} value={quietHoursLabel(settings?.quietHours ?? false)} expanded={picker === "quiet"} onOpen={() => open("quiet")} />
+        {picker === "quiet" && (
+          <SettingsPicker
+            options={[
+              { value: "on", label: "Вкл" },
+              { value: "off", label: "Выкл" },
+            ]}
+            selected={[(settings?.quietHours ?? false) ? "on" : "off"]}
+            onPick={(value) => onSettings({ quietHours: value === "on" })}
+          />
+        )}
+      </SettingsGroup>
+
+      <SettingsGroup title="Организаторам">
+        <SettingsSwitchRow title="Режим организатора" hint="Панель, события и промо" checked={settings?.organizerMode ?? false} onChange={(organizerMode) => onSettings({ organizerMode })} />
+        <SettingsValueRow title="Реквизиты и оплата" hint="Билеты продаются у вас" value="Настроить" expanded={false} onOpen={onOrganizer} />
+      </SettingsGroup>
+
+      <SettingsGroup title="Мини-приложение">
+        <SettingsSwitchRow title="Доступ к геолокации MAX" hint="Нужен для карты и «рядом»" checked={settings?.geoAccess ?? false} onChange={(geoAccess) => onSettings({ geoAccess })} />
+        <SettingsSwitchRow title="Доступ к списку контактов" hint="Чтобы находить друзей в Афише" checked={settings?.contactsAccess ?? false} onChange={(contactsAccess) => onSettings({ contactsAccess })} />
+        <SettingsValueRow title="Очистить кеш" hint={formatBytes(cacheBytes)} expanded={false} onOpen={onClearCache} />
+        <SettingsValueRow title="О приложении" hint={`Версия ${APP_VERSION} · условия и помощь`} expanded={picker === "about"} onOpen={() => open("about")} />
+      </SettingsGroup>
+      {picker === "about" && <p className="app-set-note">MAX Афиша — афиша событий и совместного досуга внутри MAX. Версия {APP_VERSION}.</p>}
+
+      <button type="button" className="app-set-disable" aria-expanded={picker === "disable"} onClick={() => (picker === "disable" ? onDisable() : open("disable"))}>
+        {picker === "disable" ? "Точно отключить?" : "Отключить мини-приложение"}
+      </button>
+      {picker === "disable" && <p className="app-set-note">Мини-приложение убирается из списка в самом MAX — здесь мы только закроем его.</p>}
+    </section>
+  );
+}
+
+function AuthenticatedSettings({ user }: { user: User }) {
+  const { navigate } = useRoute();
+  const theme = useAppTheme();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [cacheBytes, setCacheBytes] = useState(0);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -125,15 +291,23 @@ function AuthenticatedSettings() {
         if (alive) setProfile(value);
       },
       () => {
-        if (alive) setFailed(true);
+        if (alive) setLoadFailed(true);
       },
     );
+    apiClient.getAppSettings(user.id).then(
+      (value) => {
+        if (alive) setSettings(value);
+      },
+      // The rows this aggregate feeds keep their last known state; the screen is the profile's, not its.
+      () => {},
+    );
+    if (typeof window !== "undefined") setCacheBytes(appCacheBytes(window.localStorage));
     return () => {
       alive = false;
     };
-  }, []);
+  }, [user.id]);
 
-  if (failed) return <AppState error>Не удалось загрузить профиль.</AppState>;
+  if (loadFailed) return <AppState error>Не удалось загрузить профиль.</AppState>;
   if (profile === null)
     return (
       <div className="app-card" aria-hidden="true">
@@ -143,18 +317,44 @@ function AuthenticatedSettings() {
         </div>
       </div>
     );
+
   return (
     <SettingsView
+      user={user}
       profile={profile}
-      saving={saving}
-      onCancel={back}
-      onSave={(patch) => {
-        setSaving(true);
-        apiClient.updateProfile(patch).then(
-          () => back(),
-          () => setSaving(false),
-        );
+      settings={settings}
+      theme={theme}
+      cacheBytes={cacheBytes}
+      failed={saveFailed}
+      onProfile={(patch) => {
+        setSaveFailed(false);
+        // Optimistic: a switch that waits for the server reads as a broken switch. The response is the
+        // truth that lands afterwards, and a rejected write puts the old value back.
+        const previous = profile;
+        setProfile({ ...profile, ...patch, smartAlerts: { ...profile.smartAlerts, ...patch.smartAlerts }, privacy: { ...profile.privacy, ...patch.privacy } });
+        apiClient.updateProfile(patch).then(setProfile, () => {
+          setProfile(previous);
+          setSaveFailed(true);
+        });
       }}
+      onSettings={(patch) => {
+        setSaveFailed(false);
+        const previous = settings;
+        if (settings !== null) setSettings({ ...settings, ...patch });
+        apiClient.updateAppSettings(user.id, patch).then(setSettings, () => {
+          setSettings(previous);
+          setSaveFailed(true);
+        });
+      }}
+      onClearCache={() => {
+        if (typeof window === "undefined") return;
+        clearAppCache(window.localStorage);
+        setCacheBytes(appCacheBytes(window.localStorage));
+      }}
+      onOrganizer={() => navigate({ name: "organizer" })}
+      // MAX Bridge has no "disable" call (https://dev.max.ru/docs/webapps/bridge): closing is all a
+      // mini-app may do about itself, the removal happens in MAX.
+      onDisable={() => getWebApp()?.close()}
     />
   );
 }
@@ -162,7 +362,7 @@ function AuthenticatedSettings() {
 export function SettingsPage() {
   const auth = useAuth();
 
-  if (auth.status === "authenticated") return <AuthenticatedSettings />;
+  if (auth.status === "authenticated") return <AuthenticatedSettings user={auth.user} />;
   if (auth.status === "error") {
     return <AppState error>Не удалось войти: {auth.message}</AppState>;
   }

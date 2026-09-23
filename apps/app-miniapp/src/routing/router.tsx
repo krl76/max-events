@@ -6,8 +6,8 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - Route - moderation | home | search | create | map | event(id) | place(id) | friends | calendar | profile | settings | subscriptions | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | plan-new | day-route | list(id) | achievements | micro-new | story-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
-// - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote- prefixes) to a Route, home fallback
+// - Route - moderation | home | search | create | map | event(id) | place(id) | friends | calendar | profile | settings | subscriptions | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | plan-new | day-route | list(id) | achievements | after-event(eventId) | micro-new | story-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
+// - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote-/after- prefixes) to a Route, home fallback
 // - isTabRoute - the five tabbar routes (home/search/create/plans/profile); tab-to-tab switches replace the history entry instead of pushing. The map is no longer a tab — it is a view pushed from Поиск (макет, экран 16)
 // - RouteHistoryState - history entry payload: route + sequential idx (idx drives back/forward detection)
 // - nextHistory - pure history decision: tab-to-tab -> replace (idx kept), anything else -> push (idx + 1)
@@ -21,7 +21,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getStartParam, getWebApp } from "../max/bridge";
 
-export type Route = { name: "home" } | { name: "search" } | { name: "create" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "settings" } | { name: "subscriptions" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "plan-new" } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "micro-new" } | { name: "story-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string } | { name: "moderation" };
+export type Route = { name: "home" } | { name: "search" } | { name: "create" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "settings" } | { name: "subscriptions" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "plan-new" } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "after-event"; eventId: string } | { name: "micro-new" } | { name: "story-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string } | { name: "moderation" };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -33,6 +33,12 @@ const START_PARAM_PREFIXES = [
 ] as const satisfies ReadonlyArray<readonly [string, Route["name"]]>;
 
 export function routeFromStartParam(startParam: string | null): Route {
+  // Экран 35 «После события» is opened by the push that follows an event, so its deep link carries
+  // an eventId rather than an id of its own and cannot ride the prefix table above.
+  if (startParam?.startsWith("after-") === true) {
+    const eventId = startParam.slice("after-".length);
+    if (eventId) return { name: "after-event", eventId };
+  }
   for (const [prefix, name] of START_PARAM_PREFIXES) {
     if (startParam?.startsWith(prefix)) {
       const id = startParam.slice(prefix.length);
@@ -93,6 +99,7 @@ function toRoute(value: unknown): Route | null {
       if (eventId !== null && eventId !== undefined && typeof eventId !== "string") return null;
       return { name, eventId: eventId ?? null };
     }
+    case "after-event":
     case "gathering-new": {
       const { eventId } = value as { eventId?: unknown };
       return typeof eventId === "string" ? { name, eventId } : null;

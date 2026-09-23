@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock route table for the viewer's own profile, their visit history, achievements, my-city and taste graph.
-// SCOPE: GET/PATCH /api/profile, GET /api/users/:id/{visit-stats,achievements,my-city}, GET /api/taste[/after-me].
-// DEPENDS: ./profile.js, ./fixtures.js, @max-events/api-contracts
+// PURPOSE: Mock route table for the viewer's own profile, their visit history, achievements, my-city, taste graph, profile counters and app settings.
+// SCOPE: GET/PATCH /api/profile, GET /api/users/:id/{visit-stats,achievements,my-city,counters,visited-places}, GET/PATCH /api/users/:id/app-settings, GET /api/taste[/after-me].
+// DEPENDS: ./profile.js, ./fixtures.js, ../client.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -11,8 +11,9 @@
 
 import { UpdateProfileSchema } from "@max-events/api-contracts";
 import type { Profile } from "@max-events/api-contracts";
+import { type UpdateAppSettings } from "../client";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
-import { achievementsFor, afterMePicks, mockProfiles, myCityFor, profileFor, tasteProfile, visitStatsFor } from "./profile";
+import { achievementsFor, afterMePicks, appSettingsFor, mockProfiles, myCityFor, profileCountersFor, profileFor, tasteProfile, updateMockAppSettings, visitStatsFor, visitedPlacesFor } from "./profile";
 
 export function profileRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/taste") {
@@ -43,6 +44,21 @@ export function profileRoutes(url: URL, init: RequestInit | undefined): Response
   const myCity = /^\/api\/users\/([^/]+)\/my-city$/.exec(url.pathname);
   if (myCity) {
     return Response.json(myCityFor(myCity[1]));
+  }
+  const counters = /^\/api\/users\/([^/]+)\/counters$/.exec(url.pathname);
+  if (counters) {
+    return Response.json(profileCountersFor(counters[1]));
+  }
+  const visitedPlaces = /^\/api\/users\/([^/]+)\/visited-places$/.exec(url.pathname);
+  if (visitedPlaces) {
+    return Response.json(visitedPlacesFor(visitedPlaces[1]));
+  }
+  const appSettings = /^\/api\/users\/([^/]+)\/app-settings$/.exec(url.pathname);
+  if (appSettings) {
+    if (init?.method !== "PATCH") return Response.json(appSettingsFor(appSettings[1]));
+    const patch = parseBookingBody(init) as UpdateAppSettings | undefined;
+    if (typeof patch !== "object" || patch === null) return new Response(null, { status: 400 });
+    return Response.json(updateMockAppSettings(appSettings[1], patch));
   }
   return null;
 }

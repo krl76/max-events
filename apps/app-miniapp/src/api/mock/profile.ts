@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock profile store: the seeded profiles, the visit statistics they derive, achievements, my-city and the taste graph.
+// PURPOSE: Mock profile store: the seeded profiles, the visit statistics they derive, achievements, my-city, the taste graph, the экран 36 counters and the экран 41 app settings.
 // SCOPE: Profile state and everything computed from check-ins; the HTTP surface is in ./profile.routes.ts.
 // DEPENDS: @max-events/api-contracts, ../client.js and the sibling ./mock domain modules it imports
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
@@ -11,6 +11,12 @@
 // - myCityFor - my-city summary and memory points derived from the check-ins of a user
 // - tasteProfile - taste graph of a user, derived from their mock check-ins (empty until they visit something)
 // - afterMePicks - mock GET /taste/after-me: more of the strongest visited category, backend wording parity
+// - profileCountersFor - экран 36 counters: events and places from the visit history, «компании» = visited events a friend was at too (#496)
+// - visitedPlacesFor - impressions grid of экран 36: the places of the viewer's check-ins with their visit counts, most visited first
+// - DEFAULT_APP_SETTINGS - the экран 41 preferences a user starts with
+// - appSettingsFor - stored app settings of a user, seeded from the defaults
+// - updateMockAppSettings - merge a patch into the stored app settings
+// - resetMockAppSettings - drop the stored app settings (test isolation)
 // - mockProfiles - shared with profile.routes
 // - resetMockProfiles - restore the seeded friend profiles (test isolation)
 // - profileFor - shared with profile.routes, social
@@ -18,6 +24,7 @@
 
 import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, PlaceCategorySchema, formatAfterMeExplanation } from "@max-events/api-contracts";
 import type { Achievement, AfterMeResponse, Event, EventCategory, MemoryPoint, MyCitySummary, Profile, TasteProfile, TasteTransition, VisitStats } from "@max-events/api-contracts";
+import { type AppSettings, type ProfileCounters, type UpdateAppSettings, type VisitedPlace } from "../client";
 import { mockCheckIns } from "./bookings";
 import { MOCK_NOW, PLACE_STAMP, mockEvents, mockFriends, mockPlaces } from "./fixtures";
 import { mockReviews } from "./reviews";
@@ -181,6 +188,79 @@ export function afterMePicks(userId: string, now: Date = MOCK_NOW): AfterMeRespo
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
     .slice(0, 5);
   return { suggestions: [{ ...suggestion, explanation: formatAfterMeExplanation(suggestion.afterCount, suggestion.fromCategory, suggestion.toCategory), events }] };
+}
+
+/**
+ * What the demo account already has behind it. mockCheckIns starts empty on purpose — a check-in is
+ * something the viewer does live — so экран 36 would open on three zeros and an empty impressions
+ * grid without this. Kept separate from the check-in store so resetMockCheckIns stays a clean slate
+ * for the tests that count check-ins; the counters below add the two together.
+ */
+const MOCK_VISIT_HISTORY: readonly { place: number; visits: number; withCompany: number }[] = [
+  { place: 0, visits: 12, withCompany: 9 },
+  { place: 2, visits: 9, withCompany: 8 },
+  { place: 1, visits: 7, withCompany: 4 },
+  { place: 3, visits: 5, withCompany: 5 },
+];
+
+/** The impressions grid of экран 36: where the viewer has been, most visited first. Live check-ins add to the seeded history. */
+export function visitedPlacesFor(userId: string): VisitedPlace[] {
+  const visits = new Map<string, number>();
+  for (const row of MOCK_VISIT_HISTORY) visits.set(mockPlaces[row.place].id, row.visits);
+  for (const item of mockCheckIns.filter((row) => row.userId === userId)) {
+    const placeId = item.placeId ?? (item.eventId === null ? null : (mockEvents.find((candidate) => candidate.id === item.eventId)?.placeId ?? null));
+    if (placeId !== null) visits.set(placeId, (visits.get(placeId) ?? 0) + 1);
+  }
+  return [...visits.entries()]
+    .flatMap(([placeId, count]) => {
+      const place = mockPlaces.find((candidate) => candidate.id === placeId);
+      return place ? [{ placeId, title: place.title, visits: count }] : [];
+    })
+    .sort((a, b) => b.visits - a.visits || a.title.localeCompare(b.title));
+}
+
+/**
+ * The three counters of экран 36. «Компании» has no counter in any service (#496): here it is the
+ * share of the visits that happened with company, which is what the metric means on the design.
+ */
+export function profileCountersFor(userId: string): ProfileCounters {
+  const seededVisits = MOCK_VISIT_HISTORY.reduce((sum, row) => sum + row.visits, 0);
+  return {
+    userId,
+    eventsCount: seededVisits + visitStatsFor(userId).eventsCount,
+    placesCount: visitedPlacesFor(userId).length,
+    companiesCount: MOCK_VISIT_HISTORY.reduce((sum, row) => sum + row.withCompany, 0),
+  };
+}
+
+/** What a user starts экран 41 with: the radius of «рядом», quiet hours at night, permissions granted. */
+export const DEFAULT_APP_SETTINGS: Omit<AppSettings, "userId"> = {
+  searchRadiusKm: 5,
+  showOnMap: true,
+  lookingForCompany: true,
+  seatFreed: true,
+  quietHours: true,
+  quietHoursFrom: "23:00",
+  quietHoursTo: "09:00",
+  organizerMode: false,
+  geoAccess: true,
+  contactsAccess: true,
+};
+
+const mockAppSettings = new Map<string, AppSettings>();
+
+export function appSettingsFor(userId: string): AppSettings {
+  return mockAppSettings.get(userId) ?? { userId, ...DEFAULT_APP_SETTINGS };
+}
+
+export function updateMockAppSettings(userId: string, patch: UpdateAppSettings): AppSettings {
+  const updated: AppSettings = { ...appSettingsFor(userId), ...patch, userId };
+  mockAppSettings.set(userId, updated);
+  return updated;
+}
+
+export function resetMockAppSettings(): void {
+  mockAppSettings.clear();
 }
 
 export const mockProfiles = new Map<string, Profile>();

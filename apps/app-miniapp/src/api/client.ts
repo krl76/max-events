@@ -9,13 +9,14 @@
 // - AddListItem - save-to-list payload (owner user + saved event)
 // - ApiClient - configurable fetch wrapper with typed methods
 // - ApiError - unified API error with HTTP status
+// - AppSettings - экран 41 preferences the Profile contract has no field for (radius, quiet hours, visibility, waitlist alerts, organizer mode, mini-app permissions)
 // - CalendarEntry - calendar item: active booking enriched with its event and place
 // - CreateCheckIn - check-in payload (user + exactly one of event/place)
 // - CreateFeedPost - impression publication payload (author, event, text, optional photo); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
 // - CreateGathering - gathering launch payload (event + friend ids + proposed meeting time)
 // - CreateMicroEvent - micro-event creation payload (author, what/when/where, limit)
 // - CreateReport - report submission payload (user + exactly one of event/place/feed post + reason); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
-// - CreateReview - review submission payload (user + event + scores)
+// - CreateReview - review submission payload (user + event + scores + fact tags)
 // - EventDetails - event page aggregate: event, place, organizer (nullable), free seats, own active booking
 // - EventFilters - optional catalog list filters (category/city/date/minRating)
 // - EventRating - event page rating aggregate: RatingSummary + per-category averages
@@ -31,6 +32,10 @@
 // - ListScreen - one-list aggregate: list + participants + item cards (shared collections surface)
 // - ListSummary - lists screen aggregate: list + item count + id of the item saving the checked event (null when not saved) + participants (shared collections, mock)
 // - MyCityPayload - my-city screen aggregate: summary counters + memory points
+// - ProfileCounters - the three counters of экран 36 (events / places / companies), companies nullable until a service counts them (#496)
+// - ReviewFactTag - one «Что было правдой?» tag of экран 35 (code + ru label), mock-backed until the tag dictionary lands (#500)
+// - UpdateAppSettings - partial AppSettings patch
+// - VisitedPlace - one cell of the impressions grid: place, title and visit count
 // - NotificationsSummary - unread count behind the feed header bell; mock-only until the notifications domain exists (#494)
 // - OrganizerEvent - contract event plus the draft flag read from the raw `published` field (returned by toEventDto; a missing flag reads as published)
 // - OrganizerPlace - contract place plus the draft flag read from the raw `published` field (returned by toPlaceDto; a missing flag reads as published)
@@ -68,13 +73,13 @@ import { ApiTransport } from "./endpoints/transport";
 export { ApiError } from "./endpoints/transport";
 export { parseEventFilters, serializeEventFilters } from "./endpoints/catalog";
 export type { EventDetails, EventFilters, ParticipationStats, PlaceParticipation } from "./endpoints/catalog";
-export type { CreateReview, EventRating } from "./endpoints/reviews";
+export type { CreateReview, EventRating, ReviewFactTag } from "./endpoints/reviews";
 export type { CreateFeedPost, FeedCard, FeedCardCounts, FeedComment, FeedFriendCard, FeedPlaceCard, FeedPost, NotificationsSummary } from "./endpoints/feed";
 export type { CreateGathering, CreateMicroEvent, FriendSuggestion } from "./endpoints/social";
 export type { CreateCheckIn } from "./endpoints/bookings";
 export type { CalendarEntry } from "./endpoints/plans";
 export type { AddListItem, ListItemCard, ListScreen, ListSummary } from "./endpoints/lists";
-export type { MyCityPayload } from "./endpoints/profile";
+export type { AppSettings, MyCityPayload, ProfileCounters, UpdateAppSettings, VisitedPlace } from "./endpoints/profile";
 export type { LeisureQuery } from "./endpoints/discover";
 export { statsPeriodQuery } from "./endpoints/organizer";
 export type { OrganizerEvent, OrganizerPlace, StatsPeriodQuery, UpdateOrganizerEvent, UpdateOrganizerPlace } from "./endpoints/organizer";

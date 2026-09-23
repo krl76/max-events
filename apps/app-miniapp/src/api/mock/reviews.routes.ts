@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock route table for the post-event review: submission and the event rating aggregate.
-// SCOPE: POST /api/reviews, GET /api/events/:id/rating.
+// PURPOSE: Mock route table for the post-event review: submission, the event rating aggregate and the «Что было правдой?» tags.
+// SCOPE: POST /api/reviews, GET /api/events/:id/rating, GET /api/events/:id/review-facts.
 // DEPENDS: ./reviews.js, ./fixtures.js, ../client.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -11,13 +11,18 @@
 
 import { type CreateReview } from "../client";
 import { parseBookingBody } from "./fixtures";
-import { createMockReview, eventRating } from "./reviews";
+import { createMockReview, eventRating, reviewFactTags } from "./reviews";
 
 export function reviewsRoutes(url: URL, init: RequestInit | undefined): Response | null {
   const rating = /^\/api\/events\/([^/]+)\/rating$/.exec(url.pathname);
   if (rating) {
     const payload = eventRating(rating[1]);
     return payload ? Response.json(payload) : new Response(null, { status: 404 });
+  }
+  const facts = /^\/api\/events\/([^/]+)\/review-facts$/.exec(url.pathname);
+  if (facts) {
+    const tags = reviewFactTags(facts[1]);
+    return tags === "no_event" ? new Response(null, { status: 404 }) : Response.json(tags);
   }
   if (url.pathname === "/api/reviews" && init?.method === "POST") {
     const payload = parseBookingBody(init) as CreateReview | undefined;

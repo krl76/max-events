@@ -12,7 +12,7 @@
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
 // - routeTitle - header title for the current route
 // - routeHasBack - back button shown on every non-tab route, the map included
-// - routeHasHeader - header hidden on the search/plans/profile tab screens (profile renders its own Instagram-style topbar)
+// - routeHasHeader - header hidden on the search/plans/profile tab screens (profile renders its own gradient hero) and on «После события», whose hero carries the close button instead of a back arrow
 // END_MODULE_MAP
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -52,6 +52,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   "day-route": "Маршрут на день",
   list: "Список",
   achievements: "Достижения",
+  "after-event": "После события",
   "micro-new": "Новое микро-событие",
   "story-new": "Новая история",
   "feed-new": "Новое впечатление",
@@ -71,7 +72,7 @@ export function routeHasBack(route: Route): boolean {
 }
 
 // The map keeps its header: since it stopped being a tab it is reached from Поиск, and a pushed screen needs its back button.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "plans", "profile"]);
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "plans", "profile", "after-event"]);
 
 export function routeHasHeader(route: Route): boolean {
   return !HEADERLESS_ROUTES.has(route.name);
