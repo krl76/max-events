@@ -11,7 +11,7 @@
 // - MicroState - union of the section fetch states (loading / error / ready)
 // - joinedMicroEvents - open micro-events the viewer joined that have not started yet, soonest first
 // - MyMicroEventsSection - «Микро-события» block of the calendar: what the viewer signed up for, with the leave action
-// - MicroSection - container: loads open micro events and the places list, wires join/leave and the create CTA
+// - MicroSection - container: loads open micro events and the places list, wires join/leave, the create CTA and the «Все» link to экран 24
 // - MicroDraft - creation form draft (title, when, where, limit)
 // - microDraftReady - the four fields are filled with a positive limit
 // - MicroEventCreateView - presentational four-field form with the place datalist
@@ -146,7 +146,7 @@ export function MyMicroEventsSection({ now = new Date() }: { now?: Date }) {
 
 export type MicroState = { status: "loading" } | { status: "error" } | { status: "ready"; events: MicroEvent[] };
 
-export function MicroSection({ onCreate }: { onCreate: () => void }) {
+export function MicroSection({ onCreate, onOpenAll }: { onCreate: () => void; onOpenAll?: () => void }) {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const [state, setState] = useState<MicroState>({ status: "loading" });
@@ -201,9 +201,17 @@ export function MicroSection({ onCreate }: { onCreate: () => void }) {
       title="Микро-события"
       className="app-cards-flat"
       action={
-        <AppIconButton aria-label="Создать микро-событие" onClick={onCreate}>
-          +
-        </AppIconButton>
+        <>
+          {/* Секция на главной — витрина; весь список живёт на экране 24, и ссылка ведёт туда. */}
+          {onOpenAll !== undefined && (
+            <button type="button" className="app-micro-all" onClick={onOpenAll}>
+              Все
+            </button>
+          )}
+          <AppIconButton aria-label="Создать микро-событие" onClick={onCreate}>
+            +
+          </AppIconButton>
+        </>
       }
     >
       {state.status === "loading" ? (

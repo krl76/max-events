@@ -11,6 +11,7 @@
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote- prefixes) to a Route, home fallback
 // - Route - moderation | home | search | create | map | event(id) | place(id) | friends | calendar | profile | settings | subscriptions | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | plan-new | day-route | list(id) | achievements | after-event(eventId) | micro-new | story-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote-/after- prefixes) to a Route, home fallback
+// - Route - … | micro (макет, экран 24) | micro-event(id) (экран 25) | friend-route(id) (экран 28)
 // - isTabRoute - the five tabbar routes (home/search/create/plans/profile); tab-to-tab switches replace the history entry instead of pushing. The map is no longer a tab — it is a view pushed from Поиск (макет, экран 16)
 // - RouteHistoryState - history entry payload: route + sequential idx (idx drives back/forward detection)
 // - nextHistory - pure history decision: tab-to-tab -> replace (idx kept), anything else -> push (idx + 1)
@@ -61,7 +62,10 @@ export type Route =
   | { name: "after-event"; eventId: string }
   | { name: "lists" }
   // Создание голосования (макет, экран 32): из группы приходит её id, из «с кем пойти» — ничего
-  | { name: "vote-new"; groupId: string | null };
+  | { name: "vote-new"; groupId: string | null }
+  | { name: "micro" }
+  | { name: "micro-event"; id: string }
+  | { name: "friend-route"; id: string };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -160,6 +164,13 @@ function toRoute(value: unknown): Route | null {
       const { groupId } = value as { groupId?: unknown };
       if (groupId !== null && groupId !== undefined && typeof groupId !== "string") return null;
       return { name, groupId: groupId ?? null };
+    }
+    case "micro":
+      return { name };
+    case "micro-event":
+    case "friend-route": {
+      const { id } = value as { id?: unknown };
+      return typeof id === "string" ? ({ name, id } as Route) : null;
     }
     default:
       return null;

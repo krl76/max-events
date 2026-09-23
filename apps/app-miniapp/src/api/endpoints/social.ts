@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Social graph endpoints of the api client: friends, the gathering flow, UGC micro-events, reverse discovery and people matching.
-// SCOPE: GET /friends[/activity|/availability], the /gatherings surface, the /micro-events surface, GET /discovery[/friend-places|/friends/:userId/route], GET /people.
+// SCOPE: GET /friends[/activity|/availability|/sync], POST /friends/sync, the /gatherings surface, the /micro-events surface, GET /discovery[/friend-places|/friends/:userId/route], GET /people.
 // DEPENDS: ./transport.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -9,11 +9,18 @@
 // - CreateGathering - gathering launch payload (event + friend ids + proposed meeting time)
 // - CreateMicroEvent - micro-event creation payload (author, what/when/where, limit)
 // - FriendSuggestion - one person of the onboarding friends step: friend + the hint line under the name + whether the viewer follows them
-// - withSocial - ApiClient.listFriends / getFriendsActivity / getFriendAvailability / listFriendSuggestions / followFriends / createGathering / getGathering / respondToGathering / listMicroEvents / createMicroEvent / joinMicroEvent / leaveMicroEvent / getDiscovery / listFriendPlaces / getFriendRoute / getPeople
+// - FriendsSync - when the MAX contacts of the viewer were last synchronised (макет, экран 26)
+// - MicroParticipant - one participant of a micro-event card: the person and whether they are the author who called it
+// - MicroEventCard - micro-event card aggregate (макет, экран 25): the event, its venue and the participants by name
+// - DiscoveryFriendCard - one friend row of экран 27: unseen places plus the «история посещений скрыта» state
+// - DiscoveryScreen - экран 27 payload: the total of unseen places and the friend rows
+// - FriendRouteStop - one stop of a friend route: place, when they were there and what they did
+// - FriendRouteScreen - экран 28 payload: the friend and their ordered stops
+// - withSocial - ApiClient.listFriends / getFriendsActivity / getFriendAvailability / getFriendsSync / syncFriends / listFriendSuggestions / followFriends / createGathering / getGathering / respondToGathering / listMicroEvents / getMicroEventCard / createMicroEvent / joinMicroEvent / leaveMicroEvent / getDiscovery / listFriendPlaces / getFriendRoute / getPeople
 // END_MODULE_MAP
 
-import { DiscoveryResponseSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendPlaceVisitSchema, FriendRouteSchema, FriendSchema, GatheringSchema, MicroEventSchema, PeopleResponseSchema } from "@max-events/api-contracts";
-import type { DiscoveryResponse, Friend, FriendActivityByFriend, FriendAvailability, FriendPlaceVisit, FriendRoute, Gathering, InviteeResponse, MicroEvent, PeopleResponse } from "@max-events/api-contracts";
+import { DiscoveryResponseSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendPlaceVisitSchema, FriendRouteSchema, FriendSchema, GatheringSchema, MicroEventSchema, PeopleResponseSchema, PlaceSchema } from "@max-events/api-contracts";
+import type { Friend, FriendActivityByFriend, FriendAvailability, FriendPlaceVisit, Gathering, InviteeResponse, MicroEvent, PeopleResponse, Place } from "@max-events/api-contracts";
 import type { ApiMixin, ZodSchema } from "./transport";
 
 /** Gathering launch payload: event, invited friends, proposed meeting time. */
@@ -81,6 +88,124 @@ const FollowedIdsSchema = listSchema<string>(
   "followed user ids",
 );
 
+/**
+ * When the MAX contact list was last pulled into the friend graph (макет, экран 26 — «Синхронизировано
+ * 2 часа назад»). POST /friends/sync exists and answers with the graph it rebuilt, but nothing records
+ * *when* it ran, so the stamp comes from the mock behind the GET the future endpoint will answer with;
+ * `null` is «ещё ни разу», not «неизвестно».
+ */
+export interface FriendsSync {
+  syncedAt: string | null;
+}
+
+const FriendsSyncSchema: ZodSchema<FriendsSync> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a friends sync stamp" };
+    const { syncedAt } = data as { syncedAt?: unknown };
+    if (syncedAt !== null && typeof syncedAt !== "string") return { success: false as const, error: "invalid friends sync stamp" };
+    return { success: true as const, data: { syncedAt } };
+  },
+};
+
+/** One participant of a micro-event card; the author is the person who called the gathering («позвал» in the design). */
+export interface MicroParticipant {
+  friend: Friend;
+  author: boolean;
+}
+
+/**
+ * The micro-event card (макет, экран 25). MicroEvent carries `participantIds` and nothing else about the
+ * people, so a screen that must print «Анна Кравцова · позвал» has no names to print. The aggregate is the
+ * shape GET /micro-events/:id will answer with — a card is one request, not a list scan plus a name lookup.
+ */
+export interface MicroEventCard {
+  event: MicroEvent;
+  place: Place | null;
+  participants: MicroParticipant[];
+}
+
+const MicroEventCardSchema: ZodSchema<MicroEventCard> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a micro-event card" };
+    const raw = data as Record<string, unknown>;
+    const event = MicroEventSchema.safeParse(raw.event);
+    if (!event.success) return { success: false as const, error: event.error };
+    let place: Place | null = null;
+    if (raw.place !== null && raw.place !== undefined) {
+      const parsed = PlaceSchema.safeParse(raw.place);
+      if (!parsed.success) return { success: false as const, error: parsed.error };
+      place = parsed.data;
+    }
+    const participants: MicroParticipant[] = [];
+    if (!Array.isArray(raw.participants)) return { success: false as const, error: "expected micro-event participants" };
+    for (const entry of raw.participants) {
+      if (typeof entry !== "object" || entry === null) return { success: false as const, error: "expected a micro-event participant" };
+      const row = entry as Record<string, unknown>;
+      const friend = FriendSchema.safeParse(row.friend);
+      if (!friend.success) return { success: false as const, error: friend.error };
+      participants.push({ friend: friend.data, author: row.author === true });
+    }
+    return { success: true as const, data: { event: event.data, place, participants } };
+  },
+};
+
+/**
+ * One friend row of экран 27. `visitHistoryHidden` is the «История посещений скрыта» state the design
+ * draws as a normal outcome rather than an error: today the backend simply drops such a friend from the
+ * summary, so the flag reads `false` against the live API and the row appears only on the mock.
+ */
+export interface DiscoveryFriendCard {
+  friend: Friend;
+  newPlacesCount: number;
+  places: Place[];
+  visitHistoryHidden: boolean;
+}
+
+export interface DiscoveryScreen {
+  newPlacesCount: number;
+  byFriend: DiscoveryFriendCard[];
+}
+
+const DiscoveryScreenSchema: ZodSchema<DiscoveryScreen> = {
+  safeParse(data: unknown) {
+    const parsed = DiscoveryResponseSchema.safeParse(data);
+    if (!parsed.success) return { success: false as const, error: parsed.error };
+    // Zod strips what the contract does not name, so the flag has to be read off the raw payload.
+    const rows = Array.isArray((data as { byFriend?: unknown }).byFriend) ? (data as { byFriend: unknown[] }).byFriend : [];
+    const byFriend = parsed.data.byFriend.map((entry, index) => ({ ...entry, visitHistoryHidden: (rows[index] as { visitHistoryHidden?: unknown } | undefined)?.visitHistoryHidden === true }));
+    return { success: true as const, data: { newPlacesCount: parsed.data.newPlacesCount, byFriend } };
+  },
+};
+
+/**
+ * One stop of a friend route (макет, экран 28 — «11:20 · завтрак»). FriendRoute is a bare place list, so
+ * both the clock and the note are mock; they stay nullable because the live route answers without them
+ * and a timeline without times is still a timeline.
+ */
+export interface FriendRouteStop {
+  place: Place;
+  visitedAt: string | null;
+  note: string | null;
+}
+
+export interface FriendRouteScreen {
+  friend: Friend;
+  stops: FriendRouteStop[];
+}
+
+const FriendRouteScreenSchema: ZodSchema<FriendRouteScreen> = {
+  safeParse(data: unknown) {
+    const parsed = FriendRouteSchema.safeParse(data);
+    if (!parsed.success) return { success: false as const, error: parsed.error };
+    const rows = Array.isArray((data as { stops?: unknown }).stops) ? (data as { stops: unknown[] }).stops : [];
+    const stops = parsed.data.places.map((place, index) => {
+      const row = rows[index] as { visitedAt?: unknown; note?: unknown } | undefined;
+      return { place, visitedAt: typeof row?.visitedAt === "string" ? row.visitedAt : null, note: typeof row?.note === "string" ? row.note : null };
+    });
+    return { success: true as const, data: { friend: parsed.data.friend, stops } };
+  },
+};
+
 export function withSocial<TBase extends ApiMixin>(Base: TBase) {
   return class SocialEndpoints extends Base {
     listFriends(): Promise<Friend[]> {
@@ -93,6 +218,16 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
 
     getFriendAvailability(eventId: string): Promise<FriendAvailability[]> {
       return this.request(`/friends/availability?eventId=${encodeURIComponent(eventId)}`, FriendAvailabilitySchema.array());
+    }
+
+    /** When the MAX contact list was last pulled in; the «Синхронизировано …» line of экран 26 reads from it. */
+    getFriendsSync(): Promise<FriendsSync> {
+      return this.request("/friends/sync", FriendsSyncSchema);
+    }
+
+    /** Re-read the MAX contacts into the friend graph and answer with the graph that came out of it. */
+    syncFriends(): Promise<Friend[]> {
+      return this.request("/friends/sync", FriendSchema.array(), { method: "POST" });
     }
 
     /** People the onboarding friends step offers to follow, with their hint line and current follow state. */
@@ -121,6 +256,11 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
       return this.request("/micro-events", MicroEventSchema.array());
     }
 
+    /** One micro-event with its venue and the names behind its participant ids (макет, экран 25). */
+    getMicroEventCard(id: string): Promise<MicroEventCard> {
+      return this.request(`/micro-events/${encodeURIComponent(id)}`, MicroEventCardSchema);
+    }
+
     createMicroEvent(payload: CreateMicroEvent): Promise<MicroEvent> {
       return this.request("/micro-events", MicroEventSchema, { body: payload });
     }
@@ -135,8 +275,8 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventSchema, { method: "DELETE" });
     }
 
-    getDiscovery(): Promise<DiscoveryResponse> {
-      return this.request("/discovery", DiscoveryResponseSchema);
+    getDiscovery(): Promise<DiscoveryScreen> {
+      return this.request("/discovery", DiscoveryScreenSchema);
     }
 
     /** The «друзья были здесь» map layer: places friends checked in at, the viewer's own visits included. */
@@ -144,8 +284,8 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
       return this.request("/discovery/friend-places", FriendPlaceVisitSchema.array());
     }
 
-    getFriendRoute(userId: string): Promise<FriendRoute> {
-      return this.request(`/discovery/friends/${encodeURIComponent(userId)}/route`, FriendRouteSchema);
+    getFriendRoute(userId: string): Promise<FriendRouteScreen> {
+      return this.request(`/discovery/friends/${encodeURIComponent(userId)}/route`, FriendRouteScreenSchema);
     }
 
     getPeople(origin: { latitude: number; longitude: number } | null = null): Promise<PeopleResponse> {

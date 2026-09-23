@@ -6,7 +6,7 @@ import { createMockCheckIn, discoverySummary, friendPlaceLayer, friendRoute, ins
 const DEMO_USER_ID = mockDemoUser.id;
 const UNKNOWN_UUID = "00000000-0000-4000-8000-000000000000";
 const MOSCOW: [number, number] = [55.7522, 37.6156];
-const [ANNA, DIMA, KATYA, , , IGOR, LENA] = mockFriendIds;
+const [ANNA, DIMA, KATYA, PETR, , IGOR, LENA] = mockFriendIds;
 const [PARK, GMII, , DEPO, VERANDA] = mockPlaces.map((place) => place.id);
 
 describe("discoverySummary mock", () => {
@@ -19,9 +19,21 @@ describe("discoverySummary mock", () => {
 
     expect(DiscoveryResponseSchema.safeParse(summary).success).toBe(true);
     expect(summary.newPlacesCount).toBe(5);
-    expect(summary.byFriend.map((entry) => entry.friend.id)).toEqual([ANNA, DIMA, IGOR, KATYA, LENA]);
+    // Пётр скрыл историю посещений — его строка идёт последней и несёт только состояние (макет, экран 27).
+    expect(summary.byFriend.map((entry) => entry.friend.id)).toEqual([ANNA, DIMA, IGOR, KATYA, LENA, PETR]);
     expect(summary.byFriend[0].newPlacesCount).toBe(3);
     expect(summary.byFriend[0].places.map((place) => place.id)).toEqual([GMII, DEPO, VERANDA]);
+  });
+
+  it("shows the hidden-history friend as a state rather than dropping the row", () => {
+    const petr = discoverySummary().byFriend.find((entry) => entry.friend.id === PETR)!;
+
+    expect(petr).toMatchObject({ visitHistoryHidden: true, newPlacesCount: 0, places: [] });
+    expect(
+      discoverySummary()
+        .byFriend.filter((entry) => entry.visitHistoryHidden)
+        .map((entry) => entry.friend.id),
+    ).toEqual([PETR]);
   });
 
   it("keeps the routes-hidden friend with her count but without places", () => {
@@ -161,7 +173,11 @@ describe("discovery and people mock endpoints", () => {
   it("serves the friend route through the typed client", async () => {
     restore = installMockApi();
 
-    expect(await client().getFriendRoute(ANNA)).toEqual(friendRoute(ANNA));
+    const mock = friendRoute(ANNA) as { friend: unknown; stops: { place: { id: string }; visitedAt: string; note: string }[] };
+
+    // Клиент отдаёт точки с часами и пометкой, а не голый список мест контракта.
+    expect(await client().getFriendRoute(ANNA)).toEqual({ friend: mock.friend, stops: mock.stops });
+    expect(mock.stops.every((stop) => stop.visitedAt !== null && stop.note !== null)).toBe(true);
   });
 
   it("mirrors the backend route errors: own 403, unknown 404, hidden 403, broken uuid 400", async () => {

@@ -1,17 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Page composition for the shell routing (home feed, search with the map and the swipe deck, event, place, friends with the discovery/people entries, «Моё» (plans/calendar/saved), profile, whereto wizard, nearby screen, reverse discovery, people matching, plans, day route builder).
 // SCOPE: Thin route-to-page mapping; page internals live in their own modules.
-// DEPENDS: ../routing/router.js, ../catalog/MapPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../assist/AssistSection.js, ../taste/AfterMeSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../plans/PlanCreatePage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../feed/FeedScreen.js, ../organizer/OrganizerPage.js, ../moderation/ModerationPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js, ../search/SearchPage.js, ../swipe/SwipePage.js, ../ui/primitives.js (AppNavTiles), ../catalog/CatalogPage.js, ../today/TodaySection.js, ../create/CreatePage.js, ../create/StoryCreatePage.js, ../create/PostCreatePage.js, ../review/AfterEventPage.js
+// DEPENDS: ../routing/router.js, ../catalog/MapPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../assist/AssistSection.js, ../taste/AfterMeSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../plans/PlanCreatePage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../feed/FeedScreen.js, ../organizer/OrganizerPage.js, ../moderation/ModerationPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js, ../search/SearchPage.js, ../swipe/SwipePage.js, ../ui/primitives.js (AppSkeleton), ../catalog/CatalogPage.js, ../today/TodaySection.js, ../create/CreatePage.js, ../create/StoryCreatePage.js, ../create/PostCreatePage.js, ../review/AfterEventPage.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - HomePage - the feed screen (FeedScreen: stories rail, «Куда пойдём?», friend and venue posts — макет, экран 03) + micro-events section (MicroSection) + NL assist section (AssistSection) + «После меня» taste suggestions (AfterMeSection, hidden until the taste graph has something) + promotion banners/collections (PromotionSections, #205). The catalog and the today digest moved to экран 08, which is their home in the design
-// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders экран 08 (its tiles push the map and the swipe deck), map renders экран 16, swipe renders экран 09, create renders the publication hub of the «Создать» tab and story-new its story screen, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar renders the «Планы» screen on the calendar tab, profile renders the profile screen with achievements/subscriptions/my-city nav tiles, subscriptions renders the follows screen, whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the post composer (макет, экран 06), plans renders the «Планы» screen (plans/calendar/saved tabs) and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, list(id) renders one saved list, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen, moderation renders the moderator queue (hidden behind the backend's 403 for everyone else)
-// - HomePage - the feed screen (FeedScreen: stories rail, «Куда пойдём?», friend and venue posts — макет, экран 03) + micro-events section (MicroSection) + NL assist section (AssistSection) + «После меня» taste suggestions (AfterMeSection, hidden until the taste graph has something) + today digest (TodaySection) + promotion banners/collections (PromotionSections, #205) + catalog screen (CatalogPage) on the home route; all sections hidden in map view so the map gets the viewport
-// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders the search screen (its «На карте» entry pushes the map), map renders the full-screen map, create renders the publication hub of the «Создать» tab and story-new its story screen, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar renders the «Планы» screen on the calendar tab, profile renders экран 36 with its own entry rows, after-event renders экран 35 «После события» for the event its push deep link names, subscriptions renders the follows screen, whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the «Планы» screen (plans/calendar/saved tabs) and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, list(id) renders one saved list, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen, moderation renders the moderator queue (hidden behind the backend's 403 for everyone else)
-// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders the search screen (its «На карте» entry pushes the map), map renders the full-screen map, create renders the publication hub of the «Создать» tab and story-new its story screen, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar renders the «Планы» screen on the calendar tab, profile renders the profile screen with achievements/lists/subscriptions/my-city nav tiles, subscriptions renders the follows screen, whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the «Планы» screen (plans/calendar/saved tabs) and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, lists renders the «Списки» screen (макет, экран 37) and list(id) one saved list (макет, экран 39), organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen, moderation renders the moderator queue (hidden behind the backend's 403 for everyone else)
-// - RoutedPages - ... vote-new renders экран 32 «Создание голосования» (из группы приходит её id, иначе афиша целиком)
+// - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders the search screen (its «На карте» entry pushes the map), map renders the full-screen map, create renders the publication hub of the «Создать» tab and story-new its story screen, feed-new the impression publish form, micro renders экран 24 «Микро-события», micro-event(id) экран 25, micro-new the micro-event creation form, friends renders экран 26 with its own entries to экраны 27 и 29, discovery renders экран 27, people экран 29, friend-route(id) экран 28 «Маршрут друга», calendar renders the «Планы» screen on the calendar tab, profile renders экран 36 with its own entry rows, after-event renders экран 35 for the event its push deep link names, subscriptions renders the follows screen, whereto renders the wizard, nearby renders the nearby timeline/leisure screen, plans renders the «Планы» screen (plans/calendar/saved tabs) and plan(id) the plan screen, day-route renders the day route builder, lists renders экран 37 and list(id) экран 39, we-groups renders экран 30 and we-group(id) экран 31, vote-new renders экран 32 (из группы приходит её id, иначе афиша целиком), vote(id) экран 33, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), moderation renders the moderator queue (hidden behind the backend's 403 for everyone else)
 // END_MODULE_MAP
 
 import { lazy, Suspense, type ElementType, type LazyExoticComponent } from "react";
@@ -21,7 +17,7 @@ import { AssistSection } from "../assist/AssistSection";
 import { PromotionSections } from "../promo/PromoSections";
 import { FeedScreen } from "../feed/FeedScreen";
 import { MicroEventCreatePage, MicroSection } from "../micro/MicroEvents";
-import { AppNavTiles, AppSkeleton } from "../ui/primitives";
+import { AppSkeleton } from "../ui/primitives";
 
 /** Component type without the intrinsic (string) constituent of ElementType, i.e. any React component regardless of props. */
 type AnyComponent = Exclude<ElementType, string>;
@@ -65,6 +61,9 @@ const WeGroupsPage = lazyNamed(() => import("../wegroup/WeGroupsPage"), "WeGroup
 const WeGroupPage = lazyNamed(() => import("../wegroup/WeGroupPage"), "WeGroupPage");
 const DayRoutePage = lazyNamed(() => import("../route/DayRoutePage"), "DayRoutePage");
 const VoteCreatePage = lazyNamed(() => import("../votes/VoteCreatePage"), "VoteCreatePage");
+const MicroEventsPage = lazyNamed(() => import("../micro/MicroEventsPage"), "MicroEventsPage");
+const MicroEventPage = lazyNamed(() => import("../micro/MicroEventPage"), "MicroEventPage");
+const FriendRoutePage = lazyNamed(() => import("../route/FriendRoutePage"), "FriendRoutePage");
 
 export function HomePage() {
   const { navigate } = useRoute();
@@ -75,7 +74,7 @@ export function HomePage() {
       {/* Каталог и блок «Сегодня» уехали на экран 08 — это их дом по макету. Секции ниже своего экрана
           в макете пока не имеют (ассистент — это экран 10, промо-подборки и микро-события — ничей),
           поэтому остаются здесь, а не исчезают вместе с переездом. */}
-      <MicroSection onCreate={() => navigate({ name: "micro-new" })} />
+      <MicroSection onCreate={() => navigate({ name: "micro-new" })} onOpenAll={() => navigate({ name: "micro" })} />
       <AssistSection />
       <AfterMeSection />
       <PromotionSections />
@@ -107,22 +106,12 @@ function PageFallback() {
 }
 
 function Routed() {
-  const { route, navigate } = useRoute();
+  const { route } = useRoute();
 
   if (route.name === "event") return <EventPage id={route.id} />;
   if (route.name === "place") return <PlacePage id={route.id} />;
-  if (route.name === "friends")
-    return (
-      <>
-        <AppNavTiles
-          items={[
-            { icon: "pin", label: "Твои люди открыли места", onClick: () => navigate({ name: "discovery" }) },
-            { icon: "user", label: "Люди с похожими интересами", onClick: () => navigate({ name: "people" }) },
-          ]}
-        />
-        <FriendsPage />
-      </>
-    );
+  // Экран 26 несёт входы на 27 и 29 сам — отдельные плитки над ним больше не нужны.
+  if (route.name === "friends") return <FriendsPage />;
   if (route.name === "discovery") return <DiscoveryPage />;
   if (route.name === "people") return <PeoplePage />;
   if (route.name === "calendar") return <PlansPage tab="calendar" />;
@@ -165,5 +154,8 @@ function Routed() {
   if (route.name === "we-group") return <WeGroupPage id={route.id} />;
   if (route.name === "day-route") return <DayRoutePage />;
   if (route.name === "vote-new") return <VoteCreatePage groupId={route.groupId} />;
+  if (route.name === "micro") return <MicroEventsPage />;
+  if (route.name === "micro-event") return <MicroEventPage id={route.id} />;
+  if (route.name === "friend-route") return <FriendRoutePage id={route.id} />;
   return <HomePage />;
 }

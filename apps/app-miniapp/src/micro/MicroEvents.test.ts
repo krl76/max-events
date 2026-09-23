@@ -94,7 +94,8 @@ describe("joinedMicroEvents", () => {
   });
 
   it("keeps only what is joined and still ahead, soonest first", () => {
-    const all = microEvents();
+    // Заполненный сбор не принимает новых, поэтому в своих оказываются только те, где ещё есть место.
+    const all = microEvents().filter((item) => item.participantsCount < item.participantsLimit);
     for (const item of all) joinMockMicroEvent(item.id, mockDemoUser.id);
     const byStart = [...all].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
 

@@ -1,117 +1,126 @@
 // START_MODULE_CONTRACT
-// PURPOSE: People matching screen (#191) «Хочу найти людей с похожими интересами»: counters «N человек рядом, M ищут компанию сегодня», interest chip filter and candidate cards with the match context — no dating mechanics (view plus event CTAs only).
-// SCOPE: Data via apiClient.getPeople (mock or live) at the fixed Moscow center; chips from the viewer profile interests (candidate sharedInterests fallback); client-side interest filtering; CTA to the event route on shared_event contexts; loading/error/empty states.
-// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (PeopleCandidate, PeopleResponse), ../catalog/MapScreen.js (MOSCOW_CENTER), ../catalog/format.js (pluralRu), ../friends/FriendsPage.js (initials), ../nearby/NearbyPage.js (formatDistanceKm), ../routing/router.js, ../ui/primitives.js, ../ui/theme.css
+// PURPOSE: Экран 29 «Люди рядом»: two counters, the privacy line and cards that say what the overlap is — «вам по пути», not «знакомства».
+// SCOPE: Data via apiClient.getPeople at the viewer origin (mock or live); the match context and the shared interests come from the API as they are, only the first letter is raised to sentence case; «Позвать на событие» opens the gathering flow on a shared event and the search when the overlap is an interest; the × hides a card for this session only. No messaging, no profiles, no likes.
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (PeopleCandidate, PeopleResponse), ../friends/avatar.js, ../geo/viewer-origin.js, ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - lookingLabel - ru plural of «ищет/ищут компанию сегодня» for the summary counter
-// - candidateInterests - sorted union of the candidates' sharedInterests (chip fallback)
-// - filterCandidates - client-side chip filter (empty selection -> all)
+// - peopleDistance - «1,2 км» of a candidate distance, ru decimal comma
+// - personMetaLine - «1,2 км · сегодня ищет компанию»; empty when neither is known
+// - lookingLabel - «сегодня ищут компанию» agreed with the counter above it
+// - sentenceCase - raises the first letter of an API explanation, which comes lowercase
 // - PeopleState - people fetch union (loading / error / ready)
-// - PeopleView - presentational: summary counters, chips, candidate cards with context and badge
-// - PeoplePage - route container: loads people + profile chips, wires the filter and event navigation
+// - PeopleView - presentational экран 29: counters, privacy line, candidate cards
+// - PeoplePage - route container: loads candidates at the viewer origin, wires the invite and the hide
 // END_MODULE_MAP
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { PeopleCandidate, PeopleResponse } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
+import { PersonAvatar } from "../friends/avatar";
 import { useViewerOrigin } from "../geo/viewer-origin";
-import { initials } from "../friends/FriendsPage";
-import { formatDistanceKm } from "../nearby/NearbyPage";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
+import { ActionIcon } from "../ui/icons";
+import { AppSkeletonList, AppState } from "../ui/primitives";
+
+/** The design writes «1,2 км»: a Russian decimal separator, not the dot of the nearby timeline. */
+export function peopleDistance(distanceKm: number): string {
+  return `${distanceKm.toFixed(1).replace(".", ",")} км`;
+}
+
+export function personMetaLine(candidate: PeopleCandidate): string {
+  return [candidate.distanceKm === null ? null : peopleDistance(candidate.distanceKm), candidate.lookingForCompanyToday ? "сегодня ищет компанию" : null].filter((part): part is string => part !== null).join(" · ");
+}
 
 export function lookingLabel(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  return `${count} ${mod10 === 1 && mod100 !== 11 ? "ищет" : "ищут"} компанию сегодня`;
+  return `сегодня ${pluralRu(count, "ищет", "ищут", "ищут")} компанию`;
 }
 
-export function candidateInterests(people: PeopleCandidate[]): string[] {
-  const all = new Set<string>();
-  for (const candidate of people) for (const interest of candidate.sharedInterests) all.add(interest);
-  return [...all].sort((a, b) => a.localeCompare(b));
-}
-
-export function filterCandidates(people: PeopleCandidate[], selected: ReadonlySet<string>): PeopleCandidate[] {
-  if (selected.size === 0) return people;
-  return people.filter((candidate) => candidate.sharedInterests.some((interest) => selected.has(interest)));
+/** Explanations arrive as «общий интерес: джаз» — the card opens a sentence, so the first letter rises. */
+export function sentenceCase(text: string): string {
+  return text.length === 0 ? text : `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
 export type PeopleState = { status: "loading" } | { status: "error" } | { status: "ready"; data: PeopleResponse };
 
-interface PeopleViewProps {
-  state: PeopleState;
-  chips: string[];
-  selected: ReadonlySet<string>;
-  onToggle: (interest: string) => void;
-  onOpenEvent: (eventId: string) => void;
-}
-
-function PersonCard({ candidate, onOpenEvent }: { candidate: PeopleCandidate; onOpenEvent: (eventId: string) => void }) {
-  const sharedEvent = candidate.context.kind === "shared_event" ? candidate.context.event : null;
-  const openEvent = sharedEvent === null ? null : () => onOpenEvent(sharedEvent.id);
+function PersonCard({ candidate, onInvite, onHide }: { candidate: PeopleCandidate; onInvite: () => void; onHide: () => void }) {
+  const meta = personMetaLine(candidate);
+  const name = candidate.person.name.split(" ")[0];
   return (
-    <article className="app-card">
-      <div className="app-card-body">
-        <div className="app-friends-person">
-          <AppAvatar size={44}>{initials(candidate.person.name)}</AppAvatar>
-          <span className="app-friends-name">{candidate.person.name}</span>
+    <article className="app-people-card">
+      <div className="app-people-head">
+        <PersonAvatar id={candidate.person.id} name={candidate.person.name} size={44} />
+        <div className="app-people-person">
+          <span className="app-people-name">
+            {name}
+            {/* Голубая точка — «живой» индикатор: тот, кто сегодня ищет компанию. Текстом голубой не бывает. */}
+            {candidate.lookingForCompanyToday && <span className="app-people-live" aria-hidden="true" />}
+          </span>
+          {meta !== "" && <span className="app-people-meta">{meta}</span>}
         </div>
-        <span className="app-card-subtitle">{candidate.distanceKm === null ? "Из твоего города" : formatDistanceKm(candidate.distanceKm)}</span>
-        <span className="app-today-labels">
+      </div>
+      <p className="app-people-why">{sentenceCase(candidate.context.explanation)}</p>
+      {candidate.sharedInterests.length > 0 && (
+        <div className="app-people-tags">
           {candidate.sharedInterests.map((interest) => (
-            <span key={interest} className="app-today-chip">
-              {interest}
+            <span key={interest} className="app-people-tag">
+              {sentenceCase(interest)}
             </span>
           ))}
-          {candidate.lookingForCompanyToday && <span className="app-today-chip">Ищет компанию сегодня</span>}
-        </span>
-        <span className="app-card-subtitle">{candidate.context.explanation}</span>
-        {openEvent !== null && (
-          <AppButton size="small" onClick={openEvent}>
-            Открыть событие
-          </AppButton>
-        )}
+        </div>
+      )}
+      <div className="app-people-actions">
+        <button type="button" className="app-people-invite" onClick={onInvite}>
+          Позвать на событие
+        </button>
+        <button type="button" className="app-people-hide" aria-label={`Скрыть ${name}`} onClick={onHide}>
+          <ActionIcon name="close" size={18} strokeWidth={2.2} />
+        </button>
       </div>
     </article>
   );
 }
 
-export function PeopleView({ state, chips, selected, onToggle, onOpenEvent }: PeopleViewProps) {
-  const people = state.status === "ready" ? filterCandidates(state.data.people, selected) : [];
+interface PeopleViewProps {
+  state: PeopleState;
+  hidden: ReadonlySet<string>;
+  onInvite: (candidate: PeopleCandidate) => void;
+  onHide: (userId: string) => void;
+  onRetry: () => void;
+}
+
+export function PeopleView({ state, hidden, onInvite, onHide, onRetry }: PeopleViewProps) {
+  const people = state.status === "ready" ? state.data.people.filter((candidate) => !hidden.has(candidate.person.id)) : [];
   return (
-    <>
-      <AppTitle asChild>
-        <h2 className="app-section-title">Люди с похожими интересами</h2>
-      </AppTitle>
-      {state.status === "loading" && <AppState>Ищем людей рядом…</AppState>}
-      {state.status === "error" && <AppState error>Не удалось найти людей рядом.</AppState>}
+    <section className="app-people">
+      {state.status === "loading" && <AppSkeletonList rows={3} />}
+      {state.status === "error" && (
+        <AppState error action={{ label: "Повторить", onClick: onRetry }}>
+          Не удалось найти людей рядом.
+        </AppState>
+      )}
       {state.status === "ready" && (
         <>
-          <p className="app-today-summary">
-            {state.data.nearbyCount} {pluralRu(state.data.nearbyCount, "человек", "человека", "человек")} рядом с похожими интересами
-            {state.data.lookingForCompanyTodayCount > 0 ? `, ${lookingLabel(state.data.lookingForCompanyTodayCount)}` : ""}
-          </p>
-          {chips.length > 0 && (
-            <div className="app-whereto-chips" role="group" aria-label="Интересы">
-              {chips.map((interest) => (
-                <AppChip key={interest} pressed={selected.has(interest)} onClick={() => onToggle(interest)}>
-                  {interest}
-                </AppChip>
-              ))}
+          <div className="app-people-stats">
+            <div className="app-people-stat">
+              <span className="app-people-stat-count">{state.data.nearbyCount}</span>
+              <span className="app-people-stat-label">{pluralRu(state.data.nearbyCount, "человек", "человека", "человек")} рядом</span>
             </div>
-          )}
-          {people.length === 0 && <AppState>Никого рядом с такими интересами не нашлось.</AppState>}
+            <div className="app-people-stat app-people-stat--live">
+              <span className="app-people-stat-count">{state.data.lookingForCompanyTodayCount}</span>
+              <span className="app-people-stat-label">{lookingLabel(state.data.lookingForCompanyTodayCount)}</span>
+            </div>
+          </div>
+          <p className="app-people-note">Показываем только тех, кто сам согласился быть видимым. Точное местоположение не передаётся — только расстояние.</p>
+          {people.length === 0 && <AppState>Рядом пока никого с общими интересами.</AppState>}
           {people.map((candidate) => (
-            <PersonCard key={candidate.person.id} candidate={candidate} onOpenEvent={onOpenEvent} />
+            <PersonCard key={candidate.person.id} candidate={candidate} onInvite={() => onInvite(candidate)} onHide={() => onHide(candidate.person.id)} />
           ))}
         </>
       )}
-    </>
+    </section>
   );
 }
 
@@ -119,41 +128,38 @@ export function PeoplePage() {
   const { navigate } = useRoute();
   const origin = useViewerOrigin();
   const [state, setState] = useState<PeopleState>({ status: "loading" });
-  const [profileInterests, setProfileInterests] = useState<string[] | null>(null);
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
 
-  useEffect(() => {
-    let alive = true;
+  const load = useCallback(() => {
     setState({ status: "loading" });
     apiClient.getPeople({ latitude: origin.latitude, longitude: origin.longitude }).then(
-      (data) => {
-        if (alive) setState({ status: "ready", data });
-      },
-      () => {
-        if (alive) setState({ status: "error" });
-      },
+      (data) => setState({ status: "ready", data }),
+      () => setState({ status: "error" }),
     );
-    apiClient.getProfile().then(
-      (profile) => {
-        if (alive) setProfileInterests(profile.interests);
-      },
-      () => {},
-    );
-    return () => {
-      alive = false;
-    };
   }, [origin.latitude, origin.longitude]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const toggle = (interest: string) => {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(interest)) next.delete(interest);
-      else next.add(interest);
-      return next;
-    });
+  const invite = (candidate: PeopleCandidate) => {
+    // Общее событие есть — зовём прямо на него; общий интерес — сначала надо выбрать, куда звать.
+    if (candidate.context.kind === "shared_event") navigate({ name: "gathering-new", eventId: candidate.context.event.id });
+    else navigate({ name: "search" });
   };
 
-  const chips = profileInterests !== null && profileInterests.length > 0 ? profileInterests : state.status === "ready" ? candidateInterests(state.data.people) : [];
-
-  return <PeopleView state={state} chips={chips} selected={selected} onToggle={toggle} onOpenEvent={(id) => navigate({ name: "event", id })} />;
+  return (
+    <PeopleView
+      state={state}
+      hidden={hidden}
+      onInvite={invite}
+      onHide={(userId) =>
+        setHidden((current) => {
+          const next = new Set(current);
+          next.add(userId);
+          return next;
+        })
+      }
+      onRetry={load}
+    />
+  );
 }

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock route table for the social graph: friends, the gathering flow, UGC micro-events, reverse discovery and people matching.
-// SCOPE: /api/friends[/activity|/availability|/suggestions|/follows], /api/gatherings[/:id[/response]], /api/micro-events[/:id/join], /api/discovery[/friend-places|/friends/:userId/route], /api/people.
+// SCOPE: /api/friends[/activity|/availability|/suggestions|/follows|/sync], /api/gatherings[/:id[/response]], /api/micro-events[/:id[/join]], /api/discovery[/friend-places|/friends/:userId/route], /api/people.
 // DEPENDS: ./social.js, ./fixtures.js, ../client.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -12,11 +12,14 @@
 import { GatheringResponseWriteSchema, IdSchema } from "@max-events/api-contracts";
 import { type CreateGathering, type CreateMicroEvent } from "../client";
 import { MOCK_PEOPLE_CENTER, mockEvents, mockFriends, parseBookingBody, parseMockOrigin } from "./fixtures";
-import { createMockGathering, createMockMicroEvent, discoverySummary, followMockFriends, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, joinMockMicroEvent, leaveMockMicroEvent, microEvents, mockGatherings, peopleSuggest, respondMockGathering } from "./social";
+import { createMockGathering, createMockMicroEvent, discoverySummary, followMockFriends, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, friendsSyncState, joinMockMicroEvent, leaveMockMicroEvent, microEventCard, microEvents, mockGatherings, peopleSuggest, respondMockGathering, syncMockFriends } from "./social";
 
 export function socialRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/friends/activity") {
     return Response.json(friendActivityByFriend());
+  }
+  if (url.pathname === "/api/friends/sync") {
+    return init?.method === "POST" ? Response.json(syncMockFriends()) : Response.json(friendsSyncState());
   }
   if (url.pathname === "/api/friends/suggestions") {
     return Response.json(friendSuggestions());
@@ -95,6 +98,12 @@ export function socialRoutes(url: URL, init: RequestInit | undefined): Response 
     if (userId === "") return new Response(null, { status: 400 });
     const result = leaveMockMicroEvent(microJoin[1], userId);
     return result === null ? new Response(null, { status: 404 }) : Response.json(result);
+  }
+  const microEvent = /^\/api\/micro-events\/([^/]+)$/.exec(url.pathname);
+  if (microEvent) {
+    if (!IdSchema.safeParse(microEvent[1]).success) return new Response(null, { status: 400 });
+    const card = microEventCard(microEvent[1]);
+    return card === null ? new Response(null, { status: 404 }) : Response.json(card);
   }
   return null;
 }

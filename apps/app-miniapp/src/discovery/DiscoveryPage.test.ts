@@ -1,83 +1,81 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ApiError } from "../api/client";
-import { discoverySummary, friendRoute, mockFriendIds, resetMockCheckIns } from "../api/mock";
-import { DiscoveryView, routeErrorMessage, type DiscoveryState, type RouteState } from "./DiscoveryPage";
-import { pluralRu } from "../catalog/format";
+import { discoveryHeadline, friendPlacesLine, DiscoveryView, type DiscoveryState } from "./DiscoveryPage";
+import { discoverySummary, mockFriends, mockPlaces } from "../api/mock";
 
 const noop = () => {};
+const summary = discoverySummary();
 
-function viewHtml(state: DiscoveryState, route: RouteState = { status: "idle" }): string {
-  return renderToStaticMarkup(createElement(DiscoveryView, { state, route, onShowRoute: noop, onOpenPlace: noop }));
-}
+const view = (state: DiscoveryState) => renderToStaticMarkup(createElement(DiscoveryView, { state, onShowRoute: noop, onOpenPlace: noop, onRetry: noop }));
 
-function readyState(): DiscoveryState {
-  resetMockCheckIns();
-  return { status: "ready", data: discoverySummary() };
-}
-
-describe("ru places label", () => {
-  it("picks the right russian plural form", () => {
-    expect(`1 ${pluralRu(1, "новое место", "новых места", "новых мест")}`).toBe("1 новое место");
-    expect(`2 ${pluralRu(2, "новое место", "новых места", "новых мест")}`).toBe("2 новых места");
-    expect(`5 ${pluralRu(5, "новое место", "новых места", "новых мест")}`).toBe("5 новых мест");
-    expect(`11 ${pluralRu(11, "новое место", "новых места", "новых мест")}`).toBe("11 новых мест");
-    expect(`21 ${pluralRu(21, "новое место", "новых места", "новых мест")}`).toBe("21 новое место");
+describe("discoveryHeadline", () => {
+  it("agrees the noun with the number standing above it", () => {
+    expect(discoveryHeadline(18)).toBe("мест, где были твои друзья, а ты ещё нет");
+    expect(discoveryHeadline(1)).toBe("место, где были твои друзья, а ты ещё нет");
+    expect(discoveryHeadline(3)).toBe("места, где были твои друзья, а ты ещё нет");
   });
 });
 
-describe("routeErrorMessage", () => {
-  it("explains a hidden route on 403 and falls back otherwise", () => {
-    expect(routeErrorMessage(new ApiError(403, "forbidden"))).toBe("Друг скрыл свой маршрут.");
-    expect(routeErrorMessage(new ApiError(500, "boom"))).toBe("Не удалось загрузить маршрут.");
-    expect(routeErrorMessage(new Error("boom"))).toBe("Не удалось загрузить маршрут.");
+describe("friendPlacesLine", () => {
+  it("keeps the wording of the design through the plural forms", () => {
+    expect(friendPlacesLine(7)).toBe("7 новых для тебя мест");
+    expect(friendPlacesLine(1)).toBe("1 новое для тебя место");
+    expect(friendPlacesLine(2)).toBe("2 новых для тебя места");
   });
 });
 
 describe("DiscoveryView", () => {
-  it("renders the summary line and per-friend cards with expandable places", () => {
-    const html = viewHtml(readyState());
+  it("leads with the counter and the headline of the design", () => {
+    const html = view({ status: "ready", data: summary });
 
-    expect(html).toContain("Твои люди открыли 5 новых мест");
-    expect(html).toContain("Анна: 3 новых места");
-    expect(html).toContain("ГМИИ им. А. С. Пушкина");
-    expect(html).toContain("<details");
+    expect(html).toContain(`>${summary.newPlacesCount}<`);
+    expect(html).toContain(discoveryHeadline(summary.newPlacesCount));
+    expect(html).toContain("app-disco-hero");
   });
 
-  it("renders a route CTA only for friends with a visible place list", () => {
-    const html = viewHtml(readyState());
+  it("gives every open friend a count, a route action and up to four place chips", () => {
+    const html = view({ status: "ready", data: summary });
+    const open = summary.byFriend.find((entry) => entry.places.length > 0)!;
 
-    expect(html.match(/Посмотреть маршрут/g)).toHaveLength(4);
-    expect(html).toContain("Лена: 1 новое место");
+    expect(html).toContain(open.friend.name);
+    expect(html).toContain(friendPlacesLine(open.newPlacesCount));
+    expect(html).toContain("Маршрут");
+    expect(html).toContain(open.places[0].title);
   });
 
-  it("renders the friend route timeline when loaded", () => {
-    const route = friendRoute(mockFriendIds[0]);
-    if (typeof route === "string") throw new Error("expected a route payload");
-    const html = viewHtml(readyState(), { status: "ready", friendId: mockFriendIds[0], route });
+  it("draws the hidden history as a state, without a counter and without a route", () => {
+    const hidden = summary.byFriend.find((entry) => entry.visitHistoryHidden)!;
+    const html = view({ status: "ready", data: { newPlacesCount: 0, byFriend: [hidden] } });
 
-    expect(html).toContain("Маршрут: Анна Соколова");
-    expect(html).toContain("ГМИИ им. А. С. Пушкина");
-    expect(html).toContain("Депо. Москва");
+    expect(html).toContain("История посещений скрыта");
+    expect(html).toContain("app-disco-lock");
+    expect(html).not.toContain("Маршрут");
+    expect(html).not.toContain("новых для тебя");
   });
 
-  it("renders the route error message", () => {
-    const html = viewHtml(readyState(), { status: "error", friendId: mockFriendIds[0], message: routeErrorMessage(new ApiError(403, "hidden")) });
+  it("keeps the count but drops the chips and the route for a friend who hid her routes", () => {
+    const routesHidden = summary.byFriend.find((entry) => !entry.visitHistoryHidden && entry.places.length === 0)!;
+    const html = view({ status: "ready", data: { newPlacesCount: routesHidden.newPlacesCount, byFriend: [routesHidden] } });
 
-    expect(html).toContain("app-state--error");
-    expect(html).toContain("Друг скрыл свой маршрут.");
+    expect(html).toContain(friendPlacesLine(routesHidden.newPlacesCount));
+    expect(html).not.toContain("app-disco-chip");
+  });
+
+  it("caps the chip preview at four even for a longer trail", () => {
+    const many = { friend: mockFriends[0], newPlacesCount: 7, places: [...mockPlaces, ...mockPlaces].slice(0, 7), visitHistoryHidden: false };
+    const html = view({ status: "ready", data: { newPlacesCount: 7, byFriend: [many] } });
+
+    expect([...html.matchAll(/class="app-disco-chip"/g)]).toHaveLength(4);
+  });
+
+  it("always says whose choice a hidden history is", () => {
+    expect(view({ status: "ready", data: summary })).toContain("Каждый решает сам, показывать ли свои места.");
   });
 
   it("renders loading, error and empty states", () => {
-    expect(viewHtml({ status: "loading" })).toContain("Загружаем открытия");
-
-    const error = viewHtml({ status: "error" });
-    expect(error).toContain("app-state--error");
-    expect(error).toContain("Не удалось загрузить открытия друзей");
-
-    const empty = viewHtml({ status: "ready", data: { newPlacesCount: 0, byFriend: [] } });
-    expect(empty).toContain("Пока ничего нового");
-    expect(empty).not.toContain("Посмотреть маршрут");
+    expect(view({ status: "loading" })).toContain("app-skeleton");
+    expect(view({ status: "error" })).toContain("Не удалось загрузить открытия друзей.");
+    expect(view({ status: "ready", data: { newPlacesCount: 0, byFriend: [] } })).toContain("Пока ничего нового");
   });
 });

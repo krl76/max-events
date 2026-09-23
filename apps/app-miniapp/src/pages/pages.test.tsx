@@ -37,7 +37,7 @@ describe("HomePage", () => {
     expect(html).toContain("app-feed-skeleton");
     expect(html).toContain("Загружаем ленту");
     expect(html).not.toContain("app-whereto-cta--secondary");
-    expect(html).not.toContain("Твои люди открыли места");
+    expect(html).not.toContain("Друзья открыли");
   });
 
   it("no longer carries the catalog or the today digest: both moved to экран 08", () => {
@@ -56,11 +56,11 @@ describe("RoutedPages", () => {
     expect(html).toContain("app-feed-skeleton");
   });
 
-  it("maps the friends route to the feed with the discovery/people nav tiles", async () => {
-    const html = await routedHtml({ name: "friends" }, "Твои люди открыли места");
+  it("maps the friends route to экран 26, which carries the discovery/people entries itself", async () => {
+    const html = await routedHtml({ name: "friends" }, "Контакты MAX");
 
-    expect(html).toContain("Твои люди открыли места");
-    expect(html).toContain("Люди с похожими интересами");
+    expect(html).toContain("Друзья открыли");
+    expect(html).toContain("Люди рядом");
     expect(html).not.toContain("app-feed-skeleton");
   });
 
@@ -69,7 +69,7 @@ describe("RoutedPages", () => {
 
     expect(html).not.toContain("app-nav-tile");
     expect(html).not.toContain("Мой город");
-    expect(html).not.toContain("Твои люди открыли места");
+    expect(html).not.toContain("Друзья открыли");
   });
 
   it("maps the after-event route to экран 35 for the event its deep link names", async () => {
@@ -120,6 +120,6 @@ describe("RoutedPages", () => {
 
     expect(html).toContain("Загрузка…");
     expect(html).not.toContain("app-feed-skeleton");
-    expect(html).not.toContain("Твои люди открыли места");
+    expect(html).not.toContain("Друзья открыли");
   });
 });

@@ -14,7 +14,7 @@
 // - routeHasBack - back button shown on every non-tab route, the map included
 // - routeHasHeader - header hidden on the search/plans/profile tab screens (profile renders its own gradient hero), on the map and swipe screens, which draw their own chrome over the content, on «После события», whose hero carries the close button instead of a back arrow, and on the fullscreen composers
 // - routeIsFullscreen - the story and post composers (макет, экраны 05 и 06) own the whole viewport: no shell header, no tabbar, no gutters
-// - routeHasHeader - header hidden where the screen draws its own topbar: the search/plans/profile tabs and the two list screens (макет, экраны 37 и 39)
+// - routeHasHeader - header hidden where the screen draws its own topbar: the search/plans/profile tabs, the two list screens (макет, экраны 37 и 39), the micro-event feed and card (экраны 24 и 25), the friends list with its counter (экран 26) and the friend route, whose title carries the name (экран 28)
 // END_MODULE_MAP
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -23,11 +23,11 @@ import { isTabRoute, useRoute, type Route } from "../routing/router";
 import { ActionIcon, TabIconGlyph, type TabIcon } from "./icons";
 
 export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string) => boolean; route: "home" | "search" | "create" | "plans" | "profile" }> = [
-  { icon: "feed", label: "Лента", route: "home", active: (name) => name === "home" },
+  { icon: "feed", label: "Лента", route: "home", active: (name) => name === "home" || name === "micro" || name === "micro-event" },
   { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" || name === "map" || name === "swipe" },
   { icon: "create", label: "Создать", route: "create", active: (name) => name === "create" || name === "story-new" || name === "feed-new" || name === "micro-new" || name === "plan-new" },
   { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "lists" || name === "list" },
-  { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "friends" || name === "subscriptions" },
+  { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "friends" || name === "subscriptions" || name === "discovery" || name === "people" || name === "friend-route" },
 ];
 
 export const ROUTE_TITLES: Record<Route["name"], string> = {
@@ -46,8 +46,8 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   place: "Место",
   whereto: "Куда пойдём?",
   nearby: "Рядом со мной",
-  discovery: "Подборка мест",
-  people: "Похожие люди",
+  discovery: "Друзья открыли",
+  people: "Люди рядом",
   "gathering-new": "Сбор компании",
   gathering: "Сбор компании",
   plan: "План",
@@ -66,6 +66,9 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   vote: "Голосование",
   moderation: "Жалобы",
   "vote-new": "Новое голосование",
+  micro: "Микро-события",
+  "micro-event": "Микро-событие",
+  "friend-route": "Маршрут друга",
 };
 
 export function routeTitle(route: Route): string {
@@ -80,7 +83,9 @@ export function routeHasBack(route: Route): boolean {
 // подбор свайпами — свою строку с кнопкой назад. Общая шапка перекрыла бы и то и другое.
 // Экраны 30-33 тоже рисуют свою шапку: у списка групп рядом с заголовком «Создать», у группы —
 // её название и меню, у голосований — название вопроса. Общая шапка стала бы второй.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list", "we-groups", "we-group", "vote", "vote-new"]);
+// Экраны 24-29 — то же самое: у ленты микро-событий и у друзей своя строка с действием, у карточки
+// микро-события и у маршрута друга — свой заголовок с кнопкой назад.
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route"]);
 
 /**
  * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и

@@ -46,15 +46,16 @@
 // - createMockStory - publish the own mock story from a data-URL photo (localStorage), keeping the composition the backend still strips (#502)
 // - createMockSubscription - mock POST /subscriptions: idempotent per target, "unknown" for an unknown place or organizer (backend 404 parity)
 // - createMockVote - in-memory vote with a sent chat card (chatLink set, successful MaxBot parity); participants must be friends of the demo host, events must exist (mock POST /votes, backend VotesService parity)
-// - discoverySummary - per-friend unseen places minus the demo user's check-ins, privacy-gated (mock GET /discovery, backend DiscoveryService.summary parity)
+// - discoverySummary - per-friend unseen places minus the demo user's check-ins, privacy-gated, with the hidden-history rows экран 27 draws (mock GET /discovery, backend DiscoveryService.summary parity)
 // - eventRating - rating summary and per-category averages for an event from the mock reviews
 // - feedPosts - impression posts newest first, optionally only one event (the event wall)
 // - filterMockEvents - apply catalog filters to fixtures (date matches the local day of startsAt, q matches title/description/city/venue, sort orders the answer)
 // - friendActivityByFriend - friend participations grouped by friend (feed payload)
 // - friendAvailability - per-friend free/busy/unknown for the gathering flow (mock)
 // - friendPlaceLayer - mock GET /discovery/friend-places: places friends checked in at, grouped, privacy-gated
-// - friendRoute - chronological unseen places of one friend; own/not-friend/hidden map to 403/404/403 (mock GET /discovery/friends/:userId/route, backend parity)
+// - friendRoute - chronological unseen places of one friend with the clock and the note of экран 28; own/not-friend/hidden map to 403/404/403 (mock GET /discovery/friends/:userId/route, backend parity)
 // - friendSuggestions - mock GET /friends/suggestions: the onboarding contacts with their hint line and current follow state
+// - friendsSyncState - mock GET /friends/sync: when the MAX contacts were last pulled in (макет, экран 26)
 // - getMockVote - mock GET /votes/:id (404 unknown, 403 neither host nor participant); myBallotEventId comes from the demo user's stored ballot (backend #324 parity)
 // - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability|/suggestions|/follows], /api/gatherings[/:id|/:id/response], /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friend-places|/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], /api/events/cards, /api/weather, /api/travel, /api/discover/swipe[/:placeId], return a restore function
 // - isMockModerator - whether this viewer may see the moderation queue
@@ -67,6 +68,7 @@
 // - listMockWeGroups - mock GET /we-groups: screens of the demo user's groups, newest first
 // - listSummaries - preset lists of a user with item counters, the saved-item id for the checked event and shared-collection participants
 // - mapWeatherFor - mock GET /weather: the fixed demo forecast behind the map chip of экран 16 (#495)
+// - microEventCard - mock GET /micro-events/:id: the event, its venue and the participants by name (макет, экран 25)
 // - microEvents - open micro-events soonest first
 // - mockAssistDay - upcoming Saturday stops (startsAt >= now) + planDraft, plan persisted when save=true (mock POST /assist/day, backend planSaturday parity)
 // - mockAssistSaturdayKey - next Saturday (today counts) Moscow day key from MOCK_NOW (backend nextSaturdayKey parity)
@@ -113,6 +115,7 @@
 // - resetMockCheckIns - clear in-memory check-ins (test isolation)
 // - resetMockFeed - restore seeded impression posts (test isolation)
 // - resetMockFollows - restore the three seeded follows (test isolation)
+// - resetMockFriendsSync - restore the «two hours ago» contacts sync stamp (test isolation)
 // - resetMockGatherings - restore the seeded demo gathering and clear created ones (test isolation)
 // - resetMockLists - clear in-memory lists (test isolation)
 // - resetMockMicroEvents - restore seeded micro-events (test isolation)
@@ -133,6 +136,7 @@
 // - resolveMockReport - mock POST /reports/:id/resolve
 // - respondMockGathering - demo-user invitee answer write (mock PATCH /gatherings/:id/response; 404 unknown, 403 host-or-outsider, backend respond parity)
 // - setMockModerator - put the demo user in or out of MODERATOR_MAX_USER_IDS (demo / tests)
+// - syncMockFriends - mock POST /friends/sync: re-read the contacts, stamp the moment, answer with the graph
 // - swipeCandidates - mock GET /discover/swipe: undecided venues of the chosen category, best match first (#498)
 // - tasteProfile - taste graph of a user, derived from their mock check-ins (empty until they visit something)
 // - todayPicks - digest of экран 08 from fixtures: summary counters plus curated cards, one of them carrying the after_me hint
@@ -156,4 +160,4 @@ export { buildMockDayRoute, calendarEntries, cancelMockPlan, createMockAutoPlan,
 export { DEFAULT_APP_SETTINGS, achievementsFor, afterMePicks, appSettingsFor, myCityFor, profileCountersFor, resetMockAppSettings, resetMockProfiles, tasteProfile, visitedPlacesFor } from "./mock/profile";
 export { mockPromotionPlacements, mockTargetedPromotions } from "./mock/promo";
 export { REVIEW_FACT_TAGS, eventRating, resetMockReviews } from "./mock/reviews";
-export { MOCK_GATHERING_ID, createMockGathering, createMockMicroEvent, discoverySummary, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, joinMockMicroEvent, leaveMockMicroEvent, microEvents, mockOnboardingContacts, peopleSuggest, resetMockFollows, resetMockGatherings, resetMockMicroEvents, respondMockGathering } from "./mock/social";
+export { MOCK_GATHERING_ID, createMockGathering, createMockMicroEvent, discoverySummary, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, friendsSyncState, joinMockMicroEvent, leaveMockMicroEvent, microEventCard, microEvents, mockOnboardingContacts, peopleSuggest, resetMockFollows, resetMockFriendsSync, resetMockGatherings, resetMockMicroEvents, respondMockGathering, syncMockFriends } from "./mock/social";
