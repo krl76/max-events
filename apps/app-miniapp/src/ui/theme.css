@@ -1,93 +1,236 @@
 /*
- * Дизайн-токены MAX Events. Стилистика — Instagram (плоская лента, хайрлайны, медиа 4:5,
- * stories-ряд, pill-кнопки, профиль-сетка), цвета — мессенджера MAX.
- * Компонентный слой — Ionic React (mode: ios), палитра MAX задана ниже через --ion-color-*.
+ * Дизайн-токены MAX Events. Палитра — брендбук MAX «Афиша»: шесть цветов, больше никаких.
+ * Нейтралей как отдельных цветов нет: серые — это прозрачности brand-void (светлая схема)
+ * или brand-white (тёмная), поэтому схема переключается сменой одной базы, а не таблицей цветов.
+ * Компонентный слой — Ionic React (mode: ios), его --ion-color-* переведены на brand-blue ниже.
  * MAX Bridge themeParams не существует (сверено с https://dev.max.ru/docs/webapps/bridge):
- * платформа не отдаёт параметры темы, поэтому схема фиксированная светлая.
+ * платформа не отдаёт параметры темы, поэтому схему выбирает сам мини-апп — атрибутом
+ * data-theme="light|dark" (механизм в ./theme.ts), по умолчанию «system».
  * Все последующие UI-задачи обращаются к переменным --app-* отсюда.
  */
 
-/* Палитра MAX для Ionic (primary = MAX-синий, danger = MAX-красный) */
+/* Manrope 500..800: переменный woff2, font-display: swap — запрос не блокирует рендер,
+ * до загрузки текст показывается системным фолбэком. Подмножества — только нужные приложению. */
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 500 800;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggqxSuXd.woff2") format("woff2");
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 500 800;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggOxSuXd.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 500 800;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggmxSuXd.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 500 800;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggexSg.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Брендбук MAX: шесть цветов. Ничего сверх этого списка в файле быть не должно
+ * (единственное исключение — #c9b6ff внутри --app-gradient-light). */
 :root {
-  --ion-color-primary: #007aff;
-  --ion-color-primary-rgb: 0, 122, 255;
+  --brand-void: #0d001a;
+  --brand-blue: #471aff;
+  --brand-violet: #6e1aff;
+  --brand-purple: #9500ff;
+  --brand-cyan: #00bfff;
+  --brand-white: #ffffff;
+}
+
+/* Палитра брендбука для Ionic: primary = brand-blue, нажатие (shade) = brand-violet.
+ * Красного в брендбуке нет, поэтому negative-роль Ionic несёт brand-purple. */
+:root {
+  --ion-color-primary: #471aff;
+  --ion-color-primary-rgb: 71, 26, 255;
   --ion-color-primary-contrast: #ffffff;
   --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #006be0;
-  --ion-color-primary-tint: #1a87ff;
+  --ion-color-primary-shade: #6e1aff;
+  --ion-color-primary-tint: #6e1aff;
 
-  --ion-color-danger: #ff303c;
-  --ion-color-danger-rgb: 255, 48, 60;
+  --ion-color-danger: #9500ff;
+  --ion-color-danger-rgb: 149, 0, 255;
   --ion-color-danger-contrast: #ffffff;
   --ion-color-danger-contrast-rgb: 255, 255, 255;
-  --ion-color-danger-shade: #e02a35;
-  --ion-color-danger-tint: #ff4550;
+  --ion-color-danger-shade: #6e1aff;
+  --ion-color-danger-tint: #9500ff;
 
-  --ion-font-family: system-ui, -apple-system, "Roboto", sans-serif;
+  --ion-font-family: "Manrope", system-ui, -apple-system, "Roboto", sans-serif;
 }
 
 /* Сброс UA-рамки документа: без него мини-апп получает 8px поля и системный
- * скроллбар документа, которые ломают full-bleed медиа */
+ * скроллбар документа, которые ломают full-bleed медиа.
+ * Фон документа дублирует холст схемы: .app-root ростом в 100dvh, но overscroll
+ * и «резинка» на iOS показывают именно body. color-scheme переводит на тёмную
+ * и нативные контролы — select статуса участия, поля даты, скроллбары. */
+:root {
+  color-scheme: light;
+}
+
 body {
+  background: var(--brand-white);
   margin: 0;
 }
 
-.app-root {
-  /* Цвета */
-  --app-bg: var(--background-primary, #fff);
-  --app-page: var(--background-secondary, #fafafa);
-  --app-surface: var(--background-secondary, #f5f7fa);
-  --app-card: var(--background-card, #fff);
-  --app-text: var(--text-primary, #060708);
-  --app-text-secondary: var(--text-secondary, rgba(6, 7, 8, 0.68));
-  --app-text-tertiary: var(--text-tertiary, rgba(6, 7, 8, 0.52));
-  --app-accent: var(--button-primary, #007aff);
-  --app-accent-contrast: var(--text-primary-inverse-static, #fff);
-  --app-danger: var(--button-negative, #ff303c);
-  --app-divider: var(--divider-primary, rgba(12, 13, 14, 0.16));
-  --app-hairline: 0.5px solid var(--app-divider);
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
 
-  /* Медиа-заглушки: пять градиентов MAX-палитры, ротация по nth-child */
-  --app-media-gradient-1: var(--gradient-blue, linear-gradient(157deg, #08d7f3 6.38%, #5398ff 85%));
-  --app-media-gradient-2: var(--gradient-purple, linear-gradient(155deg, #bf97ff 6.6%, #526eff 84.12%));
-  --app-media-gradient-3: var(--gradient-orange, linear-gradient(155deg, #ffc93d 6.6%, #ff832a 84.12%));
-  --app-media-gradient-4: var(--gradient-green, linear-gradient(158deg, #14e1d5 6.15%, #03c722 85.68%));
-  --app-media-gradient-5: var(--gradient-red, linear-gradient(153deg, #ff48b6 0.77%, #ff8a35 93.03%));
+html[data-theme="dark"] body {
+  background: var(--brand-void);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) {
+    color-scheme: dark;
+  }
+
+  html:not([data-theme]) body {
+    background: var(--brand-void);
+  }
+}
+
+.app-root {
+  /* --- База схемы: всё, что различает светлую и тёмную, лежит в этих семи строках.
+   * Тёмная схема ниже переопределяет только их, семантические токены остаются общими. --- */
+  --app-scheme-neutral: 13, 0, 26; /* каналы brand-void: нейтрали светлой схемы */
+  --app-canvas: var(--brand-white);
+  --app-ink: var(--brand-void);
+  --app-alpha-surface: 0.04;
+  --app-alpha-border: 0.1;
+  --app-alpha-text-secondary: 0.55;
+  --app-alpha-text-tertiary: 0.4;
+  /* Акцент-как-текст: brand-blue даёт 7.3:1 на белом. В тёмной он же на brand-void — 2.7:1,
+   * поэтому там роль забирает brand-cyan (9.4:1), который в тёмной схеме разрешён как текст-метка. */
+  --app-accent-text: var(--brand-blue);
+
+  /* --- Семантика: выводится из базы, пишется один раз на обе схемы --- */
+  --app-bg: var(--app-canvas);
+  --app-page: var(--app-canvas);
+  --app-card: var(--app-canvas);
+  --app-surface: rgba(var(--app-scheme-neutral), var(--app-alpha-surface));
+  --app-text: var(--app-ink);
+  --app-text-secondary: rgba(var(--app-scheme-neutral), var(--app-alpha-text-secondary));
+  --app-text-tertiary: rgba(var(--app-scheme-neutral), var(--app-alpha-text-tertiary));
+  --app-divider: rgba(var(--app-scheme-neutral), var(--app-alpha-border));
+  --app-hairline: 1px solid var(--app-divider);
+  --app-accent: var(--brand-blue);
+  --app-accent-press: var(--brand-violet);
+  --app-accent-contrast: var(--brand-white);
+  /* Статус — только точка и полоса; текстом brand-cyan не бывает (2.1:1 на белом). */
+  --app-status: var(--brand-cyan);
+  /* Бейдж — один на экран. Красного в брендбуке нет, негативную роль тоже несёт brand-purple. */
+  --app-badge: var(--brand-purple);
+  --app-badge-contrast: var(--brand-white);
+  --app-danger: var(--brand-purple);
+
+  /* Фирменные градиенты. light — онбординг, обводка сторис, достижения;
+   * dark — hero карточек событий и шапка организатора. Под длинный текст не идут. */
+  --app-gradient-light: linear-gradient(135deg, #ffffff, #c9b6ff 40%, #6e1aff 75%, #00bfff);
+  --app-gradient-dark: linear-gradient(135deg, #0d001a, #471aff 50%, #9500ff 80%, #00bfff);
+
+  /* Медиа-заглушки: ротация по категориям сохранена, цвета собраны из брендбука */
+  --app-media-gradient-1: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan));
+  --app-media-gradient-2: linear-gradient(135deg, var(--brand-violet), var(--brand-purple));
+  --app-media-gradient-3: linear-gradient(135deg, var(--brand-purple), var(--brand-cyan));
+  --app-media-gradient-4: linear-gradient(135deg, var(--brand-void), var(--brand-violet));
+  --app-media-gradient-5: linear-gradient(135deg, var(--brand-blue), var(--brand-purple));
   --app-media-veil: linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04));
 
-  /* Типографика */
-  --app-font: var(--font, system-ui, -apple-system, "Roboto", sans-serif);
-  --app-font-size-title: var(--font-size-title, 1.0625rem);
-  --app-font-size-body: var(--font-size-body, 1rem);
-  --app-font-size-description: var(--font-size-description, 0.8125rem);
-  --app-font-weight-title: var(--font-weight-title, 600);
+  /* Типографика: Manrope 500/600/700/800, шкала 32 / 24 / 20 / 17 / 15 / 13 / 11 */
+  --app-font: "Manrope", system-ui, -apple-system, "Roboto", sans-serif;
+  --app-font-size-display: 2rem; /* 32 */
+  --app-font-size-headline: 1.5rem; /* 24 */
+  --app-font-size-title: 1.25rem; /* 20 */
+  --app-font-size-body: 1.0625rem; /* 17 */
+  --app-font-size-callout: 0.9375rem; /* 15 */
+  --app-font-size-description: 0.8125rem; /* 13 */
+  --app-font-size-caption: 0.6875rem; /* 11 */
+  --app-font-weight-title: 600;
+  --app-line-height-body: 1.45;
+  /* Комфортная длина строки — около 60 символов */
+  --app-measure: 60ch;
 
   /* Типографическая шкала: 4 роли — экран / секция / карточка / мета */
-  --app-type-screen-size: 1.25rem;
+  --app-type-screen-size: var(--app-font-size-title);
   --app-type-screen-weight: 700;
-  --app-type-section-size: 0.75rem;
-  --app-type-card-size: 0.9375rem;
-  --app-type-meta-size: 0.75rem;
+  --app-type-section-size: var(--app-font-size-description);
+  --app-type-card-size: var(--app-font-size-callout);
+  --app-type-meta-size: var(--app-font-size-description);
 
-  /* Радиусы и отступы (8pt-ритм) */
-  --app-radius-card: var(--size-border-radius-semantic-border-radius-card, 16px);
-  --app-radius-media: var(--size-border-radius-semantic-border-radius-paper, 12px);
+  /* Радиусы и отступы: базовая единица 8px, карточка 16px, поля экрана 20px */
+  --app-radius-card: 16px;
+  --app-radius-media: 12px;
+  --app-radius-pill: 999px;
   --app-space-xs: 4px;
   --app-space-s: 8px;
   --app-space-m: 12px;
   --app-space-l: 16px;
   --app-space-xl: 24px;
+  --app-space-screen: 20px;
 
-  /* Elevations: только для модалок/панелей, экраны плоские */
-  --app-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
-  --app-elevation-2: 0 2px 6px rgba(0, 0, 0, 0.08), 0 10px 28px rgba(0, 0, 0, 0.1);
+  /* Тень одна и только на подъёме: окрашена в brand-blue, не в чёрный */
+  --app-shadow-lift: 0 4px 16px rgba(71, 26, 255, 0.1);
 
   background: var(--app-page);
   color: var(--app-text);
   display: flex;
   flex-direction: column;
   font-family: var(--app-font);
+  font-size: var(--app-font-size-body);
+  font-weight: 500;
   height: 100dvh;
+  line-height: var(--app-line-height-body);
+}
+
+/* Тёмная схема: явный выбор пользователя. Атрибут ставится либо на сам .app-root,
+ * либо на предка (<html>) — ./theme.ts проставляет оба, потому что .app-root живёт в App.tsx. */
+.app-root[data-theme="dark"],
+[data-theme="dark"] .app-root:not([data-theme="light"]) {
+  --app-scheme-neutral: 255, 255, 255; /* каналы brand-white */
+  --app-canvas: var(--brand-void);
+  --app-ink: var(--brand-white);
+  --app-alpha-surface: 0.06;
+  --app-alpha-border: 0.12;
+  --app-alpha-text-secondary: 0.6;
+  --app-alpha-text-tertiary: 0.45;
+  --app-accent-text: var(--brand-cyan);
+}
+
+/* Та же тёмная база по системной настройке — но только пока выбора нет ни на одном уровне.
+ * В DOM попадает разрешённая схема ("light"/"dark"), значение "system" живёт лишь в localStorage,
+ * поэтому наличие атрибута где угодно означает явный выбор и системную тьму отменяет. */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .app-root:not([data-theme]) {
+    --app-scheme-neutral: 255, 255, 255;
+    --app-canvas: var(--brand-void);
+    --app-ink: var(--brand-white);
+    --app-alpha-surface: 0.06;
+    --app-alpha-border: 0.12;
+    --app-alpha-text-secondary: 0.6;
+    --app-alpha-text-tertiary: 0.45;
+    --app-accent-text: var(--brand-cyan);
+  }
 }
 
 .app-header {
@@ -100,7 +243,7 @@ body {
   font-weight: var(--app-type-screen-weight);
   gap: var(--app-space-xs);
   letter-spacing: -0.02em;
-  padding: var(--app-space-m) var(--app-space-l);
+  padding: var(--app-space-m) var(--app-space-screen);
 }
 
 .app-header-back {
@@ -140,7 +283,7 @@ body {
   gap: 0;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 var(--app-space-l) calc(var(--app-space-l) + 56px);
+  padding: 0 var(--app-space-screen) calc(var(--app-space-l) + 56px);
   scrollbar-width: none;
 }
 
@@ -188,8 +331,16 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .app-screen--push,
   .app-screen--pop,
-  .app-screen--tab {
+  .app-screen--tab,
+  .app-skeleton-line,
+  .app-skeleton-block {
     animation: none;
+  }
+
+  /* Без пульсации заглушка всё равно должна быть видна */
+  .app-skeleton-line,
+  .app-skeleton-block {
+    background-color: rgba(var(--app-scheme-neutral), 0.08);
   }
 }
 
@@ -200,7 +351,7 @@ body {
 .app-tabbar {
   align-items: center;
   background: var(--app-card);
-  border-top: 0.5px solid var(--app-divider);
+  border-top: var(--app-hairline);
   bottom: 0;
   display: flex;
   height: calc(56px + env(safe-area-inset-bottom, 0px));
@@ -225,11 +376,12 @@ body {
   justify-content: center;
   min-width: 0;
   padding: var(--app-space-xs) 0;
+  position: relative;
   white-space: nowrap;
 }
 
 .app-tabbar button span {
-  font-size: 0.625rem;
+  font-size: var(--app-font-size-caption);
   font-weight: 500;
 }
 
@@ -237,8 +389,24 @@ body {
   color: var(--app-accent);
 }
 
+/* Иконка активного таба несёт brand-blue, подпись — accent-text: 11px синим по brand-void
+ * в тёмной схеме даёт 2.7:1, поэтому там подпись переходит на brand-cyan */
 .app-tabbar button[aria-current="page"] span {
+  color: var(--app-accent-text);
   font-weight: 600;
+}
+
+/* Активный таб — подчёркивающая линия 2px brand-blue (не заливка и не свечение) */
+.app-tabbar button[aria-current="page"]::after {
+  background: var(--app-accent);
+  border-radius: var(--app-radius-pill);
+  bottom: 0;
+  content: "";
+  height: 2px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  width: 24px;
 }
 
 /* Плоские блоки вместо карточек с тенями: секции разделяются хайрлайнами */
@@ -248,10 +416,12 @@ body {
   box-shadow: none;
 }
 
+/* Hero карточки события без категории — фирменный gradient-dark; с категорией его
+ * перекрывает градиент категории ниже. Текста поверх градиента здесь нет, только глиф. */
 .app-card-media {
   align-items: center;
   aspect-ratio: 4 / 5;
-  background-image: var(--app-media-veil), var(--app-media-gradient-1);
+  background-image: var(--app-media-veil), var(--app-gradient-dark);
   background-position: center;
   background-size: cover;
   color: rgba(255, 255, 255, 0.85);
@@ -283,18 +453,19 @@ body {
   flex-direction: column;
   font-size: var(--app-font-size-body);
   gap: var(--app-space-s);
-  padding: var(--app-space-m) var(--app-space-l);
+  padding: var(--app-space-m) var(--app-space-screen);
 }
 
 .app-card-title {
   color: var(--app-text);
-  font-size: 0.875rem;
+  font-size: var(--app-type-card-size);
   font-weight: var(--app-font-weight-title);
 }
 
 .app-card-subtitle {
   color: var(--app-text-tertiary);
   font-size: var(--app-type-meta-size);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Заголовок секции: единая роль вместо пяти дублей (today/calendar/whereto/gathering/participation) */
@@ -336,6 +507,7 @@ body {
 
 .app-state {
   color: var(--app-text-secondary);
+  max-width: var(--app-measure);
   padding: var(--app-space-l);
   text-align: center;
 }
@@ -344,7 +516,7 @@ body {
   color: var(--app-danger);
 }
 
-/* Блок состояния (AppState): иконка ошибки + текст + опциональное действие */
+/* Блок состояния (AppState): иконка ошибки + текст + пояснение + до двух действий */
 .app-state-block {
   align-items: center;
   display: flex;
@@ -363,6 +535,24 @@ body {
   width: auto;
 }
 
+/* Вторая строка состояния: «Твои планы доступны офлайн» под «Показываем сохранённое» */
+.app-state-hint {
+  color: var(--app-text-tertiary);
+  font-size: var(--app-font-size-description);
+  margin: calc(-1 * var(--app-space-s)) 0 0;
+  max-width: var(--app-measure);
+  padding: 0 var(--app-space-l);
+  text-align: center;
+}
+
+/* Два действия пустого подбора («Изменить бюджет» / «Ответить заново») — одной строкой */
+.app-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+  justify-content: center;
+}
+
 .app-state-icon {
   color: var(--app-danger);
   display: flex;
@@ -370,12 +560,25 @@ body {
 }
 
 .app-skeleton-block {
-  animation: app-skeleton-pulse 1.2s ease-in-out infinite;
-  background: var(--app-surface);
+  animation: app-skeleton-pulse 1.2s ease-in-out infinite alternate;
   border-radius: var(--app-radius-media);
   display: block;
   height: 72px;
   width: 100%;
+}
+
+/* Список-заглушка на загрузке (AppSkeletonList): строки в ритме карточек ленты */
+.app-skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+  padding: var(--app-space-m) 0;
+}
+
+.app-skeleton-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
 }
 
 .app-skeleton-block--media {
@@ -384,12 +587,18 @@ body {
   height: auto;
 }
 
-/* Pill-кнопки (AppButton поверх IonButton): primary — акцентная заливка, secondary — светло-серая с тёмным текстом */
+/* Pill-кнопки (AppButton поверх IonButton): primary — заливка brand-blue, нажатие — brand-violet */
 .app-root .app-btn {
-  --border-radius: 999px;
+  --border-radius: var(--app-radius-pill);
 }
 
-/* Обводка обязательна: #f5f7fa surface на #fafafa фоне страницы нечитаем без неё */
+.app-root .app-btn--primary {
+  --background-activated: var(--app-accent-press);
+  --background-focused: var(--app-accent-press);
+  --background-hover: var(--app-accent-press);
+}
+
+/* Обводка обязательна: поверхность — void 4% на фоне brand-white, без границы край не читается */
 .app-root .app-btn--secondary {
   --background: var(--app-surface);
   --border-color: var(--app-divider);
@@ -400,7 +609,8 @@ body {
 
 /* Круглые icon-кнопки (AppIconButton) */
 .app-root .app-icon-btn {
-  --border-radius: 999px;
+  --border-radius: var(--app-radius-pill);
+  --background-activated: var(--app-accent-press);
   --padding-start: 0;
   --padding-end: 0;
 }
@@ -422,13 +632,17 @@ body {
 
 .app-title {
   font-size: var(--app-type-screen-size);
-  font-weight: var(--app-font-weight-title);
+  font-weight: var(--app-type-screen-weight);
+  letter-spacing: -0.02em;
   margin: 0;
+  max-width: var(--app-measure);
 }
 
 .app-text {
   font-size: var(--app-font-size-body);
+  line-height: var(--app-line-height-body);
   margin: 0;
+  max-width: var(--app-measure);
 }
 
 /* Компактные кнопки внутри строк-карточек: не растягиваются flex-колонкой */
@@ -442,11 +656,11 @@ body {
   align-self: flex-start;
   background: var(--app-card);
   border: 1px solid var(--app-divider);
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   color: var(--app-text);
   cursor: pointer;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--app-font-size-description);
   padding: 6px 12px;
   white-space: nowrap;
 }
@@ -486,11 +700,11 @@ body {
 .app-filters-input {
   background: var(--app-surface);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   color: var(--app-text);
   flex: 1;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--app-font-size-description);
   min-width: 0;
   padding: 6px 12px;
 }
@@ -498,10 +712,10 @@ body {
 .app-filters-reset {
   background: none;
   border: none;
-  color: var(--app-accent);
+  color: var(--app-accent-text);
   cursor: pointer;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--app-font-size-description);
   padding: var(--app-space-s) 0;
   white-space: nowrap;
 }
@@ -523,6 +737,43 @@ body {
   padding: 0;
   text-align: left;
   width: 100%;
+}
+
+/* Единственная тень в системе и единственный повод её показать: карточка поднимается
+ * под пальцем. В покое поверхности плоские — тени «на всякий случай» нет. */
+.app-card--link,
+.app-nav-tile,
+.app-whereto-option,
+.app-vote-option,
+.app-promo-banner {
+  transition: box-shadow 120ms ease-out, transform 120ms ease-out;
+}
+
+.app-card--link:active,
+.app-nav-tile:active,
+.app-whereto-option:active,
+.app-vote-option:active,
+.app-promo-banner:active {
+  box-shadow: var(--app-shadow-lift);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-card--link,
+  .app-nav-tile,
+  .app-whereto-option,
+  .app-vote-option,
+  .app-promo-banner {
+    transition: none;
+  }
+
+  .app-card--link:active,
+  .app-nav-tile:active,
+  .app-whereto-option:active,
+  .app-vote-option:active,
+  .app-promo-banner:active {
+    transform: none;
+  }
 }
 
 /* Сетка впечатлений в профиле: снимок заполняет ячейку */
@@ -567,7 +818,7 @@ body {
 .app-card--link .app-card-body {
   flex: 1;
   gap: var(--app-space-xs);
-  padding: var(--app-space-m) var(--app-space-l);
+  padding: var(--app-space-m) var(--app-space-screen);
 }
 
 .app-card--link .app-card-title {
@@ -608,7 +859,7 @@ body {
   background: var(--app-accent);
   border: 2px solid var(--app-accent-contrast);
   border-radius: 50%;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--app-shadow-lift);
 }
 
 .app-map-popup {
@@ -632,7 +883,7 @@ body {
   align-self: flex-start;
   background: var(--app-accent);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   color: var(--app-accent-contrast);
   cursor: pointer;
   font: inherit;
@@ -641,17 +892,25 @@ body {
   padding: var(--app-space-s) var(--app-space-m);
 }
 
-/* Каталог: скелетон загрузки */
+.app-map-popup-open:active {
+  background: var(--app-accent-press);
+}
+
+/* Каталог: скелетон загрузки — пульсация void 6% -> 10% за 1,2 с (в тёмной схеме те же
+ * доли brand-white), поэтому анимируется заливка, а не прозрачность всего блока */
 @keyframes app-skeleton-pulse {
-  50% {
-    opacity: 0.45;
+  from {
+    background-color: rgba(var(--app-scheme-neutral), 0.06);
+  }
+
+  to {
+    background-color: rgba(var(--app-scheme-neutral), 0.1);
   }
 }
 
 .app-skeleton-line {
-  animation: app-skeleton-pulse 1.2s ease-in-out infinite;
-  background: var(--app-surface);
-  border-radius: 999px;
+  animation: app-skeleton-pulse 1.2s ease-in-out infinite alternate;
+  border-radius: var(--app-radius-pill);
   height: 14px;
   width: 70%;
 }
@@ -662,8 +921,8 @@ body {
 
 /* Страница мероприятия: белая full-bleed секция, как пост и профиль; медиа во всю ширину */
 .app-event {
-  margin: 0 calc(-1 * var(--app-space-l));
-  width: calc(100% + 2 * var(--app-space-l));
+  margin: 0 calc(-1 * var(--app-space-screen));
+  width: calc(100% + 2 * var(--app-space-screen));
 }
 
 .app-event-media {
@@ -673,13 +932,13 @@ body {
 }
 
 .app-event-media-overlay {
-  background: linear-gradient(transparent, rgba(6, 7, 8, 0.55));
-  padding: var(--app-space-xl) var(--app-space-l) var(--app-space-m);
+  background: linear-gradient(transparent, rgba(13, 0, 26, 0.55));
+  padding: var(--app-space-xl) var(--app-space-screen) var(--app-space-m);
   width: 100%;
 }
 
 .app-event-media-overlay .app-event-title {
-  color: #fff;
+  color: var(--brand-white);
 }
 
 .app-event-media-meta {
@@ -693,7 +952,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-m);
-  padding: var(--app-space-l);
+  padding: var(--app-space-l) var(--app-space-screen);
 }
 
 .app-event-title {
@@ -725,13 +984,14 @@ body {
   align-items: center;
   color: var(--app-text-secondary);
   display: flex;
-  font-size: 0.875rem;
+  font-size: var(--app-font-size-callout);
   gap: var(--app-space-s);
 }
 
 .app-event-meta-row dd {
   color: var(--app-text);
-  font-size: 0.875rem;
+  font-size: var(--app-font-size-callout);
+  font-variant-numeric: tabular-nums;
   margin: 0;
   text-align: right;
 }
@@ -745,6 +1005,7 @@ body {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-body);
   margin: 0;
+  max-width: var(--app-measure);
 }
 
 /* Страница мероприятия: sticky-панель действий над таббаром */
@@ -755,8 +1016,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-s);
-  margin: var(--app-space-s) calc(-1 * var(--app-space-l)) 0;
-  padding: var(--app-space-m) var(--app-space-l);
+  margin: var(--app-space-s) calc(-1 * var(--app-space-screen)) 0;
+  padding: var(--app-space-m) var(--app-space-screen);
   position: sticky;
   z-index: 5;
 }
@@ -791,6 +1052,7 @@ body {
   display: flex;
   flex-direction: column;
   font-size: var(--app-font-size-description);
+  font-variant-numeric: tabular-nums;
   gap: var(--app-space-s);
   list-style: none;
   margin: 0;
@@ -829,6 +1091,7 @@ body {
 .app-review-average {
   color: var(--app-text);
   font-size: var(--app-font-size-title);
+  font-variant-numeric: tabular-nums;
   font-weight: var(--app-font-weight-title);
   margin: 0;
 }
@@ -858,7 +1121,7 @@ body {
   border: none;
   color: var(--app-divider);
   cursor: pointer;
-  font-size: 1.5rem;
+  font-size: var(--app-font-size-headline);
   line-height: 1;
   padding: 0;
 }
@@ -904,6 +1167,7 @@ body {
 .app-review-sent {
   color: var(--app-text-secondary);
   margin: 0;
+  max-width: var(--app-measure);
 }
 
 .app-report-button {
@@ -928,15 +1192,15 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-s);
-  margin: 0 calc(-1 * var(--app-space-l));
-  padding: 0 var(--app-space-l) var(--app-space-m);
+  margin: 0 calc(-1 * var(--app-space-screen));
+  padding: 0 var(--app-space-screen) var(--app-space-m);
 }
 
 .app-profile-topbar {
   align-items: center;
   display: grid;
   grid-template-columns: 40px 1fr 40px;
-  margin: 0 calc(-1 * var(--app-space-l));
+  margin: 0 calc(-1 * var(--app-space-screen));
   padding: var(--app-space-s) var(--app-space-m);
 }
 
@@ -989,17 +1253,18 @@ body {
 .app-profile-stat-value {
   color: var(--app-text);
   font-size: var(--app-font-size-title);
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
 
 .app-profile-stat-label {
   color: var(--app-text-tertiary);
-  font-size: 0.75rem;
+  font-size: var(--app-font-size-caption);
 }
 
 .app-profile-city {
   color: var(--app-text);
-  font-size: 0.875rem;
+  font-size: var(--app-font-size-callout);
   margin: 0;
 }
 
@@ -1011,9 +1276,9 @@ body {
 
 .app-profile-interest {
   background: var(--app-surface);
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   color: var(--app-text-secondary);
-  font-size: 0.75rem;
+  font-size: var(--app-font-size-caption);
   padding: var(--app-space-xs) var(--app-space-s);
 }
 
@@ -1022,7 +1287,7 @@ body {
   display: grid;
   gap: 2px;
   grid-template-columns: repeat(3, 1fr);
-  margin: var(--app-space-s) calc(-1 * var(--app-space-l)) calc(-1 * var(--app-space-m));
+  margin: var(--app-space-s) calc(-1 * var(--app-space-screen)) calc(-1 * var(--app-space-m));
 }
 
 .app-profile-cell {
@@ -1047,14 +1312,14 @@ body {
 
 .app-settings-label {
   color: var(--app-text-tertiary);
-  font-size: 0.75rem;
+  font-size: var(--app-font-size-caption);
   padding-left: var(--app-space-m);
 }
 
 .app-profile-input {
   background: var(--app-surface);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   color: var(--app-text);
   font: inherit;
   font-size: var(--app-font-size-description);
@@ -1084,7 +1349,7 @@ body {
 
 .app-friends-name {
   color: var(--app-text);
-  font-size: 0.875rem;
+  font-size: var(--app-font-size-callout);
   font-weight: var(--app-font-weight-title);
 }
 
@@ -1108,7 +1373,7 @@ body {
 .app-whereto-cta {
   background: var(--app-accent);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   color: var(--app-accent-contrast);
   cursor: pointer;
   flex: 1;
@@ -1126,16 +1391,27 @@ body {
   padding: 12px var(--app-space-s);
 }
 
+/* Синяя кнопка при нажатии уходит в brand-violet (у Ionic-кнопок это делает
+ * --ion-color-primary-shade, собственным кнопкам правило нужно явно) */
+.app-whereto-cta:active {
+  background: var(--app-accent-press);
+}
+
 .app-whereto-cta--secondary {
   background: var(--app-card);
   border: 1px solid var(--app-divider);
   color: var(--app-text);
 }
 
+.app-whereto-cta--secondary:active {
+  background: var(--app-surface);
+}
+
 .app-whereto-hint {
   color: var(--app-text-tertiary);
   font-size: var(--app-font-size-description);
   margin: 0;
+  max-width: var(--app-measure);
 }
 
 /* Прогресс-шапка визарда: мета-строка + сегментная полоса */
@@ -1149,6 +1425,7 @@ body {
 .app-wizard-progress-label {
   color: var(--app-text-secondary);
   font-size: var(--app-type-meta-size);
+  font-variant-numeric: tabular-nums;
   font-weight: var(--app-font-weight-title);
 }
 
@@ -1159,7 +1436,7 @@ body {
 
 .app-wizard-progress-seg {
   background: var(--app-divider);
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   flex: 1;
   height: 3px;
   opacity: 0.5;
@@ -1187,7 +1464,7 @@ body {
   cursor: pointer;
   display: flex;
   font: inherit;
-  font-size: 0.875rem;
+  font-size: var(--app-font-size-callout);
   font-weight: var(--app-font-weight-title);
   justify-content: space-between;
   padding: var(--app-space-m) var(--app-space-l);
@@ -1215,7 +1492,7 @@ body {
   align-self: flex-start;
   background: none;
   border: none;
-  color: var(--app-accent);
+  color: var(--app-accent-text);
   cursor: pointer;
   font: inherit;
   font-size: var(--app-font-size-description);
@@ -1227,6 +1504,7 @@ body {
   font: inherit;
   font-size: var(--app-font-size-description);
   margin: 0;
+  max-width: var(--app-measure);
   white-space: pre-wrap;
 }
 
@@ -1235,6 +1513,7 @@ body {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);
   margin: 0 0 var(--app-space-s);
+  max-width: var(--app-measure);
 }
 
 .app-today-labels {
@@ -1246,9 +1525,10 @@ body {
 .app-today-chip {
   align-self: flex-start;
   background: var(--app-surface);
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   color: var(--app-text-secondary);
-  font-size: 0.75rem;
+  font-size: var(--app-font-size-caption);
+  font-variant-numeric: tabular-nums;
   font-weight: var(--app-font-weight-title);
   padding: 2px var(--app-space-s);
   white-space: nowrap;
@@ -1265,6 +1545,7 @@ body {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);
   margin: 0;
+  max-width: var(--app-measure);
 }
 
 /* Ответ приглашённого: текущий ответ подсвечен заливкой (наличие aria-pressed; SSR Ionic даёт пустое значение атрибута) */
@@ -1290,7 +1571,7 @@ body {
   align-items: center;
   background: var(--app-card);
   border: 1px solid var(--app-divider);
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -1320,7 +1601,22 @@ body {
 
 .app-gathering-friend-status--free,
 .app-gathering-friend-status--accepted {
-  color: var(--app-accent);
+  color: var(--app-accent-text);
+}
+
+/* Положительный статус помечается точкой brand-cyan: в светлой схеме голубой годится
+ * только точкой или полосой (текстом он даёт 2.1:1), сам текст остаётся accent-text */
+.app-gathering-friend-status--free::before,
+.app-gathering-friend-status--accepted::before,
+.app-plan-friend-status--confirmed::before {
+  background: var(--app-status);
+  border-radius: 50%;
+  content: "";
+  display: inline-block;
+  height: 6px;
+  margin-right: var(--app-space-xs);
+  vertical-align: middle;
+  width: 6px;
 }
 
 .app-gathering-friend-status--busy {
@@ -1340,13 +1636,14 @@ body {
   display: flex;
   flex-direction: column;
   font-size: var(--app-font-size-description);
+  font-variant-numeric: tabular-nums;
   gap: var(--app-space-s);
 }
 
 .app-gathering-time-input {
   background: var(--app-surface);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   color: var(--app-text);
   font: inherit;
   font-size: var(--app-font-size-body);
@@ -1387,10 +1684,10 @@ body {
 .app-plan-event {
   background: none;
   border: none;
-  color: var(--app-accent);
+  color: var(--app-accent-text);
   cursor: pointer;
   font: inherit;
-  font-size: 0.875rem;
+  font-size: var(--app-font-size-callout);
   font-weight: var(--app-font-weight-title);
   padding: 0;
   text-align: left;
@@ -1399,7 +1696,9 @@ body {
 .app-plan-meeting {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);
+  font-variant-numeric: tabular-nums;
   margin: 0;
+  max-width: var(--app-measure);
 }
 
 .app-plan-participants {
@@ -1424,7 +1723,7 @@ body {
 
 .app-plan-friend-name {
   color: var(--app-text);
-  font-size: 0.875rem;
+  font-size: var(--app-font-size-callout);
   font-weight: var(--app-font-weight-title);
 }
 
@@ -1433,7 +1732,7 @@ body {
 }
 
 .app-plan-friend-status--confirmed {
-  color: var(--app-accent);
+  color: var(--app-accent-text);
 }
 
 .app-plan-friend-status--invited {
@@ -1462,7 +1761,7 @@ body {
   display: flex;
   flex-direction: column;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--app-font-size-description);
   font-weight: var(--app-font-weight-title);
   gap: var(--app-space-xs);
   padding: var(--app-space-m);
@@ -1496,12 +1795,12 @@ body {
 
 .app-lists-row-title {
   color: var(--app-text);
-  font-size: 0.875rem;
+  font-size: var(--app-font-size-callout);
   font-weight: var(--app-font-weight-title);
 }
 
 .app-lists-row-state {
-  color: var(--app-accent);
+  color: var(--app-accent-text);
   font-size: var(--app-font-size-description);
 }
 
@@ -1533,33 +1832,35 @@ body {
   border-radius: 50%;
   color: var(--app-text-tertiary);
   display: flex;
-  font-size: 0.875rem;
+  font-size: var(--app-font-size-callout);
   font-weight: var(--app-font-weight-title);
   height: 52px;
   justify-content: center;
   width: 52px;
 }
 
+/* Полученное достижение — gradient-light; глиф тёмный, светлый край градиента белый */
 .app-achievement--granted .app-achievement-stamp {
-  background: var(--app-media-gradient-1);
+  background: var(--app-gradient-light);
   border: none;
-  color: var(--app-accent-contrast);
+  color: var(--brand-void);
 }
 
 .app-achievement-title {
   color: var(--app-text);
-  font-size: 0.75rem;
+  font-size: var(--app-font-size-caption);
   font-weight: var(--app-font-weight-title);
 }
 
 .app-achievement-progress {
   color: var(--app-text-tertiary);
-  font-size: 0.75rem;
+  font-size: var(--app-font-size-caption);
+  font-variant-numeric: tabular-nums;
 }
 
 .app-achievement-bar {
   background: var(--app-surface);
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   height: 3px;
   overflow: hidden;
   width: 100%;
@@ -1585,12 +1886,14 @@ body {
   width: 100%;
 }
 
-/* Микро-события (UGC): бейдж-пилюля */
+/* Микро-события (UGC): бейдж-пилюля — единственная роль brand-purple, один бейдж на экран.
+ * Заливка, а не цветной текст: на 11px пурпур поверх фона контраста не набирает. */
 .app-micro-badge {
-  background: var(--app-surface);
-  border-radius: 999px;
-  color: var(--app-text-secondary);
-  font-size: 0.6875rem;
+  background: var(--app-badge);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-badge-contrast);
+  font-size: var(--app-font-size-caption);
+  font-variant-numeric: tabular-nums;
   font-weight: var(--app-font-weight-title);
   padding: 2px var(--app-space-s);
 }
@@ -1599,9 +1902,9 @@ body {
 .app-stories {
   display: flex;
   gap: var(--app-space-m);
-  margin: var(--app-space-s) calc(-1 * var(--app-space-l)) var(--app-space-s);
+  margin: var(--app-space-s) calc(-1 * var(--app-space-screen)) var(--app-space-s);
   overflow-x: auto;
-  padding: var(--app-space-xs) var(--app-space-l);
+  padding: var(--app-space-xs) var(--app-space-screen);
   scrollbar-width: none;
 }
 
@@ -1630,24 +1933,10 @@ body {
   padding: 2.5px;
 }
 
+/* Обводка сторис — фирменный gradient-light, один на все кольца:
+ * ротация по позиции была декоративной и брендбуку не отвечает. */
 .app-story-ring--active {
-  background: var(--app-media-gradient-1);
-}
-
-.app-story:nth-child(5n + 2) .app-story-ring--active {
-  background: var(--app-media-gradient-2);
-}
-
-.app-story:nth-child(5n + 3) .app-story-ring--active {
-  background: var(--app-media-gradient-3);
-}
-
-.app-story:nth-child(5n + 4) .app-story-ring--active {
-  background: var(--app-media-gradient-4);
-}
-
-.app-story:nth-child(5n) .app-story-ring--active {
-  background: var(--app-media-gradient-5);
+  background: var(--app-gradient-light);
 }
 
 .app-story-ring > * {
@@ -1664,7 +1953,7 @@ body {
 
 .app-story-name {
   color: var(--app-text-secondary);
-  font-size: 0.6875rem;
+  font-size: var(--app-font-size-caption);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1672,19 +1961,21 @@ body {
 }
 
 .app-card--post {
-  margin: 0 calc(-1 * var(--app-space-l));
-  width: calc(100% + 2 * var(--app-space-l));
+  margin: 0 calc(-1 * var(--app-space-screen));
+  width: calc(100% + 2 * var(--app-space-screen));
 }
 
+/* Разделитель постов: поверхность, а не фон страницы — в светлой схеме фон и карточка
+ * оба brand-white, полоса цвета фона была бы невидимой */
 .app-card--post + .app-card--post {
-  border-top: 8px solid var(--app-page);
+  border-top: 8px solid var(--app-surface);
 }
 
 .app-post-head {
   align-items: center;
   display: flex;
   gap: var(--app-space-s);
-  padding: var(--app-space-s) var(--app-space-l);
+  padding: var(--app-space-s) var(--app-space-screen);
 }
 
 .app-post-id {
@@ -1695,18 +1986,18 @@ body {
 
 .app-post-author {
   color: var(--app-text);
-  font-size: 0.875rem;
+  font-size: var(--app-font-size-callout);
   font-weight: var(--app-font-weight-title);
 }
 
 .app-post-place {
   color: var(--app-text-tertiary);
-  font-size: 0.75rem;
+  font-size: var(--app-font-size-caption);
 }
 
 .app-post-place-text {
   color: var(--app-text-tertiary);
-  font-size: 0.75rem;
+  font-size: var(--app-font-size-caption);
 }
 
 .app-post-place .app-plan-event {
@@ -1714,11 +2005,12 @@ body {
   font: inherit;
 }
 
+/* Ряд иконок оптически выравнивается по гуттеру: своя внутренняя рамка кнопки — space-xs */
 .app-post-actions {
   align-items: center;
   display: flex;
   gap: var(--app-space-l);
-  padding: var(--app-space-xs) var(--app-space-m) 0;
+  padding: var(--app-space-xs) calc(var(--app-space-screen) - var(--app-space-xs)) 0;
 }
 
 .app-post-action {
@@ -1741,16 +2033,18 @@ body {
 }
 
 .app-post-likes {
-  font-size: 0.875rem;
+  font-size: var(--app-font-size-callout);
+  font-variant-numeric: tabular-nums;
   font-weight: var(--app-font-weight-title);
   margin: 0;
-  padding: var(--app-space-xs) var(--app-space-l) 0;
+  padding: var(--app-space-xs) var(--app-space-screen) 0;
 }
 
 .app-post-caption {
-  font-size: 0.875rem;
+  font-size: var(--app-font-size-callout);
   margin: 0;
-  padding: 2px var(--app-space-l) 0;
+  max-width: var(--app-measure);
+  padding: 2px var(--app-space-screen) 0;
 }
 
 .app-post-caption-author {
@@ -1763,12 +2057,13 @@ body {
   gap: var(--app-space-xs);
   list-style: none;
   margin: 0;
-  padding: var(--app-space-xs) var(--app-space-l) 0;
+  padding: var(--app-space-xs) var(--app-space-screen) 0;
 }
 
 .app-feed-comment {
   color: var(--app-text-secondary);
-  font-size: 0.8125rem;
+  font-size: var(--app-font-size-description);
+  max-width: var(--app-measure);
 }
 
 .app-feed-comment-author {
@@ -1779,7 +2074,7 @@ body {
 .app-feed-comment-form {
   display: flex;
   gap: var(--app-space-s);
-  padding: var(--app-space-s) var(--app-space-l) var(--app-space-m);
+  padding: var(--app-space-s) var(--app-space-screen) var(--app-space-m);
 }
 
 .app-feed-comment-form .app-chip {
@@ -1825,7 +2120,7 @@ body {
 .app-nearby-stop-open {
   background: none;
   border: none;
-  color: var(--app-accent);
+  color: var(--app-accent-text);
   cursor: pointer;
   font: inherit;
   padding: 0;
@@ -1867,6 +2162,7 @@ body {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);
   margin: var(--app-space-xs) 0;
+  max-width: var(--app-measure);
 }
 
 .app-vote-options {
@@ -1888,8 +2184,8 @@ body {
 }
 
 .app-vote-badge {
-  color: var(--app-accent);
-  font-size: 0.75rem;
+  color: var(--app-accent-text);
+  font-size: var(--app-font-size-caption);
   font-weight: var(--app-font-weight-title);
 }
 
@@ -1900,7 +2196,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  padding: var(--app-space-xl, 24px);
+  padding: var(--app-space-xl) var(--app-space-screen);
 }
 
 .app-entry-hero {
@@ -1913,12 +2209,14 @@ body {
   text-align: center;
 }
 
+/* Онбординг — gradient-light. Глиф тёмный: светлый конец градиента упирается в белый лист,
+ * белый знак там бы пропал. На дальнем конце (brand-cyan) brand-void даёт 9.4:1. */
 .app-entry-logo {
   align-items: center;
-  background: var(--app-media-gradient-2);
+  background: var(--app-gradient-light);
   border-radius: 28px;
-  box-shadow: 0 12px 32px rgba(82, 110, 255, 0.35);
-  color: #fff;
+  box-shadow: var(--app-shadow-lift);
+  color: var(--brand-void);
   display: grid;
   height: 88px;
   justify-items: center;
@@ -1926,7 +2224,7 @@ body {
 }
 
 .app-entry-title {
-  font-size: 2rem;
+  font-size: var(--app-font-size-display);
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
@@ -1936,7 +2234,7 @@ body {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-body);
   margin: 0;
-  max-width: 300px;
+  max-width: min(var(--app-measure), 300px);
 }
 
 .app-entry-actions {
@@ -1945,10 +2243,13 @@ body {
   gap: var(--app-space-s);
 }
 
-/* Вход организатора: центрированная форма */
+/* Вход организатора: центрированная форма. Шапка организатора — gradient-dark,
+ * так пространство организатора сразу отличается от пользовательского онбординга. */
 
 .app-entry-logo--small {
+  background: var(--app-gradient-dark);
   border-radius: 18px;
+  color: var(--brand-white);
   height: 56px;
   width: 56px;
 }
@@ -1960,12 +2261,12 @@ body {
   gap: var(--app-space-m);
   justify-content: center;
   min-height: 100dvh;
-  padding: var(--app-space-xl, 24px);
+  padding: var(--app-space-xl) var(--app-space-screen);
 }
 
 .app-organizer-login .app-profile-input {
   font-size: var(--app-font-size-body);
-  padding: var(--app-space-m) var(--app-space-l, 20px);
+  padding: var(--app-space-m) var(--app-space-screen);
 }
 
 .app-organizer-login-brand {
@@ -1984,13 +2285,14 @@ body {
   color: var(--app-text-tertiary);
   font-size: var(--app-font-size-description);
   margin: 0;
+  max-width: var(--app-measure);
   text-align: center;
 }
 
 /* Просмотрщик историй: полноэкранный оверлей с сегментами и тап-зонами */
 
 .app-story-viewer {
-  background: #000;
+  background: var(--brand-void);
   inset: 0;
   position: fixed;
   z-index: 100;
@@ -2003,7 +2305,7 @@ body {
 }
 
 .app-story-viewer-top {
-  background: linear-gradient(rgba(0, 0, 0, 0.45), transparent);
+  background: linear-gradient(rgba(13, 0, 26, 0.45), transparent);
   left: 0;
   padding: var(--app-space-s) var(--app-space-m);
   position: absolute;
@@ -2025,12 +2327,12 @@ body {
 
 .app-story-segment--done,
 .app-story-segment--current {
-  background: #fff;
+  background: var(--brand-white);
 }
 
 .app-story-viewer-head {
   align-items: center;
-  color: #fff;
+  color: var(--brand-white);
   display: flex;
   justify-content: space-between;
   padding-top: var(--app-space-s);
@@ -2043,9 +2345,9 @@ body {
 .app-story-viewer-close {
   background: none;
   border: none;
-  color: #fff;
+  color: var(--brand-white);
   cursor: pointer;
-  font-size: 1.75rem;
+  font-size: var(--app-font-size-headline);
   line-height: 1;
   padding: 0 var(--app-space-xs);
 }

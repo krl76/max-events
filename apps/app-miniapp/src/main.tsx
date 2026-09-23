@@ -6,6 +6,7 @@ import { setupIonicReact } from "@ionic/react";
 import { App } from "./App";
 import { apiClient } from "./api/client";
 import { getWebApp } from "./max/bridge";
+import { initTheme } from "./ui/theme";
 import "@ionic/react/css/core.css";
 import "@ionic/react/css/normalize.css";
 import "@ionic/react/css/structure.css";
@@ -13,6 +14,13 @@ import "@ionic/react/css/typography.css";
 import "./ui/theme.css";
 
 setupIonicReact({ mode: "ios" });
+
+// Colour scheme before the first paint and above the entry gate. Layout only mounts on the
+// signed-in branch, so driving it from there left EntryPage and OrganizerSpace ignoring an
+// explicit light/dark choice. Synchronous and outside React on purpose: it must beat the
+// awaits in bootstrap() so no frame renders in the wrong scheme, and StrictMode must not
+// double-invoke it. The subscription lives as long as the app, so its unsubscribe is moot.
+initTheme();
 
 // Attach the MAX auth header synchronously before the first render: child
 // effects (the initial request wave) run before the AuthProvider effect.

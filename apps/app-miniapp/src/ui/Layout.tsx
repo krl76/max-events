@@ -84,7 +84,8 @@ export function Layout({ children }: { children: ReactNode }) {
             <>
               {routeHasBack(route) && (
                 <button type="button" className="app-header-back" aria-label="Назад" onClick={back}>
-                  <ActionIcon name="chevron" size={20} strokeWidth={2} />
+                  {/* 24px: навигационная иконка, как у таббара (20px — размер для списков) */}
+                  <ActionIcon name="chevron" size={24} strokeWidth={2} />
                 </button>
               )}
               <span className="app-header-title">{routeTitle(route)}</span>
