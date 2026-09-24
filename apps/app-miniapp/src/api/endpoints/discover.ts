@@ -1,12 +1,16 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Discovery endpoints of the api client: the today digest of экран 08, the «Куда пойдём?» wizard, the nearby timeline with its free-window leisure chains, the NL assistant and the swipe deck of экран 09.
-// SCOPE: GET /today, GET /whereto, GET /nearby[/free], POST /assist[/day], GET /discover/swipe, POST /discover/swipe/:placeId; the TodayDigest and SwipeCandidate aggregates are client-side shapes like EventDetails in ./catalog.ts.
+// SCOPE: GET /today, GET /whereto, GET /nearby[/free], POST /assist[/day], GET /discover/swipe, POST /discover/swipe/:placeId; the TodayDigest, WheretoPicks, LeisureChain and SwipeCandidate aggregates are client-side shapes like EventDetails in ./catalog.ts.
 // DEPENDS: ./transport.js, ./catalog.js (CatalogCard), @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - LeisureQuery - free-window leisure payload (hours 1..8, mood, coordinates)
+// - WheretoPick - one suggestion of экран 12: the event plus the distance its card prints (#504)
+// - WheretoPicks - GET /whereto answer: up to five picks; a superset of WheretoResponse, so a backend that answers plain events still parses
+// - LeisureChainStop - one stop of the chain of экран 14: the contract stop plus its distance and price
+// - LeisureChain - GET /nearby/free chain with enriched stops; a superset of LeisureOption
 // - TodayCard - one card of the digest: a CatalogCard plus its typed labels (макет, экран 08, «Для вас»)
 // - TodayDigest - digest response: the three summary counters plus the cards; a superset of the TodayResponse contract, so a backend that answers the plain shape still parses (extras read as null)
 // - SwipeCategory - the four filter chips of экран 09 (Все / Еда / На природе / Спорт)
@@ -16,8 +20,8 @@
 // - withDiscover - ApiClient.getToday / getWhereto / getNearbyTimeline / getLeisureOptions / assistQuery / assistDay / listSwipeCandidates / saveSwipeDecision
 // END_MODULE_MAP
 
-import { AssistDayResponseSchema, AssistResponseSchema, EventSchema, FriendSchema, LeisureOptionSchema, NearbyTimelineSchema, PlaceSchema, TodayCardLabelSchema, TodaySummarySchema, WheretoResponseSchema } from "@max-events/api-contracts";
-import type { AssistDayResponse, AssistResponse, Friend, LeisureMood, LeisureOption, NearbyTimeline, Place, TodayCardLabel, TodaySummary, WheretoQuery, WheretoResponse } from "@max-events/api-contracts";
+import { AssistDayResponseSchema, AssistResponseSchema, EventSchema, FriendSchema, LeisureOptionSchema, NearbyTimelineSchema, PlaceSchema, TodayCardLabelSchema, TodaySummarySchema } from "@max-events/api-contracts";
+import type { AssistDayResponse, AssistResponse, Event, Friend, LeisureMood, LeisureOption, LeisureStop, NearbyTimeline, Place, TodayCardLabel, TodaySummary, WheretoQuery } from "@max-events/api-contracts";
 import type { CatalogCard } from "./catalog";
 import type { ApiMixin, ZodSchema } from "./transport";
 
@@ -32,6 +36,86 @@ export interface LeisureQuery {
 const isNullableNumber = (value: unknown): value is number | null => value === null || typeof value === "number";
 
 const isNullableString = (value: unknown): value is string | null => value === null || typeof value === "string";
+
+/**
+ * One suggestion of макет экран 12. The wizard answers plain events (WheretoResponse), and the card
+ * of the design also prints how far the venue is — a number the whereto item does not carry (#504),
+ * so it reads null until it does.
+ */
+export interface WheretoPick extends Event {
+  /** «1,2 км» from the viewer; null while the item carries no distance (#504). */
+  distanceKm: number | null;
+}
+
+/**
+ * GET /whereto: at most five picks (the contract caps it). Structurally a superset of WheretoResponse —
+ * an answer of plain events still parses and reads distanceKm as null — so the live endpoint needs no
+ * change for this screen to work, and gains the distance drop-in once #504 lands.
+ */
+export interface WheretoPicks {
+  items: WheretoPick[];
+}
+
+const WheretoPicksSchema: ZodSchema<WheretoPicks> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a whereto response object" };
+    const raw = data as Record<string, unknown>;
+    if (!Array.isArray(raw.items)) return { success: false as const, error: "invalid whereto response" };
+    const items: WheretoPick[] = [];
+    for (const entry of raw.items) {
+      const event = EventSchema.safeParse(entry);
+      if (!event.success) return { success: false as const, error: "invalid whereto item" };
+      // Absent, not merely null: the distance is ours, and an answer without it is still valid.
+      const distanceKm = (entry as Record<string, unknown>).distanceKm ?? null;
+      if (!isNullableNumber(distanceKm)) return { success: false as const, error: "invalid whereto item" };
+      items.push({ ...event.data, distanceKm });
+    }
+    return { success: true as const, data: { items } };
+  },
+};
+
+/**
+ * One stop of the chain of макет экран 14 («19:00 · 0,4 км · 400 ₽»). The contract stop carries the
+ * kind, the title and the time; neither the distance (#504) nor what the stop costs (a Place has no
+ * price at all, #492) is in it, so both read as absent rather than as an invented zero.
+ */
+export interface LeisureChainStop extends LeisureStop {
+  /** «0,4 км» from the viewer; null while the stop carries no distance (#504). */
+  distanceKm: number | null;
+  /** «400 ₽» — what the stop costs; null when there is no price to print (#492). */
+  priceRub: number | null;
+  /** «бесплатно» — true only when the stop is known to be free; an unknown price is not free. */
+  free: boolean;
+}
+
+/** GET /nearby/free chain with enriched stops; a superset of LeisureOption, so the live answer parses unchanged. */
+export interface LeisureChain extends LeisureOption {
+  stops: LeisureChainStop[];
+}
+
+const LeisureChainsSchema: ZodSchema<LeisureChain[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected a leisure chain array" };
+    const chains: LeisureChain[] = [];
+    for (const item of data) {
+      const option = LeisureOptionSchema.safeParse(item);
+      if (!option.success) return { success: false as const, error: "invalid leisure chain" };
+      const rawStops = (item as { stops?: unknown }).stops;
+      if (!Array.isArray(rawStops)) return { success: false as const, error: "invalid leisure chain" };
+      const stops: LeisureChainStop[] = [];
+      for (const [index, stop] of option.data.stops.entries()) {
+        const raw = (rawStops[index] ?? {}) as Record<string, unknown>;
+        const distanceKm = raw.distanceKm ?? null;
+        const priceRub = raw.priceRub ?? null;
+        const free = raw.free ?? false;
+        if (!isNullableNumber(distanceKm) || !isNullableNumber(priceRub) || typeof free !== "boolean") return { success: false as const, error: "invalid leisure stop" };
+        stops.push({ ...stop, distanceKm, priceRub, free });
+      }
+      chains.push({ ...option.data, stops });
+    }
+    return { success: true as const, data: chains };
+  },
+};
 
 /** One card of the digest (макет, экран 08): the catalog card the «Для вас» tiles print, plus the contextual labels. */
 export interface TodayCard extends CatalogCard {
@@ -134,9 +218,14 @@ export function withDiscover<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/today${query}`, TodayDigestSchema);
     }
 
-    getWhereto(query: WheretoQuery): Promise<WheretoResponse> {
+    /** The wizard answer of экран 12. The coordinates ride along for the distance of #504; the live endpoint ignores what it does not know. */
+    getWhereto(query: WheretoQuery, origin: { latitude: number; longitude: number } | null = null): Promise<WheretoPicks> {
       const params = new URLSearchParams({ company: query.company, mood: query.mood, budget: query.budget });
-      return this.request(`/whereto?${params.toString()}`, WheretoResponseSchema);
+      if (origin !== null) {
+        params.set("lat", String(origin.latitude));
+        params.set("lng", String(origin.longitude));
+      }
+      return this.request(`/whereto?${params.toString()}`, WheretoPicksSchema);
     }
 
     getNearbyTimeline(latitude: number, longitude: number): Promise<NearbyTimeline> {
@@ -144,9 +233,9 @@ export function withDiscover<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/nearby?${query.toString()}`, NearbyTimelineSchema);
     }
 
-    getLeisureOptions(query: LeisureQuery): Promise<LeisureOption[]> {
+    getLeisureOptions(query: LeisureQuery): Promise<LeisureChain[]> {
       const params = new URLSearchParams({ hours: String(query.hours), mood: query.mood, latitude: String(query.latitude), longitude: String(query.longitude) });
-      return this.request(`/nearby/free?${params.toString()}`, LeisureOptionSchema.array());
+      return this.request(`/nearby/free?${params.toString()}`, LeisureChainsSchema);
     }
 
     assistQuery(query: string): Promise<AssistResponse> {
