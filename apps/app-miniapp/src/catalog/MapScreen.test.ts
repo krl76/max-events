@@ -1,13 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockEvents, mockFriends, mockPlaces } from "../api/mock";
-import { buildMapMarkers } from "./mapMarkers";
-import { escapeHtml, formatMapChange, formatMapTemperature, formatTravelOption, initEventMap, mapFriendsLine, mapRainHint } from "./MapScreen";
+import { buildMapMarkers, type MapMarker } from "./mapMarkers";
+import { escapeHtml, formatMapChange, formatMapTemperature, formatTravelOption, initEventMap, mapFriendsLine, mapNotice, mapRainHint, type MapCallbacks, type MapNoticeInput, type MapView } from "./MapScreen";
 
 const leaflet = vi.hoisted(() => ({
   map: vi.fn(),
   tileLayer: vi.fn(),
   marker: vi.fn(),
   divIcon: vi.fn(),
+  layerGroup: vi.fn(),
+  polyline: vi.fn(),
+  latLngBounds: vi.fn(),
 }));
 
 vi.mock("leaflet", () => leaflet);
@@ -32,18 +35,49 @@ function fakeNode(): FakeNode {
 
 const container = {} as HTMLElement;
 
+/** Зум, на котором сетка кластеризации уже ничего не склеивает: один объект — один пин. */
+const STREET_ZOOM = 18;
+
+let zoom = STREET_ZOOM;
+let tileHandlers: Record<string, () => void> = {};
+
+function fakeLayerGroup() {
+  const group = { addTo: vi.fn(() => group), clearLayers: vi.fn() };
+  return group;
+}
+
+/** Ровно то, что экран спрашивает у leaflet, — остальное карта в тестах не трогает. */
+function fakeMap() {
+  const api = { remove: vi.fn(), on: vi.fn(), off: vi.fn(), getZoom: vi.fn(() => zoom), setZoom: vi.fn(), flyTo: vi.fn(), flyToBounds: vi.fn() };
+  return api;
+}
+
+const view = (markers: MapMarker[], extra: Partial<MapView> = {}): MapView => ({ markers, origin: null, route: null, selectedKey: null, ...extra });
+
+const callbacks = (extra: Partial<MapCallbacks> = {}): MapCallbacks => ({ onOpenEvent: vi.fn(), onOpenPlace: vi.fn(), onSelect: vi.fn(), onTileTrouble: vi.fn(), ...extra });
+
 beforeEach(() => {
+  zoom = STREET_ZOOM;
+  tileHandlers = {};
   vi.stubGlobal("document", { createElement: () => fakeNode() });
-  leaflet.map.mockReset();
-  leaflet.tileLayer.mockReset();
-  leaflet.marker.mockReset();
-  leaflet.divIcon.mockReset();
-  leaflet.map.mockReturnValue({ remove: vi.fn() });
-  leaflet.tileLayer.mockReturnValue({ addTo: vi.fn() });
+  for (const spy of Object.values(leaflet)) spy.mockReset();
+  leaflet.map.mockImplementation(fakeMap);
+  leaflet.tileLayer.mockImplementation(() => {
+    const tiles = {
+      addTo: vi.fn(() => tiles),
+      on: vi.fn((type: string, handler: () => void) => {
+        tileHandlers[type] = handler;
+      }),
+    };
+    return tiles;
+  });
+  leaflet.layerGroup.mockImplementation(fakeLayerGroup);
   leaflet.marker.mockImplementation(() => {
-    const api = { addTo: vi.fn(() => api), bindPopup: vi.fn(() => api) };
+    const api = { addTo: vi.fn(() => api), bindPopup: vi.fn(() => api), on: vi.fn(() => api) };
     return api;
   });
+  leaflet.polyline.mockImplementation(() => ({ addTo: vi.fn() }));
+  leaflet.latLngBounds.mockImplementation((points: unknown) => points);
   leaflet.divIcon.mockImplementation((options: unknown) => options);
 });
 
@@ -52,26 +86,26 @@ afterEach(() => {
 });
 
 describe("initEventMap", () => {
-  it("initializes the map centered on Moscow without the Leaflet attribution bar", async () => {
-    const dispose = await initEventMap(container, { events: [], places: [], onOpenEvent: vi.fn(), onOpenPlace: vi.fn() });
+  it("opens on Moscow without the Leaflet attribution bar and without its zoom control", async () => {
+    const handle = await initEventMap(container, view([]), callbacks());
 
-    expect(leaflet.map).toHaveBeenCalledWith(container, { center: [55.7522, 37.6156], zoom: 11, attributionControl: false });
-    expect(leaflet.tileLayer).toHaveBeenCalledWith("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 });
-    expect(typeof dispose).toBe("function");
+    expect(leaflet.map).toHaveBeenCalledWith(container, expect.objectContaining({ center: [55.7522, 37.6156], zoom: 11, attributionControl: false, zoomControl: false }));
+    expect(leaflet.tileLayer).toHaveBeenCalledWith("https://tile.openstreetmap.org/{z}/{x}/{y}.png", expect.objectContaining({ maxZoom: 19 }));
+    expect(typeof handle.dispose).toBe("function");
   });
 
   it("removes the map when disposed", async () => {
-    const dispose = await initEventMap(container, { events: [], places: [], onOpenEvent: vi.fn(), onOpenPlace: vi.fn() });
+    const handle = await initEventMap(container, view([]), callbacks());
     const remove = leaflet.map.mock.results[0].value.remove;
 
-    dispose();
+    handle.dispose();
 
     expect(remove).toHaveBeenCalledTimes(1);
   });
 
   it("creates one marker per mapped event/place at the mapped coordinates", async () => {
     const markers = buildMapMarkers(mockEvents, mockPlaces);
-    await initEventMap(container, { events: mockEvents, places: mockPlaces, onOpenEvent: vi.fn(), onOpenPlace: vi.fn() });
+    await initEventMap(container, view(markers), callbacks());
 
     expect(leaflet.marker).toHaveBeenCalledTimes(markers.length);
     expect(leaflet.marker.mock.calls.map((call) => call[0])).toEqual(markers.map((marker) => [marker.lat, marker.lng]));
@@ -81,7 +115,7 @@ describe("initEventMap", () => {
   it("renders a popup mini-card with a button that opens the event route", async () => {
     const onOpenEvent = vi.fn();
     const placed = mockEvents.find((item) => item.placeId !== null)!;
-    await initEventMap(container, { events: [placed], places: mockPlaces, onOpenEvent, onOpenPlace: vi.fn() });
+    await initEventMap(container, view(buildMapMarkers([placed], mockPlaces)), callbacks({ onOpenEvent }));
 
     const eventPopup = leaflet.marker.mock.results[0].value.bindPopup.mock.calls[0][0] as FakeNode;
     expect(eventPopup.appended.some((node) => node.textContent === placed.title)).toBe(true);
@@ -95,7 +129,7 @@ describe("initEventMap", () => {
 
   it("gives place markers a popup button that opens the place route", async () => {
     const onOpenPlace = vi.fn();
-    await initEventMap(container, { events: [], places: mockPlaces, onOpenEvent: vi.fn(), onOpenPlace });
+    await initEventMap(container, view(buildMapMarkers([], mockPlaces)), callbacks({ onOpenPlace }));
 
     const placePopup = leaflet.marker.mock.results[0].value.bindPopup.mock.calls[0][0] as FakeNode;
     expect(placePopup.appended.some((node) => node.textContent === mockPlaces[0].title)).toBe(true);
@@ -110,7 +144,7 @@ describe("initEventMap", () => {
   it("highlights the pin and the popup of a promoted event", async () => {
     const placed = mockEvents.find((item) => item.placeId !== null)!;
     const promoted = { ...placed, promoted: true };
-    await initEventMap(container, { events: [promoted], places: mockPlaces, onOpenEvent: vi.fn(), onOpenPlace: vi.fn() });
+    await initEventMap(container, view(buildMapMarkers([promoted], mockPlaces)), callbacks());
 
     expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin app-map-pin--promo" }));
 
@@ -118,11 +152,12 @@ describe("initEventMap", () => {
     expect(popup.appended.some((node) => node.textContent === "Промо")).toBe(true);
   });
 
-  it("keeps the plain pin for a regular event", async () => {
+  it("keeps the plain pin for a regular event and lifts the selected one", async () => {
     const placed = mockEvents.find((item) => item.placeId !== null && !item.promoted)!;
-    await initEventMap(container, { events: [placed], places: mockPlaces, onOpenEvent: vi.fn(), onOpenPlace: vi.fn() });
+    const markers = buildMapMarkers([placed], mockPlaces);
+    await initEventMap(container, view(markers, { selectedKey: markers[0].key }), callbacks());
 
-    expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin" }));
+    expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin app-map-pin--active" }));
 
     const popup = leaflet.marker.mock.results[0].value.bindPopup.mock.calls[0][0] as FakeNode;
     expect(popup.appended.some((node) => node.textContent === "Промо")).toBe(false);
@@ -131,7 +166,7 @@ describe("initEventMap", () => {
   it("gives the «друзья были здесь» marker its own pin and opens the place from its popup", async () => {
     const onOpenPlace = vi.fn();
     const visit = { place: mockPlaces[0], friends: [mockFriends[0]], lastVisitAt: "2026-09-16T20:00:00+03:00" };
-    await initEventMap(container, { events: [], places: [mockPlaces[0]], friendVisits: [visit], onOpenEvent: vi.fn(), onOpenPlace });
+    await initEventMap(container, view(buildMapMarkers([], [mockPlaces[0]], [visit])), callbacks({ onOpenPlace }));
 
     expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin app-map-pin--friends" }));
 
@@ -139,6 +174,88 @@ describe("initEventMap", () => {
     expect(popup.appended.some((node) => node.textContent === `Были: ${mockFriends[0].name}`)).toBe(true);
     popup.appended.find((node) => node.textContent === "Открыть место")!.click!();
     expect(onOpenPlace).toHaveBeenCalledWith(mockPlaces[0].id);
+  });
+
+  it("draws one bubble instead of a crowd of pins at city zoom", async () => {
+    zoom = 11;
+    const crowd: MapMarker[] = [0, 1, 2].map((index) => ({ key: `place-${index}`, eventId: null, placeId: `p${index}`, promoted: false, friends: false, glyph: "place", title: `Место ${index}`, subtitle: "", lat: 55.75 + index * 0.0005, lng: 37.61 + index * 0.0005 }));
+    await initEventMap(container, view(crowd), callbacks());
+
+    expect(leaflet.marker).toHaveBeenCalledTimes(1);
+    expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin app-map-pin--cluster" }));
+    expect((leaflet.divIcon.mock.calls[0][0] as { html: string }).html).toContain(">3<");
+  });
+
+  it("marks where the viewer stands and dots the line to the selected object", async () => {
+    await initEventMap(container, view([], { origin: [55.75, 37.61], route: [55.76, 37.62] }), callbacks());
+
+    expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin app-map-pin--me" }));
+    expect((leaflet.divIcon.mock.calls[0][0] as { html: string }).html).toContain("Вы здесь");
+    expect(leaflet.polyline).toHaveBeenCalledWith(
+      [
+        [55.75, 37.61],
+        [55.76, 37.62],
+      ],
+      expect.objectContaining({ className: "app-map-route" }),
+    );
+  });
+
+  it("redraws new data into the map it already built instead of building a second one", async () => {
+    const handle = await initEventMap(container, view([]), callbacks());
+    leaflet.marker.mockClear();
+
+    handle.update(view(buildMapMarkers([], [mockPlaces[0]])));
+
+    expect(leaflet.map).toHaveBeenCalledTimes(1);
+    expect(leaflet.marker).toHaveBeenCalledTimes(1);
+  });
+
+  it("zooms and flies through the map it holds, so the chrome needs no Leaflet of its own", async () => {
+    const handle = await initEventMap(container, view([]), callbacks());
+    const map = leaflet.map.mock.results[0].value;
+
+    handle.zoomBy(1);
+    handle.focus([55.8, 37.5]);
+
+    expect(map.setZoom).toHaveBeenCalledWith(STREET_ZOOM + 1);
+    expect(map.flyTo).toHaveBeenCalledWith([55.8, 37.5], expect.any(Number), expect.anything());
+  });
+
+  it("reports dead tiles once, however many of them fail", async () => {
+    const onTileTrouble = vi.fn();
+    await initEventMap(container, view([]), callbacks({ onTileTrouble }));
+
+    tileHandlers.tileerror();
+    tileHandlers.tileerror();
+
+    expect(onTileTrouble).toHaveBeenCalledTimes(1);
+  });
+});
+
+const NOTICE: MapNoticeInput = { mapFailed: false, tilesFailed: false, loading: false, placesFailed: false, eventsFailed: false, markerCount: 4, query: "", anyLayerOn: true, geoDenied: false, locateOn: false };
+
+describe("mapNotice", () => {
+  it("says nothing when the map has objects and everything loaded", () => {
+    expect(mapNotice(NOTICE)).toBeNull();
+  });
+
+  it("explains an empty map instead of leaving the canvas mute", () => {
+    expect(mapNotice({ ...NOTICE, markerCount: 0 })).toBe("Рядом ничего не нашлось.");
+    expect(mapNotice({ ...NOTICE, markerCount: 0, loading: true })).toBe("Ищем объекты рядом…");
+    expect(mapNotice({ ...NOTICE, markerCount: 0, anyLayerOn: false })).toContain("слои выключены");
+    expect(mapNotice({ ...NOTICE, markerCount: 0, query: "  джаз " })).toBe("По запросу «джаз» на карте ничего нет.");
+  });
+
+  it("names the broken source rather than blaming the map", () => {
+    expect(mapNotice({ ...NOTICE, markerCount: 0, placesFailed: true, eventsFailed: true })).toContain("Карта на месте");
+    expect(mapNotice({ ...NOTICE, placesFailed: true })).toContain("Часть объектов не загрузилась");
+    expect(mapNotice({ ...NOTICE, tilesFailed: true })).toContain("Подложка карты не отвечает");
+    expect(mapNotice({ ...NOTICE, mapFailed: true, markerCount: 0 })).toContain("Карта не загрузилась");
+  });
+
+  it("answers «показать, где я» when geolocation was refused", () => {
+    expect(mapNotice({ ...NOTICE, geoDenied: true })).toBeNull();
+    expect(mapNotice({ ...NOTICE, geoDenied: true, locateOn: true })).toContain("центр города");
   });
 });
 

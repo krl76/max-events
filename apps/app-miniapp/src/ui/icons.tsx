@@ -362,6 +362,8 @@ const ACTIONS = {
       <path d="M20 9A8 8 0 0 0 6 6M4 15a8 8 0 0 0 14 3" />
     </>
   ),
+  // Отдалить карту (экран 16): пара к plus в собственных кнопках зума
+  minus: <path d="M5 12h14" />,
 } satisfies Record<string, ReactNode>;
 
 export type ActionIconName = keyof typeof ACTIONS;
