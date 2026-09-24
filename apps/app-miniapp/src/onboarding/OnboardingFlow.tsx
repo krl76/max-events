@@ -227,7 +227,11 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
 
   useEffect(() => {
     let alive = true;
-    Promise.all([apiClient.getProfile(), apiClient.listFriendSuggestions()]).then(
+    // Подсказки по друзьям — украшение шага, а не его условие: без них шаг просто пуст, и человек
+    // идёт дальше. Профиль — другое дело, на нём держатся город и интересы, и без него экрану нечего
+    // показать. Поэтому падение подсказок гасится здесь, а не поднимает весь экран в ошибку: на живом
+    // сервере эндпоинта подсказок пока нет вовсе (#532), и онбординг из-за этого не проходился.
+    Promise.all([apiClient.getProfile(), apiClient.listFriendSuggestions().catch(() => [])]).then(
       ([profile, suggestions]) => {
         if (!alive) return;
         setLoaded({ city: profile.city, interests: profile.interests.filter((item) => ONBOARDING_INTERESTS.includes(item)), suggestions });
@@ -273,6 +277,13 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
       return;
     }
     if (step === "friends") {
+      // Пустой шаг нечего сохранять: подписки не на кого ставить, и запрос свёлся бы к тому, чтобы
+      // записать пустоту поверх пустоты. Заодно это единственный способ пройти шаг там, где сервер
+      // подписок ещё не умеет (#532) — иначе «Дальше» упирается в ошибку сохранения навсегда.
+      if (loaded?.suggestions.length === 0) {
+        advance();
+        return;
+      }
       save(apiClient.followFriends(currentFollowed));
       return;
     }
