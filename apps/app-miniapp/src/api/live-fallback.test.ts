@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Event, FeedPost, Place } from "@max-events/api-contracts";
 import { ApiClient, isEndpointMissing, whenEndpointMissing } from "./client";
-import { catalogCardsFromEvents } from "./endpoints/catalog";
+import { catalogCardsFromEvents, eventCompanionsFrom } from "./endpoints/catalog";
 import { feedCardsFromPosts } from "./endpoints/feed";
+import { microEventCardFrom } from "./endpoints/social";
 import { ApiError } from "./endpoints/transport";
 
 const PLACE_ID = "3f2b1a0c-1111-4000-8000-000000000001";
@@ -116,6 +117,68 @@ describe("feedCardsFromPosts", () => {
 
   it("drops a post whose event the listing does not carry", () => {
     expect(feedCardsFromPosts([post], [], [place], now)).toEqual([]);
+  });
+});
+
+describe("eventCompanionsFrom", () => {
+  const stats = {
+    counts: { wants_to_go: 2, probably_going: 1, going: 4, looking_for_company: 3, looking_for_travel_buddy: 1, looking_for_after_event_company: 0 },
+    friendsCount: 1,
+    myStatus: "going" as const,
+  };
+
+  it("counts «хотят» and «ищут» the way the aggregate does", () => {
+    const companions = eventCompanionsFrom(stats, []);
+
+    expect(companions.counts).toEqual({ going: 4, wants: 3, looking: 4 });
+    expect(companions.myStatus).toBe("going");
+  });
+
+  it("keeps a friend with their status and claims nothing else about them", () => {
+    const friend = { id: AUTHOR_ID, name: "Майя Щукина", avatarUrl: null };
+
+    const [companion] = eventCompanionsFrom(stats, [{ friend, participationStatus: "wants_to_go" }]).companions;
+
+    expect(companion.friend).toEqual(friend);
+    expect(companion.status).toBe("wants_to_go");
+    expect(companion.chatTitle).toBeNull();
+    expect(companion.note).toBeNull();
+    expect(companion.interests).toEqual([]);
+  });
+
+  it("shows no gathering teaser, because nothing selects the gathering of an event", () => {
+    expect(eventCompanionsFrom(stats, []).gathering).toBeNull();
+  });
+});
+
+describe("microEventCardFrom", () => {
+  const authorId = "3f2b1a0c-6666-4000-8000-000000000006";
+  const strangerId = "3f2b1a0c-7777-4000-8000-000000000007";
+  const micro = {
+    id: "3f2b1a0c-8888-4000-8000-000000000008",
+    authorId,
+    title: "Пикник в Зарядье",
+    startsAt: "2026-09-21T20:30:00.000Z",
+    locationText: null,
+    placeId: PLACE_ID,
+    participantsLimit: 8,
+    participantsCount: 2,
+    participantIds: [authorId, strangerId],
+    status: "open" as const,
+    createdAt: "2026-09-18T10:00:00.000Z",
+  };
+  const friends = [{ id: authorId, name: "Майя Щукина", avatarUrl: null }];
+
+  it("names the participants the friend graph knows and marks the author", () => {
+    const card = microEventCardFrom(micro.id, [micro], [place], friends);
+
+    expect(card?.place?.id).toBe(PLACE_ID);
+    expect(card?.participants).toEqual([{ friend: friends[0], author: true }]);
+    expect(card?.event.participantsCount).toBe(2);
+  });
+
+  it("answers null for a gathering the list does not carry", () => {
+    expect(microEventCardFrom("3f2b1a0c-9999-4000-8000-000000000009", [micro], [place], friends)).toBeNull();
   });
 });
 

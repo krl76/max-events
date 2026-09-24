@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Social graph endpoints of the api client: friends, the gathering flow, UGC micro-events, reverse discovery and people matching.
-// SCOPE: GET /friends[/activity|/availability|/sync], POST /friends/sync, the /gatherings surface, the /micro-events surface, GET /discovery[/friend-places|/friends/:userId/route], GET /people.
+// SCOPE: GET /friends[/activity|/availability|/sync], POST /friends/sync, the /gatherings surface, the /micro-events surface (the card falling back to the list plus GET /places and GET /friends), GET /discovery[/friend-places|/friends/:userId/route], GET /people.
 // DEPENDS: ./transport.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -12,6 +12,7 @@
 // - FriendsSync - when the MAX contacts of the viewer were last synchronised (макет, экран 26)
 // - MicroParticipant - one participant of a micro-event card: the person and whether they are the author who called it
 // - MicroEventCard - micro-event card aggregate (макет, экран 25): the event, its venue and the participants by name
+// - microEventCardFrom - one card built out of GET /micro-events + GET /places + GET /friends, for a server that answers the list but not a single gathering
 // - DiscoveryFriendCard - one friend row of экран 27: unseen places plus the «история посещений скрыта» state
 // - DiscoveryScreen - экран 27 payload: the total of unseen places and the friend rows
 // - FriendRouteStop - one stop of a friend route: place, when they were there and what they did
@@ -21,6 +22,7 @@
 
 import { DiscoveryResponseSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendPlaceVisitSchema, FriendRouteSchema, FriendSchema, GatheringSchema, MicroEventSchema, PeopleResponseSchema, PlaceSchema } from "@max-events/api-contracts";
 import type { Friend, FriendActivityByFriend, FriendAvailability, FriendPlaceVisit, Gathering, InviteeResponse, MicroEvent, PeopleResponse, Place } from "@max-events/api-contracts";
+import { isEndpointMissing } from "./transport";
 import type { ApiMixin, ZodSchema } from "./transport";
 
 /** Gathering launch payload: event, invited friends, proposed meeting time. */
@@ -206,6 +208,25 @@ const FriendRouteScreenSchema: ZodSchema<FriendRouteScreen> = {
   },
 };
 
+/**
+ * One micro-event card picked out of the list, for a server that answers GET /micro-events but not
+ * GET /micro-events/:id. The names come from the friend graph, which is the only name directory the
+ * client can read: a participant outside it — a stranger who joined, or the viewer themself — is left
+ * out of the roster rather than listed without a name, and the «N из M» counter above it stays the
+ * event's own and therefore still whole. Null when the list does not carry that id at all, so «такого
+ * сбора больше нет» remains an answer about the gathering and not about the endpoint.
+ */
+export function microEventCardFrom(id: string, events: MicroEvent[], places: Place[], friends: Friend[]): MicroEventCard | null {
+  const event = events.find((item) => item.id === id);
+  if (event === undefined) return null;
+  const byId = new Map(friends.map((friend) => [friend.id, friend]));
+  const participants = event.participantIds.flatMap((userId) => {
+    const friend = byId.get(userId);
+    return friend === undefined ? [] : [{ friend, author: userId === event.authorId }];
+  });
+  return { event, place: places.find((item) => item.id === event.placeId) ?? null, participants };
+}
+
 export function withSocial<TBase extends ApiMixin>(Base: TBase) {
   return class SocialEndpoints extends Base {
     listFriends(): Promise<Friend[]> {
@@ -256,9 +277,21 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
       return this.request("/micro-events", MicroEventSchema.array());
     }
 
-    /** One micro-event with its venue and the names behind its participant ids (макет, экран 25). */
-    getMicroEventCard(id: string): Promise<MicroEventCard> {
-      return this.request(`/micro-events/${encodeURIComponent(id)}`, MicroEventCardSchema);
+    /**
+     * One micro-event with its venue and the names behind its participant ids (макет, экран 25). A
+     * server that answers the list but not a single gathering gets the card assembled from that list
+     * (microEventCardFrom), so «такого сбора больше нет» keeps meaning what it says.
+     */
+    async getMicroEventCard(id: string): Promise<MicroEventCard> {
+      try {
+        return await this.request(`/micro-events/${encodeURIComponent(id)}`, MicroEventCardSchema);
+      } catch (error) {
+        if (!isEndpointMissing(error)) throw error;
+        const [events, places, friends] = await Promise.all([this.request("/micro-events", MicroEventSchema.array()), this.request("/places", PlaceSchema.array()), this.request("/friends", FriendSchema.array())]);
+        const card = microEventCardFrom(id, events, places, friends);
+        if (card === null) throw error;
+        return card;
+      }
     }
 
     createMicroEvent(payload: CreateMicroEvent): Promise<MicroEvent> {

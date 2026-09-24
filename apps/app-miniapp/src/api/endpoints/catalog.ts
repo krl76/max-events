@@ -13,6 +13,7 @@
 // - parseEventFilters - query string -> filters, invalid values dropped
 // - CatalogCard - list card of экран 08: the event plus the distance, rating and venue line the list DTO does not carry (#496)
 // - catalogCardsFromEvents - catalog cards built out of GET /events + GET /places, for a server that does not answer GET /events/cards yet
+// - eventCompanionsFrom - экран 23 built out of the participation stats and the friends on the event, for a server that does not answer GET /events/:id/companions yet
 // - MapWeather - city weather behind the map chip (макет, экран 16): now plus the change to come (#495)
 // - TravelMode - how the traveller gets there: on foot or by metro (#504)
 // - TravelOption - one way to the object: minutes, distance and transfers (#504)
@@ -30,8 +31,8 @@
 // - withCatalog - ApiClient.listEvents / listEventCards / listPlaces / getEvent / getEventDetails / getPlace / getPlacePage / getMapWeather / getTravelOptions / getParticipationStats / setParticipationStatus / deleteParticipation / setPlaceParticipationStatus / getEventForecast / listEventMoodTags / listEventNearby / getEventCompanions / getBookingOffer
 // END_MODULE_MAP
 
-import { EventCategorySchema, EventSchema, FriendSchema, OrganizationSchema, ParticipationSchema, ParticipationStatusSchema, PlacePageSchema, PlaceSchema, UserSchema } from "@max-events/api-contracts";
-import type { Event, EventCategory, Friend, Organization, Participation, ParticipationStatus, Place, PlacePage, User } from "@max-events/api-contracts";
+import { EventCategorySchema, EventFriendsSummarySchema, EventSchema, FriendSchema, OrganizationSchema, ParticipationSchema, ParticipationStatusSchema, PlacePageSchema, PlaceSchema, UserSchema } from "@max-events/api-contracts";
+import type { Event, EventCategory, EventFriend, Friend, Organization, Participation, ParticipationStatus, Place, PlacePage, User } from "@max-events/api-contracts";
 import { ApiError, isEndpointMissing } from "./transport";
 import type { ApiMixin, ZodSchema } from "./transport";
 
@@ -459,6 +460,27 @@ const BookingOfferSchema: ZodSchema<BookingOffer> = {
 };
 
 /**
+ * Экран 23 assembled from the two endpoints a server without GET /events/:id/companions does have:
+ * the participation stats behind the three counters and the friends on the event behind the rows.
+ * What makes a row worth reading past the name and the status — the shared chat, the shared plans,
+ * the interest matches, the note — has no field anywhere, so a row carries none of it and the badges
+ * it would draw are simply not drawn. Nothing selects «the gathering of this event» either, so the
+ * «Собирается компания» teaser stays absent rather than being guessed at from the same friends.
+ */
+export function eventCompanionsFrom(stats: ParticipationStats, friends: EventFriend[]): EventCompanions {
+  return {
+    counts: {
+      going: stats.counts.going,
+      wants: stats.counts.wants_to_go + stats.counts.probably_going,
+      looking: stats.counts.looking_for_company + stats.counts.looking_for_travel_buddy + stats.counts.looking_for_after_event_company,
+    },
+    myStatus: stats.myStatus,
+    companions: friends.map((row) => ({ friend: row.friend, status: row.participationStatus, chatTitle: null, sharedPlansCount: 0, matchesCount: 0, interests: [], note: null })),
+    gathering: null,
+  };
+}
+
+/**
  * Catalog cards assembled from the plain listing, for a server that does not answer GET /events/cards
  * yet. Only the venue line has a source there — the distance and the rating are the #496 gap and stay
  * empty, because a card that prints «0,0 км» has answered a question it cannot answer.
@@ -575,9 +597,19 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/events/${eventId}/nearby`, EventNearbySchema);
     }
 
-    /** Экран 23 aggregate: counters, the viewer status, the people and the gathering teaser; the matches are mock-only. */
-    getEventCompanions(eventId: string, userId: string): Promise<EventCompanions> {
-      return this.request(`/events/${eventId}/companions?userId=${encodeURIComponent(userId)}`, EventCompanionsSchema);
+    /**
+     * Экран 23 aggregate: counters, the viewer status, the people and the gathering teaser; the matches
+     * are mock-only. A server without this path answers the counters and the friends separately, so the
+     * screen is assembled from those (eventCompanionsFrom) instead of failing whole.
+     */
+    async getEventCompanions(eventId: string, userId: string): Promise<EventCompanions> {
+      try {
+        return await this.request(`/events/${eventId}/companions?userId=${encodeURIComponent(userId)}`, EventCompanionsSchema);
+      } catch (error) {
+        if (!isEndpointMissing(error)) throw error;
+        const [stats, friends] = await Promise.all([this.request(`/events/${eventId}/participation/stats?userId=${encodeURIComponent(userId)}`, ParticipationStatsSchema), this.request(`/events/${eventId}/friends`, EventFriendsSummarySchema)]);
+        return eventCompanionsFrom(stats, friends.friends);
+      }
     }
 
     /** What экран 18 needs past EventDetails: the queue length and the friends already holding tickets (#496). */
