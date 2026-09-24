@@ -10082,7 +10082,7 @@ button.app-poll-result {
 .app-assist-composer {
   align-items: center;
   background: var(--app-card);
-  bottom: 0;
+  bottom: calc(-1 * var(--app-space-l));
   display: flex;
   gap: 10px;
   margin: 0 calc(-1 * var(--app-space-screen));
@@ -10457,7 +10457,7 @@ button.app-poll-result {
 .app-plan-cta {
   background: var(--app-card);
   border-top: var(--app-hairline);
-  bottom: 0;
+  bottom: calc(-1 * var(--app-space-l));
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -10871,7 +10871,7 @@ button.app-poll-result {
 .app-cal-cta {
   background: var(--app-card);
   border-top: var(--app-hairline);
-  bottom: 0;
+  bottom: calc(-1 * var(--app-space-l));
   display: flex;
   gap: 10px;
   margin: var(--app-space-m) calc(-1 * var(--app-space-screen)) 0;
