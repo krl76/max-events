@@ -12,10 +12,10 @@
 // - flattenStoryGroups - groups -> flat position list in viewing order
 // - nextPosition - next flat index, null past the very last story (viewer closes)
 // - prevPosition - previous flat index, null before the very first story
-// - StoryViewer - fullscreen overlay across authors, starting at startPosition
+// - StoryViewer - fullscreen overlay across authors, starting at startPosition; onView reports every story actually shown, which is what marks it seen in the rail
 // END_MODULE_MAP
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Story } from "@max-events/api-contracts";
 
 export const STORY_DURATION_MS = 5000;
@@ -52,7 +52,7 @@ export function prevPosition(flat: number): number | null {
   return flat > 0 ? flat - 1 : null;
 }
 
-export function StoryViewer({ groups, startGroup = 0, onClose }: { groups: StoryGroup[]; startGroup?: number; onClose: () => void }) {
+export function StoryViewer({ groups, startGroup = 0, onView, onClose }: { groups: StoryGroup[]; startGroup?: number; onView?: (story: Story) => void; onClose: () => void }) {
   const positions = useMemo(() => flattenStoryGroups(groups), [groups]);
   const [flat, setFlat] = useState(() => {
     const found = positions.findIndex((position) => position.group === startGroup);
@@ -75,6 +75,18 @@ export function StoryViewer({ groups, startGroup = 0, onClose }: { groups: Story
     const timer = setTimeout(goNext, STORY_DURATION_MS);
     return () => clearTimeout(timer);
   });
+
+  // Просмотр засчитывается по показу, а не по открытию просмотрщика: иначе кольцо гасло бы у
+  // историй, до которых автор не долистал. Колбэк живёт в ref: он приходит из рельса, который сам
+  // перерисовывается от отметки просмотра, и в зависимостях эффекта дал бы бесконечный круг.
+  const shown = current === undefined ? null : current.story;
+  const report = useRef(onView);
+  useEffect(() => {
+    report.current = onView;
+  }, [onView]);
+  useEffect(() => {
+    if (shown !== null) report.current?.(shown);
+  }, [shown]);
 
   if (!current) return null;
 

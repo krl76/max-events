@@ -1,13 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Impressions feed (Instagram-стилистика): post cards showing the post photo, likes and comments, the event or place wall and the publish form with a photo picker.
-// SCOPE: Data via apiClient.listFeedPosts/toggleFeedLike/addFeedComment/createFeedPost + listEvents (event titles) + listFriends (stories rail); the wall is the same section filtered by eventId or by placeId; a picked photo is downscaled by ./photo and travels as a data URL until object storage lands (#477).
-// DEPENDS: ../api/client.js (apiClient, FeedPost), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ./photo.js (readFeedPhoto), ../routing/router.js, ../max/bridge.js (webApp, shareResult), ../stories/StoryViewer.js, ../ui/theme.css
+// SCOPE: Data via apiClient.listFeedPosts/toggleFeedLike/addFeedComment/createFeedPost + listEvents (event titles) + listFriends/listStories (stories rail); the wall is the same section filtered by eventId or by placeId; a picked photo is downscaled by ./photo and travels as a data URL until object storage lands (#477).
+// DEPENDS: ../api/client.js (apiClient, FeedPost), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ./photo.js (readFeedPhoto), ../routing/router.js, ../max/bridge.js (webApp, shareResult), ../stories/StoryViewer.js, ../stories/rail.js (storyRail, readSeenStories, markStoriesSeen), ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - FeedPostCard - presentational Instagram-style post: author header, the post photo in the 4:5 frame (category placeholder without one), icon actions (like/comment/share), likes line, caption, comments, add form and a «Пожаловаться» report control
-// - StoriesRow - stories rail over the home feed: the «Мой план» tile opens the plan form (макет, экран 03), the own ring publishes a picked photo or opens the viewer, friend rings with stories open the viewer
+// - StoriesRow - stories rail over the home feed, Instagram-style: the own tile carries a «+» corner that opens the story editor, unseen rings burn with the brand gradient and go neutral once watched (seen state from ../stories/rail.js)
 // - FeedState - union of the feed fetch states (loading / error / ready)
 // - FeedSection - container: posts (optionally one event or one place — the wall), event titles for the cards, like/comment wiring, «+» publish CTA
 // - FeedDraft - publish form draft (event title, text)
@@ -25,7 +25,8 @@ import { shareResult, webApp } from "../max/bridge";
 import { readFeedPhoto } from "./photo";
 import { useRoute } from "../routing/router";
 import { ReportButton } from "../event/ReportButton";
-import { StoryViewer, type StoryGroup } from "../stories/StoryViewer";
+import { StoryViewer } from "../stories/StoryViewer";
+import { markStoriesSeen, readSeenStories, storyRail } from "../stories/rail";
 import { AppAvatar, AppButton, AppChip, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { pluralRu } from "../catalog/format";
@@ -189,17 +190,18 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
   );
 }
 
+/** Непросмотренное кольцо — фирменный градиент, просмотренное — нейтральная тонкая обводка; другого отличия у историй нет. */
+function storyRingClass(unseen: boolean): string {
+  return unseen ? "app-story-ring app-story-ring--active" : "app-story-ring app-story-ring--seen";
+}
+
 export function StoriesRow() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
+  const [seen, setSeen] = useState<string[]>(() => readSeenStories());
   const [viewer, setViewer] = useState<number | null>(null);
-  const fileRef = useRef<HTMLInputElement | null>(null);
   const auth = useAuth();
   const { navigate } = useRoute();
-
-  const reloadStories = useCallback(() => {
-    apiClient.listStories().then(setStories, () => {});
-  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -209,72 +211,57 @@ export function StoriesRow() {
       },
       () => {},
     );
-    reloadStories();
+    apiClient.listStories().then(
+      (list) => {
+        if (alive) setStories(list);
+      },
+      () => {},
+    );
     return () => {
       alive = false;
     };
-  }, [reloadStories]);
+  }, []);
 
   const myId = auth.status === "authenticated" ? auth.user.id : null;
-  const ownStories = myId === null ? [] : stories.filter((item) => item.userId === myId);
-  const friendStories = (id: string) => stories.filter((item) => item.userId === id);
+  const me = auth.status === "authenticated" ? auth.user : null;
+  const rail = storyRail(friends, stories, myId, seen);
+  const openEditor = () => navigate({ name: "story-new" });
 
-  const groups: StoryGroup[] = [...(ownStories.length > 0 ? [{ authorName: "Вы", stories: ownStories }] : []), ...friends.map((friend) => ({ authorName: friend.name, stories: friendStories(friend.id) })).filter((group) => group.stories.length > 0)];
-
-  const publish = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") void apiClient.createStory(reader.result).then(reloadStories, () => {});
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const openOwn = () => {
-    if (ownStories.length > 0) setViewer(0);
-    else fileRef.current?.click();
-  };
-
-  const openFriend = (friend: Friend) => {
-    const groupIndex = groups.findIndex((group) => group.stories[0]?.userId === friend.id);
-    if (groupIndex >= 0) setViewer(groupIndex);
-  };
+  // Отметка просмотра не меняет список, если история уже просмотрена: иначе показ истории
+  // перерисовывал бы рельс под открытым просмотрщиком на каждом кадре.
+  const rememberSeen = useCallback((story: Story) => {
+    setSeen((current) => (current.includes(story.id) ? current : markStoriesSeen([story.id])));
+  }, []);
 
   return (
-    <div className="app-stories" aria-label="Друзья и планы">
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        aria-label="Выбрать фото для истории"
-        hidden
-        onChange={(change) => {
-          const file = change.target.files?.[0];
-          if (file) publish(file);
-          change.target.value = "";
-        }}
-      />
-      {/* Макет, экран 03: the rail opens with «Мой план» — a dashed ring, not a person, and it starts a plan rather than a story. */}
-      <button type="button" className="app-story" onClick={() => navigate({ name: "plan-new" })}>
-        <span className="app-story-add" aria-hidden="true">
-          +
-        </span>
-        <span className="app-story-name">Мой план</span>
-      </button>
-      <button type="button" className="app-story" onClick={openOwn}>
-        <span className={ownStories.length > 0 ? "app-story-ring app-story-ring--own app-story-ring--active" : "app-story-ring app-story-ring--own"}>{ownStories.length > 0 ? <img className="app-story-thumb" src={ownStories[0].imageUrl} alt="" /> : <AppAvatar size={58}>Д</AppAvatar>}</span>
+    <div className="app-stories" aria-label="Истории">
+      {/* Как в инстаграме: рельс открывается своим кружком с плюсом в углу — плюс ведёт в редактор истории, кольцо со своей историей открывает её просмотр. */}
+      <div className="app-story app-story--own">
+        <button type="button" className="app-story-open" aria-label={rail.own.group === null ? "Добавить историю" : "Смотреть свою историю"} onClick={() => (rail.own.group === null ? openEditor() : setViewer(rail.own.group))}>
+          <span className={storyRingClass(rail.own.unseen)}>
+            {rail.own.coverUrl === null ? (
+              <AppAvatar size={58} src={me?.avatarUrl}>
+                {me?.firstName[0] ?? "Я"}
+              </AppAvatar>
+            ) : (
+              <img className="app-story-thumb" src={rail.own.coverUrl} alt="" />
+            )}
+          </span>
+        </button>
+        <button type="button" className="app-story-plus" aria-label="Добавить историю" onClick={openEditor}>
+          <ActionIcon name="plus" size={14} strokeWidth={3} />
+        </button>
         <span className="app-story-name">Твоя история</span>
-      </button>
-      {friends.map((friend) => {
-        const items = friendStories(friend.id);
-        const active = items.length > 0;
-        return (
-          <button key={friend.id} type="button" className="app-story" disabled={!active} onClick={() => active && openFriend(friend)}>
-            <span className={active ? "app-story-ring app-story-ring--active" : "app-story-ring"}>{active ? <img className="app-story-thumb" src={items[0].imageUrl} alt="" /> : <AppAvatar size={58}>{friend.name[0]}</AppAvatar>}</span>
-            <span className="app-story-name">{friend.name.split(" ")[0]}</span>
-          </button>
-        );
-      })}
-      {viewer !== null && groups.length > 0 && <StoryViewer groups={groups} startGroup={viewer} onClose={() => setViewer(null)} />}
+      </div>
+      {rail.tiles.map((tile) => (
+        <button key={tile.friendId} type="button" className="app-story" onClick={() => setViewer(tile.group)}>
+          <span className={storyRingClass(tile.unseen)}>
+            <img className="app-story-thumb" src={tile.coverUrl} alt="" />
+          </span>
+          <span className="app-story-name">{tile.name}</span>
+        </button>
+      ))}
+      {viewer !== null && rail.groups.length > 0 && <StoryViewer groups={rail.groups} startGroup={viewer} onView={rememberSeen} onClose={() => setViewer(null)} />}
     </div>
   );
 }

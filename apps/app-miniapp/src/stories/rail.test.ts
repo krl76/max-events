@@ -1,0 +1,104 @@
+import { describe, expect, it } from "vitest";
+import type { Friend, Story } from "@max-events/api-contracts";
+import { mergeSeenStories, readSeenStories, storyRail, STORY_SEEN_KEY } from "./rail";
+
+const MY_ID = "a0000000-0000-4000-8000-000000000001";
+
+const friend = (index: number, name: string): Friend => ({ id: `a0000000-0000-4000-8000-0000000000b${index}`, name, avatarUrl: null });
+
+const story = (id: string, userId: string, createdAt: string): Story => ({ id, userId, imageUrl: `data:image/svg+xml;utf8,${id}`, createdAt });
+
+const ANNA = friend(1, "Анна Соколова");
+const DIMA = friend(2, "Дима Кузнецов");
+const KATYA = friend(3, "Катя Орлова");
+
+const ANNA_OLD = story("e1000000-0000-4000-8000-000000000001", ANNA.id, "2026-09-16T09:00:00+03:00");
+const ANNA_NEW = story("e1000000-0000-4000-8000-000000000002", ANNA.id, "2026-09-16T12:00:00+03:00");
+const DIMA_ONE = story("e1000000-0000-4000-8000-000000000003", DIMA.id, "2026-09-16T10:00:00+03:00");
+const MY_ONE = story("e1000000-0000-4000-8000-000000000004", MY_ID, "2026-09-16T11:00:00+03:00");
+
+describe("mergeSeenStories", () => {
+  it("adds new views without duplicating what is already seen", () => {
+    expect(mergeSeenStories(["a"], ["b"])).toEqual(["a", "b"]);
+    expect(mergeSeenStories(["a", "b"], ["a"])).toEqual(["b", "a"]);
+  });
+
+  it("keeps the newest views when the list outgrows its cap, so the ring of a fresh story never lights up again", () => {
+    const old = Array.from({ length: 500 }, (_, index) => `old-${index}`);
+    const merged = mergeSeenStories(old, ["fresh"]);
+
+    expect(merged).toHaveLength(500);
+    expect(merged.includes("fresh")).toBe(true);
+    expect(merged.includes("old-0")).toBe(false);
+  });
+});
+
+describe("readSeenStories", () => {
+  it("answers an empty list outside the browser instead of throwing on a missing window", () => {
+    expect(readSeenStories()).toEqual([]);
+    expect(STORY_SEEN_KEY).toBe("max-events:stories-seen");
+  });
+});
+
+describe("storyRail", () => {
+  const stories = [ANNA_OLD, ANNA_NEW, DIMA_ONE, MY_ONE];
+
+  it("lights the ring of an author with unseen stories and dims it once every one is seen", () => {
+    const fresh = storyRail([ANNA, DIMA], stories, MY_ID, []);
+    const watched = storyRail([ANNA, DIMA], stories, MY_ID, [ANNA_OLD.id, ANNA_NEW.id]);
+
+    expect(fresh.tiles.map((tile) => tile.unseen)).toEqual([true, true]);
+    expect(watched.tiles.find((tile) => tile.friendId === ANNA.id)?.unseen).toBe(false);
+    expect(watched.tiles.find((tile) => tile.friendId === DIMA.id)?.unseen).toBe(true);
+  });
+
+  it("puts authors with unseen stories first, so the burning ring is not pushed off the rail", () => {
+    const rail = storyRail([ANNA, DIMA], stories, MY_ID, [ANNA_OLD.id, ANNA_NEW.id]);
+
+    expect(rail.tiles.map((tile) => tile.friendId)).toEqual([DIMA.id, ANNA.id]);
+  });
+
+  it("keeps the groups of the viewer in the order of the tiles, own stories first", () => {
+    const rail = storyRail([ANNA, DIMA], stories, MY_ID, [ANNA_OLD.id, ANNA_NEW.id]);
+
+    expect(rail.groups.map((group) => group.authorName)).toEqual(["Вы", "Дима Кузнецов", "Анна Соколова"]);
+    expect(rail.own.group).toBe(0);
+    expect(rail.tiles.map((tile) => rail.groups[tile.group].authorName)).toEqual(["Дима Кузнецов", "Анна Соколова"]);
+  });
+
+  it("covers a tile with the newest story and plays a group from the oldest", () => {
+    const rail = storyRail([ANNA], stories, MY_ID, []);
+
+    expect(rail.tiles[0].coverUrl).toBe(ANNA_NEW.imageUrl);
+    expect(rail.groups[1].stories.map((item) => item.id)).toEqual([ANNA_OLD.id, ANNA_NEW.id]);
+  });
+
+  it("leaves friends without stories out of the rail, where a neutral ring would read as «seen»", () => {
+    const rail = storyRail([ANNA, KATYA], stories, MY_ID, []);
+
+    expect(rail.tiles.map((tile) => tile.friendId)).toEqual([ANNA.id]);
+  });
+
+  it("shortens the name under the ring to the first word and keeps its initial", () => {
+    const rail = storyRail([ANNA], stories, MY_ID, []);
+
+    expect(rail.tiles[0].name).toBe("Анна");
+    expect(rail.tiles[0].initial).toBe("А");
+  });
+
+  it("holds no own group at all until the author has a story, so the own tile only opens the editor", () => {
+    const rail = storyRail([ANNA], [ANNA_OLD], MY_ID, []);
+
+    expect(rail.own).toEqual({ coverUrl: null, unseen: false, group: null });
+    expect(rail.groups[0].authorName).toBe("Анна Соколова");
+  });
+
+  it("dims the own ring once the author watched their own story back", () => {
+    expect(storyRail([], stories, MY_ID, []).own).toEqual({ coverUrl: MY_ONE.imageUrl, unseen: true, group: 0 });
+    expect(storyRail([], stories, MY_ID, [MY_ONE.id]).own.unseen).toBe(false);
+  });
+
+  it("treats a guest without an id as an author without stories", () => {
+    expect(storyRail([ANNA], stories, null, []).own.group).toBeNull();
+  });
+});

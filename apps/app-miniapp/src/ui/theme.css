@@ -16619,3 +16619,58 @@ button.app-poll-result {
   font-size: var(--app-font-size-description);
   margin: var(--app-space-s) 0 0;
 }
+
+/* ===========================================================================
+ * Хвост ветки feat-ui-stories: рельс историй как в инстаграме и холст экрана 05.
+ * Правила дописаны в конец — база выше не тронута.
+ * =========================================================================== */
+
+/* Своя плитка рельса: аватар (или своя свежая история) и плюс в углу, ведущий в редактор */
+.app-story--own {
+  position: relative;
+}
+
+.app-story-open {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  padding: 0;
+}
+
+.app-story-plus {
+  align-items: center;
+  background: var(--brand-blue);
+  border: 2px solid var(--app-page);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  height: 22px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 2px;
+  top: 43px;
+  width: 22px;
+}
+
+/* Просмотренная история — тонкая нейтральная обводка; непросмотренная горит gradient-light выше */
+.app-story-ring--seen {
+  background: var(--app-divider);
+  padding: 1.5px;
+}
+
+.app-story-ring--seen > * {
+  box-shadow: 0 0 0 1.5px var(--app-page);
+}
+
+/* Подпись плитки переносится, а не обрезается: «Твоя история» в одну строку под кружок не влезает */
+.app-stories .app-story-name {
+  line-height: 1.15;
+  overflow: visible;
+  text-align: center;
+  text-overflow: clip;
+  white-space: normal;
+}
