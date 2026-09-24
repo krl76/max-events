@@ -15753,3 +15753,350 @@ button.app-poll-result {
   background: rgba(var(--app-scheme-neutral), 0.1);
   color: var(--app-text);
 }
+
+/* ===== Волна 10: уведомления (экран 07) =====
+ * Экран забирает вьюпорт целиком (routeIsFullscreen в ./Layout.tsx): своя шапка с колокольчиком
+ * и крестом, свой скроллер, таббара под ним в макете нет. Разделение на «Требует решения» и
+ * «Раньше» читается из самих записей (groupNotifications в ../notifications/format.ts): карточка —
+ * это незакрытое решение, строка — уже история.
+ */
+.app-notify {
+  background: var(--app-page);
+  box-sizing: border-box;
+  color: var(--app-text);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.app-notify-top {
+  align-items: center;
+  border-bottom: var(--app-hairline);
+  display: flex;
+  flex: none;
+  gap: var(--app-space-m);
+  padding: 60px var(--app-space-screen) 14px;
+}
+
+/* Колокольчик в шапке — акцентный: он же и есть предмет экрана */
+.app-notify-top-icon {
+  color: var(--app-accent-text);
+  display: flex;
+  flex: none;
+}
+
+.app-notify-top-title {
+  flex: 1;
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+  min-width: 0;
+}
+
+.app-notify-close {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 50%;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
+  width: 36px;
+}
+
+.app-notify-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--app-space-l) var(--app-space-screen) var(--app-space-xl);
+  scrollbar-width: none;
+}
+
+.app-notify-section {
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  letter-spacing: 0.06em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+/* «Живая» точка — единственная роль, в которой brand-cyan разрешён сплошной заливкой */
+.app-notify-section-dot {
+  background: var(--app-status);
+  border-radius: 50%;
+  flex: none;
+  height: 7px;
+  width: 7px;
+}
+
+.app-notify-section--live {
+  margin-top: 0;
+}
+
+.app-notify-section--earlier {
+  margin-top: 14px;
+}
+
+.app-notify-card {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  padding: 14px;
+  position: relative;
+}
+
+/* Развилка из двух ответов — единственная точка внимания экрана. Голубая подложка положена
+ * отдельным слоем с opacity, а не rgba: канал brand-cyan палитра как литерал не раскрывает. */
+.app-notify-card--choice {
+  background: none;
+}
+
+.app-notify-card--choice::before {
+  background: var(--brand-cyan);
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  opacity: 0.09;
+  position: absolute;
+}
+
+.app-notify-card > * {
+  position: relative;
+}
+
+.app-notify-card-head {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+}
+
+.app-notify-card-title {
+  align-items: center;
+  color: var(--app-accent-text);
+  display: flex;
+  flex: 1;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  line-height: 1.3;
+  margin: 0;
+  min-width: 0;
+}
+
+/* У развилки внимание держит подложка и глиф, поэтому заголовок остаётся обычным текстом:
+ * два акцента на одной карточке спорили бы друг с другом. */
+.app-notify-card--choice .app-notify-card-title {
+  color: var(--app-text);
+}
+
+.app-notify-card-glyph {
+  color: var(--app-status);
+  display: flex;
+  flex: none;
+}
+
+.app-notify-card-time {
+  color: var(--app-text-secondary);
+  flex: none;
+  font-size: var(--app-font-size-caption);
+  font-weight: 600;
+}
+
+/* Текст карточки плотнее вторичного: это не подпись, а само сообщение. Прозрачность берётся
+ * от базы схемы, поэтому в тёмной она переворачивается сама. */
+.app-notify-card-body {
+  color: rgba(var(--app-scheme-neutral), 0.75);
+  font-size: var(--app-font-size-callout);
+  line-height: 1.45;
+  margin: 6px 0 0;
+  max-width: var(--app-measure);
+}
+
+.app-notify-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
+}
+
+.app-notify-act {
+  align-items: center;
+  border: none;
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 40px;
+  padding: 0 var(--app-space-l);
+}
+
+.app-notify-act:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Главное действие — фирменная заливка синий -> пурпур, ровно как её пишет макет */
+.app-notify-act--primary {
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-purple));
+  color: var(--brand-white);
+}
+
+/* Подтверждение — тёмная заливка, третья форма после заливки и обводки; инвертируется со схемой */
+.app-notify-act--confirm {
+  background: var(--app-confirm);
+  color: var(--app-confirm-contrast);
+}
+
+.app-notify-act--confirm:active {
+  background: var(--app-accent);
+  color: var(--app-accent-contrast);
+}
+
+/* Тихая альтернатива («Оставить как есть») — обводка-волосинка на прозрачном. От необратимого
+ * действия её отличает цвет рамки: у того обводка пурпурная (--app-danger-border), здесь — нейтраль. */
+.app-notify-act--secondary {
+  background: none;
+  border: 1px solid var(--app-divider);
+  color: var(--app-text);
+}
+
+.app-notify-rows {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-notify-row {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  padding: var(--app-space-m) var(--app-space-xs);
+  text-align: left;
+  width: 100%;
+}
+
+.app-notify-row--link {
+  cursor: pointer;
+}
+
+.app-notify-row-glyph {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 50%;
+  color: var(--app-text);
+  display: flex;
+  flex: none;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.app-notify-row-text {
+  flex: 1;
+  font-size: var(--app-font-size-callout);
+  line-height: 1.4;
+  min-width: 0;
+}
+
+.app-notify-row-actor {
+  font-weight: 800;
+}
+
+/* Цитата из чата — приглушённый хвост строки, а не вторая строка */
+.app-notify-row-quote {
+  color: var(--app-text-secondary);
+}
+
+.app-notify-row-body {
+  color: var(--app-text-secondary);
+  display: block;
+  font-size: var(--app-font-size-description);
+}
+
+.app-notify-row-time {
+  color: var(--app-text-secondary);
+  flex: none;
+  font-size: var(--app-font-size-caption);
+}
+
+.app-notify-quiet {
+  align-items: center;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  box-sizing: border-box;
+  display: flex;
+  gap: var(--app-space-m);
+  margin-top: 14px;
+  padding: 14px var(--app-space-l);
+}
+
+.app-notify-quiet-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-notify-quiet-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-notify-quiet-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+/* Выключенная дорожка держит непрозрачность 0.18: белый бегунок на 4% нейтрали пропал бы */
+.app-notify-switch {
+  background: rgba(var(--app-scheme-neutral), 0.18);
+  border: none;
+  border-radius: 13px;
+  cursor: pointer;
+  flex: none;
+  height: 26px;
+  padding: 0;
+  position: relative;
+  transition: background-color 0.16s ease-out;
+  width: 44px;
+}
+
+.app-notify-switch--on {
+  background: var(--app-accent);
+}
+
+.app-notify-switch-knob {
+  background: var(--brand-white);
+  border-radius: 50%;
+  height: 20px;
+  left: 3px;
+  position: absolute;
+  top: 3px;
+  transition: left 0.16s ease-out;
+  width: 20px;
+}
+
+.app-notify-switch--on .app-notify-switch-knob {
+  left: 21px;
+}

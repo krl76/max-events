@@ -6,7 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - FeedHeader - шапка ленты (макет, экран 03): словомарк «афиша MAX», поиск и колокольчик со счётчиком непрочитанных (индикатор: экрана уведомлений ещё нет, #494)
+// - FeedHeader - шапка ленты (макет, экран 03): словомарк «афиша MAX», поиск и колокольчик со счётчиком непрочитанных — кнопка, ведущая на экран 07 (домен уведомлений на моке, #494)
 // - Layout - header + routed children + tabbar (icon + label per tab)
 // - TABS - tabbar definitions with per-tab active predicate; the map (экран 16) and the swipe deck (экран 09) belong to the Поиск tab, because both are entered from search
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
@@ -17,6 +17,7 @@
 // - routeIsFullscreen - the story and post composers (макет, экраны 05 и 06), the place page (34) and the two booking screens (19 и 20) own the whole viewport: each carries its own back control and its own bottom bar, so neither the shell header nor the tabbar belongs there
 // - routeHasHeader - header hidden where the screen draws its own topbar: the search/plans/profile tabs and the two list screens (макет, экраны 37 и 39)
 // - routeHasHeader - header hidden on экран 17, whose gradient hero carries the back arrow and the share/save circles, and on экран 23, whose topbar carries the event title and its thumbnail
+// - routeIsFullscreen - экран 07 too: it draws its own bell-and-close topbar and the design gives it no tabbar, because notifications open over the feed and close back into it
 // END_MODULE_MAP
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -76,6 +77,8 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   "slot-ticket": "Бронь",
   bookings: "Мои брони",
   companions: "С кем пойти",
+  // Экран 07 рисует свою шапку (полноэкранный маршрут); строка здесь нужна таблице, которая обязана быть полной
+  notifications: "Умные уведомления",
 };
 
 export function routeTitle(route: Route): string {
@@ -102,7 +105,16 @@ const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe"
  * со строкой «Черновик сохранён» у поста. Фиксированный таббар накрыл бы этот низ, а шапка оболочки
  * стала бы второй шапкой, поэтому на этих двух маршрутах экран забирает вьюпорт целиком.
  */
-const FULLSCREEN_ROUTES: ReadonlySet<Route["name"]> = new Set(["story-new", "feed-new", "place", "slot-booking", "slot-ticket"]);
+const FULLSCREEN_ROUTES: ReadonlySet<Route["name"]> = new Set([
+  "story-new",
+  "feed-new",
+  "place",
+  "slot-booking",
+  "slot-ticket",
+  // Экран 07 несёт свою шапку с колокольчиком и крестом, а таббара под ним в макете нет вовсе:
+  // уведомления открываются поверх ленты и закрываются обратно в неё, а не листаются вкладками.
+  "notifications",
+]);
 
 export function routeIsFullscreen(route: Route): boolean {
   return FULLSCREEN_ROUTES.has(route.name);
@@ -115,11 +127,12 @@ export function routeHasHeader(route: Route): boolean {
 /**
  * Шапка ленты (макет, экран 03): словомарк, поиск и колокольчик со счётчиком.
  *
- * Колокольчик — индикатор, а не кнопка: экран уведомлений (07) ещё не построен, а домена уведомлений
- * нет вовсе (#494, smart-alerts — планировщик, не входящие). Счётчик приходит с мока за той сигнатурой,
- * которую примет будущий эндпоинт; кнопкой колокольчик станет вместе с экраном.
+ * Колокольчик — кнопка и вход на экран 07 («Вход: колокольчик в ленте» написано в самом макете).
+ * Счётчик приходит с мока: домена уведомлений на бэкенде нет (#494, smart-alerts — планировщик
+ * исходящих сообщений, а не входящие с прочитанностью), поэтому и сводка, и сам экран живут за той
+ * сигнатурой, которую примет будущий эндпоинт — ../api/endpoints/notifications.ts.
  */
-export function FeedHeader({ onSearch }: { onSearch: () => void }) {
+export function FeedHeader({ onSearch, onNotifications }: { onSearch: () => void; onNotifications: () => void }) {
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
@@ -146,14 +159,14 @@ export function FeedHeader({ onSearch }: { onSearch: () => void }) {
         <button type="button" className="app-header-action" aria-label="Поиск" onClick={onSearch}>
           <ActionIcon name="search" size={24} />
         </button>
-        <span className="app-header-bell" aria-label={unread === 0 ? "Уведомления" : `Уведомления: ${unread} новых`}>
+        <button type="button" className="app-header-bell" aria-label={unread === 0 ? "Уведомления" : `Уведомления: ${unread} новых`} onClick={onNotifications}>
           <ActionIcon name="bell" size={24} />
           {unread > 0 && (
             <span className="app-header-bell-count" aria-hidden="true">
               {unread}
             </span>
           )}
-        </span>
+        </button>
       </span>
     </>
   );
@@ -167,7 +180,7 @@ export function Layout({ children }: { children: ReactNode }) {
       {routeHasHeader(route) && (
         <header className="app-header">
           {route.name === "home" ? (
-            <FeedHeader onSearch={() => navigate({ name: "search" })} />
+            <FeedHeader onSearch={() => navigate({ name: "search" })} onNotifications={() => navigate({ name: "notifications" })} />
           ) : (
             <>
               {routeHasBack(route) && (
