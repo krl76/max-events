@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Deterministic demo-data generator (fakerRU seed 42) plus its insertion into the local dev database.
-// SCOPE: buildDemoData pure row generators with stable uuids/dates; seedDemoDatabase ensures the demo owner users and inserts every table in FK order, skipping unique violations; assertLocalDatabaseUrl refuses non-local databases.
-// DEPENDS: typeorm, @faker-js/faker (fakerRU), @max-events/api-contracts, ../lists LIST_PRESET_TITLES, feature entities
+// SCOPE: buildDemoData pure row generators with stable uuids/dates, including the viewer slice that gives the signed-in dev user a share of every personal domain; seedDemoDatabase ensures the demo owner users and inserts every table in FK order, skipping unique violations; assertLocalDatabaseUrl refuses non-local databases.
+// DEPENDS: typeorm, @faker-js/faker (fakerRU), @max-events/api-contracts, ../lists LIST_PRESET_TITLES, ../achievements ACHIEVEMENT_CATALOG, ../mycity districtKey, ../payments commission, feature entities
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -13,6 +13,9 @@
 // - DemoSeedOptions - seedDemoDatabase options
 // - parseDemoScale - SEED_DEMO_SCALE value to DemoScale, default normal
 // - assertLocalDatabaseUrl - throw unless the DATABASE_URL host is localhost/127.0.0.1, or allowRemote opens the door deliberately
+// - ViewerSlice - rows the signed-in dev user owns or takes part in
+// - buildViewerSlice - the viewer's own plans, groups, votes, subscriptions, bookings, lists, visits and collections
+// - buildUserAchievements - grants derived from the generated check-ins, by the same catalog the API reads
 // - buildDemoData - pure generation of all demo rows (deterministic ids via fakerRU.seed(42))
 // - seedDemoDatabase - ensure owner users, build data, insert tables in dependency order
 // - DemoData - generated rows per table
@@ -21,11 +24,14 @@
 
 import "reflect-metadata";
 import { fakerRU } from "@faker-js/faker";
-import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, ListPresetSchema, type BookingStatus, type EventCategory, type GatheringStatus, type InviteeResponse, type ListPreset, type MicroEventStatus, type ParticipationStatus, type PlaceCategory, type PlanParticipantStatus, type PromoCampaignStatus, type PromoCampaignType, type PromotionStatus, type PromotionType, type WeGroupStatus } from "@max-events/api-contracts";
+import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, ListPresetSchema, type AchievementCode, type BookingStatus, type CollectionSection, type EventCategory, type GatheringStatus, type InviteeResponse, type ListPreset, type MicroEventStatus, type ParticipationStatus, type PaymentStatus, type PlaceCategory, type PlanParticipantStatus, type PromoCampaignStatus, type PromoCampaignType, type PromotionStatus, type PromotionType, type ReportReason, type ReportSource, type ReportStatus, type ReportTargetType, type WaitlistStatus, type WeGroupStatus } from "@max-events/api-contracts";
 import type { DataSource, ObjectLiteral, Repository } from "typeorm";
+import { ACHIEVEMENT_CATALOG } from "../achievements/achievements.service";
+import { UserAchievementEntity } from "../achievements/user-achievement.entity";
 import { BookingEntity } from "../bookings/booking.entity";
 import { CheckInEntity } from "../checkins/check-in.entity";
-import { FeedPostEntity } from "../feed/feed-post.entity";
+import { CollectionEntity, CollectionItemEntity, CollectionMemberEntity } from "../collections/collection.entity";
+import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "../feed/feed-post.entity";
 import { FriendshipEntity } from "../friends/friendship.entity";
 import { EventEntity } from "../events/event.entity";
 import { GatheringEntity } from "../gatherings/gathering.entity";
@@ -34,6 +40,9 @@ import { ListItemEntity } from "../lists/list-item.entity";
 import { ListEntity } from "../lists/list.entity";
 import { LIST_PRESET_TITLES } from "../lists/lists.service";
 import { MicroEventEntity, MicroEventParticipantEntity } from "../microevents/micro-event.entity";
+import { districtKey } from "../mycity/my-city.service";
+import { DEFAULT_COMMISSION_BPS, splitTicketSale } from "../payments/commission";
+import { PaymentEntity } from "../payments/payment.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { PlanEntity } from "../plans/plan.entity";
 import { PlanExpenseEntity } from "../plans/plan-expense.entity";
@@ -41,7 +50,9 @@ import { PlanParticipantEntity } from "../plans/plan-participant.entity";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { PromoCampaignEntity } from "../promo/promo-campaign.entity";
 import { PromoCodeEntity } from "../promo/promo-code.entity";
+import { PromoFulfillmentEntity } from "../promo/promo-fulfillment.entity";
 import { PromotionCampaignEntity } from "../promotion/promotion-campaign.entity";
+import { ReportEntity } from "../reports/report.entity";
 import { ReviewEntity } from "../reviews/review.entity";
 import { StoryEntity } from "../stories/story.entity";
 import { SubscriptionEntity } from "../subscriptions/subscription.entity";
@@ -49,6 +60,7 @@ import { PageViewEntity } from "../stats/page-view.entity";
 import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 import { VoteBallotEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity } from "../votes/vote.entity";
+import { WaitlistEntryEntity } from "../waitlist/waitlist-entry.entity";
 import { WeGroupEntity, WeGroupItemEntity, WeGroupMemberEntity } from "../wegroups/we-group.entity";
 
 // --- Demo scales and guards -------------------------------------------------
@@ -72,12 +84,17 @@ export type DemoCounts = {
   microEvents: number;
   subscriptions: number;
   pageViews: number;
+  feedLikes: number;
+  feedComments: number;
+  collections: number;
+  waitlistEntries: number;
+  reports: number;
 };
 
 export const DEMO_COUNTS: Record<DemoScale, DemoCounts> = {
-  small: { users: 10, places: 10, events: 24, stories: 5, feedPosts: 12, reviews: 15, checkIns: 18, bookings: 10, participations: 20, plans: 3, votes: 2, weGroups: 1, gatherings: 1, microEvents: 4, subscriptions: 5, pageViews: 60 },
-  normal: { users: 30, places: 25, events: 80, stories: 15, feedPosts: 40, reviews: 50, checkIns: 60, bookings: 30, participations: 60, plans: 10, votes: 5, weGroups: 3, gatherings: 3, microEvents: 10, subscriptions: 15, pageViews: 200 },
-  big: { users: 75, places: 60, events: 200, stories: 40, feedPosts: 100, reviews: 120, checkIns: 150, bookings: 75, participations: 150, plans: 25, votes: 12, weGroups: 7, gatherings: 7, microEvents: 25, subscriptions: 40, pageViews: 500 },
+  small: { users: 10, places: 10, events: 24, stories: 5, feedPosts: 12, reviews: 15, checkIns: 18, bookings: 10, participations: 20, plans: 3, votes: 2, weGroups: 1, gatherings: 1, microEvents: 4, subscriptions: 5, pageViews: 60, feedLikes: 20, feedComments: 8, collections: 1, waitlistEntries: 4, reports: 3 },
+  normal: { users: 30, places: 25, events: 80, stories: 15, feedPosts: 40, reviews: 50, checkIns: 60, bookings: 30, participations: 60, plans: 10, votes: 5, weGroups: 3, gatherings: 3, microEvents: 10, subscriptions: 15, pageViews: 200, feedLikes: 70, feedComments: 25, collections: 3, waitlistEntries: 10, reports: 8 },
+  big: { users: 75, places: 60, events: 200, stories: 40, feedPosts: 100, reviews: 120, checkIns: 150, bookings: 75, participations: 150, plans: 25, votes: 12, weGroups: 7, gatherings: 7, microEvents: 25, subscriptions: 40, pageViews: 500, feedLikes: 180, feedComments: 60, collections: 7, waitlistEntries: 25, reports: 20 },
 };
 
 export function parseDemoScale(raw: string | undefined): DemoScale {
@@ -174,6 +191,21 @@ const PLAN_PARTICIPANT_STATUSES = ["invited", "confirmed", "declined"] as const 
 const INVITEE_RESPONSES = ["accepted", "considering", "busy"] as const satisfies readonly InviteeResponse[];
 const PROMOTION_TYPES = ["boost", "banner", "pin"] as const satisfies readonly PromotionType[];
 
+const COMMENT_TEXTS = ["Тоже там были, отличный вечер.", "А во сколько собираетесь?", "Присоединюсь в следующий раз.", "Спасибо, забрал в свой список.", "Место и правда хорошее.", "Мы рядом живём, дойдём пешком."];
+
+const REPORT_REASONS = ["spam", "abuse", "inaccurate", "inappropriate", "other"] as const satisfies readonly ReportReason[];
+const REPORT_TARGET_TYPES = ["event", "place", "feed_post", "micro_event"] as const satisfies readonly ReportTargetType[];
+
+const COLLECTION_SECTIONS = ["want_to_go", "already_been", "weekend_ideas"] as const satisfies readonly CollectionSection[];
+const COLLECTION_TITLES = ["Общая подборка выходных", "Куда сходить компанией", "Идеи на отпуск", "Любимые места района"];
+
+// Зритель — человек, который реально входит на стенд. Его строки названы отдельно, чтобы экраны
+// «про меня» читались как чей-то живой аккаунт, а не как чужая витрина.
+const VIEWER_CUSTOM_LIST_TITLE = "Мой маршрут на осень";
+const VIEWER_COLLECTION_TITLE = "Наша общая подборка";
+const VIEWER_WE_GROUP_TITLES = ["Мы: субботние вылазки", "Мы: музейный клуб", "Мы: летние поездки"] as const;
+const VIEWER_MICRO_EVENT_TITLES = ["Зову на утренний забег", "Ищу компанию в музей"] as const;
+
 // --- Pure generation ---------------------------------------------------------
 
 export type DemoBuildConfig = { now: Date; scale: DemoScale; ownerUserId: string; devUserId: string };
@@ -211,6 +243,16 @@ export type DemoData = {
   plans: PlanEntity[];
   planParticipants: PlanParticipantEntity[];
   planExpenses: PlanExpenseEntity[];
+  feedLikes: FeedLikeEntity[];
+  feedComments: FeedCommentEntity[];
+  collections: CollectionEntity[];
+  collectionMembers: CollectionMemberEntity[];
+  collectionItems: CollectionItemEntity[];
+  waitlistEntries: WaitlistEntryEntity[];
+  userAchievements: UserAchievementEntity[];
+  reports: ReportEntity[];
+  payments: PaymentEntity[];
+  promoFulfillments: PromoFulfillmentEntity[];
 };
 
 function uuid(): string {
@@ -243,6 +285,404 @@ function isoDay(date: Date): string {
 
 function pickInterests(): string[] {
   return fakerRU.helpers.arrayElements(INTEREST_POOL, int(2, 4));
+}
+
+/** Возвращает элементы пула по кругу: соседние вызовы дают разные строки, пока пул не кончится. */
+function rotator<T>(pool: readonly T[]): () => T {
+  let cursor = 0;
+  return () => pool[cursor++ % pool.length]!;
+}
+
+/**
+ * Сценарий зрителя опирается на срезы событий — платные, прошедшие, с площадкой. На маленьком
+ * масштабе срез может оказаться пустым, и тогда лучше взять событие «не того» вида, чем оставить
+ * экран без строки вовсе.
+ */
+function nonEmpty<T>(subset: readonly T[], fallback: readonly T[]): readonly T[] {
+  return subset.length > 0 ? subset : fallback;
+}
+
+function takeDistinct<T extends { id: string }>(next: () => T, count: number): T[] {
+  const picked: T[] = [];
+  const seen = new Set<string>();
+  for (let attempt = 0; attempt < count * 4 && picked.length < count; attempt += 1) {
+    const row = next();
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    picked.push(row);
+  }
+  return picked;
+}
+
+// --- Viewer slice ------------------------------------------------------------
+
+/**
+ * Строки, которыми владеет или в которых участвует зритель — человек, реально вошедший на стенд.
+ * Без них личные экраны показывают пустоту: данные в базе есть, но все они чужие.
+ */
+export type ViewerSlice = {
+  lists: ListEntity[];
+  listItems: ListItemEntity[];
+  plans: PlanEntity[];
+  planParticipants: PlanParticipantEntity[];
+  planExpenses: PlanExpenseEntity[];
+  votes: VoteEntity[];
+  voteOptions: VoteOptionEntity[];
+  voteParticipants: VoteParticipantEntity[];
+  voteBallots: VoteBallotEntity[];
+  weGroups: WeGroupEntity[];
+  weGroupMembers: WeGroupMemberEntity[];
+  weGroupItems: WeGroupItemEntity[];
+  gatherings: GatheringEntity[];
+  gatheringInvitees: GatheringInviteeEntity[];
+  microEvents: MicroEventEntity[];
+  microEventParticipants: MicroEventParticipantEntity[];
+  subscriptions: SubscriptionEntity[];
+  bookings: BookingEntity[];
+  checkIns: CheckInEntity[];
+  reviews: ReviewEntity[];
+  participations: ParticipationEntity[];
+  feedPosts: FeedPostEntity[];
+  collections: CollectionEntity[];
+  collectionMembers: CollectionMemberEntity[];
+  collectionItems: CollectionItemEntity[];
+};
+
+export type ViewerSliceInput = {
+  now: Date;
+  viewerId: string;
+  users: UserEntity[];
+  organizers: UserEntity[];
+  places: PlaceEntity[];
+  pastEvents: EventEntity[];
+  futureEvents: EventEntity[];
+};
+
+export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
+  const { now, viewerId, users, organizers, places, pastEvents, futureEvents } = input;
+  // Друзья зрителя — ровно те, с кем его свели дружбы выше: каждый третий из сгенерированных.
+  const friends = nonEmpty(
+    users.filter((_, i) => i % 3 === 0),
+    users,
+  );
+  const friend = (index: number): UserEntity => friends[index % friends.length]!;
+  const nextFuture = rotator(nonEmpty(futureEvents, pastEvents));
+  const nextPast = rotator(nonEmpty(pastEvents, futureEvents));
+  const nextFuturePaid = rotator(
+    nonEmpty(
+      futureEvents.filter((event) => event.isPaid && event.priceRub !== null),
+      futureEvents,
+    ),
+  );
+  const nextFutureWithPlace = rotator(
+    nonEmpty(
+      futureEvents.filter((event) => event.placeId !== null),
+      futureEvents,
+    ),
+  );
+  const nextPastWithPlace = rotator(
+    nonEmpty(
+      pastEvents.filter((event) => event.placeId !== null),
+      nonEmpty(pastEvents, futureEvents),
+    ),
+  );
+
+  // События, на которых сходится весь сценарий: план зрителя, его группа, бронь и отзыв смотрят на
+  // одни и те же строки, иначе бюджет группы пуст, а галерея — без фото.
+  const hostedPlanEvent = nextFutureWithPlace();
+  const invitedPlanEvent = nextFutureWithPlace();
+  const groupPastEvent = nextPastWithPlace();
+  const bookedEvents = new Set<string>();
+  const takeBookingEvent = (next: () => EventEntity): EventEntity => {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const event = next();
+      if (bookedEvents.has(event.id)) continue;
+      bookedEvents.add(event.id);
+      return event;
+    }
+    const fallback = next();
+    bookedEvents.add(fallback.id);
+    return fallback;
+  };
+  const paidBookingEvent = takeBookingEvent(nextFuturePaid);
+  const pastBookingEvent = takeBookingEvent(nextPast);
+  const cancelledBookingEvent = takeBookingEvent(nextFuture);
+
+  // Списки (37, 39): шесть пресетов с содержимым и один собственный список.
+  const lists: ListEntity[] = ListPresetSchema.options.map((preset: ListPreset) => ({ id: uuid(), userId: viewerId, preset, title: LIST_PRESET_TITLES[preset], createdAt: shiftDays(now, -int(14, 40), 12), updatedAt: shiftDays(now, -int(1, 9), 12) }));
+  lists.push({ id: uuid(), userId: viewerId, preset: null, title: VIEWER_CUSTOM_LIST_TITLE, createdAt: shiftDays(now, -12, 12), updatedAt: shiftDays(now, -2, 12) });
+  const listItems: ListItemEntity[] = [];
+  const listTargets = new Set<string>();
+  for (const list of lists) {
+    for (let k = 0; k < 3; k += 1) {
+      const useEvent = k < 2;
+      const targetId = useEvent ? nextFuture().id : pick(places).id;
+      const key = `${list.id}:${targetId}`;
+      if (listTargets.has(key)) continue;
+      listTargets.add(key);
+      listItems.push({ id: uuid(), listId: list.id, eventId: useEvent ? targetId : null, placeId: useEvent ? null : targetId, addedAt: shiftDays(now, -int(1, 18), 12) });
+    }
+  }
+
+  // Планы (15, 22): один свой и один, куда зрителя позвали; в обоих участники и расходы.
+  const plans: PlanEntity[] = [];
+  const planParticipants: PlanParticipantEntity[] = [];
+  const planExpenses: PlanExpenseEntity[] = [];
+  const addPlan = (hostUserId: string, event: EventEntity, invited: Array<{ userId: string; status: PlanParticipantStatus }>, meetingPoint: string, expenseCount: number): void => {
+    const planId = uuid();
+    const createdAt = shiftDays(now, -int(2, 6), 11);
+    const seen = new Set<string>([hostUserId]);
+    const guests: Array<{ userId: string; status: PlanParticipantStatus }> = [];
+    for (const guest of invited) {
+      if (seen.has(guest.userId)) continue;
+      seen.add(guest.userId);
+      guests.push(guest);
+    }
+    plans.push({ id: planId, hostUserId, eventId: event.id, meetingPoint, meetingAt: new Date(event.startsAt.getTime() - 90 * 60_000), chatLink: null, reminderSentAt: null, leaveNowSentAt: null, weatherAlertSentAt: null, friendLeftBroadcastAt: null, recurringRule: null, seriesId: null, sourcePlanId: null, cancelledAt: null, createdAt, updatedAt: createdAt });
+    for (const guest of guests) {
+      planParticipants.push({ id: uuid(), planId, userId: guest.userId, status: guest.status, reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null, pollSentAt: null, createdAt, updatedAt: createdAt });
+    }
+    for (let k = 0; k < expenseCount; k += 1) {
+      planExpenses.push({ id: uuid(), planId, title: EXPENSE_TITLES[k % EXPENSE_TITLES.length]!, amountRub: int(6, 40) * 50, payerUserId: hostUserId, shareUserIds: [hostUserId, ...guests.map((guest) => guest.userId)], createdAt });
+    }
+  };
+  addPlan(
+    viewerId,
+    hostedPlanEvent,
+    [0, 1, 2].map((i) => ({ userId: friend(i).id, status: PLAN_PARTICIPANT_STATUSES[i % PLAN_PARTICIPANT_STATUSES.length]! })),
+    MEETING_POINTS[0]!,
+    2,
+  );
+  addPlan(
+    friend(0).id,
+    invitedPlanEvent,
+    [
+      { userId: viewerId, status: "confirmed" as PlanParticipantStatus },
+      { userId: friend(1).id, status: "confirmed" as PlanParticipantStatus },
+      { userId: friend(2).id, status: "invited" as PlanParticipantStatus },
+    ],
+    MEETING_POINTS[1]!,
+    2,
+  );
+
+  // Голосования (32, 33): одно открытое, где зритель ещё не голосовал, и одно завершённое с победителем.
+  const votes: VoteEntity[] = [];
+  const voteOptions: VoteOptionEntity[] = [];
+  const voteParticipants: VoteParticipantEntity[] = [];
+  const voteBallots: VoteBallotEntity[] = [];
+  const addVote = (hostUserId: string, title: string, participantIds: string[], ballots: Array<{ userId: string; optionIndex: number }>, createdDaysAgo: number): void => {
+    const voteId = uuid();
+    const createdAt = shiftDays(now, -createdDaysAgo, int(10, 20));
+    votes.push({ id: voteId, hostUserId, title, chatLink: null, createdAt, updatedAt: createdAt });
+    const options = takeDistinct(nextFuture, 3);
+    for (const userId of new Set(participantIds)) voteParticipants.push({ id: uuid(), voteId, userId });
+    options.forEach((event, position) => voteOptions.push({ id: uuid(), voteId, eventId: event.id, position }));
+    const cast = new Set<string>();
+    for (const ballot of ballots) {
+      if (cast.has(ballot.userId)) continue;
+      cast.add(ballot.userId);
+      voteBallots.push({ id: uuid(), voteId, userId: ballot.userId, eventId: options[ballot.optionIndex % options.length]!.id });
+    }
+  };
+  // Открытое: ведёт друг, двое уже выбрали, бюллетеня зрителя нет — экран предлагает выбор, а не итог.
+  addVote(
+    friend(0).id,
+    VOTE_TITLES[0]!,
+    [viewerId, friend(1).id, friend(2).id, friend(3).id],
+    [
+      { userId: friend(1).id, optionIndex: 0 },
+      { userId: friend(2).id, optionIndex: 1 },
+    ],
+    2,
+  );
+  // Завершённое: проголосовали все, включая зрителя, и вторая строка собрала большинство.
+  addVote(
+    viewerId,
+    VOTE_TITLES[1]!,
+    [friend(0).id, friend(1).id, friend(2).id, friend(3).id],
+    [
+      { userId: viewerId, optionIndex: 1 },
+      { userId: friend(0).id, optionIndex: 1 },
+      { userId: friend(1).id, optionIndex: 1 },
+      { userId: friend(2).id, optionIndex: 0 },
+      { userId: friend(3).id, optionIndex: 2 },
+    ],
+    9,
+  );
+
+  // Группы «Мы» (30, 31): две живые и одна в архиве; в своей — события, места, бюджет и фото.
+  const weGroups: WeGroupEntity[] = [];
+  const weGroupMembers: WeGroupMemberEntity[] = [];
+  const weGroupItems: WeGroupItemEntity[] = [];
+  const addWeGroup = (ownerUserId: string, title: string, status: WeGroupStatus, memberIds: string[], eventIds: string[], placeIds: string[], createdDaysAgo: number): void => {
+    const groupId = uuid();
+    const createdAt = shiftDays(now, -createdDaysAgo, 12);
+    weGroups.push({ id: groupId, ownerUserId, title, chatLink: null, status, createdAt, updatedAt: createdAt, archivedAt: status === "archived" ? shiftDays(now, -int(2, 8), 12) : null });
+    for (const userId of new Set(memberIds)) weGroupMembers.push({ id: uuid(), groupId, userId });
+    for (const eventId of new Set(eventIds)) weGroupItems.push({ id: uuid(), groupId, eventId, placeId: null });
+    for (const placeId of new Set(placeIds)) weGroupItems.push({ id: uuid(), groupId, eventId: null, placeId });
+  };
+  const groupMemberIds = [viewerId, friend(0).id, friend(1).id, friend(2).id, friend(3).id];
+  addWeGroup(
+    viewerId,
+    VIEWER_WE_GROUP_TITLES[0],
+    "active",
+    groupMemberIds,
+    [hostedPlanEvent.id, groupPastEvent.id, paidBookingEvent.id],
+    takeDistinct(() => pick(places), 2).map((place) => place.id),
+    24,
+  );
+  addWeGroup(
+    friend(0).id,
+    VIEWER_WE_GROUP_TITLES[1],
+    "active",
+    [friend(0).id, viewerId, friend(1).id],
+    takeDistinct(nextFutureWithPlace, 2).map((event) => event.id),
+    [pick(places).id],
+    16,
+  );
+  addWeGroup(
+    friend(1).id,
+    VIEWER_WE_GROUP_TITLES[2],
+    "archived",
+    [friend(1).id, viewerId, friend(2).id],
+    takeDistinct(nextPast, 2).map((event) => event.id),
+    [pick(places).id],
+    90,
+  );
+
+  // Сборы компании (23): один зритель собрал сам, во второй его позвали.
+  const gatherings: GatheringEntity[] = [];
+  const gatheringInvitees: GatheringInviteeEntity[] = [];
+  const addGathering = (hostUserId: string, event: EventEntity, status: GatheringStatus, invitees: Array<{ userId: string; response: InviteeResponse }>): void => {
+    const gatheringId = uuid();
+    const createdAt = shiftDays(now, -int(1, 4), int(10, 20));
+    gatherings.push({ id: gatheringId, hostUserId, eventId: event.id, proposedMeetingAt: new Date(event.startsAt.getTime() - HOUR_MS), status, chatLink: null, createdAt, updatedAt: createdAt });
+    const seen = new Set<string>([hostUserId]);
+    for (const invitee of invitees) {
+      if (seen.has(invitee.userId)) continue;
+      seen.add(invitee.userId);
+      gatheringInvitees.push({ id: uuid(), gatheringId, userId: invitee.userId, response: invitee.response, respondedAt: invitee.response === "busy" ? null : shiftDays(now, -int(0, 2), 12), reminderSentAt: null, createdAt, updatedAt: createdAt });
+    }
+  };
+  addGathering(viewerId, nextFuture(), "awaiting_responses", [
+    { userId: friend(0).id, response: "accepted" },
+    { userId: friend(1).id, response: "considering" },
+    { userId: friend(2).id, response: "busy" },
+  ]);
+  addGathering(friend(3).id, nextFuture(), "confirmed", [
+    { userId: viewerId, response: "considering" },
+    { userId: friend(0).id, response: "accepted" },
+  ]);
+
+  // Микро-события (24, 25): одно своё и одно, куда зритель записался.
+  const microEvents: MicroEventEntity[] = [];
+  const microEventParticipants: MicroEventParticipantEntity[] = [];
+  const ownedMicroId = uuid();
+  microEvents.push({ id: ownedMicroId, authorId: viewerId, title: VIEWER_MICRO_EVENT_TITLES[0], startsAt: shiftDays(now, int(2, 9), 9), locationText: null, placeId: pick(places).id, participantsLimit: int(4, 10), status: "open" as MicroEventStatus, published: true, createdAt: shiftDays(now, -3, 12) });
+  microEventParticipants.push({ id: uuid(), microEventId: ownedMicroId, userId: friend(0).id }, { id: uuid(), microEventId: ownedMicroId, userId: friend(1).id });
+  const joinedMicroId = uuid();
+  microEvents.push({ id: joinedMicroId, authorId: friend(2).id, title: VIEWER_MICRO_EVENT_TITLES[1], startsAt: shiftDays(now, int(3, 12), 15), locationText: pick(MICRO_LOCATIONS), placeId: null, participantsLimit: int(4, 10), status: "open" as MicroEventStatus, published: true, createdAt: shiftDays(now, -5, 12) });
+  microEventParticipants.push({ id: uuid(), microEventId: joinedMicroId, userId: viewerId }, { id: uuid(), microEventId: joinedMicroId, userId: friend(3).id });
+
+  // Подписки (41): организаторы, места и интересы — все три вида, которые различает домен.
+  const subscriptions: SubscriptionEntity[] = [];
+  const subscribedPlaces = takeDistinct(() => pick(places), 2);
+  const subscribedInterests = fakerRU.helpers.arrayElements(INTEREST_POOL, 2);
+  organizers.forEach((organizer) => subscriptions.push({ id: uuid(), userId: viewerId, type: "organizer", organizerUserId: organizer.id, placeId: null, interest: null, createdAt: shiftDays(now, -int(5, 25), 12) }));
+  subscribedPlaces.forEach((place) => subscriptions.push({ id: uuid(), userId: viewerId, type: "place", organizerUserId: null, placeId: place.id, interest: null, createdAt: shiftDays(now, -int(5, 25), 12) }));
+  subscribedInterests.forEach((interest) => subscriptions.push({ id: uuid(), userId: viewerId, type: "interest", organizerUserId: null, placeId: null, interest, createdAt: shiftDays(now, -int(5, 25), 12) }));
+
+  // Брони (18, 20): активный билет на будущее платное событие, прошедшая бронь и отменённая.
+  const bookings: BookingEntity[] = [
+    { id: uuid(), userId: viewerId, eventId: paidBookingEvent.id, status: "active" as BookingStatus, promoCode: null, createdAt: shiftDays(now, -3, 11), updatedAt: shiftDays(now, -3, 11), reminderSentAt: null },
+    { id: uuid(), userId: viewerId, eventId: pastBookingEvent.id, status: "active" as BookingStatus, promoCode: null, createdAt: new Date(pastBookingEvent.startsAt.getTime() - 3 * 24 * HOUR_MS), updatedAt: new Date(pastBookingEvent.startsAt.getTime() - 3 * 24 * HOUR_MS), reminderSentAt: null },
+    { id: uuid(), userId: viewerId, eventId: cancelledBookingEvent.id, status: "cancelled" as BookingStatus, promoCode: null, createdAt: shiftDays(now, -6, 15), updatedAt: shiftDays(now, -5, 15), reminderSentAt: null },
+  ];
+
+  // Визиты и отзывы (35, 38): десять мест закрывают «Исследователя города» и «Город за выходные»,
+  // три концерта оставляют «Музыкального фаната» на полпути — экран рисует и порог, и прогресс.
+  const checkIns: CheckInEntity[] = [];
+  places.slice(0, Math.min(11, places.length)).forEach((place, i) => {
+    const checkedInAt = shiftDays(now, -(i + 1), 13);
+    checkIns.push({ id: uuid(), userId: viewerId, eventId: null, placeId: place.id, visitDate: isoDay(checkedInAt), checkedInAt });
+  });
+  const afishaVisits = pastEvents.filter((event) => event.category === "afisha").slice(0, 3);
+  const volunteeringVisits = pastEvents.filter((event) => event.category === "volunteering").slice(0, 1);
+  const visitedEvents = [...new Set([groupPastEvent, ...afishaVisits, ...volunteeringVisits, pastBookingEvent])];
+  visitedEvents.forEach((event) => checkIns.push({ id: uuid(), userId: viewerId, eventId: event.id, placeId: null, visitDate: null, checkedInAt: new Date(event.startsAt.getTime() + 30 * 60_000) }));
+
+  const reviews: ReviewEntity[] = [];
+  [groupPastEvent, ...afishaVisits.slice(0, 2)].forEach((event, i) => {
+    if (reviews.some((row) => row.eventId === event.id)) return;
+    reviews.push({ id: uuid(), userId: viewerId, eventId: event.id, stars: int(4, 5), categoryScores: { atmosphere: int(4, 5), organization: int(3, 5), price: int(3, 5), place: int(4, 5) }, wouldGoAgain: true, photoUrls: i === 0 ? [picsum("demo-viewer-review-1"), picsum("demo-viewer-review-2")] : [], text: pick(REVIEW_TEXTS), createdAt: new Date(event.startsAt.getTime() + int(2, 30) * HOUR_MS) });
+  });
+
+  const participations: ParticipationEntity[] = [];
+  const participationTargets: Array<[EventEntity, ParticipationStatus]> = [
+    [hostedPlanEvent, "going"],
+    [invitedPlanEvent, "going"],
+    [paidBookingEvent, "going"],
+    [nextFuture(), "wants_to_go"],
+    [nextFuture(), "looking_for_company"],
+  ];
+  for (const [event, status] of participationTargets) {
+    if (participations.some((row) => row.eventId === event.id)) continue;
+    const createdAt = shiftDays(now, -int(1, 10), int(10, 21));
+    participations.push({ id: uuid(), userId: viewerId, eventId: event.id, status, createdAt, updatedAt: createdAt });
+  }
+
+  const feedPosts: FeedPostEntity[] = [groupPastEvent, hostedPlanEvent].map((event, i) => ({ id: uuid(), authorUserId: viewerId, eventId: event.id, text: FEED_TEXTS[i % FEED_TEXTS.length]!, photoUrl: picsum(`demo-viewer-post-${i}`), published: true, createdAt: new Date(now.getTime() - int(2, 90) * HOUR_MS) }));
+
+  // Коллекции: одна общая, собранная зрителем, и одна, куда его позвали.
+  const collections: CollectionEntity[] = [];
+  const collectionMembers: CollectionMemberEntity[] = [];
+  const collectionItems: CollectionItemEntity[] = [];
+  const addCollection = (ownerUserId: string, title: string, memberIds: string[], itemCount: number, createdDaysAgo: number): void => {
+    const collectionId = uuid();
+    const createdAt = shiftDays(now, -createdDaysAgo, 12);
+    collections.push({ id: collectionId, ownerUserId, title, chatLink: null, createdAt, updatedAt: createdAt });
+    const members = [...new Set(memberIds)];
+    members.forEach((userId) => collectionMembers.push({ id: uuid(), collectionId, userId }));
+    takeDistinct(nextFuture, itemCount).forEach((event, i) => collectionItems.push({ id: uuid(), collectionId, eventId: event.id, section: COLLECTION_SECTIONS[i % COLLECTION_SECTIONS.length]!, addedByUserId: members[i % members.length]!, addedAt: shiftDays(now, -int(1, createdDaysAgo), 12) }));
+  };
+  addCollection(viewerId, VIEWER_COLLECTION_TITLE, [viewerId, friend(0).id, friend(1).id, friend(2).id], 5, 20);
+  addCollection(friend(1).id, COLLECTION_TITLES[0]!, [friend(1).id, viewerId, friend(3).id], 3, 11);
+
+  return { lists, listItems, plans, planParticipants, planExpenses, votes, voteOptions, voteParticipants, voteBallots, weGroups, weGroupMembers, weGroupItems, gatherings, gatheringInvitees, microEvents, microEventParticipants, subscriptions, bookings, checkIns, reviews, participations, feedPosts, collections, collectionMembers, collectionItems };
+}
+
+/**
+ * Достижения (38) не выдаются наугад: их считают по тем же визитам и тому же каталогу, что и API,
+ * — иначе на экране появится значок, под которым нет ни одного визита.
+ */
+export function buildUserAchievements(checkIns: CheckInEntity[], events: EventEntity[], places: PlaceEntity[], now: Date): UserAchievementEntity[] {
+  const eventById = new Map(events.map((event) => [event.id, event]));
+  const placeById = new Map(places.map((place) => [place.id, place]));
+  const perUser = new Map<string, { places: Set<string>; byCategory: Map<EventCategory, number>; lastVisitAt: Date }>();
+  for (const row of [...checkIns].sort((a, b) => a.checkedInAt.getTime() - b.checkedInAt.getTime() || a.id.localeCompare(b.id))) {
+    const stats = perUser.get(row.userId) ?? { places: new Set<string>(), byCategory: new Map<EventCategory, number>(), lastVisitAt: row.checkedInAt };
+    if (row.placeId !== null) stats.places.add(row.placeId);
+    if (row.eventId !== null) {
+      const event = eventById.get(row.eventId);
+      if (event) {
+        if (event.placeId !== null) stats.places.add(event.placeId);
+        stats.byCategory.set(event.category, (stats.byCategory.get(event.category) ?? 0) + 1);
+      }
+    }
+    stats.lastVisitAt = row.checkedInAt;
+    perUser.set(row.userId, stats);
+  }
+  const grants: UserAchievementEntity[] = [];
+  for (const [userId, stats] of [...perUser.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const districts = new Set([...stats.places].flatMap((placeId) => (placeById.has(placeId) ? [districtKey(placeById.get(placeId)!.latitude, placeById.get(placeId)!.longitude)] : [])));
+    for (const item of ACHIEVEMENT_CATALOG) {
+      const value = item.metric === "places" ? stats.places.size : item.metric === "districts" ? districts.size : (stats.byCategory.get(item.metric) ?? 0);
+      if (value < item.threshold) continue;
+      grants.push({ id: uuid(), userId, code: item.code as AchievementCode, grantedAt: new Date(Math.min(now.getTime(), stats.lastVisitAt.getTime() + HOUR_MS)) });
+    }
+  }
+  return grants;
 }
 
 export function buildDemoData(config: DemoBuildConfig): DemoData {
@@ -723,6 +1163,171 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     }
   }
 
+  // Зритель — тот, кто реально вошёл на стенд. Его срез строится последним: он опирается на уже
+  // сгенерированных людей, площадки и события, и без него личные экраны показывают пустоту.
+  const viewer = buildViewerSlice({ now, viewerId: devUserId, users, organizers, places, pastEvents, futureEvents });
+  lists.push(...viewer.lists);
+  listItems.push(...viewer.listItems);
+  plans.push(...viewer.plans);
+  planParticipants.push(...viewer.planParticipants);
+  planExpenses.push(...viewer.planExpenses);
+  votes.push(...viewer.votes);
+  voteOptions.push(...viewer.voteOptions);
+  voteParticipants.push(...viewer.voteParticipants);
+  voteBallots.push(...viewer.voteBallots);
+  weGroups.push(...viewer.weGroups);
+  weGroupMembers.push(...viewer.weGroupMembers);
+  weGroupItems.push(...viewer.weGroupItems);
+  gatherings.push(...viewer.gatherings);
+  gatheringInvitees.push(...viewer.gatheringInvitees);
+  microEvents.push(...viewer.microEvents);
+  microEventParticipants.push(...viewer.microEventParticipants);
+  subscriptions.push(...viewer.subscriptions);
+  bookings.push(...viewer.bookings);
+  checkIns.push(...viewer.checkIns);
+  reviews.push(...viewer.reviews);
+  participations.push(...viewer.participations);
+  feedPosts.push(...viewer.feedPosts);
+
+  // Постоянные посетители: у пары людей на каждый десяток должна набираться история визитов, иначе
+  // достижения остаются личной особенностью зрителя, а не свойством населения стенда.
+  const visitKeys = new Set(checkIns.filter((row) => row.placeId !== null).map((row) => `${row.userId}:${row.placeId}:${row.visitDate}`));
+  for (const regular of users.slice(0, Math.max(2, Math.round(c.users / 10)))) {
+    places.slice(0, Math.min(11, places.length)).forEach((place, i) => {
+      const checkedInAt = shiftDays(now, -(i + 2), int(11, 19));
+      const key = `${regular.id}:${place.id}:${isoDay(checkedInAt)}`;
+      if (visitKeys.has(key)) return;
+      visitKeys.add(key);
+      checkIns.push({ id: uuid(), userId: regular.id, eventId: null, placeId: place.id, visitDate: isoDay(checkedInAt), checkedInAt });
+    });
+  }
+
+  // Лента живёт лайками и комментариями: без них у поста нет ни счётчика, ни обсуждения.
+  const feedLikes: FeedLikeEntity[] = [];
+  const likePairs = new Set<string>();
+  for (let attempt = 0; feedLikes.length < c.feedLikes && attempt < c.feedLikes * 20; attempt += 1) {
+    const post = pick(feedPosts);
+    const userId = attempt % 6 === 0 ? devUserId : pick(users).id;
+    const key = `${post.id}:${userId}`;
+    if (likePairs.has(key)) continue;
+    likePairs.add(key);
+    feedLikes.push({ id: uuid(), postId: post.id, userId });
+  }
+  const feedComments: FeedCommentEntity[] = Array.from({ length: c.feedComments }, (_, i) => {
+    const post = pick(feedPosts);
+    return { id: uuid(), postId: post.id, authorUserId: i % 5 === 0 ? devUserId : pick(users).id, text: pick(COMMENT_TEXTS), createdAt: new Date(Math.min(now.getTime() - 60_000, post.createdAt.getTime() + int(1, 40) * HOUR_MS)) };
+  });
+
+  // Коллекции: к двум подборкам зрителя добавляются чужие, чтобы домен не состоял из него одного.
+  const collections: CollectionEntity[] = [...viewer.collections];
+  const collectionMembers: CollectionMemberEntity[] = [...viewer.collectionMembers];
+  const collectionItems: CollectionItemEntity[] = [...viewer.collectionItems];
+  for (let i = 0; i < c.collections; i += 1) {
+    const owner = pick(users);
+    const collectionId = uuid();
+    const createdAt = shiftDays(now, -int(5, 40), 12);
+    collections.push({ id: collectionId, ownerUserId: owner.id, title: COLLECTION_TITLES[(i + 1) % COLLECTION_TITLES.length]!, chatLink: null, createdAt, updatedAt: createdAt });
+    const memberIds = new Set<string>([owner.id]);
+    fakerRU.helpers.arrayElements(users, Math.min(4, users.length)).forEach((user) => memberIds.add(user.id));
+    const members = [...memberIds];
+    members.forEach((userId) => collectionMembers.push({ id: uuid(), collectionId, userId }));
+    fakerRU.helpers.arrayElements(events, Math.min(4, events.length)).forEach((event, k) => collectionItems.push({ id: uuid(), collectionId, eventId: event.id, section: COLLECTION_SECTIONS[k % COLLECTION_SECTIONS.length]!, addedByUserId: members[k % members.length]!, addedAt: shiftDays(now, -int(1, 20), 12) }));
+  }
+
+  // Лист ожидания (21): несколько будущих событий добираются до потолка, очередь за ними — FIFO по
+  // createdAt. Зритель стоит и в общей очереди, и держит одно приглашение с дедлайном.
+  const viewerBookedEventIds = new Set(viewer.bookings.map((booking) => booking.eventId));
+  const waitlistEvents = futureEvents.filter((event) => !viewerBookedEventIds.has(event.id)).slice(-3);
+  for (const event of waitlistEvents) {
+    event.capacity = Math.max(event.capacity ?? 0, event.bookedCount, 24);
+    event.bookedCount = event.capacity;
+  }
+  const waitlistEntries: WaitlistEntryEntity[] = [];
+  const waitlistPairs = new Set<string>();
+  const nextWaitlistUser = rotator(users);
+  for (let attempt = 0; waitlistEntries.length < c.waitlistEntries && attempt < c.waitlistEntries * 20 && waitlistEvents.length > 0; attempt += 1) {
+    const event = waitlistEvents[attempt % waitlistEvents.length]!;
+    const user = nextWaitlistUser();
+    const key = `${user.id}:${event.id}`;
+    if (waitlistPairs.has(key)) continue;
+    waitlistPairs.add(key);
+    const createdAt = shiftDays(now, -(6 + (attempt % 5)), int(10, 20));
+    waitlistEntries.push({ id: uuid(), userId: user.id, eventId: event.id, status: "waiting" as WaitlistStatus, offeredUntil: null, referralCode: null, createdAt, updatedAt: createdAt });
+  }
+  const queueEvent = waitlistEvents[0];
+  if (queueEvent) {
+    const createdAt = shiftDays(now, -3, 14);
+    waitlistEntries.push({ id: uuid(), userId: devUserId, eventId: queueEvent.id, status: "waiting" as WaitlistStatus, offeredUntil: null, referralCode: null, createdAt, updatedAt: createdAt });
+  }
+  const offerEvent = waitlistEvents[1];
+  if (offerEvent) {
+    // Приглашение висит первым в очереди: иначе «место освободилось» приходило бы не тому. Дедлайн
+    // взят с запасом в двое суток — короткое окно планировщик погасил бы через час после сида.
+    const createdAt = shiftDays(now, -12, 10);
+    waitlistEntries.push({ id: uuid(), userId: devUserId, eventId: offerEvent.id, status: "offered" as WaitlistStatus, offeredUntil: new Date(now.getTime() + 48 * HOUR_MS), referralCode: null, createdAt, updatedAt: shiftDays(now, -1, 10) });
+  }
+
+  // Жалобы: очередь модерации по всем постмодерируемым объектам, открытые и разобранные.
+  const reportTargets: Record<ReportTargetType, string[]> = { event: events.map((event) => event.id), place: places.map((place) => place.id), feed_post: feedPosts.map((post) => post.id), micro_event: microEvents.map((microEvent) => microEvent.id) };
+  const reports: ReportEntity[] = [];
+  const reportPairs = new Set<string>();
+  for (let attempt = 0; reports.length < c.reports && attempt < c.reports * 20; attempt += 1) {
+    const targetType = REPORT_TARGET_TYPES[attempt % REPORT_TARGET_TYPES.length]!;
+    const pool = reportTargets[targetType];
+    if (pool.length === 0) continue;
+    const targetId = pick(pool);
+    const userId = attempt % 4 === 0 ? devUserId : pick(users).id;
+    const key = `${userId}:${targetType}:${targetId}`;
+    if (reportPairs.has(key)) continue;
+    reportPairs.add(key);
+    reports.push({ id: uuid(), userId, targetType, targetId, reason: REPORT_REASONS[attempt % REPORT_REASONS.length]!, status: (attempt % 3 === 0 ? "resolved" : "open") as ReportStatus, source: (attempt % 5 === 4 ? "spot_check" : "user") as ReportSource, createdAt: shiftDays(now, -int(1, 20), int(9, 21)) });
+  }
+
+  // Выполнения промо-кампаний: приведённый друг виден только вместе со своей бронью, поэтому она
+  // создаётся здесь же, а счётчик кампании выставляется по факту, а не наугад.
+  const promoFulfillments: PromoFulfillmentEntity[] = [];
+  for (const campaign of promoCampaigns) {
+    const event = events.find((row) => row.id === campaign.eventId);
+    if (!event || event.startsAt.getTime() <= now.getTime()) continue;
+    const referred = users.filter((user) => !bookingPairs.has(`${user.id}:${event.id}`)).slice(0, int(2, 5));
+    for (const user of referred) {
+      bookingPairs.add(`${user.id}:${event.id}`);
+      const createdAt = shiftDays(now, -int(1, 8), int(11, 19));
+      const booking: BookingEntity = { id: uuid(), userId: user.id, eventId: event.id, status: "active" as BookingStatus, promoCode: null, createdAt, updatedAt: createdAt, reminderSentAt: null };
+      bookings.push(booking);
+      promoFulfillments.push({ id: uuid(), campaignId: campaign.id, referredUserId: user.id, bookingId: booking.id, createdAt });
+    }
+    campaign.fulfillmentCount = referred.length;
+  }
+
+  // Платежи: один на бронь платного события; успешный несёт замороженную комиссию, отменённая бронь — возврат.
+  const eventById = new Map(events.map((event) => [event.id, event]));
+  const payments: PaymentEntity[] = [];
+  bookings.forEach((booking, i) => {
+    const event = eventById.get(booking.eventId);
+    if (!event || !event.isPaid || event.priceRub === null) return;
+    const status: PaymentStatus = booking.status === "cancelled" ? "refunded" : booking.userId === devUserId ? "succeeded" : i % 7 === 3 ? "pending" : "succeeded";
+    const split = splitTicketSale(event.priceRub, DEFAULT_COMMISSION_BPS);
+    const frozen = status === "succeeded";
+    payments.push({
+      id: uuid(),
+      bookingId: booking.id,
+      providerPaymentId: `demo-${payments.length + 1}-${booking.id.slice(0, 8)}`,
+      status,
+      amountRub: event.priceRub,
+      currency: "RUB",
+      description: `Билет: ${event.title}`.slice(0, 300),
+      commissionRub: frozen ? split.commissionRub : null,
+      netRub: frozen ? split.netRub : null,
+      commissionBps: frozen ? DEFAULT_COMMISSION_BPS : null,
+      commissionFixedAt: frozen ? new Date(booking.createdAt.getTime() + 5 * 60_000) : null,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt,
+    });
+  });
+
+  const userAchievements = buildUserAchievements(checkIns, events, places, now);
+
   return {
     users,
     profiles,
@@ -756,6 +1361,16 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     plans,
     planParticipants,
     planExpenses,
+    feedLikes,
+    feedComments,
+    collections,
+    collectionMembers,
+    collectionItems,
+    waitlistEntries,
+    userAchievements,
+    reports,
+    payments,
+    promoFulfillments,
   };
 }
 
@@ -831,6 +1446,11 @@ function remapPlaceIds(data: DemoData, idMap: Map<string, string>): void {
   for (const item of data.weGroupItems) item.placeId = real(item.placeId);
   for (const subscription of data.subscriptions) subscription.placeId = real(subscription.placeId);
   for (const microEvent of data.microEvents) microEvent.placeId = real(microEvent.placeId);
+  // У жалобы нет внешнего ключа на площадку, но очередь модерации всё равно должна открывать живую
+  // карточку, а не идентификатор, которого в базе нет.
+  for (const report of data.reports) {
+    if (report.targetType === "place") report.targetId = real(report.targetId) ?? report.targetId;
+  }
 }
 
 export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeedOptions): Promise<DemoSeedResult> {
@@ -850,7 +1470,8 @@ export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeed
 
   const places = await resolveRows(dataSource.getRepository(PlaceEntity), data.places, (place) => ({ title: place.title, address: place.address, city: place.city }));
   remapPlaceIds(data, places.idMap);
-  const lists = await resolveRows(dataSource.getRepository(ListEntity), data.lists, (list) => ({ userId: list.userId, preset: list.preset }));
+  // Пресет узнаётся по (userId, preset), собственный список пресета не имеет — его различает заголовок.
+  const lists = await resolveRows(dataSource.getRepository(ListEntity), data.lists, (list) => (list.preset === null ? { userId: list.userId, title: list.title } : { userId: list.userId, preset: list.preset }));
   for (const item of data.listItems) item.listId = lists.idMap.get(item.listId) ?? item.listId;
 
   inserted.places = places.inserted;
@@ -860,9 +1481,16 @@ export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeed
   inserted.promotionCampaigns = await insertRows(dataSource.getRepository(PromotionCampaignEntity), data.promotionCampaigns);
   inserted.participations = await insertRows(dataSource.getRepository(ParticipationEntity), data.participations);
   inserted.bookings = await insertRows(dataSource.getRepository(BookingEntity), data.bookings);
+  inserted.payments = await insertRows(dataSource.getRepository(PaymentEntity), data.payments);
+  inserted.promoFulfillments = await insertRows(dataSource.getRepository(PromoFulfillmentEntity), data.promoFulfillments);
+  inserted.waitlistEntries = await insertRows(dataSource.getRepository(WaitlistEntryEntity), data.waitlistEntries);
   inserted.checkIns = await insertRows(dataSource.getRepository(CheckInEntity), data.checkIns);
+  inserted.userAchievements = await insertRows(dataSource.getRepository(UserAchievementEntity), data.userAchievements);
   inserted.stories = await insertRows(dataSource.getRepository(StoryEntity), data.stories);
   inserted.feedPosts = await insertRows(dataSource.getRepository(FeedPostEntity), data.feedPosts);
+  inserted.feedLikes = await insertRows(dataSource.getRepository(FeedLikeEntity), data.feedLikes);
+  inserted.feedComments = await insertRows(dataSource.getRepository(FeedCommentEntity), data.feedComments);
+  inserted.reports = await insertRows(dataSource.getRepository(ReportEntity), data.reports);
   inserted.reviews = await insertRows(dataSource.getRepository(ReviewEntity), data.reviews);
   inserted.subscriptions = await insertRows(dataSource.getRepository(SubscriptionEntity), data.subscriptions);
   inserted.pageViews = await insertRows(dataSource.getRepository(PageViewEntity), data.pageViews);
@@ -882,6 +1510,9 @@ export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeed
   inserted.plans = await insertRows(dataSource.getRepository(PlanEntity), data.plans);
   inserted.planParticipants = await insertRows(dataSource.getRepository(PlanParticipantEntity), data.planParticipants);
   inserted.planExpenses = await insertRows(dataSource.getRepository(PlanExpenseEntity), data.planExpenses);
+  inserted.collections = await insertRows(dataSource.getRepository(CollectionEntity), data.collections);
+  inserted.collectionMembers = await insertRows(dataSource.getRepository(CollectionMemberEntity), data.collectionMembers);
+  inserted.collectionItems = await insertRows(dataSource.getRepository(CollectionItemEntity), data.collectionItems);
 
   const totalRows = Object.values(data).reduce((sum, rows) => sum + rows.length, 0);
   const totalInserted = Object.values(inserted).reduce((sum, count) => sum + count, 0);
