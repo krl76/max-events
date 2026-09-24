@@ -126,7 +126,9 @@ export function mapNotice(input: MapNoticeInput): string | null {
   if (input.markerCount > 0) return input.placesFailed || input.eventsFailed ? "Часть объектов не загрузилась — на карте не всё." : null;
   if (input.loading) return "Ищем объекты рядом…";
   if (!input.anyLayerOn) return "Все слои выключены — включите хотя бы один.";
-  if (input.placesFailed && input.eventsFailed) return "Объекты не загрузились. Карта на месте, попробуйте позже.";
+  // События без площадок остаются без координат, поэтому упавший listPlaces обнуляет карту целиком:
+  // сказать «рядом ничего нет» было бы неправдой — искать было нечем.
+  if (input.placesFailed || input.eventsFailed) return "Объекты не загрузились. Карта на месте, попробуйте позже.";
   if (input.query.trim() !== "") return `По запросу «${input.query.trim()}» на карте ничего нет.`;
   return "Рядом ничего не нашлось.";
 }

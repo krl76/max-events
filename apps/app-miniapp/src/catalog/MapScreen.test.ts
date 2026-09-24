@@ -248,6 +248,8 @@ describe("mapNotice", () => {
 
   it("names the broken source rather than blaming the map", () => {
     expect(mapNotice({ ...NOTICE, markerCount: 0, placesFailed: true, eventsFailed: true })).toContain("Карта на месте");
+    // Событие без площадки не имеет координат, поэтому одного упавшего запроса хватает, чтобы карта опустела.
+    expect(mapNotice({ ...NOTICE, markerCount: 0, placesFailed: true })).toContain("Объекты не загрузились");
     expect(mapNotice({ ...NOTICE, placesFailed: true })).toContain("Часть объектов не загрузилась");
     expect(mapNotice({ ...NOTICE, tilesFailed: true })).toContain("Подложка карты не отвечает");
     expect(mapNotice({ ...NOTICE, mapFailed: true, markerCount: 0 })).toContain("Карта не загрузилась");

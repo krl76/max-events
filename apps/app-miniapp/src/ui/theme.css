@@ -16829,13 +16829,15 @@ button.app-poll-result {
   box-shadow: var(--app-shadow-lift);
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);
-  left: var(--app-space-screen);
+  left: 50%;
   margin: 0;
-  padding: 10px var(--app-space-m);
+  max-width: calc(100% - 2 * var(--app-space-screen));
+  padding: 10px var(--app-space-l);
   position: absolute;
-  right: var(--app-space-screen);
   text-align: center;
   top: 116px;
+  transform: translateX(-50%);
+  width: max-content;
   z-index: 2;
 }
 
@@ -16875,4 +16877,18 @@ button.app-poll-result {
   .app-map-skeleton {
     animation: none;
   }
+}
+
+/* Плавающий хром экрана 16 лежал в z-index 2, а паны leaflet — в 200..700 внутри .leaflet-map-pane
+ * с z-index 400: кнопка «Поиск», погода, чипы слоёв, карточка объекта и строка поиска рисовались
+ * ПОД тайлами, то есть на карте их просто не было видно. Каталожный слой .app-map-layers это уже
+ * учитывал (1001), экран 16 — нет. Поднято разом, чтобы правка не расползлась по правилам. */
+.app-map16-top,
+.app-map16-layers,
+.app-map16-zoom,
+.app-map16-notice,
+.app-map16-credit,
+.app-map16-card,
+.app-map16-search {
+  z-index: 1001;
 }
