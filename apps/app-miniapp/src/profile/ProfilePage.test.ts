@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Achievement, Profile, Subscription, User, WeGroupScreen } from "@max-events/api-contracts";
-import type { ListSummary, ProfileCounters, VisitedPlace } from "../api/client";
-import { ProfileView, achievementsHint, friendsHint, listsHint, profileAbout, profileMetrics, subscriptionsHint, visitsLabel, weGroupsHint } from "./ProfilePage";
+import type { Achievement, Friend, Profile, Subscription, User, WeGroupScreen } from "@max-events/api-contracts";
+import type { ListSummary, ProfileCounters, ProfilePost, VisitedPlace } from "../api/client";
+import { ProfileView, achievementsHint, followMetrics, friendsHint, listsHint, profileAbout, profileMetrics, profileTabLabel, visitsLabel, weGroupsHint } from "./ProfilePage";
 
 const user: User = {
   id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
@@ -57,6 +57,16 @@ function weGroup(id: string, archived: boolean): WeGroupScreen {
   };
 }
 
+function person(id: string, name: string): Friend {
+  return { id, name, avatarUrl: null };
+}
+
+function post(postId: string, overrides: Partial<ProfilePost> = {}): ProfilePost {
+  return { postId, eventId: "c0000001-0000-4000-8000-000000000001", eventTitle: "Вечер Рахманинова", category: "afisha", photoUrl: null, likesCount: 14, commentsCount: 3, ...overrides };
+}
+
+const posts = [post("33000000-0000-4000-8000-000000000001"), post("33000000-0000-4000-8000-000000000002", { category: "sport", eventTitle: "Трейл-забег", likesCount: 9, commentsCount: 1 })];
+
 function renderProfileView(overrides: Partial<Parameters<typeof ProfileView>[0]> = {}): string {
   const noop = () => {};
   return renderToStaticMarkup(
@@ -66,21 +76,30 @@ function renderProfileView(overrides: Partial<Parameters<typeof ProfileView>[0]>
       counters,
       lists: null,
       subscriptions: null,
+      following: null,
+      followers: null,
       achievements: null,
       weGroups: null,
       friendsCount: null,
+      posts,
+      postsFailed: false,
       visitedPlaces,
+      tab: "posts",
       onSettings: noop,
       onShare: noop,
       onLists: noop,
       onSubscriptions: noop,
+      onFollowers: noop,
       onAchievements: noop,
       onWeGroups: noop,
       onFriends: noop,
       onSubscribe: noop,
       onWrite: noop,
       onInvite: noop,
+      onOpenPost: noop,
+      onNewPost: noop,
       onOpenPlace: noop,
+      onTab: noop,
       ...overrides,
     }),
   );
@@ -115,15 +134,45 @@ describe("profileMetrics", () => {
   });
 });
 
+describe("followMetrics", () => {
+  const following = [person("p1", "Анна"), person("p2", "Дима")];
+  const followers = [person("p3", "Катя")];
+
+  it("counts everything the viewer follows as one number over the two stores", () => {
+    const metrics = followMetrics({ subscriptions: [subscription("1", "organizer"), subscription("2", "place")], following, followers });
+
+    expect(metrics).toEqual([
+      { id: "subscriptions", value: 4, label: "подписки" },
+      { id: "followers", value: 1, label: "подписчик" },
+    ]);
+  });
+
+  it("declines both labels for their number", () => {
+    const many = followMetrics({ subscriptions: [], following: [], followers: [] });
+
+    expect(many.map((metric) => metric.label)).toEqual(["подписок", "подписчиков"]);
+  });
+
+  it("leaves out a direction that has not answered rather than printing a zero nobody counted", () => {
+    expect(followMetrics({ subscriptions: null, following, followers }).map((metric) => metric.id)).toEqual(["followers"]);
+    expect(followMetrics({ subscriptions: [], following: null, followers }).map((metric) => metric.id)).toEqual(["followers"]);
+    expect(followMetrics({ subscriptions: [], following, followers: null }).map((metric) => metric.id)).toEqual(["subscriptions"]);
+    expect(followMetrics({ subscriptions: null, following: null, followers: null })).toEqual([]);
+  });
+});
+
+describe("profileTabLabel", () => {
+  it("carries the count of the grid behind the tab, and drops it while the count is unknown", () => {
+    expect(profileTabLabel("posts", 8)).toBe("Посты · 8");
+    expect(profileTabLabel("places", 4)).toBe("Впечатления · 4");
+    expect(profileTabLabel("posts", null)).toBe("Посты");
+  });
+});
+
 describe("row hints", () => {
   it("splits the lists into the preset shelves and the viewer's own", () => {
     expect(listsHint([list("1", "want_to_go"), list("2", "favorites"), list("3", null)])).toBe("2 готовые полки и 1 своя");
     expect(listsHint([])).toBe("0 готовых полок и 0 своих");
-  });
-
-  it("counts the follows by kind and stays silent about a kind with nothing in it", () => {
-    expect(subscriptionsHint([subscription("1", "organizer"), subscription("2", "place"), subscription("3", "place")])).toBe("1 организатор, 2 места");
-    expect(subscriptionsHint([])).toBe("Пока ни на кого");
   });
 
   it("counts the collected achievements out of all four", () => {
@@ -162,16 +211,29 @@ describe("ProfileView", () => {
     expect(renderProfileView({ user: { ...user, avatarUrl: "https://example.com/a.png" } })).toContain('src="https://example.com/a.png"');
   });
 
-  it("carries the five entry rows and leaves a row without its counter until the count arrives", () => {
+  it("carries the four entry rows and leaves a row without its counter until the count arrives", () => {
     const html = renderProfileView();
 
-    expect(html.match(/class="app-me-row"/g)).toHaveLength(5);
+    expect(html.match(/class="app-me-row"/g)).toHaveLength(4);
     expect(html).toContain("Списки");
-    expect(html).toContain("Подписки");
     expect(html).toContain("Достижения");
     expect(html).toContain("Мы · группы");
     expect(html).toContain("Друзья");
     expect(html).not.toContain("app-me-row-hint");
+  });
+
+  it("puts the two follow counters in the header and makes them the only clickable numbers", () => {
+    const html = renderProfileView({ subscriptions: [subscription("1", "organizer")], following: [person("p1", "Анна")], followers: [person("p2", "Дима"), person("p3", "Катя")] });
+
+    expect(html).toContain("подписки");
+    expect(html).toContain("подписчика");
+    expect(html.match(/app-me-metric app-me-metric--link/g)).toHaveLength(2);
+    // Подписки больше не спрятаны отдельным входом: строки в списке разделов нет
+    expect(html).not.toMatch(/app-me-row-title">Подписки/);
+  });
+
+  it("shows no follow counter at all while neither direction has answered", () => {
+    expect(renderProfileView()).not.toContain("app-me-metric--link");
   });
 
   it("prints the counter hints once the counts are in", () => {
@@ -182,8 +244,17 @@ describe("ProfileView", () => {
     expect(html).toContain("1 из 1 собрано");
   });
 
-  it("draws one impressions cell per visited place, rotating the four tile tones", () => {
+  it("opens on the posts and keeps the impressions behind the second tab", () => {
     const html = renderProfileView();
+
+    expect(html).toContain("Посты · 2");
+    expect(html).toContain("Впечатления · 2");
+    expect(html).toContain("app-me-posts");
+    expect(html).not.toContain("app-me-grid");
+  });
+
+  it("draws one impressions cell per visited place, rotating the four tile tones", () => {
+    const html = renderProfileView({ tab: "places" });
 
     expect(html).toContain("Парк Горького");
     expect(html).toContain("12 визитов");
@@ -191,8 +262,61 @@ describe("ProfileView", () => {
     expect(html).toContain("app-me-cell--2");
   });
 
-  it("hides the impressions grid while the viewer has been nowhere", () => {
-    expect(renderProfileView({ visitedPlaces: [] })).not.toContain("app-me-grid");
+  it("explains the impressions tab instead of leaving it blank when the viewer has been nowhere", () => {
+    const html = renderProfileView({ tab: "places", visitedPlaces: [] });
+
+    expect(html).not.toContain("app-me-grid");
+    expect(html).toContain("Мест пока нет");
+  });
+});
+
+describe("the post grid", () => {
+  it("draws a tile per post, the cover coming from the category of its event", () => {
+    const html = renderProfileView();
+
+    expect(html.match(/class="app-me-post"/g)).toHaveLength(2);
+    expect(html).toContain("app-media--afisha");
+    expect(html).toContain("app-media--sport");
+    expect(html).toContain("Пост о событии «Вечер Рахманинова»");
+  });
+
+  it("recognises a tile by its counters, since the text of a post does not fit one", () => {
+    const html = renderProfileView();
+
+    expect(html.match(/class="app-me-post-stat"/g)).toHaveLength(4);
+    expect(html).toContain(">14</span>");
+    expect(html).toContain(">3</span>");
+  });
+
+  it("shows the author's own photo instead of the category cover when the post has one", () => {
+    const html = renderProfileView({ posts: [post("33000000-0000-4000-8000-000000000003", { photoUrl: "https://example.com/p.png" })] });
+
+    expect(html).toContain('src="https://example.com/p.png"');
+    expect(html).not.toContain("app-me-post-media");
+  });
+
+  it("invites the viewer to publish rather than showing an empty grid", () => {
+    const html = renderProfileView({ posts: [] });
+
+    expect(html).toContain("Постов пока нет");
+    expect(html).toContain("Опубликовать впечатление");
+    expect(html).not.toContain('class="app-me-post"');
+  });
+
+  it("holds the height of the grid with placeholders while the posts are on their way", () => {
+    const html = renderProfileView({ posts: null });
+
+    expect(html.match(/app-me-post-skeleton/g)).toHaveLength(6);
+    expect(html).toContain('aria-label="Загружаем посты"');
+    // Счётчик в ярлыке вкладки не выдумывает ноль, пока считать нечего
+    expect(html).toContain(">Посты</button>");
+  });
+
+  it("says the posts failed instead of loading for ever", () => {
+    const html = renderProfileView({ posts: null, postsFailed: true });
+
+    expect(html).toContain("Не удалось загрузить посты.");
+    expect(html).not.toContain("app-me-post-skeleton");
   });
 
   it("keeps editing off the profile screen", () => {

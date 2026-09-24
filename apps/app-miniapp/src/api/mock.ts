@@ -190,6 +190,9 @@
 // - markAllMockNotificationsRead - mock POST /notifications/read-all: the whole inbox read
 // - answerMockNotification - mock POST /notifications/:id/answer: which pill was pressed ("no_notification" / "no_action" for the two 404s)
 // - resetMockNotifications - restore the seeded read state and drop the answers (test isolation)
+// - userPostsFor - post grid of экран 36: the seeded own posts plus everything this author published live, newest first
+// - followingOf - mock GET /users/:id/following: the people the viewer follows, in contact order
+// - followersOf - mock GET /users/:id/followers: the people following the viewer; the backend keeps no reverse direction at all
 // END_MODULE_MAP
 
 export { MOCK_PROMO_CODE, MOCK_SANDBOX_FAIL_AMOUNT, MOCK_SINGLE_USE_PROMO_CODE, OFFER_TTL_MS, createMockCheckIn, resetMockBookings, resetMockCheckIns, resetMockPromo, resetMockWaitlist, waitlistAheadCount } from "./mock/bookings";
@@ -209,3 +212,6 @@ export { REVIEW_FACT_TAGS, eventRating, resetMockReviews } from "./mock/reviews"
 export { MOCK_GATHERING_ID, createMockGathering, createMockMicroEvent, discoverySummary, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, friendsSyncState, joinMockMicroEvent, leaveMockMicroEvent, microEventCard, microEvents, mockOnboardingContacts, peopleSuggest, resetMockFollows, resetMockFriendsSync, resetMockGatherings, resetMockMicroEvents, respondMockGathering, syncMockFriends } from "./mock/social";
 export { MOCK_SILVER_FOREST, MOCK_SLOT_EXTRAS, cancelMockSlotBooking, createMockSlotBooking, leaveMockSlotWaitlist, mockCheckInCodes, mockMySlots, mockPlaceBoard, mockSlotBoard, mockSlotBookingScreen, mockSlotBookings, mockSlotUnits, mockSlotWaitlist, mockSlotWeather, resetMockSlots, slotById, slotsOfDay } from "./mock/slots";
 export { answerMockNotification, markAllMockNotificationsRead, markMockNotificationRead, mockNotifications, mockNotificationsSummary, resetMockNotifications } from "./mock/notifications";
+// Отдельными строками, а не в списки профиля и соцграфа выше: так правка не встречается с чужой в одной строке
+export { userPostsFor } from "./mock/profile";
+export { followersOf, followingOf } from "./mock/social";

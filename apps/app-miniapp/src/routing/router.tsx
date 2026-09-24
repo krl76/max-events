@@ -81,7 +81,9 @@ export type Route =
   // Экран 23 «С кем пойти»: список открывается от события, поэтому несёт его id, а не свой
   | { name: "companions"; eventId: string }
   // Экран 07 «Умные уведомления»: входящие пользователя, вход — колокольчик в шапке ленты
-  | { name: "notifications" };
+  | { name: "notifications" }
+  // «Подписчики»: обратная сторона подписки, вход — счётчик в шапке профиля
+  | { name: "followers" };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -204,6 +206,9 @@ function toRoute(value: unknown): Route | null {
     }
     // Экран 07 параметров не несёт; отдельным case, а не строкой в общем блоке — чтобы правка не легла в чужую
     case "notifications":
+      return { name };
+    // «Подписчики» параметров не несёт; отдельным case, а не строкой в общем блоке — чтобы правка не легла в чужую
+    case "followers":
       return { name };
     // Экран 23 живёт при событии: свой case, потому что ключ — eventId
     case "companions": {

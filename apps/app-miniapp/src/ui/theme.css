@@ -16726,3 +16726,202 @@ button.app-poll-result {
   cursor: default;
   opacity: 0.4;
 }
+
+/* ==========================================================================
+   Профиль как профиль в соцсети: счётчики подписок, переключатель сеток,
+   плитка постов — и список подписчиков за счётчиком
+   ========================================================================== */
+
+/* Метрик стало пять, и «подписчиков» — самое длинное слово на экране: ряд переносится */
+.app-me-metrics--wrap {
+  column-gap: var(--app-space-m);
+  flex-wrap: wrap;
+  row-gap: var(--app-space-m);
+}
+
+/* За цифрой стоит список: акцентная подпись — единственное, чем она отличается от визитов */
+.app-me-metric--link {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: center;
+}
+
+.app-me-metric--link .app-me-metric-label {
+  color: var(--app-accent-text);
+}
+
+.app-me-metric--link:active {
+  opacity: 0.6;
+}
+
+/* Сегмент-переключатель, а не две сетки подряд: экран короче, и обе половины равноправны */
+.app-me-tabs {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-pill);
+  display: flex;
+  gap: var(--app-space-xs);
+  margin-top: var(--app-space-xl);
+  padding: 4px;
+}
+
+.app-me-tab {
+  background: none;
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 36px;
+  padding: 0;
+}
+
+.app-me-tab--active {
+  background: var(--app-canvas);
+  color: var(--app-text);
+}
+
+/* Три в ряд: это плитка, а не карточки — подпись в неё не помещается */
+.app-me-posts {
+  display: grid;
+  gap: 3px;
+  grid-template-columns: repeat(3, 1fr);
+  padding: var(--app-space-l) 0 var(--app-space-xl);
+}
+
+.app-me-post {
+  aspect-ratio: 1 / 1;
+  background: none;
+  border: none;
+  border-radius: var(--app-radius-media);
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+}
+
+/* Квадрат вместо 4:5 у .app-card-media: сетка держит ритм только на равных сторонах */
+.app-me-post-media {
+  aspect-ratio: 1 / 1;
+  border-radius: 0;
+  height: 100%;
+}
+
+.app-me-post-photo {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+/* Счётчики поверх обложки: по ним плитка и узнаётся, раз текста поста в ней нет */
+.app-me-post-stats {
+  align-items: center;
+  background: linear-gradient(180deg, rgba(13, 0, 26, 0), rgba(13, 0, 26, 0.7));
+  bottom: 0;
+  color: var(--brand-white);
+  display: flex;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  left: 0;
+  padding: var(--app-space-l) 6px 5px;
+  position: absolute;
+  right: 0;
+}
+
+.app-me-post-stat {
+  align-items: center;
+  display: flex;
+  gap: 3px;
+}
+
+.app-me-post-skeleton {
+  aspect-ratio: 1 / 1;
+  border-radius: var(--app-radius-media);
+  height: auto;
+  width: 100%;
+}
+
+.app-followers {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-followers-count {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  margin: 0 0 var(--app-space-s);
+  text-transform: uppercase;
+}
+
+.app-follower {
+  align-items: center;
+  border-bottom: 1px solid rgba(var(--app-scheme-neutral), 0.08);
+  display: flex;
+  gap: var(--app-space-m);
+  padding: 10px 0;
+}
+
+/* Буква вместо лица: фотографий людей в продукте нет */
+.app-follower-face {
+  align-items: center;
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan));
+  border-radius: 50%;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.app-follower-name {
+  flex: 1;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Взаимная подписка — состояние, а не кнопка: нажимать тут нечего */
+.app-follower-state {
+  color: var(--app-text-tertiary);
+  flex: none;
+  font-size: var(--app-font-size-description);
+}
+
+.app-follower-act {
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 36px;
+  padding: 0 14px;
+}
+
+.app-follower-act:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Люди приходят не из subscriptions, и метка у группы своя — не повтор организатора */
+.app-subs-mark--people {
+  background: var(--app-media-gradient-1);
+}

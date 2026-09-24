@@ -78,6 +78,7 @@ const BookingTicketPage = lazyNamed(() => import("../booking/BookingTicketPage")
 const MyBookingsPage = lazyNamed(() => import("../booking/MyBookingsPage"), "MyBookingsPage");
 const CompanionsPage = lazyNamed(() => import("../event/CompanionsPage"), "CompanionsPage");
 const NotificationsPage = lazyNamed(() => import("../notifications/NotificationsPage"), "NotificationsPage");
+const FollowersPage = lazyNamed(() => import("../subscriptions/Followers"), "FollowersPage");
 
 export function HomePage() {
   const { navigate } = useRoute();
@@ -177,5 +178,6 @@ function Routed() {
   if (route.name === "bookings") return <MyBookingsPage />;
   if (route.name === "companions") return <CompanionsPage eventId={route.eventId} />;
   if (route.name === "notifications") return <NotificationsPage />;
+  if (route.name === "followers") return <FollowersPage />;
   return <HomePage />;
 }

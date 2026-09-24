@@ -13,6 +13,7 @@
 // - afterMePicks - mock GET /taste/after-me: more of the strongest visited category, backend wording parity
 // - profileCountersFor - экран 36 counters: events and places from the visit history, «компании» = visited events a friend was at too (#496)
 // - visitedPlacesFor - impressions grid of экран 36: the places of the viewer's check-ins with their visit counts, most visited first
+// - userPostsFor - post grid of экран 36: the seeded own posts plus everything this author published live, newest first
 // - DEFAULT_APP_SETTINGS - the экран 41 preferences a user starts with
 // - appSettingsFor - stored app settings of a user, seeded from the defaults
 // - updateMockAppSettings - merge a patch into the stored app settings
@@ -24,9 +25,10 @@
 
 import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, PlaceCategorySchema, formatAfterMeExplanation } from "@max-events/api-contracts";
 import type { Achievement, AfterMeResponse, Event, EventCategory, MemoryPoint, MyCitySummary, Profile, TasteProfile, TasteTransition, VisitStats } from "@max-events/api-contracts";
-import { type AppSettings, type ProfileCounters, type UpdateAppSettings, type VisitedPlace } from "../client";
+import { type AppSettings, type ProfileCounters, type ProfilePost, type UpdateAppSettings, type VisitedPlace } from "../client";
 import { mockCheckIns } from "./bookings";
-import { MOCK_NOW, PLACE_STAMP, mockEvents, mockFriends, mockPlaces } from "./fixtures";
+import { mockFeedPosts } from "./feed";
+import { MOCK_NOW, PLACE_STAMP, mockDemoUser, mockEvents, mockFriends, mockPlaces } from "./fixtures";
 import { mockReviews } from "./reviews";
 
 /** Backend districtKey parity: a neighbourhood is a 0.01° geo cell of a visited place. */
@@ -231,6 +233,39 @@ export function profileCountersFor(userId: string): ProfileCounters {
     placesCount: visitedPlacesFor(userId).length,
     companiesCount: MOCK_VISIT_HISTORY.reduce((sum, row) => sum + row.withCompany, 0),
   };
+}
+
+/**
+ * What the demo account has already published. Same reason MOCK_VISIT_HISTORY above exists: the seeded
+ * wall posts belong to friends, so the post grid of экран 36 would open empty on a fresh demo and the
+ * screen could never be looked at. By event index, newest last — the grid reverses them.
+ */
+const MOCK_OWN_POST_HISTORY: readonly { event: number; likes: number; comments: number }[] = [
+  { event: 0, likes: 14, comments: 3 },
+  { event: 2, likes: 31, comments: 7 },
+  { event: 4, likes: 9, comments: 1 },
+  { event: 6, likes: 22, comments: 4 },
+  { event: 9, likes: 5, comments: 0 },
+  { event: 10, likes: 47, comments: 12 },
+  { event: 12, likes: 18, comments: 2 },
+];
+
+/**
+ * The post grid of экран 36: what this person published, newest first. Seeded history first (demo
+ * account only, so the empty state stays reachable for everyone else), then everything they published
+ * live through экран 06 — publishing a post must put a tile on the profile, not only into the wall.
+ */
+export function userPostsFor(userId: string): ProfilePost[] {
+  const seeded: ProfilePost[] = userId !== mockDemoUser.id ? [] : MOCK_OWN_POST_HISTORY.flatMap((row, index) => postTile(`33000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`, mockEvents[row.event].id, null, row.likes, row.comments));
+  const live = mockFeedPosts.filter((post) => post.author.id === userId).flatMap((post) => postTile(post.id, post.eventId, post.photoUrl, post.likesCount, post.comments.length));
+  // Обе половины сложены по возрастанию времени, поэтому разворачивается общий список, а не каждая
+  return [...seeded, ...live].reverse();
+}
+
+/** A post about an event the fixtures do not have is no tile at all: the cover has nowhere to come from. */
+function postTile(postId: string, eventId: string, photoUrl: string | null, likesCount: number, commentsCount: number): ProfilePost[] {
+  const event = mockEvents.find((candidate) => candidate.id === eventId);
+  return event === undefined ? [] : [{ postId, eventId, eventTitle: event.title, category: event.category, photoUrl, likesCount, commentsCount }];
 }
 
 /** What a user starts экран 41 with: the radius of «рядом», quiet hours at night, permissions granted. */
