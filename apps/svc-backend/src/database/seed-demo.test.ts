@@ -27,6 +27,18 @@ describe("assertLocalDatabaseUrl", () => {
     expect(() => assertLocalDatabaseUrl("postgres://u:p@db.prod.example.com:5432/db")).toThrow(/non-local/);
     expect(() => assertLocalDatabaseUrl("not-a-url")).toThrow(/valid DATABASE_URL/);
   });
+
+  it("names the way out in the refusal, so the стенд case does not look impossible", () => {
+    expect(() => assertLocalDatabaseUrl("postgres://u:p@postgres:5432/db")).toThrow(/SEED_DEMO_ALLOW_REMOTE=1/);
+  });
+
+  // Стенд без контура MAX держит базу в сети docker под именем `postgres`: локальной она не выглядит,
+  // а демо-данные там и нужны. Ключ отдельный и в обычном запуске отсутствует.
+  it("opens a deliberately named host when allowRemote is passed", () => {
+    expect(() => assertLocalDatabaseUrl("postgres://u:p@postgres:5432/db", true)).not.toThrow();
+    // Разрешение не отменяет проверку самой строки: мусор остаётся мусором.
+    expect(() => assertLocalDatabaseUrl("not-a-url", true)).toThrow(/valid DATABASE_URL/);
+  });
 });
 
 describe("buildDemoData", () => {

@@ -12,7 +12,7 @@
 // - DemoBuildConfig - pure-generator inputs (clock, scale, owner ids)
 // - DemoSeedOptions - seedDemoDatabase options
 // - parseDemoScale - SEED_DEMO_SCALE value to DemoScale, default normal
-// - assertLocalDatabaseUrl - throw unless the DATABASE_URL host is localhost/127.0.0.1
+// - assertLocalDatabaseUrl - throw unless the DATABASE_URL host is localhost/127.0.0.1, or allowRemote opens the door deliberately
 // - buildDemoData - pure generation of all demo rows (deterministic ids via fakerRU.seed(42))
 // - seedDemoDatabase - ensure owner users, build data, insert tables in dependency order
 // - DemoData - generated rows per table
@@ -86,15 +86,24 @@ export function parseDemoScale(raw: string | undefined): DemoScale {
   throw new Error(`SEED_DEMO_SCALE must be one of small|normal|big, got "${raw}"`);
 }
 
-export function assertLocalDatabaseUrl(url: string): void {
+/**
+ * Демо-данные придуманы целиком, поэтому по умолчанию сид отказывается работать с любой базой, кроме
+ * локальной: случайно налить выдумку в чужую базу — ошибка, которую нельзя отменить.
+ *
+ * `allowRemote` снимает запрет там, где выдумка и нужна: стенд без контура MAX, где база живёт в сети
+ * docker под именем `postgres` и локальной не выглядит. Это не послабление, а второй ключ: флаг
+ * приходит отдельной переменной окружения и в обычном запуске отсутствует.
+ */
+export function assertLocalDatabaseUrl(url: string, allowRemote = false): void {
   let host: string;
   try {
     host = new URL(url).hostname;
   } catch {
     throw new Error("seed:demo requires a valid DATABASE_URL");
   }
+  if (allowRemote) return;
   if (host !== "localhost" && host !== "127.0.0.1") {
-    throw new Error(`seed:demo refuses to run against non-local database host "${host}"`);
+    throw new Error(`seed:demo refuses to run against non-local database host "${host}" (set SEED_DEMO_ALLOW_REMOTE=1 to override)`);
   }
 }
 

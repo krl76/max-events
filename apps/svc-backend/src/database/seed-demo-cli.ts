@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: CLI entry for the demo seed against the configured Postgres DataSource.
-// SCOPE: guard DATABASE_URL to localhost, initialize AppDataSource, run seedDemoDatabase, print counters, destroy; no Bot API.
+// SCOPE: guard DATABASE_URL to localhost (SEED_DEMO_ALLOW_REMOTE=1 opens a named stand deliberately), initialize AppDataSource, run seedDemoDatabase, print counters, destroy; no Bot API.
 // DEPENDS: ./data-source, ./seed-demo
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -17,7 +17,7 @@ import { parseDemoScale, seedDemoDatabase, assertLocalDatabaseUrl } from "./seed
 const DEV_INITDATA_MAX_ID = "88847255";
 
 export async function runDemoSeedCli() {
-  assertLocalDatabaseUrl(process.env.DATABASE_URL ?? "");
+  assertLocalDatabaseUrl(process.env.DATABASE_URL ?? "", process.env.SEED_DEMO_ALLOW_REMOTE === "1");
   const scale = parseDemoScale(process.env.SEED_DEMO_SCALE);
   const ownerMaxUserId = process.env.SEED_DEMO_OWNER_MAX_ID ?? "777000111";
   await AppDataSource.initialize();
