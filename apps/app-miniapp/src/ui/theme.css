@@ -8565,10 +8565,16 @@ button.app-set-row {
   opacity: 0.45;
 }
 
+/*
+ * Дно прокрутки уже отступает от таббара на его высоту плюс 16px, поэтому панель липнет к нему
+ * с отрицательным смещением — иначе между кнопкой и таббаром остаётся щель, сквозь которую едет
+ * текст конца карточки. Тот же -16px в margin-bottom у .app-ev: в конце прокрутки панель обязана
+ * встать туда же, куда встаёт липкой, а не перекрыть последнюю строку.
+ */
 .app-ev-bar {
   background: var(--app-card);
   border-top: var(--app-hairline);
-  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(-1 * var(--app-space-l));
   display: flex;
   gap: 10px;
   margin: var(--app-space-l) calc(-1 * var(--app-space-screen)) 0;
