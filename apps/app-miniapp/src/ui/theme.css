@@ -10521,39 +10521,6 @@ button.app-poll-result {
   gap: 0;
 }
 
-/* Вкладка «Календарь» уже стоит в переключателе разделов «Планы», поэтому второй ряд таких же
- * пилюль читался бы как повтор того же выбора. Этот переключатель мельче и живёт в одной
- * подложке: он делит календарь надвое, а не переключает раздел. */
-.app-cal-switch {
-  background: var(--app-surface);
-  border-radius: var(--app-radius-pill);
-  display: flex;
-  gap: 2px;
-  margin: var(--app-space-m) 0 var(--app-space-l);
-  padding: 3px;
-}
-
-.app-cal-switch-item {
-  background: none;
-  border: none;
-  border-radius: var(--app-radius-pill);
-  color: var(--app-text-secondary);
-  cursor: pointer;
-  flex: 1;
-  font: inherit;
-  font-size: var(--app-font-size-description);
-  font-weight: 700;
-  padding: 7px 0;
-}
-
-/* Выбранный сегмент — подложкой холста, а не заливкой подтверждения: заливка тут спорила бы
- * за внимание с пилюлей разделов над ней, а это выбор внутри одного экрана. */
-.app-cal-switch-item--on {
-  background: var(--app-card);
-  color: var(--app-text);
-  font-weight: 800;
-}
-
 .app-cal-head {
   align-items: center;
   display: flex;
@@ -10821,10 +10788,6 @@ button.app-poll-result {
   min-width: 0;
   padding: 0;
   text-align: left;
-}
-
-.app-cal-row-body--static {
-  cursor: default;
 }
 
 .app-cal-row-title {
@@ -13689,51 +13652,6 @@ button.app-poll-result {
   padding: 5px 10px;
 }
 
-.app-mod-tabs {
-  background: rgba(var(--app-scheme-neutral), 0.06);
-  border-radius: 14px;
-  display: flex;
-  margin-top: var(--app-space-m);
-  padding: var(--app-space-xs);
-}
-
-.app-mod-tab {
-  align-items: center;
-  background: none;
-  border: none;
-  border-radius: 10px;
-  color: var(--app-text-secondary);
-  cursor: pointer;
-  display: flex;
-  flex: 1;
-  font: inherit;
-  font-size: var(--app-type-card-size);
-  font-weight: 700;
-  gap: 6px;
-  height: 40px;
-  justify-content: center;
-}
-
-.app-mod-tab--on {
-  background: var(--app-card);
-  box-shadow: var(--app-shadow-lift);
-  color: var(--app-text);
-  font-weight: 800;
-}
-
-.app-mod-tab-count {
-  background: rgba(var(--app-scheme-neutral), 0.1);
-  border-radius: var(--app-radius-pill);
-  font-size: var(--app-font-size-caption);
-  font-weight: 800;
-  padding: 2px 7px;
-}
-
-.app-mod-tab-count--on {
-  background: var(--app-badge);
-  color: var(--app-badge-contrast);
-}
-
 .app-mod-card {
   background: none;
   border: var(--app-hairline);
@@ -16252,37 +16170,6 @@ button.app-poll-result {
   flex-direction: column;
 }
 
-.app-nb-tabs {
-  background: var(--app-surface);
-  border-radius: 14px;
-  display: flex;
-  margin-top: 14px;
-  padding: var(--app-space-xs);
-}
-
-.app-nb-tab {
-  align-items: center;
-  background: none;
-  border: none;
-  border-radius: 10px;
-  color: var(--app-text-secondary);
-  cursor: pointer;
-  display: flex;
-  flex: 1;
-  font: inherit;
-  font-size: var(--app-font-size-callout);
-  font-weight: 700;
-  height: 40px;
-  justify-content: center;
-}
-
-.app-nb-tab--on {
-  background: var(--app-card);
-  box-shadow: var(--app-shadow-lift);
-  color: var(--app-text);
-  font-weight: 800;
-}
-
 .app-nb-meta {
   align-items: center;
   color: var(--app-text-secondary);
@@ -16623,6 +16510,37 @@ button.app-poll-result {
 /* ==========================================================================
  * Планы: один ряд фильтров и окно выбора друга (feat-ui-plans)
  * ========================================================================== */
+
+/* Ряд разделов списка — одна форма на всё приложение: пилюли с обводкой, активная залита тёмным.
+ * Ряд не переносится, а прокручивается: пилюли уходят под край экрана, и это видно по обрезу —
+ * отрицательные поля возвращают строке ширину экрана, а не колодца контента. */
+.app-tab-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--app-space-s);
+  margin: var(--app-space-s) calc(-1 * var(--app-space-screen)) 0;
+  overflow-x: auto;
+  padding: 0 var(--app-space-screen);
+  scrollbar-width: none;
+}
+
+.app-tab-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* Пилюля в прокручиваемом ряду не ужимается: сжатая «Сохранённое» переносит слово в две строки */
+.app-tab-row .app-chip {
+  align-self: stretch;
+  flex: none;
+  font-weight: 700;
+  padding: 9px 14px;
+}
+
+/* Счётчик рядом с названием раздела (очередь модерации): цифра идёт за словом, а не вместо него */
+.app-tab-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+}
 
 /* Окно выбора друга: лист снизу поверх экрана. Тот же жест, что у записи на событие (экран 18) */
 .app-fpick {

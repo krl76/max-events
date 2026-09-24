@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: «Рядом со мной» (макет, экраны 13 и 14): two modes behind one segmented control — the four-segment timeline inside 15 km, and the free-window builder that turns hours plus a mood into a chain of stops.
+// PURPOSE: «Рядом со мной» (макет, экраны 13 и 14): two modes behind the app-wide row of filter pills — the four-segment timeline inside 15 km, and the free-window builder that turns hours plus a mood into a chain of stops.
 // SCOPE: Data via apiClient.getNearbyTimeline/getLeisureOptions at useViewerOrigin; mode/hours/mood local state; «Открыть как план» creates a plan via apiClient.createPlan and pushes экран 15; loading/error/empty states for both modes.
 // DEPENDS: ../api/client.js (apiClient, LeisureChain, LeisureChainStop), @max-events/api-contracts (LeisureMood, NearbyBucket, NearbyCard, NearbyTimeline), ../catalog/format.js (pluralRu), ../geo/viewer-origin.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
@@ -22,7 +22,7 @@
 // - chainWindow - «19:00 – 22:00»: the window the chain occupies, from its first stop or from now
 // - chainStopMeta - «19:00 · 0,4 км · 400 ₽» under a stop title
 // - chainPlanDraft - the chain as a plan payload; null when it has no event to hang a plan on
-// - NearbyView - presentational: the segmented control plus whichever mode is open
+// - NearbyView - presentational: the row of mode pills plus whichever mode is open
 // - NearbyPage - route container: loads the timeline and the chain, creates the plan, wires navigation
 // END_MODULE_MAP
 
@@ -33,7 +33,7 @@ import { pluralRu } from "../catalog/format";
 import { useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
+import { AppChip, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 
 /** Both the backend and the line under the header quote the same radius; one constant so they cannot drift. */
 export const NEARBY_RADIUS_KM = 15;
@@ -252,11 +252,12 @@ const MODE_LABELS: Record<NearbyMode, string> = { timeline: "Таймлайн", 
 export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = new Date(), planning, onHours, onMood, onRefresh, onRetryTimeline, onOpenPlan, onOpenEvent, onOpenPlace }: NearbyViewProps) {
   return (
     <section className="app-nb">
-      <div className="app-nb-tabs" role="tablist" aria-label="Режим">
+      {/* Тот же ряд пилюль, что и на вкладке «Планы»: переключение раздела списка в приложении выглядит одинаково */}
+      <div className="app-tab-row" role="group" aria-label="Режим">
         {(Object.keys(MODE_LABELS) as NearbyMode[]).map((value) => (
-          <button key={value} type="button" role="tab" aria-selected={mode === value} className={mode === value ? "app-nb-tab app-nb-tab--on" : "app-nb-tab"} onClick={() => onMode(value)}>
+          <AppChip key={value} pressed={mode === value} onClick={() => onMode(value)}>
             {MODE_LABELS[value]}
-          </button>
+          </AppChip>
         ))}
       </div>
       {mode === "timeline" ? <Timeline state={state} onRetryTimeline={onRetryTimeline} onOpenEvent={onOpenEvent} /> : <FreeWindow leisure={leisure} hours={hours} mood={mood} now={now} planning={planning} onHours={onHours} onMood={onMood} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />}
