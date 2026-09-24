@@ -355,6 +355,13 @@ const ACTIONS = {
       <path d="m9 12 2.2 2.2L15.4 10" />
     </>
   ),
+  // «Подобрать заново» цепочки досуга (макет, экран 14): цикл из двух стрелок, в отличие от одиночной undo
+  refresh: (
+    <>
+      <path d="M4 4v6h6M20 20v-6h-6" />
+      <path d="M20 9A8 8 0 0 0 6 6M4 15a8 8 0 0 0 14 3" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type ActionIconName = keyof typeof ACTIONS;

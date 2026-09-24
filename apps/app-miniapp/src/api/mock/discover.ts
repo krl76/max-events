@@ -15,18 +15,19 @@
 // - swipeCandidates - mock GET /discover/swipe: undecided venues of the chosen category, best match first
 // - recordSwipeDecision - mock POST /discover/swipe/:placeId: remember the swipe; false for an unknown venue
 // - nearbyTimeline - four-bucket nearby timeline from fixtures, haversine distance from the requested coords (mock GET /nearby)
-// - leisureOptions - deterministic per-mood leisure chains from fixtures inside the free window (mock GET /nearby/free)
+// - MOCK_LEISURE_PLACE_PRICE - what a venue stop of the chain costs per place category (mock-only, #492)
+// - leisureOptions - deterministic per-mood leisure chains from fixtures inside the free window, stops scheduled and priced (mock GET /nearby/free)
 // - MOCK_ASSIST_RATE_LIMIT - assist rate limit (backend AssistRateLimiter parity: 20 hits / 10 min)
 // - resetMockAssist - clear the assist rate-limit window (test isolation)
 // - mockParseAssistQuery - deterministic NL criteria heuristics (backend parse-nl parity)
-// - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
+// - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures with their distance (backend selectWheretoItems parity, max 5)
 // - mockAssistSuggest - explained picks with history/partner explanations (mock POST /assist, backend AssistService.suggest parity)
 // - mockAssistSaturdayKey - next Saturday (today counts) Moscow day key from MOCK_NOW (backend nextSaturdayKey parity)
 // - mockAssistDay - upcoming Saturday stops (startsAt >= now) + planDraft, plan persisted when save=true (mock POST /assist/day, backend planSaturday parity)
 // END_MODULE_MAP
 
-import type { AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, Event, EventCategory, Friend, LeisureMood, LeisureOption, LeisureStop, NearbyBucket, NearbyCard, NearbyTimeline, Place, PlaceCategory, PlanCard, WheretoMood, WheretoQuery, WheretoResponse } from "@max-events/api-contracts";
-import type { SwipeCandidate, SwipeCategory, SwipeDecision, TodayCard, TodayDigest } from "../client";
+import type { AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, Event, EventCategory, Friend, LeisureMood, NearbyBucket, NearbyCard, NearbyTimeline, Place, PlaceCategory, PlanCard, WheretoMood, WheretoQuery } from "@max-events/api-contracts";
+import type { LeisureChain, LeisureChainStop, SwipeCandidate, SwipeCategory, SwipeDecision, TodayCard, TodayDigest, WheretoPicks } from "../client";
 import { mockCheckIns, remainingSeats } from "./bookings";
 import { mockEventDistanceKm, mockEventRatingValue, placePageFor } from "./catalog";
 import { HOUR_MS, MOCK_NOW, haversineKm, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockPlaces, moscowDateKey, moscowHour } from "./fixtures";
@@ -175,8 +176,24 @@ export function nearbyTimeline(latitude: number, longitude: number, now: Date = 
   return timeline;
 }
 
+/**
+ * What a venue stop of the chain costs on макет экране 14 («400 ₽», «900 ₽», «бесплатно»). Mock-only:
+ * a Place carries no price at all (#492), and «free» is claimed only where entry genuinely is — a city
+ * park — rather than wherever the price happens to be unknown.
+ */
+export const MOCK_LEISURE_PLACE_PRICE: Record<PlaceCategory, { priceRub: number | null; free: boolean }> = {
+  park: { priceRub: null, free: true },
+  museum: { priceRub: 500, free: false },
+  food: { priceRub: 700, free: false },
+  sport: { priceRub: 800, free: false },
+  other: { priceRub: null, free: false },
+};
+
+/** How long the chain lingers at a stop before the next one starts; the design spaces its steps by roughly this much. */
+const LEISURE_STOP_MINUTES = 90;
+
 /** Deterministic per-mood leisure chains from fixtures inside the free window; the title is the chain joined by arrows (README «Парк → выставка → бар» style). */
-export function leisureOptions(hours: number, mood: LeisureMood, latitude: number, longitude: number, now: Date = MOCK_NOW): LeisureOption[] {
+export function leisureOptions(hours: number, mood: LeisureMood, latitude: number, longitude: number, now: Date = MOCK_NOW): LeisureChain[] {
   const until = now.getTime() + hours * HOUR_MS;
   const events = mockEvents
     .filter((item) => {
@@ -188,9 +205,11 @@ export function leisureOptions(hours: number, mood: LeisureMood, latitude: numbe
     .map((place) => ({ place, km: haversineKm(latitude, longitude, place.latitude, place.longitude) }))
     .filter((row) => row.km <= NEARBY_MAX_KM)
     .sort((a, b) => a.km - b.km);
-  const placeStop = (place: Place): LeisureStop => ({ kind: "place", placeId: place.id, eventId: null, title: place.title, startsAt: null });
-  const eventStop = (item: Event): LeisureStop => ({ kind: "event", placeId: item.placeId, eventId: item.id, title: item.title, startsAt: item.startsAt });
-  let stops: LeisureStop[] = [];
+  const km = (place: Place | undefined): number | null => (place === undefined ? null : Math.round(haversineKm(latitude, longitude, place.latitude, place.longitude) * 10) / 10);
+  // startsAt stays null here: the chain is scheduled in one pass below, once its order is known.
+  const placeStop = (place: Place): LeisureChainStop => ({ kind: "place", placeId: place.id, eventId: null, title: place.title, startsAt: null, distanceKm: km(place), ...MOCK_LEISURE_PLACE_PRICE[place.category] });
+  const eventStop = (item: Event): LeisureChainStop => ({ kind: "event", placeId: item.placeId, eventId: item.id, title: item.title, startsAt: item.startsAt, distanceKm: km(mockPlaces.find((place) => place.id === item.placeId)), priceRub: item.priceRub, free: !item.isPaid });
+  let stops: LeisureChainStop[] = [];
   if (mood === "relax") {
     const park = places.find((row) => row.place.category === "park");
     const show = events.find((item) => item.category === "afisha");
@@ -212,7 +231,25 @@ export function leisureOptions(hours: number, mood: LeisureMood, latitude: numbe
     stops = events.slice(0, 3).map(eventStop);
   }
   if (stops.length === 0) return [];
-  return [{ mood, title: stops.map((stop) => stop.title).join(" → "), stops }];
+  return [{ mood, title: stops.map((stop) => stop.title).join(" → "), stops: scheduleLeisureStops(stops, now) }];
+}
+
+/**
+ * Give every stop an hour: макет экран 14 prints one on each step, and a venue stop comes out of the
+ * backend without a time (the chain planner only knows when its events start). An event keeps its own
+ * start; a venue takes the cursor, which then moves on by LEISURE_STOP_MINUTES.
+ */
+function scheduleLeisureStops(stops: LeisureChainStop[], now: Date): LeisureChainStop[] {
+  let cursor = now.getTime();
+  return stops.map((stop) => {
+    if (stop.startsAt !== null) {
+      cursor = Date.parse(stop.startsAt) + LEISURE_STOP_MINUTES * 60_000;
+      return stop;
+    }
+    const startsAt = new Date(cursor).toISOString();
+    cursor += LEISURE_STOP_MINUTES * 60_000;
+    return { ...stop, startsAt };
+  });
 }
 
 /** Backend AssistRateLimiter parity: 20 hits per 10 minutes per user (the mock serves the single demo user). */
@@ -263,8 +300,8 @@ function mockMoscowHour(startsAt: string): number {
   return Number(hour ?? "0");
 }
 
-/** Backend selectWheretoItems parity: mood -> categories, budget (!isPaid free / <=3000 under_3000), company soft filters, upcoming from MOCK_NOW, soonest first, max 5 (fixtures carry no published flag). */
-export function wheretoSuggestions(query: WheretoQuery, now: Date = MOCK_NOW): WheretoResponse {
+/** Backend selectWheretoItems parity: mood -> categories, budget (!isPaid free / <=3000 under_3000), company soft filters, upcoming from MOCK_NOW, soonest first, max 5 (fixtures carry no published flag); the distance on each card is the mock's own (#504). */
+export function wheretoSuggestions(query: WheretoQuery, origin: { latitude: number; longitude: number } = MOCK_TODAY_ORIGIN, now: Date = MOCK_NOW): WheretoPicks {
   const moodCategories: Record<WheretoMood, EventCategory[]> = { active: ["sport", "tourism"], calm: ["afisha"], unusual: ["volunteering", "tourism"] };
   return {
     items: mockEvents
@@ -274,7 +311,8 @@ export function wheretoSuggestions(query: WheretoQuery, now: Date = MOCK_NOW): W
       .filter((item) => query.company !== "partner" || item.category !== "volunteering")
       .filter((item) => query.company !== "kids" || (item.priceRub ?? 0) <= 3000)
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
-      .slice(0, 5),
+      .slice(0, 5)
+      .map((item) => ({ ...item, distanceKm: mockEventDistanceKm(item, origin) })),
   };
 }
 

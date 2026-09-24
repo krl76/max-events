@@ -61,7 +61,8 @@
 // - isMockModerator - whether this viewer may see the moderation queue
 // - joinMockMicroEvent - join with the counter, idempotent (mock POST /join)
 // - leaveMockMicroEvent - leave with the counter, idempotent (mock DELETE /join)
-// - leisureOptions - deterministic per-mood leisure chains from fixtures inside the free window (mock GET /nearby/free)
+// - leisureOptions - deterministic per-mood leisure chains from fixtures inside the free window, stops scheduled and priced (mock GET /nearby/free)
+// - MOCK_LEISURE_PLACE_PRICE - what a venue stop of the chain costs per place category (mock-only, #492)
 // - listItemCards - items of one list enriched with their events and the participant who added them, newest first (mock)
 // - listMockStories - own story (localStorage) + friend fixtures
 // - listMockSubscriptions - mock GET /subscriptions for the demo user
@@ -142,7 +143,7 @@
 // - travelOptionsFor - mock GET /travel: walking and metro estimates from the distance alone (#504)
 // - unpublishMockTarget - mock POST /moderation/unpublish
 // - visitedPlacesFor - impressions grid of экран 36: visited places with their visit counts, most visited first
-// - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures (backend selectWheretoItems parity, max 5)
+// - wheretoSuggestions - "Куда пойдём?" suggestions from upcoming fixtures with their distance (backend selectWheretoItems parity, max 5)
 // - mockPlanTimeline - dinner -> ride -> meeting -> event steps of макет экрана 15 (mock GET /plans/:id/timeline; the ride is the #504 gap)
 // - openMockPlanChat - mock POST /plans/:id/chat: issues the chat link P1-7-b will issue
 // - addMockPlanParticipant - mock POST /plans/:id/participants (backend addParticipant parity: host only, friends only, no duplicates)
@@ -193,7 +194,7 @@
 
 export { MOCK_PROMO_CODE, MOCK_SANDBOX_FAIL_AMOUNT, MOCK_SINGLE_USE_PROMO_CODE, OFFER_TTL_MS, createMockCheckIn, resetMockBookings, resetMockCheckIns, resetMockPromo, resetMockWaitlist, waitlistAheadCount } from "./mock/bookings";
 export { bookingOfferFor, catalogCards, eventCompanions, eventForecast, eventMoodTags, eventNearby, filterMockEvents, mapWeatherFor, participationStats, placePageFor, resetMockParticipations, travelOptionsFor } from "./mock/catalog";
-export { leisureOptions, MOCK_ASSIST_RATE_LIMIT, mockAssistDay, mockAssistSaturdayKey, mockAssistSuggest, mockParseAssistQuery, nearbyTimeline, recordSwipeDecision, resetMockAssist, resetMockSwipeDecisions, swipeCandidates, todayPicks, wheretoSuggestions } from "./mock/discover";
+export { leisureOptions, MOCK_ASSIST_RATE_LIMIT, MOCK_LEISURE_PLACE_PRICE, mockAssistDay, mockAssistSaturdayKey, mockAssistSuggest, mockParseAssistQuery, nearbyTimeline, recordSwipeDecision, resetMockAssist, resetMockSwipeDecisions, swipeCandidates, todayPicks, wheretoSuggestions } from "./mock/discover";
 export { createMockStory, feedPosts, listMockStories, mockFeedCards, mockFeedPostExtras, mockFriendStories, mockPostDrafts, mockStoryCompositions, resetMockFeed, saveMockPostDraft } from "./mock/feed";
 export { MOCK_EARLY_ACCESS_EVENT_ID, MOCK_NOW, MOCK_ORGANIZER_CREDENTIALS, MOCK_TODAY, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganization, mockOrganizers, mockPlaces } from "./mock/fixtures";
 export { MOCK_FOREIGN_VOTE_ID, MOCK_VOTE_ID, castMockBallot, closeMockVote, createMockVote, getMockVote, getMockWeGroup, listMockWeGroups, resetMockVotes, resetMockWeGroups } from "./mock/groups";

@@ -140,6 +140,10 @@
 // - AppNotification - one inbox entry: type, actor, text, when, read state, target, pending decision and its deadline; the whole domain is mock-backed (#494)
 // - NotificationsSummary - unread count behind the feed header bell
 // - AnswerNotification - answer payload of a decision: who answered and which action they chose
+// - WheretoPick - one suggestion of экран 12: the event plus the distance its card prints (#504)
+// - WheretoPicks - GET /whereto answer: up to five picks; a superset of WheretoResponse
+// - LeisureChainStop - one stop of the chain of экран 14: the contract stop plus its distance and price
+// - LeisureChain - free-window chain with enriched stops; a superset of LeisureOption
 // END_MODULE_MAP
 
 import type { RecordPageViewWrite } from "@max-events/api-contracts";
@@ -174,7 +178,7 @@ export type { CreateCheckIn } from "./endpoints/bookings";
 export type { AddListItem, ListItemCard, ListScreen, ListSummary } from "./endpoints/lists";
 export type { MyCityPayload } from "./endpoints/profile";
 export { SWIPE_CATEGORIES } from "./endpoints/discover";
-export type { LeisureQuery, SwipeCandidate, SwipeCategory, SwipeDecision, TodayCard, TodayDigest } from "./endpoints/discover";
+export type { LeisureChain, LeisureChainStop, LeisureQuery, SwipeCandidate, SwipeCategory, SwipeDecision, TodayCard, TodayDigest, WheretoPick, WheretoPicks } from "./endpoints/discover";
 export type { AppSettings, ProfileCounters, UpdateAppSettings, VisitedPlace } from "./endpoints/profile";
 export { ORGANIZER_TRAFFIC_SOURCES, organizerEntryCode, statsPeriodQuery } from "./endpoints/organizer";
 export type { CreateReport, ModerationTarget, Report, ReportReason } from "./endpoints/moderation";

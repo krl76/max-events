@@ -37,7 +37,9 @@ export function discoverRoutes(url: URL, init: RequestInit | undefined): Respons
   if (url.pathname === "/api/whereto") {
     const parsed = WheretoQuerySchema.safeParse({ company: url.searchParams.get("company"), mood: url.searchParams.get("mood"), budget: url.searchParams.get("budget") });
     if (!parsed.success) return new Response(null, { status: 400 });
-    return Response.json(wheretoSuggestions(parsed.data));
+    const origin = parseMockOrigin(url);
+    if (origin === "invalid") return new Response(null, { status: 400 });
+    return Response.json(origin === null ? wheretoSuggestions(parsed.data) : wheretoSuggestions(parsed.data, { latitude: origin[0], longitude: origin[1] }));
   }
   if (url.pathname === "/api/nearby/free") {
     const coords = parseMockCoords(url);
