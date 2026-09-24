@@ -1058,30 +1058,6 @@ html[data-theme="dark"] body {
   max-width: var(--app-measure);
 }
 
-/* Страница мероприятия: sticky-панель действий над таббаром */
-.app-event-actions {
-  background: var(--app-card);
-  border-top: var(--app-hairline);
-  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-s);
-  margin: var(--app-space-s) calc(-1 * var(--app-space-screen)) 0;
-  padding: var(--app-space-m) var(--app-space-screen);
-  position: sticky;
-  z-index: 5;
-}
-
-/* Вторичные действия (check-in, билет) — одной строкой под primary CTA */
-.app-event-actions-row {
-  display: flex;
-  gap: var(--app-space-s);
-}
-
-.app-event-actions-row > * {
-  flex: 1;
-}
-
 /* Страница мероприятия: статус участия (нативный select) + счётчики */
 .app-participation-select {
   align-self: stretch;
