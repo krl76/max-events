@@ -118,6 +118,9 @@ const SEEDED_TICKET_EVENT_ID = "c0000001-0000-4000-8000-000000000001";
 /** Event of the seeded «Мы»-группы: its «Брони» block counts the bookings of the members, and without one the block is blank. */
 const SEEDED_GROUP_EVENT_ID = "c0000003-0000-4000-8000-000000000003";
 
+/** Members of that group besides the demo user; the bookings are theirs so the demo user still meets the event card unbooked, with its «Записаться» still to press. */
+const SEEDED_GROUP_MEMBER_IDS = [3, 4];
+
 /** Almost sold out (capacity 20): 16 seats taken leave the «осталось 4» of макет, экран 17, and the «Мест почти нет» of экран 18. */
 const SEEDED_ALMOST_FULL_EVENT_ID = "c0000008-0000-4000-8000-000000000008";
 
@@ -151,7 +154,7 @@ function seedBooking(userId: string, eventId: string): Booking {
  */
 function seedMockBookings(): void {
   seedBooking(mockDemoUser.id, SEEDED_PAST_EVENT_ID);
-  seedBooking(mockDemoUser.id, SEEDED_GROUP_EVENT_ID);
+  for (const index of SEEDED_GROUP_MEMBER_IDS) seedBooking(mockFriendIds[index], SEEDED_GROUP_EVENT_ID);
   const ticket = seedBooking(mockDemoUser.id, SEEDED_TICKET_EVENT_ID);
   const payment = ensureMockPayment(ticket, PLACE_STAMP);
   if (payment !== null) settleMockPayment(payment, PLACE_STAMP);

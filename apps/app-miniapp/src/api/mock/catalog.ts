@@ -379,8 +379,8 @@ export function eventNearby(eventId: string): EventNearbySpot[] | null {
     .sort((a, b) => a.distanceM - b.distanceM);
 }
 
-/** Chats the viewer shares with a friend, by friend index; the fourth slot is «не в твоих чатах», which the design names out loud. */
-const MOCK_COMPANION_CHATS: Array<string | null> = ["Двор", "Падел", "Соседи", null];
+/** Chats the viewer shares with a friend, by friend index; one slot is empty, because «Не в твоих чатах» is a line the design names out loud. */
+const MOCK_COMPANION_CHATS: Array<string | null> = ["Двор", "Падел", "Соседи", "Двор", "Падел", null, "Соседи"];
 
 /** What the viewer is into; the overlap with the lists below is the «N совпадений» badge. */
 const MOCK_VIEWER_INTERESTS = ["концерты", "джаз", "прогулки", "кофе"];
@@ -390,14 +390,18 @@ const MOCK_COMPANION_INTERESTS: string[][] = [
   ["джаз", "концерты", "ночная жизнь"],
   ["бег", "концерты", "кофе"],
   ["выставки", "прогулки"],
-  ["футбол", "бар"],
-  ["йога", "кофе", "прогулки"],
-  ["велоспорт", "джаз"],
+  ["джаз", "концерты", "кофе"],
+  ["йога", "кофе", "бег"],
+  ["велоспорт", "джаз", "кофе"],
   ["театр", "концерты", "кофе"],
 ];
 
-/** The line a person left under their status; most leave none, and the design draws the expanded card only for those who did. */
-const MOCK_COMPANION_NOTES: Array<string | null> = ["Иду одна, была на прошлом концерте — огонь. Кто со мной к сцене?", null, "Возьму термос и плед. Если кто-то хочет присоединиться — пишите.", null, null, null, null];
+/**
+ * The line a person left under their status; most leave none, and the design draws the expanded card
+ * only for those who did. Экран 23 opens on «Ищут», so the note belongs to someone who is actually
+ * looking — a note on a person three taps away is a card nobody ever sees.
+ */
+const MOCK_COMPANION_NOTES: Array<string | null> = [null, null, "Возьму термос и плед. Если кто-то хочет присоединиться — пишите.", "Иду один, был на прошлом концерте — огонь. Кто со мной к сцене?", null, null, null];
 
 /** How early the company agrees to meet: «у входа в 19:30» before a 20:00 start. */
 const MOCK_GATHERING_LEAD_MIN = 30;
@@ -416,7 +420,7 @@ function companionFor(friend: Friend, index: number, status: ParticipationStatus
   return {
     friend,
     status,
-    chatTitle: MOCK_COMPANION_CHATS[index % MOCK_COMPANION_CHATS.length],
+    chatTitle: MOCK_COMPANION_CHATS[index] ?? null,
     sharedPlansCount: sharedParticipationCount(friend.id, userId, eventId),
     matchesCount: interests.filter((interest) => MOCK_VIEWER_INTERESTS.includes(interest)).length,
     interests,

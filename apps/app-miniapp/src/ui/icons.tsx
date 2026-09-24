@@ -309,8 +309,6 @@ const ACTIONS = {
       <path d="M12 2.6v2.6M12 18.8v2.6M2.6 12h2.6M18.8 12h2.6M5.4 5.4l1.9 1.9M16.7 16.7l1.9 1.9M18.6 5.4l-1.9 1.9M7.3 16.7l-1.9 1.9" />
     </>
   ),
-  // Голосование компании (макет, экран 23): столбики результата, а не ещё одна галочка
-  poll: <path d="M6 20V11M12 20V4M18 20v-6M3.5 20h17" />,
 } satisfies Record<string, ReactNode>;
 
 export type ActionIconName = keyof typeof ACTIONS;

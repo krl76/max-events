@@ -103,10 +103,11 @@ describe("bookingOfferFor", () => {
     expect(offer?.friendsWithTickets.map((friend) => friend.name)).toEqual(["Катя Орлова"]);
   });
 
-  it("counts nobody as a ticket holder on a free event and 404s an unknown one", () => {
+  it("counts only real bookings on a free event and 404s an unknown one", () => {
     resetMockParticipations();
 
-    expect(bookingOfferFor(PARK_EVENT.id, mockDemoUser.id)?.friendsWithTickets).toEqual([]);
+    // Анна отметила «иду» на этом событии, но брони у неё нет: на бесплатном событии «иду» билетом не считается
+    expect(bookingOfferFor(PARK_EVENT.id, mockDemoUser.id)?.friendsWithTickets.map((friend) => friend.name)).toEqual(["Пётр Новиков", "Мария Белова"]);
     expect(bookingOfferFor(UNKNOWN_ID, mockDemoUser.id)).toBeNull();
   });
 });

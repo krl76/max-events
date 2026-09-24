@@ -51,6 +51,8 @@ export function seatsFillPercent(details: EventDetails): number {
 export function bookingSummary(details: EventDetails, organizerName: string | null): string {
   const { event, remainingSeats } = details;
   const seatNoun = event.isPaid ? (["билет", "билета", "билетов"] as const) : (["место", "места", "мест"] as const);
+  // «Осталось 0 билетов» — это не ответ, а арифметика вслух: у распроданного события своя история, про очередь
+  if (remainingSeats === 0) return `${event.isPaid ? "Билеты" : "Места"} разобрали. Освободившееся уходит первому в листе ожидания — очередь двигается сама.`;
   const sentences: string[] = [];
   if (remainingSeats !== null) sentences.push(`Осталось ${remainingSeats} ${pluralRu(remainingSeats, seatNoun[0], seatNoun[1], seatNoun[2])}${event.isPaid ? ` по ${formatPrice(event)}` : ""}.`);
   else if (event.isPaid) sentences.push(`Вход по билету — ${formatPrice(event)}.`);
