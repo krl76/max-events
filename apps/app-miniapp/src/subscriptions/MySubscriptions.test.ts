@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Subscription } from "@max-events/api-contracts";
+import type { Friend, Subscription } from "@max-events/api-contracts";
 import { groupSubscriptions, MySubscriptionsView, PEOPLE_SUBSCRIPTION_NOTE, SUBSCRIPTION_TYPE_LABELS, subscriptionFilterLabel, SubscriptionsView } from "./MySubscriptions";
 
 function subscription(overrides: Partial<Subscription>): Subscription {
@@ -9,6 +9,11 @@ function subscription(overrides: Partial<Subscription>): Subscription {
 }
 
 const rows = [subscription({}), subscription({ id: "d0000008-0000-4000-8000-000000000002", type: "place", organizerUserId: null, placeId: "b0000001-0000-4000-8000-000000000001", title: "Парк Горького" }), subscription({ id: "d0000008-0000-4000-8000-000000000003", type: "interest", organizerUserId: null, interest: "походы", title: "походы" })];
+
+const people: Friend[] = [
+  { id: "a0000000-0000-4000-8000-0000000000b1", name: "Анна Соколова", avatarUrl: null },
+  { id: "a0000000-0000-4000-8000-0000000000b2", name: "Дима Кузнецов", avatarUrl: null },
+];
 
 describe("MySubscriptionsView", () => {
   it("names every followed target rather than showing its id", () => {
@@ -69,6 +74,11 @@ describe("subscriptionFilterLabel", () => {
     expect(subscriptionFilterLabel("organizer", rows)).toBe("Организаторы");
     expect(subscriptionFilterLabel("interest", rows)).toBe("Интересы");
   });
+
+  it("counts the people into the all-chip too: one word over the screen, one number under it", () => {
+    expect(subscriptionFilterLabel("all", rows, people.length)).toBe("Все · 5");
+    expect(subscriptionFilterLabel("people", rows, people.length)).toBe("Люди");
+  });
 });
 
 describe("SubscriptionsView", () => {
@@ -81,11 +91,33 @@ describe("SubscriptionsView", () => {
     expect(html.match(/aria-label="Отписаться: /g)).toHaveLength(rows.length);
   });
 
-  it("keeps following a person out of the three types the backend has", () => {
+  it("says where the people group comes from, since it is not one of the three types", () => {
     const html = renderToStaticMarkup(createElement(SubscriptionsView, { subscriptions: rows }));
 
     expect(html).toContain(PEOPLE_SUBSCRIPTION_NOTE);
-    expect(html).not.toContain("Люди");
+  });
+
+  it("gives the people the viewer follows their own group, heading and way out", () => {
+    const html = renderToStaticMarkup(createElement(SubscriptionsView, { subscriptions: rows, people }));
+
+    expect(html).toContain("Люди · 2");
+    expect(html).toContain("Анна Соколова");
+    expect(html).toContain('aria-label="Отписаться: Анна Соколова"');
+    expect(html.match(/aria-label="Отписаться: /g)).toHaveLength(rows.length + people.length);
+  });
+
+  it("drops the people group when the viewer follows nobody, rather than heading a zero", () => {
+    const html = renderToStaticMarkup(createElement(SubscriptionsView, { subscriptions: rows, people: [] }));
+
+    expect(html).not.toContain("Люди ·");
+  });
+
+  it("narrows to the people alone when their chip is pressed", () => {
+    const html = renderToStaticMarkup(createElement(SubscriptionsView, { subscriptions: rows, people, filter: "people" }));
+
+    expect(html).toContain("Люди · 2");
+    expect(html).not.toContain("Культурный центр");
+    expect(html).not.toContain("Организаторы · 1");
   });
 
   it("narrows to one type when a filter chip is pressed", () => {

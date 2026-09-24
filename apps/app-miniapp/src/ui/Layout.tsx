@@ -31,7 +31,7 @@ export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string)
   { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" || name === "map" || name === "swipe" || name === "assist" },
   { icon: "create", label: "Создать", route: "create", active: (name) => name === "create" || name === "story-new" || name === "feed-new" || name === "micro-new" || name === "plan-new" },
   { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "lists" || name === "list" || name === "bookings" || name === "slot-ticket" },
-  { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "friends" || name === "subscriptions" || name === "discovery" || name === "people" || name === "friend-route" },
+  { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "friends" || name === "subscriptions" || name === "followers" || name === "discovery" || name === "people" || name === "friend-route" },
 ];
 
 export const ROUTE_TITLES: Record<Route["name"], string> = {
@@ -80,6 +80,8 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   companions: "С кем пойти",
   // Экран 07 рисует свою шапку (полноэкранный маршрут); строка здесь нужна таблице, которая обязана быть полной
   notifications: "Умные уведомления",
+  // «Подписчики»: обратная сторона подписки, вход — счётчик в шапке профиля
+  followers: "Подписчики",
 };
 
 export function routeTitle(route: Route): string {

@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: «Подписки» (макет, экран 38): the three kinds the backend keeps — organizers, places, interests — grouped, counted and each with its way out; plus the compact block the profile still embeds.
-// SCOPE: SUBSCRIPTION_* tables, groupSubscriptions, SubscriptionsView and MySubscriptionsView are presentational only; SubscriptionsPage is the container of the standalone screen. Following a person is not a subscription type the backend has (#501) and never joins these three; the screen says so out loud.
-// DEPENDS: @max-events/api-contracts (Subscription, SubscriptionType), ../api/client.js (apiClient), ../routing/router.js, ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
+// PURPOSE: «Подписки» (макет, экран 38): everything the viewer follows — the three kinds the backend keeps (organizers, places, interests) and the people they follow — grouped, counted and each with its way out; plus the compact block the profile still embeds.
+// SCOPE: SUBSCRIPTION_* tables, groupSubscriptions, SubscriptionsView and MySubscriptionsView are presentational only; SubscriptionsPage is the container of the standalone screen. Following a person is not a Subscription row (#501) — it is the follow set of экран 02 — so the people group comes in beside the three, from its own store, and the screen says where it comes from.
+// DEPENDS: @max-events/api-contracts (Friend, Subscription, SubscriptionType), ../api/client.js (apiClient), ../auth/AuthContext.js, ../routing/router.js, ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -10,19 +10,21 @@
 // - SUBSCRIPTION_TYPE_PLURALS - ru plural labels: the filter chips and the group headings of экран 38
 // - SUBSCRIPTION_TYPES - the three types in the order the screen lists them
 // - SUBSCRIPTION_TYPE_ICONS - glyph per type: a building, a pin, a tag - not three identical circles
-// - PEOPLE_SUBSCRIPTION_NOTE - the line that keeps following a person out of this list (#501)
-// - SubscriptionFilter - "all" or one of the three types
-// - subscriptionFilterLabel - «Все · 14» for the all-chip, the plural label for a type chip
+// - PEOPLE_SUBSCRIPTION_NOTE - the line that says where the people group comes from, since it is not a Subscription (#501)
+// - PEOPLE_GROUP_HEADING - ru heading of the people group, the fourth one on the screen
+// - SubscriptionFilter - "all", one of the three types, or the people group
+// - subscriptionFilterLabel - «Все · 14» for the all-chip, the plural label for the other chips
 // - groupSubscriptions - follows split into the three groups, in screen order, empty groups dropped
-// - SubscriptionsView - экран 38 presentational: filter chips, grouped rows with unsubscribe, the people note
+// - SubscriptionsView - экран 38 presentational: filter chips, grouped rows with unsubscribe, the people group and its note
 // - MySubscriptionsView - compact presentational block the profile embeds: followed targets with an unsubscribe action
-// - SubscriptionsPage - container of the standalone screen: loads the follows, filters them, removes one, keeps the failed row in place
+// - SubscriptionsPage - container of the standalone screen: loads the follows and the followed people, filters them, removes one, keeps the failed row in place
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
 import { SubscriptionTypeSchema } from "@max-events/api-contracts";
-import type { Subscription, SubscriptionType } from "@max-events/api-contracts";
+import type { Friend, Subscription, SubscriptionType } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 import { useRoute } from "../routing/router";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { AppButton, AppChip, AppSection, AppState } from "../ui/primitives";
@@ -36,14 +38,22 @@ export const SUBSCRIPTION_TYPES: readonly SubscriptionType[] = SubscriptionTypeS
 
 export const SUBSCRIPTION_TYPE_ICONS: Record<SubscriptionType, ActionIconName> = { organizer: "building", place: "pin", interest: "tag" };
 
-/** Экран 38 spells this out: «Подписаться» on a friend's profile is a different thing the backend does not keep (#501). */
-export const PEOPLE_SUBSCRIPTION_NOTE = "Подписки на людей живут отдельно: кнопка «Подписаться» в профиле друга сюда не попадает.";
+/**
+ * The people group is here but it is not a Subscription: the backend keeps organizer, place and
+ * interest and nothing else (#501), and «Подписаться» in a profile writes the follow set of экран 02
+ * instead. The screen shows both, and says which is which — one counter over two stores is the honest
+ * reading of «подписки», two lists under one word would not be.
+ */
+export const PEOPLE_SUBSCRIPTION_NOTE = "Подписки на людей хранятся отдельно от подписок на организаторов, места и интересы.";
 
-export type SubscriptionFilter = "all" | SubscriptionType;
+export const PEOPLE_GROUP_HEADING = "Люди";
 
-/** Only the all-chip carries a number: a type chip counts itself in the group heading below. */
-export function subscriptionFilterLabel(filter: SubscriptionFilter, subscriptions: Subscription[]): string {
-  return filter === "all" ? `Все · ${subscriptions.length}` : SUBSCRIPTION_TYPE_PLURALS[filter];
+export type SubscriptionFilter = "all" | SubscriptionType | "people";
+
+/** Only the all-chip carries a number: every other chip counts itself in the group heading below. */
+export function subscriptionFilterLabel(filter: SubscriptionFilter, subscriptions: Subscription[], peopleCount = 0): string {
+  if (filter === "all") return `Все · ${subscriptions.length + peopleCount}`;
+  return filter === "people" ? PEOPLE_GROUP_HEADING : SUBSCRIPTION_TYPE_PLURALS[filter];
 }
 
 export function groupSubscriptions(subscriptions: Subscription[]): Array<{ type: SubscriptionType; rows: Subscription[] }> {
@@ -52,29 +62,35 @@ export function groupSubscriptions(subscriptions: Subscription[]): Array<{ type:
 
 interface SubscriptionsViewProps {
   subscriptions: Subscription[];
+  /** People the viewer follows: the fourth group, coming from the follow set rather than from `subscriptions` (#501). */
+  people?: Friend[];
   filter?: SubscriptionFilter;
   onFilter?: (filter: SubscriptionFilter) => void;
-  /** The one being removed right now, so its button cannot be pressed twice. */
+  /** The one being removed right now, so its button cannot be pressed twice; a person is keyed by their user id. */
   removingId?: string | null;
   /** A failed unsubscribe leaves the row in place; without this the button would just look dead. */
   failed?: boolean;
   onUnsubscribe?: (subscriptionId: string) => void;
+  onUnfollow?: (userId: string) => void;
   onOpenPlace?: (placeId: string) => void;
 }
 
-export function SubscriptionsView({ subscriptions, filter = "all", onFilter = () => {}, removingId = null, failed = false, onUnsubscribe = () => {}, onOpenPlace }: SubscriptionsViewProps) {
-  const shown = filter === "all" ? subscriptions : subscriptions.filter((subscription) => subscription.type === filter);
+export function SubscriptionsView({ subscriptions, people = [], filter = "all", onFilter = () => {}, removingId = null, failed = false, onUnsubscribe = () => {}, onUnfollow = () => {}, onOpenPlace }: SubscriptionsViewProps) {
+  const shown = filter === "all" ? subscriptions : filter === "people" ? [] : subscriptions.filter((subscription) => subscription.type === filter);
+  const shownPeople = filter === "all" || filter === "people" ? people : [];
+  const total = subscriptions.length + people.length;
   return (
     <section className="app-subs" aria-label="Подписки">
       <div className="app-subs-filters" role="group" aria-label="Типы подписок">
-        {(["all", ...SUBSCRIPTION_TYPES] as SubscriptionFilter[]).map((candidate) => (
+        {/* Чип «Люди» стоит последним: три типа — это то, что хранит бэкенд, люди приходят из другого места */}
+        {(["all", ...SUBSCRIPTION_TYPES, "people"] as SubscriptionFilter[]).map((candidate) => (
           <AppChip key={candidate} pressed={filter === candidate} onClick={() => onFilter(candidate)}>
-            {subscriptionFilterLabel(candidate, subscriptions)}
+            {subscriptionFilterLabel(candidate, subscriptions, people.length)}
           </AppChip>
         ))}
       </div>
-      {subscriptions.length === 0 && <AppState hint={PEOPLE_SUBSCRIPTION_NOTE}>Пока нет подписок — подпишитесь на организатора или место, и новые события придут в чат с ботом.</AppState>}
-      {subscriptions.length > 0 && shown.length === 0 && <AppState>В этой группе пока пусто.</AppState>}
+      {total === 0 && <AppState hint={PEOPLE_SUBSCRIPTION_NOTE}>Пока нет подписок — подпишитесь на организатора или место, и новые события придут в чат с ботом.</AppState>}
+      {total > 0 && shown.length + shownPeople.length === 0 && <AppState>В этой группе пока пусто.</AppState>}
       {groupSubscriptions(shown).map(({ type, rows }) => (
         <div key={type}>
           <p className="app-subs-group">
@@ -111,8 +127,29 @@ export function SubscriptionsView({ subscriptions, filter = "all", onFilter = ()
           })}
         </div>
       ))}
+      {shownPeople.length > 0 && (
+        <div>
+          <p className="app-subs-group">
+            {PEOPLE_GROUP_HEADING} · {shownPeople.length}
+          </p>
+          {shownPeople.map((person) => (
+            <div key={person.id} className="app-subs-row">
+              {/* Чужого профиля в приложении нет, поэтому строка человека никуда не ведёт — как организатор и интерес */}
+              <span className="app-subs-target">
+                <span className="app-subs-mark app-subs-mark--people" aria-hidden="true">
+                  <ActionIcon name="users" size={20} strokeWidth={2.2} />
+                </span>
+                <span className="app-subs-title">{person.name}</span>
+              </span>
+              <button type="button" className="app-subs-off" disabled={removingId === person.id} aria-label={`Отписаться: ${person.name}`} onClick={() => onUnfollow(person.id)}>
+                Отписаться
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       {failed && <AppState error>Не удалось отписаться.</AppState>}
-      {subscriptions.length > 0 && (
+      {total > 0 && (
         <p className="app-subs-note">
           <ActionIcon name="alert" size={18} strokeWidth={2.2} />
           <span>{PEOPLE_SUBSCRIPTION_NOTE}</span>
@@ -155,7 +192,10 @@ export function MySubscriptionsView({ subscriptions, removingId = null, failed =
 
 export function SubscriptionsPage() {
   const { navigate } = useRoute();
+  const auth = useAuth();
+  const userId = auth.status === "authenticated" ? auth.user.id : null;
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [people, setPeople] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<SubscriptionFilter>("all");
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -178,6 +218,21 @@ export function SubscriptionsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (userId === null) return;
+    let alive = true;
+    // The people group is a second store, so it loads on its own: the three kinds must not wait for it.
+    apiClient.listFollowing(userId).then(
+      (list) => {
+        if (alive) setPeople(list);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
   const unsubscribe = useCallback((subscriptionId: string) => {
     setRemovingId(subscriptionId);
     setFailed(false);
@@ -193,6 +248,25 @@ export function SubscriptionsPage() {
     );
   }, []);
 
+  const unfollow = useCallback(
+    (personId: string) => {
+      setRemovingId(personId);
+      setFailed(false);
+      // The follow set is written whole, not toggled: PUT /friends/follows is the only writer there is.
+      apiClient.followFriends(people.filter((person) => person.id !== personId).map((person) => person.id)).then(
+        (stored) => {
+          setPeople((current) => current.filter((person) => stored.includes(person.id)));
+          setRemovingId(null);
+        },
+        () => {
+          setFailed(true);
+          setRemovingId(null);
+        },
+      );
+    },
+    [people],
+  );
+
   if (loading) return <AppState>Загружаем подписки…</AppState>;
-  return <SubscriptionsView subscriptions={subscriptions} filter={filter} onFilter={setFilter} removingId={removingId} failed={failed} onUnsubscribe={unsubscribe} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} />;
+  return <SubscriptionsView subscriptions={subscriptions} people={people} filter={filter} onFilter={setFilter} removingId={removingId} failed={failed} onUnsubscribe={unsubscribe} onUnfollow={unfollow} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} />;
 }
