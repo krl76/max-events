@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClient } from "./client";
 import { installMockApi, mockEvents, OFFER_TTL_MS, resetMockBookings, resetMockWaitlist } from "./mock";
 
@@ -24,6 +24,12 @@ async function fillEvent(api: ApiClient, eventId: string, capacity: number): Pro
 
 describe("waitlist mock flow", () => {
   let restore: (() => void) | null = null;
+
+  // Демо-фикстура уже раскупила событие с наименьшей вместимостью и выстроила за ним очередь
+  beforeEach(() => {
+    resetMockWaitlist();
+    resetMockBookings();
+  });
 
   afterEach(() => {
     restore?.();
