@@ -20,7 +20,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { EventCategory } from "@max-events/api-contracts";
-import { apiClient, type CalendarEntry, type CheckInCode, type MySlotsBoard } from "../api/client";
+import { apiClient, whenEndpointMissing, type CalendarEntry, type CheckInCode, type MySlotsBoard } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { shareResult, webApp } from "../max/bridge";
@@ -312,6 +312,9 @@ export function MyBookingsView({ board, tab, query, searching, menuId, onTab, on
   );
 }
 
+/** Ни одного слота и ни одной очереди — ответ на «слотов на этом сервере нет вовсе», а не на «их у тебя нет». */
+const NO_SLOTS: MySlotsBoard = { bookings: [], waitlist: [] };
+
 export function MyBookingsPage() {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
@@ -326,7 +329,9 @@ export function MyBookingsPage() {
     if (userId === null) return () => {};
     let alive = true;
     setState({ status: "loading" });
-    Promise.all([apiClient.listMySlots(userId), apiClient.listCalendar(), apiClient.listCheckInCodes(userId)]).then(
+    // Брони событий — ключевой запрос экрана; слоты и коды входа — домен, которого на бэкенде ещё
+    // нет (#492). Их отсутствие оставляет экран без этих карточек, а не вместо экрана.
+    Promise.all([apiClient.listMySlots(userId).catch(whenEndpointMissing(NO_SLOTS)), apiClient.listCalendar(), apiClient.listCheckInCodes(userId).catch(whenEndpointMissing<CheckInCode[]>([]))]).then(
       ([slots, calendar, codes]) => {
         if (alive) setState({ status: "ready", board: bookingCards(slots, calendar, codes, new Date()) });
       },

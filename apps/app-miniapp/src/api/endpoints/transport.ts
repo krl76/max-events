@@ -11,6 +11,8 @@
 // - MethodOptions - per-request HTTP method and JSON body
 // - ApiTransport - base class: baseUrl, init-data/organizer headers, request/requestVoid
 // - ApiMixin - constructor bound the domain mixins extend
+// - isEndpointMissing - the server answered 404 to a path that has nothing to miss, i.e. the endpoint is not there yet
+// - whenEndpointMissing - rejection handler turning a missing endpoint into a value, leaving every other failure a failure
 // END_MODULE_MAP
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
@@ -99,6 +101,29 @@ export class ApiTransport {
     }
     return parsed.data;
   }
+}
+
+/**
+ * Whether the request failed because the server has no such endpoint. Nest answers 404 both for «нет
+ * такого маршрута» and for «нет такой записи», so this only tells the two apart on a path that names
+ * no entity — `/notifications/summary`, `/calendar/shared`, `/feed/cards`. Callers use it to keep the
+ * two apart in the interface: a block the server cannot answer at all disappears, a block whose
+ * request merely failed says so.
+ */
+export function isEndpointMissing(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404;
+}
+
+/**
+ * Rejection handler for a request the screen can do without: an endpoint the backend does not have
+ * becomes the given value, anything else still rejects, so a real failure is not dressed up as an
+ * empty answer.
+ */
+export function whenEndpointMissing<T>(value: T): (error: unknown) => T {
+  return (error: unknown) => {
+    if (isEndpointMissing(error)) return value;
+    throw error;
+  };
 }
 
 /** Constructor bound every domain mixin extends; the any[] rest is what TypeScript requires of a mixin base. */

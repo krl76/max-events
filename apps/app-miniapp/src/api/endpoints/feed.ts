@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Feed and stories endpoints of the api client: the stories rail, the home feed cards (макет, экран 03), the impression wall with its likes and comments, and the two publication screens (макет, экраны 05 и 06).
-// SCOPE: GET/POST /stories, GET /feed/cards, GET/POST /feed, POST /feed/drafts, POST /feed/:id/like, POST /feed/:id/comments; the FeedCard aggregate is a client-side shape like EventDetails in ./catalog.ts. The header bell of экран 03 moved out with its screen: the inbox and its unread count live in ./notifications.ts.
+// SCOPE: GET/POST /stories, GET /feed/cards, GET/POST /feed, POST /feed/drafts, POST /feed/:id/like, POST /feed/:id/comments, plus GET /events and GET /places read as the fallback behind GET /feed/cards; the FeedCard aggregate is a client-side shape like EventDetails in ./catalog.ts. The header bell of экран 03 moved out with its screen: the inbox and its unread count live in ./notifications.ts.
 // DEPENDS: ./transport.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -22,11 +22,13 @@
 // - FeedFriendCard - friend post of the home feed: the author, the event hero with its live/hit badges, the counters, the caption and the comments
 // - FeedPlaceCard - venue post of the home feed: the place header with rating and travel time, the slot offer, the friend quote and the viewer status block
 // - FeedCard - discriminated union of the two home feed card kinds
+// - feedCardsFromPosts - home feed cards built out of GET /feed + GET /events + GET /places, for a server that does not answer GET /feed/cards yet
 // - withFeed - ApiClient.listStories / createStory / listFeedCards / listFeedPosts / createFeedPost / savePostDraft / toggleFeedLike / addFeedComment
 // END_MODULE_MAP
 
 import { EventSchema, FeedCommentSchema, FeedPostSchema, FriendSchema, ParticipationStatusSchema, PlaceSchema, StorySchema } from "@max-events/api-contracts";
 import type { Event, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, ParticipationStatus, Place, Story } from "@max-events/api-contracts";
+import { isEndpointMissing } from "./transport";
 import type { ApiMixin, ZodSchema } from "./transport";
 
 /** Feed comment attributed to its author. */
@@ -170,7 +172,8 @@ export interface FeedFriendCard {
   /** The comments shown under the post; commentsCount is the full number. */
   comments: ContractFeedComment[];
   commentsCount: number;
-  publishedAt: string;
+  /** When the post was published; null when the card was built from a post DTO that carries no time at all (see feedCardsFromPosts). */
+  publishedAt: string | null;
 }
 
 /** Venue post of the home feed (макет, экран 03): a place posting its own offer, with the viewer status block. */
@@ -241,7 +244,7 @@ function parseFriendCard(raw: Record<string, unknown>): FeedFriendCard | null {
   const myStatus = parseStatus(raw.myStatus);
   const counts = parseCounts(raw.counts);
   if (!author.success || !event.success || !comments.success || !myStatus.ok || counts === null) return null;
-  if (typeof raw.id !== "string" || typeof raw.text !== "string" || typeof raw.publishedAt !== "string") return null;
+  if (typeof raw.id !== "string" || typeof raw.text !== "string" || !isNullableString(raw.publishedAt)) return null;
   if (typeof raw.likesCount !== "number" || typeof raw.likedByMe !== "boolean" || typeof raw.commentsCount !== "number") return null;
   if (typeof raw.live !== "boolean" || typeof raw.hit !== "boolean" || !isNullableString(raw.placeTitle) || !isNullableNumber(raw.distanceKm)) return null;
   return { kind: "friend", id: raw.id, author: author.data, placeTitle: raw.placeTitle, distanceKm: raw.distanceKm, event: event.data, live: raw.live, hit: raw.hit, counts, myStatus: myStatus.value, text: raw.text, likesCount: raw.likesCount, likedByMe: raw.likedByMe, comments: comments.data, commentsCount: raw.commentsCount, publishedAt: raw.publishedAt };
@@ -284,6 +287,52 @@ const FeedCardsSchema: ZodSchema<FeedCard[]> = {
   },
 };
 
+/** The event is running right now — the cyan «Сейчас идёт» chip. An event with no end has no «right now» to be inside of, so it is not claimed to be live. */
+function isEventLive(event: Event, now: Date): boolean {
+  if (event.endsAt === null) return false;
+  const at = now.getTime();
+  return Date.parse(event.startsAt) <= at && at < Date.parse(event.endsAt);
+}
+
+const NO_FEED_COUNTS: FeedCardCounts = { wantsToGo: null, going: null, waitlist: null, freeSeats: null };
+
+/**
+ * Home feed cards assembled from the endpoints a server without GET /feed/cards does have: the
+ * impression wall (GET /feed), the event listing and the venue listing. Everything a card carries
+ * beyond a post and its event has no source there and stays empty rather than invented — the
+ * distance and the social counters are #496, the viewer status would cost one request per card, the
+ * «ХИТ НЕДЕЛИ» flag is not a column, and a post DTO carries no publication time at all, so the
+ * «25 минут назад» line is absent instead of reading «только что» about a week-old post. Venue cards
+ * have no source of any kind (#492), so the fallback answers friend cards alone.
+ */
+export function feedCardsFromPosts(posts: FeedPost[], events: Event[], places: Place[], now: Date): FeedFriendCard[] {
+  return posts.flatMap((post) => {
+    const event = events.find((item) => item.id === post.eventId);
+    if (event === undefined) return [];
+    return [
+      {
+        kind: "friend" as const,
+        id: post.id,
+        author: post.author,
+        placeTitle: places.find((item) => item.id === event.placeId)?.title ?? null,
+        distanceKm: null,
+        event,
+        live: isEventLive(event, now),
+        hit: false,
+        counts: NO_FEED_COUNTS,
+        myStatus: null,
+        text: post.text,
+        likesCount: post.likesCount,
+        likedByMe: post.likedByMe,
+        comments: post.comments,
+        // The wall answers the whole thread, so its length IS the count rather than a head of it.
+        commentsCount: post.comments.length,
+        publishedAt: null,
+      },
+    ];
+  });
+}
+
 export function withFeed<TBase extends ApiMixin>(Base: TBase) {
   return class FeedEndpoints extends Base {
     listStories(): Promise<Story[]> {
@@ -304,9 +353,19 @@ export function withFeed<TBase extends ApiMixin>(Base: TBase) {
      * the event hero, the social counters and the venue offer the wall posts never needed, and the
      * backend gaps behind them (#496 distance/rating/counters/hit, #492 slots) land here, not in
      * the impression post DTO. The userId param is a mock-only convenience, as elsewhere.
+     *
+     * A server that does not answer this path yet gets the cards built out of what it does answer
+     * (feedCardsFromPosts): the лента is the home screen and must open on the real backend, so it
+     * shows the posts that exist with the card fields no endpoint fills left empty.
      */
-    listFeedCards(userId: string): Promise<FeedCard[]> {
-      return this.request(`/feed/cards?userId=${encodeURIComponent(userId)}`, FeedCardsSchema);
+    async listFeedCards(userId: string): Promise<FeedCard[]> {
+      try {
+        return await this.request(`/feed/cards?userId=${encodeURIComponent(userId)}`, FeedCardsSchema);
+      } catch (error) {
+        if (!isEndpointMissing(error)) throw error;
+        const [posts, events, places] = await Promise.all([this.request("/feed", FeedPostSchema.array()), this.request("/events", EventSchema.array()), this.request("/places", PlaceSchema.array())]);
+        return feedCardsFromPosts(posts, events, places, new Date());
+      }
     }
 
     listFeedPosts(eventId?: string, placeId?: string): Promise<FeedPost[]> {

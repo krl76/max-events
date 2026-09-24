@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - PLAN_STATUS_LABELS - ru labels for participant statuses (invited/confirmed/declined)
 // - PlanState - union of plan fetch states (loading / error / ready)
-// - PlanTimelineState - union of the timeline fetch states (loading / error / ready)
+// - PlanTimelineState - union of the timeline fetch states (loading / error / absent when the backend has no such endpoint / ready)
 // - PlanBudgetState - union of the money-block fetch states (loading / hidden / ready)
 // - planShareText - текст, который уходит в чат MAX: событие, сбор и точки вечера
 // - planChatLabel - подпись главной кнопки: чат плана уже есть — или его ещё надо создать
@@ -19,7 +19,7 @@
 
 import { useEffect, useState } from "react";
 import type { Friend, PlanBudget, PlanCancelScope, PlanCard, PlanParticipantStatus } from "@max-events/api-contracts";
-import { ApiError, apiClient, type PlanTimeline } from "../api/client";
+import { ApiError, apiClient, isEndpointMissing, type PlanTimeline } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { openChatLink, shareResult, webApp } from "../max/bridge";
 import { useRoute } from "../routing/router";
@@ -33,7 +33,7 @@ export const PLAN_STATUS_LABELS: Record<PlanParticipantStatus, string> = { invit
 
 export type PlanState = { status: "loading" } | { status: "error" } | { status: "ready"; card: PlanCard };
 
-export type PlanTimelineState = { status: "loading" } | { status: "error" } | { status: "ready"; timeline: PlanTimeline };
+export type PlanTimelineState = { status: "loading" } | { status: "error" } | { status: "absent" } | { status: "ready"; timeline: PlanTimeline };
 
 /** 403 прячет блок денег целиком: бюджет — поверхность участников (backend canView), а не всех, кто открыл ссылку. */
 export type PlanBudgetState = { status: "loading" } | { status: "hidden" } | { status: "ready"; budget: PlanBudget };
@@ -252,8 +252,10 @@ export function PlanPage({ id }: { id: string }) {
       (loaded) => {
         if (alive) setTimeline({ status: "ready", timeline: loaded });
       },
-      () => {
-        if (alive) setTimeline({ status: "error" });
+      // Пошагового вечера на бэкенде нет вовсе — тогда блока просто нет; «не удалось» остаётся за
+      // запросом, который мог бы пройти.
+      (error: unknown) => {
+        if (alive) setTimeline({ status: isEndpointMissing(error) ? "absent" : "error" });
       },
     );
     apiClient.getPlanBudget(id).then(

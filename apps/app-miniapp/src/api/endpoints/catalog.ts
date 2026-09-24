@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Catalog endpoints of the api client: the event and place listings, the event page aggregate, the participation block and the map context of экран 16 (weather, travel time).
-// SCOPE: Event filters (serialize/parse), GET /events[/:id[/details]], GET /events/cards, GET /places[/:id[/page]], the /events/:id/participation surface, GET /weather and GET /travel; client-side aggregates EventDetails, ParticipationStats, CatalogCard, MapWeather and TravelOption live here.
+// SCOPE: Event filters (serialize/parse), GET /events[/:id[/details]], GET /events/cards with its plain-listing fallback, GET /places[/:id[/page]], the /events/:id/participation surface, GET /weather and GET /travel; client-side aggregates EventDetails, ParticipationStats, CatalogCard, MapWeather and TravelOption live here.
 // DEPENDS: ./transport.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -12,6 +12,8 @@
 // - serializeEventFilters - filters -> query string ("" when empty)
 // - parseEventFilters - query string -> filters, invalid values dropped
 // - CatalogCard - list card of экран 08: the event plus the distance, rating and venue line the list DTO does not carry (#496)
+// - catalogCardsFromEvents - catalog cards built out of GET /events + GET /places, for a server that does not answer GET /events/cards yet
+// - eventCompanionsFrom - экран 23 built out of the participation stats and the friends on the event, for a server that does not answer GET /events/:id/companions yet
 // - MapWeather - city weather behind the map chip (макет, экран 16): now plus the change to come (#495)
 // - TravelMode - how the traveller gets there: on foot or by metro (#504)
 // - TravelOption - one way to the object: minutes, distance and transfers (#504)
@@ -29,8 +31,9 @@
 // - withCatalog - ApiClient.listEvents / listEventCards / listPlaces / getEvent / getEventDetails / getPlace / getPlacePage / getMapWeather / getTravelOptions / getParticipationStats / setParticipationStatus / deleteParticipation / setPlaceParticipationStatus / getEventForecast / listEventMoodTags / listEventNearby / getEventCompanions / getBookingOffer
 // END_MODULE_MAP
 
-import { EventCategorySchema, EventSchema, FriendSchema, OrganizationSchema, ParticipationSchema, ParticipationStatusSchema, PlacePageSchema, PlaceSchema, UserSchema } from "@max-events/api-contracts";
-import type { Event, EventCategory, Friend, Organization, Participation, ParticipationStatus, Place, PlacePage, User } from "@max-events/api-contracts";
+import { EventCategorySchema, EventFriendsSummarySchema, EventSchema, FriendSchema, OrganizationSchema, ParticipationSchema, ParticipationStatusSchema, PlacePageSchema, PlaceSchema, UserSchema } from "@max-events/api-contracts";
+import type { Event, EventCategory, EventFriend, Friend, Organization, Participation, ParticipationStatus, Place, PlacePage, User } from "@max-events/api-contracts";
+import { ApiError, isEndpointMissing } from "./transport";
 import type { ApiMixin, ZodSchema } from "./transport";
 
 /**
@@ -456,6 +459,45 @@ const BookingOfferSchema: ZodSchema<BookingOffer> = {
   },
 };
 
+/**
+ * Экран 23 assembled from the two endpoints a server without GET /events/:id/companions does have:
+ * the participation stats behind the three counters and the friends on the event behind the rows.
+ * What makes a row worth reading past the name and the status — the shared chat, the shared plans,
+ * the interest matches, the note — has no field anywhere, so a row carries none of it and the badges
+ * it would draw are simply not drawn. Nothing selects «the gathering of this event» either, so the
+ * «Собирается компания» teaser stays absent rather than being guessed at from the same friends.
+ */
+export function eventCompanionsFrom(stats: ParticipationStats, friends: EventFriend[]): EventCompanions {
+  return {
+    counts: {
+      going: stats.counts.going,
+      wants: stats.counts.wants_to_go + stats.counts.probably_going,
+      looking: stats.counts.looking_for_company + stats.counts.looking_for_travel_buddy + stats.counts.looking_for_after_event_company,
+    },
+    myStatus: stats.myStatus,
+    companions: friends.map((row) => ({ friend: row.friend, status: row.participationStatus, chatTitle: null, sharedPlansCount: 0, matchesCount: 0, interests: [], note: null })),
+    gathering: null,
+  };
+}
+
+/**
+ * Catalog cards assembled from the plain listing, for a server that does not answer GET /events/cards
+ * yet. Only the venue line has a source there — the distance and the rating are the #496 gap and stay
+ * empty, because a card that prints «0,0 км» has answered a question it cannot answer.
+ */
+export function catalogCardsFromEvents(events: Event[], places: Place[]): CatalogCard[] {
+  return events.map((event) => ({ event, distanceKm: null, rating: null, placeTitle: places.find((item) => item.id === event.placeId)?.title ?? null }));
+}
+
+/**
+ * Whether GET /events/cards was refused because the path is not routed. A server without it reads
+ * `cards` as the :id of GET /events/:id and answers 400 to the uuid pipe long before any handler —
+ * so on this path, and only on it, a 400 means the same thing as the 404 of an unrouted path.
+ */
+function isCatalogCardsMissing(error: unknown): boolean {
+  return isEndpointMissing(error) || (error instanceof ApiError && error.status === 400);
+}
+
 export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
   return class CatalogEndpoints extends Base {
     listEvents(filters: EventFilters = {}): Promise<Event[]> {
@@ -468,14 +510,23 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
      * rather than a wider /events: the plain listing is what every other screen reads, and the
      * distance/rating gap (#496) belongs to the card surface, not to the Event entity.
      */
-    listEventCards(filters: EventFilters = {}, origin: { latitude: number; longitude: number } | null = null): Promise<CatalogCard[]> {
-      const params = new URLSearchParams(serializeEventFilters(filters));
+    async listEventCards(filters: EventFilters = {}, origin: { latitude: number; longitude: number } | null = null): Promise<CatalogCard[]> {
+      const filterQuery = serializeEventFilters(filters);
+      const params = new URLSearchParams(filterQuery);
       if (origin !== null) {
         params.set("latitude", String(origin.latitude));
         params.set("longitude", String(origin.longitude));
       }
       const query = params.toString();
-      return this.request(`/events/cards${query ? `?${query}` : ""}`, CatalogCardsSchema);
+      try {
+        return await this.request(`/events/cards${query ? `?${query}` : ""}`, CatalogCardsSchema);
+      } catch (error) {
+        if (!isCatalogCardsMissing(error)) throw error;
+        // The origin is dropped: without /events/cards nothing measures a distance anyway, and a
+        // coordinate the plain listing does not know is one more way for the fallback to be refused.
+        const [events, places] = await Promise.all([this.request(`/events${filterQuery ? `?${filterQuery}` : ""}`, EventSchema.array()), this.request("/places", PlaceSchema.array())]);
+        return catalogCardsFromEvents(events, places);
+      }
     }
 
     listPlaces(): Promise<Place[]> {
@@ -546,9 +597,19 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/events/${eventId}/nearby`, EventNearbySchema);
     }
 
-    /** Экран 23 aggregate: counters, the viewer status, the people and the gathering teaser; the matches are mock-only. */
-    getEventCompanions(eventId: string, userId: string): Promise<EventCompanions> {
-      return this.request(`/events/${eventId}/companions?userId=${encodeURIComponent(userId)}`, EventCompanionsSchema);
+    /**
+     * Экран 23 aggregate: counters, the viewer status, the people and the gathering teaser; the matches
+     * are mock-only. A server without this path answers the counters and the friends separately, so the
+     * screen is assembled from those (eventCompanionsFrom) instead of failing whole.
+     */
+    async getEventCompanions(eventId: string, userId: string): Promise<EventCompanions> {
+      try {
+        return await this.request(`/events/${eventId}/companions?userId=${encodeURIComponent(userId)}`, EventCompanionsSchema);
+      } catch (error) {
+        if (!isEndpointMissing(error)) throw error;
+        const [stats, friends] = await Promise.all([this.request(`/events/${eventId}/participation/stats?userId=${encodeURIComponent(userId)}`, ParticipationStatsSchema), this.request(`/events/${eventId}/friends`, EventFriendsSummarySchema)]);
+        return eventCompanionsFrom(stats, friends.friends);
+      }
     }
 
     /** What экран 18 needs past EventDetails: the queue length and the friends already holding tickets (#496). */
