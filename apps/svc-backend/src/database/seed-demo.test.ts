@@ -52,19 +52,42 @@ describe("buildDemoData", () => {
     expect(data.places).toHaveLength(DEMO_COUNTS.normal.places);
     expect(data.events).toHaveLength(DEMO_COUNTS.normal.events);
     expect(data.stories).toHaveLength(DEMO_COUNTS.normal.stories);
-    expect(data.feedPosts).toHaveLength(DEMO_COUNTS.normal.feedPosts);
-    expect(data.reviews).toHaveLength(DEMO_COUNTS.normal.reviews);
-    expect(data.checkIns).toHaveLength(DEMO_COUNTS.normal.checkIns);
-    expect(data.bookings).toHaveLength(DEMO_COUNTS.normal.bookings);
-    expect(data.participations).toHaveLength(DEMO_COUNTS.normal.participations);
-    expect(data.plans).toHaveLength(DEMO_COUNTS.normal.plans);
-    expect(data.votes).toHaveLength(DEMO_COUNTS.normal.votes);
-    expect(data.weGroups).toHaveLength(DEMO_COUNTS.normal.weGroups);
-    expect(data.gatherings).toHaveLength(DEMO_COUNTS.normal.gatherings);
-    expect(data.microEvents).toHaveLength(DEMO_COUNTS.normal.microEvents);
-    expect(data.subscriptions).toHaveLength(DEMO_COUNTS.normal.subscriptions);
     expect(data.pageViews).toHaveLength(DEMO_COUNTS.normal.pageViews);
-    expect(data.lists).toHaveLength(ListPresetSchema.options.length);
+    expect(data.feedLikes).toHaveLength(DEMO_COUNTS.normal.feedLikes);
+    expect(data.feedComments).toHaveLength(DEMO_COUNTS.normal.feedComments);
+    expect(data.reports).toHaveLength(DEMO_COUNTS.normal.reports);
+  });
+
+  // Срез зрителя добавляется поверх общего населения, поэтому счётчик масштаба — нижняя граница,
+  // а не точное число: иначе любая новая строка «про меня» ломала бы тест на объёмы.
+  it("puts the viewer's own rows on top of the configured volumes", () => {
+    const data = build();
+    expect(data.feedPosts.length).toBeGreaterThan(DEMO_COUNTS.normal.feedPosts);
+    expect(data.reviews.length).toBeGreaterThan(DEMO_COUNTS.normal.reviews);
+    expect(data.checkIns.length).toBeGreaterThan(DEMO_COUNTS.normal.checkIns);
+    expect(data.bookings.length).toBeGreaterThan(DEMO_COUNTS.normal.bookings);
+    expect(data.participations.length).toBeGreaterThan(DEMO_COUNTS.normal.participations);
+    expect(data.plans.length).toBeGreaterThan(DEMO_COUNTS.normal.plans);
+    expect(data.votes.length).toBeGreaterThan(DEMO_COUNTS.normal.votes);
+    expect(data.weGroups.length).toBeGreaterThan(DEMO_COUNTS.normal.weGroups);
+    expect(data.gatherings.length).toBeGreaterThan(DEMO_COUNTS.normal.gatherings);
+    expect(data.microEvents.length).toBeGreaterThan(DEMO_COUNTS.normal.microEvents);
+    expect(data.subscriptions.length).toBeGreaterThan(DEMO_COUNTS.normal.subscriptions);
+    expect(data.collections.length).toBeGreaterThan(DEMO_COUNTS.normal.collections);
+    expect(data.waitlistEntries.length).toBeGreaterThan(DEMO_COUNTS.normal.waitlistEntries);
+    expect(data.lists.length).toBeGreaterThan(ListPresetSchema.options.length);
+  });
+
+  it("scales the tables the viewer does not own with the demo scale", () => {
+    const small = buildDemoData({ now, scale: "small", ownerUserId, devUserId });
+    const big = buildDemoData({ now, scale: "big", ownerUserId, devUserId });
+    expect(small.feedLikes.length).toBeLessThan(big.feedLikes.length);
+    expect(small.feedComments.length).toBeLessThan(big.feedComments.length);
+    expect(small.reports.length).toBeLessThan(big.reports.length);
+    expect(small.collections.length).toBeLessThan(big.collections.length);
+    expect(small.waitlistEntries.length).toBeLessThan(big.waitlistEntries.length);
+    expect(small.payments.length).toBeLessThan(big.payments.length);
+    expect(small.userAchievements.length).toBeLessThan(big.userAchievements.length);
   });
 
   it("keeps referential integrity across every generated table", () => {
@@ -139,17 +162,26 @@ describe("buildDemoData", () => {
     }
     expect(participationPairs.size).toBe(data.participations.length);
 
+    // Бронь на прошедшее событие есть только у зрителя: без неё вкладка «прошедшие» в календаре пуста.
     for (const booking of data.bookings) {
       expect(userIds.has(booking.userId)).toBe(true);
-      expect(futureEventIds.has(booking.eventId)).toBe(true);
+      expect(eventIds.has(booking.eventId)).toBe(true);
+      if (booking.userId !== devUserId) expect(futureEventIds.has(booking.eventId)).toBe(true);
     }
+    const activeBookingPairs = data.bookings.filter((row) => row.status === "active").map((row) => `${row.userId}:${row.eventId}`);
+    expect(new Set(activeBookingPairs).size).toBe(activeBookingPairs.length);
 
+    // База держит визит уникальным по (человек, событие) и (человек, площадка, день); строка, которая
+    // этого не уважает, просто теряется на вставке, и счётчик сида врёт.
+    const visitTuples = new Set<string>();
     for (const checkIn of data.checkIns) {
       expect(userIds.has(checkIn.userId)).toBe(true);
       expect((checkIn.eventId !== null) !== (checkIn.placeId !== null)).toBe(true);
       if (checkIn.eventId !== null) expect(pastEventIds.has(checkIn.eventId)).toBe(true);
       if (checkIn.placeId !== null) expect(placeIds.has(checkIn.placeId)).toBe(true);
+      visitTuples.add(checkIn.eventId !== null ? `event:${checkIn.userId}:${checkIn.eventId}` : `place:${checkIn.userId}:${checkIn.placeId}:${checkIn.visitDate}`);
     }
+    expect(visitTuples.size).toBe(data.checkIns.length);
 
     for (const story of data.stories) {
       expect(userIds.has(story.userId)).toBe(true);
@@ -183,7 +215,9 @@ describe("buildDemoData", () => {
     expect(viewTuples.size).toBe(data.pageViews.length);
 
     const listIds = new Set(data.lists.map((list) => list.id));
-    for (const list of data.lists) expect(list.userId).toBe(ownerUserId);
+    for (const list of data.lists) expect([ownerUserId, devUserId]).toContain(list.userId);
+    const presetPairs = data.lists.filter((list) => list.preset !== null).map((list) => `${list.userId}:${list.preset}`);
+    expect(new Set(presetPairs).size).toBe(presetPairs.length);
     for (const item of data.listItems) {
       expect(listIds.has(item.listId)).toBe(true);
       expect((item.eventId !== null) !== (item.placeId !== null)).toBe(true);
@@ -198,7 +232,7 @@ describe("buildDemoData", () => {
       events.add(option.eventId);
       voteOptionEvents.set(option.voteId, events);
     }
-    for (const vote of data.votes) expect(vote.hostUserId).toBe(ownerUserId);
+    for (const vote of data.votes) expect(userIds.has(vote.hostUserId)).toBe(true);
     for (const participant of data.voteParticipants) expect(userIds.has(participant.userId)).toBe(true);
     const ballotPairs = new Set<string>();
     for (const ballot of data.voteBallots) {
@@ -240,6 +274,8 @@ describe("buildDemoData", () => {
       expect(userIds.has(microEvent.authorId)).toBe(true);
       expect(microEvent.participantsLimit).toBeGreaterThan(0);
       expect(microEvent.startsAt.getTime()).toBeGreaterThan(now.getTime());
+      // MicroEventSchema отвергает запись, где участников больше лимита, и весь список отвечает 500.
+      expect(data.microEventParticipants.filter((row) => row.microEventId === microEvent.id).length).toBeLessThanOrEqual(microEvent.participantsLimit);
     }
     const microPairs = new Set<string>();
     for (const participant of data.microEventParticipants) {
@@ -269,6 +305,102 @@ describe("buildDemoData", () => {
       const allowed = new Set([...data.plans.filter((plan) => plan.id === expense.planId).flatMap((plan) => [plan.hostUserId]), ...data.planParticipants.filter((row) => row.planId === expense.planId).map((row) => row.userId)]);
       for (const shared of expense.shareUserIds) expect(allowed.has(shared)).toBe(true);
       expect(expense.amountRub).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps referential integrity across the tables the seed used to skip", () => {
+    const data = build();
+    const userIds = new Set([...data.users.map((user) => user.id), ownerUserId, devUserId]);
+    const eventIds = new Set(data.events.map((event) => event.id));
+    const placeIds = new Set(data.places.map((place) => place.id));
+    const postIds = new Set(data.feedPosts.map((post) => post.id));
+    const microEventIds = new Set(data.microEvents.map((microEvent) => microEvent.id));
+
+    const likePairs = new Set<string>();
+    for (const like of data.feedLikes) {
+      expect(postIds.has(like.postId)).toBe(true);
+      expect(userIds.has(like.userId)).toBe(true);
+      likePairs.add(`${like.postId}:${like.userId}`);
+    }
+    expect(likePairs.size).toBe(data.feedLikes.length);
+    for (const comment of data.feedComments) {
+      expect(postIds.has(comment.postId)).toBe(true);
+      expect(userIds.has(comment.authorUserId)).toBe(true);
+      expect(comment.createdAt.getTime()).toBeLessThanOrEqual(now.getTime());
+    }
+
+    const collectionIds = new Set(data.collections.map((collection) => collection.id));
+    for (const collection of data.collections) expect(userIds.has(collection.ownerUserId)).toBe(true);
+    const collectionMemberPairs = new Set<string>();
+    for (const member of data.collectionMembers) {
+      expect(collectionIds.has(member.collectionId)).toBe(true);
+      expect(userIds.has(member.userId)).toBe(true);
+      collectionMemberPairs.add(`${member.collectionId}:${member.userId}`);
+    }
+    expect(collectionMemberPairs.size).toBe(data.collectionMembers.length);
+    const collectionItemPairs = new Set<string>();
+    for (const item of data.collectionItems) {
+      expect(collectionIds.has(item.collectionId)).toBe(true);
+      expect(eventIds.has(item.eventId)).toBe(true);
+      expect(userIds.has(item.addedByUserId)).toBe(true);
+      collectionItemPairs.add(`${item.collectionId}:${item.eventId}`);
+    }
+    expect(collectionItemPairs.size).toBe(data.collectionItems.length);
+
+    // Очередь имеет смысл только на событии, где мест уже нет.
+    const queuePairs = new Set<string>();
+    for (const entry of data.waitlistEntries) {
+      expect(userIds.has(entry.userId)).toBe(true);
+      const event = data.events.find((row) => row.id === entry.eventId);
+      expect(event?.startsAt.getTime()).toBeGreaterThan(now.getTime());
+      expect(event?.capacity).not.toBeNull();
+      expect(event!.bookedCount).toBeGreaterThanOrEqual(event!.capacity!);
+      queuePairs.add(`${entry.userId}:${entry.eventId}`);
+    }
+    expect(queuePairs.size).toBe(data.waitlistEntries.length);
+
+    const grantPairs = new Set<string>();
+    for (const grant of data.userAchievements) {
+      expect(userIds.has(grant.userId)).toBe(true);
+      expect(grant.grantedAt.getTime()).toBeLessThanOrEqual(now.getTime());
+      grantPairs.add(`${grant.userId}:${grant.code}`);
+    }
+    expect(grantPairs.size).toBe(data.userAchievements.length);
+
+    const reportTargets = { event: eventIds, place: placeIds, feed_post: postIds, micro_event: microEventIds };
+    const reportPairs = new Set<string>();
+    for (const report of data.reports) {
+      expect(userIds.has(report.userId)).toBe(true);
+      expect(reportTargets[report.targetType].has(report.targetId)).toBe(true);
+      reportPairs.add(`${report.userId}:${report.targetType}:${report.targetId}`);
+    }
+    expect(reportPairs.size).toBe(data.reports.length);
+
+    const bookingById = new Map(data.bookings.map((booking) => [booking.id, booking]));
+    const eventById = new Map(data.events.map((event) => [event.id, event]));
+    for (const payment of data.payments) {
+      const booking = bookingById.get(payment.bookingId);
+      expect(booking).toBeDefined();
+      const event = eventById.get(booking!.eventId);
+      expect(event?.isPaid).toBe(true);
+      expect(payment.amountRub).toBe(event!.priceRub);
+      // Комиссия замораживается только на успешном платеже и всегда сходится с суммой.
+      const frozen = payment.status === "succeeded";
+      expect(payment.commissionFixedAt !== null).toBe(frozen);
+      if (frozen) expect(payment.commissionRub! + payment.netRub!).toBe(payment.amountRub);
+    }
+    expect(new Set(data.payments.map((payment) => payment.bookingId)).size).toBe(data.payments.length);
+    expect(new Set(data.payments.map((payment) => payment.providerPaymentId)).size).toBe(data.payments.length);
+
+    const campaignIds = new Set(data.promoCampaigns.map((campaign) => campaign.id));
+    for (const fulfillment of data.promoFulfillments) {
+      expect(campaignIds.has(fulfillment.campaignId)).toBe(true);
+      expect(userIds.has(fulfillment.referredUserId)).toBe(true);
+      expect(bookingById.has(fulfillment.bookingId)).toBe(true);
+    }
+    // Счётчик кампании обещает столько же приведённых друзей, сколько строк за ним стоит.
+    for (const campaign of data.promoCampaigns) {
+      expect(campaign.fulfillmentCount).toBe(data.promoFulfillments.filter((row) => row.campaignId === campaign.id).length);
     }
   });
 
