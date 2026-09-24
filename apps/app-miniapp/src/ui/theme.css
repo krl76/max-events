@@ -15769,6 +15769,9 @@ button.app-poll-result {
 
 .app-wt {
   display: flex;
+  /* Растёт на всю высоту прокрутки: на коротком шаге sticky ничего не тянет вниз, и без роста
+   * панель повисла бы посреди экрана — низ ей задаёт margin-top: auto, а не липкость. */
+  flex: 1 0 auto;
   flex-direction: column;
   /* Липкая панель шага обязана встать вплотную к таббару и в конце прокрутки, а не в 16px над ним */
   margin-bottom: calc(-1 * var(--app-space-l));
@@ -15980,14 +15983,20 @@ button.app-poll-result {
   margin-top: 14px;
 }
 
-/* Панель шага: рецепт липкости тот же, что у панели записи экрана 17 */
+/* Дистанция до панели живёт на последнем блоке потока: у самой панели верхний отступ забран под auto */
+.app-wt .app-whereto-hint {
+  margin-bottom: var(--app-space-l);
+}
+
+/* Панель шага: рецепт липкости тот же, что у панели записи экрана 17, плюс margin-top: auto —
+ * на коротком шаге sticky не тянет элемент ниже его места в потоке, и панель повисла бы посередине */
 .app-wt-bar {
   background: var(--app-card);
   border-top: var(--app-hairline);
   bottom: calc(-1 * var(--app-space-l));
   display: flex;
   gap: 10px;
-  margin: var(--app-space-l) calc(-1 * var(--app-space-screen)) 0;
+  margin: auto calc(-1 * var(--app-space-screen)) 0;
   padding: var(--app-space-m) var(--app-space-screen);
   position: sticky;
   z-index: 3;
