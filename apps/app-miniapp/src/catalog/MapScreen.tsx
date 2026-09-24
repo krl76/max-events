@@ -580,8 +580,9 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
           {notice}
         </p>
       )}
-      {/* Тайлы OSM требуют указания источника; собственная строка вместо контрола leaflet — чтобы она жила по сетке экрана. */}
-      <span className="app-map16-credit">© OpenStreetMap</span>
+      {/* Тайлы OSM требуют указания источника; собственная строка вместо контрола leaflet — чтобы она жила по сетке экрана.
+          На запасном полотне тайлов нет, и ссылаться там не на что: подпись снимается вместе с подложкой. */}
+      {status !== "error" && <span className="app-map16-credit">© OpenStreetMap</span>}
       {selected !== null && <MapSelectionCard title={selected.title} subtitle={selected.subtitle} category={selectedCategory} friendsLine={friendsLine} travel={travel} rainHint={mapRainHint(weather, travel)} routeOn={routeOn} onRoute={() => setRouteOn((on) => !on)} onDiscuss={onDiscuss} onOpen={() => (selected.eventId !== null ? onOpenEvent(selected.eventId) : selected.placeId !== null ? onOpenPlace(selected.placeId) : undefined)} onClose={() => setSelected(null)} />}
       <form className="app-map16-search" role="search" onSubmit={(event) => event.preventDefault()}>
         <ActionIcon name="search" size={18} />
