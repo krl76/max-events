@@ -7,7 +7,6 @@
 //
 // START_MODULE_MAP
 // - mockFeedCards - seeded home feed cards (макет, экран 03): three friend posts around one venue post, own statuses read from the participation stores
-// - mockNotificationsSummary - unread count behind the header bell; a fixture until the notifications domain exists (#494)
 // - mockFriendStories - seeded friend story fixtures (gradient placeholder images)
 // - listMockStories - own story (localStorage) + friend fixtures
 // - createMockStory - publish the own mock story from a data-URL photo (localStorage), keeping the composition the backend still strips (#502)
@@ -294,14 +293,6 @@ function placeCard(userId: string): FeedPlaceCard {
     myStatus: mockPlaceStatuses.get(`${userId}:${place.id}`) ?? null,
     publishedAt: publishedAgo(seed.agoMinutes),
   };
-}
-
-/**
- * What the header bell shows (макет, экран 03). Notifications are not a domain yet — smart-alerts is
- * a scheduler, not an inbox (#494) — so the count is a fixture rather than something counted.
- */
-export function mockNotificationsSummary(): { unreadCount: number } {
-  return { unreadCount: 3 };
 }
 
 /** Home feed cards in the order of the design: freshly published posts on top, then a friend post, the venue post and the rest. */

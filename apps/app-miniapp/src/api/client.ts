@@ -48,7 +48,6 @@
 // - ReviewFactTag - one «Что было правдой?» tag of экран 35 (code + ru label), mock-backed until the tag dictionary lands (#500)
 // - UpdateAppSettings - partial AppSettings patch
 // - VisitedPlace - one cell of the impressions grid: place, title and visit count
-// - NotificationsSummary - unread count behind the feed header bell; mock-only until the notifications domain exists (#494)
 // - OrganizerEvent - contract event plus the draft flag read from the raw `published` field (returned by toEventDto; a missing flag reads as published)
 // - OrganizerPlace - contract place plus the draft flag read from the raw `published` field (returned by toPlaceDto; a missing flag reads as published)
 // - POST_AUDIENCES - «Кто увидит» chips of the post composer in design order (макет, экран 06)
@@ -131,6 +130,16 @@
 // - EventMoodTag - one «Обстановка» tag of экран 17 with how many participants marked it
 // - EventNearbySpot - one «Рядом» row of экран 17: a venue around the event with its walking distance in metres
 // - EventWeatherHour - one column of the hourly weather strip of экран 17 (#495)
+// - NOTIFICATION_TYPES - what can produce a notification of экран 07, in one closed list
+// - NotificationType - union of NOTIFICATION_TYPES
+// - NOTIFICATION_TARGETS - the screens a notification can open, in server vocabulary
+// - NotificationTarget - union of NOTIFICATION_TARGETS
+// - NotificationLink - where a notification or one of its actions leads: target + the id it needs
+// - NotificationActionTone - form of an action pill: filled / dark fill / outline
+// - NotificationAction - one pill of a decision card (макет, экран 07)
+// - AppNotification - one inbox entry: type, actor, text, when, read state, target, pending decision and its deadline; the whole domain is mock-backed (#494)
+// - NotificationsSummary - unread count behind the feed header bell
+// - AnswerNotification - answer payload of a decision: who answered and which action they chose
 // END_MODULE_MAP
 
 import type { RecordPageViewWrite } from "@max-events/api-contracts";
@@ -142,6 +151,7 @@ import { withFeed } from "./endpoints/feed";
 import { withGroups } from "./endpoints/groups";
 import { withLists } from "./endpoints/lists";
 import { withModeration } from "./endpoints/moderation";
+import { withNotifications } from "./endpoints/notifications";
 import { withOrganizer } from "./endpoints/organizer";
 import { withPlans } from "./endpoints/plans";
 import { withProfile } from "./endpoints/profile";
@@ -159,7 +169,7 @@ export { EVENT_SORTS, parseEventFilters, serializeEventFilters } from "./endpoin
 export type { BookingOffer, CatalogCard, EventCompanion, EventCompanions, EventDetails, EventFilters, EventForecast, EventGatheringTeaser, EventMoodTag, EventNearbySpot, EventSort, EventWeatherHour, MapWeather, ParticipationStats, PlaceParticipation, TravelMode, TravelOption } from "./endpoints/catalog";
 export type { CreateReview, EventRating, ReviewFactTag } from "./endpoints/reviews";
 export { POST_AUDIENCES, STORY_AUDIENCES } from "./endpoints/feed";
-export type { CreateFeedPost, FeedCard, FeedCardCounts, FeedComment, FeedFriendCard, FeedPlaceCard, FeedPost, NotificationsSummary, PostAudience, PostDraft, PostDraftSaved, StoryAudience, StoryComposition, StoryPlaceSticker, StoryPoll } from "./endpoints/feed";
+export type { CreateFeedPost, FeedCard, FeedCardCounts, FeedComment, FeedFriendCard, FeedPlaceCard, FeedPost, PostAudience, PostDraft, PostDraftSaved, StoryAudience, StoryComposition, StoryPlaceSticker, StoryPoll } from "./endpoints/feed";
 export type { CreateCheckIn } from "./endpoints/bookings";
 export type { AddListItem, ListItemCard, ListScreen, ListSummary } from "./endpoints/lists";
 export type { MyCityPayload } from "./endpoints/profile";
@@ -171,6 +181,8 @@ export type { CreateReport, ModerationTarget, Report, ReportReason } from "./end
 export type { VoteScreen, VoteStatus, WeGroupCard } from "./endpoints/groups";
 export { SLOT_STATUSES } from "./endpoints/slots";
 export type { CheckInCode, CreateSlotBooking, MySlotBookingCard, MySlotWaitlistCard, MySlotsBoard, PlaceBoard, PlaceOccupancyHour, PlaceSlot, PlaceUpcomingEvent, PlaceVisitMonth, SlotBoard, SlotBooking, SlotBookingScreen, SlotChatMessage, SlotDay, SlotExtra, SlotStatus, SlotWaitlistEntry } from "./endpoints/slots";
+export { NOTIFICATION_TARGETS, NOTIFICATION_TYPES } from "./endpoints/notifications";
+export type { AnswerNotification, AppNotification, NotificationAction, NotificationActionTone, NotificationLink, NotificationTarget, NotificationType, NotificationsSummary } from "./endpoints/notifications";
 // One mixin per domain, applied in a flat chain: a new domain is one more line here plus its own file, and
 // adding an endpoint to an existing domain never touches this file at all.
 const WithAuth = withAuth(ApiTransport);
@@ -187,8 +199,9 @@ const WithDiscover = withDiscover(WithProfile);
 const WithOrganizer = withOrganizer(WithDiscover);
 const WithModeration = withModeration(WithOrganizer);
 const WithSlots = withSlots(WithModeration);
+const WithNotifications = withNotifications(WithSlots);
 
-export class ApiClient extends WithSlots {}
+export class ApiClient extends WithNotifications {}
 
 export const apiClient = new ApiClient();
 

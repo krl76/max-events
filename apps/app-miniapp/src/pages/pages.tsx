@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Page composition for the shell routing (home feed, search with the map and the swipe deck, event, place, friends with the discovery/people entries, «Моё» (plans/calendar/saved), profile, whereto wizard, nearby screen, reverse discovery, people matching, plans, day route builder).
 // SCOPE: Thin route-to-page mapping; page internals live in their own modules.
-// DEPENDS: ../routing/router.js, ../catalog/MapPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../assist/AssistSection.js, ../taste/AfterMeSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../plans/PlanCreatePage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../feed/FeedScreen.js, ../organizer/OrganizerPage.js, ../moderation/ModerationPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js, ../search/SearchPage.js, ../swipe/SwipePage.js, ../ui/primitives.js (AppSkeleton), ../catalog/CatalogPage.js, ../today/TodaySection.js, ../create/CreatePage.js, ../create/StoryCreatePage.js, ../create/PostCreatePage.js, ../review/AfterEventPage.js
+// DEPENDS: ../routing/router.js, ../catalog/MapPage.js, ../event/EventPage.js, ../place/PlacePage.js, ../friends/FriendsPage.js, ../profile/ProfilePage.js, ../whereto/WheretoPage.js, ../nearby/NearbyPage.js, ../discovery/DiscoveryPage.js, ../people/PeoplePage.js, ../assist/AssistSection.js, ../taste/AfterMeSection.js, ../plans/PlansPage.js, ../plans/PlanPage.js, ../plans/PlanCreatePage.js, ../route/DayRoutePage.js, ../micro/MicroEvents.js, ../feed/FeedPage.js, ../feed/FeedScreen.js, ../organizer/OrganizerPage.js, ../moderation/ModerationPage.js, ../promo/PromoSections.js, ../wegroup/WeGroupsPage.js, ../wegroup/WeGroupPage.js, ../votes/VotePage.js, ../search/SearchPage.js, ../swipe/SwipePage.js, ../ui/primitives.js (AppSkeleton), ../catalog/CatalogPage.js, ../today/TodaySection.js, ../create/CreatePage.js, ../create/StoryCreatePage.js, ../create/PostCreatePage.js, ../review/AfterEventPage.js, ../notifications/NotificationsPage.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -15,6 +15,7 @@
 // - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders the search screen (its «На карте» entry pushes the map), map renders the full-screen map, create renders the publication hub of the «Создать» tab and story-new its story screen, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar renders the «Планы» screen on the calendar tab, profile renders the profile screen with achievements/lists/subscriptions/my-city nav tiles, subscriptions renders the follows screen, whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the «Планы» screen (plans/calendar/saved tabs) and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, lists renders the «Списки» screen (макет, экран 37) and list(id) one saved list (макет, экран 39), organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen, moderation renders the moderator queue (hidden behind the backend's 403 for everyone else)
 // - RoutedPages - assist(ask) renders экран 10 «MAX AI ассистент»; ask is the question the screen opens with, so a chip of экрана 15 («Дешевле», «Без такси») arrives as a typed line rather than as a silent re-query
 // - RoutedPages - current page by route; companions(eventId) renders экран 23 «С кем пойти», pushed from the «Кто идёт» row of экран 17
+// - RoutedPages - notifications renders экран 07 «Умные уведомления», pushed from the bell of the feed header
 // END_MODULE_MAP
 
 import { lazy, Suspense, type ElementType, type LazyExoticComponent } from "react";
@@ -76,6 +77,7 @@ const SlotBookingPage = lazyNamed(() => import("../place/SlotBookingPage"), "Slo
 const BookingTicketPage = lazyNamed(() => import("../booking/BookingTicketPage"), "BookingTicketPage");
 const MyBookingsPage = lazyNamed(() => import("../booking/MyBookingsPage"), "MyBookingsPage");
 const CompanionsPage = lazyNamed(() => import("../event/CompanionsPage"), "CompanionsPage");
+const NotificationsPage = lazyNamed(() => import("../notifications/NotificationsPage"), "NotificationsPage");
 
 export function HomePage() {
   const { navigate } = useRoute();
@@ -174,5 +176,6 @@ function Routed() {
   if (route.name === "slot-ticket") return <BookingTicketPage id={route.id} />;
   if (route.name === "bookings") return <MyBookingsPage />;
   if (route.name === "companions") return <CompanionsPage eventId={route.eventId} />;
+  if (route.name === "notifications") return <NotificationsPage />;
   return <HomePage />;
 }

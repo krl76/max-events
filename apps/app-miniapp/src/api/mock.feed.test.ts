@@ -219,12 +219,6 @@ describe("home feed cards", () => {
     await expect(client.setPlaceParticipationStatus("b0000009-0000-4000-8000-000000000009", DEMO_USER_ID, "going")).rejects.toMatchObject({ name: "ApiError", status: 404 });
     await expect(client.setPlaceParticipationStatus(mockPlaces[0].id, "", "going")).rejects.toMatchObject({ name: "ApiError", status: 400 });
   });
-
-  it("answer the unread count behind the header bell (#494)", async () => {
-    restore = installMockApi();
-
-    expect((await new ApiClient("/api").getNotificationsSummary(DEMO_USER_ID)).unreadCount).toBeGreaterThan(0);
-  });
 });
 
 describe("publication payloads of the composers (#502)", () => {
