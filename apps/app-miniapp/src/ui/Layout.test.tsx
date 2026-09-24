@@ -111,12 +111,15 @@ describe("routeHasHeader", () => {
     // Карта показывает пилюлю «Поиск» поверх полотна, подбор свайпами — свою строку с кнопкой назад.
     expect(routeHasHeader({ name: "map" })).toBe(false);
     expect(routeHasHeader({ name: "swipe" })).toBe(false);
+    // Экран 17 несёт кнопку назад и «поделиться» в градиентном hero, экран 23 — название события в своей шапке.
+    expect(routeHasHeader({ name: "event", id: "e1" })).toBe(false);
+    expect(routeHasHeader({ name: "companions", eventId: "e1" })).toBe(false);
   });
 
   it("keeps the header on the home tab and the detail routes", () => {
     expect(routeHasHeader({ name: "home" })).toBe(true);
     expect(routeHasHeader({ name: "settings" })).toBe(true);
-    expect(routeHasHeader({ name: "event", id: "e1" })).toBe(true);
+    expect(routeHasHeader({ name: "place", id: "p1" })).toBe(true);
     expect(routeHasHeader({ name: "calendar" })).toBe(true);
   });
 

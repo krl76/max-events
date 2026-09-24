@@ -19,12 +19,13 @@
 // - transitionFromIdx - direction from history idx movement (forward -> push, backward -> pop, same -> tab)
 // - RouteProvider - current route synced with window.history (replaceState seed, popstate listener), back() with home fallback, transition direction + navSeq for screen animations
 // - useRoute - current route + navigate + back + canGoBack + transition + navSeq
+// - Route - ... | companions(eventId) — экран 23 «С кем пойти», вход с карточки события
 // END_MODULE_MAP
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getStartParam, getWebApp } from "../max/bridge";
 
-export type Route = { name: "home" } | { name: "search" } | { name: "swipe" } | { name: "create" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "settings" } | { name: "subscriptions" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "plan-new" } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "micro-new" } | { name: "story-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string } | { name: "moderation" } | { name: "after-event"; eventId: string } | { name: "lists" };
+export type Route = { name: "home" } | { name: "search" } | { name: "swipe" } | { name: "create" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "settings" } | { name: "subscriptions" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "plan-new" } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "micro-new" } | { name: "story-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string } | { name: "moderation" } | { name: "after-event"; eventId: string } | { name: "lists" } | { name: "companions"; eventId: string };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -118,6 +119,11 @@ function toRoute(value: unknown): Route | null {
     case "vote": {
       const { id } = value as { id?: unknown };
       return typeof id === "string" ? ({ name, id } as Route) : null;
+    }
+    // Экран 23 живёт при событии: свой case, потому что ключ — eventId
+    case "companions": {
+      const { eventId } = value as { eventId?: unknown };
+      return typeof eventId === "string" ? { name, eventId } : null;
     }
     default:
       return null;
