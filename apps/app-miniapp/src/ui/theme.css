@@ -16925,3 +16925,276 @@ button.app-poll-result {
 .app-subs-mark--people {
   background: var(--app-media-gradient-1);
 }
+
+/* --- Экран 16 «Карта»: современный вид поверх той же основы leaflet + тайлы OSM ----------------
+ * Блок дописан в конец намеренно: он переопределяет ранние правила пинов, не трогая их на месте.
+ * Тёмной схемы у OSM нет, и своего тайл-сервера у проекта тоже: подложка инвертируется фильтром
+ * на .leaflet-tile-pane. Это не трогает пины, попапы и маршрут — они лежат в соседних панах и
+ * остаются фирменными, — не добавляет ни ключа, ни зависимости и переключается вместе со схемой.
+ */
+.app-map {
+  background: var(--app-surface);
+}
+
+/* Полотно без leaflet (динамический импорт не дошёл): сетка вместо белого листа — экран
+ * продолжает читаться как карта, а строка-объяснение лежит поверх. */
+.app-map--blank {
+  background-color: var(--app-surface);
+  background-image: repeating-linear-gradient(0deg, rgba(var(--app-scheme-neutral), 0.07) 0 1px, transparent 1px 48px), repeating-linear-gradient(90deg, rgba(var(--app-scheme-neutral), 0.07) 0 1px, transparent 1px 48px);
+}
+
+.app-map-skeleton {
+  animation: app-skeleton-pulse 1.2s ease-in-out infinite alternate;
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+}
+
+.app-map .leaflet-container {
+  background: var(--app-surface);
+  font: inherit;
+}
+
+[data-theme="dark"] .app-map .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.55);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .app-map .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.55);
+  }
+}
+
+.app-map .leaflet-popup-content-wrapper {
+  background: var(--app-card);
+  box-shadow: 0 10px 30px rgba(13, 0, 26, 0.22);
+}
+
+.app-map .leaflet-popup-tip {
+  background: var(--app-card);
+}
+
+.app-map .leaflet-popup-close-button {
+  color: var(--app-text-tertiary);
+}
+
+/* Пин перестал быть точкой: обёртка ничего не рисует, каплю и глиф несёт .app-map-mark.
+ * Тень — drop-shadow на обёртке, а не box-shadow внутри: капля повёрнута, и тень поехала бы с ней. */
+.app-map-pin {
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  filter: drop-shadow(0 4px 8px rgba(13, 0, 26, 0.3));
+  transition: transform 0.16s ease-out;
+}
+
+.app-map-mark {
+  align-items: center;
+  background: var(--app-accent);
+  border: 2px solid var(--app-card);
+  border-radius: 50% 50% 50% 0;
+  box-sizing: border-box;
+  color: var(--app-accent-contrast);
+  display: flex;
+  height: 34px;
+  justify-content: center;
+  transform: rotate(-45deg);
+  width: 34px;
+}
+
+/* Капля повёрнута на -45°, глиф внутри разворачивается обратно */
+.app-map-mark-glyph {
+  display: flex;
+  transform: rotate(45deg);
+}
+
+.app-map-pin--promo .app-map-mark {
+  background: var(--app-badge);
+}
+
+/* Выбранный объект: пин приподнят, чтобы точка на карте и карточка внизу читались как одно */
+.app-map-pin--active {
+  z-index: 1200 !important;
+}
+
+.app-map-pin--active .app-map-mark {
+  border-color: var(--app-accent-contrast);
+  box-shadow: 0 0 0 4px rgba(71, 26, 255, 0.25);
+  transform: rotate(-45deg) scale(1.14);
+}
+
+.app-map-pin--cluster {
+  filter: drop-shadow(0 6px 14px rgba(13, 0, 26, 0.28));
+}
+
+/* Скопление: пузырь с числом вместо десятка налезающих капель */
+.app-map-cluster {
+  align-items: center;
+  background: var(--app-accent);
+  border: 3px solid var(--app-card);
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px rgba(71, 26, 255, 0.18);
+  box-sizing: border-box;
+  color: var(--app-accent-contrast);
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
+}
+
+.app-map-cluster-count {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* «Вы здесь»: точка с пульсирующим ореолом и подпись справа */
+.app-map-pin--me {
+  background: none;
+  border: none;
+  filter: none;
+  z-index: 1100 !important;
+}
+
+.app-map-me-dot {
+  background: var(--app-accent);
+  border: 3px solid var(--app-accent-contrast);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(13, 0, 26, 0.3);
+  box-sizing: border-box;
+  display: block;
+  height: 22px;
+  width: 22px;
+}
+
+.app-map-me-dot::after {
+  animation: app-map-me-pulse 2.4s ease-out infinite;
+  border: 2px solid var(--app-accent);
+  border-radius: 50%;
+  content: "";
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+@keyframes app-map-me-pulse {
+  from {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(3);
+  }
+}
+
+/* Пин друга остаётся плиткой макета, но обёртка больше не красит фон под ней */
+.app-map-pin--friends {
+  background: none;
+  border: none;
+}
+
+/* Собственные кнопки зума: контрол leaflet — это и есть «карта из 2012-го» */
+.app-map16-zoom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  position: absolute;
+  right: var(--app-space-screen);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
+.app-map16-zoom-btn {
+  align-items: center;
+  background: var(--app-card);
+  border: none;
+  border-radius: 14px;
+  box-shadow: var(--app-shadow-lift);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+.app-map16-zoom-btn:active {
+  background: var(--app-surface);
+}
+
+/* Строка о состоянии карты: под чипами слоёв, никогда не под карточкой выбранного объекта */
+.app-map16-notice {
+  background: var(--app-card);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow-lift);
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  left: 50%;
+  margin: 0;
+  max-width: calc(100% - 2 * var(--app-space-screen));
+  padding: 10px var(--app-space-l);
+  position: absolute;
+  text-align: center;
+  top: 116px;
+  transform: translateX(-50%);
+  width: max-content;
+  z-index: 2;
+}
+
+/* Указание источника тайлов: требование OSM, поэтому строка есть всегда, но весом в подпись */
+.app-map16-credit {
+  background: rgba(var(--app-scheme-neutral), 0.06);
+  border-radius: var(--app-radius-pill);
+  bottom: 76px;
+  color: var(--app-text-tertiary);
+  font-size: var(--app-font-size-caption);
+  padding: 2px 8px;
+  position: absolute;
+  right: var(--app-space-screen);
+  z-index: 2;
+}
+
+/* Карточка выбранного объекта выезжает, а не возникает: выбор на карте — это движение */
+.app-map16-card {
+  animation: app-map-card-in 0.2s ease-out;
+}
+
+@keyframes app-map-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-map-me-dot::after,
+  .app-map16-card,
+  .app-map-skeleton {
+    animation: none;
+  }
+}
+
+/* Плавающий хром экрана 16 лежал в z-index 2, а паны leaflet — в 200..700 внутри .leaflet-map-pane
+ * с z-index 400: кнопка «Поиск», погода, чипы слоёв, карточка объекта и строка поиска рисовались
+ * ПОД тайлами, то есть на карте их просто не было видно. Каталожный слой .app-map-layers это уже
+ * учитывал (1001), экран 16 — нет. Поднято разом, чтобы правка не расползлась по правилам. */
+.app-map16-top,
+.app-map16-layers,
+.app-map16-zoom,
+.app-map16-notice,
+.app-map16-credit,
+.app-map16-card,
+.app-map16-search {
+  z-index: 1001;
+}

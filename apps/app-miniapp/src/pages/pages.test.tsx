@@ -109,9 +109,10 @@ describe("RoutedPages", () => {
   });
 
   it("maps the map route to the map screen", async () => {
-    const html = await routedHtml({ name: "map" }, "Загружаем");
+    // Карта открывается полотном, а не заглушкой загрузки, поэтому опорная строка — сам холст.
+    const html = await routedHtml({ name: "map" }, "Карта событий и мест");
 
-    expect(html).toContain("Загружаем");
+    expect(html).toContain("Карта событий и мест");
     expect(html).not.toContain("app-feed-skeleton");
   });
 
