@@ -153,7 +153,7 @@ export function NotificationsView({ state, quietHours, now = new Date(), busy = 
         )}
         {empty && <AppState>Новых уведомлений нет</AppState>}
         {groups !== null && groups.pending.length > 0 && (
-          <h2 className="app-notify-section app-notify-section--live">
+          <h2 className="app-notify-section">
             <span className="app-notify-section-dot" aria-hidden="true" />
             Требует решения
           </h2>
