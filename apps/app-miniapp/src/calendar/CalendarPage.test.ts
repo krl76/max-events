@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CalendarView, calendarShareText, instrumentalName, peersLabel, splitCalendarEntries } from "./CalendarPage";
+import { CalendarView, SharedCalendarView, calendarShareText, instrumentalName, peersLabel, splitCalendarEntries } from "./CalendarPage";
 import type { Booking, Friend } from "@max-events/api-contracts";
 import type { CalendarEntry, SharedCalendar } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
@@ -125,5 +125,25 @@ describe("CalendarView", () => {
     expect(loading).toContain("Загрузка…");
     expect(error).toContain("app-state--error");
     expect(error).toContain("Не удалось загрузить календарь");
+  });
+});
+
+describe("SharedCalendarView", () => {
+  const props = { shared: { status: "ready" as const, shared: sharedWith(["Анна Соколова"]) }, entries: [], month: NOW, selected: NOW, now: NOW, onSelect: () => {}, onOpen: () => {}, onGoing: () => {}, onShare: () => {}, onAddFriend: () => {} };
+
+  it("keeps «Добавить друга» a single button and no longer unfolds a list inside the screen", () => {
+    const html = renderToStaticMarkup(createElement(SharedCalendarView, props));
+
+    expect(html).toContain("Добавить друга");
+    expect(html).not.toContain("Скрыть список");
+    expect(html).not.toContain("Кого позвать в календарь");
+    expect(html).not.toContain("Позвать");
+  });
+
+  it("draws no section switch of its own: the row of pills lives on the «Планы» tab", () => {
+    const html = renderToStaticMarkup(createElement(SharedCalendarView, props));
+
+    expect(html).not.toContain("app-cal-switch");
+    expect(html).not.toContain("Мои брони");
   });
 });

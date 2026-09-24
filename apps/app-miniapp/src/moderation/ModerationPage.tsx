@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - ModerationState - queue fetch state union (loading / forbidden / error / ready)
-// - ModerationQueueView - экран 46 presentational: the moderator badge, the two stream tabs and one card per reported object
+// - ModerationQueueView - экран 46 presentational: the moderator badge, the two streams as the app-wide row of filter pills and one card per reported object
 // - ModerationCaseView - экран 47 presentational: the object, its complaints, the confirmation card and the two irreversible actions
 // - ModerationPage - container: loads the queue with its targets, opens one разбор, wires unpublish / ban / dismiss
 // - ModerationEntry - profile tile that appears only for a viewer the backend lets into the queue
@@ -19,7 +19,7 @@ import { ApiError, apiClient, type ModerationTarget } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppButton, AppEmptyState, AppNavTiles, AppSkeletonList, AppState } from "../ui/primitives";
+import { AppButton, AppChip, AppEmptyState, AppNavTiles, AppSkeletonList, AppState } from "../ui/primitives";
 import { ACTION_DONE_LABELS, MODERATION_CONFIRM_COPY, MODERATION_IRREVERSIBLE_NOTE, MODERATION_STREAMS, REPORT_REASON_LABELS, REPORT_TARGET_LABELS, claimsTitle, formatClaimWhen, groupModerationQueue, moderationStreamCounts, type ModerationAction, type ModerationGroup, type ModerationStream } from "./ModerationQueue";
 
 export type ModerationState = { status: "loading" } | { status: "forbidden" } | { status: "error" } | { status: "ready"; reports: Report[]; targets: ModerationTarget[] };
@@ -45,12 +45,12 @@ export function ModerationQueueView({ state, stream = "complaints", onStream = (
           <ActionIcon name="shield" size={13} strokeWidth={2.2} /> Только для модераторов
         </span>
       </div>
-      <div className="app-mod-tabs" role="tablist" aria-label="Потоки очереди">
+      {/* Тот же ряд пилюль, что и на вкладке «Планы»: переключение раздела списка в приложении выглядит одинаково */}
+      <div className="app-tab-row" role="group" aria-label="Потоки очереди">
         {MODERATION_STREAMS.map((tab) => (
-          <button key={tab.id} type="button" role="tab" aria-selected={stream === tab.id} className={stream === tab.id ? "app-mod-tab app-mod-tab--on" : "app-mod-tab"} onClick={() => onStream(tab.id)}>
-            {tab.label}
-            <span className={stream === tab.id ? "app-mod-tab-count app-mod-tab-count--on" : "app-mod-tab-count"}>{counts[tab.id]}</span>
-          </button>
+          <AppChip key={tab.id} pressed={stream === tab.id} onClick={() => onStream(tab.id)}>
+            {tab.label} <span className="app-tab-count">{counts[tab.id]}</span>
+          </AppChip>
         ))}
       </div>
       {state.status === "loading" && <AppSkeletonList rows={3} />}

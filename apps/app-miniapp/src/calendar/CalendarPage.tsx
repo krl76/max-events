@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 22 «Календарь планов»: два сегмента — «Мои брони» (свои записи списком) и «Календарь» (сетка месяца со своими записями и записями друга, с которым календарь общий), напоминание о ближайшем, предупреждение о накладке, ссылка на календарь и приглашение друга.
-// SCOPE: Свои записи — apiClient.listCalendar (брони) и apiClient.listPlans (планы); половина друга — apiClient.getSharedCalendar, «Пойду» — apiClient.joinSharedCalendarEntry, «Добавить друга» — apiClient.addSharedCalendarPeer и listFriends (мок: понятия общей записи на бэкенде нет); отмена брони — apiClient.cancelBooking; «Поделиться» и «Ссылка на календарь» — shareResult из ../max/bridge.js. Микро-события идут отдельным блоком: они не брони и до GET /calendar не доходят.
-// DEPENDS: ../api/client.js (apiClient, CalendarEntry, SharedCalendar), ../auth/AuthContext.js, ../micro/MicroEvents.js (MyMicroEventsSection), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../max/bridge.js (shareResult, webApp), ./MonthCalendar.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
+// PURPOSE: Экран 22 «Календарь планов»: два раздела — «Мои брони» (свои записи списком) и «Календарь» (сетка месяца со своими записями и записями друга, с которым календарь общий), напоминание о ближайшем, предупреждение о накладке, ссылка на календарь и приглашение друга. Раздел выбирает ряд пилюль вкладки «Планы», своей шапки у экрана нет.
+// SCOPE: Свои записи — apiClient.listCalendar (брони) и apiClient.listPlans (планы); половина друга — apiClient.getSharedCalendar, «Пойду» — apiClient.joinSharedCalendarEntry, «Добавить друга» открывает FriendPicker и зовёт apiClient.addSharedCalendarPeer по каждому выбранному (мок: понятия общей записи на бэкенде нет), список друзей — listFriends; отмена брони — apiClient.cancelBooking; «Поделиться» и «Ссылка на календарь» — shareResult из ../max/bridge.js. Микро-события идут отдельным блоком: они не брони и до GET /calendar не доходят.
+// DEPENDS: ../api/client.js (apiClient, CalendarEntry, SharedCalendar), ../auth/AuthContext.js, ../micro/MicroEvents.js (MyMicroEventsSection), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../max/bridge.js (shareResult, webApp), ./MonthCalendar.js, ../routing/router.js, ../ui/FriendPicker.js (FriendPicker), ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -9,13 +9,13 @@
 // - CalendarState - union of calendar fetch states (loading / error / ready)
 // - splitCalendarEntries - split entries into upcoming (>= now, soonest first) and past (< now, latest first)
 // - CalendarView - presentational: two sections with booking cards and empty states
-// - CalendarTab - сегменты экрана 22: мои брони | календарь
+// - CalendarTab - разделы экрана 22: мои брони | календарь; какой открыт, решает ряд пилюль вкладки «Планы»
 // - SharedState - union of the shared-calendar fetch states (loading / error / ready)
 // - instrumentalName - имя в творительном падеже по его же окончанию («Анна» -> «Анной»)
 // - peersLabel - «Общий с Анной» под заголовком месяца
 // - calendarShareText - что уходит в чат MAX по «Поделиться» и «Ссылка на календарь»
 // - SharedCalendarView - презентационно: месяц, сетка, легенда, день со списком записей и низ экрана
-// - CalendarPage - контейнер вкладки «Календарь»: сегменты, загрузка обеих половин, «Пойду», приглашение и отмена брони
+// - CalendarPage - контейнер разделов «Мои брони» и «Календарь»: загрузка обеих половин, «Пойду», приглашение друзей через FriendPicker и отмена брони
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -26,6 +26,7 @@ import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { shareResult, webApp } from "../max/bridge";
 import { MyMicroEventsSection } from "../micro/MicroEvents";
 import { useRoute } from "../routing/router";
+import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppState, AppSection, AppMedia } from "../ui/primitives";
 import { MonthGrid, calendarReminder, dayTitle, entriesOn, entryTime, mergeCalendarEntries, monthTitle, overlapWarnings, type CalendarDayEntry } from "./MonthCalendar";
@@ -162,14 +163,12 @@ interface SharedCalendarViewProps {
   onOpen: (entry: CalendarDayEntry) => void;
   onGoing: (sharedId: string) => void;
   onShare: () => void;
+  /** «Добавить друга» больше ничего не раскрывает внутри экрана — выбор живёт во всплывающем окне. */
   onAddFriend: () => void;
-  /** Список друзей раскрыт: кого ещё можно позвать в общий календарь. */
-  invitable?: Friend[];
-  onInvite?: (userId: string) => void;
   notice?: string | null;
 }
 
-export function SharedCalendarView({ shared, entries, month, selected, now, onSelect, onOpen, onGoing, onShare, onAddFriend, invitable, onInvite = () => {}, notice = null }: SharedCalendarViewProps) {
+export function SharedCalendarView({ shared, entries, month, selected, now, onSelect, onOpen, onGoing, onShare, onAddFriend, notice = null }: SharedCalendarViewProps) {
   const dayEntries = entriesOn(entries, selected);
   const warnings = overlapWarnings(dayEntries);
   const reminder = calendarReminder(entries, now);
@@ -235,23 +234,6 @@ export function SharedCalendarView({ shared, entries, month, selected, now, onSe
         </ul>
       )}
 
-      {invitable !== undefined &&
-        (invitable.length === 0 ? (
-          <p className="app-cal-reminder">Все друзья уже в этом календаре.</p>
-        ) : (
-          <ul className="app-cal-rows" aria-label="Кого позвать в календарь">
-            {invitable.map((friend) => (
-              <li key={friend.id} className="app-cal-row">
-                <span className="app-cal-row-body app-cal-row-body--static">
-                  <span className="app-cal-row-title">{friend.name}</span>
-                </span>
-                <button type="button" className="app-cal-row-going" onClick={() => onInvite(friend.id)}>
-                  Позвать
-                </button>
-              </li>
-            ))}
-          </ul>
-        ))}
       {notice !== null && <p className="app-cal-reminder">{notice}</p>}
 
       <div className="app-cal-cta">
@@ -259,28 +241,23 @@ export function SharedCalendarView({ shared, entries, month, selected, now, onSe
           Ссылка на календарь
         </button>
         <button type="button" className="app-cal-cta-main" onClick={onAddFriend}>
-          {invitable === undefined ? "Добавить друга" : "Скрыть список"}
+          Добавить друга
         </button>
       </div>
     </section>
   );
 }
 
-const CALENDAR_TABS: ReadonlyArray<{ id: CalendarTab; label: string }> = [
-  { id: "bookings", label: "Мои брони" },
-  { id: "month", label: "Календарь" },
-];
-
-export function CalendarPage() {
+export function CalendarPage({ tab = "month" }: { tab?: CalendarTab } = {}) {
   const auth = useAuth();
   const { navigate } = useRoute();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
-  const [tab, setTab] = useState<CalendarTab>("month");
   const [state, setState] = useState<CalendarState>({ status: "loading" });
   const [plans, setPlans] = useState<PlanCard[]>([]);
   const [shared, setShared] = useState<SharedState>({ status: "loading" });
   const [friends, setFriends] = useState<Friend[]>([]);
   const [picking, setPicking] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [selected, setSelected] = useState<Date>(() => new Date());
   const [attempt, setAttempt] = useState(0);
@@ -340,6 +317,7 @@ export function CalendarPage() {
   const entries = useMemo(() => mergeCalendarEntries(state.status === "ready" ? state.entries : [], plans, shared.status === "ready" ? shared.shared : null), [state, plans, shared]);
 
   const peerIds = new Set(shared.status === "ready" ? shared.shared.peers.map((peer) => peer.friend.id) : []);
+  const invitable = friends.filter((friend) => !peerIds.has(friend.id));
 
   const going = (sharedId: string) => {
     setNotice(null);
@@ -349,12 +327,25 @@ export function CalendarPage() {
     );
   };
 
-  const invite = (friendId: string) => {
+  // Окно отдаёт список, потому что умеет и множественный выбор; здесь календарь открывают по одному
+  // и подряд, а общий ответ сервера — последний: он и есть состояние календаря после всех приглашений.
+  const invite = (friendIds: string[]) => {
     setNotice(null);
-    apiClient.addSharedCalendarPeer(friendId).then(
-      (loaded) => setShared({ status: "ready", shared: loaded }),
-      () => setNotice("Не удалось открыть календарь другу."),
-    );
+    setInviting(true);
+    friendIds
+      .reduce<Promise<SharedCalendar | null>>((chain, friendId) => chain.then(() => apiClient.addSharedCalendarPeer(friendId)), Promise.resolve(null))
+      .then(
+        (loaded) => {
+          setInviting(false);
+          setPicking(false);
+          if (loaded !== null) setShared({ status: "ready", shared: loaded });
+        },
+        () => {
+          setInviting(false);
+          setPicking(false);
+          setNotice("Не удалось открыть календарь другу.");
+        },
+      );
   };
 
   const share = () => {
@@ -367,13 +358,6 @@ export function CalendarPage() {
 
   return (
     <>
-      <div className="app-cal-switch" role="group" aria-label="Разделы календаря">
-        {CALENDAR_TABS.map((item) => (
-          <button key={item.id} type="button" className={tab === item.id ? "app-cal-switch-item app-cal-switch-item--on" : "app-cal-switch-item"} aria-pressed={tab === item.id} onClick={() => setTab(item.id)}>
-            {item.label}
-          </button>
-        ))}
-      </div>
       {tab === "month" ? (
         <SharedCalendarView
           shared={shared}
@@ -388,9 +372,7 @@ export function CalendarPage() {
           }}
           onGoing={going}
           onShare={share}
-          onAddFriend={() => setPicking((current) => !current)}
-          invitable={picking ? friends.filter((friend) => !peerIds.has(friend.id)) : undefined}
-          onInvite={invite}
+          onAddFriend={() => setPicking(true)}
           notice={notice}
         />
       ) : (
@@ -400,6 +382,7 @@ export function CalendarPage() {
           <MyMicroEventsSection />
         </>
       )}
+      {picking && <FriendPicker friends={invitable} title="Кого позвать в календарь" hint="Он увидит твои планы, ты — его." confirmLabel="Открыть календарь" emptyText="Все друзья уже в этом календаре." multiple busy={inviting} onConfirm={invite} onClose={() => setPicking(false)} />}
     </>
   );
 }
