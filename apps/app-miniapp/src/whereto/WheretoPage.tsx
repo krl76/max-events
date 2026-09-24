@@ -320,7 +320,7 @@ export function WheretoPage() {
     // attempt re-runs the same query after a failure; the origin may sharpen while the screen is open
   }, [query, origin.latitude, origin.longitude, attempt]);
 
-  const at = state.step === "ask" ? state.at : WHERETO_QUESTIONS.length;
+  const at = wizardStepIndex(state);
   // Один вход во все переходы: шаг за пределами последнего вопроса означает выдачу, но только когда
   // все три ответа на месте — иначе экран показал бы подборку по половине контекста.
   const show = (next: WheretoAnswers, to: number) => {
