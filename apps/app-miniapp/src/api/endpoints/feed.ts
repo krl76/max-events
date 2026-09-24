@@ -14,6 +14,8 @@
 // - StoryPlaceSticker - place sticker of a story: what it is about, the venue line under it and the free seats (макет, экран 05)
 // - StoryPoll - the poll drawn on a story: one question, its options and the highlighted answer (макет, экран 05)
 // - StoryComposition - everything a composed story carries beyond its image; POST /stories takes only imageUrl today and strips the rest (#502)
+// - StoryObjectKind - what an author can put on the story canvas: caption, event sticker, poll, free-seats counter (макет, экран 05)
+// - StoryCanvasObject - one object of the canvas and its place in the frame, in percent (#502)
 // - PostAudience - who a published post is shown to (макет, экран 06): friends / city / the company only
 // - POST_AUDIENCES - the post audiences in design order, «Друзья» first
 // - PostDraft - the автосохранение payload of the post composer (макет, экран 06); no draft table exists (#502)
@@ -96,11 +98,27 @@ export interface StoryPoll {
  * and the sticker, the poll and the audience arrive once #502 lands.
  */
 export interface StoryComposition {
-  /** The caption drawn over the story. */
+  /** The caption drawn over the story; empty when the author never put a text object on the canvas. */
   text: string;
   sticker: StoryPlaceSticker | null;
   poll: StoryPoll | null;
   audience: StoryAudience;
+  /** What the author put on the canvas and where, in the order they added it; absent for a story of one background (#502). */
+  objects?: StoryCanvasObject[];
+}
+
+/** What an author can put on the story canvas (макет, экран 05): a caption, the event sticker, a poll, the free-seats counter. */
+export type StoryObjectKind = "text" | "event" | "poll" | "seats";
+
+/**
+ * One object of the story canvas and where it sits. The position is a percentage of the frame, not
+ * pixels: the frame is as tall as the phone, and a story composed on one screen has to read the same
+ * on every other. Nothing on the backend holds it yet (#502).
+ */
+export interface StoryCanvasObject {
+  kind: StoryObjectKind;
+  x: number;
+  y: number;
 }
 
 /** Who a published post is shown to (макет, экран 06); no audience column behind it (#502). */

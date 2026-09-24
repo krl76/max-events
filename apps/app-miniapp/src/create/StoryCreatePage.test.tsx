@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { EventDetails } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
-import { nextStoryAudience, StoryCreateView, STORY_CANVASES, storyAudienceLabel, storyCanvasImage, storyComposition, storyPoll, storySticker, storyTimeLabel, type StoryDraft } from "./StoryCreatePage";
+import { addStoryObject, hasStoryObject, moveStoryObject, nextStoryAudience, removeStoryObject, StoryCreateView, STORY_CANVASES, STORY_OBJECT_ORDER, STORY_OBJECTS, storyAudienceLabel, storyCanvasImage, storyComposition, storyObjectEnabled, storyPoll, storySticker, storyTimeLabel, type StoryDraft } from "./StoryCreatePage";
 
 // Локальное время без смещения: «14:00» обязано читаться одинаково в любой зоне прогона.
 const STARTS_AT = "2026-09-19T14:00:00";
@@ -20,7 +20,10 @@ const detailsOf = (over: Partial<EventDetails> = {}): EventDetails => ({
   ...over,
 });
 
-const draftOf = (over: Partial<StoryDraft> = {}): StoryDraft => ({ canvas: "gradient-1", photoUrl: null, text: "", eventId: mockEvents[0].id, answer: null, audience: "close-friends", ...over });
+const draftOf = (over: Partial<StoryDraft> = {}): StoryDraft => ({ canvas: "gradient-1", photoUrl: null, text: "", eventId: mockEvents[0].id, answer: null, audience: "close-friends", objects: [], ...over });
+
+/** Черновик с объектами, разложенными по их местам из каталога — то, что получается после кнопок добавления. */
+const filledDraft = (over: Partial<StoryDraft> = {}): StoryDraft => ({ ...draftOf({ objects: STORY_OBJECT_ORDER.reduce<StoryDraft["objects"]>((objects, kind) => addStoryObject(objects, kind), []) }), ...over });
 
 describe("story sticker and poll of the design", () => {
   it("pads both halves, so 09:05 never reads as 9:5", () => {
@@ -84,10 +87,52 @@ describe("storyCanvasImage", () => {
   });
 });
 
+describe("объекты холста", () => {
+  it("кладёт объект на его место из каталога и не дублирует его повторным добавлением", () => {
+    const once = addStoryObject([], "event");
+    const twice = addStoryObject(once, "event");
+
+    expect(once).toEqual([{ kind: "event", x: STORY_OBJECTS.event.x, y: STORY_OBJECTS.event.y }]);
+    expect(twice).toEqual(once);
+    expect(hasStoryObject(once, "event")).toBe(true);
+    expect(hasStoryObject(once, "poll")).toBe(false);
+  });
+
+  it("снимает с холста только названный объект", () => {
+    const objects = addStoryObject(addStoryObject([], "text"), "poll");
+
+    expect(removeStoryObject(objects, "text").map((object) => object.kind)).toEqual(["poll"]);
+  });
+
+  it("держит центр перенесённого объекта в кадре: утащенный за край возвращать нечем", () => {
+    const objects = addStoryObject([], "text");
+
+    expect(moveStoryObject(objects, "text", 30, 70)).toEqual([{ kind: "text", x: 30, y: 70 }]);
+    expect(moveStoryObject(objects, "text", -40, 260)).toEqual([{ kind: "text", x: 6, y: 94 }]);
+  });
+
+  it("переносит только названный объект, остальные остаются на своих местах", () => {
+    const objects = addStoryObject(addStoryObject([], "text"), "poll");
+    const moved = moveStoryObject(objects, "text", 20, 20);
+
+    expect(moved.find((object) => object.kind === "poll")).toEqual(objects[1]);
+  });
+
+  it("не даёт добавить объект, которому нечем наполниться", () => {
+    const sticker = storySticker(detailsOf());
+
+    expect(storyObjectEnabled("text", null, null)).toBe(true);
+    expect(storyObjectEnabled("event", null, null)).toBe(false);
+    expect(storyObjectEnabled("poll", sticker, null)).toBe(false);
+    expect(storyObjectEnabled("seats", storySticker(detailsOf({ remainingSeats: null })), null)).toBe(false);
+    expect(storyObjectEnabled("seats", sticker, null)).toBe(true);
+  });
+});
+
 describe("storyComposition", () => {
   it("carries the trimmed caption, the sticker, the picked poll answer and the audience", () => {
     const sticker = storySticker(detailsOf());
-    const composition = storyComposition(draftOf({ text: "  Мангал в Горьком.  ", answer: 1, audience: "friends" }), sticker, storyPoll(STARTS_AT));
+    const composition = storyComposition(filledDraft({ text: "  Мангал в Горьком.  ", answer: 1, audience: "friends" }), sticker, storyPoll(STARTS_AT));
 
     expect(composition.text).toBe("Мангал в Горьком.");
     expect(composition.sticker).toEqual(sticker);
@@ -96,10 +141,27 @@ describe("storyComposition", () => {
   });
 
   it("keeps the sticker and the poll null when the event card never answered", () => {
-    const composition = storyComposition(draftOf(), null, null);
+    const composition = storyComposition(filledDraft(), null, null);
 
     expect(composition.sticker).toBeNull();
     expect(composition.poll).toBeNull();
+  });
+
+  it("публикует только то, что автор положил на холст: пустой холст — история из одного фона", () => {
+    const composition = storyComposition(draftOf({ text: "набрано, но не добавлено", answer: 1 }), storySticker(detailsOf()), storyPoll(STARTS_AT));
+
+    expect(composition.text).toBe("");
+    expect(composition.sticker).toBeNull();
+    expect(composition.poll).toBeNull();
+    expect(composition.objects).toEqual([]);
+  });
+
+  it("несёт расстановку холста, чтобы будущий эндпоинт собрал историю такой же", () => {
+    const draft = filledDraft();
+    const composition = storyComposition({ ...draft, objects: moveStoryObject(draft.objects, "text", 30, 12) }, storySticker(detailsOf()), storyPoll(STARTS_AT));
+
+    expect(composition.objects?.map((object) => object.kind)).toEqual([...STORY_OBJECT_ORDER]);
+    expect(composition.objects?.[0]).toEqual({ kind: "text", x: 30, y: 12 });
   });
 });
 
@@ -121,12 +183,59 @@ describe("StoryCreateView", () => {
       }),
     );
 
-  it("draws the sticker, the seat counter, the poll and both foot buttons of the design", () => {
+  it("открывается пустым холстом: ни чужой подписи, ни стикера, ни опроса, только подсказка", () => {
     const html = view();
 
+    expect(html).toContain("Пустой холст");
+    expect(html).not.toContain("Мангальная зона");
+    expect(html).not.toContain("осталось мест");
+    expect(html).not.toContain("Во сколько удобнее?");
+  });
+
+  it("рисует объект только после того, как автор его добавил", () => {
+    const html = view({ draft: filledDraft() });
+
+    expect(html).not.toContain("Пустой холст");
     expect(html).toContain("Мангальная зона");
     expect(html).toContain("осталось мест");
     expect(html).toContain("Во сколько удобнее?");
+  });
+
+  it("ставит объект на ту позицию, которую держит черновик", () => {
+    const draft = filledDraft();
+    const html = view({ draft: { ...draft, objects: moveStoryObject(draft.objects, "text", 30, 12) } });
+
+    expect(html).toContain("left:30%");
+    expect(html).toContain("top:12%");
+  });
+
+  it("даёт каждому объекту ручку переноса и снятия с холста", () => {
+    const html = view({ draft: filledDraft() });
+
+    expect(html).toContain("Передвинуть: Текст");
+    expect(html).toContain("Убрать: Опрос");
+    expect((html.match(/app-story-object-grip/g) ?? []).length).toBe(STORY_OBJECT_ORDER.length);
+  });
+
+  it("держит каталог объектов целиком: макет их показывал, экран даёт их добавить", () => {
+    const html = view();
+
+    for (const kind of STORY_OBJECT_ORDER) expect(html).toContain(STORY_OBJECTS[kind].label);
+    expect((html.match(/app-story-catalog-chip/g) ?? []).length).toBeGreaterThanOrEqual(STORY_OBJECT_ORDER.length);
+  });
+
+  it("гасит кнопку объекта, которому нечем наполниться, и отмечает уже добавленные", () => {
+    const empty = view({ sticker: null, poll: null });
+    const filled = view({ draft: filledDraft() });
+
+    // Текст доступен всегда, остальные три без карточки события пусты.
+    expect((empty.match(/disabled=""/g) ?? []).length).toBe(3);
+    expect((filled.match(/aria-pressed="true"/g) ?? []).length).toBeGreaterThanOrEqual(STORY_OBJECT_ORDER.length);
+  });
+
+  it("keeps the audience switch and the publish button of the design", () => {
+    const html = view();
+
     expect(html).toContain("Близкие друзья");
     expect(html).toContain("В историю");
   });
@@ -135,11 +244,12 @@ describe("StoryCreateView", () => {
     expect(view().match(/app-story-tile/g)?.length).toBeGreaterThanOrEqual(STORY_CANVASES.length + 1);
   });
 
-  it("hides the sticker, the seats and the poll when the catalog answered nothing", () => {
-    const html = view({ sticker: null, poll: null });
+  it("skips an object the catalog cannot fill instead of drawing an empty frame", () => {
+    const html = view({ draft: filledDraft(), sticker: null, poll: null });
 
     expect(html).not.toContain("осталось мест");
     expect(html).not.toContain("Во сколько удобнее?");
+    expect(html).toContain("Подпись истории");
     expect(html).toContain("В историю");
   });
 

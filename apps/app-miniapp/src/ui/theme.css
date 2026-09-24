@@ -16674,3 +16674,104 @@ button.app-poll-result {
   text-overflow: clip;
   white-space: normal;
 }
+
+/* Пустой холст истории: подсказка вместо чужого готового примера */
+.app-story-empty {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  left: var(--app-space-xl);
+  margin: 0;
+  position: absolute;
+  right: var(--app-space-xl);
+  text-align: center;
+  text-shadow: 0 2px 16px rgba(13, 0, 26, 0.35);
+  top: 38%;
+}
+
+/* Объект холста: место держит обёртка, поэтому у содержимого позиционирование снимается */
+.app-story-object {
+  max-width: calc(100% - 2 * var(--app-space-l));
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.app-story-object--text,
+.app-story-object--poll {
+  width: calc(100% - 2 * var(--app-space-xl));
+}
+
+.app-story-object > .app-story-caption,
+.app-story-object > .app-story-poll,
+.app-story-object > .app-story-seats,
+.app-story-object > .app-story-sticker {
+  inset: auto;
+  max-width: 100%;
+  position: relative;
+  width: 100%;
+}
+
+.app-story-object-tools {
+  display: flex;
+  gap: 4px;
+  position: absolute;
+  right: -10px;
+  top: -14px;
+}
+
+.app-story-object-drop,
+.app-story-object-grip {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.72);
+  border: none;
+  border-radius: 50%;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  height: 26px;
+  justify-content: center;
+  padding: 0;
+  width: 26px;
+}
+
+/* Ручка переноса: touch-action снят, иначе жест уходит скроллу страницы, а не объекту */
+.app-story-object-grip {
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Каталог объектов: то, что макет показывал готовой историей, здесь добавляется по кнопке */
+.app-story-catalog {
+  display: flex;
+  gap: var(--app-space-s);
+  overflow-x: auto;
+  padding-bottom: var(--app-space-s);
+  scrollbar-width: none;
+}
+
+.app-story-catalog-chip {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.45);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+}
+
+.app-story-catalog-chip--on {
+  background: var(--brand-white);
+  color: var(--brand-void);
+}
+
+.app-story-catalog-chip:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
