@@ -14,6 +14,7 @@
 // - parseDemoScale - SEED_DEMO_SCALE value to DemoScale, default normal
 // - assertLocalDatabaseUrl - throw unless the DATABASE_URL host is localhost/127.0.0.1, or allowRemote opens the door deliberately
 // - ViewerSlice - rows the signed-in dev user owns or takes part in
+// - ViewerSliceInput - pools the viewer slice is drawn from (clock, viewer id, people, places, events)
 // - buildViewerSlice - the viewer's own plans, groups, votes, subscriptions, bookings, lists, visits and collections
 // - buildUserAchievements - grants derived from the generated check-ins, by the same catalog the API reads
 // - buildDemoData - pure generation of all demo rows (deterministic ids via fakerRU.seed(42))
@@ -887,14 +888,20 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     });
   }
 
-  // check-ins: half on past events, half place visits
+  // check-ins: half on past events, half place visits; unique per (user, event) and (user, place, day)
+  // так же, как их держит база — иначе строка молча теряется на вставке.
   const checkIns: CheckInEntity[] = [];
-  for (let i = 0; i < c.checkIns; i += 1) {
-    if (i % 2 === 0) {
+  const visitTuples = new Set<string>();
+  for (let attempt = 0; checkIns.length < c.checkIns && attempt < c.checkIns * 50; attempt += 1) {
+    if (attempt % 2 === 0) {
       const event = pick(pastEvents);
+      const userId = pick(users).id;
+      const key = `event:${userId}:${event.id}`;
+      if (visitTuples.has(key)) continue;
+      visitTuples.add(key);
       checkIns.push({
         id: uuid(),
-        userId: pick(users).id,
+        userId,
         eventId: event.id,
         placeId: null,
         visitDate: null,
@@ -902,12 +909,18 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       });
     } else {
       const checkedInAt = shiftDays(now, -int(0, 13), int(10, 20));
+      const userId = pick(users).id;
+      const placeId = pick(places).id;
+      const visitDate = isoDay(checkedInAt);
+      const key = `place:${userId}:${placeId}:${visitDate}`;
+      if (visitTuples.has(key)) continue;
+      visitTuples.add(key);
       checkIns.push({
         id: uuid(),
-        userId: pick(users).id,
+        userId,
         eventId: null,
-        placeId: pick(places).id,
-        visitDate: isoDay(checkedInAt),
+        placeId,
+        visitDate,
         checkedInAt,
       });
     }
@@ -1191,14 +1204,15 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
 
   // Постоянные посетители: у пары людей на каждый десяток должна набираться история визитов, иначе
   // достижения остаются личной особенностью зрителя, а не свойством населения стенда.
-  const visitKeys = new Set(checkIns.filter((row) => row.placeId !== null).map((row) => `${row.userId}:${row.placeId}:${row.visitDate}`));
+  for (const row of checkIns) visitTuples.add(row.placeId === null ? `event:${row.userId}:${row.eventId}` : `place:${row.userId}:${row.placeId}:${row.visitDate}`);
   for (const regular of users.slice(0, Math.max(2, Math.round(c.users / 10)))) {
     places.slice(0, Math.min(11, places.length)).forEach((place, i) => {
       const checkedInAt = shiftDays(now, -(i + 2), int(11, 19));
-      const key = `${regular.id}:${place.id}:${isoDay(checkedInAt)}`;
-      if (visitKeys.has(key)) return;
-      visitKeys.add(key);
-      checkIns.push({ id: uuid(), userId: regular.id, eventId: null, placeId: place.id, visitDate: isoDay(checkedInAt), checkedInAt });
+      const visitDate = isoDay(checkedInAt);
+      const key = `place:${regular.id}:${place.id}:${visitDate}`;
+      if (visitTuples.has(key)) return;
+      visitTuples.add(key);
+      checkIns.push({ id: uuid(), userId: regular.id, eventId: null, placeId: place.id, visitDate, checkedInAt });
     });
   }
 

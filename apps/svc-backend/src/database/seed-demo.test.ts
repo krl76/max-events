@@ -171,12 +171,17 @@ describe("buildDemoData", () => {
     const activeBookingPairs = data.bookings.filter((row) => row.status === "active").map((row) => `${row.userId}:${row.eventId}`);
     expect(new Set(activeBookingPairs).size).toBe(activeBookingPairs.length);
 
+    // База держит визит уникальным по (человек, событие) и (человек, площадка, день); строка, которая
+    // этого не уважает, просто теряется на вставке, и счётчик сида врёт.
+    const visitTuples = new Set<string>();
     for (const checkIn of data.checkIns) {
       expect(userIds.has(checkIn.userId)).toBe(true);
       expect((checkIn.eventId !== null) !== (checkIn.placeId !== null)).toBe(true);
       if (checkIn.eventId !== null) expect(pastEventIds.has(checkIn.eventId)).toBe(true);
       if (checkIn.placeId !== null) expect(placeIds.has(checkIn.placeId)).toBe(true);
+      visitTuples.add(checkIn.eventId !== null ? `event:${checkIn.userId}:${checkIn.eventId}` : `place:${checkIn.userId}:${checkIn.placeId}:${checkIn.visitDate}`);
     }
+    expect(visitTuples.size).toBe(data.checkIns.length);
 
     for (const story of data.stories) {
       expect(userIds.has(story.userId)).toBe(true);
