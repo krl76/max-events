@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Event, FeedPost, Place } from "@max-events/api-contracts";
-import { ApiClient, isEndpointMissing } from "./client";
+import { ApiClient, isEndpointMissing, whenEndpointMissing } from "./client";
 import { catalogCardsFromEvents } from "./endpoints/catalog";
 import { feedCardsFromPosts } from "./endpoints/feed";
 import { ApiError } from "./endpoints/transport";
@@ -72,6 +72,16 @@ describe("isEndpointMissing", () => {
     expect(isEndpointMissing(new ApiError(404, "no such path"))).toBe(true);
     expect(isEndpointMissing(new ApiError(500, "boom"))).toBe(false);
     expect(isEndpointMissing(new Error("network"))).toBe(false);
+  });
+});
+
+describe("whenEndpointMissing", () => {
+  it("answers the fallback value for a missing endpoint", async () => {
+    expect(await Promise.reject(new ApiError(404, "no such path")).catch(whenEndpointMissing("empty"))).toBe("empty");
+  });
+
+  it("lets every other failure stay a failure", async () => {
+    await expect(Promise.reject(new ApiError(500, "boom")).catch(whenEndpointMissing("empty"))).rejects.toBeInstanceOf(ApiError);
   });
 });
 

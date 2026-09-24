@@ -21,7 +21,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { CreateSubscription, Place, PlaceFriendVisit, PlacePage as PlacePageAggregate } from "@max-events/api-contracts";
-import { apiClient, trackPageView, type PlaceBoard, type PlaceSlot, type PlaceUpcomingEvent } from "../api/client";
+import { apiClient, trackPageView, whenEndpointMissing, type PlaceBoard, type PlaceSlot, type PlaceUpcomingEvent } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { PLACE_CATEGORY_LABELS } from "../organizer/OrganizerPage";
@@ -161,12 +161,13 @@ export function PlaceFollowRow({ placeId, onOpenSubscriptions }: { placeId: stri
   );
 }
 
-export type PlacePageState = { status: "loading" } | { status: "error" } | { status: "ready"; place: Place; page: PlacePageAggregate; board: PlaceBoard };
+export type PlacePageState = { status: "loading" } | { status: "error" } | { status: "ready"; place: Place; page: PlacePageAggregate; board: PlaceBoard | null };
 
 interface PlacePageViewProps {
   place: Place;
   page: PlacePageAggregate;
-  board: PlaceBoard;
+  /** Everything the place domain has no field for; null when the backend answers no such aggregate, and then those blocks are simply not on the screen. */
+  board: PlaceBoard | null;
   checkedIn: boolean;
   onBack: () => void;
   onCheckIn: () => void;
@@ -192,10 +193,10 @@ function SlotRow({ slot, onOpen }: { slot: PlaceSlot; onOpen: () => void }) {
 }
 
 export function PlacePageView({ place, page, board, checkedIn, onBack, onCheckIn, onOpenEvent, onOpenSlots, onOpenSubscriptions, onCreateHere, onSave }: PlacePageViewProps) {
-  const alreadyHere = checkedIn || board.checkedInToday;
+  const alreadyHere = checkedIn || (board?.checkedInToday ?? false);
   const rating = page.rating?.summary ?? null;
-  const occupancy = occupancyLabel(board);
-  const priceLine = slotPriceLine(board);
+  const occupancy = board === null ? null : occupancyLabel(board);
+  const priceLine = board === null ? null : slotPriceLine(board);
   return (
     <section className="app-place">
       <div className="app-place-hero">
@@ -205,7 +206,7 @@ export function PlacePageView({ place, page, board, checkedIn, onBack, onCheckIn
           <ActionIcon name="chevron" size={20} strokeWidth={2.5} />
         </button>
         <div className="app-place-hero-veil">
-          <span className="app-place-kind">{placeKindLabel(place, board.openUntil)}</span>
+          <span className="app-place-kind">{placeKindLabel(place, board?.openUntil ?? null)}</span>
           <h1 className="app-place-title">{place.title}</h1>
           <div className="app-place-hero-actions">
             <button type="button" className="app-place-checkin" disabled={alreadyHere} onClick={onCheckIn}>
@@ -236,10 +237,13 @@ export function PlacePageView({ place, page, board, checkedIn, onBack, onCheckIn
           <span className="app-place-stat-value">{page.personalVisitsCount}</span>
           <span className="app-place-stat-label">твоих визитов</span>
         </div>
-        <div className="app-place-stat">
-          <span className="app-place-stat-value">{board.weekEventsCount}</span>
-          <span className="app-place-stat-label">{pluralRu(board.weekEventsCount, "событие", "события", "событий")} на неделе</span>
-        </div>
+        {/* Нечем считать события недели — плитки нет: «0 событий» прочиталось бы как ответ. */}
+        {board !== null && (
+          <div className="app-place-stat">
+            <span className="app-place-stat-value">{board.weekEventsCount}</span>
+            <span className="app-place-stat-label">{pluralRu(board.weekEventsCount, "событие", "события", "событий")} на неделе</span>
+          </div>
+        )}
       </div>
 
       <section className="app-place-block" aria-label="Друзья здесь бывали">
@@ -274,51 +278,55 @@ export function PlacePageView({ place, page, board, checkedIn, onBack, onCheckIn
         )}
       </section>
 
-      <section className="app-place-block" aria-label="Когда людно">
-        <div className="app-place-block-head">
-          <h2 className="app-place-block-title">Когда людно</h2>
-          {occupancy !== null && (
-            <span className="app-place-now">
-              <span className="app-place-now-dot" aria-hidden="true" />
-              {occupancy}
-            </span>
-          )}
-        </div>
-        {board.occupancy.length === 0 ? (
-          <AppState>Пока не из чего считать загруженность.</AppState>
-        ) : (
-          <>
-            <div className="app-place-bars" role="img" aria-label={`Загруженность с ${board.occupancy[0].hour}:00 до ${board.occupancy[board.occupancy.length - 1].hour}:00`}>
-              {board.occupancy.map((bar) => (
-                <span key={bar.hour} className={bar.hour === board.occupancyNowHour ? "app-place-bar app-place-bar--now" : "app-place-bar"} style={{ height: `${Math.round(bar.load * 100)}%` }} />
-              ))}
-            </div>
-            <div className="app-place-axis" aria-hidden="true">
-              {occupancyAxis(board).map((hour) => (
-                <span key={hour}>{hour}</span>
-              ))}
-            </div>
-          </>
-        )}
-      </section>
-
-      <section className="app-place-block" aria-label="Твоя история здесь">
-        <h2 className="app-place-block-title">Твоя история здесь</h2>
-        {board.visitMonths.length === 0 ? (
-          <AppState>Ты ещё не отмечался здесь — отметься, и здесь появится история.</AppState>
-        ) : (
-          <div className="app-place-months">
-            {board.visitMonths.map((month) => (
-              <span key={month.month} className="app-place-month" title={`${month.visitsCount} ${pluralRu(month.visitsCount, "визит", "визита", "визитов")}`}>
-                <span className="app-place-month-label">{visitMonthLabel(month.month)}</span>
+      {board !== null && (
+        <section className="app-place-block" aria-label="Когда людно">
+          <div className="app-place-block-head">
+            <h2 className="app-place-block-title">Когда людно</h2>
+            {occupancy !== null && (
+              <span className="app-place-now">
+                <span className="app-place-now-dot" aria-hidden="true" />
+                {occupancy}
               </span>
-            ))}
-            {board.visitMonthsMore > 0 && <span className="app-place-month app-place-month--more">+{board.visitMonthsMore}</span>}
+            )}
           </div>
-        )}
-      </section>
+          {board.occupancy.length === 0 ? (
+            <AppState>Пока не из чего считать загруженность.</AppState>
+          ) : (
+            <>
+              <div className="app-place-bars" role="img" aria-label={`Загруженность с ${board.occupancy[0].hour}:00 до ${board.occupancy[board.occupancy.length - 1].hour}:00`}>
+                {board.occupancy.map((bar) => (
+                  <span key={bar.hour} className={bar.hour === board.occupancyNowHour ? "app-place-bar app-place-bar--now" : "app-place-bar"} style={{ height: `${Math.round(bar.load * 100)}%` }} />
+                ))}
+              </div>
+              <div className="app-place-axis" aria-hidden="true">
+                {occupancyAxis(board).map((hour) => (
+                  <span key={hour}>{hour}</span>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
-      {board.unitTitle !== null && (
+      {board !== null && (
+        <section className="app-place-block" aria-label="Твоя история здесь">
+          <h2 className="app-place-block-title">Твоя история здесь</h2>
+          {board.visitMonths.length === 0 ? (
+            <AppState>Ты ещё не отмечался здесь — отметься, и здесь появится история.</AppState>
+          ) : (
+            <div className="app-place-months">
+              {board.visitMonths.map((month) => (
+                <span key={month.month} className="app-place-month" title={`${month.visitsCount} ${pluralRu(month.visitsCount, "визит", "визита", "визитов")}`}>
+                  <span className="app-place-month-label">{visitMonthLabel(month.month)}</span>
+                </span>
+              ))}
+              {board.visitMonthsMore > 0 && <span className="app-place-month app-place-month--more">+{board.visitMonthsMore}</span>}
+            </div>
+          )}
+        </section>
+      )}
+
+      {board !== null && board.unitTitle !== null && (
         <section className="app-place-block" aria-label="Доступные слоты бронирования">
           <div className="app-place-label">
             <ActionIcon name="calendar" size={14} strokeWidth={2.2} />
@@ -337,25 +345,27 @@ export function PlacePageView({ place, page, board, checkedIn, onBack, onCheckIn
         </section>
       )}
 
-      <section className="app-place-block" aria-label="Здесь скоро">
-        <h2 className="app-place-block-title">Здесь скоро</h2>
-        {board.upcoming.length === 0 ? (
-          <AppState>Пока здесь ничего не запланировано.</AppState>
-        ) : (
-          <div className="app-place-upcoming">
-            {board.upcoming.map((card) => (
-              <button key={card.event.id} type="button" className="app-place-event" onClick={() => onOpenEvent(card.event.id)}>
-                <AppMedia category={card.event.category} className="app-place-event-media" />
-                <span className="app-place-event-body">
-                  <span className="app-place-event-when">{formatUpcomingWhen(card.event.startsAt)}</span>
-                  <span className="app-place-event-title">{card.event.title}</span>
-                  <span className="app-place-event-line">{upcomingLine(card)}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
+      {board !== null && (
+        <section className="app-place-block" aria-label="Здесь скоро">
+          <h2 className="app-place-block-title">Здесь скоро</h2>
+          {board.upcoming.length === 0 ? (
+            <AppState>Пока здесь ничего не запланировано.</AppState>
+          ) : (
+            <div className="app-place-upcoming">
+              {board.upcoming.map((card) => (
+                <button key={card.event.id} type="button" className="app-place-event" onClick={() => onOpenEvent(card.event.id)}>
+                  <AppMedia category={card.event.category} className="app-place-event-media" />
+                  <span className="app-place-event-body">
+                    <span className="app-place-event-when">{formatUpcomingWhen(card.event.startsAt)}</span>
+                    <span className="app-place-event-title">{card.event.title}</span>
+                    <span className="app-place-event-line">{upcomingLine(card)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="app-place-cta">
         <button type="button" className="app-place-save" aria-label="Сохранить в список" onClick={onSave}>
@@ -389,7 +399,9 @@ export function PlacePage({ id }: { id: string }) {
     let alive = true;
     setState({ status: "loading" });
     setCheckedIn(false);
-    Promise.all([apiClient.getPlace(id), apiClient.getPlacePage(id, userId), apiClient.getPlaceBoard(id, userId)]).then(
+    // Площадка и её социальная сводка — сам экран; доски (часы, загруженность, окна) на бэкенде
+    // нет вовсе (#492), и без неё экран открывается без этих блоков, а не вместо экрана.
+    Promise.all([apiClient.getPlace(id), apiClient.getPlacePage(id, userId), apiClient.getPlaceBoard(id, userId).catch(whenEndpointMissing<PlaceBoard | null>(null))]).then(
       ([place, page, board]) => {
         if (alive) setState({ status: "ready", place, page, board });
       },

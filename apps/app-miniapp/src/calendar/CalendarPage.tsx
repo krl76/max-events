@@ -10,7 +10,7 @@
 // - splitCalendarEntries - split entries into upcoming (>= now, soonest first) and past (< now, latest first)
 // - CalendarView - presentational: two sections with booking cards and empty states
 // - CalendarTab - сегменты экрана 22: мои брони | календарь
-// - SharedState - union of the shared-calendar fetch states (loading / error / ready)
+// - SharedState - union of the shared-calendar fetch states (loading / error / absent when the backend has no such endpoint / ready)
 // - instrumentalName - имя в творительном падеже по его же окончанию («Анна» -> «Анной»)
 // - peersLabel - «Общий с Анной» под заголовком месяца
 // - calendarShareText - что уходит в чат MAX по «Поделиться» и «Ссылка на календарь»
@@ -20,7 +20,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Friend, PlanCard } from "@max-events/api-contracts";
-import { apiClient, type CalendarEntry, type SharedCalendar } from "../api/client";
+import { apiClient, isEndpointMissing, type CalendarEntry, type SharedCalendar } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { shareResult, webApp } from "../max/bridge";
@@ -89,7 +89,7 @@ export function CalendarView({ state, now, onCancel, onExplore }: CalendarViewPr
 
 export type CalendarTab = "bookings" | "month";
 
-export type SharedState = { status: "loading" } | { status: "error" } | { status: "ready"; shared: SharedCalendar };
+export type SharedState = { status: "loading" } | { status: "error" } | { status: "absent" } | { status: "ready"; shared: SharedCalendar };
 
 const HUSHING = new Set(["ж", "ч", "ш", "щ", "ц"]);
 
@@ -258,9 +258,12 @@ export function SharedCalendarView({ shared, entries, month, selected, now, onSe
         <button type="button" className="app-cal-cta-side" onClick={onShare}>
           Ссылка на календарь
         </button>
-        <button type="button" className="app-cal-cta-main" onClick={onAddFriend}>
-          {invitable === undefined ? "Добавить друга" : "Скрыть список"}
-        </button>
+        {/* Nobody to add to a calendar the backend cannot share: the picker would only collect taps for a 404. */}
+        {shared.status !== "absent" && (
+          <button type="button" className="app-cal-cta-main" onClick={onAddFriend}>
+            {invitable === undefined ? "Добавить друга" : "Скрыть список"}
+          </button>
+        )}
       </div>
     </section>
   );
@@ -315,8 +318,10 @@ export function CalendarPage() {
       (loaded) => {
         if (alive) setShared({ status: "ready", shared: loaded });
       },
-      () => {
-        if (alive) setShared({ status: "error" });
+      // Общего календаря на бэкенде нет вовсе — тогда блока просто нет; «не удалось» приберегаем
+      // для запроса, который мог бы пройти.
+      (error: unknown) => {
+        if (alive) setShared({ status: isEndpointMissing(error) ? "absent" : "error" });
       },
     );
     apiClient.listFriends().then(

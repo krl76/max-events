@@ -12,6 +12,7 @@
 // - ApiTransport - base class: baseUrl, init-data/organizer headers, request/requestVoid
 // - ApiMixin - constructor bound the domain mixins extend
 // - isEndpointMissing - the server answered 404 to a path that has nothing to miss, i.e. the endpoint is not there yet
+// - whenEndpointMissing - rejection handler turning a missing endpoint into a value, leaving every other failure a failure
 // END_MODULE_MAP
 
 /** Minimal structural shape of a zod schema needed to validate responses. */
@@ -111,6 +112,18 @@ export class ApiTransport {
  */
 export function isEndpointMissing(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
+}
+
+/**
+ * Rejection handler for a request the screen can do without: an endpoint the backend does not have
+ * becomes the given value, anything else still rejects, so a real failure is not dressed up as an
+ * empty answer.
+ */
+export function whenEndpointMissing<T>(value: T): (error: unknown) => T {
+  return (error: unknown) => {
+    if (isEndpointMissing(error)) return value;
+    throw error;
+  };
 }
 
 /** Constructor bound every domain mixin extends; the any[] rest is what TypeScript requires of a mixin base. */

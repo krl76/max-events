@@ -77,6 +77,7 @@
 // - UpdateOrganizerPlace - place edit payload (backend PATCH /places/:id validates CreatePlaceSchema.partial())
 // - apiClient - default singleton instance
 // - isEndpointMissing - the server has no such endpoint (404 on a path naming no entity): a block behind one disappears instead of showing an error
+// - whenEndpointMissing - rejection handler turning a missing endpoint into a value, leaving every other failure a failure
 // - parseEventFilters - query string -> filters, invalid values dropped
 // - serializeEventFilters - filters -> query string ("" when empty)
 // - statsPeriodQuery - period into a ?from&to query string
@@ -165,7 +166,7 @@ export { REPORT_REASONS } from "./endpoints/moderation";
 export type { OrganizerAttendance, OrganizerEvent, OrganizerEventOptions, OrganizerParticipant, OrganizerPlace, OrganizerRecurrence, OrganizerSlot, OrganizerSummary, OrganizerTrafficShare, OrganizerTrafficSource, OrganizerWaitlistEntry, StatsPeriodQuery, UpdateOrganizerEvent, UpdateOrganizerEventOptions, UpdateOrganizerPlace } from "./endpoints/organizer";
 export type { CreateGathering, CreateMicroEvent, DiscoveryFriendCard, DiscoveryScreen, FriendRouteScreen, FriendRouteStop, FriendSuggestion, FriendsSync, MicroEventCard, MicroParticipant } from "./endpoints/social";
 export type { CalendarEntry, PlanTimeline, PlanTimelineStep, PlanTransfer, PlanTransferMode, SharedCalendar, SharedCalendarEntry, SharedCalendarPeer } from "./endpoints/plans";
-export { ApiError, isEndpointMissing } from "./endpoints/transport";
+export { ApiError, isEndpointMissing, whenEndpointMissing } from "./endpoints/transport";
 export { EVENT_SORTS, parseEventFilters, serializeEventFilters } from "./endpoints/catalog";
 export type { BookingOffer, CatalogCard, EventCompanion, EventCompanions, EventDetails, EventFilters, EventForecast, EventGatheringTeaser, EventMoodTag, EventNearbySpot, EventSort, EventWeatherHour, MapWeather, ParticipationStats, PlaceParticipation, TravelMode, TravelOption } from "./endpoints/catalog";
 export type { CreateReview, EventRating, ReviewFactTag } from "./endpoints/reviews";
