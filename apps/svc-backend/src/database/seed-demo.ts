@@ -840,15 +840,19 @@ export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeed
   const dev = await ensureDemoUser(usersRepo, options.devMaxUserId, { firstName: "Михаил", lastName: null, username: "seaG7" });
   const data = buildDemoData({ now, scale: options.scale, ownerUserId: owner.id, devUserId: dev.id });
 
+  // Люди идут первыми: у площадки есть organizerUserId со внешним ключом на users, и на пустой базе
+  // вставка площадок до людей падает по FK_places_organizer. Раньше порядок сходил с рук только
+  // потому, что на обжитой базе площадки находились уже существующими и не вставлялись вовсе.
+  const inserted: Record<string, number> = {};
+  inserted.users = await insertRows(usersRepo, data.users);
+  inserted.profiles = await insertRows(dataSource.getRepository(ProfileEntity), data.profiles);
+  inserted.friendships = await insertRows(dataSource.getRepository(FriendshipEntity), data.friendships);
+
   const places = await resolveRows(dataSource.getRepository(PlaceEntity), data.places, (place) => ({ title: place.title, address: place.address, city: place.city }));
   remapPlaceIds(data, places.idMap);
   const lists = await resolveRows(dataSource.getRepository(ListEntity), data.lists, (list) => ({ userId: list.userId, preset: list.preset }));
   for (const item of data.listItems) item.listId = lists.idMap.get(item.listId) ?? item.listId;
 
-  const inserted: Record<string, number> = {};
-  inserted.users = await insertRows(usersRepo, data.users);
-  inserted.profiles = await insertRows(dataSource.getRepository(ProfileEntity), data.profiles);
-  inserted.friendships = await insertRows(dataSource.getRepository(FriendshipEntity), data.friendships);
   inserted.places = places.inserted;
   inserted.events = await insertRows(dataSource.getRepository(EventEntity), data.events);
   inserted.promoCodes = await insertRows(dataSource.getRepository(PromoCodeEntity), data.promoCodes);
