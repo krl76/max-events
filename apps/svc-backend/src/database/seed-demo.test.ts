@@ -274,6 +274,8 @@ describe("buildDemoData", () => {
       expect(userIds.has(microEvent.authorId)).toBe(true);
       expect(microEvent.participantsLimit).toBeGreaterThan(0);
       expect(microEvent.startsAt.getTime()).toBeGreaterThan(now.getTime());
+      // MicroEventSchema отвергает запись, где участников больше лимита, и весь список отвечает 500.
+      expect(data.microEventParticipants.filter((row) => row.microEventId === microEvent.id).length).toBeLessThanOrEqual(microEvent.participantsLimit);
     }
     const microPairs = new Set<string>();
     for (const participant of data.microEventParticipants) {

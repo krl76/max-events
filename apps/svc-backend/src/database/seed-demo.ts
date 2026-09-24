@@ -1088,13 +1088,21 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     });
   }
 
-  // micro-events with participants
+  // micro-events with participants; the limit is drawn after the participants, because
+  // MicroEventSchema refuses participantsCount > participantsLimit and the whole /micro-events
+  // list then answers 500 — одна тесная запись гасит весь экран.
   const microEvents: MicroEventEntity[] = [];
   const microEventParticipants: MicroEventParticipantEntity[] = [];
   for (let i = 0; i < c.microEvents; i += 1) {
     const author = pick(users);
     const microEventId = uuid();
     const usePlace = chance(0.5);
+    const participantIds = new Set<string>();
+    if (i % 5 < 3) {
+      fakerRU.helpers.arrayElements(users, Math.min(4, users.length)).forEach((user) => {
+        if (user.id !== author.id) participantIds.add(user.id);
+      });
+    }
     microEvents.push({
       id: microEventId,
       authorId: author.id,
@@ -1102,18 +1110,13 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       startsAt: shiftDays(now, int(1, 14), int(10, 20)),
       locationText: usePlace ? null : pick(MICRO_LOCATIONS),
       placeId: usePlace ? pick(places).id : null,
-      participantsLimit: int(3, 12),
+      // Каждая пятая запись набрана под завязку: экран должен показывать и «мест нет».
+      participantsLimit: i % 5 === 2 ? Math.max(3, participantIds.size) : Math.max(3, participantIds.size + int(1, 8)),
       status: "open" as MicroEventStatus,
       published: true,
       createdAt: shiftDays(now, -int(1, 10), 12),
     });
-    if (i % 5 < 3) {
-      const participantIds = new Set<string>();
-      fakerRU.helpers.arrayElements(users, Math.min(4, users.length)).forEach((user) => {
-        if (user.id !== author.id) participantIds.add(user.id);
-      });
-      participantIds.forEach((userId) => microEventParticipants.push({ id: uuid(), microEventId, userId }));
-    }
+    participantIds.forEach((userId) => microEventParticipants.push({ id: uuid(), microEventId, userId }));
   }
 
   // plans with participants and shared expenses (two hosted by the demo owner)
