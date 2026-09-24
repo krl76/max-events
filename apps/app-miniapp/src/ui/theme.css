@@ -9112,7 +9112,21 @@ button.app-set-row {
   font-weight: 800;
   height: 48px;
   justify-content: center;
+  position: relative;
   width: 48px;
+}
+
+/* Голубая точка — заливка формы, а не текст: у brand-cyan контраст на подпись не тянет */
+.app-evc-avatar--active::after {
+  background: var(--brand-cyan);
+  border: 2px solid var(--app-canvas);
+  border-radius: 50%;
+  bottom: 0;
+  content: "";
+  height: 11px;
+  position: absolute;
+  right: 0;
+  width: 11px;
 }
 
 .app-evc-id {

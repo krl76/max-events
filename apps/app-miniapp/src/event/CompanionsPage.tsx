@@ -102,7 +102,8 @@ export function CompanionCard({ companion, onInvite, onChat }: CompanionCardProp
   return (
     <li className="app-evc-card">
       <div className="app-evc-card-head">
-        <span className="app-evc-avatar" aria-hidden="true">
+        {/* Точка на аватаре: человек не просто отметил статус, а написал строку — именно её макет выделяет */}
+        <span className="app-evc-avatar app-evc-avatar--active" aria-hidden="true">
           {companion.friend.name.charAt(0)}
         </span>
         <span className="app-evc-id">
