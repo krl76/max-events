@@ -228,7 +228,8 @@ export function FeedFriendPost({ card, now, onOpenEvent, onToggleLike, onToggleG
           {comments}
         </button>
       )}
-      <p className="app-feed-time">{formatFeedAgo(card.publishedAt, now)}</p>
+      {/* No line at all rather than «только что» about a post whose card carries no publication time. */}
+      {card.publishedAt !== null && <p className="app-feed-time">{formatFeedAgo(card.publishedAt, now)}</p>}
     </article>
   );
 }

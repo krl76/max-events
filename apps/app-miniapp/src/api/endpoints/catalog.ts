@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Catalog endpoints of the api client: the event and place listings, the event page aggregate, the participation block and the map context of экран 16 (weather, travel time).
-// SCOPE: Event filters (serialize/parse), GET /events[/:id[/details]], GET /events/cards, GET /places[/:id[/page]], the /events/:id/participation surface, GET /weather and GET /travel; client-side aggregates EventDetails, ParticipationStats, CatalogCard, MapWeather and TravelOption live here.
+// SCOPE: Event filters (serialize/parse), GET /events[/:id[/details]], GET /events/cards with its plain-listing fallback, GET /places[/:id[/page]], the /events/:id/participation surface, GET /weather and GET /travel; client-side aggregates EventDetails, ParticipationStats, CatalogCard, MapWeather and TravelOption live here.
 // DEPENDS: ./transport.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -12,6 +12,7 @@
 // - serializeEventFilters - filters -> query string ("" when empty)
 // - parseEventFilters - query string -> filters, invalid values dropped
 // - CatalogCard - list card of экран 08: the event plus the distance, rating and venue line the list DTO does not carry (#496)
+// - catalogCardsFromEvents - catalog cards built out of GET /events + GET /places, for a server that does not answer GET /events/cards yet
 // - MapWeather - city weather behind the map chip (макет, экран 16): now plus the change to come (#495)
 // - TravelMode - how the traveller gets there: on foot or by metro (#504)
 // - TravelOption - one way to the object: minutes, distance and transfers (#504)
@@ -31,6 +32,7 @@
 
 import { EventCategorySchema, EventSchema, FriendSchema, OrganizationSchema, ParticipationSchema, ParticipationStatusSchema, PlacePageSchema, PlaceSchema, UserSchema } from "@max-events/api-contracts";
 import type { Event, EventCategory, Friend, Organization, Participation, ParticipationStatus, Place, PlacePage, User } from "@max-events/api-contracts";
+import { ApiError, isEndpointMissing } from "./transport";
 import type { ApiMixin, ZodSchema } from "./transport";
 
 /**
@@ -456,6 +458,24 @@ const BookingOfferSchema: ZodSchema<BookingOffer> = {
   },
 };
 
+/**
+ * Catalog cards assembled from the plain listing, for a server that does not answer GET /events/cards
+ * yet. Only the venue line has a source there — the distance and the rating are the #496 gap and stay
+ * empty, because a card that prints «0,0 км» has answered a question it cannot answer.
+ */
+export function catalogCardsFromEvents(events: Event[], places: Place[]): CatalogCard[] {
+  return events.map((event) => ({ event, distanceKm: null, rating: null, placeTitle: places.find((item) => item.id === event.placeId)?.title ?? null }));
+}
+
+/**
+ * Whether GET /events/cards was refused because the path is not routed. A server without it reads
+ * `cards` as the :id of GET /events/:id and answers 400 to the uuid pipe long before any handler —
+ * so on this path, and only on it, a 400 means the same thing as the 404 of an unrouted path.
+ */
+function isCatalogCardsMissing(error: unknown): boolean {
+  return isEndpointMissing(error) || (error instanceof ApiError && error.status === 400);
+}
+
 export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
   return class CatalogEndpoints extends Base {
     listEvents(filters: EventFilters = {}): Promise<Event[]> {
@@ -468,14 +488,23 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
      * rather than a wider /events: the plain listing is what every other screen reads, and the
      * distance/rating gap (#496) belongs to the card surface, not to the Event entity.
      */
-    listEventCards(filters: EventFilters = {}, origin: { latitude: number; longitude: number } | null = null): Promise<CatalogCard[]> {
-      const params = new URLSearchParams(serializeEventFilters(filters));
+    async listEventCards(filters: EventFilters = {}, origin: { latitude: number; longitude: number } | null = null): Promise<CatalogCard[]> {
+      const filterQuery = serializeEventFilters(filters);
+      const params = new URLSearchParams(filterQuery);
       if (origin !== null) {
         params.set("latitude", String(origin.latitude));
         params.set("longitude", String(origin.longitude));
       }
       const query = params.toString();
-      return this.request(`/events/cards${query ? `?${query}` : ""}`, CatalogCardsSchema);
+      try {
+        return await this.request(`/events/cards${query ? `?${query}` : ""}`, CatalogCardsSchema);
+      } catch (error) {
+        if (!isCatalogCardsMissing(error)) throw error;
+        // The origin is dropped: without /events/cards nothing measures a distance anyway, and a
+        // coordinate the plain listing does not know is one more way for the fallback to be refused.
+        const [events, places] = await Promise.all([this.request(`/events${filterQuery ? `?${filterQuery}` : ""}`, EventSchema.array()), this.request("/places", PlaceSchema.array())]);
+        return catalogCardsFromEvents(events, places);
+      }
     }
 
     listPlaces(): Promise<Place[]> {
