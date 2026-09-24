@@ -76,11 +76,10 @@ function usedClasses(): Map<string, string> {
 }
 
 /**
- * Правила, оставшиеся от экранов, которые волны переноса дизайна переписали целиком: разметки под них
- * больше нет. Держатся в списке до отдельной уборки — снимать их посреди сведения веток нельзя, потому
- * что сборка `theme.css` из базы и хвостов требует, чтобы база не менялась.
+ * Список пуст намеренно: мёртвых правил в файле нет. Он существует, чтобы тест падал, когда они
+ * заводятся снова — экран переписали, значит стили прежней версии уходят вместе с ним.
  */
-const DEAD_RULES: string[] = ["app-friends-group", "app-friends-join", "app-friends-name", "app-friends-person", "app-home-ctas", "app-list-actions", "app-list-row", "app-mycity", "app-mycity-summary", "app-participation-select", "app-participation-summary", "app-profile", "app-profile-cell", "app-profile-cell-photo", "app-profile-city", "app-profile-grid", "app-profile-header", "app-profile-interest", "app-profile-interests", "app-profile-stat", "app-profile-stat-label", "app-profile-stat-value", "app-profile-stats", "app-profile-topbar", "app-profile-topbar-action", "app-profile-topbar-name", "app-promo-code", "app-vote-badge", "app-vote-hint", "app-vote-option", "app-vote-option--winner", "app-vote-options", "app-vote-title", "app-whereto-cta"];
+const DEAD_RULES: string[] = [];
 
 function styledClasses(): Set<string> {
   const css = readFileSync(join(SRC, "ui", "theme.css"), "utf8");

@@ -792,7 +792,6 @@ html[data-theme="dark"] body {
 .app-card--link,
 .app-nav-tile,
 .app-whereto-option,
-.app-vote-option,
 .app-promo-banner {
   transition:
     box-shadow 120ms ease-out,
@@ -802,7 +801,6 @@ html[data-theme="dark"] body {
 .app-card--link:active,
 .app-nav-tile:active,
 .app-whereto-option:active,
-.app-vote-option:active,
 .app-promo-banner:active {
   box-shadow: var(--app-shadow-lift);
   transform: translateY(-2px);
@@ -812,7 +810,6 @@ html[data-theme="dark"] body {
   .app-card--link,
   .app-nav-tile,
   .app-whereto-option,
-  .app-vote-option,
   .app-promo-banner {
     transition: none;
   }
@@ -820,18 +817,9 @@ html[data-theme="dark"] body {
   .app-card--link:active,
   .app-nav-tile:active,
   .app-whereto-option:active,
-  .app-vote-option:active,
   .app-promo-banner:active {
     transform: none;
   }
-}
-
-/* Сетка впечатлений в профиле: снимок заполняет ячейку */
-.app-profile-cell-photo {
-  display: block;
-  height: 100%;
-  object-fit: cover;
-  width: 100%;
 }
 
 /* Пост с фотографией: снимок занимает ту же рамку 4:5, что и категорийная заглушка */
@@ -1058,20 +1046,6 @@ html[data-theme="dark"] body {
   max-width: var(--app-measure);
 }
 
-/* Страница мероприятия: статус участия (нативный select) + счётчики */
-.app-participation-select {
-  align-self: stretch;
-  cursor: pointer;
-}
-
-/* Страница мероприятия: строка мэтчмейкинга «N идут · N друзей · N ищут компанию» */
-.app-participation-summary {
-  color: var(--app-text);
-  font-size: var(--app-font-size-description);
-  /* Zero: the card body is a flex column with its own gap, and a margin would double it. */
-  margin: 0;
-}
-
 .app-participation-counters {
   border-top: var(--app-hairline);
   color: var(--app-text-secondary);
@@ -1083,19 +1057,6 @@ html[data-theme="dark"] body {
   list-style: none;
   margin: 0;
   padding: var(--app-space-m) 0 0;
-}
-
-/* Списки: карточка и её действия (переименовать / удалить / убрать) одной колонкой */
-.app-list-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-s);
-}
-
-.app-list-actions {
-  display: flex;
-  gap: var(--app-space-s);
-  justify-content: flex-end;
 }
 
 /* Профиль: «Мои подписки» — название цели и кнопка отписки в одной строке */
@@ -1212,118 +1173,6 @@ html[data-theme="dark"] body {
   gap: var(--app-space-s);
 }
 
-/* Профиль: аватар + три счётчика, сетка впечатлений, pill-действия; белая full-bleed секция */
-.app-profile {
-  background: var(--app-card);
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-s);
-  margin: 0 calc(-1 * var(--app-space-screen));
-  padding: 0 var(--app-space-screen) var(--app-space-m);
-}
-
-.app-profile-topbar {
-  align-items: center;
-  display: grid;
-  grid-template-columns: 40px 1fr 40px;
-  margin: 0 calc(-1 * var(--app-space-screen));
-  padding: var(--app-space-s) var(--app-space-m);
-}
-
-.app-profile-topbar-action {
-  align-items: center;
-  background: none;
-  border: 0;
-  color: var(--app-text);
-  cursor: pointer;
-  display: flex;
-  justify-content: flex-start;
-  padding: var(--app-space-xs) 0;
-}
-
-.app-profile-topbar-name {
-  font-size: var(--app-type-screen-size);
-  font-weight: 700;
-  grid-column: 2;
-  letter-spacing: -0.02em;
-  overflow: hidden;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.app-profile-header {
-  align-items: center;
-  display: flex;
-  gap: var(--app-space-xl);
-  padding: var(--app-space-s) 0;
-}
-
-.app-profile-stats {
-  display: flex;
-  flex: 1;
-  justify-content: space-evenly;
-}
-
-.app-profile-stat {
-  align-items: center;
-  background: none;
-  border: 0;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  font: inherit;
-  padding: 0;
-}
-
-.app-profile-stat-value {
-  color: var(--app-text);
-  font-size: var(--app-font-size-title);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-.app-profile-stat-label {
-  color: var(--app-text-tertiary);
-  font-size: var(--app-font-size-caption);
-}
-
-.app-profile-city {
-  color: var(--app-text);
-  font-size: var(--app-font-size-callout);
-  margin: 0;
-}
-
-.app-profile-interests {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-s);
-}
-
-.app-profile-interest {
-  background: var(--app-surface);
-  border-radius: var(--app-radius-pill);
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-caption);
-  padding: var(--app-space-xs) var(--app-space-s);
-}
-
-/* Сетка впечатлений: 3 колонки, квадратные ячейки, gap 2px, градиентная ротация */
-.app-profile-grid {
-  display: grid;
-  gap: 2px;
-  grid-template-columns: repeat(3, 1fr);
-  margin: var(--app-space-s) calc(-1 * var(--app-space-screen)) calc(-1 * var(--app-space-m));
-}
-
-.app-profile-cell {
-  aspect-ratio: 1;
-  background-image: var(--app-media-veil), var(--app-media-gradient-1);
-  border: none;
-  cursor: pointer;
-  padding: 0;
-}
-
 .app-profile-form {
   display: flex;
   flex-direction: column;
@@ -1356,81 +1205,6 @@ html[data-theme="dark"] body {
 
 .app-calendar-cancel {
   align-self: flex-start;
-}
-
-/* Друзья: плоские группы-строки с хайрлайнами */
-.app-friends-group {
-  border-top: var(--app-hairline);
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-xs);
-  padding-top: var(--app-space-m);
-}
-
-.app-friends-person {
-  align-items: center;
-  display: flex;
-  gap: var(--app-space-m);
-}
-
-.app-friends-name {
-  color: var(--app-text);
-  font-size: var(--app-font-size-callout);
-  font-weight: var(--app-font-weight-title);
-}
-
-.app-friends-group .app-card {
-  border-top: var(--app-hairline);
-  padding: var(--app-space-s) 0;
-}
-
-.app-friends-join {
-  align-self: flex-start;
-}
-
-/* Главная: пара CTA «Куда пойдём?» (primary) + «Рядом со мной» (secondary) в одну строку */
-.app-home-ctas {
-  display: flex;
-  gap: var(--app-space-s);
-  margin-top: var(--app-space-m);
-}
-
-/* Визард «Куда пойдём?»: pill-CTA, строки-опции с шевроном */
-.app-whereto-cta {
-  background: var(--app-accent);
-  border: none;
-  border-radius: var(--app-radius-pill);
-  color: var(--app-accent-contrast);
-  cursor: pointer;
-  flex: 1;
-  font: inherit;
-  font-size: var(--app-font-size-body);
-  font-weight: var(--app-font-weight-title);
-  margin-top: var(--app-space-m);
-  padding: 12px var(--app-space-l);
-  text-align: center;
-  width: 100%;
-}
-
-.app-home-ctas .app-whereto-cta {
-  margin-top: 0;
-  padding: 12px var(--app-space-s);
-}
-
-/* Синяя кнопка при нажатии уходит в brand-violet (у Ionic-кнопок это делает
- * --ion-color-primary-shade, собственным кнопкам правило нужно явно) */
-.app-whereto-cta:active {
-  background: var(--app-accent-press);
-}
-
-.app-whereto-cta--secondary {
-  background: var(--app-card);
-  border: 1px solid var(--app-divider);
-  color: var(--app-text);
-}
-
-.app-whereto-cta--secondary:active {
-  background: var(--app-surface);
 }
 
 .app-whereto-hint {
@@ -1896,20 +1670,6 @@ html[data-theme="dark"] body {
   background: var(--app-accent);
   display: block;
   height: 100%;
-}
-
-/* «Мой город»: сводка числами (переиспользует строку статистики профиля) + карта впечатлений */
-.app-mycity {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-m);
-}
-
-.app-mycity-summary {
-  border-top: var(--app-hairline);
-  margin-top: var(--app-space-m);
-  padding-top: var(--app-space-m);
-  width: 100%;
 }
 
 /* Микро-события (UGC): бейдж-пилюля — единственная роль brand-purple, один бейдж на экран.
@@ -2877,50 +2637,6 @@ html[data-theme="dark"] body {
 .app-promo-banner {
   flex: 0 0 75%;
   text-align: left;
-}
-
-.app-promo-code {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-xs);
-  width: 100%;
-}
-
-/* Голосование (#222): варианты-карточки, выделение лучшего варианта, подсказки экрана */
-.app-vote-title {
-  font-size: var(--app-font-size-title);
-  margin: var(--app-space-l) 0 0;
-}
-
-.app-vote-hint {
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-description);
-  margin: var(--app-space-xs) 0;
-  max-width: var(--app-measure);
-}
-
-.app-vote-options {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-s);
-  padding: var(--app-space-m) 0;
-}
-
-.app-vote-option {
-  border: 2px solid transparent;
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
-}
-
-.app-vote-option--winner {
-  border-color: var(--app-accent);
-}
-
-.app-vote-badge {
-  color: var(--app-accent-text);
-  font-size: var(--app-font-size-caption);
-  font-weight: var(--app-font-weight-title);
 }
 
 /* Экран входа (макет, экран 01): фирменная подложка под затемняющей вуалью, лого-плитка,
