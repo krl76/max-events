@@ -200,7 +200,12 @@ export function NotificationsPage() {
     if (viewerId === null) return;
     setState({ status: "loading" });
     apiClient.listNotifications(viewerId).then(
-      (notifications) => setState({ status: "ready", notifications }),
+      (notifications) => {
+        // Часы экрана переставляются вместе с ответом: если читать пришедшие метки по времени
+        // монтирования, «12 минут назад» округлится вниз до одиннадцати на разнице в доли секунды.
+        setNow(new Date());
+        setState({ status: "ready", notifications });
+      },
       () => setState({ status: "error" }),
     );
   }, [viewerId]);
