@@ -15,6 +15,7 @@
     "dev:foundation:down": "docker compose -f docker-compose.dev.yml down",
     "dev:backend": "bun --filter svc-backend dev",
     "dev:miniapp": "bun --filter app-miniapp dev",
+    "dev:miniapp:mock": "bun --filter app-miniapp dev:mock",
     "seed": "bun --filter svc-backend seed",
     "build": "turbo run build",
     "lint": "turbo run lint",
