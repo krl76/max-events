@@ -16619,3 +16619,192 @@ button.app-poll-result {
   font-size: var(--app-font-size-description);
   margin: var(--app-space-s) 0 0;
 }
+
+/* ==========================================================================
+ * Планы: один ряд фильтров и окно выбора друга (feat-ui-plans)
+ * ========================================================================== */
+
+/* Окно выбора друга: лист снизу поверх экрана. Тот же жест, что у записи на событие (экран 18) */
+.app-fpick {
+  bottom: 0;
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 30;
+}
+
+.app-fpick-scrim {
+  background: rgba(13, 0, 26, 0.45);
+  border: none;
+  bottom: 0;
+  cursor: pointer;
+  left: 0;
+  padding: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.app-fpick-sheet {
+  background: var(--app-canvas);
+  border-radius: 24px 24px 0 0;
+  bottom: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+  left: 0;
+  max-height: 84dvh;
+  padding: var(--app-space-l) var(--app-space-screen) calc(var(--app-space-l) + env(safe-area-inset-bottom, 0px));
+  position: absolute;
+  right: 0;
+}
+
+.app-fpick-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+}
+
+.app-fpick-title {
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.app-fpick-close {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+
+.app-fpick-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: calc(-1 * var(--app-space-s)) 0 0;
+}
+
+.app-fpick-search {
+  background: var(--app-surface);
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  color: var(--app-text);
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  padding: 11px var(--app-space-l);
+  width: 100%;
+}
+
+.app-fpick-list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0;
+  scrollbar-width: none;
+}
+
+.app-fpick-row {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  padding: var(--app-space-s) var(--app-space-s);
+  text-align: left;
+  width: 100%;
+}
+
+.app-fpick-row--on {
+  background: var(--app-surface);
+}
+
+.app-fpick-avatar {
+  align-items: center;
+  background: var(--app-gradient-dark);
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.app-fpick-name {
+  flex: 1;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+}
+
+.app-fpick-mark {
+  align-items: center;
+  color: var(--app-text);
+  display: flex;
+  flex: none;
+}
+
+.app-fpick-empty {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-callout);
+  margin: 0;
+  padding: var(--app-space-l) 0;
+  text-align: center;
+}
+
+.app-fpick-actions {
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+/* Отмена — обводка, подтверждение — тёмная заливка: форма несёт смысл и здесь */
+.app-fpick-cancel {
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  padding: 13px var(--app-space-xl);
+}
+
+.app-fpick-confirm {
+  background: var(--app-confirm);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-confirm-contrast);
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  padding: 13px 0;
+}
+
+.app-fpick-confirm:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
