@@ -44,22 +44,18 @@ describe("закрытые наборы", () => {
   });
 });
 
-describe("formatDistanceKm", () => {
+describe("форматирование строк таймлайна", () => {
   it("печатает один знак после запятой по-русски", () => {
     expect(formatDistanceKm(1.2)).toBe("1,2 км");
     expect(formatDistanceKm(3)).toBe("3,0 км");
   });
-});
 
-describe("bucketCountLabel", () => {
   it("склоняет «место» по числу", () => {
     expect(bucketCountLabel(1)).toBe("1 место");
     expect(bucketCountLabel(4)).toBe("4 места");
     expect(bucketCountLabel(11)).toBe("11 мест");
   });
-});
 
-describe("nearbyCardWhen", () => {
   const event = (startsAt: string, endsAt: string | null) => ({ startsAt, endsAt });
 
   it("в сегменте «сейчас» показывает конец, а без него — «идёт»", () => {
@@ -73,7 +69,7 @@ describe("nearbyCardWhen", () => {
   });
 });
 
-describe("chainTitle и chainWindow", () => {
+describe("заголовок, окно и шаг цепочки", () => {
   it("склоняет часы", () => {
     expect(chainTitle(1)).toBe("Цепочка на 1 час");
     expect(chainTitle(3)).toBe("Цепочка на 3 часа");
@@ -87,9 +83,7 @@ describe("chainTitle и chainWindow", () => {
   it("без единого часа считает окно от текущего момента", () => {
     expect(chainWindow([stop({ startsAt: null })], 2, MOCK_NOW)).toBe("12:00 – 14:00");
   });
-});
 
-describe("chainStopMeta", () => {
   it("собирает время, расстояние и цену", () => {
     expect(chainStopMeta(stop())).toBe("19:00 · 0,4 км · 400 ₽");
   });

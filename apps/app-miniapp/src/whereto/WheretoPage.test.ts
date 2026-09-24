@@ -44,14 +44,12 @@ describe("закрытые наборы ответов", () => {
   });
 });
 
-describe("wheretoQuery", () => {
+describe("чистые функции визарда", () => {
   it("собирает запрос только из трёх полных ответов", () => {
     expect(wheretoQuery(answers({ company: "friends", mood: "calm" }))).toBeNull();
     expect(wheretoQuery(answers({ company: "friends", mood: "calm", budget: "under_3000" }))).toEqual({ company: "friends", mood: "calm", budget: "under_3000" });
   });
-});
 
-describe("answeredRows", () => {
   it("показывает только вопросы выше открытого", () => {
     const filled = answers({ company: "friends", mood: "calm", budget: "any" });
 
@@ -63,9 +61,7 @@ describe("answeredRows", () => {
   it("пропускает вопрос, который ещё не отвечен", () => {
     expect(answeredRows(answers({ mood: "calm" }), 2)).toEqual([{ at: 1, label: "Настроение", value: "Спокойно" }]);
   });
-});
 
-describe("wizardStepIndex", () => {
   it("ставит выдачу за последним вопросом", () => {
     expect(wizardStepIndex({ step: "ask", at: 0 })).toBe(0);
     expect(wizardStepIndex({ step: "ask", at: 2 })).toBe(2);
@@ -73,7 +69,7 @@ describe("wizardStepIndex", () => {
   });
 });
 
-describe("resultTitle", () => {
+describe("подписи выдачи", () => {
   it("пишет число словом, как макет", () => {
     expect(resultTitle(5)).toBe("Пять вариантов");
     expect(resultTitle(2)).toBe("Два варианта");
@@ -83,24 +79,20 @@ describe("resultTitle", () => {
   it("пустую выдачу называет состоянием, а не нулём", () => {
     expect(resultTitle(0)).toBe("Подборка пуста");
   });
-});
 
-describe("restLabel", () => {
   it("считает остаток под героем", () => {
     expect(restLabel(4)).toBe("Ещё четыре под те же ответы");
     expect(restLabel(1)).toBe("Ещё один под те же ответы");
   });
 });
 
-describe("formatWheretoWhen", () => {
+describe("форматирование карточки", () => {
   it("различает сегодня, завтра и дальнюю дату", () => {
     expect(formatWheretoWhen("2026-09-12T19:00:00+03:00", NOW)).toBe("Сегодня 19:00");
     expect(formatWheretoWhen("2026-09-13T21:00:00+03:00", NOW)).toBe("Завтра 21:00");
     expect(formatWheretoWhen("2026-09-19T12:00:00+03:00", NOW)).toContain("19 сентября");
   });
-});
 
-describe("formatWheretoPrice", () => {
   it("платное печатает ценой, бесплатное — словом", () => {
     // Разряды по-русски разделяет неразрывный пробел — именно он и обязан доехать до карточки
     expect(formatWheretoPrice({ isPaid: true, priceRub: 1500 })).toBe("1 500 ₽");
