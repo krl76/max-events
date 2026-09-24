@@ -16100,3 +16100,13 @@ button.app-poll-result {
 .app-notify-switch--on .app-notify-switch-knob {
   left: 21px;
 }
+
+/* Колокольчик шапки ленты стал кнопкой и получил UA-фон с рамкой. Снимается здесь, а не правкой
+ * базового правила выше: сведение веток волны собирает файл как «база + хвосты», и любая правка
+ * над этим блоком его ломает. Набор свойств — тот же, что у соседней .app-header-action. */
+.app-header-bell {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
