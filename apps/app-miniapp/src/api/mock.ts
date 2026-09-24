@@ -178,10 +178,16 @@
 // - resetMockOrganizerDay - clear the event-day state the mock owns alone (options, check-ins, waitlist offers)
 // - spotCheckMockReport - mock POST /reports/spot-check: the queue's second stream
 // - updateMockOrganizerEventOptions - mock PATCH /organizer/events/:id/options
+// - bookingOfferFor - mock GET /events/:id/booking-offer: the queue length and the friends already holding tickets of экран 18 (#496)
+// - eventCompanions - mock GET /events/:id/companions: the counters, the viewer status, the people and the gathering teaser of экран 23
+// - eventForecast - mock GET /events/:id/weather/hourly: the strip of экран 17 derived from the single stored snapshot (#495)
+// - eventMoodTags - mock GET /events/:id/mood-tags: the «Обстановка» tags of экран 17 with counters from the participations
+// - eventNearby - mock GET /events/:id/nearby: the venues around the event venue of экран 17, nearest first
+// - waitlistAheadCount - how many people are already queued for an event: the «7 впереди» of экран 18 (#496)
 // END_MODULE_MAP
 
-export { MOCK_PROMO_CODE, MOCK_SANDBOX_FAIL_AMOUNT, MOCK_SINGLE_USE_PROMO_CODE, OFFER_TTL_MS, createMockCheckIn, resetMockBookings, resetMockCheckIns, resetMockPromo, resetMockWaitlist } from "./mock/bookings";
-export { catalogCards, filterMockEvents, mapWeatherFor, participationStats, placePageFor, resetMockParticipations, travelOptionsFor } from "./mock/catalog";
+export { MOCK_PROMO_CODE, MOCK_SANDBOX_FAIL_AMOUNT, MOCK_SINGLE_USE_PROMO_CODE, OFFER_TTL_MS, createMockCheckIn, resetMockBookings, resetMockCheckIns, resetMockPromo, resetMockWaitlist, waitlistAheadCount } from "./mock/bookings";
+export { bookingOfferFor, catalogCards, eventCompanions, eventForecast, eventMoodTags, eventNearby, filterMockEvents, mapWeatherFor, participationStats, placePageFor, resetMockParticipations, travelOptionsFor } from "./mock/catalog";
 export { leisureOptions, MOCK_ASSIST_RATE_LIMIT, mockAssistDay, mockAssistSaturdayKey, mockAssistSuggest, mockParseAssistQuery, nearbyTimeline, recordSwipeDecision, resetMockAssist, resetMockSwipeDecisions, swipeCandidates, todayPicks, wheretoSuggestions } from "./mock/discover";
 export { createMockStory, feedPosts, listMockStories, mockFeedCards, mockFeedPostExtras, mockFriendStories, mockNotificationsSummary, mockPostDrafts, mockStoryCompositions, resetMockFeed, saveMockPostDraft } from "./mock/feed";
 export { MOCK_EARLY_ACCESS_EVENT_ID, MOCK_NOW, MOCK_ORGANIZER_CREDENTIALS, MOCK_TODAY, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganization, mockOrganizers, mockPlaces } from "./mock/fixtures";

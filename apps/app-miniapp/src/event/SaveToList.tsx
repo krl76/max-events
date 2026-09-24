@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Save-to-list control on the event page: «Сохранить» opens the preset list picker, per-list membership toggles against the lists API.
-// SCOPE: Data via apiClient.listLists/addListItem/removeListItem (mock or live); inline sheet, no modal; the user id is resolved by the caller.
+// PURPOSE: Save-to-list picker of the event page: the bookmark control of экран 17 opens it, and each row toggles this event in one list against the lists API.
+// SCOPE: Data via apiClient.listLists/addListItem/removeListItem (mock or live); an inline panel, never a modal; open/closed belongs to the caller, because the control that opens it lives in the hero and in the sticky bar.
 // DEPENDS: ../api/client.js (apiClient, ListSummary), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - SaveToListState - union of the picker fetch states (loading / error / ready)
 // - SaveToListView - presentational: picker rows with the «В списке» state and the «Готово» button
-// - SaveToList - collapsed «Сохранить»/«Сохранено» button expanding the picker, toggle wiring
+// - SaveToList - the picker: loads the lists while open and wires the per-row toggle; with an `open` flag the caller owns the control (экран 17 keeps it in the hero), without one it draws its own «Сохранить» button
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
@@ -19,8 +19,8 @@ export type SaveToListState = { status: "loading" } | { status: "error" } | { st
 
 export function SaveToListView({ state, onToggle, onDone }: { state: SaveToListState; onToggle: (summary: ListSummary) => void; onDone: () => void }) {
   return (
-    <section className="app-event">
-      <div className="app-event-body">
+    <section className="app-ev-save" aria-label="Сохранить в список">
+      <div className="app-ev-save-body">
         {state.status === "loading" && <AppState>Загрузка…</AppState>}
         {state.status === "error" && <AppState error>Не удалось загрузить списки.</AppState>}
         {state.status === "ready" && (
@@ -43,8 +43,15 @@ export function SaveToListView({ state, onToggle, onDone }: { state: SaveToListS
   );
 }
 
-export function SaveToList({ eventId, userId }: { eventId: string; userId: string }) {
-  const [open, setOpen] = useState(false);
+/**
+ * Open/closed is optional on purpose. On экран 17 the control that opens the picker is the bookmark
+ * in the hero, so the page owns the flag; anywhere the picker is on its own it still carries its own
+ * «Сохранить» button rather than forcing every caller to invent one.
+ */
+export function SaveToList({ eventId, userId, open, onClose }: { eventId: string; userId: string; open?: boolean; onClose?: () => void }) {
+  const [selfOpen, setSelfOpen] = useState(false);
+  const controlled = open !== undefined;
+  const isOpen = controlled ? open : selfOpen;
   const [state, setState] = useState<SaveToListState>({ status: "loading" });
 
   const load = useCallback(() => {
@@ -55,8 +62,8 @@ export function SaveToList({ eventId, userId }: { eventId: string; userId: strin
     );
   }, [userId, eventId]);
   useEffect(() => {
-    if (open) load();
-  }, [open, load]);
+    if (isOpen) load();
+  }, [isOpen, load]);
 
   const toggle = useCallback(
     (summary: ListSummary) => {
@@ -66,17 +73,18 @@ export function SaveToList({ eventId, userId }: { eventId: string; userId: strin
     [userId, eventId, load],
   );
 
-  if (!open) {
+  if (!isOpen) {
+    if (controlled) return null;
     const savedCount = state.status === "ready" ? state.summaries.filter((summary) => summary.savedItemId !== null).length : 0;
     return (
-      <section className="app-event">
-        <div className="app-event-body">
-          <AppButton onClick={() => setOpen(true)} stretched tone="secondary">
+      <section className="app-ev-save">
+        <div className="app-ev-save-body">
+          <AppButton onClick={() => setSelfOpen(true)} stretched tone="secondary">
             {savedCount > 0 ? "Сохранено" : "Сохранить"}
           </AppButton>
         </div>
       </section>
     );
   }
-  return <SaveToListView state={state} onToggle={toggle} onDone={() => setOpen(false)} />;
+  return <SaveToListView state={state} onToggle={toggle} onDone={() => (controlled ? onClose?.() : setSelfOpen(false))} />;
 }

@@ -14,6 +14,7 @@
 // - RoutedPages - slot-booking(placeId) renders экран 19, slot-ticket(id) экран 20 and bookings экран 21 — the three screens of the slot domain, reached from the venue screen and from the «Планы» tab
 // - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders the search screen (its «На карте» entry pushes the map), map renders the full-screen map, create renders the publication hub of the «Создать» tab and story-new its story screen, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar renders the «Планы» screen on the calendar tab, profile renders the profile screen with achievements/lists/subscriptions/my-city nav tiles, subscriptions renders the follows screen, whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the impression publish form, plans renders the «Планы» screen (plans/calendar/saved tabs) and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, lists renders the «Списки» screen (макет, экран 37) and list(id) one saved list (макет, экран 39), organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen, moderation renders the moderator queue (hidden behind the backend's 403 for everyone else)
 // - RoutedPages - assist(ask) renders экран 10 «MAX AI ассистент»; ask is the question the screen opens with, so a chip of экрана 15 («Дешевле», «Без такси») arrives as a typed line rather than as a silent re-query
+// - RoutedPages - current page by route; companions(eventId) renders экран 23 «С кем пойти», pushed from the «Кто идёт» row of экран 17
 // END_MODULE_MAP
 
 import { lazy, Suspense, type ElementType, type LazyExoticComponent } from "react";
@@ -74,6 +75,7 @@ const AssistPage = lazyNamed(() => import("../assist/AssistPage"), "AssistPage")
 const SlotBookingPage = lazyNamed(() => import("../place/SlotBookingPage"), "SlotBookingPage");
 const BookingTicketPage = lazyNamed(() => import("../booking/BookingTicketPage"), "BookingTicketPage");
 const MyBookingsPage = lazyNamed(() => import("../booking/MyBookingsPage"), "MyBookingsPage");
+const CompanionsPage = lazyNamed(() => import("../event/CompanionsPage"), "CompanionsPage");
 
 export function HomePage() {
   const { navigate } = useRoute();
@@ -171,5 +173,6 @@ function Routed() {
   if (route.name === "slot-booking") return <SlotBookingPage placeId={route.placeId} />;
   if (route.name === "slot-ticket") return <BookingTicketPage id={route.id} />;
   if (route.name === "bookings") return <MyBookingsPage />;
+  if (route.name === "companions") return <CompanionsPage eventId={route.eventId} />;
   return <HomePage />;
 }

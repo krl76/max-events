@@ -123,6 +123,14 @@
 // - OrganizerWaitlistEntry - one waitlist row of экран 44
 // - UpdateOrganizerEventOptions - partial OrganizerEventOptions patch
 // - organizerEntryCode - entry code of a booking, derived from its id (no code column exists yet)
+// - BookingOffer - экран 18 aggregate past EventDetails: the queue length ahead and the friends already holding tickets (#496)
+// - EventCompanion - one person of экран 23: status, shared chat, shared plans, interest matches and their note
+// - EventCompanions - экран 23 aggregate: the three tab counters, the viewer status, the people and the gathering teaser
+// - EventForecast - hourly forecast of экран 17: attribution source, the hour columns and the warning line (#495)
+// - EventGatheringTeaser - «Собирается компания» block of экран 23: who is agreeing and where they meet
+// - EventMoodTag - one «Обстановка» tag of экран 17 with how many participants marked it
+// - EventNearbySpot - one «Рядом» row of экран 17: a venue around the event with its walking distance in metres
+// - EventWeatherHour - one column of the hourly weather strip of экран 17 (#495)
 // END_MODULE_MAP
 
 import type { RecordPageViewWrite } from "@max-events/api-contracts";
@@ -148,7 +156,7 @@ export type { CreateGathering, CreateMicroEvent, DiscoveryFriendCard, DiscoveryS
 export type { CalendarEntry, PlanTimeline, PlanTimelineStep, PlanTransfer, PlanTransferMode, SharedCalendar, SharedCalendarEntry, SharedCalendarPeer } from "./endpoints/plans";
 export { ApiError } from "./endpoints/transport";
 export { EVENT_SORTS, parseEventFilters, serializeEventFilters } from "./endpoints/catalog";
-export type { CatalogCard, EventDetails, EventFilters, EventSort, MapWeather, ParticipationStats, PlaceParticipation, TravelMode, TravelOption } from "./endpoints/catalog";
+export type { BookingOffer, CatalogCard, EventCompanion, EventCompanions, EventDetails, EventFilters, EventForecast, EventGatheringTeaser, EventMoodTag, EventNearbySpot, EventSort, EventWeatherHour, MapWeather, ParticipationStats, PlaceParticipation, TravelMode, TravelOption } from "./endpoints/catalog";
 export type { CreateReview, EventRating, ReviewFactTag } from "./endpoints/reviews";
 export { POST_AUDIENCES, STORY_AUDIENCES } from "./endpoints/feed";
 export type { CreateFeedPost, FeedCard, FeedCardCounts, FeedComment, FeedFriendCard, FeedPlaceCard, FeedPost, NotificationsSummary, PostAudience, PostDraft, PostDraftSaved, StoryAudience, StoryComposition, StoryPlaceSticker, StoryPoll } from "./endpoints/feed";

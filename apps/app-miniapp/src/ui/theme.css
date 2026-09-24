@@ -14288,3 +14288,1468 @@ button.app-poll-result {
   line-height: var(--app-line-height-body);
   margin: 10px 0 var(--app-space-xl);
 }
+
+/* ===== Волна 9: Событие (экраны 17, 23, 18) =====
+ * Экран 17 — карточка события, 23 — «С кем пойти», 18 — лист записи поверх карточки.
+ * Нейтрали берутся каналами схемы (--app-scheme-neutral), поэтому тёмная версия выводится
+ * из тех же правил. Голубой (brand-cyan) нигде не становится текстом: только заливка формы
+ * под opacity — как литерал rgba канал этого цвета палитра не раскрывает.
+ * Тёмных заливок макета (пилюли «Проложить маршрут», «Подписаться») здесь нет: тёмная заливка
+ * закреплена за подтверждением, поэтому вторичные действия несут поверхность с обводкой,
+ * а главные — синюю заливку акцента.
+ */
+
+/* --- Экран 17 «Карточка события» ------------------------------------------------------------ */
+
+.app-ev {
+  display: flex;
+  flex-direction: column;
+  /* Липкая панель обязана встать вплотную к таббару и в конце прокрутки, а не в 16px над ним */
+  margin-bottom: calc(-1 * var(--app-space-l));
+}
+
+.app-ev-hero {
+  background: var(--app-gradient-dark);
+  color: var(--brand-white);
+  margin: 0 calc(-1 * var(--app-space-screen));
+  overflow: hidden;
+  padding: var(--app-space-l) var(--app-space-screen) var(--app-space-xl);
+  position: relative;
+}
+
+/* Абстрактные пятна вместо фотографии: фото людей бриф запрещает */
+.app-ev-hero-blob {
+  border-radius: 50%;
+  position: absolute;
+}
+
+.app-ev-hero-blob--light {
+  background: rgba(255, 255, 255, 0.1);
+  height: 240px;
+  right: -80px;
+  top: -70px;
+  width: 240px;
+}
+
+.app-ev-hero-blob--cool {
+  background: var(--brand-cyan);
+  bottom: -90px;
+  height: 220px;
+  left: -70px;
+  opacity: 0.24;
+  width: 220px;
+}
+
+.app-ev-hero-bar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+}
+
+.app-ev-hero-bar-right {
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+.app-ev-hero-btn {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.18);
+  border: none;
+  border-radius: 50%;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+.app-ev-hero-btn[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.34);
+}
+
+/* Шеврон нарисован вправо; кнопка назад разворачивает его */
+.app-ev-hero-btn--back svg {
+  transform: rotate(180deg);
+}
+
+.app-ev-hero-id {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  margin-top: var(--app-space-l);
+  position: relative;
+}
+
+/* Квадрат 84px вместо карточного 4:5: это метка категории, а не медиа-блок */
+.app-ev-hero-media {
+  aspect-ratio: 1;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  box-sizing: border-box;
+  flex: none;
+  height: 84px;
+  width: 84px;
+}
+
+.app-ev-hero-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-ev-title {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.app-ev-hero-meta {
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+  margin: 6px 0 0;
+  opacity: 0.9;
+}
+
+/* Занято из вместимости: белый круг поверх градиента, цвета фиксированы в обеих схемах */
+.app-ev-hero-seats {
+  align-items: center;
+  background: var(--brand-white);
+  border-radius: 50%;
+  color: var(--brand-void);
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  height: 64px;
+  justify-content: center;
+  width: 64px;
+}
+
+.app-ev-hero-seats-taken {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.app-ev-hero-seats-rule {
+  background: rgba(13, 0, 26, 0.2);
+  height: 1px;
+  margin: 2px 0;
+  width: 26px;
+}
+
+.app-ev-hero-seats-cap {
+  color: rgba(13, 0, 26, 0.62);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Дата, день недели со временем и условие входа — одной строкой */
+.app-ev-when {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  padding-top: var(--app-space-l);
+}
+
+.app-ev-when-badge {
+  background: var(--app-surface);
+  border-radius: 14px;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  padding: var(--app-space-s) 0;
+  text-align: center;
+  width: 54px;
+}
+
+.app-ev-when-month {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+}
+
+.app-ev-when-day {
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.app-ev-when-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-ev-when-line {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+}
+
+.app-ev-when-time {
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: var(--app-font-size-callout);
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.app-ev-when-price {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-pill);
+  flex: none;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  padding: var(--app-space-s) var(--app-space-m);
+}
+
+.app-ev-weather {
+  border-radius: var(--app-radius-card);
+  margin-top: var(--app-space-l);
+  padding: 14px var(--app-space-l);
+  position: relative;
+}
+
+/* Голубая подложка — заливка формы под opacity: канал brand-cyan палитра как литерал не раскрывает */
+.app-ev-weather::before {
+  background: var(--brand-cyan);
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  opacity: 0.09;
+  pointer-events: none;
+  position: absolute;
+}
+
+.app-ev-weather > * {
+  position: relative;
+}
+
+.app-ev-weather-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.app-ev-weather-title {
+  align-items: center;
+  display: flex;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  gap: var(--app-space-s);
+}
+
+.app-ev-weather-source {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+}
+
+.app-ev-weather-strip {
+  align-items: flex-end;
+  display: flex;
+  gap: var(--app-space-xs);
+  list-style: none;
+  margin: var(--app-space-m) 0 0;
+  padding: 0;
+}
+
+.app-ev-weather-hour {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Часы за пределами события приглушены, а не спрятаны: «что будет после» — половина ответа */
+.app-ev-weather-hour--after {
+  opacity: 0.55;
+}
+
+.app-ev-weather-at {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+}
+
+.app-ev-weather-temp {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-ev-weather-note {
+  align-items: flex-start;
+  border-top: var(--app-hairline);
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+  gap: var(--app-space-s);
+  line-height: 1.4;
+  margin: 14px 0 0;
+  padding-top: var(--app-space-m);
+}
+
+.app-ev-weather-note svg {
+  flex: none;
+}
+
+.app-ev-route {
+  align-items: center;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  gap: var(--app-space-m);
+  margin-top: var(--app-space-l);
+  padding: var(--app-space-m);
+}
+
+/* Схема перекрёстка, а не карта: тайлов нет, а пустой прямоугольник читается как ошибка загрузки */
+.app-ev-route-map {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-media);
+  flex: none;
+  height: 72px;
+  overflow: hidden;
+  position: relative;
+  width: 84px;
+}
+
+.app-ev-route-road {
+  background: rgba(var(--app-scheme-neutral), 0.08);
+  height: 8px;
+  left: -10px;
+  position: absolute;
+  right: -10px;
+  top: 26px;
+  transform: rotate(-10deg);
+}
+
+.app-ev-route-street {
+  background: rgba(var(--app-scheme-neutral), 0.08);
+  bottom: -10px;
+  left: 46px;
+  position: absolute;
+  top: -10px;
+  transform: rotate(14deg);
+  width: 7px;
+}
+
+.app-ev-route-pin {
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-purple));
+  border-radius: 50% 50% 50% 0;
+  height: 18px;
+  left: 34px;
+  position: absolute;
+  top: 26px;
+  transform: rotate(-45deg);
+  width: 18px;
+}
+
+.app-ev-route-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-ev-route-address {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.app-ev-route-travel {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: 2px 0 0;
+}
+
+/* Вторичная форма: поверхность с обводкой. Тёмная заливка макета закреплена за подтверждением */
+.app-ev-route-go {
+  align-items: center;
+  background: var(--app-surface);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: 6px;
+  height: 44px;
+  margin-top: var(--app-space-s);
+  padding: 0 var(--app-space-l);
+}
+
+.app-ev-org {
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  margin-top: 18px;
+  padding: var(--app-space-l);
+}
+
+.app-ev-org-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+}
+
+.app-ev-org-mark {
+  align-items: center;
+  background: linear-gradient(135deg, var(--brand-void), var(--brand-blue));
+  border-radius: var(--app-radius-media);
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.app-ev-org-id {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-ev-org-name {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-ev-org-meta {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin-top: 1px;
+}
+
+/* Подписка приходит готовым ion-button: контейнер задаёт ему ширину и рост пилюли шапки */
+.app-ev-org-action {
+  flex: none;
+  width: 132px;
+}
+
+.app-ev-org-action ion-button {
+  --padding-end: 10px;
+  --padding-start: 10px;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 36px;
+  margin: 0;
+  text-transform: none;
+}
+
+.app-ev-org-rating {
+  align-items: center;
+  border-top: var(--app-hairline);
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.app-ev-org-stars {
+  align-items: center;
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  gap: 6px;
+}
+
+.app-ev-org-metric {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-ev-org-metric b {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+}
+
+.app-ev-org-metric i {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-style: normal;
+  line-height: 1.3;
+  margin-top: 1px;
+}
+
+.app-ev-org-reviews {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  margin: 10px 0 0;
+}
+
+/* Меньше трёх отзывов — объяснение вместо нулей */
+.app-ev-org-new {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 14px;
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  padding: var(--app-space-m) 14px;
+}
+
+.app-ev-org-new svg {
+  flex: none;
+}
+
+.app-ev-org-new span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-ev-org-new b {
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+}
+
+.app-ev-org-new i {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-style: normal;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.app-ev-who {
+  align-items: center;
+  background: none;
+  border: none;
+  border-top: var(--app-hairline);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 14px 0;
+  width: 100%;
+}
+
+.app-ev-who-label {
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+}
+
+.app-ev-who-label b {
+  color: var(--app-text);
+  font-weight: 800;
+}
+
+.app-ev-who-right {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+.app-ev-faces {
+  display: flex;
+  padding-left: var(--app-space-s);
+}
+
+.app-ev-face {
+  align-items: center;
+  background: linear-gradient(135deg, var(--brand-violet), var(--brand-cyan));
+  border: 2px solid var(--app-canvas);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  height: 30px;
+  justify-content: center;
+  margin-left: calc(-1 * var(--app-space-s));
+  width: 30px;
+}
+
+.app-ev-face:nth-child(2) {
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-purple));
+}
+
+.app-ev-face:nth-child(3) {
+  background: linear-gradient(135deg, var(--brand-purple), var(--brand-cyan));
+}
+
+.app-ev-face--rest {
+  background: rgba(var(--app-scheme-neutral), 0.1);
+  color: var(--app-text);
+}
+
+.app-ev-section {
+  padding-top: 20px;
+}
+
+.app-ev-section-title {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  margin: 0 0 10px;
+}
+
+.app-ev-about {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-callout);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.app-ev-moods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-s);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-ev-mood {
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-pill);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: var(--app-space-s) var(--app-space-m);
+}
+
+.app-ev-nearby {
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  list-style: none;
+  margin: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.app-ev-nearby li + li .app-ev-nearby-row {
+  border-top: var(--app-hairline);
+}
+
+.app-ev-nearby-row {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 600;
+  gap: 10px;
+  padding: 14px var(--app-space-l);
+  text-align: left;
+  width: 100%;
+}
+
+.app-ev-nearby-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-ev-nearby-distance {
+  color: var(--app-text-secondary);
+  flex: none;
+  font-size: var(--app-font-size-description);
+}
+
+/* Сохранение в список: панель выезжает под hero по кнопке-закладке */
+.app-ev-save {
+  margin-top: var(--app-space-m);
+}
+
+.app-ev-save-body {
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  padding: var(--app-space-m) var(--app-space-l);
+}
+
+/* Разделы, которых в макете нет, но функции за ними живые: оплата, автоплан, лист ожидания,
+ * стена события, отзыв, отметка «я здесь» и жалоба */
+.app-ev-extras {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--app-space-xl);
+}
+
+.app-ev-secondary {
+  display: flex;
+  padding-top: var(--app-space-m);
+}
+
+.app-ev-secondary-btn {
+  background: var(--app-surface);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 40px;
+  padding: 0 var(--app-space-l);
+}
+
+.app-ev-secondary-btn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/*
+ * Дно прокрутки уже отступает от таббара на его высоту плюс 16px, поэтому панель липнет к нему
+ * с отрицательным смещением — иначе между кнопкой и таббаром остаётся щель, сквозь которую едет
+ * текст конца карточки. Тот же -16px в margin-bottom у .app-ev: в конце прокрутки панель обязана
+ * встать туда же, куда встаёт липкой, а не перекрыть последнюю строку.
+ */
+.app-ev-bar {
+  background: var(--app-card);
+  border-top: var(--app-hairline);
+  bottom: calc(-1 * var(--app-space-l));
+  display: flex;
+  gap: 10px;
+  margin: var(--app-space-l) calc(-1 * var(--app-space-screen)) 0;
+  padding: var(--app-space-m) var(--app-space-screen);
+  position: sticky;
+  z-index: 3;
+}
+
+.app-ev-bar-chat {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 56px;
+  justify-content: center;
+  width: 56px;
+}
+
+.app-ev-bar-cta {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  height: 56px;
+  justify-content: center;
+}
+
+.app-ev-bar-cta:hover,
+.app-ev-bar-cta:active {
+  background: var(--app-accent-press);
+}
+
+/* --- Экран 18 «Запись и лист ожидания»: лист поверх карточки события ------------------------- */
+
+.app-evb {
+  bottom: 0;
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 20;
+}
+
+.app-evb-scrim {
+  background: rgba(13, 0, 26, 0.45);
+  border: none;
+  bottom: 0;
+  cursor: pointer;
+  left: 0;
+  padding: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.app-evb-sheet {
+  background: var(--app-canvas);
+  border-radius: 24px 24px 0 0;
+  bottom: 0;
+  box-sizing: border-box;
+  left: 0;
+  max-height: 88dvh;
+  overflow-y: auto;
+  padding: var(--app-space-m) var(--app-space-screen) calc(var(--app-space-xl) + env(safe-area-inset-bottom, 0px));
+  position: absolute;
+  right: 0;
+  scrollbar-width: none;
+}
+
+.app-evb-grabber {
+  background: rgba(var(--app-scheme-neutral), 0.15);
+  border-radius: 2px;
+  display: block;
+  height: 4px;
+  margin: 0 auto var(--app-space-l);
+  width: 40px;
+}
+
+.app-evb-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+}
+
+.app-evb-title {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.app-evb-count {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-pill);
+  flex: none;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 5px 10px;
+}
+
+.app-evb-bar {
+  background: rgba(var(--app-scheme-neutral), 0.1);
+  border-radius: 2px;
+  height: 4px;
+  margin-top: var(--app-space-m);
+  overflow: hidden;
+}
+
+/* Заполненность — «живой» индикатор: голубой разрешён как полоса, но не как текст */
+.app-evb-bar-fill {
+  background: var(--app-status);
+  display: block;
+  height: 100%;
+}
+
+.app-evb-summary {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-callout);
+  line-height: 1.45;
+  margin: var(--app-space-m) 0 0;
+}
+
+.app-evb-friends {
+  align-items: center;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  gap: var(--app-space-m);
+  margin-top: var(--app-space-l);
+  padding: var(--app-space-m) 14px;
+}
+
+.app-evb-faces {
+  display: flex;
+  flex: none;
+  padding-left: var(--app-space-s);
+}
+
+.app-evb-face {
+  align-items: center;
+  background: linear-gradient(135deg, var(--brand-purple), var(--brand-violet));
+  border: 2px solid var(--app-canvas);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 32px;
+  justify-content: center;
+  margin-left: calc(-1 * var(--app-space-s));
+  width: 32px;
+}
+
+.app-evb-face:nth-child(2) {
+  background: linear-gradient(135deg, var(--brand-violet), var(--brand-cyan));
+}
+
+.app-evb-face:nth-child(3) {
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-purple));
+}
+
+.app-evb-friends-text {
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.app-evb-promo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-l);
+}
+
+.app-evb-early {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: 0;
+}
+
+.app-evb-input {
+  background: var(--app-surface);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-media);
+  box-sizing: border-box;
+  color: var(--app-text);
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  height: 48px;
+  padding: 0 14px;
+  width: 100%;
+}
+
+.app-evb-cta {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  gap: var(--app-space-s);
+  height: 56px;
+  justify-content: center;
+  margin-top: var(--app-space-l);
+  width: 100%;
+}
+
+.app-evb-cta:hover:not(:disabled),
+.app-evb-cta:active:not(:disabled) {
+  background: var(--app-accent-press);
+}
+
+.app-evb-cta:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Отмена записи необратима: обводка на прозрачном фоне, как у danger-тона */
+.app-evb-cta--booked {
+  background: transparent;
+  border: 1px solid var(--app-danger-border);
+  color: var(--app-danger-label);
+}
+
+.app-evb-cta--booked:hover,
+.app-evb-cta--booked:active {
+  background: var(--app-danger-wash);
+}
+
+.app-evb-waitlist {
+  align-items: center;
+  background: var(--app-surface);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  height: 56px;
+  justify-content: center;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.app-evb-waitlist:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.app-evb-note {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: var(--app-space-m) 0 0;
+  text-align: center;
+}
+
+/* --- Экран 23 «С кем пойти» ----------------------------------------------------------------- */
+
+.app-evc {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-evc-bar {
+  align-items: center;
+  border-bottom: var(--app-hairline);
+  display: flex;
+  gap: var(--app-space-m);
+  margin: 0 calc(-1 * var(--app-space-screen));
+  padding: var(--app-space-m) var(--app-space-screen);
+}
+
+.app-evc-back {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 50%;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+.app-evc-back svg {
+  transform: rotate(180deg);
+}
+
+.app-evc-bar-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-evc-bar-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+}
+
+.app-evc-bar-title {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-evc-bar-media {
+  aspect-ratio: 1;
+  border-radius: var(--app-radius-media);
+  flex: none;
+  height: 40px;
+  width: 40px;
+}
+
+.app-evc-lead {
+  display: flex;
+  gap: var(--app-space-s);
+  padding-top: var(--app-space-m);
+}
+
+.app-evc-gather {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: 7px;
+  height: 44px;
+  justify-content: center;
+}
+
+.app-evc-gather:hover,
+.app-evc-gather:active {
+  background: var(--app-accent-press);
+}
+
+.app-evc-tabs {
+  border-bottom: var(--app-hairline);
+  display: flex;
+  margin: var(--app-space-m) calc(-1 * var(--app-space-screen)) 0;
+  padding: 0 var(--app-space-screen);
+}
+
+.app-evc-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 600;
+  padding: 14px 0;
+}
+
+.app-evc-tab--on {
+  border-bottom-color: var(--app-accent);
+  color: var(--app-text);
+  font-weight: 800;
+}
+
+.app-evc-status {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  margin-top: 20px;
+  padding: 14px var(--app-space-l);
+}
+
+.app-evc-status-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+}
+
+.app-evc-status-text {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font: inherit;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.app-evc-status-line {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-evc-status-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-evc-switch {
+  background: rgba(var(--app-scheme-neutral), 0.15);
+  border: none;
+  border-radius: 13px;
+  cursor: pointer;
+  flex: none;
+  height: 26px;
+  padding: 0;
+  position: relative;
+  width: 44px;
+}
+
+.app-evc-switch--on {
+  background: var(--app-accent);
+}
+
+.app-evc-switch-knob {
+  background: var(--brand-white);
+  border-radius: 50%;
+  height: 20px;
+  left: 3px;
+  position: absolute;
+  top: 3px;
+  transition: left 0.16s ease-out;
+  width: 20px;
+}
+
+.app-evc-switch--on .app-evc-switch-knob {
+  left: 21px;
+}
+
+.app-evc-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: var(--app-space-m) 0 0;
+  padding: 0;
+}
+
+.app-evc-pick {
+  background: var(--app-canvas);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+.app-evc-pick--on {
+  background: var(--app-accent);
+  border-color: var(--app-accent);
+  color: var(--app-accent-contrast);
+}
+
+.app-evc-list-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  margin: var(--app-space-xl) 0 10px;
+}
+
+.app-evc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-evc-card,
+.app-evc-row {
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  padding: 14px;
+}
+
+.app-evc-row {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+}
+
+.app-evc-card-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+}
+
+.app-evc-avatar {
+  align-items: center;
+  background: linear-gradient(135deg, var(--brand-purple), var(--brand-violet));
+  border-radius: 50%;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  height: 48px;
+  justify-content: center;
+  position: relative;
+  width: 48px;
+}
+
+/* Голубая точка — заливка формы, а не текст: у brand-cyan контраст на подпись не тянет */
+.app-evc-avatar--active::after {
+  background: var(--brand-cyan);
+  border: 2px solid var(--app-canvas);
+  border-radius: 50%;
+  bottom: 0;
+  content: "";
+  height: 11px;
+  position: absolute;
+  right: 0;
+  width: 11px;
+}
+
+.app-evc-id {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-evc-name {
+  font-size: var(--app-font-size-body);
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-evc-meta {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+/* Единственная залитая пурпурная пилюля экрана — роль бейджа */
+.app-evc-badge {
+  background: var(--app-badge);
+  border-radius: 6px;
+  color: var(--app-badge-contrast);
+  flex: none;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 5px var(--app-space-s);
+}
+
+/* Реплика человека: скруглённый хвостик сверху слева, как у пузыря сообщения */
+.app-evc-note {
+  background: var(--app-surface);
+  border-radius: 0 14px 14px 14px;
+  font-size: var(--app-font-size-callout);
+  line-height: 1.4;
+  margin: var(--app-space-m) 0 0;
+  padding: 10px var(--app-space-m);
+}
+
+.app-evc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.app-evc-tag {
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-pill);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  padding: 5px var(--app-space-s);
+}
+
+.app-evc-actions {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
+}
+
+.app-evc-invite {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-media);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 44px;
+  justify-content: center;
+}
+
+.app-evc-invite:hover,
+.app-evc-invite:active {
+  background: var(--app-accent-press);
+}
+
+.app-evc-chat {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-media);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+/* Компактная строка: приглашение здесь — ссылка, потому что карточка не раскрыта */
+.app-evc-invite-link,
+.app-evc-join {
+  background: none;
+  border: none;
+  color: var(--app-accent-text);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: 0;
+}
+
+.app-evc-gathering {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-card);
+  margin-top: var(--app-space-xl);
+  padding: var(--app-space-l);
+}
+
+.app-evc-gathering-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  margin: 0;
+}
+
+.app-evc-gathering-text {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: var(--app-space-xs) 0 0;
+}
+
+.app-evc-gathering-foot {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--app-space-m);
+}
+
+.app-evc-faces {
+  display: flex;
+  padding-left: var(--app-space-s);
+}
+
+.app-evc-face {
+  align-items: center;
+  background: linear-gradient(135deg, var(--brand-purple), var(--brand-violet));
+  border: 2px solid var(--app-canvas);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  margin-left: calc(-1 * var(--app-space-s));
+  width: 28px;
+}
+
+.app-evc-face:nth-child(2) {
+  background: linear-gradient(135deg, var(--brand-void), var(--brand-blue));
+}
+
+.app-evc-face--rest {
+  background: rgba(var(--app-scheme-neutral), 0.1);
+  color: var(--app-text);
+}

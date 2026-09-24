@@ -31,10 +31,11 @@
 // - checkInFor - Check-in of a user for an event, or null (mock state for the event page button)
 // - createMockCheckIn - in-memory check-in for an event or a place, idempotent (mock POST)
 // - remainingSeats - shared with bookings.routes, catalog, discover
+// - waitlistAheadCount - how many people are already queued for an event: the «7 впереди» of экран 18 (#496)
 // END_MODULE_MAP
 
 import type { Booking, BookingWithSeats, CheckIn, Payment, WaitlistEntry } from "@max-events/api-contracts";
-import { MOCK_BOOKING_OPENS_AT, MOCK_EARLY_ACCESS_EVENT_ID, PLACE_STAMP, mockDemoUser, mockEvents, mockPlaces } from "./fixtures";
+import { MOCK_BOOKING_OPENS_AT, MOCK_EARLY_ACCESS_EVENT_ID, PLACE_STAMP, mockDemoUser, mockEvents, mockFriendIds, mockPlaces } from "./fixtures";
 
 export const mockBookings: Booking[] = [];
 
@@ -108,10 +109,58 @@ export function mockBookingWithSeats(booking: Booking): BookingWithSeats {
   };
 }
 
-/** Module-load seed: active booking of the demo user on a past fixture event, so the post-event review flow ("Как прошло?") is reachable in the demo; test resets clear it. */
-function seedMockBookings(): void {
+/** Past fixture event of the demo user, so the post-event review flow ("Как прошло?") is reachable in the demo. */
+const SEEDED_PAST_EVENT_ID = "c000000d-0000-4000-8000-00000000000d";
+
+/** The demo user's paid ticket: the nearest event with a price, so «Мои брони» opens on a real ticket and not on an empty list. */
+const SEEDED_TICKET_EVENT_ID = "c0000001-0000-4000-8000-000000000001";
+
+/** Event of the seeded «Мы»-группы: its «Брони» block counts the bookings of the members, and without one the block is blank. */
+const SEEDED_GROUP_EVENT_ID = "c0000003-0000-4000-8000-000000000003";
+
+/** Members of that group besides the demo user; the bookings are theirs so the demo user still meets the event card unbooked, with its «Записаться» still to press. */
+const SEEDED_GROUP_MEMBER_IDS = [3, 4];
+
+/** Almost sold out (capacity 20): 16 seats taken leave the «осталось 4» of макет, экран 17, and the «Мест почти нет» of экран 18. */
+const SEEDED_ALMOST_FULL_EVENT_ID = "c0000008-0000-4000-8000-000000000008";
+
+/** Sold out (capacity 15) with a queue behind it: the only state in which экран 18 draws the waitlist at all. */
+const SEEDED_SOLD_OUT_EVENT_ID = "c0000004-0000-4000-8000-000000000004";
+
+/**
+ * Seat holders who are nobody in particular: the crowd that fills an event is not in the friend
+ * fixtures and must not leak into a «кто идёт» row, so these ids match no Friend, no member and no
+ * organizer — they are seats taken, and the seat arithmetic is all they are read by.
+ */
+function seededGuestId(index: number): string {
+  return `a0000000-0000-4000-8000-9000000000${String(index).padStart(2, "0")}`;
+}
+
+function seedBooking(userId: string, eventId: string): Booking {
   mockBookingSeq += 1;
-  mockBookings.push({ id: `e0000000-0000-4000-8000-${String(mockBookingSeq).padStart(12, "0")}`, userId: mockDemoUser.id, eventId: "c000000d-0000-4000-8000-00000000000d", status: "active", createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP });
+  const booking: Booking = { id: `e0000000-0000-4000-8000-${String(mockBookingSeq).padStart(12, "0")}`, userId, eventId, status: "active", createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
+  mockBookings.push(booking);
+  return booking;
+}
+
+/**
+ * Module-load seed; test resets clear it (resetMockBookings).
+ *
+ * An empty booking store leaves half the demo unreachable: «Мои брони» has nothing to list, the
+ * «Брони» block of a «Мы»-группа is blank, and every event reports every seat free — so экран 17
+ * never says «осталось 4», экран 18 never says «Мест почти нет» and its waitlist, which only exists
+ * once the seats are gone, cannot be reached at all. The three friends on the almost-full event are
+ * friends on purpose: «уже с билетами» on экран 18 names people the viewer knows.
+ */
+function seedMockBookings(): void {
+  seedBooking(mockDemoUser.id, SEEDED_PAST_EVENT_ID);
+  for (const index of SEEDED_GROUP_MEMBER_IDS) seedBooking(mockFriendIds[index], SEEDED_GROUP_EVENT_ID);
+  const ticket = seedBooking(mockDemoUser.id, SEEDED_TICKET_EVENT_ID);
+  const payment = ensureMockPayment(ticket, PLACE_STAMP);
+  if (payment !== null) settleMockPayment(payment, PLACE_STAMP);
+  for (const friendId of mockFriendIds.slice(0, 3)) seedBooking(friendId, SEEDED_ALMOST_FULL_EVENT_ID);
+  for (let index = 1; index <= 13; index += 1) seedBooking(seededGuestId(index), SEEDED_ALMOST_FULL_EVENT_ID);
+  for (let index = 14; index <= 28; index += 1) seedBooking(seededGuestId(index), SEEDED_SOLD_OUT_EVENT_ID);
 }
 seedMockBookings();
 
@@ -175,6 +224,25 @@ export function resetMockWaitlist(): void {
   mockWaitlist.length = 0;
   mockWaitlistSeq = 0;
 }
+
+/**
+ * Module-load seed; test resets clear it (resetMockWaitlist).
+ *
+ * Seven people wait for the sold-out fixture, the demo user last: that is the «7 впереди» of макет,
+ * экран 18 for anyone outside the queue, and the position «Мои брони» prints for the demo user
+ * inside it. Every entry is «waiting» and none is «offered», so the queue reserves no seat and the
+ * seat arithmetic of the event stays exactly what the bookings made it.
+ */
+function seedMockWaitlist(): void {
+  const stamp = (minute: number): string => new Date(new Date(PLACE_STAMP).getTime() + minute * 60_000).toISOString();
+  const enqueue = (userId: string): void => {
+    mockWaitlistSeq += 1;
+    mockWaitlist.push({ id: `82000000-0000-4000-8000-${String(mockWaitlistSeq).padStart(12, "0")}`, userId, eventId: SEEDED_SOLD_OUT_EVENT_ID, position: 0, status: "waiting", offeredUntil: null, createdAt: stamp(mockWaitlistSeq), updatedAt: stamp(mockWaitlistSeq) });
+  };
+  for (let index = 29; index <= 34; index += 1) enqueue(seededGuestId(index));
+  enqueue(mockDemoUser.id);
+}
+seedMockWaitlist();
 
 /** Queue entries of an event (waiting|offered) in FIFO order. */
 function waitlistQueue(eventId: string): WaitlistEntry[] {
@@ -290,6 +358,16 @@ export function createMockCheckIn(userId: string, payload: { eventId?: string; p
   const checkIn: CheckIn = { id: `60000000-0000-4000-8000-${String(mockCheckInSeq).padStart(12, "0")}`, userId, eventId: payload.eventId ?? null, placeId: payload.placeId ?? null, checkedInAt: new Date().toISOString() };
   mockCheckIns.push(checkIn);
   return checkIn;
+}
+
+/**
+ * How many people already stand in the queue (макет, экран 18, «Встать в лист ожидания · 7 впереди»).
+ * GET /waitlist/me answers a position only to the person holding an entry, so nobody can see the
+ * length of the queue before joining it (#496); this is the number that endpoint will report.
+ */
+export function waitlistAheadCount(eventId: string): number {
+  refreshMockWaitlist(eventId);
+  return waitlistQueue(eventId).length;
 }
 
 export function remainingSeats(eventId: string): number | null {

@@ -23,6 +23,7 @@
 // - Route - ... | vote-new(groupId): создание голосования (макет, экран 32), groupId непустой, когда экран открыт из группы
 // - Route - ... | assist(ask): экран 10 «MAX AI ассистент», ask — вопрос, с которым его открыли (чипы экрана 15)
 // - Route - … | slot-booking(placeId) экран 19 | slot-ticket(id) экран 20 | bookings экран 21; the «booking-» start_param opens the ticket of экран 20
+// - Route - ... | companions(eventId) — экран 23 «С кем пойти», вход с карточки события
 // END_MODULE_MAP
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -75,7 +76,9 @@ export type Route =
   // Экран 20: подтверждённая бронь с кодом входа
   | { name: "slot-ticket"; id: string }
   // Экран 21: «Мои брони» — билеты, слоты и лист ожидания в одном списке
-  | { name: "bookings" };
+  | { name: "bookings" }
+  // Экран 23 «С кем пойти»: список открывается от события, поэтому несёт его id, а не свой
+  | { name: "companions"; eventId: string };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -195,6 +198,11 @@ function toRoute(value: unknown): Route | null {
     case "friend-route": {
       const { id } = value as { id?: unknown };
       return typeof id === "string" ? ({ name, id } as Route) : null;
+    }
+    // Экран 23 живёт при событии: свой case, потому что ключ — eventId
+    case "companions": {
+      const { eventId } = value as { eventId?: unknown };
+      return typeof eventId === "string" ? { name, eventId } : null;
     }
     default:
       return null;
