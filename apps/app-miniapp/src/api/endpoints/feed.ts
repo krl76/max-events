@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Feed and stories endpoints of the api client: the stories rail, the home feed cards (макет, экран 03), the impression wall with its likes and comments, and the two publication screens (макет, экраны 05 и 06).
-// SCOPE: GET/POST /stories, GET /feed/cards, GET /notifications/summary, GET/POST /feed, POST /feed/drafts, POST /feed/:id/like, POST /feed/:id/comments; the FeedCard aggregate is a client-side shape like EventDetails in ./catalog.ts.
+// SCOPE: GET/POST /stories, GET /feed/cards, GET/POST /feed, POST /feed/drafts, POST /feed/:id/like, POST /feed/:id/comments; the FeedCard aggregate is a client-side shape like EventDetails in ./catalog.ts. The header bell of экран 03 moved out with its screen: the inbox and its unread count live in ./notifications.ts.
 // DEPENDS: ./transport.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -22,8 +22,7 @@
 // - FeedFriendCard - friend post of the home feed: the author, the event hero with its live/hit badges, the counters, the caption and the comments
 // - FeedPlaceCard - venue post of the home feed: the place header with rating and travel time, the slot offer, the friend quote and the viewer status block
 // - FeedCard - discriminated union of the two home feed card kinds
-// - NotificationsSummary - unread count behind the header bell; mock-only until the notifications domain exists (#494)
-// - withFeed - ApiClient.listStories / createStory / listFeedCards / getNotificationsSummary / listFeedPosts / createFeedPost / savePostDraft / toggleFeedLike / addFeedComment
+// - withFeed - ApiClient.listStories / createStory / listFeedCards / listFeedPosts / createFeedPost / savePostDraft / toggleFeedLike / addFeedComment
 // END_MODULE_MAP
 
 import { EventSchema, FeedCommentSchema, FeedPostSchema, FriendSchema, ParticipationStatusSchema, PlaceSchema, StorySchema } from "@max-events/api-contracts";
@@ -209,25 +208,6 @@ export interface FeedPlaceCard {
 
 export type FeedCard = FeedFriendCard | FeedPlaceCard;
 
-/**
- * What the bell in the feed header counts (макет, экран 03). Notifications are not a domain yet —
- * smart-alerts is a scheduler, not an inbox (#494) — so this is the shape and the path that endpoint
- * will take; it lives here because the header it feeds belongs to the feed screen, and moves to its
- * own module once the domain exists.
- */
-export interface NotificationsSummary {
-  unreadCount: number;
-}
-
-const NotificationsSummarySchema: ZodSchema<NotificationsSummary> = {
-  safeParse(data: unknown) {
-    if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a notifications summary object" };
-    const raw = data as Record<string, unknown>;
-    if (typeof raw.unreadCount !== "number") return { success: false as const, error: "invalid notifications summary" };
-    return { success: true as const, data: { unreadCount: raw.unreadCount } };
-  },
-};
-
 const PostDraftSavedSchema: ZodSchema<PostDraftSaved> = {
   safeParse(data: unknown) {
     if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a draft receipt object" };
@@ -329,11 +309,6 @@ export function withFeed<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/feed/cards?userId=${encodeURIComponent(userId)}`, FeedCardsSchema);
     }
 
-    /** Unread count behind the header bell; mock-only until the notifications domain lands (#494). */
-    getNotificationsSummary(userId: string): Promise<NotificationsSummary> {
-      return this.request(`/notifications/summary?userId=${encodeURIComponent(userId)}`, NotificationsSummarySchema);
-    }
-
     listFeedPosts(eventId?: string, placeId?: string): Promise<FeedPost[]> {
       const query = eventId !== undefined ? `?eventId=${encodeURIComponent(eventId)}` : placeId !== undefined ? `?placeId=${encodeURIComponent(placeId)}` : "";
       return this.request(`/feed${query}`, FeedPostSchema.array());
@@ -346,7 +321,7 @@ export function withFeed<TBase extends ApiMixin>(Base: TBase) {
     /**
      * Autosaves the post draft behind the «Черновик сохранён» line (макет, экран 06). Drafts are not
      * a domain — nothing on the backend answers this path yet, the mock does — so this is the shape
-     * and the path that endpoint will take (#502), same arrangement as /notifications/summary (#494).
+     * and the path that endpoint will take (#502), same arrangement as ./notifications.ts (#494).
      */
     savePostDraft(draft: PostDraft): Promise<PostDraftSaved> {
       return this.request("/feed/drafts", PostDraftSavedSchema, { body: draft });

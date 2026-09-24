@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock route table for the stories rail, the impression wall and the two publication screens (макет, экраны 05 и 06).
-// SCOPE: GET/POST /api/stories, GET /api/feed/cards, GET /api/notifications/summary, GET/POST /api/feed, POST /api/feed/drafts, POST /api/feed/:id/like, POST /api/feed/:id/comments.
+// SCOPE: GET/POST /api/stories, GET /api/feed/cards, GET/POST /api/feed, POST /api/feed/drafts, POST /api/feed/:id/like, POST /api/feed/:id/comments; the unread count behind the header bell moved to ./notifications.routes.ts with the rest of that domain.
 // DEPENDS: ./feed.js, ./fixtures.js, ../client.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -10,7 +10,7 @@
 // END_MODULE_MAP
 
 import { type CreateFeedPost, type PostDraft, type StoryComposition } from "../client";
-import { addMockFeedComment, createMockFeedPost, createMockStory, feedPosts, listMockStories, mockFeedCards, mockNotificationsSummary, saveMockPostDraft, toggleMockFeedLike } from "./feed";
+import { addMockFeedComment, createMockFeedPost, createMockStory, feedPosts, listMockStories, mockFeedCards, saveMockPostDraft, toggleMockFeedLike } from "./feed";
 import { parseBookingBody } from "./fixtures";
 
 const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
@@ -55,10 +55,6 @@ export function feedRoutes(url: URL, init: RequestInit | undefined): Response | 
   }
   if (url.pathname === "/api/feed/cards") {
     return Response.json(mockFeedCards(url.searchParams.get("userId") ?? ""));
-  }
-  // Answered here rather than in a table of its own: the notifications domain does not exist yet (#494), only the header that reads it.
-  if (url.pathname === "/api/notifications/summary") {
-    return Response.json(mockNotificationsSummary());
   }
   // Ahead of /api/feed on purpose only for readability — the paths are matched exactly, so the order is free.
   if (url.pathname === "/api/feed/drafts" && init?.method === "POST") {

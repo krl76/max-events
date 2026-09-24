@@ -57,7 +57,7 @@
 // - friendSuggestions - mock GET /friends/suggestions: the onboarding contacts with their hint line and current follow state
 // - friendsSyncState - mock GET /friends/sync: when the MAX contacts were last pulled in (макет, экран 26)
 // - getMockVote - mock GET /votes/:id (404 unknown, 403 neither host nor participant); myBallotEventId comes from the demo user's stored ballot (backend #324 parity)
-// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability|/suggestions|/follows], /api/gatherings[/:id|/:id/response], /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friend-places|/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], /api/events/cards, /api/weather, /api/travel, /api/discover/swipe[/:placeId], return a restore function
+// - installMockApi - intercept global fetch for /api/events, /api/places, /api/places/:id, /api/places/:id/page, /api/events/:id/rating, /api/events/:id/participation, /api/bookings and /api/bookings/:id/payment, /api/calendar, /api/waitlist[/me|/:id/confirm|/:id/decline], /api/check-ins, /api/users/:id/visit-stats, /api/users/:id/achievements, /api/users/:id/my-city, /api/profile, /api/friends[/activity|/availability|/suggestions|/follows], /api/gatherings[/:id|/:id/response], /api/votes[/:id[/ballots]], /api/plans[/auto|/:id/budget|/:id/expenses] and /api/we-groups[/:id[/events|/places|/archive]], /api/routes[/optimize], /api/lists[/:id[/items[/:itemId]]], /api/feed[/:id/like|comments], /api/reviews, /api/reports, /api/micro-events, /api/today, /api/whereto, /api/nearby[/free], /api/discovery[/friend-places|/friends/:userId/route], /api/people, /api/promotions/placements, /api/promotions/for-me, /api/organizer/events|places[/:id/publish] and PATCH /api/events|places/:id and /api/assist[/day], /api/events/cards, /api/weather, /api/travel, /api/discover/swipe[/:placeId] and /api/notifications[/summary|/read-all|/:id/read|/:id/answer], return a restore function
 // - isMockModerator - whether this viewer may see the moderation queue
 // - joinMockMicroEvent - join with the counter, idempotent (mock POST /join)
 // - leaveMockMicroEvent - leave with the counter, idempotent (mock DELETE /join)
@@ -81,7 +81,6 @@
 // - mockFriendIds - friend user ids of the demo user (social counters fixtures)
 // - mockFriendStories - seeded friend story fixtures (gradient placeholder images)
 // - mockFriends - friend fixtures for the "Your people are going" feed
-// - mockNotificationsSummary - unread count behind the feed header bell; a fixture until the notifications domain exists (#494)
 // - mockPostDrafts - by author: the last autosaved post draft (макет, экран 06); drafts are not a domain (#502)
 // - mockStoryCompositions - compositions published through the mock, newest last; the store #502 will replace
 // - saveMockPostDraft - stores one author's draft and answers when it was saved
@@ -184,12 +183,18 @@
 // - eventMoodTags - mock GET /events/:id/mood-tags: the «Обстановка» tags of экран 17 with counters from the participations
 // - eventNearby - mock GET /events/:id/nearby: the venues around the event venue of экран 17, nearest first
 // - waitlistAheadCount - how many people are already queued for an event: the «7 впереди» of экран 18 (#496)
+// - mockNotifications - the inbox of экран 07 for one viewer, newest first (mock GET /notifications)
+// - mockNotificationsSummary - unread count behind the feed header bell, counted from the unread entries (mock GET /notifications/summary)
+// - markMockNotificationRead - mock POST /notifications/:id/read; idempotent, null for an unknown entry
+// - markAllMockNotificationsRead - mock POST /notifications/read-all: the whole inbox read
+// - answerMockNotification - mock POST /notifications/:id/answer: which pill was pressed ("no_notification" / "no_action" for the two 404s)
+// - resetMockNotifications - restore the seeded read state and drop the answers (test isolation)
 // END_MODULE_MAP
 
 export { MOCK_PROMO_CODE, MOCK_SANDBOX_FAIL_AMOUNT, MOCK_SINGLE_USE_PROMO_CODE, OFFER_TTL_MS, createMockCheckIn, resetMockBookings, resetMockCheckIns, resetMockPromo, resetMockWaitlist, waitlistAheadCount } from "./mock/bookings";
 export { bookingOfferFor, catalogCards, eventCompanions, eventForecast, eventMoodTags, eventNearby, filterMockEvents, mapWeatherFor, participationStats, placePageFor, resetMockParticipations, travelOptionsFor } from "./mock/catalog";
 export { leisureOptions, MOCK_ASSIST_RATE_LIMIT, mockAssistDay, mockAssistSaturdayKey, mockAssistSuggest, mockParseAssistQuery, nearbyTimeline, recordSwipeDecision, resetMockAssist, resetMockSwipeDecisions, swipeCandidates, todayPicks, wheretoSuggestions } from "./mock/discover";
-export { createMockStory, feedPosts, listMockStories, mockFeedCards, mockFeedPostExtras, mockFriendStories, mockNotificationsSummary, mockPostDrafts, mockStoryCompositions, resetMockFeed, saveMockPostDraft } from "./mock/feed";
+export { createMockStory, feedPosts, listMockStories, mockFeedCards, mockFeedPostExtras, mockFriendStories, mockPostDrafts, mockStoryCompositions, resetMockFeed, saveMockPostDraft } from "./mock/feed";
 export { MOCK_EARLY_ACCESS_EVENT_ID, MOCK_NOW, MOCK_ORGANIZER_CREDENTIALS, MOCK_TODAY, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganization, mockOrganizers, mockPlaces } from "./mock/fixtures";
 export { MOCK_FOREIGN_VOTE_ID, MOCK_VOTE_ID, castMockBallot, closeMockVote, createMockVote, getMockVote, getMockWeGroup, listMockWeGroups, resetMockVotes, resetMockWeGroups } from "./mock/groups";
 export { installMockApi } from "./mock/install";
@@ -202,3 +207,4 @@ export { mockPromotionPlacements, mockTargetedPromotions } from "./mock/promo";
 export { REVIEW_FACT_TAGS, eventRating, resetMockReviews } from "./mock/reviews";
 export { MOCK_GATHERING_ID, createMockGathering, createMockMicroEvent, discoverySummary, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, friendsSyncState, joinMockMicroEvent, leaveMockMicroEvent, microEventCard, microEvents, mockOnboardingContacts, peopleSuggest, resetMockFollows, resetMockFriendsSync, resetMockGatherings, resetMockMicroEvents, respondMockGathering, syncMockFriends } from "./mock/social";
 export { MOCK_SILVER_FOREST, MOCK_SLOT_EXTRAS, cancelMockSlotBooking, createMockSlotBooking, leaveMockSlotWaitlist, mockCheckInCodes, mockMySlots, mockPlaceBoard, mockSlotBoard, mockSlotBookingScreen, mockSlotBookings, mockSlotUnits, mockSlotWaitlist, mockSlotWeather, resetMockSlots, slotById, slotsOfDay } from "./mock/slots";
+export { answerMockNotification, markAllMockNotificationsRead, markMockNotificationRead, mockNotifications, mockNotificationsSummary, resetMockNotifications } from "./mock/notifications";
