@@ -17,6 +17,7 @@
 // - routeIsFullscreen - the story and post composers (макет, экраны 05 и 06), the place page (34) and the two booking screens (19 и 20) own the whole viewport: each carries its own back control and its own bottom bar, so neither the shell header nor the tabbar belongs there
 // - routeHasHeader - header hidden where the screen draws its own topbar: the search/plans/profile tabs and the two list screens (макет, экраны 37 и 39)
 // - routeHasHeader - header hidden on экран 17, whose gradient hero carries the back arrow and the share/save circles, and on экран 23, whose topbar carries the event title and its thumbnail
+// - routeHasHeader - header hidden on «Куда пойдём?» (экраны 11 и 12), whose title changes with the wizard step — «Куда пойдём?» over the questions, the number found over the result
 // END_MODULE_MAP
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -94,7 +95,10 @@ export function routeHasBack(route: Route): boolean {
 // микро-события и у маршрута друга — свой заголовок с кнопкой назад.
 // План (15) несёт под названием дату, размер компании и бейдж «MAX СОБРАЛ», ассистент (10) — свой
 // градиентный герой: и то и другое не помещается в строку общей шапки.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list", "bookings", "moderation", "event", "companions", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "assist"]);
+// «Куда пойдём?» (11 и 12) меняет заголовок вместе с шагом: у вопросов это «Куда пойдём?», у выдачи —
+// «Пять вариантов», то есть число найденного. Таблица ROUTE_TITLES даёт один заголовок на маршрут,
+// поэтому шапку рисует сам экран.
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list", "bookings", "moderation", "event", "companions", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "assist", "whereto"]);
 
 /**
  * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и

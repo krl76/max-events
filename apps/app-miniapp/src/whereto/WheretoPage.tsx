@@ -1,191 +1,314 @@
 // START_MODULE_CONTRACT
-// PURPOSE: "Куда пойдём?" guided wizard: company step, mood/budget step, result with up to 5 event cards and share to a MAX chat.
-// SCOPE: Suggestion via the backend GET /api/whereto through apiClient.getWhereto (loading/error/empty via AppState), local wizard state, шаринг через bridge.shareResult; no URL state, no navigation logic.
-// DEPENDS: @max-events/api-contracts (WheretoQuerySchema, Whereto*), ../api/client.js (apiClient.getWhereto), ../max/bridge.js (webApp, shareResult, ShareChannel), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../routing/router.js, ../ui/theme.css
-// LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS, https://dev.max.ru/docs/webapps/bridge
+// PURPOSE: «Куда пойдём?» (макет, экраны 11 и 12): three closed questions with a progress header, then at most five suggestions — the first as a hero card, the rest as a numbered list.
+// SCOPE: Suggestion via apiClient.getWhereto at useViewerOrigin (loading/error/empty states), local wizard state and the ru copy of the closed answer sets; navigation to the event route only. Никакой персонализации экран не обещает: подбор идёт по правилам.
+// DEPENDS: @max-events/api-contracts (Whereto*), ../api/client.js (apiClient, WheretoPick), ../catalog/format.js (pluralRu), ../geo/viewer-origin.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
+// LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - COMPANY_LABELS - ru labels for WheretoCompany
+// - COMPANY_LABELS - ru labels for WheretoCompany, in the order the question lists them
 // - MOOD_LABELS - ru labels for WheretoMood
+// - MOOD_HINTS - the second line under a mood option («спорт, танцы, что-то с движением»)
 // - BUDGET_LABELS - ru labels for WheretoBudget
-// - WheretoState - wizard step: company -> context (mood+budget) -> result (WheretoQuery) -> vote (create form over the result events)
-// - WheretoResult - fetch status of the result step: loading | error | ready (backend items)
-// - wizardStepIndex - 0-based progress position of a wizard step (drives the «Шаг N из 3» header)
-// - buildShareText - numbered share text for the result events
-// - WheretoView - presentational wizard by step (result offers the «Голосование с друзьями» CTA when >= 2 events)
-// - WheretoPage - route container: wizard state + backend suggestion fetch + share wiring + vote creation handoff
+// - WHERETO_QUESTIONS - the three questions in order: heading, the topic the next-question preview names, and the label the answered summary carries
+// - WheretoAnswers - what has been answered so far; a null means the question is still open
+// - WheretoState - ask(at) while a question is open, result(query) once all three are answered
+// - WheretoResult - fetch status of the result screen: loading | error | ready (backend picks)
+// - wizardStepIndex - 0-based progress position (drives «N из 3»); the result sits past the last question
+// - wheretoQuery - the three answers as a query, null while any of them is open
+// - answeredRows - the answered questions above the open one, each with its label and value
+// - resultTitle - header of экран 12: «Пять вариантов», spelled out as the design does
+// - restLabel - «Ещё четыре под те же ответы» under the hero card
+// - formatWheretoWhen - «Сегодня 20:00» / «Завтра 21:00» / the full date beyond tomorrow
+// - formatWheretoPrice - «800 ₽» / «бесплатно» / «платно» when the price is missing from a paid event
+// - WheretoView - presentational: the question screen (экран 11) and the result screen (экран 12)
+// - WheretoPage - route container: wizard state, the backend suggestion fetch and navigation to an event
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import type { Event, WheretoBudget, WheretoCompany, WheretoMood, WheretoQuery } from "@max-events/api-contracts";
-import { apiClient } from "../api/client";
-import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
-import { shareResult, webApp, type ShareChannel } from "../max/bridge";
+import type { WheretoBudget, WheretoCompany, WheretoMood, WheretoQuery } from "@max-events/api-contracts";
+import { apiClient, type WheretoPick } from "../api/client";
+import { pluralRu } from "../catalog/format";
+import { useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
-import { AppButton, AppChip, AppState, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
-import { VoteCreateSection } from "../votes/VotePage";
+import { AppEmptyState, AppMedia, AppSkeleton, AppSkeletonList, AppState } from "../ui/primitives";
 
-export const COMPANY_LABELS: Record<WheretoCompany, string> = { alone: "Я один", friends: "С друзьями", partner: "С девушкой", kids: "С детьми" };
+export const COMPANY_LABELS: Record<WheretoCompany, string> = { alone: "Я один", friends: "С друзьями", partner: "С парой", kids: "С детьми" };
 
-export const MOOD_LABELS: Record<WheretoMood, string> = { active: "Активное", calm: "Спокойное", unusual: "Необычное" };
+export const MOOD_LABELS: Record<WheretoMood, string> = { active: "Активно", calm: "Спокойно", unusual: "Необычно" };
 
-export const BUDGET_LABELS: Record<WheretoBudget, string> = { any: "Любой", free: "Бесплатное", under_3000: "До 3000 ₽" };
+/** The second line of a mood option; only this question carries one in the design. */
+export const MOOD_HINTS: Record<WheretoMood, string> = { active: "спорт, танцы, что-то с движением", calm: "разговоры, еда, музыка фоном", unusual: "то, чего вы ещё не пробовали" };
 
-export type WheretoState = { step: "company" } | { step: "context"; company: WheretoCompany; mood: WheretoMood | null; budget: WheretoBudget | null } | { step: "result"; query: WheretoQuery } | { step: "vote"; query: WheretoQuery };
+export const BUDGET_LABELS: Record<WheretoBudget, string> = { free: "Бесплатно", under_3000: "До 3000 ₽", any: "Любой" };
 
-/** Fetch status of the result step: the backend suggestion is loading, failed, or ready with its items. */
-export type WheretoResult = { status: "loading" } | { status: "error" } | { status: "ready"; events: Event[] };
+/** The three questions in order: the heading over the options, the topic the «— следующий вопрос» preview names, and the label of the answered summary. */
+export const WHERETO_QUESTIONS = [
+  { heading: "С кем идёте?", topic: "Компания", summary: "С кем идёте" },
+  { heading: "Какое настроение?", topic: "Настроение", summary: "Настроение" },
+  { heading: "Какой бюджет?", topic: "Бюджет", summary: "Бюджет" },
+] as const;
 
-export function buildShareText(events: Event[]): string {
-  return ["Куда пойдём? Подборка MAX Events:", ...events.map((event, index) => `${index + 1}. ${event.title} — ${formatStartsAt(event.startsAt)}`)].join("\n");
+const COMPANY_ORDER: readonly WheretoCompany[] = ["alone", "friends", "partner", "kids"];
+const MOOD_ORDER: readonly WheretoMood[] = ["active", "calm", "unusual"];
+const BUDGET_ORDER: readonly WheretoBudget[] = ["free", "under_3000", "any"];
+
+/** What has been answered so far; null means the question is still open. */
+export interface WheretoAnswers {
+  company: WheretoCompany | null;
+  mood: WheretoMood | null;
+  budget: WheretoBudget | null;
+}
+
+/** Where the wizard stands. The answers live beside it, not inside it: «Изменить» reopens one question without losing the other two. */
+export type WheretoState = { step: "ask"; at: number } | { step: "result"; query: WheretoQuery };
+
+/** Fetch status of the result screen: the backend suggestion is loading, failed, or ready with its picks. */
+export type WheretoResult = { status: "loading" } | { status: "error" } | { status: "ready"; items: WheretoPick[] };
+
+export function wizardStepIndex(state: WheretoState): number {
+  return state.step === "ask" ? state.at : WHERETO_QUESTIONS.length;
+}
+
+/** The three answers as a query; null while any of them is still open, so the result can never be asked for half a context. */
+export function wheretoQuery(answers: WheretoAnswers): WheretoQuery | null {
+  if (answers.company === null || answers.mood === null || answers.budget === null) return null;
+  return { company: answers.company, mood: answers.mood, budget: answers.budget };
+}
+
+/** The questions already answered above the open one: what was asked and what was chosen. */
+export function answeredRows(answers: WheretoAnswers, at: number): Array<{ at: number; label: string; value: string }> {
+  const rows: Array<{ at: number; label: string; value: string }> = [];
+  if (at > 0 && answers.company !== null) rows.push({ at: 0, label: WHERETO_QUESTIONS[0].summary, value: COMPANY_LABELS[answers.company] });
+  if (at > 1 && answers.mood !== null) rows.push({ at: 1, label: WHERETO_QUESTIONS[1].summary, value: MOOD_LABELS[answers.mood] });
+  if (at > 2 && answers.budget !== null) rows.push({ at: 2, label: WHERETO_QUESTIONS[2].summary, value: BUDGET_LABELS[answers.budget] });
+  return rows;
+}
+
+// Макет пишет число словом («Пять вариантов»), а не цифрой; больше пяти подбор не отдаёт по контракту.
+const SPELLED = ["ноль", "один", "два", "три", "четыре", "пять"] as const;
+
+function spelled(count: number): string {
+  return SPELLED[count] ?? String(count);
+}
+
+/** Header of экран 12. Zero is not «ноль вариантов»: an empty answer is a state of its own, not a count. */
+export function resultTitle(count: number): string {
+  if (count === 0) return "Подборка пуста";
+  const word = spelled(count);
+  return `${word.charAt(0).toUpperCase()}${word.slice(1)} ${pluralRu(count, "вариант", "варианта", "вариантов")}`;
+}
+
+/** «Ещё четыре под те же ответы» — the line between the hero card and the rest of the list. */
+export function restLabel(count: number): string {
+  return `Ещё ${spelled(count)} под те же ответы`;
+}
+
+const MOSCOW_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Moscow", year: "numeric", month: "2-digit", day: "2-digit" });
+const MOSCOW_TIME = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit" });
+const MOSCOW_DATE = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+
+/** «Сегодня 20:00» / «Завтра 21:00» / «26 сентября, 14:00» — the Moscow calendar the whole screen counts in. */
+export function formatWheretoWhen(startsAt: string, now: Date = new Date()): string {
+  const day = MOSCOW_DAY.format(new Date(startsAt));
+  const today = MOSCOW_DAY.format(now);
+  const tomorrow = MOSCOW_DAY.format(new Date(now.getTime() + 24 * 60 * 60 * 1000));
+  if (day === today) return `Сегодня ${MOSCOW_TIME.format(new Date(startsAt))}`;
+  if (day === tomorrow) return `Завтра ${MOSCOW_TIME.format(new Date(startsAt))}`;
+  return MOSCOW_DATE.format(new Date(startsAt));
+}
+
+/** «800 ₽» / «бесплатно». A paid event without a price reads «платно» rather than free, which would be a lie. */
+export function formatWheretoPrice(pick: { isPaid: boolean; priceRub: number | null }): string {
+  if (pick.priceRub !== null) return `${pick.priceRub.toLocaleString("ru-RU")} ₽`;
+  return pick.isPaid ? "платно" : "бесплатно";
+}
+
+function formatKm(distanceKm: number | null): string | null {
+  return distanceKm === null ? null : `${distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км`;
+}
+
+function metaLine(pick: WheretoPick, now: Date, withPrice: boolean): string {
+  return [formatWheretoWhen(pick.startsAt, now), formatKm(pick.distanceKm), withPrice ? formatWheretoPrice(pick) : null].filter((part) => part !== null).join(" · ");
 }
 
 interface WheretoViewProps {
   state: WheretoState;
-  events: Event[];
-  status: WheretoResult["status"];
-  shared: ShareChannel | null;
-  onCompany: (company: WheretoCompany) => void;
-  onMood: (mood: WheretoMood) => void;
-  onBudget: (budget: WheretoBudget) => void;
-  onShow: () => void;
+  answers: WheretoAnswers;
+  result: WheretoResult;
+  now?: Date;
+  onPick: (answers: WheretoAnswers) => void;
+  onStep: (at: number) => void;
+  onNext: () => void;
+  onBack: () => void;
   onRestart: () => void;
-  onShare: () => void;
+  onRetry: () => void;
   onOpenEvent: (id: string) => void;
-  onCreateVote: () => void;
 }
 
-function ResultCard({ event, onOpenEvent }: { event: Event; onOpenEvent: (id: string) => void }) {
-  return (
-    <button type="button" className="app-card app-card--link" onClick={() => onOpenEvent(event.id)}>
-      <AppMedia category={event.category} />
-      <div className="app-card-body">
-        <span className="app-card-title">{event.title}</span>
-        <span className="app-card-subtitle">
-          {formatStartsAt(event.startsAt)} · {CATEGORY_LABELS[event.category]}
-        </span>
-        <span className="app-card-subtitle">
-          {event.city} · {event.priceRub === null ? "Бесплатно" : `${event.priceRub} ₽`}
-        </span>
-      </div>
-    </button>
-  );
-}
-
-const WIZARD_STEPS = ["Кто идёт?", "Настроение и бюджет", "Ваша подборка"] as const;
-
-export function wizardStepIndex(state: WheretoState): number {
-  if (state.step === "company") return 0;
-  if (state.step === "context") return 1;
-  return 2;
-}
-
-function WizardProgress({ step }: { step: number }) {
+function Progress({ at }: { at: number }) {
   return (
     <div className="app-wizard-progress">
-      <span className="app-wizard-progress-label">
-        Шаг {step + 1} из {WIZARD_STEPS.length} — {WIZARD_STEPS[step]}
-      </span>
       <div className="app-wizard-progress-bar" aria-hidden="true">
-        {WIZARD_STEPS.map((name, index) => (
-          <span key={name} className={index <= step ? "app-wizard-progress-seg app-wizard-progress-seg--on" : "app-wizard-progress-seg"} />
+        {WHERETO_QUESTIONS.map((question, index) => (
+          <span key={question.topic} className={index <= at ? "app-wizard-progress-seg app-wizard-progress-seg--on" : "app-wizard-progress-seg"} />
         ))}
       </div>
+      <span className="app-wizard-progress-label">
+        {at + 1} из {WHERETO_QUESTIONS.length}
+      </span>
     </div>
   );
 }
 
-export function WheretoView({ state, events, status, shared, onCompany, onMood, onBudget, onShow, onRestart, onShare, onOpenEvent, onCreateVote }: WheretoViewProps) {
-  if (state.step === "company") {
-    return (
-      <>
-        <WizardProgress step={0} />
-        <p className="app-whereto-hint">Выберите компанию</p>
-        <div className="app-whereto-options" role="group" aria-label="Компания">
-          {(Object.keys(COMPANY_LABELS) as WheretoCompany[]).map((company) => (
-            <button type="button" key={company} className="app-whereto-option" onClick={() => onCompany(company)}>
-              {COMPANY_LABELS[company]}
-              <ActionIcon name="chevron" size={16} strokeWidth={2} />
-            </button>
-          ))}
-        </div>
-      </>
-    );
-  }
-
-  if (state.step === "context") {
-    return (
-      <>
-        <WizardProgress step={1} />
-        <p className="app-whereto-hint">{COMPANY_LABELS[state.company]}</p>
-        <div className="app-whereto-chips" role="group" aria-label="Настроение">
-          <span className="app-whereto-chips-label">Настроение</span>
-          {(Object.keys(MOOD_LABELS) as WheretoMood[]).map((mood) => (
-            <AppChip key={mood} pressed={state.mood === mood} onClick={() => onMood(mood)}>
-              {MOOD_LABELS[mood]}
-            </AppChip>
-          ))}
-        </div>
-        <div className="app-whereto-chips" role="group" aria-label="Бюджет">
-          <span className="app-whereto-chips-label">Бюджет</span>
-          {(Object.keys(BUDGET_LABELS) as WheretoBudget[]).map((budget) => (
-            <AppChip key={budget} pressed={state.budget === budget} onClick={() => onBudget(budget)}>
-              {BUDGET_LABELS[budget]}
-            </AppChip>
-          ))}
-        </div>
-        <AppButton disabled={state.mood === null || state.budget === null} onClick={onShow} stretched>
-          Показать подборку
-        </AppButton>
-      </>
-    );
-  }
+function QuestionScreen({ at, answers, onPick, onStep, onNext, onBack }: { at: number; answers: WheretoAnswers } & Pick<WheretoViewProps, "onPick" | "onStep" | "onNext" | "onBack">) {
+  const question = WHERETO_QUESTIONS[at];
+  const next = WHERETO_QUESTIONS[at + 1];
+  const options = at === 0 ? COMPANY_ORDER.map((value) => ({ value, label: COMPANY_LABELS[value], hint: null, on: answers.company === value, pick: () => onPick({ ...answers, company: value }) })) : at === 1 ? MOOD_ORDER.map((value) => ({ value, label: MOOD_LABELS[value], hint: MOOD_HINTS[value], on: answers.mood === value, pick: () => onPick({ ...answers, mood: value }) })) : BUDGET_ORDER.map((value) => ({ value, label: BUDGET_LABELS[value], hint: null, on: answers.budget === value, pick: () => onPick({ ...answers, budget: value }) }));
+  const chosen = options.some((option) => option.on);
 
   return (
     <>
-      <WizardProgress step={2} />
-      <p className="app-whereto-hint">
-        {COMPANY_LABELS[state.query.company]} · {MOOD_LABELS[state.query.mood]} · {BUDGET_LABELS[state.query.budget]}
-      </p>
-      {status === "loading" && <AppState>Загрузка…</AppState>}
-      {status === "error" && <AppState error>Не удалось загрузить подборку.</AppState>}
-      {status === "ready" && events.length === 0 && <AppState>Ничего не нашлось — попробуйте другой контекст</AppState>}
-      {status === "ready" && events.map((event) => <ResultCard key={event.id} event={event} onOpenEvent={onOpenEvent} />)}
-      {status === "ready" && events.length > 0 && (
-        <AppButton onClick={onShare} stretched>
-          Отправить друзьям
-        </AppButton>
+      <Progress at={at} />
+      {answeredRows(answers, at).map((row) => (
+        <div key={row.at} className="app-wt-answer">
+          <ActionIcon name="check" size={18} strokeWidth={2.4} />
+          <span className="app-wt-answer-text">
+            <span className="app-wt-answer-label">{row.label}</span>
+            <span className="app-wt-answer-value">{row.value}</span>
+          </span>
+          <button type="button" className="app-wt-answer-edit" onClick={() => onStep(row.at)}>
+            Изменить
+          </button>
+        </div>
+      ))}
+      <h2 className="app-wt-question">{question.heading}</h2>
+      <div className="app-whereto-options" role="radiogroup" aria-label={question.summary}>
+        {options.map((option) => (
+          <button key={option.value} type="button" role="radio" aria-checked={option.on} className={option.on ? "app-whereto-option app-whereto-option--on" : "app-whereto-option"} onClick={option.pick}>
+            <span className="app-wt-radio" aria-hidden="true">
+              {option.on && <span className="app-wt-radio-dot" />}
+            </span>
+            <span className="app-wt-option-text">
+              <span className="app-wt-option-title">{option.label}</span>
+              {option.hint !== null && <span className="app-wt-option-hint">{option.hint}</span>}
+            </span>
+          </button>
+        ))}
+      </div>
+      {next !== undefined && (
+        <div className="app-wt-next" aria-hidden="true">
+          <span className="app-wt-radio" />
+          <span className="app-wt-next-text">{next.topic} — следующий вопрос</span>
+        </div>
       )}
-      {status === "ready" && events.length >= 2 && (
-        <AppButton tone="secondary" onClick={onCreateVote} stretched>
-          Голосование с друзьями
-        </AppButton>
-      )}
-      {shared === "bridge" && <p className="app-whereto-share-hint">Выберите чат в MAX — экран отправки открыт.</p>}
-      {shared === "clipboard" && <p className="app-whereto-share-hint">Подборка скопирована — вставьте её в чат.</p>}
-      {shared === "unavailable" && <pre className="app-whereto-share-hint">{buildShareText(events)}</pre>}
-      <button type="button" className="app-whereto-restart" onClick={onRestart}>
-        Начать заново
-      </button>
+      <p className="app-whereto-hint">Подбор работает по правилам: время, расстояние и цена. Вкусы и история посещений не учитываются.</p>
+      <div className="app-wt-bar">
+        <button type="button" className="app-wt-bar-back" aria-label="Назад" onClick={onBack}>
+          <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
+        </button>
+        <button type="button" className="app-wt-bar-cta" disabled={!chosen} onClick={onNext}>
+          {next === undefined ? "Показать варианты" : "Дальше"}
+          <ActionIcon name="arrow" size={18} strokeWidth={2.6} />
+        </button>
+      </div>
     </>
   );
 }
 
+function ResultScreen({ query, result, now, onStep, onRestart, onRetry, onOpenEvent }: { query: WheretoQuery; result: WheretoResult; now: Date } & Pick<WheretoViewProps, "onStep" | "onRestart" | "onRetry" | "onOpenEvent">) {
+  const items = result.status === "ready" ? result.items : [];
+  const [hero, ...rest] = items;
+
+  return (
+    <>
+      <div className="app-whereto-chips">
+        <span className="app-wt-chip">{COMPANY_LABELS[query.company]}</span>
+        <span className="app-wt-chip">{MOOD_LABELS[query.mood]}</span>
+        <span className="app-wt-chip">{BUDGET_LABELS[query.budget]}</span>
+        <button type="button" className="app-whereto-restart" onClick={onRestart}>
+          Ответить заново
+        </button>
+      </div>
+      {result.status === "loading" && (
+        <div className="app-wt-loading">
+          <AppSkeleton variant="block" className="app-wt-hero-skeleton" />
+          <AppSkeletonList rows={3} />
+        </div>
+      )}
+      {result.status === "error" && (
+        <AppState error action={{ label: "Повторить", onClick: onRetry }}>
+          Не удалось собрать подборку.
+        </AppState>
+      )}
+      {result.status === "ready" && items.length === 0 && <AppEmptyState kind="empty-match" onAction={() => onStep(2)} onSecondaryAction={onRestart} />}
+      {hero !== undefined && (
+        <button type="button" className="app-wt-hero" onClick={() => onOpenEvent(hero.id)}>
+          <AppMedia category={hero.category} />
+          <span className="app-wt-hero-blob" aria-hidden="true" />
+          <span className="app-wt-hero-veil">
+            <span className="app-wt-hero-title">{hero.title}</span>
+            <span className="app-wt-hero-meta">{metaLine(hero, now, true)}</span>
+          </span>
+        </button>
+      )}
+      {rest.length > 0 && (
+        <>
+          <p className="app-wt-rest">{restLabel(rest.length)}</p>
+          <div className="app-wt-list">
+            {rest.map((pick, index) => (
+              <button key={pick.id} type="button" className="app-wt-row" onClick={() => onOpenEvent(pick.id)}>
+                <span className="app-wt-row-index">{index + 2}</span>
+                <AppMedia category={pick.category} />
+                <span className="app-wt-row-text">
+                  <span className="app-wt-row-title">{pick.title}</span>
+                  <span className="app-wt-row-meta">{metaLine(pick, now, false)}</span>
+                </span>
+                <span className="app-wt-row-price">{formatWheretoPrice(pick)}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+export function WheretoView({ state, answers, result, now = new Date(), onPick, onStep, onNext, onBack, onRestart, onRetry, onOpenEvent }: WheretoViewProps) {
+  const title = state.step === "ask" ? "Куда пойдём?" : resultTitle(result.status === "ready" ? result.items.length : 0);
+
+  return (
+    <section className="app-wt">
+      <div className="app-wt-topbar">
+        <button type="button" className="app-wt-back" aria-label="Назад" onClick={onBack}>
+          <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
+        </button>
+        <h1 className="app-wt-title">{title}</h1>
+      </div>
+      {state.step === "ask" ? <QuestionScreen at={state.at} answers={answers} onPick={onPick} onStep={onStep} onNext={onNext} onBack={onBack} /> : <ResultScreen query={state.query} result={result} now={now} onStep={onStep} onRestart={onRestart} onRetry={onRetry} onOpenEvent={onOpenEvent} />}
+    </section>
+  );
+}
+
+const NO_ANSWERS: WheretoAnswers = { company: null, mood: null, budget: null };
+
 export function WheretoPage() {
-  const { navigate } = useRoute();
-  const [state, setState] = useState<WheretoState>({ step: "company" });
-  const [shared, setShared] = useState<ShareChannel | null>(null);
-  const [result, setResult] = useState<WheretoResult | null>(null);
-  const query = state.step === "result" || state.step === "vote" ? state.query : null;
+  const { navigate, back } = useRoute();
+  const origin = useViewerOrigin();
+  const [state, setState] = useState<WheretoState>({ step: "ask", at: 0 });
+  const [answers, setAnswers] = useState<WheretoAnswers>(NO_ANSWERS);
+  const [result, setResult] = useState<WheretoResult>({ status: "loading" });
+  const [attempt, setAttempt] = useState(0);
+  const query = state.step === "result" ? state.query : null;
+
   useEffect(() => {
     if (query === null) return;
     let alive = true;
     setResult({ status: "loading" });
-    apiClient.getWhereto(query).then(
+    apiClient.getWhereto(query, { latitude: origin.latitude, longitude: origin.longitude }).then(
       (response) => {
-        if (alive) setResult({ status: "ready", events: response.items });
+        if (alive) setResult({ status: "ready", items: response.items });
       },
       () => {
         if (alive) setResult({ status: "error" });
@@ -194,32 +317,33 @@ export function WheretoPage() {
     return () => {
       alive = false;
     };
-  }, [query]);
-  const events = result?.status === "ready" ? result.events : [];
+    // attempt re-runs the same query after a failure; the origin may sharpen while the screen is open
+  }, [query, origin.latitude, origin.longitude, attempt]);
 
-  if (state.step === "vote") {
-    return <VoteCreateSection events={events} onCreated={(vote) => navigate({ name: "vote", id: vote.id })} onCancel={() => setState({ step: "result", query: state.query })} />;
-  }
+  const at = state.step === "ask" ? state.at : WHERETO_QUESTIONS.length;
+  // Один вход во все переходы: шаг за пределами последнего вопроса означает выдачу, но только когда
+  // все три ответа на месте — иначе экран показал бы подборку по половине контекста.
+  const show = (next: WheretoAnswers, to: number) => {
+    setAnswers(next);
+    const asked = wheretoQuery(next);
+    setState(to >= WHERETO_QUESTIONS.length && asked !== null ? { step: "result", query: asked } : { step: "ask", at: Math.min(to, WHERETO_QUESTIONS.length - 1) });
+  };
 
   return (
     <WheretoView
       state={state}
-      events={events}
-      status={result?.status ?? "loading"}
-      shared={shared}
-      onCompany={(company) => setState({ step: "context", company, mood: null, budget: null })}
-      onMood={(mood) => setState((current) => (current.step === "context" ? { ...current, mood } : current))}
-      onBudget={(budget) => setState((current) => (current.step === "context" ? { ...current, budget } : current))}
-      onShow={() => setState((current) => (current.step === "context" && current.mood !== null && current.budget !== null ? { step: "result", query: { company: current.company, mood: current.mood, budget: current.budget } } : current))}
-      onRestart={() => {
-        setState({ step: "company" });
-        setShared(null);
+      answers={answers}
+      result={result}
+      onPick={(next) => show(next, at)}
+      onStep={(to) => show(answers, to)}
+      onNext={() => show(answers, at + 1)}
+      onBack={() => {
+        if (at > 0) return show(answers, at - 1);
+        back();
       }}
-      onShare={() => {
-        shareResult(webApp, buildShareText(events)).then(setShared);
-      }}
+      onRestart={() => show(NO_ANSWERS, 0)}
+      onRetry={() => setAttempt((value) => value + 1)}
       onOpenEvent={(id) => navigate({ name: "event", id })}
-      onCreateVote={() => setState((current) => (current.step === "result" ? { step: "vote", query: current.query } : current))}
     />
   );
 }
