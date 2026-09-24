@@ -15,6 +15,8 @@
 // - resetMockFollows - restore the three seeded follows (test isolation)
 // - friendSuggestions - mock GET /friends/suggestions: the onboarding contacts with their hint line and current follow state
 // - followMockFriends - mock PUT /friends/follows: replace the followed set, "unknown" when an id is not a contact
+// - followingOf - mock GET /users/:id/following: the people the viewer follows, in contact order
+// - followersOf - mock GET /users/:id/followers: the people following the viewer; the backend keeps no reverse direction at all
 // - mockGatherings - shared with social.routes
 // - MOCK_GATHERING_ID - seeded deep-link demo gathering (hosted by a friend; the demo user is an invitee so the response flow is reachable in mock mode)
 // - resetMockGatherings - restore the seeded demo gathering and clear created ones (test isolation)
@@ -98,6 +100,24 @@ export function followMockFriends(userIds: string[]): string[] | "unknown" {
   if (!userIds.every((id) => mockOnboardingContacts.some((contact) => contact.id === id))) return "unknown";
   mockFollowedIds = new Set<string>(userIds);
   return mockOnboardingContacts.filter((contact) => mockFollowedIds.has(contact.id)).map((contact) => contact.id);
+}
+
+/** The people the viewer follows, in contact order — the «подписки» half of the profile counters. */
+export function followingOf(userId: string): Friend[] {
+  return userId !== mockDemoUser.id ? [] : mockOnboardingContacts.filter((contact) => mockFollowedIds.has(contact.id));
+}
+
+/**
+ * Who follows the viewer. Nothing on the backend answers this: `subscriptions` knows organizer, place
+ * and interest (#501), and the follow set of экран 02 is stored one-way, so the reverse direction has
+ * no table to be read out of. Seeded by contact position rather than derived, because deriving it from
+ * a one-way set would always produce the empty answer — and a counter stuck on zero reads as «никто»
+ * instead of «мы этого пока не считаем».
+ */
+const MOCK_FOLLOWER_POSITIONS: readonly number[] = [0, 1, 3, 4, 6, 7, 9, 11];
+
+export function followersOf(userId: string): Friend[] {
+  return userId !== mockDemoUser.id ? [] : MOCK_FOLLOWER_POSITIONS.flatMap((index) => (mockOnboardingContacts[index] === undefined ? [] : [mockOnboardingContacts[index]]));
 }
 
 /** Deterministic invitee answer per friend (by mockFriends index): Дима accepted, Катя considering, Андрей-like busy mix. */

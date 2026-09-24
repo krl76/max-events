@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Mock route table for the viewer's own profile, their visit history, achievements, my-city, taste graph, profile counters and app settings.
-// SCOPE: GET/PATCH /api/profile, GET /api/users/:id/{visit-stats,achievements,my-city,counters,visited-places}, GET/PATCH /api/users/:id/app-settings, GET /api/taste[/after-me].
-// DEPENDS: ./profile.js, ./fixtures.js, ../client.js, @max-events/api-contracts
+// PURPOSE: Mock route table for the viewer's own profile, their visit history, achievements, my-city, taste graph, profile counters, post grid, follow directions and app settings.
+// SCOPE: GET/PATCH /api/profile, GET /api/users/:id/{visit-stats,achievements,my-city,counters,visited-places,posts,following,followers}, GET/PATCH /api/users/:id/app-settings, GET /api/taste[/after-me]. The two follow directions are served here rather than in ./social.routes.ts because they are addressed by user, and /api/users/:id is this table's half of the url space; the data itself stays in the social graph store.
+// DEPENDS: ./profile.js, ./social.js, ./fixtures.js, ../client.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -13,7 +13,8 @@ import { UpdateProfileSchema } from "@max-events/api-contracts";
 import type { Profile } from "@max-events/api-contracts";
 import { type UpdateAppSettings } from "../client";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
-import { achievementsFor, afterMePicks, appSettingsFor, mockProfiles, myCityFor, profileCountersFor, profileFor, tasteProfile, updateMockAppSettings, visitStatsFor, visitedPlacesFor } from "./profile";
+import { achievementsFor, afterMePicks, appSettingsFor, mockProfiles, myCityFor, profileCountersFor, profileFor, tasteProfile, updateMockAppSettings, userPostsFor, visitStatsFor, visitedPlacesFor } from "./profile";
+import { followersOf, followingOf } from "./social";
 
 export function profileRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/taste") {
@@ -52,6 +53,18 @@ export function profileRoutes(url: URL, init: RequestInit | undefined): Response
   const visitedPlaces = /^\/api\/users\/([^/]+)\/visited-places$/.exec(url.pathname);
   if (visitedPlaces) {
     return Response.json(visitedPlacesFor(visitedPlaces[1]));
+  }
+  const posts = /^\/api\/users\/([^/]+)\/posts$/.exec(url.pathname);
+  if (posts) {
+    return Response.json(userPostsFor(posts[1]));
+  }
+  const following = /^\/api\/users\/([^/]+)\/following$/.exec(url.pathname);
+  if (following) {
+    return Response.json(followingOf(following[1]));
+  }
+  const followers = /^\/api\/users\/([^/]+)\/followers$/.exec(url.pathname);
+  if (followers) {
+    return Response.json(followersOf(followers[1]));
   }
   const appSettings = /^\/api\/users\/([^/]+)\/app-settings$/.exec(url.pathname);
   if (appSettings) {

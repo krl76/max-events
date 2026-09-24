@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Social graph endpoints of the api client: friends, the gathering flow, UGC micro-events, reverse discovery and people matching.
-// SCOPE: GET /friends[/activity|/availability|/sync], POST /friends/sync, the /gatherings surface, the /micro-events surface, GET /discovery[/friend-places|/friends/:userId/route], GET /people.
+// SCOPE: GET /friends[/activity|/availability|/sync], POST /friends/sync, PUT /friends/follows, GET /users/:id/{following,followers}, the /gatherings surface, the /micro-events surface, GET /discovery[/friend-places|/friends/:userId/route], GET /people.
 // DEPENDS: ./transport.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -16,7 +16,7 @@
 // - DiscoveryScreen - экран 27 payload: the total of unseen places and the friend rows
 // - FriendRouteStop - one stop of a friend route: place, when they were there and what they did
 // - FriendRouteScreen - экран 28 payload: the friend and their ordered stops
-// - withSocial - ApiClient.listFriends / getFriendsActivity / getFriendAvailability / getFriendsSync / syncFriends / listFriendSuggestions / followFriends / createGathering / getGathering / respondToGathering / listMicroEvents / getMicroEventCard / createMicroEvent / joinMicroEvent / leaveMicroEvent / getDiscovery / listFriendPlaces / getFriendRoute / getPeople
+// - withSocial - ApiClient.listFriends / getFriendsActivity / getFriendAvailability / getFriendsSync / syncFriends / listFriendSuggestions / followFriends / listFollowing / listFollowers / createGathering / getGathering / respondToGathering / listMicroEvents / getMicroEventCard / createMicroEvent / joinMicroEvent / leaveMicroEvent / getDiscovery / listFriendPlaces / getFriendRoute / getPeople
 // END_MODULE_MAP
 
 import { DiscoveryResponseSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendPlaceVisitSchema, FriendRouteSchema, FriendSchema, GatheringSchema, MicroEventSchema, PeopleResponseSchema, PlaceSchema } from "@max-events/api-contracts";
@@ -238,6 +238,24 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
     /** Replace the set of people the viewer follows; the answer is the set that was stored. */
     followFriends(userIds: string[]): Promise<string[]> {
       return this.request("/friends/follows", FollowedIdsSchema, { method: "PUT", body: { userIds } });
+    }
+
+    /**
+     * People this person follows — one half of the two header counters of экран 36. Following a person
+     * is not a `Subscription` (#501) and lives in the follow set POST /friends/follows writes, so the
+     * profile reads it here and not through listSubscriptions.
+     */
+    listFollowing(userId: string): Promise<Friend[]> {
+      return this.request(`/users/${encodeURIComponent(userId)}/following`, FriendSchema.array());
+    }
+
+    /**
+     * People who follow this person. The backend keeps no reverse direction at all — subscriptions are
+     * organizer/place/interest, and the follow set is write-only from the onboarding step — so this is
+     * the path and the shape the endpoint will take, mock-backed meanwhile.
+     */
+    listFollowers(userId: string): Promise<Friend[]> {
+      return this.request(`/users/${encodeURIComponent(userId)}/followers`, FriendSchema.array());
     }
 
     createGathering(payload: CreateGathering): Promise<Gathering> {

@@ -144,6 +144,7 @@
 // - WheretoPicks - GET /whereto answer: up to five picks; a superset of WheretoResponse
 // - LeisureChainStop - one stop of the chain of экран 14: the contract stop plus its distance and price
 // - LeisureChain - free-window chain with enriched stops; a superset of LeisureOption
+// - ProfilePost - one tile of the post grid of экран 36: the post, its event and the cover the tile is drawn with
 // END_MODULE_MAP
 
 import type { RecordPageViewWrite } from "@max-events/api-contracts";
@@ -187,6 +188,8 @@ export { SLOT_STATUSES } from "./endpoints/slots";
 export type { CheckInCode, CreateSlotBooking, MySlotBookingCard, MySlotWaitlistCard, MySlotsBoard, PlaceBoard, PlaceOccupancyHour, PlaceSlot, PlaceUpcomingEvent, PlaceVisitMonth, SlotBoard, SlotBooking, SlotBookingScreen, SlotChatMessage, SlotDay, SlotExtra, SlotStatus, SlotWaitlistEntry } from "./endpoints/slots";
 export { NOTIFICATION_TARGETS, NOTIFICATION_TYPES } from "./endpoints/notifications";
 export type { AnswerNotification, AppNotification, NotificationAction, NotificationActionTone, NotificationLink, NotificationTarget, NotificationType, NotificationsSummary } from "./endpoints/notifications";
+// Отдельной строкой, а не в список профиля выше: так правка не встречается с чужой в одной строке
+export type { ProfilePost } from "./endpoints/profile";
 // One mixin per domain, applied in a flat chain: a new domain is one more line here plus its own file, and
 // adding an endpoint to an existing domain never touches this file at all.
 const WithAuth = withAuth(ApiTransport);
