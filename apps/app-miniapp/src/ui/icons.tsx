@@ -364,6 +364,13 @@ const ACTIONS = {
   ),
   // Отдалить карту (экран 16): пара к plus в собственных кнопках зума
   minus: <path d="M5 12h14" />,
+  // Показать пароль (макет, экран 42): одно состояние на обе роли, нажатое несёт aria-pressed
+  eye: (
+    <>
+      <path d="M2.6 12S6.4 5.6 12 5.6 21.4 12 21.4 12 17.6 18.4 12 18.4 2.6 12 2.6 12Z" />
+      <circle cx="12" cy="12" r="3.2" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type ActionIconName = keyof typeof ACTIONS;
