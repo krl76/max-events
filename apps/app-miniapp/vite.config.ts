@@ -14,6 +14,9 @@ export default defineConfig(({ mode }) => ({
     proxy: {
       // Live-mode dev: forward API calls to the local backend (bun run dev:backend).
       "/api": "http://localhost:3100",
+      // Своя подложка карты: архив PMTiles и глифы лежат на сервере под /tiles (DEPLOY.md), не в репозитории —
+      // 350 МБ данных не место в git. В dev они берутся с dev-стенда, в сборке — с того же домена, что и приложение.
+      "/tiles": { target: "https://dev.events.versacegus.cc", changeOrigin: true },
     },
   },
   test: {

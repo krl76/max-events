@@ -82,8 +82,8 @@ export function identityHint(user: Pick<User, "username">): string {
   return user.username === null ? "Профиль MAX" : `Профиль MAX · @${user.username}`;
 }
 
-/** Settings, not cache: the scheme, the "onboarding already ran" flag, the organizer session and the dev initData survive «Очистить кеш». */
-export const APP_PREFERENCE_KEYS: readonly string[] = ["max-events:theme", "max-events:onboarding", "max-events.organizer-session", "max-events.dev-init-data"];
+/** Settings, not cache: the scheme, the "onboarding already ran" flag, the map basemap, the organizer session and the dev initData survive «Очистить кеш». */
+export const APP_PREFERENCE_KEYS: readonly string[] = ["max-events:theme", "max-events:onboarding", "max-events:basemap", "max-events.organizer-session", "max-events.dev-init-data"];
 
 function appCacheKeys(storage: Pick<Storage, "length" | "key">): string[] {
   const keys: string[] = [];

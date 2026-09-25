@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { applyScheme, clearAppliedScheme, DEFAULT_THEME_PREFERENCE, isThemePreference, readThemePreference, resolveScheme, systemScheme, writeThemePreference } from "./theme";
+import { appliedScheme, applyScheme, clearAppliedScheme, DEFAULT_THEME_PREFERENCE, isThemePreference, readThemePreference, resolveScheme, systemScheme, writeThemePreference } from "./theme";
 
 const css = readFileSync(new URL("./theme.css", import.meta.url), "utf8");
 
@@ -241,5 +241,14 @@ describe("theme preference", () => {
     expect(() => writeThemePreference("dark")).not.toThrow();
     expect(() => applyScheme("dark")).not.toThrow();
     expect(() => clearAppliedScheme()).not.toThrow();
+  });
+
+  it("reads the rendered scheme from the data-theme attribute and falls back to the system without it", () => {
+    expect(appliedScheme("dark", "light")).toBe("dark");
+    expect(appliedScheme("light", "dark")).toBe("light");
+    expect(appliedScheme(null, "dark")).toBe("dark");
+    // "system" never reaches the DOM; an unexpected value is treated as no choice
+    expect(appliedScheme("system", "light")).toBe("light");
+    expect(appliedScheme("sepia", "dark")).toBe("dark");
   });
 });

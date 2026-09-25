@@ -4814,16 +4814,29 @@ html[data-theme="dark"] body {
   width: 40px;
 }
 
+/* Ряды чипов под шапкой: слои и подложки складываются в колонку, а не накрывают друг друга */
+.app-map16-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  left: var(--app-space-screen);
+  position: absolute;
+  right: var(--app-space-screen);
+  top: 68px;
+  z-index: 2;
+}
+
 .app-map16-layers {
   display: flex;
   gap: var(--app-space-s);
-  left: var(--app-space-screen);
   overflow-x: auto;
-  position: absolute;
-  right: var(--app-space-screen);
   scrollbar-width: none;
-  top: 68px;
-  z-index: 2;
+}
+
+/* Подложек десять — ряд прокручивается до правого края экрана, как чипы поиска */
+.app-map16-basemaps {
+  margin-right: calc(-1 * var(--app-space-screen));
+  padding-right: var(--app-space-screen);
 }
 
 .app-map16-layer {
@@ -17469,6 +17482,42 @@ button.app-poll-result {
 @media (prefers-color-scheme: dark) {
   html:not([data-theme]) .app-map .leaflet-tile-pane {
     filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.55);
+  }
+}
+
+/* Тёмная подложка (Dark Matter) тёмная сама: инверсия сделала бы её светлой. Модификатор ставит MapScreen
+ * на обёртку экрана по тону подложки (./basemaps.ts) — не на контейнер leaflet, чей classList React
+ * трогать не должен. Просветы между тайлами под тёмной подложкой тоже тёмные, чтобы не мигать. */
+[data-theme="dark"] .app-map16--tiles-dark .app-map .leaflet-tile-pane,
+.app-map16--tiles-dark .app-map .leaflet-tile-pane {
+  filter: none;
+}
+
+.app-map16--tiles-dark .app-map .leaflet-container {
+  background: var(--brand-void);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .app-map16--tiles-dark .app-map .leaflet-tile-pane {
+    filter: none;
+  }
+}
+
+/* Своя векторная подложка (./catalog/vectorBasemap.ts) рисуется MapLibre в той же панели тайлов и сама
+ * следует схеме: светлый стиль в светлой, тёмный в тёмной (./catalog/basemapStyle.ts). Инверсия ей не нужна
+ * ни в одной схеме, а просветы до первого кадра — цвет полотна схемы, чтобы карта не мигала белым в темноте. */
+[data-theme="dark"] .app-map16--tiles-scheme .app-map .leaflet-tile-pane,
+.app-map16--tiles-scheme .app-map .leaflet-tile-pane {
+  filter: none;
+}
+
+.app-map16--tiles-scheme .app-map .leaflet-container {
+  background: var(--app-canvas);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .app-map16--tiles-scheme .app-map .leaflet-tile-pane {
+    filter: none;
   }
 }
 
