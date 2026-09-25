@@ -52,4 +52,11 @@ describe("StoryViewer", () => {
     expect(html).toContain("Дима");
     expect(html.match(/app-story-segment[" ]/g)?.length).toBe(1);
   });
+
+  it("marks exactly one segment as filling and none as done on the first story of an author", () => {
+    const html = renderToStaticMarkup(createElement(StoryViewer, { groups: GROUPS, startGroup: 0, onClose: () => {} }));
+
+    expect(html.match(/app-story-segment--current/g)).toHaveLength(1);
+    expect(html).not.toContain("app-story-segment--done");
+  });
 });

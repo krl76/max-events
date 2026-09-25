@@ -15,6 +15,8 @@
 // - onboardingRailIndex - position on the Город · Друзья · Интересы rail; -1 for intro, which carries dots instead
 // - IntroSlide - one intro slide: hero label, title, description and which of the three hero gradients it wears
 // - INTRO_SLIDES - the three intro slides
+// - IntroDirection - forward | back: the side the next slide's copy enters from
+// - introDirection - from/to slide indexes -> IntroDirection (back when the index went down, forward otherwise)
 // - OnboardingCity - a city of the picker with the coordinates the geolocation match runs against
 // - ONBOARDING_CITIES - Москва, Санкт-Петербург, Казань, Екатеринбург, Новосибирск
 // - nearestOnboardingCity - the city closest to a viewer origin ("определили по геолокации" without a geocoder)
@@ -77,6 +79,13 @@ export const INTRO_SLIDES: readonly IntroSlide[] = [
   { label: "Подборка вечера за три вопроса", title: "«Куда пойдём?»", description: "Не знаешь, чего хочешь? Ответь на три вопроса — подберём под настроение, компанию и бюджет.", hero: 2 },
   { label: "Один общий план на всех", title: "Запись, чат, маршрут, напоминания", description: "Собери компанию, договоритесь о месте встречи — напомним, когда выходить.", hero: 3 },
 ];
+
+export type IntroDirection = "forward" | "back";
+
+/** Going back, the copy enters from the left; forward and standing still, from the right. */
+export function introDirection(from: number, to: number): IntroDirection {
+  return to < from ? "back" : "forward";
+}
 
 export interface OnboardingCity {
   name: string;

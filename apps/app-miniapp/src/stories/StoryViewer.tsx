@@ -80,11 +80,13 @@ export function StoryViewer({ groups, startGroup = 0, onClose }: { groups: Story
 
   return (
     <div className="app-story-viewer" role="dialog" aria-label={`История: ${current.authorName}`}>
-      <img className="app-story-viewer-image" src={current.story.imageUrl} alt="" />
+      {/* key по истории: каждая картинка — новый элемент, и она проявляется, а не подменяется */}
+      <img key={current.story.id} className="app-story-viewer-image" src={current.story.imageUrl} alt="" />
       <div className="app-story-viewer-top">
         <div className="app-story-viewer-segments">
+          {/* key с номером автора: у нового автора первый сегмент — новый элемент, и его заполнение (theme.css) стартует с нуля */}
           {Array.from({ length: current.groupSize }, (_, segment) => (
-            <span key={segment} className={segment < current.index ? "app-story-segment app-story-segment--done" : segment === current.index ? "app-story-segment app-story-segment--current" : "app-story-segment"} />
+            <span key={`${current.group}-${segment}`} className={segment < current.index ? "app-story-segment app-story-segment--done" : segment === current.index ? "app-story-segment app-story-segment--current" : "app-story-segment"} />
           ))}
         </div>
         <div className="app-story-viewer-head">
