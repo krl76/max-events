@@ -127,6 +127,7 @@ export function toPlaceDto(place: PlaceEntity): Place {
     latitude: place.latitude,
     longitude: place.longitude,
     published: place.published,
+    logoUrl: place.logoUrl ?? null,
     createdAt: place.createdAt.toISOString(),
     updatedAt: place.updatedAt.toISOString(),
   };

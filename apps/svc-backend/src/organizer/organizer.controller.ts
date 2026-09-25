@@ -1,18 +1,19 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for the organizer panel — own events/places including drafts, publish.
-// SCOPE: GET /organizer/events, GET /organizer/places, POST create draft, POST publish, promocodes, campaigns, promotions, sales over an optional from/to period.
-// DEPENDS: @nestjs/common, ../events, ../places, ../promo, ../promotion, ../auth
+// SCOPE: GET /organizer/events, GET /organizer/places, POST create draft, POST publish, promocodes, campaigns, promotions, sales over an optional from/to period, GET/PATCH /organizer/setup, POST /organizer/setup/complete.
+// DEPENDS: @nestjs/common, ../events, ../places, ../promo, ../promotion, ../organizations, ../auth
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - OrganizerController - mine lists, draft create, publish
+// - OrganizerController - mine lists, draft create, publish, organizer setup
 // END_MODULE_MAP
 
-import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
-import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPromotionPaymentWriteSchema, type BookingWithSeats, type Event, type EventSalesReport, type OrganizerBookingRow, type Place, type PromoCampaign, type PromoCode, type PromotionCampaign } from "@max-events/api-contracts";
+import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
+import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPromotionPaymentWriteSchema, UpdateOrganizerSetupSchema, type BookingWithSeats, type Event, type EventSalesReport, type OrganizerBookingRow, type OrganizerSetup, type Place, type PromoCampaign, type PromoCode, type PromotionCampaign } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { EventsService } from "../events/events.service";
+import { OrganizationsService } from "../organizations/organizations.service";
 import { PlacesService } from "../places/places.service";
 import { PromoService } from "../promo/promo.service";
 import { BookingsService } from "../bookings/bookings.service";
@@ -30,7 +31,25 @@ export class OrganizerController {
     @Inject(PromotionService) private readonly promotions: PromotionService,
     @Inject(PaymentsService) private readonly payments: PaymentsService,
     @Inject(BookingsService) private readonly bookings: BookingsService,
+    @Inject(OrganizationsService) private readonly organizations: OrganizationsService,
   ) {}
+
+  @Get("setup")
+  getSetup(@CurrentUser() user: UserEntity): Promise<OrganizerSetup> {
+    return this.organizations.getSetup(user.id);
+  }
+
+  @Patch("setup")
+  async updateSetup(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<OrganizerSetup> {
+    const parsed = UpdateOrganizerSetupSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid organizer setup");
+    return this.organizations.updateSetup(user.id, parsed.data);
+  }
+
+  @Post("setup/complete")
+  completeSetup(@CurrentUser() user: UserEntity): Promise<OrganizerSetup> {
+    return this.organizations.completeSetup(user.id);
+  }
 
   @Get("events")
   listEvents(@CurrentUser() user: UserEntity): Promise<Event[]> {

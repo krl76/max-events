@@ -66,7 +66,7 @@ describe("EventDetailsSchema", () => {
     });
     expect(parsed.organizer?.id).toBe(organizerId);
     // The public aggregate carries the organization's name and contacts, never its credentials.
-    expect(parsed.organization).toEqual({ id: organizationId, name: "Культурный центр", contacts: "@centre" });
+    expect(parsed.organization).toEqual({ id: organizationId, name: "Культурный центр", contacts: "@centre", activities: [] });
     expect(parsed.remainingSeats).toBe(7);
     expect(parsed.activeBookingId).toBe(bookingId);
     expect(parsed.checkInId).toBe(checkInId);

@@ -70,15 +70,18 @@ describe("salesCsv", () => {
     grossRub: 500,
     commissionRub: 50,
     netRub: 450,
+    provider: "sandbox",
   };
 
   it("writes a header, one line per settled sale and a totals line", () => {
     const lines = salesCsv([{ title: "Квиз «Мозгобойня»", report }]).split("\n");
 
     expect(lines[0]).toContain("событие;платёж");
+    expect(lines[0]).toContain("контур");
     expect(lines[1]).toContain("Квиз «Мозгобойня»");
     expect(lines[1]).toContain("450");
-    expect(lines.at(-1)).toBe("ИТОГО;;;500;50;450;");
+    expect(lines[1]).toContain("sandbox");
+    expect(lines.at(-1)).toBe("ИТОГО;;;500;50;450;;");
   });
 
   it("still produces a report when an event sold nothing", () => {

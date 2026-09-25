@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Nest module wiring Organization accounts for the organizer auth path.
-// SCOPE: Registers OrganizationEntity and exports OrganizationsService; no controller of its own.
+// SCOPE: Registers OrganizationEntity and exports OrganizationsService; HTTP lives on OrganizerController.
 // DEPENDS: @nestjs/typeorm, ./organization.entity, ./organizations.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT

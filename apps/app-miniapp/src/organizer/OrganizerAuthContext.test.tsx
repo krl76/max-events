@@ -3,7 +3,7 @@ import { ORGANIZER_SESSION_KEY, readStoredSession } from "./OrganizerAuthContext
 
 const session = {
   token: "mock-organizer-token",
-  organization: { id: "e0000000-0000-4000-8000-000000000001", name: "Городские события", contacts: null },
+  organization: { id: "e0000000-0000-4000-8000-000000000001", name: "Городские события", contacts: null, activities: [] },
 };
 
 function storageWith(value: string | null): Pick<Storage, "getItem"> {

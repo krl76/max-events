@@ -37,6 +37,7 @@ const park: Place = {
   latitude: 55.7298,
   longitude: 37.6019,
   published: true,
+  logoUrl: null,
   createdAt: "2026-08-01T12:00:00.000Z",
   updatedAt: "2026-08-01T12:00:00.000Z",
 };

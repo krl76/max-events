@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PaymentSchema, PaymentWebhookWriteSchema } from "./payment.js";
+import { EventSalesReportSchema, PaymentSchema, PaymentWebhookWriteSchema } from "./payment.js";
 
 const paymentId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d91";
 const bookingId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d92";
@@ -30,5 +30,20 @@ describe("PaymentWebhookWriteSchema", () => {
     expect(PaymentWebhookWriteSchema.parse({ eventId: "evt_1", paymentId: "pay_sandbox_1", status: "succeeded" }).status).toBe("succeeded");
     expect(PaymentWebhookWriteSchema.safeParse({ eventId: "evt_1", paymentId: "pay_sandbox_1", status: "paid" }).success).toBe(false);
     expect(PaymentWebhookWriteSchema.safeParse({ paymentId: "pay_sandbox_1", status: "succeeded" }).success).toBe(false);
+  });
+});
+
+describe("EventSalesReportSchema", () => {
+  it("defaults provider to none so a missing tag is not read as live money", () => {
+    const parsed = EventSalesReportSchema.parse({
+      eventId: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d20",
+      rows: [],
+      grossRub: 0,
+      commissionRub: 0,
+      netRub: 0,
+    });
+    expect(parsed.provider).toBe("none");
+    expect(EventSalesReportSchema.parse({ ...parsed, provider: "sandbox" }).provider).toBe("sandbox");
+    expect(EventSalesReportSchema.safeParse({ ...parsed, provider: "live" }).success).toBe(false);
   });
 });

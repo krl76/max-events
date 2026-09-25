@@ -41,7 +41,8 @@ describe("OrganizerController", () => {
         return { id: bookingId, status: "cancelled" };
       },
     };
-    const controller = new OrganizerController(events, places, promo as never, promotions as never, payments as never, bookings as never);
+    const organizations = { getSetup: async () => ({ organizationId: "e1" }), updateSetup: async () => ({ organizationId: "e1" }), completeSetup: async () => ({ organizationId: "e1" }) };
+    const controller = new OrganizerController(events, places, promo as never, promotions as never, payments as never, bookings as never, organizations as never);
     await expect(controller.listEvents(user)).resolves.toEqual([eventDto]);
     await expect(controller.createEventDraft(user, event)).resolves.toEqual(eventDto);
     expect(calls.create).toEqual({ draft: true });
@@ -53,5 +54,8 @@ describe("OrganizerController", () => {
     await expect(controller.createPromotion(user, eventDto.id, { type: "boost" })).rejects.toBeInstanceOf(BadRequestException);
     await expect(controller.refundBooking(user, eventDto.id, "00000000-0000-4000-8000-0000000000b1")).resolves.toMatchObject({ status: "cancelled" });
     expect(bookingCalls).toEqual({ bookingId: "00000000-0000-4000-8000-0000000000b1", organizerId: user.id });
+    await expect(controller.updateSetup(user, { activities: ["катание"] })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.getSetup(user)).resolves.toMatchObject({ organizationId: "e1" });
+    await expect(controller.completeSetup(user)).resolves.toMatchObject({ organizationId: "e1" });
   });
 });

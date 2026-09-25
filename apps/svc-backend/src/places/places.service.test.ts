@@ -13,6 +13,7 @@ const payload: CreatePlace = {
   category: "park",
   latitude: 55.7297,
   longitude: 37.6035,
+  logoUrl: null,
 };
 
 function uniqueViolation(): QueryFailedError {
@@ -82,6 +83,7 @@ describe("PlacesService", () => {
     const created = await service.create(payload);
     expect(repo.store).toHaveLength(1);
     expect(created.title).toBe("Парк Горького");
+    expect(created.logoUrl).toBeNull();
     expect(created.category).toBe("park");
     expect(created.latitude).toBe(55.7297);
     expect(created.id).toMatch(/^[0-9a-f-]{36}$/);
@@ -105,10 +107,11 @@ describe("PlacesService", () => {
   it("updates allowed fields of an existing place", async () => {
     const { service } = createService();
     const created = await service.create(payload);
-    const updated = await service.update(created.id, { title: "Парк Горького (новое)" });
+    const updated = await service.update(created.id, { title: "Парк Горького (новое)", logoUrl: "https://cdn.example.com/gorky.png" });
     expect(updated.id).toBe(created.id);
     expect(updated.title).toBe("Парк Горького (новое)");
     expect(updated.city).toBe("Москва");
+    expect(updated.logoUrl).toBe("https://cdn.example.com/gorky.png");
   });
 
   it("deletes an existing place", async () => {
@@ -198,6 +201,7 @@ describe("toPlaceDto", () => {
       longitude: 37.6035,
       organizerUserId: null,
       published: true,
+      logoUrl: null,
       createdAt: new Date("2026-09-01T07:00:00Z"),
       updatedAt: new Date("2026-09-01T07:00:00Z"),
     };
@@ -210,6 +214,7 @@ describe("toPlaceDto", () => {
       latitude: 55.7297,
       longitude: 37.6035,
       published: true,
+      logoUrl: null,
       createdAt: "2026-09-01T07:00:00.000Z",
       updatedAt: "2026-09-01T07:00:00.000Z",
     });

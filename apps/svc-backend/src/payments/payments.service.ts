@@ -140,6 +140,7 @@ export class PaymentsService {
       grossRub: frozen.reduce((sum, row) => sum + row.amountRub, 0),
       commissionRub: frozen.reduce((sum, row) => sum + (row.commissionRub ?? 0), 0),
       netRub: frozen.reduce((sum, row) => sum + (row.netRub ?? 0), 0),
+      provider: this.paymentProviderKind(),
     };
   }
 
@@ -165,6 +166,11 @@ export class PaymentsService {
 
   private commissionBps(): number {
     return this.config.get<number>("PAYMENT_COMMISSION_BPS") ?? DEFAULT_COMMISSION_BPS;
+  }
+
+  /** Live is not a configured value; anything other than sandbox is reported as none. */
+  private paymentProviderKind(): "sandbox" | "none" {
+    return this.config.get<string>("PAYMENT_PROVIDER") === "sandbox" ? "sandbox" : "none";
   }
 
   private async healCommission(row: PaymentEntity): Promise<PaymentEntity> {

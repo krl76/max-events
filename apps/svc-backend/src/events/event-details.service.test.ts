@@ -161,7 +161,7 @@ describe("EventDetailsService.get", () => {
 
     const details = await service.get(eventId, viewerId);
 
-    expect(details.organization).toEqual({ id: "00000000-0000-4000-8000-0000000000c1", name: "Культурный центр", contacts: "@centre" });
+    expect(details.organization).toEqual({ id: "00000000-0000-4000-8000-0000000000c1", name: "Культурный центр", contacts: "@centre", activities: [] });
     // The hash has no way out of the backend, so the public page cannot carry it.
     expect(JSON.stringify(details)).not.toContain("scrypt$");
   });

@@ -51,7 +51,7 @@ describe("organizer Bearer flow", () => {
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(request.currentUser?.id).toBe(login.user.id);
 
-    const controller = new OrganizerController(createEventsFake(), {} as never, {} as never, {} as never, {} as never, {} as never);
+    const controller = new OrganizerController(createEventsFake(), {} as never, {} as never, {} as never, {} as never, {} as never, {} as never);
     const created = await controller.createEventDraft(request.currentUser!, draftPayload);
     expect(await controller.listEvents(request.currentUser!)).toEqual([created]);
   });

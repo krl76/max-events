@@ -97,19 +97,19 @@ export function campaignRows(promotions: PromotionCampaign[], campaigns: PromoCa
 
 /** The month report the design offers as a file: the backend has a sales endpoint but no export of its own. */
 export function salesCsv(reports: Array<{ title: string; report: EventSalesReport }>): string {
-  const lines = ["событие;платёж;бронь;сумма, ₽;комиссия, ₽;к выплате, ₽;дата"];
+  const lines = ["событие;платёж;бронь;сумма, ₽;комиссия, ₽;нетто, ₽;контур;дата"];
   let gross = 0;
   let commission = 0;
   let net = 0;
   for (const { title, report } of reports) {
     for (const row of report.rows) {
-      lines.push([title, row.paymentId, row.bookingId, row.grossRub, row.commissionRub, row.netRub, row.commissionFixedAt].join(";"));
+      lines.push([title, row.paymentId, row.bookingId, row.grossRub, row.commissionRub, row.netRub, report.provider, row.commissionFixedAt].join(";"));
     }
     gross += report.grossRub;
     commission += report.commissionRub;
     net += report.netRub;
   }
-  lines.push(["ИТОГО", "", "", gross, commission, net, ""].join(";"));
+  lines.push(["ИТОГО", "", "", gross, commission, net, "", ""].join(";"));
   return lines.join("\n");
 }
 

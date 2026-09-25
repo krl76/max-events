@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { QueryRunner } from "typeorm";
 import { CreateOrganizations20260916020000 } from "../database/migrations/20260916020000-CreateOrganizations";
 import { AddOrganizationOrganizerUserId20260919130000 } from "../database/migrations/20260919130000-AddOrganizationOrganizerUserId";
+import { AddOrganizerSetup20260919140000 } from "../database/migrations/20260919140000-AddOrganizerSetup";
 
 describe("CreateOrganizations20260916020000", () => {
   it("creates organizations with a unique login and drops the table on revert", async () => {
@@ -42,5 +43,27 @@ describe("AddOrganizationOrganizerUserId20260919130000", () => {
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries).toEqual(['ALTER TABLE "organizations" DROP CONSTRAINT IF EXISTS "FK_organizations_organizer_user"', 'ALTER TABLE "organizations" DROP COLUMN IF EXISTS "organizerUserId"']);
+  });
+});
+
+describe("AddOrganizerSetup20260919140000", () => {
+  it("adds setup columns, the venue place FK, Place.logoUrl, and drops them on revert", async () => {
+    const queries: string[] = [];
+    const queryRunner = {
+      query: async (sql: string) => {
+        queries.push(sql);
+      },
+    } as unknown as QueryRunner;
+    const migration = new AddOrganizerSetup20260919140000();
+    await migration.up(queryRunner);
+    expect(queries.some((sql) => sql.includes('"setupStep"') && sql.includes("DEFAULT 'venue'"))).toBe(true);
+    expect(queries.some((sql) => sql.includes('"activities" jsonb'))).toBe(true);
+    expect(queries.some((sql) => sql.includes("CHK_organizations_setup_step"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("FK_organizations_venue_place"))).toBe(true);
+    expect(queries.some((sql) => sql.includes('ALTER TABLE "places" ADD COLUMN "logoUrl"'))).toBe(true);
+    queries.length = 0;
+    await migration.down(queryRunner);
+    expect(queries[0]).toContain('ALTER TABLE "places" DROP COLUMN "logoUrl"');
+    expect(queries.some((sql) => sql.includes("DROP COLUMN") && sql.includes("setupStep"))).toBe(true);
   });
 });

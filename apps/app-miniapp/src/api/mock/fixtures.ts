@@ -36,8 +36,8 @@ import type { Event, Friend, Organization, Place, User } from "@max-events/api-c
 
 export const PLACE_STAMP = "2026-08-01T12:00:00+03:00";
 
-export function place(input: Omit<Place, "createdAt" | "updatedAt" | "published">): Place {
-  return { published: true, ...input, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
+export function place(input: Omit<Place, "createdAt" | "updatedAt" | "published" | "logoUrl"> & Partial<Pick<Place, "logoUrl">>): Place {
+  return { published: true, logoUrl: null, ...input, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
 }
 
 export const mockPlaces: Place[] = [place({ id: "b0000001-0000-4000-8000-000000000001", title: "Парк Горького", address: "Крымский Вал, 9", city: "Москва", category: "park", latitude: 55.7298, longitude: 37.6019 }), place({ id: "b0000002-0000-4000-8000-000000000002", title: "ГМИИ им. А. С. Пушкина", address: "ул. Волхонка, 12", city: "Москва", category: "museum", latitude: 55.7447, longitude: 37.6055 }), place({ id: "b0000003-0000-4000-8000-000000000003", title: "«Лужники»", address: "Лужнецкая набережная, 24", city: "Москва", category: "sport", latitude: 55.7158, longitude: 37.5543 }), place({ id: "b0000004-0000-4000-8000-000000000004", title: "Депо. Москва", address: "Тверская Застава, 1", city: "Москва", category: "food", latitude: 55.7758, longitude: 37.5936 }), place({ id: "b0000005-0000-4000-8000-000000000005", title: "Фудкорт «Веранда» у Парка Горького", address: "Крымский Вал, 2", city: "Москва", category: "food", latitude: 55.7315, longitude: 37.604 })];
@@ -90,7 +90,7 @@ export const mockOrganizers: User[] = [{ id: "d0000001-0000-4000-8000-0000000000
 export const mockDemoUser: User = { id: "a0000000-0000-4000-8000-000000000001", maxUserId: "demo", firstName: "Демо", lastName: null, username: "demo", avatarUrl: null, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
 
 /** Demo organization and its login/password for the organizer space in mock mode. */
-export const mockOrganization: Organization = { id: "e0000000-0000-4000-8000-000000000001", name: "Городские события", contacts: "org@example.com" };
+export const mockOrganization: Organization = { id: "e0000000-0000-4000-8000-000000000001", name: "Городские события", contacts: "org@example.com", activities: ["events", "slots"] };
 
 export const MOCK_ORGANIZER_CREDENTIALS = { login: "demo", password: "demo" } as const;
 

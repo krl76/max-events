@@ -18,6 +18,12 @@ describe("PlaceSchema", () => {
     const parsed = PlaceSchema.parse(validPlace);
     expect(parsed.title).toBe("Парк Горького");
     expect(parsed.category).toBe("park");
+    expect(parsed.logoUrl).toBeNull();
+  });
+
+  it("keeps an explicit logo URL and rejects a non-URL", () => {
+    expect(PlaceSchema.parse({ ...validPlace, logoUrl: "https://cdn.example.com/gorky.png" }).logoUrl).toBe("https://cdn.example.com/gorky.png");
+    expect(PlaceSchema.safeParse({ ...validPlace, logoUrl: "not-a-url" }).success).toBe(false);
   });
 
   it("defaults published to true and keeps an explicit value", () => {
@@ -45,5 +51,9 @@ describe("CreatePlaceSchema", () => {
     expect(CreatePlaceSchema.safeParse(payload).success).toBe(true);
     expect(CreatePlaceSchema.safeParse({ ...payload, title: "" }).success).toBe(false);
     expect("published" in CreatePlaceSchema.parse({ ...payload, published: false })).toBe(false);
+  });
+
+  it("does not fill logoUrl on a title-only patch, so an existing logo is not wiped", () => {
+    expect(CreatePlaceSchema.partial().parse({ title: "Новое имя" })).toEqual({ title: "Новое имя" });
   });
 });

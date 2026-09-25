@@ -20,6 +20,7 @@ const place: Place = {
   latitude: 55.729,
   longitude: 37.601,
   published: true,
+  logoUrl: null,
   createdAt: "2026-09-01T10:00:00.000Z",
   updatedAt: "2026-09-01T10:00:00.000Z",
 };

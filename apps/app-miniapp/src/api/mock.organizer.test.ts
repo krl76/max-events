@@ -3,7 +3,7 @@ import { ApiClient } from "./client";
 import { installMockApi, mockEvents, mockPlaces, resetMockOrganizer } from "./mock";
 
 const NEW_EVENT = { title: "Встреча книжного клуба", description: "", category: "afisha", city: "Москва", placeId: null, startsAt: "2026-10-20T19:00:00+03:00", endsAt: null, isPaid: false, priceRub: null, paymentUrl: null, capacity: 12, coverUrl: null } as const;
-const NEW_PLACE = { title: "Антикафе «Свои»", address: "ул. Покровка, 17", city: "Москва", category: "other", latitude: 55.7602, longitude: 37.6467 } as const;
+const NEW_PLACE = { title: "Антикафе «Свои»", address: "ул. Покровка, 17", city: "Москва", category: "other", latitude: 55.7602, longitude: 37.6467, logoUrl: null } as const;
 
 describe("organizer panel flow", () => {
   let restore: (() => void) | null = null;

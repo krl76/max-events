@@ -10,7 +10,7 @@
 // - ORGANIZER_SECTION_TITLES - header title per bar section (only the two sections that use the plain header still show it)
 // - ORGANIZER_BARE_SECTIONS - the sections that draw their own chrome, so the shell header steps aside
 // - OrganizerSectionContent - what each section renders: dashboard -> экран 45, events -> the panel, create -> экран 46, promo -> экран 48, profile -> organization and exit
-// - OrganizerOnboardingGate - первый заход: вступление (экран 43) по флагу аппарата, затем настройка (экран 44) по признаку учётной записи; отказ запроса настройки пропускает вперёд
+// - OrganizerOnboardingGate - первый заход: вступление (экран 43) по флагу аппарата, затем настройка (экран 44) по признаку учётной записи; отказ GET /organizer/setup не пропускает в панель
 // - OrganizerSpace - auth gate + MaxUI chrome: loading/anonymous/error -> login form, authenticated -> onboarding gate -> header + section (or the pushed экран 44) + tab bar
 // END_MODULE_MAP
 
@@ -150,8 +150,8 @@ export function OrganizerSectionContent({ section, organizationId, organizationN
  * панель. Оба заслона снимаются по-разному, потому что и держатся на разном: «вступление видели» —
  * свойство аппарата, как у пользователя, а «настройку прошли» — свойство учётной записи.
  *
- * Проваленный запрос настройки пропускает вперёд, а не запирает: на живом сервере эндпоинта ещё
- * нет вовсе, и организатор не должен упираться в экран, которого бэкенд не знает.
+ * Отказ GET /organizer/setup больше не пропускает в панель: эндпоинт есть, и «настройку прошли»
+ * нельзя вывести из сетевой ошибки.
  */
 export function OrganizerOnboardingGate({ onCreateEvent, children }: { onCreateEvent: () => void; children: ReactNode }) {
   const [introDone, setIntroDone] = useState(isOrganizerIntroDone);
@@ -164,7 +164,7 @@ export function OrganizerOnboardingGate({ onCreateEvent, children }: { onCreateE
         if (alive) setSetupDone(setup.completedAt !== null);
       },
       () => {
-        if (alive) setSetupDone(true);
+        if (alive) setSetupDone(false);
       },
     );
     return () => {
