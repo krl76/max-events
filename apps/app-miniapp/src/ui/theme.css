@@ -17198,3 +17198,216 @@ button.app-poll-result {
 .app-map16-search {
   z-index: 1001;
 }
+
+/* ===========================================================================
+ * Хвост ветки feat-ui-stories: рельс историй как в инстаграме и холст экрана 05.
+ * Правила дописаны в конец — база выше не тронута.
+ * =========================================================================== */
+
+/* Своя плитка рельса: аватар (или своя свежая история) и плюс в углу, ведущий в редактор */
+.app-story--own {
+  position: relative;
+}
+
+.app-story-open {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  padding: 0;
+}
+
+.app-story-plus {
+  align-items: center;
+  background: var(--brand-blue);
+  border: 2px solid var(--app-page);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  height: 22px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 2px;
+  top: 43px;
+  width: 22px;
+}
+
+/* Просмотренная история — тонкая нейтральная обводка; непросмотренная горит gradient-light выше */
+.app-story-ring--seen {
+  background: var(--app-divider);
+  padding: 1.5px;
+}
+
+.app-story-ring--seen > * {
+  box-shadow: 0 0 0 1.5px var(--app-page);
+}
+
+/* Подпись плитки переносится, а не обрезается: «Твоя история» в одну строку под кружок не влезает */
+.app-stories .app-story-name {
+  line-height: 1.15;
+  overflow: visible;
+  text-align: center;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+/* Пустой холст истории: подсказка вместо чужого готового примера */
+.app-story-empty {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  left: var(--app-space-xl);
+  margin: 0;
+  position: absolute;
+  right: var(--app-space-xl);
+  text-align: center;
+  text-shadow: 0 2px 16px rgba(13, 0, 26, 0.35);
+  top: 38%;
+}
+
+/* Объект холста: место держит обёртка, поэтому у содержимого позиционирование снимается */
+.app-story-object {
+  max-width: calc(100% - 2 * var(--app-space-l));
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.app-story-object--text,
+.app-story-object--poll {
+  width: calc(100% - 2 * var(--app-space-xl));
+}
+
+.app-story-object > .app-story-caption,
+.app-story-object > .app-story-poll,
+.app-story-object > .app-story-seats,
+.app-story-object > .app-story-sticker {
+  inset: auto;
+  max-width: 100%;
+  position: relative;
+  width: 100%;
+}
+
+.app-story-object-tools {
+  display: flex;
+  gap: 4px;
+  position: absolute;
+  right: -10px;
+  top: -14px;
+}
+
+.app-story-object-drop,
+.app-story-object-grip {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.72);
+  border: none;
+  border-radius: 50%;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  height: 26px;
+  justify-content: center;
+  padding: 0;
+  width: 26px;
+}
+
+/* Ручка переноса: touch-action снят, иначе жест уходит скроллу страницы, а не объекту */
+.app-story-object-grip {
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Каталог объектов: то, что макет показывал готовой историей, здесь добавляется по кнопке */
+.app-story-catalog {
+  display: flex;
+  gap: var(--app-space-s);
+  overflow-x: auto;
+  padding-bottom: var(--app-space-s);
+  scrollbar-width: none;
+}
+
+.app-story-catalog-chip {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.45);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+}
+
+.app-story-catalog-chip--on {
+  background: var(--brand-white);
+  color: var(--brand-void);
+}
+
+.app-story-catalog-chip:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Полоса сегментов идёт вровень с таймером перелистывания: длину показа отдаёт --app-story-duration
+   из StoryViewer.tsx, второго такого числа в проекте нет. Текущий сегмент — заливка, которая едет
+   слева направо; показанные остаются сплошными по правилу базы выше. */
+.app-story-segment--current {
+  animation: app-story-fill var(--app-story-duration) linear forwards;
+  background: linear-gradient(to right, var(--brand-white) 50%, rgba(255, 255, 255, 0.4) 50%);
+  background-position: 100% 0;
+  background-size: 200% 100%;
+}
+
+@keyframes app-story-fill {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* Кадр проявляется: соседние истории одного автора отличаются только картинкой, и без проявления
+   перелистывание читается как мигание, а не как переход. */
+.app-story-viewer-image {
+  animation: app-story-appear 220ms ease-out;
+}
+
+@keyframes app-story-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-story-viewer-image {
+    animation: none;
+  }
+
+  /* Без заполнения текущий сегмент обязан остаться сплошным: иначе он неотличим от ещё не показанных */
+  .app-story-segment--current {
+    animation: none;
+    background: var(--brand-white);
+  }
+}
+
+/* Объект, которого коснулись последним, выходит вперёд: иначе утащенный на чужие ручки объект
+   накрывает соседа наглухо — трансформация обёртки заводит свой контекст наложения, и поднять одни
+   ручки над соседями нельзя. Панель и подвал держат свой слой поверх: кнопка публикации и каталог
+   не должны уходить под объект, утащенный к нижнему краю. */
+.app-story-object--front {
+  z-index: 1;
+}
+
+.app-story-bar,
+.app-story-foot {
+  z-index: 2;
+}

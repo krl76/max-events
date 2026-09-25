@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Публикация истории (макет, экран 05): холст истории, подпись поверх него, стикер места, опрос, выбор аудитории и кнопка «В историю».
-// SCOPE: Экран целиком. Стикер и опрос собираются из события, которое история рекламирует; ни стикера, ни опроса, ни аудитории у бэкенда нет (#502) — они уезжают в теле POST /stories под именами будущего эндпоинта. Фото едет data-URL, объектного хранилища нет (#477).
-// DEPENDS: ../api/client.js (apiClient, EventDetails, StoryAudience, StoryComposition, StoryPlaceSticker, StoryPoll, STORY_AUDIENCES), ../auth/AuthContext.js, ../routing/router.js, ../ui/icons.js, ../ui/theme.css
+// PURPOSE: Публикация истории (макет, экран 05): пустой холст, на который автор сам кладёт объекты — подпись, стикер события, опрос, счётчик мест, — плюс выбор фона, аудитории и кнопка «В историю».
+// SCOPE: Экран целиком. Холст открывается пустым, каталог внизу добавляет объекты по одному, каждый таскается и снимается. Стикер и опрос наполняются из события, которое история рекламирует; ни стикера, ни опроса, ни аудитории, ни расстановки объектов у бэкенда нет (#502) — они уезжают в теле POST /stories под именами будущего эндпоинта. Фото едет data-URL, объектного хранилища нет (#477).
+// DEPENDS: ../api/client.js (apiClient, EventDetails, StoryAudience, StoryCanvasObject, StoryComposition, StoryObjectKind, StoryPlaceSticker, StoryPoll, STORY_AUDIENCES), ../auth/AuthContext.js, ../routing/router.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -9,24 +9,32 @@
 // - StoryPublishState - idle | publishing | error
 // - StoryCanvas - подложка истории: один из трёх фирменных градиентов или своё фото
 // - STORY_CANVASES - три градиента рельса в порядке макета
-// - StoryDraft - черновик экрана: подложка, фото, подпись, событие стикера, ответ опроса, аудитория
+// - STORY_OBJECT_ORDER - объекты холста в порядке кнопок каталога
+// - STORY_OBJECTS - что такое каждый объект: подпись кнопки, глиф и место в кадре, на которое он ложится
+// - StoryDraft - черновик экрана: подложка, фото, подпись, событие стикера, ответ опроса, аудитория, объекты холста
 // - storyTimeLabel - «14:00» из ISO-времени события
 // - storySticker - стикер места из карточки события: заголовок, «место · время», остаток мест
 // - storyPoll - опрос истории: вопрос макета и два времени — старт события и +3 часа
 // - nextStoryAudience - следующая аудитория по кругу (кнопка «Близкие друзья» — переключатель)
 // - storyAudienceLabel - подпись аудитории на кнопке
 // - storyCanvasImage - data-URL фирменного градиента: у истории на градиентной подложке тоже должна быть картинка
-// - storyComposition - черновик -> тело публикации (подпись, стикер, опрос, аудитория)
+// - hasStoryObject - объект уже лежит на холсте
+// - addStoryObject - положить объект на его место в кадре; повторное добавление ничего не меняет
+// - removeStoryObject - снять объект с холста
+// - moveStoryObject - перенести объект, удерживая его центр в кадре
+// - storyObjectEnabled - есть ли чем наполнить объект: стикер и счётчик мест без карточки события пусты, опрос — без времени старта
+// - storyObjectClass - классы обёртки объекта: свой вид плюс «передний», если объект трогали последним
+// - storyComposition - черновик -> тело публикации: только то, что автор положил на холст, плюс расстановка
 // - StoryCreateView - презентационный экран 05
 // - StoryCreatePage - контейнер: события, карточка выбранного события, выбор фото, публикация
 // END_MODULE_MAP
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Event } from "@max-events/api-contracts";
-import { apiClient, STORY_AUDIENCES, type EventDetails, type StoryAudience, type StoryComposition, type StoryPlaceSticker, type StoryPoll } from "../api/client";
+import { apiClient, STORY_AUDIENCES, type EventDetails, type StoryAudience, type StoryCanvasObject, type StoryComposition, type StoryObjectKind, type StoryPlaceSticker, type StoryPoll } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { useRoute } from "../routing/router";
-import { ActionIcon } from "../ui/icons";
+import { ActionIcon, type ActionIconName } from "../ui/icons";
 
 export type StoryPublishState = "idle" | "publishing" | "error";
 
@@ -35,15 +43,32 @@ export type StoryCanvas = "gradient-1" | "gradient-2" | "gradient-3" | "photo";
 /** Рельс подложек макета: фирменный триколор, комета, ночь. Четвёртая плитка рельса — пунктирная, она открывает выбор фото. */
 export const STORY_CANVASES: readonly StoryCanvas[] = ["gradient-1", "gradient-2", "gradient-3"];
 
+/** Порядок кнопок каталога: сперва подпись, потом то, что тянет данные из события. */
+export const STORY_OBJECT_ORDER: readonly StoryObjectKind[] = ["text", "event", "poll", "seats"];
+
+/**
+ * Каталог объектов холста: всё, что макет показывал готовой историей, здесь — кнопка добавления, а
+ * не декорация экрана. Координаты — доли кадра в процентах, те же вертикали, по которым объекты
+ * расставлены в макете; дальше автор двигает их сам.
+ */
+export const STORY_OBJECTS: Record<StoryObjectKind, { label: string; icon: ActionIconName; x: number; y: number }> = {
+  text: { label: "Текст", icon: "text", x: 50, y: 21 },
+  event: { label: "Событие", icon: "pin", x: 50, y: 34 },
+  poll: { label: "Опрос", icon: "lines", x: 50, y: 60 },
+  seats: { label: "Места", icon: "seat", x: 74, y: 45 },
+};
+
 export interface StoryDraft {
   canvas: StoryCanvas;
   photoUrl: string | null;
   text: string;
-  /** Событие, которое рекламирует история; null, пока каталог не ответил. */
+  /** Событие, из которого наполняются стикер, опрос и счётчик мест; null, пока каталог не ответил. */
   eventId: string | null;
-  /** Индекс подсвеченного варианта опроса: экран открывается на первом, как его подсвечивает макет; null — автор снял выбор. */
+  /** Индекс выбранного варианта опроса; null — автор ещё ничего не подсветил. */
   answer: number | null;
   audience: StoryAudience;
+  /** Что автор положил на холст, в порядке добавления. Пусто на входе: история начинается с чистого кадра. */
+  objects: StoryCanvasObject[];
 }
 
 export function storyTimeLabel(startsAt: string): string {
@@ -112,8 +137,55 @@ export function storyCanvasImage(canvas: StoryCanvas): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
+export function hasStoryObject(objects: readonly StoryCanvasObject[], kind: StoryObjectKind): boolean {
+  return objects.some((object) => object.kind === kind);
+}
+
+export function addStoryObject(objects: readonly StoryCanvasObject[], kind: StoryObjectKind): StoryCanvasObject[] {
+  if (hasStoryObject(objects, kind)) return [...objects];
+  const spot = STORY_OBJECTS[kind];
+  return [...objects, { kind, x: spot.x, y: spot.y }];
+}
+
+export function removeStoryObject(objects: readonly StoryCanvasObject[], kind: StoryObjectKind): StoryCanvasObject[] {
+  return objects.filter((object) => object.kind !== kind);
+}
+
+/** Центр объекта держится внутри кадра: утащенный за край объект нечем было бы вернуть. */
+export function moveStoryObject(objects: readonly StoryCanvasObject[], kind: StoryObjectKind, x: number, y: number): StoryCanvasObject[] {
+  const inside = (value: number) => Math.round(Math.min(94, Math.max(6, value)) * 10) / 10;
+  return objects.map((object) => (object.kind === kind ? { ...object, x: inside(x), y: inside(y) } : object));
+}
+
+/** Объект без данных не добавляется: пустой стикер или опрос без вариантов — это дыра в истории, а не объект. */
+export function storyObjectEnabled(kind: StoryObjectKind, sticker: StoryPlaceSticker | null, poll: StoryPoll | null): boolean {
+  if (kind === "text") return true;
+  if (kind === "poll") return poll !== null;
+  if (kind === "seats") return sticker !== null && sticker.seatsLeft !== null;
+  return sticker !== null;
+}
+
+/**
+ * Объект, которого коснулись последним, выходит вперёд. Обёртка объекта сдвинута трансформацией, а
+ * трансформация заводит свой контекст наложения: поднять одни только ручки над соседями нельзя,
+ * поднимается объект целиком. Без этого утащенный на чужие ручки объект намертво накрывает соседа —
+ * тот перестаёт и двигаться, и сниматься крестиком.
+ */
+export function storyObjectClass(kind: StoryObjectKind, front: StoryObjectKind | null): string {
+  return `app-story-object app-story-object--${kind}${front === kind ? " app-story-object--front" : ""}`;
+}
+
+/** В теле публикации едет только то, что автор положил на холст: пустой холст — история из одного фона. */
 export function storyComposition(draft: StoryDraft, sticker: StoryPlaceSticker | null, poll: StoryPoll | null): StoryComposition {
-  return { text: draft.text.trim(), sticker, poll: poll === null ? null : { ...poll, answer: draft.answer }, audience: draft.audience };
+  const onCanvas = (kind: StoryObjectKind) => hasStoryObject(draft.objects, kind);
+  return {
+    text: onCanvas("text") ? draft.text.trim() : "",
+    // Остаток мест лежит на том же стикере: счётчик без стикера — это тот же стикер, нарисованный одной цифрой.
+    sticker: onCanvas("event") || onCanvas("seats") ? sticker : null,
+    poll: onCanvas("poll") && poll !== null ? { ...poll, answer: draft.answer } : null,
+    audience: draft.audience,
+    objects: draft.objects.map((object) => ({ ...object })),
+  };
 }
 
 interface StoryCreateViewProps {
@@ -130,9 +202,78 @@ interface StoryCreateViewProps {
 
 export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, onPickPhoto, onPublish, onClose }: StoryCreateViewProps) {
   const captionRef = useRef<HTMLTextAreaElement | null>(null);
+  const frameRef = useRef<HTMLElement | null>(null);
+  // Кого трогали последним — тот и впереди: порядок публикации от этого не зависит, это только холст.
+  const [front, setFront] = useState<StoryObjectKind | null>(null);
   const onPhotoCanvas = draft.canvas === "photo" && draft.photoUrl !== null;
+
+  const toggleObject = (kind: StoryObjectKind) => onDraft({ ...draft, objects: hasStoryObject(draft.objects, kind) ? removeStoryObject(draft.objects, kind) : addStoryObject(draft.objects, kind) });
+
+  /** Перетаскивание считается от точки захвата, а не от центра: иначе объект прыгал бы под палец первым же движением. */
+  const startDrag = (object: StoryCanvasObject, event: ReactPointerEvent<HTMLElement>) => {
+    const frame = frameRef.current;
+    if (frame === null) return;
+    const box = frame.getBoundingClientRect();
+    const fromX = event.clientX;
+    const fromY = event.clientY;
+    const move = (moved: PointerEvent) => onDraft({ ...draft, objects: moveStoryObject(draft.objects, object.kind, object.x + ((moved.clientX - fromX) / box.width) * 100, object.y + ((moved.clientY - fromY) / box.height) * 100) });
+    const stop = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
+  };
+
+  const objectBody = (kind: StoryObjectKind): ReactNode => {
+    if (kind === "text") return <textarea ref={captionRef} className="app-story-caption" aria-label="Подпись истории" rows={2} placeholder="Ваш текст" value={draft.text} onChange={(change) => onDraft({ ...draft, text: change.target.value })} />;
+    if (kind === "event" && sticker !== null)
+      return (
+        <div className="app-story-sticker">
+          <span className="app-story-sticker-dot" aria-hidden="true" />
+          <span className="app-story-sticker-text">
+            <span className="app-story-sticker-title">{sticker.title}</span>
+            <span className="app-story-sticker-subtitle">{sticker.subtitle}</span>
+          </span>
+          {/* Стикер сам себе выбор: отдельной строки «какое событие» макет не рисует, а нативный список открывается по тапу по пилюле. */}
+          <select className="app-story-sticker-pick" aria-label="Событие истории" value={draft.eventId ?? ""} onChange={(change) => onDraft({ ...draft, eventId: change.target.value, answer: null })}>
+            {events.map((event) => (
+              <option key={event.id} value={event.id}>
+                {event.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+    if (kind === "seats" && sticker !== null && sticker.seatsLeft !== null)
+      return (
+        <div className="app-story-seats">
+          <span className="app-story-seats-label">осталось мест</span>
+          <span className="app-story-seats-count">{sticker.seatsLeft}</span>
+        </div>
+      );
+    if (kind === "poll" && poll !== null)
+      return (
+        <div className="app-story-poll">
+          <p className="app-story-poll-kind">Опрос</p>
+          <p className="app-story-poll-question">{poll.question}</p>
+          <div className="app-story-poll-options">
+            {poll.options.map((option, index) => (
+              <button key={option} type="button" className={draft.answer === index ? "app-story-poll-option app-story-poll-option--on" : "app-story-poll-option"} aria-pressed={draft.answer === index} onClick={() => onDraft({ ...draft, answer: draft.answer === index ? null : index })}>
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    // Объект, которому нечем наполниться (каталог промолчал), не рисуется вовсе: пустая рамка на холсте хуже её отсутствия.
+    return null;
+  };
+
+  const drawn = draft.objects.map((object) => ({ object, body: objectBody(object.kind) })).filter((item) => item.body !== null);
+
   return (
-    <section className={onPhotoCanvas ? "app-story-compose app-story-compose--photo" : `app-story-compose app-story-compose--${draft.canvas}`} aria-label="Публикация истории">
+    <section ref={frameRef} className={onPhotoCanvas ? "app-story-compose app-story-compose--photo" : `app-story-compose app-story-compose--${draft.canvas}`} aria-label="Публикация истории">
       {onPhotoCanvas && <img className="app-story-photo" src={draft.photoUrl ?? ""} alt="" />}
       <span className="app-story-orb app-story-orb--light" aria-hidden="true" />
       <span className="app-story-orb app-story-orb--status" aria-hidden="true" />
@@ -142,7 +283,15 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
           <ActionIcon name="close" size={18} strokeWidth={2.6} />
         </button>
         <div className="app-story-bar-actions">
-          <button type="button" className="app-story-round" aria-label="Подпись" onClick={() => captionRef.current?.focus()}>
+          <button
+            type="button"
+            className="app-story-round"
+            aria-label="Добавить текст"
+            onClick={() => {
+              onDraft({ ...draft, objects: addStoryObject(draft.objects, "text") });
+              captionRef.current?.focus();
+            }}
+          >
             <ActionIcon name="text" size={20} strokeWidth={2} />
           </button>
           {/* Кадрирование и эффекты рисует макет, но редактора кадра в продукте нет (#502): глифы остаются декором, а не ложными кнопками. */}
@@ -155,48 +304,35 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
         </div>
       </div>
 
-      <textarea ref={captionRef} className="app-story-caption" aria-label="Подпись истории" rows={2} placeholder="Мангал в Горьком. Кто с нами?" value={draft.text} onChange={(change) => onDraft({ ...draft, text: change.target.value })} />
+      {drawn.length === 0 && <p className="app-story-empty">Пустой холст. Выберите фон и добавьте объекты снизу: текст, событие, опрос, счётчик мест.</p>}
 
-      {sticker !== null && (
-        <div className="app-story-sticker">
-          <span className="app-story-sticker-dot" aria-hidden="true" />
-          <span className="app-story-sticker-text">
-            <span className="app-story-sticker-title">{sticker.title}</span>
-            <span className="app-story-sticker-subtitle">{sticker.subtitle}</span>
+      {drawn.map(({ object, body }) => (
+        <div key={object.kind} className={storyObjectClass(object.kind, front)} style={{ left: `${object.x}%`, top: `${object.y}%` }} onPointerDown={() => setFront(object.kind)}>
+          <span className="app-story-object-tools">
+            <button type="button" className="app-story-object-grip" aria-label={`Передвинуть: ${STORY_OBJECTS[object.kind].label}`} onPointerDown={(event) => startDrag(object, event)}>
+              <ActionIcon name="dots" size={14} filled />
+            </button>
+            <button type="button" className="app-story-object-drop" aria-label={`Убрать: ${STORY_OBJECTS[object.kind].label}`} onClick={() => onDraft({ ...draft, objects: removeStoryObject(draft.objects, object.kind) })}>
+              <ActionIcon name="close" size={12} strokeWidth={2.6} />
+            </button>
           </span>
-          {/* Стикер сам себе выбор: макет не рисует отдельной строки «какое событие», а нативный список открывается по тапу по стикеру. */}
-          <select className="app-story-sticker-pick" aria-label="Событие истории" value={draft.eventId ?? ""} onChange={(change) => onDraft({ ...draft, eventId: change.target.value, answer: 0 })}>
-            {events.map((event) => (
-              <option key={event.id} value={event.id}>
-                {event.title}
-              </option>
-            ))}
-          </select>
+          {body}
         </div>
-      )}
-
-      {sticker !== null && sticker.seatsLeft !== null && (
-        <div className="app-story-seats">
-          <span className="app-story-seats-label">осталось мест</span>
-          <span className="app-story-seats-count">{sticker.seatsLeft}</span>
-        </div>
-      )}
-
-      {poll !== null && (
-        <div className="app-story-poll">
-          <p className="app-story-poll-kind">Опрос</p>
-          <p className="app-story-poll-question">{poll.question}</p>
-          <div className="app-story-poll-options">
-            {poll.options.map((option, index) => (
-              <button key={option} type="button" className={draft.answer === index ? "app-story-poll-option app-story-poll-option--on" : "app-story-poll-option"} aria-pressed={draft.answer === index} onClick={() => onDraft({ ...draft, answer: draft.answer === index ? null : index })}>
-                {option}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      ))}
 
       <div className="app-story-foot">
+        {/* Каталог объектов: в макете они были показом возможностей, здесь — кнопки, которыми автор собирает свою историю. */}
+        <div className="app-story-catalog">
+          {STORY_OBJECT_ORDER.map((kind) => {
+            const on = hasStoryObject(draft.objects, kind);
+            return (
+              <button key={kind} type="button" className={on ? "app-story-catalog-chip app-story-catalog-chip--on" : "app-story-catalog-chip"} aria-pressed={on} disabled={!storyObjectEnabled(kind, sticker, poll)} onClick={() => toggleObject(kind)}>
+                <ActionIcon name={STORY_OBJECTS[kind].icon} size={16} strokeWidth={2.2} />
+                {STORY_OBJECTS[kind].label}
+              </button>
+            );
+          })}
+        </div>
         <div className="app-story-rail">
           {STORY_CANVASES.map((canvas, index) => (
             <button key={canvas} type="button" className={draft.canvas === canvas ? `app-story-tile app-story-tile--${canvas} app-story-tile--on` : `app-story-tile app-story-tile--${canvas}`} aria-pressed={draft.canvas === canvas} aria-label={`Фон ${index + 1}`} onClick={() => onDraft({ ...draft, canvas })} />
@@ -229,7 +365,8 @@ export function StoryCreatePage() {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [details, setDetails] = useState<EventDetails | null>(null);
-  const [draft, setDraft] = useState<StoryDraft>({ canvas: "gradient-1", photoUrl: null, text: "", eventId: null, answer: 0, audience: "close-friends" });
+  // Холст пуст: объекты появляются только по действию автора, поэтому objects начинается пустым, а подсвеченного ответа опроса нет.
+  const [draft, setDraft] = useState<StoryDraft>({ canvas: "gradient-1", photoUrl: null, text: "", eventId: null, answer: null, audience: "close-friends", objects: [] });
   const [state, setState] = useState<StoryPublishState>("idle");
 
   useEffect(() => {

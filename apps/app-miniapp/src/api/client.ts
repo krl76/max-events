@@ -62,7 +62,9 @@
 // - StatsPeriodQuery - optional from/to window for the organizer reports
 // - STORY_AUDIENCES - audiences of the story composer in design order (макет, экран 05)
 // - StoryAudience - who a published story is shown to: close friends / friends / city (#502)
-// - StoryComposition - caption, place sticker, poll and audience a composed story carries (#502)
+// - StoryCanvasObject - one object of the story canvas and its place in the frame, in percent (#502)
+// - StoryComposition - caption, place sticker, poll, audience and canvas layout a composed story carries (#502)
+// - StoryObjectKind - what an author can put on the story canvas: caption, event sticker, poll, free-seats counter
 // - StoryPlaceSticker - place sticker of a story: title, venue line, free seats (макет, экран 05)
 // - StoryPoll - poll drawn on a story: question, options, highlighted answer (макет, экран 05)
 // - SWIPE_CATEGORIES - the four filter chips of экран 09 in design order
@@ -176,7 +178,7 @@ export { EVENT_SORTS, parseEventFilters, serializeEventFilters } from "./endpoin
 export type { BookingOffer, CatalogCard, EventCompanion, EventCompanions, EventDetails, EventFilters, EventForecast, EventGatheringTeaser, EventMoodTag, EventNearbySpot, EventSort, EventWeatherHour, MapWeather, ParticipationStats, PlaceParticipation, TravelMode, TravelOption } from "./endpoints/catalog";
 export type { CreateReview, EventRating, ReviewFactTag } from "./endpoints/reviews";
 export { POST_AUDIENCES, STORY_AUDIENCES } from "./endpoints/feed";
-export type { CreateFeedPost, FeedCard, FeedCardCounts, FeedComment, FeedFriendCard, FeedPlaceCard, FeedPost, PostAudience, PostDraft, PostDraftSaved, StoryAudience, StoryComposition, StoryPlaceSticker, StoryPoll } from "./endpoints/feed";
+export type { CreateFeedPost, FeedCard, FeedCardCounts, FeedComment, FeedFriendCard, FeedPlaceCard, FeedPost, PostAudience, PostDraft, PostDraftSaved, StoryAudience, StoryCanvasObject, StoryComposition, StoryObjectKind, StoryPlaceSticker, StoryPoll } from "./endpoints/feed";
 export type { CreateCheckIn } from "./endpoints/bookings";
 export type { AddListItem, ListItemCard, ListScreen, ListSummary } from "./endpoints/lists";
 export type { MyCityPayload } from "./endpoints/profile";
