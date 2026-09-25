@@ -52,3 +52,6 @@ mcp-profile/
 .turbo/cache/
 backups/
 .opencode/board/
+
+# Кеш хука impeccable: локальный артефакт инструмента, в репозитории ему не место
+.impeccable/
