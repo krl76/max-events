@@ -18,6 +18,8 @@
 // - DayRoute - day route type
 // - OptimizeRouteSchema - original vs optimized with savings
 // - OptimizeRoute - optimize result type
+// - TravelOptionSchema - walk/metro tile for a map pin (#537)
+// - TravelOption - map travel tile type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -84,3 +86,12 @@ export const OptimizeRouteSchema = z.object({
   savedKm: z.number(),
 });
 export type OptimizeRoute = z.infer<typeof OptimizeRouteSchema>;
+
+/** One way from the viewer to a map pin (экран 16): walk and metro tiles. */
+export const TravelOptionSchema = z.object({
+  mode: z.enum(["walk", "metro"]),
+  minutes: z.number().int().min(0),
+  distanceKm: z.number().nonnegative().nullable(),
+  transfers: z.number().int().min(0).nullable(),
+});
+export type TravelOption = z.infer<typeof TravelOptionSchema>;

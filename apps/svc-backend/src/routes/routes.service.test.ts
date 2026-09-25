@@ -1,3 +1,4 @@
+import { NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
 import { EventEntity } from "../events/event.entity";
@@ -61,5 +62,26 @@ describe("RoutesService", () => {
     });
     expect(optimized.original.points[0]?.title).toBe("Старт");
     expect(optimized.savedKm).toBeGreaterThanOrEqual(0);
+  });
+
+  it("answers walk and metro tiles to a published place", async () => {
+    const places = {
+      findOneBy: async (where: { id: string }) => (where.id === parkId ? place(parkId, "Парк", 55.73, 37.6) : null),
+    };
+    const service = new RoutesService({ findOneBy: async () => null } as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>);
+    const options = await service.travelToPlace(parkId, { latitude: 55.75, longitude: 37.62 });
+    expect(options.map((row) => row.mode)).toEqual(["walk", "metro"]);
+    expect(options[0]?.transfers).toBeNull();
+    expect(options[1]?.minutes).toBeLessThan(options[0]!.minutes);
+    expect(options[0]?.distanceKm).toBe(options[1]?.distanceKm);
+    expect(options[0]?.distanceKm).toBeGreaterThan(0);
+  });
+
+  it("hides an unpublished place behind 404", async () => {
+    const draft = { ...place(parkId, "Черновик", 55.73, 37.6), published: false };
+    const places = { findOneBy: async (where: { id: string }) => (where.id === parkId ? draft : null) };
+    const service = new RoutesService({ findOneBy: async () => null } as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>);
+    await expect(service.travelToPlace(parkId, { latitude: 55.75, longitude: 37.62 })).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.travelToPlace(foodId, { latitude: 55.75, longitude: 37.62 })).rejects.toBeInstanceOf(NotFoundException);
   });
 });

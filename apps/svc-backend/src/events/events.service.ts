@@ -13,13 +13,14 @@
 // - CHAT_SYNC_BATCH - events retried per chat-sync tick
 // - pickEventFields - patch keys allowed on update
 // - EventsService - CRUD + list against EventEntity + chat-sync retry
+// - listCards - catalog list wrapped as search-tab cards (distance, rating, placeTitle)
 // - toEventDto - map EventEntity to the api-contracts Event shape
 // END_MODULE_MAP
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { And, FindOperator, ILike, In, IsNull, LessThan, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
-import { CreateEventSchema, EventSchema, type CreateEvent, type Event, type EventCategory } from "@max-events/api-contracts";
+import { CreateEventSchema, EventSchema, type CatalogCard, type CreateEvent, type Event, type EventCategory } from "@max-events/api-contracts";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
 import { OrganizationsService } from "../organizations/organizations.service";
@@ -199,11 +200,13 @@ export class EventsService {
       order: { startsAt: "ASC", id: "ASC" },
     });
     const seen = new Set<string>();
-    return rows.filter((row) => {
-      if (seen.has(row.id)) return false;
-      seen.add(row.id);
-      return true;
-    }).map((row) => toEventDto(row));
+    return rows
+      .filter((row) => {
+        if (seen.has(row.id)) return false;
+        seen.add(row.id);
+        return true;
+      })
+      .map((row) => toEventDto(row));
   }
 
   async publish(id: string, actorId: string): Promise<Event> {
@@ -250,7 +253,12 @@ export class EventsService {
     if (window) whereBase.startsAt = window;
     const like = query.q ? containsPattern(query.q) : null;
     if (query.q && like === null) return [];
-    const where = like ? [{ ...whereBase, title: ILike(like) }, { ...whereBase, description: ILike(like) }] : whereBase;
+    const where = like
+      ? [
+          { ...whereBase, title: ILike(like) },
+          { ...whereBase, description: ILike(like) },
+        ]
+      : whereBase;
     const pageOffset = query.offset ?? 0;
     const pageTake = Math.min(query.limit ?? EVENT_LIST_MAX_LIMIT, EVENT_LIST_MAX_LIMIT);
     const hasOrigin = query.latitude !== undefined && query.longitude !== undefined;
@@ -267,6 +275,19 @@ export class EventsService {
     const dtos = await this.eventWeather.attach(page.map((row) => toEventDto(row, { promoted: promoted.has(row.id) })));
     if (!query.viewerId && query.latitude === undefined) return dtos;
     return this.enrichList(page, dtos, query);
+  }
+
+  async listCards(query: EventListQuery, now = new Date()): Promise<CatalogCard[]> {
+    const events = await this.list(query, now);
+    const placeIds = [...new Set(events.map((event) => event.placeId).filter((id): id is string => id !== null))];
+    const places = await this.places.findByIds(placeIds);
+    const titleById = new Map(places.map((place) => [place.id, place.title]));
+    return events.map((event) => ({
+      event,
+      distanceKm: event.distanceKm ?? null,
+      rating: event.ratingAverage ?? null,
+      placeTitle: event.placeId ? (titleById.get(event.placeId) ?? null) : null,
+    }));
   }
 
   private async orderCatalog(rows: EventEntity[], query: EventListQuery, now: Date): Promise<EventEntity[]> {
@@ -297,13 +318,7 @@ export class EventsService {
     const eventIds = rows.map((row) => row.id);
     const placeIds = [...new Set(rows.map((row) => row.placeId).filter((id): id is string => id !== null))];
     const organizerIds = [...new Set(rows.map((row) => row.organizerUserId).filter((id): id is string => id !== null))];
-    const [places, organizers, ratings, waitlists, going] = await Promise.all([
-      this.places.findByIds(placeIds),
-      this.users.findByIds(organizerIds),
-      this.reviews.averagesByEventIds(eventIds),
-      this.waitlist.queueCountsByEventIds(eventIds),
-      query.viewerId ? this.goingFriends(query.viewerId, eventIds) : Promise.resolve(new Map<string, Array<{ id: string; name: string }>>()),
-    ]);
+    const [places, organizers, ratings, waitlists, going] = await Promise.all([this.places.findByIds(placeIds), this.users.findByIds(organizerIds), this.reviews.averagesByEventIds(eventIds), this.waitlist.queueCountsByEventIds(eventIds), query.viewerId ? this.goingFriends(query.viewerId, eventIds) : Promise.resolve(new Map<string, Array<{ id: string; name: string }>>())]);
     const placeById = new Map(places.map((place) => [place.id, place]));
     const organizerById = new Map(organizers.map((user) => [user.id, user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName]));
     const origin = query.latitude !== undefined && query.longitude !== undefined ? { latitude: query.latitude, longitude: query.longitude } : null;
@@ -368,7 +383,10 @@ function toColumns(payload: CreateEvent | Event): Omit<CreateEvent, "startsAt" |
 }
 
 function containsPattern(q: string): string | null {
-  const compact = q.replace(/[%_\\]/g, " ").replace(/\s+/g, " ").trim();
+  const compact = q
+    .replace(/[%_\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return compact.length === 0 ? null : `%${compact}%`;
 }
 

@@ -302,6 +302,29 @@ describe("EventsService", () => {
     const listed = await service.list({});
     expect(listed.map((item) => item.title)).toEqual(["Позже"]);
   });
+
+  it("wraps the catalog as search cards with distance, rating and the venue line", async () => {
+    const { repo, service: writer } = createService({ placeIds: [placeId] });
+    const jazz = await writer.create(CreateEventSchema.parse({ ...payload, placeId }));
+    await writer.create(CreateEventSchema.parse({ ...payload, title: "Без площадки", startsAt: "2026-09-13T19:00:00+03:00" }));
+    const cards = await createService({
+      store: repo.store,
+      placeIds: [placeId],
+      averages: { [jazz.id]: 4.8 },
+    }).service.listCards({ latitude: 55.75, longitude: 37.62, viewerId: "00000000-0000-4000-8000-00000000000a" });
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toMatchObject({ distanceKm: 0, rating: 4.8, placeTitle: "Площадка" });
+    expect(cards[0]?.event.id).toBe(jazz.id);
+    expect(cards[1]).toMatchObject({ distanceKm: null, rating: null, placeTitle: null });
+  });
+
+  it("leaves distance null when the caller names no origin", async () => {
+    const { service } = createService({ placeIds: [placeId] });
+    await service.create(CreateEventSchema.parse({ ...payload, placeId }));
+    const [card] = await service.listCards({ viewerId: "00000000-0000-4000-8000-00000000000a" });
+    expect(card?.distanceKm).toBeNull();
+    expect(card?.placeTitle).toBe("Площадка");
+  });
 });
 
 describe("toEventDto", () => {

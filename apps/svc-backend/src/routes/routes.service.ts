@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Day-route timeline with walking legs and order optimization (min total distance).
-// SCOPE: build() from event/place stops; optimize() brute-force permutation of 2–8 points.
-// DEPENDS: typeorm, @max-events/api-contracts, events/places, plans haversine
+// SCOPE: build() from event/place stops; optimize() brute-force permutation of 2–8 points; travelToPlace() walk/metro tiles for a map pin.
+// DEPENDS: typeorm, @max-events/api-contracts, events/places, geo/haversine
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -9,15 +9,15 @@
 // - walkingMinutes - meters at 80 m/min
 // - toDayRoute - points to legs and totals
 // - shortestPermutation - keep start, permute the rest
-// - RoutesService - build and optimize
+// - RoutesService - build, optimize, travelToPlace
 // END_MODULE_MAP
 
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import type { CreateDayRouteWrite, DayRoute, OptimizeRoute, RouteMode, RoutePoint, RoutePrefer } from "@max-events/api-contracts";
+import type { CreateDayRouteWrite, DayRoute, OptimizeRoute, RouteMode, RoutePoint, RoutePrefer, TravelOption } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
-import { haversineMeters } from "../plans/plans.service";
+import { haversineMeters } from "../geo/haversine";
 import { PlaceEntity } from "../places/place.entity";
 
 const WALK_M_PER_MIN = 80;
@@ -53,6 +53,17 @@ export class RoutesService {
   async build(payload: CreateDayRouteWrite): Promise<DayRoute> {
     const points = await this.resolve(payload);
     return toDayRoute(points, payload.prefer ?? "default");
+  }
+
+  async travelToPlace(placeId: string, origin: { latitude: number; longitude: number }): Promise<TravelOption[]> {
+    const place = await this.places.findOneBy({ id: placeId });
+    if (!place || place.published === false) throw new NotFoundException("Place not found");
+    const meters = haversineMeters(origin, place.latitude, place.longitude);
+    const distanceKm = Math.round((meters / 1000) * 10) / 10;
+    return [
+      { mode: "walk", minutes: travelMinutes(meters, "walk"), distanceKm, transfers: null },
+      { mode: "metro", minutes: travelMinutes(meters, "metro"), distanceKm, transfers: meters >= 4000 ? 1 : 0 },
+    ];
   }
 
   async optimize(payload: CreateDayRouteWrite): Promise<OptimizeRoute> {

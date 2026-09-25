@@ -28,7 +28,7 @@ const event: Event = {
 };
 
 function createController() {
-  const calls: { create?: CreateEvent; list?: EventListQuery; getById?: string; details?: { id: string; viewerId: string }; hourly?: string; update?: { id: string; patch: Record<string, unknown> }; remove?: string } = {};
+  const calls: { create?: CreateEvent; list?: EventListQuery; listCards?: EventListQuery; getById?: string; details?: { id: string; viewerId: string }; hourly?: string; update?: { id: string; patch: Record<string, unknown> }; remove?: string } = {};
   const service = {
     create: async (body: CreateEvent) => {
       calls.create = body;
@@ -37,6 +37,10 @@ function createController() {
     list: async (query: EventListQuery): Promise<Event[]> => {
       calls.list = query;
       return [event];
+    },
+    listCards: async (query: EventListQuery) => {
+      calls.listCards = query;
+      return [{ event, distanceKm: 2.1, rating: 4.8, placeTitle: "Парк Горького" }];
     },
     getById: async (id: string) => {
       calls.getById = id;
@@ -117,13 +121,22 @@ describe("EventsController", () => {
   it("passes the rating threshold through, and leaves it unset when absent", () => {
     expect(parseEventListQuery({ min_rating: "4" })).toMatchObject({ minRating: 4 });
     expect(parseEventListQuery({ lat: "55.75", lng: "37.62" })).toMatchObject({ latitude: 55.75, longitude: 37.62 });
+    expect(parseEventListQuery({ latitude: "55.75", longitude: "37.62" })).toMatchObject({ latitude: 55.75, longitude: 37.62 });
     expect(() => parseEventListQuery({ lat: "55.75" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ latitude: "55.75" })).toThrow(BadRequestException);
     expect(() => parseEventListQuery({ lat: "91", lng: "37" })).toThrow(BadRequestException);
     expect(parseEventListQuery({}).minRating).toBeUndefined();
     expect(parseEventListQuery({ min_rating: "" }).minRating).toBeUndefined();
     expect(parseEventListQuery({ q: "  джаз  ", sort: "near" })).toMatchObject({ q: "джаз", sort: "near" });
     expect(parseEventListQuery({ q: "" }).q).toBeUndefined();
     expect(parseEventListQuery({ sort: "soon" }).sort).toBe("soon");
+  });
+
+  it("serves catalog cards with the same filters as the list", async () => {
+    const { calls, controller } = createController();
+    const result = await controller.listCards(user, { city: "Москва", latitude: "55.75", longitude: "37.62" });
+    expect(calls.listCards).toMatchObject({ city: "Москва", latitude: 55.75, longitude: 37.62, viewerId: user.id });
+    expect(result).toEqual([{ event, distanceKm: 2.1, rating: 4.8, placeTitle: "Парк Горького" }]);
   });
 
   it("serves the details aggregate for the current user", async () => {

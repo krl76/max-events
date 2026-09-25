@@ -14,6 +14,8 @@
 // - Event - full event type
 // - CreateEventSchema - event creation payload (no id, no server-owned chatLink/promoted/published/bookingOpensAt/weather)
 // - CreateEvent - event creation payload type
+// - CatalogCardSchema - search-tab card: Event plus distance/rating/placeTitle (#536)
+// - CatalogCard - search-tab card type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -86,3 +88,12 @@ export const CreateEventSchema = EventObjectSchema.omit({
   friendsGoing: true,
 }).refine(hasValidPaymentLink, paymentLinkInvariant);
 export type CreateEvent = z.infer<typeof CreateEventSchema>;
+
+/** Search-tab card (экран 08). Distance/rating/place stay off Event so the plain listing stays a listing. */
+export const CatalogCardSchema = z.object({
+  event: EventSchema,
+  distanceKm: z.number().nonnegative().nullable(),
+  rating: z.number().min(0).max(5).nullable(),
+  placeTitle: z.string().nullable(),
+});
+export type CatalogCard = z.infer<typeof CatalogCardSchema>;

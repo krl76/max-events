@@ -1,17 +1,17 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for events — authenticated CRUD and catalog list under /api/events.
-// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to/min_rating/q/sort/limit/offset; GET :id/details delegates to EventDetailsService; GET :id/weather/hourly is the Open-Meteo strip.
+// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to/min_rating/q/sort/limit/offset/lat/lng; GET cards is the search-tab card list; GET :id/details delegates to EventDetailsService; GET :id/weather/hourly is the Open-Meteo strip.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ./events.service, ./event-details.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - EventsController - /events CRUD, catalog list and the :id/details page aggregate
-// - parseEventListQuery - coerce HTTP query into EventListQuery or 400
+// - EventsController - /events CRUD, catalog list, GET cards, and the :id/details page aggregate
+// - parseEventListQuery - coerce HTTP query into EventListQuery or 400; lat/lng or latitude/longitude
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
-import { CreateEventSchema, EventCategorySchema, TimestampSchema, type Event, type EventDetails } from "@max-events/api-contracts";
+import { CreateEventSchema, EventCategorySchema, TimestampSchema, type CatalogCard, type Event, type EventDetails } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { EventDetailsService, type EventNearbySpot } from "./event-details.service";
@@ -36,6 +36,11 @@ export class EventsController {
   @Get()
   list(@CurrentUser() user: UserEntity, @Query() query: Record<string, string | undefined>): Promise<Event[]> {
     return this.events.list({ ...parseEventListQuery(query), viewerId: user.id });
+  }
+
+  @Get("cards")
+  listCards(@CurrentUser() user: UserEntity, @Query() query: Record<string, string | undefined>): Promise<CatalogCard[]> {
+    return this.events.listCards({ ...parseEventListQuery(query), viewerId: user.id });
   }
 
   @Get(":id/details")
@@ -101,8 +106,8 @@ export function parseEventListQuery(query: Record<string, string | undefined>): 
   const limit = query.limit === undefined || query.limit === "" ? undefined : Number(query.limit);
   if (offset !== undefined && (!Number.isInteger(offset) || offset < 0)) throw new BadRequestException("Invalid event query");
   if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > EVENT_LIST_MAX_LIMIT)) throw new BadRequestException("Invalid event query");
-  const latRaw = query.lat;
-  const lngRaw = query.lng;
+  const latRaw = nonemptyQuery(query.lat) ?? nonemptyQuery(query.latitude);
+  const lngRaw = nonemptyQuery(query.lng) ?? nonemptyQuery(query.longitude);
   const hasLat = latRaw !== undefined && latRaw !== "";
   const hasLng = lngRaw !== undefined && lngRaw !== "";
   if (hasLat !== hasLng) throw new BadRequestException("Invalid event query");
@@ -115,6 +120,10 @@ export function parseEventListQuery(query: Record<string, string | undefined>): 
 }
 
 const SEARCH_NEEDLE_MAX = 200;
+
+function nonemptyQuery(value: string | undefined): string | undefined {
+  return value !== undefined && value !== "" ? value : undefined;
+}
 
 function parseSearchNeedle(value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
