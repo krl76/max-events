@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CreateFeedPostWriteSchema, FeedPostSchema, MAX_FEED_PHOTO_URL_LENGTH } from "./feed.js";
+import { CreateFeedPostWriteSchema, FeedCardSchema, FeedPostSchema, MAX_FEED_PHOTO_URL_LENGTH } from "./feed.js";
 
 const author = { id: "018f3c5a-0000-7000-8000-000000000001", name: "Анна", avatarUrl: null };
 const post = {
@@ -41,5 +41,34 @@ describe("CreateFeedPostWriteSchema", () => {
   it("requires event and non-empty text", () => {
     expect(CreateFeedPostWriteSchema.safeParse({ eventId: post.eventId, text: "" }).success).toBe(false);
     expect(CreateFeedPostWriteSchema.parse({ eventId: post.eventId, text: "фото" }).text).toBe("фото");
+  });
+});
+
+describe("FeedCardSchema", () => {
+  it("accepts a friend card with counted zeros, not invented zeros as nulls", () => {
+    const card = FeedCardSchema.parse({
+      kind: "friend",
+      id: post.id,
+      author,
+      placeTitle: "Парк Горького",
+      distanceKm: null,
+      event: { id: post.eventId, title: "Джаз", category: "afisha", city: "Москва", startsAt: "2026-09-12T19:00:00+03:00" },
+      live: false,
+      hit: false,
+      counts: { wantsToGo: 0, going: 2, waitlist: 0, freeSeats: null },
+      myStatus: "going",
+      text: post.text,
+      likesCount: 2,
+      likedByMe: false,
+      comments: [],
+      commentsCount: 0,
+      publishedAt: "2026-09-12T10:00:00.000Z",
+    });
+    expect(card.kind).toBe("friend");
+    if (card.kind === "friend") expect(card.counts.freeSeats).toBeNull();
+  });
+
+  it("rejects a card without a kind", () => {
+    expect(FeedCardSchema.safeParse({ id: post.id, text: post.text }).success).toBe(false);
   });
 });

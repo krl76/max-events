@@ -11,13 +11,24 @@ const placeId = "00000000-0000-4000-8000-0000000000a1";
 
 function createController() {
   const calls: Array<{ filter: FeedListFilter; limit: number; offset: number }> = [];
+  let cardsFor: string | undefined;
   const feed = {
     list: async (_viewerId: string, filter: FeedListFilter, limit: number, offset: number) => {
       calls.push({ filter, limit, offset });
       return [] as FeedPost[];
     },
+    listCards: async (viewerId: string) => {
+      cardsFor = viewerId;
+      return [];
+    },
   } as unknown as FeedService;
-  return { controller: new FeedController(feed), calls };
+  return {
+    controller: new FeedController(feed),
+    calls,
+    get cardsFor() {
+      return cardsFor;
+    },
+  };
 }
 
 describe("FeedController.list", () => {
@@ -43,5 +54,13 @@ describe("FeedController.list", () => {
     expect(() => controller.list(user, eventId, placeId)).toThrow(BadRequestException);
     expect(() => controller.list(user, eventId, undefined, "0")).toThrow(BadRequestException);
     expect(() => controller.list(user, eventId, undefined, "10", "-1")).toThrow(BadRequestException);
+  });
+});
+
+describe("FeedController.listCards", () => {
+  it("asks the service for the current user's home cards", async () => {
+    const created = createController();
+    await expect(created.controller.listCards(user)).resolves.toEqual([]);
+    expect(created.cardsFor).toBe(user.id);
   });
 });

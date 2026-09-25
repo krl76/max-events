@@ -1,9 +1,14 @@
 import { NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
+import type { Place } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
+import { FriendshipEntity } from "../friends/friendship.entity";
+import { ParticipationEntity } from "../participations/participation.entity";
+import type { PlacesService } from "../places/places.service";
 import { UserEntity } from "../users/user.entity";
 import type { UsersService } from "../users/users.service";
+import type { WaitlistService } from "../waitlist/waitlist.service";
 import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "./feed-post.entity";
 import { FeedService } from "./feed.service";
 
@@ -56,15 +61,64 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
   };
 }
 
+function catalogEvent(id: string, venueId: string, extra: Partial<EventEntity> = {}): EventEntity {
+  return {
+    id,
+    title: extra.title ?? "Джаз в парке",
+    description: "",
+    category: "afisha",
+    city: "Москва",
+    placeId: venueId,
+    organizerUserId: null,
+    startsAt: extra.startsAt ?? new Date("2026-09-12T16:00:00Z"),
+    endsAt: extra.endsAt ?? null,
+    isPaid: false,
+    priceRub: null,
+    paymentUrl: null,
+    capacity: extra.capacity ?? null,
+    bookedCount: extra.bookedCount ?? 0,
+    published: extra.published ?? true,
+    bookingOpensAt: null,
+    chatLink: null,
+    chatSyncPending: true,
+    createdAt: now,
+    updatedAt: now,
+    ...extra,
+  } as EventEntity;
+}
+
 function createService(eventPublished = true) {
   const posts = createStoreRepo<FeedPostEntity>();
   const likes = createStoreRepo<FeedLikeEntity>();
   const comments = createStoreRepo<FeedCommentEntity>();
-  const events = createStoreRepo<EventEntity>([{ id: eventId, placeId, published: eventPublished } as EventEntity, { id: otherEventId, placeId: otherPlaceId, published: true } as EventEntity]);
+  const events = createStoreRepo<EventEntity>([catalogEvent(eventId, placeId, { published: eventPublished }), catalogEvent(otherEventId, otherPlaceId)]);
   const users = createStoreRepo<UserEntity>([{ id: userId, firstName: "Анна", lastName: "Соколова", avatarUrl: null } as UserEntity]);
   const publishers = { assertCanPublish: async () => undefined } as unknown as UsersService;
-  const service = new FeedService(posts as unknown as Repository<FeedPostEntity>, likes as unknown as Repository<FeedLikeEntity>, comments as unknown as Repository<FeedCommentEntity>, events as unknown as Repository<EventEntity>, users as unknown as Repository<UserEntity>, publishers);
-  return { service, likes, posts };
+  const places = {
+    findByIds: async (ids: string[]) =>
+      ids.map(
+        (id) =>
+          ({
+            id,
+            title: "Парк Горького",
+            address: "ул. Крымский Вал, 9",
+            city: "Москва",
+            category: "park",
+            latitude: 55.73,
+            longitude: 37.6,
+            published: true,
+            logoUrl: null,
+            createdAt: now.toISOString(),
+            updatedAt: now.toISOString(),
+          }) as Place,
+      ),
+  } as unknown as PlacesService;
+  const waitlistMap = new Map<string, number>();
+  const waitlist = { queueCountsByEventIds: async () => waitlistMap } as unknown as WaitlistService;
+  const participations = createStoreRepo<ParticipationEntity>();
+  const friendships = createStoreRepo<FriendshipEntity>();
+  const service = new FeedService(posts as unknown as Repository<FeedPostEntity>, likes as unknown as Repository<FeedLikeEntity>, comments as unknown as Repository<FeedCommentEntity>, events as unknown as Repository<EventEntity>, users as unknown as Repository<UserEntity>, publishers, places, waitlist, participations as unknown as Repository<ParticipationEntity>, friendships as unknown as Repository<FriendshipEntity>);
+  return { service, likes, posts, participations, waitlistMap };
 }
 
 describe("FeedService", () => {
@@ -154,5 +208,32 @@ describe("FeedService", () => {
     const page = await service.list(userId, { eventId }, 1, 0);
     expect(page).toHaveLength(1);
     expect(page[0]?.text).toBe("second");
+  });
+
+  it("wraps friend posts as home cards with counted zeros rather than nulls", async () => {
+    const { service, participations, waitlistMap } = createService();
+    const created = await service.create(userId, { eventId, text: "Как прошло — огонь" });
+    participations.store.push({ id: "p1", userId, eventId, status: "going" } as ParticipationEntity);
+    waitlistMap.set(eventId, 3);
+    const [card] = await service.listCards(userId, now);
+    expect(card?.kind).toBe("friend");
+    if (card?.kind !== "friend") throw new Error("expected a friend card");
+    expect(card.id).toBe(created.id);
+    expect(card.placeTitle).toBe("Парк Горького");
+    expect(card.counts).toEqual({ wantsToGo: 0, going: 1, waitlist: 3, freeSeats: null });
+    expect(card.myStatus).toBe("going");
+    expect(card.publishedAt).toBe(now.toISOString());
+  });
+
+  it("answers a venue card when the post names a place, and free seats when capacity is known", async () => {
+    const { service } = createService();
+    const created = await service.create(userId, { eventId, text: "Мангальная зона", placeId });
+    const [card] = await service.listCards(userId, now);
+    expect(card?.kind).toBe("place");
+    if (card?.kind !== "place") throw new Error("expected a place card");
+    expect(card.id).toBe(created.id);
+    expect(card.place.id).toBe(placeId);
+    expect(card.rating).toBeNull();
+    expect(card.travelMinutes).toBeNull();
   });
 });

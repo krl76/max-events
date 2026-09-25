@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for the feed wall.
-// SCOPE: GET /feed (?eventId or ?placeId wall), POST /feed, POST /feed/:id/like, POST /feed/:id/comments.
+// SCOPE: GET /feed (?eventId or ?placeId wall), GET /feed/cards, POST /feed, POST /feed/:id/like, POST /feed/:id/comments.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./feed.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -11,7 +11,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
-import { AddFeedCommentWriteSchema, CreateFeedPostWriteSchema, type FeedPost } from "@max-events/api-contracts";
+import { AddFeedCommentWriteSchema, CreateFeedPostWriteSchema, type FeedCard, type FeedPost } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { FeedService } from "./feed.service";
@@ -35,6 +35,11 @@ export class FeedController {
     const offset = queryOffset === undefined || queryOffset === "" ? 0 : Number(queryOffset);
     if (!Number.isInteger(limit) || limit < 1 || !Number.isInteger(offset) || offset < 0) throw new BadRequestException("Invalid feed query");
     return this.feed.list(user.id, { eventId: event, placeId: place }, limit, offset);
+  }
+
+  @Get("cards")
+  listCards(@CurrentUser() user: UserEntity): Promise<FeedCard[]> {
+    return this.feed.listCards(user.id);
   }
 
   @Post()
