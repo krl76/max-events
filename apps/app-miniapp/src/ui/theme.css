@@ -16630,8 +16630,12 @@ button.app-poll-result {
   transition: transform 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
-/* Слой, который онбординг ведёт за пальцем: сдвигается он, а не вёрстка шага */
+/* Слой, который онбординг ведёт за пальцем: сдвигается он, а не вёрстка шага.
+ * user-select снят со всего слоя: горизонтальное движение по заголовку слайда
+ * иначе выделяет текст, и палец ведёт не экран, а синюю подсветку поверх него.
+ * У карточки подбора тот же запрет стоит с самого начала — здесь его не хватало. */
 .app-onboarding-slide {
+  user-select: none;
   will-change: transform;
 }
 
@@ -16662,13 +16666,13 @@ button.app-poll-result {
   color: var(--app-text-secondary);
   cursor: pointer;
   display: flex;
-  height: 36px;
+  height: 44px;
   justify-content: center;
-  left: 4px;
+  left: 2px;
   padding: 0;
   position: absolute;
-  top: 24px;
-  width: 36px;
+  top: 20px;
+  width: 44px;
 }
 
 /* Шеврон нарисован вправо; кнопка назад разворачивает его */
