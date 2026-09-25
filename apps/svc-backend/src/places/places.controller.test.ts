@@ -68,7 +68,7 @@ describe("PlacesController", () => {
   it("passes list filters through to the service", async () => {
     const { calls, controller } = createController();
     const result = await controller.list({ city: "Москва", category: "park", limit: "10", offset: "2" });
-    expect(calls.list).toEqual({ city: "Москва", category: "park", limit: 10, offset: 2 });
+    expect(calls.list).toEqual({ city: "Москва", category: "park", q: undefined, limit: 10, offset: 2 });
     expect(result).toEqual([place]);
   });
 
@@ -76,10 +76,12 @@ describe("PlacesController", () => {
     expect(() => parseListQuery({ category: "ship" })).toThrow(BadRequestException);
     expect(() => parseListQuery({ limit: "0" })).toThrow(BadRequestException);
     expect(() => parseListQuery({ offset: "-1" })).toThrow(BadRequestException);
+    expect(() => parseListQuery({ q: "x".repeat(201) })).toThrow(BadRequestException);
   });
 
   it("omits limit when query params are omitted so the map can load every place", () => {
-    expect(parseListQuery({})).toEqual({ city: undefined, category: undefined, limit: undefined, offset: 0 });
+    expect(parseListQuery({})).toEqual({ city: undefined, category: undefined, q: undefined, limit: undefined, offset: 0 });
+    expect(parseListQuery({ q: "  парк  " })).toMatchObject({ q: "парк" });
   });
 
   it("rejects an invalid patch payload with 400", async () => {

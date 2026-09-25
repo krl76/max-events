@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Place persistence — CRUD and filtered list mapped to api-contracts Place.
-// SCOPE: Create/read/update/delete, unique (title, address, city) as 409, missing id as 404, list by city/category with limit/offset.
+// SCOPE: Create/read/update/delete, unique (title, address, city) as 409, missing id as 404, list by city/category/q with limit/offset.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ./place.entity
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -13,7 +13,7 @@
 
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, QueryFailedError, Repository } from "typeorm";
+import { ILike, In, QueryFailedError, Repository } from "typeorm";
 import type { CreatePlace, Place, PlaceCategory } from "@max-events/api-contracts";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { isOrganizerOwner } from "../organizations/organizer-ownership";
@@ -23,6 +23,8 @@ import { PlaceEntity } from "./place.entity";
 export type PlaceListQuery = {
   city?: string;
   category?: PlaceCategory;
+  /** Case-insensitive needle over title and address. */
+  q?: string;
   limit?: number;
   offset: number;
 };
@@ -125,9 +127,12 @@ export class PlacesService {
   }
 
   async list(query: PlaceListQuery): Promise<Place[]> {
-    const where: { published: true; city?: string; category?: PlaceCategory } = { published: true };
-    if (query.city) where.city = query.city;
-    if (query.category) where.category = query.category;
+    const whereBase: { published: true; city?: string; category?: PlaceCategory } = { published: true };
+    if (query.city) whereBase.city = query.city;
+    if (query.category) whereBase.category = query.category;
+    const like = query.q ? containsPattern(query.q) : null;
+    if (query.q && like === null) return [];
+    const where = like ? [{ ...whereBase, title: ILike(like) }, { ...whereBase, address: ILike(like) }] : whereBase;
     const rows = await this.places.find({
       where,
       skip: query.offset,
@@ -152,6 +157,11 @@ export function toPlaceDto(place: PlaceEntity): Place {
     createdAt: place.createdAt.toISOString(),
     updatedAt: place.updatedAt.toISOString(),
   };
+}
+
+function containsPattern(q: string): string | null {
+  const compact = q.replace(/[%_\\]/g, " ").replace(/\s+/g, " ").trim();
+  return compact.length === 0 ? null : `%${compact}%`;
 }
 
 function assertOrganizer(row: { organizerUserId?: string | null; organizerOrganizationId?: string | null }, actorId?: string): void {

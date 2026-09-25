@@ -16,6 +16,17 @@ const payload: CreatePlace = {
   logoUrl: null,
 };
 
+function matchesTextOperator(value: string, clause: unknown): boolean {
+  if (clause === undefined) return true;
+  if (clause && typeof clause === "object" && "type" in (clause as object) && (clause as { type: string }).type === "ilike") {
+    const pattern = String((clause as { value?: unknown }).value ?? "");
+    const needle = pattern.startsWith("%") && pattern.endsWith("%") ? pattern.slice(1, -1) : pattern;
+    return value.toLowerCase().includes(needle.toLowerCase());
+  }
+  if (typeof clause === "string") return value === clause;
+  return true;
+}
+
 function uniqueViolation(): QueryFailedError {
   return new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate key value"), { code: "23505" }));
 }
@@ -56,6 +67,8 @@ function createRepo(initial: PlaceEntity[] = []) {
       let rows = store.filter((row) =>
         clauses.some((clause) => {
           if (clause.published === true && row.published === false) return false;
+          if (!matchesTextOperator(row.title, clause.title)) return false;
+          if (!matchesTextOperator(row.address, clause.address)) return false;
           if (clause.city && row.city !== clause.city) return false;
           if (clause.category && row.category !== clause.category) return false;
           if (clause.organizerUserId && row.organizerUserId !== clause.organizerUserId) return false;
@@ -144,6 +157,11 @@ describe("PlacesService", () => {
     const museums = await service.list({ category: "museum", offset: 0 });
     expect(museums).toHaveLength(1);
     expect(museums[0]?.title).toBe("Эрмитаж");
+
+    expect((await service.list({ q: "эрмитаж", offset: 0 })).map((item) => item.title)).toEqual(["Эрмитаж"]);
+    expect((await service.list({ q: "дворцовая", offset: 0 })).map((item) => item.title)).toEqual(["Эрмитаж"]);
+    expect(await service.list({ q: "несуществующий запрос 42", offset: 0 })).toEqual([]);
+    expect(await service.list({ q: "%%%", offset: 0 })).toEqual([]);
   });
 
   it("paginates with limit and offset", async () => {

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for events — authenticated CRUD and catalog list under /api/events.
-// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to/min_rating/limit/offset; GET :id/details delegates to EventDetailsService with the current user.
+// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to/min_rating/q/sort/limit/offset; GET :id/details delegates to EventDetailsService with the current user.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ./events.service, ./event-details.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -15,7 +15,7 @@ import { CreateEventSchema, EventCategorySchema, TimestampSchema, type Event, ty
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { EventDetailsService } from "./event-details.service";
-import { EVENT_LIST_MAX_LIMIT, EventsService, type EventListQuery } from "./events.service";
+import { EVENT_LIST_MAX_LIMIT, EVENT_SORTS, EventsService, type EventListQuery, type EventSort } from "./events.service";
 
 @Controller("events")
 export class EventsController {
@@ -78,6 +78,12 @@ export function parseEventListQuery(query: Record<string, string | undefined>): 
   const dateTo = parseOptionalTimestamp(query.date_to, true);
   const minRating = query.min_rating === undefined || query.min_rating === "" ? undefined : Number(query.min_rating);
   if (minRating !== undefined && (!Number.isInteger(minRating) || minRating < 1 || minRating > 5)) throw new BadRequestException("Invalid event query");
+  const q = parseSearchNeedle(query.q);
+  let sort: EventSort | undefined;
+  if (query.sort !== undefined && query.sort !== "") {
+    if (!(EVENT_SORTS as readonly string[]).includes(query.sort)) throw new BadRequestException("Invalid event query");
+    sort = query.sort as EventSort;
+  }
   const offset = query.offset === undefined || query.offset === "" ? undefined : Number(query.offset);
   const limit = query.limit === undefined || query.limit === "" ? undefined : Number(query.limit);
   if (offset !== undefined && (!Number.isInteger(offset) || offset < 0)) throw new BadRequestException("Invalid event query");
@@ -92,7 +98,17 @@ export function parseEventListQuery(query: Record<string, string | undefined>): 
   if (latitude !== undefined && longitude !== undefined && (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)) {
     throw new BadRequestException("Invalid event query");
   }
-  return { city, category, date, dateFrom, dateTo, minRating, limit, offset, latitude, longitude };
+  return { city, category, date, dateFrom, dateTo, minRating, q, sort, limit, offset, latitude, longitude };
+}
+
+const SEARCH_NEEDLE_MAX = 200;
+
+function parseSearchNeedle(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return undefined;
+  if (trimmed.length > SEARCH_NEEDLE_MAX) throw new BadRequestException("Invalid event query");
+  return trimmed;
 }
 
 function parseOptionalTimestamp(value: string | undefined, endOfDay = false): Date | undefined {

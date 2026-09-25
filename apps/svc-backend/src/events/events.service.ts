@@ -1,13 +1,15 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Event persistence — CRUD and catalog list mapped to api-contracts Event.
-// SCOPE: Create/read/update/delete, optional place FK, payment-link invariant, catalog filters on city/category/start date pushed into SQL and capped by limit/offset; the rating filter narrows by event id before the page is read, so limit/offset describe the filtered catalog.
+// SCOPE: Create/read/update/delete, optional place FK, payment-link invariant, catalog filters on city/category/start date/q pushed into SQL and capped by limit/offset; sort is a whitelist (soon/near/rating); the rating filter narrows by event id before the page is read, so limit/offset describe the filtered catalog.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../places/places.service, ../reviews/reviews.service, ./event.entity
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - EventListQuery - catalog list filters
+// - EventListQuery - catalog list filters including q and sort
+// - EVENT_SORTS - whitelist of catalog orderings the list may ask for
 // - EVENT_LIST_MAX_LIMIT - hard cap on catalog rows read per request
+// - EVENT_LIST_SCAN_CAP - rows scanned when rating/near cannot be cut in SQL
 // - CHAT_SYNC_BATCH - events retried per chat-sync tick
 // - pickEventFields - patch keys allowed on update
 // - EventsService - CRUD + list against EventEntity + chat-sync retry
@@ -16,7 +18,7 @@
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { And, FindOperator, In, IsNull, LessThan, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
+import { And, FindOperator, ILike, In, IsNull, LessThan, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
 import { CreateEventSchema, EventSchema, type CreateEvent, type Event, type EventCategory } from "@max-events/api-contracts";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
@@ -36,6 +38,9 @@ import { toEventDto } from "./event.mapper";
 
 export { toEventDto } from "./event.mapper";
 
+export const EVENT_SORTS = ["soon", "near", "rating"] as const;
+export type EventSort = (typeof EVENT_SORTS)[number];
+
 export type EventListQuery = {
   city?: string;
   category?: EventCategory;
@@ -44,6 +49,10 @@ export type EventListQuery = {
   dateTo?: Date;
   /** Average review score the event must reach; an event nobody reviewed never qualifies. */
   minRating?: number;
+  /** Case-insensitive needle over title and description. */
+  q?: string;
+  /** Explicit catalog order; omitted keeps boost-then-soonest. */
+  sort?: EventSort;
   limit?: number;
   offset?: number;
   latitude?: number;
@@ -53,6 +62,9 @@ export type EventListQuery = {
 
 /** Ceiling on rows a single catalog read may pull; also the default when the caller names no limit. */
 export const EVENT_LIST_MAX_LIMIT = 100;
+
+/** Rows scanned when rating/near cannot page in SQL. */
+export const EVENT_LIST_SCAN_CAP = 500;
 
 /** Events a single chat-sync tick retries, so a long backlog is drained over several ticks. */
 export const CHAT_SYNC_BATCH = 20;
@@ -213,31 +225,61 @@ export class EventsService {
   }
 
   async list(query: EventListQuery, now = new Date()): Promise<Event[]> {
-    const where: { published: true; city?: string; category?: EventCategory; startsAt?: FindOperator<Date>; id?: FindOperator<string> } = { published: true };
-    if (query.city) where.city = query.city;
-    if (query.category) where.category = query.category;
+    const whereBase: { published: true; city?: string; category?: EventCategory; startsAt?: FindOperator<Date>; id?: FindOperator<string> } = { published: true };
+    if (query.city) whereBase.city = query.city;
+    if (query.category) whereBase.category = query.category;
     if (query.minRating !== undefined) {
       // Resolved before the page is read, so limit/offset still describe the filtered catalog.
       const rated = await this.reviews.eventIdsRatedAtLeast(query.minRating);
       if (rated.length === 0) return [];
-      where.id = In(rated);
+      whereBase.id = In(rated);
     }
     // The start window belongs in SQL: filtering it in memory meant reading every published event
     // to answer "what is on Saturday".
     const window = startWindow(query);
-    if (window) where.startsAt = window;
+    if (window) whereBase.startsAt = window;
+    const like = query.q ? containsPattern(query.q) : null;
+    if (query.q && like === null) return [];
+    const where = like ? [{ ...whereBase, title: ILike(like) }, { ...whereBase, description: ILike(like) }] : whereBase;
+    const pageOffset = query.offset ?? 0;
+    const pageTake = Math.min(query.limit ?? EVENT_LIST_MAX_LIMIT, EVENT_LIST_MAX_LIMIT);
+    const hasOrigin = query.latitude !== undefined && query.longitude !== undefined;
+    const scan = query.sort === "rating" || (query.sort === "near" && hasOrigin);
     const visible = await this.events.find({
       where,
       order: { startsAt: "ASC", id: "ASC" },
-      skip: query.offset,
-      take: Math.min(query.limit ?? EVENT_LIST_MAX_LIMIT, EVENT_LIST_MAX_LIMIT),
+      skip: scan ? 0 : pageOffset,
+      take: scan ? EVENT_LIST_SCAN_CAP : pageTake,
     });
-    const [boosts, promoted] = await Promise.all([this.promotions.listActive(now, "boost"), this.promotions.promotedEventIds(now)]);
-    const boosted = new Set(boosts.map((row) => row.eventId));
-    const ordered = [...visible].sort((a, b) => Number(boosted.has(b.id)) - Number(boosted.has(a.id)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
-    const dtos = await this.eventWeather.attach(ordered.map((row) => toEventDto(row, { promoted: promoted.has(row.id) })));
+    const ordered = await this.orderCatalog(visible, query, now);
+    const page = scan ? ordered.slice(pageOffset, pageOffset + pageTake) : ordered;
+    const promoted = await this.promotions.promotedEventIds(now);
+    const dtos = await this.eventWeather.attach(page.map((row) => toEventDto(row, { promoted: promoted.has(row.id) })));
     if (!query.viewerId && query.latitude === undefined) return dtos;
-    return this.enrichList(ordered, dtos, query);
+    return this.enrichList(page, dtos, query);
+  }
+
+  private async orderCatalog(rows: EventEntity[], query: EventListQuery, now: Date): Promise<EventEntity[]> {
+    if (query.sort === "rating") {
+      const averages = await this.reviews.averagesByEventIds(rows.map((row) => row.id));
+      return [...rows].sort((a, b) => compareRating(averages.get(a.id), averages.get(b.id)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+    }
+    if (query.sort === "near" && query.latitude !== undefined && query.longitude !== undefined) {
+      const placeIds = [...new Set(rows.map((row) => row.placeId).filter((id): id is string => id !== null))];
+      const places = await this.places.findByIds(placeIds);
+      const byId = new Map(places.map((place) => [place.id, place]));
+      const dist = (row: EventEntity) => {
+        const place = row.placeId ? byId.get(row.placeId) : undefined;
+        return place ? haversineKm(query.latitude!, query.longitude!, place.latitude, place.longitude) : Number.POSITIVE_INFINITY;
+      };
+      return [...rows].sort((a, b) => dist(a) - dist(b) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+    }
+    if (query.sort === "soon" || query.sort === "near") {
+      return [...rows].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+    }
+    const boosts = await this.promotions.listActive(now, "boost");
+    const boosted = new Set(boosts.map((row) => row.eventId));
+    return [...rows].sort((a, b) => Number(boosted.has(b.id)) - Number(boosted.has(a.id)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
   }
 
   private async enrichList(rows: EventEntity[], dtos: Event[], query: EventListQuery): Promise<Event[]> {
@@ -313,6 +355,18 @@ function toColumns(payload: CreateEvent | Event): Omit<CreateEvent, "startsAt" |
     capacity: parsed.capacity,
     coverUrl: parsed.coverUrl ?? null,
   };
+}
+
+function containsPattern(q: string): string | null {
+  const compact = q.replace(/[%_\\]/g, " ").replace(/\s+/g, " ").trim();
+  return compact.length === 0 ? null : `%${compact}%`;
+}
+
+function compareRating(left: number | undefined, right: number | undefined): number {
+  if (left === undefined && right === undefined) return 0;
+  if (left === undefined) return 1;
+  if (right === undefined) return -1;
+  return right - left;
 }
 
 function startWindow(query: EventListQuery): FindOperator<Date> | undefined {

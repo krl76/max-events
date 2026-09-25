@@ -37,8 +37,8 @@ import { ApiError, isEndpointMissing } from "./transport";
 import type { ApiMixin, ZodSchema } from "./transport";
 
 /**
- * Catalog ordering (#497). The backend orders by start time and nothing else, so this is the
- * parameter that endpoint will take: «Сегодня рядом» asks for `near`, the plain list for `soon`.
+ * Catalog ordering (#497). GET /events accepts these as `sort=`; «Сегодня рядом» asks for `near`,
+ * the plain list for `soon`.
  */
 export type EventSort = "soon" | "near" | "rating";
 
@@ -54,9 +54,9 @@ export interface EventFilters {
   date?: string;
   /** Average review score the event must reach, 1..5; an event nobody reviewed never qualifies. */
   minRating?: number;
-  /** Full-text needle over the title, description and venue; there is no such endpoint yet (#497). */
+  /** Full-text needle over the title and description, sent as `q`. */
   query?: string;
-  /** Ordering of the answer; the backend hardcodes «soonest first» today (#497). */
+  /** Ordering of the answer, sent as `sort`. */
   sort?: EventSort;
   /** Inclusive range start (YYYY-MM-DD); sent as date_from. */
   dateFrom?: string;
@@ -549,9 +549,8 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
         return await this.request(`/events/cards${query ? `?${query}` : ""}`, CatalogCardsSchema);
       } catch (error) {
         if (!isCatalogCardsMissing(error)) throw error;
-        // The origin is dropped: without /events/cards nothing measures a distance anyway, and a
-        // coordinate the plain listing does not know is one more way for the fallback to be refused.
-        const [events, places] = await Promise.all([this.request(`/events${filterQuery ? `?${filterQuery}` : ""}`, EventSchema.array()), this.request("/places", PlaceSchema.array())]);
+        const fallbackQuery = serializeEventFilters(origin === null ? filters : { ...filters, lat: origin.latitude, lng: origin.longitude });
+        const [events, places] = await Promise.all([this.request(`/events${fallbackQuery ? `?${fallbackQuery}` : ""}`, EventSchema.array()), this.request("/places", PlaceSchema.array())]);
         return catalogCardsFromEvents(events, places);
       }
     }

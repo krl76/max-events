@@ -95,6 +95,8 @@ describe("EventsController", () => {
     expect(() => parseEventListQuery({ min_rating: "6" })).toThrow(BadRequestException);
     expect(() => parseEventListQuery({ min_rating: "4.5" })).toThrow(BadRequestException);
     expect(() => parseEventListQuery({ min_rating: "четыре" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ sort: "popular" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ q: "x".repeat(201) })).toThrow(BadRequestException);
   });
 
   it("passes a valid page window through to the service", () => {
@@ -108,6 +110,9 @@ describe("EventsController", () => {
     expect(() => parseEventListQuery({ lat: "91", lng: "37" })).toThrow(BadRequestException);
     expect(parseEventListQuery({}).minRating).toBeUndefined();
     expect(parseEventListQuery({ min_rating: "" }).minRating).toBeUndefined();
+    expect(parseEventListQuery({ q: "  джаз  ", sort: "near" })).toMatchObject({ q: "джаз", sort: "near" });
+    expect(parseEventListQuery({ q: "" }).q).toBeUndefined();
+    expect(parseEventListQuery({ sort: "soon" }).sort).toBe("soon");
   });
 
   it("serves the details aggregate for the current user", async () => {

@@ -218,10 +218,12 @@ describe("ApiClient against a backend without the card endpoints", () => {
   it("builds the catalog cards out of /events and /places", async () => {
     routeFetch({ "/api/events": [event], "/api/places": [place] });
 
-    const cards = await new ApiClient("/api").listEventCards({ category: "sport" });
+    const cards = await new ApiClient("/api").listEventCards({ category: "sport", sort: "near" }, { latitude: 55.75, longitude: 37.62 });
 
     expect(cards).toHaveLength(1);
     expect(cards[0].event.id).toBe(EVENT_ID);
+    const eventUrls = vi.mocked(fetch).mock.calls.map((call) => String(call[0])).filter((url) => url.includes("/api/events?"));
+    expect(eventUrls.some((url) => url.includes("lat=55.75") && url.includes("lng=37.62") && url.includes("sort=near"))).toBe(true);
   });
 
   it("falls back on the 400 a server without /events/cards answers to the uuid pipe", async () => {
