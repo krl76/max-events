@@ -16635,6 +16635,15 @@ button.app-poll-result {
   will-change: transform;
 }
 
+/* Список городов и людей прокручивается сам, и в этом всё дело: браузер считает
+ * touch-action от элемента под пальцем вверх только до ближайшего прокручиваемого
+ * предка. Свой скролл-контейнер внутри жеста снимает запрет, поставленный слоем
+ * снаружи, — горизонтальное движение уходит системе, и жест умирает на втором
+ * pointermove. На десктопе этого не видно вовсе: там touch-action не действует. */
+.app-onboarding-slide .app-onboarding-body {
+  touch-action: pan-y;
+}
+
 .app-onboarding-slide--settling {
   transition: transform 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
 }
