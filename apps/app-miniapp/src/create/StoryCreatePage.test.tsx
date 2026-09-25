@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { EventDetails } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
-import { addStoryObject, hasStoryObject, moveStoryObject, nextStoryAudience, removeStoryObject, StoryCreateView, STORY_CANVASES, STORY_OBJECT_ORDER, STORY_OBJECTS, storyAudienceLabel, storyCanvasImage, storyComposition, storyObjectEnabled, storyPoll, storySticker, storyTimeLabel, type StoryDraft } from "./StoryCreatePage";
+import { addStoryObject, hasStoryObject, moveStoryObject, nextStoryAudience, removeStoryObject, StoryCreateView, STORY_CANVASES, STORY_OBJECT_ORDER, STORY_OBJECTS, storyAudienceLabel, storyCanvasImage, storyComposition, storyObjectClass, storyObjectEnabled, storyPoll, storySticker, storyTimeLabel, type StoryDraft } from "./StoryCreatePage";
 
 // Локальное время без смещения: «14:00» обязано читаться одинаково в любой зоне прогона.
 const STARTS_AT = "2026-09-19T14:00:00";
@@ -116,6 +116,12 @@ describe("объекты холста", () => {
     const moved = moveStoryObject(objects, "text", 20, 20);
 
     expect(moved.find((object) => object.kind === "poll")).toEqual(objects[1]);
+  });
+
+  it("выводит вперёд тот объект, которого коснулись последним, и только его", () => {
+    expect(storyObjectClass("poll", "poll")).toBe("app-story-object app-story-object--poll app-story-object--front");
+    expect(storyObjectClass("poll", "seats")).toBe("app-story-object app-story-object--poll");
+    expect(storyObjectClass("poll", null)).toBe("app-story-object app-story-object--poll");
   });
 
   it("не даёт добавить объект, которому нечем наполниться", () => {

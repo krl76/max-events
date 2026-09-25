@@ -23,6 +23,7 @@
 // - removeStoryObject - снять объект с холста
 // - moveStoryObject - перенести объект, удерживая его центр в кадре
 // - storyObjectEnabled - есть ли чем наполнить объект: стикер и счётчик мест без карточки события пусты, опрос — без времени старта
+// - storyObjectClass - классы обёртки объекта: свой вид плюс «передний», если объект трогали последним
 // - storyComposition - черновик -> тело публикации: только то, что автор положил на холст, плюс расстановка
 // - StoryCreateView - презентационный экран 05
 // - StoryCreatePage - контейнер: события, карточка выбранного события, выбор фото, публикация
@@ -164,6 +165,16 @@ export function storyObjectEnabled(kind: StoryObjectKind, sticker: StoryPlaceSti
   return sticker !== null;
 }
 
+/**
+ * Объект, которого коснулись последним, выходит вперёд. Обёртка объекта сдвинута трансформацией, а
+ * трансформация заводит свой контекст наложения: поднять одни только ручки над соседями нельзя,
+ * поднимается объект целиком. Без этого утащенный на чужие ручки объект намертво накрывает соседа —
+ * тот перестаёт и двигаться, и сниматься крестиком.
+ */
+export function storyObjectClass(kind: StoryObjectKind, front: StoryObjectKind | null): string {
+  return `app-story-object app-story-object--${kind}${front === kind ? " app-story-object--front" : ""}`;
+}
+
 /** В теле публикации едет только то, что автор положил на холст: пустой холст — история из одного фона. */
 export function storyComposition(draft: StoryDraft, sticker: StoryPlaceSticker | null, poll: StoryPoll | null): StoryComposition {
   const onCanvas = (kind: StoryObjectKind) => hasStoryObject(draft.objects, kind);
@@ -192,6 +203,8 @@ interface StoryCreateViewProps {
 export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, onPickPhoto, onPublish, onClose }: StoryCreateViewProps) {
   const captionRef = useRef<HTMLTextAreaElement | null>(null);
   const frameRef = useRef<HTMLElement | null>(null);
+  // Кого трогали последним — тот и впереди: порядок публикации от этого не зависит, это только холст.
+  const [front, setFront] = useState<StoryObjectKind | null>(null);
   const onPhotoCanvas = draft.canvas === "photo" && draft.photoUrl !== null;
 
   const toggleObject = (kind: StoryObjectKind) => onDraft({ ...draft, objects: hasStoryObject(draft.objects, kind) ? removeStoryObject(draft.objects, kind) : addStoryObject(draft.objects, kind) });
@@ -294,7 +307,7 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
       {drawn.length === 0 && <p className="app-story-empty">Пустой холст. Выберите фон и добавьте объекты снизу: текст, событие, опрос, счётчик мест.</p>}
 
       {drawn.map(({ object, body }) => (
-        <div key={object.kind} className={`app-story-object app-story-object--${object.kind}`} style={{ left: `${object.x}%`, top: `${object.y}%` }}>
+        <div key={object.kind} className={storyObjectClass(object.kind, front)} style={{ left: `${object.x}%`, top: `${object.y}%` }} onPointerDown={() => setFront(object.kind)}>
           <span className="app-story-object-tools">
             <button type="button" className="app-story-object-grip" aria-label={`Передвинуть: ${STORY_OBJECTS[object.kind].label}`} onPointerDown={(event) => startDrag(object, event)}>
               <ActionIcon name="dots" size={14} filled />
