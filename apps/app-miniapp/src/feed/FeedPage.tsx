@@ -25,7 +25,7 @@ import { shareResult, webApp } from "../max/bridge";
 import { readFeedPhoto } from "./photo";
 import { useRoute } from "../routing/router";
 import { ReportButton } from "../event/ReportButton";
-import { StoryViewer } from "../stories/StoryViewer";
+import { StoryViewer, type StoryGroup } from "../stories/StoryViewer";
 import { markStoriesSeen, readSeenStories, storyRail } from "../stories/rail";
 import { AppAvatar, AppButton, AppChip, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
@@ -199,7 +199,9 @@ export function StoriesRow() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [seen, setSeen] = useState<string[]>(() => readSeenStories());
-  const [viewer, setViewer] = useState<number | null>(null);
+  // Просмотр идёт по слепку рельса, снятому на открытии: отметка просмотра переставляет
+  // непросмотренных вперёд, и живой порядок увёл бы открытый просмотрщик на чужую историю.
+  const [viewer, setViewer] = useState<{ groups: StoryGroup[]; start: number } | null>(null);
   const auth = useAuth();
   const { navigate } = useRoute();
 
@@ -237,7 +239,8 @@ export function StoriesRow() {
     <div className="app-stories" aria-label="Истории">
       {/* Как в инстаграме: рельс открывается своим кружком с плюсом в углу — плюс ведёт в редактор истории, кольцо со своей историей открывает её просмотр. */}
       <div className="app-story app-story--own">
-        <button type="button" className="app-story-open" aria-label={rail.own.group === null ? "Добавить историю" : "Смотреть свою историю"} onClick={() => (rail.own.group === null ? openEditor() : setViewer(rail.own.group))}>
+        {/* Подписи кружка и плюса разные: две кнопки с одним именем неразличимы и для скринридера, и для теста. */}
+        <button type="button" className="app-story-open" aria-label={rail.own.group === null ? "Твоя история: добавить" : "Твоя история: смотреть"} onClick={() => (rail.own.group === null ? openEditor() : setViewer({ groups: rail.groups, start: rail.own.group }))}>
           <span className={storyRingClass(rail.own.unseen)}>
             {rail.own.coverUrl === null ? (
               <AppAvatar size={58} src={me?.avatarUrl}>
@@ -254,14 +257,14 @@ export function StoriesRow() {
         <span className="app-story-name">Твоя история</span>
       </div>
       {rail.tiles.map((tile) => (
-        <button key={tile.friendId} type="button" className="app-story" onClick={() => setViewer(tile.group)}>
+        <button key={tile.friendId} type="button" className="app-story" onClick={() => setViewer({ groups: rail.groups, start: tile.group })}>
           <span className={storyRingClass(tile.unseen)}>
             <img className="app-story-thumb" src={tile.coverUrl} alt="" />
           </span>
           <span className="app-story-name">{tile.name}</span>
         </button>
       ))}
-      {viewer !== null && rail.groups.length > 0 && <StoryViewer groups={rail.groups} startGroup={viewer} onView={rememberSeen} onClose={() => setViewer(null)} />}
+      {viewer !== null && <StoryViewer groups={viewer.groups} startGroup={viewer.start} onView={rememberSeen} onClose={() => setViewer(null)} />}
     </div>
   );
 }

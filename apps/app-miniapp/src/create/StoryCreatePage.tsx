@@ -51,10 +51,10 @@ export const STORY_OBJECT_ORDER: readonly StoryObjectKind[] = ["text", "event", 
  * расставлены в макете; дальше автор двигает их сам.
  */
 export const STORY_OBJECTS: Record<StoryObjectKind, { label: string; icon: ActionIconName; x: number; y: number }> = {
-  text: { label: "Текст", icon: "text", x: 50, y: 24 },
-  event: { label: "Событие", icon: "pin", x: 50, y: 40 },
-  poll: { label: "Опрос", icon: "lines", x: 50, y: 62 },
-  seats: { label: "Места", icon: "seat", x: 72, y: 50 },
+  text: { label: "Текст", icon: "text", x: 50, y: 21 },
+  event: { label: "Событие", icon: "pin", x: 50, y: 34 },
+  poll: { label: "Опрос", icon: "lines", x: 50, y: 60 },
+  seats: { label: "Места", icon: "seat", x: 74, y: 45 },
 };
 
 export interface StoryDraft {
