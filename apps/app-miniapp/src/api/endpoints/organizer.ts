@@ -306,8 +306,8 @@ const WaitlistInviteResultSchema: ZodSchema<{ invited: number }> = {
 };
 
 /**
- * The entry code a guest shows at the door. Bookings carry no code column yet, so the code is derived
- * from the booking id — the same derivation on both sides, so the scanner and the ticket always agree.
+ * The entry code a guest shows at the door. Derived from the booking id — the same function the
+ * backend uses — so the scanner and the ticket always agree.
  */
 export function organizerEntryCode(bookingId: string): string {
   return bookingId.replace(/-/g, "").slice(-6).toUpperCase();

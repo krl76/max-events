@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Check-in «Я здесь» — event or place, per-visit dedup, visit statistics.
-// SCOPE: Event unique per user; place unique per user+UTC day; concurrent inserts resolve to the winning row (23505); stats unique places (incl. event.placeId), their districts and per-category event counts.
+// PURPOSE: Check-in «Я здесь» — event or place, per-visit dedup, visit statistics, organizer door codes.
+// SCOPE: Event unique per user; place unique per user+UTC day; concurrent inserts resolve to the winning row (23505); stats unique places (incl. event.placeId), their districts and per-category event counts; listCodes / checkInByCode for the ticket code.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, events/places, mycity/districtKey
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -8,17 +8,32 @@
 // START_MODULE_MAP
 // - utcVisitDate - YYYY-MM-DD from a Date
 // - toCheckInDto - entity to CheckIn contract
-// - CheckInsService - create, stats
+// - CheckInsService - create, stats, listCodes, checkInByCode
 // END_MODULE_MAP
 
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, QueryFailedError, Repository } from "typeorm";
 import { EventCategorySchema, type CheckIn, type CreateCheckInWrite, type EventCategory, type VisitStats } from "@max-events/api-contracts";
+import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
+import { isOrganizerOwner } from "../organizations/organizer-ownership";
 import { districtKey } from "../mycity/my-city.service";
 import { PlaceEntity } from "../places/place.entity";
+import { UsersService } from "../users/users.service";
 import { CheckInEntity } from "./check-in.entity";
+import { entryCodeFromBookingId, normalizeEntryCode } from "./entry-code";
+
+export type CheckInCode = { bookingId: string; code: string };
+
+export type OrganizerGuestCheckIn = {
+  bookingId: string;
+  userId: string;
+  name: string;
+  guests: number;
+  checkedInAt: string | null;
+  bookedAt: string;
+};
 
 export function utcVisitDate(now: Date): string {
   return now.toISOString().slice(0, 10);
@@ -30,6 +45,8 @@ export class CheckInsService {
     @InjectRepository(CheckInEntity) private readonly checkIns: Repository<CheckInEntity>,
     @InjectRepository(EventEntity) private readonly events: Repository<EventEntity>,
     @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
+    @InjectRepository(BookingEntity) private readonly bookings: Repository<BookingEntity>,
+    @Inject(UsersService) private readonly users: UsersService,
   ) {}
 
   async create(userId: string, payload: CreateCheckInWrite, now = new Date()): Promise<CheckIn> {
@@ -67,6 +84,35 @@ export class CheckInsService {
       if (!winner) throw error;
       return winner;
     }
+  }
+
+  async listCodes(userId: string): Promise<CheckInCode[]> {
+    const rows = await this.bookings.find({ where: { userId, status: "active" }, order: { createdAt: "ASC" } });
+    return rows.map((row) => ({ bookingId: row.id, code: entryCodeFromBookingId(row.id) }));
+  }
+
+  async checkInByCode(actorId: string, eventId: string, code: string, now = new Date()): Promise<OrganizerGuestCheckIn> {
+    const wanted = normalizeEntryCode(code);
+    if (wanted.length === 0) throw new BadRequestException("Invalid check-in code");
+    const event = await this.events.findOneBy({ id: eventId });
+    if (!event) throw new NotFoundException("Event not found");
+    if (!isOrganizerOwner(event, actorId)) throw new ForbiddenException("Not the organizer");
+    const rows = await this.bookings.find({ where: { eventId, status: "active" } });
+    const matches = rows.filter((row) => entryCodeFromBookingId(row.id) === wanted);
+    if (matches.length > 1) throw new ConflictException("Ambiguous check-in code");
+    const booking = matches[0];
+    if (!booking) throw new NotFoundException("Guest not found");
+    const checkIn = await this.create(booking.userId, { eventId }, now);
+    const [user] = await this.users.findByIds([booking.userId]);
+    const name = user ? (user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName) : "Гость";
+    return {
+      bookingId: booking.id,
+      userId: booking.userId,
+      name,
+      guests: 0,
+      checkedInAt: checkIn.checkedInAt,
+      bookedAt: booking.createdAt.toISOString(),
+    };
   }
 
   async stats(userId: string, requesterId: string): Promise<VisitStats> {

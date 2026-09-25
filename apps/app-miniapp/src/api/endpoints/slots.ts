@@ -508,7 +508,7 @@ export function withSlots<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/slots/waitlist/${entryId}`, SlotWaitlistEntrySchema, { method: "DELETE" });
     }
 
-    /** Entry codes of the viewer's bookings, keyed by booking id; mock-only until a booking carries one (#492). */
+    /** Entry codes of the viewer's active bookings, keyed by booking id. */
     listCheckInCodes(userId: string): Promise<CheckInCode[]> {
       return this.request(`/check-in-codes?userId=${encodeURIComponent(userId)}`, CheckInCodesSchema);
     }
