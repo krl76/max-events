@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Story } from "@max-events/api-contracts";
-import { flattenStoryGroups, nextPosition, prevPosition, StoryViewer, type StoryGroup } from "./StoryViewer";
+import { flattenStoryGroups, nextPosition, prevPosition, STORY_DURATION_MS, StoryViewer, type StoryGroup } from "./StoryViewer";
 
 const story = (id: string): Story => ({ id, userId: "a0000000-0000-4000-8000-0000000000b1", imageUrl: "data:image/svg+xml;utf8,x", createdAt: "2026-09-16T10:00:00+03:00" });
 
@@ -51,5 +51,13 @@ describe("StoryViewer", () => {
 
     expect(html).toContain("Дима");
     expect(html.match(/app-story-segment[" ]/g)?.length).toBe(1);
+  });
+
+  it("hands the show length to the segment fill and marks exactly one segment as current", () => {
+    const html = renderToStaticMarkup(createElement(StoryViewer, { groups: GROUPS, startGroup: 0, onClose: () => {} }));
+
+    expect(html).toContain(`--app-story-duration:${STORY_DURATION_MS}ms`);
+    expect(html.match(/app-story-segment--current/g)).toHaveLength(1);
+    expect(html).not.toContain("app-story-segment--done");
   });
 });

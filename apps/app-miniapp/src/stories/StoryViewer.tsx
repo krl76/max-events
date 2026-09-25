@@ -12,10 +12,10 @@
 // - flattenStoryGroups - groups -> flat position list in viewing order
 // - nextPosition - next flat index, null past the very last story (viewer closes)
 // - prevPosition - previous flat index, null before the very first story
-// - StoryViewer - fullscreen overlay across authors, starting at startPosition; onView reports every story actually shown, which is what marks it seen in the rail
+// - StoryViewer - fullscreen overlay across authors, starting at startPosition; onView reports every story actually shown, which is what marks it seen in the rail; the current segment fills over STORY_DURATION_MS (handed to CSS as --app-story-duration, so bar and timer cannot drift apart), segments are keyed by author so a new author's first segment starts its fill afresh, and the image is keyed by story so each one fades in
 // END_MODULE_MAP
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { Story } from "@max-events/api-contracts";
 
 export const STORY_DURATION_MS = 5000;
@@ -90,13 +90,18 @@ export function StoryViewer({ groups, startGroup = 0, onView, onClose }: { group
 
   if (!current) return null;
 
+  // Заполнение сегмента рисует CSS, но длину показа знает только этот модуль — она уходит переменной,
+  // и полоса не может разойтись с таймером перелистывания выше.
+  const segmentsStyle = { "--app-story-duration": `${STORY_DURATION_MS}ms` } as CSSProperties;
+
   return (
     <div className="app-story-viewer" role="dialog" aria-label={`История: ${current.authorName}`}>
-      <img className="app-story-viewer-image" src={current.story.imageUrl} alt="" />
+      <img key={current.story.id} className="app-story-viewer-image" src={current.story.imageUrl} alt="" />
       <div className="app-story-viewer-top">
-        <div className="app-story-viewer-segments">
+        <div className="app-story-viewer-segments" style={segmentsStyle}>
+          {/* key с номером автора: у нового автора первый сегмент — новый элемент, и его заполнение стартует с нуля */}
           {Array.from({ length: current.groupSize }, (_, segment) => (
-            <span key={segment} className={segment < current.index ? "app-story-segment app-story-segment--done" : segment === current.index ? "app-story-segment app-story-segment--current" : "app-story-segment"} />
+            <span key={`${current.group}-${segment}`} className={segment < current.index ? "app-story-segment app-story-segment--done" : segment === current.index ? "app-story-segment app-story-segment--current" : "app-story-segment"} />
           ))}
         </div>
         <div className="app-story-viewer-head">

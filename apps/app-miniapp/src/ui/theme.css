@@ -16775,3 +16775,47 @@ button.app-poll-result {
   cursor: default;
   opacity: 0.45;
 }
+
+/* Полоса сегментов идёт вровень с таймером перелистывания: длину показа отдаёт --app-story-duration
+   из StoryViewer.tsx, второго такого числа в проекте нет. Текущий сегмент — заливка, которая едет
+   слева направо; показанные остаются сплошными по правилу базы выше. */
+.app-story-segment--current {
+  animation: app-story-fill var(--app-story-duration) linear forwards;
+  background: linear-gradient(to right, var(--brand-white) 50%, rgba(255, 255, 255, 0.4) 50%);
+  background-position: 100% 0;
+  background-size: 200% 100%;
+}
+
+@keyframes app-story-fill {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* Кадр проявляется: соседние истории одного автора отличаются только картинкой, и без проявления
+   перелистывание читается как мигание, а не как переход. */
+.app-story-viewer-image {
+  animation: app-story-appear 220ms ease-out;
+}
+
+@keyframes app-story-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-story-viewer-image {
+    animation: none;
+  }
+
+  /* Без заполнения текущий сегмент обязан остаться сплошным: иначе он неотличим от ещё не показанных */
+  .app-story-segment--current {
+    animation: none;
+    background: var(--brand-white);
+  }
+}
