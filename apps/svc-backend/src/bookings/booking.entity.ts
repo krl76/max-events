@@ -30,6 +30,9 @@ export class BookingEntity {
   @Column({ type: "varchar", length: 40, nullable: true })
   promoCode!: string | null;
 
+  @Column({ type: "varchar", length: 16, nullable: true })
+  source?: "chats" | "feed" | "search" | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

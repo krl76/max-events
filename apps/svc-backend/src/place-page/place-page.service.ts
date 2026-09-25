@@ -20,6 +20,7 @@ import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { ReviewsService } from "../reviews/reviews.service";
+import { SlotsService } from "../slots/slots.service";
 import { utcVisitDate } from "../checkins/check-ins.service";
 import { moscowDateKey, moscowHour } from "../time/moscow-date";
 import { UserEntity } from "../users/user.entity";
@@ -36,6 +37,7 @@ export class PlacePageService {
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @Inject(FriendsService) private readonly friends: FriendsService,
     @Inject(ReviewsService) private readonly reviews: ReviewsService,
+    @Inject(SlotsService) private readonly venueSlots: SlotsService,
   ) {}
 
   async get(placeId: string, viewerId: string, now = new Date()): Promise<PlacePage> {
@@ -93,10 +95,10 @@ export class PlacePageService {
       occupancyNowHour,
       visitMonths: history.months,
       visitMonthsMore: history.more,
-      unitTitle: null,
+      unitTitle: "Площадка",
       pricePerHourRub: null,
       cancelBefore: null,
-      slots: [],
+      slots: await this.venueSlots.upcoming(placeId, 3, now),
       upcoming: [],
     };
   }

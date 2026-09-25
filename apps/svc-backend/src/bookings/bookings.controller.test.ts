@@ -34,6 +34,7 @@ function createController() {
       calls.pay = bookingId;
       return booking;
     },
+    reschedule: async (_userId: string, _bookingId: string, nextEventId: string) => ({ ...booking, eventId: nextEventId }),
   } as unknown as BookingsService;
   return { calls, controller: new BookingsController(service) };
 }
@@ -61,5 +62,11 @@ describe("BookingsController", () => {
     const { calls, controller } = createController();
     await expect(controller.pay(user, booking.id)).resolves.toEqual(booking);
     expect(calls.pay).toBe(booking.id);
+  });
+
+  it("forwards a reschedule and rejects a body without an event id", async () => {
+    const { controller } = createController();
+    await expect(controller.reschedule(user, booking.id, { eventId: "00000000-0000-4000-8000-0000000000e2" })).resolves.toMatchObject({ eventId: "00000000-0000-4000-8000-0000000000e2" });
+    await expect(controller.reschedule(user, booking.id, {})).rejects.toBeInstanceOf(BadRequestException);
   });
 });

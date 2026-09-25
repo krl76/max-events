@@ -358,6 +358,17 @@ export class PlansService {
     return this.toCard(plan, event, origin);
   }
 
+  async timeline(userId: string, planId: string): Promise<{ assembledByMax: boolean; steps: Array<{ at: string; title: string; detail: string; transfer: { mode: "walk" | "metro" | "taxi"; minutes: number; priceRub: number | null } | null; eventId: string | null }> }> {
+    const card = await this.get(userId, planId);
+    return {
+      assembledByMax: false,
+      steps: [
+        { at: card.plan.meetingAt, title: card.plan.meetingPoint, detail: "Сбор", transfer: null, eventId: null },
+        { at: card.event.startsAt, title: card.event.title, detail: card.event.city, transfer: null, eventId: card.event.id },
+      ],
+    };
+  }
+
   async addParticipant(hostUserId: string, planId: string, userId: string): Promise<PlanCard> {
     const plan = await this.requireActivePlan(planId);
     if (plan.hostUserId !== hostUserId) throw new ForbiddenException("Cannot edit another user's plan");

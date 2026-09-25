@@ -180,12 +180,12 @@ export function withPlans<TBase extends ApiMixin>(Base: TBase) {
       return this.request("/plans/auto", AutoPlanProposalSchema, { body: { eventId, latitude, longitude } });
     }
 
-    createDayRoute(stops: RouteStopWrite[], latitude?: number, longitude?: number): Promise<DayRoute> {
-      return this.request("/routes", DayRouteSchema, { body: { stops, latitude, longitude } });
+    createDayRoute(stops: RouteStopWrite[], latitude?: number, longitude?: number, prefer?: "default" | "cheaper" | "no_taxi"): Promise<DayRoute> {
+      return this.request("/routes", DayRouteSchema, { body: { stops, latitude, longitude, prefer } });
     }
 
-    optimizeDayRoute(stops: RouteStopWrite[], latitude?: number, longitude?: number): Promise<OptimizeRoute> {
-      return this.request("/routes/optimize", OptimizeRouteSchema, { body: { stops, latitude, longitude } });
+    optimizeDayRoute(stops: RouteStopWrite[], latitude?: number, longitude?: number, prefer?: "default" | "cheaper" | "no_taxi"): Promise<OptimizeRoute> {
+      return this.request("/routes/optimize", OptimizeRouteSchema, { body: { stops, latitude, longitude, prefer } });
     }
 
     getPlanBudget(planId: string): Promise<PlanBudget> {

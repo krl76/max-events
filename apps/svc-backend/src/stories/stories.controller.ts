@@ -9,14 +9,11 @@
 // - StoriesController - list/create
 // END_MODULE_MAP
 
-import { BadRequestException, Body, Controller, Get, Inject, Post } from "@nestjs/common";
-import { z } from "zod";
-import type { Story } from "@max-events/api-contracts";
+import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post } from "@nestjs/common";
+import { CreateStoryWriteSchema, StoryPollVoteWriteSchema, type Story } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { StoriesService } from "./stories.service";
-
-const CreateStoryBodySchema = z.object({ imageUrl: z.string().min(1) });
 
 @Controller("stories")
 export class StoriesController {
@@ -28,9 +25,16 @@ export class StoriesController {
   }
 
   @Post()
-  create(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<Story> {
-    const parsed = CreateStoryBodySchema.safeParse(body);
+  async create(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<Story> {
+    const parsed = CreateStoryWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid story payload");
-    return this.stories.create(user.id, parsed.data.imageUrl);
+    return this.stories.create(user.id, parsed.data);
+  }
+
+  @Post(":id/poll")
+  async vote(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<Story> {
+    const parsed = StoryPollVoteWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid story payload");
+    return this.stories.vote(user.id, id, parsed.data.optionIndex);
   }
 }

@@ -42,7 +42,7 @@ describe("OrganizerController", () => {
       },
     };
     const organizations = { getSetup: async () => ({ organizationId: "e1" }), updateSetup: async () => ({ organizationId: "e1" }), completeSetup: async () => ({ organizationId: "e1" }) };
-    const controller = new OrganizerController(events, places, promo as never, promotions as never, payments as never, bookings as never, organizations as never);
+    const controller = new OrganizerController(events, places, promo as never, promotions as never, payments as never, bookings as never, organizations as never, {} as never);
     await expect(controller.listEvents(organization)).resolves.toEqual([eventDto]);
     await expect(controller.createEventDraft(organization, event)).resolves.toEqual(eventDto);
     expect(calls.create).toEqual({ draft: true });

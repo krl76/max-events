@@ -168,9 +168,10 @@ interface WeGroupViewProps {
   onOpenEvent: (id: string) => void;
   onOpenPlace: (id: string) => void;
   onOpenMap: () => void;
+  onAddPhoto?: () => void;
 }
 
-export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, pickerOptions, pickerLoading, actionFailed, onBack, onToggleMenu, onTogglePicker, onPick, onArchive, onChat, onVote, onOpenEvent, onOpenPlace, onOpenMap }: WeGroupViewProps) {
+export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, pickerOptions, pickerLoading, actionFailed, onBack, onToggleMenu, onTogglePicker, onPick, onArchive, onChat, onVote, onOpenEvent, onOpenPlace, onOpenMap, onAddPhoto }: WeGroupViewProps) {
   if (state.status !== "ready") {
     return (
       <section className="app-we-group" aria-label="Группа «Мы»">
@@ -351,8 +352,10 @@ export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, 
         </WeGroupSection>
       )}
 
-      {card.photos.length > 0 && (
-        <WeGroupSection title="Фотографии" count={`Все ${card.photosTotal}`}>
+      <WeGroupSection title="Фотографии" count={card.photosTotal > 0 ? `Все ${card.photosTotal}` : undefined}>
+        {card.photos.length === 0 ? (
+          <AppState>Пока нет фотографий. Добавьте снимок из поездки.</AppState>
+        ) : (
           <div className="app-we-photos">
             {card.photos.map((photo, index) => (
               <span key={photo.url} className={`app-we-photo app-we-photo--${(index % 5) + 1}`}>
@@ -360,8 +363,13 @@ export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, 
               </span>
             ))}
           </div>
-        </WeGroupSection>
-      )}
+        )}
+        {onAddPhoto !== undefined && (
+          <button type="button" className="app-we-block-action" onClick={onAddPhoto}>
+            Добавить фото
+          </button>
+        )}
+      </WeGroupSection>
 
       {isOwner && isActive && (
         <button type="button" className="app-we-archive" onClick={onArchive}>
@@ -448,5 +456,21 @@ export function WeGroupPage({ id }: { id: string }) {
     request.then(apply, fail);
   };
 
-  return <WeGroupView state={state} ownId={ownId} menuOpen={menuOpen} picker={picker} pickerOptions={pickerOptions()} pickerLoading={pickerLoading} actionFailed={actionFailed} onBack={back} onToggleMenu={() => setMenuOpen((value) => !value)} onTogglePicker={togglePicker} onPick={pick} onArchive={() => apiClient.archiveWeGroup(id).then(apply, fail)} onChat={openExternalLink} onVote={() => navigate({ name: "vote-new", groupId: id })} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} onOpenMap={() => navigate({ name: "map" })} />;
+  const addPhoto = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") apiClient.addWeGroupPhoto(id, reader.result).then(apply, fail);
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
+
+  return <WeGroupView state={state} ownId={ownId} menuOpen={menuOpen} picker={picker} pickerOptions={pickerOptions()} pickerLoading={pickerLoading} actionFailed={actionFailed} onBack={back} onToggleMenu={() => setMenuOpen((value) => !value)} onTogglePicker={togglePicker} onPick={pick} onArchive={() => apiClient.archiveWeGroup(id).then(apply, fail)} onChat={openExternalLink} onVote={() => navigate({ name: "vote-new", groupId: id })} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} onOpenMap={() => navigate({ name: "map" })} onAddPhoto={addPhoto} />;
 }

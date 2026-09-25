@@ -20,7 +20,7 @@ const detailsOf = (over: Partial<EventDetails> = {}): EventDetails => ({
   ...over,
 });
 
-const draftOf = (over: Partial<StoryDraft> = {}): StoryDraft => ({ canvas: "gradient-1", photoUrl: null, text: "", eventId: mockEvents[0].id, poll: null, audience: "close-friends", objects: [], ...over });
+const draftOf = (over: Partial<StoryDraft> = {}): StoryDraft => ({ canvas: "gradient-1", photoUrl: null, text: "", eventId: mockEvents[0].id, poll: null, audience: "close-friends", objects: [], rotate: 0, ...over });
 
 /** Черновик с объектами, разложенными по их местам из каталога — то, что получается после кнопок добавления. */
 const filledDraft = (over: Partial<StoryDraft> = {}): StoryDraft => ({ ...draftOf({ objects: STORY_OBJECT_ORDER.reduce<StoryDraft["objects"]>((objects, kind) => addStoryObject(objects, kind), []) }), ...over });

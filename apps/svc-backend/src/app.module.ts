@@ -56,6 +56,8 @@ import { PaymentsModule } from "./payments/payments.module";
 import { AssistModule } from "./assist/assist.module";
 import { StoriesModule } from "./stories/stories.module";
 import { SwipeModule } from "./swipe/swipe.module";
+import { SlotsModule } from "./slots/slots.module";
+import { UploadsModule } from "./uploads/uploads.module";
 
 @Module({
   imports: [
@@ -101,6 +103,8 @@ import { SwipeModule } from "./swipe/swipe.module";
     TasteModule,
     DiscoveryModule,
     SwipeModule,
+    SlotsModule,
+    UploadsModule,
     PeopleModule,
     OrganizerModule,
     StatsModule,

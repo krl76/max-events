@@ -17,10 +17,11 @@ import { OrganizationsModule } from "../organizations/organizations.module";
 import { PaymentsModule } from "../payments/payments.module";
 import { PromoModule } from "../promo/promo.module";
 import { PromotionModule } from "../promotion/promotion.module";
+import { StatsModule } from "../stats/stats.module";
 import { OrganizerController } from "./organizer.controller";
 
 @Module({
-  imports: [EventsModule, PlacesModule, PromoModule, PromotionModule, PaymentsModule, BookingsModule, OrganizationsModule],
+  imports: [EventsModule, PlacesModule, PromoModule, PromotionModule, PaymentsModule, BookingsModule, OrganizationsModule, StatsModule],
   controllers: [OrganizerController],
 })
 export class OrganizerModule {}

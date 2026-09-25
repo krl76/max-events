@@ -39,6 +39,11 @@ export class PlansController {
     return this.plans.create(user.id, parsed.data);
   }
 
+  @Get(":id/timeline")
+  timeline(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string) {
+    return this.plans.timeline(user.id, id);
+  }
+
   @Get(":id/budget")
   budget(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PlanBudget> {
     return this.plans.getBudget(user.id, id);

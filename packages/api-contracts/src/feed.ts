@@ -45,12 +45,19 @@ export const FeedCommentSchema = z.object({
 });
 export type FeedComment = z.infer<typeof FeedCommentSchema>;
 
+export const PostAudienceSchema = z.enum(["friends", "city", "company"]);
+export type PostAudience = z.infer<typeof PostAudienceSchema>;
+
 export const FeedPostSchema = z.object({
   id: IdSchema,
   author: FriendSchema,
   eventId: IdSchema,
   text: z.string().min(1).max(5000),
   photoUrl: photoUrlSchema.nullable().default(null),
+  placeId: IdSchema.nullable().default(null),
+  taggedFriendIds: z.array(IdSchema).default([]),
+  audience: PostAudienceSchema.default("friends"),
+  allowJoin: z.boolean().default(false),
   likesCount: z.number().int().min(0),
   likedByMe: z.boolean(),
   comments: z.array(FeedCommentSchema).default([]),
@@ -61,6 +68,10 @@ export const CreateFeedPostWriteSchema = z.object({
   eventId: IdSchema,
   text: z.string().min(1).max(5000),
   photoUrl: photoUrlSchema.nullable().optional(),
+  placeId: IdSchema.nullable().optional(),
+  taggedFriendIds: z.array(IdSchema).optional(),
+  audience: PostAudienceSchema.optional(),
+  allowJoin: z.boolean().optional(),
 });
 export type CreateFeedPostWrite = z.infer<typeof CreateFeedPostWriteSchema>;
 

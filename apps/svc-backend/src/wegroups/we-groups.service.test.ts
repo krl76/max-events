@@ -121,8 +121,9 @@ function createService() {
   const expenses = createStoreRepo<PlanExpenseEntity>();
   const reviews = createStoreRepo<ReviewEntity>();
   const participations = createStoreRepo<ParticipationEntity>([{ id: "p1", userId: member, eventId, status: "going" } as ParticipationEntity]);
+  const groupPhotos = createStoreRepo();
   const bot = { createChat: async () => ({ chatId: 1, link: "https://max.ru/join/we" }) } as unknown as MaxBotClient;
-  const service = new WeGroupsService(groups as unknown as Repository<WeGroupEntity>, members as unknown as Repository<WeGroupMemberEntity>, items as unknown as Repository<WeGroupItemEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, bookings as unknown as Repository<BookingEntity>, plans as unknown as Repository<PlanEntity>, expenses as unknown as Repository<PlanExpenseEntity>, reviews as unknown as Repository<ReviewEntity>, participations as unknown as Repository<ParticipationEntity>, bot);
+  const service = new WeGroupsService(groups as unknown as Repository<WeGroupEntity>, members as unknown as Repository<WeGroupMemberEntity>, items as unknown as Repository<WeGroupItemEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, bookings as unknown as Repository<BookingEntity>, plans as unknown as Repository<PlanEntity>, expenses as unknown as Repository<PlanExpenseEntity>, reviews as unknown as Repository<ReviewEntity>, participations as unknown as Repository<ParticipationEntity>, groupPhotos as never, bot);
   return { service, groups, events, bookings, plans, expenses, reviews };
 }
 

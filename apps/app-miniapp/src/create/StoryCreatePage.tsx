@@ -85,6 +85,8 @@ export interface StoryDraft {
   audience: StoryAudience;
   /** Что автор положил на холст, в порядке добавления. Пусто на входе: история начинается с чистого кадра. */
   objects: StoryCanvasObject[];
+  /** Поворот выбранного фото, градусы; 0 пока автор не трогал кадр. */
+  rotate: number;
 }
 
 export function storyTimeLabel(startsAt: string): string {
@@ -223,6 +225,34 @@ export function storyObjectStyle(object: StoryCanvasObject): CSSProperties {
   return { left: `${object.x}%`, top: `${object.y}%`, transform: `translate(-50%, -50%) scale(${object.scale ?? 1})` };
 }
 
+export function rotateStoryPhoto(degrees: number): number {
+  return (degrees + 90) % 360;
+}
+
+export function bakeRotatedPhoto(photoUrl: string, degrees: number): Promise<string> {
+  if (degrees % 360 === 0) return Promise.resolve(photoUrl);
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const swap = degrees % 180 !== 0;
+      const canvas = document.createElement("canvas");
+      canvas.width = swap ? image.height : image.width;
+      canvas.height = swap ? image.width : image.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(photoUrl);
+        return;
+      }
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((degrees * Math.PI) / 180);
+      ctx.drawImage(image, -image.width / 2, -image.height / 2);
+      resolve(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    image.onerror = () => resolve(photoUrl);
+    image.src = photoUrl;
+  });
+}
+
 /** В теле публикации едет только то, что автор положил на холст: пустой холст — история из одного фона. */
 export function storyComposition(draft: StoryDraft, sticker: StoryPlaceSticker | null, poll: StoryPoll | null): StoryComposition {
   const onCanvas = (kind: StoryObjectKind) => hasStoryObject(draft.objects, kind);
@@ -359,7 +389,7 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
 
   return (
     <section ref={frameRef} className={onPhotoCanvas ? "app-story-compose app-story-compose--photo" : `app-story-compose app-story-compose--${draft.canvas}`} aria-label="Публикация истории">
-      {onPhotoCanvas && <img className="app-story-photo" src={draft.photoUrl ?? ""} alt="" />}
+      {onPhotoCanvas && <img className="app-story-photo" src={draft.photoUrl ?? ""} alt="" style={{ transform: `rotate(${draft.rotate}deg)` }} />}
       <span className="app-story-orb app-story-orb--light" aria-hidden="true" />
       <span className="app-story-orb app-story-orb--status" aria-hidden="true" />
 
@@ -379,10 +409,15 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
           >
             <ActionIcon name="text" size={20} strokeWidth={2} />
           </button>
-          {/* Кадрирование и эффекты рисует макет, но редактора кадра в продукте нет (#502): глифы остаются декором, а не ложными кнопками. */}
-          <span className="app-story-round app-story-round--muted" aria-hidden="true">
-            <ActionIcon name="adjust" size={20} strokeWidth={2} />
-          </span>
+          {onPhotoCanvas ? (
+            <button type="button" className="app-story-round" aria-label="Повернуть фото" onClick={() => onDraft({ ...draft, rotate: rotateStoryPhoto(draft.rotate) })}>
+              <ActionIcon name="adjust" size={20} strokeWidth={2} />
+            </button>
+          ) : (
+            <span className="app-story-round app-story-round--muted" aria-hidden="true">
+              <ActionIcon name="adjust" size={20} strokeWidth={2} />
+            </span>
+          )}
           <span className="app-story-round app-story-round--muted" aria-hidden="true">
             <ActionIcon name="sparkle" size={20} strokeWidth={2} />
           </span>
@@ -466,7 +501,7 @@ export function StoryCreatePage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [details, setDetails] = useState<EventDetails | null>(null);
   // Холст пуст: объекты появляются только по действию автора, поэтому objects начинается пустым, а опроса нет вовсе.
-  const [draft, setDraft] = useState<StoryDraft>({ canvas: "gradient-1", photoUrl: null, text: "", eventId: null, poll: null, audience: "close-friends", objects: [] });
+  const [draft, setDraft] = useState<StoryDraft>({ canvas: "gradient-1", photoUrl: null, text: "", eventId: null, poll: null, audience: "close-friends", objects: [], rotate: 0 });
   const [state, setState] = useState<StoryPublishState>("idle");
 
   useEffect(() => {
@@ -508,8 +543,9 @@ export function StoryCreatePage() {
 
   const publish = () => {
     setState("publishing");
-    const imageUrl = draft.canvas === "photo" && draft.photoUrl !== null ? draft.photoUrl : storyCanvasImage(draft.canvas);
-    apiClient.createStory(imageUrl, storyComposition(draft, sticker, poll)).then(
+    const raw = draft.canvas === "photo" && draft.photoUrl !== null ? draft.photoUrl : storyCanvasImage(draft.canvas);
+    const rotated = draft.canvas === "photo" && draft.photoUrl !== null ? bakeRotatedPhoto(draft.photoUrl, draft.rotate) : Promise.resolve(raw);
+    rotated.then((imageUrl) => apiClient.createStory(imageUrl, storyComposition(draft, sticker, poll))).then(
       () => navigate({ name: "home" }),
       () => setState("error"),
     );
@@ -530,7 +566,7 @@ export function StoryCreatePage() {
           const reader = new FileReader();
           reader.onload = () => {
             if (typeof reader.result !== "string") return;
-            setDraft((current) => ({ ...current, photoUrl: reader.result as string, canvas: "photo" }));
+            setDraft((current) => ({ ...current, photoUrl: reader.result as string, canvas: "photo", rotate: 0 }));
             setState("idle");
           };
           reader.readAsDataURL(file);

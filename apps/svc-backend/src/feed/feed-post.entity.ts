@@ -32,6 +32,18 @@ export class FeedPostEntity {
   @Column({ type: "text", nullable: true })
   photoUrl!: string | null;
 
+  @Column({ type: "uuid", nullable: true })
+  placeId?: string | null;
+
+  @Column({ type: "text", array: true, default: [] })
+  taggedFriendIds?: string[];
+
+  @Column({ type: "varchar", length: 16, default: "friends" })
+  audience?: "friends" | "city" | "company";
+
+  @Column({ type: "boolean", default: false })
+  allowJoin?: boolean;
+
   @Column({ type: "boolean", default: true })
   published!: boolean;
 

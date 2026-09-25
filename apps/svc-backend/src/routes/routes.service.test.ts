@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
 import { EventEntity } from "../events/event.entity";
 import { PlaceEntity } from "../places/place.entity";
-import { shortestPermutation, toDayRoute, walkingMinutes } from "./routes.service";
+import { pickMode, shortestPermutation, toDayRoute, walkingMinutes } from "./routes.service";
 import { RoutesService } from "./routes.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
@@ -18,6 +18,16 @@ describe("walkingMinutes", () => {
   it("rounds meters at 80 m/min", () => {
     expect(walkingMinutes(0)).toBe(0);
     expect(walkingMinutes(160)).toBe(2);
+  });
+});
+
+describe("pickMode", () => {
+  it("walks short hops, takes metro then taxi, and drops taxi when asked", () => {
+    expect(pickMode(400)).toBe("walk");
+    expect(pickMode(3000)).toBe("metro");
+    expect(pickMode(12000)).toBe("taxi");
+    expect(pickMode(12000, "no_taxi")).toBe("metro");
+    expect(pickMode(400, "cheaper")).toBe("walk");
   });
 });
 

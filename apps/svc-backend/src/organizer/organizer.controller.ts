@@ -9,8 +9,8 @@
 // - OrganizerController - mine lists, draft create, publish, organizer setup
 // END_MODULE_MAP
 
-import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
-import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPromotionPaymentWriteSchema, UpdateOrganizerSetupSchema, type BookingWithSeats, type Event, type EventSalesReport, type OrganizerBookingRow, type OrganizerSetup, type Place, type PromoCampaign, type PromoCode, type PromotionCampaign } from "@max-events/api-contracts";
+import { BadRequestException, Body, Controller, Get, Header, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
+import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPromotionPaymentWriteSchema, UpdateOrganizerSetupSchema, type BookingWithSeats, type Event, type EventSalesReport, type OrganizerBookingRow, type OrganizerSetup, type OrganizerSummary, type Place, type PromoCampaign, type PromoCode, type PromotionCampaign } from "@max-events/api-contracts";
 import { CurrentOrganization, OrganizerOnly } from "../auth/auth.guard";
 import { EventsService } from "../events/events.service";
 import { OrganizationEntity } from "../organizations/organization.entity";
@@ -21,6 +21,7 @@ import { BookingsService } from "../bookings/bookings.service";
 import { PaymentsService } from "../payments/payments.service";
 import { PromotionService } from "../promotion/promotion.service";
 import { parseStatsPeriod } from "../stats/stats.controller";
+import { StatsService } from "../stats/stats.service";
 
 @OrganizerOnly()
 @Controller("organizer")
@@ -33,7 +34,20 @@ export class OrganizerController {
     @Inject(PaymentsService) private readonly payments: PaymentsService,
     @Inject(BookingsService) private readonly bookings: BookingsService,
     @Inject(OrganizationsService) private readonly organizations: OrganizationsService,
+    @Inject(StatsService) private readonly stats: StatsService,
   ) {}
+
+  @Get("summary/export")
+  @Header("Content-Type", "text/csv; charset=utf-8")
+  async exportSummary(@CurrentOrganization() organization: OrganizationEntity, @Query("from") from?: string, @Query("to") to?: string): Promise<string> {
+    const summary = await this.stats.organizationSummary(organization.id, parseStatsPeriod(from, to));
+    return this.stats.exportCsv(summary);
+  }
+
+  @Get("summary")
+  summary(@CurrentOrganization() organization: OrganizationEntity, @Query("from") from?: string, @Query("to") to?: string): Promise<OrganizerSummary> {
+    return this.stats.organizationSummary(organization.id, parseStatsPeriod(from, to));
+  }
 
   @Get("setup")
   getSetup(@CurrentOrganization() organization: OrganizationEntity): Promise<OrganizerSetup> {

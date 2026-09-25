@@ -49,3 +49,22 @@ export const OrganizerEventStatsSchema = z.object({
   paidBookings: z.number().int().min(0),
 });
 export type OrganizerEventStats = z.infer<typeof OrganizerEventStatsSchema>;
+
+export const OrganizerTrafficSourceSchema = z.enum(["chats", "feed", "search"]);
+export type OrganizerTrafficSource = z.infer<typeof OrganizerTrafficSourceSchema>;
+
+export const OrganizerTrafficShareSchema = z.object({
+  source: OrganizerTrafficSourceSchema,
+  percent: z.number().min(0).max(100),
+});
+export type OrganizerTrafficShare = z.infer<typeof OrganizerTrafficShareSchema>;
+
+export const OrganizerSummarySchema = z.object({
+  bookings: z.number().int().min(0),
+  bookingsDeltaPercent: z.number().nullable(),
+  attendedPercent: z.number().nullable(),
+  cancelledPercent: z.number().nullable(),
+  byWeekday: z.array(z.number().int().min(0)).length(7),
+  sources: z.array(OrganizerTrafficShareSchema),
+});
+export type OrganizerSummary = z.infer<typeof OrganizerSummarySchema>;

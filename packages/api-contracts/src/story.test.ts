@@ -10,7 +10,8 @@ const validStory = {
 
 describe("StorySchema", () => {
   it("accepts a valid story", () => {
-    expect(StorySchema.safeParse(validStory).success).toBe(true);
+    expect(StorySchema.parse(validStory).audience).toBe("friends");
+    expect(StorySchema.parse(validStory).sticker).toBeNull();
   });
 
   it("rejects an empty imageUrl or invalid ids", () => {

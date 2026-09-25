@@ -52,7 +52,19 @@ export class FeedService {
     await this.publishers.assertCanPublish(userId);
     const event = await this.events.findOneBy({ id: payload.eventId });
     if (!event || event.published === false) throw new NotFoundException("Event not found");
-    const saved = await this.posts.save(this.posts.create({ authorUserId: userId, eventId: payload.eventId, text: payload.text, photoUrl: payload.photoUrl ?? null, published: true }));
+    const saved = await this.posts.save(
+      this.posts.create({
+        authorUserId: userId,
+        eventId: payload.eventId,
+        text: payload.text,
+        photoUrl: payload.photoUrl ?? null,
+        placeId: payload.placeId ?? null,
+        taggedFriendIds: payload.taggedFriendIds ?? [],
+        audience: payload.audience ?? "friends",
+        allowJoin: payload.allowJoin ?? false,
+        published: true,
+      }),
+    );
     return this.toDto(saved, userId);
   }
 
@@ -114,7 +126,7 @@ export class FeedService {
           const commentAuthor = userById.get(row.authorUserId);
           return commentAuthor ? [{ id: row.id, author: toFriendDto(commentAuthor), text: row.text }] : [];
         });
-      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId, text: post.text, photoUrl: post.photoUrl ?? null, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), comments }];
+      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId, text: post.text, photoUrl: post.photoUrl ?? null, placeId: post.placeId ?? null, taggedFriendIds: post.taggedFriendIds ?? [], audience: post.audience ?? "friends", allowJoin: post.allowJoin ?? false, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), comments }];
     });
   }
 }

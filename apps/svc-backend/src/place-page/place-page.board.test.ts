@@ -52,7 +52,7 @@ describe("PlacePageService.board", () => {
       { id: "c1", userId: viewer, placeId, eventId: null, visitDate: "2026-09-12", checkedInAt: now } as CheckInEntity,
       { id: "c2", userId: viewer, placeId, eventId: null, visitDate: "2026-08-01", checkedInAt: new Date("2026-08-01T12:00:00Z") } as CheckInEntity,
     ]);
-    const service = new PlacePageService(places as unknown as Repository<PlaceEntity>, events as unknown as Repository<EventEntity>, checkIns as unknown as Repository<CheckInEntity>, createStoreRepo<ParticipationEntity>() as unknown as Repository<ParticipationEntity>, createStoreRepo<UserEntity>() as unknown as Repository<UserEntity>, { friendIds: async () => new Set() } as unknown as FriendsService, { placeRating: async () => null } as unknown as ReviewsService);
+    const service = new PlacePageService(places as unknown as Repository<PlaceEntity>, events as unknown as Repository<EventEntity>, checkIns as unknown as Repository<CheckInEntity>, createStoreRepo<ParticipationEntity>() as unknown as Repository<ParticipationEntity>, createStoreRepo<UserEntity>() as unknown as Repository<UserEntity>, { friendIds: async () => new Set() } as unknown as FriendsService, { placeRating: async () => null } as unknown as ReviewsService, { upcoming: async () => [] } as never);
     const board = await service.board(placeId, viewer, now);
     expect(board.checkedInToday).toBe(true);
     expect(board.weekEventsCount).toBe(1);

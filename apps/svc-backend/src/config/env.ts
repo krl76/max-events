@@ -71,6 +71,7 @@ export const envSchema = z.object({
     .transform((value) => value === "true"),
   // Optional JSON MAX user for AUTH_ALLOW_BROWSER. Unset = tools/max-dev-accounts.json owner.
   AUTH_BROWSER_USER: z.string().min(1).optional(),
+  STORAGE_DIR: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
