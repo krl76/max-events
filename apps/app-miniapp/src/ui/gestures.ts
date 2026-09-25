@@ -30,7 +30,7 @@
 // - useSwipeDrag - useSwipe с готовым состоянием: элемент тянется за пальцем и сам едет домой
 // END_MODULE_MAP
 
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 export type SwipeAxis = "x" | "y";
 
@@ -125,6 +125,7 @@ export interface SwipeGestureProps {
   onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void;
   onPointerUp: (event: ReactPointerEvent<HTMLElement>) => void;
   onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => void;
+  onClickCapture: (event: ReactMouseEvent<HTMLElement>) => void;
   style: { touchAction: "pan-x" | "pan-y" };
 }
 
@@ -171,6 +172,7 @@ function releasePointer(element: Element, pointerId: number): void {
 export function useSwipe(options: SwipeGestureOptions = {}): SwipeGestureProps {
   const axis = options.axis ?? "x";
   const active = useRef<ActiveGesture | null>(null);
+  const dragged = useRef(false);
 
   function sampleOf(current: ActiveGesture, event: ReactPointerEvent<HTMLElement>): GestureSample {
     return { dx: event.clientX - current.x, dy: event.clientY - current.y, elapsedMs: Date.now() - current.startedAt };
@@ -179,6 +181,7 @@ export function useSwipe(options: SwipeGestureOptions = {}): SwipeGestureProps {
   function onPointerDown(event: ReactPointerEvent<HTMLElement>): void {
     // Правая кнопка мыши — не жест; второй палец поверх ведущего — тоже: касание ведёт первое.
     if (options.disabled === true || event.button !== 0 || active.current !== null) return;
+    dragged.current = false;
     active.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, startedAt: Date.now(), claim: "pending" };
   }
 
@@ -208,9 +211,19 @@ export function useSwipe(options: SwipeGestureOptions = {}): SwipeGestureProps {
     releasePointer(event.currentTarget, event.pointerId);
     active.current = null;
     if (!owned) return;
+    dragged.current = true;
     const direction = resolveSwipe(sample, axis, options);
     if (direction === null) options.onCancel?.();
     else options.onSwipe?.(direction);
+  }
+
+  function onClickCapture(event: ReactMouseEvent<HTMLElement>): void {
+    if (!dragged.current) return;
+    dragged.current = false;
+    // Палец вёл элемент, а не нажимал кнопку внутри него: клик после жеста — след движения,
+    // а не выбор, и «Подробнее» под пальцем не должно открываться от того, что карточку потянули.
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   function onPointerCancel(event: ReactPointerEvent<HTMLElement>): void {
@@ -224,7 +237,7 @@ export function useSwipe(options: SwipeGestureOptions = {}): SwipeGestureProps {
 
   // Ось жеста закрыта для браузера, поперечная остаётся за прокруткой: без этого горизонтальное
   // движение по странице отдаётся системе, и хук видит pointercancel вместо жеста.
-  return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel, style: { touchAction: axis === "x" ? "pan-y" : "pan-x" } };
+  return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onClickCapture, style: { touchAction: axis === "x" ? "pan-y" : "pan-x" } };
 }
 
 export interface SwipeDragOptions extends SwipeGestureOptions {

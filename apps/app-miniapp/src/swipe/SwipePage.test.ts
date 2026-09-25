@@ -67,6 +67,12 @@ describe("SwipeCard", () => {
     expect(card(SWIPE_COMMIT_PX)).toContain("В ИЗБРАННОЕ");
     expect(card(-SWIPE_COMMIT_PX)).toContain("МИМО");
   });
+
+  it("follows the finger, and takes the return transition only after a released half-swipe", () => {
+    expect(card(40)).toContain("translateX(40px)");
+    expect(card(40)).not.toContain("app-swipe-card--settling");
+    expect(renderToStaticMarkup(createElement(SwipeCard, { candidate: DECK[0], dx: 0, settling: true, onOpen: noop }))).toContain("app-swipe-card--settling");
+  });
 });
 
 describe("SwipeView", () => {
