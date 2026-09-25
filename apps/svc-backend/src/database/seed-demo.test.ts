@@ -73,7 +73,6 @@ describe("buildDemoData", () => {
     expect(data.gatherings.length).toBeGreaterThan(DEMO_COUNTS.normal.gatherings);
     expect(data.microEvents.length).toBeGreaterThan(DEMO_COUNTS.normal.microEvents);
     expect(data.subscriptions.length).toBeGreaterThan(DEMO_COUNTS.normal.subscriptions);
-    expect(data.collections.length).toBeGreaterThan(DEMO_COUNTS.normal.collections);
     expect(data.waitlistEntries.length).toBeGreaterThan(DEMO_COUNTS.normal.waitlistEntries);
     expect(data.lists.length).toBeGreaterThan(ListPresetSchema.options.length);
   });
@@ -84,7 +83,6 @@ describe("buildDemoData", () => {
     expect(small.feedLikes.length).toBeLessThan(big.feedLikes.length);
     expect(small.feedComments.length).toBeLessThan(big.feedComments.length);
     expect(small.reports.length).toBeLessThan(big.reports.length);
-    expect(small.collections.length).toBeLessThan(big.collections.length);
     expect(small.waitlistEntries.length).toBeLessThan(big.waitlistEntries.length);
     expect(small.payments.length).toBeLessThan(big.payments.length);
     expect(small.userAchievements.length).toBeLessThan(big.userAchievements.length);
@@ -328,24 +326,6 @@ describe("buildDemoData", () => {
       expect(userIds.has(comment.authorUserId)).toBe(true);
       expect(comment.createdAt.getTime()).toBeLessThanOrEqual(now.getTime());
     }
-
-    const collectionIds = new Set(data.collections.map((collection) => collection.id));
-    for (const collection of data.collections) expect(userIds.has(collection.ownerUserId)).toBe(true);
-    const collectionMemberPairs = new Set<string>();
-    for (const member of data.collectionMembers) {
-      expect(collectionIds.has(member.collectionId)).toBe(true);
-      expect(userIds.has(member.userId)).toBe(true);
-      collectionMemberPairs.add(`${member.collectionId}:${member.userId}`);
-    }
-    expect(collectionMemberPairs.size).toBe(data.collectionMembers.length);
-    const collectionItemPairs = new Set<string>();
-    for (const item of data.collectionItems) {
-      expect(collectionIds.has(item.collectionId)).toBe(true);
-      expect(eventIds.has(item.eventId)).toBe(true);
-      expect(userIds.has(item.addedByUserId)).toBe(true);
-      collectionItemPairs.add(`${item.collectionId}:${item.eventId}`);
-    }
-    expect(collectionItemPairs.size).toBe(data.collectionItems.length);
 
     // Очередь имеет смысл только на событии, где мест уже нет.
     const queuePairs = new Set<string>();

@@ -15,7 +15,7 @@
 // - assertLocalDatabaseUrl - throw unless the DATABASE_URL host is localhost/127.0.0.1, or allowRemote opens the door deliberately
 // - ViewerSlice - rows the signed-in dev user owns or takes part in
 // - ViewerSliceInput - pools the viewer slice is drawn from (clock, viewer id, people, places, events)
-// - buildViewerSlice - the viewer's own plans, groups, votes, subscriptions, bookings, lists, visits and collections
+// - buildViewerSlice - the viewer's own plans, groups, votes, subscriptions, bookings, lists and visits
 // - buildUserAchievements - grants derived from the generated check-ins, by the same catalog the API reads
 // - buildDemoData - pure generation of all demo rows (deterministic ids via fakerRU.seed(42))
 // - seedDemoDatabase - ensure owner users, build data, insert tables in dependency order
@@ -25,13 +25,12 @@
 
 import "reflect-metadata";
 import { fakerRU } from "@faker-js/faker";
-import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, ListPresetSchema, type AchievementCode, type BookingStatus, type CollectionSection, type EventCategory, type GatheringStatus, type InviteeResponse, type ListPreset, type MicroEventStatus, type ParticipationStatus, type PaymentStatus, type PlaceCategory, type PlanParticipantStatus, type PromoCampaignStatus, type PromoCampaignType, type PromotionStatus, type PromotionType, type ReportReason, type ReportSource, type ReportStatus, type ReportTargetType, type WaitlistStatus, type WeGroupStatus } from "@max-events/api-contracts";
+import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, ListPresetSchema, type AchievementCode, type BookingStatus, type EventCategory, type GatheringStatus, type InviteeResponse, type ListPreset, type MicroEventStatus, type ParticipationStatus, type PaymentStatus, type PlaceCategory, type PlanParticipantStatus, type PromoCampaignStatus, type PromoCampaignType, type PromotionStatus, type PromotionType, type ReportReason, type ReportSource, type ReportStatus, type ReportTargetType, type WaitlistStatus, type WeGroupStatus } from "@max-events/api-contracts";
 import type { DataSource, ObjectLiteral, Repository } from "typeorm";
 import { ACHIEVEMENT_CATALOG } from "../achievements/achievements.service";
 import { UserAchievementEntity } from "../achievements/user-achievement.entity";
 import { BookingEntity } from "../bookings/booking.entity";
 import { CheckInEntity } from "../checkins/check-in.entity";
-import { CollectionEntity, CollectionItemEntity, CollectionMemberEntity } from "../collections/collection.entity";
 import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "../feed/feed-post.entity";
 import { FriendshipEntity } from "../friends/friendship.entity";
 import { EventEntity } from "../events/event.entity";
@@ -87,15 +86,14 @@ export type DemoCounts = {
   pageViews: number;
   feedLikes: number;
   feedComments: number;
-  collections: number;
   waitlistEntries: number;
   reports: number;
 };
 
 export const DEMO_COUNTS: Record<DemoScale, DemoCounts> = {
-  small: { users: 10, places: 10, events: 24, stories: 5, feedPosts: 12, reviews: 15, checkIns: 18, bookings: 10, participations: 20, plans: 3, votes: 2, weGroups: 1, gatherings: 1, microEvents: 4, subscriptions: 5, pageViews: 60, feedLikes: 20, feedComments: 8, collections: 1, waitlistEntries: 4, reports: 3 },
-  normal: { users: 30, places: 25, events: 80, stories: 15, feedPosts: 40, reviews: 50, checkIns: 60, bookings: 30, participations: 60, plans: 10, votes: 5, weGroups: 3, gatherings: 3, microEvents: 10, subscriptions: 15, pageViews: 200, feedLikes: 70, feedComments: 25, collections: 3, waitlistEntries: 10, reports: 8 },
-  big: { users: 75, places: 60, events: 200, stories: 40, feedPosts: 100, reviews: 120, checkIns: 150, bookings: 75, participations: 150, plans: 25, votes: 12, weGroups: 7, gatherings: 7, microEvents: 25, subscriptions: 40, pageViews: 500, feedLikes: 180, feedComments: 60, collections: 7, waitlistEntries: 25, reports: 20 },
+  small: { users: 10, places: 10, events: 24, stories: 5, feedPosts: 12, reviews: 15, checkIns: 18, bookings: 10, participations: 20, plans: 3, votes: 2, weGroups: 1, gatherings: 1, microEvents: 4, subscriptions: 5, pageViews: 60, feedLikes: 20, feedComments: 8, waitlistEntries: 4, reports: 3 },
+  normal: { users: 30, places: 25, events: 80, stories: 15, feedPosts: 40, reviews: 50, checkIns: 60, bookings: 30, participations: 60, plans: 10, votes: 5, weGroups: 3, gatherings: 3, microEvents: 10, subscriptions: 15, pageViews: 200, feedLikes: 70, feedComments: 25, waitlistEntries: 10, reports: 8 },
+  big: { users: 75, places: 60, events: 200, stories: 40, feedPosts: 100, reviews: 120, checkIns: 150, bookings: 75, participations: 150, plans: 25, votes: 12, weGroups: 7, gatherings: 7, microEvents: 25, subscriptions: 40, pageViews: 500, feedLikes: 180, feedComments: 60, waitlistEntries: 25, reports: 20 },
 };
 
 export function parseDemoScale(raw: string | undefined): DemoScale {
@@ -197,13 +195,9 @@ const COMMENT_TEXTS = ["Тоже там были, отличный вечер.",
 const REPORT_REASONS = ["spam", "abuse", "inaccurate", "inappropriate", "other"] as const satisfies readonly ReportReason[];
 const REPORT_TARGET_TYPES = ["event", "place", "feed_post", "micro_event"] as const satisfies readonly ReportTargetType[];
 
-const COLLECTION_SECTIONS = ["want_to_go", "already_been", "weekend_ideas"] as const satisfies readonly CollectionSection[];
-const COLLECTION_TITLES = ["Общая подборка выходных", "Куда сходить компанией", "Идеи на отпуск", "Любимые места района"];
-
 // Зритель — человек, который реально входит на стенд. Его строки названы отдельно, чтобы экраны
 // «про меня» читались как чей-то живой аккаунт, а не как чужая витрина.
 const VIEWER_CUSTOM_LIST_TITLE = "Мой маршрут на осень";
-const VIEWER_COLLECTION_TITLE = "Наша общая подборка";
 const VIEWER_WE_GROUP_TITLES = ["Мы: субботние вылазки", "Мы: музейный клуб", "Мы: летние поездки"] as const;
 const VIEWER_MICRO_EVENT_TITLES = ["Зову на утренний забег", "Ищу компанию в музей"] as const;
 
@@ -246,9 +240,6 @@ export type DemoData = {
   planExpenses: PlanExpenseEntity[];
   feedLikes: FeedLikeEntity[];
   feedComments: FeedCommentEntity[];
-  collections: CollectionEntity[];
-  collectionMembers: CollectionMemberEntity[];
-  collectionItems: CollectionItemEntity[];
   waitlistEntries: WaitlistEntryEntity[];
   userAchievements: UserAchievementEntity[];
   reports: ReportEntity[];
@@ -344,9 +335,6 @@ export type ViewerSlice = {
   reviews: ReviewEntity[];
   participations: ParticipationEntity[];
   feedPosts: FeedPostEntity[];
-  collections: CollectionEntity[];
-  collectionMembers: CollectionMemberEntity[];
-  collectionItems: CollectionItemEntity[];
 };
 
 export type ViewerSliceInput = {
@@ -635,22 +623,7 @@ export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
 
   const feedPosts: FeedPostEntity[] = [groupPastEvent, hostedPlanEvent].map((event, i) => ({ id: uuid(), authorUserId: viewerId, eventId: event.id, text: FEED_TEXTS[i % FEED_TEXTS.length]!, photoUrl: picsum(`demo-viewer-post-${i}`), published: true, createdAt: new Date(now.getTime() - int(2, 90) * HOUR_MS) }));
 
-  // Коллекции: одна общая, собранная зрителем, и одна, куда его позвали.
-  const collections: CollectionEntity[] = [];
-  const collectionMembers: CollectionMemberEntity[] = [];
-  const collectionItems: CollectionItemEntity[] = [];
-  const addCollection = (ownerUserId: string, title: string, memberIds: string[], itemCount: number, createdDaysAgo: number): void => {
-    const collectionId = uuid();
-    const createdAt = shiftDays(now, -createdDaysAgo, 12);
-    collections.push({ id: collectionId, ownerUserId, title, chatLink: null, createdAt, updatedAt: createdAt });
-    const members = [...new Set(memberIds)];
-    members.forEach((userId) => collectionMembers.push({ id: uuid(), collectionId, userId }));
-    takeDistinct(nextFuture, itemCount).forEach((event, i) => collectionItems.push({ id: uuid(), collectionId, eventId: event.id, section: COLLECTION_SECTIONS[i % COLLECTION_SECTIONS.length]!, addedByUserId: members[i % members.length]!, addedAt: shiftDays(now, -int(1, createdDaysAgo), 12) }));
-  };
-  addCollection(viewerId, VIEWER_COLLECTION_TITLE, [viewerId, friend(0).id, friend(1).id, friend(2).id], 5, 20);
-  addCollection(friend(1).id, COLLECTION_TITLES[0]!, [friend(1).id, viewerId, friend(3).id], 3, 11);
-
-  return { lists, listItems, plans, planParticipants, planExpenses, votes, voteOptions, voteParticipants, voteBallots, weGroups, weGroupMembers, weGroupItems, gatherings, gatheringInvitees, microEvents, microEventParticipants, subscriptions, bookings, checkIns, reviews, participations, feedPosts, collections, collectionMembers, collectionItems };
+  return { lists, listItems, plans, planParticipants, planExpenses, votes, voteOptions, voteParticipants, voteBallots, weGroups, weGroupMembers, weGroupItems, gatherings, gatheringInvitees, microEvents, microEventParticipants, subscriptions, bookings, checkIns, reviews, participations, feedPosts };
 }
 
 /**
@@ -1236,22 +1209,6 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     return { id: uuid(), postId: post.id, authorUserId: i % 5 === 0 ? devUserId : pick(users).id, text: pick(COMMENT_TEXTS), createdAt: new Date(Math.min(now.getTime() - 60_000, post.createdAt.getTime() + int(1, 40) * HOUR_MS)) };
   });
 
-  // Коллекции: к двум подборкам зрителя добавляются чужие, чтобы домен не состоял из него одного.
-  const collections: CollectionEntity[] = [...viewer.collections];
-  const collectionMembers: CollectionMemberEntity[] = [...viewer.collectionMembers];
-  const collectionItems: CollectionItemEntity[] = [...viewer.collectionItems];
-  for (let i = 0; i < c.collections; i += 1) {
-    const owner = pick(users);
-    const collectionId = uuid();
-    const createdAt = shiftDays(now, -int(5, 40), 12);
-    collections.push({ id: collectionId, ownerUserId: owner.id, title: COLLECTION_TITLES[(i + 1) % COLLECTION_TITLES.length]!, chatLink: null, createdAt, updatedAt: createdAt });
-    const memberIds = new Set<string>([owner.id]);
-    fakerRU.helpers.arrayElements(users, Math.min(4, users.length)).forEach((user) => memberIds.add(user.id));
-    const members = [...memberIds];
-    members.forEach((userId) => collectionMembers.push({ id: uuid(), collectionId, userId }));
-    fakerRU.helpers.arrayElements(events, Math.min(4, events.length)).forEach((event, k) => collectionItems.push({ id: uuid(), collectionId, eventId: event.id, section: COLLECTION_SECTIONS[k % COLLECTION_SECTIONS.length]!, addedByUserId: members[k % members.length]!, addedAt: shiftDays(now, -int(1, 20), 12) }));
-  }
-
   // Лист ожидания (21): несколько будущих событий добираются до потолка, очередь за ними — FIFO по
   // createdAt. Зритель стоит и в общей очереди, и держит одно приглашение с дедлайном.
   const viewerBookedEventIds = new Set(viewer.bookings.map((booking) => booking.eventId));
@@ -1381,9 +1338,6 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     planExpenses,
     feedLikes,
     feedComments,
-    collections,
-    collectionMembers,
-    collectionItems,
     waitlistEntries,
     userAchievements,
     reports,
@@ -1528,9 +1482,6 @@ export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeed
   inserted.plans = await insertRows(dataSource.getRepository(PlanEntity), data.plans);
   inserted.planParticipants = await insertRows(dataSource.getRepository(PlanParticipantEntity), data.planParticipants);
   inserted.planExpenses = await insertRows(dataSource.getRepository(PlanExpenseEntity), data.planExpenses);
-  inserted.collections = await insertRows(dataSource.getRepository(CollectionEntity), data.collections);
-  inserted.collectionMembers = await insertRows(dataSource.getRepository(CollectionMemberEntity), data.collectionMembers);
-  inserted.collectionItems = await insertRows(dataSource.getRepository(CollectionItemEntity), data.collectionItems);
 
   const totalRows = Object.values(data).reduce((sum, rows) => sum + rows.length, 0);
   const totalInserted = Object.values(inserted).reduce((sum, count) => sum + count, 0);
