@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 09 «Подбор мест свайпами»: the card deck of venues, the right/left swipe with its buttons and the category chips over it.
-// SCOPE: The deck comes from apiClient.listSwipeCandidates and every decision goes back through apiClient.saveSwipeDecision; drag handling is local and the deck never refetches mid-session, so a card cannot jump under the finger. The venue page (экран 34) is where «Подробнее» leads.
-// DEPENDS: ../api/client.js (apiClient, SwipeCandidate, SwipeCategory, SwipeDecision), ../catalog/format.js (pluralRu), ../geo/viewer-origin.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
+// SCOPE: The deck comes from apiClient.listSwipeCandidates and every decision goes back through apiClient.saveSwipeDecision; the drag itself is ../ui/gestures.js and the deck never refetches mid-session, so a card cannot jump under the finger. The venue page (экран 34) is where «Подробнее» leads.
+// DEPENDS: ../api/client.js (apiClient, SwipeCandidate, SwipeCategory, SwipeDecision), ../catalog/format.js (pluralRu), ../geo/viewer-origin.js, ../routing/router.js, ../ui/gestures.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -17,14 +17,15 @@
 // - swipeMatchLine - «92% совпадение с тобой»; null until something scores a venue against a person (#498)
 // - SwipeCard - one venue card: the photo placeholder, the stamp, the facts, the friends and «Подробнее»
 // - SwipeView - presentational: header, chips, the deck with its two shadow cards and the action row
-// - SwipePage - container: deck fetch per category, drag state, decisions, undo and navigation
+// - SwipePage - container: deck fetch per category, the drag, decisions, undo and navigation
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { apiClient, SWIPE_CATEGORIES, type SwipeCandidate, type SwipeCategory, type SwipeDecision } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
+import { useSwipeDrag, type SwipeGestureProps } from "../ui/gestures";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppSkeleton, AppState } from "../ui/primitives";
 
@@ -84,13 +85,13 @@ export function swipeMatchLine(matchPercent: number | null): string | null {
 interface SwipeCardProps {
   candidate: SwipeCandidate;
   dx: number;
+  /** Карточку отпустили, не дотянув до порога: возврат домой едет анимацией, а не прыжком. */
+  settling?: boolean;
+  gesture?: SwipeGestureProps;
   onOpen: () => void;
-  onPointerDown?: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  onPointerMove?: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  onPointerUp?: (event: ReactPointerEvent<HTMLDivElement>) => void;
 }
 
-export function SwipeCard({ candidate, dx, onOpen, onPointerDown, onPointerMove, onPointerUp }: SwipeCardProps) {
+export function SwipeCard({ candidate, dx, settling = false, gesture, onOpen }: SwipeCardProps) {
   const distance = formatSwipeDistance(candidate.distanceKm);
   const rating = formatSwipeRating(candidate.rating, candidate.reviewsCount);
   const price = formatSwipePrice(candidate.pricePerHourRub);
@@ -98,7 +99,7 @@ export function SwipeCard({ candidate, dx, onOpen, onPointerDown, onPointerMove,
   const match = swipeMatchLine(candidate.matchPercent);
   const outcome = swipeOutcome(dx);
   return (
-    <div className="app-swipe-card" style={{ transform: `translateX(${dx}px) rotate(${dx / 24}deg)` }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
+    <div className={settling ? "app-swipe-card app-swipe-card--settling" : "app-swipe-card"} {...gesture} style={{ ...gesture?.style, transform: `translateX(${dx}px) rotate(${dx / 24}deg)` }}>
       <span className="app-swipe-glow" aria-hidden="true" />
       <span className="app-swipe-glow app-swipe-glow--cool" aria-hidden="true" />
       <span className="app-swipe-chips">
@@ -170,9 +171,8 @@ interface SwipeViewProps {
   onOpen: (placeId: string) => void;
   onBack: () => void;
   onRetry: () => void;
-  onDragStart?: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  onDragMove?: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  onDragEnd?: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  settling?: boolean;
+  gesture?: SwipeGestureProps;
 }
 
 export function SwipeView(props: SwipeViewProps) {
@@ -216,7 +216,7 @@ export function SwipeView(props: SwipeViewProps) {
             {/* Две тени под верхней карточкой: колода, а не одинокая карточка */}
             {deck[2] !== undefined && <span className="app-swipe-shadow app-swipe-shadow--far" aria-hidden="true" />}
             {deck[1] !== undefined && <span className="app-swipe-shadow" aria-hidden="true" />}
-            <SwipeCard candidate={top} dx={props.dx} onOpen={() => props.onOpen(top.place.id)} onPointerDown={props.onDragStart} onPointerMove={props.onDragMove} onPointerUp={props.onDragEnd} />
+            <SwipeCard candidate={top} dx={props.dx} settling={props.settling} gesture={props.gesture} onOpen={() => props.onOpen(top.place.id)} />
           </>
         )}
       </div>
@@ -244,8 +244,8 @@ export function SwipePage() {
   const [category, setCategory] = useState<SwipeCategory>("all");
   const [state, setState] = useState<SwipeState>({ status: "loading" });
   const [index, setIndex] = useState(0);
-  const [drag, setDrag] = useState<{ from: number; dx: number } | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const top = state.status === "ready" ? state.candidates[index] : undefined;
 
   useEffect(() => {
     let alive = true;
@@ -266,28 +266,31 @@ export function SwipePage() {
 
   const decide = useCallback(
     (decision: SwipeDecision) => {
-      const top = state.status === "ready" ? state.candidates[index] : undefined;
       if (top === undefined) return;
       setIndex((current) => current + 1);
-      setDrag(null);
       // A rejected write must not take the card back: the deck is a queue the viewer already moved on from.
       void apiClient.saveSwipeDecision(top.place.id, decision).catch(() => {});
     },
-    [index, state],
+    [top],
   );
 
-  const dragEnd = useCallback(() => {
-    if (drag === null) return;
-    const outcome = swipeOutcome(drag.dx);
-    setDrag(null);
-    if (outcome !== null) decide(outcome);
-  }, [drag, decide]);
+  // Экран так и называется — подбор свайпами. Карточка идёт точно за пальцем (без затухания:
+  // она и должна уехать), решение берётся тем же порогом, что рисует на ней штамп, а отпущенная
+  // на полпути возвращается домой. Кнопки под колодой делают ровно то же самое.
+  const drag = useSwipeDrag({
+    axis: "x",
+    distancePx: SWIPE_COMMIT_PX,
+    disabled: top === undefined,
+    onSwipe: (direction) => decide(direction === "right" ? "like" : "skip"),
+  });
 
   return (
     <SwipeView
       state={state}
       index={index}
-      dx={drag?.dx ?? 0}
+      dx={drag.offset}
+      settling={drag.settling}
+      gesture={drag.gesture}
       category={category}
       onCategory={setCategory}
       onDecide={decide}
@@ -297,9 +300,6 @@ export function SwipePage() {
       onOpen={(id) => navigate({ name: "place", id })}
       onBack={back}
       onRetry={() => setAttempt((count) => count + 1)}
-      onDragStart={(event) => setDrag({ from: event.clientX, dx: 0 })}
-      onDragMove={(event) => setDrag((current) => (current === null ? null : { ...current, dx: event.clientX - current.from }))}
-      onDragEnd={dragEnd}
     />
   );
 }

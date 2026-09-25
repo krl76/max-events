@@ -24,12 +24,14 @@ function viewHtml(over: Partial<OnboardingViewProps> = {}): string {
     interests: over.interests ?? [],
     status: over.status ?? "ready",
     saveFailed: over.saveFailed ?? false,
+    blocked: over.blocked ?? null,
     onIntro: noop,
     onSkipIntro: noop,
     onCity: noop,
     onToggleFriend: noop,
     onToggleInterest: noop,
     onNext: noop,
+    onBack: noop,
   };
   return renderToStaticMarkup(createElement(OnboardingView, props));
 }
@@ -75,6 +77,12 @@ describe("city step", () => {
     expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
   });
 
+  it("keeps the back gesture reachable by tap: every wizard step carries the button", () => {
+    // Жест — ускорение, а не единственный путь: то, что даёт смахивание вправо, обязано быть кнопкой.
+    for (const step of ["city", "friends", "interests"] as const) expect(viewHtml({ step, interests: ["Концерты", "Спорт", "Театр"] })).toContain('aria-label="Назад"');
+    expect(viewHtml({ step: "intro" })).not.toContain('aria-label="Назад"');
+  });
+
   it("drops the detection claim when the origin is the Moscow fallback", () => {
     const html = viewHtml({ step: "city", citySource: "fallback" });
 
@@ -109,6 +117,13 @@ describe("interests step", () => {
     for (const interest of ONBOARDING_INTERESTS) expect(html).toContain(interest);
     expect(html).toContain("Готово · выбрано 2");
     expect(html).toContain("disabled");
+  });
+
+  it("says why the forward gesture did not take, instead of swallowing it", () => {
+    const refused = viewHtml({ step: "interests", interests: ["Концерты"], blocked: "Выбери ещё 2 интереса — и пойдём дальше" });
+
+    expect(refused).toContain("Выбери ещё 2 интереса");
+    expect(viewHtml({ step: "interests", interests: ["Концерты"] })).not.toContain("Выбери ещё");
   });
 
   it("opens the CTA once three interests are chosen", () => {

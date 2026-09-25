@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Onboarding mechanism (макет, экран 02): step order вступление → город → друзья → интересы, the content of every step, the "run once" flag and the pure labels the screen renders.
 // SCOPE: Pure data and functions plus the localStorage flag; the screen is ./OnboardingFlow.tsx, the city/interests write goes through apiClient.updateProfile.
-// DEPENDS: window.localStorage
+// DEPENDS: ../catalog/format.js (pluralRu), window.localStorage
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -10,6 +10,8 @@
 // - OnboardingStep - intro | city | friends | interests
 // - ONBOARDING_STEPS - the step order of the макет: вступление → город → друзья → интересы
 // - nextOnboardingStep - the step after this one, null when the flow is over
+// - previousOnboardingStep - the step before this one, null on the intro; the destination of the back gesture and the back button
+// - onboardingForwardBlock - why this step does not let the viewer forward yet, worded for a human; null when it does
 // - onboardingRailIndex - position on the Город · Друзья · Интересы rail; -1 for intro, which carries dots instead
 // - IntroSlide - one intro slide: hero label, title, description and which of the three hero gradients it wears
 // - INTRO_SLIDES - the three intro slides
@@ -26,6 +28,8 @@
 // - markOnboardingDone - persist the flag (storage failures are non-fatal: the flow must still finish)
 // END_MODULE_MAP
 
+import { pluralRu } from "../catalog/format";
+
 export const ONBOARDING_STORAGE_KEY = "max-events:onboarding";
 
 export type OnboardingStep = "intro" | "city" | "friends" | "interests";
@@ -35,6 +39,25 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = ["intro", "city", "fr
 /** null means the flow is over — the caller hands the viewer to the feed. */
 export function nextOnboardingStep(step: OnboardingStep): OnboardingStep | null {
   return ONBOARDING_STEPS[ONBOARDING_STEPS.indexOf(step) + 1] ?? null;
+}
+
+/** null on the intro: there is nothing before the first step to go back to. */
+export function previousOnboardingStep(step: OnboardingStep): OnboardingStep | null {
+  const index = ONBOARDING_STEPS.indexOf(step);
+  return index > 0 ? ONBOARDING_STEPS[index - 1] : null;
+}
+
+/**
+ * Почему шаг пока не пускает вперёд — словами для человека; null, когда пускает.
+ *
+ * Кнопку на незаполненном шаге можно просто запереть, а жест запереть нечем: смахнуть палец может
+ * всегда, и молча проглоченный свайп читается как сломанный экран, а не как невыполненное условие.
+ * Поэтому у отказа есть текст — тот самый, который экран уже обещал в подзаголовке.
+ */
+export function onboardingForwardBlock(step: OnboardingStep, interestsCount: number): string | null {
+  if (step !== "interests" || interestsCount >= MIN_INTERESTS) return null;
+  const left = MIN_INTERESTS - interestsCount;
+  return `Выбери ещё ${left} ${pluralRu(left, "интерес", "интереса", "интересов")} — и пойдём дальше`;
 }
 
 /** The intro is not on the rail: it carries slide dots, the other three carry the Город · Друзья · Интересы progress. */
