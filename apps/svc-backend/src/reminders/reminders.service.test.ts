@@ -66,6 +66,7 @@ function user(): UserEntity {
     firstName: "Max",
     lastName: null,
     avatarUrl: null,
+    avatarCustom: false,
     username: null,
     bannedFromPublishing: false,
     friendsSyncedAt: null,

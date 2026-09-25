@@ -19,6 +19,12 @@ describe("UserSchema", () => {
   it("rejects a user without MAX identity", () => {
     expect(UserSchema.safeParse({ ...validUser, maxUserId: "" }).success).toBe(false);
   });
+
+  it("accepts an in-app JPEG data URL as the avatar, the way a picked photo travels until storage lands", () => {
+    const parsed = UserSchema.parse({ ...validUser, avatarUrl: "data:image/jpeg;base64,abc" });
+    expect(parsed.avatarUrl).toBe("data:image/jpeg;base64,abc");
+    expect(UserSchema.safeParse({ ...validUser, avatarUrl: "javascript:alert(1)" }).success).toBe(false);
+  });
 });
 
 describe("CreateUserSchema", () => {
@@ -35,6 +41,8 @@ describe("ProfileSchema", () => {
     expect(parsed.smartAlerts).toEqual(DEFAULT_SMART_ALERTS);
     expect(parsed.privacy).toEqual(DEFAULT_PRIVACY);
     expect(parsed.recommendationsEnabled).toBe(true);
+    expect(parsed.bio).toBe("");
+    expect(parsed.coverUrl).toBeNull();
   });
 
   it("rejects a blank city and blank interests", () => {
@@ -49,5 +57,12 @@ describe("UpdateProfileSchema", () => {
     expect(UpdateProfileSchema.safeParse({ smartAlerts: { weather: false } }).success).toBe(true);
     expect(UpdateProfileSchema.safeParse({ privacy: { visitHistory: "hidden" } }).success).toBe(true);
     expect(UpdateProfileSchema.safeParse({ recommendationsEnabled: false }).success).toBe(true);
+    expect(UpdateProfileSchema.safeParse({ bio: "Люблю джаз и падел" }).success).toBe(true);
+    expect(UpdateProfileSchema.safeParse({ coverUrl: null, avatarUrl: "https://cdn.example.com/a.jpg" }).success).toBe(true);
+  });
+
+  it("rejects a bio over the Instagram-like cap and a non-image cover", () => {
+    expect(UpdateProfileSchema.safeParse({ bio: "x".repeat(151) }).success).toBe(false);
+    expect(UpdateProfileSchema.safeParse({ coverUrl: "javascript:alert(1)" }).success).toBe(false);
   });
 });

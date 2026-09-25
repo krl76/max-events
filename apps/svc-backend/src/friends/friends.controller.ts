@@ -1,12 +1,13 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for friend graph sync, activity feed, and per-event friend summary.
-// SCOPE: POST /friends/sync, GET /friends, GET /friends/activity, GET /friends/suggestions, GET /friends/sync, PUT /friends/follows, GET /events/:eventId/friends; CurrentUser identity.
+// SCOPE: POST /friends/sync, GET /friends, GET /friends/activity, GET /friends/suggestions, GET /friends/sync, PUT /friends/follows, GET /users/:id/following, GET /users/:id/followers, GET /events/:eventId/friends; CurrentUser identity.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./friends.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - FriendsController - /friends list, sync, activity
+// - UserGraphController - GET /users/:id/following and /followers
 // - EventFriendsController - /events/:eventId/friends summary
 // END_MODULE_MAP
 
@@ -50,6 +51,21 @@ export class FriendsController {
     const parsed = ReplaceFollowsWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid follows payload");
     return this.friends.replaceFollows(user.id, parsed.data.userIds);
+  }
+}
+
+@Controller("users/:userId")
+export class UserGraphController {
+  constructor(@Inject(FriendsService) private readonly friends: FriendsService) {}
+
+  @Get("following")
+  async following(@CurrentUser() _viewer: UserEntity, @Param("userId", ParseUUIDPipe) userId: string): Promise<Friend[]> {
+    return this.friends.list(userId);
+  }
+
+  @Get("followers")
+  async followers(@CurrentUser() _viewer: UserEntity, @Param("userId", ParseUUIDPipe) userId: string): Promise<Friend[]> {
+    return this.friends.followers(userId);
   }
 }
 

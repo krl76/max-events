@@ -64,4 +64,12 @@ describe("StoriesService", () => {
     const listed = await service.list(author, now);
     expect(listed.map((story) => story.imageUrl)).toEqual(["fresh"]);
   });
+
+  it("fills the rail from anyone's last-day stories when the viewer has no friends yet", async () => {
+    const { service, stories } = createService();
+    const now = new Date("2026-09-16T12:00:00Z");
+    stories.store.push({ id: "00000000-0000-4000-8000-0000000000f1", userId: other, imageUrl: "stranger", createdAt: new Date("2026-09-16T11:00:00Z") }, { id: "00000000-0000-4000-8000-0000000000f2", userId: author, imageUrl: "own", createdAt: new Date("2026-09-16T10:00:00Z") });
+    const listed = await service.list(author, now);
+    expect(listed.map((story) => story.imageUrl)).toEqual(["stranger", "own"]);
+  });
 });

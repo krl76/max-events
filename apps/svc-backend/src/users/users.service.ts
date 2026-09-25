@@ -31,7 +31,7 @@ export class UsersService {
       firstName: payload.first_name,
       lastName: payload.last_name ?? null,
       username: payload.username ?? null,
-      avatarUrl: payload.photo_url || existing?.avatarUrl || null,
+      avatarUrl: existing?.avatarCustom ? existing.avatarUrl : payload.photo_url || existing?.avatarUrl || null,
     };
     if (!existing) {
       try {
@@ -53,6 +53,22 @@ export class UsersService {
   async findByIds(ids: string[]): Promise<UserEntity[]> {
     if (ids.length === 0) return [];
     return this.users.find({ where: { id: In(ids) } });
+  }
+
+  async findById(id: string): Promise<UserEntity | null> {
+    return this.users.findOneBy({ id });
+  }
+
+  /**
+   * In-app avatar. Null clears a custom pick and lets the next MAX login restore the messenger photo.
+   * A non-null value sticks: upsertFromMax must not overwrite it with photo_url.
+   */
+  async updateAvatar(userId: string, avatarUrl: string | null): Promise<UserEntity> {
+    const user = await this.users.findOneBy({ id: userId });
+    if (!user) throw new NotFoundException("User not found");
+    user.avatarUrl = avatarUrl;
+    user.avatarCustom = avatarUrl !== null;
+    return this.users.save(user);
   }
 
   async assertCanPublish(userId: string): Promise<void> {

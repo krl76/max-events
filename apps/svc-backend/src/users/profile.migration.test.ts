@@ -4,6 +4,7 @@ import { CreateProfiles20260911150000 } from "../database/migrations/20260911150
 import { AddProfileSmartAlerts20260912100000 } from "../database/migrations/20260912100000-AddProfileSmartAlerts";
 import { AddProfilePrivacy20260912120000 } from "../database/migrations/20260912120000-AddProfilePrivacy";
 import { AddProfileRecommendations20260913030000 } from "../database/migrations/20260913030000-AddProfileRecommendations";
+import { AddProfileBioCoverAvatarCustom20260920100000 } from "../database/migrations/20260920100000-AddProfileBioCoverAvatarCustom";
 
 describe("CreateProfiles20260911150000", () => {
   it("creates profiles keyed by userId and drops the table on revert", async () => {
@@ -74,5 +75,26 @@ describe("AddProfileRecommendations20260913030000", () => {
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries[0]).toContain('DROP COLUMN "recommendationsEnabled"');
+  });
+});
+
+describe("AddProfileBioCoverAvatarCustom20260920100000", () => {
+  it("adds bio, coverUrl and avatarCustom and drops them on revert", async () => {
+    const queries: string[] = [];
+    const queryRunner = {
+      query: async (sql: string) => {
+        queries.push(sql);
+      },
+    } as unknown as QueryRunner;
+    const migration = new AddProfileBioCoverAvatarCustom20260920100000();
+    await migration.up(queryRunner);
+    expect(queries[0]).toContain('ADD COLUMN "bio"');
+    expect(queries[1]).toContain('ADD COLUMN "coverUrl"');
+    expect(queries[2]).toContain('ADD COLUMN "avatarCustom"');
+    queries.length = 0;
+    await migration.down(queryRunner);
+    expect(queries[0]).toContain('DROP COLUMN "avatarCustom"');
+    expect(queries[1]).toContain('DROP COLUMN "coverUrl"');
+    expect(queries[2]).toContain('DROP COLUMN "bio"');
   });
 });

@@ -68,7 +68,7 @@ function createService(options: { eventIds?: string[]; far?: boolean; digestEnab
   const places = createStoreRepo<PlaceEntity>([{ id: nearPlaceId, latitude: 55.747, longitude: 37.584, published: true } as PlaceEntity, { id: farPlaceId, latitude: 59.93, longitude: 30.31, published: true } as PlaceEntity, { id: originPlaceId, latitude: 55.75, longitude: 37.62, published: true } as PlaceEntity]);
   const users = createStoreRepo<UserEntity>([{ id: userId, maxUserId: "1", firstName: "Саша" } as UserEntity]);
   const checkIns = createStoreRepo<CheckInEntity>([{ id: "c1", userId, eventId: null, placeId: originPlaceId, visitDate: "2026-09-11", checkedInAt: now } as CheckInEntity]);
-  const profiles = createStoreRepo<ProfileEntity>(options.digestEnabled === false ? [{ userId, city: "Москва", interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS, listDigest: false }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, updatedAt: now } as ProfileEntity] : []);
+  const profiles = createStoreRepo<ProfileEntity>(options.digestEnabled === false ? [{ userId, city: "Москва", interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS, listDigest: false }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null, updatedAt: now } as ProfileEntity] : []);
   const sends = createStoreRepo<ListDigestSendEntity>();
   const sent: string[] = [];
   const bot = {

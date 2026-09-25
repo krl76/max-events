@@ -46,7 +46,7 @@ describe("ProfilesService", () => {
   it("creates a default profile on first read", async () => {
     const { repo, service } = createService();
     const profile = await service.getOrCreate(userId);
-    expect(profile).toEqual({ userId, city: DEFAULT_PROFILE_CITY, interests: [], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: true });
+    expect(profile).toEqual({ userId, city: DEFAULT_PROFILE_CITY, interests: [], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: true, bio: "", coverUrl: null });
     expect(repo.store).toHaveLength(1);
   });
 
@@ -62,15 +62,18 @@ describe("ProfilesService", () => {
     const { service } = createService();
     await service.getOrCreate(userId);
     const cityOnly = await service.update(userId, { city: "Казань" });
-    expect(cityOnly).toEqual({ userId, city: "Казань", interests: [], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: true });
+    expect(cityOnly).toEqual({ userId, city: "Казань", interests: [], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: true, bio: "", coverUrl: null });
     const withInterests = await service.update(userId, { interests: ["бег", "джаз"] });
-    expect(withInterests).toEqual({ userId, city: "Казань", interests: ["бег", "джаз"], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: true });
+    expect(withInterests).toEqual({ userId, city: "Казань", interests: ["бег", "джаз"], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: true, bio: "", coverUrl: null });
     const recs = await service.update(userId, { recommendationsEnabled: false });
     expect(recs.recommendationsEnabled).toBe(false);
     const alerts = await service.update(userId, { smartAlerts: { weather: false } });
     expect(alerts.smartAlerts).toEqual({ ...DEFAULT_SMART_ALERTS, weather: false });
     const hidden = await service.update(userId, { privacy: { visitHistory: "hidden" } });
     expect(hidden.privacy).toEqual({ ...DEFAULT_PRIVACY, visitHistory: "hidden" });
+    const withBio = await service.update(userId, { bio: "Люблю джаз", coverUrl: "https://cdn.example.com/c.jpg" });
+    expect(withBio.bio).toBe("Люблю джаз");
+    expect(withBio.coverUrl).toBe("https://cdn.example.com/c.jpg");
   });
 
   it("survives a create-create race on first GET", async () => {
@@ -83,7 +86,7 @@ describe("ProfilesService", () => {
 
 describe("toProfileDto", () => {
   it("copies interests so callers cannot mutate the entity array", () => {
-    const entity: ProfileEntity = { userId, city: "Москва", interests: ["джаз"], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY }, recommendationsEnabled: true, updatedAt: new Date("2026-09-01T07:00:00Z") };
+    const entity: ProfileEntity = { userId, city: "Москва", interests: ["джаз"], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY }, recommendationsEnabled: true, bio: "", coverUrl: null, updatedAt: new Date("2026-09-01T07:00:00Z") };
     const dto = toProfileDto(entity);
     dto.interests.push("рок");
     expect(entity.interests).toEqual(["джаз"]);

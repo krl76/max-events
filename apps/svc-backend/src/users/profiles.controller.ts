@@ -14,10 +14,14 @@ import { UpdateProfileSchema, type Profile } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "./user.entity";
 import { ProfilesService } from "./profiles.service";
+import { UsersService } from "./users.service";
 
 @Controller("profile")
 export class ProfilesController {
-  constructor(@Inject(ProfilesService) private readonly profiles: ProfilesService) {}
+  constructor(
+    @Inject(ProfilesService) private readonly profiles: ProfilesService,
+    @Inject(UsersService) private readonly users: UsersService,
+  ) {}
 
   @Get()
   get(@CurrentUser() user: UserEntity): Promise<Profile> {
@@ -28,6 +32,8 @@ export class ProfilesController {
   async update(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<Profile> {
     const parsed = UpdateProfileSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid profile payload");
-    return this.profiles.update(user.id, parsed.data);
+    if (parsed.data.avatarUrl !== undefined) await this.users.updateAvatar(user.id, parsed.data.avatarUrl);
+    const { avatarUrl: _avatarUrl, ...profilePatch } = parsed.data;
+    return this.profiles.update(user.id, profilePatch);
   }
 }

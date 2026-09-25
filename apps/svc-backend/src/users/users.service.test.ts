@@ -12,15 +12,15 @@ function uniqueViolation(): QueryFailedError {
 
 function createRepo(initial: UserEntity[] = []) {
   const store: UserEntity[] = [...initial];
-  const find = (where: { maxUserId: string }) => store.find((user) => user.maxUserId === where.maxUserId) ?? null;
+  const find = (where: { maxUserId?: string; id?: string }) => store.find((user) => (where.maxUserId !== undefined ? user.maxUserId === where.maxUserId : user.id === where.id)) ?? null;
   return {
     store,
     // Deferred reads/writes emulate driver I/O so concurrent upserts interleave like real queries.
-    findOneBy: async (where: { maxUserId: string }) => {
+    findOneBy: async (where: { maxUserId?: string; id?: string }) => {
       await tick();
       return find(where);
     },
-    findOneByOrFail: async (where: { maxUserId: string }) => {
+    findOneByOrFail: async (where: { maxUserId?: string; id?: string }) => {
       await tick();
       const found = find(where);
       if (!found) throw new Error("UserEntity not found");
@@ -108,6 +108,16 @@ describe("UsersService.upsertFromMax", () => {
     expect(again.avatarUrl).toBe("https://example.com/a.png");
   });
 
+  it("keeps an in-app avatar across a later MAX login that still carries photo_url", async () => {
+    const { service } = createService();
+    const created = await service.upsertFromMax({ ...maxUser, photo_url: "https://max.example/from-max.png" });
+    created.id = "00000000-0000-4000-8000-00000000000a";
+    await service.updateAvatar(created.id, "https://cdn.example.com/custom.jpg");
+    const again = await service.upsertFromMax({ ...maxUser, photo_url: "https://max.example/from-max.png" });
+    expect(again.avatarUrl).toBe("https://cdn.example.com/custom.jpg");
+    expect(again.avatarCustom).toBe(true);
+  });
+
   it("survives a create-create race: concurrent first sign-ins both succeed and store one record", async () => {
     const { repo, service } = createService();
     const [a, b] = await Promise.all([service.upsertFromMax(maxUser), service.upsertFromMax(maxUser)]);
@@ -136,6 +146,7 @@ describe("toUserDto", () => {
       lastName: null,
       username: "maxuser",
       avatarUrl: null,
+      avatarCustom: false,
       bannedFromPublishing: false,
       friendsSyncedAt: null,
       createdAt: new Date("2026-09-01T07:00:00Z"),

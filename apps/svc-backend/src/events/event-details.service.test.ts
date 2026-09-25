@@ -71,6 +71,7 @@ const organizer: UserEntity = {
   firstName: "Организатор",
   lastName: null,
   avatarUrl: null,
+  avatarCustom: false,
   username: null,
   friendsSyncedAt: null,
   bannedFromPublishing: false,

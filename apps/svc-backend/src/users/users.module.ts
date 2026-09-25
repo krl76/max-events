@@ -15,11 +15,12 @@ import { ProfileEntity } from "./profile.entity";
 import { ProfilesController } from "./profiles.controller";
 import { ProfilesService } from "./profiles.service";
 import { UserEntity } from "./user.entity";
+import { UsersController } from "./users.controller";
 import { UsersService } from "./users.service";
 
 @Module({
   imports: [TypeOrmModule.forFeature([UserEntity, ProfileEntity])],
-  controllers: [ProfilesController],
+  controllers: [ProfilesController, UsersController],
   providers: [UsersService, ProfilesService],
   exports: [UsersService, ProfilesService],
 })

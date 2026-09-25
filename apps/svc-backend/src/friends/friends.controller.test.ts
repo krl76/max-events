@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EventFriendsSummary, Friend, FriendActivityByFriend } from "@max-events/api-contracts";
 import { UserEntity } from "../users/user.entity";
-import { EventFriendsController, FriendsController } from "./friends.controller";
+import { EventFriendsController, FriendsController, UserGraphController } from "./friends.controller";
 import type { FriendsService } from "./friends.service";
 
 const user = { id: "00000000-0000-4000-8000-00000000000a" } as UserEntity;
@@ -11,7 +11,7 @@ const activity: FriendActivityByFriend[] = [{ friend: friends[0], events: [] }];
 const summary: EventFriendsSummary = { friends: [], going: 0, lookingForCompany: 0 };
 
 function createService() {
-  const calls: { list?: string; sync?: string; activity?: string; suggestions?: string; syncStatus?: string; follows?: string[]; eventFriends?: { userId: string; eventId: string } } = {};
+  const calls: { list?: string; sync?: string; activity?: string; suggestions?: string; syncStatus?: string; follows?: string[]; eventFriends?: { userId: string; eventId: string }; followers?: string } = {};
   const service = {
     list: async (userId: string) => {
       calls.list = userId;
@@ -41,6 +41,10 @@ function createService() {
       calls.eventFriends = { userId, eventId: bookedEventId };
       return summary;
     },
+    followers: async (userId: string) => {
+      calls.followers = userId;
+      return friends;
+    },
   } as unknown as FriendsService;
   return { calls, service };
 }
@@ -56,6 +60,18 @@ describe("FriendsController", () => {
     await expect(controller.syncStatus(user)).resolves.toMatchObject({ lastSyncedAt: null, friends });
     await expect(controller.replaceFollows(user, { userIds: [friends[0]!.id] })).resolves.toEqual([friends[0]!.id]);
     expect(calls).toEqual({ list: user.id, sync: user.id, activity: user.id, suggestions: user.id, syncStatus: user.id, follows: [friends[0]!.id] });
+  });
+});
+
+describe("UserGraphController", () => {
+  it("reads both follow directions for the person in the path, not the viewer", async () => {
+    const { calls, service } = createService();
+    const controller = new UserGraphController(service);
+    const other = "00000000-0000-4000-8000-0000000000b1";
+    await expect(controller.following(user, other)).resolves.toEqual(friends);
+    await expect(controller.followers(user, other)).resolves.toEqual(friends);
+    expect(calls.list).toBe(other);
+    expect(calls.followers).toBe(other);
   });
 });
 

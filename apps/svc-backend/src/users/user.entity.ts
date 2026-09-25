@@ -32,6 +32,10 @@ export class UserEntity {
   @Column({ type: "varchar", nullable: true })
   avatarUrl!: string | null;
 
+  /** True after the viewer picks an in-app avatar: later MAX logins must not overwrite it. */
+  @Column({ type: "boolean", default: false })
+  avatarCustom!: boolean;
+
   @Column({ type: "boolean", default: false })
   bannedFromPublishing!: boolean;
 

@@ -46,7 +46,16 @@ export class FriendsService {
   }
 
   async list(userId: string): Promise<Friend[]> {
-    const ids = await this.friendIds(userId);
+    return this.friendsOfIds(await this.friendIds(userId));
+  }
+
+  /** People who follow this person: the reverse of the follow set GET /users/:id/following reads. */
+  async followers(userId: string): Promise<Friend[]> {
+    const rows = await this.friendships.find({ where: { friendUserId: userId } });
+    return this.friendsOfIds(new Set(rows.map((row) => row.userId)));
+  }
+
+  private async friendsOfIds(ids: Set<string>): Promise<Friend[]> {
     if (ids.size === 0) return [];
     const users = await this.users.find();
     const byId = new Map(users.map((row) => [row.id, row]));

@@ -32,7 +32,7 @@ export class ProfilesService {
     const existing = await this.profiles.findOneBy({ userId });
     if (existing) return toProfileDto(existing);
     try {
-      const created = await this.profiles.save(this.profiles.create({ userId, city: DEFAULT_PROFILE_CITY, interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY }, recommendationsEnabled: true }));
+      const created = await this.profiles.save(this.profiles.create({ userId, city: DEFAULT_PROFILE_CITY, interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY }, recommendationsEnabled: true, bio: "", coverUrl: null }));
       return toProfileDto(created);
     } catch (error) {
       if (error instanceof QueryFailedError && error.driverError?.code === "23505") {
@@ -50,6 +50,8 @@ export class ProfilesService {
       smartAlerts: { ...current.smartAlerts, ...patch.smartAlerts },
       privacy: { ...current.privacy, ...patch.privacy },
       recommendationsEnabled: patch.recommendationsEnabled ?? current.recommendationsEnabled,
+      bio: patch.bio ?? current.bio,
+      coverUrl: patch.coverUrl === undefined ? current.coverUrl : patch.coverUrl,
     };
     const existing = await this.profiles.findOneByOrFail({ userId });
     const saved = await this.profiles.save(this.profiles.merge(existing, next));
@@ -65,6 +67,8 @@ export function toProfileDto(profile: ProfileEntity): Profile {
     smartAlerts: readAlertPrefs(profile),
     privacy: readPrivacy(profile),
     recommendationsEnabled: profile.recommendationsEnabled !== false,
+    bio: profile.bio ?? "",
+    coverUrl: profile.coverUrl ?? null,
   };
 }
 

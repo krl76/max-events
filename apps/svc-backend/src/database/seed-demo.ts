@@ -702,6 +702,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       lastName: fakerRU.person.lastName(),
       username: i % 3 === 0 ? fakerRU.internet.username() : null,
       avatarUrl: i % 2 === 1 ? picsum(`demo-user-${i}`) : null,
+      avatarCustom: false,
       bannedFromPublishing: false,
       friendsSyncedAt: null,
       createdAt,
@@ -717,6 +718,8 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     smartAlerts: DEFAULT_SMART_ALERTS,
     privacy: DEFAULT_PRIVACY,
     recommendationsEnabled: chance(0.9),
+    bio: i % 4 === 0 ? "Ищу компанию на концерты и прогулки по городу." : "",
+    coverUrl: i % 5 === 0 ? picsum(`demo-cover-${i}`) : null,
     updatedAt: user.createdAt,
   }));
 
@@ -927,12 +930,13 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     }
   }
 
-  // stories + feed posts
+  // stories + feed posts. Authors are friends of the owner/dev so the rail of a seeded login is not empty.
+  const storyAuthorIds = [...new Set(friendships.filter((row) => row.userId === ownerUserId || row.userId === devUserId).map((row) => row.friendUserId))];
   const stories: StoryEntity[] = Array.from({ length: c.stories }, (_, i) => ({
     id: uuid(),
-    userId: pick(users).id,
+    userId: (storyAuthorIds.length > 0 ? storyAuthorIds[i % storyAuthorIds.length] : pick(users).id)!,
     imageUrl: picsum(`demo-story-${i}`),
-    createdAt: new Date(now.getTime() - int(1, 20) * HOUR_MS),
+    createdAt: new Date(now.getTime() - ((i % 8) + 1) * HOUR_MS),
   }));
   const feedPosts: FeedPostEntity[] = Array.from({ length: c.feedPosts }, (_, i) => ({
     id: uuid(),
@@ -1413,6 +1417,20 @@ function isUniqueViolation(error: unknown): boolean {
   return (candidate.driverError?.code ?? candidate.code) === "23505";
 }
 
+/**
+ * Stories live 24 hours. A previous seed left them with yesterday's createdAt, so the rail went
+ * empty even though the rows were still in the table. Re-seed bumps stale timestamps back into
+ * the last eight hours instead of inserting duplicates that unique-violation skips.
+ */
+async function refreshStoryTimestamps(repo: Repository<StoryEntity>, now: Date): Promise<void> {
+  const rows = await repo.find();
+  for (const [index, row] of rows.entries()) {
+    if (now.getTime() - row.createdAt.getTime() < 20 * HOUR_MS) continue;
+    row.createdAt = new Date(now.getTime() - ((index % 8) + 1) * HOUR_MS);
+    await repo.save(row);
+  }
+}
+
 async function insertRows<T extends ObjectLiteral>(repo: Repository<T>, rows: T[]): Promise<number> {
   let inserted = 0;
   for (const row of rows) {
@@ -1429,7 +1447,7 @@ async function insertRows<T extends ObjectLiteral>(repo: Repository<T>, rows: T[
 async function ensureDemoUser(repo: Repository<UserEntity>, maxUserId: string, seed: { firstName: string; lastName: string | null; username: string | null }): Promise<UserEntity> {
   const existing = await repo.findOneBy({ maxUserId });
   if (existing) return existing;
-  return repo.save(repo.create({ maxUserId, ...seed, avatarUrl: null, bannedFromPublishing: false }));
+  return repo.save(repo.create({ maxUserId, ...seed, avatarUrl: null, avatarCustom: false, bannedFromPublishing: false }));
 }
 
 // Pre-existing rows (base seed, smoke fixtures, previous demo run) are matched by natural keys;
@@ -1505,6 +1523,7 @@ export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeed
   inserted.checkIns = await insertRows(dataSource.getRepository(CheckInEntity), data.checkIns);
   inserted.userAchievements = await insertRows(dataSource.getRepository(UserAchievementEntity), data.userAchievements);
   inserted.stories = await insertRows(dataSource.getRepository(StoryEntity), data.stories);
+  await refreshStoryTimestamps(dataSource.getRepository(StoryEntity), now);
   inserted.feedPosts = await insertRows(dataSource.getRepository(FeedPostEntity), data.feedPosts);
   inserted.feedLikes = await insertRows(dataSource.getRepository(FeedLikeEntity), data.feedLikes);
   inserted.feedComments = await insertRows(dataSource.getRepository(FeedCommentEntity), data.feedComments);

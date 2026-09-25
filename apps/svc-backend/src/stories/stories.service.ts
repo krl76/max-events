@@ -31,7 +31,10 @@ export class StoriesService {
     const cutoff = new Date(now.getTime() - STORY_TTL_MS);
     const allowed = await this.friends.friendIds(userId);
     allowed.add(userId);
-    const rows = (await this.stories.find({ order: { createdAt: "DESC" } })).filter((row) => row.createdAt.getTime() > cutoff.getTime() && allowed.has(row.userId));
+    const recent = (await this.stories.find({ order: { createdAt: "DESC" } })).filter((row) => row.createdAt.getTime() > cutoff.getTime());
+    // An empty friends graph used to hide every seeded story: the rail showed only «Твоя история».
+    // With no friends yet, the last-day stories still stand in the rail so the home screen is not blank.
+    const rows = recent.some((row) => row.userId !== userId && allowed.has(row.userId)) ? recent.filter((row) => allowed.has(row.userId)) : recent;
     const groups = new Map<string, StoryEntity[]>();
     for (const row of rows) {
       const bucket = groups.get(row.userId) ?? [];

@@ -33,6 +33,12 @@ export class ProfileEntity {
   @Column({ type: "boolean", default: true })
   recommendationsEnabled!: boolean;
 
+  @Column({ type: "varchar", length: 150, default: "" })
+  bio!: string;
+
+  @Column({ type: "text", nullable: true })
+  coverUrl!: string | null;
+
   @UpdateDateColumn({ type: "timestamptz" })
   updatedAt!: Date;
 }

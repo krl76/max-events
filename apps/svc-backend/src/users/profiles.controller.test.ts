@@ -4,12 +4,13 @@ import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, type Profile, type UpdateProfile
 import { UserEntity } from "./user.entity";
 import { ProfilesController } from "./profiles.controller";
 import type { ProfilesService } from "./profiles.service";
+import type { UsersService } from "./users.service";
 
 const user = { id: "00000000-0000-4000-8000-00000000000a" } as UserEntity;
-const profile: Profile = { userId: user.id, city: "Москва", interests: [], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: true };
+const profile: Profile = { userId: user.id, city: "Москва", interests: [], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: true, bio: "", coverUrl: null };
 
 function createController() {
-  const calls: { getOrCreate?: string; update?: { userId: string; patch: unknown } } = {};
+  const calls: { getOrCreate?: string; update?: { userId: string; patch: unknown }; avatar?: { userId: string; avatarUrl: string | null } } = {};
   const service = {
     getOrCreate: async (userId: string) => {
       calls.getOrCreate = userId;
@@ -20,7 +21,13 @@ function createController() {
       return { ...profile, ...patch };
     },
   } as unknown as ProfilesService;
-  return { calls, controller: new ProfilesController(service) };
+  const users = {
+    updateAvatar: async (userId: string, avatarUrl: string | null) => {
+      calls.avatar = { userId, avatarUrl };
+      return user;
+    },
+  } as unknown as UsersService;
+  return { calls, controller: new ProfilesController(service, users) };
 }
 
 describe("ProfilesController", () => {
@@ -36,5 +43,12 @@ describe("ProfilesController", () => {
     await expect(controller.update(user, { city: "Казань" })).resolves.toMatchObject({ city: "Казань" });
     expect(calls.update).toEqual({ userId: user.id, patch: { city: "Казань" } });
     await expect(controller.update(user, { smartAlerts: { weather: false } })).resolves.toMatchObject({ smartAlerts: { weather: false } });
+  });
+
+  it("writes a picked avatar through the user row, not through the profile columns", async () => {
+    const { calls, controller } = createController();
+    await expect(controller.update(user, { avatarUrl: "https://cdn.example.com/a.jpg" })).resolves.toMatchObject(profile);
+    expect(calls.avatar).toEqual({ userId: user.id, avatarUrl: "https://cdn.example.com/a.jpg" });
+    expect(calls.update).toEqual({ userId: user.id, patch: {} });
   });
 });
