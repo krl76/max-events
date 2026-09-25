@@ -105,7 +105,10 @@ function createService(
   const reviews = new ReviewsService(reviewRows as unknown as Repository<ReviewEntity>, bookings as unknown as Repository<BookingEntity>, events as unknown as Repository<EventEntity>);
   const promotions = { promotedEventIds: async () => new Set<string>() } as unknown as PromotionService;
   const weather = { attach: async (rows: { weather?: unknown }[]) => rows } as unknown as EventWeatherService;
-  const organizations = { findByOrganizerUserId: async (organizerUserId: string) => (opts.organization?.organizerUserId === organizerUserId ? opts.organization : null) } as unknown as OrganizationsService;
+  const organizations = {
+    findById: async (id: string) => (opts.organization?.id === id ? opts.organization : null),
+    findByOrganizerUserId: async (organizerUserId: string) => (opts.organization?.organizerUserId === organizerUserId ? opts.organization : null),
+  } as unknown as OrganizationsService;
   const service = new EventDetailsService(events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, checkIns as unknown as Repository<CheckInEntity>, participations as unknown as Repository<ParticipationEntity>, users as unknown as Repository<UserEntity>, places, reviews, promotions, weather, organizations);
   return { service };
 }
@@ -164,6 +167,18 @@ describe("EventDetailsService.get", () => {
     expect(details.organization).toEqual({ id: "00000000-0000-4000-8000-0000000000c1", name: "Культурный центр", contacts: "@centre", activities: [] });
     // The hash has no way out of the backend, so the public page cannot carry it.
     expect(JSON.stringify(details)).not.toContain("scrypt$");
+  });
+
+  it("resolves the public card from organizerOrganizationId even when the organizer user id does not match", async () => {
+    const orgId = "00000000-0000-4000-8000-0000000000c1";
+    const { service } = createService({
+      event: makeEvent({ organizerOrganizationId: orgId, organizerUserId: null }),
+      organization: { id: orgId, name: "Культурный центр", contacts: "@centre", organizerUserId: organizerId, passwordHash: "scrypt$never$leaves$the$backend$x" } as OrganizationEntity,
+    });
+
+    const details = await service.get(eventId, viewerId);
+
+    expect(details.organization).toEqual({ id: orgId, name: "Культурный центр", contacts: "@centre", activities: [] });
   });
 
   it("leaves the organization null when the organizer belongs to none", async () => {

@@ -19,6 +19,7 @@ import type { EventSalesReport, Payment, PaymentStatus, StatsPeriod } from "@max
 import { inPeriod } from "../stats/stats.service";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
+import { isOrganizerOwner } from "../organizations/organizer-ownership";
 import { DEFAULT_COMMISSION_BPS, freezeCommission } from "./commission";
 import { PaymentEntity } from "./payment.entity";
 import { PAYMENT_PROVIDER, PaymentProviderError, type CreatePaymentInput, type PaymentCharge, type PaymentProvider, type PaymentRefund } from "./payment-provider";
@@ -118,8 +119,8 @@ export class PaymentsService {
 
   /** Frozen ticket sales for one event; a period narrows the report to charges created inside it. */
   async salesReport(organizerId: string, eventId: string, period: StatsPeriod = { from: null, to: null }): Promise<EventSalesReport> {
-    const event = await this.events.findOneBy({ id: eventId, organizerUserId: organizerId });
-    if (!event) throw new NotFoundException("Event not found");
+    const event = await this.events.findOneBy({ id: eventId });
+    if (!event || !isOrganizerOwner(event, organizerId)) throw new NotFoundException("Event not found");
     const bookings = await this.bookings.find({ where: { eventId } });
     const ids = bookings.map((row) => row.id);
     const payments = ids.length === 0 ? [] : await this.rows.find({ where: { bookingId: In(ids) } });

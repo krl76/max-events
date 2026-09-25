@@ -16,6 +16,7 @@ import { QueryFailedError, Repository } from "typeorm";
 import type { OrganizerEventStats, PageViewTarget, StatsPeriod } from "@max-events/api-contracts";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
+import { isOrganizerOwner } from "../organizations/organizer-ownership";
 import { moscowDateKey } from "../time/moscow-date";
 import { PageViewEntity } from "./page-view.entity";
 
@@ -45,7 +46,7 @@ export class StatsService {
   async eventStats(actorId: string, eventId: string, period: StatsPeriod = ALL_TIME): Promise<OrganizerEventStats> {
     const event = await this.events.findOneBy({ id: eventId });
     if (!event) throw new NotFoundException("Event not found");
-    if (event.organizerUserId !== actorId) throw new ForbiddenException("Not the organizer");
+    if (!isOrganizerOwner(event, actorId)) throw new ForbiddenException("Not the organizer");
     const [allViews, allBookings] = await Promise.all([this.views.find({ where: { targetType: "event", targetId: eventId } }), this.bookings.find({ where: { eventId } })]);
     const viewRows = allViews.filter((row) => inPeriod(row.createdAt, period));
     const bookingRows = allBookings.filter((row) => inPeriod(row.createdAt, period));

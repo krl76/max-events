@@ -40,6 +40,9 @@ export class PlaceEntity {
   @Column({ type: "uuid", nullable: true })
   organizerUserId!: string | null;
 
+  @Column({ type: "uuid", nullable: true })
+  organizerOrganizationId?: string | null;
+
   @Column({ type: "boolean", default: true })
   published!: boolean;
 

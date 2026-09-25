@@ -50,19 +50,9 @@ function createRepo(initial: EventEntity[] = []) {
       return entity;
     },
     findOneBy: async (where: { id: string }) => store.find((row) => row.id === where.id) ?? null,
-    find: async (opts: { where?: { published?: boolean; city?: string; category?: string; organizerUserId?: string; startsAt?: FindOperator<Date>; chatSyncPending?: boolean; chatLink?: FindOperator<string>; id?: FindOperator<string> }; order?: { startsAt?: "ASC" | "DESC"; id?: "ASC" | "DESC"; createdAt?: "ASC" | "DESC" }; skip?: number; take?: number }) => {
-      let rows = [...store];
-      if (opts.where?.published === true) rows = rows.filter((row) => row.published);
-      // The rating filter narrows by id before the page is read, so the fake has to honour In() too.
-      const ids = opts.where?.id;
-      if (ids) rows = rows.filter((row) => (ids.value as unknown as string[]).includes(row.id));
-      if (opts.where?.city) rows = rows.filter((row) => row.city === opts.where?.city);
-      if (opts.where?.category) rows = rows.filter((row) => row.category === opts.where?.category);
-      if (opts.where?.organizerUserId) rows = rows.filter((row) => row.organizerUserId === opts.where?.organizerUserId);
-      if (opts.where?.chatSyncPending !== undefined) rows = rows.filter((row) => row.chatSyncPending === opts.where?.chatSyncPending);
-      if (opts.where?.chatLink?.type === "isNull") rows = rows.filter((row) => row.chatLink === null);
-      const startsAt = opts.where?.startsAt;
-      if (startsAt) rows = rows.filter((row) => matchesDateOperator(row.startsAt, startsAt));
+    find: async (opts: { where?: Record<string, unknown> | Array<Record<string, unknown>>; order?: { startsAt?: "ASC" | "DESC"; id?: "ASC" | "DESC"; createdAt?: "ASC" | "DESC" }; skip?: number; take?: number }) => {
+      const clauses = Array.isArray(opts.where) ? opts.where : opts.where ? [opts.where] : [{}];
+      let rows = store.filter((row) => clauses.some((clause) => matchesEventWhere(row, clause)));
       if (opts.order?.createdAt === "ASC") rows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
       else rows.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
       const from = opts.skip ?? 0;
@@ -79,6 +69,22 @@ function createRepo(initial: EventEntity[] = []) {
 
 // The catalog list now pushes its start window into the WHERE clause, so the fake repository has to
 // read the same find operators postgres would.
+function matchesEventWhere(row: EventEntity, clause: Record<string, unknown>): boolean {
+  if (clause.published === true && !row.published) return false;
+  const ids = clause.id as FindOperator<string> | undefined;
+  if (ids && !(ids.value as unknown as string[]).includes(row.id)) return false;
+  if (clause.city && row.city !== clause.city) return false;
+  if (clause.category && row.category !== clause.category) return false;
+  if (clause.organizerUserId && row.organizerUserId !== clause.organizerUserId) return false;
+  if (clause.organizerOrganizationId && row.organizerOrganizationId !== clause.organizerOrganizationId) return false;
+  if (clause.chatSyncPending !== undefined && row.chatSyncPending !== clause.chatSyncPending) return false;
+  const chatLink = clause.chatLink as FindOperator<string> | undefined;
+  if (chatLink?.type === "isNull" && row.chatLink !== null) return false;
+  const startsAt = clause.startsAt as FindOperator<Date> | undefined;
+  if (startsAt && !matchesDateOperator(row.startsAt, startsAt)) return false;
+  return true;
+}
+
 function matchesDateOperator(value: Date, operator: FindOperator<Date>): boolean {
   if (operator.type === "and") return (operator.value as unknown as FindOperator<Date>[]).every((inner) => matchesDateOperator(value, inner));
   const bound = operator.value as unknown as Date;
@@ -92,7 +98,7 @@ function passthroughWeather(): EventWeatherService {
   return { attach: async (events: Event[]) => events } as unknown as EventWeatherService;
 }
 
-function createService(options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean; promotions?: PromotionService; weather?: EventWeatherService; ratedIds?: Record<number, string[]> } = {}) {
+function createService(options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean; promotions?: PromotionService; weather?: EventWeatherService; ratedIds?: Record<number, string[]>; organization?: { id: string; organizerUserId: string } } = {}) {
   const knownPlaces = new Set(options.placeIds ?? []);
   const draftPlaces = new Set(options.draftPlaceIds ?? []);
   const chatCalls: string[] = [];
@@ -137,7 +143,11 @@ function createService(options: { placeIds?: string[]; draftPlaceIds?: string[];
   const reviews = { eventIdsRatedAtLeast: async (minStars: number) => ratedIdsByThreshold[minStars] ?? [], averagesByEventIds: async () => new Map() } as unknown as ReviewsService;
   const friendships = { find: async () => [] } as unknown as Repository<FriendshipEntity>;
   const participations = { find: async () => [] } as unknown as Repository<ParticipationEntity>;
-  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist, promotions, weather, reviews, friendships, participations);
+  const organizations = {
+    findById: async (id: string) => (options.organization?.id === id ? options.organization : null),
+    findByOrganizerUserId: async (organizerUserId: string) => (options.organization?.organizerUserId === organizerUserId ? options.organization : null),
+  };
+  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist, promotions, weather, reviews, friendships, participations, organizations as never);
   return { repo, service, waitlist, chatCalls, notifyCalls };
 }
 
@@ -355,6 +365,18 @@ describe("EventsService", () => {
     expect(chatCalls).toEqual([payload.title]);
     expect(notifyCalls).toEqual([draft.id]);
     expect((await service.listMine(organizer)).map((row) => row.id)).toEqual([draft.id]);
+  });
+
+  it("binds create and listMine to the organization id the organizer panel passes", async () => {
+    const orgId = "00000000-0000-4000-8000-0000000000c1";
+    const userId = "00000000-0000-4000-8000-00000000000a";
+    const otherOrg = "00000000-0000-4000-8000-0000000000c2";
+    const { repo, service } = createService({ organization: { id: orgId, organizerUserId: userId } });
+    const created = await service.create(payload, orgId, { draft: true });
+    expect(repo.store[0]?.organizerOrganizationId).toBe(orgId);
+    expect(repo.store[0]?.organizerUserId).toBe(userId);
+    expect((await service.listMine(orgId)).map((row) => row.id)).toEqual([created.id]);
+    expect(await service.listMine(otherOrg)).toEqual([]);
   });
 
   it("lets an organizer bind their own unpublished place and blocks a banned publisher", async () => {

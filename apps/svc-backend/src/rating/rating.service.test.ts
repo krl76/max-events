@@ -27,7 +27,10 @@ function matchesWhere(row: object, where: Record<string, unknown>): boolean {
 function createStoreRepo<T extends object>(initial: T[] = []) {
   const store = [...initial];
   return {
-    find: async (opts: { where?: Record<string, unknown> } = {}) => store.filter((row) => matchesWhere(row as object, opts.where ?? {})),
+    find: async (opts: { where?: Record<string, unknown> | Array<Record<string, unknown>> } = {}) => {
+      const clauses = Array.isArray(opts.where) ? opts.where : [opts.where ?? {}];
+      return store.filter((row) => clauses.some((clause) => matchesWhere(row as object, clause)));
+    },
     findOneBy: async (where: Record<string, unknown>) => store.find((row) => matchesWhere(row as object, where)) ?? null,
   };
 }
@@ -53,7 +56,7 @@ describe("buildOrganizerRating", () => {
 });
 
 // No organization row matches these ids, so the service treats them as organizer user ids.
-const organizationsFake = { organizerUserIdOf: async () => null } as unknown as OrganizationsService;
+const organizationsFake = { organizerUserIdOf: async () => null, findById: async () => null } as unknown as OrganizationsService;
 
 describe("RatingService.forEvent", () => {
   it("returns null without an organizer and 404 for unpublished events", async () => {
@@ -61,5 +64,27 @@ describe("RatingService.forEvent", () => {
     const service = new RatingService(events as unknown as Repository<EventEntity>, createStoreRepo<ReviewEntity>() as unknown as Repository<ReviewEntity>, createStoreRepo<CheckInEntity>() as unknown as Repository<CheckInEntity>, organizationsFake);
     await expect(service.forEvent(eventId, now)).resolves.toEqual({ rating: null });
     await expect(service.forEvent("00000000-0000-4000-8000-0000000000e2", now)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("aggregates reviews across events bound to the organization id", async () => {
+    const orgId = "00000000-0000-4000-8000-0000000000c1";
+    const orgUser = "00000000-0000-4000-8000-00000000000a";
+    const events = createStoreRepo<EventEntity>([{ id: eventId, organizerOrganizationId: orgId, organizerUserId: orgUser, published: true, startsAt: now } as EventEntity]);
+    const reviews = createStoreRepo<ReviewEntity>([
+      { stars: 5, wouldGoAgain: true, eventId } as ReviewEntity,
+      { stars: 5, wouldGoAgain: true, eventId } as ReviewEntity,
+      { stars: 4, wouldGoAgain: false, eventId } as ReviewEntity,
+    ]);
+    const organizations = {
+      findById: async (id: string) => (id === orgId ? { id: orgId, organizerUserId: orgUser } : null),
+      organizerUserIdOf: async () => null,
+    } as unknown as OrganizationsService;
+    const service = new RatingService(events as unknown as Repository<EventEntity>, reviews as unknown as Repository<ReviewEntity>, createStoreRepo<CheckInEntity>() as unknown as Repository<CheckInEntity>, organizations);
+    const fromOrg = await service.forOrganizer(orgId, now);
+    const fromEvent = await service.forEvent(eventId, now);
+    expect(fromOrg.rating?.organizerUserId).toBe(orgId);
+    expect(fromOrg.rating?.reviewsCount).toBe(3);
+    expect(fromEvent.rating?.organizerUserId).toBe(orgId);
+    expect(fromEvent.rating?.reviewsCount).toBe(3);
   });
 });

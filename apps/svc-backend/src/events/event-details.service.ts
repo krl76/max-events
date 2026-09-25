@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Event page aggregate — event + place + organizer + organization + seats + viewer-scoped booking/check-in/participation + rating.
-// SCOPE: GET /events/:id/details payload; unpublished/unknown events 404; viewer fields from CurrentUser id; remainingSeats = capacity - bookedCount (clamped at 0); the organization is resolved from the organizer user and carries name and contacts only.
+// SCOPE: GET /events/:id/details payload; unpublished/unknown events 404; viewer fields from CurrentUser id; remainingSeats = capacity - bookedCount (clamped at 0); the organization is resolved from organizerOrganizationId, then the organizer user.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../places/places.service, ../reviews/reviews.service, ../promotion/promotion.service, ../organizations/organizations.service, ./event.entity, ./event.mapper
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -44,7 +44,7 @@ export class EventDetailsService {
   async get(eventId: string, viewerId: string): Promise<EventDetails> {
     const event = await this.events.findOneBy({ id: eventId });
     if (!event || event.published === false) throw new NotFoundException("Event not found");
-    const [place, organizer, organization, activeBooking, checkIn, participation, rating, promoted] = await Promise.all([this.placeFor(event.placeId), this.organizerFor(event.organizerUserId), this.organizationFor(event.organizerUserId), this.bookings.findOneBy({ userId: viewerId, eventId, status: "active" }), this.checkIns.findOneBy({ userId: viewerId, eventId }), this.participations.findOneBy({ userId: viewerId, eventId }), this.reviews.eventRating(eventId), this.promotions.promotedEventIds()]);
+    const [place, organizer, organization, activeBooking, checkIn, participation, rating, promoted] = await Promise.all([this.placeFor(event.placeId), this.organizerFor(event.organizerUserId), this.organizationFor(event), this.bookings.findOneBy({ userId: viewerId, eventId, status: "active" }), this.checkIns.findOneBy({ userId: viewerId, eventId }), this.participations.findOneBy({ userId: viewerId, eventId }), this.reviews.eventRating(eventId), this.promotions.promotedEventIds()]);
     const mapped = toEventDto(event, { promoted: promoted.has(event.id) });
     const [withWeather] = await this.eventWeather.attach([mapped]);
     return {
@@ -76,10 +76,13 @@ export class EventDetailsService {
     return user ? toUserDto(user) : null;
   }
 
-  /** Events are still keyed by the organizer user, so the organization is found through that link. */
-  private async organizationFor(organizerUserId: string | null): Promise<Organization | null> {
-    if (!organizerUserId) return null;
-    const organization = await this.organizations.findByOrganizerUserId(organizerUserId);
+  private async organizationFor(event: EventEntity): Promise<Organization | null> {
+    if (event.organizerOrganizationId) {
+      const byId = await this.organizations.findById(event.organizerOrganizationId);
+      if (byId) return toOrganizationDto(byId);
+    }
+    if (!event.organizerUserId) return null;
+    const organization = await this.organizations.findByOrganizerUserId(event.organizerUserId);
     return organization ? toOrganizationDto(organization) : null;
   }
 }

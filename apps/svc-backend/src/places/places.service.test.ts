@@ -51,11 +51,18 @@ function createRepo(initial: PlaceEntity[] = []) {
       return entity;
     },
     findOneBy: async (where: { id: string }) => store.find((row) => row.id === where.id) ?? null,
-    find: async (opts: { where?: { published?: boolean; city?: string; category?: string }; skip?: number; take?: number; order?: { title?: "ASC" | "DESC"; id?: "ASC" | "DESC" } }) => {
-      let rows = [...store];
-      if (opts.where?.published === true) rows = rows.filter((row) => row.published !== false);
-      if (opts.where?.city) rows = rows.filter((row) => row.city === opts.where?.city);
-      if (opts.where?.category) rows = rows.filter((row) => row.category === opts.where?.category);
+    find: async (opts: { where?: Record<string, unknown> | Array<Record<string, unknown>>; skip?: number; take?: number; order?: { title?: "ASC" | "DESC"; id?: "ASC" | "DESC" } }) => {
+      const clauses = Array.isArray(opts.where) ? opts.where : opts.where ? [opts.where] : [{}];
+      let rows = store.filter((row) =>
+        clauses.some((clause) => {
+          if (clause.published === true && row.published === false) return false;
+          if (clause.city && row.city !== clause.city) return false;
+          if (clause.category && row.category !== clause.category) return false;
+          if (clause.organizerUserId && row.organizerUserId !== clause.organizerUserId) return false;
+          if (clause.organizerOrganizationId && row.organizerOrganizationId !== clause.organizerOrganizationId) return false;
+          return true;
+        }),
+      );
       rows.sort((a, b) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
       const skip = opts.skip ?? 0;
       const take = opts.take ?? rows.length - skip;
@@ -70,10 +77,14 @@ function createRepo(initial: PlaceEntity[] = []) {
   };
 }
 
-function createService(store: PlaceEntity[] = []) {
+function createService(store: PlaceEntity[] = [], organization?: { id: string; organizerUserId: string }) {
   const repo = createRepo(store);
   const users = { assertCanPublish: async () => undefined } as unknown as UsersService;
-  const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, users);
+  const organizations = {
+    findById: async (id: string) => (organization?.id === id ? organization : null),
+    findByOrganizerUserId: async (organizerUserId: string) => (organization?.organizerUserId === organizerUserId ? organization : null),
+  };
+  const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, users, organizations as never);
   return { repo, service };
 }
 
@@ -158,6 +169,18 @@ describe("PlacesService", () => {
     expect((await service.publish(draft.id, owner)).published).toBe(true);
   });
 
+  it("binds create and listMine to the organization id the organizer panel passes", async () => {
+    const orgId = "00000000-0000-4000-8000-0000000000c1";
+    const userId = "00000000-0000-4000-8000-00000000000a";
+    const otherOrg = "00000000-0000-4000-8000-0000000000c2";
+    const { repo, service } = createService([], { id: orgId, organizerUserId: userId });
+    const created = await service.create(payload, orgId, { draft: true });
+    expect(repo.store[0]?.organizerOrganizationId).toBe(orgId);
+    expect(repo.store[0]?.organizerUserId).toBe(userId);
+    expect((await service.listMine(orgId)).map((row) => row.id)).toEqual([created.id]);
+    expect(await service.listMine(otherOrg)).toEqual([]);
+  });
+
   it("forbids a banned organizer from publishing a draft place", async () => {
     const owner = "00000000-0000-4000-8000-00000000000a";
     const { repo } = createService();
@@ -166,7 +189,7 @@ describe("PlacesService", () => {
         throw new ForbiddenException("Organizer is banned from publishing");
       },
     } as unknown as UsersService;
-    const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, users);
+    const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, users, { findById: async () => null, findByOrganizerUserId: async () => null } as never);
     repo.store.push({
       id: "00000000-0000-4000-8000-0000000000p1",
       ...payload,
@@ -184,7 +207,7 @@ describe("PlacesService", () => {
     repo.save = async () => {
       throw boom;
     };
-    const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, { assertCanPublish: async () => undefined } as unknown as UsersService);
+    const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, { assertCanPublish: async () => undefined } as unknown as UsersService, { findById: async () => null, findByOrganizerUserId: async () => null } as never);
     await expect(service.create(payload)).rejects.toBe(boom);
   });
 });

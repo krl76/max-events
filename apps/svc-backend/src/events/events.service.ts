@@ -20,6 +20,8 @@ import { And, FindOperator, In, IsNull, LessThan, LessThanOrEqual, MoreThanOrEqu
 import { CreateEventSchema, EventSchema, type CreateEvent, type Event, type EventCategory } from "@max-events/api-contracts";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
+import { OrganizationsService } from "../organizations/organizations.service";
+import { isOrganizerOwner } from "../organizations/organizer-ownership";
 import { UsersService } from "../users/users.service";
 import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { PromotionService } from "../promotion/promotion.service";
@@ -74,10 +76,20 @@ export class EventsService {
     @Inject(ReviewsService) private readonly reviews: ReviewsService,
     @InjectRepository(FriendshipEntity) private readonly friendships: Repository<FriendshipEntity>,
     @InjectRepository(ParticipationEntity) private readonly participations: Repository<ParticipationEntity>,
+    @Inject(OrganizationsService) private readonly organizations: OrganizationsService,
   ) {}
 
+  private async ownerFields(actorId?: string): Promise<{ organizerUserId: string | null; organizerOrganizationId: string | null }> {
+    if (!actorId) return { organizerUserId: null, organizerOrganizationId: null };
+    const asOrg = await this.organizations.findById(actorId);
+    if (asOrg) return { organizerOrganizationId: asOrg.id, organizerUserId: asOrg.organizerUserId };
+    const asUserOrg = await this.organizations.findByOrganizerUserId(actorId);
+    return { organizerOrganizationId: asUserOrg?.id ?? null, organizerUserId: actorId };
+  }
+
   async create(payload: CreateEvent, organizerUserId?: string, options?: { draft?: boolean }): Promise<Event> {
-    if (organizerUserId) await this.users.assertCanPublish(organizerUserId);
+    const owner = await this.ownerFields(organizerUserId);
+    if (owner.organizerUserId) await this.users.assertCanPublish(owner.organizerUserId);
     await assertPlaceBound(this.places, payload.placeId, organizerUserId, { requirePublished: !options?.draft });
     assertTimeRange(payload.startsAt, payload.endsAt);
     const saved = await this.events.save(
@@ -87,7 +99,8 @@ export class EventsService {
         bookedCount: 0,
         chatLink: null,
         chatSyncPending: true,
-        organizerUserId: organizerUserId ?? null,
+        organizerUserId: owner.organizerUserId,
+        organizerOrganizationId: owner.organizerOrganizationId,
       }),
     );
     if (!options?.draft) {
@@ -112,7 +125,7 @@ export class EventsService {
   async update(id: string, patch: Record<string, unknown>, actorId?: string): Promise<Event> {
     const existing = await this.events.findOneBy({ id });
     if (!existing) throw new NotFoundException("Event not found");
-    assertOrganizer(existing.organizerUserId, actorId);
+    assertOrganizer(existing, actorId);
     const merged = EventSchema.safeParse({ ...toEventDto(existing), ...pickEventFields(patch) });
     if (!merged.success) throw new BadRequestException("Invalid event payload");
     await assertPlaceBound(this.places, merged.data.placeId, actorId, { requirePublished: existing.published !== false });
@@ -154,20 +167,29 @@ export class EventsService {
   async remove(id: string, actorId?: string): Promise<void> {
     const existing = await this.events.findOneBy({ id });
     if (!existing) throw new NotFoundException("Event not found");
-    assertOrganizer(existing.organizerUserId, actorId);
+    assertOrganizer(existing, actorId);
     await this.events.delete({ id });
   }
 
-  async listMine(organizerUserId: string): Promise<Event[]> {
-    const rows = await this.events.find({ where: { organizerUserId }, order: { startsAt: "ASC", id: "ASC" } });
-    return rows.map((row) => toEventDto(row));
+  async listMine(actorId: string): Promise<Event[]> {
+    const rows = await this.events.find({
+      where: [{ organizerOrganizationId: actorId }, { organizerUserId: actorId }],
+      order: { startsAt: "ASC", id: "ASC" },
+    });
+    const seen = new Set<string>();
+    return rows.filter((row) => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    }).map((row) => toEventDto(row));
   }
 
   async publish(id: string, actorId: string): Promise<Event> {
-    await this.users.assertCanPublish(actorId);
+    const owner = await this.ownerFields(actorId);
+    if (owner.organizerUserId) await this.users.assertCanPublish(owner.organizerUserId);
     const existing = await this.events.findOneBy({ id });
     if (!existing) throw new NotFoundException("Event not found");
-    assertOrganizer(existing.organizerUserId, actorId);
+    assertOrganizer(existing, actorId);
     if (existing.placeId) {
       try {
         await this.places.getById(existing.placeId);
@@ -330,9 +352,8 @@ async function assertPlaceBound(places: PlacesService, placeId: string | null, a
   }
 }
 
-function assertOrganizer(ownerId: string | null, actorId?: string): void {
-  if (!actorId) return;
-  if (!ownerId || ownerId !== actorId) throw new ForbiddenException("Not the organizer");
+function assertOrganizer(row: { organizerUserId?: string | null; organizerOrganizationId?: string | null }, actorId?: string): void {
+  if (!isOrganizerOwner(row, actorId)) throw new ForbiddenException("Not the organizer");
 }
 
 function assertTimeRange(startsAt: string, endsAt: string | null): void {

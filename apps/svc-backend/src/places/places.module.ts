@@ -11,13 +11,14 @@
 
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { OrganizationsModule } from "../organizations/organizations.module";
 import { UsersModule } from "../users/users.module";
 import { PlaceEntity } from "./place.entity";
 import { PlacesController } from "./places.controller";
 import { PlacesService } from "./places.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PlaceEntity]), UsersModule],
+  imports: [TypeOrmModule.forFeature([PlaceEntity]), UsersModule, OrganizationsModule],
   controllers: [PlacesController],
   providers: [PlacesService],
   exports: [PlacesService],

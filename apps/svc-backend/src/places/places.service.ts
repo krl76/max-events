@@ -15,6 +15,8 @@ import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundExce
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, QueryFailedError, Repository } from "typeorm";
 import type { CreatePlace, Place, PlaceCategory } from "@max-events/api-contracts";
+import { OrganizationsService } from "../organizations/organizations.service";
+import { isOrganizerOwner } from "../organizations/organizer-ownership";
 import { UsersService } from "../users/users.service";
 import { PlaceEntity } from "./place.entity";
 
@@ -31,12 +33,22 @@ export class PlacesService {
     @InjectRepository(PlaceEntity)
     private readonly places: Repository<PlaceEntity>,
     @Inject(UsersService) private readonly users: UsersService,
+    @Inject(OrganizationsService) private readonly organizations: OrganizationsService,
   ) {}
 
+  private async ownerFields(actorId?: string): Promise<{ organizerUserId: string | null; organizerOrganizationId: string | null }> {
+    if (!actorId) return { organizerUserId: null, organizerOrganizationId: null };
+    const asOrg = await this.organizations.findById(actorId);
+    if (asOrg) return { organizerOrganizationId: asOrg.id, organizerUserId: asOrg.organizerUserId };
+    const asUserOrg = await this.organizations.findByOrganizerUserId(actorId);
+    return { organizerOrganizationId: asUserOrg?.id ?? null, organizerUserId: actorId };
+  }
+
   async create(payload: CreatePlace, organizerUserId?: string, options?: { draft?: boolean }): Promise<Place> {
-    if (organizerUserId) await this.users.assertCanPublish(organizerUserId);
+    const owner = await this.ownerFields(organizerUserId);
+    if (owner.organizerUserId) await this.users.assertCanPublish(owner.organizerUserId);
     try {
-      const saved = await this.places.save(this.places.create({ ...payload, published: options?.draft ? false : true, organizerUserId: organizerUserId ?? null }));
+      const saved = await this.places.save(this.places.create({ ...payload, published: options?.draft ? false : true, organizerUserId: owner.organizerUserId, organizerOrganizationId: owner.organizerOrganizationId }));
       return toPlaceDto(saved);
     } catch (error) {
       throw translateUniqueViolation(error);
@@ -53,14 +65,14 @@ export class PlacesService {
     const found = await this.places.findOneBy({ id });
     if (!found) throw new NotFoundException("Place not found");
     if (found.published !== false) return;
-    if (actorId && found.organizerUserId === actorId) return;
+    if (actorId && isOrganizerOwner(found, actorId)) return;
     throw new NotFoundException("Place not found");
   }
 
   async update(id: string, patch: Partial<CreatePlace>, actorId?: string): Promise<Place> {
     const existing = await this.places.findOneBy({ id });
     if (!existing) throw new NotFoundException("Place not found");
-    assertOrganizer(existing.organizerUserId, actorId);
+    assertOrganizer(existing, actorId);
     try {
       const saved = await this.places.save(this.places.merge(existing, patch));
       return toPlaceDto(saved);
@@ -79,20 +91,29 @@ export class PlacesService {
   async remove(id: string, actorId?: string): Promise<void> {
     const existing = await this.places.findOneBy({ id });
     if (!existing) throw new NotFoundException("Place not found");
-    assertOrganizer(existing.organizerUserId, actorId);
+    assertOrganizer(existing, actorId);
     await this.places.delete({ id });
   }
 
-  async listMine(organizerUserId: string): Promise<Place[]> {
-    const rows = await this.places.find({ where: { organizerUserId }, order: { title: "ASC", id: "ASC" } });
-    return rows.map(toPlaceDto);
+  async listMine(actorId: string): Promise<Place[]> {
+    const rows = await this.places.find({
+      where: [{ organizerOrganizationId: actorId }, { organizerUserId: actorId }],
+      order: { title: "ASC", id: "ASC" },
+    });
+    const seen = new Set<string>();
+    return rows.filter((row) => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    }).map(toPlaceDto);
   }
 
   async publish(id: string, actorId: string): Promise<Place> {
-    await this.users.assertCanPublish(actorId);
+    const owner = await this.ownerFields(actorId);
+    if (owner.organizerUserId) await this.users.assertCanPublish(owner.organizerUserId);
     const existing = await this.places.findOneBy({ id });
     if (!existing) throw new NotFoundException("Place not found");
-    assertOrganizer(existing.organizerUserId, actorId);
+    assertOrganizer(existing, actorId);
     existing.published = true;
     return toPlaceDto(await this.places.save(existing));
   }
@@ -133,9 +154,8 @@ export function toPlaceDto(place: PlaceEntity): Place {
   };
 }
 
-function assertOrganizer(ownerId: string | null, actorId?: string): void {
-  if (!actorId) return;
-  if (!ownerId || ownerId !== actorId) throw new ForbiddenException("Not the organizer");
+function assertOrganizer(row: { organizerUserId?: string | null; organizerOrganizationId?: string | null }, actorId?: string): void {
+  if (!isOrganizerOwner(row, actorId)) throw new ForbiddenException("Not the organizer");
 }
 
 function translateUniqueViolation(error: unknown): unknown {

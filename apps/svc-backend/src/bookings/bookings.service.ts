@@ -15,6 +15,7 @@ import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource, QueryFailedError } from "typeorm";
 import type { BookingStatus, BookingWithSeats, Payment } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
+import { isOrganizerOwner } from "../organizations/organizer-ownership";
 import { PaymentsService } from "../payments/payments.service";
 import { PromoService } from "../promo/promo.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
@@ -89,7 +90,7 @@ export class BookingsService {
       if (!booking) throw new NotFoundException("Booking not found");
       const event = await manager.findOne(EventEntity, { where: { id: booking.eventId } });
       if (!event) throw new NotFoundException("Event not found");
-      const asOrganizer = Boolean(options?.organizerId && event.organizerUserId === options.organizerId);
+      const asOrganizer = Boolean(options?.organizerId && isOrganizerOwner(event, options.organizerId));
       if (booking.userId !== userId && !asOrganizer) throw new ForbiddenException("Cannot cancel another user's booking");
     });
     const result = await this.dataSource.transaction(async (manager) => {

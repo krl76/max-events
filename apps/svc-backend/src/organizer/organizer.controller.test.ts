@@ -53,7 +53,7 @@ describe("OrganizerController", () => {
     await expect(controller.createCampaign(organization, eventDto.id, { type: "refer_a_friend", code: "", title: "x" })).rejects.toBeInstanceOf(BadRequestException);
     await expect(controller.createPromotion(organization, eventDto.id, { type: "boost" })).rejects.toBeInstanceOf(BadRequestException);
     await expect(controller.refundBooking(organization, eventDto.id, "00000000-0000-4000-8000-0000000000b1")).resolves.toMatchObject({ status: "cancelled" });
-    expect(bookingCalls).toEqual({ bookingId: "00000000-0000-4000-8000-0000000000b1", organizerId: organization.organizerUserId });
+    expect(bookingCalls).toEqual({ bookingId: "00000000-0000-4000-8000-0000000000b1", organizerId: organization.id });
     await expect(controller.updateSetup(organization, { activities: ["катание"] })).rejects.toBeInstanceOf(BadRequestException);
     await expect(controller.getSetup(organization)).resolves.toMatchObject({ organizationId: "e1" });
     await expect(controller.completeSetup(organization)).resolves.toMatchObject({ organizationId: "e1" });

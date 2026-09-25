@@ -114,7 +114,7 @@ describe("seedDatabase", () => {
   });
 
   it("publishes the pool under one organization instead of leaving it ownerless", async () => {
-    const { repos, events, users, organizationRepo } = createRepos();
+    const { repos, events, places, users, organizationRepo } = createRepos();
 
     const result = await seedDatabase(repos, { now });
 
@@ -127,6 +127,8 @@ describe("seedDatabase", () => {
     expect(users.store[0]!.maxUserId).toBe(organizerMaxUserId(SEED_ORGANIZER.login));
     expect(organization.organizerUserId).toBe(users.store[0]!.id);
     expect(events.store.every((row) => row.organizerUserId === users.store[0]!.id)).toBe(true);
+    expect(events.store.every((row) => row.organizerOrganizationId === organization.id)).toBe(true);
+    expect(places.store.every((row) => row.organizerOrganizationId === organization.id)).toBe(true);
   });
 
   it("leaves the account without a password when the operator configured none", async () => {
