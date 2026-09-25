@@ -3507,10 +3507,14 @@ html[data-theme="dark"] body {
 }
 
 .app-onboarding-rail--1::after {
-  width: calc((100% - 80px) / 2);
+  width: calc((100% - 80px) / 3);
 }
 
 .app-onboarding-rail--2::after {
+  width: calc((100% - 80px) * 2 / 3);
+}
+
+.app-onboarding-rail--3::after {
   width: calc(100% - 80px);
 }
 
@@ -3520,7 +3524,7 @@ html[data-theme="dark"] body {
   flex-direction: column;
   gap: 6px;
   position: relative;
-  width: 70px;
+  width: 56px;
 }
 
 .app-onboarding-rail-dot {
@@ -6413,6 +6417,40 @@ html[data-theme="dark"] body {
   position: relative;
 }
 
+.app-me-hero-cover {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  width: 100%;
+}
+
+.app-me-hero-edit {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.45);
+  border: none;
+  border-radius: 50%;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  height: 36px;
+  justify-content: center;
+  left: var(--app-space-l);
+  padding: 0;
+  position: absolute;
+  top: var(--app-space-l);
+  width: 36px;
+  z-index: 1;
+}
+
+button.app-me-avatar-ring {
+  background: var(--app-canvas);
+  border: none;
+  cursor: pointer;
+  display: block;
+  padding: 4px;
+}
+
 /* Абстрактные формы вместо фотографии: фото людей бриф запрещает */
 .app-me-blob {
   border-radius: 50%;
@@ -6505,6 +6543,7 @@ html[data-theme="dark"] body {
   margin: 6px auto 0;
   max-width: var(--app-measure);
   text-align: center;
+  white-space: pre-line;
 }
 
 .app-me-metrics {
@@ -17411,6 +17450,21 @@ button.app-poll-result {
   height: 44px;
   justify-content: center;
   width: 44px;
+}
+
+.app-follower-open {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  gap: var(--app-space-m);
+  min-width: 0;
+  padding: 0;
+  text-align: left;
 }
 
 .app-follower-name {

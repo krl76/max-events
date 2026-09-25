@@ -205,14 +205,32 @@ export function StoriesRow() {
   const auth = useAuth();
   const { navigate } = useRoute();
 
+  const myId = auth.status === "authenticated" ? auth.user.id : null;
+  const me = auth.status === "authenticated" ? auth.user : null;
+
   useEffect(() => {
     let alive = true;
+    const mergePeople = (list: Friend[]) => {
+      setFriends((current) => {
+        const seen = new Set(current.map((person) => person.id));
+        const extra = list.filter((person) => !seen.has(person.id));
+        return extra.length === 0 ? current : [...current, ...extra];
+      });
+    };
     apiClient.listFriends().then(
       (list) => {
-        if (alive) setFriends(list);
+        if (alive) mergePeople(list);
       },
       () => {},
     );
+    if (myId !== null) {
+      apiClient.listFollowing(myId).then(
+        (list) => {
+          if (alive) mergePeople(list);
+        },
+        () => {},
+      );
+    }
     apiClient.listStories().then(
       (list) => {
         if (alive) setStories(list);
@@ -222,10 +240,35 @@ export function StoriesRow() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [myId]);
 
-  const myId = auth.status === "authenticated" ? auth.user.id : null;
-  const me = auth.status === "authenticated" ? auth.user : null;
+  useEffect(() => {
+    const known = new Set(friends.map((person) => person.id));
+    if (myId !== null) known.add(myId);
+    const missing = [...new Set(stories.map((story) => story.userId))].filter((id) => !known.has(id));
+    if (missing.length === 0) return;
+    let alive = true;
+    Promise.all(
+      missing.map((id) =>
+        apiClient.getUser(id).then(
+          (user) => ({ id: user.id, name: [user.firstName, user.lastName].filter(Boolean).join(" "), avatarUrl: user.avatarUrl }),
+          () => null,
+        ),
+      ),
+    ).then((rows) => {
+      if (!alive) return;
+      const extra = rows.filter((row): row is Friend => row !== null);
+      if (extra.length === 0) return;
+      setFriends((current) => {
+        const seen = new Set(current.map((person) => person.id));
+        return [...current, ...extra.filter((person) => !seen.has(person.id))];
+      });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [friends, stories, myId]);
+
   const rail = storyRail(friends, stories, myId, seen);
   const openEditor = () => navigate({ name: "story-new" });
 

@@ -41,6 +41,7 @@ export type Route =
   | { name: "friends" }
   | { name: "calendar" }
   | { name: "profile" }
+  | { name: "user"; id: string }
   | { name: "settings" }
   | { name: "subscriptions" }
   | { name: "whereto" }
@@ -200,7 +201,8 @@ function toRoute(value: unknown): Route | null {
     case "micro":
       return { name };
     case "micro-event":
-    case "friend-route": {
+    case "friend-route":
+    case "user": {
       const { id } = value as { id?: unknown };
       return typeof id === "string" ? ({ name, id } as Route) : null;
     }

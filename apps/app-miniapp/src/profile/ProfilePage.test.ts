@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Achievement, Friend, Profile, Subscription, User, WeGroupScreen } from "@max-events/api-contracts";
 import type { ListSummary, ProfileCounters, ProfilePost, VisitedPlace } from "../api/client";
-import { ProfileView, achievementsHint, followMetrics, friendsHint, listsHint, profileAbout, profileMetrics, profileTabLabel, visitsLabel, weGroupsHint } from "./ProfilePage";
+import { ProfileView, achievementsHint, followMetrics, friendsHint, listsHint, profileAbout, profileMetrics, profileTabLabel, socialMetrics, visitsLabel, weGroupsHint } from "./ProfilePage";
 
 const user: User = {
   id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
@@ -23,6 +23,8 @@ const profile: Profile = {
   smartAlerts: { leaveNow: true, weather: true, friendLeft: true, listDigest: true },
   privacy: { visitHistory: "friends", routes: "friends" },
   recommendationsEnabled: true,
+  bio: "",
+  coverUrl: null,
 };
 
 const counters: ProfileCounters = { userId: user.id, eventsCount: 112, placesCount: 47, companiesCount: 38 };
@@ -113,7 +115,11 @@ describe("profileAbout", () => {
   });
 
   it("leaves the city alone when there are no interests yet", () => {
-    expect(profileAbout({ city: "Казань", interests: [] })).toBe("Казань");
+    expect(profileAbout({ city: "Казань", interests: [], bio: "" })).toBe("Казань");
+  });
+
+  it("puts the bio on the next line when there is one", () => {
+    expect(profileAbout({ city: "Москва", interests: ["джаз"], bio: "Люблю падел" })).toBe("Москва · джаз\nЛюблю падел");
   });
 });
 
@@ -133,6 +139,20 @@ describe("profileMetrics", () => {
 
   it("has nothing to show before the counters arrive", () => {
     expect(profileMetrics(null)).toEqual([]);
+  });
+});
+
+describe("socialMetrics", () => {
+  it("puts posts first, then the two follow directions", () => {
+    expect(socialMetrics({ posts: 8, subscriptions: [], following: [person("p1", "Анна")], followers: [person("p2", "Дима")] })).toEqual([
+      { id: "posts", value: 8, label: "постов" },
+      { id: "subscriptions", value: 1, label: "подписка" },
+      { id: "followers", value: 1, label: "подписчик" },
+    ]);
+  });
+
+  it("leaves posts out until the grid has answered", () => {
+    expect(socialMetrics({ posts: null, subscriptions: [], following: [], followers: [] }).map((metric) => metric.id)).toEqual(["subscriptions", "followers"]);
   });
 });
 
@@ -197,15 +217,26 @@ describe("row hints", () => {
 });
 
 describe("ProfileView", () => {
-  it("renders the identity, the counters and the three actions of the design", () => {
+  it("renders the identity and the counters of the own profile without self-actions", () => {
     const html = renderProfileView();
 
     expect(html).toContain("Кирилл Соколов");
     expect(html).toContain("Москва · джаз, падел");
     expect(html).toContain(">112</span>");
+    expect(html).toContain("поста");
+    expect(html).not.toContain("Подписаться");
+    expect(html).not.toContain("Написать");
+    expect(html).not.toContain("Позвать");
+  });
+
+  it("offers subscribe, write and invite only on someone else's profile", () => {
+    const html = renderProfileView({ own: false });
+
     expect(html).toContain("Подписаться");
     expect(html).toContain("Написать");
     expect(html).toContain("Позвать");
+    expect(html).not.toContain("Настройки");
+    expect(html).not.toContain("Списки");
   });
 
   it("renders the avatar letter without a MAX photo and the photo with one", () => {
@@ -224,18 +255,20 @@ describe("ProfileView", () => {
     expect(html).not.toContain("app-me-row-hint");
   });
 
-  it("puts the two follow counters in the header and makes them the only clickable numbers", () => {
+  it("puts posts and the two follow counters in the header as the clickable numbers", () => {
     const html = renderProfileView({ subscriptions: [subscription("1", "organizer")], following: [person("p1", "Анна")], followers: [person("p2", "Дима"), person("p3", "Катя")] });
 
+    expect(html).toContain("поста");
     expect(html).toContain("подписки");
     expect(html).toContain("подписчика");
-    expect(html.match(/app-me-metric app-me-metric--link/g)).toHaveLength(2);
-    // Подписки больше не спрятаны отдельным входом: строки в списке разделов нет
+    expect(html.match(/app-me-metric app-me-metric--link/g)).toHaveLength(3);
     expect(html).not.toMatch(/app-me-row-title">Подписки/);
   });
 
-  it("shows no follow counter at all while neither direction has answered", () => {
-    expect(renderProfileView()).not.toContain("app-me-metric--link");
+  it("still shows the posts counter while the follow directions have not answered", () => {
+    const html = renderProfileView();
+    expect(html).toContain("поста");
+    expect(html).not.toContain("подписк");
   });
 
   it("prints the counter hints once the counts are in", () => {

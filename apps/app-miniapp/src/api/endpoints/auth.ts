@@ -19,6 +19,10 @@ export function withAuth<TBase extends ApiMixin>(Base: TBase) {
       return this.request("/auth/login", AuthResponseSchema, { body: payload });
     }
 
+    getMe(): Promise<AuthResponse> {
+      return this.request("/auth/me", AuthResponseSchema);
+    }
+
     organizerLogin(payload: OrganizerLoginWrite): Promise<OrganizerSession> {
       return this.request("/auth/organizer/login", OrganizerSessionSchema, { body: payload });
     }

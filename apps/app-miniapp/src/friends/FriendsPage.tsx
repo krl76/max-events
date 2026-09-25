@@ -221,5 +221,5 @@ export function FriendsPage() {
     );
   }, []);
 
-  return <FriendsView state={state} syncing={syncing} onSync={sync} onOpenFriend={(id) => navigate({ name: "friend-route", id })} onOpenDiscovery={() => navigate({ name: "discovery" })} onOpenPeople={() => navigate({ name: "people" })} onRetry={() => setReloads((value) => value + 1)} />;
+  return <FriendsView state={state} syncing={syncing} onSync={sync} onOpenFriend={(id) => navigate({ name: "user", id })} onOpenDiscovery={() => navigate({ name: "discovery" })} onOpenPeople={() => navigate({ name: "people" })} onRetry={() => setReloads((value) => value + 1)} />;
 }

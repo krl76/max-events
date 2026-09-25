@@ -31,7 +31,7 @@ export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string)
   { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" || name === "map" || name === "swipe" || name === "assist" },
   { icon: "create", label: "Создать", route: "create", active: (name) => name === "create" || name === "story-new" || name === "feed-new" || name === "micro-new" || name === "plan-new" },
   { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "lists" || name === "list" || name === "bookings" || name === "slot-ticket" },
-  { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "friends" || name === "subscriptions" || name === "followers" || name === "discovery" || name === "people" || name === "friend-route" },
+  { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "user" || name === "friends" || name === "subscriptions" || name === "followers" || name === "discovery" || name === "people" || name === "friend-route" },
 ];
 
 export const ROUTE_TITLES: Record<Route["name"], string> = {
@@ -44,6 +44,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   friends: "Друзья",
   calendar: "Календарь",
   profile: "Профиль",
+  user: "Профиль",
   settings: "Настройки",
   subscriptions: "Подписки",
   event: "Событие",
@@ -103,7 +104,7 @@ export function routeHasBack(route: Route): boolean {
 // «Куда пойдём?» (11 и 12) меняет заголовок вместе с шагом: у вопросов это «Куда пойдём?», у выдачи —
 // «Пять вариантов», то есть число найденного. Таблица ROUTE_TITLES даёт один заголовок на маршрут,
 // поэтому шапку рисует сам экран.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "after-event", "lists", "list", "bookings", "moderation", "event", "companions", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "assist", "whereto"]);
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "swipe", "map", "plans", "profile", "user", "after-event", "lists", "list", "bookings", "moderation", "event", "companions", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "assist", "whereto"]);
 
 /**
  * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и

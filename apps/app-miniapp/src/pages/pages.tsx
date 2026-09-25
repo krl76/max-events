@@ -135,6 +135,7 @@ function Routed() {
   if (route.name === "map") return <MapPage />;
   if (route.name === "create") return <CreatePage />;
   if (route.name === "story-new") return <StoryCreatePage />;
+  if (route.name === "user") return <ProfilePage userId={route.id} />;
   if (route.name === "profile")
     return (
       <>

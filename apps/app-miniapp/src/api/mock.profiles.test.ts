@@ -19,7 +19,7 @@ describe("profile mock endpoints", () => {
 
     const profile = await new ApiClient("/api").getProfile();
 
-    expect(profile).toEqual({ userId: DEMO_USER_ID, city: "Москва", interests: [], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: true });
+    expect(profile).toEqual({ userId: DEMO_USER_ID, city: "Москва", interests: [], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: true, bio: "", coverUrl: null });
   });
 
   it("applies a PATCH and persists it for the next GET", async () => {
@@ -27,7 +27,7 @@ describe("profile mock endpoints", () => {
     const api = new ApiClient("/api");
 
     const updated = await api.updateProfile({ city: "Казань", interests: ["бег", "джаз"], recommendationsEnabled: false });
-    expect(updated).toEqual({ userId: DEMO_USER_ID, city: "Казань", interests: ["бег", "джаз"], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: false });
+    expect(updated).toEqual({ userId: DEMO_USER_ID, city: "Казань", interests: ["бег", "джаз"], smartAlerts: DEFAULT_SMART_ALERTS, privacy: DEFAULT_PRIVACY, recommendationsEnabled: false, bio: "", coverUrl: null });
 
     const reread = await api.getProfile();
     expect(reread).toEqual(updated);

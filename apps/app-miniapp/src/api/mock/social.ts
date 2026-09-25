@@ -104,7 +104,8 @@ export function followMockFriends(userIds: string[]): string[] | "unknown" {
 
 /** The people the viewer follows, in contact order — the «подписки» half of the profile counters. */
 export function followingOf(userId: string): Friend[] {
-  return userId !== mockDemoUser.id ? [] : mockOnboardingContacts.filter((contact) => mockFollowedIds.has(contact.id));
+  if (userId === mockDemoUser.id) return mockOnboardingContacts.filter((contact) => mockFollowedIds.has(contact.id));
+  return mockFriends.filter((person) => person.id !== userId).slice(0, 4);
 }
 
 /**
@@ -117,7 +118,8 @@ export function followingOf(userId: string): Friend[] {
 const MOCK_FOLLOWER_POSITIONS: readonly number[] = [0, 1, 3, 4, 6, 7, 9, 11];
 
 export function followersOf(userId: string): Friend[] {
-  return userId !== mockDemoUser.id ? [] : MOCK_FOLLOWER_POSITIONS.flatMap((index) => (mockOnboardingContacts[index] === undefined ? [] : [mockOnboardingContacts[index]]));
+  if (userId === mockDemoUser.id) return MOCK_FOLLOWER_POSITIONS.flatMap((index) => (mockOnboardingContacts[index] === undefined ? [] : [mockOnboardingContacts[index]]));
+  return mockFriends.filter((person) => person.id !== userId).slice(2, 6);
 }
 
 /** Deterministic invitee answer per friend (by mockFriends index): Дима accepted, Катя considering, Андрей-like busy mix. */

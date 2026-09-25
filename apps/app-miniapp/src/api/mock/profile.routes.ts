@@ -13,7 +13,7 @@ import { UpdateProfileSchema } from "@max-events/api-contracts";
 import type { Profile } from "@max-events/api-contracts";
 import { type UpdateAppSettings } from "../client";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
-import { achievementsFor, afterMePicks, appSettingsFor, mockProfiles, myCityFor, profileCountersFor, profileFor, tasteProfile, updateMockAppSettings, userPostsFor, visitStatsFor, visitedPlacesFor } from "./profile";
+import { achievementsFor, afterMePicks, appSettingsFor, mockCustomAvatars, mockProfiles, myCityFor, profileCountersFor, profileFor, tasteProfile, updateMockAppSettings, userFor, userPostsFor, visitStatsFor, visitedPlacesFor } from "./profile";
 import { followersOf, followingOf } from "./social";
 
 export function profileRoutes(url: URL, init: RequestInit | undefined): Response | null {
@@ -27,7 +27,9 @@ export function profileRoutes(url: URL, init: RequestInit | undefined): Response
     const parsed = UpdateProfileSchema.safeParse(parseBookingBody(init));
     if (!parsed.success) return new Response(null, { status: 400 });
     const current = profileFor(mockDemoUser.id);
-    const updated: Profile = { ...current, ...parsed.data, smartAlerts: { ...current.smartAlerts, ...parsed.data.smartAlerts }, privacy: { ...current.privacy, ...parsed.data.privacy }, recommendationsEnabled: parsed.data.recommendationsEnabled ?? current.recommendationsEnabled };
+    if (parsed.data.avatarUrl !== undefined) mockCustomAvatars.set(mockDemoUser.id, parsed.data.avatarUrl);
+    const { avatarUrl: _avatarUrl, ...profilePatch } = parsed.data;
+    const updated: Profile = { ...current, ...profilePatch, smartAlerts: { ...current.smartAlerts, ...profilePatch.smartAlerts }, privacy: { ...current.privacy, ...profilePatch.privacy }, recommendationsEnabled: profilePatch.recommendationsEnabled ?? current.recommendationsEnabled, bio: profilePatch.bio ?? current.bio, coverUrl: profilePatch.coverUrl === undefined ? current.coverUrl : profilePatch.coverUrl };
     mockProfiles.set(mockDemoUser.id, updated);
     return Response.json(updated);
   }
@@ -72,6 +74,16 @@ export function profileRoutes(url: URL, init: RequestInit | undefined): Response
     const patch = parseBookingBody(init) as UpdateAppSettings | undefined;
     if (typeof patch !== "object" || patch === null) return new Response(null, { status: 400 });
     return Response.json(updateMockAppSettings(appSettings[1], patch));
+  }
+  const userProfile = /^\/api\/users\/([^/]+)\/profile$/.exec(url.pathname);
+  if (userProfile) {
+    const person = userFor(userProfile[1]);
+    return person === null ? new Response(null, { status: 404 }) : Response.json(profileFor(person.id));
+  }
+  const userRow = /^\/api\/users\/([^/]+)$/.exec(url.pathname);
+  if (userRow) {
+    const person = userFor(userRow[1]);
+    return person === null ? new Response(null, { status: 404 }) : Response.json(person);
   }
   return null;
 }

@@ -82,9 +82,10 @@ describe("the two follow directions of экран 36", () => {
     expect(followers.map((person) => person.id)).not.toEqual(followingOf(DEMO_USER_ID).map((person) => person.id));
   });
 
-  it("keeps both directions empty for anyone but the demo account", () => {
-    expect(followersOf(POSTING_FRIEND_ID)).toEqual([]);
-    expect(followingOf(POSTING_FRIEND_ID)).toEqual([]);
+  it("gives another person their own follow counters, not the demo account's", () => {
+    expect(followingOf(POSTING_FRIEND_ID).some((person) => person.id === POSTING_FRIEND_ID)).toBe(false);
+    expect(followersOf(POSTING_FRIEND_ID).length).toBeGreaterThan(0);
+    expect(followingOf(POSTING_FRIEND_ID)).not.toEqual(followingOf(DEMO_USER_ID));
   });
 
   it("drops a person from the follows the moment the viewer unfollows them", async () => {

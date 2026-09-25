@@ -31,7 +31,7 @@
 // END_MODULE_MAP
 
 import { useEffect, useState, type ReactNode } from "react";
-import type { Profile, UpdateProfile, User } from "@max-events/api-contracts";
+import { PROFILE_BIO_MAX, type Profile, type UpdateProfile, type User } from "@max-events/api-contracts";
 import { apiClient, type AppSettings } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
@@ -173,7 +173,7 @@ export function SettingsGroup({ title, children }: { title: string; children: Re
   );
 }
 
-type PickerName = "identity" | "city" | "theme" | "interests" | "radius" | "plans" | "quiet" | "about" | "disable" | null;
+type PickerName = "identity" | "city" | "theme" | "interests" | "radius" | "plans" | "quiet" | "about" | "disable" | "bio" | null;
 
 export interface SettingsViewProps {
   user: User;
@@ -205,7 +205,7 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
         </span>
         <span className="app-set-identity-action">Изменить</span>
       </button>
-      {picker === "identity" && <p className="app-set-note">Имя, фото и телефон — из профиля MAX, меняются в самом мессенджере.</p>}
+      {picker === "identity" && <p className="app-set-note">Имя и телефон — из профиля MAX. Аватар и шапку можно сменить в профиле Афиши.</p>}
       {failed && <p className="app-set-error">Не удалось сохранить настройку. Попробуй ещё раз.</p>}
 
       <SettingsGroup title="Приложение">
@@ -213,6 +213,8 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
         {picker === "city" && <SettingsPicker options={ONBOARDING_CITIES.map((city) => ({ value: city.name, label: city.name }))} selected={[profile.city]} onPick={(city) => onProfile({ city })} />}
         <SettingsValueRow title="Тема" hint="Светлая, тёмная или как в системе" value={themeLabel(theme.preference)} expanded={picker === "theme"} onOpen={() => open("theme")} />
         {picker === "theme" && <SettingsPicker options={THEME_OPTIONS.map((option) => ({ value: option.value, label: option.label }))} selected={[theme.preference]} onPick={(value) => theme.setPreference(value as ThemePreference)} />}
+        <SettingsValueRow title="О себе" hint={profile.bio.trim() === "" ? "Как в Инстаграме, по желанию" : profile.bio} value="Изменить" expanded={picker === "bio"} onOpen={() => open("bio")} />
+        {picker === "bio" && <textarea className="app-review-text" maxLength={PROFILE_BIO_MAX} value={profile.bio} onChange={(change) => onProfile({ bio: change.target.value })} placeholder="Пара слов о себе" />}
         <SettingsValueRow title="Интересы" hint={interestsHint(profile.interests)} value="Изменить" expanded={picker === "interests"} onOpen={() => open("interests")} />
         {picker === "interests" && <SettingsPicker multiple options={ONBOARDING_INTERESTS.map((interest) => ({ value: interest, label: interest }))} selected={profile.interests} onPick={(interest) => onProfile({ interests: profile.interests.includes(interest) ? profile.interests.filter((item) => item !== interest) : [...profile.interests, interest] })} />}
         <SettingsValueRow title="Радиус поиска" hint="Что считать «рядом»" value={settings === null ? undefined : radiusLabel(settings.searchRadiusKm)} expanded={picker === "radius"} onOpen={() => open("radius")} />

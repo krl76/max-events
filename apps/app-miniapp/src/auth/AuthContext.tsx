@@ -10,12 +10,15 @@
 // - useAuth - read the current AuthState
 // END_MODULE_MAP
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { User } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { getWebApp } from "../max/bridge";
 import { authenticate, type AuthState } from "./auth";
 
-const AuthContext = createContext<AuthState>({ status: "loading" });
+export type AuthContextValue = AuthState & { updateUser: (user: User) => void };
+
+const AuthContext = createContext<AuthContextValue>({ status: "loading", updateUser: () => {} });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: "loading" });
@@ -36,9 +39,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
+  const updateUser = useCallback((user: User) => {
+    setState((current) => (current.status === "authenticated" ? { ...current, user } : current));
+  }, []);
+
+  const value = useMemo((): AuthContextValue => ({ ...state, updateUser }), [state, updateUser]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth(): AuthState {
+export function useAuth(): AuthContextValue {
   return useContext(AuthContext);
 }

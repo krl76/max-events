@@ -24,7 +24,7 @@
 // END_MODULE_MAP
 
 import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, EventCategorySchema, PlaceCategorySchema, formatAfterMeExplanation } from "@max-events/api-contracts";
-import type { Achievement, AfterMeResponse, Event, EventCategory, MemoryPoint, MyCitySummary, Profile, TasteProfile, TasteTransition, VisitStats } from "@max-events/api-contracts";
+import type { Achievement, AfterMeResponse, Event, EventCategory, MemoryPoint, MyCitySummary, Profile, TasteProfile, TasteTransition, User, VisitStats } from "@max-events/api-contracts";
 import { type AppSettings, type ProfileCounters, type ProfilePost, type UpdateAppSettings, type VisitedPlace } from "../client";
 import { mockCheckIns } from "./bookings";
 import { mockFeedPosts } from "./feed";
@@ -315,15 +315,27 @@ function seedMockProfiles(): void {
   mockProfiles.clear();
   mockFriends.forEach((friend, index) => {
     const seed = MOCK_FRIEND_PROFILE_SEED[index];
-    mockProfiles.set(friend.id, { userId: friend.id, city: "Москва", interests: [...seed.interests], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: seed.routesHidden ? { visitHistory: "friends", routes: "hidden" } : { ...DEFAULT_PRIVACY }, recommendationsEnabled: true });
+    mockProfiles.set(friend.id, { userId: friend.id, city: "Москва", interests: [...seed.interests], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: seed.routesHidden ? { visitHistory: "friends", routes: "hidden" } : { ...DEFAULT_PRIVACY }, recommendationsEnabled: true, bio: index === 0 ? "Афиша, выставки, долгие ужины." : "", coverUrl: null });
   });
 }
 seedMockProfiles();
 
 export function resetMockProfiles(): void {
   seedMockProfiles();
+  mockCustomAvatars.clear();
 }
 
 export function profileFor(userId: string): Profile {
-  return mockProfiles.get(userId) ?? { userId, city: "Москва", interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY }, recommendationsEnabled: true };
+  return mockProfiles.get(userId) ?? { userId, city: "Москва", interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS }, privacy: { ...DEFAULT_PRIVACY }, recommendationsEnabled: true, bio: "", coverUrl: null };
+}
+
+/** In-app avatars keyed by user id; the MAX photo stays on mockDemoUser until one is picked. */
+export const mockCustomAvatars = new Map<string, string | null>();
+
+export function userFor(userId: string): User | null {
+  if (userId === mockDemoUser.id) return { ...mockDemoUser, avatarUrl: mockCustomAvatars.get(userId) ?? mockDemoUser.avatarUrl };
+  const friend = mockFriends.find((person) => person.id === userId);
+  if (friend === undefined) return null;
+  const [firstName, ...rest] = friend.name.split(" ");
+  return { id: friend.id, maxUserId: friend.id, firstName: firstName ?? friend.name, lastName: rest.join(" ") || null, username: null, avatarUrl: mockCustomAvatars.get(userId) ?? friend.avatarUrl, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
 }

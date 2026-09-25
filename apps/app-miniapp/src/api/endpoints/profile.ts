@@ -15,8 +15,8 @@
 // - withProfile - ApiClient.getProfile / updateProfile / getVisitStats / getAchievements / getMyCity / getTaste / getAfterMe / getProfileCounters / listVisitedPlaces / listUserPosts / getAppSettings / updateAppSettings
 // END_MODULE_MAP
 
-import { AchievementSchema, AfterMeResponseSchema, EventCategorySchema, MemoryPointSchema, MyCitySummarySchema, ProfileSchema, TasteProfileSchema, VisitStatsSchema } from "@max-events/api-contracts";
-import type { Achievement, AfterMeResponse, EventCategory, MemoryPoint, MyCitySummary, Profile, TasteProfile, UpdateProfile, VisitStats } from "@max-events/api-contracts";
+import { AchievementSchema, AfterMeResponseSchema, EventCategorySchema, MemoryPointSchema, MyCitySummarySchema, ProfileSchema, TasteProfileSchema, UserSchema, VisitStatsSchema } from "@max-events/api-contracts";
+import type { Achievement, AfterMeResponse, EventCategory, MemoryPoint, MyCitySummary, Profile, TasteProfile, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
 import type { ApiMixin, ZodSchema } from "./transport";
 
 /** My-city screen aggregate: summary counters and the personal memory points. */
@@ -180,6 +180,14 @@ export function withProfile<TBase extends ApiMixin>(Base: TBase) {
 
     updateProfile(payload: UpdateProfile): Promise<Profile> {
       return this.request("/profile", ProfileSchema, { method: "PATCH", body: payload });
+    }
+
+    getUser(userId: string): Promise<User> {
+      return this.request(`/users/${encodeURIComponent(userId)}`, UserSchema);
+    }
+
+    getUserProfile(userId: string): Promise<Profile> {
+      return this.request(`/users/${encodeURIComponent(userId)}/profile`, ProfileSchema);
     }
 
     getVisitStats(userId: string): Promise<VisitStats> {

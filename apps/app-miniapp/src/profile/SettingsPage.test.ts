@@ -23,6 +23,8 @@ const profile: Profile = {
   smartAlerts: { leaveNow: true, weather: true, friendLeft: true, listDigest: true },
   privacy: { visitHistory: "friends", routes: "friends" },
   recommendationsEnabled: true,
+  bio: "",
+  coverUrl: null,
 };
 
 const settings: AppSettings = {

@@ -24,19 +24,21 @@
 // - ProfilePage - route container: resolves auth, loads the profile and every counter the screen shows, wires the navigation and the share action
 // END_MODULE_MAP
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Achievement, Friend, Profile, Subscription, User, WeGroupScreen } from "@max-events/api-contracts";
 import { apiClient, type ListSummary, type ProfileCounters, type ProfilePost, type VisitedPlace } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
+import { readFeedPhoto } from "../feed/photo";
 import { shareResult, webApp } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { AppMedia, AppSkeleton, AppState } from "../ui/primitives";
 
 /** The single line under the name: город and interests, separated the way the design separates them. */
-export function profileAbout(profile: Pick<Profile, "city" | "interests">): string {
-  return profile.interests.length === 0 ? profile.city : `${profile.city} · ${profile.interests.join(", ")}`;
+export function profileAbout(profile: Pick<Profile, "city" | "interests" | "bio">): string {
+  const line = profile.interests.length === 0 ? profile.city : `${profile.city} · ${profile.interests.join(", ")}`;
+  return profile.bio.trim() === "" ? line : `${line}\n${profile.bio.trim()}`;
 }
 
 /**
@@ -73,6 +75,13 @@ export function followMetrics(input: { subscriptions: Subscription[] | null; fol
     metrics.push({ id: "followers", value, label: pluralRu(value, "подписчик", "подписчика", "подписчиков") });
   }
   return metrics;
+}
+
+/** Header counters a social profile is read by: posts, then the two follow directions. */
+export function socialMetrics(input: { posts: number | null; subscriptions: Subscription[] | null; following: Friend[] | null; followers: Friend[] | null }): { id: "posts" | "subscriptions" | "followers"; value: number; label: string }[] {
+  const metrics: { id: "posts" | "subscriptions" | "followers"; value: number; label: string }[] = [];
+  if (input.posts !== null) metrics.push({ id: "posts", value: input.posts, label: pluralRu(input.posts, "пост", "поста", "постов") });
+  return [...metrics, ...followMetrics(input)];
 }
 
 export type ProfileTab = "posts" | "places";
@@ -137,7 +146,7 @@ const POST_SKELETON_TILES = 6;
  * recognised by its cover and its counters: the author's own impression photo when there is one, and
  * the category gradient of the event otherwise, because the product shows no photographs of people.
  */
-export function ProfilePostGrid({ posts, failed, onOpenPost, onNewPost }: { posts: ProfilePost[] | null; failed: boolean; onOpenPost: (post: ProfilePost) => void; onNewPost: () => void }) {
+export function ProfilePostGrid({ posts, failed, onOpenPost, onNewPost, canPublish = true }: { posts: ProfilePost[] | null; failed: boolean; onOpenPost: (post: ProfilePost) => void; onNewPost: () => void; canPublish?: boolean }) {
   if (failed) return <AppState error>Не удалось загрузить посты.</AppState>;
   if (posts === null)
     return (
@@ -149,7 +158,7 @@ export function ProfilePostGrid({ posts, failed, onOpenPost, onNewPost }: { post
     );
   if (posts.length === 0) {
     return (
-      <AppState hint="Впечатление с фотографией или без — оно встанет плиткой сюда." action={{ label: "Опубликовать впечатление", onClick: onNewPost }}>
+      <AppState hint={canPublish ? "Впечатление с фотографией или без — оно встанет плиткой сюда." : undefined} action={canPublish ? { label: "Опубликовать впечатление", onClick: onNewPost } : undefined}>
         Постов пока нет
       </AppState>
     );
@@ -191,6 +200,8 @@ export interface ProfileEntries {
   onNewPost: () => void;
   onOpenPlace: (placeId: string) => void;
   onTab: (tab: ProfileTab) => void;
+  onPickAvatar?: () => void;
+  onPickCover?: () => void;
 }
 
 interface ProfileViewProps extends ProfileEntries {
@@ -208,35 +219,52 @@ interface ProfileViewProps extends ProfileEntries {
   postsFailed: boolean;
   visitedPlaces: VisitedPlace[];
   tab: ProfileTab;
+  /** Own profile: no subscribe/write/invite, avatar and cover are editable. */
+  own?: boolean;
+  followingThem?: boolean;
+  subscribePending?: boolean;
 }
 
-export function ProfileView({ user, profile, counters, lists, subscriptions, following, followers, achievements, weGroups, friendsCount, posts, postsFailed, visitedPlaces, tab, ...entries }: ProfileViewProps) {
+export function ProfileView({ user, profile, counters, lists, subscriptions, following, followers, achievements, weGroups, friendsCount, posts, postsFailed, visitedPlaces, tab, own = true, followingThem = false, subscribePending = false, ...entries }: ProfileViewProps) {
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
   const numbers = profileMetrics(counters);
-  const follows = followMetrics({ subscriptions, following, followers });
-  const openList = { subscriptions: entries.onSubscriptions, followers: entries.onFollowers };
+  const social = socialMetrics({ posts: posts === null ? null : posts.length, subscriptions, following, followers });
+  const openList = { posts: () => entries.onTab("posts"), subscriptions: entries.onSubscriptions, followers: entries.onFollowers };
+  const about = profileAbout(profile);
   return (
     <section className="app-me">
-      <div className="app-me-hero">
-        {/* Две окружности брендбука вместо фотографии: фото людей бриф запрещает */}
+      <div className={own && entries.onPickCover ? "app-me-hero app-me-hero--edit" : "app-me-hero"}>
+        {profile.coverUrl !== null ? <img className="app-me-hero-cover" src={profile.coverUrl} alt="" /> : null}
         <span className="app-me-blob app-me-blob--light" aria-hidden="true" />
         <span className="app-me-blob app-me-blob--cool" aria-hidden="true" />
+        {own && entries.onPickCover !== undefined && (
+          <button type="button" className="app-me-hero-edit" aria-label="Сменить шапку" onClick={entries.onPickCover}>
+            <ActionIcon name="upload" size={16} strokeWidth={2} />
+          </button>
+        )}
         <span className="app-me-hero-actions">
           <button type="button" className="app-me-hero-action" aria-label="Поделиться профилем" onClick={entries.onShare}>
             <ActionIcon name="upload" size={18} strokeWidth={2} />
           </button>
-          {/* «…» ведёт в настройки: другого меню у профиля нет, а шестерёнка на макете отсутствует */}
-          <button type="button" className="app-me-hero-action" aria-label="Настройки" onClick={entries.onSettings}>
-            <ActionIcon name="dots" size={18} strokeWidth={2} />
-          </button>
+          {own && (
+            <button type="button" className="app-me-hero-action" aria-label="Настройки" onClick={entries.onSettings}>
+              <ActionIcon name="dots" size={18} strokeWidth={2} />
+            </button>
+          )}
         </span>
       </div>
-      <div className="app-me-avatar-ring">
-        <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={user.avatarUrl} />}</span>
-      </div>
+      {own && entries.onPickAvatar !== undefined ? (
+        <button type="button" className="app-me-avatar-ring" aria-label="Сменить аватар" onClick={entries.onPickAvatar}>
+          <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={user.avatarUrl} />}</span>
+        </button>
+      ) : (
+        <div className="app-me-avatar-ring">
+          <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={user.avatarUrl} />}</span>
+        </div>
+      )}
       <h1 className="app-me-name">{name}</h1>
-      <p className="app-me-about">{profileAbout(profile)}</p>
-      {numbers.length + follows.length > 0 && (
+      <p className="app-me-about">{about}</p>
+      {numbers.length + social.length > 0 && (
         <div className="app-me-metrics app-me-metrics--wrap">
           {numbers.map((metric) => (
             <span key={metric.label} className="app-me-metric">
@@ -244,8 +272,7 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
               <span className="app-me-metric-label">{metric.label}</span>
             </span>
           ))}
-          {/* Подписки и подписчики — кнопки, а не цифры: за каждой стоит список, и это единственное, что отличает их от визитов */}
-          {follows.map((metric) => (
+          {social.map((metric) => (
             <button key={metric.id} type="button" className="app-me-metric app-me-metric--link" onClick={openList[metric.id]}>
               <span className="app-me-metric-value">{metric.value}</span>
               <span className="app-me-metric-label">{metric.label}</span>
@@ -253,24 +280,27 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
           ))}
         </div>
       )}
-      <div className="app-me-actions">
-        <button type="button" className="app-me-action app-me-action--primary" onClick={entries.onSubscribe}>
-          Подписаться
-        </button>
-        <button type="button" className="app-me-action" onClick={entries.onWrite}>
-          Написать
-        </button>
-        <button type="button" className="app-me-action" onClick={entries.onInvite}>
-          Позвать
-        </button>
-      </div>
-      {/* Строки «Подписки» здесь больше нет: подписки переехали в счётчик шапки, откуда их видно, не открывая раздел */}
-      <nav className="app-me-rows" aria-label="Разделы профиля">
-        <ProfileRow icon="bookmark" title="Списки" hint={lists === null ? null : listsHint(lists)} onClick={entries.onLists} />
-        <ProfileRow icon="medal" title="Достижения" hint={achievements === null ? null : achievementsHint(achievements)} onClick={entries.onAchievements} />
-        <ProfileRow icon="group" title="Мы · группы" hint={weGroups === null ? null : weGroupsHint(weGroups)} onClick={entries.onWeGroups} />
-        <ProfileRow icon="user" title="Друзья" hint={friendsCount === null ? null : friendsHint(friendsCount)} onClick={entries.onFriends} />
-      </nav>
+      {!own && (
+        <div className="app-me-actions">
+          <button type="button" className="app-me-action app-me-action--primary" disabled={subscribePending} onClick={entries.onSubscribe}>
+            {followingThem ? "Отписаться" : "Подписаться"}
+          </button>
+          <button type="button" className="app-me-action" onClick={entries.onWrite}>
+            Написать
+          </button>
+          <button type="button" className="app-me-action" onClick={entries.onInvite}>
+            Позвать
+          </button>
+        </div>
+      )}
+      {own && (
+        <nav className="app-me-rows" aria-label="Разделы профиля">
+          <ProfileRow icon="bookmark" title="Списки" hint={lists === null ? null : listsHint(lists)} onClick={entries.onLists} />
+          <ProfileRow icon="medal" title="Достижения" hint={achievements === null ? null : achievementsHint(achievements)} onClick={entries.onAchievements} />
+          <ProfileRow icon="group" title="Мы · группы" hint={weGroups === null ? null : weGroupsHint(weGroups)} onClick={entries.onWeGroups} />
+          <ProfileRow icon="user" title="Друзья" hint={friendsCount === null ? null : friendsHint(friendsCount)} onClick={entries.onFriends} />
+        </nav>
+      )}
       <div className="app-me-tabs" role="tablist" aria-label="Что показывать">
         {PROFILE_TABS.map((candidate) => (
           <button key={candidate.id} type="button" role="tab" id={`app-me-tab-${candidate.id}`} aria-selected={tab === candidate.id} aria-controls="app-me-tabpanel" className={tab === candidate.id ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => entries.onTab(candidate.id)}>
@@ -279,7 +309,7 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
         ))}
       </div>
       <div id="app-me-tabpanel" role="tabpanel" aria-labelledby={`app-me-tab-${tab}`}>
-        {tab === "posts" && <ProfilePostGrid posts={posts} failed={postsFailed} onOpenPost={entries.onOpenPost} onNewPost={entries.onNewPost} />}
+        {tab === "posts" && <ProfilePostGrid posts={posts} failed={postsFailed} onOpenPost={entries.onOpenPost} onNewPost={entries.onNewPost} canPublish={own} />}
         {tab === "places" && visitedPlaces.length === 0 && <AppState>Мест пока нет — отметьтесь где-нибудь, и они появятся здесь.</AppState>}
         {tab === "places" && visitedPlaces.length > 0 && (
           <div className="app-me-grid">
@@ -317,7 +347,7 @@ interface ProfileData {
 
 const EMPTY_PROFILE_DATA: ProfileData = { profile: null, failed: false, counters: null, lists: null, subscriptions: null, following: null, followers: null, achievements: null, weGroups: null, friendsCount: null, posts: null, postsFailed: false, visitedPlaces: [] };
 
-function useProfileData(userId: string): ProfileData {
+function useProfileData(userId: string, own: boolean): ProfileData {
   const [data, setData] = useState<ProfileData>(EMPTY_PROFILE_DATA);
 
   useEffect(() => {
@@ -326,9 +356,8 @@ function useProfileData(userId: string): ProfileData {
     const put = (patch: Partial<ProfileData>) => {
       if (alive) setData((current) => ({ ...current, ...patch }));
     };
-    // The profile is the screen; every counter below it is a hint, so a failed hint stays silent
-    // (null) and its row simply carries no subtitle instead of blanking the screen.
-    apiClient.getProfile().then(
+    // Own profile is GET /profile; anyone else's is GET /users/:id/profile. A failed hint stays silent.
+    (own ? apiClient.getProfile() : apiClient.getUserProfile(userId)).then(
       (profile) => put({ profile }),
       () => put({ failed: true }),
     );
@@ -350,10 +379,16 @@ function useProfileData(userId: string): ProfileData {
       (lists) => put({ lists }),
       () => {},
     );
-    apiClient.listSubscriptions().then(
-      (subscriptions) => put({ subscriptions }),
-      () => {},
-    );
+    // Organizer/place/interest follows belong to the viewer. On someone else's profile the header
+    // counts only people they follow, so this store is not mixed in.
+    if (own) {
+      apiClient.listSubscriptions().then(
+        (subscriptions) => put({ subscriptions }),
+        () => {},
+      );
+    } else {
+      put({ subscriptions: [] });
+    }
     apiClient.listFollowing(userId).then(
       (following) => put({ following }),
       () => {},
@@ -377,18 +412,82 @@ function useProfileData(userId: string): ProfileData {
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [userId, own]);
 
   return data;
 }
 
-function AuthenticatedProfile({ user }: { user: User }) {
+function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: string | null }) {
   const { navigate } = useRoute();
-  const data = useProfileData(user.id);
+  const { updateUser } = useAuth();
+  const own = subjectId === null || subjectId === viewer.id;
+  const data = useProfileData(own ? viewer.id : subjectId, own);
   const [tab, setTab] = useState<ProfileTab>("posts");
+  const [subject, setSubject] = useState<User | null>(own ? viewer : null);
+  const [followingThem, setFollowingThem] = useState(false);
+  const [subscribePending, setSubscribePending] = useState(false);
+  const [myFollows, setMyFollows] = useState<string[]>([]);
+  const [localCover, setLocalCover] = useState<string | null | undefined>(undefined);
+  const avatarRef = useRef<HTMLInputElement | null>(null);
+  const coverRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (own) {
+      setSubject(viewer);
+      return;
+    }
+    let alive = true;
+    apiClient.getUser(subjectId).then(
+      (user) => {
+        if (alive) setSubject(user);
+      },
+      () => {
+        if (alive) setSubject(null);
+      },
+    );
+    apiClient.listFollowing(viewer.id).then(
+      (list) => {
+        if (!alive) return;
+        setMyFollows(list.map((person) => person.id));
+        setFollowingThem(list.some((person) => person.id === subjectId));
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [own, subjectId, viewer]);
+
+  const pickMedia = useCallback(
+    (kind: "avatar" | "cover", file: File) => {
+      void readFeedPhoto(file).then((url) => {
+        if (url === null) return;
+        if (kind === "avatar") {
+          apiClient.updateProfile({ avatarUrl: url }).then(() => updateUser({ ...viewer, avatarUrl: url }));
+        } else {
+          apiClient.updateProfile({ coverUrl: url }).then(() => setLocalCover(url));
+        }
+      });
+    },
+    [updateUser, viewer],
+  );
+
+  const toggleFollow = useCallback(() => {
+    if (own || subjectId === null) return;
+    setSubscribePending(true);
+    const next = followingThem ? myFollows.filter((id) => id !== subjectId) : [...myFollows, subjectId];
+    apiClient.followFriends(next).then(
+      (stored) => {
+        setMyFollows(stored);
+        setFollowingThem(stored.includes(subjectId));
+        setSubscribePending(false);
+      },
+      () => setSubscribePending(false),
+    );
+  }, [followingThem, myFollows, own, subjectId]);
 
   if (data.failed) return <AppState error>Не удалось загрузить профиль.</AppState>;
-  if (data.profile === null)
+  if (data.profile === null || subject === null)
     return (
       <div className="app-card" aria-hidden="true">
         <div className="app-card-body">
@@ -398,47 +497,77 @@ function AuthenticatedProfile({ user }: { user: User }) {
         </div>
       </div>
     );
+  const shownUser = own ? viewer : subject;
   return (
-    <ProfileView
-      user={user}
-      profile={data.profile}
-      counters={data.counters}
-      lists={data.lists}
-      subscriptions={data.subscriptions}
-      following={data.following}
-      followers={data.followers}
-      achievements={data.achievements}
-      weGroups={data.weGroups}
-      friendsCount={data.friendsCount}
-      posts={data.posts}
-      postsFailed={data.postsFailed}
-      visitedPlaces={data.visitedPlaces}
-      tab={tab}
-      onTab={setTab}
-      onSettings={() => navigate({ name: "settings" })}
-      onShare={() => void shareResult(webApp, `${[user.firstName, user.lastName].filter(Boolean).join(" ")} в Афише MAX`)}
-      // Экрана «Списки» нет: полки живут вкладкой «Сохранённое» экрана «Моё»
-      onLists={() => navigate({ name: "plans" })}
-      onSubscriptions={() => navigate({ name: "subscriptions" })}
-      onFollowers={() => navigate({ name: "followers" })}
-      onAchievements={() => navigate({ name: "achievements" })}
-      onWeGroups={() => navigate({ name: "we-groups" })}
-      onFriends={() => navigate({ name: "friends" })}
-      onSubscribe={() => navigate({ name: "subscriptions" })}
-      onWrite={() => void shareResult(webApp, `${[user.firstName, user.lastName].filter(Boolean).join(" ")} в Афише MAX`)}
-      onInvite={() => navigate({ name: "plan-new" })}
-      // Своего экрана у поста нет: он живёт стеной события, куда плитка и ведёт
-      onOpenPost={(post) => navigate({ name: "event", id: post.eventId })}
-      onNewPost={() => navigate({ name: "feed-new", eventId: null })}
-      onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })}
-    />
+    <>
+      <input
+        ref={avatarRef}
+        type="file"
+        accept="image/*"
+        hidden
+        aria-label="Файл аватара"
+        onChange={(change) => {
+          const file = change.target.files?.[0];
+          if (file) pickMedia("avatar", file);
+          change.target.value = "";
+        }}
+      />
+      <input
+        ref={coverRef}
+        type="file"
+        accept="image/*"
+        hidden
+        aria-label="Файл шапки"
+        onChange={(change) => {
+          const file = change.target.files?.[0];
+          if (file) pickMedia("cover", file);
+          change.target.value = "";
+        }}
+      />
+      <ProfileView
+        user={shownUser}
+        profile={localCover === undefined ? data.profile : { ...data.profile, coverUrl: localCover }}
+        counters={data.counters}
+        lists={data.lists}
+        subscriptions={data.subscriptions}
+        following={data.following}
+        followers={data.followers}
+        achievements={data.achievements}
+        weGroups={data.weGroups}
+        friendsCount={data.friendsCount}
+        posts={data.posts}
+        postsFailed={data.postsFailed}
+        visitedPlaces={data.visitedPlaces}
+        tab={tab}
+        own={own}
+        followingThem={followingThem}
+        subscribePending={subscribePending}
+        onTab={setTab}
+        onSettings={() => navigate({ name: "settings" })}
+        onShare={() => void shareResult(webApp, `${[shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ")} в Афише MAX`)}
+        onLists={() => navigate({ name: "plans" })}
+        onSubscriptions={() => navigate({ name: "subscriptions" })}
+        onFollowers={() => navigate({ name: "followers" })}
+        onAchievements={() => navigate({ name: "achievements" })}
+        onWeGroups={() => navigate({ name: "we-groups" })}
+        onFriends={() => navigate({ name: "friends" })}
+        onSubscribe={toggleFollow}
+        onWrite={() => void shareResult(webApp, `${[shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ")} в Афише MAX`)}
+        onInvite={() => navigate({ name: "plan-new" })}
+        onOpenPost={(post) => navigate({ name: "event", id: post.eventId })}
+        onNewPost={() => navigate({ name: "feed-new", eventId: null })}
+        onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })}
+        onPickAvatar={own ? () => avatarRef.current?.click() : undefined}
+        onPickCover={own ? () => coverRef.current?.click() : undefined}
+      />
+    </>
   );
 }
 
-export function ProfilePage() {
+export function ProfilePage({ userId = null }: { userId?: string | null }) {
   const auth = useAuth();
 
-  if (auth.status === "authenticated") return <AuthenticatedProfile user={auth.user} />;
+  if (auth.status === "authenticated") return <AuthenticatedProfile viewer={auth.user} subjectId={userId} />;
   if (auth.status === "error") {
     return <AppState error>Не удалось войти: {auth.message}</AppState>;
   }

@@ -23,6 +23,7 @@ function viewHtml(over: Partial<OnboardingViewProps> = {}): string {
     suggestions: over.suggestions ?? suggestions,
     followed: over.followed ?? ["a1"],
     interests: over.interests ?? [],
+    bio: over.bio ?? "",
     status: over.status ?? "ready",
     saveFailed: over.saveFailed ?? false,
     blocked: over.blocked ?? null,
@@ -31,6 +32,7 @@ function viewHtml(over: Partial<OnboardingViewProps> = {}): string {
     onCity: noop,
     onToggleFriend: noop,
     onToggleInterest: noop,
+    onBio: noop,
     onNext: noop,
     onBack: noop,
   };
@@ -147,7 +149,7 @@ describe("interests step", () => {
     const html = viewHtml({ step: "interests", interests: ["Концерты", "Спорт"] });
 
     for (const interest of ONBOARDING_INTERESTS) expect(html).toContain(interest);
-    expect(html).toContain("Готово · выбрано 2");
+    expect(html).toContain("Дальше · выбрано 2");
     expect(html).toContain("disabled");
   });
 
@@ -161,8 +163,22 @@ describe("interests step", () => {
   it("opens the CTA once three interests are chosen", () => {
     const html = viewHtml({ step: "interests", interests: ["Концерты", "Спорт", "Театр"] });
 
-    expect(html).toContain("Готово · выбрано 3");
+    expect(html).toContain("Дальше · выбрано 3");
     expect(html).not.toContain("disabled");
+  });
+});
+
+describe("bio step", () => {
+  it("offers a skippable description and a skip CTA when empty", () => {
+    const html = viewHtml({ step: "bio" });
+
+    expect(html).toContain("Пара слов о себе");
+    expect(html).toContain("Пропустить");
+    expect(html).toContain("textarea");
+  });
+
+  it("turns the CTA into «Готово» once there is a bio", () => {
+    expect(viewHtml({ step: "bio", bio: "Люблю джаз" })).toContain("Готово");
   });
 });
 

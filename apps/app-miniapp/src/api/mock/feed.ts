@@ -50,18 +50,22 @@ const storyGradient = (index: number): readonly [string, string] => STORY_GRADIE
 const MOCK_OWN_STORY_KEY = "max-events.mock-own-story";
 
 /** Seeded friend stories: every friend has 1–3 stories so the rail is fully active. */
+function hoursAgo(hours: number): string {
+  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+}
+
 export const mockFriendStories: Story[] = [
-  { id: "e1000000-0000-4000-8000-000000000001", userId: mockFriendIds[0], imageUrl: storyImage(...storyGradient(0)), createdAt: "2026-09-16T09:00:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000002", userId: mockFriendIds[0], imageUrl: storyImage(...storyGradient(1)), createdAt: "2026-09-16T10:00:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000003", userId: mockFriendIds[1], imageUrl: storyImage(...storyGradient(2)), createdAt: "2026-09-16T11:00:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000004", userId: mockFriendIds[2], imageUrl: storyImage(...storyGradient(3)), createdAt: "2026-09-16T11:30:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000005", userId: mockFriendIds[2], imageUrl: storyImage(...storyGradient(4)), createdAt: "2026-09-16T12:00:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000006", userId: mockFriendIds[3], imageUrl: storyImage(...storyGradient(5)), createdAt: "2026-09-16T12:30:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000007", userId: mockFriendIds[4], imageUrl: storyImage(...storyGradient(6)), createdAt: "2026-09-16T13:00:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000008", userId: mockFriendIds[4], imageUrl: storyImage(...storyGradient(7)), createdAt: "2026-09-16T13:30:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000009", userId: mockFriendIds[4], imageUrl: storyImage(...storyGradient(8)), createdAt: "2026-09-16T14:00:00+03:00" },
-  { id: "e1000000-0000-4000-8000-00000000000b", userId: mockFriendIds[5], imageUrl: storyImage(...storyGradient(9)), createdAt: "2026-09-16T14:30:00+03:00" },
-  { id: "e1000000-0000-4000-8000-00000000000c", userId: mockFriendIds[6], imageUrl: storyImage(...storyGradient(10)), createdAt: "2026-09-16T15:00:00+03:00" },
+  { id: "e1000000-0000-4000-8000-000000000001", userId: mockFriendIds[0], imageUrl: storyImage(...storyGradient(0)), createdAt: hoursAgo(8) },
+  { id: "e1000000-0000-4000-8000-000000000002", userId: mockFriendIds[0], imageUrl: storyImage(...storyGradient(1)), createdAt: hoursAgo(7) },
+  { id: "e1000000-0000-4000-8000-000000000003", userId: mockFriendIds[1], imageUrl: storyImage(...storyGradient(2)), createdAt: hoursAgo(6) },
+  { id: "e1000000-0000-4000-8000-000000000004", userId: mockFriendIds[2], imageUrl: storyImage(...storyGradient(3)), createdAt: hoursAgo(5) },
+  { id: "e1000000-0000-4000-8000-000000000005", userId: mockFriendIds[2], imageUrl: storyImage(...storyGradient(4)), createdAt: hoursAgo(4) },
+  { id: "e1000000-0000-4000-8000-000000000006", userId: mockFriendIds[3], imageUrl: storyImage(...storyGradient(5)), createdAt: hoursAgo(3.5) },
+  { id: "e1000000-0000-4000-8000-000000000007", userId: mockFriendIds[4], imageUrl: storyImage(...storyGradient(6)), createdAt: hoursAgo(3) },
+  { id: "e1000000-0000-4000-8000-000000000008", userId: mockFriendIds[4], imageUrl: storyImage(...storyGradient(7)), createdAt: hoursAgo(2.5) },
+  { id: "e1000000-0000-4000-8000-000000000009", userId: mockFriendIds[4], imageUrl: storyImage(...storyGradient(8)), createdAt: hoursAgo(2) },
+  { id: "e1000000-0000-4000-8000-00000000000b", userId: mockFriendIds[5], imageUrl: storyImage(...storyGradient(9)), createdAt: hoursAgo(1.5) },
+  { id: "e1000000-0000-4000-8000-00000000000c", userId: mockFriendIds[6], imageUrl: storyImage(...storyGradient(10)), createdAt: hoursAgo(1) },
 ];
 
 /** Own mock story persists in localStorage so it survives reloads. */

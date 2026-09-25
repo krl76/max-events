@@ -17,6 +17,7 @@ import type { Friend } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
+import { useRoute } from "../routing/router";
 import { AppState } from "../ui/primitives";
 
 /** Фотографий людей в продукте нет, поэтому лицо человека в списке — буква его имени. */
@@ -37,9 +38,10 @@ interface FollowersViewProps {
   /** A failed follow leaves the row as it was; without this the button would just look dead. */
   failed?: boolean;
   onFollowBack?: (userId: string) => void;
+  onOpenPerson?: (userId: string) => void;
 }
 
-export function FollowersView({ followers, followingIds = [], pendingId = null, failed = false, onFollowBack = () => {} }: FollowersViewProps) {
+export function FollowersView({ followers, followingIds = [], pendingId = null, failed = false, onFollowBack = () => {}, onOpenPerson }: FollowersViewProps) {
   if (followers.length === 0) {
     return <AppState hint="Публикуйте впечатления — так вас находят.">На вас пока никто не подписан</AppState>;
   }
@@ -50,10 +52,21 @@ export function FollowersView({ followers, followingIds = [], pendingId = null, 
         const mutual = followingIds.includes(person.id);
         return (
           <div key={person.id} className="app-follower">
-            <span className="app-follower-face" aria-hidden="true">
-              {personInitial(person.name)}
-            </span>
-            <span className="app-follower-name">{person.name}</span>
+            {onOpenPerson === undefined ? (
+              <>
+                <span className="app-follower-face" aria-hidden="true">
+                  {personInitial(person.name)}
+                </span>
+                <span className="app-follower-name">{person.name}</span>
+              </>
+            ) : (
+              <button type="button" className="app-follower-open" onClick={() => onOpenPerson(person.id)}>
+                <span className="app-follower-face" aria-hidden="true">
+                  {personInitial(person.name)}
+                </span>
+                <span className="app-follower-name">{person.name}</span>
+              </button>
+            )}
             {mutual ? (
               <span className="app-follower-state">Вы подписаны</span>
             ) : (
@@ -71,6 +84,7 @@ export function FollowersView({ followers, followingIds = [], pendingId = null, 
 
 export function FollowersPage() {
   const auth = useAuth();
+  const { navigate } = useRoute();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const [followers, setFollowers] = useState<Friend[]>([]);
   const [followingIds, setFollowingIds] = useState<string[]>([]);
@@ -119,5 +133,5 @@ export function FollowersPage() {
 
   if (userId === null) return <AppState>Откройте приложение внутри MAX, чтобы увидеть подписчиков.</AppState>;
   if (loading) return <AppState>Загружаем подписчиков…</AppState>;
-  return <FollowersView followers={followers} followingIds={followingIds} pendingId={pendingId} failed={failed} onFollowBack={followBack} />;
+  return <FollowersView followers={followers} followingIds={followingIds} pendingId={pendingId} failed={failed} onFollowBack={followBack} onOpenPerson={(id) => navigate({ name: "user", id })} />;
 }

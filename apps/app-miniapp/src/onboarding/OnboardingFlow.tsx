@@ -19,9 +19,10 @@ import { useViewerOrigin } from "../geo/viewer-origin";
 import { useSwipeDrag } from "../ui/gestures";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppChip, AppState } from "../ui/primitives";
-import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, cityDetectionHint, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, markOnboardingDone, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type IntroDirection, type OnboardingStep } from "./onboarding";
+import { PROFILE_BIO_MAX } from "@max-events/api-contracts";
+import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, bioCtaLabel, cityDetectionHint, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, markOnboardingDone, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type IntroDirection, type OnboardingStep } from "./onboarding";
 
-const RAIL_LABELS = ["Город", "Друзья", "Интересы"] as const;
+const RAIL_LABELS = ["Город", "Друзья", "Интересы", "О себе"] as const;
 
 /**
  * Насколько экран поддаётся пальцу. Слайд под жестом ровно один — следующего под ним нет, — и
@@ -40,6 +41,7 @@ export interface OnboardingViewProps {
   suggestions: FriendSuggestion[];
   followed: string[];
   interests: string[];
+  bio: string;
   status: "loading" | "error" | "ready";
   saveFailed: boolean;
   /** Почему шаг не выпустил вперёд, или null. Отказ на жесте обязан быть слышен — молчание читается как поломка. */
@@ -49,6 +51,7 @@ export interface OnboardingViewProps {
   onCity: (city: string) => void;
   onToggleFriend: (userId: string) => void;
   onToggleInterest: (interest: string) => void;
+  onBio: (bio: string) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -195,6 +198,29 @@ function FriendsStep({ suggestions, followed, saveFailed, onToggleFriend, onNext
   );
 }
 
+function BioStep({ bio, saveFailed, onBio, onNext }: Pick<OnboardingViewProps, "bio" | "saveFailed" | "onBio" | "onNext">) {
+  return (
+    <>
+      <header className="app-onboarding-head">
+        <h1 className="app-onboarding-title">Пара слов о себе</h1>
+        <p className="app-onboarding-lead">Как в Инстаграме: коротко, по желанию. Потом можно поменять.</p>
+      </header>
+      <div className="app-onboarding-body">
+        <textarea className="app-review-text" maxLength={PROFILE_BIO_MAX} placeholder="Люблю концерты, падел и долгие ужины" value={bio} onChange={(change) => onBio(change.target.value)} />
+        <p className="app-onboarding-lead">
+          {bio.length}/{PROFILE_BIO_MAX}
+        </p>
+      </div>
+      <div className="app-onboarding-footer app-onboarding-footer--divided">
+        {saveFailed && <p className="app-onboarding-error">Не удалось сохранить описание. Попробуй ещё раз.</p>}
+        <button type="button" className="app-onboarding-cta" onClick={onNext}>
+          {bioCtaLabel(bio)}
+        </button>
+      </div>
+    </>
+  );
+}
+
 function InterestsStep({ interests, saveFailed, blocked, onToggleInterest, onNext }: Pick<OnboardingViewProps, "interests" | "saveFailed" | "blocked" | "onToggleInterest" | "onNext">) {
   return (
     <>
@@ -264,7 +290,7 @@ export function OnboardingView(props: OnboardingViewProps) {
   if (props.status === "error") return <AppState error>Не удалось загрузить данные онбординга.</AppState>;
   return stage(
     <StepShell step={props.step} onBack={props.onBack}>
-      {props.step === "city" ? <CityStep city={props.city} citySource={props.citySource} onCity={props.onCity} onNext={props.onNext} /> : props.step === "friends" ? <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} /> : <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} />}
+      {props.step === "city" ? <CityStep city={props.city} citySource={props.citySource} onCity={props.onCity} onNext={props.onNext} /> : props.step === "friends" ? <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} /> : props.step === "interests" ? <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} /> : <BioStep bio={props.bio} saveFailed={props.saveFailed} onBio={props.onBio} onNext={props.onNext} />}
     </StepShell>,
   );
 }
@@ -279,13 +305,14 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
   const [intro, setIntro] = useState(0);
   // Сторона входа текста считается по тому, откуда пришли: точки, свайп и «назад» листают и назад
   const [slideDirection, setSlideDirection] = useState<IntroDirection>("forward");
-  const [loaded, setLoaded] = useState<{ city: string; interests: string[]; suggestions: FriendSuggestion[] } | null>(null);
+  const [loaded, setLoaded] = useState<{ city: string; interests: string[]; suggestions: FriendSuggestion[]; bio: string } | null>(null);
   const [failed, setFailed] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const [blocked, setBlocked] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [followed, setFollowed] = useState<string[] | null>(null);
   const [interests, setInterests] = useState<string[] | null>(null);
+  const [bio, setBio] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -296,7 +323,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
     Promise.all([apiClient.getProfile(), apiClient.listFriendSuggestions().catch(() => [])]).then(
       ([profile, suggestions]) => {
         if (!alive) return;
-        setLoaded({ city: profile.city, interests: profile.interests.filter((item) => ONBOARDING_INTERESTS.includes(item)), suggestions });
+        setLoaded({ city: profile.city, interests: profile.interests.filter((item) => ONBOARDING_INTERESTS.includes(item)), suggestions, bio: profile.bio });
       },
       () => {
         if (alive) setFailed(true);
@@ -316,6 +343,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
   const seededFollows = loaded?.suggestions.filter((item) => item.followed).map((item) => item.friend.id) ?? [];
   const currentFollowed = followed ?? seededFollows;
   const currentInterests = interests ?? loaded?.interests ?? [];
+  const currentBio = bio ?? loaded?.bio ?? "";
 
   function advance(): void {
     const next = nextOnboardingStep(step);
@@ -375,6 +403,10 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
       save(apiClient.updateProfile({ city, interests: currentInterests }));
       return;
     }
+    if (step === "bio") {
+      save(apiClient.updateProfile({ bio: currentBio.trim() }));
+      return;
+    }
     advance();
   }
 
@@ -384,5 +416,5 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
     setInterests((current) => toggle(current ?? loaded?.interests ?? [], interest));
   }
 
-  return <OnboardingView step={step} intro={intro} introDirection={slideDirection} city={city} citySource={origin.source} suggestions={loaded?.suggestions ?? []} followed={currentFollowed} interests={currentInterests} status={failed ? "error" : loaded === null ? "loading" : "ready"} saveFailed={saveFailed} blocked={blocked} onIntro={goIntro} onSkipIntro={() => setStep("city")} onCity={setPicked} onToggleFriend={(userId) => setFollowed((current) => toggle(current ?? seededFollows, userId))} onToggleInterest={onToggleInterest} onNext={onNext} onBack={onBack} />;
+  return <OnboardingView step={step} intro={intro} introDirection={slideDirection} city={city} citySource={origin.source} suggestions={loaded?.suggestions ?? []} followed={currentFollowed} interests={currentInterests} bio={currentBio} status={failed ? "error" : loaded === null ? "loading" : "ready"} saveFailed={saveFailed} blocked={blocked} onIntro={goIntro} onSkipIntro={() => setStep("city")} onCity={setPicked} onToggleFriend={(userId) => setFollowed((current) => toggle(current ?? seededFollows, userId))} onToggleInterest={onToggleInterest} onBio={setBio} onNext={onNext} onBack={onBack} />;
 }

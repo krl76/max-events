@@ -74,9 +74,10 @@ interface SubscriptionsViewProps {
   onUnsubscribe?: (subscriptionId: string) => void;
   onUnfollow?: (userId: string) => void;
   onOpenPlace?: (placeId: string) => void;
+  onOpenPerson?: (userId: string) => void;
 }
 
-export function SubscriptionsView({ subscriptions, people = [], filter = "all", onFilter = () => {}, removingId = null, failed = false, onUnsubscribe = () => {}, onUnfollow = () => {}, onOpenPlace }: SubscriptionsViewProps) {
+export function SubscriptionsView({ subscriptions, people = [], filter = "all", onFilter = () => {}, removingId = null, failed = false, onUnsubscribe = () => {}, onUnfollow = () => {}, onOpenPlace, onOpenPerson }: SubscriptionsViewProps) {
   const shown = filter === "all" ? subscriptions : filter === "people" ? [] : subscriptions.filter((subscription) => subscription.type === filter);
   const shownPeople = filter === "all" || filter === "people" ? people : [];
   const total = subscriptions.length + people.length;
@@ -135,13 +136,21 @@ export function SubscriptionsView({ subscriptions, people = [], filter = "all", 
           </p>
           {shownPeople.map((person) => (
             <div key={person.id} className="app-subs-row">
-              {/* Чужого профиля в приложении нет, поэтому строка человека никуда не ведёт — как организатор и интерес */}
-              <span className="app-subs-target">
-                <span className="app-subs-mark app-subs-mark--people" aria-hidden="true">
-                  <ActionIcon name="users" size={20} strokeWidth={2.2} />
+              {onOpenPerson === undefined ? (
+                <span className="app-subs-target">
+                  <span className="app-subs-mark app-subs-mark--people" aria-hidden="true">
+                    <ActionIcon name="users" size={20} strokeWidth={2.2} />
+                  </span>
+                  <span className="app-subs-title">{person.name}</span>
                 </span>
-                <span className="app-subs-title">{person.name}</span>
-              </span>
+              ) : (
+                <button type="button" className="app-subs-target app-subs-target--link" onClick={() => onOpenPerson(person.id)}>
+                  <span className="app-subs-mark app-subs-mark--people" aria-hidden="true">
+                    <ActionIcon name="users" size={20} strokeWidth={2.2} />
+                  </span>
+                  <span className="app-subs-title">{person.name}</span>
+                </button>
+              )}
               <button type="button" className="app-subs-off" disabled={removingId === person.id} aria-label={`Отписаться: ${person.name}`} onClick={() => onUnfollow(person.id)}>
                 Отписаться
               </button>
@@ -269,5 +278,5 @@ export function SubscriptionsPage() {
   );
 
   if (loading) return <AppState>Загружаем подписки…</AppState>;
-  return <SubscriptionsView subscriptions={subscriptions} people={people} filter={filter} onFilter={setFilter} removingId={removingId} failed={failed} onUnsubscribe={unsubscribe} onUnfollow={unfollow} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} />;
+  return <SubscriptionsView subscriptions={subscriptions} people={people} filter={filter} onFilter={setFilter} removingId={removingId} failed={failed} onUnsubscribe={unsubscribe} onUnfollow={unfollow} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} onOpenPerson={(id) => navigate({ name: "user", id })} />;
 }
