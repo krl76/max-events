@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { swipeCandidates } from "../api/mock";
-import { formatSwipeDistance, formatSwipePrice, formatSwipeRating, SWIPE_COMMIT_PX, SwipeCard, SwipeView, swipeFriendsLine, swipeMatchLine, swipeOutcome, type SwipeState } from "./SwipePage";
+import { formatSwipeDistance, formatSwipePrice, formatSwipeRating, SWIPE_COMMIT_PX, SwipeCard, SwipeView, swipeFriendsLine, swipeMatchLine, swipeOutcome, swipeProgress, type SwipeLeaving, type SwipeState } from "./SwipePage";
 
 const noop = () => {};
 const DECK = swipeCandidates("all", { latitude: 55.7522, longitude: 37.6156 });
@@ -15,6 +15,26 @@ describe("swipeOutcome", () => {
     expect(swipeOutcome(0)).toBeNull();
     expect(swipeOutcome(SWIPE_COMMIT_PX - 1)).toBeNull();
     expect(swipeOutcome(1 - SWIPE_COMMIT_PX)).toBeNull();
+  });
+});
+
+describe("swipeProgress", () => {
+  it("rests at zero, follows the direction of the drag and never leaves [-1, 1]", () => {
+    expect(swipeProgress(0)).toBe(0);
+    expect(swipeProgress(SWIPE_COMMIT_PX / 2)).toBe(0.5);
+    expect(swipeProgress(SWIPE_COMMIT_PX * 4)).toBe(1);
+    expect(swipeProgress(-SWIPE_COMMIT_PX * 4)).toBe(-1);
+    for (let dx = -400; dx <= 400; dx += 7) {
+      const progress = swipeProgress(dx);
+      expect(Math.abs(progress)).toBeLessThanOrEqual(1);
+      expect(Math.sign(progress)).toBe(Math.sign(dx));
+    }
+  });
+
+  it("saturates exactly where the verdict lands, so the tint and the stamp agree", () => {
+    for (let dx = -300; dx <= 300; dx += 5) {
+      expect(Math.abs(swipeProgress(dx)) === 1).toBe(swipeOutcome(dx) !== null);
+    }
   });
 });
 
@@ -73,14 +93,37 @@ describe("SwipeCard", () => {
     expect(card(40)).not.toContain("app-swipe-card--settling");
     expect(renderToStaticMarkup(createElement(SwipeCard, { candidate: DECK[0], dx: 0, settling: true, onOpen: noop }))).toContain("app-swipe-card--settling");
   });
+
+  it("hands the verdict progress to the tint as a CSS variable", () => {
+    expect(card(SWIPE_COMMIT_PX / 2)).toContain("--app-swipe-progress:0.5");
+    expect(card(-SWIPE_COMMIT_PX * 3)).toContain("--app-swipe-progress:-1");
+    expect(card(0)).toContain("--app-swipe-progress:0");
+    expect(card(0)).not.toContain("app-swipe-card--fly-");
+  });
+
+  it("flies out towards its verdict and carries the stamp even when a button or a flick decided it", () => {
+    const like = renderToStaticMarkup(createElement(SwipeCard, { candidate: DECK[0], dx: 0, leaving: "like", onOpen: noop }));
+    expect(like).toContain("app-swipe-card--fly-like");
+    expect(like).not.toContain("app-swipe-card--fly-skip");
+    expect(like).toContain("В ИЗБРАННОЕ");
+    expect(like).toContain("--app-swipe-progress:1");
+
+    const skip = renderToStaticMarkup(createElement(SwipeCard, { candidate: DECK[0], dx: 12, leaving: "skip", onOpen: noop }));
+    expect(skip).toContain("app-swipe-card--fly-skip");
+    expect(skip).toContain("МИМО");
+    expect(skip).toContain("--app-swipe-progress:-1");
+    // It flies from where it was released, not from the centre
+    expect(skip).toContain("translateX(12px)");
+  });
 });
 
 describe("SwipeView", () => {
-  const view = (over: { state?: SwipeState; index?: number } = {}) =>
+  const view = (over: { state?: SwipeState; index?: number; leaving?: SwipeLeaving } = {}) =>
     renderToStaticMarkup(
       createElement(SwipeView, {
         state: over.state ?? READY,
         index: over.index ?? 0,
+        leaving: over.leaving ?? null,
         dx: 0,
         category: "all",
         onCategory: noop,
@@ -118,5 +161,26 @@ describe("SwipeView", () => {
     const failed = view({ state: { status: "error" } });
     expect(failed).toContain("app-state--error");
     expect(failed).toContain("Не удалось загрузить подборку мест");
+  });
+
+  it("keeps the decided card flying over the next one until its fly-out ends", () => {
+    const leaving = view({ index: 1, leaving: { candidate: DECK[0], decision: "like", dx: SWIPE_COMMIT_PX } });
+
+    expect((leaving.match(/class="app-swipe-card[" ]/g) ?? []).length).toBe(2);
+    expect(leaving).toContain("app-swipe-deck--leaving");
+    expect(leaving).toContain("app-swipe-card--fly-like");
+    expect(leaving).toContain(DECK[0].place.title);
+    expect(leaving).toContain(DECK[1].place.title);
+
+    const settled = view({ index: 1 });
+    expect((settled.match(/class="app-swipe-card[" ]/g) ?? []).length).toBe(1);
+    expect(settled).not.toContain("app-swipe-deck--leaving");
+  });
+
+  it("lets the last card fly off over the empty state instead of vanishing", () => {
+    const html = view({ index: DECK.length, leaving: { candidate: DECK[DECK.length - 1], decision: "skip", dx: -SWIPE_COMMIT_PX } });
+
+    expect(html).toContain("Места в этой подборке кончились");
+    expect(html).toContain("app-swipe-card--fly-skip");
   });
 });

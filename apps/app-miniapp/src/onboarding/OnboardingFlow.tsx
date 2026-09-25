@@ -6,9 +6,9 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - OnboardingViewProps - everything the presentational screen needs: current step, the four selections, load/save status, the refused-forward wording and one handler per action
-// - OnboardingView - the presentational onboarding screen by step (intro slides, city picker, people grid, interest chips) under one horizontal swipe
-// - OnboardingFlow - route container: step state, profile and suggestion fetch, the follow and profile writes, the done flag
+// - OnboardingViewProps - everything the presentational screen needs: current step, the four selections, load/save status, the refused-forward wording, the side the intro copy enters from and one handler per action
+// - OnboardingView - the presentational onboarding screen by step (intro slides with their hero gradients crossfading as layers, then city picker, people grid and interest chips inside one shell whose rail outlives the steps while the step body is keyed and slides in) under one horizontal swipe
+// - OnboardingFlow - route container: step state, the intro slide direction, profile and suggestion fetch, the follow and profile writes, the done flag
 // END_MODULE_MAP
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -19,7 +19,7 @@ import { useViewerOrigin } from "../geo/viewer-origin";
 import { useSwipeDrag } from "../ui/gestures";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppChip, AppState } from "../ui/primitives";
-import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, cityDetectionHint, contactsLine, followCtaLabel, interestsCtaLabel, markOnboardingDone, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type OnboardingStep } from "./onboarding";
+import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, cityDetectionHint, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, markOnboardingDone, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type IntroDirection, type OnboardingStep } from "./onboarding";
 
 const RAIL_LABELS = ["Город", "Друзья", "Интересы"] as const;
 
@@ -33,6 +33,8 @@ const ONBOARDING_LEAN_PX = 40;
 export interface OnboardingViewProps {
   step: OnboardingStep;
   intro: number;
+  /** The side the intro copy enters from; the container derives it from the slide it came from. Forward when absent. */
+  introDirection?: IntroDirection;
   city: string;
   citySource: "geo" | "fallback";
   suggestions: FriendSuggestion[];
@@ -71,23 +73,33 @@ function StepRail({ step, onBack }: { step: OnboardingStep; onBack: () => void }
   );
 }
 
-function IntroStep({ intro, onIntro, onSkipIntro, onNext }: Pick<OnboardingViewProps, "intro" | "onIntro" | "onSkipIntro" | "onNext">) {
+function IntroStep({ intro, introDirection: direction = "forward", onIntro, onSkipIntro, onNext }: Pick<OnboardingViewProps, "intro" | "introDirection" | "onIntro" | "onSkipIntro" | "onNext">) {
   const slide = INTRO_SLIDES[intro];
   const last = intro === INTRO_SLIDES.length - 1;
+  // Подпись hero и текст слайда пересобираются по key слайда и въезжают с той стороны, куда листали
+  const copyClass = `app-onboarding-copy app-onboarding-copy--${direction}`;
   return (
     <section className="app-onboarding app-onboarding--intro">
       <div className={`app-onboarding-hero app-onboarding-hero--${slide.hero}`}>
+        {/* Три градиента лежат слоями и перетекают по opacity: сам background между ними браузер не анимирует */}
+        {INTRO_SLIDES.map((item) => (
+          <span key={item.hero} aria-hidden="true" className={item.hero === slide.hero ? `app-onboarding-hero-bg app-onboarding-hero-bg--${item.hero} app-onboarding-hero-bg--on` : `app-onboarding-hero-bg app-onboarding-hero-bg--${item.hero}`} />
+        ))}
         <div className="app-onboarding-hero-top">
           <AfishaWordmark className="app-wordmark--on-media" />
           <button type="button" className="app-onboarding-skip" onClick={onSkipIntro}>
             Пропустить
           </button>
         </div>
-        <p className="app-onboarding-hero-label">{slide.label}</p>
+        <p key={intro} className={`app-onboarding-hero-label ${copyClass}`}>
+          {slide.label}
+        </p>
       </div>
       <div className="app-onboarding-intro-body">
-        <h1 className="app-onboarding-intro-title">{slide.title}</h1>
-        <p className="app-onboarding-intro-text">{slide.description}</p>
+        <div key={intro} className={`app-onboarding-copy-text ${copyClass}`}>
+          <h1 className="app-onboarding-intro-title">{slide.title}</h1>
+          <p className="app-onboarding-intro-text">{slide.description}</p>
+        </div>
         <div className="app-onboarding-dots">
           {INTRO_SLIDES.map((item, position) => (
             <button key={item.title} type="button" aria-label={`Слайд ${position + 1}`} aria-current={position === intro ? "true" : undefined} className={position === intro ? "app-onboarding-dot app-onboarding-dot--on" : "app-onboarding-dot"} onClick={() => onIntro(position)} />
@@ -103,10 +115,9 @@ function IntroStep({ intro, onIntro, onSkipIntro, onNext }: Pick<OnboardingViewP
   );
 }
 
-function CityStep({ city, citySource, onCity, onNext, onBack }: Pick<OnboardingViewProps, "city" | "citySource" | "onCity" | "onNext" | "onBack">) {
+function CityStep({ city, citySource, onCity, onNext }: Pick<OnboardingViewProps, "city" | "citySource" | "onCity" | "onNext">) {
   return (
-    <section className="app-onboarding">
-      <StepRail step="city" onBack={onBack} />
+    <>
       <header className="app-onboarding-head">
         <h1 className="app-onboarding-title">Твой город</h1>
         <p className="app-onboarding-lead">{cityDetectionHint(citySource)}</p>
@@ -138,14 +149,13 @@ function CityStep({ city, citySource, onCity, onNext, onBack }: Pick<OnboardingV
           Дальше
         </AppButton>
       </div>
-    </section>
+    </>
   );
 }
 
-function FriendsStep({ suggestions, followed, saveFailed, onToggleFriend, onNext, onBack }: Pick<OnboardingViewProps, "suggestions" | "followed" | "saveFailed" | "onToggleFriend" | "onNext" | "onBack">) {
+function FriendsStep({ suggestions, followed, saveFailed, onToggleFriend, onNext }: Pick<OnboardingViewProps, "suggestions" | "followed" | "saveFailed" | "onToggleFriend" | "onNext">) {
   return (
-    <section className="app-onboarding">
-      <StepRail step="friends" onBack={onBack} />
+    <>
       <header className="app-onboarding-head app-onboarding-head--center">
         <h1 className="app-onboarding-title app-onboarding-title--headline">
           Твои люди <span className="app-onboarding-accent">уже здесь</span>
@@ -181,14 +191,13 @@ function FriendsStep({ suggestions, followed, saveFailed, onToggleFriend, onNext
           {followCtaLabel(followed.length)}
         </button>
       </div>
-    </section>
+    </>
   );
 }
 
-function InterestsStep({ interests, saveFailed, blocked, onToggleInterest, onNext, onBack }: Pick<OnboardingViewProps, "interests" | "saveFailed" | "blocked" | "onToggleInterest" | "onNext" | "onBack">) {
+function InterestsStep({ interests, saveFailed, blocked, onToggleInterest, onNext }: Pick<OnboardingViewProps, "interests" | "saveFailed" | "blocked" | "onToggleInterest" | "onNext">) {
   return (
-    <section className="app-onboarding">
-      <StepRail step="interests" onBack={onBack} />
+    <>
       <header className="app-onboarding-head">
         <h1 className="app-onboarding-title">Что тебе близко?</h1>
         <p className="app-onboarding-lead">Выбери хотя бы три. Подборка и «Куда пойдём?» подстроятся.</p>
@@ -219,6 +228,21 @@ function InterestsStep({ interests, saveFailed, blocked, onToggleInterest, onNex
           {interestsCtaLabel(interests.length)}
         </button>
       </div>
+    </>
+  );
+}
+
+/**
+ * Рамка трёх шагов профиля. Полоса шагов — один элемент на все три: так её заливка и точки едут
+ * переходом от шага к шагу, а не появляются готовыми. Сам шаг пересобирается по key и въезжает.
+ */
+function StepShell({ step, onBack, children }: { step: OnboardingStep; onBack: () => void; children: ReactNode }) {
+  return (
+    <section className="app-onboarding">
+      <StepRail step={step} onBack={onBack} />
+      <div key={step} className="app-onboarding-step">
+        {children}
+      </div>
     </section>
   );
 }
@@ -234,13 +258,15 @@ export function OnboardingView(props: OnboardingViewProps) {
     </div>
   );
 
-  if (props.step === "intro") return stage(<IntroStep intro={props.intro} onIntro={props.onIntro} onSkipIntro={props.onSkipIntro} onNext={props.onNext} />);
+  if (props.step === "intro") return stage(<IntroStep intro={props.intro} introDirection={props.introDirection} onIntro={props.onIntro} onSkipIntro={props.onSkipIntro} onNext={props.onNext} />);
   // Город, друзья и интересы пишутся в профиль, поэтому дальше вступления экран ждёт загрузку.
   if (props.status === "loading") return <AppState>Загрузка…</AppState>;
   if (props.status === "error") return <AppState error>Не удалось загрузить данные онбординга.</AppState>;
-  if (props.step === "city") return stage(<CityStep city={props.city} citySource={props.citySource} onCity={props.onCity} onNext={props.onNext} onBack={props.onBack} />);
-  if (props.step === "friends") return stage(<FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} onBack={props.onBack} />);
-  return stage(<InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} onBack={props.onBack} />);
+  return stage(
+    <StepShell step={props.step} onBack={props.onBack}>
+      {props.step === "city" ? <CityStep city={props.city} citySource={props.citySource} onCity={props.onCity} onNext={props.onNext} /> : props.step === "friends" ? <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} /> : <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} />}
+    </StepShell>,
+  );
 }
 
 function toggle(values: string[], value: string): string[] {
@@ -251,6 +277,8 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
   const origin = useViewerOrigin();
   const [step, setStep] = useState<OnboardingStep>("intro");
   const [intro, setIntro] = useState(0);
+  // Сторона входа текста считается по тому, откуда пришли: точки, свайп и «назад» листают и назад
+  const [slideDirection, setSlideDirection] = useState<IntroDirection>("forward");
   const [loaded, setLoaded] = useState<{ city: string; interests: string[]; suggestions: FriendSuggestion[] } | null>(null);
   const [failed, setFailed] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -304,11 +332,16 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
     write.then(advance, () => setSaveFailed(true));
   }
 
+  function goIntro(next: number): void {
+    setSlideDirection(introDirection(intro, next));
+    setIntro(next);
+  }
+
   function onBack(): void {
     setBlocked(null);
     // Во вступлении «назад» — это предыдущий слайд: сама карусель и есть шаг, точки дублируют жест.
     if (step === "intro") {
-      setIntro((current) => Math.max(0, current - 1));
+      goIntro(Math.max(0, intro - 1));
       return;
     }
     const previous = previousOnboardingStep(step);
@@ -323,7 +356,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
     }
     setBlocked(null);
     if (step === "intro") {
-      if (intro < INTRO_SLIDES.length - 1) setIntro(intro + 1);
+      if (intro < INTRO_SLIDES.length - 1) goIntro(intro + 1);
       else setStep("city");
       return;
     }
@@ -351,5 +384,5 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
     setInterests((current) => toggle(current ?? loaded?.interests ?? [], interest));
   }
 
-  return <OnboardingView step={step} intro={intro} city={city} citySource={origin.source} suggestions={loaded?.suggestions ?? []} followed={currentFollowed} interests={currentInterests} status={failed ? "error" : loaded === null ? "loading" : "ready"} saveFailed={saveFailed} blocked={blocked} onIntro={setIntro} onSkipIntro={() => setStep("city")} onCity={setPicked} onToggleFriend={(userId) => setFollowed((current) => toggle(current ?? seededFollows, userId))} onToggleInterest={onToggleInterest} onNext={onNext} onBack={onBack} />;
+  return <OnboardingView step={step} intro={intro} introDirection={slideDirection} city={city} citySource={origin.source} suggestions={loaded?.suggestions ?? []} followed={currentFollowed} interests={currentInterests} status={failed ? "error" : loaded === null ? "loading" : "ready"} saveFailed={saveFailed} blocked={blocked} onIntro={goIntro} onSkipIntro={() => setStep("city")} onCity={setPicked} onToggleFriend={(userId) => setFollowed((current) => toggle(current ?? seededFollows, userId))} onToggleInterest={onToggleInterest} onNext={onNext} onBack={onBack} />;
 }

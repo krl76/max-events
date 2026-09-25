@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, ONBOARDING_STEPS, ONBOARDING_STORAGE_KEY, cityDetectionHint, contactsLine, followCtaLabel, interestsCtaLabel, isOnboardingDone, markOnboardingDone, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep } from "./onboarding";
+import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, ONBOARDING_STEPS, ONBOARDING_STORAGE_KEY, cityDetectionHint, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, isOnboardingDone, markOnboardingDone, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep } from "./onboarding";
 
 describe("onboarding step order", () => {
   it("walks вступление → город → друзья → интересы and then hands over to the feed", () => {
@@ -99,5 +99,16 @@ describe("run-once flag", () => {
   it("reads as unfinished and stays inert without a DOM instead of throwing", () => {
     expect(isOnboardingDone()).toBe(false);
     expect(() => markOnboardingDone()).not.toThrow();
+  });
+});
+
+describe("intro copy direction", () => {
+  it("enters from the left only when the slide index went down", () => {
+    expect(introDirection(0, 1)).toBe("forward");
+    expect(introDirection(0, 2)).toBe("forward");
+    expect(introDirection(2, 1)).toBe("back");
+    expect(introDirection(2, 0)).toBe("back");
+    // Standing still is not a step back
+    expect(introDirection(1, 1)).toBe("forward");
   });
 });

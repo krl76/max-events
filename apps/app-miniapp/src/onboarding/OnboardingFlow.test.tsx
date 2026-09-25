@@ -17,6 +17,7 @@ function viewHtml(over: Partial<OnboardingViewProps> = {}): string {
   const props: OnboardingViewProps = {
     step: over.step ?? "intro",
     intro: over.intro ?? 0,
+    introDirection: over.introDirection,
     city: over.city ?? "Москва",
     citySource: over.citySource ?? "geo",
     suggestions: over.suggestions ?? suggestions,
@@ -63,6 +64,27 @@ describe("intro step", () => {
     expect(html).toContain(INTRO_SLIDES[0].title);
     expect(html).not.toContain("Загрузка");
   });
+
+  it("stacks the three hero gradients as layers and lights only the current slide's", () => {
+    const html = viewHtml({ step: "intro", intro: 1 });
+
+    expect(html.match(/app-onboarding-hero-bg--\d/g)).toHaveLength(3);
+    expect(html.match(/app-onboarding-hero-bg--on/g)).toHaveLength(1);
+    expect(html).toContain("app-onboarding-hero-bg--2 app-onboarding-hero-bg--on");
+    expect(html).not.toContain("app-onboarding-hero-bg--1 app-onboarding-hero-bg--on");
+  });
+
+  it("slides the copy in from the side it was flipped towards, and forward when nobody says otherwise", () => {
+    const forward = viewHtml({ step: "intro", intro: 1 });
+    expect(forward).toContain("app-onboarding-copy--forward");
+    expect(forward).not.toContain("app-onboarding-copy--back");
+
+    const back = viewHtml({ step: "intro", intro: 0, introDirection: "back" });
+    expect(back).toContain("app-onboarding-copy--back");
+    expect(back).not.toContain("app-onboarding-copy--forward");
+    // Both the hero label and the body copy travel together
+    expect(back.match(/app-onboarding-copy--back/g)).toHaveLength(2);
+  });
 });
 
 describe("city step", () => {
@@ -107,6 +129,16 @@ describe("friends step", () => {
 
     expect(html.match(/app-onboarding-person-avatar--on/g)).toHaveLength(2);
     expect(html).toContain("Не удалось сохранить подписки");
+  });
+
+  it("keeps the rail outside the step body it animates, so the fill can travel between steps", () => {
+    const html = viewHtml({ step: "friends" });
+
+    expect(html).toContain("app-onboarding-rail--1");
+    expect(html.indexOf("app-onboarding-rail")).toBeLessThan(html.indexOf("app-onboarding-step"));
+    expect(html.match(/app-onboarding-rail /g)).toHaveLength(1);
+    // The intro has no rail and no keyed step body: it is a carousel, not a wizard step
+    expect(viewHtml({ step: "intro" })).not.toContain("app-onboarding-step");
   });
 });
 

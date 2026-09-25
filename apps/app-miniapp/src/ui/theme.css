@@ -205,6 +205,14 @@ html[data-theme="dark"] body {
 
   /* Тень одна и только на подъёме: окрашена в brand-blue, не в чёрный */
   --app-shadow-lift: 0 4px 16px rgba(71, 26, 255, 0.1);
+  /* Движение: две кривые и три длительности на всё приложение. ease-out — появление и смена
+   * состояния; spring — короткий перелёт с возвратом (отпущенная карточка, лайк, галочка).
+   * Декоративный дрейф «планет» на градиентах живёт своими долгими секундами ниже по файлу. */
+  --app-ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --app-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --app-duration-fast: 160ms;
+  --app-duration-base: 240ms;
+  --app-duration-slow: 360ms;
 
   background: var(--app-page);
   color: var(--app-text);
@@ -338,15 +346,61 @@ html[data-theme="dark"] body {
 }
 
 .app-screen--push {
-  animation: app-screen-push 180ms ease-out;
+  animation: app-screen-push 180ms var(--app-ease-out);
 }
 
 .app-screen--pop {
-  animation: app-screen-pop 180ms ease-out;
+  animation: app-screen-pop 180ms var(--app-ease-out);
 }
 
 .app-screen--tab {
-  animation: app-screen-tab 150ms ease-out;
+  animation: app-screen-tab 150ms var(--app-ease-out);
+}
+
+/* Общие кадры движения. rise-in — появление карточек, шагов и списков (с лёгким подъёмом);
+ * pop-in — «хлопок» лайка, галочки и бейджа; fade-in — простое проявление; glow-drift — медленный
+ * дрейф декоративных кругов на градиентах, чтобы hero не стоял мёртвой картинкой. */
+@keyframes app-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes app-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+
+  60% {
+    transform: scale(1.12);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes app-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes app-glow-drift {
+  to {
+    transform: translate(-14px, 10px) scale(1.08);
+  }
+}
+
+/* Точка «сейчас идёт» и «рядом с тобой» дышит: это единственный живой индикатор экрана */
+@keyframes app-live-pulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -362,6 +416,17 @@ html[data-theme="dark"] body {
   .app-skeleton-line,
   .app-skeleton-block {
     background-color: rgba(var(--app-scheme-neutral), 0.08);
+  }
+
+  /* Остальное движение не выключается, а схлопывается до одного кадра: анимации, на чей
+   * animationend завязана логика (уход решённой карточки подбора), обязаны всё же закончиться. */
+  .app-root *,
+  .app-root *::before,
+  .app-root *::after {
+    animation-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -398,12 +463,38 @@ html[data-theme="dark"] body {
   min-width: 0;
   padding: var(--app-space-xs) 0;
   position: relative;
+  transition: color var(--app-duration-fast) var(--app-ease-out);
   white-space: nowrap;
 }
 
 .app-tabbar button span {
   font-size: var(--app-font-size-caption);
   font-weight: 500;
+}
+
+/* Иконка таба: прижимается под пальцем, а став активной — коротко подпрыгивает */
+.app-tabbar button svg {
+  transition: transform var(--app-duration-fast) var(--app-ease-out);
+}
+
+.app-tabbar button:active svg {
+  transform: scale(0.88);
+}
+
+@keyframes app-tab-bump {
+  40% {
+    transform: translateY(-3px) scale(1.08);
+  }
+}
+
+.app-tabbar button[aria-current="page"] svg {
+  animation: app-tab-bump var(--app-duration-slow) var(--app-ease-spring);
+}
+
+@keyframes app-tab-underline {
+  from {
+    transform: translateX(-50%) scaleX(0);
+  }
 }
 
 .app-tabbar button[aria-current="page"] {
@@ -419,6 +510,7 @@ html[data-theme="dark"] body {
 
 /* Активный таб — подчёркивающая линия 2px brand-blue (не заливка и не свечение) */
 .app-tabbar button[aria-current="page"]::after {
+  animation: app-tab-underline var(--app-duration-base) var(--app-ease-out);
   background: var(--app-accent);
   border-radius: var(--app-radius-pill);
   bottom: 0;
@@ -710,7 +802,16 @@ html[data-theme="dark"] body {
   font: inherit;
   font-size: var(--app-font-size-description);
   padding: 6px 12px;
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease-out),
+    border-color var(--app-duration-fast) var(--app-ease-out),
+    color var(--app-duration-fast) var(--app-ease-out),
+    transform var(--app-duration-fast) var(--app-ease-out);
   white-space: nowrap;
+}
+
+.app-chip:not(:disabled):active {
+  transform: scale(0.96);
 }
 
 .app-chip:disabled {
@@ -1696,6 +1797,7 @@ html[data-theme="dark"] body {
 
 .app-story {
   align-items: center;
+  animation: app-rise-in var(--app-duration-slow) var(--app-ease-out) both;
   background: none;
   border: none;
   cursor: pointer;
@@ -1708,8 +1810,34 @@ html[data-theme="dark"] body {
   width: 66px;
 }
 
+/* Рельс сторис выезжает лесенкой: каждое следующее кольцо на 40 мс позже предыдущего */
+.app-story:nth-child(3) {
+  animation-delay: 40ms;
+}
+
+.app-story:nth-child(4) {
+  animation-delay: 80ms;
+}
+
+.app-story:nth-child(5) {
+  animation-delay: 120ms;
+}
+
+.app-story:nth-child(6) {
+  animation-delay: 160ms;
+}
+
+.app-story:nth-child(n + 7) {
+  animation-delay: 200ms;
+}
+
 .app-story:disabled {
   cursor: default;
+}
+
+.app-story:not(:disabled):active .app-story-ring,
+.app-story:not(:disabled):active .app-story-add {
+  transform: scale(0.93);
 }
 
 .app-story-ring {
@@ -1717,6 +1845,7 @@ html[data-theme="dark"] body {
   border-radius: 50%;
   display: flex;
   padding: 2.5px;
+  transition: transform var(--app-duration-fast) var(--app-ease-out);
 }
 
 /* Обводка сторис — фирменный gradient-light, один на все кольца:
@@ -1806,10 +1935,22 @@ html[data-theme="dark"] body {
   cursor: pointer;
   display: flex;
   padding: var(--app-space-xs);
+  transition:
+    color var(--app-duration-fast) var(--app-ease-out),
+    transform var(--app-duration-fast) var(--app-ease-out);
+}
+
+.app-post-action:active {
+  transform: scale(0.86);
 }
 
 .app-post-action[aria-pressed="true"] {
   color: var(--app-accent);
+}
+
+/* Поставленный лайк «хлопает»: заливка сердца появляется вместе с классом, и кадры стартуют с ней */
+.app-post-action[aria-pressed="true"] svg {
+  animation: app-pop-in var(--app-duration-slow) var(--app-ease-spring);
 }
 
 .app-post-action--muted {
@@ -1895,6 +2036,7 @@ html[data-theme="dark"] body {
 /* «Куда пойдём?»: поверхность и единственная градиентная кнопка экрана */
 .app-feed-whereto {
   align-items: center;
+  animation: app-rise-in var(--app-duration-slow) var(--app-ease-out) both;
   background: var(--app-surface);
   border-radius: var(--app-radius-card);
   display: flex;
@@ -1935,10 +2077,23 @@ html[data-theme="dark"] body {
   gap: var(--app-space-xs);
   height: 44px;
   padding: 0 var(--app-space-l);
+  transition:
+    opacity var(--app-duration-fast) var(--app-ease-out),
+    transform var(--app-duration-fast) var(--app-ease-out);
 }
 
 .app-feed-whereto-start:active {
   opacity: 0.9;
+  transform: scale(0.96);
+}
+
+/* Шеврон кнопки подаётся вперёд под курсором: намёк на то, что за ней три шага */
+.app-feed-whereto-start svg {
+  transition: transform var(--app-duration-fast) var(--app-ease-out);
+}
+
+.app-feed-whereto-start:hover svg {
+  transform: translateX(2px);
 }
 
 .app-feed-posts {
@@ -1948,11 +2103,29 @@ html[data-theme="dark"] body {
 
 /* Посты во всю ширину: поля экрана гасит отрицательный отступ, как у .app-card--post */
 .app-feed-post {
+  animation: app-rise-in var(--app-duration-slow) var(--app-ease-out) both;
   border-bottom: var(--app-hairline);
   display: flex;
   flex-direction: column;
   margin: 0 calc(-1 * var(--app-space-screen));
   padding-bottom: var(--app-space-m);
+}
+
+/* Лента появляется лесенкой сверху вниз; ниже пятого поста — уже за сгибом, там без задержки */
+.app-feed-post:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.app-feed-post:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.app-feed-post:nth-child(4) {
+  animation-delay: 210ms;
+}
+
+.app-feed-post:nth-child(5) {
+  animation-delay: 280ms;
 }
 
 .app-feed-post:first-child {
@@ -2026,7 +2199,12 @@ html[data-theme="dark"] body {
   padding: 0;
   position: relative;
   text-align: left;
+  transition: transform var(--app-duration-fast) var(--app-ease-out);
   width: 100%;
+}
+
+.app-feed-hero:active {
+  transform: scale(0.985);
 }
 
 /* Пост площадки категории не имеет — тогда hero берёт фирменный gradient-dark */
@@ -2034,8 +2212,9 @@ html[data-theme="dark"] body {
   background-image: var(--app-media-veil), var(--app-gradient-dark);
 }
 
-/* Абстрактные пятна брендбука вместо фотографий */
+/* Абстрактные пятна брендбука вместо фотографий; они медленно дрейфуют, чтобы градиент жил, а не висел картинкой */
 .app-feed-hero-glow {
+  animation: app-glow-drift 12s ease-in-out infinite alternate;
   background: rgba(255, 255, 255, 0.12);
   border-radius: 50%;
   height: 230px;
@@ -2046,6 +2225,8 @@ html[data-theme="dark"] body {
 }
 
 .app-feed-hero-glow--cool {
+  animation-direction: alternate-reverse;
+  animation-duration: 15s;
   background: var(--brand-cyan);
   bottom: -90px;
   height: 210px;
@@ -2083,6 +2264,7 @@ html[data-theme="dark"] body {
 
 /* Живой индикатор — только точка: brand-cyan текстом не бывает */
 .app-feed-live-dot {
+  animation: app-live-pulse 1.6s ease-in-out infinite;
   background: var(--app-status);
   border-radius: 50%;
   flex: none;
@@ -2208,10 +2390,15 @@ html[data-theme="dark"] body {
   height: 44px;
   margin-left: auto;
   padding: 0 var(--app-space-xl);
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease-out),
+    color var(--app-duration-fast) var(--app-ease-out),
+    transform var(--app-duration-fast) var(--app-ease-out);
 }
 
 .app-feed-going:active {
   background: var(--app-accent-press);
+  transform: scale(0.96);
 }
 
 /* Подтверждённое участие — тёмная заливка: та же третья форма, что у .app-btn--confirm */
@@ -2559,6 +2746,7 @@ html[data-theme="dark"] body {
 
 .app-header-bell-count {
   align-items: center;
+  animation: app-pop-in var(--app-duration-slow) var(--app-ease-spring);
   background: var(--app-accent);
   border-radius: var(--app-radius-pill);
   box-sizing: border-box;
@@ -2830,13 +3018,16 @@ html[data-theme="dark"] body {
 /* Просмотрщик историй: полноэкранный оверлей с сегментами и тап-зонами */
 
 .app-story-viewer {
+  animation: app-fade-in var(--app-duration-base) var(--app-ease-out);
   background: var(--brand-void);
   inset: 0;
   position: fixed;
   z-index: 100;
 }
 
+/* Картинка проявляется на каждую историю: элемент пересобирается по key истории */
 .app-story-viewer-image {
+  animation: app-fade-in var(--app-duration-base) var(--app-ease-out);
   height: 100%;
   object-fit: cover;
   width: 100%;
@@ -2861,11 +3052,33 @@ html[data-theme="dark"] body {
   border-radius: 2px;
   flex: 1;
   height: 3px;
+  overflow: hidden;
+  position: relative;
 }
 
-.app-story-segment--done,
-.app-story-segment--current {
+.app-story-segment--done {
   background: var(--brand-white);
+}
+
+/* Текущий сегмент заполняется ровно за время показа: 5s = STORY_DURATION_MS просмотрщика
+ * (../stories/StoryViewer.tsx), равенство держит theme.test.ts — полоса и таймер не разъезжаются */
+@keyframes app-story-fill {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.app-story-segment--current::after {
+  animation: app-story-fill 5s linear forwards;
+  background: var(--brand-white);
+  content: "";
+  inset: 0;
+  position: absolute;
+  transform-origin: left;
 }
 
 .app-story-viewer-head {
@@ -3046,12 +3259,32 @@ html[data-theme="dark"] body {
   overflow: hidden;
 }
 
-/* Hero вступления: один из трёх фирменных градиентов и две «планеты» из макета */
+/* Шаги после вступления пересобираются по key шага и въезжают справа; полоса шагов над ними
+ * живёт одним элементом на все три и потому тянет заливку и точки переходом, а не скачком */
+@keyframes app-onboarding-step-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+
+.app-onboarding-step {
+  animation: app-onboarding-step-in var(--app-duration-slow) var(--app-ease-out);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Hero вступления: один из трёх фирменных градиентов и две «планеты» из макета.
+ * isolation даёт свой контекст наложения: слои градиентов с z-index -1 ложатся над фоном hero,
+ * а не проваливаются под него. */
 .app-onboarding-hero {
   border-radius: var(--app-radius-card);
   display: flex;
   flex: 0 1 440px;
   flex-direction: column;
+  isolation: isolate;
   justify-content: space-between;
   margin: 60px var(--app-space-m) 0;
   min-height: 200px;
@@ -3072,8 +3305,38 @@ html[data-theme="dark"] body {
   background: linear-gradient(200deg, var(--brand-void), var(--brand-blue) 55%, var(--brand-cyan));
 }
 
+/* Те же три градиента лежат слоями под содержимым и перетекают друг в друга по opacity при смене
+ * слайда: сам background между двумя градиентами браузер не анимирует. Модификатор hero--N выше
+ * остаётся подложкой, чтобы первый кадр не был пустым. */
+.app-onboarding-hero-bg {
+  border-radius: inherit;
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+  transition: opacity var(--app-duration-slow) var(--app-ease-out);
+  z-index: -1;
+}
+
+.app-onboarding-hero-bg--on {
+  opacity: 1;
+}
+
+.app-onboarding-hero-bg--1 {
+  background: var(--app-gradient-dark);
+}
+
+.app-onboarding-hero-bg--2 {
+  background: linear-gradient(160deg, var(--brand-blue), var(--brand-purple) 60%, var(--brand-cyan));
+}
+
+.app-onboarding-hero-bg--3 {
+  background: linear-gradient(200deg, var(--brand-void), var(--brand-blue) 55%, var(--brand-cyan));
+}
+
+/* «Планеты» медленно дрейфуют навстречу друг другу — hero живёт, пока человек читает */
 .app-onboarding-hero::before,
 .app-onboarding-hero::after {
+  animation: app-glow-drift 10s ease-in-out infinite alternate;
   border-radius: 50%;
   content: "";
   height: 260px;
@@ -3090,6 +3353,8 @@ html[data-theme="dark"] body {
 
 /* Голубой круг — через opacity, а не rgba: канал brand-cyan палитра как литерал не раскрывает */
 .app-onboarding-hero::after {
+  animation-direction: alternate-reverse;
+  animation-duration: 13s;
   background: var(--brand-cyan);
   bottom: -60px;
   left: -80px;
@@ -3131,6 +3396,41 @@ html[data-theme="dark"] body {
   margin: 0;
 }
 
+/* Смена слайда: подпись hero, заголовок и текст пересобираются по key слайда и въезжают с той
+ * стороны, куда листали. Сам жест ведёт слой .app-onboarding-slide целиком (../ui/gestures.ts) —
+ * текст за пальцем отдельно не идёт, он только входит. */
+@keyframes app-onboarding-copy-forward {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+
+@keyframes app-onboarding-copy-back {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+}
+
+.app-onboarding-copy {
+  animation: app-onboarding-copy-forward var(--app-duration-slow) var(--app-ease-out);
+}
+
+.app-onboarding-copy--forward {
+  animation-name: app-onboarding-copy-forward;
+}
+
+.app-onboarding-copy--back {
+  animation-name: app-onboarding-copy-back;
+}
+
+.app-onboarding-copy-text {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+}
+
 .app-onboarding-intro-body {
   align-items: center;
   display: flex;
@@ -3169,6 +3469,9 @@ html[data-theme="dark"] body {
   cursor: pointer;
   height: 6px;
   padding: 0;
+  transition:
+    background-color var(--app-duration-base) var(--app-ease-out),
+    width var(--app-duration-base) var(--app-ease-out);
   width: 6px;
 }
 
@@ -3214,6 +3517,7 @@ html[data-theme="dark"] body {
 
 .app-onboarding-rail::after {
   background: var(--app-accent);
+  transition: width var(--app-duration-slow) var(--app-ease-out);
   width: 0;
 }
 
@@ -3240,6 +3544,10 @@ html[data-theme="dark"] body {
   border-radius: 50%;
   box-sizing: border-box;
   height: 12px;
+  transition:
+    background-color var(--app-duration-base) var(--app-ease-out),
+    border-color var(--app-duration-base) var(--app-ease-out),
+    transform var(--app-duration-base) var(--app-ease-spring);
   width: 12px;
 }
 
@@ -3248,10 +3556,16 @@ html[data-theme="dark"] body {
   border-color: var(--app-accent);
 }
 
+/* Точка текущего шага чуть крупнее: заливка едет по линии и «прибывает» в неё */
+.app-onboarding-rail-step[aria-current] .app-onboarding-rail-dot {
+  transform: scale(1.25);
+}
+
 .app-onboarding-rail-label {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-caption);
   font-weight: 600;
+  transition: color var(--app-duration-base) var(--app-ease-out);
 }
 
 .app-onboarding-rail-step[aria-current] .app-onboarding-rail-label {
@@ -3349,6 +3663,7 @@ html[data-theme="dark"] body {
 }
 
 .app-onboarding-city-live {
+  animation: app-live-pulse 1.6s ease-in-out infinite;
   background: var(--app-status);
   border-radius: 50%;
   flex-shrink: 0;
@@ -3380,7 +3695,14 @@ html[data-theme="dark"] body {
   height: 56px;
   justify-content: space-between;
   padding: 0 var(--app-space-l);
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease-out),
+    color var(--app-duration-fast) var(--app-ease-out);
   width: 100%;
+}
+
+.app-onboarding-city-option:active {
+  background: var(--app-surface);
 }
 
 .app-onboarding-city-list li:last-child .app-onboarding-city-option {
@@ -3389,6 +3711,11 @@ html[data-theme="dark"] body {
 
 .app-onboarding-city-option[aria-pressed="true"] {
   color: var(--app-accent-text);
+}
+
+/* Галочка выбранного города «хлопает»: она появляется вместе с выбором */
+.app-onboarding-city-option svg {
+  animation: app-pop-in var(--app-duration-base) var(--app-ease-spring);
 }
 
 /* Шаг «Друзья»: сетка по трое, подписанный — с фирменной обводкой и галочкой */
@@ -3415,17 +3742,63 @@ html[data-theme="dark"] body {
   width: 100%;
 }
 
+/* Сетка людей выходит лесенкой по строкам и столбцам */
+.app-onboarding-people li {
+  animation: app-rise-in var(--app-duration-slow) var(--app-ease-out) both;
+}
+
+.app-onboarding-people li:nth-child(2) {
+  animation-delay: 50ms;
+}
+
+.app-onboarding-people li:nth-child(3) {
+  animation-delay: 100ms;
+}
+
+.app-onboarding-people li:nth-child(4) {
+  animation-delay: 150ms;
+}
+
+.app-onboarding-people li:nth-child(5) {
+  animation-delay: 200ms;
+}
+
+.app-onboarding-people li:nth-child(6) {
+  animation-delay: 250ms;
+}
+
+.app-onboarding-people li:nth-child(n + 7) {
+  animation-delay: 300ms;
+}
+
 .app-onboarding-person-avatar {
   border-radius: 50%;
   box-sizing: border-box;
   height: 84px;
   padding: 3px;
   position: relative;
+  transition: transform var(--app-duration-fast) var(--app-ease-out);
   width: 84px;
 }
 
-.app-onboarding-person-avatar--on {
+/* Градиентная обводка подписанного лежит слоем и проявляется переходом: из «ничего» в градиент
+ * background не анимируется, а слой по opacity — да */
+.app-onboarding-person-avatar::before {
   background: var(--app-gradient-light);
+  border-radius: 50%;
+  content: "";
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+  transition: opacity var(--app-duration-base) var(--app-ease-out);
+}
+
+.app-onboarding-person-avatar--on::before {
+  opacity: 1;
+}
+
+.app-onboarding-person:active .app-onboarding-person-avatar {
+  transform: scale(0.94);
 }
 
 .app-onboarding-person-face {
@@ -3440,6 +3813,7 @@ html[data-theme="dark"] body {
   height: 100%;
   justify-content: center;
   overflow: hidden;
+  position: relative;
   width: 100%;
 }
 
@@ -3486,10 +3860,16 @@ html[data-theme="dark"] body {
   justify-content: center;
   position: absolute;
   right: 0;
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease-out),
+    border-color var(--app-duration-fast) var(--app-ease-out),
+    color var(--app-duration-fast) var(--app-ease-out);
   width: 26px;
 }
 
+/* Плюс становится галочкой с «хлопком»: метка — то, на что смотрит палец */
 .app-onboarding-person-avatar--on .app-onboarding-person-mark {
+  animation: app-pop-in var(--app-duration-base) var(--app-ease-spring);
   background: var(--app-accent);
   border: 2px solid var(--app-canvas);
   color: var(--app-accent-contrast);
@@ -3522,6 +3902,7 @@ html[data-theme="dark"] body {
 .app-onboarding-chip {
   align-items: center;
   align-self: auto;
+  animation: app-rise-in var(--app-duration-slow) var(--app-ease-out) both;
   display: flex;
   font-size: var(--app-font-size-body);
   font-weight: 600;
@@ -3530,8 +3911,38 @@ html[data-theme="dark"] body {
   white-space: normal;
 }
 
+/* Двенадцать чипов раскладываются лесенкой: по 30 мс на чип, дальше шестого — одной волной */
+.app-onboarding-chip:nth-child(2) {
+  animation-delay: 30ms;
+}
+
+.app-onboarding-chip:nth-child(3) {
+  animation-delay: 60ms;
+}
+
+.app-onboarding-chip:nth-child(4) {
+  animation-delay: 90ms;
+}
+
+.app-onboarding-chip:nth-child(5) {
+  animation-delay: 120ms;
+}
+
+.app-onboarding-chip:nth-child(6) {
+  animation-delay: 150ms;
+}
+
+.app-onboarding-chip:nth-child(n + 7) {
+  animation-delay: 180ms;
+}
+
 .app-onboarding-chip.app-chip--on {
   font-weight: 700;
+}
+
+/* Галочка на чипе «хлопает» вместе с выбором */
+.app-onboarding-chip svg {
+  animation: app-pop-in var(--app-duration-base) var(--app-ease-spring);
 }
 
 /* Галочка на выбранном чипе — brand-cyan: заливка чипа в светлой схеме тёмная, там это 8.1:1.
@@ -3567,12 +3978,24 @@ html[data-theme="dark"] body {
   font-weight: 800;
   height: 56px;
   justify-content: center;
+  transition:
+    opacity var(--app-duration-base) var(--app-ease-out),
+    transform var(--app-duration-fast) var(--app-ease-out);
   width: 100%;
+}
+
+.app-onboarding-cta:not(:disabled):active {
+  transform: scale(0.98);
 }
 
 .app-onboarding-cta:disabled {
   cursor: default;
   opacity: 0.45;
+}
+
+/* Отказ жеста (правило самой подсказки — в блоке жестов ниже) появляется подъёмом, а не вспышкой */
+.app-onboarding-nudge {
+  animation: app-rise-in var(--app-duration-base) var(--app-ease-out);
 }
 
 .app-onboarding-error {
@@ -4778,6 +5201,7 @@ html[data-theme="dark"] body {
 }
 
 .app-swipe-chips-row {
+  animation: app-rise-in var(--app-duration-base) var(--app-ease-out);
   display: flex;
   gap: var(--app-space-s);
   margin: var(--app-space-l) calc(-1 * var(--app-space-screen)) 0;
@@ -4808,6 +5232,9 @@ html[data-theme="dark"] body {
   position: absolute;
   right: -4px;
   top: 6px;
+  transition:
+    opacity var(--app-duration-slow) var(--app-ease-out),
+    transform var(--app-duration-slow) var(--app-ease-out);
 }
 
 .app-swipe-shadow--far {
@@ -4819,7 +5246,26 @@ html[data-theme="dark"] body {
   top: 12px;
 }
 
+/* Пока решённая карточка улетает, колода под ней подтягивается: следующая уже выходит наверх */
+.app-swipe-deck--leaving .app-swipe-shadow {
+  transform: translate(-6px, -4px);
+}
+
+.app-swipe-deck--leaving .app-swipe-shadow--far {
+  transform: translate(-8px, -6px);
+}
+
+/* Новая верхняя карточка поднимается из-под теней: колода пересобирает её по key места.
+ * Коротко — пока кадры идут, карточка не слушает палец (анимация сильнее инлайнового transform). */
+@keyframes app-swipe-rise {
+  from {
+    opacity: 0.5;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+
 .app-swipe-card {
+  animation: app-swipe-rise var(--app-duration-base) var(--app-ease-out);
   background: linear-gradient(160deg, var(--brand-blue), var(--brand-purple) 60%, var(--brand-cyan));
   border-radius: 24px;
   bottom: 0;
@@ -4832,7 +5278,60 @@ html[data-theme="dark"] body {
   user-select: none;
 }
 
+/* Уход решённой карточки: вправо с наклоном — в избранное, влево — мимо. Кадры сильнее инлайнового
+ * transform, но стартуют с него, поэтому карточка улетает из той точки, где её отпустили.
+ * По animationend контейнер снимает её с экрана. */
+@keyframes app-swipe-fly-like {
+  to {
+    opacity: 0;
+    transform: translateX(140%) rotate(22deg);
+  }
+}
+
+@keyframes app-swipe-fly-skip {
+  to {
+    opacity: 0;
+    transform: translateX(-140%) rotate(-22deg);
+  }
+}
+
+.app-swipe-card--fly-like,
+.app-swipe-card--fly-skip {
+  animation: app-swipe-fly-like var(--app-duration-slow) ease-in forwards;
+  pointer-events: none;
+}
+
+.app-swipe-card--fly-skip {
+  animation-name: app-swipe-fly-skip;
+}
+
+/* Подсветка решения растёт с ходом карточки: голубая — к избранному, тёмная — мимо. Прогресс
+ * приходит переменной --app-swipe-progress от -1 до 1, и каждый слой берёт свою половину.
+ * Под пальцем без переходов (иначе отстаёт), гаснет переходом только вместе с возвратом карточки. */
+.app-swipe-tint {
+  border-radius: inherit;
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.app-swipe-card--settling .app-swipe-tint {
+  transition: opacity 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.app-swipe-tint--like {
+  background: var(--brand-cyan);
+  opacity: calc(max(var(--app-swipe-progress, 0), 0) * 0.35);
+}
+
+.app-swipe-tint--skip {
+  background: var(--brand-void);
+  opacity: calc(max(-1 * var(--app-swipe-progress, 0), 0) * 0.45);
+}
+
+/* Круги на карточке медленно дрейфуют — градиент живёт, пока человек решает */
 .app-swipe-glow {
+  animation: app-glow-drift 9s ease-in-out infinite alternate;
   background: rgba(255, 255, 255, 0.12);
   border-radius: 50%;
   height: 220px;
@@ -4843,6 +5342,8 @@ html[data-theme="dark"] body {
 }
 
 .app-swipe-glow--cool {
+  animation-direction: alternate-reverse;
+  animation-duration: 12s;
   background: var(--brand-cyan);
   bottom: -60px;
   height: 200px;
@@ -4883,8 +5384,20 @@ html[data-theme="dark"] body {
   width: 40px;
 }
 
-/* Штамп решения: голубой на тёмной подложке — 8.1:1, и это ровно роль «живого» индикатора */
+/* Штамп решения: голубой на тёмной подложке — 8.1:1, и это ровно роль «живого» индикатора.
+ * Появляется «хлопком» из увеличенного состояния — как печать, поставленная на карточку;
+ * угол наклона живёт в переменной, чтобы кадры подходили и правому, и левому штампу. */
+@keyframes app-swipe-stamp-in {
+  from {
+    opacity: 0;
+    transform: rotate(var(--app-swipe-stamp-angle)) scale(1.7);
+  }
+}
+
 .app-swipe-stamp {
+  --app-swipe-stamp-angle: -8deg;
+
+  animation: app-swipe-stamp-in var(--app-duration-base) var(--app-ease-spring);
   background: rgba(13, 0, 26, 0.35);
   border: 2px solid var(--brand-cyan);
   border-radius: 10px;
@@ -4895,15 +5408,16 @@ html[data-theme="dark"] body {
   padding: 7px var(--app-space-m);
   position: absolute;
   top: 66px;
-  transform: rotate(-8deg);
+  transform: rotate(var(--app-swipe-stamp-angle));
 }
 
 .app-swipe-stamp--skip {
+  --app-swipe-stamp-angle: 8deg;
+
   border-color: var(--brand-white);
   color: var(--brand-white);
   left: auto;
   right: 14px;
-  transform: rotate(8deg);
 }
 
 .app-swipe-veil {
@@ -5015,6 +5529,7 @@ html[data-theme="dark"] body {
   font-weight: 800;
   height: 44px;
   padding: 0 20px;
+  transition: transform var(--app-duration-fast) var(--app-ease-out);
 }
 
 .app-swipe-open {
@@ -5028,7 +5543,13 @@ html[data-theme="dark"] body {
   height: 48px;
   justify-content: center;
   padding: 0;
+  transition: transform var(--app-duration-fast) var(--app-ease-out);
   width: 48px;
+}
+
+.app-swipe-more:active,
+.app-swipe-open:active {
+  transform: scale(0.94);
 }
 
 .app-swipe-actions {
@@ -5050,7 +5571,16 @@ html[data-theme="dark"] body {
   height: 48px;
   justify-content: center;
   padding: 0;
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease-out),
+    opacity var(--app-duration-fast) var(--app-ease-out),
+    transform var(--app-duration-fast) var(--app-ease-out);
   width: 48px;
+}
+
+/* Кнопка решения прижимается под пальцем — сама карточка в этот момент уже улетает */
+.app-swipe-action:not(:disabled):active {
+  transform: scale(0.88);
 }
 
 .app-swipe-action:disabled {

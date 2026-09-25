@@ -10,17 +10,19 @@
 // - SWIPE_COMMIT_PX - how far a card travels before the drag counts as a decision
 // - SWIPE_CATEGORY_LABELS - ru label per filter chip of the design
 // - swipeOutcome - drag distance -> decision; null while the card has not travelled far enough
+// - swipeProgress - drag distance -> progress of the verdict from -1 (committed skip) to 1 (committed like), clamped; drives the tint over the card through --app-swipe-progress
+// - SwipeLeaving - the card that has just been decided and is flying off: the candidate, the verdict and the dx it was released at
 // - formatSwipeDistance - «2,4 км»; null when the candidate carries no distance (#496)
 // - formatSwipeRating - «4.9 · 143 отзыва»; null until the venue is rated (#496)
 // - formatSwipePrice - «800 ₽/час»; null until the slot domain answers a price (#492)
 // - swipeFriendsLine - «Анна и Дима были здесь»; null when no friend has
 // - swipeMatchLine - «92% совпадение с тобой»; null until something scores a venue against a person (#498)
-// - SwipeCard - one venue card: the photo placeholder, the stamp, the facts, the friends and «Подробнее»
-// - SwipeView - presentational: header, chips, the deck with its two shadow cards and the action row
-// - SwipePage - container: deck fetch per category, the drag, decisions, undo and navigation
+// - SwipeCard - one venue card: the photo placeholder, the stamp, the facts, the friends and «Подробнее»; leaving plays the fly-out towards the verdict and reports its own animationend through onLeft
+// - SwipeView - presentational: header, chips, the deck with its two shadow cards, the top card keyed by venue (so the next one rises on mount), the leaving card flying over it, and the action row
+// - SwipePage - container: deck fetch per category, the drag, decisions, the leaving card until its fly-out ends, undo and navigation
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type AnimationEvent as ReactAnimationEvent, type CSSProperties } from "react";
 import { apiClient, SWIPE_CATEGORIES, type SwipeCandidate, type SwipeCategory, type SwipeDecision } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { useViewerOrigin } from "../geo/viewer-origin";
@@ -46,6 +48,18 @@ export function swipeOutcome(dx: number, threshold: number = SWIPE_COMMIT_PX): S
   if (dx >= threshold) return "like";
   if (dx <= -threshold) return "skip";
   return null;
+}
+
+/** How far the verdict has come: -1 is a committed skip, 1 a committed like, 0 a card at rest. Saturates exactly where swipeOutcome decides. */
+export function swipeProgress(dx: number, threshold: number = SWIPE_COMMIT_PX): number {
+  return Math.max(-1, Math.min(1, dx / threshold));
+}
+
+export interface SwipeLeaving {
+  candidate: SwipeCandidate;
+  decision: SwipeDecision;
+  /** Where the card was when the verdict landed, so the fly-out continues from under the finger rather than from the centre. */
+  dx: number;
 }
 
 /** «2,4 км» — ru decimal comma, one digit; null while the list DTO carries no distance (#496). */
@@ -87,21 +101,39 @@ interface SwipeCardProps {
   dx: number;
   /** Карточку отпустили, не дотянув до порога: возврат домой едет анимацией, а не прыжком. */
   settling?: boolean;
+  /** Вердикт, с которым карточка улетает; null у карточки, которая ещё в игре. */
+  leaving?: SwipeDecision | null;
   gesture?: SwipeGestureProps;
   onOpen: () => void;
+  /** Улёт закончился — карточку можно снимать с экрана. */
+  onLeft?: () => void;
 }
 
-export function SwipeCard({ candidate, dx, settling = false, gesture, onOpen }: SwipeCardProps) {
+export function SwipeCard({ candidate, dx, settling = false, leaving = null, gesture, onOpen, onLeft }: SwipeCardProps) {
   const distance = formatSwipeDistance(candidate.distanceKm);
   const rating = formatSwipeRating(candidate.rating, candidate.reviewsCount);
   const price = formatSwipePrice(candidate.pricePerHourRub);
   const friends = swipeFriendsLine(candidate.friendsHere);
   const match = swipeMatchLine(candidate.matchPercent);
-  const outcome = swipeOutcome(dx);
+  // Улетающая карточка несёт свой вердикт как штамп и полную подсветку, даже если решение пришло
+  // с кнопки или быстрым фликом и она почти не сдвинулась: иначе она уходила бы «пустой».
+  const outcome = leaving ?? swipeOutcome(dx);
+  const progress = leaving === null ? swipeProgress(dx) : leaving === "like" ? 1 : -1;
+  const cardClass = ["app-swipe-card", settling ? "app-swipe-card--settling" : "", leaving === "like" ? "app-swipe-card--fly-like" : leaving === "skip" ? "app-swipe-card--fly-skip" : ""].filter(Boolean).join(" ");
+  // Прогресс решения уходит в CSS-переменную: подсветку и её половины рисует theme.css, а не React
+  const style = { ...gesture?.style, transform: `translateX(${dx}px) rotate(${dx / 24}deg)`, "--app-swipe-progress": progress } as CSSProperties;
+
+  function onAnimationEnd(event: ReactAnimationEvent<HTMLDivElement>): void {
+    // Только собственный animationend: «хлопок» штампа внутри карточки всплывает сюда же и снял бы её на полпути
+    if (event.target === event.currentTarget) onLeft?.();
+  }
+
   return (
-    <div className={settling ? "app-swipe-card app-swipe-card--settling" : "app-swipe-card"} {...gesture} style={{ ...gesture?.style, transform: `translateX(${dx}px) rotate(${dx / 24}deg)` }}>
+    <div className={cardClass} {...gesture} style={style} onAnimationEnd={leaving === null ? undefined : onAnimationEnd}>
       <span className="app-swipe-glow" aria-hidden="true" />
       <span className="app-swipe-glow app-swipe-glow--cool" aria-hidden="true" />
+      <span className="app-swipe-tint app-swipe-tint--like" aria-hidden="true" />
+      <span className="app-swipe-tint app-swipe-tint--skip" aria-hidden="true" />
       <span className="app-swipe-chips">
         {candidate.offerLabel !== null && <span className="app-swipe-chip">{candidate.offerLabel}</span>}
         {distance !== null && <span className="app-swipe-chip">{distance}</span>}
@@ -173,12 +205,16 @@ interface SwipeViewProps {
   onRetry: () => void;
   settling?: boolean;
   gesture?: SwipeGestureProps;
+  /** Решённая карточка, которая ещё улетает поверх следующей. */
+  leaving?: SwipeLeaving | null;
+  onLeft?: () => void;
 }
 
 export function SwipeView(props: SwipeViewProps) {
   const [filters, setFilters] = useState(true);
   const deck = props.state.status === "ready" ? props.state.candidates.slice(props.index) : [];
   const [top] = deck;
+  const leaving = props.leaving ?? null;
   return (
     <div className="app-swipe">
       <header className="app-swipe-head">
@@ -203,7 +239,7 @@ export function SwipeView(props: SwipeViewProps) {
           ))}
         </div>
       )}
-      <div className="app-swipe-deck">
+      <div className={leaving === null ? "app-swipe-deck" : "app-swipe-deck app-swipe-deck--leaving"}>
         {props.state.status === "loading" && <AppSkeleton variant="block" className="app-swipe-skeleton" />}
         {props.state.status === "error" && (
           <AppState error action={{ label: "Повторить", onClick: props.onRetry }}>
@@ -216,9 +252,12 @@ export function SwipeView(props: SwipeViewProps) {
             {/* Две тени под верхней карточкой: колода, а не одинокая карточка */}
             {deck[2] !== undefined && <span className="app-swipe-shadow app-swipe-shadow--far" aria-hidden="true" />}
             {deck[1] !== undefined && <span className="app-swipe-shadow" aria-hidden="true" />}
-            <SwipeCard candidate={top} dx={props.dx} settling={props.settling} gesture={props.gesture} onOpen={() => props.onOpen(top.place.id)} />
+            {/* key по месту: следующая карточка — новый элемент, и она поднимается из-под теней, а не подменяет текст в старом */}
+            <SwipeCard key={top.place.id} candidate={top} dx={props.dx} settling={props.settling} gesture={props.gesture} onOpen={() => props.onOpen(top.place.id)} />
           </>
         )}
+        {/* Решённая карточка улетает поверх следующей; контейнер снимает её по animationend */}
+        {leaving !== null && <SwipeCard key={`leaving-${leaving.candidate.place.id}`} candidate={leaving.candidate} dx={leaving.dx} leaving={leaving.decision} onOpen={() => {}} onLeft={props.onLeft} />}
       </div>
       <div className="app-swipe-actions">
         <button type="button" className="app-swipe-action app-swipe-action--skip" aria-label="Мимо" disabled={top === undefined} onClick={() => props.onDecide("skip")}>
@@ -245,12 +284,17 @@ export function SwipePage() {
   const [state, setState] = useState<SwipeState>({ status: "loading" });
   const [index, setIndex] = useState(0);
   const [attempt, setAttempt] = useState(0);
+  const [leaving, setLeaving] = useState<SwipeLeaving | null>(null);
+  // Последнее смещение под пальцем: хук обнуляет своё до того, как сообщит о жесте, а улёт должен
+  // начаться там, где карточку отпустили.
+  const lastOffset = useRef(0);
   const top = state.status === "ready" ? state.candidates[index] : undefined;
 
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
     setIndex(0);
+    setLeaving(null);
     apiClient.listSwipeCandidates(category, { latitude: origin.latitude, longitude: origin.longitude }).then(
       (candidates) => {
         if (alive) setState({ status: "ready", candidates });
@@ -265,9 +309,11 @@ export function SwipePage() {
   }, [category, origin.latitude, origin.longitude, attempt]);
 
   const decide = useCallback(
-    (decision: SwipeDecision) => {
+    (decision: SwipeDecision, dx = 0) => {
       if (top === undefined) return;
       setIndex((current) => current + 1);
+      // The card does not vanish, it flies off: it lives in `leaving` until the fly-out ends and SwipeCard reports animationend.
+      setLeaving({ candidate: top, decision, dx });
       // A rejected write must not take the card back: the deck is a queue the viewer already moved on from.
       void apiClient.saveSwipeDecision(top.place.id, decision).catch(() => {});
     },
@@ -281,7 +327,10 @@ export function SwipePage() {
     axis: "x",
     distancePx: SWIPE_COMMIT_PX,
     disabled: top === undefined,
-    onSwipe: (direction) => decide(direction === "right" ? "like" : "skip"),
+    onOffset: (offset) => {
+      lastOffset.current = offset;
+    },
+    onSwipe: (direction) => decide(direction === "right" ? "like" : "skip", lastOffset.current),
   });
 
   return (
@@ -291,11 +340,17 @@ export function SwipePage() {
       dx={drag.offset}
       settling={drag.settling}
       gesture={drag.gesture}
+      leaving={leaving}
+      onLeft={() => setLeaving(null)}
       category={category}
       onCategory={setCategory}
-      onDecide={decide}
+      onDecide={(decision) => decide(decision)}
       // Undo steps the deck back locally: the swipe is already recorded, and unsaying it needs an endpoint that does not exist (#498).
-      onUndo={() => setIndex((current) => Math.max(0, current - 1))}
+      // The card still flying off is dropped at once: the one coming back is the card the viewer wants to see.
+      onUndo={() => {
+        setLeaving(null);
+        setIndex((current) => Math.max(0, current - 1));
+      }}
       onGather={() => navigate({ name: "plan-new" })}
       onOpen={(id) => navigate({ name: "place", id })}
       onBack={back}
