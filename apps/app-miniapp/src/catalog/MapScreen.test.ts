@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockEvents, mockFriends, mockPlaces } from "../api/mock";
-import { basemapById, DEFAULT_BASEMAP } from "./basemaps";
+import { basemapById, STANDARD_BASEMAP } from "./basemaps";
 import { buildMapMarkers, type MapMarker } from "./mapMarkers";
 import { escapeHtml, formatMapChange, formatMapTemperature, formatTravelOption, initEventMap, mapFriendsLine, mapNotice, mapRainHint, type MapCallbacks, type MapNoticeInput, type MapView } from "./MapScreen";
 
@@ -53,7 +53,8 @@ function fakeMap() {
   return api;
 }
 
-const view = (markers: MapMarker[], extra: Partial<MapView> = {}): MapView => ({ markers, origin: null, route: null, selectedKey: null, basemap: DEFAULT_BASEMAP, scheme: "light", ...extra });
+/** Растровая база для этих тестов: векторная подложка по умолчанию живёт в ./MapScreen.vector.test.ts. */
+const view = (markers: MapMarker[], extra: Partial<MapView> = {}): MapView => ({ markers, origin: null, route: null, selectedKey: null, basemap: STANDARD_BASEMAP, scheme: "light", ...extra });
 
 const callbacks = (extra: Partial<MapCallbacks> = {}): MapCallbacks => ({ onOpenEvent: vi.fn(), onOpenPlace: vi.fn(), onSelect: vi.fn(), onTileTrouble: vi.fn(), onBasemapFallback: vi.fn(), ...extra });
 

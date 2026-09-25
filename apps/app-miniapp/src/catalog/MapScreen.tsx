@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 16 «Карта»: the Leaflet map with OSM-based tiles (seven raster basemaps plus the project's own vector one, remembered on the device), event/place/friend pins, the «Вы здесь» marker, the weather chip, the layer and basemap chips, the card of the selected object with its travel times and the route it draws.
+// PURPOSE: Экран 16 «Карта»: the Leaflet map with OSM-based tiles (the project's own vector basemap by default plus seven raster ones, the choice remembered on the device), event/place/friend pins, the «Вы здесь» marker, the weather chip, the layer and basemap chips, the card of the selected object with its travel times and the route it draws.
 // SCOPE: The canvas is unconditional — every data source of this screen (places, friends, weather, travel, and the events handed in by the page) may fail or come back empty, and the map still opens with «Вы здесь» and a line saying what is missing. Places fetched via apiClient.listPlaces and the friend layer via apiClient.listFriendPlaces; the weather and the travel estimates come from apiClient.getMapWeather / getTravelOptions, both mock-backed (#495, #504). Leaflet is loaded lazily (dynamic import) so it stays out of the main bundle; the map instance is created once and fed updates, so a filter or a layer toggle no longer resets pan and zoom. The vector basemap mounts asynchronously through ./vectorBasemap.ts (MapLibre lazy too) and follows the rendered colour scheme; when it cannot mount the screen falls back to the standard raster tiles and says so.
-// DEPENDS: leaflet (dynamic import + css), ../api/client.js (apiClient, MapWeather, TravelOption), ./basemaps.js (MAP_BASEMAPS, DEFAULT_BASEMAP, MapBasemap, basemapCredit, read/writeBasemapPreference), ./vectorBasemap.js (mountVectorBasemap, VectorBasemapLayer), ../ui/theme.js (useAppliedScheme, ThemeScheme), ./mapMarkers.js (buildMapMarkers, clusterMapMarkers, MapMarker, MapPinGlyph, MAP_CLUSTER_MAX_ZOOM), ./useLeafletMap.js, ../geo/viewer-origin.js, ../ui/icons.js, ../ui/primitives.js
+// DEPENDS: leaflet (dynamic import + css), ../api/client.js (apiClient, MapWeather, TravelOption), ./basemaps.js (MAP_BASEMAPS, STANDARD_BASEMAP, MapBasemap, basemapCredit, read/writeBasemapPreference), ./vectorBasemap.js (mountVectorBasemap, VectorBasemapLayer), ../ui/theme.js (useAppliedScheme, ThemeScheme), ./mapMarkers.js (buildMapMarkers, clusterMapMarkers, MapMarker, MapPinGlyph, MAP_CLUSTER_MAX_ZOOM), ./useLeafletMap.js, ../geo/viewer-origin.js, ../ui/icons.js, ../ui/primitives.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -37,7 +37,7 @@ import { useViewerOrigin } from "../geo/viewer-origin";
 import { ActionIcon, TabIconGlyph } from "../ui/icons";
 import { AppChip } from "../ui/primitives";
 import { useAppliedScheme, type ThemeScheme } from "../ui/theme";
-import { basemapCredit, DEFAULT_BASEMAP, MAP_BASEMAPS, readBasemapPreference, writeBasemapPreference, type MapBasemap } from "./basemaps";
+import { basemapCredit, MAP_BASEMAPS, readBasemapPreference, STANDARD_BASEMAP, writeBasemapPreference, type MapBasemap } from "./basemaps";
 import { buildMapMarkers, clusterMapMarkers, MAP_CLUSTER_MAX_ZOOM, type MapMarker, type MapPinGlyph } from "./mapMarkers";
 import { useLeafletMap } from "./useLeafletMap";
 import { mountVectorBasemap, type VectorBasemapLayer } from "./vectorBasemap";
@@ -575,9 +575,10 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
       onOpenPlace: (id) => handlers.current.onOpenPlace(id),
       onSelect: (marker) => handlers.current.select(marker),
       onTileTrouble: () => setTilesFailed(true),
-      // Возврат к стандартной не сохраняется: на другом устройстве та же учётка может открыть свою подложку
+      // Возврат к стандартной растровой, а не к подложке по умолчанию: та сама векторная, и цикл был бы бесконечным.
+      // Выбор не сохраняется: на другом устройстве та же учётка может открыть свою подложку
       onBasemapFallback: () => {
-        setBasemap(DEFAULT_BASEMAP);
+        setBasemap(STANDARD_BASEMAP);
         setVectorFallback(true);
       },
     }),

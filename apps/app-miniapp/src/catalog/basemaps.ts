@@ -13,8 +13,9 @@
 // - VectorBasemap - векторная подложка: относительный путь к архиву PMTiles и шаблон глифов шрифтов на том же домене
 // - MapBasemap - одна подложка любого вида: id, подпись чипа, тон и части строки источника общие
 // - OWN_BASEMAP - собственная подложка «Своя»: Москва и область, собрана Planetiler из OSM в схеме OpenMapTiles и лежит рядом с приложением (/tiles, см. DEPLOY.md)
-// - MAP_BASEMAPS - каталог подложек в порядке чипов; стандартная OSM первая, потому что была единственной до переключателя, своя — сразу за ней
-// - DEFAULT_BASEMAP - подложка по умолчанию — стандартная OSM
+// - STANDARD_BASEMAP - стандартная растровая OSM: запасная, к которой экран возвращается, если своя не поднялась (нет WebGL, MapLibre не догрузился)
+// - MAP_BASEMAPS - каталог подложек в порядке чипов; своя первая, потому что она по умолчанию, стандартная OSM сразу за ней
+// - DEFAULT_BASEMAP - подложка по умолчанию — своя векторная; сохранённый выбор её переопределяет
 // - isVectorBasemap - сужение типа: подложке нужен MapLibre, а не L.tileLayer
 // - basemapById - подложка по id; незнакомый id (устаревший или испорченный сохранённый выбор) отдаёт подложку по умолчанию
 // - readBasemapPreference - сохранённый выбор или подложка по умолчанию; сбой storage читается как «не выбирали»
@@ -65,6 +66,9 @@ const OSM = "© OpenStreetMap";
  */
 export const OWN_BASEMAP: VectorBasemap = { id: "own", label: "Своя", kind: "vector", tiles: "/tiles/moscow.pmtiles", glyphs: "/tiles/fonts/{fontstack}/{range}.pbf", maxZoom: 20, tone: "scheme", credit: [OSM, "© OpenMapTiles"] };
 
+/** Единственная подложка до переключателя и запасная сейчас: растровые тайлы — обычные картинки, WebGL им не нужен. */
+export const STANDARD_BASEMAP: RasterBasemap = { id: "osm", label: "Стандарт", kind: "raster", url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", maxZoom: 19, tone: "light", credit: [OSM] };
+
 /**
  * Все внешние URL проверены живым запросом тайла Москвы (z11) и загрузкой в браузере 2026-09-19: каждый
  * отвечает 200 без ключа и без водяных знаков. Не вошли: CARTO (Voyager, Positron, Dark Matter) — тайлы
@@ -73,8 +77,8 @@ export const OWN_BASEMAP: VectorBasemap = { id: "own", label: "Своя", kind: 
  * инвертирует светлую фильтром (theme.css); своя векторная подложка тёмная сама.
  */
 export const MAP_BASEMAPS: readonly MapBasemap[] = [
-  { id: "osm", label: "Стандарт", kind: "raster", url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", maxZoom: 19, tone: "light", credit: [OSM] },
   OWN_BASEMAP,
+  STANDARD_BASEMAP,
   { id: "osm-de", label: "Немецкий", kind: "raster", url: "https://tile.openstreetmap.de/{z}/{x}/{y}.png", maxZoom: 18, tone: "light", credit: [OSM, "openstreetmap.de"] },
   { id: "osm-fr", label: "Французский", kind: "raster", url: "https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", subdomains: "abc", maxZoom: 20, tone: "light", credit: [OSM, "OSM France"] },
   { id: "hot", label: "Гуманитарный", kind: "raster", url: "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", subdomains: "abc", maxZoom: 19, tone: "light", credit: [OSM, "HOT", "OSM France"] },
@@ -83,6 +87,7 @@ export const MAP_BASEMAPS: readonly MapBasemap[] = [
   { id: "opentopo", label: "Рельеф", kind: "raster", url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", subdomains: "abc", maxZoom: 17, tone: "light", credit: [OSM, "SRTM", "© OpenTopoMap"] },
 ];
 
+/** Своя по умолчанию — ради неё переключатель и появился; на устройстве без WebGL экран сам уходит на STANDARD_BASEMAP. */
 export const DEFAULT_BASEMAP: MapBasemap = MAP_BASEMAPS[0];
 
 export function isVectorBasemap(basemap: MapBasemap): basemap is VectorBasemap {

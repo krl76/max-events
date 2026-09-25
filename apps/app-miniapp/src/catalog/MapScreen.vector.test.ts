@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_BASEMAP, OWN_BASEMAP, basemapById } from "./basemaps";
+import { OWN_BASEMAP, STANDARD_BASEMAP, basemapById } from "./basemaps";
 import type { ThemeScheme } from "../ui/theme";
 import { initEventMap, mapWrapClass, type MapCallbacks, type MapView } from "./MapScreen";
 import type { VectorBasemapLayer } from "./vectorBasemap";
@@ -127,7 +127,7 @@ describe("initEventMap with the own vector basemap", () => {
     vectorBasemap.mountVectorBasemap.mockImplementation(() => new Promise<VectorBasemapLayer>((_, reject) => (rejectMount = reject)));
     const late = vi.fn();
     const handle = await initEventMap(container, view(), callbacks({ onBasemapFallback: late }));
-    handle.update(view({ basemap: DEFAULT_BASEMAP }));
+    handle.update(view({ basemap: STANDARD_BASEMAP }));
     rejectMount(new Error("late"));
     await settle();
     expect(late).not.toHaveBeenCalled();
@@ -150,7 +150,7 @@ describe("initEventMap with the own vector basemap", () => {
     const handle = await initEventMap(container, view(), callbacks({ onTileTrouble }));
     const options = vectorBasemap.mountVectorBasemap.mock.calls[0][3] as { onTrouble: () => void };
 
-    handle.update(view({ basemap: DEFAULT_BASEMAP }));
+    handle.update(view({ basemap: STANDARD_BASEMAP }));
     options.onTrouble();
     expect(onTileTrouble).not.toHaveBeenCalled();
   });
@@ -158,8 +158,8 @@ describe("initEventMap with the own vector basemap", () => {
 
 describe("mapWrapClass", () => {
   it("lifts the dark-scheme inversion for a dark raster and for the own vector basemap, keeps it for light rasters", () => {
-    expect(mapWrapClass(DEFAULT_BASEMAP)).toBe("app-map-wrap app-map16");
+    expect(mapWrapClass(STANDARD_BASEMAP)).toBe("app-map-wrap app-map16");
     expect(mapWrapClass(OWN_BASEMAP)).toBe("app-map-wrap app-map16 app-map16--tiles-scheme");
-    expect(mapWrapClass({ ...DEFAULT_BASEMAP, tone: "dark" })).toBe("app-map-wrap app-map16 app-map16--tiles-dark");
+    expect(mapWrapClass({ ...STANDARD_BASEMAP, tone: "dark" })).toBe("app-map-wrap app-map16 app-map16--tiles-dark");
   });
 });
