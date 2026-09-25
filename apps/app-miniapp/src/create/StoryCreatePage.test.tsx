@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { EventDetails } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
-import { addStoryObject, hasStoryObject, moveStoryObject, nextStoryAudience, removeStoryObject, StoryCreateView, STORY_CANVASES, STORY_OBJECT_ORDER, STORY_OBJECTS, storyAudienceLabel, storyCanvasImage, storyComposition, storyObjectClass, storyObjectEnabled, storyPoll, storySticker, storyTimeLabel, type StoryDraft } from "./StoryCreatePage";
+import { addStoryObject, editStoryPoll, hasStoryObject, moveStoryObject, nextStoryAudience, removeStoryObject, resizeStoryObject, StoryCreateView, STORY_CANVASES, STORY_OBJECT_ORDER, STORY_OBJECT_SCALES, STORY_OBJECTS, storyAudienceLabel, storyCanvasImage, storyComposition, storyDraftPoll, storyObjectClass, storyObjectEnabled, storyObjectStyle, storyPoll, storySticker, storyTimeLabel, type StoryDraft } from "./StoryCreatePage";
 
 // Локальное время без смещения: «14:00» обязано читаться одинаково в любой зоне прогона.
 const STARTS_AT = "2026-09-19T14:00:00";
@@ -20,7 +20,7 @@ const detailsOf = (over: Partial<EventDetails> = {}): EventDetails => ({
   ...over,
 });
 
-const draftOf = (over: Partial<StoryDraft> = {}): StoryDraft => ({ canvas: "gradient-1", photoUrl: null, text: "", eventId: mockEvents[0].id, answer: null, audience: "close-friends", objects: [], ...over });
+const draftOf = (over: Partial<StoryDraft> = {}): StoryDraft => ({ canvas: "gradient-1", photoUrl: null, text: "", eventId: mockEvents[0].id, poll: null, audience: "close-friends", objects: [], ...over });
 
 /** Черновик с объектами, разложенными по их местам из каталога — то, что получается после кнопок добавления. */
 const filledDraft = (over: Partial<StoryDraft> = {}): StoryDraft => ({ ...draftOf({ objects: STORY_OBJECT_ORDER.reduce<StoryDraft["objects"]>((objects, kind) => addStoryObject(objects, kind), []) }), ...over });
@@ -124,6 +124,29 @@ describe("объекты холста", () => {
     expect(storyObjectClass("poll", null)).toBe("app-story-object app-story-object--poll");
   });
 
+  it("шагает по лесенке размеров и упирается в её края, а не уходит за них", () => {
+    const one = addStoryObject([], "text");
+    const bigger = resizeStoryObject(one, "text", 1);
+
+    expect(one[0].scale).toBeUndefined();
+    expect(bigger[0].scale).toBe(STORY_OBJECT_SCALES[STORY_OBJECT_SCALES.indexOf(1) + 1]);
+    // С нижней ступени вниз идти некуда: размер остаётся прежним.
+    const smallest = STORY_OBJECT_SCALES.reduce((objects) => resizeStoryObject(objects, "text", -1), one);
+    expect(smallest[0].scale).toBe(STORY_OBJECT_SCALES[0]);
+    expect(resizeStoryObject(smallest, "text", -1)[0].scale).toBe(STORY_OBJECT_SCALES[0]);
+  });
+
+  it("меняет размер только названного объекта", () => {
+    const objects = addStoryObject(addStoryObject([], "text"), "poll");
+
+    expect(resizeStoryObject(objects, "text", 1).find((object) => object.kind === "poll")?.scale).toBeUndefined();
+  });
+
+  it("везёт место и размер одной трансформацией, иначе крупный объект уезжает от пальца", () => {
+    expect(storyObjectStyle({ kind: "text", x: 30, y: 12 })).toEqual({ left: "30%", top: "12%", transform: "translate(-50%, -50%) scale(1)" });
+    expect(storyObjectStyle({ kind: "text", x: 30, y: 12, scale: 1.25 }).transform).toBe("translate(-50%, -50%) scale(1.25)");
+  });
+
   it("не даёт добавить объект, которому нечем наполниться", () => {
     const sticker = storySticker(detailsOf());
 
@@ -138,7 +161,7 @@ describe("объекты холста", () => {
 describe("storyComposition", () => {
   it("carries the trimmed caption, the sticker, the picked poll answer and the audience", () => {
     const sticker = storySticker(detailsOf());
-    const composition = storyComposition(filledDraft({ text: "  Мангал в Горьком.  ", answer: 1, audience: "friends" }), sticker, storyPoll(STARTS_AT));
+    const composition = storyComposition(filledDraft({ text: "  Мангал в Горьком.  ", poll: { ...storyPoll(STARTS_AT), answer: 1 }, audience: "friends" }), sticker, storyPoll(STARTS_AT));
 
     expect(composition.text).toBe("Мангал в Горьком.");
     expect(composition.sticker).toEqual(sticker);
@@ -154,7 +177,7 @@ describe("storyComposition", () => {
   });
 
   it("публикует только то, что автор положил на холст: пустой холст — история из одного фона", () => {
-    const composition = storyComposition(draftOf({ text: "набрано, но не добавлено", answer: 1 }), storySticker(detailsOf()), storyPoll(STARTS_AT));
+    const composition = storyComposition(draftOf({ text: "набрано, но не добавлено", poll: { ...storyPoll(STARTS_AT), answer: 1 } }), storySticker(detailsOf()), storyPoll(STARTS_AT));
 
     expect(composition.text).toBe("");
     expect(composition.sticker).toBeNull();
@@ -168,6 +191,43 @@ describe("storyComposition", () => {
 
     expect(composition.objects?.map((object) => object.kind)).toEqual([...STORY_OBJECT_ORDER]);
     expect(composition.objects?.[0]).toEqual({ kind: "text", x: 30, y: 12 });
+  });
+});
+
+describe("правка опроса", () => {
+  it("меняет вопрос, не трогая вариантов и подсвеченного ответа", () => {
+    const poll = { ...storyPoll(STARTS_AT), answer: 1 };
+    const edited = editStoryPoll(poll, "question", "Кто с нами?");
+
+    expect(edited).toEqual({ question: "Кто с нами?", options: poll.options, answer: 1 });
+  });
+
+  it("меняет один вариант и оставляет второй как был", () => {
+    const edited = editStoryPoll(storyPoll(STARTS_AT), 1, "Никогда");
+
+    expect(edited.options).toEqual(["14:00", "Никогда"]);
+  });
+
+  it("держит подсвеченный ответ индексом: переименование варианта его не сбивает", () => {
+    const poll = { ...storyPoll(STARTS_AT), answer: 0 };
+
+    expect(editStoryPoll(poll, 0, "Пораньше").answer).toBe(0);
+  });
+
+  it("берёт опрос из события, пока автор его не правил, и отдаёт правку, как только она есть", () => {
+    const stock = storyPoll(STARTS_AT);
+    const mine = { question: "Кто с нами?", options: ["Я", "Пас"], answer: null };
+
+    expect(storyDraftPoll(draftOf(), stock)).toEqual(stock);
+    expect(storyDraftPoll(draftOf({ poll: mine }), stock)).toEqual(mine);
+    expect(storyDraftPoll(draftOf(), null)).toBeNull();
+  });
+
+  it("публикует опрос таким, каким его переписал автор, а не заготовкой из события", () => {
+    const mine = { question: "Кто с нами?", options: ["Я", "Пас"], answer: 1 };
+    const composition = storyComposition(filledDraft({ poll: mine }), storySticker(detailsOf()), storyPoll(STARTS_AT));
+
+    expect(composition.poll).toEqual(mine);
   });
 });
 
@@ -215,12 +275,61 @@ describe("StoryCreateView", () => {
     expect(html).toContain("top:12%");
   });
 
-  it("даёт каждому объекту ручку переноса и снятия с холста", () => {
+  it("держит ручки на выбранном объекте, а не на всех разом: четыре набора закрывали холст", () => {
     const html = view({ draft: filledDraft() });
+    const last = STORY_OBJECT_ORDER[STORY_OBJECT_ORDER.length - 1];
+
+    expect((html.match(/app-story-object-grip/g) ?? []).length).toBe(1);
+    expect(html).toContain(`Передвинуть: ${STORY_OBJECTS[last].label}`);
+    expect(html).toContain(`Убрать: ${STORY_OBJECTS[last].label}`);
+    // Ручек нет у остальных, но сами объекты на холсте — их видно и без выбора.
+    expect(html).not.toContain("Передвинуть: Текст");
+    expect(html).toContain("Во сколько удобнее?");
+  });
+
+  it("выбирает последний положенный объект, пока автор не тронул другой", () => {
+    const html = view({ draft: draftOf({ objects: addStoryObject(addStoryObject([], "poll"), "text") }) });
 
     expect(html).toContain("Передвинуть: Текст");
-    expect(html).toContain("Убрать: Опрос");
-    expect((html.match(/app-story-object-grip/g) ?? []).length).toBe(STORY_OBJECT_ORDER.length);
+    expect(html).not.toContain("Передвинуть: Опрос");
+    expect(html).toContain("app-story-object--text app-story-object--front");
+  });
+
+  it("даёт выбранному объекту оба шага размера и гасит тот, за которым лесенки нет", () => {
+    const html = view({ draft: filledDraft() });
+    const biggest = view({ draft: filledDraft({ objects: resizeStoryObject(filledDraft().objects, "seats", 1).map((object) => (object.kind === "seats" ? { ...object, scale: STORY_OBJECT_SCALES[STORY_OBJECT_SCALES.length - 1] } : object)) }) });
+
+    expect(html).toContain("Крупнее: Места");
+    expect(html).toContain("Мельче: Места");
+    // Объект своего размера ещё может и вырасти, и уменьшиться, поэтому погашенных кнопок размера нет.
+    expect(html).not.toMatch(/app-story-object-size[^>]*disabled/);
+    expect(biggest).toMatch(/app-story-object-size[^>]*disabled/);
+  });
+
+  it("правит вопрос и оба варианта опроса прямо на объекте, а не формой сбоку", () => {
+    const html = view({ draft: filledDraft() });
+
+    expect(html).toContain("Вопрос опроса");
+    expect(html).toContain("Вариант 1");
+    expect(html).toContain("Вариант 2");
+    expect(html).toContain("Мой ответ: вариант 1");
+  });
+
+  it("показывает правку опроса, а не заготовку из события, когда автор её переписал", () => {
+    const mine = { question: "Кто с нами?", options: ["Я", "Пас"], answer: 1 };
+    const html = view({ draft: filledDraft({ poll: mine }), poll: storyPoll(STARTS_AT) });
+
+    expect(html).toContain("Кто с нами?");
+    expect(html).not.toContain("Во сколько удобнее?");
+    expect(html).not.toContain('value="14:00"');
+  });
+
+  it("говорит на счётчике мест, откуда взялось число, и даёт сменить только событие", () => {
+    const html = view({ draft: filledDraft() });
+
+    expect(html).toContain("из карточки события");
+    expect(html).toContain("Событие счётчика мест");
+    expect(html).toContain("Событие истории");
   });
 
   it("держит каталог объектов целиком: макет их показывал, экран даёт их добавить", () => {
@@ -237,6 +346,14 @@ describe("StoryCreateView", () => {
     // Текст доступен всегда, остальные три без карточки события пусты.
     expect((empty.match(/disabled=""/g) ?? []).length).toBe(3);
     expect((filled.match(/aria-pressed="true"/g) ?? []).length).toBeGreaterThanOrEqual(STORY_OBJECT_ORDER.length);
+  });
+
+  it("оставляет кнопку каталога живой у лежащего объекта, иначе снять его будет нечем", () => {
+    // Событие без вместимости счётчик мест не наполняет: объект не рисуется, крестика на холсте нет.
+    const html = view({ draft: filledDraft(), sticker: { ...storySticker(detailsOf()), seatsLeft: null }, poll: null });
+
+    expect(html).not.toContain("осталось мест");
+    expect(html).not.toMatch(/app-story-catalog-chip[^>]*disabled/);
   });
 
   it("keeps the audience switch and the publish button of the design", () => {

@@ -17992,3 +17992,176 @@ button.app-poll-result {
     transition: none;
   }
 }
+
+/* ===========================================================================
+ * Хвост ветки feat-ui-stories-2: кольцо истории как в инстаграме.
+ * Правила дописаны в конец и перекрывают одноимённые выше — база не тронута.
+ * =========================================================================== */
+
+/* Кольцо не читалось как градиент не потому, что градиента не было, а потому, что его нечем было
+ * увидеть: подложка отдавала под обводку 2.5px, и ровно на 2.5px аватар отбрасывал тень цветом
+ * страницы — она накрывала обводку целиком. От градиента оставался край пикселя сглаживания, то
+ * есть та самая «тонкая сплошная линия» со снимка заказчика. Теперь полоса и зазор разведены:
+ * подложка отдаёт 5px, тень съедает 2px, градиент остаётся 3px — вдвое толще прежнего следа. */
+.app-root {
+  --app-gradient-ring: conic-gradient(from 200deg, var(--brand-cyan), var(--brand-blue) 25%, var(--brand-violet) 50%, var(--brand-purple) 75%, var(--brand-cyan));
+}
+
+/* Кольцо выросло с 63px до 68px и в плитку 66px больше не влезает */
+.app-stories .app-story {
+  width: 72px;
+}
+
+.app-stories .app-story-ring {
+  padding: 5px;
+}
+
+/* Развёртка коническая, а не диагональная: диагональ уводит цвет за край кольца и на кружке видна
+ * одним переходом, кольцу же нужен обход — цвет обязан вернуться к началу, поэтому первая и
+ * последняя остановки один и тот же brand-cyan. */
+.app-story-ring--active {
+  background: var(--app-gradient-ring);
+}
+
+.app-story-ring--active > * {
+  box-shadow: 0 0 0 2px var(--app-page);
+}
+
+/* Просмотренная история: внешний радиус тот же, чтобы рельс не прыгал, а вся разница — в толщине.
+ * Тень рисуется слоями, первый слой сверху: 3.5px цветом страницы, под ними 5px нейтрали — наружу
+ * выходит полоска в 1.5px против трёх градиентных. */
+.app-story-ring--seen {
+  background: none;
+  padding: 5px;
+}
+
+.app-story-ring--seen > * {
+  box-shadow:
+    0 0 0 3.5px var(--app-page),
+    0 0 0 5px var(--app-divider);
+}
+
+/* Плюс садится на нижний край подросшего кольца */
+.app-story-plus {
+  right: 4px;
+  top: 46px;
+}
+
+/* ===========================================================================
+ * Хвост ветки feat-ui-stories-2: объекты холста правятся на месте.
+ * =========================================================================== */
+
+/* Ручки выбранного объекта: их стало четыре — перенос, два шага размера и снятие, — поэтому ряд
+ * прижат к правому краю объекта, а не вынесен за него. Слой поднят над телом объекта: прозрачный
+ * список выбора события лежит поверх всей пилюли и иначе перехватывает нажатия на ручки — крестик
+ * стикера переставал снимать объект ровно там, где ряд заходит на пилюлю. */
+.app-story-object-tools {
+  right: 0;
+  z-index: 1;
+}
+
+.app-story-object-size {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.72);
+  border: none;
+  border-radius: 50%;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  height: 26px;
+  justify-content: center;
+  padding: 0;
+  width: 26px;
+}
+
+/* Край лесенки размеров: кнопка гаснет, а не молчит на нажатие */
+.app-story-object-size:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+/* Шеврон выбора события: нативный список лежит поверх объекта прозрачным слоем, и без этой метки
+ * ничто не говорит, что слой там есть. Глиф нарисован вправо, поворот опускает его вниз. */
+.app-story-pick-mark {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  opacity: 0.45;
+  position: absolute;
+  right: var(--app-space-s);
+  top: 50%;
+  transform: translateY(-50%) rotate(90deg);
+}
+
+.app-story-object > .app-story-sticker,
+.app-story-object > .app-story-seats {
+  padding-right: 26px;
+}
+
+/* Откуда взялось число: счётчик мест считает бронирование, автор его не пишет. Строка не переносится
+ * намеренно — она же и задаёт ширину плашки, а в три строки плашка вытягивалась в столбик. */
+.app-story-seats-source {
+  display: block;
+  font-size: var(--app-font-size-caption);
+  opacity: 0.55;
+  white-space: nowrap;
+}
+
+/* Ручки садятся и на тёмный объект, и на светлый фон: без обводки тёмная кнопка тонет в плашке
+ * счётчика мест, которая залита тем же void. */
+.app-story-object-grip,
+.app-story-object-drop,
+.app-story-object-size {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+/* Поле правки прямо на объекте: рамки и фона у него нет — он и так внутри своей пилюли */
+.app-story-poll-field {
+  background: none;
+  border: none;
+  box-sizing: border-box;
+  color: inherit;
+  font: inherit;
+  min-width: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.app-story-poll-field::placeholder {
+  color: rgba(13, 0, 26, 0.38);
+}
+
+.app-story-poll-option--on .app-story-poll-field::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Вопрос повторяет свой кегль после правила поля выше: `font: inherit` снял бы его целиком */
+.app-story-poll-question {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+/* Вариант опроса больше не кнопка целиком: текст правится полем, а подсветку своего ответа держит
+ * точка слева — иначе тап по варианту не мог бы означать сразу и «поставить курсор», и «выбрать». */
+.app-story-poll-option {
+  gap: var(--app-space-s);
+  justify-content: flex-start;
+  overflow: hidden;
+  padding: 0 10px;
+}
+
+.app-story-poll-mark {
+  background: none;
+  border: 2px solid rgba(13, 0, 26, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  flex: none;
+  height: 16px;
+  padding: 0;
+  width: 16px;
+}
+
+.app-story-poll-option--on .app-story-poll-mark {
+  background: var(--brand-white);
+  border-color: var(--brand-white);
+}
