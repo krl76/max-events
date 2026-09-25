@@ -3,9 +3,10 @@ import { Reflector } from "@nestjs/core";
 import { describe, expect, it } from "vitest";
 import { CreateEventSchema, type Event } from "@max-events/api-contracts";
 import type { EventsService } from "../events/events.service";
+import type { OrganizationEntity } from "../organizations/organization.entity";
 import type { UserEntity } from "../users/user.entity";
 import { OrganizerController } from "../organizer/organizer.controller";
-import { AuthGuard } from "./auth.guard";
+import { AuthGuard, OrganizerOnly } from "./auth.guard";
 import { createOrganizerAuthService } from "./auth.organizer.testHarness";
 
 const draftPayload = CreateEventSchema.parse({
@@ -15,14 +16,14 @@ const draftPayload = CreateEventSchema.parse({
   startsAt: "2026-09-12T19:00:00+03:00",
 });
 
-function bearerContext(token: string) {
-  const request: { header: (name: string) => string | undefined; currentUser?: UserEntity } = {
+function bearerContext(token: string, route: object) {
+  const request: { header: (name: string) => string | undefined; currentUser?: UserEntity; currentOrganization?: OrganizationEntity } = {
     header: (name) => ({ authorization: `Bearer ${token}` })[name],
   };
   const context = {
     switchToHttp: () => ({ getRequest: () => request }),
     getHandler: () => () => {},
-    getClass: () => class {},
+    getClass: () => route,
   } as unknown as ExecutionContext;
   return { context, request };
 }
@@ -47,19 +48,24 @@ describe("organizer Bearer flow", () => {
     if (typeof login !== "object" || login === null) throw new Error("unreachable");
 
     const guard = new AuthGuard(service, new Reflector());
-    const { context, request } = bearerContext(login.token);
+    class OrganizerRoute {}
+    OrganizerOnly()(OrganizerRoute);
+    const { context, request } = bearerContext(login.token, OrganizerRoute);
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(request.currentUser?.id).toBe(login.user.id);
+    expect(request.currentOrganization?.id).toBe(login.organization.id);
 
     const controller = new OrganizerController(createEventsFake(), {} as never, {} as never, {} as never, {} as never, {} as never, {} as never);
-    const created = await controller.createEventDraft(request.currentUser!, draftPayload);
-    expect(await controller.listEvents(request.currentUser!)).toEqual([created]);
+    const created = await controller.createEventDraft(request.currentOrganization!, draftPayload);
+    expect(await controller.listEvents(request.currentOrganization!)).toEqual([created]);
   });
 
   it("rejects a forged Bearer token on organizer routes", async () => {
     const { service } = createOrganizerAuthService({ ORGANIZER_LOGIN: "demo", ORGANIZER_PASSWORD: "demo" });
     const guard = new AuthGuard(service, new Reflector());
-    const { context } = bearerContext("f".repeat(64));
+    class OrganizerRoute {}
+    OrganizerOnly()(OrganizerRoute);
+    const { context } = bearerContext("f".repeat(64), OrganizerRoute);
     await expect(guard.canActivate(context)).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });

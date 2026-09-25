@@ -11,17 +11,18 @@
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
 import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPromotionPaymentWriteSchema, UpdateOrganizerSetupSchema, type BookingWithSeats, type Event, type EventSalesReport, type OrganizerBookingRow, type OrganizerSetup, type Place, type PromoCampaign, type PromoCode, type PromotionCampaign } from "@max-events/api-contracts";
-import { CurrentUser } from "../auth/auth.guard";
+import { CurrentOrganization, OrganizerOnly } from "../auth/auth.guard";
 import { EventsService } from "../events/events.service";
-import { OrganizationsService } from "../organizations/organizations.service";
+import { OrganizationEntity } from "../organizations/organization.entity";
+import { OrganizationsService, organizerActorId } from "../organizations/organizations.service";
 import { PlacesService } from "../places/places.service";
 import { PromoService } from "../promo/promo.service";
 import { BookingsService } from "../bookings/bookings.service";
 import { PaymentsService } from "../payments/payments.service";
 import { PromotionService } from "../promotion/promotion.service";
 import { parseStatsPeriod } from "../stats/stats.controller";
-import { UserEntity } from "../users/user.entity";
 
+@OrganizerOnly()
 @Controller("organizer")
 export class OrganizerController {
   constructor(
@@ -35,118 +36,118 @@ export class OrganizerController {
   ) {}
 
   @Get("setup")
-  getSetup(@CurrentUser() user: UserEntity): Promise<OrganizerSetup> {
-    return this.organizations.getSetup(user.id);
+  getSetup(@CurrentOrganization() organization: OrganizationEntity): Promise<OrganizerSetup> {
+    return this.organizations.getSetup(organizerActorId(organization));
   }
 
   @Patch("setup")
-  async updateSetup(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<OrganizerSetup> {
+  async updateSetup(@CurrentOrganization() organization: OrganizationEntity, @Body() body: unknown): Promise<OrganizerSetup> {
     const parsed = UpdateOrganizerSetupSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid organizer setup");
-    return this.organizations.updateSetup(user.id, parsed.data);
+    return this.organizations.updateSetup(organizerActorId(organization), parsed.data);
   }
 
   @Post("setup/complete")
-  completeSetup(@CurrentUser() user: UserEntity): Promise<OrganizerSetup> {
-    return this.organizations.completeSetup(user.id);
+  completeSetup(@CurrentOrganization() organization: OrganizationEntity): Promise<OrganizerSetup> {
+    return this.organizations.completeSetup(organizerActorId(organization));
   }
 
   @Get("events")
-  listEvents(@CurrentUser() user: UserEntity): Promise<Event[]> {
-    return this.events.listMine(user.id);
+  listEvents(@CurrentOrganization() organization: OrganizationEntity): Promise<Event[]> {
+    return this.events.listMine(organizerActorId(organization));
   }
 
   @Post("events")
-  async createEventDraft(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<Event> {
+  async createEventDraft(@CurrentOrganization() organization: OrganizationEntity, @Body() body: unknown): Promise<Event> {
     const parsed = CreateEventSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid event payload");
-    return this.events.create(parsed.data, user.id, { draft: true });
+    return this.events.create(parsed.data, organizerActorId(organization), { draft: true });
   }
 
   @Post("events/:id/publish")
-  publishEvent(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<Event> {
-    return this.events.publish(id, user.id);
+  publishEvent(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string): Promise<Event> {
+    return this.events.publish(id, organizerActorId(organization));
   }
 
   @Get("places")
-  listPlaces(@CurrentUser() user: UserEntity): Promise<Place[]> {
-    return this.places.listMine(user.id);
+  listPlaces(@CurrentOrganization() organization: OrganizationEntity): Promise<Place[]> {
+    return this.places.listMine(organizerActorId(organization));
   }
 
   @Post("places")
-  async createPlaceDraft(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<Place> {
+  async createPlaceDraft(@CurrentOrganization() organization: OrganizationEntity, @Body() body: unknown): Promise<Place> {
     const parsed = CreatePlaceSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid place payload");
-    return this.places.create(parsed.data, user.id, { draft: true });
+    return this.places.create(parsed.data, organizerActorId(organization), { draft: true });
   }
 
   @Post("places/:id/publish")
-  publishPlace(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<Place> {
-    return this.places.publish(id, user.id);
+  publishPlace(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string): Promise<Place> {
+    return this.places.publish(id, organizerActorId(organization));
   }
 
   @Post("events/:id/promocodes")
-  async createPromo(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<PromoCode> {
+  async createPromo(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<PromoCode> {
     const parsed = CreatePromoCodeWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid promo payload");
-    return this.promo.create(user.id, id, parsed.data);
+    return this.promo.create(organizerActorId(organization), id, parsed.data);
   }
 
   @Get("events/:id/promocodes")
-  listPromos(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PromoCode[]> {
-    return this.promo.list(user.id, id);
+  listPromos(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PromoCode[]> {
+    return this.promo.list(organizerActorId(organization), id);
   }
 
   @Post("events/:id/early-access")
-  async earlyAccess(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<{ bookingOpensAt: string }> {
+  async earlyAccess(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<{ bookingOpensAt: string }> {
     const parsed = EarlyAccessWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid early-access payload");
-    return this.promo.setEarlyAccess(user.id, id, new Date(parsed.data.bookingOpensAt));
+    return this.promo.setEarlyAccess(organizerActorId(organization), id, new Date(parsed.data.bookingOpensAt));
   }
 
   @Get("events/:id/bookings")
-  listBookings(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<OrganizerBookingRow[]> {
-    return this.promo.listBookings(user.id, id);
+  listBookings(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string): Promise<OrganizerBookingRow[]> {
+    return this.promo.listBookings(organizerActorId(organization), id);
   }
 
   @Get("events/:id/sales")
-  sales(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Query("from") from?: string, @Query("to") to?: string): Promise<EventSalesReport> {
-    return this.payments.salesReport(user.id, id, parseStatsPeriod(from, to));
+  sales(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string, @Query("from") from?: string, @Query("to") to?: string): Promise<EventSalesReport> {
+    return this.payments.salesReport(organizerActorId(organization), id, parseStatsPeriod(from, to));
   }
 
   @Post("events/:id/bookings/:bookingId/refund")
-  refundBooking(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) _eventId: string, @Param("bookingId", ParseUUIDPipe) bookingId: string): Promise<BookingWithSeats> {
-    return this.bookings.cancel(user.id, bookingId, { organizerId: user.id });
+  refundBooking(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) _eventId: string, @Param("bookingId", ParseUUIDPipe) bookingId: string): Promise<BookingWithSeats> {
+    return this.bookings.cancel(organizerActorId(organization), bookingId, { organizerId: organizerActorId(organization) });
   }
 
   @Post("events/:id/campaigns")
-  async createCampaign(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<PromoCampaign> {
+  async createCampaign(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<PromoCampaign> {
     const parsed = CreatePromoCampaignWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid campaign payload");
-    return this.promo.createCampaign(user.id, id, parsed.data);
+    return this.promo.createCampaign(organizerActorId(organization), id, parsed.data);
   }
 
   @Get("events/:id/campaigns")
-  listCampaigns(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PromoCampaign[]> {
-    return this.promo.listCampaigns(user.id, id);
+  listCampaigns(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PromoCampaign[]> {
+    return this.promo.listCampaigns(organizerActorId(organization), id);
   }
 
   @Post("events/:id/promotions")
-  async createPromotion(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<PromotionCampaign> {
+  async createPromotion(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<PromotionCampaign> {
     const parsed = CreatePromotionWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid promotion payload");
-    return this.promotions.create(user.id, id, parsed.data);
+    return this.promotions.create(organizerActorId(organization), id, parsed.data);
   }
 
   @Get("events/:id/promotions")
-  listPromotions(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PromotionCampaign[]> {
-    return this.promotions.list(user.id, id);
+  listPromotions(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PromotionCampaign[]> {
+    return this.promotions.list(organizerActorId(organization), id);
   }
 
   @Post("events/:id/promotions/:campaignId/paid")
-  async payPromotion(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Param("campaignId", ParseUUIDPipe) campaignId: string, @Body() body: unknown): Promise<PromotionCampaign> {
+  async payPromotion(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string, @Param("campaignId", ParseUUIDPipe) campaignId: string, @Body() body: unknown): Promise<PromotionCampaign> {
     const parsed = RecordPromotionPaymentWriteSchema.safeParse(body ?? {});
     if (!parsed.success) throw new BadRequestException("Invalid promotion payment payload");
-    return this.promotions.recordPayment(user.id, id, campaignId, parsed.data);
+    return this.promotions.recordPayment(organizerActorId(organization), id, campaignId, parsed.data);
   }
 }

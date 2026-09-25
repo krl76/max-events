@@ -1,12 +1,12 @@
 import { BadRequestException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { CreateEventSchema, type Event, type Place } from "@max-events/api-contracts";
-import { UserEntity } from "../users/user.entity";
+import { OrganizationEntity } from "../organizations/organization.entity";
 import type { EventsService } from "../events/events.service";
 import type { PlacesService } from "../places/places.service";
 import { OrganizerController } from "./organizer.controller";
 
-const user = { id: "00000000-0000-4000-8000-00000000000a" } as UserEntity;
+const organization = { id: "00000000-0000-4000-8000-0000000000c1", organizerUserId: "00000000-0000-4000-8000-00000000000a" } as OrganizationEntity;
 const event = CreateEventSchema.parse({
   title: "Джаз в парке",
   category: "afisha",
@@ -43,19 +43,19 @@ describe("OrganizerController", () => {
     };
     const organizations = { getSetup: async () => ({ organizationId: "e1" }), updateSetup: async () => ({ organizationId: "e1" }), completeSetup: async () => ({ organizationId: "e1" }) };
     const controller = new OrganizerController(events, places, promo as never, promotions as never, payments as never, bookings as never, organizations as never);
-    await expect(controller.listEvents(user)).resolves.toEqual([eventDto]);
-    await expect(controller.createEventDraft(user, event)).resolves.toEqual(eventDto);
+    await expect(controller.listEvents(organization)).resolves.toEqual([eventDto]);
+    await expect(controller.createEventDraft(organization, event)).resolves.toEqual(eventDto);
     expect(calls.create).toEqual({ draft: true });
-    await expect(controller.publishEvent(user, eventDto.id)).resolves.toEqual(eventDto);
+    await expect(controller.publishEvent(organization, eventDto.id)).resolves.toEqual(eventDto);
     expect(calls.publish).toBe(eventDto.id);
-    await expect(controller.createEventDraft(user, { ...event, title: "" })).rejects.toBeInstanceOf(BadRequestException);
-    await expect(controller.createPromo(user, eventDto.id, { code: "" })).rejects.toBeInstanceOf(BadRequestException);
-    await expect(controller.createCampaign(user, eventDto.id, { type: "refer_a_friend", code: "", title: "x" })).rejects.toBeInstanceOf(BadRequestException);
-    await expect(controller.createPromotion(user, eventDto.id, { type: "boost" })).rejects.toBeInstanceOf(BadRequestException);
-    await expect(controller.refundBooking(user, eventDto.id, "00000000-0000-4000-8000-0000000000b1")).resolves.toMatchObject({ status: "cancelled" });
-    expect(bookingCalls).toEqual({ bookingId: "00000000-0000-4000-8000-0000000000b1", organizerId: user.id });
-    await expect(controller.updateSetup(user, { activities: ["катание"] })).rejects.toBeInstanceOf(BadRequestException);
-    await expect(controller.getSetup(user)).resolves.toMatchObject({ organizationId: "e1" });
-    await expect(controller.completeSetup(user)).resolves.toMatchObject({ organizationId: "e1" });
+    await expect(controller.createEventDraft(organization, { ...event, title: "" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.createPromo(organization, eventDto.id, { code: "" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.createCampaign(organization, eventDto.id, { type: "refer_a_friend", code: "", title: "x" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.createPromotion(organization, eventDto.id, { type: "boost" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.refundBooking(organization, eventDto.id, "00000000-0000-4000-8000-0000000000b1")).resolves.toMatchObject({ status: "cancelled" });
+    expect(bookingCalls).toEqual({ bookingId: "00000000-0000-4000-8000-0000000000b1", organizerId: organization.organizerUserId });
+    await expect(controller.updateSetup(organization, { activities: ["катание"] })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.getSetup(organization)).resolves.toMatchObject({ organizationId: "e1" });
+    await expect(controller.completeSetup(organization)).resolves.toMatchObject({ organizationId: "e1" });
   });
 });

@@ -13,7 +13,9 @@
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
 import { RecordPageViewWriteSchema, StatsPeriodSchema, type OrganizerEventStats, type StatsPeriod } from "@max-events/api-contracts";
-import { CurrentUser } from "../auth/auth.guard";
+import { CurrentOrganization, CurrentUser, OrganizerOnly } from "../auth/auth.guard";
+import { OrganizationEntity } from "../organizations/organization.entity";
+import { organizerActorId } from "../organizations/organizations.service";
 import { UserEntity } from "../users/user.entity";
 import { StatsService } from "./stats.service";
 
@@ -29,13 +31,14 @@ export class ViewsController {
   }
 }
 
+@OrganizerOnly()
 @Controller("organizer/events")
 export class OrganizerStatsController {
   constructor(@Inject(StatsService) private readonly stats: StatsService) {}
 
   @Get(":id/stats")
-  eventStats(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Query("from") from?: string, @Query("to") to?: string): Promise<OrganizerEventStats> {
-    return this.stats.eventStats(user.id, id, parseStatsPeriod(from, to));
+  eventStats(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string, @Query("from") from?: string, @Query("to") to?: string): Promise<OrganizerEventStats> {
+    return this.stats.eventStats(organizerActorId(organization), id, parseStatsPeriod(from, to));
   }
 }
 

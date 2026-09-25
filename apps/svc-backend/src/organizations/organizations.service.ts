@@ -6,12 +6,13 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - OrganizationsService - count, countWithPassword, findByLogin, findByOrganizerUserId, findByOrganizerUserIds, organizerUserIdOf, linkOrganizerUser, verifyPassword, setPassword, provision, provisionWithoutPassword, getSetup, updateSetup, completeSetup
+// - OrganizationsService - count, countWithPassword, findByLogin, findById, findByOrganizerUserId, findByOrganizerUserIds, organizerUserIdOf, linkOrganizerUser, verifyPassword, setPassword, provision, provisionWithoutPassword, getSetup, updateSetup, completeSetup
+// - organizerActorId - organization -> organizerUserId or 403
 // - toOrganizationDto - entity to the Organization contract (never carries the password hash)
 // - toSetupDto - entity to the OrganizerSetup contract
 // END_MODULE_MAP
 
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Not, QueryFailedError, Repository } from "typeorm";
 import { ORGANIZER_ACTIVITIES, ORGANIZER_PAYOUT_MODES, ORGANIZER_SETUP_STEPS, type Organization, type OrganizerActivity, type OrganizerPayoutMode, type OrganizerSetup, type OrganizerSetupStep, type UpdateOrganizerSetup } from "@max-events/api-contracts";
@@ -34,6 +35,10 @@ export class OrganizationsService {
 
   findByLogin(login: string): Promise<OrganizationEntity | null> {
     return this.organizations.findOneBy({ login });
+  }
+
+  findById(id: string): Promise<OrganizationEntity | null> {
+    return this.organizations.findOneBy({ id });
   }
 
   /** The other direction of the link: which organization publishes as this organizer user. */
@@ -210,6 +215,12 @@ function readPayoutMode(value: unknown): OrganizerPayoutMode {
 function readActivities(value: unknown): OrganizerActivity[] {
   if (!Array.isArray(value)) return [];
   return uniqueActivities(value.filter((item): item is OrganizerActivity => typeof item === "string" && ORGANIZER_ACTIVITIES.includes(item as OrganizerActivity)));
+}
+
+/** Events/places are still keyed by organizerUserId until T-004. Missing link is 403, not a silent user id. */
+export function organizerActorId(organization: OrganizationEntity): string {
+  if (!organization.organizerUserId) throw new ForbiddenException("Organization has no organizer user");
+  return organization.organizerUserId;
 }
 
 export function toOrganizationDto(row: OrganizationEntity): Organization {

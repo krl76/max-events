@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { QueryFailedError } from "typeorm";
 import { createOrganizationRepoFake } from "../auth/auth.organizer.testHarness";
 import { OrganizationEntity } from "./organization.entity";
-import { OrganizationsService, toOrganizationDto } from "./organizations.service";
+import { ForbiddenException } from "@nestjs/common";
+import { organizerActorId, OrganizationsService, toOrganizationDto } from "./organizations.service";
 
 function createService(initial: OrganizationEntity[] = []) {
   const repo = createOrganizationRepoFake(initial);
@@ -61,6 +62,13 @@ describe("OrganizationsService.findByLogin", () => {
     const { service } = createService();
     await service.provision({ login: "demo", password: "s3cret" });
     await expect(service.findByLogin("nobody")).resolves.toBeNull();
+  });
+});
+
+describe("organizerActorId", () => {
+  it("returns the linked user and 403s when the organization has none", () => {
+    expect(organizerActorId({ organizerUserId: "00000000-0000-4000-8000-00000000000a" } as OrganizationEntity)).toBe("00000000-0000-4000-8000-00000000000a");
+    expect(() => organizerActorId({ organizerUserId: null } as OrganizationEntity)).toThrow(ForbiddenException);
   });
 });
 
