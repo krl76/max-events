@@ -10,7 +10,7 @@
 // - ListItemCard - list screen aggregate: list item enriched with exactly one of its event or its place, and the participant who added it (null outside shared collections)
 // - ListScreen - one-list aggregate: list + participants + item cards (shared collections surface)
 // - AddListItem - save-to-list payload (owner user + saved event)
-// - withLists - ApiClient.listLists / createList / renameList / deleteList / addListItem / removeListItem / getList / listSubscriptions / createSubscription / removeSubscription
+// - withLists - ApiClient.listLists / createList / renameList / deleteList / addListItem / removeListItem / getList / inviteListMember / leaveList / listSubscriptions / createSubscription / removeSubscription
 // END_MODULE_MAP
 
 import { EventSchema, FriendSchema, ListItemSchema, ListSchema, PlaceSchema, SubscriptionSchema } from "@max-events/api-contracts";
@@ -138,6 +138,14 @@ export function withLists<TBase extends ApiMixin>(Base: TBase) {
 
     getList(listId: string): Promise<ListScreen> {
       return this.request(`/lists/${listId}`, ListScreenSchema);
+    }
+
+    inviteListMember(listId: string, userId: string): Promise<ListScreen> {
+      return this.request(`/lists/${listId}/invites`, ListScreenSchema, { body: { userId } });
+    }
+
+    leaveList(listId: string): Promise<List> {
+      return this.request(`/lists/${listId}/leave`, ListSchema, { method: "POST" });
     }
 
     listSubscriptions(): Promise<Subscription[]> {

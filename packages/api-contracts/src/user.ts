@@ -10,9 +10,10 @@
 // - User - full user type
 // - CreateUserSchema - user creation payload (server-side from validated initData)
 // - CreateUser - user creation payload type
-// - SmartAlertSettingsSchema - per-type smart-alert toggles
+// - SmartAlertSettingsSchema - per-type smart-alert toggles plus quiet hours
 // - SmartAlertSettings - smart-alert prefs type
-// - DEFAULT_SMART_ALERTS - all types on
+// - QuietHoursTimeSchema - HH:MM window edge
+// - DEFAULT_SMART_ALERTS - all types on, quiet hours off, window 23:00–09:00
 // - PrivacySettingsSchema - visit history and route visibility
 // - PrivacySettings - privacy type
 // - DEFAULT_PRIVACY - visible to friends
@@ -40,11 +41,17 @@ export type User = z.infer<typeof UserSchema>;
 export const CreateUserSchema = UserSchema.omit({ id: true, createdAt: true, updatedAt: true });
 export type CreateUser = z.infer<typeof CreateUserSchema>;
 
+export const QuietHoursTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+export type QuietHoursTime = z.infer<typeof QuietHoursTimeSchema>;
+
 export const SmartAlertSettingsSchema = z.object({
   leaveNow: z.boolean(),
   weather: z.boolean(),
   friendLeft: z.boolean(),
   listDigest: z.boolean(),
+  quietHoursEnabled: z.boolean(),
+  quietHoursFrom: QuietHoursTimeSchema,
+  quietHoursTo: QuietHoursTimeSchema,
 });
 export type SmartAlertSettings = z.infer<typeof SmartAlertSettingsSchema>;
 
@@ -53,6 +60,9 @@ export const DEFAULT_SMART_ALERTS: SmartAlertSettings = {
   weather: true,
   friendLeft: true,
   listDigest: true,
+  quietHoursEnabled: false,
+  quietHoursFrom: "23:00",
+  quietHoursTo: "09:00",
 };
 
 export const PrivacySettingsSchema = z.object({

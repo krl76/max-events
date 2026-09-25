@@ -46,7 +46,9 @@ describe("ProfileSchema", () => {
 describe("UpdateProfileSchema", () => {
   it("accepts partial profile edits without userId", () => {
     expect(UpdateProfileSchema.safeParse({ city: "Казань" }).success).toBe(true);
-    expect(UpdateProfileSchema.safeParse({ smartAlerts: { weather: false } }).success).toBe(true);
+    expect(UpdateProfileSchema.parse({ smartAlerts: { weather: false } }).smartAlerts).toEqual({ weather: false });
+    expect(UpdateProfileSchema.safeParse({ smartAlerts: { quietHoursEnabled: true, quietHoursFrom: "22:00" } }).success).toBe(true);
+    expect(UpdateProfileSchema.safeParse({ smartAlerts: { quietHoursFrom: "25:00" } }).success).toBe(false);
     expect(UpdateProfileSchema.safeParse({ privacy: { visitHistory: "hidden" } }).success).toBe(true);
     expect(UpdateProfileSchema.safeParse({ recommendationsEnabled: false }).success).toBe(true);
   });

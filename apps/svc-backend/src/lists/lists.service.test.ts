@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
 import { ListPresetSchema } from "@max-events/api-contracts";
@@ -6,6 +6,8 @@ import { EventEntity } from "../events/event.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { ListItemEntity } from "./list-item.entity";
 import { ListEntity } from "./list.entity";
+import { UserEntity } from "../users/user.entity";
+import { ListMemberEntity } from "./list-member.entity";
 import { LIST_PRESET_TITLES, ListsService, MAX_CUSTOM_LISTS } from "./lists.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
@@ -68,13 +70,20 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
   };
 }
 
-function createService() {
+function userRow(id: string, firstName: string): UserEntity {
+  return { id, maxUserId: id, firstName, lastName: null, username: null, avatarUrl: null, createdAt: now, updatedAt: now } as UserEntity;
+}
+
+function createService(opts: { friendIds?: string[] } = {}) {
   const lists = createStoreRepo<ListEntity>();
   const items = createStoreRepo<ListItemEntity>();
+  const members = createStoreRepo<ListMemberEntity>();
   const events = createStoreRepo<EventEntity>([eventRow(eventId, "Джаз"), eventRow(otherEventId, "Пробежка")]);
   const places = createStoreRepo<PlaceEntity>([{ id: placeId, title: "Парк", address: "Москва", city: "Москва", category: "park", latitude: 55.75, longitude: 37.62, published: true, createdAt: now, updatedAt: now } as PlaceEntity]);
-  const service = new ListsService(lists as unknown as Repository<ListEntity>, items as unknown as Repository<ListItemEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>);
-  return { service, items };
+  const users = { findByIds: async (ids: string[]) => [userRow(userId, "Демо"), userRow(otherUserId, "Анна")].filter((row) => ids.includes(row.id)) };
+  const friends = { friendIds: async () => new Set(opts.friendIds ?? [otherUserId]) };
+  const service = new ListsService(lists as unknown as Repository<ListEntity>, items as unknown as Repository<ListItemEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, members as unknown as Repository<ListMemberEntity>, users as never, friends as never);
+  return { service, items, members };
 }
 
 function uniqueViolation(): QueryFailedError {
@@ -178,7 +187,7 @@ describe("ListsService", () => {
     const cards = await service.itemsFor(userId, want.list.id);
     expect(cards.map((card) => card.event?.id)).toEqual([eventId]);
     expect(cards[0].place).toBeNull();
-    expect(cards[0].addedBy).toBeNull();
+    expect(cards[0].addedBy).toEqual({ id: userId, name: "Демо", avatarUrl: null });
   });
 
   it("removes an event and 404s unknown lists, events and items", async () => {
@@ -212,5 +221,28 @@ describe("ListsService", () => {
     expect(cards.map((card) => card.place?.id)).toEqual([placeId]);
     expect(cards[0].event).toBeNull();
     await expect(service.addPlace(userId, want.list.id, "00000000-0000-4000-8000-0000000000p9")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("invites a friend onto a custom list, lets them add, and lets them leave", async () => {
+    const { service } = createService();
+    const created = await service.create(userId, "Общий");
+    const invited = await service.invite(userId, created.id, otherUserId);
+    expect(invited.participants.map((row) => row.id)).toEqual([userId, otherUserId]);
+    const item = await service.addEvent(otherUserId, created.id, eventId);
+    expect(item.id).toBeTruthy();
+    const screen = await service.get(otherUserId, created.id);
+    expect(screen.items[0].addedBy?.id).toBe(otherUserId);
+    const left = await service.leave(otherUserId, created.id);
+    expect(left.id).toBe(created.id);
+    await expect(service.get(otherUserId, created.id)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("refuses inviting a stranger, inviting onto a preset, and the owner leaving", async () => {
+    const { service } = createService({ friendIds: [] });
+    const created = await service.create(userId, "Общий");
+    await expect(service.invite(userId, created.id, otherUserId)).rejects.toBeInstanceOf(BadRequestException);
+    const want = (await service.list(userId)).find((row) => row.list.preset === "want_to_go")!;
+    await expect(service.invite(userId, want.list.id, otherUserId)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.leave(userId, created.id)).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

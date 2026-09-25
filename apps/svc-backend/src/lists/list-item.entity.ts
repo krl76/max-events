@@ -26,6 +26,9 @@ export class ListItemEntity {
   @Column({ type: "uuid", nullable: true })
   placeId!: string | null;
 
+  @Column({ type: "uuid", nullable: true })
+  addedByUserId?: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   addedAt!: Date;
 }

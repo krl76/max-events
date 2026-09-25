@@ -17,6 +17,8 @@
 // - CreateListWrite - create payload type
 // - RenameListWriteSchema - same shape, used to rename
 // - RenameListWrite - rename payload type
+// - InviteListMemberWriteSchema - invite a user onto a custom list
+// - InviteListMemberWrite - invite payload type
 // - AddListItemWrite - add-event payload type
 // - ListSummarySchema - list with counters and optional saved-item id
 // - ListSummary - list summary type
@@ -78,6 +80,11 @@ export type CreateListWrite = z.infer<typeof CreateListWriteSchema>;
 
 export const RenameListWriteSchema = CreateListWriteSchema;
 export type RenameListWrite = z.infer<typeof RenameListWriteSchema>;
+
+export const InviteListMemberWriteSchema = z.object({
+  userId: IdSchema,
+});
+export type InviteListMemberWrite = z.infer<typeof InviteListMemberWriteSchema>;
 
 export const ListSummarySchema = z.object({
   list: ListSchema,

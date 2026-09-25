@@ -286,7 +286,7 @@ describe("ApiClient.profile", () => {
     vi.unstubAllGlobals();
   });
 
-  const profile = { userId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", city: "Москва", interests: ["бег"], smartAlerts: { leaveNow: true, weather: true, friendLeft: true, listDigest: true }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true };
+  const profile = { userId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", city: "Москва", interests: ["бег"], smartAlerts: { leaveNow: true, weather: true, friendLeft: true, listDigest: true, quietHoursEnabled: false, quietHoursFrom: "23:00", quietHoursTo: "09:00" }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true };
 
   it("patches the profile with method PATCH, a JSON body and content-type", async () => {
     const getInit = mockFetchCaptured(profile);

@@ -241,15 +241,15 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
         <SettingsSwitchRow title="Когда выходить" hint="С учётом маршрута и погоды" checked={profile.smartAlerts.leaveNow} onChange={(on) => onProfile({ smartAlerts: { leaveNow: on, weather: on } })} />
         <SettingsSwitchRow title="Освободилось место" hint="По листу ожидания" checked={settings?.seatFreed ?? false} onChange={(seatFreed) => onSettings({ seatFreed })} />
         <SettingsSwitchRow title="Планы друзей" hint="Когда друг записался рядом" checked={profile.smartAlerts.friendLeft} onChange={(on) => onProfile({ smartAlerts: { friendLeft: on } })} />
-        <SettingsValueRow title="Тихие часы" hint={quietHoursHint(settings?.quietHoursFrom ?? "23:00", settings?.quietHoursTo ?? "09:00")} value={quietHoursLabel(settings?.quietHours ?? false)} expanded={picker === "quiet"} onOpen={() => open("quiet")} />
+        <SettingsValueRow title="Тихие часы" hint={quietHoursHint(profile.smartAlerts.quietHoursFrom, profile.smartAlerts.quietHoursTo)} value={quietHoursLabel(profile.smartAlerts.quietHoursEnabled)} expanded={picker === "quiet"} onOpen={() => open("quiet")} />
         {picker === "quiet" && (
           <SettingsPicker
             options={[
               { value: "on", label: "Вкл" },
               { value: "off", label: "Выкл" },
             ]}
-            selected={[(settings?.quietHours ?? false) ? "on" : "off"]}
-            onPick={(value) => onSettings({ quietHours: value === "on" })}
+            selected={[profile.smartAlerts.quietHoursEnabled ? "on" : "off"]}
+            onPick={(value) => onProfile({ smartAlerts: { quietHoursEnabled: value === "on" } })}
           />
         )}
       </SettingsGroup>

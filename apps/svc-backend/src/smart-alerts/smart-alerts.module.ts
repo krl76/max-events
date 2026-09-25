@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Nest module wiring weather, friend-left and list-digest smart alerts and the scheduler.
-// SCOPE: Plan/list/digest repos, WeatherClient, SmartAlertsService, ListDigestService, scheduler.
+// PURPOSE: Nest module wiring weather, friend-left and list-digest smart alerts, the scheduler, and the in-app inbox HTTP.
+// SCOPE: Plan/list/digest/notification repos, WeatherClient, SmartAlertsService, ListDigestService, NotificationsService, scheduler.
 // DEPENDS: @nestjs/typeorm, ../max-bot/max-bot.module, ./weather.client
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -20,15 +20,20 @@ import { PlaceEntity } from "../places/place.entity";
 import { PlanParticipantEntity } from "../plans/plan-participant.entity";
 import { PlanEntity } from "../plans/plan.entity";
 import { ProfileEntity } from "../users/profile.entity";
+import { UsersModule } from "../users/users.module";
 import { UserEntity } from "../users/user.entity";
 import { ListDigestSendEntity } from "./list-digest.entity";
 import { ListDigestService } from "./list-digest.service";
+import { NotificationEntity } from "./notification.entity";
+import { NotificationsController } from "./notifications.controller";
+import { NotificationsService } from "./notifications.service";
 import { SmartAlertsScheduler } from "./smart-alerts.scheduler";
 import { SmartAlertsService } from "./smart-alerts.service";
 import { WeatherClient } from "./weather.client";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, EventEntity, PlaceEntity, UserEntity, CheckInEntity, ProfileEntity, ListEntity, ListItemEntity, ListDigestSendEntity]), MaxBotModule],
-  providers: [WeatherClient, SmartAlertsService, ListDigestService, SmartAlertsScheduler],
+  imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, EventEntity, PlaceEntity, UserEntity, CheckInEntity, ProfileEntity, ListEntity, ListItemEntity, ListDigestSendEntity, NotificationEntity]), MaxBotModule, UsersModule],
+  controllers: [NotificationsController],
+  providers: [WeatherClient, SmartAlertsService, ListDigestService, SmartAlertsScheduler, NotificationsService],
 })
 export class SmartAlertsModule {}
