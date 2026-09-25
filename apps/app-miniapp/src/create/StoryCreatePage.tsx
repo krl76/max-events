@@ -11,10 +11,11 @@
 // - STORY_CANVASES - три градиента рельса в порядке макета
 // - STORY_OBJECT_ORDER - объекты холста в порядке кнопок каталога
 // - STORY_OBJECTS - что такое каждый объект: подпись кнопки, глиф и место в кадре, на которое он ложится
-// - StoryDraft - черновик экрана: подложка, фото, подпись, событие стикера, ответ опроса, аудитория, объекты холста
+// - STORY_OBJECT_SCALES - лесенка размеров объекта, от самого мелкого к самому крупному
+// - StoryDraft - черновик экрана: подложка, фото, подпись, событие стикера, правленый опрос, аудитория, объекты холста
 // - storyTimeLabel - «14:00» из ISO-времени события
 // - storySticker - стикер места из карточки события: заголовок, «место · время», остаток мест
-// - storyPoll - опрос истории: вопрос макета и два времени — старт события и +3 часа
+// - storyPoll - заготовка опроса из события: вопрос макета и два времени — старт события и +3 часа
 // - nextStoryAudience - следующая аудитория по кругу (кнопка «Близкие друзья» — переключатель)
 // - storyAudienceLabel - подпись аудитории на кнопке
 // - storyCanvasImage - data-URL фирменного градиента: у истории на градиентной подложке тоже должна быть картинка
@@ -22,14 +23,18 @@
 // - addStoryObject - положить объект на его место в кадре; повторное добавление ничего не меняет
 // - removeStoryObject - снять объект с холста
 // - moveStoryObject - перенести объект, удерживая его центр в кадре
+// - resizeStoryObject - шаг по лесенке размеров: на краю лесенки объект остаётся как был
+// - storyDraftPoll - опрос, который сейчас на холсте: правка автора, а пока её нет — заготовка из события
+// - editStoryPoll - правка опроса на месте: вопрос или один из вариантов
 // - storyObjectEnabled - есть ли чем наполнить объект: стикер и счётчик мест без карточки события пусты, опрос — без времени старта
 // - storyObjectClass - классы обёртки объекта: свой вид плюс «передний», если объект трогали последним
+// - storyObjectStyle - расстановка объекта в кадре: доли кадра и размер одной трансформацией
 // - storyComposition - черновик -> тело публикации: только то, что автор положил на холст, плюс расстановка
 // - StoryCreateView - презентационный экран 05
 // - StoryCreatePage - контейнер: события, карточка выбранного события, выбор фото, публикация
 // END_MODULE_MAP
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Event } from "@max-events/api-contracts";
 import { apiClient, STORY_AUDIENCES, type EventDetails, type StoryAudience, type StoryCanvasObject, type StoryComposition, type StoryObjectKind, type StoryPlaceSticker, type StoryPoll } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -58,14 +63,25 @@ export const STORY_OBJECTS: Record<StoryObjectKind, { label: string; icon: Actio
   seats: { label: "Места", icon: "seat", x: 74, y: 45 },
 };
 
+/**
+ * Размер объекта ступенями, а не щипком: щипок в мини-аппе пришлось бы отбирать у страницы вместе с
+ * масштабом всего экрана, а второй палец на холсте конфликтует с переносом за ручку. Потолок 1.25
+ * выбран по самому широкому объекту: опрос занимает кадр без двух отступов и за 1.25 уходит за край.
+ */
+export const STORY_OBJECT_SCALES: readonly number[] = [0.75, 0.9, 1, 1.15, 1.25];
+
 export interface StoryDraft {
   canvas: StoryCanvas;
   photoUrl: string | null;
   text: string;
   /** Событие, из которого наполняются стикер, опрос и счётчик мест; null, пока каталог не ответил. */
   eventId: string | null;
-  /** Индекс выбранного варианта опроса; null — автор ещё ничего не подсветил. */
-  answer: number | null;
+  /**
+   * Опрос таким, каким его правит автор: заводится из события в момент добавления объекта и дальше
+   * принадлежит автору — смена события больше не затирает того, что он написал. null — объекта на
+   * холсте нет, и опрос снова возьмётся из карточки события.
+   */
+  poll: StoryPoll | null;
   audience: StoryAudience;
   /** Что автор положил на холст, в порядке добавления. Пусто на входе: история начинается с чистого кадра. */
   objects: StoryCanvasObject[];
@@ -157,6 +173,30 @@ export function moveStoryObject(objects: readonly StoryCanvasObject[], kind: Sto
   return objects.map((object) => (object.kind === kind ? { ...object, x: inside(x), y: inside(y) } : object));
 }
 
+/** Шаг по лесенке размеров. На краю лесенки объект остаётся как был: кнопка там и без того погашена. */
+export function resizeStoryObject(objects: readonly StoryCanvasObject[], kind: StoryObjectKind, step: 1 | -1): StoryCanvasObject[] {
+  return objects.map((object) => {
+    if (object.kind !== kind) return object;
+    const at = STORY_OBJECT_SCALES.indexOf(object.scale ?? 1);
+    const next = STORY_OBJECT_SCALES[Math.min(STORY_OBJECT_SCALES.length - 1, Math.max(0, (at === -1 ? STORY_OBJECT_SCALES.indexOf(1) : at) + step))];
+    return { ...object, scale: next };
+  });
+}
+
+/** Опрос, который сейчас на холсте: правка автора, а пока её нет — заготовка из карточки события. */
+export function storyDraftPoll(draft: StoryDraft, poll: StoryPoll | null): StoryPoll | null {
+  return draft.poll ?? poll;
+}
+
+/**
+ * Правка опроса на месте: вопрос или один из вариантов, остальное остаётся как было. Подсвеченный
+ * ответ держится индексом, а не текстом, поэтому переименование варианта его не сбивает.
+ */
+export function editStoryPoll(poll: StoryPoll, field: "question" | number, value: string): StoryPoll {
+  if (field === "question") return { ...poll, question: value };
+  return { ...poll, options: poll.options.map((option, index) => (index === field ? value : option)) };
+}
+
 /** Объект без данных не добавляется: пустой стикер или опрос без вариантов — это дыра в истории, а не объект. */
 export function storyObjectEnabled(kind: StoryObjectKind, sticker: StoryPlaceSticker | null, poll: StoryPoll | null): boolean {
   if (kind === "text") return true;
@@ -175,14 +215,23 @@ export function storyObjectClass(kind: StoryObjectKind, front: StoryObjectKind |
   return `app-story-object app-story-object--${kind}${front === kind ? " app-story-object--front" : ""}`;
 }
 
+/**
+ * Место объекта в кадре и его размер одной трансформацией: перенос центра в точку и масштаб обязаны
+ * ехать вместе, иначе крупный объект уезжает от пальца на половину прибавки.
+ */
+export function storyObjectStyle(object: StoryCanvasObject): CSSProperties {
+  return { left: `${object.x}%`, top: `${object.y}%`, transform: `translate(-50%, -50%) scale(${object.scale ?? 1})` };
+}
+
 /** В теле публикации едет только то, что автор положил на холст: пустой холст — история из одного фона. */
 export function storyComposition(draft: StoryDraft, sticker: StoryPlaceSticker | null, poll: StoryPoll | null): StoryComposition {
   const onCanvas = (kind: StoryObjectKind) => hasStoryObject(draft.objects, kind);
+  const asked = storyDraftPoll(draft, poll);
   return {
     text: onCanvas("text") ? draft.text.trim() : "",
     // Остаток мест лежит на том же стикере: счётчик без стикера — это тот же стикер, нарисованный одной цифрой.
     sticker: onCanvas("event") || onCanvas("seats") ? sticker : null,
-    poll: onCanvas("poll") && poll !== null ? { ...poll, answer: draft.answer } : null,
+    poll: onCanvas("poll") ? asked : null,
     audience: draft.audience,
     objects: draft.objects.map((object) => ({ ...object })),
   };
@@ -204,10 +253,27 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
   const captionRef = useRef<HTMLTextAreaElement | null>(null);
   const frameRef = useRef<HTMLElement | null>(null);
   // Кого трогали последним — тот и впереди: порядок публикации от этого не зависит, это только холст.
-  const [front, setFront] = useState<StoryObjectKind | null>(null);
+  // Пока не трогали никого, выбран последний положенный: холст без выбранного объекта не показывал
+  // бы ручек вовсе, а первым делом после добавления их и ищут.
+  const [touched, setTouched] = useState<StoryObjectKind | null>(null);
+  const front = touched ?? draft.objects[draft.objects.length - 1]?.kind ?? null;
   const onPhotoCanvas = draft.canvas === "photo" && draft.photoUrl !== null;
+  // Опрос на холсте — правленый, а не выведенный: заготовка из события служит ему только началом.
+  const asked = storyDraftPoll(draft, poll);
 
-  const toggleObject = (kind: StoryObjectKind) => onDraft({ ...draft, objects: hasStoryObject(draft.objects, kind) ? removeStoryObject(draft.objects, kind) : addStoryObject(draft.objects, kind) });
+  /** Добавленный объект сразу становится выбранным: ручки живут на выбранном, и искать их не приходится. */
+  const putObject = (kind: StoryObjectKind) => {
+    onDraft({ ...draft, objects: addStoryObject(draft.objects, kind), ...(kind === "poll" && draft.poll === null && poll !== null ? { poll } : {}) });
+    setTouched(kind);
+  };
+
+  /** Снятый опрос забирает с собой и свою правку: добавленный заново он снова заводится из события. */
+  const dropObject = (kind: StoryObjectKind) => {
+    onDraft({ ...draft, objects: removeStoryObject(draft.objects, kind), ...(kind === "poll" ? { poll: null } : {}) });
+    setTouched((current) => (current === kind ? null : current));
+  };
+
+  const toggleObject = (kind: StoryObjectKind) => (hasStoryObject(draft.objects, kind) ? dropObject(kind) : putObject(kind));
 
   /** Перетаскивание считается от точки захвата, а не от центра: иначе объект прыгал бы под палец первым же движением. */
   const startDrag = (object: StoryCanvasObject, event: ReactPointerEvent<HTMLElement>) => {
@@ -225,6 +291,26 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
     window.addEventListener("pointerup", stop);
   };
 
+  /**
+   * Выбор события — единственное, что правится у стикера и счётчика мест: заголовок, площадка, время
+   * и остаток мест принадлежат карточке события, а не истории, и сочинять их поверх неё нельзя.
+   * Нативный список лежит прозрачным слоем поверх объекта, а шеврон говорит, что слой там есть.
+   */
+  const eventPick = (label: string): ReactNode => (
+    <>
+      <span className="app-story-pick-mark" aria-hidden="true">
+        <ActionIcon name="chevron" size={12} strokeWidth={2.6} />
+      </span>
+      <select className="app-story-sticker-pick" aria-label={label} value={draft.eventId ?? ""} onChange={(change) => onDraft({ ...draft, eventId: change.target.value })}>
+        {events.map((event) => (
+          <option key={event.id} value={event.id}>
+            {event.title}
+          </option>
+        ))}
+      </select>
+    </>
+  );
+
   const objectBody = (kind: StoryObjectKind): ReactNode => {
     if (kind === "text") return <textarea ref={captionRef} className="app-story-caption" aria-label="Подпись истории" rows={2} placeholder="Ваш текст" value={draft.text} onChange={(change) => onDraft({ ...draft, text: change.target.value })} />;
     if (kind === "event" && sticker !== null)
@@ -235,14 +321,7 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
             <span className="app-story-sticker-title">{sticker.title}</span>
             <span className="app-story-sticker-subtitle">{sticker.subtitle}</span>
           </span>
-          {/* Стикер сам себе выбор: отдельной строки «какое событие» макет не рисует, а нативный список открывается по тапу по пилюле. */}
-          <select className="app-story-sticker-pick" aria-label="Событие истории" value={draft.eventId ?? ""} onChange={(change) => onDraft({ ...draft, eventId: change.target.value, answer: null })}>
-            {events.map((event) => (
-              <option key={event.id} value={event.id}>
-                {event.title}
-              </option>
-            ))}
-          </select>
+          {eventPick("Событие истории")}
         </div>
       );
     if (kind === "seats" && sticker !== null && sticker.seatsLeft !== null)
@@ -250,18 +329,24 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
         <div className="app-story-seats">
           <span className="app-story-seats-label">осталось мест</span>
           <span className="app-story-seats-count">{sticker.seatsLeft}</span>
+          {/* Число не правится руками намеренно: свободные места считает бронирование, и подписанное автором «осталось 2» было бы враньём на витрине. */}
+          <span className="app-story-seats-source">из карточки события</span>
+          {eventPick("Событие счётчика мест")}
         </div>
       );
-    if (kind === "poll" && poll !== null)
+    if (kind === "poll" && asked !== null)
       return (
         <div className="app-story-poll">
           <p className="app-story-poll-kind">Опрос</p>
-          <p className="app-story-poll-question">{poll.question}</p>
+          {/* Вопрос и оба варианта правятся прямо на объекте: заготовка из события — начало, а не приговор. */}
+          <input className="app-story-poll-question app-story-poll-field" aria-label="Вопрос опроса" placeholder="Ваш вопрос" value={asked.question} onChange={(change) => onDraft({ ...draft, poll: editStoryPoll(asked, "question", change.target.value) })} />
           <div className="app-story-poll-options">
-            {poll.options.map((option, index) => (
-              <button key={option} type="button" className={draft.answer === index ? "app-story-poll-option app-story-poll-option--on" : "app-story-poll-option"} aria-pressed={draft.answer === index} onClick={() => onDraft({ ...draft, answer: draft.answer === index ? null : index })}>
-                {option}
-              </button>
+            {asked.options.map((option, index) => (
+              // Ключ по месту, а не по тексту: два одинаковых варианта посреди правки — обычное дело.
+              <span key={index} className={asked.answer === index ? "app-story-poll-option app-story-poll-option--on" : "app-story-poll-option"}>
+                <button type="button" className="app-story-poll-mark" aria-label={`Мой ответ: вариант ${index + 1}`} aria-pressed={asked.answer === index} onClick={() => onDraft({ ...draft, poll: { ...asked, answer: asked.answer === index ? null : index } })} />
+                <input className="app-story-poll-field" aria-label={`Вариант ${index + 1}`} placeholder={`Вариант ${index + 1}`} value={option} onChange={(change) => onDraft({ ...draft, poll: editStoryPoll(asked, index, change.target.value) })} />
+              </span>
             ))}
           </div>
         </div>
@@ -288,7 +373,7 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
             className="app-story-round"
             aria-label="Добавить текст"
             onClick={() => {
-              onDraft({ ...draft, objects: addStoryObject(draft.objects, "text") });
+              putObject("text");
               captionRef.current?.focus();
             }}
           >
@@ -306,19 +391,32 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
 
       {drawn.length === 0 && <p className="app-story-empty">Пустой холст. Выберите фон и добавьте объекты снизу: текст, событие, опрос, счётчик мест.</p>}
 
-      {drawn.map(({ object, body }) => (
-        <div key={object.kind} className={storyObjectClass(object.kind, front)} style={{ left: `${object.x}%`, top: `${object.y}%` }} onPointerDown={() => setFront(object.kind)}>
-          <span className="app-story-object-tools">
-            <button type="button" className="app-story-object-grip" aria-label={`Передвинуть: ${STORY_OBJECTS[object.kind].label}`} onPointerDown={(event) => startDrag(object, event)}>
-              <ActionIcon name="dots" size={14} filled />
-            </button>
-            <button type="button" className="app-story-object-drop" aria-label={`Убрать: ${STORY_OBJECTS[object.kind].label}`} onClick={() => onDraft({ ...draft, objects: removeStoryObject(draft.objects, object.kind) })}>
-              <ActionIcon name="close" size={12} strokeWidth={2.6} />
-            </button>
-          </span>
-          {body}
-        </div>
-      ))}
+      {drawn.map(({ object, body }) => {
+        const label = STORY_OBJECTS[object.kind].label;
+        const scale = object.scale ?? 1;
+        return (
+          // Ручки живут на выбранном объекте: четыре набора разом закрывали холст сильнее самих объектов.
+          <div key={object.kind} className={storyObjectClass(object.kind, front)} style={storyObjectStyle(object)} onPointerDown={() => setTouched(object.kind)}>
+            {front === object.kind && (
+              <span className="app-story-object-tools">
+                <button type="button" className="app-story-object-grip" aria-label={`Передвинуть: ${label}`} onPointerDown={(event) => startDrag(object, event)}>
+                  <ActionIcon name="dots" size={14} filled />
+                </button>
+                <button type="button" className="app-story-object-size" aria-label={`Мельче: ${label}`} disabled={scale === STORY_OBJECT_SCALES[0]} onClick={() => onDraft({ ...draft, objects: resizeStoryObject(draft.objects, object.kind, -1) })}>
+                  <ActionIcon name="minus" size={12} strokeWidth={2.6} />
+                </button>
+                <button type="button" className="app-story-object-size" aria-label={`Крупнее: ${label}`} disabled={scale === STORY_OBJECT_SCALES[STORY_OBJECT_SCALES.length - 1]} onClick={() => onDraft({ ...draft, objects: resizeStoryObject(draft.objects, object.kind, 1) })}>
+                  <ActionIcon name="plus" size={12} strokeWidth={2.6} />
+                </button>
+                <button type="button" className="app-story-object-drop" aria-label={`Убрать: ${label}`} onClick={() => dropObject(object.kind)}>
+                  <ActionIcon name="close" size={12} strokeWidth={2.6} />
+                </button>
+              </span>
+            )}
+            {body}
+          </div>
+        );
+      })}
 
       <div className="app-story-foot">
         {/* Каталог объектов: в макете они были показом возможностей, здесь — кнопки, которыми автор собирает свою историю. */}
@@ -326,7 +424,9 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
           {STORY_OBJECT_ORDER.map((kind) => {
             const on = hasStoryObject(draft.objects, kind);
             return (
-              <button key={kind} type="button" className={on ? "app-story-catalog-chip app-story-catalog-chip--on" : "app-story-catalog-chip"} aria-pressed={on} disabled={!storyObjectEnabled(kind, sticker, poll)} onClick={() => toggleObject(kind)}>
+              // Лежащий на холсте объект снимается всегда: у события без мест счётчик не рисуется, и
+              // погашенная кнопка запирала бы его в черновике — снять его было бы уже нечем.
+              <button key={kind} type="button" className={on ? "app-story-catalog-chip app-story-catalog-chip--on" : "app-story-catalog-chip"} aria-pressed={on} disabled={!on && !storyObjectEnabled(kind, sticker, asked)} onClick={() => toggleObject(kind)}>
                 <ActionIcon name={STORY_OBJECTS[kind].icon} size={16} strokeWidth={2.2} />
                 {STORY_OBJECTS[kind].label}
               </button>
@@ -365,8 +465,8 @@ export function StoryCreatePage() {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [details, setDetails] = useState<EventDetails | null>(null);
-  // Холст пуст: объекты появляются только по действию автора, поэтому objects начинается пустым, а подсвеченного ответа опроса нет.
-  const [draft, setDraft] = useState<StoryDraft>({ canvas: "gradient-1", photoUrl: null, text: "", eventId: null, answer: null, audience: "close-friends", objects: [] });
+  // Холст пуст: объекты появляются только по действию автора, поэтому objects начинается пустым, а опроса нет вовсе.
+  const [draft, setDraft] = useState<StoryDraft>({ canvas: "gradient-1", photoUrl: null, text: "", eventId: null, poll: null, audience: "close-friends", objects: [] });
   const [state, setState] = useState<StoryPublishState>("idle");
 
   useEffect(() => {

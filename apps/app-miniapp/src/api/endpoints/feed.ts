@@ -121,6 +121,8 @@ export interface StoryCanvasObject {
   kind: StoryObjectKind;
   x: number;
   y: number;
+  /** How much bigger the author made the object; absent while it stays at its natural size. */
+  scale?: number;
 }
 
 /** Who a published post is shown to (макет, экран 06); no audience column behind it (#502). */
