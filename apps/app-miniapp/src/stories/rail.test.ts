@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Friend, Story } from "@max-events/api-contracts";
 import { mergeSeenStories, readSeenStories, storyRail, STORY_SEEN_KEY } from "./rail";
@@ -100,5 +101,52 @@ describe("storyRail", () => {
 
   it("treats a guest without an id as an author without stories", () => {
     expect(storyRail([ANNA], stories, null, []).own.group).toBeNull();
+  });
+});
+
+/**
+ * Геометрия кольца, а не его цвет: цвета стережёт палитра в ../ui/theme.test.ts. Здесь закрыт ровно
+ * тот дефект, из-за которого градиент был не виден, — тень цветом страницы шириной во всю подложку.
+ * Она накрывала обводку целиком, и от градиента оставался край пикселя сглаживания.
+ */
+describe("кольцо истории в theme.css", () => {
+  const css = readFileSync(new URL("../ui/theme.css", import.meta.url), "utf8");
+  /** Последнее правило с таким селектором: файл собирается как «база плюс хвосты», выигрывает хвост. */
+  const rule = (selector: string) => {
+    const at = css.lastIndexOf(`${selector} {`);
+    expect(at, `нет правила ${selector}`).toBeGreaterThan(-1);
+    return css.slice(at, css.indexOf("}", at));
+  };
+  const spreads = (selector: string) => [...rule(selector).matchAll(/0 0 0 ([\d.]+)px/g)].map((match) => Number.parseFloat(match[1]));
+  const padding = (selector: string) => Number.parseFloat((rule(selector).match(/padding: ([\d.]+)px/) ?? [])[1] ?? "0");
+
+  it("разворачивает непросмотренное кольцо по кругу, а не по диагонали", () => {
+    expect(rule(".app-story-ring--active")).toContain("var(--app-gradient-ring)");
+    expect(css).toContain("--app-gradient-ring: conic-gradient(");
+  });
+
+  it("оставляет градиенту полосу, а не один край сглаживания: тень уже подложки", () => {
+    const pad = padding(".app-stories .app-story-ring");
+    const gap = spreads(".app-story-ring--active > *")[0];
+
+    expect(pad).toBe(5);
+    expect(gap).toBe(2);
+    // Ровно это равенство и было дефектом: при pad === gap видимой обводки не остаётся вовсе.
+    expect(pad - gap).toBeGreaterThanOrEqual(3);
+  });
+
+  it("держит просмотренное кольцо тонкой нейтралью того же внешнего радиуса — рельс не прыгает", () => {
+    const seen = spreads(".app-story-ring--seen > *");
+
+    expect(rule(".app-story-ring--seen")).toContain("background: none");
+    expect(padding(".app-story-ring--seen")).toBe(padding(".app-stories .app-story-ring"));
+    // Два слоя: верхний цветом страницы, нижний нейтралью — наружу выходит разница между ними.
+    expect(seen).toHaveLength(2);
+    expect(seen[1] - seen[0]).toBeCloseTo(1.5);
+    expect(seen[1] - seen[0]).toBeLessThan(padding(".app-stories .app-story-ring") - spreads(".app-story-ring--active > *")[0]);
+  });
+
+  it("расширяет плитку под подросшее кольцо, иначе рельс режет обводку", () => {
+    expect(rule(".app-stories .app-story")).toContain("width: 72px");
   });
 });
