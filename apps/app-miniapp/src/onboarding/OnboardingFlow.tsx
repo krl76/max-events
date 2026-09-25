@@ -1,26 +1,34 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Onboarding screen (макет, экран 02): вступление (3 слайда) → город → друзья → интересы, after which the viewer lands on the feed.
-// SCOPE: The screen and its wiring — profile read/write through apiClient, the follow write through apiClient.followFriends, the "run once" flag through ./onboarding.js. Step order, content and labels live in ./onboarding.ts; the gate that mounts this screen is in ../App.tsx.
-// DEPENDS: ./onboarding.js, ../api/client.js (apiClient.getProfile/updateProfile/listFriendSuggestions/followFriends), ../auth/EntryPage.js (AfishaWordmark), ../geo/viewer-origin.js, ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
+// SCOPE: The screen and its wiring — profile read/write through apiClient, the follow write through apiClient.followFriends, the "run once" flag through ./onboarding.js, the swipe through ../ui/gestures.js. Step order, content and labels live in ./onboarding.ts; the gate that mounts this screen is in ../App.tsx.
+// DEPENDS: ./onboarding.js, ../api/client.js (apiClient.getProfile/updateProfile/listFriendSuggestions/followFriends), ../auth/EntryPage.js (AfishaWordmark), ../geo/viewer-origin.js, ../ui/gestures.js, ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - OnboardingViewProps - everything the presentational screen needs: current step, the four selections, load/save status and one handler per action
-// - OnboardingView - the presentational onboarding screen by step (intro slides, city picker, people grid, interest chips)
+// - OnboardingViewProps - everything the presentational screen needs: current step, the four selections, load/save status, the refused-forward wording and one handler per action
+// - OnboardingView - the presentational onboarding screen by step (intro slides, city picker, people grid, interest chips) under one horizontal swipe
 // - OnboardingFlow - route container: step state, profile and suggestion fetch, the follow and profile writes, the done flag
 // END_MODULE_MAP
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { FriendSuggestion } from "../api/client";
 import { apiClient } from "../api/client";
 import { AfishaWordmark } from "../auth/EntryPage";
 import { useViewerOrigin } from "../geo/viewer-origin";
+import { useSwipeDrag } from "../ui/gestures";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppChip, AppState } from "../ui/primitives";
-import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, cityDetectionHint, contactsLine, followCtaLabel, interestsCtaLabel, markOnboardingDone, nearestOnboardingCity, nextOnboardingStep, onboardingRailIndex, type OnboardingStep } from "./onboarding";
+import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, cityDetectionHint, contactsLine, followCtaLabel, interestsCtaLabel, markOnboardingDone, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type OnboardingStep } from "./onboarding";
 
 const RAIL_LABELS = ["Город", "Друзья", "Интересы"] as const;
+
+/**
+ * Насколько экран поддаётся пальцу. Слайд под жестом ровно один — следующего под ним нет, — и
+ * тянуть его за палец во всю ширину значило бы обещать то, чего за краем не лежит. Затухающие
+ * сорок пикселей отвечают движением, но ничего не обещают.
+ */
+const ONBOARDING_LEAN_PX = 40;
 
 export interface OnboardingViewProps {
   step: OnboardingStep;
@@ -32,25 +40,34 @@ export interface OnboardingViewProps {
   interests: string[];
   status: "loading" | "error" | "ready";
   saveFailed: boolean;
+  /** Почему шаг не выпустил вперёд, или null. Отказ на жесте обязан быть слышен — молчание читается как поломка. */
+  blocked: string | null;
   onIntro: (index: number) => void;
   onSkipIntro: () => void;
   onCity: (city: string) => void;
   onToggleFriend: (userId: string) => void;
   onToggleInterest: (interest: string) => void;
   onNext: () => void;
+  onBack: () => void;
 }
 
-function StepRail({ step }: { step: OnboardingStep }) {
+function StepRail({ step, onBack }: { step: OnboardingStep; onBack: () => void }) {
   const index = onboardingRailIndex(step);
   return (
-    <ol className={`app-onboarding-rail app-onboarding-rail--${index}`} aria-label="Шаги онбординга">
-      {RAIL_LABELS.map((label, position) => (
-        <li key={label} className={position <= index ? "app-onboarding-rail-step app-onboarding-rail-step--on" : "app-onboarding-rail-step"} aria-current={position === index ? "step" : undefined}>
-          <span className="app-onboarding-rail-dot" aria-hidden="true" />
-          <span className="app-onboarding-rail-label">{label}</span>
-        </li>
-      ))}
-    </ol>
+    <div className="app-onboarding-nav">
+      {/* Назад по шагам даёт смахивание вправо — и ровно то же обязано быть доступно тапом */}
+      <button type="button" className="app-onboarding-back" aria-label="Назад" onClick={onBack}>
+        <ActionIcon name="chevron" size={20} strokeWidth={2} />
+      </button>
+      <ol className={`app-onboarding-rail app-onboarding-rail--${index}`} aria-label="Шаги онбординга">
+        {RAIL_LABELS.map((label, position) => (
+          <li key={label} className={position <= index ? "app-onboarding-rail-step app-onboarding-rail-step--on" : "app-onboarding-rail-step"} aria-current={position === index ? "step" : undefined}>
+            <span className="app-onboarding-rail-dot" aria-hidden="true" />
+            <span className="app-onboarding-rail-label">{label}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -86,10 +103,10 @@ function IntroStep({ intro, onIntro, onSkipIntro, onNext }: Pick<OnboardingViewP
   );
 }
 
-function CityStep({ city, citySource, onCity, onNext }: Pick<OnboardingViewProps, "city" | "citySource" | "onCity" | "onNext">) {
+function CityStep({ city, citySource, onCity, onNext, onBack }: Pick<OnboardingViewProps, "city" | "citySource" | "onCity" | "onNext" | "onBack">) {
   return (
     <section className="app-onboarding">
-      <StepRail step="city" />
+      <StepRail step="city" onBack={onBack} />
       <header className="app-onboarding-head">
         <h1 className="app-onboarding-title">Твой город</h1>
         <p className="app-onboarding-lead">{cityDetectionHint(citySource)}</p>
@@ -125,10 +142,10 @@ function CityStep({ city, citySource, onCity, onNext }: Pick<OnboardingViewProps
   );
 }
 
-function FriendsStep({ suggestions, followed, saveFailed, onToggleFriend, onNext }: Pick<OnboardingViewProps, "suggestions" | "followed" | "saveFailed" | "onToggleFriend" | "onNext">) {
+function FriendsStep({ suggestions, followed, saveFailed, onToggleFriend, onNext, onBack }: Pick<OnboardingViewProps, "suggestions" | "followed" | "saveFailed" | "onToggleFriend" | "onNext" | "onBack">) {
   return (
     <section className="app-onboarding">
-      <StepRail step="friends" />
+      <StepRail step="friends" onBack={onBack} />
       <header className="app-onboarding-head app-onboarding-head--center">
         <h1 className="app-onboarding-title app-onboarding-title--headline">
           Твои люди <span className="app-onboarding-accent">уже здесь</span>
@@ -168,10 +185,10 @@ function FriendsStep({ suggestions, followed, saveFailed, onToggleFriend, onNext
   );
 }
 
-function InterestsStep({ interests, saveFailed, onToggleInterest, onNext }: Pick<OnboardingViewProps, "interests" | "saveFailed" | "onToggleInterest" | "onNext">) {
+function InterestsStep({ interests, saveFailed, blocked, onToggleInterest, onNext, onBack }: Pick<OnboardingViewProps, "interests" | "saveFailed" | "blocked" | "onToggleInterest" | "onNext" | "onBack">) {
   return (
     <section className="app-onboarding">
-      <StepRail step="interests" />
+      <StepRail step="interests" onBack={onBack} />
       <header className="app-onboarding-head">
         <h1 className="app-onboarding-title">Что тебе близко?</h1>
         <p className="app-onboarding-lead">Выбери хотя бы три. Подборка и «Куда пойдём?» подстроятся.</p>
@@ -191,6 +208,12 @@ function InterestsStep({ interests, saveFailed, onToggleInterest, onNext }: Pick
       </div>
       <div className="app-onboarding-footer app-onboarding-footer--divided">
         {saveFailed && <p className="app-onboarding-error">Не удалось сохранить выбор. Попробуй ещё раз.</p>}
+        {/* Смахнули вперёд с незаполненного шага: жест не сработал, и экран говорит почему */}
+        {blocked !== null && (
+          <p className="app-onboarding-nudge" role="status">
+            {blocked}
+          </p>
+        )}
         {/* Экран сам просит выбрать хотя бы три — кнопка не должна выпускать раньше */}
         <button type="button" className="app-onboarding-cta" disabled={interests.length < MIN_INTERESTS} onClick={onNext}>
           {interestsCtaLabel(interests.length)}
@@ -201,13 +224,23 @@ function InterestsStep({ interests, saveFailed, onToggleInterest, onNext }: Pick
 }
 
 export function OnboardingView(props: OnboardingViewProps) {
-  if (props.step === "intro") return <IntroStep intro={props.intro} onIntro={props.onIntro} onSkipIntro={props.onSkipIntro} onNext={props.onNext} />;
+  // Жест один на весь онбординг: шаги расходятся только тем, куда ведут его концы. Влево — вперёд,
+  // вправо — назад; вертикальная прокрутка списка городов и людей остаётся за прокруткой, и спор за
+  // палец разбирает сам механизм.
+  const drag = useSwipeDrag({ axis: "x", dampPx: ONBOARDING_LEAN_PX, onSwipe: (direction) => (direction === "right" ? props.onBack() : props.onNext()) });
+  const stage = (content: ReactNode) => (
+    <div className={drag.settling ? "app-onboarding-slide app-onboarding-slide--settling" : "app-onboarding-slide"} {...drag.gesture} style={{ ...drag.gesture.style, transform: drag.offset === 0 ? undefined : `translateX(${drag.offset}px)` }}>
+      {content}
+    </div>
+  );
+
+  if (props.step === "intro") return stage(<IntroStep intro={props.intro} onIntro={props.onIntro} onSkipIntro={props.onSkipIntro} onNext={props.onNext} />);
   // Город, друзья и интересы пишутся в профиль, поэтому дальше вступления экран ждёт загрузку.
   if (props.status === "loading") return <AppState>Загрузка…</AppState>;
   if (props.status === "error") return <AppState error>Не удалось загрузить данные онбординга.</AppState>;
-  if (props.step === "city") return <CityStep city={props.city} citySource={props.citySource} onCity={props.onCity} onNext={props.onNext} />;
-  if (props.step === "friends") return <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} />;
-  return <InterestsStep interests={props.interests} saveFailed={props.saveFailed} onToggleInterest={props.onToggleInterest} onNext={props.onNext} />;
+  if (props.step === "city") return stage(<CityStep city={props.city} citySource={props.citySource} onCity={props.onCity} onNext={props.onNext} onBack={props.onBack} />);
+  if (props.step === "friends") return stage(<FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} onBack={props.onBack} />);
+  return stage(<InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} onBack={props.onBack} />);
 }
 
 function toggle(values: string[], value: string): string[] {
@@ -221,6 +254,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
   const [loaded, setLoaded] = useState<{ city: string; interests: string[]; suggestions: FriendSuggestion[] } | null>(null);
   const [failed, setFailed] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [blocked, setBlocked] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [followed, setFollowed] = useState<string[] | null>(null);
   const [interests, setInterests] = useState<string[] | null>(null);
@@ -270,7 +304,24 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
     write.then(advance, () => setSaveFailed(true));
   }
 
+  function onBack(): void {
+    setBlocked(null);
+    // Во вступлении «назад» — это предыдущий слайд: сама карусель и есть шаг, точки дублируют жест.
+    if (step === "intro") {
+      setIntro((current) => Math.max(0, current - 1));
+      return;
+    }
+    const previous = previousOnboardingStep(step);
+    if (previous !== null) setStep(previous);
+  }
+
   function onNext(): void {
+    const block = onboardingForwardBlock(step, currentInterests.length);
+    if (block !== null) {
+      setBlocked(block);
+      return;
+    }
+    setBlocked(null);
     if (step === "intro") {
       if (intro < INTRO_SLIDES.length - 1) setIntro(intro + 1);
       else setStep("city");
@@ -294,5 +345,11 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
     advance();
   }
 
-  return <OnboardingView step={step} intro={intro} city={city} citySource={origin.source} suggestions={loaded?.suggestions ?? []} followed={currentFollowed} interests={currentInterests} status={failed ? "error" : loaded === null ? "loading" : "ready"} saveFailed={saveFailed} onIntro={setIntro} onSkipIntro={() => setStep("city")} onCity={setPicked} onToggleFriend={(userId) => setFollowed((current) => toggle(current ?? seededFollows, userId))} onToggleInterest={(interest) => setInterests((current) => toggle(current ?? loaded?.interests ?? [], interest))} onNext={onNext} />;
+  // Отказ живёт ровно до следующего выбора: человек услышал и сделал — напоминать больше не о чем.
+  function onToggleInterest(interest: string): void {
+    setBlocked(null);
+    setInterests((current) => toggle(current ?? loaded?.interests ?? [], interest));
+  }
+
+  return <OnboardingView step={step} intro={intro} city={city} citySource={origin.source} suggestions={loaded?.suggestions ?? []} followed={currentFollowed} interests={currentInterests} status={failed ? "error" : loaded === null ? "loading" : "ready"} saveFailed={saveFailed} blocked={blocked} onIntro={setIntro} onSkipIntro={() => setStep("city")} onCity={setPicked} onToggleFriend={(userId) => setFollowed((current) => toggle(current ?? seededFollows, userId))} onToggleInterest={onToggleInterest} onNext={onNext} onBack={onBack} />;
 }

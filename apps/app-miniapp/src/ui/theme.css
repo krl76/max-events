@@ -16620,12 +16620,64 @@ button.app-poll-result {
   margin: var(--app-space-s) 0 0;
 }
 
-/* ── Жесты: возврат элемента, отпущенного на полпути ──────────────────────────
- * Свайп даёт пальцу движение, но обещание он держит только на порогах — всё,
- * что порога не достигло, обязано вернуться, и вернуться видимо. Прыжок назад
+/* ── Жесты пальцем: возврат на полпути, слой онбординга, кнопка «Назад» ───────
+ * Свайп даёт пальцу движение, но обещание держит только на порогах — всё, что
+ * порога не достигло, обязано вернуться, и вернуться видимо. Прыжок назад
  * читается как сбой, поэтому возврат едет переходом; сам жест переходов не
- * носит, иначе элемент отставал бы от пальца. Классы включаются ровно на время
- * возврата (`settling` из ../ui/gestures.ts). */
+ * носит, иначе элемент отставал бы от пальца. Классы `--settling` включаются
+ * ровно на время возврата (флаг из ../ui/gestures.ts). */
 .app-swipe-card--settling {
   transition: transform 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+/* Слой, который онбординг ведёт за пальцем: сдвигается он, а не вёрстка шага */
+.app-onboarding-slide {
+  will-change: transform;
+}
+
+.app-onboarding-slide--settling {
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+/* Кнопка «Назад» мастера. Жест назад обязан быть продублирован тапом, но
+ * полосе шагов места он занимать не должен: точки и подписи рассчитаны на всю
+ * ширину, поэтому кнопка садится в свободное поле над первым шагом. */
+.app-onboarding-nav {
+  position: relative;
+}
+
+.app-onboarding-back {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  display: flex;
+  height: 36px;
+  justify-content: center;
+  left: 4px;
+  padding: 0;
+  position: absolute;
+  top: 24px;
+  width: 36px;
+}
+
+/* Шеврон нарисован вправо; кнопка назад разворачивает его */
+.app-onboarding-back svg {
+  transform: rotate(180deg);
+}
+
+/* Отказ жеста: смахнули вперёд с незаполненного шага, и шаг объясняет почему */
+.app-onboarding-nudge {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: 0 0 var(--app-space-s);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-swipe-card--settling,
+  .app-onboarding-slide--settling {
+    transition: none;
+  }
 }

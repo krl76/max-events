@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, ONBOARDING_STEPS, ONBOARDING_STORAGE_KEY, cityDetectionHint, contactsLine, followCtaLabel, interestsCtaLabel, isOnboardingDone, markOnboardingDone, nearestOnboardingCity, nextOnboardingStep, onboardingRailIndex } from "./onboarding";
+import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, ONBOARDING_STEPS, ONBOARDING_STORAGE_KEY, cityDetectionHint, contactsLine, followCtaLabel, interestsCtaLabel, isOnboardingDone, markOnboardingDone, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep } from "./onboarding";
 
 describe("onboarding step order", () => {
   it("walks вступление → город → друзья → интересы and then hands over to the feed", () => {
@@ -8,6 +8,21 @@ describe("onboarding step order", () => {
     expect(nextOnboardingStep("city")).toBe("friends");
     expect(nextOnboardingStep("friends")).toBe("interests");
     expect(nextOnboardingStep("interests")).toBeNull();
+  });
+
+  it("walks back the same order and stops at the intro", () => {
+    expect(previousOnboardingStep("interests")).toBe("friends");
+    expect(previousOnboardingStep("friends")).toBe("city");
+    expect(previousOnboardingStep("city")).toBe("intro");
+    expect(previousOnboardingStep("intro")).toBeNull();
+  });
+
+  it("refuses the forward gesture in words only where the step really is unfinished", () => {
+    expect(onboardingForwardBlock("city", 0)).toBeNull();
+    expect(onboardingForwardBlock("friends", 0)).toBeNull();
+    expect(onboardingForwardBlock("interests", MIN_INTERESTS)).toBeNull();
+    expect(onboardingForwardBlock("interests", 2)).toBe("Выбери ещё 1 интерес — и пойдём дальше");
+    expect(onboardingForwardBlock("interests", 1)).toBe("Выбери ещё 2 интереса — и пойдём дальше");
   });
 
   it("keeps the intro off the Город · Друзья · Интересы rail", () => {
