@@ -9,6 +9,8 @@ import type { UsersService } from "../users/users.service";
 import type { PromotionService } from "../promotion/promotion.service";
 import type { WaitlistService } from "../waitlist/waitlist.service";
 import type { ReviewsService } from "../reviews/reviews.service";
+import { FriendshipEntity } from "../friends/friendship.entity";
+import { ParticipationEntity } from "../participations/participation.entity";
 import { EventEntity } from "./event.entity";
 import type { EventWeatherService } from "./event-weather.service";
 import { EVENT_LIST_MAX_LIMIT, EventsService, toEventDto } from "./events.service";
@@ -101,6 +103,7 @@ function createService(options: { placeIds?: string[]; draftPlaceIds?: string[];
       if (!knownPlaces.has(id)) throw new NotFoundException("Place not found");
       return { id } as Place;
     },
+    findByIds: async (ids: string[]) => ids.filter((id) => knownPlaces.has(id)).map((id) => ({ id, title: "Площадка", latitude: 55.75, longitude: 37.62 })),
     resolveForEventBind: async (id: string, actorId?: string) => {
       if (knownPlaces.has(id)) return;
       if (draftPlaces.has(id) && actorId && actorId === options.ownerId) return;
@@ -124,14 +127,17 @@ function createService(options: { placeIds?: string[]; draftPlaceIds?: string[];
     assertCanPublish: async () => {
       if (options.banned) throw new ForbiddenException("Organizer is banned from publishing");
     },
+    findByIds: async () => [],
   } as unknown as UsersService;
-  const waitlist = options.waitlist ?? ({ fillVacancies: async () => undefined } as unknown as WaitlistService);
+  const waitlist = options.waitlist ?? ({ fillVacancies: async () => undefined, queueCountsByEventIds: async () => new Map() } as unknown as WaitlistService);
   const promotions = options.promotions ?? ({ listActive: async () => [], promotedEventIds: async () => new Set<string>() } as unknown as PromotionService);
   const weather = options.weather ?? passthroughWeather();
   // Argument-aware: a filter that asked for the wrong threshold would otherwise still look right.
   const ratedIdsByThreshold = options.ratedIds ?? {};
-  const reviews = { eventIdsRatedAtLeast: async (minStars: number) => ratedIdsByThreshold[minStars] ?? [] } as unknown as ReviewsService;
-  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist, promotions, weather, reviews);
+  const reviews = { eventIdsRatedAtLeast: async (minStars: number) => ratedIdsByThreshold[minStars] ?? [], averagesByEventIds: async () => new Map() } as unknown as ReviewsService;
+  const friendships = { find: async () => [] } as unknown as Repository<FriendshipEntity>;
+  const participations = { find: async () => [] } as unknown as Repository<ParticipationEntity>;
+  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist, promotions, weather, reviews, friendships, participations);
   return { repo, service, waitlist, chatCalls, notifyCalls };
 }
 

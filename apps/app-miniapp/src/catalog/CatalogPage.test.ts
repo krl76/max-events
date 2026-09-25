@@ -61,6 +61,21 @@ describe("CatalogView", () => {
     expect(html).not.toContain("<article");
   });
 
+  it("renders catalog extras when the list DTO carries them", () => {
+    const html = renderToStaticMarkup(
+      createElement(CatalogView, {
+        state: { status: "ready", events: [{ ...free, organizerName: "Парк Горького", distanceKm: 2.1, ratingAverage: 4.9, waitlistCount: 7, friendsGoing: [{ id: free.id, name: "Анна" }] }] },
+        filters: {},
+        onFilters: () => {},
+      }),
+    );
+    expect(html).toContain("Парк Горького");
+    expect(html).toContain("2.1 км");
+    expect(html).toContain("4.9");
+    expect(html).toContain("7 в листе");
+    expect(html).toContain("Анна");
+  });
+
   it("renders a weather chip only when the event has a forecast", () => {
     const withWeather = { ...free, weather: { temperatureC: 12.4, condition: "облачно", conditionCode: 2, precipitationProbability: 40 } };
     const html = renderToStaticMarkup(createElement(CatalogView, { state: { status: "ready", events: [{ ...free, weather: null }, withWeather] }, filters: {}, onFilters: () => {} }));

@@ -32,8 +32,8 @@ export class EventsController {
   }
 
   @Get()
-  list(@Query() query: Record<string, string | undefined>): Promise<Event[]> {
-    return this.events.list(parseEventListQuery(query));
+  list(@CurrentUser() user: UserEntity, @Query() query: Record<string, string | undefined>): Promise<Event[]> {
+    return this.events.list({ ...parseEventListQuery(query), viewerId: user.id });
   }
 
   @Get(":id/details")
@@ -82,7 +82,17 @@ export function parseEventListQuery(query: Record<string, string | undefined>): 
   const limit = query.limit === undefined || query.limit === "" ? undefined : Number(query.limit);
   if (offset !== undefined && (!Number.isInteger(offset) || offset < 0)) throw new BadRequestException("Invalid event query");
   if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > EVENT_LIST_MAX_LIMIT)) throw new BadRequestException("Invalid event query");
-  return { city, category, date, dateFrom, dateTo, minRating, limit, offset };
+  const latRaw = query.lat;
+  const lngRaw = query.lng;
+  const hasLat = latRaw !== undefined && latRaw !== "";
+  const hasLng = lngRaw !== undefined && lngRaw !== "";
+  if (hasLat !== hasLng) throw new BadRequestException("Invalid event query");
+  const latitude = hasLat ? Number(latRaw) : undefined;
+  const longitude = hasLng ? Number(lngRaw) : undefined;
+  if (latitude !== undefined && longitude !== undefined && (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)) {
+    throw new BadRequestException("Invalid event query");
+  }
+  return { city, category, date, dateFrom, dateTo, minRating, limit, offset, latitude, longitude };
 }
 
 function parseOptionalTimestamp(value: string | undefined, endOfDay = false): Date | undefined {

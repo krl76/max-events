@@ -15,6 +15,7 @@ import { BookingEntity } from "../bookings/booking.entity";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { MaxBotModule } from "../max-bot/max-bot.module";
 import { ParticipationEntity } from "../participations/participation.entity";
+import { FriendshipEntity } from "../friends/friendship.entity";
 import { PlacesModule } from "../places/places.module";
 import { ReviewsModule } from "../reviews/reviews.module";
 import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
@@ -32,7 +33,7 @@ import { EventsService } from "./events.service";
 import { WeatherClient } from "../smart-alerts/weather.client";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([EventEntity, BookingEntity, CheckInEntity, ParticipationEntity, UserEntity]), PlacesModule, MaxBotModule, SubscriptionsModule, UsersModule, WaitlistModule, PromotionModule, ReviewsModule, OrganizationsModule],
+  imports: [TypeOrmModule.forFeature([EventEntity, BookingEntity, CheckInEntity, ParticipationEntity, UserEntity, FriendshipEntity]), PlacesModule, MaxBotModule, SubscriptionsModule, UsersModule, WaitlistModule, PromotionModule, ReviewsModule, OrganizationsModule],
   controllers: [EventsController],
   providers: [WeatherClient, EventWeatherService, EventsService, EventDetailsService, EventChatScheduler],
   exports: [EventsService],

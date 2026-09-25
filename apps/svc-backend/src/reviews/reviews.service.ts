@@ -62,6 +62,22 @@ export class ReviewsService {
     return buildRating(rows, { eventId, placeId: null });
   }
 
+  async averagesByEventIds(eventIds: string[]): Promise<Map<string, number>> {
+    if (eventIds.length === 0) return new Map();
+    const rows = await this.reviews.find({ where: { eventId: In(eventIds) } });
+    const stars = new Map<string, number[]>();
+    for (const row of rows) {
+      const list = stars.get(row.eventId) ?? [];
+      list.push(row.stars);
+      stars.set(row.eventId, list);
+    }
+    const averages = new Map<string, number>();
+    for (const [eventId, values] of stars) {
+      averages.set(eventId, values.reduce((sum, value) => sum + value, 0) / values.length);
+    }
+    return averages;
+  }
+
   /**
    * Ids whose average review score reaches minStars, resolved in SQL so the catalog can put the
    * rating filter in its WHERE. Filtering a page after it was read would drop rows the caller already

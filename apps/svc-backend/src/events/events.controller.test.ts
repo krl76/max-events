@@ -73,13 +73,13 @@ describe("EventsController", () => {
 
   it("passes catalog filters through to the service", async () => {
     const { calls, controller } = createController();
-    const result = await controller.list({ city: "Москва", category: "afisha", date: "2026-09-12", date_from: "2026-09-01T00:00:00.000Z" });
-    expect(calls.list).toEqual({
+    const result = await controller.list(user, { city: "Москва", category: "afisha", date: "2026-09-12", date_from: "2026-09-01T00:00:00.000Z" });
+    expect(calls.list).toMatchObject({
       city: "Москва",
       category: "afisha",
       date: "2026-09-12",
       dateFrom: new Date("2026-09-01T00:00:00.000Z"),
-      dateTo: undefined,
+      viewerId: user.id,
     });
     expect(result).toEqual([event]);
   });
@@ -103,6 +103,9 @@ describe("EventsController", () => {
 
   it("passes the rating threshold through, and leaves it unset when absent", () => {
     expect(parseEventListQuery({ min_rating: "4" })).toMatchObject({ minRating: 4 });
+    expect(parseEventListQuery({ lat: "55.75", lng: "37.62" })).toMatchObject({ latitude: 55.75, longitude: 37.62 });
+    expect(() => parseEventListQuery({ lat: "55.75" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ lat: "91", lng: "37" })).toThrow(BadRequestException);
     expect(parseEventListQuery({}).minRating).toBeUndefined();
     expect(parseEventListQuery({ min_rating: "" }).minRating).toBeUndefined();
   });

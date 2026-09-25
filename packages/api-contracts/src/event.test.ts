@@ -20,6 +20,22 @@ describe("EventSchema", () => {
     expect(parsed.coverUrl).toBeNull();
   });
 
+  it("accepts catalog card extras", () => {
+    const parsed = EventSchema.parse({
+      ...validEvent,
+      organizerName: "Парк Горького",
+      ratingAverage: 4.9,
+      waitlistCount: 7,
+      distanceKm: 2.1,
+      friendsGoing: [{ id: "018f3c5a-0000-7000-8000-0000000000b1", name: "Анна" }],
+    });
+    expect(parsed.organizerName).toBe("Парк Горького");
+    expect(parsed.ratingAverage).toBe(4.9);
+    expect(parsed.waitlistCount).toBe(7);
+    expect(parsed.distanceKm).toBe(2.1);
+    expect(parsed.friendsGoing).toEqual([{ id: "018f3c5a-0000-7000-8000-0000000000b1", name: "Анна" }]);
+  });
+
   it("parses bookingOpensAt as ISO timestamp or null", () => {
     expect(EventSchema.parse({ ...validEvent, bookingOpensAt: "2026-09-20T09:00:00+03:00" }).bookingOpensAt).toBe("2026-09-20T09:00:00+03:00");
     expect(EventSchema.parse({ ...validEvent, bookingOpensAt: null }).bookingOpensAt).toBeNull();

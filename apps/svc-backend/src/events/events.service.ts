@@ -25,6 +25,9 @@ import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { PromotionService } from "../promotion/promotion.service";
 import { ReviewsService } from "../reviews/reviews.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
+import { FriendshipEntity } from "../friends/friendship.entity";
+import { ParticipationEntity } from "../participations/participation.entity";
+import { haversineKm } from "../nearby/nearby.service";
 import { EventEntity } from "./event.entity";
 import { EventWeatherService } from "./event-weather.service";
 import { toEventDto } from "./event.mapper";
@@ -41,6 +44,9 @@ export type EventListQuery = {
   minRating?: number;
   limit?: number;
   offset?: number;
+  latitude?: number;
+  longitude?: number;
+  viewerId?: string;
 };
 
 /** Ceiling on rows a single catalog read may pull; also the default when the caller names no limit. */
@@ -66,6 +72,8 @@ export class EventsService {
     @Inject(PromotionService) private readonly promotions: PromotionService,
     @Inject(EventWeatherService) private readonly eventWeather: EventWeatherService,
     @Inject(ReviewsService) private readonly reviews: ReviewsService,
+    @InjectRepository(FriendshipEntity) private readonly friendships: Repository<FriendshipEntity>,
+    @InjectRepository(ParticipationEntity) private readonly participations: Repository<ParticipationEntity>,
   ) {}
 
   async create(payload: CreateEvent, organizerUserId?: string, options?: { draft?: boolean }): Promise<Event> {
@@ -205,7 +213,57 @@ export class EventsService {
     const [boosts, promoted] = await Promise.all([this.promotions.listActive(now, "boost"), this.promotions.promotedEventIds(now)]);
     const boosted = new Set(boosts.map((row) => row.eventId));
     const ordered = [...visible].sort((a, b) => Number(boosted.has(b.id)) - Number(boosted.has(a.id)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
-    return this.eventWeather.attach(ordered.map((row) => toEventDto(row, { promoted: promoted.has(row.id) })));
+    const dtos = await this.eventWeather.attach(ordered.map((row) => toEventDto(row, { promoted: promoted.has(row.id) })));
+    if (!query.viewerId && query.latitude === undefined) return dtos;
+    return this.enrichList(ordered, dtos, query);
+  }
+
+  private async enrichList(rows: EventEntity[], dtos: Event[], query: EventListQuery): Promise<Event[]> {
+    if (rows.length === 0) return dtos;
+    const eventIds = rows.map((row) => row.id);
+    const placeIds = [...new Set(rows.map((row) => row.placeId).filter((id): id is string => id !== null))];
+    const organizerIds = [...new Set(rows.map((row) => row.organizerUserId).filter((id): id is string => id !== null))];
+    const [places, organizers, ratings, waitlists, going] = await Promise.all([
+      this.places.findByIds(placeIds),
+      this.users.findByIds(organizerIds),
+      this.reviews.averagesByEventIds(eventIds),
+      this.waitlist.queueCountsByEventIds(eventIds),
+      query.viewerId ? this.goingFriends(query.viewerId, eventIds) : Promise.resolve(new Map<string, Array<{ id: string; name: string }>>()),
+    ]);
+    const placeById = new Map(places.map((place) => [place.id, place]));
+    const organizerById = new Map(organizers.map((user) => [user.id, user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName]));
+    const origin = query.latitude !== undefined && query.longitude !== undefined ? { latitude: query.latitude, longitude: query.longitude } : null;
+    return dtos.map((dto, index) => {
+      const row = rows[index]!;
+      const place = row.placeId ? placeById.get(row.placeId) : undefined;
+      const distanceKm = origin && place ? Math.round(haversineKm(origin.latitude, origin.longitude, place.latitude, place.longitude) * 10) / 10 : null;
+      return {
+        ...dto,
+        distanceKm,
+        organizerName: (row.organizerUserId ? organizerById.get(row.organizerUserId) : undefined) ?? place?.title ?? null,
+        ratingAverage: ratings.get(dto.id) ?? null,
+        waitlistCount: waitlists.get(dto.id) ?? 0,
+        friendsGoing: going.get(dto.id) ?? [],
+      };
+    });
+  }
+
+  private async goingFriends(userId: string, eventIds: string[]): Promise<Map<string, Array<{ id: string; name: string }>>> {
+    const going = new Map<string, Array<{ id: string; name: string }>>();
+    const edges = await this.friendships.find({ where: { userId } });
+    const friendIds = edges.map((row) => row.friendUserId);
+    if (friendIds.length === 0) return going;
+    const rows = await this.participations.find({ where: { eventId: In(eventIds), userId: In(friendIds), status: "going" } });
+    const users = rows.length === 0 ? [] : await this.users.findByIds([...new Set(rows.map((row) => row.userId))]);
+    const nameById = new Map(users.map((user) => [user.id, user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName]));
+    for (const row of rows) {
+      const name = nameById.get(row.userId);
+      if (!name) continue;
+      const list = going.get(row.eventId) ?? [];
+      list.push({ id: row.userId, name });
+      going.set(row.eventId, list);
+    }
+    return going;
   }
 }
 

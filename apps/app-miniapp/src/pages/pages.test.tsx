@@ -22,10 +22,13 @@ async function routedHtml(route: Route, ready: string): Promise<string> {
   mockRoute = route;
   let html = renderToStaticMarkup(<RoutedPages />);
   // Lazy route chunks resolve asynchronously; re-render until the route content replaces the Suspense fallback.
-  await vi.waitFor(() => {
-    html = renderToStaticMarkup(<RoutedPages />);
-    if (!html.includes(ready)) throw new Error(`route content not ready: ${ready}`);
-  });
+  await vi.waitFor(
+    () => {
+      html = renderToStaticMarkup(<RoutedPages />);
+      if (!html.includes(ready)) throw new Error(`route content not ready: ${ready}`);
+    },
+    { timeout: 4000 },
+  );
   return html;
 }
 

@@ -13,7 +13,7 @@
 
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { QueryFailedError, Repository } from "typeorm";
+import { In, QueryFailedError, Repository } from "typeorm";
 import type { CreatePlace, Place, PlaceCategory } from "@max-events/api-contracts";
 import { UsersService } from "../users/users.service";
 import { PlaceEntity } from "./place.entity";
@@ -95,6 +95,12 @@ export class PlacesService {
     assertOrganizer(existing.organizerUserId, actorId);
     existing.published = true;
     return toPlaceDto(await this.places.save(existing));
+  }
+
+  async findByIds(ids: string[]): Promise<Place[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.places.find({ where: { id: In(ids), published: true } });
+    return rows.map(toPlaceDto);
   }
 
   async list(query: PlaceListQuery): Promise<Place[]> {

@@ -52,6 +52,14 @@ export class WaitlistService {
     @Inject(PaymentsService) private readonly payments: PaymentsService,
   ) {}
 
+  async queueCountsByEventIds(eventIds: string[]): Promise<Map<string, number>> {
+    if (eventIds.length === 0) return new Map();
+    const rows = await this.entries.find({ where: { eventId: In(eventIds), status: In(QUEUE_STATUSES) } });
+    const counts = new Map<string, number>();
+    for (const row of rows) counts.set(row.eventId, (counts.get(row.eventId) ?? 0) + 1);
+    return counts;
+  }
+
   async join(userId: string, eventId: string, now = new Date(), referralCode?: string | null): Promise<WaitlistEntry> {
     return this.dataSource.transaction(async (manager) => {
       const event = await manager.findOne(EventEntity, { where: { id: eventId }, lock: { mode: "pessimistic_write" } });

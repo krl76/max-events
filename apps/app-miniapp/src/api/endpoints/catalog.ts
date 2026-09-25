@@ -65,6 +65,8 @@ export interface EventFilters {
   /** Page window of the catalog list (1..100 / 0..); the screen pages by these, the URL never carries them. */
   limit?: number;
   offset?: number;
+  lat?: number;
+  lng?: number;
 }
 
 const isDay = (value: string | null): value is string => value !== null && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -82,6 +84,8 @@ export function serializeEventFilters(filters: EventFilters): string {
   if (filters.sort) params.set("sort", filters.sort);
   if (filters.limit) params.set("limit", String(filters.limit));
   if (filters.offset) params.set("offset", String(filters.offset));
+  if (filters.lat !== undefined) params.set("lat", String(filters.lat));
+  if (filters.lng !== undefined) params.set("lng", String(filters.lng));
   return params.toString();
 }
 

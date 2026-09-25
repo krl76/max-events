@@ -38,7 +38,6 @@ import { FeedModule } from "./feed/feed.module";
 import { ReportsModule } from "./reports/reports.module";
 import { PlacePageModule } from "./place-page/place-page.module";
 import { MicroEventsModule } from "./microevents/micro-events.module";
-import { CollectionsModule } from "./collections/collections.module";
 import { NearbyModule } from "./nearby/nearby.module";
 import { RoutesModule } from "./routes/routes.module";
 import { LeaveNowModule } from "./leave-now/leave-now.module";
@@ -94,7 +93,6 @@ import { StoriesModule } from "./stories/stories.module";
     ReportsModule,
     PlacePageModule,
     MicroEventsModule,
-    CollectionsModule,
     NearbyModule,
     RoutesModule,
     LeaveNowModule,
