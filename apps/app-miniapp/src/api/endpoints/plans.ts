@@ -11,9 +11,9 @@
 // - PlanTransfer - one ride between two points: mode, minutes and fare (#504, mock)
 // - PlanTimelineStep - one line of макет экран 15: a stop, or the ride to the next one
 // - PlanTimeline - GET /plans/:id/timeline: whether MAX assembled the plan plus its steps (mock)
-// - SharedCalendarPeer - whom the calendar is shared with and whether they may edit it (mock)
-// - SharedCalendarEntry - one record the peer put into the shared calendar (mock)
-// - SharedCalendar - GET /calendar/shared: peers, their records and the invite link (mock)
+// - SharedCalendarPeer - whom the calendar is shared with and whether they may edit it
+// - SharedCalendarEntry - one record the peer put into the shared calendar
+// - SharedCalendar - GET /calendar/shared: peers, their records and the invite link
 // - withPlans - ApiClient.listPlans / getPlan / createPlan / cancelPlan / addPlanParticipant / respondToPlan / createAutoPlan / createDayRoute / optimizeDayRoute / getPlanBudget / addPlanExpense / getPlanTimeline / createPlanChat / listCalendar / getSharedCalendar / joinSharedCalendarEntry / addSharedCalendarPeer
 // END_MODULE_MAP
 
@@ -211,7 +211,7 @@ export function withPlans<TBase extends ApiMixin>(Base: TBase) {
       return [...response.upcoming, ...response.past];
     }
 
-    /** The half of the calendar that belongs to the friends it is shared with (макет, экран 22); mock. */
+    /** The half of the calendar that belongs to the friends it is shared with (макет, экран 22); GET /calendar/shared. */
     getSharedCalendar(): Promise<SharedCalendar> {
       return this.request("/calendar/shared", SharedCalendarSchema);
     }
