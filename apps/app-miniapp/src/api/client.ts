@@ -124,6 +124,16 @@
 // - OrganizerTrafficShare - one «Откуда приходят» row: source + percent
 // - OrganizerTrafficSource - union of the traffic sources
 // - OrganizerWaitlistEntry - one waitlist row of экран 44
+// - ORGANIZER_ACTIVITIES - the «ЧЕМ ЗАНИМАЕТЕСЬ» values of экран 44 (#537)
+// - ORGANIZER_PAYOUT_MODES - external | none: the product takes no money itself (#537)
+// - ORGANIZER_SETUP_STEPS - the rail of экран 44: venue -> payouts -> event
+// - OrganizerActivity - union of the «ЧЕМ ЗАНИМАЕТЕСЬ» values
+// - OrganizerPayoutMode - union of the payout modes
+// - OrganizerSetup - «организатор прошёл настройку» plus the step he stopped on and the data of экран 44 (#537)
+// - OrganizerSetupPayouts - шаг «Реквизиты»: the external payment link and the organization contact
+// - OrganizerSetupStep - union of the настройка steps
+// - OrganizerSetupVenue - the venue card of шаг «Площадка»
+// - UpdateOrganizerSetup - partial OrganizerSetup patch
 // - UpdateOrganizerEventOptions - partial OrganizerEventOptions patch
 // - organizerEntryCode - entry code of a booking, derived from its id (no code column exists yet)
 // - BookingOffer - экран 18 aggregate past EventDetails: the queue length ahead and the friends already holding tickets (#496)
@@ -186,6 +196,9 @@ export { SWIPE_CATEGORIES } from "./endpoints/discover";
 export type { LeisureChain, LeisureChainStop, LeisureQuery, SwipeCandidate, SwipeCategory, SwipeDecision, TodayCard, TodayDigest, WheretoPick, WheretoPicks } from "./endpoints/discover";
 export type { AppSettings, ProfileCounters, UpdateAppSettings, VisitedPlace } from "./endpoints/profile";
 export { ORGANIZER_TRAFFIC_SOURCES, organizerEntryCode, statsPeriodQuery } from "./endpoints/organizer";
+// Настройка организатора (макет, экран 44): отдельной строкой, чтобы не переписывать соседние
+export { ORGANIZER_ACTIVITIES, ORGANIZER_PAYOUT_MODES, ORGANIZER_SETUP_STEPS } from "./endpoints/organizer";
+export type { OrganizerActivity, OrganizerPayoutMode, OrganizerSetup, OrganizerSetupPayouts, OrganizerSetupStep, OrganizerSetupVenue, UpdateOrganizerSetup } from "./endpoints/organizer";
 export type { CreateReport, ModerationTarget, Report, ReportReason } from "./endpoints/moderation";
 export type { VoteScreen, VoteStatus, WeGroupCard } from "./endpoints/groups";
 export { SLOT_STATUSES } from "./endpoints/slots";

@@ -24,7 +24,17 @@
 // - OrganizerSlot - one venue slot chip of экран 44 (the slots domain does not exist yet, #492)
 // - OrganizerAttendance - the event day of экран 44: counters, participants, waitlist, slots
 // - organizerEntryCode - entry code of a booking: the last six characters of its id, uppercased (no code column exists yet)
-// - withOrganizer - the organizer event/place surface, the sales/stats reports (#196), the period summary and the event day (макет, экраны 42/44/45), the organizer ratings (#199), the campaign/promotion/promocode surface (#206, #372) and the promotion placements (#205)
+// - ORGANIZER_ACTIVITIES - the «ЧЕМ ЗАНИМАЕТЕСЬ» values of экран 44; organizations carry no such column
+// - OrganizerActivity - union of those values
+// - ORGANIZER_SETUP_STEPS - the rail of экран 44: venue -> payouts -> event
+// - OrganizerSetupStep - union of the настройка steps
+// - ORGANIZER_PAYOUT_MODES - external | none: the product cannot take money itself, so «через Афишу» is not among them
+// - OrganizerPayoutMode - union of the payout modes
+// - OrganizerSetupVenue - the venue card of шаг «Площадка» (no logo field exists on Place, so the tile draws initials)
+// - OrganizerSetupPayouts - шаг «Реквизиты» limited to what the server can actually store: the external payment link and the organization contact
+// - OrganizerSetup - «организатор прошёл настройку» plus the step he stopped on and the data of all three steps
+// - UpdateOrganizerSetup - partial OrganizerSetup patch
+// - withOrganizer - the organizer event/place surface, the sales/stats reports (#196), the period summary and the event day (макет, экраны 42/44/45), the organizer ratings (#199), the campaign/promotion/promocode surface (#206, #372), the promotion placements (#205) and the настройка state of экран 44 (#537)
 // END_MODULE_MAP
 
 import { EarlyAccessWriteSchema, EventSalesReportSchema, EventSchema, OrganizerBookingRowSchema, OrganizerEventStatsSchema, OrganizerRatingResponseSchema, PlaceSchema, PromoCampaignSchema, PromoCodeSchema, PromotionCampaignSchema, PromotionPlacementsSchema, TargetedPromotionsResponseSchema } from "@max-events/api-contracts";
@@ -307,6 +317,87 @@ export function organizerEntryCode(bookingId: string): string {
   return bookingId.replace(/-/g, "").slice(-6).toUpperCase();
 }
 
+/** «ЧЕМ ЗАНИМАЕТЕСЬ» (макет, экран 44). Organizations carry no such column, so this lives in the mock alone. */
+export const ORGANIZER_ACTIVITIES = ["events", "slots", "tours", "sport", "volunteering"] as const;
+export type OrganizerActivity = (typeof ORGANIZER_ACTIVITIES)[number];
+
+/** The rail of экран 44: Площадка → Реквизиты → Событие. */
+export const ORGANIZER_SETUP_STEPS = ["venue", "payouts", "event"] as const;
+export type OrganizerSetupStep = (typeof ORGANIZER_SETUP_STEPS)[number];
+
+/**
+ * Как площадка берёт деньги — и почему режима «через Афишу» здесь нет.
+ *
+ * Продукт не принимает оплату сам и не может: `PAYMENT_PROVIDER` в apps/svc-backend/src/config/env.ts —
+ * это `z.enum(["sandbox", "none"])`, значения `live` в нём нет вовсе (env.test.ts прямо требует, чтобы
+ * оно падало). Единственный механизм платного события в контракте — внешний `Event.paymentUrl`, который
+ * схема события делает обязательным при `isPaid`. Банковских реквизитов в продукте нет ни одного поля:
+ * ни ИНН, ни расчётного счёта, ни получателя. Поэтому шаг «Реквизиты» не собирает платёжные данные —
+ * он спрашивает ровно то, что сервер сегодня умеет хранить, и честно говорит про остальное.
+ */
+export const ORGANIZER_PAYOUT_MODES = ["external", "none"] as const;
+export type OrganizerPayoutMode = (typeof ORGANIZER_PAYOUT_MODES)[number];
+
+/** Площадка шага «Площадка». Логотипа нет: PlaceSchema такого поля не несёт, плитка рисует инициалы. */
+export interface OrganizerSetupVenue {
+  /** The place this venue card is bound to, or null while настройка has not picked one. */
+  placeId: string | null;
+  title: string;
+  address: string;
+  city: string;
+}
+
+export interface OrganizerSetupPayouts {
+  mode: OrganizerPayoutMode;
+  /** Куда отправлять за оплатой: то же значение, что уйдёт в `Event.paymentUrl` платного события. */
+  paymentUrl: string | null;
+  /** Контакт для покупателя — единственное поле организации, которое сервер реально хранит. */
+  contacts: string | null;
+}
+
+/** Признак «организатор прошёл настройку» и шаг, на котором он остановился. */
+export interface OrganizerSetup {
+  organizationId: string;
+  step: OrganizerSetupStep;
+  /** null пока настройка не закончена; дальше это и есть признак «прошёл». */
+  completedAt: string | null;
+  venue: OrganizerSetupVenue;
+  activities: OrganizerActivity[];
+  payouts: OrganizerSetupPayouts;
+}
+
+export interface UpdateOrganizerSetup {
+  step?: OrganizerSetupStep;
+  venue?: Partial<OrganizerSetupVenue>;
+  activities?: OrganizerActivity[];
+  payouts?: Partial<OrganizerSetupPayouts>;
+}
+
+function setupVenue(value: unknown): OrganizerSetupVenue | null {
+  const raw = record(value);
+  if (raw === null || !nullableString(raw.placeId) || typeof raw.title !== "string" || typeof raw.address !== "string" || typeof raw.city !== "string") return null;
+  return { placeId: raw.placeId as string | null, title: raw.title, address: raw.address, city: raw.city };
+}
+
+function setupPayouts(value: unknown): OrganizerSetupPayouts | null {
+  const raw = record(value);
+  if (raw === null || typeof raw.mode !== "string" || !ORGANIZER_PAYOUT_MODES.includes(raw.mode as OrganizerPayoutMode)) return null;
+  if (!nullableString(raw.paymentUrl) || !nullableString(raw.contacts)) return null;
+  return { mode: raw.mode as OrganizerPayoutMode, paymentUrl: raw.paymentUrl as string | null, contacts: raw.contacts as string | null };
+}
+
+const OrganizerSetupSchema: ZodSchema<OrganizerSetup> = {
+  safeParse(data: unknown) {
+    const raw = record(data);
+    if (raw === null || typeof raw.organizationId !== "string" || typeof raw.step !== "string" || !ORGANIZER_SETUP_STEPS.includes(raw.step as OrganizerSetupStep) || !nullableString(raw.completedAt)) return { success: false as const, error: "expected an organizer setup" };
+    const venue = setupVenue(raw.venue);
+    const payouts = setupPayouts(raw.payouts);
+    if (venue === null || payouts === null) return { success: false as const, error: "invalid organizer setup sections" };
+    if (!Array.isArray(raw.activities) || raw.activities.some((item) => typeof item !== "string" || !ORGANIZER_ACTIVITIES.includes(item as OrganizerActivity))) return { success: false as const, error: "invalid organizer activities" };
+    return { success: true as const, data: { organizationId: raw.organizationId, step: raw.step as OrganizerSetupStep, completedAt: raw.completedAt as string | null, venue, activities: raw.activities as OrganizerActivity[], payouts } };
+  },
+};
+
 export function withOrganizer<TBase extends ApiMixin>(Base: TBase) {
   return class OrganizerEndpoints extends Base {
     getPromotionPlacements(): Promise<PromotionPlacements> {
@@ -434,6 +525,20 @@ export function withOrganizer<TBase extends ApiMixin>(Base: TBase) {
     /** Offer the freed seats to the first `count` people on the waitlist (макет, экран 44). */
     inviteFromOrganizerWaitlist(eventId: string, count: number): Promise<{ invited: number }> {
       return this.request(`/organizer/events/${eventId}/waitlist/invites`, WaitlistInviteResultSchema, { body: { count } });
+    }
+
+    /** The настройка state of экран 44. No backend column holds any of it yet — mock only (#537). */
+    getOrganizerSetup(): Promise<OrganizerSetup> {
+      return this.request("/organizer/setup", OrganizerSetupSchema);
+    }
+
+    updateOrganizerSetup(patch: UpdateOrganizerSetup): Promise<OrganizerSetup> {
+      return this.request("/organizer/setup", OrganizerSetupSchema, { method: "PATCH", body: patch });
+    }
+
+    /** Stamps completedAt, after which the organizer lands on the dashboard instead of настройка. */
+    completeOrganizerSetup(): Promise<OrganizerSetup> {
+      return this.request("/organizer/setup/complete", OrganizerSetupSchema, { method: "POST" });
     }
   };
 }
