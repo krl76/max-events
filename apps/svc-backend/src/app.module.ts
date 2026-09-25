@@ -55,6 +55,7 @@ import { VotesModule } from "./votes/votes.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { AssistModule } from "./assist/assist.module";
 import { StoriesModule } from "./stories/stories.module";
+import { SwipeModule } from "./swipe/swipe.module";
 
 @Module({
   imports: [
@@ -99,6 +100,7 @@ import { StoriesModule } from "./stories/stories.module";
     SmartAlertsModule,
     TasteModule,
     DiscoveryModule,
+    SwipeModule,
     PeopleModule,
     OrganizerModule,
     StatsModule,

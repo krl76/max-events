@@ -48,12 +48,13 @@ import { PaymentEntity } from "../payments/payment.entity";
 import { OrganizationEntity } from "../organizations/organization.entity";
 import { ListMemberEntity } from "../lists/list-member.entity";
 import { NotificationEntity } from "../smart-alerts/notification.entity";
+import { SwipeDecisionEntity } from "../swipe/swipe-decision.entity";
 
 const env = validateEnv();
 
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: env.DATABASE_URL,
-  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity, PlanExpenseEntity, ListEntity, ListItemEntity, ListMemberEntity, SubscriptionEntity, CheckInEntity, StoryEntity, UserAchievementEntity, ReviewEntity, WaitlistEntryEntity, FeedPostEntity, FeedLikeEntity, FeedCommentEntity, ReportEntity, MicroEventEntity, MicroEventParticipantEntity, ListDigestSendEntity, PageViewEntity, PromoCodeEntity, PromoCampaignEntity, PromoFulfillmentEntity, PromotionCampaignEntity, WeGroupEntity, WeGroupMemberEntity, WeGroupItemEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity, VoteBallotEntity, PaymentEntity, PaymentWebhookEventEntity, OrganizationEntity, NotificationEntity],
+  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity, PlanExpenseEntity, ListEntity, ListItemEntity, ListMemberEntity, SubscriptionEntity, CheckInEntity, StoryEntity, UserAchievementEntity, ReviewEntity, WaitlistEntryEntity, FeedPostEntity, FeedLikeEntity, FeedCommentEntity, ReportEntity, MicroEventEntity, MicroEventParticipantEntity, ListDigestSendEntity, PageViewEntity, PromoCodeEntity, PromoCampaignEntity, PromoFulfillmentEntity, PromotionCampaignEntity, WeGroupEntity, WeGroupMemberEntity, WeGroupItemEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity, VoteBallotEntity, PaymentEntity, PaymentWebhookEventEntity, OrganizationEntity, NotificationEntity, SwipeDecisionEntity],
   migrations: ["src/database/migrations/*.ts"],
 });

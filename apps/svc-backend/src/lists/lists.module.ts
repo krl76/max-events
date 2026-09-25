@@ -25,5 +25,6 @@ import { ListsService } from "./lists.service";
   imports: [TypeOrmModule.forFeature([ListEntity, ListItemEntity, ListMemberEntity, EventEntity, PlaceEntity]), UsersModule, FriendsModule],
   controllers: [ListsController],
   providers: [ListsService],
+  exports: [ListsService],
 })
 export class ListsModule {}

@@ -246,7 +246,7 @@ export function withDiscover<TBase extends ApiMixin>(Base: TBase) {
       return this.request("/assist/day", AssistDayResponseSchema, { body: { query, ...(save === undefined ? {} : { save }) } });
     }
 
-    /** The swipe deck of экран 09; mock-only until a candidate feed and a match score exist (#498). */
+    /** The swipe deck of экран 09; GET /discover/swipe. */
     listSwipeCandidates(category: SwipeCategory = "all", origin: { latitude: number; longitude: number } | null = null): Promise<SwipeCandidate[]> {
       const params = new URLSearchParams({ category });
       if (origin !== null) {
@@ -256,7 +256,7 @@ export function withDiscover<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/discover/swipe?${params.toString()}`, SwipeCandidatesSchema);
     }
 
-    /** Record one swipe: right saves the venue, left passes. Answers 204, like every other write without a body to show (#498). */
+    /** Record one swipe: right saves the venue, left passes. Answers 204. */
     saveSwipeDecision(placeId: string, decision: SwipeDecision): Promise<void> {
       return this.requestVoid(`/discover/swipe/${encodeURIComponent(placeId)}`, { body: { decision } });
     }

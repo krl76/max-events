@@ -99,6 +99,13 @@ export class ListsService {
     }
   }
 
+  async addPlaceToPreset(userId: string, preset: ListPreset, placeId: string): Promise<ListItem> {
+    const presets = await this.ensurePresets(userId);
+    const list = presets.find((row) => row.preset === preset);
+    if (!list) throw new NotFoundException("List not found");
+    return this.addPlace(userId, list.id, placeId);
+  }
+
   async addPlace(userId: string, listId: string, placeId: string): Promise<ListItem> {
     await this.requireAccessibleList(userId, listId);
     const place = await this.places.findOneBy({ id: placeId });
