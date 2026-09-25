@@ -31,7 +31,7 @@ import { ReviewsService } from "../reviews/reviews.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { FriendshipEntity } from "../friends/friendship.entity";
 import { ParticipationEntity } from "../participations/participation.entity";
-import { haversineKm } from "../nearby/nearby.service";
+import { haversineKm } from "../geo/haversine";
 import { EventEntity } from "./event.entity";
 import { EventWeatherService } from "./event-weather.service";
 import { toEventDto } from "./event.mapper";

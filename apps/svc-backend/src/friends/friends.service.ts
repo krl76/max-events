@@ -15,7 +15,7 @@ import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import type { EventFriendsSummary, Friend, FriendActivityByFriend, FriendSuggestion, FriendsSyncStatus } from "@max-events/api-contracts";
-import { toEventDto } from "../events/events.service";
+import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { ParticipationEntity } from "../participations/participation.entity";

@@ -17,7 +17,7 @@ import { BookingEntity } from "../bookings/booking.entity";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { OrganizationsService, toOrganizationDto } from "../organizations/organizations.service";
 import { ParticipationEntity } from "../participations/participation.entity";
-import { haversineKm } from "../nearby/nearby.service";
+import { haversineKm } from "../geo/haversine";
 import { PlacesService } from "../places/places.service";
 import { PromotionService } from "../promotion/promotion.service";
 import { ReviewsService } from "../reviews/reviews.service";

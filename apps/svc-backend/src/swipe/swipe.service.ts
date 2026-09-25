@@ -20,7 +20,7 @@ import { PlaceCategorySchema, type Friend, type Place, type PlaceCategory, type 
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { FriendsService } from "../friends/friends.service";
 import { ListsService } from "../lists/lists.service";
-import { haversineKm } from "../nearby/nearby.service";
+import { haversineKm } from "../geo/haversine";
 import { toPlaceDto } from "../places/places.service";
 import { PlaceEntity } from "../places/place.entity";
 import { TasteService } from "../taste/taste.service";

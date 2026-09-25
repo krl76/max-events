@@ -23,7 +23,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { IsNull, QueryFailedError, Repository } from "typeorm";
 import type { AutoPlanProposal, CreatePlanExpenseWrite, CreatePlanWrite, Plan, PlanBudget, PlanCancelScope, PlanCard, PlanDebt, PlanParticipantStatus, Place } from "@max-events/api-contracts";
 import { moscowIsoWeekday, PlanRecurringRuleSchema, upcomingRecurringAts } from "@max-events/api-contracts";
-import { toEventDto } from "../events/events.service";
+import { toEventDto } from "../events/event.mapper";
+import { haversineMeters } from "../geo/haversine";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { MaxBotClient } from "../max-bot/max-bot.client";
@@ -54,15 +55,7 @@ const WEEKDAY_POLL: Record<number, string> = {
   7: "воскресенье",
 };
 
-export function haversineMeters(from: GeoOrigin, latitude: number, longitude: number): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const earth = 6_371_000;
-  const dLat = toRad(latitude - from.latitude);
-  const dLon = toRad(longitude - from.longitude);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(from.latitude)) * Math.cos(toRad(latitude)) * Math.sin(dLon / 2) ** 2;
-  const meters = 2 * earth * Math.asin(Math.min(1, Math.sqrt(a)));
-  return Math.max(0, Math.round(meters));
-}
+export { haversineMeters };
 
 export function formatPlanReminderText(title: string, meetingPoint: string, meetingAt: Date): string {
   return `Напоминание: сбор «${title}» ${meetingPoint} в ${meetingAt.toISOString()}`;
