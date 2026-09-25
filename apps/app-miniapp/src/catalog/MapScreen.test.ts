@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockEvents, mockFriends, mockPlaces } from "../api/mock";
+import { basemapById, DEFAULT_BASEMAP } from "./basemaps";
 import { buildMapMarkers, type MapMarker } from "./mapMarkers";
 import { escapeHtml, formatMapChange, formatMapTemperature, formatTravelOption, initEventMap, mapFriendsLine, mapNotice, mapRainHint, type MapCallbacks, type MapNoticeInput, type MapView } from "./MapScreen";
 
@@ -52,7 +53,7 @@ function fakeMap() {
   return api;
 }
 
-const view = (markers: MapMarker[], extra: Partial<MapView> = {}): MapView => ({ markers, origin: null, route: null, selectedKey: null, ...extra });
+const view = (markers: MapMarker[], extra: Partial<MapView> = {}): MapView => ({ markers, origin: null, route: null, selectedKey: null, basemap: DEFAULT_BASEMAP, ...extra });
 
 const callbacks = (extra: Partial<MapCallbacks> = {}): MapCallbacks => ({ onOpenEvent: vi.fn(), onOpenPlace: vi.fn(), onSelect: vi.fn(), onTileTrouble: vi.fn(), ...extra });
 
@@ -65,6 +66,7 @@ beforeEach(() => {
   leaflet.tileLayer.mockImplementation(() => {
     const tiles = {
       addTo: vi.fn(() => tiles),
+      remove: vi.fn(),
       on: vi.fn((type: string, handler: () => void) => {
         tileHandlers[type] = handler;
       }),
@@ -92,6 +94,24 @@ describe("initEventMap", () => {
     expect(leaflet.map).toHaveBeenCalledWith(container, expect.objectContaining({ center: [55.7522, 37.6156], zoom: 11, attributionControl: false, zoomControl: false }));
     expect(leaflet.tileLayer).toHaveBeenCalledWith("https://tile.openstreetmap.org/{z}/{x}/{y}.png", expect.objectContaining({ maxZoom: 19 }));
     expect(typeof handle.dispose).toBe("function");
+  });
+
+  it("mounts the basemap the view asks for and swaps the tile layer in place only when the view brings another", async () => {
+    const handle = await initEventMap(container, view([], { basemap: basemapById("hot") }), callbacks());
+    const first = leaflet.tileLayer.mock.results[0].value;
+
+    expect(leaflet.tileLayer).toHaveBeenCalledWith("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", expect.objectContaining({ subdomains: "abc", maxZoom: 19 }));
+    expect(first.remove).not.toHaveBeenCalled();
+
+    handle.update(view([], { basemap: basemapById("osm-de") }));
+    // The old layer leaves before the new one lands, and nothing else of the map is rebuilt
+    expect(first.remove).toHaveBeenCalledTimes(1);
+    expect(leaflet.tileLayer).toHaveBeenCalledTimes(2);
+    expect(leaflet.tileLayer.mock.calls[1][0]).toBe("https://tile.openstreetmap.de/{z}/{x}/{y}.png");
+    expect(leaflet.map).toHaveBeenCalledTimes(1);
+
+    handle.update(view([], { basemap: basemapById("osm-de") }));
+    expect(leaflet.tileLayer).toHaveBeenCalledTimes(2);
   });
 
   it("removes the map when disposed", async () => {
@@ -221,14 +241,19 @@ describe("initEventMap", () => {
     expect(map.flyTo).toHaveBeenCalledWith([55.8, 37.5], expect.any(Number), expect.anything());
   });
 
-  it("reports dead tiles once, however many of them fail", async () => {
+  it("reports dead tiles once per basemap, however many of them fail, and re-arms on a swap", async () => {
     const onTileTrouble = vi.fn();
-    await initEventMap(container, view([]), callbacks({ onTileTrouble }));
+    const handle = await initEventMap(container, view([]), callbacks({ onTileTrouble }));
 
     tileHandlers.tileerror();
     tileHandlers.tileerror();
-
     expect(onTileTrouble).toHaveBeenCalledTimes(1);
+
+    // Another server is another chance: its first failure is reported afresh, the second is not
+    handle.update(view([], { basemap: basemapById("osm-de") }));
+    tileHandlers.tileerror();
+    tileHandlers.tileerror();
+    expect(onTileTrouble).toHaveBeenCalledTimes(2);
   });
 });
 
