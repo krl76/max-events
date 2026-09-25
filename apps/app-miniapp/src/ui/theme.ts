@@ -19,6 +19,8 @@
 // - clearAppliedScheme - drops the attribute so CSS falls back to prefers-color-scheme
 // - initTheme - applies the stored preference and follows the OS while it stays "system"; returns an unsubscribe
 // - useAppTheme - React binding: current preference/scheme plus a setter that persists and applies
+// - appliedScheme - the scheme the DOM renders: an explicit data-theme attribute wins, otherwise the system one
+// - useAppliedScheme - React binding to the rendered scheme: follows the <html> attribute and the OS switch (the map restyles its vector basemap from it)
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
@@ -118,4 +120,38 @@ export function useAppTheme(): { preference: ThemePreference; scheme: ThemeSchem
   }, []);
 
   return { preference, scheme: resolveScheme(preference, system), setPreference };
+}
+
+/** Схема, которую сейчас рисует DOM: явный атрибут data-theme, а без него — системная. Чистая часть useAppliedScheme. */
+export function appliedScheme(attribute: string | null, system: ThemeScheme): ThemeScheme {
+  return attribute === "dark" || attribute === "light" ? attribute : system;
+}
+
+function readAppliedScheme(): ThemeScheme {
+  if (typeof document === "undefined") return systemScheme();
+  return appliedScheme(document.documentElement.getAttribute(THEME_ATTRIBUTE), systemScheme());
+}
+
+/**
+ * Для экранов, которым нужна отрисованная схема, а не предпочтение: карта перекрашивает свою векторную
+ * подложку под то, что реально на экране. Слушает атрибут на <html> (его пишет applyScheme, откуда бы
+ * ни пришёл выбор — из настроек или из другой вкладки) и системный переключатель, пока атрибута нет.
+ */
+export function useAppliedScheme(): ThemeScheme {
+  const [scheme, setScheme] = useState<ThemeScheme>(readAppliedScheme);
+
+  useEffect(() => {
+    if (typeof document === "undefined" || typeof MutationObserver === "undefined") return;
+    const sync = () => setScheme(readAppliedScheme());
+    const observer = new MutationObserver(sync);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: [THEME_ATTRIBUTE] });
+    const query = typeof window.matchMedia === "function" ? window.matchMedia(DARK_QUERY) : null;
+    query?.addEventListener("change", sync);
+    return () => {
+      observer.disconnect();
+      query?.removeEventListener("change", sync);
+    };
+  }, []);
+
+  return scheme;
 }

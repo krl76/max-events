@@ -53,9 +53,9 @@ function fakeMap() {
   return api;
 }
 
-const view = (markers: MapMarker[], extra: Partial<MapView> = {}): MapView => ({ markers, origin: null, route: null, selectedKey: null, basemap: DEFAULT_BASEMAP, ...extra });
+const view = (markers: MapMarker[], extra: Partial<MapView> = {}): MapView => ({ markers, origin: null, route: null, selectedKey: null, basemap: DEFAULT_BASEMAP, scheme: "light", ...extra });
 
-const callbacks = (extra: Partial<MapCallbacks> = {}): MapCallbacks => ({ onOpenEvent: vi.fn(), onOpenPlace: vi.fn(), onSelect: vi.fn(), onTileTrouble: vi.fn(), ...extra });
+const callbacks = (extra: Partial<MapCallbacks> = {}): MapCallbacks => ({ onOpenEvent: vi.fn(), onOpenPlace: vi.fn(), onSelect: vi.fn(), onTileTrouble: vi.fn(), onBasemapFallback: vi.fn(), ...extra });
 
 beforeEach(() => {
   zoom = STREET_ZOOM;
@@ -257,7 +257,7 @@ describe("initEventMap", () => {
   });
 });
 
-const NOTICE: MapNoticeInput = { mapFailed: false, tilesFailed: false, loading: false, placesFailed: false, eventsFailed: false, markerCount: 4, query: "", anyLayerOn: true, geoDenied: false, locateOn: false };
+const NOTICE: MapNoticeInput = { mapFailed: false, tilesFailed: false, vectorFallback: false, loading: false, placesFailed: false, eventsFailed: false, markerCount: 4, query: "", anyLayerOn: true, geoDenied: false, locateOn: false };
 
 describe("mapNotice", () => {
   it("says nothing when the map has objects and everything loaded", () => {
@@ -277,6 +277,10 @@ describe("mapNotice", () => {
     expect(mapNotice({ ...NOTICE, markerCount: 0, placesFailed: true })).toContain("Объекты не загрузились");
     expect(mapNotice({ ...NOTICE, placesFailed: true })).toContain("Часть объектов не загрузилась");
     expect(mapNotice({ ...NOTICE, tilesFailed: true })).toContain("Подложка карты не отвечает");
+    // The own basemap fell back to the standard one: the person sees not what they picked, and hears why
+    expect(mapNotice({ ...NOTICE, vectorFallback: true })).toBe("Своя подложка здесь не открылась — показана стандартная.");
+    // Dead tiles outrank the fallback line: nothing is drawn at all
+    expect(mapNotice({ ...NOTICE, tilesFailed: true, vectorFallback: true })).toContain("Подложка карты не отвечает");
     expect(mapNotice({ ...NOTICE, mapFailed: true, markerCount: 0 })).toContain("Карта не загрузилась");
   });
 

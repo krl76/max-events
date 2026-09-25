@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 16 «Карта»: the Leaflet map with OSM-based tiles (ten basemaps to pick from, remembered on the device), event/place/friend pins, the «Вы здесь» marker, the weather chip, the layer and basemap chips, the card of the selected object with its travel times and the route it draws.
-// SCOPE: The canvas is unconditional — every data source of this screen (places, friends, weather, travel, and the events handed in by the page) may fail or come back empty, and the map still opens with «Вы здесь» and a line saying what is missing. Places fetched via apiClient.listPlaces and the friend layer via apiClient.listFriendPlaces; the weather and the travel estimates come from apiClient.getMapWeather / getTravelOptions, both mock-backed (#495, #504). Leaflet is loaded lazily (dynamic import) so it stays out of the main bundle; the map instance is created once and fed updates, so a filter or a layer toggle no longer resets pan and zoom.
-// DEPENDS: leaflet (dynamic import + css), ../api/client.js (apiClient, MapWeather, TravelOption), ./basemaps.js (MAP_BASEMAPS, MapBasemap, basemapCredit, read/writeBasemapPreference), ./mapMarkers.js (buildMapMarkers, clusterMapMarkers, MapMarker, MapPinGlyph, MAP_CLUSTER_MAX_ZOOM), ./useLeafletMap.js, ../geo/viewer-origin.js, ../ui/icons.js, ../ui/primitives.js
+// PURPOSE: Экран 16 «Карта»: the Leaflet map with OSM-based tiles (seven raster basemaps plus the project's own vector one, remembered on the device), event/place/friend pins, the «Вы здесь» marker, the weather chip, the layer and basemap chips, the card of the selected object with its travel times and the route it draws.
+// SCOPE: The canvas is unconditional — every data source of this screen (places, friends, weather, travel, and the events handed in by the page) may fail or come back empty, and the map still opens with «Вы здесь» and a line saying what is missing. Places fetched via apiClient.listPlaces and the friend layer via apiClient.listFriendPlaces; the weather and the travel estimates come from apiClient.getMapWeather / getTravelOptions, both mock-backed (#495, #504). Leaflet is loaded lazily (dynamic import) so it stays out of the main bundle; the map instance is created once and fed updates, so a filter or a layer toggle no longer resets pan and zoom. The vector basemap mounts asynchronously through ./vectorBasemap.ts (MapLibre lazy too) and follows the rendered colour scheme; when it cannot mount the screen falls back to the standard raster tiles and says so.
+// DEPENDS: leaflet (dynamic import + css), ../api/client.js (apiClient, MapWeather, TravelOption), ./basemaps.js (MAP_BASEMAPS, DEFAULT_BASEMAP, MapBasemap, basemapCredit, read/writeBasemapPreference), ./vectorBasemap.js (mountVectorBasemap, VectorBasemapLayer), ../ui/theme.js (useAppliedScheme, ThemeScheme), ./mapMarkers.js (buildMapMarkers, clusterMapMarkers, MapMarker, MapPinGlyph, MAP_CLUSTER_MAX_ZOOM), ./useLeafletMap.js, ../geo/viewer-origin.js, ../ui/icons.js, ../ui/primitives.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -12,6 +12,7 @@
 // - escapeHtml - escape text going into a Leaflet divIcon, which takes html rather than nodes
 // - MAP_LAYERS - the three layer chips of экран 16 in design order
 // - MapLayer - union of the layer names
+// - mapWrapClass - the wrapper class by basemap tone: dark raster and the own vector basemap escape the dark-scheme inversion (theme.css)
 // - formatMapTemperature - «+19°», with the sign the chip prints
 // - formatMapChange - «дождь в 19:00»; null when nothing is expected (#495)
 // - mapRainHint - «Дождь с 19:00 — метро суше, зонт не понадобится»; null without rain or without a metro option
@@ -19,10 +20,10 @@
 // - mapFriendsLine - «Анна была здесь», «Анна и Дима были здесь»; null when no friend has
 // - MapNoticeInput - everything the one line over the canvas has to weigh: failures, emptiness, filters, geolocation
 // - mapNotice - the single line the map says about itself; null when there is nothing to explain
-// - MapView - the data the map is drawn from: markers, viewer origin, route, selected key and the basemap the tiles come from
-// - MapCallbacks - what the map calls back into React: open event, open place, select a pin, report dead tiles
+// - MapView - the data the map is drawn from: markers, viewer origin, route, selected key, the basemap the tiles come from and the rendered colour scheme
+// - MapCallbacks - what the map calls back into React: open event, open place, select a pin, report dead tiles, fall back from a vector basemap that could not mount
 // - MapHandle - the live map: take a new view, zoom by a step, fly to a point, dispose
-// - initEventMap - create Leaflet map + the tile layer of the view's basemap (swapped in place when the view brings another, the dead-tiles report re-armed with it) + the pin layer (clustered, promoted events highlighted #205, the friends layer keeping its tile pin #472), the «Вы здесь» marker and the dotted route; returns the handle
+// - initEventMap - create Leaflet map + the basemap layer of the view (raster L.tileLayer or the vector MapLibre layer via ./vectorBasemap.ts; swapped in place when the view brings another, the dead-tiles report re-armed with it, a late-arriving vector layer dropped if the user moved on, a scheme change restyling the vector one) + the pin layer (clustered, promoted events highlighted #205, the friends layer keeping its tile pin #472), the «Вы здесь» marker and the dotted route; returns the handle
 // - MapSelectionCard - the card of the selected object: friends, title, the two travel tiles, the rain hint and «Построить маршрут»
 // - MapScreen - экран 16: pins, layers, the basemap picker (chips under the layers, the choice persisted through ./basemaps.js, the credit line following it), weather, selection, route and the map search over the Leaflet lifecycle via useLeafletMap
 // END_MODULE_MAP
@@ -33,12 +34,13 @@ import "leaflet/dist/leaflet.css";
 import { apiClient, type MapWeather, type TravelOption } from "../api/client";
 import { pluralRu } from "./format";
 import { useViewerOrigin } from "../geo/viewer-origin";
-import type { TileLayer } from "leaflet";
 import { ActionIcon, TabIconGlyph } from "../ui/icons";
 import { AppChip } from "../ui/primitives";
-import { basemapCredit, MAP_BASEMAPS, readBasemapPreference, writeBasemapPreference, type MapBasemap } from "./basemaps";
+import { useAppliedScheme, type ThemeScheme } from "../ui/theme";
+import { basemapCredit, DEFAULT_BASEMAP, MAP_BASEMAPS, readBasemapPreference, writeBasemapPreference, type MapBasemap } from "./basemaps";
 import { buildMapMarkers, clusterMapMarkers, MAP_CLUSTER_MAX_ZOOM, type MapMarker, type MapPinGlyph } from "./mapMarkers";
 import { useLeafletMap } from "./useLeafletMap";
+import { mountVectorBasemap, type VectorBasemapLayer } from "./vectorBasemap";
 
 /** Fixtures and P0 scope are Moscow-only, so the map opens on the city center; also the anchor point of the nearby screen. */
 export const MOSCOW_CENTER: [number, number] = [55.7522, 37.6156];
@@ -53,6 +55,17 @@ export function escapeHtml(text: string): string {
 export type MapLayer = "friends" | "events" | "places";
 
 export const MAP_LAYERS: readonly MapLayer[] = ["friends", "events", "places"];
+
+/**
+ * Класс обёртки экрана по тону подложки (theme.css): тёмная растровая и своя векторная не инвертируются
+ * тёмной схемой, светлая растровая — инвертируется. Висит на обёртке, а не на контейнере leaflet, чей
+ * classList React перезаписал бы целиком вместе с классами самого leaflet.
+ */
+export function mapWrapClass(basemap: MapBasemap): string {
+  if (basemap.tone === "dark") return "app-map-wrap app-map16 app-map16--tiles-dark";
+  if (basemap.tone === "scheme") return "app-map-wrap app-map16 app-map16--tiles-scheme";
+  return "app-map-wrap app-map16";
+}
 
 const MAP_LAYER_LABELS: Record<MapLayer, string> = { friends: "Друзья", events: "События", places: "Места" };
 
@@ -106,6 +119,8 @@ export interface MapNoticeInput {
   /** Leaflet не поднялся вовсе: холста нет, и сказать об этом обязаны словами. */
   mapFailed: boolean;
   tilesFailed: boolean;
+  /** Своя векторная подложка не поднялась и карта вернулась к стандартной: человек видит не то, что выбрал. */
+  vectorFallback: boolean;
   loading: boolean;
   placesFailed: boolean;
   eventsFailed: boolean;
@@ -124,6 +139,7 @@ export interface MapNoticeInput {
 export function mapNotice(input: MapNoticeInput): string | null {
   if (input.mapFailed) return "Карта не загрузилась. Обновите экран — объекты и поиск на месте.";
   if (input.tilesFailed) return "Подложка карты не отвечает. Метки и маршрут работают.";
+  if (input.vectorFallback) return "Своя подложка здесь не открылась — показана стандартная.";
   if (input.locateOn && input.geoDenied) return "Где вы — браузер не сказал. Показываем центр города.";
   if (input.markerCount > 0) return input.placesFailed || input.eventsFailed ? "Часть объектов не загрузилась — на карте не всё." : null;
   if (input.loading) return "Ищем объекты рядом…";
@@ -219,6 +235,8 @@ export interface MapView {
   selectedKey: string | null;
   /** Подложка, с которой карта берёт тайлы; смена id на месте меняет слой тайлов, ничего больше не пересобирая. */
   basemap: MapBasemap;
+  /** Отрисованная схема приложения: своя векторная подложка перекрашивается под неё, растровым она безразлична (их инвертирует CSS). */
+  scheme: ThemeScheme;
 }
 
 export interface MapCallbacks {
@@ -228,6 +246,8 @@ export interface MapCallbacks {
   onSelect: (marker: MapMarker) => void;
   /** Тайлы не пришли: экран объясняет пустую подложку вместо того, чтобы притворяться загруженным. */
   onTileTrouble: () => void;
+  /** Векторная подложка не поднялась (нет WebGL, MapLibre не догрузился): экран возвращает стандартную растровую. */
+  onBasemapFallback: () => void;
 }
 
 export interface MapHandle {
@@ -244,24 +264,51 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
   // Подложка — отдельный слой, который меняется на месте: пины, «Вы здесь» и маршрут лежат в своих
   // панах и переключения не замечают. keepBuffer держит кольцо тайлов за краем экрана: панорама не
   // мигает серым на каждый сдвиг. Сообщение о мёртвых тайлах взводится заново с каждой подложкой:
-  // молчавший сервер — не приговор следующему.
-  let tiles: TileLayer | null = null;
+  // молчавший сервер — не приговор следующему. Векторная подложка поднимается асинхронно (MapLibre
+  // грузится лениво), поэтому у каждого монтажа свой номер: слой, приехавший после того, как человек
+  // уже переключился дальше, снимается, не успев показаться.
+  let tiles: { remove: () => unknown } | null = null;
+  let vector: VectorBasemapLayer | null = null;
   let tileTroubleReported = false;
-  function mountTiles(basemap: MapBasemap): void {
-    tiles?.remove();
-    tileTroubleReported = false;
-    tiles = L.tileLayer(basemap.url, { subdomains: basemap.subdomains ?? "abc", maxZoom: basemap.maxZoom, minZoom: 3, keepBuffer: 2, updateWhenIdle: false }).addTo(map);
-    tiles.on("tileerror", () => {
-      if (tileTroubleReported) return;
-      tileTroubleReported = true;
-      callbacks.onTileTrouble();
-    });
+  let mountGeneration = 0;
+  let view = initial;
+  function reportTileTrouble(): void {
+    if (tileTroubleReported) return;
+    tileTroubleReported = true;
+    callbacks.onTileTrouble();
   }
-  mountTiles(initial.basemap);
+  function mountTiles(basemap: MapBasemap, scheme: ThemeScheme): void {
+    tiles?.remove();
+    tiles = null;
+    vector = null;
+    tileTroubleReported = false;
+    const generation = ++mountGeneration;
+    if (basemap.kind === "raster") {
+      const raster = L.tileLayer(basemap.url, { subdomains: basemap.subdomains ?? "abc", maxZoom: basemap.maxZoom, minZoom: 3, keepBuffer: 2, updateWhenIdle: false }).addTo(map);
+      raster.on("tileerror", reportTileTrouble);
+      tiles = raster;
+      return;
+    }
+    mountVectorBasemap(map, basemap, scheme, { onTrouble: () => generation === mountGeneration && reportTileTrouble() }).then(
+      (layer) => {
+        if (generation !== mountGeneration) {
+          layer.remove();
+          return;
+        }
+        // Схема могла смениться, пока MapLibre грузился: слой догоняет то, что сейчас на экране
+        if (view.scheme !== scheme) layer.setScheme(view.scheme);
+        tiles = layer;
+        vector = layer;
+      },
+      () => {
+        if (generation === mountGeneration) callbacks.onBasemapFallback();
+      },
+    );
+  }
+  mountTiles(initial.basemap, initial.scheme);
 
   const pins = L.layerGroup().addTo(map);
   const overlay = L.layerGroup().addTo(map);
-  let view = initial;
   let drawn = "";
 
   function drawPins(): void {
@@ -306,8 +353,10 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
 
   return {
     update(next) {
-      // Смена подложки — единственное, что трогает тайлы; всё остальное перерисовывает лишь пины и маршрут.
-      if (next.basemap.id !== view.basemap.id) mountTiles(next.basemap);
+      // Смена подложки — единственное, что трогает тайлы; смена схемы перекрашивает векторную на месте;
+      // всё остальное перерисовывает лишь пины и маршрут.
+      if (next.basemap.id !== view.basemap.id) mountTiles(next.basemap, next.scheme);
+      else if (next.scheme !== view.scheme) vector?.setScheme(next.scheme);
       view = next;
       drawPins();
       drawOverlay();
@@ -426,9 +475,12 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   const [weather, setWeather] = useState<MapWeather | null>(null);
   const [travel, setTravel] = useState<TravelOption[]>([]);
   const [tilesFailed, setTilesFailed] = useState(false);
+  const [vectorFallback, setVectorFallback] = useState(false);
   // Подложка читается из хранилища один раз: выбор человека переживает перезаход, а не только сессию
   const [basemap, setBasemap] = useState<MapBasemap>(readBasemapPreference);
   const [basemapsOpen, setBasemapsOpen] = useState(false);
+  // Своя векторная подложка красится под отрисованную схему, а не под предпочтение: карта показывает то же, что и остальной экран
+  const scheme = useAppliedScheme();
 
   useEffect(() => {
     let alive = true;
@@ -523,10 +575,15 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
       onOpenPlace: (id) => handlers.current.onOpenPlace(id),
       onSelect: (marker) => handlers.current.select(marker),
       onTileTrouble: () => setTilesFailed(true),
+      // Возврат к стандартной не сохраняется: на другом устройстве та же учётка может открыть свою подложку
+      onBasemapFallback: () => {
+        setBasemap(DEFAULT_BASEMAP);
+        setVectorFallback(true);
+      },
     }),
     [],
   );
-  const view = useMemo<MapView>(() => ({ markers, origin: originPoint, route: routePoint, selectedKey: selected?.key ?? null, basemap }), [markers, originPoint, routePoint, selected, basemap]);
+  const view = useMemo<MapView>(() => ({ markers, origin: originPoint, route: routePoint, selectedKey: selected?.key ?? null, basemap, scheme }), [markers, originPoint, routePoint, selected, basemap, scheme]);
   const create = useCallback((container: HTMLElement, initial: MapView) => initEventMap(container, initial, callbacks), [callbacks]);
   const { containerRef, handleRef, status } = useLeafletMap<MapView, MapHandle>(create, view);
 
@@ -541,6 +598,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   const notice = mapNotice({
     mapFailed: status === "error",
     tilesFailed,
+    vectorFallback,
     loading: places.status === "loading" || eventsLoading,
     placesFailed: places.status === "error",
     eventsFailed,
@@ -554,13 +612,14 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   function pickBasemap(next: MapBasemap): void {
     setBasemap(next);
     writeBasemapPreference(next.id);
-    // Сообщение о мёртвых тайлах относилось к прежней подложке: новая начинает с чистого листа
+    // Сообщения о мёртвых тайлах и о возврате к стандартной относились к прежней подложке: новая начинает с чистого листа
     setTilesFailed(false);
+    setVectorFallback(false);
   }
 
   return (
-    // Тёмная подложка тёмная сама: модификатор обёртки снимает с тайлов инверсию тёмной схемы (theme.css)
-    <div className={basemap.tone === "dark" ? "app-map-wrap app-map16 app-map16--tiles-dark" : "app-map-wrap app-map16"}>
+    // Тёмная и своя подложки тёмные сами: модификатор обёртки снимает с тайлов инверсию тёмной схемы (theme.css)
+    <div className={mapWrapClass(basemap)}>
       {/* Класс этого контейнера после инициализации меняться не должен: React перезаписал бы classList
           целиком, вместе с классами leaflet (.leaflet-container и его правило max-width для тайлов —
           без него тайлы схлопываются в нулевую ширину). Тон подложки поэтому висит на обёртке выше. */}
@@ -602,7 +661,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
               ))}
             </div>
           )}
-          {/* Подложки — растровые тайлы на данных OSM (./basemaps.ts). Ряд прокручивается: их десять; выбранная одна, поэтому чипы ведут себя как радиокнопки */}
+          {/* Подложки — растровые тайлы на данных OSM и своя векторная (./basemaps.ts). Ряд прокручивается: их восемь; выбранная одна, поэтому чипы ведут себя как радиокнопки */}
           {basemapsOpen && (
             <div className="app-map16-layers app-map16-basemaps" role="group" aria-label="Подложка карты">
               {MAP_BASEMAPS.map((item) => (

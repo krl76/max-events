@@ -17503,6 +17503,24 @@ button.app-poll-result {
   }
 }
 
+/* Своя векторная подложка (./catalog/vectorBasemap.ts) рисуется MapLibre в той же панели тайлов и сама
+ * следует схеме: светлый стиль в светлой, тёмный в тёмной (./catalog/basemapStyle.ts). Инверсия ей не нужна
+ * ни в одной схеме, а просветы до первого кадра — цвет полотна схемы, чтобы карта не мигала белым в темноте. */
+[data-theme="dark"] .app-map16--tiles-scheme .app-map .leaflet-tile-pane,
+.app-map16--tiles-scheme .app-map .leaflet-tile-pane {
+  filter: none;
+}
+
+.app-map16--tiles-scheme .app-map .leaflet-container {
+  background: var(--app-canvas);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .app-map16--tiles-scheme .app-map .leaflet-tile-pane {
+    filter: none;
+  }
+}
+
 .app-map .leaflet-popup-content-wrapper {
   background: var(--app-card);
   box-shadow: 0 10px 30px rgba(13, 0, 26, 0.22);
