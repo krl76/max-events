@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: The pure layer behind the moderator contour (макет, экраны 46 и 47): labels, the two streams of the queue, the grouping by reported object and the wording of one разбор.
+// PURPOSE: The pure layer behind the moderator contour (макет, экраны 49 и 50): labels, the two streams of the queue, the grouping by reported object and the wording of one разбор.
 // SCOPE: Pure functions and tables only — no API calls and no JSX, so both screens and their tests share one source of truth about what the queue says.
 // DEPENDS: @max-events/api-contracts (Report, ReportReason, ReportSource, ReportTargetType), ../api/client.js (ModerationTarget)
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS

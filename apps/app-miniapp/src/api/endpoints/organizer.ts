@@ -12,17 +12,17 @@
 // - UpdateOrganizerPlace - place edit payload (backend PATCH /places/:id validates CreatePlaceSchema.partial())
 // - StatsPeriodQuery - optional from/to window for the organizer reports
 // - statsPeriodQuery - period into a ?from&to query string
-// - ORGANIZER_TRAFFIC_SOURCES - where a booking came from, in the order экраны 42 и 45 list it
+// - ORGANIZER_TRAFFIC_SOURCES - where a booking came from, in the order экраны 45 и 48 list it
 // - OrganizerTrafficSource - union of the traffic sources
 // - OrganizerTrafficShare - one «Откуда приходят» row: source + its percent
-// - OrganizerSummary - organizer-wide period report of экраны 42 и 45: totals, the weekday histogram, the traffic split (no backend counts attribution yet)
-// - OrganizerRecurrence - «Повторять каждую неделю» of экран 43: the rule and the date the series runs to
-// - OrganizerEventOptions - the four switches экран 43 owns that the Event contract has no field for (waitlist, in-app registration, external link, recurrence)
+// - OrganizerSummary - organizer-wide period report of экраны 45 и 48: totals, the weekday histogram, the traffic split (no backend counts attribution yet)
+// - OrganizerRecurrence - «Повторять каждую неделю» of экран 46: the rule and the date the series runs to
+// - OrganizerEventOptions - the four switches экран 46 owns that the Event contract has no field for (waitlist, in-app registration, external link, recurrence)
 // - UpdateOrganizerEventOptions - partial OrganizerEventOptions patch
-// - OrganizerParticipant - one row of «Отметились»/«Ждём» on экран 44: booking, guest, arrival stamp
-// - OrganizerWaitlistEntry - one row of the waitlist tab of экран 44
-// - OrganizerSlot - one venue slot chip of экран 44 (the slots domain does not exist yet, #492)
-// - OrganizerAttendance - the event day of экран 44: counters, participants, waitlist, slots
+// - OrganizerParticipant - one row of «Отметились»/«Ждём» on экран 47: booking, guest, arrival stamp
+// - OrganizerWaitlistEntry - one row of the waitlist tab of экран 47
+// - OrganizerSlot - one venue slot chip of экран 47 (the slots domain does not exist yet, #492)
+// - OrganizerAttendance - the event day of экран 47: counters, participants, waitlist, slots
 // - organizerEntryCode - entry code of a booking: the last six characters of its id, uppercased (no code column exists yet)
 // - ORGANIZER_ACTIVITIES - the «ЧЕМ ЗАНИМАЕТЕСЬ» values of экран 44; organizations carry no such column
 // - OrganizerActivity - union of those values
@@ -145,7 +145,7 @@ function arraySchema<T>(item: (raw: Record<string, unknown>) => T | null, what: 
   };
 }
 
-/** Where a booking came from (макет, экраны 42 и 45, «Откуда приходят»), in the order the screens list it. */
+/** Where a booking came from (макет, экраны 45 и 48, «Откуда приходят»), in the order the screens list it. */
 export const ORGANIZER_TRAFFIC_SOURCES = ["chats", "feed", "search"] as const;
 export type OrganizerTrafficSource = (typeof ORGANIZER_TRAFFIC_SOURCES)[number];
 
@@ -154,7 +154,7 @@ export interface OrganizerTrafficShare {
   percent: number;
 }
 
-/** Organizer-wide report over a period: the numbers экран 42 puts in its hero and экран 45 in its tiles and charts. */
+/** Organizer-wide report over a period: the numbers экран 45 puts in its hero and экран 48 in its tiles and charts. */
 export interface OrganizerSummary {
   bookings: number;
   /** Change against the previous window of the same length; null when there is no previous window to compare with. */
@@ -189,14 +189,14 @@ const OrganizerSummarySchema: ZodSchema<OrganizerSummary> = {
   },
 };
 
-/** «Повторять каждую неделю» (макет, экран 43): the only rule the screen offers, plus the date the series runs to. */
+/** «Повторять каждую неделю» (макет, экран 46): the only rule the screen offers, plus the date the series runs to. */
 export interface OrganizerRecurrence {
   rule: "weekly";
   until: string;
 }
 
 /**
- * The switches экран 43 carries that the Event contract has no column for. They travel as one sub-resource
+ * The switches экран 46 carries that the Event contract has no column for. They travel as one sub-resource
  * rather than as extra event fields, so the day the backend grows them the screen keeps its calls.
  */
 export interface OrganizerEventOptions {
@@ -226,7 +226,7 @@ const OrganizerEventOptionsSchema: ZodSchema<OrganizerEventOptions> = {
   },
 };
 
-/** One «Отметились»/«Ждём» row of экран 44. `guests` counts the companions a booking brings along. */
+/** One «Отметились»/«Ждём» row of экран 47. `guests` counts the companions a booking brings along. */
 export interface OrganizerParticipant {
   bookingId: string;
   userId: string;
@@ -517,12 +517,12 @@ export function withOrganizer<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/organizer/events/${eventId}/attendance`, OrganizerAttendanceSchema);
     }
 
-    /** Mark a guest as arrived by the code on their ticket (макет, экран 44, «Сканировать код»). */
+    /** Mark a guest as arrived by the code on their ticket (макет, экран 47, «Сканировать код»). */
     checkInOrganizerGuest(eventId: string, code: string): Promise<OrganizerParticipant> {
       return this.request(`/organizer/events/${eventId}/check-ins`, OrganizerParticipantSchema, { body: { code } });
     }
 
-    /** Offer the freed seats to the first `count` people on the waitlist (макет, экран 44). */
+    /** Offer the freed seats to the first `count` people on the waitlist (макет, экран 47). */
     inviteFromOrganizerWaitlist(eventId: string, count: number): Promise<{ invited: number }> {
       return this.request(`/organizer/events/${eventId}/waitlist/invites`, WaitlistInviteResultSchema, { body: { count } });
     }

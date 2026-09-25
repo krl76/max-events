@@ -149,7 +149,7 @@ export function AppState({ error = false, hint, action, secondaryAction, childre
 
 export type AppStateKind = "empty-feed" | "offline" | "forbidden" | "not-moderator" | "empty-match" | "friends-unsynced";
 
-/** One wording per state, shared by every screen that can reach it (макет, экран 48). */
+/** One wording per state, shared by every screen that can reach it (макет, экран 51). */
 export const APP_STATE_COPY: Record<AppStateKind, { text: string; hint?: string; action?: string; secondaryAction?: string }> = {
   "empty-feed": { text: "На эти выходные у друзей пока нет планов", action: "Предложить первым" },
   offline: { text: "Показываем сохранённое", hint: "Твои планы доступны офлайн", action: "Обновить" },

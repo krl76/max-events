@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
-// PURPOSE: «Панель организатора» (макет, экран 42): the period hero, the weekly fill and traffic tiles, the organizer's own events with their fill, and the four promo tools.
-// SCOPE: Pure helpers plus OrganizerDashboardView (presentational) and OrganizerDashboard (container). Per-event fill comes from the event day, the totals and the traffic split from the organizer summary; the four tools hand their intent to экран 45, which owns the forms.
+// PURPOSE: «Панель организатора» (макет, экран 45): the period hero, the weekly fill and traffic tiles, the organizer's own events with their fill, and the four promo tools.
+// SCOPE: Pure helpers plus OrganizerDashboardView (presentational) and OrganizerDashboard (container). Per-event fill comes from the event day, the totals and the traffic split from the organizer summary; the four tools hand their intent to экран 48, which owns the forms.
 // DEPENDS: react, ../api/client.js (apiClient, OrganizerAttendance, OrganizerEvent, OrganizerSummary, OrganizerTrafficSource), ../catalog/format.js (pluralRu), ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - OrganizerPromoIntent - which of the four tools экран 45 should open on: boost | target_collection | promocode | report
+// - OrganizerPromoIntent - which of the four tools экран 48 should open on: boost | target_collection | promocode | report
 // - ORGANIZER_PROMO_TOOLS - the four tiles in design order, with their glyph, title and second line
 // - TRAFFIC_SOURCE_LABELS - ru label per traffic source
 // - formatCount - «1 284»: thin-space groups, the way the hero prints its numbers

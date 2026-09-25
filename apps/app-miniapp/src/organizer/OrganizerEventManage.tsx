@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: «Управление событием» (макет, экран 44): the counters of the day, the participants, the waitlist, the venue slots and the check-in by entry code.
+// PURPOSE: «Управление событием» (макет, экран 47): the counters of the day, the participants, the waitlist, the venue slots and the check-in by entry code.
 // SCOPE: Pure helpers plus OrganizerEventManageView (presentational) and OrganizerEventManage (container over apiClient.getOrganizerAttendance / checkInOrganizerGuest / inviteFromOrganizerWaitlist). The freed-seats card is itself the confirmation: it asks the question out loud and only its dark-filled verb sends the invitation, which cannot be recalled.
 // DEPENDS: react, ../api/client.js (apiClient, OrganizerAttendance, OrganizerEvent, OrganizerParticipant, OrganizerSlot, OrganizerWaitlistEntry), ../catalog/format.js (pluralRu), ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS

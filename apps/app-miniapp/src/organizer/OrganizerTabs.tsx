@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: The tab bar of the organizer contour (макет, экраны 42–45): Дашборд · События · Создать · Промо · Профиль.
+// PURPOSE: The tab bar of the organizer contour (макет, экраны 45–48): Дашборд · События · Создать · Промо · Профиль.
 // SCOPE: The bar and its section union only — presentational, driven by the caller's state. The organizer space has no router of its own (it lives outside RouteProvider, behind its own login), so the section is local state, not a route.
 // DEPENDS: ../ui/icons.js (TabIconGlyph), ../ui/theme.css
 // LINKS: M-APP-MINIAPP

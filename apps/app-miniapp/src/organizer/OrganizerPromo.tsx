@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: «Промо и отчёты» (макет, экран 45): the period tiles, the bookings-by-day chart, the traffic split, the active campaigns and the month report.
+// PURPOSE: «Промо и отчёты» (макет, экран 48): the period tiles, the bookings-by-day chart, the traffic split, the active campaigns and the month report.
 // SCOPE: Pure helpers plus OrganizerPromoView (presentational) and OrganizerPromo (container). Campaigns and promo codes are real endpoints per event, so the screen fans out over the organizer's own events; the report is built here from the sales rows, because the backend has no export of its own.
 // DEPENDS: react, @max-events/api-contracts (PromoCode, PromotionCampaign), ../api/client.js (apiClient, OrganizerEvent, OrganizerSummary, StatsPeriodQuery), ./OrganizerDashboard.js (OrganizerPromoIntent, TRAFFIC_SOURCE_LABELS, barHeights, formatCount), ../catalog/format.js (pluralRu), ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
@@ -346,7 +346,7 @@ export function OrganizerPromo({ organizationName, intent, onOpenEvent }: { orga
     [events],
   );
 
-  // Тайл «Отчёт» с экрана 42 сразу скачивает файл, остальные три открывают форму на нужном типе.
+  // Тайл «Отчёт» с экрана 45 сразу скачивает файл, остальные три открывают форму на нужном типе.
   useEffect(() => {
     if (intent === null || intent === "report" || events.length === 0) return;
     openDraft(intent);

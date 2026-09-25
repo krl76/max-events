@@ -1,14 +1,14 @@
 // START_MODULE_CONTRACT
-// PURPOSE: The moderator contour: «Очередь» (макет, экран 46) with its two streams grouped by reported object, and «Разбор» (макет, экран 47) with the irreversible actions behind an explicit confirmation.
-// SCOPE: ModerationQueueView / ModerationCaseView are presentational; ModerationPage loads GET /reports?status=open plus GET /moderation/targets and answers a 403 with the «не в списке модераторов» state of экран 48, because that is what the backend says to everyone outside MODERATOR_MAX_USER_IDS. A sanction leaves the row open so both sanctions stay reachable; only «Решить без действий» closes it.
+// PURPOSE: The moderator contour: «Очередь» (макет, экран 49) with its two streams grouped by reported object, and «Разбор» (макет, экран 50) with the irreversible actions behind an explicit confirmation.
+// SCOPE: ModerationQueueView / ModerationCaseView are presentational; ModerationPage loads GET /reports?status=open plus GET /moderation/targets and answers a 403 with the «не в списке модераторов» state of экран 51, because that is what the backend says to everyone outside MODERATOR_MAX_USER_IDS. A sanction leaves the row open so both sanctions stay reachable; only «Решить без действий» closes it.
 // DEPENDS: react, @max-events/api-contracts (Report), ../api/client.js (ApiError, apiClient, ModerationTarget), ../catalog/format.js (pluralRu), ../routing/router.js, ./ModerationQueue.js, ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - ModerationState - queue fetch state union (loading / forbidden / error / ready)
-// - ModerationQueueView - экран 46 presentational: the moderator badge, the two streams as the app-wide row of filter pills and one card per reported object
-// - ModerationCaseView - экран 47 presentational: the object, its complaints, the confirmation card and the two irreversible actions
+// - ModerationQueueView - экран 49 presentational: the moderator badge, the two streams as the app-wide row of filter pills and one card per reported object
+// - ModerationCaseView - экран 50 presentational: the object, its complaints, the confirmation card and the two irreversible actions
 // - ModerationPage - container: loads the queue with its targets, opens one разбор, wires unpublish / ban / dismiss
 // - ModerationEntry - profile tile that appears only for a viewer the backend lets into the queue
 // END_MODULE_MAP
@@ -32,7 +32,7 @@ interface ModerationQueueViewProps {
 }
 
 export function ModerationQueueView({ state, stream = "complaints", onStream = () => {}, onOpen = () => {} }: ModerationQueueViewProps) {
-  // «Не в списке модераторов» — состояние, а не ошибка: экран 48 уже знает эти слова.
+  // «Не в списке модераторов» — состояние, а не ошибка: экран 51 уже знает эти слова.
   if (state.status === "forbidden") return <AppEmptyState kind="not-moderator" />;
   if (state.status === "error") return <AppState error>Не удалось загрузить очередь модерации.</AppState>;
   const counts = state.status === "ready" ? moderationStreamCounts(state.reports) : { complaints: 0, checks: 0 };

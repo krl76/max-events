@@ -9,7 +9,7 @@
 // - OrganizerLoginForm - вход в панель организатора (макет, экран 42): wordmark, «Панель организатора», подписанные ЛОГИН/ПАРОЛЬ с показом пароля, «Войти» и строка справки
 // - ORGANIZER_SECTION_TITLES - header title per bar section (only the two sections that use the plain header still show it)
 // - ORGANIZER_BARE_SECTIONS - the sections that draw their own chrome, so the shell header steps aside
-// - OrganizerSectionContent - what each section renders: dashboard -> экран 42, events -> the panel, create -> экран 43, promo -> экран 45, profile -> organization and exit
+// - OrganizerSectionContent - what each section renders: dashboard -> экран 45, events -> the panel, create -> экран 46, promo -> экран 48, profile -> organization and exit
 // - OrganizerOnboardingGate - первый заход: вступление (экран 43) по флагу аппарата, затем настройка (экран 44) по признаку учётной записи; отказ запроса настройки пропускает вперёд
 // - OrganizerSpace - auth gate + MaxUI chrome: loading/anonymous/error -> login form, authenticated -> onboarding gate -> header + section (or the pushed экран 44) + tab bar
 // END_MODULE_MAP
@@ -102,7 +102,7 @@ export const ORGANIZER_SECTION_TITLES: Record<OrganizerSection, string> = {
   profile: "Профиль",
 };
 
-/** Экраны 42, 43 и 45 несут собственную шапку — общая стала бы второй, как это уже решено для экранов 08 и 16. */
+/** Экраны 45, 46 и 48 несут собственную шапку — общая стала бы второй, как это уже решено для экранов 08 и 16. */
 export const ORGANIZER_BARE_SECTIONS: ReadonlySet<OrganizerSection> = new Set<OrganizerSection>(["dashboard", "create", "promo"]);
 
 interface OrganizerSectionContentProps {

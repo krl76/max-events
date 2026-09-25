@@ -172,9 +172,9 @@
 // - checkInMockOrganizerGuest - mock POST /organizer/events/:id/check-ins: mark a booking arrived by its entry code
 // - inviteMockOrganizerWaitlist - mock POST /organizer/events/:id/waitlist/invites
 // - mockModerationTargets - mock GET /moderation/targets: one row per reported object
-// - mockOrganizerAttendance - mock GET /organizer/events/:id/attendance: the event day of экран 44
-// - mockOrganizerEventOptions - mock GET /organizer/events/:id/options: the экран 43 switches
-// - mockOrganizerSummary - mock GET /organizer/summary: the period report of экраны 42 и 45
+// - mockOrganizerAttendance - mock GET /organizer/events/:id/attendance: the event day of экран 47
+// - mockOrganizerEventOptions - mock GET /organizer/events/:id/options: the экран 46 switches
+// - mockOrganizerSummary - mock GET /organizer/summary: the period report of экраны 45 и 48
 // - resetMockOrganizerDay - clear the event-day state the mock owns alone (options, check-ins, waitlist offers)
 // - spotCheckMockReport - mock POST /reports/spot-check: the queue's second stream
 // - updateMockOrganizerEventOptions - mock PATCH /organizer/events/:id/options

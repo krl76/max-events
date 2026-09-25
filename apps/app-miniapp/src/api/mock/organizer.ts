@@ -36,7 +36,7 @@
 // - MOCK_ORGANIZER_BASELINE - the seven-day demo baseline of the organizer summary; nothing on the backend counts bookings per weekday or attributes traffic yet
 // - resetMockOrganizerDay - clear the event-day state the mock owns alone (options, check-ins, waitlist offers)
 // - mockOrganizerSummary - mock GET /organizer/summary: the demo baseline plus the store's own organizer bookings, the attendance split and the traffic shares
-// - mockOrganizerEventOptions - mock GET /organizer/events/:id/options: the four экран 43 switches, defaulted on first read
+// - mockOrganizerEventOptions - mock GET /organizer/events/:id/options: the four экран 46 switches, defaulted on first read
 // - updateMockOrganizerEventOptions - mock PATCH of the same sub-resource
 // - mockOrganizerAttendance - mock GET /organizer/events/:id/attendance: counters, the roster built from the store's bookings, the seeded waitlist and the venue slots
 // - checkInMockOrganizerGuest - mock POST /organizer/events/:id/check-ins: mark a booking arrived by its entry code
@@ -409,7 +409,7 @@ export function createMockPromoCode(eventId: string, payload: CreatePromoCodeWri
 }
 
 /**
- * «Активные кампании» экрана 45 читаются из трёх настоящих эндпоинтов, а таблицы за ними пустые:
+ * «Активные кампании» экрана 48 читаются из трёх настоящих эндпоинтов, а таблицы за ними пустые:
  * без строки-другой раздел живёт только пустым состоянием и макет по нему не проверить. Сеется один
  * раз при загрузке модуля, а не из resetMockOrganizer, чтобы resetMockPromotions/resetMockPromoCodes
  * остались тем, чем их считают тесты, — способом получить чистые таблицы.
@@ -443,7 +443,7 @@ export function setMockEarlyAccess(eventId: string, bookingOpensAt: string): { b
 
 /**
  * Nothing on the backend buckets bookings by weekday or attributes where a guest came from, so the
- * summary of экраны 42 и 45 rides a fixed demo baseline (Monday first). The store's own organizer
+ * summary of экраны 45 и 48 rides a fixed demo baseline (Monday first). The store's own organizer
  * bookings are added on top, so the screens still move when something is actually booked here.
  */
 export const MOCK_ORGANIZER_BASELINE = { byWeekday: [18, 26, 22, 37, 48, 61, 33], previousBookings: 208, sources: [62, 24, 14], attended: 228, cancelled: 10 } as const;
@@ -503,7 +503,7 @@ export function resetMockOrganizerDay(): void {
   mockInvitedFromWaitlist.clear();
 }
 
-/** Mock GET /organizer/events/:id/options: the экран 43 switches, defaulted the first time they are read. */
+/** Mock GET /organizer/events/:id/options: the экран 46 switches, defaulted the first time they are read. */
 export function mockOrganizerEventOptions(eventId: string): OrganizerEventOptions | "forbidden" | null {
   const owned = mockOwnedEvent(eventId);
   if (owned === null || owned === "forbidden") return owned;
@@ -527,7 +527,7 @@ export function updateMockOrganizerEventOptions(eventId: string, patch: UpdateOr
   return next;
 }
 
-/** The venue day of экран 44 as the design draws it: 14:00–17:00, 17:30–20:30, 21:00–23:30, in minutes from midnight. */
+/** The venue day of экран 47 as the design draws it: 14:00–17:00, 17:30–20:30, 21:00–23:30, in minutes from midnight. */
 const MOCK_SLOT_WINDOWS = [
   [14 * 60, 17 * 60],
   [17 * 60 + 30, 20 * 60 + 30],
@@ -546,7 +546,7 @@ function mockSlots(start: string): OrganizerSlot[] {
   });
 }
 
-/** Mock GET /organizer/events/:id/attendance: the roster of экран 44 built from the bookings the store already has. */
+/** Mock GET /organizer/events/:id/attendance: the roster of экран 47 built from the bookings the store already has. */
 export function mockOrganizerAttendance(eventId: string): OrganizerAttendance | "forbidden" | null {
   const owned = mockOwnedEvent(eventId);
   if (owned === null || owned === "forbidden") return owned;

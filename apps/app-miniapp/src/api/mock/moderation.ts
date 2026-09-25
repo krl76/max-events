@@ -56,13 +56,13 @@ export function resetMockReports(): void {
 }
 
 /**
- * The demo queue of экраны 46 и 47. It is seeded only in mock mode: under vitest every report a test
+ * The demo queue of экраны 49 и 50. It is seeded only in mock mode: under vitest every report a test
  * needs is the one it creates itself, and a pre-filled queue would be a fixture no test asked for.
  * Authors are friends, never the demo user, so a user-side report of the same target is never a duplicate.
  */
 function seedMockModerationQueue(): void {
   if (import.meta.env.VITE_USE_MOCK !== "1") return;
-  // hoursAgo spreads the stamps so «сегодня · вчера · дата» of экран 47 has all three shapes to show.
+  // hoursAgo spreads the stamps so «сегодня · вчера · дата» of экран 50 has all three shapes to show.
   const complaints: Array<{ author: number; target: Partial<CreateReport>; reason: CreateReport["reason"]; hoursAgo: number }> = [
     { author: 0, target: { eventId: mockEvents[5]?.id }, reason: "inaccurate", hoursAgo: 2 },
     { author: 1, target: { eventId: mockEvents[5]?.id }, reason: "inaccurate", hoursAgo: 15 },

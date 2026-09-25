@@ -113,17 +113,17 @@
 // - SlotExtra - a paid add-on of a booking
 // - SlotStatus - availability of one window: free / held / booked
 // - SlotWaitlistEntry - a waiting position on a taken window (макет, экран 21)
-// - ModerationTarget - what a queue row is about: the reported object's title, its author and its reach (макет, экраны 46 и 47)
-// - ORGANIZER_TRAFFIC_SOURCES - where a booking came from, in the order экраны 42 и 45 list it
-// - OrganizerAttendance - the event day of экран 44: counters, participants, waitlist, slots
-// - OrganizerEventOptions - the экран 43 switches the Event contract has no field for (waitlist, in-app registration, external link, recurrence)
-// - OrganizerParticipant - one «Отметились»/«Ждём» row of экран 44
-// - OrganizerRecurrence - «Повторять каждую неделю» of экран 43: rule + the date the series runs to
-// - OrganizerSlot - one venue slot chip of экран 44 (#492)
-// - OrganizerSummary - organizer-wide period report of экраны 42 и 45
+// - ModerationTarget - what a queue row is about: the reported object's title, its author and its reach (макет, экраны 49 и 50)
+// - ORGANIZER_TRAFFIC_SOURCES - where a booking came from, in the order экраны 45 и 48 list it
+// - OrganizerAttendance - the event day of экран 47: counters, participants, waitlist, slots
+// - OrganizerEventOptions - the экран 46 switches the Event contract has no field for (waitlist, in-app registration, external link, recurrence)
+// - OrganizerParticipant - one «Отметились»/«Ждём» row of экран 47
+// - OrganizerRecurrence - «Повторять каждую неделю» of экран 46: rule + the date the series runs to
+// - OrganizerSlot - one venue slot chip of экран 47 (#492)
+// - OrganizerSummary - organizer-wide period report of экраны 45 и 48
 // - OrganizerTrafficShare - one «Откуда приходят» row: source + percent
 // - OrganizerTrafficSource - union of the traffic sources
-// - OrganizerWaitlistEntry - one waitlist row of экран 44
+// - OrganizerWaitlistEntry - one waitlist row of экран 47
 // - ORGANIZER_ACTIVITIES - the «ЧЕМ ЗАНИМАЕТЕСЬ» values of экран 44 (#537)
 // - ORGANIZER_PAYOUT_MODES - external | none: the product takes no money itself (#537)
 // - ORGANIZER_SETUP_STEPS - the rail of экран 44: venue -> payouts -> event

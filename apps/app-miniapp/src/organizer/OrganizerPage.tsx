@@ -329,7 +329,7 @@ function upsert<T extends { id: string }>(items: T[], item: T): T[] {
   return items.some((existing) => existing.id === item.id) ? items.map((existing) => (existing.id === item.id ? item : existing)) : [...items, item];
 }
 
-/** createOnMount: the «Создать» tab of the organizer bar (макет, экран 43) lands straight on the empty event draft. */
+/** createOnMount: the «Создать» tab of the organizer bar (макет, экран 46) lands straight on the empty event draft. */
 export function OrganizerPanel({ organizationId, createOnMount = false }: { organizationId: string; createOnMount?: boolean }) {
   const [tab, setTab] = useState<"events" | "places">("events");
   const [events, setEvents] = useState<OrganizerListState<OrganizerEvent>>({ status: "loading" });

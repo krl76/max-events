@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
-// PURPOSE: «Создание события» (макет, экран 43): cover, name, date and time, category, venue, seats, price, description, the two switches and the weekly series, with «Опубликовать» in the header.
+// PURPOSE: «Создание события» (макет, экран 46): cover, name, date and time, category, venue, seats, price, description, the two switches and the weekly series, with «Опубликовать» in the header.
 // SCOPE: The draft shape and its pure helpers plus OrganizerEventFormView (presentational) and OrganizerEventForm (container). Publishing runs create -> options -> publish; the switches and the series live on the options sub-resource, because the Event contract has no field for them.
 // DEPENDS: react, @max-events/api-contracts (CreateEvent, EventCategory, EventCategorySchema), ../api/client.js (apiClient, OrganizerEvent, OrganizerEventOptions, OrganizerPlace, UpdateOrganizerEventOptions), ../catalog/format.js (CATEGORY_LABELS), ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - OrganizerEventFormDraft - the экран 43 form: the contract event fields as strings plus the four switches that live outside the contract
+// - OrganizerEventFormDraft - the экран 46 form: the contract event fields as strings plus the four switches that live outside the contract
 // - EMPTY_ORGANIZER_EVENT_FORM - a new event: today's date, afisha, registration in the mini-app
 // - organizerEventFormErrors - inline ru validation, empty list when the draft is ready to publish
 // - organizerEventFormToCreate - draft -> CreateEvent (call only when there are no errors)

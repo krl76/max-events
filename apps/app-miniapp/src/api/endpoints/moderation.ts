@@ -10,7 +10,7 @@
 // - ReportReason - union of the report reason presets
 // - CreateReport - report submission payload (user + exactly one of event/place/feed post/micro-event + reason); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
 // - Report - report entity (contract shape)
-// - ModerationTarget - what a queue row is about: the reported object's title, its author and how many people it already touches (макет, экраны 46 и 47)
+// - ModerationTarget - what a queue row is about: the reported object's title, its author and how many people it already touches (макет, экраны 49 и 50)
 // - withModeration - ApiClient.listOpenReports / listModerationTargets / resolveReport / unpublishTarget / banOrganizer / createReport / createSpotCheck
 // END_MODULE_MAP
 

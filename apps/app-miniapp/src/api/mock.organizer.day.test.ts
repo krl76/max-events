@@ -31,7 +31,7 @@ describe("mock organizer day and summary", () => {
     expect(summary.cancelledPercent).toBe(4);
   });
 
-  it("defaults the экран 43 switches from the event itself and keeps a patch", async () => {
+  it("defaults the экран 46 switches from the event itself and keeps a patch", async () => {
     restore = installMockApi();
     const api = new ApiClient("/api");
 
