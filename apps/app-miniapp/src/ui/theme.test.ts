@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { STORY_DURATION_MS } from "../stories/StoryViewer";
 import { applyScheme, clearAppliedScheme, DEFAULT_THEME_PREFERENCE, isThemePreference, readThemePreference, resolveScheme, systemScheme, writeThemePreference } from "./theme";
 
 const css = readFileSync(new URL("./theme.css", import.meta.url), "utf8");
@@ -189,10 +188,6 @@ describe("theme.css typography and geometry", () => {
     expect(block).toContain("rgba(var(--app-scheme-neutral), 0.06)");
     expect(block).toContain("rgba(var(--app-scheme-neutral), 0.1)");
     expect(css).toContain("animation: app-skeleton-pulse 1.2s ease-in-out infinite alternate;");
-  });
-
-  it("fills the current story segment over exactly the show length the viewer advances on", () => {
-    expect(css).toContain(`animation: app-story-fill ${STORY_DURATION_MS / 1000}s linear forwards;`);
   });
 
   it("collapses every animation and transition to a single frame under reduced motion instead of leaving logic waiting on animationend", () => {

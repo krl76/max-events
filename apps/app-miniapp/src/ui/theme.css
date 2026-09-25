@@ -3025,9 +3025,7 @@ html[data-theme="dark"] body {
   z-index: 100;
 }
 
-/* Картинка проявляется на каждую историю: элемент пересобирается по key истории */
 .app-story-viewer-image {
-  animation: app-fade-in var(--app-duration-base) var(--app-ease-out);
   height: 100%;
   object-fit: cover;
   width: 100%;
@@ -3052,33 +3050,11 @@ html[data-theme="dark"] body {
   border-radius: 2px;
   flex: 1;
   height: 3px;
-  overflow: hidden;
-  position: relative;
 }
 
-.app-story-segment--done {
+.app-story-segment--done,
+.app-story-segment--current {
   background: var(--brand-white);
-}
-
-/* Текущий сегмент заполняется ровно за время показа: 5s = STORY_DURATION_MS просмотрщика
- * (../stories/StoryViewer.tsx), равенство держит theme.test.ts — полоса и таймер не разъезжаются */
-@keyframes app-story-fill {
-  from {
-    transform: scaleX(0);
-  }
-
-  to {
-    transform: scaleX(1);
-  }
-}
-
-.app-story-segment--current::after {
-  animation: app-story-fill 5s linear forwards;
-  background: var(--brand-white);
-  content: "";
-  inset: 0;
-  position: absolute;
-  transform-origin: left;
 }
 
 .app-story-viewer-head {
