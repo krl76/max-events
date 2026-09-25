@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { FriendSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { friendActivityByFriend, installMockApi, mockEvents, mockFriendIds, mockFriends, resetMockParticipations } from "./mock";
+import { friendActivityByFriend, friendsSyncState, installMockApi, mockEvents, mockFriendIds, mockFriends, resetMockFriendsSync, resetMockParticipations, syncMockFriends } from "./mock";
 
 const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
@@ -46,5 +46,38 @@ describe("friends feed mock endpoint", () => {
 
     expect(groups).toEqual(friendActivityByFriend());
     expect(groups[0].events[0].participationStatus).toBe("going");
+  });
+});
+
+describe("MAX contacts sync mock", () => {
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+    resetMockFriendsSync();
+  });
+
+  it("opens two hours behind the clock, the way экран 26 reads it", () => {
+    const age = Date.now() - Date.parse(friendsSyncState().syncedAt!);
+
+    expect(age).toBeGreaterThan(90 * 60 * 1000);
+    expect(age).toBeLessThan(150 * 60 * 1000);
+  });
+
+  it("moves the stamp to now on a resync and answers with the graph it rebuilt", () => {
+    const before = friendsSyncState().syncedAt!;
+    const friends = syncMockFriends();
+
+    expect(friends.map((friend) => friend.id)).toEqual(mockFriendIds);
+    expect(Date.parse(friendsSyncState().syncedAt!)).toBeGreaterThan(Date.parse(before));
+  });
+
+  it("serves both halves through the typed client", async () => {
+    restore = installMockApi();
+    const api = new ApiClient("/api");
+
+    expect(typeof (await api.getFriendsSync()).syncedAt).toBe("string");
+    expect((await api.syncFriends()).map((friend) => friend.id)).toEqual(mockFriendIds);
   });
 });

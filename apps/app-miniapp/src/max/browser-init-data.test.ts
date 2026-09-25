@@ -58,6 +58,20 @@ describe("installBrowserWebAppShim", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("replaces the official empty WebApp whose initData getter is not writable", async () => {
+    vi.stubEnv("VITE_BROWSER_AUTH", "1");
+    const official = {};
+    Object.defineProperty(official, "initData", { get: () => null, configurable: true });
+    vi.stubGlobal("window", { WebApp: official, open: vi.fn() });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ initData: "auth_date=1&hash=abc" }) })),
+    );
+    expect(await installBrowserWebAppShim()).toBe(true);
+    expect(window.WebApp).not.toBe(official);
+    expect(window.WebApp?.initData).toBe("auth_date=1&hash=abc");
+  });
+
   it("returns false when the endpoint is disabled", async () => {
     vi.stubEnv("VITE_BROWSER_AUTH", "1");
     vi.stubGlobal("window", { WebApp: undefined });

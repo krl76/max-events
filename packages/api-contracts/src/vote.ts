@@ -14,6 +14,8 @@
 // - CreateVoteWrite - create write type
 // - VoteBallotWriteSchema - chosen event id
 // - VoteBallotWrite - ballot write type
+// - VoteStatusSchema - open while ballots are taken, closed once the host finished the vote
+// - VoteStatus - vote status type
 // END_MODULE_MAP
 
 import { z } from "zod";

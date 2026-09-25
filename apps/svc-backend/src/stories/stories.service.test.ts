@@ -52,11 +52,7 @@ describe("StoriesService", () => {
   it("lists own and friends' stories from the last 24 hours, freshest author first", async () => {
     const { service, stories } = createService([other]);
     const now = new Date("2026-09-16T12:00:00Z");
-    stories.store.push(
-      { id: "00000000-0000-4000-8000-0000000000f1", userId: author, imageUrl: "own", createdAt: new Date("2026-09-16T09:00:00Z") },
-      { id: "00000000-0000-4000-8000-0000000000f2", userId: other, imageUrl: "friend", createdAt: new Date("2026-09-16T10:00:00Z") },
-      { id: "00000000-0000-4000-8000-0000000000f3", userId: "00000000-0000-4000-8000-0000000000cc", imageUrl: "stranger", createdAt: new Date("2026-09-16T11:00:00Z") },
-    );
+    stories.store.push({ id: "00000000-0000-4000-8000-0000000000f1", userId: author, imageUrl: "own", createdAt: new Date("2026-09-16T09:00:00Z") }, { id: "00000000-0000-4000-8000-0000000000f2", userId: other, imageUrl: "friend", createdAt: new Date("2026-09-16T10:00:00Z") }, { id: "00000000-0000-4000-8000-0000000000f3", userId: "00000000-0000-4000-8000-0000000000cc", imageUrl: "stranger", createdAt: new Date("2026-09-16T11:00:00Z") });
     const listed = await service.list(author, now);
     expect(listed.map((story) => story.imageUrl)).toEqual(["friend", "own"]);
   });

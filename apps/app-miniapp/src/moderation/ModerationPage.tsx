@@ -1,145 +1,182 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Moderator queue: the open reports, and the three answers to one — unpublish, ban, dismiss.
-// SCOPE: ModerationView is presentational; ModerationPage loads GET /reports?status=open and hides itself on 403, because that is the backend's answer to everyone outside MODERATOR_MAX_USER_IDS. Each button does one thing: a sanction leaves the report open (so both sanctions stay reachable) and only «Закрыть жалобу» resolves it. Banning needs the organizer behind the target, and the event stops being readable the moment it is unpublished, so the organizer is looked up once while the queue loads.
-// DEPENDS: ../api/client.js (apiClient, ApiError), @max-events/api-contracts (Report, ReportReason, ReportTargetType), ../ui/primitives.js, ../ui/theme.css
+// PURPOSE: The moderator contour: «Очередь» (макет, экран 46) with its two streams grouped by reported object, and «Разбор» (макет, экран 47) with the irreversible actions behind an explicit confirmation.
+// SCOPE: ModerationQueueView / ModerationCaseView are presentational; ModerationPage loads GET /reports?status=open plus GET /moderation/targets and answers a 403 with the «не в списке модераторов» state of экран 48, because that is what the backend says to everyone outside MODERATOR_MAX_USER_IDS. A sanction leaves the row open so both sanctions stay reachable; only «Решить без действий» closes it.
+// DEPENDS: react, @max-events/api-contracts (Report), ../api/client.js (ApiError, apiClient, ModerationTarget), ../catalog/format.js (pluralRu), ../routing/router.js, ./ModerationQueue.js, ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - REPORT_REASON_LABELS - ru labels per report reason
-// - REPORT_TARGET_LABELS - ru labels per report target type
-// - REPORT_SOURCE_LABELS - ru labels: a complaint or a moderator's own spot check
-// - ModerationAction - unpublish | ban | dismiss, the three answers to one report
-// - ACTION_DONE_LABELS - what the row says once an action went through
 // - ModerationState - queue fetch state union (loading / forbidden / error / ready)
-// - reportOrganizers - organizer behind each event report, looked up once while the event is still published
-// - ModerationView - presentational: one row per open report with its actions
-// - ModerationPage - container: loads the queue, wires unpublish / ban / dismiss
+// - ModerationQueueView - экран 46 presentational: the moderator badge, the two streams as the app-wide row of filter pills and one card per reported object
+// - ModerationCaseView - экран 47 presentational: the object, its complaints, the confirmation card and the two irreversible actions
+// - ModerationPage - container: loads the queue with its targets, opens one разбор, wires unpublish / ban / dismiss
 // - ModerationEntry - profile tile that appears only for a viewer the backend lets into the queue
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
-import type { Report, ReportReason, ReportSource, ReportTargetType } from "@max-events/api-contracts";
-import { ApiError, apiClient } from "../api/client";
-import { useAuth } from "../auth/AuthContext";
+import type { Report } from "@max-events/api-contracts";
+import { ApiError, apiClient, type ModerationTarget } from "../api/client";
+import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
-import { AppButton, AppNavTiles, AppSection, AppState } from "../ui/primitives";
+import { ActionIcon } from "../ui/icons";
+import { AppButton, AppChip, AppEmptyState, AppNavTiles, AppSkeletonList, AppState } from "../ui/primitives";
+import { ACTION_DONE_LABELS, MODERATION_CONFIRM_COPY, MODERATION_IRREVERSIBLE_NOTE, MODERATION_STREAMS, REPORT_REASON_LABELS, REPORT_TARGET_LABELS, claimsTitle, formatClaimWhen, groupModerationQueue, moderationStreamCounts, type ModerationAction, type ModerationGroup, type ModerationStream } from "./ModerationQueue";
 
-export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
-  spam: "Спам",
-  abuse: "Оскорбления",
-  inaccurate: "Недостоверно",
-  inappropriate: "Неуместное",
-  other: "Другое",
-};
+export type ModerationState = { status: "loading" } | { status: "forbidden" } | { status: "error" } | { status: "ready"; reports: Report[]; targets: ModerationTarget[] };
 
-export const REPORT_TARGET_LABELS: Record<ReportTargetType, string> = {
-  event: "Событие",
-  place: "Место",
-  feed_post: "Пост",
-  micro_event: "Микро-событие",
-};
-
-export const REPORT_SOURCE_LABELS: Record<ReportSource, string> = { user: "жалоба", spot_check: "проверка модератора" };
-
-export type ModerationAction = "unpublish" | "ban" | "dismiss";
-
-export const ACTION_DONE_LABELS: Record<ModerationAction, string> = { unpublish: "Снято с публикации", ban: "Организатор забанен", dismiss: "Жалоба закрыта" };
-
-export type ModerationState = { status: "loading" } | { status: "forbidden" } | { status: "error" } | { status: "ready"; reports: Report[] };
-
-/**
- * Only an event report leads to an account, and only through the event itself. Unpublishing hides the
- * event (the backend answers 404 for it afterwards), so the lookup happens while the queue loads —
- * after a sanction it would be too late. A report whose organizer cannot be found gets no ban button.
- */
-export async function reportOrganizers(reports: Report[], viewerId: string): Promise<Record<string, string>> {
-  const events = reports.filter((report) => report.targetType === "event");
-  const found = await Promise.all(
-    events.map((report) =>
-      apiClient.getEventDetails(report.targetId, viewerId).then(
-        (details) => [report.id, details.organizer?.id ?? null] as const,
-        () => [report.id, null] as const,
-      ),
-    ),
-  );
-  return Object.fromEntries(found.filter((pair): pair is readonly [string, string] => pair[1] !== null));
-}
-
-interface ModerationViewProps {
+interface ModerationQueueViewProps {
   state: ModerationState;
-  busyId?: string | null;
-  done?: Record<string, ModerationAction[]>;
-  organizers?: Record<string, string>;
-  failed?: boolean;
-  onUnpublish?: (report: Report) => void;
-  onBan?: (report: Report) => void;
-  onDismiss?: (report: Report) => void;
+  stream?: ModerationStream;
+  onStream?: (stream: ModerationStream) => void;
+  onOpen?: (group: ModerationGroup) => void;
 }
 
-export function ModerationView({ state, busyId = null, done = {}, organizers = {}, failed = false, onUnpublish = () => {}, onBan = () => {}, onDismiss = () => {} }: ModerationViewProps) {
-  // Not an error a regular user should read: the queue simply is not theirs, so the block disappears.
-  if (state.status === "forbidden") return null;
-  if (state.status === "loading") return <AppState>Загружаем жалобы…</AppState>;
-  if (state.status === "error") return <AppState error>Не удалось загрузить очередь жалоб.</AppState>;
+export function ModerationQueueView({ state, stream = "complaints", onStream = () => {}, onOpen = () => {} }: ModerationQueueViewProps) {
+  // «Не в списке модераторов» — состояние, а не ошибка: экран 48 уже знает эти слова.
+  if (state.status === "forbidden") return <AppEmptyState kind="not-moderator" />;
+  if (state.status === "error") return <AppState error>Не удалось загрузить очередь модерации.</AppState>;
+  const counts = state.status === "ready" ? moderationStreamCounts(state.reports) : { complaints: 0, checks: 0 };
+  const groups = state.status === "ready" ? groupModerationQueue(state.reports, state.targets, stream) : [];
   return (
-    <AppSection title="Жалобы">
-      {state.reports.length === 0 ? (
-        <p className="app-today-summary">Очередь пуста — открытых жалоб нет.</p>
-      ) : (
-        <ul className="app-participation-counters">
-          {state.reports.map((report) => (
-            <li key={report.id} className="app-moderation-row">
-              <span className="app-card-title">
-                {REPORT_TARGET_LABELS[report.targetType]}: {REPORT_REASON_LABELS[report.reason]}
+    <section className="app-mod" aria-label="Модерация">
+      <div className="app-mod-head">
+        <h1 className="app-mod-title">Модерация</h1>
+        <span className="app-mod-badge">
+          <ActionIcon name="shield" size={13} strokeWidth={2.2} /> Только для модераторов
+        </span>
+      </div>
+      {/* Тот же ряд пилюль, что и на вкладке «Планы»: переключение раздела списка в приложении выглядит одинаково */}
+      <div className="app-tab-row" role="group" aria-label="Потоки очереди">
+        {MODERATION_STREAMS.map((tab) => (
+          <AppChip key={tab.id} pressed={stream === tab.id} onClick={() => onStream(tab.id)}>
+            {tab.label} <span className="app-tab-count">{counts[tab.id]}</span>
+          </AppChip>
+        ))}
+      </div>
+      {state.status === "loading" && <AppSkeletonList rows={3} />}
+      {state.status === "ready" && groups.length === 0 && <AppState>{stream === "complaints" ? "Открытых жалоб нет." : "Выборочных проверок нет."}</AppState>}
+      {groups.map((group) => (
+        <button key={`${group.targetType}:${group.targetId}`} type="button" className="app-mod-card" onClick={() => onOpen(group)}>
+          <span className="app-mod-card-chips">
+            <span className="app-mod-chip">{REPORT_TARGET_LABELS[group.targetType]}</span>
+            {stream === "complaints" ? (
+              <span className="app-mod-chip app-mod-chip--count">
+                {group.count} {group.count === 1 ? "жалоба" : group.count < 5 ? "жалобы" : "жалоб"}
               </span>
-              <span className="app-card-subtitle">
-                {REPORT_SOURCE_LABELS[report.source]} · {report.targetId}
-              </span>
-              {(done[report.id] ?? []).length > 0 && <span className="app-card-subtitle">{(done[report.id] ?? []).map((action) => ACTION_DONE_LABELS[action]).join(" · ")}</span>}
-              <span className="app-moderation-actions">
-                <AppButton size="small" tone="danger" disabled={busyId === report.id || (done[report.id] ?? []).includes("unpublish")} onClick={() => onUnpublish(report)} aria-label={`Снять с публикации: ${report.targetId}`}>
-                  Снять с публикации
-                </AppButton>
-                {/* Only where an organizer was actually found: elsewhere the button would have nobody to ban. */}
-                {organizers[report.id] !== undefined && (
-                  <AppButton size="small" tone="danger" disabled={busyId === report.id || (done[report.id] ?? []).includes("ban")} onClick={() => onBan(report)} aria-label={`Забанить организатора: ${report.targetId}`}>
-                    Забанить организатора
-                  </AppButton>
-                )}
-                <AppButton size="small" tone="secondary" disabled={busyId === report.id} onClick={() => onDismiss(report)} aria-label={`Закрыть жалобу: ${report.targetId}`}>
-                  Закрыть жалобу
-                </AppButton>
-              </span>
-            </li>
-          ))}
-        </ul>
+            ) : (
+              <span className="app-mod-chip app-mod-chip--check">Выборочная проверка</span>
+            )}
+          </span>
+          <span className="app-mod-card-title">{group.title}</span>
+          <span className="app-mod-card-note">{group.note}</span>
+        </button>
+      ))}
+    </section>
+  );
+}
+
+interface ModerationCaseViewProps {
+  group: ModerationGroup;
+  confirm: "unpublish" | "ban" | null;
+  busy: boolean;
+  done: ModerationAction[];
+  failed: boolean;
+  onConfirm: (action: "unpublish" | "ban" | null) => void;
+  onRun: (action: ModerationAction) => void;
+  onOpenTarget: () => void;
+  onBack: () => void;
+}
+
+export function ModerationCaseView({ group, confirm, busy, done, failed, onConfirm, onRun, onOpenTarget, onBack }: ModerationCaseViewProps) {
+  const source = group.reports[0]?.source ?? "user";
+  const claims = [...group.reports].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const copy = confirm === null ? null : MODERATION_CONFIRM_COPY[confirm];
+  return (
+    <section className="app-mod" aria-label="Разбор жалобы">
+      <div className="app-mod-topbar">
+        <button type="button" className="app-mod-round" aria-label="Назад" onClick={onBack}>
+          <ActionIcon name="chevron" size={18} strokeWidth={2.6} />
+        </button>
+        <h1 className="app-mod-topbar-title">
+          {source === "spot_check" ? "Проверка" : "Жалоба"} · {REPORT_TARGET_LABELS[group.targetType].toLowerCase()}
+        </h1>
+      </div>
+      <div className="app-mod-target">
+        <span className="app-mod-target-media" aria-hidden="true" />
+        <span className="app-mod-target-body">
+          <span className="app-mod-target-title">{group.title}</span>
+          {/* Ноль записей не пишем: строка про охват имеет смысл, только когда охват есть. */}
+          <span className="app-mod-target-note">{[group.target?.organizerName == null ? null : `Автор: ${group.target.organizerName}`, group.target?.reachCount ? `${group.target.reachCount} ${pluralRu(group.target.reachCount, "запись", "записи", "записей")}` : null, group.target?.subtitle ?? null].filter((part) => part !== null).join(" · ")}</span>
+        </span>
+        {group.targetType === "event" || group.targetType === "place" ? (
+          <button type="button" className="app-mod-target-open" onClick={onOpenTarget}>
+            Открыть
+          </button>
+        ) : null}
+      </div>
+      <p className="app-mod-group-title">{claimsTitle(group.count, source)}</p>
+      <div className="app-mod-claims">
+        {claims.map((report) => (
+          <span key={report.id} className="app-mod-claim">
+            <span className="app-mod-claim-text">{REPORT_REASON_LABELS[report.reason]}</span>
+            <span className="app-mod-claim-when">{formatClaimWhen(report.createdAt)}</span>
+          </span>
+        ))}
+      </div>
+      {done.length > 0 && <p className="app-mod-done">{done.map((action) => ACTION_DONE_LABELS[action]).join(" · ")}</p>}
+      {copy !== null && confirm !== null && (
+        <div className="app-mod-confirm">
+          <span className="app-mod-confirm-title">{copy.question}</span>
+          <span className="app-mod-confirm-text">{copy.consequence}</span>
+          <div className="app-mod-confirm-actions">
+            <AppButton tone="confirm" disabled={busy} onClick={() => onRun(confirm)}>
+              {copy.verb}
+            </AppButton>
+            <AppButton tone="secondary" disabled={busy} onClick={() => onConfirm(null)}>
+              Отмена
+            </AppButton>
+          </div>
+        </div>
       )}
+      {/* Открытое подтверждение убирает только свою кнопку: остальные решения по жалобе остаются под ним, как в макете. */}
+      <div className="app-mod-actions">
+        {confirm !== "unpublish" && (
+          <AppButton tone="danger" className="app-btn--wide" disabled={busy || done.includes("unpublish")} onClick={() => onConfirm("unpublish")}>
+            {MODERATION_CONFIRM_COPY.unpublish.open}
+          </AppButton>
+        )}
+        <AppButton tone="secondary" disabled={busy || done.includes("dismiss")} onClick={() => onRun("dismiss")}>
+          Решить без действий
+        </AppButton>
+        {group.target?.organizerId != null && confirm !== "ban" && (
+          <AppButton tone="danger" disabled={busy || done.includes("ban")} onClick={() => onConfirm("ban")}>
+            {MODERATION_CONFIRM_COPY.ban.open}
+          </AppButton>
+        )}
+      </div>
       {failed && <AppState error>Не удалось выполнить действие.</AppState>}
-    </AppSection>
+      <p className="app-mod-note">{MODERATION_IRREVERSIBLE_NOTE}</p>
+    </section>
   );
 }
 
 export function ModerationPage() {
-  const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : null;
+  const { navigate } = useRoute();
   const [state, setState] = useState<ModerationState>({ status: "loading" });
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [stream, setStream] = useState<ModerationStream>("complaints");
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<"unpublish" | "ban" | null>(null);
+  const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<Record<string, ModerationAction[]>>({});
-  const [organizers, setOrganizers] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState(false);
   const [reloads, setReloads] = useState(0);
 
   useEffect(() => {
     let alive = true;
-    apiClient.listOpenReports().then(
-      (reports) => {
+    Promise.all([apiClient.listOpenReports(), apiClient.listModerationTargets().catch(() => [] as ModerationTarget[])]).then(
+      ([reports, targets]) => {
         if (!alive) return;
-        setState({ status: "ready", reports });
-        setFailed(false);
-        reportOrganizers(reports, userId ?? "").then((found) => {
-          if (alive) setOrganizers(found);
-        });
+        setState({ status: "ready", reports, targets });
       },
       (reason: unknown) => {
         // 403 is the backend saying "not a moderator", which is a state, not a failure.
@@ -149,49 +186,73 @@ export function ModerationPage() {
     return () => {
       alive = false;
     };
-  }, [reloads, userId]);
+  }, [reloads]);
+
+  const groups = state.status === "ready" ? groupModerationQueue(state.reports, state.targets, stream) : [];
+  const open = groups.find((group) => `${group.targetType}:${group.targetId}` === openKey) ?? null;
 
   /**
-   * A sanction leaves the report open: unpublishing and banning are separate answers, and closing the
-   * report is the moderator's own third button. Otherwise the first press would take the queue row
-   * away and with it the chance to also ban the organizer behind it.
+   * A sanction leaves the rows open: unpublishing and banning are separate answers, and «Решить без
+   * действий» is the moderator's own third button. Otherwise the first press would take the card away
+   * and with it the chance to also ban the author behind it.
    */
-  const act = useCallback((report: Report, run: Promise<unknown>, action: ModerationAction) => {
-    setBusyId(report.id);
+  const run = useCallback((group: ModerationGroup, action: ModerationAction) => {
+    const key = `${group.targetType}:${group.targetId}`;
+    setBusy(true);
     setFailed(false);
-    run.then(
+    const request = action === "unpublish" ? apiClient.unpublishTarget({ targetType: group.targetType, targetId: group.targetId }) : action === "ban" ? apiClient.banOrganizer(group.target!.organizerId!) : Promise.all(group.reports.map((report) => apiClient.resolveReport(report.id)));
+    request.then(
       () => {
-        setBusyId(null);
-        setDone((current) => ({ ...current, [report.id]: [...(current[report.id] ?? []), action] }));
+        setBusy(false);
+        setConfirm(null);
+        setDone((current) => ({ ...current, [key]: [...(current[key] ?? []), action] }));
+        if (action === "dismiss") {
+          setOpenKey(null);
+          setReloads((value) => value + 1);
+        }
       },
       () => {
-        setBusyId(null);
+        setBusy(false);
+        setConfirm(null);
         setFailed(true);
       },
     );
   }, []);
 
+  if (open !== null) {
+    const key = `${open.targetType}:${open.targetId}`;
+    return (
+      <ModerationCaseView
+        group={open}
+        confirm={confirm}
+        busy={busy}
+        done={done[key] ?? []}
+        failed={failed}
+        onConfirm={setConfirm}
+        onRun={(action) => run(open, action)}
+        onOpenTarget={() => navigate(open.targetType === "event" ? { name: "event", id: open.targetId } : { name: "place", id: open.targetId })}
+        onBack={() => {
+          setConfirm(null);
+          setFailed(false);
+          setOpenKey(null);
+        }}
+      />
+    );
+  }
+
   return (
-    <ModerationView
+    <ModerationQueueView
       state={state}
-      busyId={busyId}
-      done={done}
-      organizers={organizers}
-      failed={failed}
-      onUnpublish={(report) => act(report, apiClient.unpublishTarget({ targetType: report.targetType, targetId: report.targetId }), "unpublish")}
-      onBan={(report) => {
-        const organizerId = organizers[report.id];
-        if (organizerId !== undefined) act(report, apiClient.banOrganizer(organizerId), "ban");
+      stream={stream}
+      onStream={(next) => {
+        setStream(next);
+        setOpenKey(null);
       }}
-      onDismiss={(report) =>
-        act(
-          report,
-          apiClient.resolveReport(report.id).then(() => {
-            setReloads((value) => value + 1);
-          }),
-          "dismiss",
-        )
-      }
+      onOpen={(group) => {
+        setConfirm(null);
+        setFailed(false);
+        setOpenKey(`${group.targetType}:${group.targetId}`);
+      }}
     />
   );
 }
@@ -205,7 +266,7 @@ export function ModerationEntry() {
     // The same probe as the screen: only a moderator gets a list instead of a 403, and only then a tile.
     apiClient.listOpenReports().then(
       (reports) => {
-        if (alive) setOpen(reports.length);
+        if (alive) setOpen(moderationStreamCounts(reports).complaints + moderationStreamCounts(reports).checks);
       },
       () => {},
     );
@@ -214,6 +275,7 @@ export function ModerationEntry() {
     };
   }, []);
 
+  // Не модератор не видит точку входа вовсе: 403 оставляет open === null, и плитки просто нет.
   if (open === null) return null;
-  return <AppNavTiles items={[{ icon: "alert", label: open === 0 ? "Жалобы" : `Жалобы · ${open}`, onClick: () => navigate({ name: "moderation" }) }]} />;
+  return <AppNavTiles items={[{ icon: "shield", label: open === 0 ? "Модерация" : `Модерация · ${open}`, onClick: () => navigate({ name: "moderation" }) }]} />;
 }

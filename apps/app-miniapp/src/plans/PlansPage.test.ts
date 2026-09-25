@@ -76,12 +76,27 @@ describe("PlansPage", () => {
     expect(html).toContain("Мы");
   });
 
-  it("opens the plans tab by default and offers the calendar/saved segments", () => {
+  it("opens the plans tab by default and offers every section in the same row of pills", () => {
     const html = renderToStaticMarkup(createElement(PlansPage));
 
+    expect(html).toContain("app-tab-row");
+    expect(html).toContain("Мои брони");
     expect(html).toContain("Календарь");
     expect(html).toContain("Сохранённое");
     expect(html).toMatch(/<button[^>]*app-chip--on[^>]*>Планы</);
+  });
+
+  it("carries exactly one row of section switches: the second header is gone", () => {
+    const html = renderToStaticMarkup(createElement(PlansPage, { tab: "calendar" }));
+
+    expect(html.match(/app-tab-row/g)).toHaveLength(1);
+    expect(html).not.toContain("app-cal-switch");
+  });
+
+  it("opens the bookings section as a pill of the same row", () => {
+    const html = renderToStaticMarkup(createElement(PlansPage, { tab: "bookings" }));
+
+    expect(html).toMatch(/<button[^>]*app-chip--on[^>]*>Мои брони</);
   });
 
   it("opens on the calendar tab when the calendar route asks for it", () => {

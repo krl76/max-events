@@ -6,15 +6,15 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - TabIcon - union of the five tabbar icon names (feed/search/map/plans/profile)
+// - TabIcon - union of the tabbar icon names: the user bar (feed/search/create/plans/profile) plus map and the organizer bar (dashboard/events/create/promo/profile)
 // - TabIconGlyph - inline stroke SVG for a tabbar icon, filled variant for the active tab
-// - ActionIconName - union of post-action and meta icon names (heart/comment/share/bookmark/pin/clock/ticket/user/chevron)
+// - ActionIconName - the icon names, derived from the ACTIONS registry: adding a glyph there widens the union
 // - ActionIcon - inline stroke SVG by ActionIconName; filled=true fills the glyph (liked heart, saved bookmark, active tab)
 // END_MODULE_MAP
 
 import type { ReactNode } from "react";
 
-export type TabIcon = "feed" | "search" | "map" | "plans" | "profile";
+export type TabIcon = "feed" | "search" | "create" | "map" | "plans" | "profile" | "dashboard" | "events" | "promo";
 
 const OUTLINE: Record<TabIcon, ReactNode> = {
   feed: <path d="M3.8 10.4 12 3.9l8.2 6.5v8.2a1.4 1.4 0 0 1-1.4 1.4H5.2a1.4 1.4 0 0 1-1.4-1.4Z" />,
@@ -22,6 +22,12 @@ const OUTLINE: Record<TabIcon, ReactNode> = {
     <>
       <circle cx="11" cy="11" r="7" />
       <path d="m20.2 20.2-4-4" />
+    </>
+  ),
+  create: (
+    <>
+      <rect x="3.6" y="3.6" width="16.8" height="16.8" rx="5" />
+      <path d="M12 8.4v7.2M8.4 12h7.2" />
     </>
   ),
   map: (
@@ -35,6 +41,26 @@ const OUTLINE: Record<TabIcon, ReactNode> = {
     <>
       <circle cx="12" cy="8" r="3.6" />
       <path d="M4.8 20c.9-3.4 3.8-5.2 7.2-5.2s6.3 1.8 7.2 5.2" />
+    </>
+  ),
+  dashboard: (
+    <>
+      <rect x="3.6" y="3.6" width="7" height="7" rx="2" />
+      <rect x="13.4" y="3.6" width="7" height="7" rx="2" />
+      <rect x="3.6" y="13.4" width="7" height="7" rx="2" />
+      <rect x="13.4" y="13.4" width="7" height="7" rx="2" />
+    </>
+  ),
+  events: (
+    <>
+      <rect x="3.6" y="5.4" width="16.8" height="15" rx="3" />
+      <path d="M3.6 10.2h16.8M8.2 3.6v3.4M15.8 3.6v3.4" />
+    </>
+  ),
+  promo: (
+    <>
+      <path d="M4 9.4h3.4L14.6 4.8v14.4L7.4 14.6H4a1 1 0 0 1-1-1v-3.2a1 1 0 0 1 1-1Z" />
+      <path d="M17.8 9.2a4.2 4.2 0 0 1 0 5.6" />
     </>
   ),
 };
@@ -63,9 +89,12 @@ export function TabIconGlyph({ name, size = 24, filled = false }: { name: TabIco
   return <Glyph paths={filled ? (FILLED[name] ?? OUTLINE[name]) : OUTLINE[name]} size={size} filled={filled} />;
 }
 
-export type ActionIconName = "heart" | "comment" | "share" | "bookmark" | "pin" | "clock" | "ticket" | "user" | "chevron" | "star" | "alert" | "search" | "settings";
-
-const ACTIONS: Record<ActionIconName, ReactNode> = {
+/**
+ * The registry is the single source of truth, and the name union is derived from it: a new glyph is one
+ * entry here and nothing else. The union used to be spelled out by hand next to the object, which made
+ * every parallel branch edit the same long line and turned additions into merge conflicts.
+ */
+const ACTIONS = {
   heart: <path d="M12 20.3S3.4 15.4 3.4 9.6a4.6 4.6 0 0 1 8.6-2.3A4.6 4.6 0 0 1 20.6 9.6c0 5.8-8.6 10.7-8.6 10.7Z" />,
   comment: <path d="M20.5 11.7a8.5 8.5 0 0 1-12.4 7.5L3.6 20.4l1.3-4.3a8.5 8.5 0 1 1 15.6-4.4Z" />,
   share: <path d="M21 3 3.6 9.7l6.2 2.9m11.2-9.6-5.5 18-4.9-8.4m10.4-9.6L9.8 12.6" />,
@@ -109,13 +138,235 @@ const ACTIONS: Record<ActionIconName, ReactNode> = {
       <path d="m20.2 20.2-4-4" />
     </>
   ),
+  // Колокольчик уведомлений в шапке ленты (макет, экран 03)
+  bell: (
+    <>
+      <path d="M12 3.4a5.7 5.7 0 0 0-5.7 5.7c0 4.3-1.7 5.6-1.7 5.6h14.8s-1.7-1.3-1.7-5.6A5.7 5.7 0 0 0 12 3.4Z" />
+      <path d="M13.8 18.2a2.1 2.1 0 0 1-3.6 0" />
+    </>
+  ),
+  // Галочка онбординга: подписка на человека и выбранный город/интерес (макет, экран 02)
+  check: <path d="M5 12l5 5L20 7" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  // Вход организатора (макет, экран 01): дом с дверью, а не ещё один кружок с глифом
+  building: (
+    <>
+      <path d="M4 21V9l8-5 8 5v12" />
+      <path d="M9 21v-6h6v6" />
+    </>
+  ),
+  // Четырёхлучевая искра: подсказка и «Куда пойдём?» (макет, экран 08)
+  spark: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />,
+  // Колода карточек — вход в подбор свайпами (макет, экран 08 → 09)
+  cards: (
+    <>
+      <rect x="4" y="3" width="13" height="18" rx="4" />
+      <path d="M20 7v10" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="3" y="4" width="18" height="17" rx="4" />
+      <path d="M3 9h18" />
+    </>
+  ),
+  // Стрелка вправо: «Подробнее» и заголовок подсказки «после меня» (макет, экран 08)
+  arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
+  // Скамья: «Осталось 12 мест» — счётчик мест, а не ещё один кружок (макет, экран 08)
+  seat: (
+    <>
+      <path d="M5 18v-7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7" />
+      <path d="M3 18h18M8 9V6h8v3" />
+    </>
+  ),
+  filter: <path d="M4 7h16M7 12h10M10 17h4" />,
+  close: <path d="M6 6l12 12M18 6L6 18" />,
+  // Кнопка «вернуть карточку» подбора свайпами (макет, экран 09)
+  undo: (
+    <>
+      <path d="M4 12a8 8 0 1 1 3 6.2" />
+      <path d="M4 6v6h6" />
+    </>
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6M15 15.5c3 0 6 1.5 6 4.5" />
+    </>
+  ),
+  // Подпись поверх истории (макет, экран 05): строки по центру
+  text: <path d="M4 7h16M8 12h8M10 17h4" />,
+  // Настройка кадра истории (макет, экран 05): ползунок с точкой посередине
+  adjust: (
+    <>
+      <path d="M12 3v5M12 16v5M5 12h14" />
+      <circle cx="12" cy="12" r="2.5" />
+    </>
+  ),
+  // Эффекты истории (макет, экран 05): четырёхлучевая искра
+  sparkle: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />,
+  // Двое: аудитория истории и отметка друзей в посте (макет, экраны 05 и 06) — в отличие от одиночного user
+  friends: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6M15 15.5c3 0 6 1.5 6 4.5" />
+    </>
+  ),
+  // Чип погоды на карте: солнце за облаком (макет, экран 16)
+  weather: (
+    <>
+      <circle cx="17.4" cy="6.6" r="2.6" />
+      <path d="M7 18.5h9.4a3.4 3.4 0 0 0 .3-6.8A5 5 0 0 0 7.5 11.6 3.5 3.5 0 0 0 7 18.5z" />
+    </>
+  ),
+  rain: (
+    <>
+      <path d="M7 16.5h9.4a3.4 3.4 0 0 0 .3-6.8A5 5 0 0 0 7.5 9.6 3.5 3.5 0 0 0 7 16.5z" />
+      <path d="M9.4 19.4l-.9 2.2M13 19.4l-.9 2.2M16.6 19.4l-.9 2.2" />
+    </>
+  ),
+  // Стрелка курса: пеший маршрут и кнопка «Построить маршрут» (макет, экран 16)
+  navigation: <path d="M5 20l6-16 3 7 5 2z" />,
+  metro: (
+    <>
+      <rect x="3" y="6" width="18" height="11" rx="3" />
+      <path d="M7 17v2M17 17v2M3 11h18" />
+    </>
+  ),
+  layers: (
+    <>
+      <path d="M12 3a9 9 0 1 0 9 9h-9z" />
+      <path d="M12 3v9h9" />
+    </>
+  ),
+  locate: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+    </>
+  ),
+  // Добавить фото (макет, экран 06): плитка-заглушка и нижняя панель композера
+  // Шапка профиля (макет, экран 36): поделиться профилем — стрелка из коробки, и «ещё» тремя точками
+  upload: (
+    <>
+      <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
+      <path d="M12 3v12M7 8l5-5 5 5" />
+    </>
+  ),
+  dots: (
+    <>
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="19" cy="12" r="2" />
+    </>
+  ),
+  // Достижения (макет, экраны 36 и 40): медаль с лентой — не ещё одна звезда, звезда занята рейтингом
+  medal: (
+    <>
+      <circle cx="12" cy="9" r="5.5" />
+      <path d="M8.5 13.5 7 21l5-2.6L17 21l-1.5-7.5" />
+    </>
+  ),
+  // «Мы»-группы (макет, экран 36): двое, а не один силуэт
+  group: (
+    <>
+      <circle cx="9" cy="8" r="3.4" />
+      <path d="M3 20c0-3.3 2.7-5.4 6-5.4s6 2.1 6 5.4" />
+      <path d="M16 5.2A3.4 3.4 0 0 1 16 12M18 20c0-2.3-.8-3.9-2-5" />
+    </>
+  ),
+  // «Добавить фото» в сетке компании (макет, экран 35)
+  camera: (
+    <>
+      <path d="M4 8a2 2 0 0 1 2-2h2l2-2h4l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </>
+  ),
+  // Привязать событие (макет, экран 06); тот же смысл, что у таббарного events, но в 20px-размере списков
+  // Текст поста (макет, экран 06): строки по левому краю, в отличие от центрированного text
+  lines: <path d="M4 6h16M4 12h10M4 18h13" />,
+  // Четырёхлучевая искра выбранной оценки (макет, экран 35) — форма отличает её от пятиконечной звезды рейтинга
+  // Интерес как цель подписки (макет, экран 38): ярлык с отверстием, а не ещё один кружок
+  tag: (
+    <>
+      <path d="M4 12V5a1 1 0 0 1 1-1h7l8 8-8 8Z" />
+      <circle cx="8.5" cy="8.5" r="1.4" />
+    </>
+  ),
+  // Убрать элемент из списка (макет, экран 39)
   settings: (
     <>
       <circle cx="12" cy="12" r="3.2" />
       <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z" />
     </>
   ),
-};
+  // Закрытый доступ: история посещений скрыта и маршрут не показан (макет, экраны 27 и 28)
+  lock: (
+    <>
+      <rect x="4" y="10" width="16" height="10" rx="3" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    </>
+  ),
+  // Переезд на такси между точками плана (макет, экран 15): кузов с колёсами, а не стрелка метро
+  car: (
+    <>
+      <path d="M3.5 16.5v-3.2l1.8-4.4A2 2 0 0 1 7.2 7.6h9.6a2 2 0 0 1 1.9 1.3l1.8 4.4v3.2" />
+      <path d="M3.5 13.3h17" />
+      <circle cx="7.5" cy="16.8" r="1.7" />
+      <circle cx="16.5" cy="16.8" r="1.7" />
+    </>
+  ),
+  // Ясное небо в полосе дат и в слотах (макет, экран 19): солнце с лучами — третий прогноз рядом с weather (облако) и rain
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4.2" />
+      <path d="M12 2.6v2.3M12 19.1v2.3M2.6 12h2.3M19.1 12h2.3M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6" />
+    </>
+  ),
+  // Сканировать код входа (макет, экран 44)
+  qr: (
+    <>
+      <rect x="3.4" y="3.4" width="7" height="7" rx="2" />
+      <rect x="13.6" y="3.4" width="7" height="7" rx="2" />
+      <rect x="3.4" y="13.6" width="7" height="7" rx="2" />
+      <path d="M13.6 13.6h3v3h-3zM20.6 13.6v3M17.6 20.6h3M13.6 20.6h1" />
+    </>
+  ),
+  // Рассылка в чаты (макет, экран 42)
+  megaphone: (
+    <>
+      <path d="M3.6 10v4a1.6 1.6 0 0 0 1.6 1.6h1.6l7.6 4.4V4L6.8 8.4H5.2A1.6 1.6 0 0 0 3.6 10Z" />
+      <path d="M17.6 9a3.4 3.4 0 0 1 0 6M6.8 15.6v3.2a1.6 1.6 0 0 0 1.6 1.6h.8" />
+    </>
+  ),
+  // Поднять в ленте, рост записей (макет, экраны 42 и 45)
+  trend: (
+    <>
+      <path d="M3.6 16.4 9 11l3.6 3.6 7.8-7.8" />
+      <path d="M15.4 6.8h5v5" />
+    </>
+  ),
+  // Контур модерации (макет, экраны 46 и 47)
+  shield: (
+    <>
+      <path d="M12 3.2 5 6v5.6c0 4.2 2.9 7.6 7 9.2 4.1-1.6 7-5 7-9.2V6Z" />
+      <path d="m9 12 2.2 2.2L15.4 10" />
+    </>
+  ),
+  // «Подобрать заново» цепочки досуга (макет, экран 14): цикл из двух стрелок, в отличие от одиночной undo
+  refresh: (
+    <>
+      <path d="M4 4v6h6M20 20v-6h-6" />
+      <path d="M20 9A8 8 0 0 0 6 6M4 15a8 8 0 0 0 14 3" />
+    </>
+  ),
+  // Отдалить карту (экран 16): пара к plus в собственных кнопках зума
+  minus: <path d="M5 12h14" />,
+} satisfies Record<string, ReactNode>;
+
+export type ActionIconName = keyof typeof ACTIONS;
 
 export function ActionIcon({ name, size = 24, filled = false, strokeWidth = 1.7 }: { name: ActionIconName; size?: number; filled?: boolean; strokeWidth?: number }) {
   return <Glyph paths={ACTIONS[name]} size={size} filled={filled} strokeWidth={strokeWidth} />;

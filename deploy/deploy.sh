@@ -17,6 +17,19 @@ docker compose -p "$COMPOSE_PROJECT_NAME" -f docker-compose.prod.yml up -d --bui
 echo "==> Migrations"
 docker compose -p "$COMPOSE_PROJECT_NAME" -f docker-compose.prod.yml exec -T backend bun run migration:run
 
+# Стенд без контура MAX (ветка dev-kku) наполняется демо-данными: он существует ради ручной проверки,
+# и пустая база делает эту проверку бессмысленной. Генератор детерминированный (fakerRU, seed 42) и
+# пропускает то, что уже вставлено, поэтому повторный деплой ничего не дублирует.
+if [ "${SEED_DEMO:-}" = "1" ]; then
+  echo "==> Demo data"
+  # Через bun напрямую, а не `bun run seed:demo`: пакетный скрипт запускает tsx, которого в рантайм-образе
+  # нет (миграции живут рядом и работают именно потому, что зовут bun). Bun исполняет TypeScript сам.
+  # Сид не обязан быть фатальным: стенд без демо-данных беднее, но рабочий, а упавший деплой — нет.
+  docker compose -p "$COMPOSE_PROJECT_NAME" -f docker-compose.prod.yml exec -T \
+    -e SEED_DEMO_ALLOW_REMOTE=1 -e SEED_DEMO_SCALE="${SEED_DEMO_SCALE:-normal}" \
+    backend bun src/database/seed-demo-cli.ts || echo "!! demo seed failed, stack stays up"
+fi
+
 echo "==> Nginx"
 nginx -t && systemctl reload nginx
 

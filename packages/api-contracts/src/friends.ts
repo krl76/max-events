@@ -24,6 +24,9 @@
 // - FriendSuggestionSchema - onboarding suggestion (friend, hint, already-following)
 // - FriendsSyncStatusSchema - last successful MAX sync plus the current graph
 // - ReplaceFollowsWriteSchema - replace-all follows payload
+// - FriendSuggestion - onboarding suggestion type
+// - FriendsSyncStatus - sync status type
+// - ReplaceFollowsWrite - replace-all follows type
 // END_MODULE_MAP
 
 import { z } from "zod";

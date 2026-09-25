@@ -14,6 +14,8 @@
 // - FriendRoute - route type
 // - FriendPlaceVisitSchema - one place friends were at: the place, who was there, when the last of them was
 // - FriendPlaceVisit - map-layer marker type
+// - FriendRouteStopSchema - one stop of a friend route: the place, when it was visited, an optional note
+// - FriendRouteStop - route stop type
 // END_MODULE_MAP
 
 import { z } from "zod";

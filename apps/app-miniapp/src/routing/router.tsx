@@ -1,14 +1,18 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Minimal router (home / search / map / event / place / friends / calendar / profile / whereto / nearby / discovery / people / plans / organizer / we-groups / moderation) synced with window.history, with deep-link resolution from start_param.
+// PURPOSE: Minimal router (home / search / swipe / create / map / event / place / friends / calendar / profile / subscriptions / whereto / nearby / discovery / people / plans / organizer / we-groups / moderation) synced with window.history, with deep-link resolution from start_param.
 // SCOPE: Route type, start_param parsing, history push/replace/popstate sync, back(); no URL path mapping (state-only history entries).
 // DEPENDS: ../max/bridge.js (getStartParam, webApp)
 // LINKS: M-APP-MINIAPP, DF-MAX-IDENTITY
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - Route - moderation | home | search | map | event(id) | place(id) | friends | calendar | profile | settings | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | plan-new | day-route | list(id) | achievements | micro-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
+// - Route - moderation | home | search | swipe | create | map | event(id) | place(id) | friends | calendar | profile | settings | subscriptions | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | plan-new | day-route | list(id) | achievements | micro-new | story-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
+// - Route - moderation | home | search | create | map | event(id) | place(id) | friends | calendar | profile | settings | subscriptions | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | plan-new | day-route | lists | list(id) | achievements | micro-new | story-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote- prefixes) to a Route, home fallback
-// - isTabRoute - the five tabbar routes (home/search/map/plans/profile); tab-to-tab switches replace the history entry instead of pushing
+// - Route - moderation | home | search | create | map | event(id) | place(id) | friends | calendar | profile | settings | subscriptions | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | plan-new | day-route | list(id) | achievements | after-event(eventId) | micro-new | story-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
+// - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote-/after- prefixes) to a Route, home fallback
+// - Route - … | micro (макет, экран 24) | micro-event(id) (экран 25) | friend-route(id) (экран 28)
+// - isTabRoute - the five tabbar routes (home/search/create/plans/profile); tab-to-tab switches replace the history entry instead of pushing. The map is no longer a tab — it is a view pushed from Поиск (макет, экран 16)
 // - RouteHistoryState - history entry payload: route + sequential idx (idx drives back/forward detection)
 // - nextHistory - pure history decision: tab-to-tab -> replace (idx kept), anything else -> push (idx + 1)
 // - routeFromHistoryState - validate a popstate payload back into a RouteHistoryState, null when malformed
@@ -16,12 +20,70 @@
 // - transitionFromIdx - direction from history idx movement (forward -> push, backward -> pop, same -> tab)
 // - RouteProvider - current route synced with window.history (replaceState seed, popstate listener), back() with home fallback, transition direction + navSeq for screen animations
 // - useRoute - current route + navigate + back + canGoBack + transition + navSeq
+// - Route - ... | vote-new(groupId): создание голосования (макет, экран 32), groupId непустой, когда экран открыт из группы
+// - Route - ... | assist(ask): экран 10 «MAX AI ассистент», ask — вопрос, с которым его открыли (чипы экрана 15)
+// - Route - … | slot-booking(placeId) экран 19 | slot-ticket(id) экран 20 | bookings экран 21; the «booking-» start_param opens the ticket of экран 20
+// - Route - ... | companions(eventId) — экран 23 «С кем пойти», вход с карточки события
+// - Route - ... | notifications — экран 07 «Умные уведомления», вход с колокольчика в шапке ленты
 // END_MODULE_MAP
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getStartParam, getWebApp } from "../max/bridge";
 
-export type Route = { name: "home" } | { name: "search" } | { name: "map" } | { name: "event"; id: string } | { name: "place"; id: string } | { name: "friends" } | { name: "calendar" } | { name: "profile" } | { name: "settings" } | { name: "whereto" } | { name: "nearby" } | { name: "discovery" } | { name: "people" } | { name: "gathering-new"; eventId: string } | { name: "gathering"; id: string } | { name: "plans" } | { name: "plan"; id: string } | { name: "plan-new" } | { name: "day-route" } | { name: "list"; id: string } | { name: "achievements" } | { name: "micro-new" } | { name: "feed-new"; eventId: string | null } | { name: "organizer" } | { name: "we-groups" } | { name: "we-group"; id: string } | { name: "vote"; id: string } | { name: "moderation" };
+export type Route =
+  | { name: "home" }
+  | { name: "search" }
+  | { name: "swipe" }
+  | { name: "create" }
+  | { name: "map" }
+  | { name: "event"; id: string }
+  | { name: "place"; id: string }
+  | { name: "friends" }
+  | { name: "calendar" }
+  | { name: "profile" }
+  | { name: "settings" }
+  | { name: "subscriptions" }
+  | { name: "whereto" }
+  | { name: "nearby" }
+  | { name: "discovery" }
+  | { name: "people" }
+  | { name: "gathering-new"; eventId: string }
+  | { name: "gathering"; id: string }
+  | { name: "plans" }
+  | { name: "plan"; id: string }
+  | { name: "plan-new" }
+  | { name: "day-route" }
+  | { name: "list"; id: string }
+  | { name: "achievements" }
+  | { name: "micro-new" }
+  | { name: "story-new" }
+  | { name: "feed-new"; eventId: string | null }
+  | { name: "organizer" }
+  | { name: "we-groups" }
+  | { name: "we-group"; id: string }
+  | { name: "vote"; id: string }
+  | { name: "moderation" }
+  | { name: "after-event"; eventId: string }
+  | { name: "lists" }
+  // Создание голосования (макет, экран 32): из группы приходит её id, из «с кем пойти» — ничего
+  | { name: "vote-new"; groupId: string | null }
+  | { name: "micro" }
+  | { name: "micro-event"; id: string }
+  | { name: "friend-route"; id: string }
+  // Экран 10 «MAX AI ассистент»: ask непустой, когда его открыли чипом уточнения с экрана 15
+  | { name: "assist"; ask: string | null }
+  // Экран 19: бронирование окна площадки открывается от места, а не от своего id — окно выбирается уже внутри
+  | { name: "slot-booking"; placeId: string }
+  // Экран 20: подтверждённая бронь с кодом входа
+  | { name: "slot-ticket"; id: string }
+  // Экран 21: «Мои брони» — билеты, слоты и лист ожидания в одном списке
+  | { name: "bookings" }
+  // Экран 23 «С кем пойти»: список открывается от события, поэтому несёт его id, а не свой
+  | { name: "companions"; eventId: string }
+  // Экран 07 «Умные уведомления»: входящие пользователя, вход — колокольчик в шапке ленты
+  | { name: "notifications" }
+  // «Подписчики»: обратная сторона подписки, вход — счётчик в шапке профиля
+  | { name: "followers" };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -30,9 +92,17 @@ const START_PARAM_PREFIXES = [
   ["list-", "list"],
   ["gathering-", "gathering"],
   ["vote-", "vote"],
+  // Пуш после брони ведёт на экран 20 с кодом входа
+  ["booking-", "slot-ticket"],
 ] as const satisfies ReadonlyArray<readonly [string, Route["name"]]>;
 
 export function routeFromStartParam(startParam: string | null): Route {
+  // Экран 35 «После события» is opened by the push that follows an event, so its deep link carries
+  // an eventId rather than an id of its own and cannot ride the prefix table above.
+  if (startParam?.startsWith("after-") === true) {
+    const eventId = startParam.slice("after-".length);
+    if (eventId) return { name: "after-event", eventId };
+  }
   for (const [prefix, name] of START_PARAM_PREFIXES) {
     if (startParam?.startsWith(prefix)) {
       const id = startParam.slice(prefix.length);
@@ -42,7 +112,7 @@ export function routeFromStartParam(startParam: string | null): Route {
   return { name: "home" };
 }
 
-const TAB_ROUTE_NAMES: ReadonlySet<Route["name"]> = new Set(["home", "search", "map", "plans", "profile"]);
+const TAB_ROUTE_NAMES: ReadonlySet<Route["name"]> = new Set(["home", "search", "create", "plans", "profile"]);
 
 export function isTabRoute(name: Route["name"]): boolean {
   return TAB_ROUTE_NAMES.has(name);
@@ -67,11 +137,14 @@ function toRoute(value: unknown): Route | null {
   switch (name) {
     case "home":
     case "search":
+    case "swipe":
+    case "create":
     case "map":
     case "friends":
     case "calendar":
     case "profile":
     case "settings":
+    case "subscriptions":
     case "whereto":
     case "nearby":
     case "discovery":
@@ -79,17 +152,31 @@ function toRoute(value: unknown): Route | null {
     case "plans":
     case "plan-new":
     case "day-route":
+    case "lists":
     case "achievements":
     case "micro-new":
+    case "story-new":
     case "organizer":
     case "we-groups":
     case "moderation":
+    case "bookings":
       return { name };
+    case "slot-booking": {
+      const { placeId } = value as { placeId?: unknown };
+      return typeof placeId === "string" ? { name, placeId } : null;
+    }
     case "feed-new": {
       const { eventId } = value as { eventId?: unknown };
       if (eventId !== null && eventId !== undefined && typeof eventId !== "string") return null;
       return { name, eventId: eventId ?? null };
     }
+    case "assist": {
+      // Экран 10 can be opened cold or with a question already typed for it («Дешевле», «Без такси»).
+      const { ask } = value as { ask?: unknown };
+      if (ask !== null && ask !== undefined && typeof ask !== "string") return null;
+      return { name, ask: ask ?? null };
+    }
+    case "after-event":
     case "gathering-new": {
       const { eventId } = value as { eventId?: unknown };
       return typeof eventId === "string" ? { name, eventId } : null;
@@ -100,9 +187,33 @@ function toRoute(value: unknown): Route | null {
     case "plan":
     case "list":
     case "we-group":
-    case "vote": {
+    case "vote":
+    case "slot-ticket": {
       const { id } = value as { id?: unknown };
       return typeof id === "string" ? ({ name, id } as Route) : null;
+    }
+    case "vote-new": {
+      const { groupId } = value as { groupId?: unknown };
+      if (groupId !== null && groupId !== undefined && typeof groupId !== "string") return null;
+      return { name, groupId: groupId ?? null };
+    }
+    case "micro":
+      return { name };
+    case "micro-event":
+    case "friend-route": {
+      const { id } = value as { id?: unknown };
+      return typeof id === "string" ? ({ name, id } as Route) : null;
+    }
+    // Экран 07 параметров не несёт; отдельным case, а не строкой в общем блоке — чтобы правка не легла в чужую
+    case "notifications":
+      return { name };
+    // «Подписчики» параметров не несёт; отдельным case, а не строкой в общем блоке — чтобы правка не легла в чужую
+    case "followers":
+      return { name };
+    // Экран 23 живёт при событии: свой case, потому что ключ — eventId
+    case "companions": {
+      const { eventId } = value as { eventId?: unknown };
+      return typeof eventId === "string" ? { name, eventId } : null;
     }
     default:
       return null;

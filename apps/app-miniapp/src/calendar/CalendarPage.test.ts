@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CalendarView, splitCalendarEntries } from "./CalendarPage";
-import type { Booking } from "@max-events/api-contracts";
-import type { CalendarEntry } from "../api/client";
+import { CalendarView, SharedCalendarView, calendarShareText, instrumentalName, peersLabel, splitCalendarEntries } from "./CalendarPage";
+import type { Booking, Friend } from "@max-events/api-contracts";
+import type { CalendarEntry, SharedCalendar } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
 
 const NOW = new Date("2026-09-20T12:00:00+03:00");
@@ -27,6 +27,57 @@ describe("splitCalendarEntries", () => {
 
     expect(upcoming.map((item) => item.booking.id)).toEqual(["b1"]);
     expect(past).toEqual([]);
+  });
+});
+
+function friend(name: string): Friend {
+  return { id: `a0000000-0000-4000-8000-00000000000${name.length}`, name, avatarUrl: null };
+}
+
+function sharedWith(names: string[], inviteUrl: string | null = null): SharedCalendar {
+  return { peers: names.map((name) => ({ friend: friend(name), canEdit: true })), entries: [], inviteUrl };
+}
+
+describe("instrumentalName", () => {
+  it("declines by the ending of the name itself, not by a gender nobody sent", () => {
+    expect(instrumentalName("Анна")).toBe("Анной");
+    expect(instrumentalName("Никита")).toBe("Никитой");
+    expect(instrumentalName("Ксения")).toBe("Ксенией");
+    expect(instrumentalName("Андрей")).toBe("Андреем");
+    expect(instrumentalName("Игорь")).toBe("Игорем");
+    expect(instrumentalName("Иван")).toBe("Иваном");
+  });
+
+  it("softens the ending after a hushing consonant", () => {
+    expect(instrumentalName("Даша")).toBe("Дашей");
+    expect(instrumentalName("Гоша")).toBe("Гошей");
+  });
+
+  it("leaves alone what Russian does not decline", () => {
+    expect(instrumentalName("Отто")).toBe("Отто");
+    expect(instrumentalName("Нелли")).toBe("Нелли");
+    expect(instrumentalName("Nicole")).toBe("Nicole");
+  });
+});
+
+describe("peersLabel", () => {
+  it("names the peers in the instrumental case", () => {
+    expect(peersLabel(sharedWith(["Анна Соколова"]))).toBe("Общий с Анной");
+    expect(peersLabel(sharedWith(["Анна Соколова", "Пётр Ким"]))).toBe("Общий с Анной, Пётром");
+  });
+
+  it("says nothing about sharing when the calendar is shared with nobody", () => {
+    expect(peersLabel(sharedWith([]))).toBeNull();
+  });
+});
+
+describe("calendarShareText", () => {
+  it("carries the invite link when one was issued", () => {
+    expect(calendarShareText(sharedWith(["Анна Соколова"], "https://max.ru/c/1"))).toContain("https://max.ru/c/1");
+  });
+
+  it("stays a sentence without peers and without a link", () => {
+    expect(calendarShareText(sharedWith([]))).toBe("Мой календарь планов в MAX Афише");
   });
 });
 
@@ -75,5 +126,25 @@ describe("CalendarView", () => {
     expect(loading).toContain("Загрузка…");
     expect(error).toContain("app-state--error");
     expect(error).toContain("Не удалось загрузить календарь");
+  });
+});
+
+describe("SharedCalendarView", () => {
+  const props = { shared: { status: "ready" as const, shared: sharedWith(["Анна Соколова"]) }, entries: [], month: NOW, selected: NOW, now: NOW, onSelect: () => {}, onOpen: () => {}, onGoing: () => {}, onShare: () => {}, onAddFriend: () => {} };
+
+  it("keeps «Добавить друга» a single button and no longer unfolds a list inside the screen", () => {
+    const html = renderToStaticMarkup(createElement(SharedCalendarView, props));
+
+    expect(html).toContain("Добавить друга");
+    expect(html).not.toContain("Скрыть список");
+    expect(html).not.toContain("Кого позвать в календарь");
+    expect(html).not.toContain("Позвать");
+  });
+
+  it("draws no section switch of its own: the row of pills lives on the «Планы» tab", () => {
+    const html = renderToStaticMarkup(createElement(SharedCalendarView, props));
+
+    expect(html).not.toContain("app-cal-switch");
+    expect(html).not.toContain("Мои брони");
   });
 });

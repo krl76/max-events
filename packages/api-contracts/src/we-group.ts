@@ -18,6 +18,10 @@
 // - AddWeGroupPlaceWrite - place write type
 // - WeGroupScreenSchema - group plus members, events, places, bookings, route, budget, photos
 // - WeGroupScreen - screen type
+// - WeGroupEventGoingSchema - which members are going to one bound event
+// - WeGroupEventGoing - going type
+// - WeGroupSummarySchema - GET /we-groups row: group plus member, upcoming-event and photo counts, budget total, next event title
+// - WeGroupSummary - summary type
 // END_MODULE_MAP
 
 import { z } from "zod";

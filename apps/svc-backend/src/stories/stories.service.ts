@@ -8,6 +8,7 @@
 // START_MODULE_MAP
 // - StoriesService - create/list
 // - toStoryDto - entity to the Story contract
+// - STORY_TTL_MS - stories expire 24 hours after creation; older ones leave the list
 // END_MODULE_MAP
 
 import { Inject, Injectable } from "@nestjs/common";

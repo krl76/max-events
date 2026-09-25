@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mockEvents, mockPlaces } from "../api/mock";
-import { buildCalendarIcs, icsStamp } from "./calendar-ics";
+import { buildCalendarIcs } from "./calendar-ics";
 import type { CalendarEntry } from "../api/client";
 
 describe("buildCalendarIcs", () => {

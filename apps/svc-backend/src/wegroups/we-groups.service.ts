@@ -191,10 +191,12 @@ export class WeGroupsService {
     const memberById = new Map(members.map((member) => [member.id, member]));
     return events.map((event) => ({
       eventId: event.id,
-      going: rows.filter((row) => row.eventId === event.id && row.status === "going").flatMap((row) => {
-        const member = memberById.get(row.userId);
-        return member ? [member] : [];
-      }),
+      going: rows
+        .filter((row) => row.eventId === event.id && row.status === "going")
+        .flatMap((row) => {
+          const member = memberById.get(row.userId);
+          return member ? [member] : [];
+        }),
     }));
   }
 

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { MicroEventSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { createMockMicroEvent, installMockApi, joinMockMicroEvent, leaveMockMicroEvent, microEvents, mockDemoUser, mockFriendIds, mockPlaces, resetMockMicroEvents } from "./mock";
+import { createMockMicroEvent, installMockApi, joinMockMicroEvent, leaveMockMicroEvent, microEventCard, microEvents, mockDemoUser, mockFriendIds, mockPlaces, resetMockMicroEvents } from "./mock";
 
 const DEMO_USER_ID = mockDemoUser.id;
 const UNKNOWN_ID = "00000000-0000-4000-8000-000000000000";
@@ -93,5 +93,51 @@ describe("micro-events mock", () => {
     await expect(api.leaveMicroEvent(UNKNOWN_ID, DEMO_USER_ID)).rejects.toMatchObject({ name: "ApiError", status: 404 });
     await expect(api.createMicroEvent({ userId: DEMO_USER_ID, title: "", startsAt: STARTS_AT, locationText: "Где-то", participantsLimit: 2 })).rejects.toMatchObject({ name: "ApiError", status: 400 });
     await expect(api.createMicroEvent({ userId: DEMO_USER_ID, title: "Кино на крыше", startsAt: STARTS_AT, placeId: UNKNOWN_ID, participantsLimit: 2 })).rejects.toMatchObject({ name: "ApiError", status: 404 });
+  });
+});
+
+describe("micro-event card mock", () => {
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+    resetMockMicroEvents();
+  });
+
+  it("resolves participantIds into names and marks the author, who leads the list", () => {
+    const open = microEvents()[0];
+    const card = microEventCard(open.id)!;
+
+    expect(card.event.id).toBe(open.id);
+    expect(card.participants).toHaveLength(open.participantIds.length);
+    expect(card.participants[0]).toMatchObject({ author: true, friend: { id: open.authorId } });
+    expect(card.participants.every((row) => row.friend.name.length > 0)).toBe(true);
+    expect(card.participants.filter((row) => row.author)).toHaveLength(1);
+  });
+
+  it("carries the venue of a place-backed gathering and nothing for a typed address", () => {
+    const withPlace = microEvents().find((item) => item.placeId !== null)!;
+    const withText = microEvents().find((item) => item.locationText !== null)!;
+
+    expect(microEventCard(withPlace.id)!.place!.id).toBe(withPlace.placeId);
+    expect(microEventCard(withText.id)!.place).toBeNull();
+  });
+
+  it("serves a cancelled gathering too, because экран 25 has a state for it", async () => {
+    restore = installMockApi();
+    const api = new ApiClient("/api");
+    const cancelled = "20000000-0000-4000-8000-000000000004";
+
+    expect((await api.getMicroEventCard(cancelled)).event.status).toBe("cancelled");
+  });
+
+  it("maps an unknown id to 404 and a broken uuid to 400", async () => {
+    restore = installMockApi();
+    const api = new ApiClient("/api");
+
+    expect(microEventCard(UNKNOWN_ID)).toBeNull();
+    await expect(api.getMicroEventCard(UNKNOWN_ID)).rejects.toMatchObject({ name: "ApiError", status: 404 });
+    await expect(api.getMicroEventCard("not-a-uuid")).rejects.toMatchObject({ name: "ApiError", status: 400 });
   });
 });

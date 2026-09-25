@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Event } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
 import { calendarEntries, installMockApi, mockEvents, mockOrganizers, mockPlaces, resetMockBookings } from "./mock";
@@ -7,6 +7,11 @@ const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
 describe("event details and booking flow", () => {
   let restore: (() => void) | null = null;
+
+  // Демо-фикстура занимает места и брони ещё до первого теста — здесь счёт начинается с нуля
+  beforeEach(() => {
+    resetMockBookings();
+  });
 
   afterEach(() => {
     restore?.();
@@ -93,6 +98,11 @@ describe("event details and booking flow", () => {
 
 describe("calendar mock endpoint", () => {
   let restore: (() => void) | null = null;
+
+  // Демо-фикстура занимает места и брони ещё до первого теста — здесь счёт начинается с нуля
+  beforeEach(() => {
+    resetMockBookings();
+  });
 
   afterEach(() => {
     restore?.();

@@ -40,7 +40,7 @@ describe("AddListItemPlaceUnique20260919120400", () => {
     } as unknown as QueryRunner;
     const migration = new AddListItemPlaceUnique20260919120400();
     await migration.up(queryRunner);
-    expect(queries[0]).toContain("DELETE FROM \"list_items\"");
+    expect(queries[0]).toContain('DELETE FROM "list_items"');
     expect(queries[1]).toContain("UQ_list_items_list_place");
     expect(queries[1]).toContain('WHERE "placeId" IS NOT NULL');
     queries.length = 0;

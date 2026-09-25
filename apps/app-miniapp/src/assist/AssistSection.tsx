@@ -51,11 +51,24 @@ interface AssistViewProps {
   onCreatePlan: () => void;
   onOpenEvent: (eventId: string) => void;
   onOpenPlan: (planId: string) => void;
+  /** Вход на экран 10: секция — это один вопрос, экран — переписка. */
+  onOpenAssistant?: () => void;
 }
 
-export function AssistView({ query, state, day, onQuery, onSubmit, onPlanDay, onCreatePlan, onOpenEvent, onOpenPlan }: AssistViewProps) {
+export function AssistView({ query, state, day, onQuery, onSubmit, onPlanDay, onCreatePlan, onOpenEvent, onOpenPlan, onOpenAssistant }: AssistViewProps) {
   return (
-    <AppSection title="Спросите по-своему">
+    <AppSection
+      title="Спросите по-своему"
+      action={
+        onOpenAssistant === undefined ? undefined : (
+          // Секция отвечает одним подбором; переписка целиком — экран 10, и попасть на него надо
+          // отсюда, иначе он остаётся достижим только из вкладки «Планы».
+          <AppButton tone="ghost" size="small" onClick={onOpenAssistant}>
+            Ассистент
+          </AppButton>
+        )
+      }
+    >
       <form
         className="app-filters-inputs"
         onSubmit={(event) => {
@@ -127,5 +140,5 @@ export function AssistSection() {
     );
   };
 
-  return <AssistView query={query} state={state} day={day} onQuery={setQuery} onSubmit={submit} onPlanDay={() => planDay(false)} onCreatePlan={() => planDay(true)} onOpenEvent={(id) => navigate({ name: "event", id })} onOpenPlan={(id) => navigate({ name: "plan", id })} />;
+  return <AssistView query={query} state={state} day={day} onQuery={setQuery} onSubmit={submit} onPlanDay={() => planDay(false)} onCreatePlan={() => planDay(true)} onOpenEvent={(id) => navigate({ name: "event", id })} onOpenPlan={(id) => navigate({ name: "plan", id })} onOpenAssistant={() => navigate({ name: "assist", ask: query.trim() === "" ? null : query.trim() })} />;
 }

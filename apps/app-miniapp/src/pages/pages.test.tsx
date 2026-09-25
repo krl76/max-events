@@ -30,40 +30,52 @@ async function routedHtml(route: Route, ready: string): Promise<string> {
 }
 
 describe("HomePage", () => {
-  it("renders the home composition with the CTA pair and without friends tiles", () => {
+  it("opens on the feed screen, without the CTA pair it replaced and without friends tiles", () => {
     const html = renderToStaticMarkup(<HomePage />);
 
-    expect(html).toContain("Куда пойдём?");
-    expect(html).toContain("Рядом со мной");
-    expect(html).toContain("app-whereto-cta--secondary");
-    expect(html).not.toContain("Твои люди открыли места");
+    // The cards come from an effect, which never runs in static markup, so the first paint is экран 04.
+    expect(html).toContain("app-feed-skeleton");
+    expect(html).toContain("Загружаем ленту");
+    expect(html).not.toContain("app-whereto-cta--secondary");
+    expect(html).not.toContain("Друзья открыли");
+  });
+
+  it("no longer carries the catalog or the today digest: both moved to экран 08", () => {
+    const html = renderToStaticMarkup(<HomePage />);
+
+    expect(html).not.toContain("app-view-toggle");
+    expect(html).not.toContain("Сегодня для тебя");
+    expect(html).not.toContain("Любой рейтинг");
   });
 });
 
 describe("RoutedPages", () => {
   it("falls through to the home page on the home route", async () => {
-    const html = await routedHtml({ name: "home" }, "Куда пойдём?");
+    const html = await routedHtml({ name: "home" }, "app-feed-skeleton");
 
-    expect(html).toContain("Куда пойдём?");
+    expect(html).toContain("app-feed-skeleton");
   });
 
-  it("maps the friends route to the feed with the discovery/people nav tiles", async () => {
-    const html = await routedHtml({ name: "friends" }, "Твои люди открыли места");
+  it("maps the friends route to экран 26, which carries the discovery/people entries itself", async () => {
+    const html = await routedHtml({ name: "friends" }, "Контакты MAX");
 
-    expect(html).toContain("Твои люди открыли места");
-    expect(html).toContain("Люди с похожими интересами");
-    expect(html).not.toContain("Куда пойдём?");
+    expect(html).toContain("Друзья открыли");
+    expect(html).toContain("Люди рядом");
+    expect(html).not.toContain("app-feed-skeleton");
   });
 
-  it("maps the profile route to the profile screen with the achievements/my-city nav tiles", async () => {
-    const html = await routedHtml({ name: "profile" }, "Достижения");
+  it("maps the profile route to экран 36, whose own rows replaced the nav tiles above it", async () => {
+    const html = await routedHtml({ name: "profile" }, "Загрузка…");
 
-    expect(html).toContain("Достижения");
-    expect(html).toContain("Мой город");
-    expect(html).not.toContain("Друзья");
-    expect(html).not.toContain("Сохранённое");
-    expect(html).not.toContain("Панель организатора");
-    expect(html).not.toContain("Твои люди открыли места");
+    expect(html).not.toContain("app-nav-tile");
+    expect(html).not.toContain("Мой город");
+    expect(html).not.toContain("Друзья открыли");
+  });
+
+  it("maps the after-event route to экран 35 for the event its deep link names", async () => {
+    const html = await routedHtml({ name: "after-event", eventId: "c0000001-0000-4000-8000-000000000001" }, "Загрузка…");
+
+    expect(html).not.toContain("app-feed-skeleton");
   });
 
   it("maps the plans route to the «Моё» screen with the plans/calendar/saved tabs", async () => {
@@ -80,25 +92,35 @@ describe("RoutedPages", () => {
     expect(html).toMatch(/<button[^>]*app-chip--on[^>]*>Календарь</);
   });
 
-  it("maps the search route to the search screen", async () => {
-    const html = await routedHtml({ name: "search" }, "Начните вводить");
+  it("maps the search route to экран 08 with its tiles and blocks", async () => {
+    const html = await routedHtml({ name: "search" }, "Сегодня для тебя");
 
-    expect(html).toContain("Начните вводить");
-    expect(html).not.toContain("Куда пойдём?");
+    expect(html).toContain("Подбор свайпами");
+    expect(html).toContain("На карте");
+    expect(html).toContain("Куда пойдём?");
+    expect(html).not.toContain("app-feed-skeleton");
+  });
+
+  it("maps the swipe route to экран 09", async () => {
+    const html = await routedHtml({ name: "swipe" }, "Подбор мест");
+
+    expect(html).toContain("Свайпай: вправо — в избранное, влево — мимо");
+    expect(html).not.toContain("app-feed-skeleton");
   });
 
   it("maps the map route to the map screen", async () => {
-    const html = await routedHtml({ name: "map" }, "Загружаем");
+    // Карта открывается полотном, а не заглушкой загрузки, поэтому опорная строка — сам холст.
+    const html = await routedHtml({ name: "map" }, "Карта событий и мест");
 
-    expect(html).toContain("Загружаем");
-    expect(html).not.toContain("Куда пойдём?");
+    expect(html).toContain("Карта событий и мест");
+    expect(html).not.toContain("app-feed-skeleton");
   });
 
   it("renders the event page skeleton for an event deep link", async () => {
     const html = await routedHtml({ name: "event", id: "c0000001-0000-4000-8000-000000000001" }, "Загрузка…");
 
     expect(html).toContain("Загрузка…");
-    expect(html).not.toContain("Куда пойдём?");
-    expect(html).not.toContain("Твои люди открыли места");
+    expect(html).not.toContain("app-feed-skeleton");
+    expect(html).not.toContain("Друзья открыли");
   });
 });

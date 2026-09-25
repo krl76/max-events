@@ -6,13 +6,22 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - CATEGORY_LABELS - ru labels per event category (re-exported by ./CatalogPage.js, where the screens already import it from)
 // - formatStartsAt - ru "day month, hh:mm" formatting (reused by the event page and other screens)
 // - formatEventWeather - catalog chip: "+12°, облачно"
 // - formatEventWeatherDetail - event page line: chip plus rain probability
 // - pluralRu - ru plural form (one/few/many) via Intl.PluralRules, backs every counter label across screens
 // END_MODULE_MAP
 
-import type { EventWeather } from "@max-events/api-contracts";
+import type { EventCategory, EventWeather } from "@max-events/api-contracts";
+
+/** Lives in this leaf rather than in the catalog screen, so the feed can label a category without pulling the map in. */
+export const CATEGORY_LABELS: Record<EventCategory, string> = {
+  afisha: "Афиша",
+  volunteering: "Волонтёрство",
+  tourism: "Туризм",
+  sport: "Спорт",
+};
 
 export function formatStartsAt(startsAt: string): string {
   return new Date(startsAt).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });

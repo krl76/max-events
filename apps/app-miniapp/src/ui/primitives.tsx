@@ -6,8 +6,9 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - AppButton - IonButton wrapper; tone primary|secondary|danger|ghost, stretched = full width; app-btn classes carry the pill skin in theme.css
-// - AppButtonTone - union of AppButton tones
+// - AppButton - IonButton wrapper; tone primary|secondary|danger|ghost|confirm, stretched = full width; app-btn classes carry the pill skin in theme.css
+// - AppButtonTone - union of AppButton tones; form carries meaning - filled = badge, outlined = irreversible, dark fill = confirmation
+// - appButtonClass - tone -> class mapping; exported because ionic hides className from rendered markup
 // - AppIconButton - round icon-only IonButton (create/share actions)
 // - AppTitle - heading text (app-title class)
 // - AppText - body text (app-text class)
@@ -15,9 +16,13 @@
 // - AppChip - toggle chip button (aria-pressed)
 // - AppNavTiles - grid of navigation tiles (icon + label) replacing full-width entry buttons
 // - AppNavTileItem - one navigation tile (icon, label, onClick)
-// - AppState - loading/empty/error state block: alert icon on error, text, optional retry action
+// - AppState - loading/empty/error state block: alert icon on error, text, optional hint line and up to two actions
 // - AppStateAction - retry action payload of AppState (label + onClick)
-// - AppSkeleton - pulsing placeholder block (lines or media) for loading states
+// - AppStateKind - the reusable empty/blocked states of the design (screen 48)
+// - APP_STATE_COPY - wording per AppStateKind, so screens do not each invent their own
+// - AppEmptyState - AppState preconfigured from APP_STATE_COPY; actions render only when a handler is given
+// - AppSkeleton - pulsing placeholder block (lines or media) for loading states; className shapes one placeholder while the variant keeps the pulse
+// - AppSkeletonList - the loading state of a list: N skeleton rows announced as a single status
 // - AppSection - section rhythm primitive: title row with an optional right-side action, unified top margin
 // - CATEGORY_MEDIA_ICON - event category -> placeholder icon mapping
 // - AppMedia - media placeholder: category-fixed MAX gradient + category icon (neutral gradient without a category)
@@ -28,18 +33,31 @@ import { IonAvatar, IonButton } from "@ionic/react";
 import type { EventCategory } from "@max-events/api-contracts";
 import { ActionIcon, type ActionIconName } from "./icons";
 
-export type AppButtonTone = "primary" | "secondary" | "danger" | "ghost";
+export type AppButtonTone = "primary" | "secondary" | "danger" | "ghost" | "confirm";
 
+// Skins live in theme.css on .app-btn--<tone>. Only primary keeps an ionic colour: any `color` makes
+// ionic paint --background/--color inside its shadow root, which outranks the light-DOM class and turns
+// the button into a filled pill. danger and confirm are drawn entirely by their class, so the outline
+// of an irreversible action survives — form, not hue, tells the tones apart.
 const TONE_PROPS: Record<AppButtonTone, { color?: string; fill?: "clear" }> = {
   primary: { color: "primary" },
   secondary: {},
-  danger: { color: "danger" },
+  danger: {},
   ghost: { fill: "clear" },
+  confirm: {},
 };
 
+/**
+ * The tone -> class mapping, split out because it cannot be asserted through the rendered markup:
+ * @ionic/react drops className before createElement and re-attaches it to the DOM node on mount,
+ * so server-rendered ion-button carries no class at all. This is the seam tests can hold onto.
+ */
+export function appButtonClass(tone: AppButtonTone, className?: string): string {
+  return `app-btn app-btn--${tone}${className ? ` ${className}` : ""}`;
+}
+
 export function AppButton({ tone = "primary", stretched = false, className, ...props }: ComponentProps<typeof IonButton> & { tone?: AppButtonTone; stretched?: boolean }) {
-  const buttonClass = `app-btn app-btn--${tone}${className ? ` ${className}` : ""}`;
-  return <IonButton className={buttonClass} expand={stretched ? "block" : undefined} {...TONE_PROPS[tone]} {...props} />;
+  return <IonButton className={appButtonClass(tone, className)} expand={stretched ? "block" : undefined} {...TONE_PROPS[tone]} {...props} />;
 }
 
 export function AppIconButton({ className, children, ...props }: ComponentProps<typeof IonButton>) {
@@ -101,7 +119,7 @@ export interface AppStateAction {
   onClick: () => void;
 }
 
-export function AppState({ error = false, action, children }: { error?: boolean; action?: AppStateAction; children: ReactNode }) {
+export function AppState({ error = false, hint, action, secondaryAction, children }: { error?: boolean; hint?: ReactNode; action?: AppStateAction; secondaryAction?: AppStateAction; children: ReactNode }) {
   return (
     <div className="app-state-block">
       {error && (
@@ -110,18 +128,65 @@ export function AppState({ error = false, action, children }: { error?: boolean;
         </span>
       )}
       <p className={error ? "app-state app-state--error" : "app-state"}>{children}</p>
-      {action && (
-        <AppButton tone="secondary" onClick={action.onClick}>
-          {action.label}
-        </AppButton>
+      {hint !== undefined && <p className="app-state-hint">{hint}</p>}
+      {(action ?? secondaryAction) !== undefined && (
+        <div className="app-state-actions">
+          {action && (
+            <AppButton tone="secondary" onClick={action.onClick}>
+              {action.label}
+            </AppButton>
+          )}
+          {secondaryAction && (
+            <AppButton tone="ghost" onClick={secondaryAction.onClick}>
+              {secondaryAction.label}
+            </AppButton>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-export function AppSkeleton({ variant = "line", width }: { variant?: "line" | "line-short" | "block" | "media"; width?: string }) {
-  const className = variant === "media" ? "app-skeleton-block app-skeleton-block--media" : variant === "block" ? "app-skeleton-block" : variant === "line-short" ? "app-skeleton-line app-skeleton-line--short" : "app-skeleton-line";
-  return <span className={className} style={width ? { width } : undefined} aria-hidden="true" />;
+export type AppStateKind = "empty-feed" | "offline" | "forbidden" | "not-moderator" | "empty-match" | "friends-unsynced";
+
+/** One wording per state, shared by every screen that can reach it (макет, экран 48). */
+export const APP_STATE_COPY: Record<AppStateKind, { text: string; hint?: string; action?: string; secondaryAction?: string }> = {
+  "empty-feed": { text: "На эти выходные у друзей пока нет планов", action: "Предложить первым" },
+  offline: { text: "Показываем сохранённое", hint: "Твои планы доступны офлайн", action: "Обновить" },
+  forbidden: { text: "Этот список открыт не для всех", action: "Попросить доступ" },
+  "not-moderator": { text: "Раздел модерации недоступен" },
+  "empty-match": { text: "Под такие ответы ничего нет", action: "Изменить бюджет", secondaryAction: "Ответить заново" },
+  "friends-unsynced": { text: "Пока никого нет", action: "Синхронизировать контакты" },
+};
+
+/** An action without a handler is not rendered: a dead button reads as a broken screen. */
+export function AppEmptyState({ kind, onAction, onSecondaryAction }: { kind: AppStateKind; onAction?: () => void; onSecondaryAction?: () => void }) {
+  const copy = APP_STATE_COPY[kind];
+  return (
+    <AppState hint={copy.hint} action={copy.action !== undefined && onAction !== undefined ? { label: copy.action, onClick: onAction } : undefined} secondaryAction={copy.secondaryAction !== undefined && onSecondaryAction !== undefined ? { label: copy.secondaryAction, onClick: onSecondaryAction } : undefined}>
+      {copy.text}
+    </AppState>
+  );
+}
+
+export function AppSkeleton({ variant = "line", width, className }: { variant?: "line" | "line-short" | "block" | "media"; width?: string; className?: string }) {
+  const variantClass = variant === "media" ? "app-skeleton-block app-skeleton-block--media" : variant === "block" ? "app-skeleton-block" : variant === "line-short" ? "app-skeleton-line app-skeleton-line--short" : "app-skeleton-line";
+  // The extra class shapes one placeholder (a ring, a hero) while the pulse keeps coming from the variant.
+  return <span className={className ? `${variantClass} ${className}` : variantClass} style={width ? { width } : undefined} aria-hidden="true" />;
+}
+
+/** The rows are aria-hidden on their own, so the status label is what assistive tech reads. */
+export function AppSkeletonList({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="app-skeleton-list" role="status" aria-label="Загрузка">
+      {Array.from({ length: rows }, (_, index) => (
+        <div key={index} className="app-skeleton-row">
+          <AppSkeleton />
+          <AppSkeleton variant="line-short" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function AppSection({ title, action, className, ariaLabel, children }: { title?: string; action?: ReactNode; className?: string; ariaLabel?: string; children: ReactNode }) {

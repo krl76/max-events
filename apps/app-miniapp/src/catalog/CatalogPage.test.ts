@@ -135,7 +135,8 @@ describe("CatalogView", () => {
   it("renders the map screen instead of cards in map view", () => {
     const html = renderToStaticMarkup(createElement(CatalogView, { state: { status: "ready", events: mockEvents }, filters: {}, onFilters: () => {}, view: "map", onOpenEvent: () => {} }));
 
-    expect(html).toContain("Загружаем карту");
+    // Карта больше не подменяет себя заглушкой загрузки: полотно есть с первого кадра.
+    expect(html).toContain('aria-label="Карта событий и мест"');
     expect(html).not.toContain("app-card-title");
   });
 

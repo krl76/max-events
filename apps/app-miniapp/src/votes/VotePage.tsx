@@ -1,113 +1,245 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Shared event vote («Куда идем в пятницу?»): screen opened from a MAX chat card via the vote-<id> deep link, one-tap ballot, winner highlight; plus the minimal create form launched from the whereto wizard result.
-// SCOPE: VotePage container (getVote) + presentational VoteView + VoteCreateSection form (title + event/friend pickers over the wizard result and the friends list); the winner comes from the API (no client-side tally); a repeated tap replaces the previous ballot (backend semantics); no share UI (the backend sends the chat card).
-// DEPENDS: ../api/client.js (apiClient, ApiError), @max-events/api-contracts (Vote, Event, Friend), ../catalog/CatalogPage.js (formatStartsAt), ../catalog/format.js (pluralRu), ../ui/primitives.js, ../ui/theme.css
+// PURPOSE: Экран 33 «Голосование · ход»: шапка вопроса, стек проголосовавших, тёмная карточка лидера с «Завершить», раскладка по вариантам с процентами и отметкой своего голоса, строка «кто ещё не голосовал».
+// SCOPE: VotePage container (getVote/castBallot/closeVote) + presentational VoteView; the winner and the tallies come from the API, никакого подсчёта на клиенте; a finished vote stops taking ballots; экран 32 lives in ./VoteCreatePage.js and is re-exported here for the whereto wizard.
+// DEPENDS: ../api/client.js (apiClient, ApiError, VoteScreen), ../auth/AuthContext.js (useAuth), ./VoteCreatePage.js, ./format.js (voteOptionMeta), ../catalog/format.js (pluralRu), ../max/bridge.js (openExternalLink), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - VoteState - union of the vote fetch states (loading / notfound 404 / forbidden 403 / error / ready)
-// - VoteView - presentational: title, participants, «Отправлено в чат» hint when chatLink, option cards with counters, winner badge, «Твой голос» mark (vote.myBallotEventId wins over the session myChoice)
-// - VotePage - route container: loads the vote by id, casts ballots (403 -> «Голосование недоступно»)
-// - voteCreateReady - create form validity: non-empty title, 2..10 events, >=1 friend
-// - VoteCreateView - presentational create form (event chips from the wizard result, friend chips)
-// - VoteCreateSection - container: loads friends, creates the vote, reports the created vote up
+// - votePercent - share of one option in the cast ballots, rounded; 0 while nobody voted
+// - voteBallotsCast - how many ballots the tallies add up to
+// - voteProgressLabel - «Проголосовали 4 из 5»
+// - voteMineNote - «Ты проголосовал за «Кино на крыше»»; null until the viewer has a ballot
+// - votePendingNote - «Ещё не проголосовали: Пётр. Напомнить можно в чате MAX.»; null when everyone but the viewer voted
+// - VoteFaces - overlapping initials of everyone who already voted
+// - VoteView - presentational: question topbar, voter stack, leader card, per-option breakdown, own-ballot strip
+// - VotePage - route container: loads the vote, casts and changes ballots, closes the vote as its host
+// - VoteCreateSection - экран 32 re-exported, because the whereto wizard has imported it from this module since T-021
+// - voteCreateReady - экран 32 validity re-exported next to the section it belongs to
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import type { Event, Friend, Vote } from "@max-events/api-contracts";
-import { ApiError, apiClient } from "../api/client";
+import { ApiError, apiClient, type VoteScreen } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { formatStartsAt } from "../catalog/CatalogPage";
 import { pluralRu } from "../catalog/format";
-import { shareResult, webApp } from "../max/bridge";
-import { AppButton, AppChip, AppTitle, AppState } from "../ui/primitives";
+import { openExternalLink } from "../max/bridge";
+import { useRoute } from "../routing/router";
+import { ActionIcon } from "../ui/icons";
+import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
+import { voteOptionMeta } from "./format";
 
-export type VoteState = { status: "loading" } | { status: "notfound" } | { status: "forbidden" } | { status: "error" } | { status: "ready"; vote: Vote };
+export { VoteCreateSection, voteCreateReady } from "./VoteCreatePage";
+
+export type VoteState = { status: "loading" } | { status: "notfound" } | { status: "forbidden" } | { status: "error" } | { status: "ready"; vote: VoteScreen };
+
+export function voteBallotsCast(vote: VoteScreen): number {
+  return vote.options.reduce((sum, option) => sum + option.votes, 0);
+}
+
+export function votePercent(votes: number, total: number): number {
+  return total <= 0 ? 0 : Math.round((votes / total) * 100);
+}
+
+export function voteProgressLabel(voted: number, total: number): string {
+  return `Проголосовали ${voted} из ${total}`;
+}
+
+export function voteMineNote(vote: VoteScreen): string | null {
+  const mine = vote.options.find((option) => option.event.id === vote.myBallotEventId);
+  return mine === undefined ? null : `Ты проголосовал за «${mine.event.title}»`;
+}
+
+/**
+ * «Ксения ещё не голосовала» of the design, minus the gender: the friend DTO carries a name and
+ * nothing else, so agreeing the verb with it would be a guess about a real person. The plural form
+ * is right for any number and any gender, and the second sentence of the design stays verbatim.
+ */
+export function votePendingNote(vote: VoteScreen, ownId: string | null): string | null {
+  const voted = new Set(vote.votedUserIds);
+  const pending = vote.voters.filter((voter) => !voted.has(voter.id) && voter.id !== ownId);
+  if (pending.length === 0) return null;
+  return `Ещё не проголосовали: ${pending.map((voter) => voter.name.split(" ")[0]).join(", ")}. Напомнить можно в чате MAX.`;
+}
+
+export function VoteFaces({ vote }: { vote: VoteScreen }) {
+  const voted = vote.voters.filter((voter) => vote.votedUserIds.includes(voter.id));
+  if (voted.length === 0) return null;
+  return (
+    <span className="app-we-faces" role="img" aria-label={voted.map((voter) => voter.name).join(", ")}>
+      {voted.map((voter) => (
+        <span key={voter.id} className="app-we-face">
+          {voter.name.charAt(0)}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 interface VoteViewProps {
   state: VoteState;
+  ownId: string | null;
+  /** Kept after a ballot so the mark survives a reload that has not landed yet. */
   myChoice: string | null;
   voting: boolean;
+  closing: boolean;
+  /** True while the viewer is picking again: the breakdown goes back to being tappable. */
+  revoting: boolean;
   failed: boolean;
-  closing?: boolean;
-  closeFailed?: boolean;
+  onBack: () => void;
   onVote: (eventId: string) => void;
-  onShare?: () => void;
-  onClose?: () => void;
+  onRevote: () => void;
+  onClose: () => void;
+  onChat: (link: string) => void;
+  onOpenEvent: (eventId: string) => void;
 }
 
-export function VoteView({ state, myChoice, voting, failed, closing = false, closeFailed = false, onVote, onShare, onClose }: VoteViewProps) {
-  if (state.status === "loading") return <AppState>Загрузка…</AppState>;
-  if (state.status === "notfound") return <AppState>Голосование не найдено.</AppState>;
-  if (state.status === "forbidden") return <AppState error>Голосование недоступно.</AppState>;
-  if (state.status === "error") return <AppState error>Не удалось загрузить голосование.</AppState>;
+export function VoteView({ state, ownId, myChoice, voting, closing, revoting, failed, onBack, onVote, onRevote, onClose, onChat, onOpenEvent }: VoteViewProps) {
+  if (state.status !== "ready") {
+    return (
+      <section className="app-poll" aria-label="Голосование">
+        <div className="app-we-bar">
+          <button type="button" className="app-we-round app-we-round--back" aria-label="Назад" onClick={onBack}>
+            <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
+          </button>
+          <h1 className="app-we-bar-name">Голосование</h1>
+        </div>
+        {state.status === "loading" && <AppSkeletonList rows={3} />}
+        {state.status === "notfound" && <AppState>Голосование не найдено.</AppState>}
+        {state.status === "forbidden" && <AppState error>Голосование недоступно.</AppState>}
+        {state.status === "error" && <AppState error>Не удалось загрузить голосование.</AppState>}
+      </section>
+    );
+  }
+
   const { vote } = state;
   const myBallotEventId = vote.myBallotEventId ?? myChoice;
   const closed = vote.status === "closed";
-  const voted = new Set(vote.votedUserIds);
-  const votedAmongParticipants = vote.participants.filter((friend) => voted.has(friend.id)).length;
-  const pending = vote.participants.filter((friend) => !voted.has(friend.id));
+  const isHost = ownId !== null && vote.hostUserId === ownId;
+  const cast = voteBallotsCast(vote);
+  const leader = vote.options.find((option) => option.event.id === vote.winnerEventId) ?? null;
+  const pickable = !closed && (myBallotEventId === null || revoting);
+  const pending = votePendingNote(vote, ownId);
+  const mine = voteMineNote(vote);
+
   return (
-    <section className="app-vote">
-      <AppTitle asChild>
-        <h2 className="app-vote-title">{vote.title}</h2>
-      </AppTitle>
-      <p className="app-vote-hint">
-        Проголосовали {votedAmongParticipants} из {vote.participants.length}
-      </p>
-      <p className="app-vote-hint">Участники: {vote.participants.map((friend) => friend.name).join(", ")}</p>
-      {pending.length > 0 && !closed && (
-        <p className="app-vote-hint">
-          {pending.map((friend) => friend.name).join(", ")} ещё не {pending.length === 1 ? "голосовал" : "голосовали"}. Напомнить можно в чате MAX.
-        </p>
-      )}
-      {closed && <p className="app-vote-hint">Голосование завершено</p>}
-      {vote.chatLink !== null && <p className="app-vote-hint">Отправлено в чат</p>}
-      {onShare !== undefined && (
-        <AppButton tone="secondary" onClick={onShare}>
-          Поделиться
-        </AppButton>
-      )}
-      <div className="app-vote-options">
-        {vote.options.map((option) => {
-          const winner = vote.winnerEventId === option.event.id;
-          const mine = myBallotEventId === option.event.id;
-          return (
-            <button type="button" key={option.event.id} disabled={voting || closed} className={winner ? "app-card app-card--link app-vote-option app-vote-option--winner" : "app-card app-card--link app-vote-option"} onClick={() => onVote(option.event.id)}>
-              <div className="app-card-body">
-                <span className="app-card-title">{option.event.title}</span>
-                <span className="app-card-subtitle">{formatStartsAt(option.event.startsAt)}</span>
-                <span className="app-card-subtitle">
-                  {option.votes} {pluralRu(option.votes, "голос", "голоса", "голосов")}
-                </span>
-                {winner && <span className="app-vote-badge">Лучший вариант</span>}
-                {mine && <span className="app-vote-badge">Твой голос</span>}
-              </div>
+    <section className="app-poll" aria-label="Голосование">
+      <div className="app-we-bar">
+        <button type="button" className="app-we-round app-we-round--back" aria-label="Назад" onClick={onBack}>
+          <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
+        </button>
+        <h1 className="app-we-bar-name">{vote.title}</h1>
+      </div>
+
+      <div className="app-we-people">
+        <VoteFaces vote={vote} />
+        <span className="app-we-people-text">{voteProgressLabel(vote.votedUserIds.length, vote.voters.length)}</span>
+        {vote.chatLink !== null && (
+          <button type="button" className="app-we-chat" onClick={() => onChat(vote.chatLink!)}>
+            <span className="app-we-chat-mark" aria-hidden="true">
+              M
+            </span>
+            Чат
+          </button>
+        )}
+      </div>
+
+      {leader !== null ? (
+        <section className="app-poll-lead" aria-label={closed ? "Победитель" : "Лидер голосования"}>
+          <p className="app-poll-lead-label">{closed ? "Победил" : "Лидирует"}</p>
+          <h2 className="app-poll-lead-title">{leader.event.title}</h2>
+          <p className="app-poll-lead-meta">
+            {voteOptionMeta(leader.event)} · {leader.votes} {pluralRu(leader.votes, "голос", "голоса", "голосов")}
+          </p>
+          <div className="app-poll-lead-actions">
+            <button type="button" className="app-poll-lead-open" onClick={() => onOpenEvent(leader.event.id)}>
+              Открыть событие
             </button>
+            {isHost && !closed && (
+              <button type="button" className="app-poll-lead-close" disabled={closing} onClick={onClose}>
+                {closing ? "Завершаем…" : "Завершить"}
+              </button>
+            )}
+          </div>
+        </section>
+      ) : (
+        <p className="app-poll-empty">Голосов пока нет — выбери вариант первым.</p>
+      )}
+
+      <h2 className="app-poll-section">Все варианты</h2>
+      <div className="app-poll-results">
+        {vote.options.map((option) => {
+          const percent = votePercent(option.votes, cast);
+          const isMine = myBallotEventId === option.event.id;
+          const body = (
+            <>
+              <span className="app-poll-result-fill" style={{ width: `${percent}%` }} aria-hidden="true" />
+              <span className="app-poll-result-body">
+                <AppMedia category={option.event.category} className="app-poll-result-media" />
+                <span className="app-poll-result-text">
+                  <span className="app-poll-result-title">
+                    {option.event.title}
+                    {isMine && (
+                      <span className="app-poll-result-mark" aria-hidden="true">
+                        <ActionIcon name="check" size={15} strokeWidth={3} />
+                      </span>
+                    )}
+                  </span>
+                  <span className="app-poll-result-meta">
+                    {voteOptionMeta(option.event)}
+                    {isMine ? " · твой голос" : ""}
+                  </span>
+                </span>
+                <span className="app-poll-result-tally">
+                  <span className="app-poll-result-votes">{option.votes}</span>
+                  <span className="app-poll-result-share">{percent}%</span>
+                </span>
+              </span>
+            </>
+          );
+          const className = isMine ? "app-poll-result app-poll-result--mine" : "app-poll-result";
+          return pickable ? (
+            <button type="button" key={option.event.id} className={className} disabled={voting} onClick={() => onVote(option.event.id)}>
+              {body}
+            </button>
+          ) : (
+            <div key={option.event.id} className={className}>
+              {body}
+            </div>
           );
         })}
       </div>
-      {failed && <AppState error>Не удалось отправить голос.</AppState>}
-      {closeFailed && <AppState error>Не удалось завершить голосование.</AppState>}
-      {onClose !== undefined && !closed && (
-        <AppButton tone="secondary" onClick={onClose} disabled={closing}>
-          Завершить
-        </AppButton>
+
+      {mine !== null && (
+        <div className="app-poll-mine">
+          <span className="app-poll-mine-mark" aria-hidden="true">
+            <ActionIcon name="check" size={18} strokeWidth={2.4} />
+          </span>
+          <span className="app-poll-mine-text">{mine}</span>
+          {!closed && !revoting && (
+            <button type="button" className="app-we-block-action" onClick={onRevote}>
+              Изменить
+            </button>
+          )}
+        </div>
       )}
+      {closed && <p className="app-poll-pending">Голосование завершено, новые голоса не принимаются.</p>}
+      {!closed && pending !== null && <p className="app-poll-pending">{pending}</p>}
+      {failed && <AppState error>Не удалось отправить голос.</AppState>}
     </section>
   );
 }
 
 export function VotePage({ id }: { id: string }) {
+  const { back, navigate } = useRoute();
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : null;
+  const ownId = auth.status === "authenticated" ? auth.user.id : null;
   const [state, setState] = useState<VoteState>({ status: "loading" });
   const [myChoice, setMyChoice] = useState<string | null>(null);
   const [voting, setVoting] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [revoting, setRevoting] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [closeFailed, setCloseFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -133,13 +265,14 @@ export function VotePage({ id }: { id: string }) {
   }, [id]);
 
   const vote = (eventId: string) => {
-    if (state.status !== "ready" || voting || state.vote.status === "closed") return;
+    if (state.status !== "ready" || voting) return;
     setVoting(true);
     setFailed(false);
     apiClient.castBallot(state.vote.id, eventId).then(
       (next) => {
         setState({ status: "ready", vote: next });
         setMyChoice(eventId);
+        setRevoting(false);
         setVoting(false);
       },
       () => {
@@ -150,123 +283,20 @@ export function VotePage({ id }: { id: string }) {
   };
 
   const close = () => {
-    if (state.status !== "ready" || closing || state.vote.status === "closed") return;
+    if (state.status !== "ready" || closing) return;
     setClosing(true);
-    setCloseFailed(false);
+    setFailed(false);
     apiClient.closeVote(state.vote.id).then(
       (next) => {
         setState({ status: "ready", vote: next });
         setClosing(false);
       },
       () => {
-        setCloseFailed(true);
+        setFailed(true);
         setClosing(false);
       },
     );
   };
 
-  const share = () => {
-    if (state.status !== "ready") return;
-    const winner = state.vote.options.find((option) => option.event.id === state.vote.winnerEventId);
-    const text = winner ? `${state.vote.title}: лучший вариант — ${winner.event.title}` : state.vote.title;
-    void shareResult(webApp, text);
-  };
-
-  const isHost = state.status === "ready" && userId === state.vote.hostUserId;
-  return <VoteView state={state} myChoice={myChoice} voting={voting} closing={closing} failed={failed} closeFailed={closeFailed} onVote={vote} onShare={share} onClose={isHost ? close : undefined} />;
-}
-
-export function voteCreateReady(title: string, eventIds: string[], friendIds: string[]): boolean {
-  return title.trim() !== "" && eventIds.length >= 2 && eventIds.length <= 10 && friendIds.length >= 1;
-}
-
-interface VoteCreateViewProps {
-  events: Event[];
-  friends: Friend[];
-  title: string;
-  selectedEvents: string[];
-  selectedFriends: string[];
-  submitting: boolean;
-  failed: boolean;
-  onTitle: (title: string) => void;
-  onToggleEvent: (id: string) => void;
-  onToggleFriend: (id: string) => void;
-  onSubmit: () => void;
-  onCancel: () => void;
-}
-
-export function VoteCreateView({ events, friends, title, selectedEvents, selectedFriends, submitting, failed, onTitle, onToggleEvent, onToggleFriend, onSubmit, onCancel }: VoteCreateViewProps) {
-  return (
-    <section className="app-gathering">
-      <p className="app-gathering-hint">Друзья проголосуют за один из вариантов — лучший подсветится здесь и в чате</p>
-      <label className="app-gathering-time">
-        Вопрос
-        <input className="app-gathering-time-input" value={title} onChange={(change) => onTitle(change.target.value)} />
-      </label>
-      <div className="app-whereto-chips" role="group" aria-label="Варианты">
-        <span className="app-whereto-chips-label">Варианты (от двух)</span>
-        {events.map((event) => (
-          <AppChip key={event.id} pressed={selectedEvents.includes(event.id)} onClick={() => onToggleEvent(event.id)}>
-            {event.title}
-          </AppChip>
-        ))}
-      </div>
-      <div className="app-whereto-chips" role="group" aria-label="Участники">
-        <span className="app-whereto-chips-label">Участники</span>
-        {friends.map((friend) => (
-          <AppChip key={friend.id} pressed={selectedFriends.includes(friend.id)} onClick={() => onToggleFriend(friend.id)}>
-            {friend.name}
-          </AppChip>
-        ))}
-      </div>
-      <AppButton disabled={!voteCreateReady(title, selectedEvents, selectedFriends) || submitting} onClick={onSubmit} stretched>
-        {submitting ? "Создаём…" : "Создать голосование"}
-      </AppButton>
-      <AppButton tone="ghost" onClick={onCancel} stretched>
-        Назад к подборке
-      </AppButton>
-      {failed && <AppState error>Не удалось создать голосование.</AppState>}
-    </section>
-  );
-}
-
-function toggle(ids: string[], id: string): string[] {
-  return ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id];
-}
-
-export function VoteCreateSection({ events, onCreated, onCancel }: { events: Event[]; onCreated: (vote: Vote) => void; onCancel: () => void }) {
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [title, setTitle] = useState("Куда идем в пятницу?");
-  const [selectedEvents, setSelectedEvents] = useState<string[]>(events.map((event) => event.id));
-  const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    apiClient.listFriends().then(
-      (list) => {
-        if (alive) setFriends(list);
-      },
-      () => {},
-    );
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const submit = () => {
-    if (!voteCreateReady(title, selectedEvents, selectedFriends) || submitting) return;
-    setSubmitting(true);
-    setFailed(false);
-    apiClient.createVote({ title: title.trim(), eventIds: selectedEvents, participantIds: selectedFriends }).then(
-      (created) => onCreated(created),
-      () => {
-        setFailed(true);
-        setSubmitting(false);
-      },
-    );
-  };
-
-  return <VoteCreateView events={events} friends={friends} title={title} selectedEvents={selectedEvents} selectedFriends={selectedFriends} submitting={submitting} failed={failed} onTitle={setTitle} onToggleEvent={(eventId) => setSelectedEvents((current) => toggle(current, eventId))} onToggleFriend={(friendId) => setSelectedFriends((current) => toggle(current, friendId))} onSubmit={submit} onCancel={onCancel} />;
+  return <VoteView state={state} ownId={ownId} myChoice={myChoice} voting={voting} closing={closing} revoting={revoting} failed={failed} onBack={back} onVote={vote} onRevote={() => setRevoting(true)} onClose={close} onChat={openExternalLink} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
 }

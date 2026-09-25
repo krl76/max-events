@@ -1,33 +1,32 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Map tab screen: full-screen event/place map (MapScreen) fed by the unfiltered event list.
-// SCOPE: One-shot apiClient.listEvents({}) fetch + navigation wiring; map internals live in MapScreen.
-// DEPENDS: ../api/client.js (apiClient), ../routing/router.js (useRoute), ./MapScreen.js (MapScreen), ../ui/primitives.js (AppState)
+// PURPOSE: Экран 16 «Карта» as a screen: the full-bleed event/place map (MapScreen) fed by the unfiltered event list, entered from Поиск.
+// SCOPE: One-shot apiClient.listEvents({}) fetch + navigation wiring; map internals, chrome and the selection card live in MapScreen. The fetch never gates the canvas: while it runs and after it fails the map opens anyway, with an empty event list and a line saying so — «Карта» that answers with a full-screen error is the defect this screen was fixed for.
+// DEPENDS: ../api/client.js (apiClient), ../routing/router.js (useRoute), ./MapScreen.js (MapScreen)
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - MapEventsState - union of the event list fetch states (loading / error / ready)
-// - MapPageView - presentational switch: loading/error AppState or the MapScreen
-// - MapPage - container: fetches events once, navigates to event/place pages from map popups
+// - MapPageView - presentational shell: always the MapScreen, with the fetch state passed down as a hint
+// - MapPage - container: fetches events once, wires back to Поиск and navigates to event/place pages from the map
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
 import type { Event } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
-import { AppState } from "../ui/primitives";
 import { MapScreen } from "./MapScreen";
 
 export type MapEventsState = { status: "loading" } | { status: "error" } | { status: "ready"; events: Event[] };
 
-export function MapPageView({ state, onOpenEvent, onOpenPlace }: { state: MapEventsState; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void }) {
-  if (state.status === "loading") return <AppState>Загружаем события для карты…</AppState>;
-  if (state.status === "error") return <AppState error>Не удалось загрузить события для карты.</AppState>;
-  return <MapScreen events={state.events} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />;
+const NO_EVENTS: Event[] = [];
+
+export function MapPageView({ state, onOpenEvent, onOpenPlace, onBack, onDiscuss }: { state: MapEventsState; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void; onBack?: () => void; onDiscuss?: () => void }) {
+  return <MapScreen events={state.status === "ready" ? state.events : NO_EVENTS} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} onBack={onBack} onDiscuss={onDiscuss} eventsFailed={state.status === "error"} eventsLoading={state.status === "loading"} />;
 }
 
 export function MapPage() {
-  const { navigate } = useRoute();
+  const { navigate, back } = useRoute();
   const [state, setState] = useState<MapEventsState>({ status: "loading" });
 
   useEffect(() => {
@@ -47,6 +46,8 @@ export function MapPage() {
 
   const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
   const openPlace = useCallback((id: string) => navigate({ name: "place", id }), [navigate]);
+  // Обсуждение объекта начинается с плана: план несёт чат, отдельного чата у объекта на карте нет.
+  const discuss = useCallback(() => navigate({ name: "plan-new" }), [navigate]);
 
-  return <MapPageView state={state} onOpenEvent={openEvent} onOpenPlace={openPlace} />;
+  return <MapPageView state={state} onOpenEvent={openEvent} onOpenPlace={openPlace} onBack={back} onDiscuss={discuss} />;
 }

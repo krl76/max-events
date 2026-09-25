@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { FriendSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { feedPosts, installMockApi, mockEvents, resetMockFeed } from "./mock";
+import { feedPosts, installMockApi, mockEvents, mockFeedPostExtras, mockFriends, mockPlaces, mockPostDrafts, mockStoryCompositions, resetMockFeed, resetMockParticipations } from "./mock";
 
 const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
@@ -131,5 +131,154 @@ describe("feed mock endpoints", () => {
     await expect(client.addFeedComment(post.id, { userId: DEMO_USER_ID, text: "  " })).rejects.toMatchObject({ name: "ApiError", status: 400 });
     await expect(client.toggleFeedLike(post.id, "")).rejects.toMatchObject({ name: "ApiError", status: 400 });
     await expect(client.createFeedPost({ userId: DEMO_USER_ID, eventId: mockEvents[0].id, text: "" })).rejects.toMatchObject({ name: "ApiError", status: 400 });
+  });
+});
+
+describe("home feed cards", () => {
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+    resetMockFeed();
+    resetMockParticipations();
+  });
+
+  it("serve the friend cards around one venue card, in the order of the design", async () => {
+    restore = installMockApi();
+
+    const cards = await new ApiClient("/api").listFeedCards(DEMO_USER_ID);
+
+    expect(cards.length).toBeGreaterThanOrEqual(4);
+    expect(cards[0].kind).toBe("friend");
+    expect(cards[1].kind).toBe("place");
+    expect(cards.filter((card) => card.kind === "place")).toHaveLength(1);
+  });
+
+  it("keep a card id equal to its post id, so likes and comments still hit /feed/:id", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+    const card = (await client.listFeedCards(DEMO_USER_ID)).find((item) => item.kind === "friend");
+    expect(card).toBeDefined();
+
+    const liked = await client.toggleFeedLike(card!.id, DEMO_USER_ID);
+
+    expect(liked.likedByMe).toBe(true);
+    expect(feedPosts(null).some((post) => post.id === card!.id)).toBe(true);
+  });
+
+  it("carry the mocked distance, counters and badges the list DTO has no field for yet (#496)", async () => {
+    restore = installMockApi();
+
+    const cards = await new ApiClient("/api").listFeedCards(DEMO_USER_ID);
+    const friends = cards.flatMap((card) => (card.kind === "friend" ? [card] : []));
+
+    expect(friends.some((card) => card.distanceKm !== null)).toBe(true);
+    expect(friends.some((card) => card.live)).toBe(true);
+    expect(friends.some((card) => card.hit)).toBe(true);
+    expect(friends.some((card) => card.counts.waitlist !== null)).toBe(true);
+    expect(friends.some((card) => card.counts.freeSeats !== null)).toBe(true);
+  });
+
+  it("reflect «Пойду» in the own status and in the counter", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+    const before = (await client.listFeedCards(DEMO_USER_ID)).flatMap((card) => (card.kind === "friend" && card.counts.going !== null ? [card] : []))[0];
+    expect(before).toBeDefined();
+
+    await client.setParticipationStatus(before.event.id, DEMO_USER_ID, "going");
+    const after = (await client.listFeedCards(DEMO_USER_ID)).flatMap((card) => (card.kind === "friend" && card.id === before.id ? [card] : []))[0];
+
+    expect(after.myStatus).toBe("going");
+    expect(after.counts.going).toBe((before.counts.going ?? 0) + 1);
+  });
+
+  it("carry the venue offer the slot domain will own (#492) and the viewer status on it", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+    const venue = (await client.listFeedCards(DEMO_USER_ID)).flatMap((card) => (card.kind === "place" ? [card] : []))[0];
+
+    expect(venue.pricePerHourRub).not.toBeNull();
+    expect(venue.slotLabel).not.toBeNull();
+    expect(venue.rating).not.toBeNull();
+    expect(venue.myStatus).toBeNull();
+
+    await client.setPlaceParticipationStatus(venue.place.id, DEMO_USER_ID, "going");
+    const going = (await client.listFeedCards(DEMO_USER_ID)).flatMap((card) => (card.kind === "place" ? [card] : []))[0];
+    expect(going.myStatus).toBe("going");
+
+    await client.setPlaceParticipationStatus(venue.place.id, DEMO_USER_ID, null);
+    const cleared = (await client.listFeedCards(DEMO_USER_ID)).flatMap((card) => (card.kind === "place" ? [card] : []))[0];
+    expect(cleared.myStatus).toBeNull();
+  });
+
+  it("reject a venue status on an unknown place with 404 and without a viewer with 400", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+
+    await expect(client.setPlaceParticipationStatus("b0000009-0000-4000-8000-000000000009", DEMO_USER_ID, "going")).rejects.toMatchObject({ name: "ApiError", status: 404 });
+    await expect(client.setPlaceParticipationStatus(mockPlaces[0].id, "", "going")).rejects.toMatchObject({ name: "ApiError", status: 400 });
+  });
+});
+
+describe("publication payloads of the composers (#502)", () => {
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+    resetMockFeed();
+  });
+
+  const client = () => new ApiClient("/api");
+
+  it("keeps the caption, the place sticker, the poll and the audience the story table cannot hold", async () => {
+    restore = installMockApi();
+    const composition = { text: "Мангал в Горьком. Кто с нами?", sticker: { eventId: mockEvents[0].id, title: "Мангальная зона", subtitle: "Парк Горького · 14:00", seatsLeft: 4 }, poll: { question: "Во сколько удобнее?", options: ["14:00", "17:00"], answer: 0 }, audience: "close-friends" as const };
+
+    const story = await client().createStory("data:image/svg+xml;utf8,<svg/>", composition);
+
+    expect(story.imageUrl).toContain("data:image/svg+xml");
+    expect(mockStoryCompositions).toEqual([composition]);
+  });
+
+  it("still publishes a bare story, the way the stories rail does", async () => {
+    restore = installMockApi();
+
+    await client().createStory("data:image/svg+xml;utf8,<svg/>");
+
+    expect(mockStoryCompositions).toEqual([]);
+  });
+
+  it("refuses a half-built composition with 400 instead of publishing it silently stripped", async () => {
+    restore = installMockApi();
+
+    await expect(client().createStory("data:image/svg+xml;utf8,<svg/>", { text: "Мангал", sticker: { eventId: mockEvents[0].id, title: "Мангальная зона", subtitle: "Парк Горького · 14:00", seatsLeft: "четыре" } as never, poll: null, audience: "close-friends" })).rejects.toMatchObject({ name: "ApiError", status: 400 });
+    expect(mockStoryCompositions).toEqual([]);
+  });
+
+  it("keeps the place, the tagged friends, the audience and the join switch beside the published post", async () => {
+    restore = installMockApi();
+
+    const post = await client().createFeedPost({ userId: DEMO_USER_ID, eventId: mockEvents[0].id, text: "Собираемся в субботу", photoUrl: null, photoUrls: [], placeId: mockPlaces[0].id, taggedFriendIds: [mockFriends[0].id, mockFriends[1].id], audience: "company", allowJoin: true });
+
+    expect(mockFeedPostExtras.get(post.id)).toEqual({ photoUrls: [], placeId: mockPlaces[0].id, taggedFriendIds: [mockFriends[0].id, mockFriends[1].id], audience: "company", allowJoin: true });
+  });
+
+  it("stores the autosaved draft and answers when it was saved", async () => {
+    restore = installMockApi();
+    const draft = { userId: DEMO_USER_ID, eventId: null, text: "Собираемся", photoUrls: [], placeId: null, taggedFriendIds: [], audience: "friends" as const, allowJoin: false };
+
+    const receipt = await client().savePostDraft(draft);
+
+    expect(Number.isNaN(Date.parse(receipt.savedAt))).toBe(false);
+    expect(mockPostDrafts.get(DEMO_USER_ID)).toEqual(draft);
+  });
+
+  it("refuses a draft without an author with 400, since drafts are stored per author", async () => {
+    restore = installMockApi();
+
+    await expect(client().savePostDraft({ userId: "", eventId: null, text: "Собираемся", photoUrls: [], placeId: null, taggedFriendIds: [], audience: "friends", allowJoin: false })).rejects.toMatchObject({ name: "ApiError", status: 400 });
+    expect(mockPostDrafts.size).toBe(0);
   });
 });

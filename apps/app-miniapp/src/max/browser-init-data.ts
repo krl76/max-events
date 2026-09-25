@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Production-build WebApp shim for the staging host that talks to the live backend without the MAX client.
-// SCOPE: POST /api/auth/browser-initdata when VITE_BROWSER_AUTH=1 and window.WebApp is absent; no-op otherwise.
-// DEPENDS: ./bridge (MaxWebApp)
+// SCOPE: POST /api/auth/browser-initdata when VITE_BROWSER_AUTH=1 and a real MAX session (non-empty initData) is absent. Replaces the official empty WebApp from st.max.ru (initData is getter-only).
+// DEPENDS: ./dev-init-data (applySignedWebApp)
 // LINKS: M-APP-MINIAPP, DF-MAX-IDENTITY
 // END_MODULE_CONTRACT
 //

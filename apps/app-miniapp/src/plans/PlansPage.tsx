@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: «Моё» screen: personal space with segmented tabs — plans (plan cards per the README example: event, «Ты + N друзей», «Сбор <время> <место>», «<расстояние> от тебя»), calendar (own bookings) and saved lists.
-// SCOPE: Data via apiClient.listPlans (mock or live) at the fixed Moscow center origin; presentational rendering; navigation to the plan screen; calendar and saved tabs reuse the CalendarPage/ListsPage containers; no budget (P4-8) and no route (P3-2/3-3).
+// PURPOSE: «Моё» screen: personal space behind one row of filter pills — plans (plan cards per the README example: event, «Ты + N друзей», «Сбор <время> <место>», «<расстояние> от тебя»), own bookings, the shared month calendar and saved lists.
+// SCOPE: Data via apiClient.listPlans (mock or live) at the fixed Moscow center origin; presentational rendering; navigation to the plan screen; the bookings, calendar and saved sections reuse the CalendarPage/ListsPage containers; no budget (P4-8) and no route (P3-2/3-3).
 // DEPENDS: ../api/client.js (apiClient), ../catalog/MapScreen.js (MOSCOW_CENTER), ../catalog/format.js (pluralRu), ../calendar/CalendarPage.js (CalendarPage), ../lists/ListsPage.js (ListsPage), ../routing/router.js, @max-events/api-contracts (PlanCard, Plan), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -11,8 +11,8 @@
 // - planMeetingLabel - «Сбор <время> <место>» line shared by the card and the plan screen
 // - PlansState - union of plans fetch states (loading / error / ready)
 // - PlansView - presentational: one card per plan per the README example
-// - PlansTab - «Моё» segments: plans | calendar | saved
-// - PlansPage - «Моё» route container: segmented tabs over the plans list, the calendar and the saved lists; entries to the «Мы» groups and the day route builder
+// - PlansTab - разделы «Моё» одним рядом пилюль: plans | bookings | calendar | saved
+// - PlansPage - «Моё» route container: один ряд фильтров над планами, бронями, календарём и сохранённым; entries to the «Мы» groups and the day route builder
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
@@ -100,10 +100,16 @@ export function PlansView({ state, onOpen, onExplore, onCreate }: { state: Plans
   );
 }
 
-export type PlansTab = "plans" | "calendar" | "saved";
+export type PlansTab = "plans" | "bookings" | "calendar" | "saved";
 
+/**
+ * Один ряд вместо двух шапок. «Мои брони» жили во втором переключателе под этим рядом — два разных
+ * элемента управления, одинаковых по смыслу, друг под другом. Здесь это четыре равноправных раздела
+ * одного экрана, и выбор раздела выглядит одинаково независимо от того, какой раздел открыт.
+ */
 const PLANS_TABS: Array<{ id: PlansTab; label: string }> = [
   { id: "plans", label: "Планы" },
+  { id: "bookings", label: "Мои брони" },
   { id: "calendar", label: "Календарь" },
   { id: "saved", label: "Сохранённое" },
 ];
@@ -130,7 +136,7 @@ export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
   }, [origin.latitude, origin.longitude]);
   return (
     <>
-      <div className="app-view-toggle" role="group" aria-label="Разделы «Моё»">
+      <div className="app-tab-row" role="group" aria-label="Разделы «Моё»">
         {PLANS_TABS.map((item) => (
           <AppChip key={item.id} pressed={active === item.id} onClick={() => setActive(item.id)}>
             {item.label}
@@ -143,12 +149,17 @@ export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
             items={[
               { icon: "user", label: "Мы", onClick: () => navigate({ name: "we-groups" }) },
               { icon: "pin", label: "Маршрут на день", onClick: () => navigate({ name: "day-route" }) },
+              // Экран 10 живёт в контуре Поиска (макет), но собрать план он умеет отсюда — с той вкладки,
+              // где план потом и окажется.
+              { icon: "spark", label: "Спросить MAX", onClick: () => navigate({ name: "assist", ask: null }) },
             ]}
           />
           <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} onCreate={() => navigate({ name: "plan-new" })} />
         </>
       )}
-      {active === "calendar" && <CalendarPage />}
+      {/* Одно и то же место в дереве на оба раздела календаря: переключение брони ↔ месяц не размонтирует
+          контейнер и не перезапрашивает обе половины календаря заново. */}
+      {(active === "bookings" || active === "calendar") && <CalendarPage tab={active === "bookings" ? "bookings" : "month"} />}
       {active === "saved" && <ListsPage />}
     </>
   );

@@ -65,7 +65,9 @@ export function OrganizerRatingView({ rating }: { rating: OrganizerRating | null
           </li>
           {rating.onTimePercent !== null && <li>{Math.round(rating.onTimePercent)}% вовремя</li>}
           {rating.attendancePercent !== null && <li>{Math.round(rating.attendancePercent)}% дошли до события</li>}
-          <li>{rating.eventsCount} {pluralRu(rating.eventsCount, "событие", "события", "событий")} в афише</li>
+          <li>
+            {rating.eventsCount} {pluralRu(rating.eventsCount, "событие", "события", "событий")} в афише
+          </li>
         </ul>
       </div>
     </section>

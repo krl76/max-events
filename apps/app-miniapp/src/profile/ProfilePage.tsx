@@ -1,142 +1,300 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Profile screen: Instagram-style topbar (settings gear + name), MAX avatar, stats («События»/«Друзья» navigate to the calendar/friends screens), city/interests display, visit statistics block. Editing lives on the settings route.
-// SCOPE: Data via apiClient.getProfile/listCalendar/getVisitStats/getFriendsActivity/listFeedPosts/listSubscriptions/getAfterMe (mock or live); stats derived from calendar entries; secondary blocks stay silent when their request fails; no navigation logic.
-// DEPENDS: ../api/client.js (apiClient, CalendarEntry, FeedPost), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CATEGORY_LABELS), ../subscriptions/MySubscriptions.js, ../taste/AfterMeSection.js (AfterMeView), ../routing/router.js, ../ui/primitives.js, @max-events/api-contracts (AfterMeResponse, Profile, Subscription, UpdateProfile, User, VisitStats), ../ui/theme.css
+// PURPOSE: Экран 36 «Профиль»: gradient hero with the share/menu actions, the ring avatar, name and the city · interests line, the counters — visit numbers plus the two clickable follow counters — the three social actions, the entry rows with their counter hints and the two grids behind the «Посты» / «Впечатления» switch.
+// SCOPE: The profile screen only — data via apiClient.getProfile/getProfileCounters/listUserPosts/listVisitedPlaces/listLists/listSubscriptions/listFollowing/listFollowers/getAchievements/listWeGroups/listFriends; secondary blocks stay silent when their request fails. Editing lives on the settings route (./SettingsPage.tsx), the follow lists on ../subscriptions/.
+// DEPENDS: ../api/client.js (apiClient, ProfileCounters, ProfilePost, VisitedPlace, ListSummary), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../max/bridge.js (shareResult, webApp), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, @max-events/api-contracts (Achievement, Friend, Profile, Subscription, User, WeGroupScreen), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - ProfileStats - counters derived from calendar entries (events, unique places)
-// - profileStats - derive ProfileStats from calendar entries
-// - toProfilePatch - form drafts (city, comma-separated interests) -> UpdateProfile payload (used by the settings screen)
-// - VisitStatsView - presentational: visit counters per event category (hidden hint when empty)
-// - ProfileState - union of profile fetch states (loading / error / ready)
-// - ProfileView - presentational: topbar (settings gear, centered name), avatar, three-column stats row («События»/«Друзья» as navigation buttons, «Места» as a plain counter), city, interests, impressions grid (3 columns, the post photo when it has one), visit statistics, «Мои подписки», «После меня» (hidden until the taste graph has something)
-// - ProfilePage - route container: resolves auth, loads profile + stats + friends count + own posts + visit stats + subscriptions + after-me suggestions, wires settings, grid navigation and unsubscribe
+// - profileAbout - «Москва · джаз, падел» — the city and the interests on one line, city alone when there are no interests
+// - profileMetrics - the three visit counters with their ru labels declined for the number; «компании» drops out when nothing counts it (#496)
+// - followMetrics - the two clickable counters of the header: everything the viewer follows and everyone following them; a direction that has not arrived is left out rather than printed as a zero
+// - ProfileTab - which grid the profile shows: the posts of the person or the places they have been
+// - PROFILE_TABS - the two grids in screen order, «Посты» first
+// - profileTabLabel - «Посты · 8» — the tab label with its count, bare until the count arrives
+// - listsHint - «6 готовых полок и 3 своих» from the lists of the viewer
+// - achievementsHint - «1 из 4 собрано»
+// - weGroupsHint - «3 активные компании» counting only the groups still open
+// - friendsHint - «24 из чатов MAX»
+// - visitsLabel - «12 визитов» under an impression cell
+// - ProfileRow - one entry row: icon tile, title, counter hint, chevron
+// - ProfilePostGrid - the post grid of the profile with its three states: the tiles, the invitation to publish, the loading placeholders
+// - ProfileEntries - what the entry rows, the counters and the grids of экран 36 lead to
+// - ProfileView - presentational: hero, avatar, identity, counters, actions, entry rows, the grid switch and the grid under it
+// - ProfilePage - route container: resolves auth, loads the profile and every counter the screen shows, wires the navigation and the share action
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import type { AfterMeResponse, Profile, Subscription, UpdateProfile, User, VisitStats } from "@max-events/api-contracts";
-import { apiClient, type CalendarEntry, type FeedPost } from "../api/client";
+import type { Achievement, Friend, Profile, Subscription, User, WeGroupScreen } from "@max-events/api-contracts";
+import { apiClient, type ListSummary, type ProfileCounters, type ProfilePost, type VisitedPlace } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { CATEGORY_LABELS } from "../catalog/CatalogPage";
-import { AppAvatar, AppState, AppSkeleton, AppSection } from "../ui/primitives";
-import { ActionIcon } from "../ui/icons";
-import { MySubscriptionsView } from "../subscriptions/MySubscriptions";
-import { AfterMeView } from "../taste/AfterMeSection";
+import { pluralRu } from "../catalog/format";
+import { shareResult, webApp } from "../max/bridge";
 import { useRoute } from "../routing/router";
+import { ActionIcon, type ActionIconName } from "../ui/icons";
+import { AppMedia, AppSkeleton, AppState } from "../ui/primitives";
 
-export interface ProfileStats {
-  events: number;
-  places: number;
+/** The single line under the name: город and interests, separated the way the design separates them. */
+export function profileAbout(profile: Pick<Profile, "city" | "interests">): string {
+  return profile.interests.length === 0 ? profile.city : `${profile.city} · ${profile.interests.join(", ")}`;
 }
 
-export function profileStats(entries: CalendarEntry[]): ProfileStats {
-  return { events: entries.length, places: new Set(entries.map((entry) => entry.place?.id).filter(Boolean)).size };
+/**
+ * The three visit counters. «Компании» is nullable on purpose: no service counts companies yet (#496),
+ * and a fabricated zero would read as «ты ни с кем не ходил» instead of «мы пока не считаем».
+ */
+export function profileMetrics(counters: ProfileCounters | null): { value: number; label: string }[] {
+  if (counters === null) return [];
+  const metrics = [
+    { value: counters.eventsCount, label: pluralRu(counters.eventsCount, "событие", "события", "событий") },
+    { value: counters.placesCount, label: pluralRu(counters.placesCount, "место", "места", "мест") },
+  ];
+  if (counters.companiesCount !== null) metrics.push({ value: counters.companiesCount, label: pluralRu(counters.companiesCount, "компания", "компании", "компаний") });
+  return metrics;
 }
 
-export function toProfilePatch(cityDraft: string, interestsDraft: string): UpdateProfile {
-  const city = cityDraft.trim();
-  return {
-    ...(city === "" ? {} : { city }),
-    interests: interestsDraft
-      .split(",")
-      .map((interest) => interest.trim())
-      .filter(Boolean),
-  };
+/**
+ * The two counters a social profile is read by, and the only ones on this screen that lead anywhere.
+ *
+ * «Подписки» is one number over two stores on purpose: the viewer follows organizers, places and
+ * interests (`subscriptions`) and also people (the follow set of экран 02, which is not a Subscription,
+ * #501). Two numbers under one word on one screen would be a riddle, so the header prints the total and
+ * the list behind it shows all four kinds. A direction whose request has not answered yet is left out
+ * entirely — a counter stuck on zero reads as «никто», which is worse than no counter at all.
+ */
+export function followMetrics(input: { subscriptions: Subscription[] | null; following: Friend[] | null; followers: Friend[] | null }): { id: "subscriptions" | "followers"; value: number; label: string }[] {
+  const metrics: { id: "subscriptions" | "followers"; value: number; label: string }[] = [];
+  if (input.subscriptions !== null && input.following !== null) {
+    const value = input.subscriptions.length + input.following.length;
+    metrics.push({ id: "subscriptions", value, label: pluralRu(value, "подписка", "подписки", "подписок") });
+  }
+  if (input.followers !== null) {
+    const value = input.followers.length;
+    metrics.push({ id: "followers", value, label: pluralRu(value, "подписчик", "подписчика", "подписчиков") });
+  }
+  return metrics;
 }
 
-export type ProfileState = { status: "loading" } | { status: "error" } | { status: "ready"; profile: Profile };
+export type ProfileTab = "posts" | "places";
 
-export function VisitStatsView({ stats }: { stats: VisitStats | null }) {
+/** Screen order: what the person published comes before where they have been, as on any social profile. */
+export const PROFILE_TABS: ReadonlyArray<{ id: ProfileTab; label: string }> = [
+  { id: "posts", label: "Посты" },
+  { id: "places", label: "Впечатления" },
+];
+
+/** «Посты · 8». The count is dropped rather than shown as 0 while the request is still on its way. */
+export function profileTabLabel(tab: ProfileTab, count: number | null): string {
+  const label = PROFILE_TABS.find((candidate) => candidate.id === tab)!.label;
+  return count === null ? label : `${label} · ${count}`;
+}
+
+/** «6 готовых полок и 3 своих»: the preset shelves the product ships with, then what the viewer added. */
+export function listsHint(lists: ListSummary[]): string {
+  const presets = lists.filter((row) => row.list.preset !== null).length;
+  const own = lists.length - presets;
+  return `${presets} ${pluralRu(presets, "готовая полка", "готовые полки", "готовых полок")} и ${own} ${pluralRu(own, "своя", "свои", "своих")}`;
+}
+
+export function achievementsHint(achievements: Achievement[]): string {
+  return `${achievements.filter((item) => item.grantedAt !== null).length} из ${achievements.length} собрано`;
+}
+
+/** «3 активные компании»: an archived group is a memory, not a company you are still in. */
+export function weGroupsHint(groups: WeGroupScreen[]): string {
+  const active = groups.filter((row) => row.group.archivedAt === null).length;
+  return `${active} ${pluralRu(active, "активная компания", "активные компании", "активных компаний")}`;
+}
+
+export function friendsHint(friends: number): string {
+  return `${friends} из чатов MAX`;
+}
+
+export function visitsLabel(visits: number): string {
+  return `${visits} ${pluralRu(visits, "визит", "визита", "визитов")}`;
+}
+
+export function ProfileRow({ icon, title, hint, onClick }: { icon: ActionIconName; title: string; hint: string | null; onClick: () => void }) {
   return (
-    <AppSection title="Статистика посещений">
-      {stats === null || (stats.eventsCount === 0 && stats.placesCount === 0) ? (
-        <p className="app-today-summary">Пока нет посещений — отметьтесь «Я здесь» на странице события.</p>
-      ) : (
-        <ul className="app-participation-counters">
-          {stats.byCategory
-            .filter((item) => item.count > 0)
-            .map((item) => (
-              <li key={item.category}>
-                {CATEGORY_LABELS[item.category]}: {item.count}
-              </li>
-            ))}
-        </ul>
-      )}
-    </AppSection>
+    <button type="button" className="app-me-row" onClick={onClick}>
+      <span className="app-me-row-icon" aria-hidden="true">
+        <ActionIcon name={icon} size={20} strokeWidth={2.2} />
+      </span>
+      <span className="app-me-row-text">
+        <span className="app-me-row-title">{title}</span>
+        {hint !== null && <span className="app-me-row-hint">{hint}</span>}
+      </span>
+      <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
+    </button>
   );
 }
 
-interface ProfileViewProps {
-  user: User;
-  profile: Profile;
-  stats: ProfileStats;
-  friendsCount: number;
-  posts: FeedPost[];
-  visitStats: VisitStats | null;
-  subscriptions?: Subscription[];
-  afterMe?: AfterMeResponse | null;
-  removingSubscriptionId?: string | null;
-  unsubscribeFailed?: boolean;
-  onUnsubscribe?: (subscriptionId: string) => void;
-  onOpenSettings: () => void;
-  onOpenEvents: () => void;
-  onOpenFriends: () => void;
-  onOpenEvent?: (eventId: string) => void;
+/** How many placeholder tiles the loading grid holds: two full rows, so the block has the height it will keep. */
+const POST_SKELETON_TILES = 6;
+
+/**
+ * The post grid and the three states it can be in. A tile carries no text — none would fit — so it is
+ * recognised by its cover and its counters: the author's own impression photo when there is one, and
+ * the category gradient of the event otherwise, because the product shows no photographs of people.
+ */
+export function ProfilePostGrid({ posts, failed, onOpenPost, onNewPost }: { posts: ProfilePost[] | null; failed: boolean; onOpenPost: (post: ProfilePost) => void; onNewPost: () => void }) {
+  if (failed) return <AppState error>Не удалось загрузить посты.</AppState>;
+  if (posts === null)
+    return (
+      <div className="app-me-posts" role="status" aria-label="Загружаем посты">
+        {Array.from({ length: POST_SKELETON_TILES }, (_, index) => (
+          <AppSkeleton key={index} variant="block" className="app-me-post-skeleton" />
+        ))}
+      </div>
+    );
+  if (posts.length === 0) {
+    return (
+      <AppState hint="Впечатление с фотографией или без — оно встанет плиткой сюда." action={{ label: "Опубликовать впечатление", onClick: onNewPost }}>
+        Постов пока нет
+      </AppState>
+    );
+  }
+  return (
+    <div className="app-me-posts">
+      {posts.map((post) => (
+        <button key={post.postId} type="button" className="app-me-post" aria-label={`Пост о событии «${post.eventTitle}»`} onClick={() => onOpenPost(post)}>
+          {post.photoUrl === null ? <AppMedia category={post.category} className="app-me-post-media" /> : <img className="app-me-post-photo" alt="" src={post.photoUrl} />}
+          <span className="app-me-post-stats" aria-hidden="true">
+            <span className="app-me-post-stat">
+              <ActionIcon name="heart" size={14} strokeWidth={2.4} />
+              {post.likesCount}
+            </span>
+            <span className="app-me-post-stat">
+              <ActionIcon name="comment" size={14} strokeWidth={2.4} />
+              {post.commentsCount}
+            </span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
 }
 
-export function ProfileView({ user, profile, stats, friendsCount, posts, visitStats, subscriptions = [], afterMe = null, removingSubscriptionId = null, unsubscribeFailed = false, onUnsubscribe = () => {}, onOpenSettings, onOpenEvents, onOpenFriends, onOpenEvent }: ProfileViewProps) {
+export interface ProfileEntries {
+  onSettings: () => void;
+  onShare: () => void;
+  onLists: () => void;
+  onSubscriptions: () => void;
+  onFollowers: () => void;
+  onAchievements: () => void;
+  onWeGroups: () => void;
+  onFriends: () => void;
+  onSubscribe: () => void;
+  onWrite: () => void;
+  onInvite: () => void;
+  onOpenPost: (post: ProfilePost) => void;
+  onNewPost: () => void;
+  onOpenPlace: (placeId: string) => void;
+  onTab: (tab: ProfileTab) => void;
+}
+
+interface ProfileViewProps extends ProfileEntries {
+  user: User;
+  profile: Profile;
+  counters: ProfileCounters | null;
+  lists: ListSummary[] | null;
+  subscriptions: Subscription[] | null;
+  following: Friend[] | null;
+  followers: Friend[] | null;
+  achievements: Achievement[] | null;
+  weGroups: WeGroupScreen[] | null;
+  friendsCount: number | null;
+  posts: ProfilePost[] | null;
+  postsFailed: boolean;
+  visitedPlaces: VisitedPlace[];
+  tab: ProfileTab;
+}
+
+export function ProfileView({ user, profile, counters, lists, subscriptions, following, followers, achievements, weGroups, friendsCount, posts, postsFailed, visitedPlaces, tab, ...entries }: ProfileViewProps) {
+  const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+  const numbers = profileMetrics(counters);
+  const follows = followMetrics({ subscriptions, following, followers });
+  const openList = { subscriptions: entries.onSubscriptions, followers: entries.onFollowers };
   return (
-    <section className="app-profile">
-      <div className="app-profile-topbar">
-        <button type="button" className="app-profile-topbar-action" aria-label="Настройки профиля" onClick={onOpenSettings}>
-          <ActionIcon name="settings" size={24} />
-        </button>
-        <span className="app-profile-topbar-name">{user.username ? `@${user.username}` : [user.firstName, user.lastName].filter(Boolean).join(" ")}</span>
-      </div>
-      <div className="app-profile-header">
-        <AppAvatar size={86} src={user.avatarUrl}>
-          {user.firstName.charAt(0).toUpperCase()}
-        </AppAvatar>
-        <div className="app-profile-stats">
-          <button type="button" className="app-profile-stat" aria-label="События: открыть календарь" onClick={onOpenEvents}>
-            <span className="app-profile-stat-value">{stats.events}</span>
-            <span className="app-profile-stat-label">События</span>
+    <section className="app-me">
+      <div className="app-me-hero">
+        {/* Две окружности брендбука вместо фотографии: фото людей бриф запрещает */}
+        <span className="app-me-blob app-me-blob--light" aria-hidden="true" />
+        <span className="app-me-blob app-me-blob--cool" aria-hidden="true" />
+        <span className="app-me-hero-actions">
+          <button type="button" className="app-me-hero-action" aria-label="Поделиться профилем" onClick={entries.onShare}>
+            <ActionIcon name="upload" size={18} strokeWidth={2} />
           </button>
-          <button type="button" className="app-profile-stat" aria-label="Друзья: открыть друзей" onClick={onOpenFriends}>
-            <span className="app-profile-stat-value">{friendsCount}</span>
-            <span className="app-profile-stat-label">Друзья</span>
+          {/* «…» ведёт в настройки: другого меню у профиля нет, а шестерёнка на макете отсутствует */}
+          <button type="button" className="app-me-hero-action" aria-label="Настройки" onClick={entries.onSettings}>
+            <ActionIcon name="dots" size={18} strokeWidth={2} />
           </button>
-          <span className="app-profile-stat">
-            <span className="app-profile-stat-value">{stats.places}</span>
-            <span className="app-profile-stat-label">Места</span>
-          </span>
-        </div>
+        </span>
       </div>
-      <p className="app-profile-city">{profile.city}</p>
-      {profile.interests.length > 0 && (
-        <div className="app-profile-interests">
-          {profile.interests.map((interest) => (
-            <span key={interest} className="app-profile-interest">
-              {interest}
+      <div className="app-me-avatar-ring">
+        <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={user.avatarUrl} />}</span>
+      </div>
+      <h1 className="app-me-name">{name}</h1>
+      <p className="app-me-about">{profileAbout(profile)}</p>
+      {numbers.length + follows.length > 0 && (
+        <div className="app-me-metrics app-me-metrics--wrap">
+          {numbers.map((metric) => (
+            <span key={metric.label} className="app-me-metric">
+              <span className="app-me-metric-value">{metric.value}</span>
+              <span className="app-me-metric-label">{metric.label}</span>
             </span>
           ))}
-        </div>
-      )}
-      {posts.length > 0 && (
-        <div className="app-profile-grid" aria-label="Впечатления">
-          {posts.map((post) => (
-            <button key={post.id} type="button" className="app-profile-cell" aria-label={post.text.slice(0, 40)} onClick={onOpenEvent ? () => onOpenEvent(post.eventId) : undefined}>
-              {/* The grid already pays for the photo in the payload; leaving it out drew grey squares. */}
-              {post.photoUrl !== null && <img className="app-profile-cell-photo" src={post.photoUrl} alt="" />}
+          {/* Подписки и подписчики — кнопки, а не цифры: за каждой стоит список, и это единственное, что отличает их от визитов */}
+          {follows.map((metric) => (
+            <button key={metric.id} type="button" className="app-me-metric app-me-metric--link" onClick={openList[metric.id]}>
+              <span className="app-me-metric-value">{metric.value}</span>
+              <span className="app-me-metric-label">{metric.label}</span>
             </button>
           ))}
         </div>
       )}
-      <VisitStatsView stats={visitStats} />
-      <MySubscriptionsView subscriptions={subscriptions} removingId={removingSubscriptionId} failed={unsubscribeFailed} onUnsubscribe={onUnsubscribe} />
-      <AfterMeView response={afterMe} onOpen={onOpenEvent} />
+      <div className="app-me-actions">
+        <button type="button" className="app-me-action app-me-action--primary" onClick={entries.onSubscribe}>
+          Подписаться
+        </button>
+        <button type="button" className="app-me-action" onClick={entries.onWrite}>
+          Написать
+        </button>
+        <button type="button" className="app-me-action" onClick={entries.onInvite}>
+          Позвать
+        </button>
+      </div>
+      {/* Строки «Подписки» здесь больше нет: подписки переехали в счётчик шапки, откуда их видно, не открывая раздел */}
+      <nav className="app-me-rows" aria-label="Разделы профиля">
+        <ProfileRow icon="bookmark" title="Списки" hint={lists === null ? null : listsHint(lists)} onClick={entries.onLists} />
+        <ProfileRow icon="medal" title="Достижения" hint={achievements === null ? null : achievementsHint(achievements)} onClick={entries.onAchievements} />
+        <ProfileRow icon="group" title="Мы · группы" hint={weGroups === null ? null : weGroupsHint(weGroups)} onClick={entries.onWeGroups} />
+        <ProfileRow icon="user" title="Друзья" hint={friendsCount === null ? null : friendsHint(friendsCount)} onClick={entries.onFriends} />
+      </nav>
+      <div className="app-me-tabs" role="tablist" aria-label="Что показывать">
+        {PROFILE_TABS.map((candidate) => (
+          <button key={candidate.id} type="button" role="tab" id={`app-me-tab-${candidate.id}`} aria-selected={tab === candidate.id} aria-controls="app-me-tabpanel" className={tab === candidate.id ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => entries.onTab(candidate.id)}>
+            {profileTabLabel(candidate.id, candidate.id === "posts" ? (posts?.length ?? null) : visitedPlaces.length)}
+          </button>
+        ))}
+      </div>
+      <div id="app-me-tabpanel" role="tabpanel" aria-labelledby={`app-me-tab-${tab}`}>
+        {tab === "posts" && <ProfilePostGrid posts={posts} failed={postsFailed} onOpenPost={entries.onOpenPost} onNewPost={entries.onNewPost} />}
+        {tab === "places" && visitedPlaces.length === 0 && <AppState>Мест пока нет — отметьтесь где-нибудь, и они появятся здесь.</AppState>}
+        {tab === "places" && visitedPlaces.length > 0 && (
+          <div className="app-me-grid">
+            {visitedPlaces.map((place, index) => (
+              <button key={place.placeId} type="button" className={`app-me-cell app-me-cell--${(index % 4) + 1}`} onClick={() => entries.onOpenPlace(place.placeId)}>
+                <span className="app-me-cell-blob" aria-hidden="true" />
+                <span className="app-me-cell-veil">
+                  <span className="app-me-cell-title">{place.title}</span>
+                  <span className="app-me-cell-visits">{visitsLabel(place.visits)}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -144,62 +302,76 @@ export function ProfileView({ user, profile, stats, friendsCount, posts, visitSt
 interface ProfileData {
   profile: Profile | null;
   failed: boolean;
-  stats: ProfileStats;
-  friendsCount: number;
-  posts: FeedPost[];
-  visitStats: VisitStats | null;
-  subscriptions: Subscription[];
-  afterMe: AfterMeResponse | null;
+  counters: ProfileCounters | null;
+  lists: ListSummary[] | null;
+  subscriptions: Subscription[] | null;
+  following: Friend[] | null;
+  followers: Friend[] | null;
+  achievements: Achievement[] | null;
+  weGroups: WeGroupScreen[] | null;
+  friendsCount: number | null;
+  posts: ProfilePost[] | null;
+  postsFailed: boolean;
+  visitedPlaces: VisitedPlace[];
 }
 
+const EMPTY_PROFILE_DATA: ProfileData = { profile: null, failed: false, counters: null, lists: null, subscriptions: null, following: null, followers: null, achievements: null, weGroups: null, friendsCount: null, posts: null, postsFailed: false, visitedPlaces: [] };
+
 function useProfileData(userId: string): ProfileData {
-  const [data, setData] = useState<ProfileData>({ profile: null, failed: false, stats: { events: 0, places: 0 }, friendsCount: 0, posts: [], visitStats: null, subscriptions: [], afterMe: null });
+  const [data, setData] = useState<ProfileData>(EMPTY_PROFILE_DATA);
 
   useEffect(() => {
     let alive = true;
-    setData({ profile: null, failed: false, stats: { events: 0, places: 0 }, friendsCount: 0, posts: [], visitStats: null, subscriptions: [], afterMe: null });
+    setData(EMPTY_PROFILE_DATA);
+    const put = (patch: Partial<ProfileData>) => {
+      if (alive) setData((current) => ({ ...current, ...patch }));
+    };
+    // The profile is the screen; every counter below it is a hint, so a failed hint stays silent
+    // (null) and its row simply carries no subtitle instead of blanking the screen.
     apiClient.getProfile().then(
-      (profile) => {
-        if (alive) setData((current) => ({ ...current, profile }));
-      },
-      () => {
-        if (alive) setData((current) => ({ ...current, failed: true }));
-      },
+      (profile) => put({ profile }),
+      () => put({ failed: true }),
     );
-    apiClient.listCalendar().then(
-      (entries) => {
-        if (alive) setData((current) => ({ ...current, stats: profileStats(entries) }));
-      },
+    apiClient.getProfileCounters(userId).then(
+      (counters) => put({ counters }),
       () => {},
     );
-    apiClient.getVisitStats(userId).then(
-      (visitStats) => {
-        if (alive) setData((current) => ({ ...current, visitStats }));
-      },
+    apiClient.listVisitedPlaces(userId).then(
+      (visitedPlaces) => put({ visitedPlaces }),
       () => {},
     );
-    apiClient.getFriendsActivity(userId).then(
-      (groups) => {
-        if (alive) setData((current) => ({ ...current, friendsCount: groups.length }));
-      },
-      () => {},
+    // The posts are a block of the screen rather than a hint, so their failure is said out loud:
+    // silence here would leave the grid in its loading state for good.
+    apiClient.listUserPosts(userId).then(
+      (posts) => put({ posts }),
+      () => put({ postsFailed: true }),
     );
-    apiClient.listFeedPosts().then(
-      (posts) => {
-        if (alive) setData((current) => ({ ...current, posts: posts.filter((post) => post.author.id === userId) }));
-      },
+    apiClient.listLists(userId).then(
+      (lists) => put({ lists }),
       () => {},
     );
     apiClient.listSubscriptions().then(
-      (subscriptions) => {
-        if (alive) setData((current) => ({ ...current, subscriptions }));
-      },
+      (subscriptions) => put({ subscriptions }),
       () => {},
     );
-    apiClient.getAfterMe().then(
-      (afterMe) => {
-        if (alive) setData((current) => ({ ...current, afterMe }));
-      },
+    apiClient.listFollowing(userId).then(
+      (following) => put({ following }),
+      () => {},
+    );
+    apiClient.listFollowers(userId).then(
+      (followers) => put({ followers }),
+      () => {},
+    );
+    apiClient.getAchievements(userId).then(
+      (achievements) => put({ achievements }),
+      () => {},
+    );
+    apiClient.listWeGroups().then(
+      (weGroups) => put({ weGroups }),
+      () => {},
+    );
+    apiClient.listFriends().then(
+      (friends) => put({ friendsCount: friends.length }),
       () => {},
     );
     return () => {
@@ -212,31 +384,11 @@ function useProfileData(userId: string): ProfileData {
 
 function AuthenticatedProfile({ user }: { user: User }) {
   const { navigate } = useRoute();
-  const { profile, failed, stats, friendsCount, posts, visitStats, subscriptions, afterMe } = useProfileData(user.id);
-  const [removingSubscriptionId, setRemovingSubscriptionId] = useState<string | null>(null);
-  // Removed ids rather than a rewritten list: the loader owns its state, this only hides what is gone.
-  const [removedSubscriptionIds, setRemovedSubscriptionIds] = useState<string[]>([]);
+  const data = useProfileData(user.id);
+  const [tab, setTab] = useState<ProfileTab>("posts");
 
-  const [unsubscribeFailed, setUnsubscribeFailed] = useState(false);
-
-  const unsubscribe = (subscriptionId: string) => {
-    setRemovingSubscriptionId(subscriptionId);
-    setUnsubscribeFailed(false);
-    apiClient.removeSubscription(subscriptionId).then(
-      () => {
-        setRemovedSubscriptionIds((ids) => [...ids, subscriptionId]);
-        setRemovingSubscriptionId(null);
-      },
-      () => {
-        // The row stays, so the failure has to be said out loud or the button just looks dead.
-        setUnsubscribeFailed(true);
-        setRemovingSubscriptionId(null);
-      },
-    );
-  };
-
-  if (failed) return <AppState error>Не удалось загрузить профиль.</AppState>;
-  if (profile === null)
+  if (data.failed) return <AppState error>Не удалось загрузить профиль.</AppState>;
+  if (data.profile === null)
     return (
       <div className="app-card" aria-hidden="true">
         <div className="app-card-body">
@@ -246,7 +398,41 @@ function AuthenticatedProfile({ user }: { user: User }) {
         </div>
       </div>
     );
-  return <ProfileView user={user} profile={profile} stats={stats} friendsCount={friendsCount} posts={posts} visitStats={visitStats} subscriptions={subscriptions.filter((row) => !removedSubscriptionIds.includes(row.id))} afterMe={afterMe} removingSubscriptionId={removingSubscriptionId} unsubscribeFailed={unsubscribeFailed} onUnsubscribe={unsubscribe} onOpenSettings={() => navigate({ name: "settings" })} onOpenEvents={() => navigate({ name: "calendar" })} onOpenFriends={() => navigate({ name: "friends" })} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
+  return (
+    <ProfileView
+      user={user}
+      profile={data.profile}
+      counters={data.counters}
+      lists={data.lists}
+      subscriptions={data.subscriptions}
+      following={data.following}
+      followers={data.followers}
+      achievements={data.achievements}
+      weGroups={data.weGroups}
+      friendsCount={data.friendsCount}
+      posts={data.posts}
+      postsFailed={data.postsFailed}
+      visitedPlaces={data.visitedPlaces}
+      tab={tab}
+      onTab={setTab}
+      onSettings={() => navigate({ name: "settings" })}
+      onShare={() => void shareResult(webApp, `${[user.firstName, user.lastName].filter(Boolean).join(" ")} в Афише MAX`)}
+      // Экрана «Списки» нет: полки живут вкладкой «Сохранённое» экрана «Моё»
+      onLists={() => navigate({ name: "plans" })}
+      onSubscriptions={() => navigate({ name: "subscriptions" })}
+      onFollowers={() => navigate({ name: "followers" })}
+      onAchievements={() => navigate({ name: "achievements" })}
+      onWeGroups={() => navigate({ name: "we-groups" })}
+      onFriends={() => navigate({ name: "friends" })}
+      onSubscribe={() => navigate({ name: "subscriptions" })}
+      onWrite={() => void shareResult(webApp, `${[user.firstName, user.lastName].filter(Boolean).join(" ")} в Афише MAX`)}
+      onInvite={() => navigate({ name: "plan-new" })}
+      // Своего экрана у поста нет: он живёт стеной события, куда плитка и ведёт
+      onOpenPost={(post) => navigate({ name: "event", id: post.eventId })}
+      onNewPost={() => navigate({ name: "feed-new", eventId: null })}
+      onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })}
+    />
+  );
 }
 
 export function ProfilePage() {

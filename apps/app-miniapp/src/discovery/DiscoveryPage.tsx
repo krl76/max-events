@@ -1,162 +1,121 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Reverse discovery screen (#189) «Твои люди открыли N мест»: per-friend cards of places the viewer has not visited, expandable place lists and a «Посмотреть маршрут» friend timeline.
-// SCOPE: Data via apiClient.getDiscovery/getFriendRoute (mock or live); route timeline local state; CTAs navigate to the place route; loading/error/empty states. Privacy is backend-driven: friends with hidden routes show only counts, without place lists and route CTAs.
-// DEPENDS: ../api/client.js (apiClient, ApiError), @max-events/api-contracts (DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute), ../friends/FriendsPage.js (initials), ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/primitives.js, ../ui/theme.css
+// PURPOSE: Экран 27 «Друзья открыли»: how many places friends have been to and the viewer has not, per friend, with «История посещений скрыта» drawn as a normal state rather than an error.
+// SCOPE: Data via apiClient.getDiscovery (mock or live); a friend row opens their route (экран 28), a place chip opens экран 34; loading/error/empty states. Privacy is backend-driven: a friend who hid their routes keeps the counter and loses the chips, a friend who hid the visit history keeps neither.
+// DEPENDS: ../api/client.js (apiClient, DiscoveryFriendCard, DiscoveryScreen), ../friends/avatar.js, ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - discoveryHeadline - «мест, где были твои друзья, а ты ещё нет» agreed with the number above it
+// - friendPlacesLine - «7 новых для тебя мест» under a friend name
 // - DiscoveryState - summary fetch union (loading / error / ready)
-// - RouteState - friend route union (idle / loading / error / ready)
-// - routeErrorMessage - ApiError 403 -> hidden-route text, otherwise the fallback
-// - DiscoveryView - presentational: summary line, friend cards with expandable place lists, route timeline
-// - DiscoveryPage - route container: loads the summary, wires route loading and place navigation
+// - DiscoveryFriendRow - one friend card: face, name, the line under it and either place chips or the lock
+// - DiscoveryView - presentational экран 27: gradient counter, friend cards, the privacy footnote
+// - DiscoveryPage - route container: loads the summary, wires the route and place navigation
 // END_MODULE_MAP
 
-import { useEffect, useState } from "react";
-import type { DiscoveryFriendPlaces, DiscoveryResponse, FriendRoute } from "@max-events/api-contracts";
-import { ApiError, apiClient } from "../api/client";
-import { initials } from "../friends/FriendsPage";
+import { useCallback, useEffect, useState } from "react";
+import { apiClient, type DiscoveryFriendCard, type DiscoveryScreen } from "../api/client";
+import { PersonAvatar } from "../friends/avatar";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
-import { AppAvatar, AppButton, AppTitle, AppState } from "../ui/primitives";
+import { ActionIcon } from "../ui/icons";
+import { AppSkeletonList, AppState } from "../ui/primitives";
 
-export type DiscoveryState = { status: "loading" } | { status: "error" } | { status: "ready"; data: DiscoveryResponse };
-
-export type RouteState = { status: "idle" } | { status: "loading"; friendId: string } | { status: "error"; friendId: string; message: string } | { status: "ready"; friendId: string; route: FriendRoute };
-
-export function routeErrorMessage(error: unknown): string {
-  if (error instanceof ApiError && error.status === 403) return "Друг скрыл свой маршрут.";
-  return "Не удалось загрузить маршрут.";
+/** The number lives in the hero on its own line, so the words under it agree with it and nothing else. */
+export function discoveryHeadline(count: number): string {
+  return `${pluralRu(count, "место", "места", "мест")}, где были твои друзья, а ты ещё нет`;
 }
 
-function PlaceRow({ placeId, title, subtitle, onOpenPlace }: { placeId: string; title: string; subtitle: string | null; onOpenPlace: (id: string) => void }) {
+export function friendPlacesLine(count: number): string {
+  return `${count} ${pluralRu(count, "новое для тебя место", "новых для тебя места", "новых для тебя мест")}`;
+}
+
+/** The design previews four venues under a name; the counter above carries the rest. */
+const MAX_PLACE_CHIPS = 4;
+
+export type DiscoveryState = { status: "loading" } | { status: "error" } | { status: "ready"; data: DiscoveryScreen };
+
+export function DiscoveryFriendRow({ entry, onShowRoute, onOpenPlace }: { entry: DiscoveryFriendCard; onShowRoute: (userId: string) => void; onOpenPlace: (placeId: string) => void }) {
   return (
-    <li className="app-nearby-stop">
-      <span aria-hidden>📍</span>
-      <span className="app-nearby-stop-title">
-        {title}
-        {subtitle === null ? "" : ` · ${subtitle}`}
-      </span>
-      <button type="button" className="app-nearby-stop-open" onClick={() => onOpenPlace(placeId)}>
-        Открыть
-      </button>
-    </li>
-  );
-}
-
-interface FriendDiscoveryCardProps {
-  entry: DiscoveryFriendPlaces;
-  route: RouteState;
-  onShowRoute: (friendId: string) => void;
-  onOpenPlace: (placeId: string) => void;
-}
-
-function FriendDiscoveryCard({ entry, route, onShowRoute, onOpenPlace }: FriendDiscoveryCardProps) {
-  const firstName = entry.friend.name.split(" ")[0];
-  const routeMine = route.status !== "idle" && route.friendId === entry.friend.id;
-  return (
-    <section className="app-friends-group">
-      <div className="app-friends-person">
-        <AppAvatar size={44}>{initials(entry.friend.name)}</AppAvatar>
-        <span className="app-friends-name">{entry.friend.name}</span>
+    <article className="app-disco-card">
+      <div className="app-disco-head">
+        <PersonAvatar id={entry.friend.id} name={entry.friend.name} size={40} />
+        <div className="app-disco-person">
+          <span className="app-disco-name">{entry.friend.name}</span>
+          <span className="app-disco-line">{entry.visitHistoryHidden ? "История посещений скрыта" : friendPlacesLine(entry.newPlacesCount)}</span>
+        </div>
+        {entry.visitHistoryHidden ? (
+          <span className="app-disco-lock" aria-hidden="true">
+            <ActionIcon name="lock" size={20} strokeWidth={2.2} />
+          </span>
+        ) : (
+          <button type="button" className="app-disco-route" onClick={() => onShowRoute(entry.friend.id)}>
+            Маршрут
+          </button>
+        )}
       </div>
-      <p className="app-today-summary">
-        {entry.visitHistoryHidden
-          ? `${firstName} скрыл историю посещений`
-          : `${firstName}: ${entry.newPlacesCount} ${pluralRu(entry.newPlacesCount, "новое место", "новых места", "новых мест")}`}
-      </p>
       {entry.places.length > 0 && (
-        <details className="app-card app-nearby-option">
-          <summary className="app-card-body">
-            <span className="app-card-title">
-              Где побывал{/[ая]$/.test(firstName) ? "а" : ""} {firstName}
-            </span>
-          </summary>
-          <ol className="app-nearby-stops">
-            {entry.places.map((place) => (
-              <PlaceRow key={place.id} placeId={place.id} title={place.title} subtitle={place.address} onOpenPlace={onOpenPlace} />
-            ))}
-          </ol>
-        </details>
-      )}
-      {entry.places.length > 0 && (
-        <AppButton tone="secondary" size="small" disabled={route.status === "loading" && route.friendId === entry.friend.id} onClick={() => onShowRoute(entry.friend.id)}>
-          Посмотреть маршрут
-        </AppButton>
-      )}
-      {routeMine && route.status === "loading" && <AppState>Загружаем маршрут…</AppState>}
-      {routeMine && route.status === "error" && <AppState error>{route.message}</AppState>}
-      {routeMine && route.status === "ready" && route.route.places.length === 0 && <AppState>Все места из маршрута ты уже видел.</AppState>}
-      {routeMine && route.status === "ready" && route.route.places.length > 0 && (
-        <ol className="app-nearby-stops" aria-label={`Маршрут: ${entry.friend.name}`}>
-          {route.route.places.map((place) => (
-            <PlaceRow key={place.id} placeId={place.id} title={place.title} subtitle={place.address} onOpenPlace={onOpenPlace} />
+        <div className="app-disco-chips">
+          {entry.places.slice(0, MAX_PLACE_CHIPS).map((place) => (
+            <button key={place.id} type="button" className="app-disco-chip" onClick={() => onOpenPlace(place.id)}>
+              {place.title}
+            </button>
           ))}
-        </ol>
+        </div>
       )}
-    </section>
+    </article>
   );
 }
 
 interface DiscoveryViewProps {
   state: DiscoveryState;
-  route: RouteState;
-  onShowRoute: (friendId: string) => void;
+  onShowRoute: (userId: string) => void;
   onOpenPlace: (placeId: string) => void;
+  onRetry: () => void;
 }
 
-export function DiscoveryView({ state, route, onShowRoute, onOpenPlace }: DiscoveryViewProps) {
+export function DiscoveryView({ state, onShowRoute, onOpenPlace, onRetry }: DiscoveryViewProps) {
   return (
-    <>
-      <AppTitle asChild>
-        <h2 className="app-section-title">Открытия твоих людей</h2>
-      </AppTitle>
-      {state.status === "loading" && <AppState>Загружаем открытия…</AppState>}
-      {state.status === "error" && <AppState error>Не удалось загрузить открытия друзей.</AppState>}
-      {state.status === "ready" && state.data.byFriend.length === 0 && <AppState>Пока ничего нового — друзья ещё не открыли мест, где ты не был.</AppState>}
-      {state.status === "ready" && state.data.byFriend.length > 0 && (
+    <section className="app-disco">
+      {state.status === "loading" && <AppSkeletonList rows={3} />}
+      {state.status === "error" && (
+        <AppState error action={{ label: "Повторить", onClick: onRetry }}>
+          Не удалось загрузить открытия друзей.
+        </AppState>
+      )}
+      {state.status === "ready" && (
         <>
-          <p className="app-today-summary">
-            Твои люди открыли {state.data.newPlacesCount} {pluralRu(state.data.newPlacesCount, "новое место", "новых места", "новых мест")}
-          </p>
+          {/* Градиент — герой-карточка с коротким текстом: длинного текста на нём не бывает. */}
+          <div className="app-disco-hero">
+            <span className="app-disco-hero-count">{state.data.newPlacesCount}</span>
+            <span className="app-disco-hero-text">{discoveryHeadline(state.data.newPlacesCount)}</span>
+          </div>
+          {state.data.byFriend.length === 0 && <AppState>Пока ничего нового — друзья ещё не открыли мест, где ты не был.</AppState>}
           {state.data.byFriend.map((entry) => (
-            <FriendDiscoveryCard key={entry.friend.id} entry={entry} route={route} onShowRoute={onShowRoute} onOpenPlace={onOpenPlace} />
+            <DiscoveryFriendRow key={entry.friend.id} entry={entry} onShowRoute={onShowRoute} onOpenPlace={onOpenPlace} />
           ))}
+          <p className="app-disco-note">Каждый решает сам, показывать ли свои места. Если история скрыта, мы не показываем ни счётчик, ни маршруты.</p>
         </>
       )}
-    </>
+    </section>
   );
 }
 
 export function DiscoveryPage() {
   const { navigate } = useRoute();
   const [state, setState] = useState<DiscoveryState>({ status: "loading" });
-  const [route, setRoute] = useState<RouteState>({ status: "idle" });
 
-  useEffect(() => {
-    let alive = true;
+  const load = useCallback(() => {
     setState({ status: "loading" });
     apiClient.getDiscovery().then(
-      (data) => {
-        if (alive) setState({ status: "ready", data });
-      },
-      () => {
-        if (alive) setState({ status: "error" });
-      },
+      (data) => setState({ status: "ready", data }),
+      () => setState({ status: "error" }),
     );
-    return () => {
-      alive = false;
-    };
   }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const showRoute = (friendId: string) => {
-    setRoute({ status: "loading", friendId });
-    apiClient.getFriendRoute(friendId).then(
-      (data) => setRoute({ status: "ready", friendId, route: data }),
-      (error: unknown) => setRoute({ status: "error", friendId, message: routeErrorMessage(error) }),
-    );
-  };
-
-  return <DiscoveryView state={state} route={route} onShowRoute={showRoute} onOpenPlace={(id) => navigate({ name: "place", id })} />;
+  return <DiscoveryView state={state} onShowRoute={(id) => navigate({ name: "friend-route", id })} onOpenPlace={(id) => navigate({ name: "place", id })} onRetry={load} />;
 }
