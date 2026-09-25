@@ -14,7 +14,7 @@ import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, P
 import { CreateEventSchema, EventCategorySchema, TimestampSchema, type Event, type EventDetails } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
-import { EventDetailsService } from "./event-details.service";
+import { EventDetailsService, type EventNearbySpot } from "./event-details.service";
 import { EventWeatherService, type EventForecast } from "./event-weather.service";
 import { EVENT_LIST_MAX_LIMIT, EVENT_SORTS, EventsService, type EventListQuery, type EventSort } from "./events.service";
 
@@ -47,6 +47,11 @@ export class EventsController {
   async hourlyForecast(@Param("id", ParseUUIDPipe) id: string): Promise<EventForecast> {
     const event = await this.events.getPublished(id);
     return this.weather.hourlyForEvent(event);
+  }
+
+  @Get(":id/nearby")
+  nearby(@Param("id", ParseUUIDPipe) id: string): Promise<EventNearbySpot[]> {
+    return this.details.nearby(id);
   }
 
   @Get(":id")

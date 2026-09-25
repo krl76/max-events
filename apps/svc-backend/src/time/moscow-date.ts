@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - moscowDateKey - YYYY-MM-DD in Europe/Moscow
+// - moscowHour - 0..23 in Europe/Moscow
 // - moscowTimeLabel - HH:MM in Europe/Moscow, for text a person reads
 // END_MODULE_MAP
 
@@ -14,6 +15,11 @@ export function moscowDateKey(date: Date): string {
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Moscow", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
   const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "00";
   return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
+export function moscowHour(date: Date): number {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Moscow", hour: "2-digit", hourCycle: "h23" }).formatToParts(date);
+  return Number(parts.find((part) => part.type === "hour")?.value ?? 0);
 }
 
 export function moscowTimeLabel(date: Date): string {

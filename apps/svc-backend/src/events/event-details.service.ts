@@ -17,6 +17,7 @@ import { BookingEntity } from "../bookings/booking.entity";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { OrganizationsService, toOrganizationDto } from "../organizations/organizations.service";
 import { ParticipationEntity } from "../participations/participation.entity";
+import { haversineKm } from "../nearby/nearby.service";
 import { PlacesService } from "../places/places.service";
 import { PromotionService } from "../promotion/promotion.service";
 import { ReviewsService } from "../reviews/reviews.service";
@@ -25,6 +26,15 @@ import { toUserDto } from "../users/users.service";
 import { EventEntity } from "./event.entity";
 import { EventWeatherService } from "./event-weather.service";
 import { toEventDto } from "./event.mapper";
+
+export const EVENT_NEARBY_RADIUS_M = 1200;
+
+export type EventNearbySpot = {
+  id: string;
+  title: string;
+  distanceM: number;
+  category: Place["category"];
+};
 
 @Injectable()
 export class EventDetailsService {
@@ -58,6 +68,24 @@ export class EventDetailsService {
       myParticipationStatus: participation?.status ?? null,
       rating,
     };
+  }
+
+  async nearby(eventId: string): Promise<EventNearbySpot[]> {
+    const event = await this.events.findOneBy({ id: eventId });
+    if (!event || event.published === false) throw new NotFoundException("Event not found");
+    const venue = await this.placeFor(event.placeId);
+    if (!venue) return [];
+    const places = await this.places.list({ offset: 0 });
+    return places
+      .filter((place) => place.id !== venue.id)
+      .map((place) => ({
+        id: place.id,
+        title: place.title,
+        category: place.category,
+        distanceM: Math.round(haversineKm(venue.latitude, venue.longitude, place.latitude, place.longitude) * 1000),
+      }))
+      .filter((spot) => spot.distanceM <= EVENT_NEARBY_RADIUS_M)
+      .sort((a, b) => a.distanceM - b.distanceM || a.id.localeCompare(b.id));
   }
 
   private async placeFor(placeId: string | null): Promise<Place | null> {

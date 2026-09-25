@@ -88,6 +88,7 @@ function createService(
     organization?: OrganizationEntity | null;
     reviews?: ReviewEntity[];
     place?: Place | null;
+    nearbyPlaces?: Place[];
   } = {},
 ) {
   const events = createStoreRepo<EventEntity>(opts.event ? [opts.event] : []);
@@ -101,6 +102,7 @@ function createService(
       if (opts.place && opts.place.id === id) return opts.place;
       throw new NotFoundException("Place not found");
     },
+    list: async () => opts.nearbyPlaces ?? (opts.place ? [opts.place] : []),
   } as unknown as PlacesService;
   const reviews = new ReviewsService(reviewRows as unknown as Repository<ReviewEntity>, bookings as unknown as Repository<BookingEntity>, events as unknown as Repository<EventEntity>);
   const promotions = { promotedEventIds: async () => new Set<string>() } as unknown as PromotionService;
@@ -206,5 +208,25 @@ describe("EventDetailsService.get", () => {
   it("throws NotFound for an unknown event", async () => {
     const { service } = createService();
     await expect(service.get(eventId, viewerId)).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe("EventDetailsService.nearby", () => {
+  it("lists published venues within a walk of the event place", async () => {
+    const venue: Place = { id: placeId, title: "Парк Горького", address: "a", city: "Москва", category: "park", latitude: 55.75, longitude: 37.62, published: true, logoUrl: null, createdAt: now.toISOString(), updatedAt: now.toISOString() };
+    const cafe: Place = { ...venue, id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d80", title: "Кафе", category: "food", latitude: 55.7518, longitude: 37.62 };
+    const far: Place = { ...venue, id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d81", title: "Далеко", category: "museum", latitude: 55.9, longitude: 37.62 };
+    const { service } = createService({ event: makeEvent(), place: venue, nearbyPlaces: [venue, cafe, far] });
+    const spots = await service.nearby(eventId);
+    expect(spots.map((spot) => spot.title)).toEqual(["Кафе"]);
+    expect(spots[0]?.distanceM).toBeGreaterThan(0);
+    expect(spots[0]?.distanceM).toBeLessThanOrEqual(1200);
+  });
+
+  it("returns an empty list without a venue and 404s an unpublished event", async () => {
+    const { service: noPlace } = createService({ event: makeEvent({ placeId: null }) });
+    await expect(noPlace.nearby(eventId)).resolves.toEqual([]);
+    const { service: draft } = createService({ event: makeEvent({ published: false }) });
+    await expect(draft.nearby(eventId)).rejects.toBeInstanceOf(NotFoundException);
   });
 });

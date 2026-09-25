@@ -613,12 +613,12 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/events/${eventId}/weather/hourly`, EventForecastSchema);
     }
 
-    /** «Обстановка» tags of экран 17; mock-only, there is no such dictionary in the domain. */
+    /** «Обстановка» tags of экран 17; GET /events/:id/mood-tags. */
     listEventMoodTags(eventId: string): Promise<EventMoodTag[]> {
       return this.request(`/events/${eventId}/mood-tags`, EventMoodTagsSchema);
     }
 
-    /** «Рядом» venues around the event (макет, экран 17); mock-only, nothing selects places around an event. */
+    /** «Рядом» venues around the event (макет, экран 17); GET /events/:id/nearby. */
     listEventNearby(eventId: string): Promise<EventNearbySpot[]> {
       return this.request(`/events/${eventId}/nearby`, EventNearbySchema);
     }

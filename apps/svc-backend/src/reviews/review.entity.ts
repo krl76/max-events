@@ -41,6 +41,9 @@ export class ReviewEntity {
   @Column({ type: "varchar", length: 2000, nullable: true })
   text!: string | null;
 
+  @Column({ type: "text", array: true, default: () => "'{}'" })
+  factTags!: string[];
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 }

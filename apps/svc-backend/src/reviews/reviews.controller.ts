@@ -37,6 +37,16 @@ export class EventRatingsController {
   rating(@Param("id", ParseUUIDPipe) id: string): Promise<EventRating> {
     return this.reviews.eventRating(id);
   }
+
+  @Get(":id/review-facts")
+  factTags(@Param("id", ParseUUIDPipe) id: string): Promise<Array<{ code: string; label: string }>> {
+    return this.reviews.factTags(id);
+  }
+
+  @Get(":id/mood-tags")
+  moodTags(@Param("id", ParseUUIDPipe) id: string): Promise<Array<{ code: string; label: string; count: number }>> {
+    return this.reviews.moodTags(id);
+  }
 }
 
 @Controller("places")

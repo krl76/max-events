@@ -475,7 +475,7 @@ const CheckInCodesSchema = schemaOf("check-in code list", arrayOf(parseCheckInCo
 
 export function withSlots<TBase extends ApiMixin>(Base: TBase) {
   return class SlotEndpoints extends Base {
-    /** Everything экран 34 needs beyond the place page aggregate; mock-only (#492, #495). */
+    /** Everything экран 34 needs beyond the place page aggregate; occupancy is live, slots stay empty until #492. */
     getPlaceBoard(placeId: string, userId: string): Promise<PlaceBoard> {
       return this.request(`/places/${placeId}/board?userId=${encodeURIComponent(userId)}`, PlaceBoardSchema);
     }

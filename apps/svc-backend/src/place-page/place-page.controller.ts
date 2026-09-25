@@ -13,7 +13,7 @@ import { Controller, Get, Inject, Param, ParseUUIDPipe } from "@nestjs/common";
 import type { PlacePage } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
-import { PlacePageService } from "./place-page.service";
+import { PlacePageService, type PlaceBoard } from "./place-page.service";
 
 @Controller("places")
 export class PlacePageController {
@@ -22,5 +22,10 @@ export class PlacePageController {
   @Get(":id/page")
   get(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PlacePage> {
     return this.pages.get(id, user.id);
+  }
+
+  @Get(":id/board")
+  board(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PlaceBoard> {
+    return this.pages.board(id, user.id);
   }
 }

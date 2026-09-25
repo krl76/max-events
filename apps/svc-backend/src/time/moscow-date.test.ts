@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { moscowDateKey, moscowTimeLabel } from "./moscow-date";
+import { moscowDateKey, moscowHour, moscowTimeLabel } from "./moscow-date";
 
 describe("moscowDateKey", () => {
   it("uses Europe/Moscow, not UTC, around midnight", () => {
     expect(moscowDateKey(new Date("2026-09-12T21:30:00Z"))).toBe("2026-09-13");
     expect(moscowDateKey(new Date("2026-09-12T20:00:00Z"))).toBe("2026-09-12");
+  });
+});
+
+describe("moscowHour", () => {
+  it("returns the Moscow hour, three hours ahead of UTC", () => {
+    expect(moscowHour(new Date("2026-09-12T13:00:00Z"))).toBe(16);
   });
 });
 

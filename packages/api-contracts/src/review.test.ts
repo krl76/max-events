@@ -63,6 +63,12 @@ describe("CreateReviewWriteSchema", () => {
     const parsed = CreateReviewWriteSchema.parse({ eventId: review.eventId, stars: 5, wouldGoAgain: true });
     expect(parsed.photos).toEqual([]);
     expect(parsed.eventId).toBe(review.eventId);
+    expect(parsed.factTags).toBeUndefined();
+  });
+
+  it("accepts known fact tags and rejects an unknown code", () => {
+    expect(CreateReviewWriteSchema.parse({ eventId: review.eventId, stars: 5, wouldGoAgain: true, factTags: ["calm", "kids_ok"] }).factTags).toEqual(["calm", "kids_ok"]);
+    expect(CreateReviewWriteSchema.safeParse({ eventId: review.eventId, stars: 5, wouldGoAgain: true, factTags: ["loud"] }).success).toBe(false);
   });
 });
 
