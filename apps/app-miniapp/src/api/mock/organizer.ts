@@ -41,14 +41,18 @@
 // - mockOrganizerAttendance - mock GET /organizer/events/:id/attendance: counters, the roster built from the store's bookings, the seeded waitlist and the venue slots
 // - checkInMockOrganizerGuest - mock POST /organizer/events/:id/check-ins: mark a booking arrived by its entry code
 // - inviteMockOrganizerWaitlist - mock POST /organizer/events/:id/waitlist/invites: offer the freed seats to the head of the waitlist
+// - resetMockOrganizerSetup - clear the настройка state of экран 44 (test isolation and the «первый заход» case of a browser pass)
+// - mockOrganizerSetup - mock GET /organizer/setup: the seeded venue card of макета; no backend column holds any of this
+// - updateMockOrganizerSetup - mock PATCH /organizer/setup: merges the patch, refusing a payment link the Event contract would refuse
+// - completeMockOrganizerSetup - mock POST /organizer/setup/complete: idempotent completedAt stamp
 // END_MODULE_MAP
 
 import { CreatePlaceSchema, EventSchema, StatsPeriodSchema } from "@max-events/api-contracts";
 import type { Booking, CreateEvent, CreatePlace, CreatePromoCampaignWrite, CreatePromoCodeWrite, CreatePromotionWrite, Event, EventSalesReport, OrganizerEventStats, OrganizerRating, OrganizerRatingResponse, PageViewTarget, Payment, Place, PromoCampaign, PromoCode, PromotionCampaign, RecordPageViewWrite, StatsPeriod } from "@max-events/api-contracts";
-import { organizerEntryCode, type OrganizerAttendance, type OrganizerEventOptions, type OrganizerParticipant, type OrganizerSlot, type OrganizerSummary, type OrganizerWaitlistEntry, type UpdateOrganizerEventOptions } from "../client";
+import { ORGANIZER_ACTIVITIES, ORGANIZER_PAYOUT_MODES, ORGANIZER_SETUP_STEPS, organizerEntryCode, type OrganizerAttendance, type OrganizerEventOptions, type OrganizerParticipant, type OrganizerSetup, type OrganizerSlot, type OrganizerSummary, type OrganizerWaitlistEntry, type UpdateOrganizerEventOptions, type UpdateOrganizerSetup } from "../client";
 import { MOCK_COMMISSION_BPS, mockBookings, mockCheckIns, mockPayments } from "./bookings";
 
-import { PLACE_STAMP, event, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganizers, mockPlaces, moscowDateKey, place } from "./fixtures";
+import { PLACE_STAMP, event, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganization, mockOrganizers, mockPlaces, moscowDateKey, place } from "./fixtures";
 import { mockReviews } from "./reviews";
 
 interface MockPageView {
@@ -587,4 +591,105 @@ export function inviteMockOrganizerWaitlist(eventId: string, count: number): { i
   const invited = Math.min(count, attendance.freedSeats, attendance.waitlist.length);
   mockInvitedFromWaitlist.set(eventId, (mockInvitedFromWaitlist.get(eventId) ?? 0) + invited);
   return { invited };
+}
+
+/**
+ * Настройка организатора (макет, экран 44). На бэкенде нет ни одной колонки под это: у организации
+ * есть только id, name, contacts, login, passwordHash и organizerUserId, у площадки нет логотипа, а
+ * «чем занимаетесь» не существует ни как поле, ни как справочник. Поэтому весь шаг живёт здесь — за
+ * той сигнатурой, которую эндпоинт получит, когда его заведут.
+ *
+ * В отличие от остальных моков этот переживает перезагрузку: признак «прошёл настройку» настоящий
+ * сервер хранил бы у себя, и без этого повторный заход в панель снова упирался бы в настройку — то
+ * есть витрина врала бы ровно в том месте, которое и надо проверять.
+ */
+const MOCK_SETUP_KEY = "max-events.mock-organizer-setup";
+
+let mockSetup: OrganizerSetup | null = null;
+
+function defaultMockSetup(): OrganizerSetup {
+  const venue = mockPlaces[0];
+  return {
+    organizationId: mockOrganization.id,
+    step: "venue",
+    completedAt: null,
+    venue: { placeId: venue.id, title: venue.title, address: venue.address, city: venue.city },
+    activities: ["events", "slots"],
+    payouts: { mode: "none", paymentUrl: null, contacts: mockOrganization.contacts },
+  };
+}
+
+function readStoredSetup(): OrganizerSetup | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(MOCK_SETUP_KEY);
+    return raw === null ? null : (JSON.parse(raw) as OrganizerSetup);
+  } catch {
+    return null;
+  }
+}
+
+function storeMockSetup(setup: OrganizerSetup): OrganizerSetup {
+  mockSetup = setup;
+  if (typeof window === "undefined") return setup;
+  try {
+    window.localStorage.setItem(MOCK_SETUP_KEY, JSON.stringify(setup));
+  } catch {
+    // Витрина без записи всё равно работает — просто до перезагрузки.
+  }
+  return setup;
+}
+
+/** Clear the настройка state: test isolation, and the «первый заход» case of a browser pass. */
+export function resetMockOrganizerSetup(): void {
+  mockSetup = null;
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(MOCK_SETUP_KEY);
+  } catch {
+    // Нечего чистить — значит, и не записывалось.
+  }
+}
+
+/** Mock GET /organizer/setup: the seeded «Парк Горького» card макета until настройка changes it. */
+export function mockOrganizerSetup(): OrganizerSetup {
+  mockSetup ??= readStoredSetup() ?? defaultMockSetup();
+  return mockSetup;
+}
+
+/** Backend `Event.paymentUrl` is `z.string().url()`; the mock refuses what that schema would refuse. */
+function isMockUrl(value: string): boolean {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Mock PATCH /organizer/setup. Ссылку на оплату проверяет то же правило, что и у события: платный
+ * режим без разбираемого URL — 400, потому что такого события `EventSchema` всё равно не примет.
+ */
+export function updateMockOrganizerSetup(patch: unknown): OrganizerSetup | "invalid" {
+  if (typeof patch !== "object" || patch === null) return "invalid";
+  const raw = patch as UpdateOrganizerSetup;
+  const current = mockOrganizerSetup();
+  const step = raw.step ?? current.step;
+  if (!ORGANIZER_SETUP_STEPS.includes(step)) return "invalid";
+  const activities = raw.activities ?? current.activities;
+  if (!Array.isArray(activities) || activities.some((item) => !ORGANIZER_ACTIVITIES.includes(item))) return "invalid";
+  const venue = { ...current.venue, ...raw.venue };
+  if (venue.title.trim() === "") return "invalid";
+  const payouts = { ...current.payouts, ...raw.payouts };
+  if (!ORGANIZER_PAYOUT_MODES.includes(payouts.mode)) return "invalid";
+  if (payouts.mode === "external" && (payouts.paymentUrl === null || !isMockUrl(payouts.paymentUrl))) return "invalid";
+  return storeMockSetup({ ...current, step, venue, activities, payouts: payouts.mode === "none" ? { ...payouts, paymentUrl: null } : payouts });
+}
+
+/** Mock POST /organizer/setup/complete: idempotent, so a second call does not move the stamp. */
+export function completeMockOrganizerSetup(now: Date = new Date()): OrganizerSetup {
+  const current = mockOrganizerSetup();
+  if (current.completedAt !== null) return current;
+  return storeMockSetup({ ...current, step: "event", completedAt: now.toISOString() });
 }

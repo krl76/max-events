@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock route table for the organizer space: the event and place panel, the sales/stats reports, the period summary, the event day (options, attendance, check-in, waitlist offers), the organizer ratings, the promo surface and the page-view counter.
-// SCOPE: PATCH /api/events|places/:id, /api/organizer/events|places[/:id/publish], POST /api/views, GET /api/organizer/summary, /api/organizer/events/:id/{stats,sales,bookings,options,attendance,check-ins,waitlist/invites,campaigns,promotions,promocodes,early-access}, /api/events/:id/organizer-rating, /api/organizers/:id/rating.
+// SCOPE: PATCH /api/events|places/:id, /api/organizer/events|places[/:id/publish], POST /api/views, GET|PATCH /api/organizer/setup, POST /api/organizer/setup/complete, GET /api/organizer/summary, /api/organizer/events/:id/{stats,sales,bookings,options,attendance,check-ins,waitlist/invites,campaigns,promotions,promocodes,early-access}, /api/events/:id/organizer-rating, /api/organizers/:id/rating.
 // DEPENDS: ./organizer.js, ./bookings.js, ./fixtures.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -12,9 +12,17 @@
 import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, IdSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
 import { mockBookings } from "./bookings";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
-import { checkInMockOrganizerGuest, createMockCampaign, createMockOrganizerEvent, createMockOrganizerPlace, createMockPromoCode, createMockPromotion, inviteMockOrganizerWaitlist, listMockCampaigns, listMockPromoCodes, listMockPromotions, mockEventOrganizerRating, mockEventSalesReport, mockOrganizerAttendance, mockOrganizerEventOptions, mockOrganizerEventStats, mockOrganizerRating, mockOrganizerSummary, mockStatsPeriod, organizerEvents, organizerPlaces, payMockPromotion, publishMockOrganizerEvent, publishMockOrganizerPlace, recordMockPageView, setMockEarlyAccess, updateMockOrganizerEvent, updateMockOrganizerEventOptions, updateMockOrganizerPlace } from "./organizer";
+import { checkInMockOrganizerGuest, completeMockOrganizerSetup, createMockCampaign, createMockOrganizerEvent, createMockOrganizerPlace, createMockPromoCode, createMockPromotion, inviteMockOrganizerWaitlist, listMockCampaigns, listMockPromoCodes, listMockPromotions, mockEventOrganizerRating, mockEventSalesReport, mockOrganizerAttendance, mockOrganizerEventOptions, mockOrganizerEventStats, mockOrganizerRating, mockOrganizerSetup, mockOrganizerSummary, mockStatsPeriod, organizerEvents, organizerPlaces, payMockPromotion, publishMockOrganizerEvent, publishMockOrganizerPlace, recordMockPageView, setMockEarlyAccess, updateMockOrganizerEvent, updateMockOrganizerEventOptions, updateMockOrganizerPlace, updateMockOrganizerSetup } from "./organizer";
 
 export function organizerRoutes(url: URL, init: RequestInit | undefined): Response | null {
+  // Настройка организатора (макет, экран 44) — раньше остальных: /setup/complete иначе попал бы
+  // под разбор события с id «setup».
+  if (url.pathname === "/api/organizer/setup/complete" && init?.method === "POST") return Response.json(completeMockOrganizerSetup());
+  if (url.pathname === "/api/organizer/setup") {
+    if (init?.method !== "PATCH") return Response.json(mockOrganizerSetup());
+    const result = updateMockOrganizerSetup(parseBookingBody(init) ?? {});
+    return result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
+  }
   if (url.pathname === "/api/organizer/summary") {
     const period = mockStatsPeriod(url);
     return period === null ? new Response(null, { status: 400 }) : Response.json(mockOrganizerSummary(period));
