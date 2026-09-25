@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for events — authenticated CRUD and catalog list under /api/events.
-// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to/min_rating/q/sort/limit/offset; GET :id/details delegates to EventDetailsService with the current user.
+// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to/min_rating/q/sort/limit/offset; GET :id/details delegates to EventDetailsService; GET :id/weather/hourly is the Open-Meteo strip.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ./events.service, ./event-details.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -15,6 +15,7 @@ import { CreateEventSchema, EventCategorySchema, TimestampSchema, type Event, ty
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { EventDetailsService } from "./event-details.service";
+import { EventWeatherService, type EventForecast } from "./event-weather.service";
 import { EVENT_LIST_MAX_LIMIT, EVENT_SORTS, EventsService, type EventListQuery, type EventSort } from "./events.service";
 
 @Controller("events")
@@ -22,6 +23,7 @@ export class EventsController {
   constructor(
     @Inject(EventsService) private readonly events: EventsService,
     @Inject(EventDetailsService) private readonly details: EventDetailsService,
+    @Inject(EventWeatherService) private readonly weather: EventWeatherService,
   ) {}
 
   @Post()
@@ -39,6 +41,12 @@ export class EventsController {
   @Get(":id/details")
   getDetails(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<EventDetails> {
     return this.details.get(id, user.id);
+  }
+
+  @Get(":id/weather/hourly")
+  async hourlyForecast(@Param("id", ParseUUIDPipe) id: string): Promise<EventForecast> {
+    const event = await this.events.getPublished(id);
+    return this.weather.hourlyForEvent(event);
   }
 
   @Get(":id")

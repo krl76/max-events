@@ -127,11 +127,21 @@ export class EventsService {
   }
 
   async getById(id: string): Promise<Event> {
-    const found = await this.events.findOneBy({ id });
-    if (!found || found.published === false) throw new NotFoundException("Event not found");
+    const found = await this.requirePublished(id);
     const promoted = (await this.promotions.promotedEventIds()).has(found.id);
     const [withWeather] = await this.eventWeather.attach([toEventDto(found, { promoted })]);
     return withWeather ?? toEventDto(found, { promoted });
+  }
+
+  /** Published catalog row without a weather round-trip; the hourly strip fetches its own series. */
+  async getPublished(id: string): Promise<Event> {
+    return toEventDto(await this.requirePublished(id));
+  }
+
+  private async requirePublished(id: string): Promise<EventEntity> {
+    const found = await this.events.findOneBy({ id });
+    if (!found || found.published === false) throw new NotFoundException("Event not found");
+    return found;
   }
 
   async update(id: string, patch: Record<string, unknown>, actorId?: string): Promise<Event> {

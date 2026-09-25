@@ -4,6 +4,7 @@ import { CreateEventSchema, type CreateEvent, type Event } from "@max-events/api
 import { UserEntity } from "../users/user.entity";
 import { parseEventListQuery, EventsController } from "./events.controller";
 import type { EventDetailsService } from "./event-details.service";
+import type { EventWeatherService } from "./event-weather.service";
 import type { EventListQuery, EventsService } from "./events.service";
 
 const payload: CreateEvent = CreateEventSchema.parse({
@@ -27,7 +28,7 @@ const event: Event = {
 };
 
 function createController() {
-  const calls: { create?: CreateEvent; list?: EventListQuery; getById?: string; details?: { id: string; viewerId: string }; update?: { id: string; patch: Record<string, unknown> }; remove?: string } = {};
+  const calls: { create?: CreateEvent; list?: EventListQuery; getById?: string; details?: { id: string; viewerId: string }; hourly?: string; update?: { id: string; patch: Record<string, unknown> }; remove?: string } = {};
   const service = {
     create: async (body: CreateEvent) => {
       calls.create = body;
@@ -38,6 +39,10 @@ function createController() {
       return [event];
     },
     getById: async (id: string) => {
+      calls.getById = id;
+      return event;
+    },
+    getPublished: async (id: string) => {
       calls.getById = id;
       return event;
     },
@@ -55,7 +60,13 @@ function createController() {
       return { event };
     },
   } as unknown as EventDetailsService;
-  return { calls, controller: new EventsController(service, details) };
+  const weather = {
+    hourlyForEvent: async () => {
+      calls.hourly = event.id;
+      return { source: "Open-Meteo", hours: [], note: null };
+    },
+  } as unknown as EventWeatherService;
+  return { calls, controller: new EventsController(service, details, weather) };
 }
 
 describe("EventsController", () => {
@@ -119,6 +130,13 @@ describe("EventsController", () => {
     const { calls, controller } = createController();
     await expect(controller.getDetails(user, event.id)).resolves.toEqual({ event });
     expect(calls.details).toEqual({ id: event.id, viewerId: user.id });
+  });
+
+  it("serves the hourly forecast for a published event", async () => {
+    const { calls, controller } = createController();
+    await expect(controller.hourlyForecast(event.id)).resolves.toEqual({ source: "Open-Meteo", hours: [], note: null });
+    expect(calls.getById).toBe(event.id);
+    expect(calls.hourly).toBe(event.id);
   });
 
   it("updates, fetches, and deletes by id", async () => {

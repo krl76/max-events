@@ -30,11 +30,12 @@ import { EventEntity } from "./event.entity";
 import { EventsController } from "./events.controller";
 import { EventWeatherService } from "./event-weather.service";
 import { EventsService } from "./events.service";
+import { WeatherController } from "./weather.controller";
 import { WeatherClient } from "../smart-alerts/weather.client";
 
 @Module({
   imports: [TypeOrmModule.forFeature([EventEntity, BookingEntity, CheckInEntity, ParticipationEntity, UserEntity, FriendshipEntity]), PlacesModule, MaxBotModule, SubscriptionsModule, UsersModule, WaitlistModule, PromotionModule, ReviewsModule, OrganizationsModule],
-  controllers: [EventsController],
+  controllers: [EventsController, WeatherController],
   providers: [WeatherClient, EventWeatherService, EventsService, EventDetailsService, EventChatScheduler],
   exports: [EventsService],
 })

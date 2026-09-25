@@ -575,7 +575,7 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/places/${placeId}/page?userId=${encodeURIComponent(userId)}`, PlacePageSchema);
     }
 
-    /** City weather behind the map chip (макет, экран 16); mock-only until a «weather now» surface exists (#495). */
+    /** City weather behind the map chip (макет, экран 16); GET /weather?city=. */
     getMapWeather(city: string): Promise<MapWeather> {
       return this.request(`/weather?city=${encodeURIComponent(city)}`, MapWeatherSchema);
     }
@@ -608,7 +608,7 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/places/${placeId}/participation?userId=${encodeURIComponent(userId)}`, PlaceParticipationSchema, { method: "PUT", body: { status } });
     }
 
-    /** Hourly weather over the event window (макет, экран 17); mock-only, the domain stores one snapshot (#495). */
+    /** Hourly weather over the event window (макет, экран 17); GET /events/:id/weather/hourly. */
     getEventForecast(eventId: string): Promise<EventForecast> {
       return this.request(`/events/${eventId}/weather/hourly`, EventForecastSchema);
     }

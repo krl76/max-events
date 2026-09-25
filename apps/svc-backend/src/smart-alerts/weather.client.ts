@@ -10,10 +10,11 @@
 // - WeatherFetch - injectable GET fetch
 // - HourlyPrecip - mm and probability at one hour
 // - HourlyForecast - temp, WMO code, mm and probability at one hour
+// - TimedForecast - HourlyForecast plus the UTC instant of that hour
 // - utcHourKey - YYYY-MM-DDTHH:00 in UTC
 // - isRainy - precipitation or high probability
 // - weatherConditionLabel - WMO weathercode -> short ru label
-// - WeatherClient - precipitationAt, forecastAt
+// - WeatherClient - precipitationAt, forecastAt, forecastHours
 // END_MODULE_MAP
 
 import { Injectable, Optional } from "@nestjs/common";
@@ -34,6 +35,8 @@ export type HourlyForecast = HourlyPrecip & {
   temperatureC: number;
   conditionCode: number;
 };
+
+export type TimedForecast = HourlyForecast & { at: Date };
 
 export function utcHourKey(date: Date): string {
   return `${date.toISOString().slice(0, 13)}:00`;
@@ -87,6 +90,17 @@ export class WeatherClient {
       return null;
     }
   }
+
+  async forecastHours(latitude: number, longitude: number): Promise<TimedForecast[] | null> {
+    const url = `${this.baseUrl}?latitude=${encodeURIComponent(String(latitude))}&longitude=${encodeURIComponent(String(longitude))}&hourly=temperature_2m,weather_code,precipitation,precipitation_probability&timezone=UTC&forecast_days=16`;
+    try {
+      const response = await this.fetchImpl(url);
+      if (!response.ok) return null;
+      return pickAllForecasts(await response.json());
+    } catch {
+      return null;
+    }
+  }
 }
 
 function hourlyIndex(body: unknown, hour: string): { hourly: Record<string, unknown>; index: number } | null {
@@ -114,9 +128,18 @@ function pickPrecip(body: unknown, hour: string): HourlyPrecip | null {
 }
 
 function pickForecast(body: unknown, hour: string): HourlyForecast | null {
-  const precip = pickPrecip(body, hour);
   const found = hourlyIndex(body, hour);
-  if (!precip || !found) return null;
+  return found ? pickForecastAt(found) : null;
+}
+
+function pickForecastAt(found: { hourly: Record<string, unknown>; index: number }): HourlyForecast | null {
+  const precipitation = found.hourly.precipitation;
+  const probability = found.hourly.precipitation_probability;
+  if (!Array.isArray(precipitation)) return null;
+  const mm = precipitation[found.index];
+  const prob = Array.isArray(probability) ? probability[found.index] : 0;
+  if (typeof mm !== "number" || !Number.isFinite(mm)) return null;
+  const chance = typeof prob === "number" && Number.isFinite(prob) ? Math.round(prob) : 0;
   const temperatures = found.hourly.temperature_2m;
   const codes = found.hourly.weather_code ?? found.hourly.weathercode;
   if (!Array.isArray(temperatures) || !Array.isArray(codes)) return null;
@@ -124,5 +147,24 @@ function pickForecast(body: unknown, hour: string): HourlyForecast | null {
   const conditionCode = codes[found.index];
   if (typeof temperatureC !== "number" || !Number.isFinite(temperatureC)) return null;
   if (typeof conditionCode !== "number" || !Number.isFinite(conditionCode)) return null;
-  return { ...precip, temperatureC, conditionCode };
+  return { precipitationMm: mm, precipitationProbability: chance, temperatureC, conditionCode };
+}
+
+function pickAllForecasts(body: unknown): TimedForecast[] | null {
+  if (!body || typeof body !== "object") return null;
+  const hourly = (body as { hourly?: unknown }).hourly;
+  if (!hourly || typeof hourly !== "object") return null;
+  const time = (hourly as { time?: unknown }).time;
+  if (!Array.isArray(time) || time.length === 0) return null;
+  const rows: TimedForecast[] = [];
+  for (let index = 0; index < time.length; index += 1) {
+    const stamp = time[index];
+    if (typeof stamp !== "string") continue;
+    const forecast = pickForecastAt({ hourly: hourly as Record<string, unknown>, index });
+    if (!forecast) continue;
+    const at = new Date(`${stamp}:00.000Z`);
+    if (Number.isNaN(at.getTime())) continue;
+    rows.push({ ...forecast, at });
+  }
+  return rows.length === 0 ? null : rows;
 }

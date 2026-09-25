@@ -97,6 +97,25 @@ describe("WeatherClient.forecastAt", () => {
   });
 });
 
+describe("WeatherClient.forecastHours", () => {
+  it("returns every parseable UTC hour from one Open-Meteo payload", async () => {
+    const client = new WeatherClient(OPEN_METEO_FORECAST_URL, async () =>
+      jsonResponse(200, {
+        hourly: {
+          time: ["2026-09-12T15:00", "2026-09-12T16:00"],
+          temperature_2m: [11.1, 12.4],
+          weather_code: [1, 2],
+          precipitation: [0, 0],
+          precipitation_probability: [10, 40],
+        },
+      }),
+    );
+    const hours = await client.forecastHours(55.75, 37.62);
+    expect(hours).toHaveLength(2);
+    expect(hours?.[1]).toMatchObject({ temperatureC: 12.4, conditionCode: 2, at: new Date("2026-09-12T16:00:00.000Z") });
+  });
+});
+
 describe("WeatherClient DI constructability", () => {
   it("marks both constructor params as optional for Nest DI", () => {
     const optional = (Reflect.getMetadata("optional:paramtypes", WeatherClient) as number[] | undefined) ?? [];
