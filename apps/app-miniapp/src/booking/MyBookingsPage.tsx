@@ -19,8 +19,8 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
-import type { EventCategory } from "@max-events/api-contracts";
-import { apiClient, whenEndpointMissing, type CalendarEntry, type CheckInCode, type MySlotsBoard } from "../api/client";
+import type { Event, EventCategory } from "@max-events/api-contracts";
+import { apiClient, ApiError, whenEndpointMissing, type CalendarEntry, type CheckInCode, type MySlotsBoard } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { shareResult, webApp } from "../max/bridge";
@@ -182,9 +182,26 @@ interface MyBookingsViewProps {
   onShare: (card: BookingCard) => void;
   onRate: (eventId: string) => void;
   onRepeat: (eventId: string) => void;
+  onReschedule: (card: BookingCard) => void;
+  picker: ReschedulePicker | null;
+  onPickReschedule: (eventId: string) => void;
+  onClosePicker: () => void;
 }
 
-function BookingCardView({ card, menuOpen, onOpenTicket, onLeaveWaitlist, onMenu, onShare }: { card: BookingCard; menuOpen: boolean; onOpenTicket: () => void; onLeaveWaitlist: () => void; onMenu: () => void; onShare: () => void }) {
+export interface ReschedulePicker {
+  card: BookingCard;
+  events: Event[];
+  error: string | null;
+  busy: boolean;
+}
+
+export function rescheduleErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.status === 409) return "На это событие нет мест.";
+  if (error instanceof ApiError && error.status === 400) return "Нельзя перенести на это событие.";
+  return "Не удалось перенести билет.";
+}
+
+function BookingCardView({ card, menuOpen, onOpenTicket, onLeaveWaitlist, onMenu, onShare, onReschedule }: { card: BookingCard; menuOpen: boolean; onOpenTicket: () => void; onLeaveWaitlist: () => void; onMenu: () => void; onShare: () => void; onReschedule: () => void }) {
   return (
     <section className="app-book-group" aria-label={card.title}>
       <div className="app-book-group-head">
@@ -215,7 +232,7 @@ function BookingCardView({ card, menuOpen, onOpenTicket, onLeaveWaitlist, onMenu
             Выйти
           </button>
         ) : card.kind === "ticket" ? (
-          <button type="button" className="app-book-action" onClick={onOpenTicket}>
+          <button type="button" className="app-book-action" onClick={onReschedule}>
             Перенести
           </button>
         ) : (
@@ -251,7 +268,7 @@ function BookingCardView({ card, menuOpen, onOpenTicket, onLeaveWaitlist, onMenu
   );
 }
 
-export function MyBookingsView({ board, tab, query, searching, menuId, onTab, onQuery, onToggleSearch, onCalendar, onOpenTicket, onLeaveWaitlist, onMenu, onShare, onRate, onRepeat }: MyBookingsViewProps) {
+export function MyBookingsView({ board, tab, query, searching, menuId, onTab, onQuery, onToggleSearch, onCalendar, onOpenTicket, onLeaveWaitlist, onMenu, onShare, onRate, onRepeat, onReschedule, picker, onPickReschedule, onClosePicker }: MyBookingsViewProps) {
   const cards = filterBookingCards(board.active, tab, query);
   const showActive = tab !== "past";
   const showPast = tab === "active" || tab === "past";
@@ -286,7 +303,29 @@ export function MyBookingsView({ board, tab, query, searching, menuId, onTab, on
         ))}
       </div>
 
-      {showActive && (cards.length === 0 ? <AppState>{query.trim() === "" ? "Здесь пока пусто — забронируй окно или запишись на событие." : "Ничего не нашлось."}</AppState> : cards.map((card) => <BookingCardView key={`${card.kind}-${card.id}`} card={card} menuOpen={menuId === card.id} onOpenTicket={() => onOpenTicket(card)} onLeaveWaitlist={() => onLeaveWaitlist(card.id)} onMenu={() => onMenu(menuId === card.id ? null : card.id)} onShare={() => onShare(card)} />))}
+      {showActive && (cards.length === 0 ? <AppState>{query.trim() === "" ? "Здесь пока пусто — забронируй окно или запишись на событие." : "Ничего не нашлось."}</AppState> : cards.map((card) => <BookingCardView key={`${card.kind}-${card.id}`} card={card} menuOpen={menuId === card.id} onOpenTicket={() => onOpenTicket(card)} onLeaveWaitlist={() => onLeaveWaitlist(card.id)} onMenu={() => onMenu(menuId === card.id ? null : card.id)} onShare={() => onShare(card)} onReschedule={() => onReschedule(card)} />))}
+
+      {picker !== null && (
+        <section className="app-book-past" aria-label="Перенести билет">
+          <div className="app-place-label">Куда перенести «{picker.card.title}»</div>
+          {picker.error !== null && <AppState error>{picker.error}</AppState>}
+          {picker.busy && picker.events.length === 0 ? (
+            <AppState>Ищем события…</AppState>
+          ) : picker.events.length === 0 ? (
+            <AppState>Других опубликованных событий нет.</AppState>
+          ) : (
+            picker.events.map((event) => (
+              <button key={event.id} type="button" className="app-book-past-card" disabled={picker.busy} onClick={() => onPickReschedule(event.id)}>
+                <span className="app-book-past-title">{event.title}</span>
+                <span className="app-book-past-meta">{event.city}</span>
+              </button>
+            ))
+          )}
+          <button type="button" className="app-book-action" onClick={onClosePicker}>
+            Отмена
+          </button>
+        </section>
+      )}
 
       {showPast && board.past.length > 0 && (
         <section className="app-book-past" aria-label="Прошедшие">
@@ -324,6 +363,7 @@ export function MyBookingsPage() {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [picker, setPicker] = useState<ReschedulePicker | null>(null);
 
   const load = useCallback(() => {
     if (userId === null) return () => {};
@@ -365,5 +405,31 @@ export function MyBookingsPage() {
     setMenuId(null);
     void shareResult(webApp, `${card.title} · ${card.venue}, ${card.meta}`);
   };
-  return <MyBookingsView board={state.board} tab={tab} query={query} searching={searching} menuId={menuId} onTab={setTab} onQuery={setQuery} onToggleSearch={() => setSearching((current) => !current)} onCalendar={() => navigate({ name: "calendar" })} onOpenTicket={open} onLeaveWaitlist={leave} onMenu={setMenuId} onShare={share} onRate={(eventId) => navigate({ name: "after-event", eventId })} onRepeat={(eventId) => navigate({ name: "event", id: eventId })} />;
+  const openReschedule = (card: BookingCard) => {
+    setPicker({ card, events: [], error: null, busy: true });
+    apiClient.listEvents({ sort: "soon" }).then(
+      (events) => {
+        const now = Date.now();
+        setPicker({
+          card,
+          events: events.filter((event) => event.id !== card.eventId && new Date(event.startsAt).getTime() > now),
+          error: null,
+          busy: false,
+        });
+      },
+      (error: unknown) => setPicker({ card, events: [], error: rescheduleErrorMessage(error), busy: false }),
+    );
+  };
+  const pickReschedule = (eventId: string) => {
+    if (picker === null) return;
+    setPicker({ ...picker, busy: true, error: null });
+    apiClient.rescheduleBooking(picker.card.id, eventId).then(
+      () => {
+        setPicker(null);
+        load();
+      },
+      (error: unknown) => setPicker({ ...picker, busy: false, error: rescheduleErrorMessage(error) }),
+    );
+  };
+  return <MyBookingsView board={state.board} tab={tab} query={query} searching={searching} menuId={menuId} onTab={setTab} onQuery={setQuery} onToggleSearch={() => setSearching((current) => !current)} onCalendar={() => navigate({ name: "calendar" })} onOpenTicket={open} onLeaveWaitlist={leave} onMenu={setMenuId} onShare={share} onRate={(eventId) => navigate({ name: "after-event", eventId })} onRepeat={(eventId) => navigate({ name: "event", id: eventId })} onReschedule={openReschedule} picker={picker} onPickReschedule={pickReschedule} onClosePicker={() => setPicker(null)} />;
 }
