@@ -110,7 +110,7 @@ export class SlotsService {
           cancelBefore: slot.startsAt,
         }),
       );
-      return toSlotBooking(saved, slot);
+      return toSlotBooking(saved);
     } catch (error) {
       slot.takenSeats = Math.max(0, slot.takenSeats - partySize);
       await this.slots.save(slot);
@@ -127,7 +127,7 @@ export class SlotsService {
     const place = await this.requirePlace(slot.placeId);
     const friends = await this.friends.list(userId);
     return {
-      booking: toSlotBooking(booking, slot),
+      booking: toSlotBooking(booking),
       slot: toPlaceSlot(slot),
       place: toPlaceDto(place),
       unitTitle: slot.unitTitle,
@@ -146,12 +146,12 @@ export class SlotsService {
     const slot = await this.slots.findOneBy({ id: booking.slotId });
     if (!slot) throw new NotFoundException("Slot not found");
     await this.requirePlace(slot.placeId);
-    if (booking.status === "cancelled") return toSlotBooking(booking, slot);
+    if (booking.status === "cancelled") return toSlotBooking(booking);
     booking.status = "cancelled";
     slot.takenSeats = Math.max(0, slot.takenSeats - booking.partySize);
     await this.slots.save(slot);
     await this.bookings.save(booking);
-    return toSlotBooking(booking, slot);
+    return toSlotBooking(booking);
   }
 
   async mine(userId: string) {
@@ -168,7 +168,7 @@ export class SlotsService {
         const slot = slotById.get(row.slotId);
         const place = slot ? placeById.get(slot.placeId) : undefined;
         if (!slot || !place) return [];
-        return [{ booking: toSlotBooking(row, slot), slot: toPlaceSlot(slot), place: toPlaceDto(place), unitTitle: slot.unitTitle, activity: place.category, company: [] }];
+        return [{ booking: toSlotBooking(row), slot: toPlaceSlot(slot), place: toPlaceDto(place), unitTitle: slot.unitTitle, activity: place.category, company: [] }];
       });
     const waiting = await this.waitlist.find({ where: { userId } });
     const waitSlots = waiting.length === 0 ? [] : await this.slots.find({ where: { id: In(waiting.map((row) => row.slotId)) } });
@@ -295,7 +295,7 @@ function toPlaceSlot(row: PlaceSlotEntity) {
   };
 }
 
-function toSlotBooking(row: SlotBookingEntity, slot: PlaceSlotEntity) {
+function toSlotBooking(row: SlotBookingEntity) {
   return {
     id: row.id,
     slotId: row.slotId,

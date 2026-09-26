@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
 import { ListPresetSchema } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
+import { FeedPostEntity } from "../feed/feed-post.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { ListItemEntity } from "./list-item.entity";
 import { ListEntity } from "./list.entity";
@@ -82,7 +83,8 @@ function createService(opts: { friendIds?: string[] } = {}) {
   const places = createStoreRepo<PlaceEntity>([{ id: placeId, title: "Парк", address: "Москва", city: "Москва", category: "park", latitude: 55.75, longitude: 37.62, published: true, createdAt: now, updatedAt: now } as PlaceEntity]);
   const users = { findByIds: async (ids: string[]) => [userRow(userId, "Демо"), userRow(otherUserId, "Анна")].filter((row) => ids.includes(row.id)) };
   const friends = { friendIds: async () => new Set(opts.friendIds ?? [otherUserId]) };
-  const service = new ListsService(lists as unknown as Repository<ListEntity>, items as unknown as Repository<ListItemEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, members as unknown as Repository<ListMemberEntity>, users as never, friends as never);
+  const posts = createStoreRepo<FeedPostEntity>();
+  const service = new ListsService(lists as unknown as Repository<ListEntity>, items as unknown as Repository<ListItemEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, posts as unknown as Repository<FeedPostEntity>, members as unknown as Repository<ListMemberEntity>, users as never, friends as never);
   return { service, items, members };
 }
 

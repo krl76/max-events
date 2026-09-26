@@ -126,8 +126,8 @@ describe("EventDetailsService.get", () => {
       checkIns: [{ id: checkInId, userId: viewerId, eventId, placeId: null, visitDate: null, checkedInAt: now }],
       participations: [{ id: "p1", userId: viewerId, eventId, status: "going" } as ParticipationEntity],
       reviews: [
-        { id: "r1", userId: otherUserId, eventId, stars: 4, categoryScores: { atmosphere: 5 }, wouldGoAgain: true, photoUrls: [], text: null, createdAt: now },
-        { id: "r2", userId: organizerId, eventId, stars: 2, categoryScores: { atmosphere: 3 }, wouldGoAgain: false, photoUrls: [], text: null, createdAt: now },
+        { id: "r1", userId: otherUserId, eventId, stars: 4, categoryScores: { atmosphere: 5 }, wouldGoAgain: true, photoUrls: [], factTags: [], text: null, createdAt: now },
+        { id: "r2", userId: organizerId, eventId, stars: 2, categoryScores: { atmosphere: 3 }, wouldGoAgain: false, photoUrls: [], factTags: [], text: null, createdAt: now },
       ],
     });
     const details = await service.get(eventId, viewerId);

@@ -30,7 +30,7 @@ function matchesWhere(row: object, where: Record<string, unknown>): boolean {
   });
 }
 
-function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
+function createStoreRepo<T extends object>(initial: T[] = []) {
   const store = [...initial];
   return {
     store,

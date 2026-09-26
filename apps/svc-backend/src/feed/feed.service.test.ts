@@ -121,18 +121,22 @@ function createService(eventPublished = true) {
   const participations = createStoreRepo<ParticipationEntity>();
   const friendships = createStoreRepo<FriendshipEntity>();
   const drafts = createStoreRepo<FeedDraftEntity>();
+  // The booking DTO carries no source: what has to be checked is the source FeedService asks for.
+  const booked: Array<{ eventId: string; source: string | null | undefined }> = [];
   const bookings = {
-    create: async (_userId: string, bookedEventId: string, _promo?: string | null, _now?: Date, _referral?: string | null, source?: string | null) => ({
-      id: "00000000-0000-4000-8000-0000000000b1",
-      userId,
-      eventId: bookedEventId,
-      status: "active",
-      source,
-      freeSeats: null,
-    }),
+    create: async (_userId: string, bookedEventId: string, _promo?: string | null, _now?: Date, _referral?: string | null, source?: string | null) => {
+      booked.push({ eventId: bookedEventId, source });
+      return {
+        id: "00000000-0000-4000-8000-0000000000b1",
+        userId,
+        eventId: bookedEventId,
+        status: "active",
+        freeSeats: null,
+      };
+    },
   } as unknown as BookingsService;
   const service = new FeedService(posts as unknown as Repository<FeedPostEntity>, likes as unknown as Repository<FeedLikeEntity>, comments as unknown as Repository<FeedCommentEntity>, events as unknown as Repository<EventEntity>, users as unknown as Repository<UserEntity>, publishers, places, waitlist, participations as unknown as Repository<ParticipationEntity>, friendships as unknown as Repository<FriendshipEntity>, drafts as unknown as Repository<FeedDraftEntity>, bookings);
-  return { service, likes, posts, participations, waitlistMap, drafts };
+  return { service, likes, posts, participations, waitlistMap, drafts, booked };
 }
 
 describe("FeedService", () => {
@@ -236,11 +240,12 @@ describe("FeedService", () => {
   });
 
   it("books the post event when join is allowed and refuses otherwise", async () => {
-    const { service } = createService();
+    const { service, booked } = createService();
     const allowed = await service.create(userId, { eventId, text: "Собираемся", allowJoin: true });
     const booking = await service.join(userId, allowed.id);
     expect(booking.eventId).toBe(eventId);
-    expect(booking.source).toBe("feed");
+    // Where the booking came from is what the feed adds to it, even though the DTO does not echo it back.
+    expect(booked).toEqual([{ eventId, source: "feed" }]);
     const blocked = await service.create(userId, { eventId, text: "Без записи", allowJoin: false });
     await expect(service.join(userId, blocked.id)).rejects.toBeInstanceOf(BadRequestException);
   });

@@ -9,7 +9,7 @@
 // - PlaceParticipationsService - set status or clear
 // END_MODULE_MAP
 
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import type { ParticipationStatus, PlaceParticipation } from "@max-events/api-contracts";

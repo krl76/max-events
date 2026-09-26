@@ -42,12 +42,12 @@ function matchesCell(cell: unknown, condition: unknown): boolean {
   return cell === condition;
 }
 
-function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
+function createStoreRepo<T extends object>(initial: T[] = []) {
   const store = [...initial];
   let seq = 0;
   return {
     store,
-    create: (fields: Partial<T>) => ({ ...fields, createdAt: now }) as T,
+    create: (fields: Partial<T>) => ({ ...fields, createdAt: now }) as unknown as T,
     find: async (opts: { where?: Record<string, unknown> } = {}) => {
       const where = opts.where ?? {};
       return store.filter((row) => Object.entries(where).every(([key, value]) => matchesCell((row as Record<string, unknown>)[key], value)));
@@ -55,7 +55,7 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
     findOneBy: async (where: Record<string, string>) => store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
     save: async (entity: T) => {
       if (!store.includes(entity)) {
-        entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
+        (entity as { id?: string }).id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
         store.push(entity);
       }
       return entity;
@@ -73,7 +73,12 @@ function createService(options: { places?: PlaceEntity[]; checkIns?: CheckInEnti
   const checkIns = createStoreRepo<CheckInEntity>(options.checkIns ?? []);
   const favorites: string[] = [];
   const taste = { profile: async () => options.profile ?? emptyProfile() } as unknown as TasteService;
-  const lists = { addPlaceToPreset: async (_userId: string, preset: string, placeId: string) => { favorites.push(`${preset}:${placeId}`); return {}; } } as unknown as ListsService;
+  const lists = {
+    addPlaceToPreset: async (_userId: string, preset: string, placeId: string) => {
+      favorites.push(`${preset}:${placeId}`);
+      return {};
+    },
+  } as unknown as ListsService;
   const friends = { list: async () => options.friends ?? [] } as unknown as FriendsService;
   const service = new SwipeService(decisions as unknown as Repository<SwipeDecisionEntity>, places as unknown as Repository<PlaceEntity>, checkIns as unknown as Repository<CheckInEntity>, taste, lists, friends);
   return { service, decisions, favorites };
@@ -82,7 +87,13 @@ function createService(options: { places?: PlaceEntity[]; checkIns?: CheckInEnti
 describe("matchPercentFor", () => {
   it("returns null without weights and scales the strongest category to 100", () => {
     expect(matchPercentFor("park", emptyProfile())).toBeNull();
-    const profile: TasteProfile = { ...emptyProfile(), placeCategories: [{ category: "park", weight: 4 }, { category: "food", weight: 2 }] };
+    const profile: TasteProfile = {
+      ...emptyProfile(),
+      placeCategories: [
+        { category: "park", weight: 4 },
+        { category: "food", weight: 2 },
+      ],
+    };
     expect(matchPercentFor("park", profile)).toBe(100);
     expect(matchPercentFor("food", profile)).toBe(50);
     expect(matchPercentFor("sport", profile)).toBe(0);
@@ -109,7 +120,13 @@ describe("SwipeService", () => {
   });
 
   it("ranks by match percent and attaches friends who checked in", async () => {
-    const profile: TasteProfile = { ...emptyProfile(), placeCategories: [{ category: "food", weight: 3 }, { category: "park", weight: 1 }] };
+    const profile: TasteProfile = {
+      ...emptyProfile(),
+      placeCategories: [
+        { category: "food", weight: 3 },
+        { category: "park", weight: 1 },
+      ],
+    };
     const { service } = createService({
       profile,
       friends: [{ id: friendId, name: "Анна", avatarUrl: null }],

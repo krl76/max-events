@@ -64,7 +64,7 @@ function createRepo(initial: PlaceEntity[] = []) {
     findOneBy: async (where: { id: string }) => store.find((row) => row.id === where.id) ?? null,
     find: async (opts: { where?: Record<string, unknown> | Array<Record<string, unknown>>; skip?: number; take?: number; order?: { title?: "ASC" | "DESC"; id?: "ASC" | "DESC" } }) => {
       const clauses = Array.isArray(opts.where) ? opts.where : opts.where ? [opts.where] : [{}];
-      let rows = store.filter((row) =>
+      const rows = store.filter((row) =>
         clauses.some((clause) => {
           if (clause.published === true && row.published === false) return false;
           if (!matchesTextOperator(row.title, clause.title)) return false;

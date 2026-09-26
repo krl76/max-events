@@ -409,7 +409,7 @@ export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
       const key = `${list.id}:${targetId}`;
       if (listTargets.has(key)) continue;
       listTargets.add(key);
-      listItems.push({ id: uuid(), listId: list.id, eventId: useEvent ? targetId : null, placeId: useEvent ? null : targetId, addedAt: shiftDays(now, -int(1, 18), 12) });
+      listItems.push({ id: uuid(), listId: list.id, eventId: useEvent ? targetId : null, placeId: useEvent ? null : targetId, feedPostId: null, addedAt: shiftDays(now, -int(1, 18), 12) });
     }
   }
 
@@ -427,7 +427,7 @@ export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
       seen.add(guest.userId);
       guests.push(guest);
     }
-    plans.push({ id: planId, hostUserId, eventId: event.id, meetingPoint, meetingAt: new Date(event.startsAt.getTime() - 90 * 60_000), chatLink: null, reminderSentAt: null, leaveNowSentAt: null, weatherAlertSentAt: null, friendLeftBroadcastAt: null, recurringRule: null, seriesId: null, sourcePlanId: null, cancelledAt: null, createdAt, updatedAt: createdAt });
+    plans.push({ id: planId, hostUserId, eventId: event.id, meetingPoint, meetingAt: new Date(event.startsAt.getTime() - 90 * 60_000), chatLink: null, reminderSentAt: null, leaveNowSentAt: null, weatherAlertSentAt: null, friendLeftBroadcastAt: null, recurringRule: null, seriesId: null, sourcePlanId: null, cancelledAt: null, assembledByMax: false, createdAt, updatedAt: createdAt });
     for (const guest of guests) {
       planParticipants.push({ id: uuid(), planId, userId: guest.userId, status: guest.status, reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null, pollSentAt: null, createdAt, updatedAt: createdAt });
     }
@@ -604,7 +604,7 @@ export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
   const reviews: ReviewEntity[] = [];
   [groupPastEvent, ...afishaVisits.slice(0, 2)].forEach((event, i) => {
     if (reviews.some((row) => row.eventId === event.id)) return;
-    reviews.push({ id: uuid(), userId: viewerId, eventId: event.id, stars: int(4, 5), categoryScores: { atmosphere: int(4, 5), organization: int(3, 5), price: int(3, 5), place: int(4, 5) }, wouldGoAgain: true, photoUrls: i === 0 ? [picsum("demo-viewer-review-1"), picsum("demo-viewer-review-2")] : [], text: pick(REVIEW_TEXTS), createdAt: new Date(event.startsAt.getTime() + int(2, 30) * HOUR_MS) });
+    reviews.push({ id: uuid(), userId: viewerId, eventId: event.id, stars: int(4, 5), categoryScores: { atmosphere: int(4, 5), organization: int(3, 5), price: int(3, 5), place: int(4, 5) }, wouldGoAgain: true, photoUrls: i === 0 ? [picsum("demo-viewer-review-1"), picsum("demo-viewer-review-2")] : [], factTags: [], text: pick(REVIEW_TEXTS), createdAt: new Date(event.startsAt.getTime() + int(2, 30) * HOUR_MS) });
   });
 
   const participations: ParticipationEntity[] = [];
@@ -938,6 +938,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       categoryScores: { atmosphere: int(3, 5), organization: int(3, 5), price: int(3, 5), place: int(3, 5) },
       wouldGoAgain: chance(0.8),
       photoUrls: chance(0.3) ? [picsum(`demo-review-${reviews.length}`)] : [],
+      factTags: [],
       text: chance(0.6) ? pick(REVIEW_TEXTS) : null,
       createdAt: new Date(event.startsAt.getTime() + int(1, 48) * HOUR_MS),
     });
@@ -991,6 +992,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       listId: pick(lists).id,
       eventId: useEvent ? pick(events).id : null,
       placeId: useEvent ? null : pick(places).id,
+      feedPostId: null,
       addedAt: shiftDays(now, -int(1, 20), 12),
     });
   }
@@ -1121,6 +1123,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       seriesId: null,
       sourcePlanId: null,
       cancelledAt: null,
+      assembledByMax: false,
       createdAt,
       updatedAt: createdAt,
     });
