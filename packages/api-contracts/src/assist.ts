@@ -28,7 +28,9 @@
 // - AssistDayStop - day stop type
 // - AssistDayResponseSchema - Saturday draft with typed PlanCard payload
 // - AssistDayResponse - day response type
-// - AssistChatResponseSchema - reply, picks, opened card, day, or silence
+// - AssistGuideIdSchema - screens MAX may suggest
+// - AssistGuideId - guide id
+// - AssistChatResponseSchema - reply, picks, opened card, day, guides, or silence
 // - AssistChatResponse - chat response type
 // END_MODULE_MAP
 
@@ -108,6 +110,9 @@ export const AssistDayResponseSchema = z.object({
 });
 export type AssistDayResponse = z.infer<typeof AssistDayResponseSchema>;
 
+export const AssistGuideIdSchema = z.enum(["search", "map", "swipe", "plans", "calendar", "friends", "lists", "story", "post", "nearby", "day-route", "profile", "companies", "micro"]);
+export type AssistGuideId = z.infer<typeof AssistGuideIdSchema>;
+
 export const AssistChatResponseSchema = z
   .object({
     silence: z.boolean(),
@@ -116,10 +121,11 @@ export const AssistChatResponseSchema = z
     items: z.array(AssistPickSchema).max(4).optional(),
     openEventId: z.string().uuid().optional(),
     day: AssistDayResponseSchema.optional(),
+    guides: z.array(AssistGuideIdSchema).max(4).optional(),
   })
   .superRefine((value, context) => {
     if (value.silence) {
-      if (value.fallback || value.reply || value.items?.length || value.openEventId || value.day) {
+      if (value.fallback || value.reply || value.items?.length || value.openEventId || value.day || value.guides?.length) {
         context.addIssue({ code: "custom", message: "silence carries no reply" });
       }
       return;

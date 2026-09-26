@@ -24,6 +24,8 @@ export interface AssistChatDraft {
   openEventId: string | null;
   plan: boolean;
   criteria: AssistCriteria | null;
+  /** Screen ids the model suggested. Unknown ids are already dropped. Absent means none. */
+  guides?: string[];
 }
 
 export interface AssistCatalogCard {

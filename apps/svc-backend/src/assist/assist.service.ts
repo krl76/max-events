@@ -16,7 +16,7 @@
 import { BadRequestException, HttpException, HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
-import type { AssistChatResponse, AssistChatWrite, AssistCriteria, AssistDayResponse, AssistPick, AssistResponse, Event, PlanCard } from "@max-events/api-contracts";
+import { AssistGuideIdSchema, type AssistChatResponse, type AssistChatWrite, type AssistCriteria, type AssistDayResponse, type AssistGuideId, type AssistPick, type AssistResponse, type Event, type PlanCard } from "@max-events/api-contracts";
 import { moscowIsoWeekday } from "@max-events/api-contracts";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { toEventDto } from "../events/event.mapper";
@@ -96,9 +96,10 @@ export class AssistService {
       return this.chatFallback(userId, cleaned, input.save === true, now, future);
     }
     if (draft.refuse) return { silence: true, fallback: false };
+    const guides = keepGuides(draft.guides);
     if (draft.plan) {
       const day = await this.assembleSaturday(userId, draft.criteria ?? parseAssistQuery(cleaned), input.save === true, now);
-      return { silence: false, fallback: false, reply: clampAssistReply(draft.reply), day };
+      return { silence: false, fallback: false, reply: clampAssistReply(draft.reply), day, ...(guides.length > 0 ? { guides } : {}) };
     }
 
     const allowed = new Set<string>([...cards.map((card) => card.id), ...input.offeredEventIds.filter((id) => byId.has(id))]);
@@ -117,7 +118,7 @@ export class AssistService {
       return event ? [{ event, explanation: "Подходит по запросу" }] : [];
     });
     const openEventId = openId && items.some((pick) => pick.event.id === openId) ? openId : undefined;
-    return { silence: false, fallback: false, reply: clampAssistReply(draft.reply), ...(items.length > 0 ? { items } : {}), ...(openEventId ? { openEventId } : {}) };
+    return { silence: false, fallback: false, reply: clampAssistReply(draft.reply), ...(items.length > 0 ? { items } : {}), ...(openEventId ? { openEventId } : {}), ...(guides.length > 0 ? { guides } : {}) };
   }
 
   private async assembleSaturday(userId: string, criteria: AssistCriteria, save: boolean, now: Date): Promise<AssistDayResponse> {
@@ -162,6 +163,9 @@ export class AssistService {
     const criteria = parseAssistQuery(cleaned);
     const recognized = criteriaRecognized(criteria);
     const reply = clampAssistReply(recognized ? "Не получилось сформировать ответ. Подобрал по словам запроса." : "Не получилось сформировать ответ. Вот что есть в афише.");
+    if (isAppGuideRequest(cleaned) && !recognized && !isPlanRequest(cleaned)) {
+      return { silence: false, fallback: true, reply: clampAssistReply("Не получилось сформировать ответ. Вот чем можно пользоваться."), guides: ["search", "map", "plans", "friends"] };
+    }
     if (isPlanRequest(cleaned)) {
       const day = await this.assembleSaturday(userId, criteria, save, now);
       return { silence: false, fallback: true, reply, day };
@@ -282,6 +286,22 @@ const ASSIST_REPLY_MAX = 400;
 /** AssistChatResponseSchema rejects a reply longer than 400, including the open-card sentence. */
 function clampAssistReply(reply: string): string {
   return reply.slice(0, ASSIST_REPLY_MAX);
+}
+
+function keepGuides(raw: readonly string[] | undefined): AssistGuideId[] {
+  const guides: AssistGuideId[] = [];
+  for (const id of raw ?? []) {
+    const parsed = AssistGuideIdSchema.safeParse(id);
+    if (!parsed.success || guides.includes(parsed.data)) continue;
+    guides.push(parsed.data);
+    if (guides.length === 4) break;
+  }
+  return guides;
+}
+
+function isAppGuideRequest(text: string): boolean {
+  const lower = text.toLowerCase();
+  return lower.includes("пользоват") || lower.includes("функционал") || lower.includes("что тут") || lower.includes("как тут") || lower.includes("что можно") || lower.includes("возможност") || lower.includes("раздел");
 }
 
 function isPlanRequest(text: string): boolean {

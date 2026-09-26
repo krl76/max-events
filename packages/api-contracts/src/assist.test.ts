@@ -106,6 +106,9 @@ describe("AssistChatResponseSchema", () => {
       }).success,
     ).toBe(false);
     expect(AssistChatResponseSchema.safeParse({ silence: true, fallback: false, reply: "нет" }).success).toBe(false);
+    expect(AssistChatResponseSchema.parse({ silence: false, fallback: false, reply: "Можно с карты.", guides: ["map", "plans"] }).guides).toEqual(["map", "plans"]);
+    expect(AssistChatResponseSchema.safeParse({ silence: false, fallback: false, reply: "Нет такого.", guides: ["admin"] }).success).toBe(false);
+    expect(AssistChatResponseSchema.safeParse({ silence: true, fallback: false, guides: ["map"] }).success).toBe(false);
   });
 });
 

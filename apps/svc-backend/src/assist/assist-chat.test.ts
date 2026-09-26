@@ -149,4 +149,23 @@ describe("AssistService.chat", () => {
     expect(result.reply).toBe(reply.slice(0, 400));
     expect(result.fallback).toBe(false);
   });
+
+  it("keeps only known screen guides from the model", async () => {
+    provider.chatTurn = async () => ({ refuse: false, reply: "Можно с карты.", eventIds: [], openEventId: null, plan: false, criteria: null, guides: ["map", "admin", "map", "plans", "friends", "lists"] });
+    const { service } = createService();
+    const result = await service.chat(userId, { message: "вечером музыка", transcript: [], offeredEventIds: [] }, now);
+    expect(result.guides).toEqual(["map", "plans", "friends", "lists"]);
+  });
+
+  it("offers app sections when the model cannot explain how to use it", async () => {
+    provider.chatTurn = async () => {
+      throw new LlmProviderError("llm_network", "LLM request failed");
+    };
+    const { service } = createService();
+    const result = await service.chat(userId, { message: "как пользоваться приложением?", transcript: [], offeredEventIds: [] }, now);
+    expect(result.fallback).toBe(true);
+    expect(result.reply).toBe("Не получилось сформировать ответ. Вот чем можно пользоваться.");
+    expect(result.items).toBeUndefined();
+    expect(result.guides).toEqual(["search", "map", "plans", "friends"]);
+  });
 });

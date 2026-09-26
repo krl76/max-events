@@ -20,16 +20,16 @@
 // - assistPickMeta - «20:00 · Концерт · 1 800 ₽» под названием варианта; бесплатный вход говорит об этом словами
 // - AssistPageState - idle/loading/error статус запроса к ассистенту
 // - AssistPageView - презентационная часть: шапка-градиент, ветка, подсказки и композер
+// - ASSIST_GUIDES - подпись и маршрут раздела, который MAX может предложить
 // - AssistPage - контейнер маршрута assist: ведёт переписку через POST /assist/chat
 // END_MODULE_MAP
 
 import { useEffect, useRef, useState } from "react";
-import type { AssistChatResponse, AssistDayResponse, AssistPick, AssistResponse, Event } from "@max-events/api-contracts";
-import { PlanCardSchema } from "@max-events/api-contracts";
+import { PlanCardSchema, type AssistChatResponse, type AssistDayResponse, type AssistGuideId, type AssistPick, type AssistResponse, type Event } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { planStepTime } from "../plans/PlanTimeline";
-import { useRoute } from "../routing/router";
+import { useRoute, type Route } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppMedia, AppState } from "../ui/primitives";
 import { assistErrorMessage } from "./AssistSection";
@@ -53,21 +53,40 @@ export interface AssistBubble {
   text: string;
   picks: AssistPick[];
   day: AssistDayResponse | null;
+  guides: AssistGuideId[];
 }
 
 export type AssistThread = AssistBubble[];
 
 export function askedThread(thread: AssistThread, question: string): AssistThread {
-  return [...thread, { id: thread.length + 1, role: "me", text: question, picks: [], day: null }];
+  return [...thread, { id: thread.length + 1, role: "me", text: question, picks: [], day: null, guides: [] }];
 }
 
 export function answeredThread(thread: AssistThread, result: AssistResponse): AssistThread {
-  return [...thread, { id: thread.length + 1, role: "max", text: result.summary, picks: result.items, day: null }];
+  return [...thread, { id: thread.length + 1, role: "max", text: result.summary, picks: result.items, day: null, guides: [] }];
 }
 
 export function plannedThread(thread: AssistThread, result: AssistDayResponse): AssistThread {
-  return [...thread, { id: thread.length + 1, role: "max", text: result.summary, picks: [], day: result }];
+  return [...thread, { id: thread.length + 1, role: "max", text: result.summary, picks: [], day: result, guides: [] }];
 }
+
+/** Подписи и маршруты разделов, которые MAX может предложить. Чужой id сюда не попадает. */
+export const ASSIST_GUIDES: Record<AssistGuideId, { label: string; hint: string; route: Route }> = {
+  search: { label: "Афиша", hint: "Искать события по фильтрам", route: { name: "search" } },
+  map: { label: "Карта", hint: "События и места рядом", route: { name: "map" } },
+  swipe: { label: "Свайп", hint: "Листать варианты и оставлять понравившиеся", route: { name: "swipe" } },
+  plans: { label: "Планы", hint: "Собрать выход с друзьями", route: { name: "plans" } },
+  calendar: { label: "Календарь", hint: "Что уже стоит в расписании", route: { name: "calendar" } },
+  friends: { label: "Друзья", hint: "Люди и куда они идут", route: { name: "friends" } },
+  lists: { label: "Списки", hint: "Сохранить событие себе или в общий список", route: { name: "lists" } },
+  story: { label: "Истории", hint: "Короткое видео с места", route: { name: "story-new" } },
+  post: { label: "Пост", hint: "Написать в ленту", route: { name: "feed-new", eventId: null } },
+  nearby: { label: "Рядом", hint: "Свободные часы без билета", route: { name: "nearby" } },
+  "day-route": { label: "Маршрут на день", hint: "Несколько точек в один день", route: { name: "day-route" } },
+  profile: { label: "Профиль", hint: "Свои данные и достижения", route: { name: "profile" } },
+  companies: { label: "Компании", hint: "Группа и голосование, куда идти", route: { name: "we-groups" } },
+  micro: { label: "Микрособытия", hint: "Короткая встреча рядом", route: { name: "micro" } },
+};
 
 const ASSIST_TRANSCRIPT_TEXT_MAX = 400;
 
@@ -79,7 +98,7 @@ export function assistChatTranscript(thread: AssistThread): { role: "user" | "as
 /** Молчание — та же ветка, без пузыря MAX. Иначе текст пузыря это reply, не старый шаблон summary. */
 export function chatThread(thread: AssistThread, response: AssistChatResponse): AssistThread {
   if (response.silence) return thread;
-  return [...thread, { id: thread.length + 1, role: "max", text: response.reply ?? "", picks: response.items ?? [], day: response.day ?? null }];
+  return [...thread, { id: thread.length + 1, role: "max", text: response.reply ?? "", picks: response.items ?? [], day: response.day ?? null, guides: response.guides ?? [] }];
 }
 
 /** Строка под названием варианта. Расстояния у события нет — оно живёт у площадки, — поэтому его здесь и нет. */
@@ -142,10 +161,11 @@ interface AssistPageViewProps {
   onPrompt: (prompt: string) => void;
   onOpenEvent: (eventId: string) => void;
   onOpenPlan: (planId: string) => void;
+  onOpenGuide: (guide: AssistGuideId) => void;
   onClose: () => void;
 }
 
-export function AssistPageView({ thread, draft, state, lastQuestion, onDraft, onSubmit, onPlanEvening, onMoreOptions, onPrompt, onOpenEvent, onOpenPlan, onClose }: AssistPageViewProps) {
+export function AssistPageView({ thread, draft, state, lastQuestion, onDraft, onSubmit, onPlanEvening, onMoreOptions, onPrompt, onOpenEvent, onOpenPlan, onOpenGuide, onClose }: AssistPageViewProps) {
   const answered = thread.some((bubble) => bubble.role === "max" && bubble.picks.length > 0);
   return (
     <section className="app-assist" aria-label="MAX AI ассистент">
@@ -174,6 +194,15 @@ export function AssistPageView({ thread, draft, state, lastQuestion, onDraft, on
               </div>
             )}
             {bubble.day !== null && <DayCard day={bubble.day} onOpenEvent={onOpenEvent} onOpenPlan={onOpenPlan} />}
+            {bubble.guides.length > 0 && (
+              <div className="app-assist-prompts" role="group" aria-label="Разделы приложения">
+                {bubble.guides.map((guide) => (
+                  <button key={guide} type="button" className="app-assist-prompt" onClick={() => onOpenGuide(guide)}>
+                    {ASSIST_GUIDES[guide].label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {state.status === "loading" && <AppState>MAX подбирает…</AppState>}
@@ -216,7 +245,7 @@ export function AssistPageView({ thread, draft, state, lastQuestion, onDraft, on
 
 export function AssistPage({ ask = null }: { ask?: string | null }) {
   const { navigate, back } = useRoute();
-  const [thread, setThread] = useState<AssistThread>([{ id: 0, role: "max", text: ASSIST_GREETING, picks: [], day: null }]);
+  const [thread, setThread] = useState<AssistThread>([{ id: 0, role: "max", text: ASSIST_GREETING, picks: [], day: null, guides: [] }]);
   const [draft, setDraft] = useState(ask ?? "");
   const [state, setState] = useState<AssistPageState>({ status: "idle" });
   const [lastQuestion, setLastQuestion] = useState<string | null>(null);
@@ -289,5 +318,5 @@ export function AssistPage({ ask = null }: { ask?: string | null }) {
       });
   };
 
-  return <AssistPageView thread={thread} draft={draft} state={state} lastQuestion={lastQuestion} onDraft={setDraft} onSubmit={() => askMax(draft)} onPlanEvening={planEvening} onMoreOptions={() => askMax(lastQuestion === null ? "Ещё варианты" : `${lastQuestion}, ещё варианты`)} onPrompt={askMax} onOpenEvent={(id) => navigate({ name: "event", id })} onOpenPlan={(id) => navigate({ name: "plan", id })} onClose={back} />;
+  return <AssistPageView thread={thread} draft={draft} state={state} lastQuestion={lastQuestion} onDraft={setDraft} onSubmit={() => askMax(draft)} onPlanEvening={planEvening} onMoreOptions={() => askMax(lastQuestion === null ? "Ещё варианты" : `${lastQuestion}, ещё варианты`)} onPrompt={askMax} onOpenEvent={(id) => navigate({ name: "event", id })} onOpenPlan={(id) => navigate({ name: "plan", id })} onOpenGuide={(guide) => navigate(ASSIST_GUIDES[guide].route)} onClose={back} />;
 }

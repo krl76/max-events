@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { AssistDayResponse, AssistResponse } from "@max-events/api-contracts";
-import { ASSIST_GREETING, ASSIST_PLACEHOLDER, ASSIST_PROMPTS, AssistPageView, answeredThread, askedThread, assistChatTranscript, assistPickMeta, chatThread, isSaturdayPlanPrompt, plannedThread, type AssistThread } from "./AssistPage";
+import { ASSIST_GREETING, ASSIST_GUIDES, ASSIST_PLACEHOLDER, ASSIST_PROMPTS, AssistPageView, answeredThread, askedThread, assistChatTranscript, assistPickMeta, chatThread, isSaturdayPlanPrompt, plannedThread, type AssistThread } from "./AssistPage";
 import { mockAssistDay, mockAssistSuggest, mockEvents, resetMockAssist } from "../api/mock";
 
-const START: AssistThread = [{ id: 0, role: "max", text: ASSIST_GREETING, picks: [], day: null }];
+const START: AssistThread = [{ id: 0, role: "max", text: ASSIST_GREETING, picks: [], day: null, guides: [] }];
 
 function suggestion(): AssistResponse {
   resetMockAssist();
@@ -81,6 +81,34 @@ describe("assistChatTranscript", () => {
   });
 });
 
+describe("app guides", () => {
+  it("keeps screen suggestions on the bubble and opens the map route", () => {
+    const thread = chatThread(askedThread(START, "как пользоваться?"), { silence: false, fallback: false, reply: "Можно с карты.", guides: ["map", "plans"] });
+    expect(thread.at(-1)?.guides).toEqual(["map", "plans"]);
+    expect(ASSIST_GUIDES.map.route).toEqual({ name: "map" });
+    expect(ASSIST_GUIDES.post.route).toEqual({ name: "feed-new", eventId: null });
+    const html = renderToStaticMarkup(
+      createElement(AssistPageView, {
+        thread,
+        draft: "",
+        state: { status: "idle" },
+        lastQuestion: null,
+        onDraft: () => {},
+        onSubmit: () => {},
+        onPlanEvening: () => {},
+        onMoreOptions: () => {},
+        onPrompt: () => {},
+        onOpenEvent: () => {},
+        onOpenPlan: () => {},
+        onOpenGuide: () => {},
+        onClose: () => {},
+      }),
+    );
+    expect(html).toContain("Карта");
+    expect(html).toContain("Планы");
+  });
+});
+
 describe("assistPickMeta", () => {
   it("says the entry is free in words rather than printing 0 ₽", () => {
     const free = mockEvents.find((event) => !event.isPaid);
@@ -123,6 +151,7 @@ describe("AssistPageView", () => {
         onPrompt: () => {},
         onOpenEvent: () => {},
         onOpenPlan: () => {},
+        onOpenGuide: () => {},
         onClose: () => {},
         ...over,
       }),

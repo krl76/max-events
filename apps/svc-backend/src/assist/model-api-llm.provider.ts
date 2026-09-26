@@ -10,15 +10,19 @@
 // - ModelApiLlmProvider - live LlmProvider that fails over across models for criteria and chat drafts
 // END_MODULE_MAP
 
-import { AssistCriteriaSchema, type AssistCriteria } from "@max-events/api-contracts";
+import { AssistCriteriaSchema, AssistGuideIdSchema, type AssistCriteria } from "@max-events/api-contracts";
 import { LlmProviderError, type AssistCatalogCard, type AssistChatDraft, type LlmProvider } from "./llm-provider";
 
 const SYSTEM = 'Reply with JSON only: {"when":"morning|afternoon|evening|any","budgetMaxRub":number|null,"company":"alone|friends|partner|kids","genre":"music|sport|outdoors|any"}';
 
-const CHAT_SYSTEM = `You are MAX, a short leisure assistant for a real event catalog. Reply in Russian, one or two sentences.
-Return JSON only: {"refuse":false,"reply":"...","eventIds":[],"openEventId":null,"plan":false,"criteria":null}
+const CHAT_SYSTEM = `You are MAX, a short leisure assistant for a real event catalog and for the app itself. Reply in Russian, one or two sentences.
+Return JSON only: {"refuse":false,"reply":"...","eventIds":[],"openEventId":null,"plan":false,"criteria":null,"guides":[]}
 refuse is true only for a direct insult. eventIds and openEventId must be copied from the catalog ids you were given. Use plan true only when the user asks to assemble a day. criteria is {"when":"morning|afternoon|evening|any","budgetMaxRub":number|null,"company":"alone|friends|partner|kids","genre":"music|sport|outdoors|any"} or null.
-For small talk, reply and invite the user to pick an event. Leave eventIds empty.`;
+guides is up to 4 ids from this list only: search, map, swipe, plans, calendar, friends, lists, story, post, nearby, day-route, profile, companies, micro.
+search is the poster, map is the map, swipe is liking events, plans is a meetup, calendar is the schedule, friends is people, lists is saved events, story is a short video, post is the feed, nearby is free time nearby, day-route is a day of stops, profile is the user, companies is a group vote, micro is a short nearby meetup.
+When the user asks what the app can do, reply and put 2-4 guides in guides. Leave eventIds empty.
+When the user asks for events, you may add one relevant guide beside the cards.
+For small talk, reply, invite them to pick an event, and you may add one guide.`;
 
 /** A hung model must not hold the assist request forever; the next id still gets its own window. */
 export const MODEL_API_REQUEST_TIMEOUT_MS = 10_000;
@@ -113,7 +117,20 @@ function parseChatDraft(raw: unknown, cards: readonly AssistCatalogCard[]): Assi
     openEventId: typeof value.openEventId === "string" && eventIds.includes(value.openEventId) ? value.openEventId : null,
     plan: value.plan === true,
     criteria: criteria.success ? criteria.data : null,
+    guides: keepGuideIds(value.guides),
   };
+}
+
+function keepGuideIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const guides: string[] = [];
+  for (const id of raw) {
+    const parsed = AssistGuideIdSchema.safeParse(id);
+    if (!parsed.success || guides.includes(parsed.data)) continue;
+    guides.push(parsed.data);
+    if (guides.length === 4) break;
+  }
+  return guides;
 }
 
 function extractJson(content: string): unknown {
