@@ -40,7 +40,7 @@ function ActionPill({ action, countdown, disabled, onPress }: { action: Notifica
 
 /**
  * A decision card (макет, экран 07). Two answers make it a fork: only that card is washed in
- * brand-cyan and only it repeats its type glyph in the headline — see notificationIsChoice.
+ * the status colour and only it repeats its type glyph in the headline — see notificationIsChoice.
  */
 function DecisionCard({ notification, now, busy, onAct }: { notification: AppNotification; now: Date; busy: boolean; onAct: (action: NotificationAction) => void }) {
   const choice = notificationIsChoice(notification);

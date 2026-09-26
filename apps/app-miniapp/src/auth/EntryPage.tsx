@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - EntryMode - user | organizer
-// - AfishaWordmark - «афиша · MAX» wordmark with the brand-cyan dot between the words (entry screen and onboarding intro)
+// - AfishaWordmark - «афиша · MAX» wordmark with the accent dot between the words (entry screen and onboarding intro)
 // - EntryPage - branded backdrop + wordmark + the two entry options + the terms line
 // END_MODULE_MAP
 

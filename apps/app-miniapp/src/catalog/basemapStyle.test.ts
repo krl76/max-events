@@ -51,16 +51,16 @@ describe("own basemap style", () => {
     expect(ids[ids.length - 1]).toBe("place-city");
   });
 
-  it("changes only the paint between schemes: same layers, brand-void paper in the dark one", () => {
+  it("changes only the paint between schemes: same layers, graphite paper in the dark one", () => {
     expect(dark.layers.map((layer) => layer.id)).toEqual(light.layers.map((layer) => layer.id));
     expect(dark.layers.map((layer) => layer.type)).toEqual(light.layers.map((layer) => layer.type));
-    expect(basemapPalette("dark").background).toBe("#0d001a");
-    expect(basemapPalette("light").background).not.toBe("#0d001a");
+    expect(basemapPalette("dark").background).toBe("#17181c");
+    expect(basemapPalette("light").background).not.toBe("#17181c");
     expect(light.layers[0]).toMatchObject({ paint: { "background-color": basemapPalette("light").background } });
     expect(dark.layers[0]).toMatchObject({ paint: { "background-color": basemapPalette("dark").background } });
-    // Accent as text follows theme.css: brand-blue on paper, brand-cyan in the dark
-    expect(basemapPalette("light").accent).toBe("#471aff");
-    expect(basemapPalette("dark").accent).toBe("#00bfff");
+    // Accent as text follows theme.css: brand-blue on paper, brand-blue-hover in the dark
+    expect(basemapPalette("light").accent).toBe("#007aff");
+    expect(basemapPalette("dark").accent).toBe("#479fff");
   });
 
   it("labels read the Russian name first and use only the two fonts hosted under /tiles/fonts", () => {
