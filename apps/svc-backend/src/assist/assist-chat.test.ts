@@ -125,4 +125,28 @@ describe("AssistService.chat", () => {
     expect(hello.items?.length).toBeGreaterThan(0);
     expect(hello.items?.length).toBeLessThanOrEqual(4);
   });
+
+  it("saves an evening plan when the model fails on «Собрать план на вечер»", async () => {
+    provider.chatTurn = async () => {
+      throw new LlmProviderError("llm_network", "LLM request failed");
+    };
+    const { service, events, plansStore } = createService();
+    events.push(eventRow("00000000-0000-4000-8000-0000000000e5", "Вечер джаза в парке", "2026-09-12T19:00:00+03:00", 1200));
+    const result = await service.chat(userId, { message: "Собрать план на вечер", save: true, transcript: [], offeredEventIds: [] }, now);
+    expect(result.fallback).toBe(true);
+    expect(result.day?.stops.length).toBeGreaterThan(0);
+    expect(result.items).toBeUndefined();
+    expect(plansStore).toHaveLength(1);
+    expect(result.day?.plan?.plan.id).toBe(plansStore[0]?.plan.id);
+    expect(result.reply).toBe("Не получилось сформировать ответ. Подобрал по словам запроса.");
+  });
+
+  it("clamps a model reply to 400 characters", async () => {
+    const reply = "а".repeat(500);
+    provider.chatTurn = async () => ({ refuse: false, reply, eventIds: [], openEventId: null, plan: false, criteria: null });
+    const { service } = createService();
+    const result = await service.chat(userId, { message: "как дела?", transcript: [], offeredEventIds: [] }, now);
+    expect(result.reply).toBe(reply.slice(0, 400));
+    expect(result.fallback).toBe(false);
+  });
 });

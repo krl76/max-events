@@ -16,6 +16,7 @@
 // - answeredThread - добавить ответ MAX с вариантами
 // - plannedThread - добавить ответ MAX с планом на вечер
 // - chatThread - молчание оставляет ветку; иначе реплика MAX из reply, карточек и дня
+// - assistChatTranscript - последние 8 реплик для POST /assist/chat; текст каждой не длиннее 400, пузырь на экране не режется
 // - assistPickMeta - «20:00 · Концерт · 1 800 ₽» под названием варианта; бесплатный вход говорит об этом словами
 // - AssistPageState - idle/loading/error статус запроса к ассистенту
 // - AssistPageView - презентационная часть: шапка-градиент, ветка, подсказки и композер
@@ -66,6 +67,13 @@ export function answeredThread(thread: AssistThread, result: AssistResponse): As
 
 export function plannedThread(thread: AssistThread, result: AssistDayResponse): AssistThread {
   return [...thread, { id: thread.length + 1, role: "max", text: result.summary, picks: [], day: result }];
+}
+
+const ASSIST_TRANSCRIPT_TEXT_MAX = 400;
+
+/** Ход в transcript не длиннее 400: схема его отвергает. Пузырь на экране остаётся целиком. */
+export function assistChatTranscript(thread: AssistThread): { role: "user" | "assistant"; text: string }[] {
+  return thread.slice(-8).map((bubble) => ({ role: bubble.role === "me" ? "user" : "assistant", text: bubble.text.slice(0, ASSIST_TRANSCRIPT_TEXT_MAX) }));
 }
 
 /** Молчание — та же ветка, без пузыря MAX. Иначе текст пузыря это reply, не старый шаблон summary. */
@@ -240,7 +248,7 @@ export function AssistPage({ ask = null }: { ask?: string | null }) {
     apiClient
       .assistChat({
         message: text,
-        transcript: thread.slice(-8).map((bubble) => ({ role: bubble.role === "me" ? "user" : "assistant", text: bubble.text })),
+        transcript: assistChatTranscript(thread),
         offeredEventIds: [
           ...(thread
             .slice()
@@ -265,7 +273,7 @@ export function AssistPage({ ask = null }: { ask?: string | null }) {
       .assistChat({
         message: "Собрать план на вечер",
         save: true,
-        transcript: thread.slice(-8).map((bubble) => ({ role: bubble.role === "me" ? "user" : "assistant", text: bubble.text })),
+        transcript: assistChatTranscript(thread),
         offeredEventIds: [
           ...(thread
             .slice()

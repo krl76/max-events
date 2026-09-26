@@ -10,7 +10,7 @@
 // - formatAssistSummary - README-style copy
 // - nextSaturdayKey - next Saturday YYYY-MM-DD in Moscow
 // - formatDaySummary - README-style copy for a generated day
-// - AssistService - suggest, planSaturday, chat (chat does not call planSaturday; Saturday word check stays in this file)
+// - AssistService - suggest, planSaturday, chat (chat does not call planSaturday; plan-word check stays in this file)
 // END_MODULE_MAP
 
 import { BadRequestException, HttpException, HttpStatus, Inject, Injectable } from "@nestjs/common";
@@ -85,7 +85,7 @@ export class AssistService {
     const choiceIndex = offeredChoiceIndex(cleaned, input.offeredEventIds.length);
     const chosen = choiceIndex === null ? undefined : byId.get(input.offeredEventIds[choiceIndex] ?? "");
     if (chosen) {
-      return { silence: false, fallback: false, reply: `Открываю «${chosen.title}».`, items: [{ event: chosen, explanation: "Подходит по запросу" }], openEventId: chosen.id };
+      return { silence: false, fallback: false, reply: clampAssistReply(`Открываю «${chosen.title}».`), items: [{ event: chosen, explanation: "Подходит по запросу" }], openEventId: chosen.id };
     }
 
     const cards = future.slice(0, 12).map((event) => ({ id: event.id, title: event.title, startsAt: event.startsAt, priceRub: event.priceRub, category: event.category }));
@@ -98,7 +98,7 @@ export class AssistService {
     if (draft.refuse) return { silence: true, fallback: false };
     if (draft.plan) {
       const day = await this.assembleSaturday(userId, draft.criteria ?? parseAssistQuery(cleaned), input.save === true, now);
-      return { silence: false, fallback: false, reply: draft.reply, day };
+      return { silence: false, fallback: false, reply: clampAssistReply(draft.reply), day };
     }
 
     const allowed = new Set<string>([...cards.map((card) => card.id), ...input.offeredEventIds.filter((id) => byId.has(id))]);
@@ -117,7 +117,7 @@ export class AssistService {
       return event ? [{ event, explanation: "Подходит по запросу" }] : [];
     });
     const openEventId = openId && items.some((pick) => pick.event.id === openId) ? openId : undefined;
-    return { silence: false, fallback: false, reply: draft.reply, ...(items.length > 0 ? { items } : {}), ...(openEventId ? { openEventId } : {}) };
+    return { silence: false, fallback: false, reply: clampAssistReply(draft.reply), ...(items.length > 0 ? { items } : {}), ...(openEventId ? { openEventId } : {}) };
   }
 
   private async assembleSaturday(userId: string, criteria: AssistCriteria, save: boolean, now: Date): Promise<AssistDayResponse> {
@@ -161,8 +161,8 @@ export class AssistService {
   private async chatFallback(userId: string, cleaned: string, save: boolean, now: Date, future: Event[]): Promise<AssistChatResponse> {
     const criteria = parseAssistQuery(cleaned);
     const recognized = criteriaRecognized(criteria);
-    const reply = recognized ? "Не получилось сформировать ответ. Подобрал по словам запроса." : "Не получилось сформировать ответ. Вот что есть в афише.";
-    if (isSaturdayPlanPrompt(cleaned)) {
+    const reply = clampAssistReply(recognized ? "Не получилось сформировать ответ. Подобрал по словам запроса." : "Не получилось сформировать ответ. Вот что есть в афише.");
+    if (isPlanRequest(cleaned)) {
       const day = await this.assembleSaturday(userId, criteria, save, now);
       return { silence: false, fallback: true, reply, day };
     }
@@ -277,7 +277,14 @@ function criteriaRecognized(criteria: AssistCriteria): boolean {
   return criteria.when !== "any" || criteria.budgetMaxRub !== null || criteria.company !== "alone" || criteria.genre !== "any";
 }
 
-function isSaturdayPlanPrompt(text: string): boolean {
+const ASSIST_REPLY_MAX = 400;
+
+/** AssistChatResponseSchema rejects a reply longer than 400, including the open-card sentence. */
+function clampAssistReply(reply: string): string {
+  return reply.slice(0, ASSIST_REPLY_MAX);
+}
+
+function isPlanRequest(text: string): boolean {
   const lower = text.toLowerCase();
-  return lower.includes("план") && (lower.includes("суббот") || lower.includes("шашлык") || lower.includes("мангал"));
+  return lower.includes("план") && (lower.includes("вечер") || lower.includes("суббот") || lower.includes("шашлык") || lower.includes("мангал") || lower.includes("собер"));
 }

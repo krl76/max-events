@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { AssistDayResponse, AssistResponse } from "@max-events/api-contracts";
-import { ASSIST_GREETING, ASSIST_PLACEHOLDER, ASSIST_PROMPTS, AssistPageView, answeredThread, askedThread, assistPickMeta, chatThread, isSaturdayPlanPrompt, plannedThread, type AssistThread } from "./AssistPage";
+import { ASSIST_GREETING, ASSIST_PLACEHOLDER, ASSIST_PROMPTS, AssistPageView, answeredThread, askedThread, assistChatTranscript, assistPickMeta, chatThread, isSaturdayPlanPrompt, plannedThread, type AssistThread } from "./AssistPage";
 import { mockAssistDay, mockAssistSuggest, mockEvents, resetMockAssist } from "../api/mock";
 
 const START: AssistThread = [{ id: 0, role: "max", text: ASSIST_GREETING, picks: [], day: null }];
@@ -66,6 +66,18 @@ describe("thread transitions", () => {
     });
     expect(fallback.at(-1)?.text).toContain("Не получилось сформировать ответ");
     expect(fallback.at(-1)?.picks).toHaveLength(1);
+  });
+});
+
+describe("assistChatTranscript", () => {
+  it("sends a 500-character user line as 400 characters and leaves the bubble intact", () => {
+    const line = "а".repeat(500);
+    const thread = askedThread(START, line);
+    const userTurn = assistChatTranscript(thread).filter((turn) => turn.role === "user").at(-1);
+
+    expect(userTurn?.text).toHaveLength(400);
+    expect(userTurn?.text).toBe(line.slice(0, 400));
+    expect(thread.at(-1)?.text).toBe(line);
   });
 });
 
