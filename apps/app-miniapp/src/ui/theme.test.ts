@@ -176,6 +176,16 @@ describe("theme.css typography and geometry", () => {
     expect(css).toContain("--app-space-s: 8px;");
   });
 
+  it("keeps the 20px phone gutter on fullscreen screens and zeroes it only on a flush canvas", () => {
+    const full = css.slice(css.indexOf(".app-content--full {"));
+    const fullBlock = full.slice(0, full.indexOf("}") + 1);
+    const flushBoth = css.slice(css.indexOf(".app-content--full.app-content--flush {"));
+    const flushBothBlock = flushBoth.slice(0, flushBoth.indexOf("}") + 1);
+
+    expect(fullBlock).toContain("var(--app-space-screen)");
+    expect(flushBothBlock).toMatch(/padding:\s*0\s*;/);
+  });
+
   it("caps running text near 60 characters", () => {
     expect(css).toContain("--app-measure: 60ch;");
     expect(css).toContain("max-width: var(--app-measure);");

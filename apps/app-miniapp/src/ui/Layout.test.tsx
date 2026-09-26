@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Route } from "../routing/router";
-import { ROUTE_TITLES, routeHasBack, routeHasHeader, routeIsFullscreen, routeTitle, TABS } from "./Layout";
+import { ROUTE_TITLES, routeHasBack, routeHasHeader, routeIsFlush, routeIsFullscreen, routeTitle, TABS } from "./Layout";
 
 describe("Layout tabbar active predicates", () => {
   it("highlights only the Plans tab on the day-route screen", () => {
@@ -145,5 +145,21 @@ describe("routeIsFullscreen", () => {
     expect(routeIsFullscreen({ name: "micro-new" })).toBe(false);
     expect(routeIsFullscreen({ name: "home" })).toBe(false);
     expect(routeIsFullscreen({ name: "event", id: "e1" })).toBe(false);
+  });
+});
+
+describe("routeIsFlush", () => {
+  it("drops shell gutters on the map canvas and on screens that already pad themselves", () => {
+    expect(routeIsFlush({ name: "map" })).toBe(true);
+    expect(routeIsFlush({ name: "story-new" })).toBe(true);
+    expect(routeIsFlush({ name: "feed-new", eventId: null })).toBe(true);
+    expect(routeIsFlush({ name: "place", id: "p1" })).toBe(true);
+    expect(routeIsFlush({ name: "notifications" })).toBe(true);
+  });
+
+  it("keeps the 20px phone gutter on calendar, MAX AI and the day route", () => {
+    expect(routeIsFlush({ name: "calendar" })).toBe(false);
+    expect(routeIsFlush({ name: "assist", ask: null })).toBe(false);
+    expect(routeIsFlush({ name: "day-route" })).toBe(false);
   });
 });

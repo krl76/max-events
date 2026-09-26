@@ -13,7 +13,8 @@
 // - routeTitle - header title for the current route
 // - routeHasBack - back button shown on every non-tab route, the map included
 // - routeHasHeader - header hidden wherever the screen draws its own chrome: the search/plans/profile tabs (profile renders its own gradient hero), the map and the swipe deck, which draw over the content, «После события», whose hero carries a close button instead of a back arrow, the two list screens (экраны 37 и 39), the we-groups and the votes (экраны 30-33), the micro-event feed and card (экраны 24 и 25), the friends list with its counter (экран 26) and the friend route (экран 28), the plan with its date, party size and «MAX СОБРАЛ» badge (экран 15), the assistant with its gradient hero (экран 10), and the fullscreen composers
-// - routeIsFullscreen - the story and post composers (макет, экраны 05 и 06) own the whole viewport: no shell header, no tabbar, no gutters
+// - routeIsFullscreen - composers/place/calendar/assist/day-route own the viewport: no shell header, no tabbar
+// - routeIsFlush - map canvas and screens that already set their own 20px fields (story, post, place, slots, notifications)
 // - routeIsFullscreen - the story and post composers (макет, экраны 05 и 06), the place page (34) and the two booking screens (19 и 20) own the whole viewport: each carries its own back control and its own bottom bar, so neither the shell header nor the tabbar belongs there
 // - routeHasHeader - header hidden where the screen draws its own topbar: the search/plans/profile tabs and the two list screens (макет, экраны 37 и 39)
 // - routeHasHeader - header hidden on экран 17, whose gradient hero carries the back arrow and the share/save circles, and on экран 23, whose topbar carries the event title and its thumbnail
@@ -134,6 +135,18 @@ export function routeIsFullscreen(route: Route): boolean {
   return FULLSCREEN_ROUTES.has(route.name);
 }
 
+/**
+ * Холст без боковых полей оболочки: карта (таббар остаётся) и экраны, которые сами
+ * ставят 20px — иначе полноэкранный маршрут с полями дал бы 40px. Календарь, MAX AI
+ * и маршрут на день полями оболочки пользуются: их вёрстка писалась под .app-content.
+ */
+const FLUSH_ROUTES: ReadonlySet<Route["name"]> = new Set(["map", "story-new", "feed-new", "place", "slot-booking", "slot-ticket", "notifications"]);
+
+export function routeIsFlush(route: Route): boolean {
+  return FLUSH_ROUTES.has(route.name);
+}
+
+
 export function routeHasHeader(route: Route): boolean {
   return !HEADERLESS_ROUTES.has(route.name) && !routeIsFullscreen(route);
 }
@@ -206,7 +219,7 @@ export function Layout({ children }: { children: ReactNode }) {
           )}
         </header>
       )}
-      <main key={navSeq} className={`app-content app-screen--${transition}${route.name === "map" ? " app-content--flush" : ""}${routeIsFullscreen(route) ? " app-content--full" : ""}`}>
+      <main key={navSeq} className={`app-content app-screen--${transition}${routeIsFlush(route) ? " app-content--flush" : ""}${routeIsFullscreen(route) ? " app-content--full" : ""}`}>
         {children}
       </main>
       {!routeIsFullscreen(route) && (
