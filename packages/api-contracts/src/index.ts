@@ -5,6 +5,7 @@ export * from "./user.js";
 export * from "./place.js";
 export * from "./booking.js";
 export * from "./calendar.js";
+export * from "./cities.js";
 export * from "./auth.js";
 export * from "./organization.js";
 export * from "./story.js";
