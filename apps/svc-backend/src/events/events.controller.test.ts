@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CreateEventSchema, type CreateEvent, type Event } from "@max-events/api-contracts";
 import { UserEntity } from "../users/user.entity";
 import { parseEventListQuery, EventsController } from "./events.controller";
+import type { EventCompanionsService } from "./event-companions.service";
 import type { EventDetailsService } from "./event-details.service";
 import type { EventWeatherService } from "./event-weather.service";
 import type { EventListQuery, EventsService } from "./events.service";
@@ -28,7 +29,7 @@ const event: Event = {
 };
 
 function createController() {
-  const calls: { create?: CreateEvent; list?: EventListQuery; listCards?: EventListQuery; getById?: string; details?: { id: string; viewerId: string }; hourly?: string; update?: { id: string; patch: Record<string, unknown> }; remove?: string } = {};
+  const calls: { create?: CreateEvent; list?: EventListQuery; listCards?: EventListQuery; getById?: string; details?: { id: string; viewerId: string }; companions?: { id: string; viewerId: string }; hourly?: string; update?: { id: string; patch: Record<string, unknown> }; remove?: string } = {};
   const service = {
     create: async (body: CreateEvent) => {
       calls.create = body;
@@ -70,7 +71,13 @@ function createController() {
       return { source: "Open-Meteo", hours: [], note: null };
     },
   } as unknown as EventWeatherService;
-  return { calls, controller: new EventsController(service, details, weather) };
+  const companions = {
+    get: async (id: string, viewerId: string) => {
+      calls.companions = { id, viewerId };
+      return { counts: { going: 0, wants: 0, looking: 0 }, myStatus: null, companions: [], gathering: null };
+    },
+  } as unknown as EventCompanionsService;
+  return { calls, controller: new EventsController(service, details, weather, companions) };
 }
 
 describe("EventsController", () => {
@@ -137,6 +144,12 @@ describe("EventsController", () => {
     const result = await controller.listCards(user, { city: "Москва", latitude: "55.75", longitude: "37.62" });
     expect(calls.listCards).toMatchObject({ city: "Москва", latitude: 55.75, longitude: 37.62, viewerId: user.id });
     expect(result).toEqual([{ event, distanceKm: 2.1, rating: 4.8, placeTitle: "Парк Горького" }]);
+  });
+
+  it("serves companions for the current user", async () => {
+    const { calls, controller } = createController();
+    await expect(controller.listCompanions(user, event.id)).resolves.toMatchObject({ gathering: null, companions: [] });
+    expect(calls.companions).toEqual({ id: event.id, viewerId: user.id });
   });
 
   it("serves the details aggregate for the current user", async () => {

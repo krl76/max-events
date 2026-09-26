@@ -1,19 +1,20 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for events — authenticated CRUD and catalog list under /api/events.
-// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to/min_rating/q/sort/limit/offset/lat/lng; GET cards is the search-tab card list; GET :id/details delegates to EventDetailsService; GET :id/weather/hourly is the Open-Meteo strip.
+// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/date/date_from/date_to/min_rating/q/sort/limit/offset/lat/lng; GET cards is the search-tab card list; GET :id/details delegates to EventDetailsService; GET :id/companions is экран 23; GET :id/weather/hourly is the Open-Meteo strip.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ./events.service, ./event-details.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - EventsController - /events CRUD, catalog list, GET cards, and the :id/details page aggregate
+// - EventsController - /events CRUD, catalog list, GET cards, :id/details and :id/companions
 // - parseEventListQuery - coerce HTTP query into EventListQuery or 400; lat/lng or latitude/longitude
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
-import { CreateEventSchema, EventCategorySchema, TimestampSchema, type CatalogCard, type Event, type EventDetails } from "@max-events/api-contracts";
+import { CreateEventSchema, EventCategorySchema, TimestampSchema, type CatalogCard, type Event, type EventCompanions, type EventDetails } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
+import { EventCompanionsService } from "./event-companions.service";
 import { EventDetailsService, type EventNearbySpot } from "./event-details.service";
 import { EventWeatherService, type EventForecast } from "./event-weather.service";
 import { EVENT_LIST_MAX_LIMIT, EVENT_SORTS, EventsService, type EventListQuery, type EventSort } from "./events.service";
@@ -24,6 +25,7 @@ export class EventsController {
     @Inject(EventsService) private readonly events: EventsService,
     @Inject(EventDetailsService) private readonly details: EventDetailsService,
     @Inject(EventWeatherService) private readonly weather: EventWeatherService,
+    @Inject(EventCompanionsService) private readonly companions: EventCompanionsService,
   ) {}
 
   @Post()
@@ -57,6 +59,11 @@ export class EventsController {
   @Get(":id/nearby")
   nearby(@Param("id", ParseUUIDPipe) id: string): Promise<EventNearbySpot[]> {
     return this.details.nearby(id);
+  }
+
+  @Get(":id/companions")
+  listCompanions(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<EventCompanions> {
+    return this.companions.get(id, user.id);
   }
 
   @Get(":id")

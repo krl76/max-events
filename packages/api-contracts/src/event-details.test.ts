@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EventDetailsSchema } from "./event-details.js";
+import { EventCompanionsSchema, EventDetailsSchema } from "./event-details.js";
 
 const eventId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f";
 const organizerId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90";
@@ -89,5 +89,29 @@ describe("EventDetailsSchema", () => {
   it("rejects a payload without the rating summary", () => {
     const { rating: _rating, ...withoutRating } = minimalDetails;
     expect(EventDetailsSchema.safeParse(withoutRating).success).toBe(false);
+  });
+});
+
+describe("EventCompanionsSchema", () => {
+  it("accepts empty people and a missing gathering", () => {
+    const parsed = EventCompanionsSchema.parse({
+      counts: { going: 1, wants: 2, looking: 0 },
+      myStatus: "going",
+      companions: [],
+      gathering: null,
+    });
+    expect(parsed.counts.wants).toBe(2);
+    expect(parsed.gathering).toBeNull();
+  });
+
+  it("rejects a companion that invents a chat title type", () => {
+    expect(
+      EventCompanionsSchema.safeParse({
+        counts: { going: 0, wants: 0, looking: 0 },
+        myStatus: null,
+        companions: [{ friend: { id: organizerId, name: "Анна" }, status: "going", chatTitle: 1, sharedPlansCount: 0, matchesCount: 0, interests: [], note: null }],
+        gathering: null,
+      }).success,
+    ).toBe(false);
   });
 });
