@@ -17,6 +17,8 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { Story } from "@max-events/api-contracts";
+import { apiClient } from "../api/client";
+import { useRoute } from "../routing/router";
 import { StoryFrame } from "./StoryFrame";
 
 export const STORY_DURATION_MS = 5000;
@@ -54,6 +56,8 @@ export function prevPosition(flat: number): number | null {
 }
 
 export function StoryViewer({ groups, startGroup = 0, onView, onClose }: { groups: StoryGroup[]; startGroup?: number; onView?: (story: Story) => void; onClose: () => void }) {
+  const { navigate } = useRoute();
+  const [answers, setAnswers] = useState<Record<string, number>>({});
   const positions = useMemo(() => flattenStoryGroups(groups), [groups]);
   const [flat, setFlat] = useState(() => {
     const found = positions.findIndex((position) => position.group === startGroup);
@@ -91,13 +95,27 @@ export function StoryViewer({ groups, startGroup = 0, onView, onClose }: { group
 
   if (!current) return null;
 
+  const voted = answers[current.story.id];
+  const shownStory = current.story.poll === null || voted === undefined ? current.story : { ...current.story, poll: { ...current.story.poll, answer: voted } };
+  const vote = (optionIndex: number) => {
+    const storyId = current.story.id;
+    setAnswers((known) => ({ ...known, [storyId]: optionIndex }));
+    void apiClient.voteStory(storyId, optionIndex).catch(() => {
+      setAnswers((known) => {
+        const next = { ...known };
+        delete next[storyId];
+        return next;
+      });
+    });
+  };
+
   // Заполнение сегмента рисует CSS, но длину показа знает только этот модуль — она уходит переменной,
   // и полоса не может разойтись с таймером перелистывания выше.
   const segmentsStyle = { "--app-story-duration": `${STORY_DURATION_MS}ms` } as CSSProperties;
 
   return (
     <div className="app-story-viewer" role="dialog" aria-label={`История: ${current.authorName}`}>
-      <StoryFrame key={current.story.id} story={current.story} />
+      <StoryFrame key={current.story.id} story={shownStory} onOpenEvent={(eventId) => eventId !== "" && navigate({ name: "event", id: eventId })} onVote={vote} />
       <div className="app-story-viewer-top">
         <div className="app-story-viewer-segments" style={segmentsStyle}>
           {/* key с номером автора: у нового автора первый сегмент — новый элемент, и его заполнение стартует с нуля */}

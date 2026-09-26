@@ -67,7 +67,7 @@ export function feedRoutes(url: URL, init: RequestInit | undefined): Response | 
   }
   if (url.pathname === "/api/feed" && init?.method === "POST") {
     const payload = parseBookingBody(init) as CreateFeedPost | undefined;
-    if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || payload.userId === "" || typeof payload.eventId !== "string" || typeof payload.text !== "string" || payload.text.trim() === "") return new Response(null, { status: 400 });
+    if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || payload.userId === "" || (payload.eventId !== null && typeof payload.eventId !== "string") || typeof payload.text !== "string" || payload.text.trim() === "") return new Response(null, { status: 400 });
     const post = createMockFeedPost(payload);
     return post ? Response.json(post) : new Response(null, { status: 404 });
   }

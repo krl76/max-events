@@ -17,7 +17,7 @@ function captionClass(object: StoryCanvasObject): string {
 }
 
 /** The published frame uses the same sticker, poll, seats and caption the composer drew. */
-export function StoryFrame({ story }: { story: Story }) {
+export function StoryFrame({ story, onOpenEvent, onVote }: { story: Story; onOpenEvent?: (eventId: string) => void; onVote?: (optionIndex: number) => void }) {
   const objects = story.objects ?? [];
   const firstText = objects.find((object) => object.kind === "text");
   return (
@@ -29,13 +29,13 @@ export function StoryFrame({ story }: { story: Story }) {
           <div key={object.id ?? `${object.kind}-${index}`} className={`app-story-frame-object app-story-frame-object--${object.kind}`} style={objectStyle(object)}>
             {object.kind === "text" && caption !== "" && <p className={captionClass(object)}>{caption}</p>}
             {object.kind === "event" && story.sticker !== null && (
-              <div className="app-story-sticker">
+              <button type="button" className="app-story-sticker" onClick={() => onOpenEvent?.(story.sticker?.eventId ?? "")}>
                 <span className="app-story-sticker-dot" aria-hidden="true" />
                 <span className="app-story-sticker-text">
                   <span className="app-story-sticker-title">{story.sticker.title}</span>
                   <span className="app-story-sticker-subtitle">{story.sticker.subtitle}</span>
                 </span>
-              </div>
+              </button>
             )}
             {object.kind === "seats" && story.sticker?.seatsLeft != null && (
               <div className="app-story-seats">
@@ -48,10 +48,10 @@ export function StoryFrame({ story }: { story: Story }) {
                 <p className="app-story-poll-kind">Опрос</p>
                 <p className="app-story-poll-question">{story.poll.question}</p>
                 <div className="app-story-poll-options">
-                  {story.poll.options.map((option) => (
-                    <span key={option} className="app-story-poll-option">
+                  {story.poll.options.map((option, index) => (
+                    <button key={`${index}-${option}`} type="button" className={story.poll?.answer === index ? "app-story-poll-option app-story-poll-option--on" : "app-story-poll-option"} onClick={() => onVote?.(index)}>
                       {option}
-                    </span>
+                    </button>
                   ))}
                 </div>
               </div>

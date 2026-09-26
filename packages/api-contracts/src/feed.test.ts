@@ -38,9 +38,10 @@ describe("FeedPostSchema", () => {
 });
 
 describe("CreateFeedPostWriteSchema", () => {
-  it("requires event and non-empty text", () => {
+  it("requires text and lets the event be absent", () => {
     expect(CreateFeedPostWriteSchema.safeParse({ eventId: post.eventId, text: "" }).success).toBe(false);
     expect(CreateFeedPostWriteSchema.parse({ eventId: post.eventId, text: "фото" }).text).toBe("фото");
+    expect(CreateFeedPostWriteSchema.parse({ eventId: null, text: "просто так" }).eventId).toBeNull();
   });
 });
 

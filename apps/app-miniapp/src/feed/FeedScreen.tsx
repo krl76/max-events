@@ -38,6 +38,7 @@ import { announceShare, getWebApp, shareResult } from "../max/bridge";
 import { replayScroll } from "../ui/scroll-memory";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { parsePinLabel } from "../ui/pin-label";
 import { SaveToList } from "../event/SaveToList";
 import { AppChip, AppEmptyState, AppSkeleton, AppState } from "../ui/primitives";
 import { PostAuthorAvatar, StoriesRow } from "./FeedPage";
@@ -171,33 +172,65 @@ interface FeedFriendPostProps {
   onShare: () => void;
   onOpenEvent: () => void;
   onOpenAuthor: () => void;
+  onOpenMark?: () => void;
   userId: string | null;
   hasStory?: boolean;
 }
 
-export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenComments, onShare, onOpenEvent, onOpenAuthor, userId, hasStory = false }: FeedFriendPostProps) {
+export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenComments, onShare, onOpenEvent, onOpenAuthor, onOpenMark, userId, hasStory = false }: FeedFriendPostProps) {
   const [saving, setSaving] = useState(false);
   const where = [card.placeTitle, formatFeedDistance(card.distanceKm)].filter((part): part is string => part !== null && part !== "").join(" · ");
+  const dropped = parsePinLabel(card.locationLabel ?? card.placeTitle ?? "");
+  const markLabel = dropped ? "Точка на карте" : where;
+  const canMark = onOpenMark !== undefined && markLabel !== "" && (dropped !== null || (card.event !== null && card.event.placeId !== null));
+  const photos = card.photoUrls && card.photoUrls.length > 0 ? card.photoUrls : card.photoUrl ? [card.photoUrl] : [];
   const counts = feedCountsLine(card.counts, card.live);
   const comments = feedCommentsLine(card.comments, card.commentsCount);
   const going = card.myStatus === "going";
   return (
     <article className="app-feed-post">
       <header className="app-feed-post-head">
-        <button type="button" className="app-feed-author-btn" onClick={onOpenAuthor}>
-          <PostAuthorAvatar friend={card.author} hasStory={hasStory} />
-          <span className="app-feed-post-id">
-            <span className="app-feed-post-author">{card.author.name}</span>
-            {where !== "" && <span className="app-feed-post-where">{where}</span>}
-          </span>
-        </button>
+        {canMark ? (
+          <div className="app-feed-author-btn">
+            <button type="button" className="app-feed-author-open" onClick={onOpenAuthor}>
+              <PostAuthorAvatar friend={card.author} hasStory={hasStory} />
+            </button>
+            <span className="app-feed-post-id">
+              <button type="button" className="app-feed-author-open" onClick={onOpenAuthor}>
+                <span className="app-feed-post-author">{card.author.name}</span>
+              </button>
+              <button type="button" className="app-feed-post-where" onClick={onOpenMark}>
+                <ActionIcon name="pin" size={12} />
+                {markLabel}
+              </button>
+            </span>
+          </div>
+        ) : (
+          <button type="button" className="app-feed-author-btn" onClick={onOpenAuthor}>
+            <PostAuthorAvatar friend={card.author} hasStory={hasStory} />
+            <span className="app-feed-post-id">
+              <span className="app-feed-post-author">{card.author.name}</span>
+              {where !== "" && <span className="app-feed-post-where">{where}</span>}
+            </span>
+          </button>
+        )}
       </header>
-      {card.photoUrl !== null && (
-        <button type="button" className="app-feed-photo-btn" onClick={onOpenComments}>
-          <img className="app-feed-photo" src={card.photoUrl} alt="" />
-        </button>
+      {photos.length > 1 ? (
+        <div className="app-feed-photos">
+          {photos.map((photo, index) => (
+            <button key={`${index}-${photo.slice(-12)}`} type="button" className="app-feed-photo-btn" onClick={onOpenComments}>
+              <img className="app-feed-photo app-feed-photo--tile" src={photo} alt="" />
+            </button>
+          ))}
+        </div>
+      ) : (
+        photos.length === 1 && (
+          <button type="button" className="app-feed-photo-btn" onClick={onOpenComments}>
+            <img className="app-feed-photo" src={photos[0]} alt="" />
+          </button>
+        )
       )}
-      <button type="button" className={`app-feed-event app-media--${card.event.category}`} onClick={onOpenEvent}>
+      {card.event !== null && <button type="button" className={`app-feed-event app-media--${card.event.category}`} onClick={onOpenEvent}>
         <span className="app-feed-event-chips">
           <span className="app-feed-chip">{CATEGORY_LABELS[card.event.category]}</span>
           {card.live && (
@@ -210,7 +243,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
         </span>
         <span className="app-feed-event-title">{card.event.title}</span>
         <span className="app-feed-event-meta">{feedEventMeta(card.event, now)}</span>
-      </button>
+      </button>}
       <div className="app-feed-actions">
         <button type="button" className="app-post-action" aria-pressed={card.likedByMe} aria-label="Нравится" onClick={onToggleLike}>
           <ActionIcon filled={card.likedByMe} name="heart" size={26} />
@@ -227,9 +260,11 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
           </button>
         )}
         {/* aria-pressed, not two labels alone: «Иду» is the same control in its on state, not another button. */}
-        <button type="button" className={going ? "app-feed-going app-feed-going--on" : "app-feed-going"} aria-pressed={going} onClick={onToggleGoing}>
-          {going ? "Иду" : "Пойду"}
-        </button>
+        {card.event !== null && (
+          <button type="button" className={going ? "app-feed-going app-feed-going--on" : "app-feed-going"} aria-pressed={going} onClick={onToggleGoing}>
+            {going ? "Иду" : "Пойду"}
+          </button>
+        )}
       </div>
       {saving && userId !== null && <SaveToList feedPostId={card.id} userId={userId} open onClose={() => setSaving(false)} />}
       {counts !== null && <p className="app-feed-counts">{counts}</p>}
@@ -257,7 +292,7 @@ interface FeedPlacePostProps {
   onGather: () => void;
 }
 
-export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onStatus, onSlots, onGather }: FeedPlacePostProps) {
+export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onShowOnMap, onStatus, onSlots, onGather }: FeedPlacePostProps & { onShowOnMap?: () => void }) {
   const travel = formatFeedTravel(card.travelMinutes, card.distanceKm);
   const rating = formatFeedRating(card.rating);
   const price = formatPricePerHour(card.pricePerHourRub);
@@ -279,11 +314,19 @@ export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onStatus, on
               </span>
             )}
           </span>
-          <span className="app-feed-place-where">
-            <ActionIcon name="pin" size={12} />
-            {card.place.address}
-            {travel !== null && <span className="app-feed-travel">{travel}</span>}
-          </span>
+          {onShowOnMap ? (
+            <button type="button" className="app-feed-place-where" onClick={onShowOnMap}>
+              <ActionIcon name="pin" size={12} />
+              {card.place.address}
+              {travel !== null && <span className="app-feed-travel">{travel}</span>}
+            </button>
+          ) : (
+            <span className="app-feed-place-where">
+              <ActionIcon name="pin" size={12} />
+              {card.place.address}
+              {travel !== null && <span className="app-feed-travel">{travel}</span>}
+            </span>
+          )}
         </span>
         {rating !== null && (
           <span className="app-feed-rating" aria-label={`Рейтинг ${rating}`}>
@@ -363,9 +406,11 @@ export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onStatus, on
 
 export interface FeedCardHandlers {
   onOpenPlace: (placeId: string) => void;
+  onOpenPlaceMap?: (card: FeedPlaceCard) => void;
   onOpenPost: (postId: string) => void;
   onOpenEvent: (eventId: string) => void;
   onOpenAuthor: (userId: string) => void;
+  onOpenMark?: (card: FeedFriendCard) => void;
   userId: string | null;
   onToggleLike: (card: FeedFriendCard) => void;
   onToggleGoing: (card: FeedFriendCard) => void;
@@ -389,13 +434,16 @@ export function FeedCardList({ cards, now, handlers, storyAuthors }: { cards: Fe
             onToggleGoing={() => handlers.onToggleGoing(card)}
             onOpenComments={() => handlers.onOpenComments(card)}
             onShare={() => handlers.onShare(card)}
-            onOpenEvent={() => handlers.onOpenEvent(card.event.id)}
+            onOpenEvent={() => {
+              if (card.event) handlers.onOpenEvent(card.event.id);
+            }}
             onOpenAuthor={() => handlers.onOpenAuthor(card.author.id)}
+            onOpenMark={handlers.onOpenMark ? () => handlers.onOpenMark?.(card) : undefined}
             userId={handlers.userId}
             hasStory={storyAuthors?.has(card.author.id) === true}
           />
         ) : (
-          <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} />
+          <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onShowOnMap={handlers.onOpenPlaceMap ? () => handlers.onOpenPlaceMap?.(card) : undefined} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} />
         ),
       )}
     </div>
@@ -496,6 +544,12 @@ export function FeedScreen() {
     onOpenPost: (postId) => navigate({ name: "post", id: postId }),
     onOpenEvent: (eventId) => navigate({ name: "event", id: eventId }),
     onOpenAuthor: (id) => navigate({ name: "user", id }),
+    onOpenMark: (card) => {
+      const pin = parsePinLabel(card.locationLabel ?? card.placeTitle ?? "");
+      if (pin) navigate({ name: "map", pin });
+      else if (card.event?.placeId) navigate({ name: "map", placeId: card.event.placeId });
+    },
+    onOpenPlaceMap: (card) => navigate({ name: "map", pin: { lat: card.place.latitude, lng: card.place.longitude }, placeId: card.place.id }),
     userId,
     onToggleLike: (card) => {
       if (userId === null) return;
@@ -503,10 +557,11 @@ export function FeedScreen() {
     },
     onToggleGoing: (card) => {
       if (userId === null) return;
+      if (card.event === null) return;
       void settle(card.myStatus === "going" ? apiClient.deleteParticipation(card.event.id, userId) : apiClient.setParticipationStatus(card.event.id, userId, "going"));
     },
     onOpenComments: (card) => navigate({ name: "post", id: card.id }),
-    onShare: (card) => void shareResult(getWebApp(), `${card.author.name} — ${card.event.title}: ${card.text}`).then(announceShare),
+    onShare: (card) => void shareResult(getWebApp(), card.event ? `${card.author.name} — ${card.event.title}: ${card.text}` : `${card.author.name}: ${card.text}`).then(announceShare),
     onPlaceStatus: (card, status) => {
       if (userId === null) return;
       void settle(apiClient.setPlaceParticipationStatus(card.place.id, userId, card.myStatus === status ? null : status));

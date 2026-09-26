@@ -142,7 +142,7 @@ export class SwipeService {
     }
     const posts = (await this.posts.find({ where: { published: true } })).filter((post) => post.photoUrl).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     for (const post of posts) {
-      const placeId = post.placeId ?? placeOfEvent.get(post.eventId) ?? null;
+      const placeId = post.placeId ?? (post.eventId ? placeOfEvent.get(post.eventId) : undefined) ?? null;
       if (placeId && ids.includes(placeId) && post.photoUrl && !result.has(placeId)) result.set(placeId, post.photoUrl);
     }
     return result;

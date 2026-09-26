@@ -2245,6 +2245,16 @@ html[data-theme="dark"] body {
   width: 100%;
 }
 
+.app-feed-photos {
+  display: grid;
+  gap: 2px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.app-feed-photo--tile {
+  aspect-ratio: 1;
+}
+
 .app-feed-event {
   background-color: transparent;
   border: none;
@@ -3142,8 +3152,9 @@ html[data-theme="dark"] body {
 }
 
 .app-story-frame-object {
+  pointer-events: auto;
   position: absolute;
-  z-index: 2;
+  z-index: 3;
 }
 
 .app-story-frame-text {
@@ -3199,6 +3210,7 @@ html[data-theme="dark"] body {
   position: absolute;
   right: 0;
   top: 0;
+  z-index: 5;
 }
 
 .app-story-viewer-segments {
@@ -3249,6 +3261,7 @@ html[data-theme="dark"] body {
   position: absolute;
   top: 64px;
   width: 35%;
+  z-index: 1;
 }
 
 .app-story-viewer-tap--left {
@@ -18656,7 +18669,11 @@ button.app-cal-peer-chip {
   transform: translate(-50%, -50%);
 }
 
-.app-story-object--text,
+.app-story-object--text {
+  max-width: calc(100% - 2 * var(--app-space-xl));
+  width: max-content;
+}
+
 .app-story-object--poll {
   width: calc(100% - 2 * var(--app-space-xl));
 }
@@ -18666,9 +18683,12 @@ button.app-cal-peer-chip {
 .app-story-object > .app-story-seats,
 .app-story-object > .app-story-sticker {
   inset: auto;
+  left: auto;
   max-width: 100%;
   position: relative;
-  width: 100%;
+  right: auto;
+  top: auto;
+  width: max-content;
 }
 
 .app-story-object-tools {
@@ -18854,14 +18874,11 @@ button.app-cal-peer-chip {
 }
 
 .app-story-style {
-  bottom: 168px;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  left: 16px;
-  position: absolute;
-  right: 16px;
-  z-index: 4;
+  margin-bottom: 8px;
+  position: relative;
 }
 
 .app-story-style-chip,
@@ -19672,4 +19689,201 @@ button.app-cal-peer-chip {
   background: var(--app-gradient-dark);
   border-radius: var(--app-radius-card);
   height: 56px;
+}
+
+.app-story-add-text {
+  align-items: center;
+  background: rgba(13, 0, 26, 0.55);
+  border: none;
+  border-radius: 999px;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+}
+
+.app-story-object > .app-story-caption {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  outline: none;
+  overflow: hidden;
+  resize: none;
+  text-align: center;
+}
+
+.app-story-caption--empty {
+  opacity: 0.72;
+}
+
+.app-story-object > .app-story-caption.app-story-caption--serif {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.app-story-object > .app-story-caption.app-story-caption--mono,
+.app-story-frame-object > .app-story-caption.app-story-caption--mono {
+  font-family: ui-monospace, monospace;
+}
+
+.app-story-object > .app-story-caption.app-story-caption--hand,
+.app-story-frame-object > .app-story-caption.app-story-caption--hand {
+  font-family: "Segoe Print", "Segoe Script", cursive;
+}
+
+.app-story-object > .app-story-caption.app-story-caption--ink,
+.app-story-frame-object > .app-story-caption.app-story-caption--ink {
+  color: #0d001a;
+  text-shadow: none;
+}
+
+.app-story-object > .app-story-caption.app-story-caption--violet,
+.app-story-frame-object > .app-story-caption.app-story-caption--violet {
+  color: #d7c6ff;
+}
+
+.app-story-object > .app-story-caption.app-story-caption--cyan,
+.app-story-frame-object > .app-story-caption.app-story-caption--cyan {
+  color: #9aefff;
+}
+
+.app-story-frame-object > .app-story-caption.app-story-caption--serif {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.app-story-pick {
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  padding: 6px;
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%) rotate(90deg);
+  z-index: 1;
+}
+
+.app-story-frame-object > button.app-story-sticker {
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.app-story-style-chip--on {
+  background: var(--brand-white);
+  color: var(--brand-void);
+}
+
+.app-story-style-swatch--on {
+  box-shadow: 0 0 0 2px #471aff;
+}
+
+.app-field-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  margin: 4px 2px 0;
+}
+
+.app-gathering-row {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-weight: 700;
+  gap: 10px;
+  padding: 12px 16px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-gathering-row span {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-gathering .app-when-open {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  text-align: left;
+}
+
+.app-when-open--empty {
+  color: var(--app-text-tertiary);
+}
+
+.leaflet-div-icon.app-pin-marker {
+  background: none;
+  border: none;
+}
+
+.app-pin-marker-drop {
+  background: #471aff;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  box-shadow: 0 6px 16px rgba(13, 0, 26, 0.35);
+  display: block;
+  height: 28px;
+  position: relative;
+  transform: rotate(-45deg);
+  width: 28px;
+}
+
+.app-pin-marker-drop::after {
+  background: #fff;
+  border-radius: 50%;
+  content: "";
+  height: 8px;
+  left: 7px;
+  position: absolute;
+  top: 7px;
+  width: 8px;
+}
+
+button.app-feed-post-where,
+button.app-feed-place-where,
+.app-post-map-mark {
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 4px;
+  padding: 0;
+  text-align: left;
+}
+
+.app-feed-author-open {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  padding: 0;
+  text-align: left;
+}
+
+.app-post-map-mark {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  margin-top: 8px;
 }

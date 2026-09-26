@@ -125,7 +125,7 @@ describe("feed mock endpoints", () => {
     // The place wall is the posts of that place's events; a post from another place must not leak in.
     const placeEventIds = new Set(mockEvents.filter((event) => event.placeId === placeId).map((event) => event.id));
     expect(wall.map((post) => post.id)).toContain(seeded!.post.id);
-    expect(wall.every((post) => placeEventIds.has(post.eventId))).toBe(true);
+    expect(wall.every((post) => post.eventId !== null && placeEventIds.has(post.eventId))).toBe(true);
   });
 
   it("reject unknown posts and events with 404 and empty payloads with 400", async () => {
@@ -194,6 +194,7 @@ describe("home feed cards", () => {
     const before = (await client.listFeedCards(DEMO_USER_ID)).flatMap((card) => (card.kind === "friend" && card.counts.going !== null ? [card] : []))[0];
     expect(before).toBeDefined();
 
+    if (before === undefined || before.event === null) throw new Error("expected a friend card with an event");
     await client.setParticipationStatus(before.event.id, DEMO_USER_ID, "going");
     const after = (await client.listFeedCards(DEMO_USER_ID)).flatMap((card) => (card.kind === "friend" && card.id === before.id ? [card] : []))[0];
 

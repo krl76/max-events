@@ -263,6 +263,8 @@ export interface MapView {
   route: [number, number][] | null;
   /** Ключ выбранного маркера: его пин приподнят, чтобы карточка внизу и точка на карте читались как одно. */
   selectedKey: string | null;
+  /** Точка, которую поставили на посте: свой пин поверх каталога. */
+  dropped?: [number, number] | null;
   /** Подложка, с которой карта берёт тайлы; смена id на месте меняет слой тайлов, ничего больше не пересобирая. */
   basemap: MapBasemap;
   /** Отрисованная схема приложения: своя векторная подложка перекрашивается под неё, растровым она безразлична (их инвертирует CSS). */
@@ -392,6 +394,7 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
 
   function drawOverlay(): void {
     overlay.clearLayers();
+    if (view.dropped) L.marker(view.dropped, { icon: L.divIcon({ className: "app-pin-marker", iconSize: [28, 36], iconAnchor: [14, 34], html: '<span class="app-pin-marker-drop"></span>' }), zIndexOffset: 900 }).addTo(overlay);
     if (view.origin === null) return;
     L.marker(view.origin, { icon: L.divIcon({ className: "app-map-pin app-map-pin--me", iconSize: [22, 22], iconAnchor: [11, 11], html: '<span class="app-map-me-dot"></span><span class="app-map-me-label">Вы здесь</span>' }) }).addTo(overlay);
     if (view.route !== null && view.route.length >= 2) L.polyline(view.route, { className: "app-map-route", weight: 4, lineCap: "round" }).addTo(overlay);
@@ -521,9 +524,13 @@ interface MapScreenProps {
   /** Страница не смогла получить события: карта всё равно открывается, но говорит, чего на ней нет. */
   eventsFailed?: boolean;
   eventsLoading?: boolean;
+  /** Точка с поста: карта подлетает к ней и ставит свой пин. */
+  pin?: { lat: number; lng: number } | null;
+  /** Площадка с поста: карта подлетает к её пину. */
+  focusPlaceId?: string | null;
 }
 
-export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss, city = "Москва", eventsFailed = false, eventsLoading = false }: MapScreenProps) {
+export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null }: MapScreenProps) {
   const origin = useViewerOrigin();
   const [places, setPlaces] = useState<PlacesState>({ status: "loading" });
   const [friendVisits, setFriendVisits] = useState<FriendPlaceVisit[]>([]);
@@ -675,7 +682,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
     }),
     [],
   );
-  const view = useMemo<MapView>(() => ({ markers, origin: originPoint, route: routePath, selectedKey: selected?.key ?? null, basemap, scheme }), [markers, originPoint, routePath, selected, basemap, scheme]);
+  const dropped = pin === null ? null : ([pin.lat, pin.lng] as [number, number]);
+  const view = useMemo<MapView>(() => ({ markers, origin: originPoint, route: routePath, selectedKey: selected?.key ?? null, dropped, basemap, scheme }), [markers, originPoint, routePath, selected, dropped, basemap, scheme]);
   const create = useCallback((container: HTMLElement, initial: MapView) => initEventMap(container, initial, callbacks), [callbacks]);
   const { containerRef, handleRef, status } = useLeafletMap<MapView, MapHandle>(create, view);
 
@@ -684,6 +692,26 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
     if (!centered || status !== "ready") return;
     handleRef.current?.focus(originPoint);
   }, [centered, status, originPoint, handleRef]);
+
+  const flown = useRef("");
+  useEffect(() => {
+    if (status !== "ready") return;
+    if (pin !== null) {
+      const key = `${pin.lat.toFixed(5)},${pin.lng.toFixed(5)}`;
+      if (flown.current === key) return;
+      flown.current = key;
+      handleRef.current?.focus([pin.lat, pin.lng], 16);
+      return;
+    }
+    if (focusPlaceId === null || places.status !== "ready") return;
+    if (flown.current === focusPlaceId) return;
+    const place = places.places.find((item) => item.id === focusPlaceId);
+    if (place === undefined) return;
+    flown.current = focusPlaceId;
+    handleRef.current?.focus([place.latitude, place.longitude], 16);
+    const marker = markers.find((item) => item.placeId === focusPlaceId && item.eventId === null);
+    if (marker) setSelected(marker);
+  }, [status, pin, focusPlaceId, places, markers, handleRef]);
 
   const weatherChange = weather === null ? null : formatMapChange(weather);
   const friendsLine = mapFriendsLine(friendVisits.find((visit) => visit.place.id === selectedPlaceId));

@@ -180,7 +180,7 @@ export function feedPosts(eventId: string | null, placeId: string | null = null)
   if (placeId === null) return newestFirst;
   // The wall of a place is the posts of the events held there, same as the server computes it.
   const atPlace = new Set(mockEvents.filter((event) => event.placeId === placeId).map((event) => event.id));
-  return newestFirst.filter((post) => atPlace.has(post.eventId));
+  return newestFirst.filter((post) => post.eventId !== null && atPlace.has(post.eventId));
 }
 
 /** Likes/unlikes a post as the user; the returned post carries the new counter and state; null for an unknown post. */
@@ -267,15 +267,17 @@ function countsWithMine(counts: FeedCardCounts, mine: ParticipationStatus | null
 const NO_COUNTS: FeedCardCounts = { wantsToGo: null, going: null, waitlist: null, freeSeats: null };
 
 /** A card is its post plus the extras; a post published after the seed simply has none of them, and says so with nulls. */
-function friendCard(post: FeedPost, event: Event, extra: FeedCardExtra | undefined, userId: string): FeedFriendCard {
-  const mine = mockParticipations.get(`${userId}:${event.id}`)?.status ?? null;
+function friendCard(post: FeedPost, event: Event | null, extra: FeedCardExtra | undefined, userId: string): FeedFriendCard {
+  const mine = event === null ? null : (mockParticipations.get(`${userId}:${event.id}`)?.status ?? null);
+  const photos = post.photoUrls && post.photoUrls.length > 0 ? post.photoUrls : post.photoUrl ? [post.photoUrl] : [];
   return {
     kind: "friend",
     id: post.id,
     author: post.author,
-    placeTitle: mockPlaces.find((item) => item.id === event.placeId)?.title ?? null,
+    placeTitle: event === null ? null : (mockPlaces.find((item) => item.id === event.placeId)?.title ?? null),
     distanceKm: extra?.distanceKm ?? null,
     event,
+    photoUrls: photos,
     live: extra?.live ?? false,
     hit: extra?.hit ?? false,
     counts: countsWithMine(extra?.counts ?? NO_COUNTS, mine),
@@ -286,7 +288,7 @@ function friendCard(post: FeedPost, event: Event, extra: FeedCardExtra | undefin
     comments: post.comments,
     commentsCount: post.comments.length + (extra?.extraComments ?? 0),
     publishedAt: publishedAgo(extra?.agoMinutes ?? 0),
-    photoUrl: post.photoUrl,
+    photoUrl: photos[0] ?? null,
   };
 }
 
@@ -319,6 +321,7 @@ function placeCard(userId: string): FeedPlaceCard {
 /** Home feed cards in the order of the design: freshly published posts on top, then a friend post, the venue post and the rest. */
 export function mockFeedCards(userId: string): FeedCard[] {
   const cards = mockFeedPosts.flatMap((post, index) => {
+    if (post.eventId === null) return [friendCard(post, null, undefined, userId)];
     const event = mockEvents.find((item) => item.id === post.eventId);
     return event === undefined ? [] : [friendCard(post, event, MOCK_FEED_CARD_EXTRAS[index], userId)];
   });
@@ -329,9 +332,11 @@ export function mockFeedCards(userId: string): FeedCard[] {
 
 /** Publishes an impression post as its author; null for an unknown event (mock 404). */
 export function createMockFeedPost(payload: CreateFeedPost): FeedPost | null {
-  if (!mockEvents.some((event) => event.id === payload.eventId)) return null;
+  if (payload.eventId !== null && !mockEvents.some((event) => event.id === payload.eventId)) return null;
   mockFeedSeq += 1;
-  const post: FeedPost = { id: `30000000-0000-4000-8000-${String(mockFeedSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), eventId: payload.eventId, text: payload.text, photoUrl: payload.photoUrl ?? null, placeId: payload.placeId ?? null, taggedFriendIds: payload.taggedFriendIds ?? [], audience: payload.audience ?? "friends", allowJoin: payload.allowJoin ?? false, likesCount: 0, likedByMe: false, comments: [] };
+  const photos = (payload.photoUrls ?? []).slice(0, 3);
+  const photoUrl = payload.photoUrl ?? photos[0] ?? null;
+  const post: FeedPost = { id: `30000000-0000-4000-8000-${String(mockFeedSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), eventId: payload.eventId, text: payload.text, photoUrl, photoUrls: photos.length > 0 ? photos : photoUrl ? [photoUrl] : [], placeId: payload.placeId ?? null, taggedFriendIds: payload.taggedFriendIds ?? [], audience: payload.audience ?? "friends", allowJoin: payload.allowJoin ?? false, likesCount: 0, likedByMe: false, comments: [] };
   mockFeedPosts.push(post);
   // Kept beside the post rather than inside it: none of these has a column, and when #502 lands only this table goes away.
   mockFeedPostExtras.set(post.id, { photoUrls: payload.photoUrls ?? [], placeId: payload.placeId ?? null, taggedFriendIds: payload.taggedFriendIds ?? [], audience: payload.audience ?? "friends", allowJoin: payload.allowJoin ?? false });

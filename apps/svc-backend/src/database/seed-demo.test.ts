@@ -187,7 +187,7 @@ describe("buildDemoData", () => {
     }
     for (const post of data.feedPosts) {
       expect(userIds.has(post.authorUserId)).toBe(true);
-      expect(eventIds.has(post.eventId)).toBe(true);
+      expect(post.eventId !== null && eventIds.has(post.eventId)).toBe(true);
       expect(post.text.length).toBeGreaterThan(0);
     }
     for (const review of data.reviews) {

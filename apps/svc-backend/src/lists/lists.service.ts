@@ -297,7 +297,7 @@ export class ListsService {
       if (row.feedPostId !== null) {
         const post = postById.get(row.feedPostId);
         const author = post ? authorById.get(post.authorUserId) : undefined;
-        const event = post ? eventById.get(post.eventId) : undefined;
+        const event = post?.eventId ? eventById.get(post.eventId) : undefined;
         return post && author ? [{ item: toItemDto(row), event: null, place: null, post: { id: post.id, text: post.text, photoUrl: post.photoUrl ?? null, author, eventTitle: event?.title ?? "" }, addedBy }] : [];
       }
       return [];

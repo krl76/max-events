@@ -43,8 +43,8 @@ describe("postFriendsLine", () => {
 });
 
 describe("postDraftReady", () => {
-  it("refuses a post nobody bound to an event", () => {
-    expect(postDraftReady(draftOf({ text: "Собираемся" }))).toBe(false);
+  it("publishes text without an event", () => {
+    expect(postDraftReady(draftOf({ text: "Собираемся" }))).toBe(true);
   });
 
   it("refuses a post whose text is only spaces", () => {

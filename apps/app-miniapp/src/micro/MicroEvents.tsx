@@ -25,6 +25,7 @@ import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
 import { FriendPicker } from "../ui/FriendPicker";
+import { ActionIcon } from "../ui/icons";
 import { PinPicker } from "../ui/PinPicker";
 import { AppIconButton, AppButton, AppState, AppSkeleton, AppSection } from "../ui/primitives";
 import { WhenField } from "../ui/WhenField";
@@ -278,26 +279,33 @@ export function MicroEventCreateView({ draft, places: _places, friends = [], inv
       <label className="app-gathering-time">
         Что делаем
         <input className="app-gathering-time-input" value={draft.title} placeholder="Играем в баскетбол" onChange={(change) => onChange("title", change.target.value)} />
+        {missing.includes("Напишите, что делаем") && <span className="app-field-hint">Напишите, что делаем</span>}
       </label>
       <label className="app-gathering-time">
         Когда
         <WhenField label="Выберите дату и время" value={draft.when} onChange={(value) => onChange("when", value)} />
+        {missing.includes("Укажите, когда") && <span className="app-field-hint">Укажите, когда</span>}
       </label>
       <label className="app-gathering-time">
         Где
         <input className="app-gathering-time-input" value={draft.where} placeholder="Точка на карте или адрес" onChange={(change) => onChange("where", change.target.value)} />
-        <button type="button" onClick={() => setPickingPin(true)}>
-          Точка на карте
-        </button>
+        {missing.includes("Поставьте точку, где") && <span className="app-field-hint">Поставьте точку, где</span>}
       </label>
+      <button type="button" className="app-gathering-row" onClick={() => setPickingPin(true)}>
+        <ActionIcon name="pin" size={18} />
+        <span>Точка на карте</span>
+        <ActionIcon name="chevron" size={16} />
+      </button>
       <label className="app-gathering-time">
         Лимит участников
         <input className="app-gathering-time-input" type="number" min={1} value={draft.limit} onChange={(change) => onChange("limit", change.target.value)} />
+        {missing.includes("Укажите лимит") && <span className="app-field-hint">Укажите лимит</span>}
       </label>
-      <button type="button" onClick={() => setPickingFriends(true)}>
-        Пригласить друзей{inviteeIds.length > 0 ? ` · ${inviteeIds.length}` : ""}
+      <button type="button" className="app-gathering-row" onClick={() => setPickingFriends(true)}>
+        <ActionIcon name="friends" size={18} />
+        <span>Пригласить друзей{inviteeIds.length > 0 ? ` · ${inviteeIds.length}` : ""}</span>
+        <ActionIcon name="chevron" size={16} />
       </button>
-      {missing.length > 0 && <p className="app-post-compose-missing">{missing.join(" · ")}</p>}
       <AppButton disabled={submitting} onClick={() => { if (microDraftReady(draft)) onSubmit(); }} stretched>
         {submitting ? "Публикуем…" : "Опубликовать"}
       </AppButton>

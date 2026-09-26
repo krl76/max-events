@@ -22,8 +22,8 @@ export class FeedPostEntity {
   @Column({ type: "uuid" })
   authorUserId!: string;
 
-  @Column({ type: "uuid" })
-  eventId!: string;
+  @Column({ type: "uuid", nullable: true })
+  eventId!: string | null;
 
   @Column({ type: "varchar", length: 5000 })
   text!: string;
@@ -31,6 +31,9 @@ export class FeedPostEntity {
   // text, not varchar(500): until object storage lands (#477) a picked photo is stored as a data URL.
   @Column({ type: "text", nullable: true })
   photoUrl!: string | null;
+
+  @Column({ type: "text", array: true, default: [] })
+  photoUrls?: string[];
 
   @Column({ type: "uuid", nullable: true })
   placeId?: string | null;

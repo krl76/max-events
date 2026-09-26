@@ -171,7 +171,7 @@ export function ProfilePostGrid({ posts, failed, onOpenPost, onNewPost, canPubli
   return (
     <div className="app-me-posts">
       {posts.map((post) => (
-        <button key={post.postId} type="button" className="app-me-post" aria-label={`Пост о событии «${post.eventTitle}»`} onClick={() => onOpenPost(post)}>
+        <button key={post.postId} type="button" className="app-me-post" aria-label={post.eventId === null ? `Пост «${post.eventTitle}»` : `Пост о событии «${post.eventTitle}»`} onClick={() => onOpenPost(post)}>
           {post.photoUrl === null ? <AppMedia category={post.category} className="app-me-post-media" /> : <img className="app-me-post-photo" alt="" src={post.photoUrl} />}
           <span className="app-me-post-stats" aria-hidden="true">
             <span className="app-me-post-stat">

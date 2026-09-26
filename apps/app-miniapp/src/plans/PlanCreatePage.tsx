@@ -23,6 +23,7 @@ import { moscowIsoWeekday } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
 import { FriendPicker } from "../ui/FriendPicker";
+import { ActionIcon } from "../ui/icons";
 import { PinPicker } from "../ui/PinPicker";
 import { AppButton, AppChip, AppState, AppTitle } from "../ui/primitives";
 import { WhenField } from "../ui/WhenField";
@@ -117,20 +118,26 @@ export function PlanCreateView({ draft, events, friends, submitting = false, fai
             <option key={event.id} value={event.title} />
           ))}
         </datalist>
+        {missing.includes("Выберите событие из списка") && <span className="app-field-hint">Выберите событие из списка</span>}
       </label>
       <label className="app-gathering-time">
         Где встречаемся
         <input className="app-gathering-time-input" value={draft.meetingPoint} placeholder="Например, у метро" onChange={(change) => onDraft({ meetingPoint: change.target.value })} />
-        <button type="button" onClick={() => setPickingPin(true)}>
-          Точка на карте
-        </button>
+        {missing.includes("Укажите, где встречаемся") && <span className="app-field-hint">Укажите, где встречаемся</span>}
       </label>
+      <button type="button" className="app-gathering-row" onClick={() => setPickingPin(true)}>
+        <ActionIcon name="pin" size={18} />
+        <span>Точка на карте</span>
+        <ActionIcon name="chevron" size={16} />
+      </button>
       <label className="app-gathering-time">
         Когда встречаемся
         <WhenField label="Выберите дату и время" value={draft.meetingAt} onChange={(meetingAt) => onDraft({ meetingAt })} />
       </label>
-      <button type="button" onClick={() => setPickingFriends(true)}>
-        Пригласить друзей{draft.participantIds.length > 0 ? ` · ${draft.participantIds.length}` : ""}
+      <button type="button" className="app-gathering-row" onClick={() => setPickingFriends(true)}>
+        <ActionIcon name="friends" size={18} />
+        <span>Пригласить друзей{draft.participantIds.length > 0 ? ` · ${draft.participantIds.length}` : ""}</span>
+        <ActionIcon name="chevron" size={16} />
       </button>
       {pickingFriends && (
         <FriendPicker
@@ -190,7 +197,7 @@ export function PlanCreateView({ draft, events, friends, submitting = false, fai
           <p className="app-gathering-hint">Повторяется {planRepeatLabel(rule ?? null)}, в то же время</p>
         </>
       )}
-      {missing.length > 0 && <p className="app-post-compose-missing">{missing.join(" · ")}</p>}
+      {missing.includes("Укажите, когда встречаемся") && <span className="app-field-hint">Укажите, когда встречаемся</span>}
       <AppButton disabled={submitting} onClick={() => { if (missing.length === 0) onSubmit(); }} stretched>
         {submitting ? "Создаём…" : "Создать план"}
       </AppButton>

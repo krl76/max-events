@@ -35,7 +35,7 @@ export type Route =
   | { name: "search" }
   | { name: "swipe" }
   | { name: "create" }
-  | { name: "map" }
+  | { name: "map"; pin?: { lat: number; lng: number }; placeId?: string }
   | { name: "event"; id: string }
   | { name: "place"; id: string }
   | { name: "friends" }
@@ -141,7 +141,18 @@ function toRoute(value: unknown): Route | null {
     case "search":
     case "swipe":
     case "create":
-    case "map":
+      return { name };
+    case "map": {
+      const raw = value as { pin?: unknown; placeId?: unknown };
+      const pin = raw.pin;
+      const point = typeof pin === "object" && pin !== null ? (pin as { lat?: unknown; lng?: unknown }) : null;
+      const lat = point?.lat;
+      const lng = point?.lng;
+      const placeId = typeof raw.placeId === "string" && raw.placeId !== "" ? raw.placeId : undefined;
+      const dropped = typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : undefined;
+      if (!dropped && placeId === undefined) return { name };
+      return { name, ...(dropped ? { pin: dropped } : {}), ...(placeId ? { placeId } : {}) };
+    }
     case "friends":
     case "calendar":
     case "profile":

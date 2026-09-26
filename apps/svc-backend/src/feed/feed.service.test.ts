@@ -265,15 +265,29 @@ describe("FeedService", () => {
     expect(card.publishedAt).toBe(now.toISOString());
   });
 
-  it("answers a venue card when the post names a place, and free seats when capacity is known", async () => {
+  it("keeps a post with a place as the author's post, with the photos and the text once", async () => {
     const { service } = createService();
-    const created = await service.create(userId, { eventId, text: "Мангальная зона", placeId });
+    const photos = ["data:image/jpeg;base64,a", "data:image/jpeg;base64,b"];
+    const created = await service.create(userId, { eventId, text: "Мангальная зона", placeId, photoUrls: photos });
     const [card] = await service.listCards(userId, now);
-    expect(card?.kind).toBe("place");
-    if (card?.kind !== "place") throw new Error("expected a place card");
+    expect(card?.kind).toBe("friend");
+    if (card?.kind !== "friend") throw new Error("expected a friend card");
     expect(card.id).toBe(created.id);
-    expect(card.place.id).toBe(placeId);
-    expect(card.rating).toBeNull();
-    expect(card.travelMinutes).toBeNull();
+    expect(card.placeTitle).toBe("Парк Горького");
+    expect(card.text).toBe("Мангальная зона");
+    expect(card.photoUrls).toEqual(photos);
+    expect(card.photoUrl).toBe(photos[0]);
+    expect(card.event?.id).toBe(eventId);
+  });
+
+  it("publishes a post with no event", async () => {
+    const { service } = createService();
+    const created = await service.create(userId, { eventId: null, text: "Просто кадр" });
+    expect(created.eventId).toBeNull();
+    const [card] = await service.listCards(userId, now);
+    expect(card?.kind).toBe("friend");
+    if (card?.kind !== "friend") throw new Error("expected a friend card");
+    expect(card.event).toBeNull();
+    expect(card.text).toBe("Просто кадр");
   });
 });

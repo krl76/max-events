@@ -68,9 +68,10 @@ export type PostAudience = z.infer<typeof PostAudienceSchema>;
 export const FeedPostSchema = z.object({
   id: IdSchema,
   author: FriendSchema,
-  eventId: IdSchema,
+  eventId: IdSchema.nullable(),
   text: z.string().min(1).max(5000),
   photoUrl: photoUrlSchema.nullable().default(null),
+  photoUrls: z.array(photoUrlSchema).max(3).optional(),
   placeId: IdSchema.nullable().default(null),
   locationLabel: z.string().min(1).max(120).nullable().optional(),
   taggedFriendIds: z.array(IdSchema).default([]),
@@ -83,9 +84,10 @@ export const FeedPostSchema = z.object({
 export type FeedPost = z.infer<typeof FeedPostSchema>;
 
 export const CreateFeedPostWriteSchema = z.object({
-  eventId: IdSchema,
+  eventId: IdSchema.nullable().optional(),
   text: z.string().min(1).max(5000),
   photoUrl: photoUrlSchema.nullable().optional(),
+  photoUrls: z.array(photoUrlSchema).max(3).optional(),
   placeId: IdSchema.nullable().optional(),
   locationLabel: z.string().min(1).max(120).nullable().optional(),
   taggedFriendIds: z.array(IdSchema).optional(),
@@ -128,8 +130,11 @@ export const FeedFriendCardSchema = z.object({
   id: IdSchema,
   author: FriendSchema,
   placeTitle: z.string().nullable(),
+  /** Coordinates the author dropped, stored as "lat, lng". Absent on older cards. */
+  locationLabel: z.string().min(1).max(120).nullable().optional(),
   distanceKm: z.number().nonnegative().nullable(),
-  event: EventSchema,
+  event: EventSchema.nullable(),
+  photoUrls: z.array(photoUrlSchema).max(3).optional(),
   live: z.boolean(),
   hit: z.boolean(),
   counts: FeedCardCountsSchema,

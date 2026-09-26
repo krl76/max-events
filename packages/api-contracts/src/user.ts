@@ -143,7 +143,7 @@ export type VisitedPlace = z.infer<typeof VisitedPlaceSchema>;
 
 export const ProfilePostSchema = z.object({
   postId: IdSchema,
-  eventId: IdSchema,
+  eventId: IdSchema.nullable(),
   eventTitle: z.string().min(1),
   category: EventCategorySchema,
   photoUrl: z.string().nullable(),

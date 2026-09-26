@@ -70,19 +70,18 @@ export function postFriendsLine(friends: Friend[]): string {
 }
 
 export function postDraftReady(draft: PostComposeDraft): boolean {
-  return draft.eventId !== null && draft.text.trim() !== "";
+  return draft.text.trim() !== "";
 }
 
 export function missingPostFields(draft: PostComposeDraft): string[] {
   const missing: string[] = [];
   if (draft.text.trim() === "") missing.push("Напишите текст");
-  if (draft.eventId === null) missing.push("Привяжите событие");
   return missing;
 }
 
 /** Публикация несёт и photoUrl, и всю сетку: первое фото доживает до ленты, остальные ждут #502 и объектного хранилища (#477). */
-export function postPayload(draft: PostComposeDraft, userId: string, eventId: string): CreateFeedPost {
-  return { userId, eventId, text: draft.text.trim(), photoUrl: draft.photoUrls[0] ?? null, photoUrls: draft.photoUrls, placeId: draft.placeId, locationLabel: draft.pinLabel, taggedFriendIds: draft.taggedFriendIds, audience: draft.audience, allowJoin: draft.allowJoin };
+export function postPayload(draft: PostComposeDraft, userId: string, eventId: string | null): CreateFeedPost {
+  return { userId, eventId, text: draft.text.trim(), photoUrl: draft.photoUrls[0] ?? null, photoUrls: draft.photoUrls.slice(0, POST_PHOTO_LIMIT), placeId: draft.placeId, locationLabel: draft.pinLabel, taggedFriendIds: draft.taggedFriendIds, audience: draft.audience, allowJoin: eventId !== null && draft.allowJoin };
 }
 
 export function postDraftOf(draft: PostComposeDraft, userId: string): PostDraft {
@@ -123,15 +122,13 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
           <ActionIcon name="close" size={18} strokeWidth={2.6} />
         </button>
         <span className="app-post-compose-title">Новый пост</span>
-        <button type="button" className="app-post-compose-publish" disabled={state === "publishing"} onClick={() => { if (postDraftReady(draft)) onPublish(); }}>
+        <button type="button" className="app-post-compose-publish" disabled={state === "publishing"} onClick={() => {
+          if (missing.length === 0) onPublish();
+          else textRef.current?.focus();
+        }}>
           {state === "publishing" ? "Публикуем…" : "Опубликовать"}
         </button>
       </header>
-      {missing.length > 0 && (
-        <p className="app-post-compose-missing" role="status">
-          {missing.join(" · ")}
-        </p>
-      )}
 
       <div className="app-post-compose-body">
         <div className="app-post-compose-author">
@@ -182,19 +179,19 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
             <span className="app-post-compose-row-media" aria-hidden="true" />
             <span className="app-post-compose-row-text">
               <span className="app-post-compose-row-title">{boundEvent === null ? "Привязать событие" : boundEvent.title}</span>
-              <span className="app-post-compose-row-note">{boundEvent === null ? "Пост живёт рядом с событием" : postEventLine(boundEvent.startsAt)}</span>
+              <span className="app-post-compose-row-note">{boundEvent === null ? "Можно опубликовать и без события" : postEventLine(boundEvent.startsAt)}</span>
             </span>
             {boundEvent === null ? (
               <span className="app-post-compose-row-chevron" aria-hidden="true">
                 <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
               </span>
             ) : (
-              <button type="button" className="app-post-compose-row-drop" aria-label="Отвязать событие" onClick={() => onDraft({ ...draft, eventId: null })}>
+              <button type="button" className="app-post-compose-row-drop" aria-label="Отвязать событие" onClick={() => onDraft({ ...draft, eventId: null, allowJoin: false, placeId: null })}>
                 <ActionIcon name="close" size={18} strokeWidth={2.6} />
               </button>
             )}
             {boundEvent === null && (
-              <select ref={eventRef} className="app-post-compose-row-pick" aria-label="Событие поста" value="" onChange={(change) => onDraft({ ...draft, eventId: change.target.value, placeId: events.find((event) => event.id === change.target.value)?.placeId ?? draft.placeId })}>
+              <select ref={eventRef} className="app-post-compose-row-pick" aria-label="Событие поста" value="" onChange={(change) => onDraft({ ...draft, eventId: change.target.value })}>
                 <option value="" disabled>
                   Выберите событие
                 </option>
@@ -257,7 +254,7 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
           ))}
         </div>
 
-        <div className="app-post-compose-join">
+        {draft.eventId !== null && <div className="app-post-compose-join">
           <span className="app-post-compose-join-text">
             <span className="app-post-compose-join-title">Разрешить запись через пост</span>
             <span className="app-post-compose-join-note">Друзья смогут присоединиться одним тапом</span>
@@ -265,7 +262,7 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
           <button type="button" role="switch" aria-checked={draft.allowJoin} aria-label="Разрешить запись через пост" className={draft.allowJoin ? "app-post-compose-switch app-post-compose-switch--on" : "app-post-compose-switch"} onClick={() => onDraft({ ...draft, allowJoin: !draft.allowJoin })}>
             <span className="app-post-compose-switch-knob" aria-hidden="true" />
           </button>
-        </div>
+        </div>}
         {state === "error" && <p className="app-post-compose-error">Не удалось опубликовать пост. Попробуйте ещё раз.</p>}
       </div>
 
@@ -316,14 +313,11 @@ export function PostCreatePage({ eventId }: { eventId: string | null }) {
       setEvents(loadedEvents);
       setPlaces(loadedPlaces);
       setFriends(loadedFriends);
-      // Место макета — площадка привязанного события: «Мангальная зона в парке Горького» и под ней «Парк Горького».
-      const boundPlaceId = loadedEvents.find((event) => event.id === eventId)?.placeId ?? null;
-      if (boundPlaceId !== null) setDraft((current) => (current.placeId === null ? { ...current, placeId: boundPlaceId } : current));
     });
     return () => {
       alive = false;
     };
-  }, [eventId]);
+  }, []);
 
   // Автосохранение черновика (#502): пустой черновик сохранять нечего, остальное уезжает с задержкой, а не на каждое нажатие.
   useEffect(() => {
@@ -349,7 +343,7 @@ export function PostCreatePage({ eventId }: { eventId: string | null }) {
   }, []);
 
   const publish = () => {
-    if (userId === null || draft.eventId === null || !postDraftReady(draft)) return;
+    if (userId === null || !postDraftReady(draft)) return;
     setState("publishing");
     apiClient.createFeedPost(postPayload(draft, userId, draft.eventId)).then(
       () => navigate({ name: "home" }),

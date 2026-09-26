@@ -72,7 +72,7 @@ export interface VisitedPlace {
  */
 export interface ProfilePost {
   postId: string;
-  eventId: string;
+  eventId: string | null;
   /** Title of the event the post is about: the tile is too small for it, the accessible name is not. */
   eventTitle: string;
   /** What colours the tile without a photo: the category gradient AppMedia draws. */
@@ -137,10 +137,10 @@ const ProfilePostListSchema: ZodSchema<ProfilePost[]> = {
       const raw = item as Record<string, unknown>;
       const category = EventCategorySchema.safeParse(raw.category);
       if (!category.success) return { success: false as const, error: "invalid profile post category" };
-      if (typeof raw.postId !== "string" || typeof raw.eventId !== "string" || typeof raw.eventTitle !== "string") return { success: false as const, error: "invalid profile post" };
+      if (typeof raw.postId !== "string" || (raw.eventId !== null && typeof raw.eventId !== "string") || typeof raw.eventTitle !== "string") return { success: false as const, error: "invalid profile post" };
       if (typeof raw.likesCount !== "number" || typeof raw.commentsCount !== "number") return { success: false as const, error: "invalid profile post counters" };
       if (raw.photoUrl !== null && typeof raw.photoUrl !== "string") return { success: false as const, error: "invalid profile post photo" };
-      posts.push({ postId: raw.postId, eventId: raw.eventId, eventTitle: raw.eventTitle, category: category.data, photoUrl: raw.photoUrl, likesCount: raw.likesCount, commentsCount: raw.commentsCount });
+      posts.push({ postId: raw.postId, eventId: raw.eventId === null ? null : raw.eventId, eventTitle: raw.eventTitle, category: category.data, photoUrl: raw.photoUrl, likesCount: raw.likesCount, commentsCount: raw.commentsCount });
     }
     return { success: true as const, data: posts };
   },

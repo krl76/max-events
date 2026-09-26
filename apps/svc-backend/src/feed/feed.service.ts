@@ -69,38 +69,44 @@ export class FeedService {
     const rows = await this.posts.find({ where: { published: true }, order: { createdAt: "DESC", id: "DESC" }, take: 50, skip: 0 });
     const posts = await this.toDtoMany(rows, viewerId);
     if (posts.length === 0) return [];
-    const eventIds = [...new Set(posts.map((post) => post.eventId))];
-    const events = await this.events.find({ where: { id: In(eventIds), published: true } });
+    const eventIds = [...new Set(posts.flatMap((post) => (post.eventId ? [post.eventId] : [])))];
+    const events = eventIds.length === 0 ? [] : await this.events.find({ where: { id: In(eventIds), published: true } });
     const eventById = new Map(events.filter((row) => row.startsAt instanceof Date).map((row) => [row.id, row]));
     const placeIds = [...new Set([...events.map((row) => row.placeId), ...posts.map((post) => post.placeId ?? null)].filter((id): id is string => id !== null))];
-    const [placeDtos, waitlists, parts, friendEdges] = await Promise.all([this.places.findByIds(placeIds), this.waitlist.queueCountsByEventIds(eventIds), this.participations.find({ where: { eventId: In(eventIds) } }), this.friendships.find({ where: { userId: viewerId } })]);
+    const [placeDtos, waitlists, parts] = await Promise.all([
+      this.places.findByIds(placeIds),
+      eventIds.length === 0 ? Promise.resolve(new Map<string, number>()) : this.waitlist.queueCountsByEventIds(eventIds),
+      eventIds.length === 0 ? Promise.resolve([] as ParticipationEntity[]) : this.participations.find({ where: { eventId: In(eventIds) } }),
+    ]);
     const placeById = new Map(placeDtos.map((place) => [place.id, place]));
     const counts = countParticipations(parts, viewerId);
-    const friendIds = new Set(friendEdges.map((row) => row.friendUserId));
-    const goingFriendIds = [...new Set(parts.filter((row) => friendIds.has(row.userId) && row.status === "going").map((row) => row.userId))];
-    const goingUsers = goingFriendIds.length === 0 ? [] : await this.users.find({ where: { id: In(goingFriendIds) } });
-    const goingByPlace = goingFriendsByPlace(parts, events, goingUsers, friendIds);
     const rowById = new Map(rows.map((row) => [row.id, row]));
     return posts.flatMap((post) => {
-      const event = eventById.get(post.eventId);
-      if (!event) return [];
-      const place = (post.placeId ? placeById.get(post.placeId) : undefined) ?? (event.placeId ? placeById.get(event.placeId) : undefined);
+      const event = post.eventId ? eventById.get(post.eventId) : undefined;
+      if (post.eventId && !event) return [];
+      const place = (post.placeId ? placeById.get(post.placeId) : undefined) ?? (event?.placeId ? placeById.get(event.placeId) : undefined);
       const createdAt = rowById.get(post.id)?.createdAt;
-      if (post.placeId && place) return [toPlaceCard(post, place, createdAt, goingByPlace.get(place.id) ?? [])];
-      return [toFriendCard(post, event, place ?? null, counts.get(post.eventId), waitlists.get(post.eventId) ?? 0, now, createdAt)];
+      // Площадка события остаётся подписью места. Карточка площадки со слотами здесь прятала фото и писала текст дважды.
+      return [toFriendCard(post, event ?? null, place ?? null, post.eventId ? counts.get(post.eventId) : undefined, post.eventId ? (waitlists.get(post.eventId) ?? 0) : 0, now, createdAt)];
     });
   }
 
   async create(userId: string, payload: CreateFeedPostWrite): Promise<FeedPost> {
     await this.publishers.assertCanPublish(userId);
-    const event = await this.events.findOneBy({ id: payload.eventId });
-    if (!event || event.published === false) throw new NotFoundException("Event not found");
+    const eventId = payload.eventId ?? null;
+    if (eventId !== null) {
+      const event = await this.events.findOneBy({ id: eventId });
+      if (!event || event.published === false) throw new NotFoundException("Event not found");
+    }
+    const photos = (payload.photoUrls ?? []).slice(0, 3);
+    const photoUrl = payload.photoUrl ?? photos[0] ?? null;
     const saved = await this.posts.save(
       this.posts.create({
         authorUserId: userId,
-        eventId: payload.eventId,
+        eventId,
         text: payload.text,
-        photoUrl: payload.photoUrl ?? null,
+        photoUrl,
+        photoUrls: photos.length > 0 ? photos : photoUrl ? [photoUrl] : [],
         placeId: payload.placeId ?? null,
         locationLabel: payload.locationLabel ?? null,
         taggedFriendIds: payload.taggedFriendIds ?? [],
@@ -192,7 +198,8 @@ export class FeedService {
           const commentAuthor = userById.get(row.authorUserId);
           return commentAuthor ? [{ id: row.id, author: toFriendDto(commentAuthor), text: row.text }] : [];
         });
-      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId, text: post.text, photoUrl: post.photoUrl ?? null, placeId: post.placeId ?? null, locationLabel: post.locationLabel ?? null, taggedFriendIds: post.taggedFriendIds ?? [], audience: post.audience ?? "friends", allowJoin: post.allowJoin ?? false, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), comments }];
+      const photoUrls = post.photoUrls && post.photoUrls.length > 0 ? post.photoUrls : post.photoUrl ? [post.photoUrl] : [];
+      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId ?? null, text: post.text, photoUrl: photoUrls[0] ?? null, photoUrls, placeId: post.placeId ?? null, locationLabel: post.locationLabel ?? null, taggedFriendIds: post.taggedFriendIds ?? [], audience: post.audience ?? "friends", allowJoin: post.allowJoin ?? false, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), comments }];
     });
   }
 }
@@ -211,37 +218,26 @@ function countParticipations(rows: ParticipationEntity[], viewerId: string): Map
   return map;
 }
 
-function goingFriendsByPlace(parts: ParticipationEntity[], events: EventEntity[], users: UserEntity[], friendIds: Set<string>): Map<string, ReturnType<typeof toFriendDto>[]> {
-  const eventPlace = new Map(events.filter((row) => row.placeId).map((row) => [row.id, row.placeId as string]));
-  const userById = new Map(users.map((row) => [row.id, row]));
-  const map = new Map<string, ReturnType<typeof toFriendDto>[]>();
-  for (const row of parts) {
-    if (row.status !== "going" || !friendIds.has(row.userId)) continue;
-    const placeId = eventPlace.get(row.eventId);
-    const user = userById.get(row.userId);
-    if (!placeId || !user) continue;
-    const list = map.get(placeId) ?? [];
-    if (!list.some((friend) => friend.id === user.id)) list.push(toFriendDto(user));
-    map.set(placeId, list);
-  }
-  return map;
-}
-
-function toFriendCard(post: FeedPost, event: EventEntity, place: Place | null, bucket: ParticipationBucket | undefined, waitlist: number, now: Date, createdAt: Date | undefined): FeedCard {
-  const counts: FeedCardCounts = {
-    wantsToGo: bucket?.wantsToGo ?? 0,
-    going: bucket?.going ?? 0,
-    waitlist,
-    freeSeats: event.capacity === null ? null : Math.max(0, event.capacity - (event.bookedCount ?? 0)),
-  };
+function toFriendCard(post: FeedPost, event: EventEntity | null, place: Place | null, bucket: ParticipationBucket | undefined, waitlist: number, now: Date, createdAt: Date | undefined): FeedCard {
+  const counts: FeedCardCounts = event
+    ? {
+        wantsToGo: bucket?.wantsToGo ?? 0,
+        going: bucket?.going ?? 0,
+        waitlist,
+        freeSeats: event.capacity === null ? null : Math.max(0, event.capacity - (event.bookedCount ?? 0)),
+      }
+    : { wantsToGo: null, going: null, waitlist: null, freeSeats: null };
+  const photos = post.photoUrls && post.photoUrls.length > 0 ? post.photoUrls : post.photoUrl ? [post.photoUrl] : [];
   return {
     kind: "friend",
     id: post.id,
     author: post.author,
     placeTitle: place?.title ?? post.locationLabel ?? null,
+    locationLabel: post.locationLabel ?? null,
     distanceKm: null,
-    event: toEventDto(event),
-    live: event.endsAt !== null && event.startsAt.getTime() <= now.getTime() && now.getTime() < event.endsAt.getTime(),
+    event: event ? toEventDto(event) : null,
+    photoUrls: photos,
+    live: event !== null && event.endsAt !== null && event.startsAt.getTime() <= now.getTime() && now.getTime() < event.endsAt.getTime(),
     hit: false,
     counts,
     myStatus: bucket?.mine ?? null,
@@ -251,30 +247,6 @@ function toFriendCard(post: FeedPost, event: EventEntity, place: Place | null, b
     comments: post.comments,
     commentsCount: post.comments.length,
     publishedAt: createdAt ? createdAt.toISOString() : null,
-    photoUrl: post.photoUrl ?? null,
-  };
-}
-
-function toPlaceCard(post: FeedPost, place: Place, createdAt: Date | undefined, goingFriends: ReturnType<typeof toFriendDto>[]): FeedCard {
-  return {
-    kind: "place",
-    id: post.id,
-    place,
-    verified: false,
-    distanceKm: null,
-    travelMinutes: null,
-    rating: null,
-    pricePerHourRub: null,
-    slotLabel: null,
-    offerLabel: null,
-    goingFriends,
-    title: post.text,
-    text: post.text,
-    quote: null,
-    likesCount: post.likesCount,
-    likedByMe: post.likedByMe,
-    commentsCount: post.comments.length,
-    myStatus: null,
-    publishedAt: (createdAt ?? new Date(0)).toISOString(),
+    photoUrl: photos[0] ?? null,
   };
 }

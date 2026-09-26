@@ -43,18 +43,18 @@ export function WhenField({ value, label, onChange }: { value: string; label: st
 
   return (
     <div className="app-when">
-      <button type="button" className="app-when-open" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
+      <button type="button" className={value === "" ? "app-when-open app-when-open--empty" : "app-when-open"} aria-expanded={open} onClick={() => setOpen((current) => !current)}>
         {value === "" ? label : whenLabel(value)}
       </button>
       {open && (
         <div className="app-when-sheet" role="dialog" aria-label={label}>
           <div className="app-when-month">
             <button type="button" aria-label="Предыдущий месяц" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}>
-              ↑
+              ‹
             </button>
             <span>{cursor.toLocaleString("ru-RU", { month: "long", year: "numeric" })}</span>
             <button type="button" aria-label="Следующий месяц" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}>
-              ↓
+              ›
             </button>
           </div>
           <div className="app-when-week">

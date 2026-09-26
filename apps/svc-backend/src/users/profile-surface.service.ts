@@ -71,19 +71,19 @@ export class ProfileSurfaceService {
     await this.requireUser(userId);
     const rows = await this.posts.find({ where: { authorUserId: userId, published: true }, order: { createdAt: "DESC" } });
     if (rows.length === 0) return [];
-    const eventIds = [...new Set(rows.map((row) => row.eventId))];
+    const eventIds = [...new Set(rows.flatMap((row) => (row.eventId ? [row.eventId] : [])))];
     const postIds = rows.map((row) => row.id);
-    const [events, likeRows, commentRows] = await Promise.all([this.events.find({ where: { id: In(eventIds) } }), this.likes.find({ where: { postId: In(postIds) } }), this.comments.find({ where: { postId: In(postIds) } })]);
+    const [events, likeRows, commentRows] = await Promise.all([eventIds.length === 0 ? Promise.resolve([]) : this.events.find({ where: { id: In(eventIds) } }), this.likes.find({ where: { postId: In(postIds) } }), this.comments.find({ where: { postId: In(postIds) } })]);
     const eventById = new Map(events.map((row) => [row.id, row]));
     return rows.flatMap((row) => {
-      const event = eventById.get(row.eventId);
-      if (!event) return [];
+      const event = row.eventId ? eventById.get(row.eventId) : undefined;
+      if (row.eventId && !event) return [];
       return [
         {
           postId: row.id,
-          eventId: event.id,
-          eventTitle: event.title,
-          category: event.category,
+          eventId: event?.id ?? null,
+          eventTitle: event?.title ?? row.text,
+          category: event?.category ?? "afisha",
           photoUrl: row.photoUrl ?? null,
           likesCount: likeRows.filter((like) => like.postId === row.id).length,
           commentsCount: commentRows.filter((comment) => comment.postId === row.id).length,

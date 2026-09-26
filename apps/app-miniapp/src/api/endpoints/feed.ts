@@ -50,11 +50,11 @@ export type FeedPost = ContractFeedPost;
  */
 export interface CreateFeedPost {
   userId: string;
-  eventId: string;
+  eventId: string | null;
   text: string;
   /** Optional photo for the post; the server stores the url as given. */
   photoUrl?: string | null;
-  /** Every picked photo, newest grid last; only photoUrls[0] survives the trip today (#502, #477). */
+  /** Every picked photo, up to three. The first is also photoUrl. */
   photoUrls?: string[];
   /** Where the post was made from; null when the author removed the place row. */
   placeId?: string | null;
@@ -184,9 +184,13 @@ export interface FeedFriendCard {
   author: Friend;
   /** Where the post was made from; null for an event without a place. */
   placeTitle: string | null;
+  /** Dropped pin, "lat, lng". Null when the post only names a venue. */
+  locationLabel?: string | null;
   /** Distance from the viewer to the event, km; null until the list DTO carries it (#496). */
   distanceKm: number | null;
-  event: Event;
+  event: Event | null;
+  /** Every photo on the post. Empty when there is none; photoUrl stays the first. */
+  photoUrls?: string[];
   /** The event is running right now — the cyan «Сейчас идёт» chip. */
   live: boolean;
   /** «ХИТ НЕДЕЛИ»: the events domain has no such flag yet (#496). */
@@ -267,19 +271,29 @@ function parseStatus(raw: unknown): { ok: true; value: ParticipationStatus | nul
   return parsed.success ? { ok: true, value: parsed.data } : { ok: false };
 }
 
+function parsePhotoUrls(raw: unknown): string[] | null {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw) || raw.some((item) => typeof item !== "string")) return null;
+  return raw;
+}
+
 function parseFriendCard(raw: Record<string, unknown>): FeedFriendCard | null {
   const author = FriendSchema.safeParse(raw.author);
-  const event = EventSchema.safeParse(raw.event);
+  const parsedEvent = raw.event === null ? null : EventSchema.safeParse(raw.event);
   const comments = FeedCommentSchema.array().safeParse(raw.comments);
   const myStatus = parseStatus(raw.myStatus);
   const counts = parseCounts(raw.counts);
-  if (!author.success || !event.success || !comments.success || !myStatus.ok || counts === null) return null;
+  const photoUrls = parsePhotoUrls(raw.photoUrls);
+  if (!author.success || parsedEvent === undefined || (parsedEvent !== null && !parsedEvent.success) || !comments.success || !myStatus.ok || counts === null || photoUrls === null) return null;
   if (typeof raw.id !== "string" || typeof raw.text !== "string" || !isNullableString(raw.publishedAt)) return null;
   if (typeof raw.likesCount !== "number" || typeof raw.likedByMe !== "boolean" || typeof raw.commentsCount !== "number") return null;
   if (typeof raw.live !== "boolean" || typeof raw.hit !== "boolean" || !isNullableString(raw.placeTitle) || !isNullableNumber(raw.distanceKm)) return null;
   const photoUrl = raw.photoUrl === undefined ? null : raw.photoUrl;
   if (!isNullableString(photoUrl)) return null;
-  return { kind: "friend", id: raw.id, author: author.data, placeTitle: raw.placeTitle, distanceKm: raw.distanceKm, event: event.data, live: raw.live, hit: raw.hit, counts, myStatus: myStatus.value, text: raw.text, likesCount: raw.likesCount, likedByMe: raw.likedByMe, comments: comments.data, commentsCount: raw.commentsCount, publishedAt: raw.publishedAt, photoUrl };
+  const locationLabel = raw.locationLabel === undefined ? null : raw.locationLabel;
+  if (!isNullableString(locationLabel)) return null;
+  const event = parsedEvent === null ? null : parsedEvent.data;
+  return { kind: "friend", id: raw.id, author: author.data, placeTitle: raw.placeTitle, locationLabel, distanceKm: raw.distanceKm, event, photoUrls, live: raw.live, hit: raw.hit, counts, myStatus: myStatus.value, text: raw.text, likesCount: raw.likesCount, likedByMe: raw.likedByMe, comments: comments.data, commentsCount: raw.commentsCount, publishedAt: raw.publishedAt, photoUrl: photoUrls[0] ?? photoUrl };
 }
 
 function parseQuote(raw: unknown): { ok: true; value: FeedPlaceCard["quote"] } | { ok: false } {
@@ -339,17 +353,24 @@ const NO_FEED_COUNTS: FeedCardCounts = { wantsToGo: null, going: null, waitlist:
  */
 export function feedCardsFromPosts(posts: FeedPost[], events: Event[], places: Place[], now: Date): FeedFriendCard[] {
   return posts.flatMap((post) => {
-    const event = events.find((item) => item.id === post.eventId);
-    if (event === undefined) return [];
+    let event: Event | null = null;
+    if (post.eventId !== null) {
+      const found = events.find((item) => item.id === post.eventId);
+      if (found === undefined) return [];
+      event = found;
+    }
+    const photos = post.photoUrls && post.photoUrls.length > 0 ? post.photoUrls : post.photoUrl ? [post.photoUrl] : [];
     return [
       {
         kind: "friend" as const,
         id: post.id,
         author: post.author,
-        placeTitle: places.find((item) => item.id === event.placeId)?.title ?? null,
+        placeTitle: places.find((item) => item.id === (post.placeId ?? event?.placeId))?.title ?? post.locationLabel ?? null,
+        locationLabel: post.locationLabel ?? null,
         distanceKm: null,
         event,
-        live: isEventLive(event, now),
+        photoUrls: photos,
+        live: event === null ? false : isEventLive(event, now),
         hit: false,
         counts: NO_FEED_COUNTS,
         myStatus: null,
@@ -357,10 +378,9 @@ export function feedCardsFromPosts(posts: FeedPost[], events: Event[], places: P
         likesCount: post.likesCount,
         likedByMe: post.likedByMe,
         comments: post.comments,
-        // The wall answers the whole thread, so its length IS the count rather than a head of it.
         commentsCount: post.comments.length,
         publishedAt: null,
-        photoUrl: post.photoUrl,
+        photoUrl: photos[0] ?? null,
       },
     ];
   });
@@ -379,6 +399,10 @@ export function withFeed<TBase extends ApiMixin>(Base: TBase) {
      */
     createStory(imageUrl: string, composition?: StoryComposition): Promise<Story> {
       return this.request("/stories", StorySchema, { body: composition === undefined ? { imageUrl } : { imageUrl, ...composition } });
+    }
+
+    voteStory(id: string, optionIndex: number): Promise<Story> {
+      return this.request(`/stories/${id}/poll`, StorySchema, { method: "POST", body: { optionIndex } });
     }
 
     /** Store a data URL and return the public path. A url that is already hosted is returned as it is. */

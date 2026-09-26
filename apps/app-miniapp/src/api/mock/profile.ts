@@ -265,7 +265,8 @@ export function userPostsFor(userId: string): ProfilePost[] {
 }
 
 /** A post about an event the fixtures do not have is no tile at all: the cover has nowhere to come from. */
-function postTile(postId: string, eventId: string, photoUrl: string | null, likesCount: number, commentsCount: number): ProfilePost[] {
+function postTile(postId: string, eventId: string | null, photoUrl: string | null, likesCount: number, commentsCount: number): ProfilePost[] {
+  if (eventId === null) return [{ postId, eventId: null, eventTitle: "Пост", category: "afisha", photoUrl, likesCount, commentsCount }];
   const event = mockEvents.find((candidate) => candidate.id === eventId);
   return event === undefined ? [] : [{ postId, eventId, eventTitle: event.title, category: event.category, photoUrl, likesCount, commentsCount }];
 }

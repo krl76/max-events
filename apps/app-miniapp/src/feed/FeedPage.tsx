@@ -33,6 +33,7 @@ import { OPEN_OWN_STORY } from "../create/StoryCreatePage";
 import { markStoriesSeen, readSeenStories, storyRail } from "../stories/rail";
 import { AppAvatar, AppButton, AppChip, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
+import { parsePinLabel } from "../ui/pin-label";
 import { pluralRu } from "../catalog/format";
 
 interface FeedPostCardProps {
@@ -43,6 +44,7 @@ interface FeedPostCardProps {
   onToggleLike: () => void;
   onAddComment: (text: string) => void;
   onOpenEvent?: (eventId: string) => void;
+  onOpenMap?: () => void;
   hasStory?: boolean;
 }
 
@@ -57,12 +59,12 @@ export function PostAuthorAvatar({ friend, hasStory = false, size = 36 }: { frie
   return <span className="app-story-ring app-story-ring--active">{avatar}</span>;
 }
 
-export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenEvent, hasStory = false }: FeedPostCardProps) {
+export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenEvent, onOpenMap, hasStory = false }: FeedPostCardProps) {
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
   const commentRef = useRef<HTMLInputElement | null>(null);
-  const eventLink = onOpenEvent ? (
-    <button type="button" className="app-plan-event" onClick={() => onOpenEvent(post.eventId)}>
+  const eventLink = onOpenEvent && post.eventId !== null ? (
+    <button type="button" className="app-plan-event" onClick={() => onOpenEvent(post.eventId!)}>
       {eventTitle}
     </button>
   ) : (
@@ -105,6 +107,12 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
       <p className="app-post-caption">
         <span className="app-post-caption-author">{post.author.name}</span> {post.text}
       </p>
+      {onOpenMap && (parsePinLabel(post.locationLabel ?? "") !== null || post.placeId !== null) && (
+        <button type="button" className="app-feed-post-where app-post-map-mark" onClick={onOpenMap}>
+          <ActionIcon name="pin" size={14} />
+          {parsePinLabel(post.locationLabel ?? "") ? "Точка на карте" : "Показать на карте"}
+        </button>
+      )}
       <ul className="app-feed-comments">
         {post.comments.map((item) => (
           <li key={item.id} className="app-feed-comment">
@@ -188,6 +196,11 @@ export function FeedPostPage({ id }: { id: string }) {
         apiClient.addFeedComment(post.id, { userId, text }).then(setPost);
       }}
       onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })}
+      onOpenMap={() => {
+        const pin = parsePinLabel(post.locationLabel ?? "");
+        if (pin) navigate({ name: "map", pin });
+        else if (post.placeId) navigate({ name: "map", placeId: post.placeId });
+      }}
       hasStory={storyAuthors.has(post.author.id)}
     />
   );
@@ -252,7 +265,7 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
     [userId, update],
   );
 
-  const eventTitle = (id: string) => events.find((item) => item.id === id)?.title ?? "";
+  const eventTitle = (id: string | null) => (id === null ? "" : (events.find((item) => item.id === id)?.title ?? ""));
 
   return (
     <AppSection
@@ -277,7 +290,24 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
       ) : state.posts.length === 0 ? (
         <AppEmptyState kind="empty-feed" onAction={() => navigate({ name: "feed-new", eventId: null })} />
       ) : (
-        state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} eventCategory={events.find((item) => item.id === post.eventId)?.category} userId={userId ?? ""} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} hasStory={storyAuthors.has(post.author.id)} />)
+        state.posts.map((post) => (
+          <FeedPostCard
+            key={post.id}
+            post={post}
+            eventTitle={eventTitle(post.eventId)}
+            eventCategory={events.find((item) => item.id === post.eventId)?.category}
+            userId={userId ?? ""}
+            onToggleLike={() => toggleLike(post.id)}
+            onAddComment={(text) => addComment(post.id, text)}
+            onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined}
+            onOpenMap={() => {
+              const pin = parsePinLabel(post.locationLabel ?? "");
+              if (pin) navigate({ name: "map", pin });
+              else if (post.placeId) navigate({ name: "map", placeId: post.placeId });
+            }}
+            hasStory={storyAuthors.has(post.author.id)}
+          />
+        ))
       )}
     </AppSection>
   );
