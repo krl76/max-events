@@ -197,8 +197,9 @@ export function withPlans<TBase extends ApiMixin>(Base: TBase) {
     }
 
     /** The evening step by step (макет, экран 15); mock until the transfers of #504 exist server-side. */
-    getPlanTimeline(planId: string): Promise<PlanTimeline> {
-      return this.request(`/plans/${planId}/timeline`, PlanTimelineSchema);
+    getPlanTimeline(planId: string, prefer?: "cheaper" | "no_taxi"): Promise<PlanTimeline> {
+      const query = prefer === undefined ? "" : `?prefer=${prefer}`;
+      return this.request(`/plans/${planId}/timeline${query}`, PlanTimelineSchema);
     }
 
     /** Opens the chat of a plan and returns the card carrying its link; mock until P1-7-b lands. */

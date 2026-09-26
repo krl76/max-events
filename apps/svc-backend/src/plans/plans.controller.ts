@@ -11,7 +11,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
-import { CreateAutoPlanWriteSchema, CreatePlanExpenseWriteSchema, CreatePlanWriteSchema, PlanCancelScopeSchema, IdSchema, PlanParticipantWriteSchema, type AutoPlanProposal, type PlanBudget, type PlanCard } from "@max-events/api-contracts";
+import { CreateAutoPlanWriteSchema, CreatePlanExpenseWriteSchema, CreatePlanWriteSchema, PlanCancelScopeSchema, IdSchema, PlanParticipantWriteSchema, type AutoPlanProposal, type PlanBudget, type PlanCard, type RoutePrefer } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { PlansService, type GeoOrigin } from "./plans.service";
@@ -40,8 +40,8 @@ export class PlansController {
   }
 
   @Get(":id/timeline")
-  timeline(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string) {
-    return this.plans.timeline(user.id, id);
+  timeline(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Query("prefer") prefer?: string) {
+    return this.plans.timeline(user.id, id, parseRoutePrefer(prefer));
   }
 
   @Get(":id/budget")
@@ -89,6 +89,12 @@ export class PlansController {
     if (!parsed.success) throw new BadRequestException("Invalid plan payload");
     return this.plans.respond(user.id, id, parsed.data.status);
   }
+}
+
+export function parseRoutePrefer(value: string | undefined): RoutePrefer {
+  if (value === undefined || value === "" || value === "default") return "default";
+  if (value === "cheaper" || value === "no_taxi") return value;
+  throw new BadRequestException("Invalid timeline prefer");
 }
 
 export function parseOrigin(query: Record<string, string | undefined>): GeoOrigin | null {

@@ -43,6 +43,13 @@ export function pickMode(meters: number, prefer: RoutePrefer = "default"): Route
   return "walk";
 }
 
+export function transferFor(meters: number, prefer: RoutePrefer = "default"): { mode: RouteMode; minutes: number; priceRub: number | null } {
+  const mode = pickMode(meters, prefer);
+  const minutes = travelMinutes(meters, mode);
+  const priceRub = mode === "metro" ? METRO_FARE_RUB : mode === "taxi" ? TAXI_LANDING_RUB + Math.round((meters / 1000) * TAXI_PER_KM_RUB) : null;
+  return { mode, minutes, priceRub };
+}
+
 @Injectable()
 export class RoutesService {
   constructor(
