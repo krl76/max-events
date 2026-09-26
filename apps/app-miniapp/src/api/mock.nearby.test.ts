@@ -17,7 +17,7 @@ describe("nearbyTimeline mock", () => {
     expect(timeline.now.map((card) => card.event.id)).toEqual([COFFEE_MARKET]);
     expect(timeline.inAnHour.map((card) => card.event.id)).toEqual([LECTURE]);
     expect(timeline.evening.map((card) => card.event.id)).toEqual([CONCERT]);
-    expect(timeline.tomorrow.map((card) => card.event.id)).toEqual([YOGA]);
+    expect(timeline.tomorrow.map((card) => card.event.id)).toContain(YOGA);
   });
 
   it("computes a plausible haversine distance per card", () => {

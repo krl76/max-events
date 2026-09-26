@@ -70,10 +70,10 @@ describe("AssistService", () => {
     expect(result.criteria).toEqual({ when: "evening", budgetMaxRub: 3000, company: "partner", genre: "music" });
     expect(result.items.map((row) => row.event.id).sort()).toEqual([jazzId, savedId].sort());
     expect(result.summary).toContain("по твоей истории");
-    expect(result.summary).toContain("уже сохранила твоя девушка");
+    expect(result.summary).toContain("сохранённом");
     expect(result.items.find((row) => row.event.id === jazzId)?.explanation).toContain("истории");
-    expect(result.items.find((row) => row.event.id === savedId)?.explanation).toContain("девушк");
-    expect(formatAssistSummary(7, 2, 1)).toBe("Нашел 7 вариантов, 2 по твоей истории, 1 уже сохранила твоя девушка");
+    expect(result.items.find((row) => row.event.id === savedId)?.explanation).toContain("сохранённом");
+    expect(formatAssistSummary(7, 2, 1)).toBe("Нашел 7 вариантов, 2 по твоей истории, 1 уже есть в сохранённом у друзей");
   });
 
   it("falls back to the local parser when the LLM provider is disabled", async () => {

@@ -143,11 +143,12 @@ describe("clusterMapMarkers", () => {
     expect(clusters[1].markers.map((marker) => marker.key)).toEqual(["c"]);
   });
 
-  it("распускает скопление на уличном зуме: прятать соседние объекты там уже незачем", () => {
-    const crowd = [point("a", 55.75, 37.61), point("b", 55.7501, 37.6101)];
+  it("holds stacked pins at one venue even at street zoom, and splits points that are a street apart", () => {
+    const stacked = [point("a", 55.75, 37.61), point("b", 55.7501, 37.6101)];
+    const split = [point("a", 55.75, 37.61), point("c", 55.753, 37.62)];
 
-    expect(clusterMapMarkers(crowd, MAP_CLUSTER_MAX_ZOOM)).toHaveLength(2);
-    expect(clusterMapMarkers(crowd, MAP_CLUSTER_MAX_ZOOM + 3)).toHaveLength(2);
+    expect(clusterMapMarkers(stacked, MAP_CLUSTER_MAX_ZOOM)).toHaveLength(1);
+    expect(clusterMapMarkers(split, MAP_CLUSTER_MAX_ZOOM)).toHaveLength(2);
   });
 
   it("делит клетку пополам на каждый шаг зума", () => {

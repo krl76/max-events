@@ -161,13 +161,13 @@ export function formatDaySummary(date: string, stops: number, matched: boolean):
 
 export function formatAssistSummary(total: number, history: number, saved: number): string {
   if (total === 0) return "Не нашел вариантов по запросу.";
-  return `Нашел ${total} вариантов, ${history} по твоей истории, ${saved} уже сохранила твоя девушка`;
+  return `Нашел ${total} вариантов, ${history} по твоей истории, ${saved} уже есть в сохранённом у друзей`;
 }
 
 function explainPick(fromHistory: boolean, fromPartner: boolean): string {
-  if (fromHistory && fromPartner) return "По твоей истории, и уже сохранила твоя девушка";
+  if (fromHistory && fromPartner) return "По твоей истории, и уже есть в сохранённом у друзей";
   if (fromHistory) return "По твоей истории";
-  if (fromPartner) return "Уже сохранила твоя девушка";
+  if (fromPartner) return "Уже есть в сохранённом у друзей";
   return "Подходит по запросу";
 }
 

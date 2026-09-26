@@ -125,18 +125,25 @@ describe("initEventMap", () => {
   });
 
   it("creates one marker per mapped event/place at the mapped coordinates", async () => {
-    const markers = buildMapMarkers(mockEvents, mockPlaces);
-    await initEventMap(container, view(markers), callbacks());
+    const unique: MapMarker[] = [
+      { key: "a", eventId: "e1", placeId: null, promoted: false, friends: false, glyph: "event", title: "A", subtitle: "", lat: 55.75, lng: 37.61 },
+      { key: "b", eventId: null, placeId: "p1", promoted: false, friends: false, glyph: "place", title: "B", subtitle: "", lat: 55.76, lng: 37.64 },
+    ];
+    await initEventMap(container, view(unique), callbacks());
 
-    expect(leaflet.marker).toHaveBeenCalledTimes(markers.length);
-    expect(leaflet.marker.mock.calls.map((call) => call[0])).toEqual(markers.map((marker) => [marker.lat, marker.lng]));
+    expect(leaflet.marker).toHaveBeenCalledTimes(2);
+    expect(leaflet.marker.mock.calls.map((call) => call[0])).toEqual([
+      [55.75, 37.61],
+      [55.76, 37.64],
+    ]);
     expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin" }));
   });
 
   it("renders a popup mini-card with a button that opens the event route", async () => {
     const onOpenEvent = vi.fn();
     const placed = mockEvents.find((item) => item.placeId !== null)!;
-    await initEventMap(container, view(buildMapMarkers([placed], mockPlaces)), callbacks({ onOpenEvent }));
+    const venue = mockPlaces.filter((place) => place.id === placed.placeId);
+    await initEventMap(container, view(buildMapMarkers([placed], venue).filter((marker) => marker.eventId === placed.id)), callbacks({ onOpenEvent }));
 
     const eventPopup = leaflet.marker.mock.results[0].value.bindPopup.mock.calls[0][0] as FakeNode;
     expect(eventPopup.appended.some((node) => node.textContent === placed.title)).toBe(true);
@@ -165,7 +172,8 @@ describe("initEventMap", () => {
   it("highlights the pin and the popup of a promoted event", async () => {
     const placed = mockEvents.find((item) => item.placeId !== null)!;
     const promoted = { ...placed, promoted: true };
-    await initEventMap(container, view(buildMapMarkers([promoted], mockPlaces)), callbacks());
+    const venue = mockPlaces.filter((place) => place.id === placed.placeId);
+    await initEventMap(container, view(buildMapMarkers([promoted], venue).filter((marker) => marker.eventId === promoted.id)), callbacks());
 
     expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin app-map-pin--promo" }));
 
@@ -175,7 +183,8 @@ describe("initEventMap", () => {
 
   it("keeps the plain pin for a regular event and lifts the selected one", async () => {
     const placed = mockEvents.find((item) => item.placeId !== null && !item.promoted)!;
-    const markers = buildMapMarkers([placed], mockPlaces);
+    const venue = mockPlaces.filter((place) => place.id === placed.placeId);
+    const markers = buildMapMarkers([placed], venue).filter((marker) => marker.eventId === placed.id);
     await initEventMap(container, view(markers, { selectedKey: markers[0].key }), callbacks());
 
     expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin app-map-pin--active" }));

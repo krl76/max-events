@@ -114,7 +114,8 @@ describe("NearbyView: таймлайн (экран 13)", () => {
 
     expect(html).toContain("Таймлайн");
     expect(html).toContain("Свободное время");
-    expect(html).toContain(`Радиус ${NEARBY_RADIUS_KM} км · время московское`);
+    expect(html).toContain(`Радиус ${NEARBY_RADIUS_KM} км`);
+    expect(html).toContain("время московское");
   });
 
   it("показывает все непустые сегменты со счётчиком мест", () => {

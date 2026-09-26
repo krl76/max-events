@@ -76,7 +76,7 @@ export const MAP_CLUSTER_BASE_ZOOM = 11;
 /** Сторона клетки на стартовом зуме: 0,02° широты — примерно 2,2 км, четверть экрана города. */
 export const MAP_CLUSTER_CELL_DEGREES = 0.02;
 /** Ближе этого зума пины уже не налезают друг на друга, и склеивать их значит прятать данные. */
-export const MAP_CLUSTER_MAX_ZOOM = 17;
+export const MAP_CLUSTER_MAX_ZOOM = 15;
 
 /**
  * Клетка делится пополам на каждый шаг зума — так скопление распадается постепенно, а не рывком.
@@ -92,27 +92,54 @@ function loneCluster(marker: MapMarker): MapCluster {
   return { key: marker.key, lat: marker.lat, lng: marker.lng, markers: [marker] };
 }
 
+/** Markers closer than this still share a bubble even at street zoom — same venue, stacked pins. */
+export const MAP_STACK_DEGREES = 0.0003;
+
 export function clusterMapMarkers(markers: MapMarker[], zoom: number): MapCluster[] {
-  if (zoom >= MAP_CLUSTER_MAX_ZOOM) return markers.map(loneCluster);
-  const cell = clusterCellDegrees(zoom);
-  const buckets = new Map<string, MapMarker[]>();
-  const order: string[] = [];
-  for (const marker of markers) {
-    const cellKey = `${Math.floor(marker.lat / cell)}:${Math.floor(marker.lng / cell)}`;
-    const bucket = buckets.get(cellKey);
-    if (bucket === undefined) {
-      buckets.set(cellKey, [marker]);
-      order.push(cellKey);
-    } else bucket.push(marker);
+  const base =
+    zoom >= MAP_CLUSTER_MAX_ZOOM
+      ? markers.map(loneCluster)
+      : (() => {
+          const cell = clusterCellDegrees(zoom);
+          const buckets = new Map<string, MapMarker[]>();
+          const order: string[] = [];
+          for (const marker of markers) {
+            const cellKey = `${Math.floor(marker.lat / cell)}:${Math.floor(marker.lng / cell)}`;
+            const bucket = buckets.get(cellKey);
+            if (bucket === undefined) {
+              buckets.set(cellKey, [marker]);
+              order.push(cellKey);
+            } else bucket.push(marker);
+          }
+          return order.map((cellKey) => {
+            const group = buckets.get(cellKey) ?? [];
+            if (group.length === 1) return loneCluster(group[0]);
+            const lat = group.reduce((sum, marker) => sum + marker.lat, 0) / group.length;
+            const lng = group.reduce((sum, marker) => sum + marker.lng, 0) / group.length;
+            return { key: `cluster-${group[0].key}`, lat, lng, markers: group };
+          });
+        })();
+  return stackColocated(base);
+}
+
+function stackColocated(clusters: MapCluster[]): MapCluster[] {
+  const leftover = [...clusters];
+  const stacked: MapCluster[] = [];
+  while (leftover.length > 0) {
+    const seed = leftover.shift()!;
+    const group = [seed];
+    for (let index = leftover.length - 1; index >= 0; index -= 1) {
+      const other = leftover[index]!;
+      if (Math.hypot(other.lat - seed.lat, other.lng - seed.lng) >= MAP_STACK_DEGREES) continue;
+      group.push(other);
+      leftover.splice(index, 1);
+    }
+    const members = group.flatMap((item) => item.markers);
+    const lat = members.reduce((sum, marker) => sum + marker.lat, 0) / members.length;
+    const lng = members.reduce((sum, marker) => sum + marker.lng, 0) / members.length;
+    stacked.push(members.length === 1 ? loneCluster(members[0]!) : { key: `cluster-${members[0]!.key}`, lat, lng, markers: members });
   }
-  return order.map((cellKey) => {
-    const group = buckets.get(cellKey) ?? [];
-    if (group.length === 1) return loneCluster(group[0]);
-    // Точка скопления — центр тяжести его маркеров, иначе пузырь садится в угол клетки.
-    const lat = group.reduce((sum, marker) => sum + marker.lat, 0) / group.length;
-    const lng = group.reduce((sum, marker) => sum + marker.lng, 0) / group.length;
-    return { key: `cluster-${group[0].key}`, lat, lng, markers: group };
-  });
+  return stacked;
 }
 
 /** Two names and a tail: a popup is no place for a list of twelve. */

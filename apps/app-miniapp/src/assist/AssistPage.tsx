@@ -38,6 +38,11 @@ export const ASSIST_PROMPTS: readonly string[] = ["Что-то бесплатн�
 
 export const ASSIST_PLACEHOLDER = "Спроси MAX: куда сходить, беседки, корты…";
 
+export function isSaturdayPlanPrompt(text: string): boolean {
+  const lower = text.toLowerCase();
+  return lower.includes("план") && (lower.includes("суббот") || lower.includes("шашлык") || lower.includes("мангал"));
+}
+
 /** Одна реплика ветки. У ответа MAX могут быть приложены варианты или собранный план — но не оба сразу. */
 export interface AssistBubble {
   id: number;
@@ -215,10 +220,11 @@ export function AssistPage({ ask = null }: { ask?: string | null }) {
     setLastQuestion(text);
     setDraft("");
     setState({ status: "loading" });
-    apiClient.assistQuery(text).then(
-      (result) => {
+    const request = isSaturdayPlanPrompt(text) ? apiClient.assistDay(text, false).then((day) => ({ kind: "day" as const, day })) : apiClient.assistQuery(text).then((result) => ({ kind: "picks" as const, result }));
+    request.then(
+      (payload) => {
         pending.current = false;
-        setThread((current) => answeredThread(current, result));
+        setThread((current) => (payload.kind === "day" ? plannedThread(current, payload.day) : answeredThread(current, payload.result)));
         setState({ status: "idle" });
       },
       (error: unknown) => {

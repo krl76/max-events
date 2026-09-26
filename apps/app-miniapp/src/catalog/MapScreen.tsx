@@ -325,8 +325,25 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
         const size = clusterSize(cluster.markers.length);
         const icon = L.divIcon({ className: "app-map-pin app-map-pin--cluster", iconSize: [size, size], html: `<span class="app-map-cluster" aria-label="${cluster.markers.length} точек"><span class="app-map-cluster-count">${cluster.markers.length}</span></span>` });
         const bubble = L.marker([cluster.lat, cluster.lng], { icon }).addTo(pins);
-        // Тап по скоплению раскрывает его, а не открывает случайный объект из середины.
-        bubble.on("click", () => map.flyToBounds(L.latLngBounds(cluster.markers.map((marker) => [marker.lat, marker.lng] as [number, number])), { padding: [56, 56], maxZoom: MAP_CLUSTER_MAX_ZOOM + 2, duration: 0.5 }));
+        bubble.on("click", () => {
+          const bounds = L.latLngBounds(cluster.markers.map((marker) => [marker.lat, marker.lng] as [number, number]));
+          const span = map.distance(bounds.getNorthEast(), bounds.getSouthWest());
+          if (span < 80) {
+            cluster.markers.forEach((marker, index) => {
+              const angle = (2 * Math.PI * index) / cluster.markers.length;
+              const lat = cluster.lat + 0.00035 * Math.cos(angle);
+              const lng = cluster.lng + 0.00035 * Math.sin(angle);
+              const selected = marker.key === view.selectedKey ? " app-map-pin--active" : "";
+              const pin = L.divIcon({ className: `app-map-pin${marker.promoted ? " app-map-pin--promo" : ""}${selected}`, iconSize: [34, 42], iconAnchor: [17, 42], popupAnchor: [0, -38], html: pinHtml(marker) });
+              L.marker([lat, lng], { icon: pin, riseOnHover: true })
+                .addTo(pins)
+                .bindPopup(popupNode(marker, callbacks.onOpenEvent, callbacks.onOpenPlace))
+                .on("click", () => callbacks.onSelect(marker));
+            });
+            return;
+          }
+          map.flyToBounds(bounds, { padding: [56, 56], maxZoom: MAP_CLUSTER_MAX_ZOOM + 2, duration: 0.5 });
+        });
         continue;
       }
       const marker = cluster.markers[0];

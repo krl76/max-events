@@ -50,6 +50,7 @@ describe("nearbyBucket", () => {
     expect(nearbyBucket(new Date("2026-09-12T16:00:00+03:00"), now)).toBe("inAnHour");
     expect(nearbyBucket(new Date("2026-09-12T19:00:00+03:00"), now)).toBe("evening");
     expect(nearbyBucket(new Date("2026-09-13T12:00:00+03:00"), now)).toBe("tomorrow");
+    expect(nearbyBucket(new Date("2026-09-18T19:00:00+03:00"), now)).toBe("tomorrow");
     expect(nearbyBucket(new Date("2026-09-12T13:00:00+03:00"), now)).toBeNull();
   });
 });

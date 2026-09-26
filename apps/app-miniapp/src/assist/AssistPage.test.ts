@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { AssistDayResponse, AssistResponse } from "@max-events/api-contracts";
-import { ASSIST_GREETING, ASSIST_PLACEHOLDER, ASSIST_PROMPTS, AssistPageView, answeredThread, askedThread, assistPickMeta, plannedThread, type AssistThread } from "./AssistPage";
+import { ASSIST_GREETING, ASSIST_PLACEHOLDER, ASSIST_PROMPTS, AssistPageView, answeredThread, askedThread, assistPickMeta, isSaturdayPlanPrompt, plannedThread, type AssistThread } from "./AssistPage";
 import { mockAssistDay, mockAssistSuggest, mockEvents, resetMockAssist } from "../api/mock";
 
 const START: AssistThread = [{ id: 0, role: "max", text: ASSIST_GREETING, picks: [], day: null }];
@@ -75,6 +75,11 @@ describe("assistPickMeta", () => {
 describe("ASSIST_PROMPTS", () => {
   it("carries the three prompts of the design, in its order", () => {
     expect(ASSIST_PROMPTS).toEqual(["Что-то бесплатное рядом", "План на субботу: шашлык", "Куда с детьми"]);
+  });
+
+  it("sends the Saturday barbecue chip as a day plan, not a generic pick list", () => {
+    expect(isSaturdayPlanPrompt("План на субботу: шашлык")).toBe(true);
+    expect(isSaturdayPlanPrompt("Куда с детьми")).toBe(false);
   });
 });
 

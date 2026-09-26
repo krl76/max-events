@@ -156,15 +156,15 @@ function mockNearbyBucket(startsAt: string, now: Date = MOCK_NOW): NearbyBucket 
   if (delta < 0) return null;
   if (delta < HOUR_MS) return "now";
   if (moscowDateKey(startsAt) === moscowDateKey(now.toISOString())) return moscowHour(start) >= 18 ? "evening" : "inAnHour";
-  if (moscowDateKey(startsAt) === moscowDateKey(new Date(now.getTime() + 24 * HOUR_MS).toISOString())) return "tomorrow";
+  if (delta <= 14 * 24 * HOUR_MS) return "tomorrow";
   return null;
 }
 
-/** Four-bucket nearby timeline from fixtures within 48h of the demo now and 15 km of the requested coords, promoted first then by distance (backend parity). */
+/** Four-bucket nearby timeline from fixtures within 14 days and the requested radius, promoted first then by distance (backend parity). */
 export function nearbyTimeline(latitude: number, longitude: number, now: Date = MOCK_NOW, radiusKm?: number): NearbyTimeline {
   const timeline: NearbyTimeline = { now: [], inAnHour: [], evening: [], tomorrow: [] };
   const cards: NearbyCard[] = [];
-  const horizon = now.getTime() + 48 * HOUR_MS;
+  const horizon = now.getTime() + 14 * 24 * HOUR_MS;
   for (const item of mockEvents) {
     if (item.placeId === null) continue;
     const place = mockPlaces.find((candidate) => candidate.id === item.placeId);
@@ -174,7 +174,7 @@ export function nearbyTimeline(latitude: number, longitude: number, now: Date = 
     const bucket = mockNearbyBucket(item.startsAt, now);
     if (bucket === null) continue;
     const km = haversineKm(latitude, longitude, place.latitude, place.longitude);
-    if (km > nearbyRadiusKm(radiusKm)) continue;
+    if (km > nearbyRadiusKm(radiusKm) + 0.05) continue;
     cards.push({ event: item, place, distanceKm: Math.round(km * 10) / 10, bucket, promoted: item.promoted });
   }
   cards.sort((a, b) => Number(b.promoted) - Number(a.promoted) || a.distanceKm - b.distanceKm || a.event.startsAt.localeCompare(b.event.startsAt));
@@ -297,7 +297,7 @@ export function mockParseAssistQuery(query: string): AssistCriteria {
   const budgetMatch = /(\d[\d\s]*)\s*(₽|руб)/i.exec(text);
   const budget = budgetMatch ? Number(budgetMatch[1].replace(/\s/g, "")) : NaN;
   const company: AssistCriteria["company"] = text.includes("девушк") || text.includes("парн") || text.includes("двоем") || text.includes("вдвоём") ? "partner" : text.includes("дет") ? "kids" : text.includes("друз") || text.includes("компани") ? "friends" : "alone";
-  const genre: AssistCriteria["genre"] = text.includes("музык") || text.includes("джаз") || text.includes("концерт") ? "music" : text.includes("спорт") || text.includes("футбол") || text.includes("зал") ? "sport" : text.includes("парк") || text.includes("прогул") || text.includes("природ") ? "outdoors" : "any";
+  const genre: AssistCriteria["genre"] = text.includes("музык") || text.includes("джаз") || text.includes("концерт") ? "music" : text.includes("спорт") || text.includes("футбол") || text.includes("зал") ? "sport" : text.includes("парк") || text.includes("прогул") || text.includes("природ") || text.includes("шашлык") || text.includes("мангал") || text.includes("барбекю") || text.includes("беседк") ? "outdoors" : "any";
   return { when, budgetMaxRub: Number.isFinite(budget) ? budget : null, company, genre };
 }
 
@@ -348,7 +348,7 @@ function mockAssistMatches(criteria: AssistCriteria, now: Date = MOCK_NOW): Even
 
 /** Backend explainPick parity. */
 function mockAssistExplanation(fromHistory: boolean, fromPartner: boolean): string {
-  if (fromHistory && fromPartner) return "По твоей истории, и уже сохранила твоя девушка";
+  if (fromHistory && fromPartner) return "По твоей истории, и уже есть в сохранённом у друзей";
   if (fromHistory) return "По твоей истории";
   if (fromPartner) return "Уже в сохранённых";
   return "Подходит по запросу";

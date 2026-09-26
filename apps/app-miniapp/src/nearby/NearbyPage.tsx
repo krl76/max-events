@@ -125,6 +125,7 @@ interface NearbyViewProps {
   onOpenEvent: (id: string) => void;
   onOpenPlace: (id: string) => void;
   radiusKm?: number;
+  originSource?: "geo" | "fallback";
 }
 
 function TimelineCard({ card, onOpenEvent }: { card: NearbyCard; onOpenEvent: (id: string) => void }) {
@@ -145,14 +146,14 @@ function TimelineCard({ card, onOpenEvent }: { card: NearbyCard; onOpenEvent: (i
   );
 }
 
-function Timeline({ state, onRetryTimeline, onOpenEvent, radiusKm = NEARBY_RADIUS_KM }: Pick<NearbyViewProps, "state" | "onRetryTimeline" | "onOpenEvent" | "radiusKm">) {
+function Timeline({ state, onRetryTimeline, onOpenEvent, radiusKm = NEARBY_RADIUS_KM, originSource = "fallback" }: Pick<NearbyViewProps, "state" | "onRetryTimeline" | "onOpenEvent" | "radiusKm" | "originSource">) {
   const segments = state.status === "ready" ? NEARBY_BUCKETS.map((bucket) => ({ bucket, cards: state.timeline[bucket] })).filter((segment) => segment.cards.length > 0) : [];
 
   return (
     <>
       <p className="app-nb-meta">
         <ActionIcon name="pin" size={14} strokeWidth={2.2} />
-        Радиус {radiusKm} км · время московское
+        Радиус {radiusKm} км · {originSource === "geo" ? "от вас" : "от центра Москвы"} · время московское
       </p>
       {state.status === "loading" && <AppSkeletonList rows={3} />}
       {state.status === "error" && (
@@ -252,7 +253,7 @@ function FreeWindow({ leisure, hours, mood, now, planning, onHours, onMood, onRe
 
 const MODE_LABELS: Record<NearbyMode, string> = { timeline: "Таймлайн", free: "Свободное время" };
 
-export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = new Date(), planning, onHours, onMood, onRefresh, onRetryTimeline, onOpenPlan, onOpenEvent, onOpenPlace, radiusKm = NEARBY_RADIUS_KM }: NearbyViewProps) {
+export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = new Date(), planning, onHours, onMood, onRefresh, onRetryTimeline, onOpenPlan, onOpenEvent, onOpenPlace, radiusKm = NEARBY_RADIUS_KM, originSource = "fallback" }: NearbyViewProps) {
   return (
     <section className="app-nb">
       {/* Тот же ряд пилюль, что и на вкладке «Планы»: переключение раздела списка в приложении выглядит одинаково */}
@@ -263,7 +264,7 @@ export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = ne
           </AppChip>
         ))}
       </div>
-      {mode === "timeline" ? <Timeline state={state} onRetryTimeline={onRetryTimeline} onOpenEvent={onOpenEvent} radiusKm={radiusKm} /> : <FreeWindow leisure={leisure} hours={hours} mood={mood} now={now} planning={planning} onHours={onHours} onMood={onMood} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />}
+      {mode === "timeline" ? <Timeline state={state} onRetryTimeline={onRetryTimeline} onOpenEvent={onOpenEvent} radiusKm={radiusKm} originSource={originSource} /> : <FreeWindow leisure={leisure} hours={hours} mood={mood} now={now} planning={planning} onHours={onHours} onMood={onMood} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />}
     </section>
   );
 }
@@ -357,6 +358,7 @@ export function NearbyPage() {
         );
       }}
       radiusKm={radiusKm}
+      originSource={origin.source}
       onOpenEvent={(id) => navigate({ name: "event", id })}
       onOpenPlace={(id) => navigate({ name: "place", id })}
     />

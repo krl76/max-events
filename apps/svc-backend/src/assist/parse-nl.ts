@@ -45,6 +45,6 @@ function detectCompany(text: string): AssistCompany {
 function detectGenre(text: string): AssistGenre {
   if (text.includes("музык") || text.includes("джаз") || text.includes("концерт")) return "music";
   if (text.includes("спорт") || text.includes("футбол") || text.includes("зал")) return "sport";
-  if (text.includes("парк") || text.includes("прогул") || text.includes("природ")) return "outdoors";
+  if (text.includes("парк") || text.includes("прогул") || text.includes("природ") || text.includes("шашлык") || text.includes("мангал") || text.includes("барбекю") || text.includes("беседы") || text.includes("беседок") || text.includes("беседк")) return "outdoors";
   return "any";
 }

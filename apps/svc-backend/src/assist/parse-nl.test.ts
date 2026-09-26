@@ -10,4 +10,8 @@ describe("parseAssistQuery", () => {
       genre: "music",
     });
   });
+
+  it("treats a Saturday barbecue as an outdoors request", () => {
+    expect(parseAssistQuery("План на субботу: шашлык").genre).toBe("outdoors");
+  });
 });

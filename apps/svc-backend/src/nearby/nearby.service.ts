@@ -28,6 +28,7 @@ import { PromotionService } from "../promotion/promotion.service";
 export { haversineKm } from "../geo/haversine";
 
 const HOUR_MS = 60 * 60 * 1000;
+const HORIZON_MS = 14 * 24 * HOUR_MS;
 export const DEFAULT_NEARBY_RADIUS_KM = 15;
 
 function clampRadiusKm(km: number | undefined): number {
@@ -57,12 +58,6 @@ function dayKey(parts: { y: number; m: number; d: number }): string {
   return `${parts.y}-${String(parts.m).padStart(2, "0")}-${String(parts.d).padStart(2, "0")}`;
 }
 
-function tomorrowKey(now: Date): string {
-  const utc = Date.UTC(moscowParts(now).y, moscowParts(now).m - 1, moscowParts(now).d + 1);
-  const next = new Date(utc);
-  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}-${String(next.getUTCDate()).padStart(2, "0")}`;
-}
-
 export function nearbyBucket(startsAt: Date, now: Date): NearbyBucket | null {
   const delta = startsAt.getTime() - now.getTime();
   if (delta < 0) return null;
@@ -70,7 +65,7 @@ export function nearbyBucket(startsAt: Date, now: Date): NearbyBucket | null {
   const start = moscowParts(startsAt);
   const today = dayKey(moscowParts(now));
   if (dayKey(start) === today) return start.h >= 18 ? "evening" : "inAnHour";
-  if (dayKey(start) === tomorrowKey(now)) return "tomorrow";
+  if (delta <= HORIZON_MS) return "tomorrow";
   return null;
 }
 
@@ -134,7 +129,7 @@ export class NearbyService {
 
   private async cards(latitude: number, longitude: number, now: Date, radiusKm?: number): Promise<NearbyCard[]> {
     const maxKm = clampRadiusKm(radiusKm);
-    const horizon = new Date(now.getTime() + 48 * HOUR_MS);
+    const horizon = new Date(now.getTime() + HORIZON_MS);
     const events = await this.events.find({ where: { published: true, startsAt: Between(now, horizon) } });
     const places = await this.places.find({ where: { published: true } });
     const placeById = new Map(places.map((row) => [row.id, row]));
@@ -147,7 +142,7 @@ export class NearbyService {
       const bucket = nearbyBucket(event.startsAt, now);
       if (!bucket) continue;
       const distanceKm = haversineKm(latitude, longitude, place.latitude, place.longitude);
-      if (distanceKm > maxKm) continue;
+      if (distanceKm > maxKm + 0.05) continue;
       const promoted = pinIds.has(event.id);
       cards.push({ event: toEventDto(event, { promoted }), place: toPlaceDto(place), distanceKm: Math.round(distanceKm * 10) / 10, bucket, promoted });
     }

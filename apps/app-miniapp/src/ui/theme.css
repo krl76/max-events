@@ -4922,9 +4922,10 @@ html[data-theme="dark"] body {
   box-shadow: var(--app-shadow-lift);
   left: var(--app-space-screen);
   padding: var(--app-space-l);
+  pointer-events: auto;
   position: absolute;
   right: var(--app-space-screen);
-  z-index: 4;
+  z-index: 1001;
 }
 
 .app-map16-weather-now,
@@ -4966,10 +4967,11 @@ html[data-theme="dark"] body {
   flex-direction: column;
   gap: var(--app-space-s);
   left: var(--app-space-screen);
+  pointer-events: auto;
   position: absolute;
   right: var(--app-space-screen);
   top: 68px;
-  z-index: 2;
+  z-index: 1001;
 }
 
 .app-map16-layers {
@@ -18363,12 +18365,16 @@ button.app-cal-peer-chip {
  * ПОД тайлами, то есть на карте их просто не было видно. Каталожный слой .app-map-layers это уже
  * учитывал (1001), экран 16 — нет. Поднято разом, чтобы правка не расползлась по правилам. */
 .app-map16-top,
+.app-map16-top-right,
+.app-map16-rows,
 .app-map16-layers,
 .app-map16-zoom,
 .app-map16-notice,
 .app-map16-credit,
 .app-map16-card,
+.app-map16-weather-sheet,
 .app-map16-search {
+  pointer-events: auto;
   z-index: 1001;
 }
 
