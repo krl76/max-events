@@ -50,6 +50,22 @@ describe("StoriesService", () => {
     expect(created.imageUrl).toBe("data:image/png;base64,abc");
     expect(created.id).toMatch(/^00000000-0000-4000-8000-/);
     expect(created.createdAt).not.toHaveLength(0);
+    expect(created.poll?.answer).toBeNull();
+    expect(created.poll?.counts).toEqual([0, 0]);
+  });
+
+  it("counts each viewer's vote and shows that viewer only their own answer", async () => {
+    const { service } = createService([author]);
+    const created = await service.create(author, { imageUrl: "x", poll: { question: "Когда?", options: ["14:00", "17:00"], answer: null } });
+    const first = await service.vote(author, created.id, 0);
+    expect(first.poll?.answer).toBe(0);
+    expect(first.poll?.counts).toEqual([1, 0]);
+    const second = await service.vote(other, created.id, 1);
+    expect(second.poll?.answer).toBe(1);
+    expect(second.poll?.counts).toEqual([1, 1]);
+    const moved = await service.vote(author, created.id, 1);
+    expect(moved.poll?.answer).toBe(1);
+    expect(moved.poll?.counts).toEqual([0, 2]);
   });
 
   it("keeps canvas objects so the viewer can rebuild the frame", async () => {

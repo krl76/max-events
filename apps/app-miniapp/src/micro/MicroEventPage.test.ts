@@ -60,7 +60,7 @@ describe("microSeatsHint", () => {
 });
 
 describe("MicroEventView", () => {
-  const view = (state: MicroEventState, viewerId: string | null = null) => renderToStaticMarkup(createElement(MicroEventView, { state, viewerId, now: NOW, onBack: noop, onOpenPlace: noop, onJoin: noop, onLeave: noop, onRetry: noop }));
+  const view = (state: MicroEventState, viewerId: string | null = null) => renderToStaticMarkup(createElement(MicroEventView, { state, viewerId, now: NOW, onBack: noop, onOpenPlace: noop, onOpenPin: noop, onJoin: noop, onLeave: noop, onRetry: noop }));
 
   it("renders the title, the when/where rows and the named participants with the author marked", () => {
     const html = view({ status: "ready", card: seeded });

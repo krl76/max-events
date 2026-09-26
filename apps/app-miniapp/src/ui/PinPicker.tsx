@@ -21,7 +21,7 @@ export function PinPicker({ title, onConfirm, onClose }: { title: string; onConf
     const host = node.current;
     void import("leaflet").then(async (leaflet) => {
       if (!bag.alive || host === null) return;
-      const instance = leaflet.map(host, { zoomControl: true }).setView(CENTER, 13);
+      const instance = leaflet.map(host, { zoomControl: true, attributionControl: false }).setView(CENTER, 13);
       bag.map = instance;
       const icon = leaflet.divIcon({ className: "app-pin-marker", iconSize: [28, 36], iconAnchor: [14, 34], html: BRAND_PIN_HTML });
       let marker: { setLatLng: (point: [number, number]) => void } | null = null;
@@ -31,7 +31,7 @@ export function PinPicker({ title, onConfirm, onClose }: { title: string; onConf
         raster = true;
         bag.vector?.remove();
         bag.vector = null;
-        leaflet.tileLayer(STANDARD_BASEMAP.url, { maxZoom: STANDARD_BASEMAP.maxZoom, attribution: "© OpenStreetMap" }).addTo(instance);
+        leaflet.tileLayer(STANDARD_BASEMAP.url, { maxZoom: STANDARD_BASEMAP.maxZoom, attribution: "" }).addTo(instance);
       };
       try {
         const layer = await mountVectorBasemap(instance, OWN_BASEMAP, scheme, { onTrouble: useRaster });

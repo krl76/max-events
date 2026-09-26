@@ -92,6 +92,8 @@ export interface StoryPoll {
   options: string[];
   /** Index of the option the author highlighted; null while none is. */
   answer: number | null;
+  /** Votes per option, filled in after someone answers. A draft the author is still writing leaves this out. */
+  counts?: number[];
 }
 
 /**
@@ -131,6 +133,8 @@ export interface StoryCanvasObject {
   font?: "plain" | "serif" | "mono" | "hand";
   color?: "white" | "ink" | "violet" | "cyan";
   mentionIds?: string[];
+  /** @handle in this caption and the profile it opens. */
+  mentions?: { id: string; handle: string }[];
 }
 
 /** Who a published post is shown to (макет, экран 06); no audience column behind it (#502). */

@@ -140,6 +140,10 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
             <textarea ref={textRef} className="app-post-compose-text" aria-label="Текст поста" rows={3} placeholder="Напишите текст" value={draft.text} onChange={(change) => onDraft({ ...draft, text: change.target.value })} />
           </div>
         </div>
+        <ul className="app-need" aria-label="Что нужно для поста">
+          <li className={draft.text.trim() === "" ? "app-need-item" : "app-need-item app-need-item--done"}>{draft.text.trim() === "" ? "Напишите текст — без него пост не опубликуется" : "Текст есть"}</li>
+          <li className="app-need-item app-need-item--done">Фото, точка на карте и событие — по желанию</li>
+        </ul>
 
         <div className={draft.photoUrls.length === 0 ? "app-post-compose-photos app-post-compose-photos--empty" : "app-post-compose-photos"}>
           {draft.photoUrls.length > 0 && (

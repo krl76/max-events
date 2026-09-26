@@ -220,7 +220,9 @@ const FriendRouteScreenSchema: ZodSchema<FriendRouteScreen> = {
 export function microEventCardFrom(id: string, events: MicroEvent[], places: Place[], friends: Friend[]): MicroEventCard | null {
   const event = events.find((item) => item.id === id);
   if (event === undefined) return null;
-  const byId = new Map(friends.map((friend) => [friend.id, friend]));
+  const byId = new Map<string, Friend>();
+  for (const friend of event.participants) byId.set(friend.id, friend);
+  for (const friend of friends) if (!byId.has(friend.id)) byId.set(friend.id, friend);
   const participants = event.participantIds.flatMap((userId) => {
     const friend = byId.get(userId);
     return friend === undefined ? [] : [{ friend, author: userId === event.authorId }];

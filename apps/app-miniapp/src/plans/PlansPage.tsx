@@ -25,7 +25,7 @@ import { MyMicroEventsSection } from "../micro/MicroEvents";
 import { ListsPage } from "../lists/ListsPage";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppChip, AppNavTiles, AppState, AppSkeleton, AppMedia, AppButton } from "../ui/primitives";
+import { AppChip, AppState, AppSkeleton, AppMedia } from "../ui/primitives";
 
 export function formatMeetingTime(meetingAt: string): string {
   return new Date(meetingAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -47,9 +47,10 @@ export function PlansView({ state, onOpen, onExplore, onCreate }: { state: Plans
   // by hand was unreachable — the empty state offered only «Найти событие».
   const create =
     onCreate === undefined ? null : (
-      <AppButton tone="secondary" stretched onClick={onCreate}>
-        Свой план
-      </AppButton>
+      <button type="button" className="app-plans-create" onClick={onCreate}>
+        <span className="app-plans-create-title">Свой план</span>
+        <span className="app-plans-create-note">Событие, место и время</span>
+      </button>
     );
   if (state.status === "loading")
     return (
@@ -152,19 +153,24 @@ export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
         ))}
       </div>
       {active === "plans" && (
-        <>
-          <AppNavTiles
-            items={[
-              { icon: "user", label: "Мы", onClick: () => navigate({ name: "we-groups" }) },
-              { icon: "pin", label: "Маршрут на день", onClick: () => navigate({ name: "day-route" }) },
-              // Экран 10 живёт в контуре Поиска (макет), но собрать план он умеет отсюда — с той вкладки,
-              // где план потом и окажется.
-              { icon: "spark", label: "Спросить MAX", onClick: () => navigate({ name: "assist", ask: null }) },
-            ]}
-          />
+        <div className="app-plans">
+          <div className="app-plans-quick">
+            <button type="button" onClick={() => navigate({ name: "we-groups" })}>
+              <ActionIcon name="user" size={20} />
+              Мы
+            </button>
+            <button type="button" onClick={() => navigate({ name: "day-route" })}>
+              <ActionIcon name="pin" size={20} />
+              Маршрут
+            </button>
+            <button type="button" onClick={() => navigate({ name: "assist", ask: null })}>
+              <ActionIcon name="spark" size={20} />
+              Спросить MAX
+            </button>
+          </div>
           <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} onCreate={() => navigate({ name: "plan-new" })} />
           <MyMicroEventsSection />
-        </>
+        </div>
       )}
       {/* Одно и то же место в дереве на оба раздела календаря: переключение брони ↔ месяц не размонтирует
           контейнер и не перезапрашивает обе половины календаря заново. */}

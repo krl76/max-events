@@ -29,7 +29,7 @@
 // - FeedScreen - экран 03 container: stories rail, «Куда пойдём?», cards with their writes
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Event, Friend, ParticipationStatus } from "@max-events/api-contracts";
 import { apiClient, type FeedCard, type FeedCardCounts, type FeedComment, type FeedFriendCard, type FeedPlaceCard } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -163,6 +163,35 @@ export function FeedWhereToCard({ onStart }: { onStart: () => void }) {
   );
 }
 
+function FeedCarousel({ photos, onOpen }: { photos: string[]; onOpen: () => void }) {
+  const scroller = useRef<HTMLDivElement | null>(null);
+  const [index, setIndex] = useState(0);
+  const onScroll = () => {
+    const node = scroller.current;
+    if (node === null || node.clientWidth === 0) return;
+    setIndex(Math.min(photos.length - 1, Math.max(0, Math.round(node.scrollLeft / node.clientWidth))));
+  };
+  return (
+    <div className="app-feed-carousel">
+      <div ref={scroller} className="app-feed-carousel-track" onScroll={onScroll}>
+        {photos.map((photo, position) => (
+          <button key={`${position}-${photo.slice(-12)}`} type="button" className="app-feed-carousel-slide" onClick={onOpen} aria-label={`Фото ${position + 1} из ${photos.length}`}>
+            <img className="app-feed-photo" src={photo} alt="" />
+          </button>
+        ))}
+      </div>
+      <span className="app-feed-carousel-count">
+        {index + 1}/{photos.length}
+      </span>
+      <div className="app-feed-carousel-dots" aria-hidden="true">
+        {photos.map((photo, position) => (
+          <span key={`${position}-${photo.slice(-8)}`} className={position === index ? "app-feed-carousel-dot app-feed-carousel-dot--on" : "app-feed-carousel-dot"} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface FeedFriendPostProps {
   card: FeedFriendCard;
   now: Date;
@@ -216,13 +245,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
         )}
       </header>
       {photos.length > 1 ? (
-        <div className="app-feed-photos">
-          {photos.map((photo, index) => (
-            <button key={`${index}-${photo.slice(-12)}`} type="button" className="app-feed-photo-btn" onClick={onOpenComments}>
-              <img className="app-feed-photo app-feed-photo--tile" src={photo} alt="" />
-            </button>
-          ))}
-        </div>
+        <FeedCarousel photos={photos} onOpen={onOpenComments} />
       ) : (
         photos.length === 1 && (
           <button type="button" className="app-feed-photo-btn" onClick={onOpenComments}>

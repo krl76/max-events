@@ -160,11 +160,12 @@ describe("SharedCalendarView", () => {
 });
 
 describe("filterCalendarScope", () => {
-  it("keeps own rows on own scope and a friend's rows when that friend is selected", () => {
+  it("keeps both calendars on your own scope and only the friend when their chip is selected", () => {
     const own = { id: "o", sources: ["own"] as CalendarSource[], title: "Своё", startsAt: "2026-10-01T12:00:00+03:00", endsAt: null, note: "", needsResponse: false, faces: ["Я"], eventId: null, planId: null, sharedId: null, ownerId: null };
+    const later = { ...own, id: "later", startsAt: "2026-10-05T12:00:00+03:00" };
     const peer = { ...own, id: "p", sources: ["peer"] as CalendarSource[], title: "Друга", ownerId: "friend-1" };
 
-    expect(filterCalendarScope([own, peer], "own").map((row) => row.id)).toEqual(["o"]);
-    expect(filterCalendarScope([own, peer], "friend-1").map((row) => row.id)).toEqual(["p"]);
+    expect(filterCalendarScope([own, later, peer], "own").map((row) => row.id)).toEqual(["o", "later", "p"]);
+    expect(filterCalendarScope([own, later, peer], "friend-1").map((row) => row.id)).toEqual(["o", "p"]);
   });
 });

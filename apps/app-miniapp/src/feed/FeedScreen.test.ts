@@ -121,6 +121,13 @@ describe("FeedFriendPost", () => {
     const withStory = renderToStaticMarkup(createElement(FeedFriendPost, { card: friendCard, now: NOW, onToggleLike: noop, onToggleGoing: noop, onOpenComments: noop, onShare: noop, onOpenEvent: noop, onOpenAuthor: noop, userId: "u1", hasStory: true }));
     expect(withStory).toContain("app-story-ring--active");
   });
+
+  it("pages several photos instead of tiling them", () => {
+    const html = post({ photoUrls: ["https://example.test/a.jpg", "https://example.test/b.jpg"] });
+    expect(html).toContain("app-feed-carousel");
+    expect(html).toContain("1/2");
+    expect(html).not.toContain("app-feed-photos");
+  });
 });
 
 describe("FeedPlacePost", () => {

@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Achievement } from "@max-events/api-contracts";
 import { mockEvents } from "../api/mock";
-import { ACHIEVEMENT_TITLES, AchievementsView, achievementProgressPercent, collectedSummary, grantedLabel, nearestAchievement, nearestHint, remainingLabel, type AchievementsState } from "./AchievementsPage";
+import { ACHIEVEMENT_TITLES, AchievementsView, achievementProgressPercent, collectedSummary, grantedLabel, nearestAchievement, nearestHint, remainingLabel, requirementLabel, type AchievementsState } from "./AchievementsPage";
 
 const NOW = new Date(2026, 8, 18, 12, 0, 0);
 
@@ -35,6 +35,13 @@ describe("achievement labels", () => {
   it("dates a granted stamp and counts down an unfinished one", () => {
     expect(grantedLabel("2026-09-06T10:00:00+03:00")).toBe("Получено 6 сентября");
     expect(remainingLabel(musicFan)).toBe("Осталось 5 из 12");
+  });
+
+  it("names what each stamp asks for, in the number the bar is counting", () => {
+    expect(requirementLabel(explorer)).toBe("Посетить 10 новых мест");
+    expect(requirementLabel(musicFan)).toBe("Сходить на 12 концертов");
+    expect(requirementLabel({ ...weekend, threshold: 3, progress: 1 })).toBe("Побывать в 3 районах");
+    expect(requirementLabel(volunteer)).toBe("Поучаствовать в 5 акциях");
   });
 });
 
@@ -71,8 +78,11 @@ describe("AchievementsView", () => {
     expect(html).toContain("1 из 4");
     expect(html).toContain("собрано");
     expect(html).toContain("Достижений всего четыре, и они только про тебя. Чужие мы не показываем.");
+    expect(html).toContain("В счёт идёт отметка «Я здесь»");
     expect(html.match(/class="app-ach-card[ "]/g)).toHaveLength(4);
     expect(html).toContain("Меломан");
+    expect(html).toContain("Сходить на 12 концертов");
+    expect(html).toContain("Посетить 10 новых мест");
     expect(html).toContain("Получено 6 сентября");
     expect(html).toContain("Осталось 5 из 12");
   });

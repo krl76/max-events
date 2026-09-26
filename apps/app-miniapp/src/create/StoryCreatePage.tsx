@@ -47,6 +47,7 @@ import { apiClient, STORY_AUDIENCES, type EventDetails, type StoryAudience, type
 import { useAuth } from "../auth/AuthContext";
 import { useRoute } from "../routing/router";
 import { friendHandle } from "../ui/friend-handle";
+import { StoryMentionText } from "../stories/story-text";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 
 export type StoryPublishState = "idle" | "publishing" | "error";
@@ -505,7 +506,12 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
     if (kind === "text") {
       const value = object.id ? (object.text ?? "") : draft.text;
       const key = storyObjectKey(object);
-      if (editing !== key) return <p className={value === "" ? `${storyCaptionClass(object)} app-story-caption--empty` : storyCaptionClass(object)} aria-label="Подпись истории">{value === "" ? "Ваш текст" : value}</p>;
+      if (editing !== key)
+        return (
+          <p className={value === "" ? `${storyCaptionClass(object)} app-story-caption--empty` : storyCaptionClass(object)} aria-label="Подпись истории">
+            {value === "" ? "Ваш текст" : <StoryMentionText text={value} mentions={object.mentions ?? []} />}
+          </p>
+        );
       return (
         <textarea
           ref={object.id ? undefined : captionRef}
@@ -657,10 +663,13 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
               <button
                 type="button"
                 onClick={() => {
-                  const handle = `@${friendHandle(friend)} `;
+                  const nick = friendHandle(friend);
+                  const handle = `@${nick} `;
+                  const mention = { id: friend.id, handle: nick };
                   const target = draft.objects.find((object) => storyObjectKey(object) === mentionFor);
-                  if (target?.id) onDraft({ ...draft, objects: draft.objects.map((item) => (item.id === target.id ? { ...item, text: `${item.text ?? ""}${handle}`, mentionIds: [...(item.mentionIds ?? []), friend.id] } : item)) });
-                  else onDraft({ ...draft, text: `${draft.text}${handle}`, objects: draft.objects.map((item) => (storyObjectKey(item) === mentionFor ? { ...item, mentionIds: [...(item.mentionIds ?? []), friend.id] } : item)) });
+                  const withMention = (item: StoryCanvasObject): StoryCanvasObject => ({ ...item, mentionIds: [...(item.mentionIds ?? []), friend.id], mentions: [...(item.mentions ?? []), mention] });
+                  if (target?.id) onDraft({ ...draft, objects: draft.objects.map((item) => (item.id === target.id ? { ...withMention(item), text: `${item.text ?? ""}${handle}` } : item)) });
+                  else onDraft({ ...draft, text: `${draft.text}${handle}`, objects: draft.objects.map((item) => (storyObjectKey(item) === mentionFor ? withMention(item) : item)) });
                   setMentionFor(null);
                 }}
               >

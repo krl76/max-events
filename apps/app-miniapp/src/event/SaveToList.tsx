@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Save-to-list picker of the event page: the bookmark control of экран 17 opens it, and each row toggles this event in one list against the lists API.
-// SCOPE: Data via apiClient.listLists/addListItem/removeListItem (mock or live); an inline panel, never a modal; open/closed belongs to the caller, because the control that opens it lives in the hero and in the sticky bar.
+// SCOPE: Data via apiClient.listLists/addListItem/removeListItem (mock or live). Open, the picker is a popup portaled to the document body: the feed card animates with a transform, and a fixed sheet inside that card stays trapped in the post. Open/closed belongs to the caller when the control lives in the hero or the feed bookmark.
 // DEPENDS: ../api/client.js (apiClient, ListSummary), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -12,6 +12,7 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { apiClient, type ListSummary } from "../api/client";
 import { AppButton, AppState } from "../ui/primitives";
 
@@ -19,10 +20,16 @@ export type SaveToListState = { status: "loading" } | { status: "error" } | { st
 
 export function SaveToListView({ state, onToggle, onDone, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, createError = null }: { state: SaveToListState; onToggle: (summary: ListSummary) => void; onDone: () => void; creating?: boolean; newTitle?: string; onNewTitle?: (value: string) => void; onCreateStart?: () => void; onCreateSubmit?: () => void; createError?: string | null }) {
   return (
-    <div className="app-save-sheet">
+    <div className="app-save-sheet" role="dialog" aria-modal="true" aria-label="Сохранить в список">
       <button type="button" className="app-save-sheet-backdrop" aria-label="Закрыть" onClick={onDone} />
-      <section className="app-ev-save app-save-sheet-card" aria-label="Сохранить в список">
-        <div className="app-ev-save-body">
+      <section className="app-save-sheet-card">
+        <header className="app-save-sheet-head">
+          <h2 className="app-save-sheet-title">Сохранить</h2>
+          <button type="button" className="app-save-sheet-close" aria-label="Закрыть окно" onClick={onDone}>
+            ×
+          </button>
+        </header>
+        <div className="app-save-sheet-scroll">
           {state.status === "loading" && <AppState>Загрузка…</AppState>}
           {state.status === "error" && <AppState error>Не удалось загрузить списки.</AppState>}
           {state.status === "ready" && (
@@ -54,6 +61,8 @@ export function SaveToListView({ state, onToggle, onDone, creating = false, newT
               </AppButton>
             </div>
           )}
+        </div>
+        <div className="app-save-sheet-foot">
           <AppButton onClick={onDone} stretched>
             Готово
           </AppButton>
@@ -93,6 +102,14 @@ export function SaveToList({ eventId, feedPostId, userId, open, onClose }: { eve
   useEffect(() => {
     if (isOpen) load();
   }, [isOpen, load]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") (controlled ? onClose?.() : setSelfOpen(false));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, controlled, onClose]);
 
   const toggle = useCallback(
     (summary: ListSummary) => {
@@ -141,7 +158,8 @@ export function SaveToList({ eventId, feedPostId, userId, open, onClose }: { eve
       </section>
     );
   }
-  return (
+  const close = () => (controlled ? onClose?.() : setSelfOpen(false));
+  const view = (
     <SaveToListView
       state={state}
       onToggle={toggle}
@@ -166,7 +184,11 @@ export function SaveToList({ eventId, feedPostId, userId, open, onClose }: { eve
           () => setCreateError("Не удалось создать список."),
         );
       }}
-      onDone={() => (controlled ? onClose?.() : setSelfOpen(false))}
+      onDone={close}
     />
   );
+  // The feed card keeps a transform from its entrance animation, so a fixed sheet inside the post
+  // is pinned to that card and the close button falls below the fold.
+  const host = typeof document === "undefined" ? null : (document.querySelector(".app-root") ?? document.body);
+  return host === null ? view : createPortal(view, host);
 }

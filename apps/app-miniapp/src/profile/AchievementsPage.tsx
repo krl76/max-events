@@ -12,6 +12,7 @@
 // - achievementProgressPercent - clamped progress percentage of one achievement
 // - collectedSummary - «1 из 4»
 // - grantedLabel - «Получено 6 сентября»
+// - requirementLabel - «Сходить на 5 концертов»: что нужно сделать, чтобы получить достижение
 // - remainingLabel - «Осталось 5 из 12»
 // - nearestAchievement - the ungranted achievement closest to its threshold, null when all four are collected
 // - nearestHint - «Осталось 5 концертов до порога. В пятницу как раз Джаз-квартет.»
@@ -74,6 +75,15 @@ export function remainingLabel(achievement: Achievement): string {
   return `Осталось ${achievement.threshold - achievement.progress} из ${achievement.threshold}`;
 }
 
+/** What the stamp asks for. The number is the threshold the progress bar is counting. */
+export function requirementLabel(achievement: Achievement): string {
+  const count = achievement.threshold;
+  if (achievement.code === "city_explorer") return `Посетить ${count} ${pluralRu(count, "новое место", "новых места", "новых мест")}`;
+  if (achievement.code === "music_fan") return `Сходить на ${count} ${pluralRu(count, "концерт", "концерта", "концертов")}`;
+  if (achievement.code === "weekend_city") return `Побывать в ${count} ${count % 10 === 1 && count % 100 !== 11 ? "районе" : "районах"}`;
+  return `Поучаствовать в ${count} ${count % 10 === 1 && count % 100 !== 11 ? "акции" : "акциях"}`;
+}
+
 /** Closest to its threshold by share, not by the raw gap: two steps out of three is nearer than five out of twelve. */
 export function nearestAchievement(achievements: Achievement[]): Achievement | null {
   let nearest: Achievement | null = null;
@@ -105,6 +115,7 @@ export function AchievementCard({ achievement }: { achievement: Achievement }) {
       <div className="app-ach-card-head">
         <span className="app-ach-card-text">
           <span className="app-ach-card-title">{ACHIEVEMENT_TITLES[achievement.code]}</span>
+          <span className="app-ach-card-need">{requirementLabel(achievement)}</span>
           <span className="app-ach-card-status">{granted ? grantedLabel(achievement.grantedAt!) : remainingLabel(achievement)}</span>
         </span>
         {granted ? (
@@ -133,7 +144,7 @@ export function AchievementsView({ state, event = null, now = new Date(), onOpen
         <span className="app-ach-summary-value">{collectedSummary(state.achievements)}</span>
         <span className="app-ach-summary-label">собрано</span>
       </p>
-      <p className="app-ach-lead">Достижений всего четыре, и они только про тебя. Чужие мы не показываем.</p>
+      <p className="app-ach-lead">Достижений всего четыре, и они только про тебя. Чужие мы не показываем. В счёт идёт отметка «Я здесь» на событии или в месте.</p>
       <ul className="app-ach-list">
         {state.achievements.map((achievement) => (
           <AchievementCard key={achievement.code} achievement={achievement} />

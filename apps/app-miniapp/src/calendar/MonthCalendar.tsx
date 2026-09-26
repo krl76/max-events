@@ -201,7 +201,8 @@ export function MonthGrid({ month, selected, entries, onSelect }: MonthGridProps
           const key = dayKey(day);
           const marks = byDay.get(key);
           const outside = day.getMonth() !== month.getMonth();
-          const classes = ["app-cal-day", outside ? "app-cal-day--outside" : "", marks === undefined ? "" : "app-cal-day--busy", marks?.has("peer") === true && marks.has("own") === false ? "app-cal-day--peer" : "", key === selectedKey ? "app-cal-day--on" : ""].filter(Boolean).join(" ");
+          const cross = marks?.has("own") === true && marks.has("peer") === true;
+          const classes = ["app-cal-day", outside ? "app-cal-day--outside" : "", marks === undefined ? "" : "app-cal-day--busy", cross ? "app-cal-day--cross" : "", !cross && marks?.has("peer") === true && marks.has("own") === false ? "app-cal-day--peer" : "", key === selectedKey ? "app-cal-day--on" : ""].filter(Boolean).join(" ");
           return (
             <button key={key} type="button" className={classes} aria-pressed={key === selectedKey} aria-label={dayTitle(day)} onClick={() => onSelect(day)}>
               <span className="app-cal-day-num">{day.getDate()}</span>

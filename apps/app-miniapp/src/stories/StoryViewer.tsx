@@ -16,7 +16,7 @@
 // END_MODULE_MAP
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import type { Story } from "@max-events/api-contracts";
+import type { Friend, Story } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
 import { StoryFrame } from "./StoryFrame";
@@ -55,9 +55,31 @@ export function prevPosition(flat: number): number | null {
   return flat > 0 ? flat - 1 : null;
 }
 
+function withLocalVote(poll: NonNullable<Story["poll"]>, optionIndex: number): NonNullable<Story["poll"]> {
+  const counts = poll.options.map((_, index) => poll.counts?.[index] ?? 0);
+  const previous = poll.answer;
+  if (previous === optionIndex) return { ...poll, counts };
+  if (previous !== null && counts[previous] !== undefined) counts[previous] = Math.max(0, counts[previous] - 1);
+  counts[optionIndex] = (counts[optionIndex] ?? 0) + 1;
+  return { ...poll, answer: optionIndex, counts };
+}
+
 export function StoryViewer({ groups, startGroup = 0, onView, onClose }: { groups: StoryGroup[]; startGroup?: number; onView?: (story: Story) => void; onClose: () => void }) {
   const { navigate } = useRoute();
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [polls, setPolls] = useState<Record<string, Story["poll"]>>({});
+  const [friends, setFriends] = useState<Friend[]>([]);
+  useEffect(() => {
+    let alive = true;
+    apiClient.listFriends().then(
+      (list) => {
+        if (alive) setFriends(list);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
   const positions = useMemo(() => flattenStoryGroups(groups), [groups]);
   const [flat, setFlat] = useState(() => {
     const found = positions.findIndex((position) => position.group === startGroup);
@@ -95,18 +117,17 @@ export function StoryViewer({ groups, startGroup = 0, onView, onClose }: { group
 
   if (!current) return null;
 
-  const voted = answers[current.story.id];
-  const shownStory = current.story.poll === null || voted === undefined ? current.story : { ...current.story, poll: { ...current.story.poll, answer: voted } };
+  const basePoll = polls[current.story.id] ?? current.story.poll;
+  const shownStory = basePoll === null ? current.story : { ...current.story, poll: basePoll };
   const vote = (optionIndex: number) => {
     const storyId = current.story.id;
-    setAnswers((known) => ({ ...known, [storyId]: optionIndex }));
-    void apiClient.voteStory(storyId, optionIndex).catch(() => {
-      setAnswers((known) => {
-        const next = { ...known };
-        delete next[storyId];
-        return next;
-      });
-    });
+    const previous = basePoll;
+    if (previous === null) return;
+    setPolls((known) => ({ ...known, [storyId]: withLocalVote(previous, optionIndex) }));
+    void apiClient.voteStory(storyId, optionIndex).then(
+      (story) => setPolls((known) => ({ ...known, [storyId]: story.poll })),
+      () => setPolls((known) => ({ ...known, [storyId]: previous })),
+    );
   };
 
   // Заполнение сегмента рисует CSS, но длину показа знает только этот модуль — она уходит переменной,
@@ -115,7 +136,7 @@ export function StoryViewer({ groups, startGroup = 0, onView, onClose }: { group
 
   return (
     <div className="app-story-viewer" role="dialog" aria-label={`История: ${current.authorName}`}>
-      <StoryFrame key={current.story.id} story={shownStory} onOpenEvent={(eventId) => eventId !== "" && navigate({ name: "event", id: eventId })} onVote={vote} />
+      <StoryFrame key={current.story.id} story={shownStory} friends={friends} onOpenEvent={(eventId) => eventId !== "" && navigate({ name: "event", id: eventId })} onOpenUser={(userId) => navigate({ name: "user", id: userId })} onVote={vote} />
       <div className="app-story-viewer-top">
         <div className="app-story-viewer-segments" style={segmentsStyle}>
           {/* key с номером автора: у нового автора первый сегмент — новый элемент, и его заполнение стартует с нуля */}

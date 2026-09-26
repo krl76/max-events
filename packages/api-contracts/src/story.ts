@@ -43,7 +43,10 @@ export type StoryPlaceSticker = z.infer<typeof StoryPlaceStickerSchema>;
 export const StoryPollSchema = z.object({
   question: z.string().min(1).max(200),
   options: z.array(z.string().min(1).max(80)).min(2).max(4),
+  /** The viewer's own choice. Null until this person votes. */
   answer: z.number().int().min(0).nullable(),
+  /** How many people chose each option, in the same order as options. Absent on a draft the author is still writing. */
+  counts: z.array(z.number().int().min(0)).max(4).optional(),
 });
 export type StoryPoll = z.infer<typeof StoryPollSchema>;
 
@@ -73,6 +76,8 @@ export const StoryCanvasObjectSchema = z.object({
   font: StoryTextFontSchema.optional(),
   color: StoryTextColorSchema.optional(),
   mentionIds: z.array(z.string().uuid()).max(12).optional(),
+  /** @handle drawn in the caption, with the profile it opens. */
+  mentions: z.array(z.object({ id: z.string().uuid(), handle: z.string().min(1).max(40) })).max(12).optional(),
 });
 export type StoryCanvasObject = z.infer<typeof StoryCanvasObjectSchema>;
 

@@ -24,6 +24,11 @@ export class MicroEventsController {
     return this.microEvents.list();
   }
 
+  @Get(":id")
+  get(@Param("id", ParseUUIDPipe) id: string) {
+    return this.microEvents.getCard(id);
+  }
+
   @Post()
   async create(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<MicroEvent> {
     const parsed = CreateMicroEventWriteSchema.safeParse(body);

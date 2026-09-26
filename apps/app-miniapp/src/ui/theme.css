@@ -2255,6 +2255,61 @@ html[data-theme="dark"] body {
   aspect-ratio: 1;
 }
 
+.app-feed-carousel {
+  position: relative;
+}
+
+.app-feed-carousel-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.app-feed-carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.app-feed-carousel-slide {
+  background: none;
+  border: none;
+  flex: 0 0 100%;
+  padding: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.app-feed-carousel-count {
+  background: rgba(13, 0, 26, 0.55);
+  border-radius: 999px;
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 8px;
+  position: absolute;
+  right: 10px;
+  top: 10px;
+}
+
+.app-feed-carousel-dots {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.app-feed-carousel-dot {
+  background: rgba(13, 0, 26, 0.2);
+  border-radius: 999px;
+  height: 6px;
+  width: 6px;
+}
+
+.app-feed-carousel-dot--on {
+  background: #471aff;
+  width: 16px;
+}
+
 .app-feed-event {
   background-color: transparent;
   border: none;
@@ -6209,6 +6264,55 @@ html[data-theme="dark"] body {
   color: var(--brand-white);
 }
 
+.app-story-poll--results .app-story-poll-options {
+  flex-direction: column;
+}
+
+.app-story-poll--results .app-story-poll-option {
+  height: auto;
+  justify-content: space-between;
+  min-height: 44px;
+  overflow: hidden;
+  padding: 10px 12px;
+  position: relative;
+  width: 100%;
+}
+
+.app-story-poll-bar {
+  background: rgba(71, 26, 255, 0.18);
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  top: 0;
+}
+
+.app-story-poll-option--on .app-story-poll-bar {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.app-story-poll-label,
+.app-story-poll-pct {
+  position: relative;
+}
+
+.app-story-poll-total {
+  font-size: 12px;
+  font-weight: 800;
+  margin: 8px 0 0;
+  opacity: 0.7;
+}
+
+.app-story-mention {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .app-story-foot {
   bottom: var(--app-space-l);
   left: var(--app-space-l);
@@ -7538,12 +7642,20 @@ button.app-set-row {
   line-height: 1.15;
 }
 
+.app-ach-card-need {
+  color: var(--app-text);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  margin-top: 4px;
+}
+
 .app-ach-card-status {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);
-  margin-top: var(--app-space-xs);
+  margin-top: 2px;
 }
 
+.app-ach-card--granted .app-ach-card-need,
 .app-ach-card--granted .app-ach-card-status {
   color: inherit;
   opacity: 0.92;
@@ -11932,6 +12044,15 @@ button.app-cal-peer-chip {
   color: var(--app-accent-text);
 }
 
+/* День, где есть и ваша запись, и запись друга: рамка читается и на выбранном тёмном числе. */
+.app-cal-day--cross {
+  box-shadow: inset 0 0 0 2px var(--app-accent);
+}
+
+.app-cal-day--on.app-cal-day--cross {
+  box-shadow: inset 0 0 0 2px var(--app-status);
+}
+
 .app-cal-day--on {
   background: var(--app-confirm);
   color: var(--app-confirm-contrast);
@@ -15861,26 +15982,67 @@ button.app-cal-peer-chip {
 .app-save-sheet {
   inset: 0;
   position: fixed;
-  z-index: 40;
+  z-index: 80;
 }
 
 .app-save-sheet-backdrop {
-  background: rgba(13, 0, 26, 0.4);
+  background: rgba(13, 0, 26, 0.45);
   border: none;
   inset: 0;
   position: absolute;
 }
 
 .app-save-sheet-card {
-  background: var(--app-card);
-  border-radius: var(--app-radius-card) var(--app-radius-card) 0 0;
+  background: var(--app-card, var(--brand-white));
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 32px rgba(13, 0, 26, 0.18);
+  color: var(--app-text, var(--brand-void));
   bottom: 0;
+  display: flex;
+  flex-direction: column;
   left: 0;
-  max-height: 72%;
-  overflow: auto;
+  max-height: min(72vh, 560px);
+  overflow: hidden;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   position: absolute;
   right: 0;
+}
+
+.app-save-sheet-head {
+  align-items: center;
+  display: flex;
+  flex: none;
+  justify-content: space-between;
+  padding: 14px 8px 8px 16px;
+}
+
+.app-save-sheet-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.app-save-sheet-close {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 28px;
+  line-height: 1;
+  padding: 4px 12px;
+}
+
+.app-save-sheet-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 16px;
+}
+
+.app-save-sheet-foot {
+  flex: none;
+  padding: 8px 16px 16px;
 }
 
 .app-ev-save {
@@ -19070,7 +19232,13 @@ button.app-cal-peer-chip {
 }
 
 .app-pin-map {
-  height: 280px;
+  height: 300px;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-pin-map .leaflet-control-attribution {
+  display: none;
 }
 
 .app-pin-head {
@@ -19078,15 +19246,43 @@ button.app-cal-peer-chip {
   display: flex;
   font-weight: 800;
   justify-content: space-between;
-  padding: 12px 16px 0;
+  padding: 14px 16px 10px;
+}
+
+.app-pin-head button {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+  padding: 4px 8px;
 }
 
 .app-pin-hint {
-  margin: 8px 16px;
+  margin: 12px 16px 8px;
 }
 
 .app-pin-confirm {
+  background: var(--brand-void, #14081f);
+  border: none;
+  border-radius: 999px;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
   margin: 0 16px 16px;
+  padding: 14px 16px;
+}
+
+.app-pin-confirm:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.app-pin-sheet {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .app-story-bar,
@@ -19886,4 +20082,133 @@ button.app-feed-place-where,
   font-size: var(--app-font-size-description);
   font-weight: 700;
   margin-top: 8px;
+}
+
+.app-need {
+  background: var(--app-surface);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 8px 0 12px;
+  padding: 12px 14px;
+}
+
+.app-need--attention {
+  box-shadow: inset 0 0 0 1.5px #471aff;
+}
+
+.app-need-item {
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.app-need-item::before {
+  color: #471aff;
+  content: "• ";
+}
+
+.app-need-item--done {
+  color: var(--app-text-secondary);
+  font-weight: 600;
+}
+
+.app-need-item--done::before {
+  color: var(--app-text-secondary);
+  content: "✓ ";
+}
+
+.app-plan-event-pick {
+  text-align: left;
+}
+
+.app-plans-quick {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 12px 0;
+}
+
+.app-plans-quick button {
+  align-items: center;
+  background: var(--app-card);
+  border: var(--app-hairline);
+  border-radius: 16px;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 6px;
+  min-height: 76px;
+  padding: 12px 6px;
+}
+
+.app-plans-create {
+  align-items: flex-start;
+  background: #14081f;
+  border: none;
+  border-radius: 18px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 2px;
+  margin: 4px 0 14px;
+  padding: 14px 16px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-plans-create-title {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.app-plans-create-note {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.app-micro-plan-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-micro-plan-open {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-micro-plan-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-micro-plan-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 16px 14px;
+}
+
+.app-micro-pin-go {
+  margin-left: auto;
+  font-weight: 800;
 }

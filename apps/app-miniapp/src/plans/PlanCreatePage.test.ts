@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CreatePlanWriteSchema } from "@max-events/api-contracts";
-import { PlanCreateView, planDraftReady, planRecurringRule, planRepeatLabel, type PlanDraft } from "./PlanCreatePage";
+import { PlanCreateView, planDraftReady, planRecurringRule, planRepeatLabel, wallClockToIso, type PlanDraft } from "./PlanCreatePage";
 import { mockEvents, mockFriends } from "../api/mock";
 
 const draft: PlanDraft = { event: mockEvents[0]!.title, meetingPoint: "у метро Смоленская", meetingAt: "2026-09-19T18:20", participantIds: [], repeat: "none", weekday: 4, nth: 1 };
@@ -30,6 +30,15 @@ describe("planRepeatLabel", () => {
     expect(planRepeatLabel({ type: "weekly_weekday", weekday: 6 })).toBe("каждую субботу");
     expect(planRepeatLabel({ type: "weekly_weekday", weekday: 7 })).toBe("каждое воскресенье");
     expect(planRepeatLabel({ type: "monthly_nth_weekday", nth: 5, weekday: 4 })).toBe("в последний четверг месяца");
+  });
+});
+
+describe("wallClockToIso", () => {
+  it("turns the calendar value into an instant with a timezone", () => {
+    const iso = wallClockToIso("2026-09-19T18:20");
+    expect(iso).not.toBeNull();
+    expect(iso).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/);
+    expect(wallClockToIso("")).toBeNull();
   });
 });
 

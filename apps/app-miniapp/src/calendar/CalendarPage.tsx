@@ -16,7 +16,7 @@
 // - calendarShareText - что уходит в чат MAX по «Поделиться» и «Ссылка на календарь»
 // - SharedCalendarView - презентационно: месяц, сетка, легенда, день со списком записей и низ экрана
 // - CalendarPage - контейнер разделов «Мои брони» и «Календарь»: загрузка обеих половин, «Пойду», приглашение друзей через FriendPicker и отмена брони
-// - filterCalendarScope - свои записи либо записи календаря одного друга
+// - filterCalendarScope - «Мой календарь» оставляет и свои записи, и записи друзей, чтобы день пересечения не пустел; календарь одного друга — только его строки
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -30,7 +30,7 @@ import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppState, AppSection, AppMedia } from "../ui/primitives";
 import { buildCalendarIcs } from "./calendar-ics";
-import { MonthGrid, calendarReminder, dayTitle, entriesOn, entryTime, mergeCalendarEntries, monthTitle, overlapWarnings, type CalendarDayEntry } from "./MonthCalendar";
+import { MonthGrid, calendarReminder, dayKey, dayTitle, entriesOn, entryTime, mergeCalendarEntries, monthTitle, overlapWarnings, type CalendarDayEntry } from "./MonthCalendar";
 
 export type CalendarState = { status: "loading" } | { status: "error" } | { status: "ready"; entries: CalendarEntry[] };
 
@@ -139,10 +139,14 @@ export function peersLabel(shared: SharedCalendar): string | null {
   return `Общий с ${names.join(", ")}`;
 }
 
-/** Свои записи — источники с «own»; календарь друга — только его ownerId. */
+/**
+ * «Мой календарь» общего календаря — оба расписания сразу. Иначе событие друга на тот же день
+ * пропадает, и пересечения не видно. Чип друга оставляет только его строки.
+ */
 export function filterCalendarScope(entries: CalendarDayEntry[], scope: "own" | string): CalendarDayEntry[] {
-  if (scope === "own") return entries.filter((entry) => entry.sources.includes("own"));
-  return entries.filter((entry) => entry.ownerId === scope);
+  if (scope === "own") return entries;
+  const peerDays = new Set(entries.filter((entry) => entry.ownerId === scope).map((entry) => dayKey(entry.startsAt)));
+  return entries.filter((entry) => entry.ownerId === scope || (entry.sources.includes("own") && peerDays.has(dayKey(entry.startsAt))));
 }
 
 export function calendarShareText(shared: SharedCalendar): string {

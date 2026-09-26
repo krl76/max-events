@@ -13,10 +13,11 @@
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
-import { MicroEventSchema, type CreateMicroEventWrite, type Friend, type MicroEvent } from "@max-events/api-contracts";
+import { MicroEventSchema, type CreateMicroEventWrite, type Friend, type MicroEvent, type Place } from "@max-events/api-contracts";
 import { toFriendDto } from "../friends/friends.service";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlaceEntity } from "../places/place.entity";
+import { toPlaceDto } from "../places/places.service";
 import { deliverInvite } from "../smart-alerts/deliver-invite";
 import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { UsersService } from "../users/users.service";
@@ -33,6 +34,18 @@ export class MicroEventsService {
     @Inject(MaxBotClient) private readonly bot?: MaxBotClient,
     @InjectRepository(NotificationEntity) private readonly notices?: Repository<NotificationEntity>,
   ) {}
+
+  async getCard(id: string): Promise<{ event: MicroEvent; place: Place | null; participants: Array<{ friend: Friend; author: boolean }> }> {
+    const row = await this.events.findOneBy({ id });
+    if (!row || !row.published) throw new NotFoundException("Micro-event not found");
+    const event = await this.toDto(row);
+    const place = row.placeId ? await this.places.findOneBy({ id: row.placeId }) : null;
+    return {
+      event,
+      place: place ? toPlaceDto(place) : null,
+      participants: event.participants.map((friend) => ({ friend, author: friend.id === event.authorId })),
+    };
+  }
 
   async list(): Promise<MicroEvent[]> {
     const rows = (await this.events.find({ where: { published: true, status: "open" } })).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());

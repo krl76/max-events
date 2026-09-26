@@ -30,7 +30,7 @@ export class StoryEntity {
   sticker?: { eventId: string; title: string; subtitle: string; seatsLeft: number | null } | null;
 
   @Column({ type: "jsonb", nullable: true })
-  poll?: { question: string; options: string[]; answer: number | null } | null;
+  poll?: { question: string; options: string[]; answer?: number | null; votes?: Record<string, number> } | null;
 
   @Column({ type: "varchar", length: 32, default: "friends" })
   audience?: "close-friends" | "friends" | "city";

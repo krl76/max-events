@@ -40,7 +40,7 @@ export class StoriesService {
       bucket.push(row);
       groups.set(row.userId, bucket);
     }
-    return [...groups.values()].flatMap((group) => group.map(toStoryDto));
+    return [...groups.values()].flatMap((group) => group.map((row) => toStoryDto(row, userId)));
   }
 
   async create(userId: string, payload: CreateStoryWrite): Promise<Story> {
@@ -50,12 +50,12 @@ export class StoriesService {
         imageUrl: payload.imageUrl,
         text: payload.text ?? "",
         sticker: payload.sticker ?? null,
-        poll: payload.poll ?? null,
+        poll: payload.poll === null || payload.poll === undefined ? null : { question: payload.poll.question, options: payload.poll.options, votes: {} },
         audience: payload.audience ?? "friends",
         objects: payload.objects ?? [],
       }),
     );
-    return toStoryDto(saved);
+    return toStoryDto(saved, userId);
   }
 
   async vote(userId: string, storyId: string, optionIndex: number): Promise<Story> {
@@ -65,9 +65,11 @@ export class StoriesService {
     const allowed = await this.friends.friendIds(userId);
     const close = await this.friends.authorsWhoMarkedClose(userId);
     if (!canSeeStory(row, userId, allowed, close)) throw new NotFoundException("Story not found");
-    row.poll = { ...row.poll, answer: optionIndex };
+    const votes = { ...(row.poll.votes ?? {}) };
+    votes[userId] = optionIndex;
+    row.poll = { question: row.poll.question, options: row.poll.options, votes };
     await this.stories.save(row);
-    return toStoryDto(row);
+    return toStoryDto(row, userId);
   }
 }
 
@@ -78,16 +80,24 @@ function canSeeStory(row: StoryEntity, viewerId: string, friends: Set<string>, c
   return friends.has(row.userId);
 }
 
-export function toStoryDto(row: StoryEntity): Story {
+export function toStoryDto(row: StoryEntity, viewerId: string): Story {
   return StorySchema.parse({
     id: row.id,
     userId: row.userId,
     imageUrl: row.imageUrl,
     text: row.text ?? "",
     sticker: row.sticker ?? null,
-    poll: row.poll ?? null,
+    poll: row.poll ? presentPoll(row.poll, viewerId) : null,
     audience: row.audience ?? "friends",
     objects: row.objects ?? [],
     createdAt: row.createdAt.toISOString(),
   });
+}
+
+function presentPoll(poll: { question: string; options: string[]; votes?: Record<string, number> }, viewerId: string) {
+  const votes = poll.votes ?? {};
+  const counts = poll.options.map((_, index) => Object.values(votes).filter((choice) => choice === index).length);
+  const mine = votes[viewerId];
+  const answer = typeof mine === "number" && mine >= 0 && mine < poll.options.length ? mine : null;
+  return { question: poll.question, options: poll.options, answer, counts };
 }

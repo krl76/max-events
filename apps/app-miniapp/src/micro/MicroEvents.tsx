@@ -40,21 +40,32 @@ interface MicroCardProps {
   joined: boolean;
   onJoin: () => void;
   onLeave: () => void;
+  onOpen?: () => void;
 }
 
-export function MicroCard({ item, places, joined, onJoin, onLeave }: MicroCardProps) {
+export function MicroCard({ item, places, joined, onJoin, onLeave, onOpen }: MicroCardProps) {
   const full = item.participantsCount >= item.participantsLimit;
+  const body = (
+    <>
+      <span className="app-card-title">
+        <span className="app-micro-badge">Микро</span> {item.title}
+      </span>
+      <span className="app-card-subtitle">{formatStartsAt(item.startsAt)}</span>
+      <span className="app-card-subtitle">{microWhere(item, places)}</span>
+      <span className="app-card-subtitle">
+        {item.participantsCount}/{item.participantsLimit} участников
+      </span>
+    </>
+  );
   return (
-    <article className="app-card">
-      <div className="app-card-body">
-        <span className="app-card-title">
-          <span className="app-micro-badge">Микро</span> {item.title}
-        </span>
-        <span className="app-card-subtitle">{formatStartsAt(item.startsAt)}</span>
-        <span className="app-card-subtitle">{microWhere(item, places)}</span>
-        <span className="app-card-subtitle">
-          {item.participantsCount}/{item.participantsLimit} участников
-        </span>
+    <article className="app-card app-micro-plan-card">
+      {onOpen === undefined ? <div className="app-card-body">{body}</div> : (
+        <button type="button" className="app-card-body app-micro-plan-open" onClick={onOpen}>
+          <span className="app-micro-plan-copy">{body}</span>
+          <ActionIcon name="chevron" size={16} />
+        </button>
+      )}
+      <div className="app-micro-plan-actions">
         {joined ? (
           <>
             <span className="app-card-subtitle">Вы участвуете</span>
@@ -82,6 +93,7 @@ export function joinedMicroEvents(events: MicroEvent[], userId: string | null, n
 }
 
 export function MyMicroEventsSection({ now = new Date() }: { now?: Date }) {
+  const { navigate } = useRoute();
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const [events, setEvents] = useState<MicroEvent[] | null>(null);
@@ -145,7 +157,7 @@ export function MyMicroEventsSection({ now = new Date() }: { now?: Date }) {
   return (
     <AppSection title="Микро-события" className="app-cards-flat">
       {mine.map((item) => (
-        <MicroCard key={item.id} item={item} places={places} joined onJoin={() => {}} onLeave={() => leave(item.id)} />
+        <MicroCard key={item.id} item={item} places={places} joined onJoin={() => {}} onLeave={() => leave(item.id)} onOpen={() => navigate({ name: "micro-event", id: item.id })} />
       ))}
     </AppSection>
   );
@@ -154,6 +166,7 @@ export function MyMicroEventsSection({ now = new Date() }: { now?: Date }) {
 export type MicroState = { status: "loading" } | { status: "error" } | { status: "ready"; events: MicroEvent[] };
 
 export function MicroSection({ onCreate, onOpenAll }: { onCreate: () => void; onOpenAll?: () => void }) {
+  const { navigate } = useRoute();
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const [state, setState] = useState<MicroState>({ status: "loading" });
@@ -235,7 +248,7 @@ export function MicroSection({ onCreate, onOpenAll }: { onCreate: () => void; on
       ) : state.events.length === 0 ? (
         <AppState>Пока нет открытых микро-событий. Создай первое!</AppState>
       ) : (
-        state.events.map((item) => <MicroCard key={item.id} item={item} places={places} joined={userId !== null && item.participantIds.includes(userId)} onJoin={() => join(item.id)} onLeave={() => leave(item.id)} />)
+        state.events.map((item) => <MicroCard key={item.id} item={item} places={places} joined={userId !== null && item.participantIds.includes(userId)} onJoin={() => join(item.id)} onLeave={() => leave(item.id)} onOpen={() => navigate({ name: "micro-event", id: item.id })} />)
       )}
     </AppSection>
   );

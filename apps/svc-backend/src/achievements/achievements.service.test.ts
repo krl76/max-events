@@ -53,6 +53,25 @@ describe("achievementsFromStats", () => {
     expect(byCode.get("weekend_city")?.progress).toBe(3);
   });
 
+  it("counts a concert, a new place, a district and a volunteer action as progress", () => {
+    const list = achievementsFromStats(
+      stats({
+        placesCount: 1,
+        districtsCount: 1,
+        byCategory: [
+          { category: "afisha", count: 1 },
+          { category: "volunteering", count: 1 },
+        ],
+      }),
+      new Map(),
+    );
+    const byCode = new Map(list.map((item) => [item.code, item]));
+    expect(byCode.get("city_explorer")).toMatchObject({ progress: 1, grantedAt: null });
+    expect(byCode.get("music_fan")).toMatchObject({ progress: 1, grantedAt: null });
+    expect(byCode.get("weekend_city")).toMatchObject({ progress: 1, grantedAt: null });
+    expect(byCode.get("volunteer")).toMatchObject({ progress: 1, grantedAt: null });
+  });
+
   it("measures «Город за выходные» in districts, not in places", () => {
     // Ten places inside one neighbourhood are still one district, so the badge stays unearned.
     const oneDistrict = achievementsFromStats(stats({ placesCount: 10, districtsCount: 1 }), new Map());

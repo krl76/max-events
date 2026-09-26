@@ -21,6 +21,7 @@ import { PersonAvatar } from "../friends/avatar";
 import { microCtaState, microTime } from "./MicroEventsPage";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { parsePinLabel } from "../ui/pin-label";
 import { AppSkeletonList, AppState } from "../ui/primitives";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -53,8 +54,17 @@ export function microSeatsHint(free: number): string | null {
 export type MicroEventState = { status: "loading" } | { status: "error"; notFound: boolean } | { status: "ready"; card: MicroEventCard };
 
 /** A venue-backed gathering opens экран 34; an address typed by hand has nothing to open and stays text. */
-function PlaceRow({ card, onOpenPlace }: { card: MicroEventCard; onOpenPlace: (placeId: string) => void }) {
+function PlaceRow({ card, onOpenPlace, onOpenPin }: { card: MicroEventCard; onOpenPlace: (placeId: string) => void; onOpenPin: (pin: { lat: number; lng: number }) => void }) {
   const place = card.place;
+  const pin = parsePinLabel(microWhereLabel(card));
+  if (place === null && pin !== null)
+    return (
+      <button type="button" className="app-micro-meta-row app-micro-meta-row--link" onClick={() => onOpenPin(pin)}>
+        <ActionIcon name="pin" size={20} strokeWidth={2.2} />
+        {microWhereLabel(card)}
+        <span className="app-micro-pin-go">На карте</span>
+      </button>
+    );
   if (place === null)
     return (
       <span className="app-micro-meta-row">
@@ -77,12 +87,13 @@ interface MicroEventViewProps {
   now?: Date;
   onBack: () => void;
   onOpenPlace: (placeId: string) => void;
+  onOpenPin: (pin: { lat: number; lng: number }) => void;
   onJoin: () => void;
   onLeave: () => void;
   onRetry: () => void;
 }
 
-export function MicroEventView({ state, viewerId, busy = false, now = new Date(), onBack, onOpenPlace, onJoin, onLeave, onRetry }: MicroEventViewProps) {
+export function MicroEventView({ state, viewerId, busy = false, now = new Date(), onBack, onOpenPlace, onOpenPin, onJoin, onLeave, onRetry }: MicroEventViewProps) {
   const card = state.status === "ready" ? state.card : null;
   const joined = card !== null && viewerId !== null && card.event.participantIds.includes(viewerId);
   const cta = card === null ? null : microCtaState(card.event, joined);
@@ -112,7 +123,7 @@ export function MicroEventView({ state, viewerId, busy = false, now = new Date()
               <ActionIcon name="clock" size={20} strokeWidth={2.2} />
               {microWhenLabel(card.event.startsAt, now)}
             </span>
-            <PlaceRow card={card} onOpenPlace={onOpenPlace} />
+            <PlaceRow card={card} onOpenPlace={onOpenPlace} onOpenPin={onOpenPin} />
           </div>
           <div className="app-micro-who">
             <h3 className="app-micro-who-title">Кто идёт</h3>
@@ -123,6 +134,9 @@ export function MicroEventView({ state, viewerId, busy = false, now = new Date()
           <div className="app-micro-gauge" role="img" aria-label={`Занято ${card.event.participantsCount} из ${card.event.participantsLimit}`}>
             <span className="app-micro-gauge-fill" style={{ width: `${filled}%` }} />
           </div>
+          {card.participants.length === 0 ? (
+            <p className="app-micro-hint">{card.event.participantsCount === 0 ? "Пока никто не вступил." : `В сборе ${card.event.participantsCount}. Имена подтянутся, когда список обновится.`}</p>
+          ) : (
           <ul className="app-micro-people">
             {card.participants.map((participant) => (
               <li key={participant.friend.id} className="app-micro-person">
@@ -132,6 +146,7 @@ export function MicroEventView({ state, viewerId, busy = false, now = new Date()
               </li>
             ))}
           </ul>
+          )}
           {hint !== null && (
             <p className="app-micro-hint">
               <ActionIcon name="alert" size={18} strokeWidth={2.4} />
@@ -202,5 +217,5 @@ export function MicroEventPage({ id }: { id: string }) {
     [load],
   );
 
-  return <MicroEventView state={state} viewerId={viewerId} busy={busy} onBack={back} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} onJoin={() => viewerId !== null && act(apiClient.joinMicroEvent(id, viewerId))} onLeave={() => viewerId !== null && act(apiClient.leaveMicroEvent(id, viewerId))} onRetry={load} />;
+  return <MicroEventView state={state} viewerId={viewerId} busy={busy} onBack={back} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} onOpenPin={(pin) => navigate({ name: "map", pin })} onJoin={() => viewerId !== null && act(apiClient.joinMicroEvent(id, viewerId))} onLeave={() => viewerId !== null && act(apiClient.leaveMicroEvent(id, viewerId))} onRetry={load} />;
 }

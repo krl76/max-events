@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import type { Booking } from "@max-events/api-contracts";
 import type { CalendarEntry } from "../api/client";
-import { WEEKDAY_LABELS, calendarReminder, dayKey, dayTitle, entriesOn, entryEndMs, mergeCalendarEntries, monthGridDays, monthTitle, overlapWarnings, type CalendarDayEntry } from "./MonthCalendar";
+import { WEEKDAY_LABELS, MonthGrid, calendarReminder, dayKey, dayTitle, entriesOn, entryEndMs, mergeCalendarEntries, monthGridDays, monthTitle, overlapWarnings, type CalendarDayEntry } from "./MonthCalendar";
 import { mockEvents, mockFriends, mockPlaces, mockSharedCalendar, planCards } from "../api/mock";
 
 function booking(eventIndex: number, id: string): CalendarEntry {
@@ -86,6 +88,23 @@ describe("mergeCalendarEntries", () => {
     const rows = mergeCalendarEntries([booking(2, "b1"), booking(4, "b2")], [], shared);
 
     expect(rows.map((row) => row.startsAt)).toEqual([...rows.map((row) => row.startsAt)].sort());
+  });
+});
+
+describe("MonthGrid", () => {
+  it("rings a day where your record and a friend's record meet", () => {
+    const html = renderToStaticMarkup(
+      createElement(MonthGrid, {
+        month: new Date(2026, 8, 1),
+        selected: new Date(2026, 8, 18),
+        entries: [entry({ id: "a", sources: ["own"], startsAt: "2026-09-18T12:00:00+03:00" }), entry({ id: "b", sources: ["peer"], startsAt: "2026-09-18T19:00:00+03:00", ownerId: "friend-1" })],
+        onSelect: () => {},
+      }),
+    );
+
+    expect(html).toContain("app-cal-day--cross");
+    expect(html).toContain("app-cal-dot--own");
+    expect(html).toContain("app-cal-dot--peer");
   });
 });
 
