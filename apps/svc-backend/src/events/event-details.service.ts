@@ -6,6 +6,8 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - EVENT_NEARBY_RADIUS_M - how far around the venue nearby still means nearby
+// - EventNearbySpot - one nearby venue with its distance from the event
 // - EventDetailsService - get(eventId, viewerId) composition plus optional weather attach
 // END_MODULE_MAP
 

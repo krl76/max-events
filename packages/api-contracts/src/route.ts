@@ -8,6 +8,10 @@
 // START_MODULE_MAP
 // - RouteStopWriteSchema - eventId xor placeId
 // - RouteStopWrite - stop write type
+// - RoutePreferSchema - what the route should favour: default, cheaper or no taxi
+// - RoutePrefer - route preference type
+// - RouteModeSchema - how one leg is travelled: walk, metro or taxi
+// - RouteMode - leg mode type
 // - CreateDayRouteWriteSchema - build/optimize payload
 // - CreateDayRouteWrite - payload type
 // - RoutePointSchema - resolved stop with coordinates

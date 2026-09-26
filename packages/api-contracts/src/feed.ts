@@ -9,6 +9,8 @@
 // - MAX_FEED_PHOTO_URL_LENGTH - longest photo reference a post may carry
 // - FeedCommentSchema - comment on a feed post
 // - FeedComment - comment type
+// - PostAudienceSchema - who a post is for: friends, the city or a company
+// - PostAudience - post audience type
 // - FeedPostSchema - impression post with like counter and comments
 // - FeedPost - feed post type
 // - CreateFeedPostWriteSchema - create-post payload
@@ -16,10 +18,17 @@
 // - AddFeedCommentWriteSchema - add-comment payload
 // - AddFeedCommentWrite - add-comment type
 // - FeedDraftWriteSchema - composer autosave (#542)
+// - FeedDraftWrite - composer autosave type
 // - FeedDraftSavedSchema - { savedAt } receipt
+// - FeedDraftSaved - autosave receipt type
 // - FeedCardCountsSchema - wants/going/waitlist/freeSeats, null only when unknown
-// - FeedFriendCardSchema / FeedPlaceCardSchema - home feed cards (#541)
+// - FeedCardCounts - card counters type
+// - FeedFriendCardSchema - home feed card about what a friend is going to (#541)
+// - FeedPlaceCardSchema - home feed card published by a venue (#541)
+// - FeedFriendCard - friend card type
+// - FeedPlaceCard - venue card type
 // - FeedCardSchema - discriminated union
+// - FeedCard - home feed card type
 // END_MODULE_MAP
 
 import { z } from "zod";

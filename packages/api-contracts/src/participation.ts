@@ -15,7 +15,9 @@
 // - ParticipationStatusWriteSchema - authenticated write body ({ status } only)
 // - ParticipationStatusWrite - authenticated write body type
 // - PlaceParticipationSchema - viewer status on a venue (#540)
+// - PlaceParticipation - venue participation type
 // - PlaceParticipationWriteSchema - PUT body, status null clears the row
+// - PlaceParticipationWrite - venue status write type
 // - ParticipationCountsSchema - per-status counters for one event
 // - ParticipationCounts - per-status counters type
 // - ParticipationStatsSchema - counters plus friendsCount and current-user myStatus

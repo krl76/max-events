@@ -6,14 +6,24 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - NOTIFICATION_TYPES / NotificationTypeSchema / NotificationType
-// - NOTIFICATION_TARGETS / NotificationTargetSchema / NotificationTarget
-// - NotificationLinkSchema / NotificationLink
-// - NotificationActionToneSchema / NotificationActionTone
-// - NotificationActionSchema / NotificationAction
-// - AppNotificationSchema / AppNotification
-// - NotificationsSummarySchema / NotificationsSummary
-// - AnswerNotificationWriteSchema / AnswerNotificationWrite
+// - NOTIFICATION_TYPES - every kind of notification the app can raise
+// - NotificationTypeSchema - one notification type
+// - NotificationType - notification type
+// - NOTIFICATION_TARGETS - the screens a notification can lead to
+// - NotificationTargetSchema - one target screen
+// - NotificationTarget - target screen type
+// - NotificationLinkSchema - where a notification opens: target screen plus its id
+// - NotificationLink - notification link type
+// - NotificationActionToneSchema - how an action button reads: primary, confirm or secondary
+// - NotificationActionTone - action tone type
+// - NotificationActionSchema - a button inside a notification
+// - NotificationAction - notification action type
+// - AppNotificationSchema - one notification as the list shows it
+// - AppNotification - notification type
+// - NotificationsSummarySchema - unread counters for the bell
+// - NotificationsSummary - notifications summary type
+// - AnswerNotificationWriteSchema - answering a notification straight from the list
+// - AnswerNotificationWrite - answer payload type
 // END_MODULE_MAP
 
 import { z } from "zod";

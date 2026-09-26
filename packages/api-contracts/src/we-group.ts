@@ -16,6 +16,8 @@
 // - AddWeGroupEventWrite - event write type
 // - AddWeGroupPlaceWriteSchema - bind place
 // - AddWeGroupPlaceWrite - place write type
+// - AddWeGroupPhotoWriteSchema - add a group photo by data URL or https url
+// - AddWeGroupPhotoWrite - photo write type
 // - WeGroupScreenSchema - group plus members, events, places, bookings, route, budget, photos
 // - WeGroupScreen - screen type
 // - WeGroupEventGoingSchema - which members are going to one bound event

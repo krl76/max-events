@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - SlotStatus - free, held or booked
 // - SlotsService - board, book, cancel, mine, upcoming
 // END_MODULE_MAP
 

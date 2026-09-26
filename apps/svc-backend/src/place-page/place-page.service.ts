@@ -6,6 +6,10 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - PlaceOccupancyHour - one hour of the day and how busy the venue is in it
+// - PlaceVisitMonth - one month and how many times the viewer came
+// - PlaceBoard - everything the place screen shows besides the venue itself
+// - occupancyFrom - check-ins to the hourly occupancy curve and the hour standing now
 // - PlacePageService - GET payload for a place
 // END_MODULE_MAP
 

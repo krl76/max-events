@@ -16,6 +16,7 @@
 // - RatingSummary - rating summary type
 // - REVIEW_FACT_TAG_CODES - post-event «Что было правдой?» codes
 // - ReviewFactTagCodeSchema - one fact-tag code
+// - ReviewFactTagCode - fact-tag code type
 // - CreateReviewWriteSchema - review submission payload (booked event)
 // - CreateReviewWrite - review submission type
 // - EventRatingSchema - event-page rating aggregate with per-category averages

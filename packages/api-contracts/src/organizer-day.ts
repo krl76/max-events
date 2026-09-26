@@ -6,10 +6,24 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - OrganizerRecurrenceSchema - weekly repetition of an organizer event and the date it runs until
+// - OrganizerRecurrence - recurrence type
 // - OrganizerEventOptionsSchema - экран 46 switches
+// - OrganizerEventOptions - event options type
 // - UpdateOrganizerEventOptionsSchema - partial PATCH without field defaults
+// - UpdateOrganizerEventOptions - options update type
+// - OrganizerParticipantSchema - one person in the экран 47 roster
+// - OrganizerParticipant - roster row type
+// - OrganizerWaitlistRowSchema - one waiting person with their place in the queue
+// - OrganizerWaitlistRow - waitlist row type
+// - OrganizerSlotChipSchema - one time slot of the day with its busy flag
+// - OrganizerSlotChip - slot chip type
 // - OrganizerAttendanceSchema - экран 47 roster
-// - WaitlistInviteWriteSchema / WaitlistInviteResultSchema
+// - OrganizerAttendance - attendance type
+// - WaitlistInviteWriteSchema - invite someone off the waitlist
+// - WaitlistInviteWrite - invite payload type
+// - WaitlistInviteResultSchema - what the invite did
+// - WaitlistInviteResult - invite result type
 // END_MODULE_MAP
 
 import { z } from "zod";

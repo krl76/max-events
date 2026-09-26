@@ -7,7 +7,6 @@
 //
 // START_MODULE_MAP
 // - NotificationsService - list, summary, markRead, markAllRead, answer
-// - toNotificationDto - entity plus optional actor Friend
 // END_MODULE_MAP
 
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";

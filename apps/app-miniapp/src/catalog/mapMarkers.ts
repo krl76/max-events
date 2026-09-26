@@ -19,6 +19,7 @@
 // - clusterMapMarkers - markers + zoom -> the points to draw, singles kept as singles
 // - friendsWereHereSubtitle - «Были: Аня, Пётр» plus how many more, for the friends-layer popup
 // - buildMapMarkers - events (via place coordinates) + places -> marker list, with the optional friends layer; placeCatalog supplies coordinates when the places layer is off
+// - MAP_STACK_DEGREES - how close two pins must be to share one bubble at any zoom (the same venue, stacked)
 // END_MODULE_MAP
 
 import type { Event, FriendPlaceVisit, Place } from "@max-events/api-contracts";

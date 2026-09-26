@@ -7,7 +7,6 @@
 //
 // START_MODULE_MAP
 // - EventCompanionsService - companions(eventId, viewerId)
-// - GATHERING_FACE_COUNT - faces the teaser draws before «и ещё N»
 // END_MODULE_MAP
 
 import { Injectable, NotFoundException } from "@nestjs/common";

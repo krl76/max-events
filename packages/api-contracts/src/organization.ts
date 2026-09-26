@@ -7,17 +7,24 @@
 //
 // START_MODULE_MAP
 // - ORGANIZER_ACTIVITIES - «чем занимаетесь» values (not PlaceCategory)
-// - OrganizerActivitySchema / OrganizerActivity
+// - OrganizerActivitySchema - one organizer activity
+// - OrganizerActivity - organizer activity type
 // - ORGANIZER_SETUP_STEPS - rail of экран 44: venue → payouts → event
-// - OrganizerSetupStepSchema / OrganizerSetupStep
+// - OrganizerSetupStepSchema - one setup step
+// - OrganizerSetupStep - setup step type
 // - ORGANIZER_PAYOUT_MODES - external payment link or none; in-app live charges do not exist
-// - OrganizerPayoutModeSchema / OrganizerPayoutMode
+// - OrganizerPayoutModeSchema - one payout mode
+// - OrganizerPayoutMode - payout mode type
 // - OrganizationSchema - organization account (id, name, contacts, activities)
 // - Organization - organization account type
-// - OrganizerSetupVenueSchema / OrganizerSetupVenue
-// - OrganizerSetupPayoutsSchema / OrganizerSetupPayouts
-// - OrganizerSetupSchema / OrganizerSetup
-// - UpdateOrganizerSetupSchema / UpdateOrganizerSetup
+// - OrganizerSetupVenueSchema - the venue half of the setup rail
+// - OrganizerSetupVenue - setup venue type
+// - OrganizerSetupPayoutsSchema - the payouts half of the setup rail
+// - OrganizerSetupPayouts - setup payouts type
+// - OrganizerSetupSchema - the whole setup state with its step
+// - OrganizerSetup - organizer setup type
+// - UpdateOrganizerSetupSchema - partial setup update
+// - UpdateOrganizerSetup - setup update type
 // END_MODULE_MAP
 
 import { z } from "zod";

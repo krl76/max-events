@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - DEFAULT_NEARBY_RADIUS_KM - how wide nearby looks when the caller names no radius
 // - haversineKm - great-circle distance
 // - moscowParts - calendar parts in Europe/Moscow
 // - nearbyBucket - exclusive assignment onto the four-segment scale

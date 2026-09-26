@@ -13,18 +13,29 @@
 // - SmartAlertSettingsSchema - per-type smart-alert toggles plus quiet hours
 // - SmartAlertSettings - smart-alert prefs type
 // - QuietHoursTimeSchema - HH:MM window edge
+// - QuietHoursTime - quiet-hours edge type
 // - DEFAULT_SMART_ALERTS - all types on, quiet hours off, window 23:00–09:00
 // - PrivacySettingsSchema - visit history and route visibility
 // - PrivacySettings - privacy type
 // - DEFAULT_PRIVACY - visible to friends
 // - PROFILE_BIO_MAX - Instagram-like bio length
+// - PROFILE_MEDIA_URL_MAX - longest avatar/cover reference a profile may carry
 // - ProfileMediaUrlSchema - avatar/cover: image data URL until #477, or https
 // - ProfileSchema - user profile with city, interests, alerts, privacy, recommendations, bio and cover
 // - Profile - profile type
 // - UpdateProfileSchema - profile edit payload (nested partial smartAlerts/privacy, optional bio/cover/avatar)
 // - UpdateProfile - profile edit type
-// - ProfileCountersSchema / VisitedPlaceSchema / ProfilePostSchema / AppSettingsSchema (#543)
+// - ProfileCountersSchema - events, places and companies behind the profile numbers (#543)
+// - ProfileCounters - profile counters type
+// - VisitedPlaceSchema - a place the user keeps returning to, with the number of visits
+// - VisitedPlace - visited place type
+// - ProfilePostSchema - one post of the profile grid
+// - ProfilePost - profile post type
+// - AppSettingsSchema - the settings screen: radius, visibility, alerts, quiet hours and access switches
+// - AppSettings - app settings type
+// - DEFAULT_APP_SETTINGS - what the settings are before anyone touches them
 // - UpdateAppSettingsSchema - partial PATCH without field defaults
+// - UpdateAppSettings - settings update type
 // END_MODULE_MAP
 
 import { z } from "zod";

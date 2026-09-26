@@ -6,9 +6,15 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - NOTIFICATION_TYPES / NotificationType - re-export of the inbox type enum
-// - NOTIFICATION_TARGETS / NotificationTarget - re-export of the target enum
-// - NotificationLink / NotificationAction / AppNotification / NotificationsSummary - re-export of the inbox contracts
+// - NOTIFICATION_TYPES - re-exported list of inbox types
+// - NotificationType - re-exported inbox type
+// - NOTIFICATION_TARGETS - re-exported list of target screens
+// - NotificationLink - re-exported link a notification opens
+// - NotificationTarget - re-exported target screen
+// - NotificationActionTone - re-exported action tone
+// - NotificationAction - re-exported action button
+// - AppNotification - re-exported notification
+// - NotificationsSummary - re-exported unread counters
 // - AnswerNotification - answer payload; userId is mock-only
 // - withNotifications - list / summary / read / read-all / answer
 // END_MODULE_MAP

@@ -7,10 +7,14 @@
 //
 // START_MODULE_MAP
 // - SWIPE_CATEGORIES - filter chips of экран 09
+// - SwipeCategory - one filter chip
 // - SWIPE_CATEGORY_PLACES - which PlaceCategory each chip admits
 // - SWIPE_DECK_CAP - max cards in one deck
+// - SwipeCandidate - one card of the deck: the venue and everything printed on it
 // - matchPercentFor - 0..100 from the viewer's place-category weights; null with no taste
 // - SwipeService - list / decide
+// - parseSwipeCategory - category from the query, rejecting a chip that does not exist
+// - parseSwipeDecision - like or skip from the body, rejecting anything else
 // END_MODULE_MAP
 
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";

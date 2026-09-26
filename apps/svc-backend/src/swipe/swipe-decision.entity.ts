@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - SwipeDecision - like or skip
 // - SwipeDecisionEntity - swipe_decisions table row
 // END_MODULE_MAP
 

@@ -18,6 +18,8 @@
 // - appSettingsFor - stored app settings of a user, seeded from the defaults
 // - updateMockAppSettings - merge a patch into the stored app settings
 // - resetMockAppSettings - drop the stored app settings (test isolation)
+// - mockCustomAvatars - avatars the demo user uploaded over their MAX one
+// - userFor - the User behind an id: the demo user with their custom avatar, or a friend
 // - mockProfiles - shared with profile.routes
 // - resetMockProfiles - restore the seeded friend profiles (test isolation)
 // - profileFor - shared with profile.routes, social
