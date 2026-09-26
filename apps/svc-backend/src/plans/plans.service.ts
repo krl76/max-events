@@ -15,10 +15,10 @@
 // - PLAN_POLL_WINDOW_MS - look-ahead window for occurrence polls
 // - settleBalances - greedy debt settlement
 // - budgetFromExpenses - split expenses into per-person nets and debts
-// - PlansService - create, findExisting, findActiveForEvent, list, get, addParticipant, respond, remove, spawnRecurring, pollRecurring, remindMeeting, budget
+// - PlansService - create, findExisting, findActiveForEvent, list, get, openChat, addParticipant, respond, remove, spawnRecurring, pollRecurring, remindMeeting, budget
 // END_MODULE_MAP
 
-import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { IsNull, QueryFailedError, Repository } from "typeorm";
 import type { AutoPlanProposal, CreatePlanExpenseWrite, CreatePlanWrite, Plan, PlanBudget, PlanCancelScope, PlanCard, PlanDebt, PlanParticipantStatus, Place } from "@max-events/api-contracts";
@@ -506,6 +506,19 @@ export class PlansService {
       }),
     );
     return this.getBudget(actorId, planId);
+  }
+
+  async openChat(actorId: string, planId: string): Promise<PlanCard> {
+    const plan = await this.requireActivePlan(planId);
+    if (plan.hostUserId !== actorId) throw new ForbiddenException("Not the host");
+    if (plan.chatLink) return this.get(actorId, planId);
+    const event = await this.events.findOneBy({ id: plan.eventId });
+    if (!event) throw new NotFoundException("Event not found");
+    const chat = await this.bot.createChat(`План: ${event.title}`);
+    if (!chat) throw new ServiceUnavailableException("Chat is unavailable");
+    plan.chatLink = chat.link;
+    await this.plans.save(plan);
+    return this.get(actorId, planId);
   }
 
   async getBudget(actorId: string, planId: string): Promise<PlanBudget> {

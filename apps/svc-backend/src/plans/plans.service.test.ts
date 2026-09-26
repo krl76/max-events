@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { formatPlanPollText, haversineMeters, settleBalances } from "./plans.service";
 import { createService, dimaId, eventId, hostId, katyaId, meetingAt, now } from "./plans.testHarness";
@@ -108,6 +108,19 @@ describe("PlansService", () => {
     await expect(service.addExpense("00000000-0000-4000-8000-0000000000ff", created.plan.id, { title: "Чужой", amountRub: 10, payerUserId: hostId, shareUserIds: [hostId] })).rejects.toBeInstanceOf(ForbiddenException);
     await expect(service.addExpense(dimaId, created.plan.id, { title: "Чужой", amountRub: 10, payerUserId: hostId, shareUserIds: [hostId] })).rejects.toBeInstanceOf(ForbiddenException);
     await expect(service.addExpense(hostId, created.plan.id, { title: "Чужой", amountRub: 10, payerUserId: hostId, shareUserIds: [hostId, "00000000-0000-4000-8000-0000000000ff"] })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("opens a MAX chat as the host, is idempotent, and fail-closes without a bot", async () => {
+    const { service } = createService();
+    const created = await service.create(hostId, { eventId, participantIds: [dimaId], meetingPoint: "у метро", meetingAt });
+    expect(created.plan.chatLink).toBe("https://max.ru/join/plan");
+    const again = await service.openChat(hostId, created.plan.id);
+    expect(again.plan.chatLink).toBe(created.plan.chatLink);
+    await expect(service.openChat(dimaId, created.plan.id)).rejects.toBeInstanceOf(ForbiddenException);
+    const down = createService({ chatLink: null });
+    const silent = await down.service.create(hostId, { eventId, participantIds: [dimaId], meetingPoint: "у метро", meetingAt });
+    expect(silent.plan.chatLink).toBeNull();
+    await expect(down.service.openChat(hostId, silent.plan.id)).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 
   it("rejects declined payers and splits a non-divisible amount without losing rubles", async () => {

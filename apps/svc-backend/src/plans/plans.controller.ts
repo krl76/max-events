@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for shared plans — list/get PlanCard, create, invite, respond, delete.
-// SCOPE: GET/POST /plans, GET/DELETE /plans/:id, POST /plans/:id/participants, PATCH /plans/:id/participants/me, GET :id/budget, POST :id/expenses.
+// SCOPE: GET/POST /plans, GET/DELETE /plans/:id, POST /plans/:id/chat, POST /plans/:id/participants, PATCH /plans/:id/participants/me, GET :id/budget, POST :id/expenses.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./plans.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -54,6 +54,11 @@ export class PlansController {
     const parsed = CreatePlanExpenseWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid expense payload");
     return this.plans.addExpense(user.id, id, parsed.data);
+  }
+
+  @Post(":id/chat")
+  openChat(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PlanCard> {
+    return this.plans.openChat(user.id, id);
   }
 
   @Get(":id")
