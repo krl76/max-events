@@ -25,7 +25,6 @@ import { apiClient, isEndpointMissing, type CalendarEntry, type SharedCalendar }
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { shareResult, webApp } from "../max/bridge";
-import { MyMicroEventsSection } from "../micro/MicroEvents";
 import { useRoute } from "../routing/router";
 import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
@@ -472,8 +471,6 @@ export function CalendarPage({ tab = "month" }: { tab?: CalendarTab } = {}) {
       ) : (
         <>
           <CalendarView state={state} now={new Date()} onCancel={cancel} onExplore={() => navigate({ name: "home" })} onExport={state.status === "ready" ? () => exportCalendarIcs(state.entries) : undefined} />
-          {/* Below the bookings: a micro-event the viewer joined is a record of their own too, and it used to live nowhere but the feed. */}
-          <MyMicroEventsSection />
         </>
       )}
       {picking && <FriendPicker friends={invitable} title="Кого позвать в календарь" hint="Он увидит твои планы, ты — его." confirmLabel="Открыть календарь" emptyText="Все друзья уже в этом календаре." multiple busy={inviting} onConfirm={invite} onClose={() => setPicking(false)} />}

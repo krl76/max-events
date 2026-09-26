@@ -14,13 +14,14 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { EventEntity } from "../events/event.entity";
 import { FriendsModule } from "../friends/friends.module";
 import { MaxBotModule } from "../max-bot/max-bot.module";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { UserEntity } from "../users/user.entity";
 import { VoteBallotEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity } from "./vote.entity";
 import { VotesController } from "./votes.controller";
 import { VotesService } from "./votes.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([VoteEntity, VoteOptionEntity, VoteParticipantEntity, VoteBallotEntity, EventEntity, UserEntity]), FriendsModule, MaxBotModule],
+  imports: [TypeOrmModule.forFeature([VoteEntity, VoteOptionEntity, VoteParticipantEntity, VoteBallotEntity, EventEntity, UserEntity, NotificationEntity]), FriendsModule, MaxBotModule],
   controllers: [VotesController],
   providers: [VotesService],
 })

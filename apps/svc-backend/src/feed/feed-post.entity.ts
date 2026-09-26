@@ -35,6 +35,9 @@ export class FeedPostEntity {
   @Column({ type: "uuid", nullable: true })
   placeId?: string | null;
 
+  @Column({ type: "varchar", length: 120, nullable: true })
+  locationLabel?: string | null;
+
   @Column({ type: "text", array: true, default: [] })
   taggedFriendIds?: string[];
 

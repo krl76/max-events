@@ -16,6 +16,7 @@ import { EventEntity } from "../events/event.entity";
 import { FriendsModule } from "../friends/friends.module";
 import { MaxBotModule } from "../max-bot/max-bot.module";
 import { UserEntity } from "../users/user.entity";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { GatheringInviteeEntity } from "./gathering-invitee.entity";
 import { GatheringEntity } from "./gathering.entity";
 import { FriendAvailabilityController, GatheringsController } from "./gatherings.controller";
@@ -23,7 +24,7 @@ import { GatheringsScheduler } from "./gatherings.scheduler";
 import { GatheringsService } from "./gatherings.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([GatheringEntity, GatheringInviteeEntity, BookingEntity, EventEntity, UserEntity]), FriendsModule, MaxBotModule],
+  imports: [TypeOrmModule.forFeature([GatheringEntity, GatheringInviteeEntity, BookingEntity, EventEntity, UserEntity, NotificationEntity]), FriendsModule, MaxBotModule],
   controllers: [FriendAvailabilityController, GatheringsController],
   providers: [GatheringsService, GatheringsScheduler],
 })

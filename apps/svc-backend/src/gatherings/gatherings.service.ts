@@ -24,6 +24,8 @@ import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { MaxBotClient } from "../max-bot/max-bot.client";
+import { deliverInvite } from "../smart-alerts/deliver-invite";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { UserEntity } from "../users/user.entity";
 import { GatheringInviteeEntity } from "./gathering-invitee.entity";
 import { GatheringEntity } from "./gathering.entity";
@@ -76,6 +78,7 @@ export class GatheringsService {
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @Inject(FriendsService) private readonly friends: FriendsService,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
+    @InjectRepository(NotificationEntity) private readonly notices?: Repository<NotificationEntity>,
   ) {}
 
   async availability(userId: string, eventId: string): Promise<FriendAvailability[]> {
@@ -124,8 +127,9 @@ export class GatheringsService {
     for (const userId of friendIds) {
       const user = inviteUsers.find((row) => row.id === userId);
       if (!user) continue;
+      const text = formatGatheringInviteText(event.title, meetingAt, saved.chatLink);
       try {
-        await this.bot.sendMessage(user.maxUserId, formatGatheringInviteText(event.title, meetingAt, saved.chatLink));
+        await deliverInvite(this.bot, this.notices, { userId: user.id, maxUserId: user.maxUserId, actorUserId: hostUserId, type: "gathering-invite", title: `Сбор к «${event.title}»`, body: text, link: { target: "gathering", id: saved.id } });
       } catch {
         this.logger.warn(`Gathering invite DM failed for ${saved.id}`);
       }

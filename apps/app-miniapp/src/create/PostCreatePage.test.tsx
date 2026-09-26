@@ -10,7 +10,7 @@ import { firstNameOf, PostCreateView, POST_PHOTO_LIMIT, postDateLine, postDraftO
 const STARTS_AT = "2026-09-19T14:00:00";
 const USER_ID = "a0000000-0000-4000-8000-000000000001";
 
-const draftOf = (over: Partial<PostComposeDraft> = {}): PostComposeDraft => ({ text: "", photoUrls: [], eventId: null, placeId: null, taggedFriendIds: [], audience: "friends", allowJoin: false, ...over });
+const draftOf = (over: Partial<PostComposeDraft> = {}): PostComposeDraft => ({ text: "", photoUrls: [], eventId: null, placeId: null, pinLabel: null, taggedFriendIds: [], audience: "friends", allowJoin: false, ...over });
 
 const friend = (name: string, id: string): Friend => ({ id, name, avatarUrl: null });
 

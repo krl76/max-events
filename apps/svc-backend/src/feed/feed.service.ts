@@ -102,6 +102,7 @@ export class FeedService {
         text: payload.text,
         photoUrl: payload.photoUrl ?? null,
         placeId: payload.placeId ?? null,
+        locationLabel: payload.locationLabel ?? null,
         taggedFriendIds: payload.taggedFriendIds ?? [],
         audience: payload.audience ?? "friends",
         allowJoin: payload.allowJoin ?? false,
@@ -191,7 +192,7 @@ export class FeedService {
           const commentAuthor = userById.get(row.authorUserId);
           return commentAuthor ? [{ id: row.id, author: toFriendDto(commentAuthor), text: row.text }] : [];
         });
-      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId, text: post.text, photoUrl: post.photoUrl ?? null, placeId: post.placeId ?? null, taggedFriendIds: post.taggedFriendIds ?? [], audience: post.audience ?? "friends", allowJoin: post.allowJoin ?? false, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), comments }];
+      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId, text: post.text, photoUrl: post.photoUrl ?? null, placeId: post.placeId ?? null, locationLabel: post.locationLabel ?? null, taggedFriendIds: post.taggedFriendIds ?? [], audience: post.audience ?? "friends", allowJoin: post.allowJoin ?? false, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), comments }];
     });
   }
 }
@@ -237,7 +238,7 @@ function toFriendCard(post: FeedPost, event: EventEntity, place: Place | null, b
     kind: "friend",
     id: post.id,
     author: post.author,
-    placeTitle: place?.title ?? null,
+    placeTitle: place?.title ?? post.locationLabel ?? null,
     distanceKm: null,
     event: toEventDto(event),
     live: event.endsAt !== null && event.startsAt.getTime() <= now.getTime() && now.getTime() < event.endsAt.getTime(),

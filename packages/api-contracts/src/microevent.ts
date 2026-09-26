@@ -58,6 +58,7 @@ export const CreateMicroEventWriteSchema = z
     locationText: z.string().min(1).max(300).nullable().optional(),
     placeId: IdSchema.nullable().optional(),
     participantsLimit: z.number().int().min(1),
+    inviteeIds: z.array(IdSchema).max(30).optional(),
   })
   .refine((data) => (data.locationText != null) !== (data.placeId != null), {
     message: "micro-event location must be exactly one of locationText or placeId",

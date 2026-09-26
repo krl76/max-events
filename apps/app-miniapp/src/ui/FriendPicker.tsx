@@ -15,6 +15,8 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { Friend } from "@max-events/api-contracts";
+import { PersonAvatar } from "../friends/avatar";
+import { friendHandle } from "./friend-handle";
 import { ActionIcon } from "./icons";
 
 /** Что считается фокусируемым внутри окна: ровно то, что окно и рисует. */
@@ -119,10 +121,11 @@ export function FriendPicker({ friends, title = "Выбери друга", hint 
               return (
                 <li key={friend.id}>
                   <button type="button" className={on ? "app-fpick-row app-fpick-row--on" : "app-fpick-row"} aria-pressed={on} onClick={() => setPicked((current) => toggleFriendSelection(current, friend.id, multiple))}>
-                    <span className="app-fpick-avatar" aria-hidden="true">
-                      {friend.name.charAt(0)}
+                    {friend.avatarUrl ? <img className="app-fpick-avatar" src={friend.avatarUrl} alt="" /> : <PersonAvatar id={friend.id} name={friend.name} size={36} />}
+                    <span className="app-fpick-name">
+                      {friend.name}
+                      <span className="app-fpick-handle">@{friendHandle(friend)}</span>
                     </span>
-                    <span className="app-fpick-name">{friend.name}</span>
                     {on && (
                       <span className="app-fpick-mark" aria-hidden="true">
                         <ActionIcon name="check" size={16} strokeWidth={2.4} />

@@ -11,14 +11,16 @@
 
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { MaxBotModule } from "../max-bot/max-bot.module";
 import { PlaceEntity } from "../places/place.entity";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { UsersModule } from "../users/users.module";
 import { MicroEventEntity, MicroEventParticipantEntity } from "./micro-event.entity";
 import { MicroEventsController } from "./micro-events.controller";
 import { MicroEventsService } from "./micro-events.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([MicroEventEntity, MicroEventParticipantEntity, PlaceEntity]), UsersModule],
+  imports: [TypeOrmModule.forFeature([MicroEventEntity, MicroEventParticipantEntity, PlaceEntity, NotificationEntity]), UsersModule, MaxBotModule],
   controllers: [MicroEventsController],
   providers: [MicroEventsService],
   exports: [MicroEventsService],

@@ -30,6 +30,8 @@ import type { RoutePrefer } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { MaxBotClient } from "../max-bot/max-bot.client";
+import { deliverInvite } from "../smart-alerts/deliver-invite";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { toPlaceDto } from "../places/places.service";
 import { isInReminderWindow } from "../reminders/reminders.service";
@@ -152,6 +154,7 @@ export class PlansService {
     @InjectRepository(PlanExpenseEntity) private readonly expenses: Repository<PlanExpenseEntity>,
     @Inject(FriendsService) private readonly friends: FriendsService,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
+    @InjectRepository(NotificationEntity) private readonly notices?: Repository<NotificationEntity>,
   ) {}
 
   async create(hostUserId: string, payload: CreatePlanWrite, origin: GeoOrigin | null = null, options?: { assembledByMax?: boolean }): Promise<PlanCard> {
@@ -199,8 +202,9 @@ export class PlansService {
     for (const userId of ids) {
       const user = users.find((row) => row.id === userId);
       if (!user) continue;
+      const text = formatPlanInviteText(event.title, saved.meetingPoint, saved.meetingAt, saved.chatLink);
       try {
-        await this.bot.sendMessage(user.maxUserId, formatPlanInviteText(event.title, saved.meetingPoint, saved.meetingAt, saved.chatLink));
+        await deliverInvite(this.bot, this.notices, { userId: user.id, maxUserId: user.maxUserId, actorUserId: hostUserId, type: "plan-invite", title: `План «${event.title}»`, body: text, link: { target: "plan", id: saved.id } });
       } catch {
         this.logger.warn(`Plan invite DM failed for ${saved.id}`);
       }

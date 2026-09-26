@@ -19,12 +19,15 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
-import type { MicroEvent, Place } from "@max-events/api-contracts";
+import type { Friend, MicroEvent, Place } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
+import { FriendPicker } from "../ui/FriendPicker";
+import { PinPicker } from "../ui/PinPicker";
 import { AppIconButton, AppButton, AppState, AppSkeleton, AppSection } from "../ui/primitives";
+import { WhenField } from "../ui/WhenField";
 
 export function microWhere(item: MicroEvent, places: Place[]): string {
   return item.locationText ?? places.find((place) => place.id === item.placeId)?.title ?? "";
@@ -52,9 +55,12 @@ export function MicroCard({ item, places, joined, onJoin, onLeave }: MicroCardPr
           {item.participantsCount}/{item.participantsLimit} участников
         </span>
         {joined ? (
-          <AppButton size="small" tone="secondary" onClick={onLeave}>
-            Вы участвуете
-          </AppButton>
+          <>
+            <span className="app-card-subtitle">Вы участвуете</span>
+            <AppButton size="small" tone="secondary" onClick={onLeave}>
+              Выйти
+            </AppButton>
+          </>
         ) : (
           <AppButton disabled={full} size="small" onClick={onJoin}>
             {full ? "Мест нет" : "Присоединиться"}
@@ -248,13 +254,24 @@ export function microDraftReady(draft: MicroDraft): boolean {
 interface MicroEventCreateViewProps {
   draft: MicroDraft;
   places: Place[];
+  friends?: Friend[];
+  inviteeIds?: string[];
   submitting: boolean;
   failed: boolean;
   onChange: (field: keyof MicroDraft, value: string) => void;
+  onInvite?: (ids: string[]) => void;
   onSubmit: () => void;
 }
 
-export function MicroEventCreateView({ draft, places, submitting, failed, onChange, onSubmit }: MicroEventCreateViewProps) {
+export function MicroEventCreateView({ draft, places: _places, friends = [], inviteeIds = [], submitting, failed, onChange, onInvite, onSubmit }: MicroEventCreateViewProps) {
+  const [pickingPin, setPickingPin] = useState(false);
+  const [pickingFriends, setPickingFriends] = useState(false);
+  const missing = [
+    draft.title.trim() === "" ? "Напишите, что делаем" : "",
+    draft.when === "" ? "Укажите, когда" : "",
+    draft.where.trim() === "" ? "Поставьте точку, где" : "",
+    Number(draft.limit) >= 1 ? "" : "Укажите лимит",
+  ].filter((line) => line !== "");
   return (
     <section className="app-gathering">
       <p className="app-gathering-hint">Четыре поля — и событие в ленте</p>
@@ -264,25 +281,50 @@ export function MicroEventCreateView({ draft, places, submitting, failed, onChan
       </label>
       <label className="app-gathering-time">
         Когда
-        <input className="app-gathering-time-input" type="datetime-local" value={draft.when} onChange={(change) => onChange("when", change.target.value)} />
+        <WhenField label="Выберите дату и время" value={draft.when} onChange={(value) => onChange("when", value)} />
       </label>
       <label className="app-gathering-time">
         Где
-        <input className="app-gathering-time-input" list="micro-place-options" value={draft.where} placeholder="Площадка или место" onChange={(change) => onChange("where", change.target.value)} />
-        <datalist id="micro-place-options">
-          {places.map((place) => (
-            <option key={place.id} value={place.title} />
-          ))}
-        </datalist>
+        <input className="app-gathering-time-input" value={draft.where} placeholder="Точка на карте или адрес" onChange={(change) => onChange("where", change.target.value)} />
+        <button type="button" onClick={() => setPickingPin(true)}>
+          Точка на карте
+        </button>
       </label>
       <label className="app-gathering-time">
         Лимит участников
         <input className="app-gathering-time-input" type="number" min={1} value={draft.limit} onChange={(change) => onChange("limit", change.target.value)} />
       </label>
-      <AppButton disabled={!microDraftReady(draft) || submitting} onClick={onSubmit} stretched>
+      <button type="button" onClick={() => setPickingFriends(true)}>
+        Пригласить друзей{inviteeIds.length > 0 ? ` · ${inviteeIds.length}` : ""}
+      </button>
+      {missing.length > 0 && <p className="app-post-compose-missing">{missing.join(" · ")}</p>}
+      <AppButton disabled={submitting} onClick={() => { if (microDraftReady(draft)) onSubmit(); }} stretched>
         {submitting ? "Публикуем…" : "Опубликовать"}
       </AppButton>
       {failed && <AppState error>Не удалось опубликовать микро-событие.</AppState>}
+      {pickingPin && (
+        <PinPicker
+          title="Где встречаемся"
+          onConfirm={(label) => {
+            onChange("where", label);
+            setPickingPin(false);
+          }}
+          onClose={() => setPickingPin(false)}
+        />
+      )}
+      {pickingFriends && (
+        <FriendPicker
+          friends={friends}
+          multiple
+          title="Кого звать"
+          confirmLabel="Пригласить"
+          onConfirm={(ids) => {
+            onInvite?.(ids);
+            setPickingFriends(false);
+          }}
+          onClose={() => setPickingFriends(false)}
+        />
+      )}
     </section>
   );
 }
@@ -293,11 +335,19 @@ export function MicroEventCreatePage() {
   const { navigate } = useRoute();
   const [draft, setDraft] = useState<MicroDraft>({ title: "", when: "", where: "", limit: "6" });
   const [places, setPlaces] = useState<Place[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [inviteeIds, setInviteeIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
+    apiClient.listFriends().then(
+      (list) => {
+        if (alive) setFriends(list);
+      },
+      () => {},
+    );
     apiClient.listPlaces().then(
       (list) => {
         if (alive) setPlaces(list);
@@ -321,6 +371,7 @@ export function MicroEventCreatePage() {
         startsAt: new Date(draft.when).toISOString(),
         ...(place ? { placeId: place.id } : { locationText: draft.where.trim() }),
         participantsLimit: Number(draft.limit),
+        inviteeIds,
       })
       .then(
         () => navigate({ name: "home" }),
@@ -329,7 +380,7 @@ export function MicroEventCreatePage() {
           setFailed(true);
         },
       );
-  }, [draft, places, userId, navigate]);
+  }, [draft, places, userId, navigate, inviteeIds]);
 
-  return <MicroEventCreateView draft={draft} places={places} submitting={submitting} failed={failed} onChange={(field, value) => setDraft((current) => ({ ...current, [field]: value }))} onSubmit={publish} />;
+  return <MicroEventCreateView draft={draft} places={places} friends={friends} inviteeIds={inviteeIds} submitting={submitting} failed={failed} onChange={(field, value) => setDraft((current) => ({ ...current, [field]: value }))} onInvite={setInviteeIds} onSubmit={publish} />;
 }

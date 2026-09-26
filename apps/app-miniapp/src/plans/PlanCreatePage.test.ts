@@ -50,7 +50,8 @@ describe("PlanCreateView", () => {
     expect(html).toContain("Событие");
     expect(html).toContain("Где встречаемся");
     expect(html).toContain("Когда встречаемся");
-    expect(html).toContain(mockFriends[0]!.name);
+    expect(html).toContain("Пригласить друзей");
+    expect(html).toContain("Точка на карте");
     expect(html).toContain("Создать план");
   });
 
@@ -66,9 +67,9 @@ describe("PlanCreateView", () => {
     expect(view({ repeat: "monthly", weekday: 6 })).toContain("Повторяется в первую субботу месяца");
   });
 
-  it("keeps the submit out of reach until the draft is ready, and reports a failure", () => {
-    expect(view({ event: "Какое-то своё" })).toContain("disabled");
-    expect(view()).not.toContain("disabled");
+  it("names the missing fields and reports a failure", () => {
+    expect(view({ event: "Какое-то своё" })).toContain("Выберите событие из списка");
+    expect(view()).not.toContain("Выберите событие из списка");
     expect(view({}, { submitting: true })).toContain("Создаём…");
     expect(view({}, { failed: true })).toContain("Не удалось создать план.");
   });

@@ -26,7 +26,10 @@ import { apiClient, POST_AUDIENCES, type CreateFeedPost, type PostAudience, type
 import { useAuth } from "../auth/AuthContext";
 import { readFeedPhoto } from "../feed/photo";
 import { useRoute } from "../routing/router";
+import { friendHandle } from "../ui/friend-handle";
+import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
+import { PinPicker } from "../ui/PinPicker";
 
 /** Сетка макета — крупная плитка плюс колонка из двух: три кадра и есть потолок. */
 export const POST_PHOTO_LIMIT = 3;
@@ -38,6 +41,7 @@ export interface PostComposeDraft {
   photoUrls: string[];
   eventId: string | null;
   placeId: string | null;
+  pinLabel: string | null;
   taggedFriendIds: string[];
   audience: PostAudience;
   allowJoin: boolean;
@@ -69,9 +73,16 @@ export function postDraftReady(draft: PostComposeDraft): boolean {
   return draft.eventId !== null && draft.text.trim() !== "";
 }
 
+export function missingPostFields(draft: PostComposeDraft): string[] {
+  const missing: string[] = [];
+  if (draft.text.trim() === "") missing.push("Напишите текст");
+  if (draft.eventId === null) missing.push("Привяжите событие");
+  return missing;
+}
+
 /** Публикация несёт и photoUrl, и всю сетку: первое фото доживает до ленты, остальные ждут #502 и объектного хранилища (#477). */
 export function postPayload(draft: PostComposeDraft, userId: string, eventId: string): CreateFeedPost {
-  return { userId, eventId, text: draft.text.trim(), photoUrl: draft.photoUrls[0] ?? null, photoUrls: draft.photoUrls, placeId: draft.placeId, taggedFriendIds: draft.taggedFriendIds, audience: draft.audience, allowJoin: draft.allowJoin };
+  return { userId, eventId, text: draft.text.trim(), photoUrl: draft.photoUrls[0] ?? null, photoUrls: draft.photoUrls, placeId: draft.placeId, locationLabel: draft.pinLabel, taggedFriendIds: draft.taggedFriendIds, audience: draft.audience, allowJoin: draft.allowJoin };
 }
 
 export function postDraftOf(draft: PostComposeDraft, userId: string): PostDraft {
@@ -97,8 +108,9 @@ interface PostCreateViewProps {
 export function PostCreateView({ draft, authorName, events, places, friends, state, photoRejected, draftSaved, onDraft, onPickPhoto, onPublish, onClose }: PostCreateViewProps) {
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const eventRef = useRef<HTMLSelectElement | null>(null);
-  const placeRef = useRef<HTMLSelectElement | null>(null);
   const [taggingOpen, setTaggingOpen] = useState(false);
+  const [pickingPin, setPickingPin] = useState(false);
+  const missing = missingPostFields(draft);
   const boundEvent = events.find((event) => event.id === draft.eventId) ?? null;
   const boundPlace = places.find((place) => place.id === draft.placeId) ?? null;
   const tagged = friends.filter((friend) => draft.taggedFriendIds.includes(friend.id));
@@ -111,10 +123,15 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
           <ActionIcon name="close" size={18} strokeWidth={2.6} />
         </button>
         <span className="app-post-compose-title">Новый пост</span>
-        <button type="button" className="app-post-compose-publish" disabled={!postDraftReady(draft) || state === "publishing"} onClick={onPublish}>
+        <button type="button" className="app-post-compose-publish" disabled={state === "publishing"} onClick={() => { if (postDraftReady(draft)) onPublish(); }}>
           {state === "publishing" ? "Публикуем…" : "Опубликовать"}
         </button>
       </header>
+      {missing.length > 0 && (
+        <p className="app-post-compose-missing" role="status">
+          {missing.join(" · ")}
+        </p>
+      )}
 
       <div className="app-post-compose-body">
         <div className="app-post-compose-author">
@@ -123,7 +140,7 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
           </span>
           <div className="app-post-compose-id">
             <span className="app-post-compose-name">{authorName}</span>
-            <textarea ref={textRef} className="app-post-compose-text" aria-label="Текст поста" rows={3} placeholder="Собираемся в субботу на мангал в Горьком. Беру уголь и решётку, нужен кто-то за овощами" value={draft.text} onChange={(change) => onDraft({ ...draft, text: change.target.value })} />
+            <textarea ref={textRef} className="app-post-compose-text" aria-label="Текст поста" rows={3} placeholder="Напишите текст" value={draft.text} onChange={(change) => onDraft({ ...draft, text: change.target.value })} />
           </div>
         </div>
 
@@ -190,40 +207,44 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
             )}
           </div>
 
-          <div className="app-post-compose-row">
+          <button type="button" className="app-post-compose-row app-post-compose-row--button" onClick={() => setPickingPin(true)}>
             <ActionIcon name="pin" size={20} strokeWidth={2} />
-            <span className="app-post-compose-row-label">{boundPlace === null ? "Добавить место" : boundPlace.title}</span>
+            <span className="app-post-compose-row-label">{draft.pinLabel ?? (boundPlace === null ? "Поставить точку на карте" : boundPlace.title)}</span>
             <span className="app-post-compose-row-chevron" aria-hidden="true">
               <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
             </span>
-            <select ref={placeRef} className="app-post-compose-row-pick" aria-label="Место поста" value={draft.placeId ?? ""} onChange={(change) => onDraft({ ...draft, placeId: change.target.value === "" ? null : change.target.value })}>
-              <option value="">Без места</option>
-              {places.map((place) => (
-                <option key={place.id} value={place.id}>
-                  {place.title}
-                </option>
-              ))}
-            </select>
-          </div>
+          </button>
 
-          <button type="button" className="app-post-compose-row app-post-compose-row--button" aria-expanded={taggingOpen} onClick={() => setTaggingOpen((open) => !open)}>
+          <button type="button" className="app-post-compose-row app-post-compose-row--button" aria-expanded={taggingOpen} onClick={() => setTaggingOpen(true)}>
             <ActionIcon name="friends" size={20} strokeWidth={2} />
-            <span className="app-post-compose-row-label">{postFriendsLine(tagged)}</span>
+            <span className="app-post-compose-row-label">{tagged.length === 0 ? "Отметить друзей" : tagged.map((friend) => `@${friendHandle(friend)}`).join(", ")}</span>
             <span className="app-post-compose-row-chevron" aria-hidden="true">
               <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
             </span>
           </button>
           {taggingOpen && (
-            <div className="app-post-compose-tags">
-              {friends.map((friend) => {
-                const on = draft.taggedFriendIds.includes(friend.id);
-                return (
-                  <button key={friend.id} type="button" className={on ? "app-post-compose-tag app-post-compose-tag--on" : "app-post-compose-tag"} aria-pressed={on} onClick={() => onDraft({ ...draft, taggedFriendIds: on ? draft.taggedFriendIds.filter((id) => id !== friend.id) : [...draft.taggedFriendIds, friend.id] })}>
-                    {firstNameOf(friend.name)}
-                  </button>
-                );
-              })}
-            </div>
+            <FriendPicker
+              friends={friends}
+              multiple
+              title="Кого отметить"
+              hint="В посте они появятся как @ник"
+              confirmLabel="Отметить"
+              onConfirm={(ids) => {
+                onDraft({ ...draft, taggedFriendIds: ids });
+                setTaggingOpen(false);
+              }}
+              onClose={() => setTaggingOpen(false)}
+            />
+          )}
+          {pickingPin && (
+            <PinPicker
+              title="Место поста"
+              onConfirm={(label) => {
+                onDraft({ ...draft, pinLabel: label, placeId: null });
+                setPickingPin(false);
+              }}
+              onClose={() => setPickingPin(false)}
+            />
           )}
         </div>
 
@@ -256,7 +277,7 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
         <button type="button" className="app-post-compose-attach" aria-label="Привязать событие" disabled={boundEvent !== null} onClick={() => eventRef.current?.focus()}>
           <ActionIcon name="calendar" size={24} strokeWidth={2} />
         </button>
-        <button type="button" className="app-post-compose-attach" aria-label="Добавить место" onClick={() => placeRef.current?.focus()}>
+        <button type="button" className="app-post-compose-attach" aria-label="Добавить место" onClick={() => setPickingPin(true)}>
           <ActionIcon name="pin" size={24} strokeWidth={2} />
         </button>
         {/* «К тексту», а не «Текст поста»: так подпись кнопки не совпадает с подписью самого поля */}
@@ -281,7 +302,7 @@ export function PostCreatePage({ eventId }: { eventId: string | null }) {
   const [events, setEvents] = useState<Event[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [draft, setDraft] = useState<PostComposeDraft>({ text: "", photoUrls: [], eventId, placeId: null, taggedFriendIds: [], audience: POST_AUDIENCES[0].id, allowJoin: false });
+  const [draft, setDraft] = useState<PostComposeDraft>({ text: "", photoUrls: [], eventId, placeId: null, pinLabel: null, taggedFriendIds: [], audience: POST_AUDIENCES[0].id, allowJoin: false });
   const [state, setState] = useState<PostSubmitState>("idle");
   const [photoRejected, setPhotoRejected] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);

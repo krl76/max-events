@@ -12,6 +12,11 @@ function objectStyle(object: StoryCanvasObject): CSSProperties {
   return { left: `${object.x}%`, top: `${object.y}%`, transform: `translate(-50%, -50%) scale(${object.scale ?? 1})` };
 }
 
+function captionClass(object: StoryCanvasObject): string {
+  return `app-story-caption app-story-caption--${object.font ?? "plain"} app-story-caption--${object.color ?? "white"}`;
+}
+
+/** The published frame uses the same sticker, poll, seats and caption the composer drew. */
 export function StoryFrame({ story }: { story: Story }) {
   const objects = story.objects ?? [];
   const firstText = objects.find((object) => object.kind === "text");
@@ -22,25 +27,31 @@ export function StoryFrame({ story }: { story: Story }) {
         const caption = object.kind === "text" ? (object.text && object.text.length > 0 ? object.text : object === firstText ? story.text : "") : "";
         return (
           <div key={object.id ?? `${object.kind}-${index}`} className={`app-story-frame-object app-story-frame-object--${object.kind}`} style={objectStyle(object)}>
-            {object.kind === "text" && caption !== "" && <p className="app-story-frame-text">{caption}</p>}
+            {object.kind === "text" && caption !== "" && <p className={captionClass(object)}>{caption}</p>}
             {object.kind === "event" && story.sticker !== null && (
-              <div className="app-story-frame-sticker">
-                <span className="app-story-frame-sticker-title">{story.sticker.title}</span>
-                <span className="app-story-frame-sticker-sub">{story.sticker.subtitle}</span>
+              <div className="app-story-sticker">
+                <span className="app-story-sticker-dot" aria-hidden="true" />
+                <span className="app-story-sticker-text">
+                  <span className="app-story-sticker-title">{story.sticker.title}</span>
+                  <span className="app-story-sticker-subtitle">{story.sticker.subtitle}</span>
+                </span>
               </div>
             )}
             {object.kind === "seats" && story.sticker?.seatsLeft != null && (
-              <div className="app-story-frame-seats">
-                <span>осталось мест</span>
-                <strong>{story.sticker.seatsLeft}</strong>
+              <div className="app-story-seats">
+                <span className="app-story-seats-label">осталось мест</span>
+                <span className="app-story-seats-count">{story.sticker.seatsLeft}</span>
               </div>
             )}
             {object.kind === "poll" && story.poll !== null && (
-              <div className="app-story-frame-poll">
-                <p>{story.poll.question}</p>
-                <div>
+              <div className="app-story-poll">
+                <p className="app-story-poll-kind">Опрос</p>
+                <p className="app-story-poll-question">{story.poll.question}</p>
+                <div className="app-story-poll-options">
                   {story.poll.options.map((option) => (
-                    <span key={option}>{option}</span>
+                    <span key={option} className="app-story-poll-option">
+                      {option}
+                    </span>
                   ))}
                 </div>
               </div>

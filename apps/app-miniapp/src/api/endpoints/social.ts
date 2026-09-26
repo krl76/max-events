@@ -40,6 +40,7 @@ export interface CreateMicroEvent {
   locationText?: string;
   placeId?: string;
   participantsLimit: number;
+  inviteeIds?: string[];
 }
 
 /**

@@ -18,13 +18,14 @@ import { PlaceEntity } from "../places/place.entity";
 import { UserEntity } from "../users/user.entity";
 import { PlanExpenseEntity } from "./plan-expense.entity";
 import { PlanParticipantEntity } from "./plan-participant.entity";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { PlanEntity } from "./plan.entity";
 import { PlansController } from "./plans.controller";
 import { PlansScheduler } from "./plans.scheduler";
 import { PlansService } from "./plans.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, PlanExpenseEntity, EventEntity, PlaceEntity, UserEntity]), FriendsModule, MaxBotModule],
+  imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, PlanExpenseEntity, EventEntity, PlaceEntity, UserEntity, NotificationEntity]), FriendsModule, MaxBotModule],
   controllers: [PlansController],
   providers: [PlansService, PlansScheduler],
   exports: [PlansService],

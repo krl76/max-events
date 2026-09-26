@@ -235,5 +235,6 @@ export function toFriendDto(user: UserEntity): Friend {
     id: user.id,
     name: user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName,
     avatarUrl: user.avatarUrl,
+    ...(user.username ? { username: user.username } : {}),
   };
 }

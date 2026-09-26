@@ -30,11 +30,11 @@ import { z } from "zod";
 import { FriendSchema } from "./friends.js";
 import { IdSchema, TimestampSchema } from "./primitives.js";
 
-export const NOTIFICATION_TYPES = ["leave-now", "weather", "friend-left", "list-digest", "seat-freed", "event-soon", "gathering-invite", "gathering-response", "vote", "plan-message", "friend-activity", "organizer-booking", "moderation", "achievement"] as const;
+export const NOTIFICATION_TYPES = ["leave-now", "weather", "friend-left", "list-digest", "seat-freed", "event-soon", "gathering-invite", "gathering-response", "vote", "plan-message", "plan-invite", "micro-invite", "friend-activity", "organizer-booking", "moderation", "achievement"] as const;
 export const NotificationTypeSchema = z.enum(NOTIFICATION_TYPES);
 export type NotificationType = z.infer<typeof NotificationTypeSchema>;
 
-export const NOTIFICATION_TARGETS = ["event", "place", "plan", "map", "slot-booking", "slot-ticket", "bookings", "we-group", "vote", "gathering", "companions", "moderation", "organizer", "achievements"] as const;
+export const NOTIFICATION_TARGETS = ["event", "place", "plan", "map", "slot-booking", "slot-ticket", "bookings", "we-group", "vote", "gathering", "companions", "moderation", "organizer", "achievements", "micro"] as const;
 export const NotificationTargetSchema = z.enum(NOTIFICATION_TARGETS);
 export type NotificationTarget = z.infer<typeof NotificationTargetSchema>;
 

@@ -38,6 +38,8 @@ export const FriendSchema = z.object({
   id: IdSchema,
   name: z.string().min(1).max(200),
   avatarUrl: z.string().url().nullable().default(null),
+  /** MAX username without the @. Omitted when the person has none, so older payloads stay valid. */
+  username: z.string().min(1).max(64).optional(),
 });
 export type Friend = z.infer<typeof FriendSchema>;
 

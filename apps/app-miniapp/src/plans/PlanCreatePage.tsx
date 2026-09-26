@@ -22,7 +22,10 @@ import type { Event, Friend, PlanRecurringRule } from "@max-events/api-contracts
 import { moscowIsoWeekday } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
+import { FriendPicker } from "../ui/FriendPicker";
+import { PinPicker } from "../ui/PinPicker";
 import { AppButton, AppChip, AppState, AppTitle } from "../ui/primitives";
+import { WhenField } from "../ui/WhenField";
 
 /**
  * Russian needs both cases and the gender of the day: «каждую субботу» but «каждый четверг», and
@@ -74,9 +77,15 @@ export function planRepeatLabel(rule: PlanRecurringRule | null): string | null {
 }
 
 export function planDraftReady(draft: PlanDraft, events: Event[]): boolean {
-  // Not just "non-empty": where datetime-local degrades to a text field, «19.09 вечером» would reach
-  // toISOString and throw before the request was made, leaving the button stuck on «Создаём…».
-  return events.some((event) => event.title === draft.event.trim()) && draft.meetingPoint.trim() !== "" && draft.meetingAt !== "" && !Number.isNaN(new Date(draft.meetingAt).getTime());
+  return missingPlanFields(draft, events).length === 0;
+}
+
+export function missingPlanFields(draft: PlanDraft, events: Event[]): string[] {
+  const missing: string[] = [];
+  if (!events.some((event) => event.title === draft.event.trim())) missing.push("Выберите событие из списка");
+  if (draft.meetingPoint.trim() === "") missing.push("Укажите, где встречаемся");
+  if (draft.meetingAt === "" || Number.isNaN(new Date(draft.meetingAt).getTime())) missing.push("Укажите, когда встречаемся");
+  return missing;
 }
 
 interface PlanCreateViewProps {
@@ -92,6 +101,9 @@ interface PlanCreateViewProps {
 
 export function PlanCreateView({ draft, events, friends, submitting = false, failed = false, onDraft, onToggleFriend, onSubmit }: PlanCreateViewProps) {
   const rule = planRecurringRule(draft);
+  const missing = missingPlanFields(draft, events);
+  const [pickingFriends, setPickingFriends] = useState(false);
+  const [pickingPin, setPickingPin] = useState(false);
   return (
     <section className="app-gathering">
       <AppTitle asChild>
@@ -109,19 +121,41 @@ export function PlanCreateView({ draft, events, friends, submitting = false, fai
       <label className="app-gathering-time">
         Где встречаемся
         <input className="app-gathering-time-input" value={draft.meetingPoint} placeholder="Например, у метро" onChange={(change) => onDraft({ meetingPoint: change.target.value })} />
+        <button type="button" onClick={() => setPickingPin(true)}>
+          Точка на карте
+        </button>
       </label>
       <label className="app-gathering-time">
         Когда встречаемся
-        <input className="app-gathering-time-input" type="datetime-local" value={draft.meetingAt} onChange={(change) => onDraft({ meetingAt: change.target.value })} />
+        <WhenField label="Выберите дату и время" value={draft.meetingAt} onChange={(meetingAt) => onDraft({ meetingAt })} />
       </label>
-      {friends.length > 0 && (
-        <div className="app-gathering-friends" role="group" aria-label="Кого зовём">
-          {friends.map((friend) => (
-            <button key={friend.id} type="button" className="app-gathering-friend" aria-pressed={draft.participantIds.includes(friend.id)} onClick={() => onToggleFriend(friend.id)}>
-              <span className="app-gathering-friend-name">{friend.name}</span>
-            </button>
-          ))}
-        </div>
+      <button type="button" onClick={() => setPickingFriends(true)}>
+        Пригласить друзей{draft.participantIds.length > 0 ? ` · ${draft.participantIds.length}` : ""}
+      </button>
+      {pickingFriends && (
+        <FriendPicker
+          friends={friends}
+          multiple
+          title="Кого зовём"
+          confirmLabel="Пригласить"
+          onConfirm={(ids) => {
+            const next = new Set(ids);
+            for (const id of draft.participantIds) if (!next.has(id)) onToggleFriend(id);
+            for (const id of ids) if (!draft.participantIds.includes(id)) onToggleFriend(id);
+            setPickingFriends(false);
+          }}
+          onClose={() => setPickingFriends(false)}
+        />
+      )}
+      {pickingPin && (
+        <PinPicker
+          title="Где встречаемся"
+          onConfirm={(label) => {
+            onDraft({ meetingPoint: label });
+            setPickingPin(false);
+          }}
+          onClose={() => setPickingPin(false)}
+        />
       )}
       <div className="app-filters-chips" role="group" aria-label="Повторение">
         <AppChip pressed={draft.repeat === "none"} onClick={() => onDraft({ repeat: "none" })}>
@@ -156,7 +190,8 @@ export function PlanCreateView({ draft, events, friends, submitting = false, fai
           <p className="app-gathering-hint">Повторяется {planRepeatLabel(rule ?? null)}, в то же время</p>
         </>
       )}
-      <AppButton disabled={!planDraftReady(draft, events) || submitting} onClick={onSubmit} stretched>
+      {missing.length > 0 && <p className="app-post-compose-missing">{missing.join(" · ")}</p>}
+      <AppButton disabled={submitting} onClick={() => { if (missing.length === 0) onSubmit(); }} stretched>
         {submitting ? "Создаём…" : "Создать план"}
       </AppButton>
       {failed && <AppState error>Не удалось создать план.</AppState>}

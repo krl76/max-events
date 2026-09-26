@@ -142,6 +142,8 @@ const NOTIFICATION_GLYPHS: Record<NotificationType, ActionIconName> = {
   "gathering-response": "check",
   vote: "cards",
   "plan-message": "users",
+  "plan-invite": "users",
+  "micro-invite": "friends",
   "friend-activity": "users",
   "organizer-booking": "ticket",
   moderation: "shield",
@@ -165,6 +167,7 @@ export function notificationRoute(link: NotificationLink | null): Route | null {
   if (target === "organizer") return { name: "organizer" };
   if (target === "achievements") return { name: "achievements" };
   if (id === null || id === "") return null;
+  if (target === "micro") return { name: "micro-event", id };
   if (target === "slot-booking") return { name: "slot-booking", placeId: id };
   if (target === "companions") return { name: "companions", eventId: id };
   return { name: target, id };

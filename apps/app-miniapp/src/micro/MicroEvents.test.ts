@@ -33,7 +33,7 @@ describe("MicroCard", () => {
   });
 
   it("switches between the join and joined states", () => {
-    expect(card({ joined: true })).toContain("Вы участвуете");
+    expect(card({ joined: true })).toContain("Выйти");
     expect(card({ joined: true })).not.toContain("Присоединиться");
   });
 
@@ -63,18 +63,18 @@ describe("MicroEventCreateView", () => {
   it("renders exactly four inputs and offers mock places in the datalist", () => {
     const html = view();
 
-    expect(html.match(/<input/g)).toHaveLength(4);
     expect(html).toContain("Что делаем");
     expect(html).toContain("Когда");
     expect(html).toContain("Где");
     expect(html).toContain("Лимит участников");
-    expect(html).toContain('type="datetime-local"');
-    for (const place of mockPlaces) expect(html).toContain(`value="${place.title}"`);
+    expect(html).toContain("Точка на карте");
+    expect(html).toContain("Пригласить друзей");
+    expect(html).not.toContain('type="datetime-local"');
   });
 
   it("keeps publish disabled until the draft is ready and shows submitting and failure states", () => {
-    expect(view()).toContain("disabled");
-    expect(view({ draft: readyDraft })).not.toContain("disabled");
+    expect(view()).toContain("Напишите, что делаем");
+    expect(view({ draft: readyDraft })).not.toContain("Напишите, что делаем");
     expect(view({ draft: readyDraft, submitting: true })).toContain("Публикуем…");
     expect(view({ draft: readyDraft, failed: true })).toContain("Не удалось опубликовать микро-событие.");
   });

@@ -15,7 +15,10 @@ import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { MicroEventSchema, type CreateMicroEventWrite, type Friend, type MicroEvent } from "@max-events/api-contracts";
 import { toFriendDto } from "../friends/friends.service";
+import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlaceEntity } from "../places/place.entity";
+import { deliverInvite } from "../smart-alerts/deliver-invite";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { UsersService } from "../users/users.service";
 import { MicroEventEntity, MicroEventParticipantEntity } from "./micro-event.entity";
 
@@ -27,6 +30,8 @@ export class MicroEventsService {
     @InjectRepository(MicroEventParticipantEntity) private readonly participants: Repository<MicroEventParticipantEntity>,
     @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
     @Inject(UsersService) private readonly users: UsersService,
+    @Inject(MaxBotClient) private readonly bot?: MaxBotClient,
+    @InjectRepository(NotificationEntity) private readonly notices?: Repository<NotificationEntity>,
   ) {}
 
   async list(): Promise<MicroEvent[]> {
@@ -59,6 +64,18 @@ export class MicroEventsService {
       }),
     );
     await this.participants.save(this.participants.create({ microEventId: saved.id, userId }));
+    const invitees = (payload.inviteeIds ?? []).filter((id) => id !== userId);
+    if (invitees.length > 0 && this.bot) {
+      const people = await this.users.findByIds(invitees);
+      for (const person of people) {
+        const text = `Тебя зовут на микро-событие «${saved.title}». ${saved.locationText ?? "Точка на карте"}.`;
+        try {
+          await deliverInvite(this.bot, this.notices, { userId: person.id, maxUserId: person.maxUserId, actorUserId: userId, type: "micro-invite", title: `Микро-событие «${saved.title}»`, body: text, link: { target: "micro", id: saved.id } });
+        } catch {
+          // An invite that fails to leave the process still leaves the event itself published.
+        }
+      }
+    }
     return this.toDto(saved);
   }
 

@@ -58,6 +58,7 @@ export interface CreateFeedPost {
   photoUrls?: string[];
   /** Where the post was made from; null when the author removed the place row. */
   placeId?: string | null;
+  locationLabel?: string | null;
   /** «Отметить друзей · Анна, Дима» (#502). */
   taggedFriendIds?: string[];
   /** «Кто увидит» (#502). */
@@ -127,6 +128,9 @@ export interface StoryCanvasObject {
   scale?: number;
   /** Caption of this text object. The first caption may also live on the story's text field. */
   text?: string;
+  font?: "plain" | "serif" | "mono" | "hand";
+  color?: "white" | "ink" | "violet" | "cyan";
+  mentionIds?: string[];
 }
 
 /** Who a published post is shown to (макет, экран 06); no audience column behind it (#502). */

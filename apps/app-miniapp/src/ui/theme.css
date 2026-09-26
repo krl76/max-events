@@ -17971,9 +17971,17 @@ button.app-cal-peer-chip {
 }
 
 .app-fpick-name {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   font-size: var(--app-font-size-callout);
   font-weight: 700;
+}
+
+.app-fpick-handle {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
 }
 
 .app-fpick-mark {
@@ -18779,6 +18787,289 @@ button.app-cal-peer-chip {
    не должны уходить под объект, утащенный к нижнему краю. */
 .app-story-object--front {
   z-index: 1;
+}
+
+.app-story-object {
+  touch-action: none;
+}
+
+.app-story-frame-object > .app-story-sticker,
+.app-story-frame-object > .app-story-seats,
+.app-story-frame-object > .app-story-poll,
+.app-story-frame-object > .app-story-caption {
+  inset: auto;
+  left: auto;
+  max-width: 100%;
+  position: relative;
+  right: auto;
+  top: auto;
+  width: max-content;
+}
+
+.app-story-object--shake {
+  animation: app-story-shake 0.28s linear infinite;
+}
+
+@keyframes app-story-shake {
+  0%,
+  100% {
+    rotate: -2deg;
+  }
+  50% {
+    rotate: 2deg;
+  }
+}
+
+.app-story-object-delete {
+  align-items: center;
+  background: #e11d48;
+  border: none;
+  border-radius: 50%;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  left: -8px;
+  padding: 0;
+  position: absolute;
+  top: -8px;
+  width: 28px;
+  z-index: 2;
+}
+
+.app-story-delete-tray {
+  background: rgba(225, 29, 72, 0.92);
+  border-radius: 16px 16px 0 0;
+  bottom: 0;
+  color: var(--brand-white);
+  font-weight: 800;
+  left: 0;
+  margin: 0;
+  padding: 18px;
+  position: absolute;
+  right: 0;
+  text-align: center;
+  z-index: 5;
+}
+
+.app-story-style {
+  bottom: 168px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  left: 16px;
+  position: absolute;
+  right: 16px;
+  z-index: 4;
+}
+
+.app-story-style-chip,
+.app-story-mentions button {
+  background: rgba(13, 0, 26, 0.72);
+  border: none;
+  border-radius: 999px;
+  color: var(--brand-white);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+.app-story-style-swatch {
+  border: 2px solid var(--brand-white);
+  border-radius: 50%;
+  cursor: pointer;
+  height: 28px;
+  width: 28px;
+}
+
+.app-story-style-swatch--white {
+  background: var(--brand-white);
+}
+.app-story-style-swatch--ink {
+  background: #0d001a;
+}
+.app-story-style-swatch--violet {
+  background: #471aff;
+}
+.app-story-style-swatch--cyan {
+  background: #00bfff;
+}
+
+.app-story-caption--serif {
+  font-family: Georgia, "Times New Roman", serif;
+}
+.app-story-caption--mono {
+  font-family: ui-monospace, monospace;
+}
+.app-story-caption--hand {
+  font-family: "Segoe Print", "Segoe Script", cursive;
+}
+.app-story-caption--ink {
+  color: #0d001a;
+  text-shadow: none;
+}
+.app-story-caption--violet {
+  color: #d7c6ff;
+}
+.app-story-caption--cyan {
+  color: #9aefff;
+}
+
+.app-story-mentions {
+  background: rgba(13, 0, 26, 0.88);
+  border-radius: 16px;
+  bottom: 220px;
+  left: 16px;
+  list-style: none;
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  padding: 8px;
+  position: absolute;
+  right: 16px;
+  z-index: 6;
+}
+
+.app-post-compose {
+  height: 100dvh;
+  min-height: 100%;
+}
+
+.app-post-compose-head {
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+}
+
+.app-post-compose-foot {
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+.app-post-compose-text {
+  background: var(--app-surface);
+  border: 1px solid rgba(13, 0, 26, 0.16);
+  border-radius: 14px;
+  min-height: 88px;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.app-post-compose-missing {
+  color: #e11d48;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  margin: 8px 0 0;
+}
+
+.app-when-open,
+.app-pin-confirm,
+.app-when-done {
+  background: var(--app-surface);
+  border: 1px solid rgba(13, 0, 26, 0.12);
+  border-radius: 14px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 12px;
+  width: 100%;
+}
+
+.app-when-sheet,
+.app-pin-sheet {
+  background: var(--app-page, #fff);
+  border-radius: 20px 20px 0 0;
+  color: var(--app-text, #0d001a);
+  padding: 16px;
+}
+
+.app-when-month,
+.app-when-week,
+.app-when-grid,
+.app-when-clock {
+  display: grid;
+  gap: 4px;
+}
+
+.app-when-week,
+.app-when-grid {
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.app-when-day,
+.app-when-month button {
+  background: none;
+  border: none;
+  border-radius: 10px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 0;
+}
+
+.app-when-day--on {
+  background: #471aff;
+  color: white;
+}
+
+.app-when-day--out {
+  visibility: hidden;
+}
+
+.app-when-clock {
+  grid-template-columns: 1fr 1fr;
+  margin-top: 8px;
+}
+
+.app-when-clock select {
+  font: inherit;
+  margin-top: 4px;
+  width: 100%;
+}
+
+.app-pin {
+  inset: 0;
+  position: fixed;
+  z-index: 40;
+}
+
+.app-pin-scrim {
+  background: rgba(13, 0, 26, 0.45);
+  border: none;
+  inset: 0;
+  position: absolute;
+}
+
+.app-pin-sheet {
+  background: white;
+  border-radius: 20px 20px 0 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.app-pin-map {
+  height: 280px;
+}
+
+.app-pin-head {
+  align-items: center;
+  display: flex;
+  font-weight: 800;
+  justify-content: space-between;
+  padding: 12px 16px 0;
+}
+
+.app-pin-hint {
+  margin: 8px 16px;
+}
+
+.app-pin-confirm {
+  margin: 0 16px 16px;
 }
 
 .app-story-bar,

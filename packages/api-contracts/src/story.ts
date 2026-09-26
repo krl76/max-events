@@ -52,7 +52,16 @@ export const StoryObjectKindSchema = z.enum(STORY_OBJECT_KINDS);
 export type StoryObjectKind = z.infer<typeof StoryObjectKindSchema>;
 
 export const STORY_OBJECT_SCALES = [0.75, 0.9, 1, 1.15, 1.25] as const;
-export const StoryObjectScaleSchema = z.union([z.literal(0.75), z.literal(0.9), z.literal(1), z.literal(1.15), z.literal(1.25)]);
+/** Pinch writes a continuous size. The five steps stay for the old ladder. */
+export const StoryObjectScaleSchema = z.number().min(0.5).max(2.2);
+
+export const STORY_TEXT_FONTS = ["plain", "serif", "mono", "hand"] as const;
+export const StoryTextFontSchema = z.enum(STORY_TEXT_FONTS);
+export type StoryTextFont = z.infer<typeof StoryTextFontSchema>;
+
+export const STORY_TEXT_COLORS = ["white", "ink", "violet", "cyan"] as const;
+export const StoryTextColorSchema = z.enum(STORY_TEXT_COLORS);
+export type StoryTextColor = z.infer<typeof StoryTextColorSchema>;
 
 export const StoryCanvasObjectSchema = z.object({
   id: z.string().min(1).max(40).optional(),
@@ -61,6 +70,9 @@ export const StoryCanvasObjectSchema = z.object({
   y: z.number().min(0).max(100),
   scale: StoryObjectScaleSchema.optional(),
   text: z.string().max(500).optional(),
+  font: StoryTextFontSchema.optional(),
+  color: StoryTextColorSchema.optional(),
+  mentionIds: z.array(z.string().uuid()).max(12).optional(),
 });
 export type StoryCanvasObject = z.infer<typeof StoryCanvasObjectSchema>;
 

@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { EventDetails } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
-import { addStoryObject, clampStoryCrop, editStoryPoll, hasStoryObject, moveStoryObject, nextStoryAudience, panStoryCrop, removeStoryObject, resizeStoryObject, StoryCreateView, STORY_CANVASES, STORY_OBJECT_ORDER, STORY_OBJECT_SCALES, STORY_OBJECTS, storyAudienceLabel, storyCanvasImage, storyComposition, storyDraftPoll, storyObjectClass, storyObjectEnabled, storyObjectStyle, storyPhotoStyle, storyPoll, storySticker, storyTimeLabel, type StoryDraft } from "./StoryCreatePage";
+import { addStoryObject, clampStoryCrop, editStoryPoll, hasStoryObject, moveStoryObject, nextStoryAudience, panStoryCrop, removeStoryObject, resizeStoryObject, scaleFromPinch, StoryCreateView, STORY_CANVASES, STORY_OBJECT_ORDER, STORY_OBJECT_SCALES, STORY_OBJECTS, storyAudienceLabel, storyCanvasImage, storyComposition, storyDeleteZone, storyDraftPoll, storyObjectClass, storyObjectEnabled, storyObjectStyle, storyPhotoStyle, storyPoll, storySticker, storyTimeLabel, type StoryDraft } from "./StoryCreatePage";
 
 // Локальное время без смещения: «14:00» обязано читаться одинаково в любой зоне прогона.
 const STARTS_AT = "2026-09-19T14:00:00";
@@ -296,35 +296,29 @@ describe("StoryCreateView", () => {
     expect(html).toContain("top:12%");
   });
 
-  it("держит ручки на выбранном объекте, а не на всех разом: четыре набора закрывали холст", () => {
+  it("не рисует ручки переноса и размера: блок двигается сам, размер — щипком", () => {
     const html = view({ draft: filledDraft() });
-    const last = STORY_OBJECT_ORDER[STORY_OBJECT_ORDER.length - 1];
 
-    expect((html.match(/app-story-object-grip/g) ?? []).length).toBe(1);
-    expect(html).toContain(`Передвинуть: ${STORY_OBJECTS[last].label}`);
-    expect(html).toContain(`Убрать: ${STORY_OBJECTS[last].label}`);
-    // Ручек нет у остальных, но сами объекты на холсте — их видно и без выбора.
-    expect(html).not.toContain("Передвинуть: Текст");
+    expect(html).not.toContain("app-story-object-grip");
+    expect(html).not.toContain("Передвинуть:");
+    expect(html).not.toContain("Крупнее:");
+    expect(html).not.toContain("Готово:");
     expect(html).toContain("Во сколько удобнее?");
   });
 
-  it("выбирает последний положенный объект, пока автор не тронул другой", () => {
+  it("выбирает последний положенный объект и для текста показывает шрифт и упоминание", () => {
     const html = view({ draft: draftOf({ objects: addStoryObject(addStoryObject([], "poll"), "text") }) });
 
-    expect(html).toContain("Передвинуть: Текст");
-    expect(html).not.toContain("Передвинуть: Опрос");
     expect(html).toContain("app-story-object--text app-story-object--front");
+    expect(html).toContain("Обычный");
+    expect(html).toContain("Упомянуть");
   });
 
-  it("даёт выбранному объекту оба шага размера и гасит тот, за которым лесенки нет", () => {
-    const html = view({ draft: filledDraft() });
-    const biggest = view({ draft: filledDraft({ objects: resizeStoryObject(filledDraft().objects, "seats", 1).map((object) => (object.kind === "seats" ? { ...object, scale: STORY_OBJECT_SCALES[STORY_OBJECT_SCALES.length - 1] } : object)) }) });
-
-    expect(html).toContain("Крупнее: Места");
-    expect(html).toContain("Мельче: Места");
-    // Объект своего размера ещё может и вырасти, и уменьшиться, поэтому погашенных кнопок размера нет.
-    expect(html).not.toMatch(/app-story-object-size[^>]*disabled/);
-    expect(biggest).toMatch(/app-story-object-size[^>]*disabled/);
+  it("хранит щипок как непрерывный размер внутри контракта", () => {
+    expect(scaleFromPinch(1, 100, 150)).toBe(1.5);
+    expect(scaleFromPinch(1, 100, 400)).toBe(2.2);
+    expect(storyDeleteZone(90)).toBe(true);
+    expect(storyDeleteZone(40)).toBe(false);
   });
 
   it("правит вопрос и оба варианта опроса прямо на объекте, а не формой сбоку", () => {

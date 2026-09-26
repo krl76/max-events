@@ -21,6 +21,7 @@ import { apiClient } from "../api/client";
 import { useViewerOrigin } from "../geo/viewer-origin";
 import { pluralRu } from "../catalog/format";
 import { CalendarPage } from "../calendar/CalendarPage";
+import { MyMicroEventsSection } from "../micro/MicroEvents";
 import { ListsPage } from "../lists/ListsPage";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
@@ -162,6 +163,7 @@ export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
             ]}
           />
           <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} onCreate={() => navigate({ name: "plan-new" })} />
+          <MyMicroEventsSection />
         </>
       )}
       {/* Одно и то же место в дереве на оба раздела календаря: переключение брони ↔ месяц не размонтирует

@@ -27,7 +27,8 @@ describe("CreateStoryWriteSchema objects", () => {
       objects: [{ kind: "text", x: 50, y: 20, scale: 1.15 }],
     });
     expect(parsed.objects?.[0]?.kind).toBe("text");
-    expect(CreateStoryWriteSchema.safeParse({ imageUrl: "x", objects: [{ kind: "text", x: 50, y: 20, scale: 2 }] }).success).toBe(false);
+    expect(CreateStoryWriteSchema.safeParse({ imageUrl: "x", objects: [{ kind: "text", x: 50, y: 20, scale: 1.5 }] }).success).toBe(true);
+    expect(CreateStoryWriteSchema.safeParse({ imageUrl: "x", objects: [{ kind: "text", x: 50, y: 20, scale: 3 }] }).success).toBe(false);
     expect(CreateStoryWriteSchema.safeParse({ imageUrl: "x", objects: [{ kind: "logo", x: 0, y: 0 }] }).success).toBe(false);
   });
 });

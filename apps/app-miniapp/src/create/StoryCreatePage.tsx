@@ -42,10 +42,11 @@
 // END_MODULE_MAP
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import type { Event } from "@max-events/api-contracts";
+import { STORY_TEXT_COLORS, STORY_TEXT_FONTS, type Event, type Friend } from "@max-events/api-contracts";
 import { apiClient, STORY_AUDIENCES, type EventDetails, type StoryAudience, type StoryCanvasObject, type StoryComposition, type StoryObjectKind, type StoryPlaceSticker, type StoryPoll } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { useRoute } from "../routing/router";
+import { friendHandle } from "../ui/friend-handle";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 
 export type StoryPublishState = "idle" | "publishing" | "error";
@@ -203,11 +204,38 @@ export function moveStoryObject(objects: readonly StoryCanvasObject[], key: stri
   return objects.map((object) => (sameStoryObject(object, key) ? { ...object, x: inside(x), y: inside(y) } : object));
 }
 
+/** Continuous pinch size, clamped to what the story contract accepts. */
+export function nearestStoryScale(value: number): number {
+  const clamped = Math.min(2.2, Math.max(0.5, value));
+  return Math.round(clamped * 100) / 100;
+}
+
+export function scaleFromPinch(startScale: number, startDistance: number, distance: number): number {
+  if (startDistance < 8) return startScale;
+  return nearestStoryScale(startScale * (distance / startDistance));
+}
+
+/** The bottom band of the frame is the delete tray. */
+export function storyDeleteZone(yPercent: number): boolean {
+  return yPercent >= 86;
+}
+
+export function storyCaptionClass(object: StoryCanvasObject): string {
+  return `app-story-caption app-story-caption--${object.font ?? "plain"} app-story-caption--${object.color ?? "white"}`;
+}
+
+/** The @query under the caret, or null when the author is not mentioning anyone. */
+export function storyMentionQuery(text: string, caret: number): string | null {
+  const match = text.slice(0, caret).match(/@([\p{L}\p{N}_]*)$/u);
+  return match ? match[1]! : null;
+}
+
 /** Шаг по лесенке размеров. На краю лесенки объект остаётся как был: кнопка там и без того погашена. */
 export function resizeStoryObject(objects: readonly StoryCanvasObject[], key: string, step: 1 | -1): StoryCanvasObject[] {
   return objects.map((object) => {
     if (!sameStoryObject(object, key)) return object;
-    const at = STORY_OBJECT_SCALES.indexOf(object.scale ?? 1);
+    const scales: readonly number[] = STORY_OBJECT_SCALES;
+    const at = scales.indexOf(object.scale ?? 1);
     const next = STORY_OBJECT_SCALES[Math.min(STORY_OBJECT_SCALES.length - 1, Math.max(0, (at === -1 ? STORY_OBJECT_SCALES.indexOf(1) : at) + step))];
     return { ...object, scale: next };
   });
@@ -345,6 +373,7 @@ interface StoryCreateViewProps {
   sticker: StoryPlaceSticker | null;
   poll: StoryPoll | null;
   events: Event[];
+  friends?: Friend[];
   state: StoryPublishState;
   onDraft: (next: StoryDraft) => void;
   onPickPhoto: () => void;
@@ -352,16 +381,16 @@ interface StoryCreateViewProps {
   onClose: () => void;
 }
 
-export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, onPickPhoto, onPublish, onClose }: StoryCreateViewProps) {
+export function StoryCreateView({ draft, sticker, poll, events, friends = [], state, onDraft, onPickPhoto, onPublish, onClose }: StoryCreateViewProps) {
   const captionRef = useRef<HTMLTextAreaElement | null>(null);
   const frameRef = useRef<HTMLElement | null>(null);
   const cropDrag = useRef<{ x: number; y: number; cropX: number; cropY: number } | null>(null);
-  // Кого трогали последним — тот и впереди: порядок публикации от этого не зависит, это только холст.
-  // Пока не трогали никого, выбран последний положенный: холст без выбранного объекта не показывал
-  // бы ручек вовсе, а первым делом после добавления их и ищут.
   const [touched, setTouched] = useState<string | null>(null);
   const [toolsOpen, setToolsOpen] = useState(true);
   const [pickingEvent, setPickingEvent] = useState(false);
+  const [shaking, setShaking] = useState<string | null>(null);
+  const [deleteTray, setDeleteTray] = useState(false);
+  const [mentionFor, setMentionFor] = useState<string | null>(null);
   const lastKey = draft.objects.length === 0 ? null : storyObjectKey(draft.objects[draft.objects.length - 1]!);
   const front = toolsOpen ? (touched ?? lastKey) : null;
   const onPhotoCanvas = draft.canvas === "photo" && draft.photoUrl !== null;
@@ -386,18 +415,64 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
 
   const toggleObject = (kind: StoryObjectKind) => (hasStoryObject(draft.objects, kind) ? dropObject(kind) : putObject(kind));
 
-  /** Перетаскивание считается от точки захвата, а не от центра: иначе объект прыгал бы под палец первым же движением. */
+  /** Drag the block itself. A long press makes it shake so the red cross can delete it; a drag into the bottom tray deletes it too. Two fingers pinch the size. */
   const startDrag = (object: StoryCanvasObject, event: ReactPointerEvent<HTMLElement>) => {
+    const target = event.target;
+    if (target instanceof Element && target.closest("input, textarea, button, select, a")) return;
     const key = storyObjectKey(object);
     const frame = frameRef.current;
     if (frame === null) return;
+    event.preventDefault();
     const box = frame.getBoundingClientRect();
     const fromX = event.clientX;
     const fromY = event.clientY;
-    const move = (moved: PointerEvent) => onDraft({ ...draft, objects: moveStoryObject(draft.objects, key, object.x + ((moved.clientX - fromX) / box.width) * 100, object.y + ((moved.clientY - fromY) / box.height) * 100) });
-    const stop = () => {
+    let moved = false;
+    let hold: ReturnType<typeof setTimeout> | undefined = setTimeout(() => {
+      if (!moved) setShaking(key);
+    }, 450);
+    const pointers = new Map<number, { x: number; y: number }>([[event.pointerId, { x: event.clientX, y: event.clientY }]]);
+    let pinching = false;
+    let pinchDistance = 0;
+    let pinchScale = object.scale ?? 1;
+    const distance = () => {
+      const [first, second] = [...pointers.values()];
+      if (!first || !second) return 0;
+      return Math.hypot(first.x - second.x, first.y - second.y);
+    };
+    const move = (movedEvent: PointerEvent) => {
+      pointers.set(movedEvent.pointerId, { x: movedEvent.clientX, y: movedEvent.clientY });
+      if (pointers.size >= 2) {
+        const next = distance();
+        if (!pinching) {
+          pinching = true;
+          pinchDistance = next;
+          pinchScale = object.scale ?? 1;
+          if (hold) clearTimeout(hold);
+          hold = undefined;
+        } else if (pinchDistance > 0) {
+          onDraft({ ...draft, objects: draft.objects.map((item) => (storyObjectKey(item) === key ? { ...item, scale: scaleFromPinch(pinchScale, pinchDistance, next) } : item)) });
+        }
+        return;
+      }
+      if (Math.hypot(movedEvent.clientX - fromX, movedEvent.clientY - fromY) > 8) {
+        moved = true;
+        if (hold) clearTimeout(hold);
+        hold = undefined;
+        setShaking(null);
+      }
+      const y = object.y + ((movedEvent.clientY - fromY) / box.height) * 100;
+      setDeleteTray(storyDeleteZone(y));
+      onDraft({ ...draft, objects: moveStoryObject(draft.objects, key, object.x + ((movedEvent.clientX - fromX) / box.width) * 100, y) });
+    };
+    const stop = (ended: PointerEvent) => {
+      pointers.delete(ended.pointerId);
+      if (pointers.size > 0) return;
+      if (hold) clearTimeout(hold);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", stop);
+      const y = object.y + ((ended.clientY - fromY) / box.height) * 100;
+      if (moved && storyDeleteZone(y)) dropObject(key);
+      setDeleteTray(false);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", stop);
@@ -424,12 +499,14 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
       return (
         <textarea
           ref={object.id ? undefined : captionRef}
-          className="app-story-caption"
+          className={storyCaptionClass(object)}
           aria-label="Подпись истории"
           rows={2}
           placeholder="Ваш текст"
           value={value}
           onChange={(change) => {
+            const query = storyMentionQuery(change.target.value, change.target.selectionStart ?? change.target.value.length);
+            setMentionFor(query === null ? null : storyObjectKey(object));
             if (object.id) onDraft({ ...draft, objects: draft.objects.map((item) => (item.id === object.id ? { ...item, text: change.target.value } : item)) });
             else onDraft({ ...draft, text: change.target.value });
           }}
@@ -553,34 +630,55 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
       {drawn.map(({ object, body }) => {
         const label = STORY_OBJECTS[object.kind].label;
         const key = storyObjectKey(object);
-        const scale = object.scale ?? 1;
         const selected = front === key;
         return (
           // Ручки живут на выбранном объекте: четыре набора разом закрывали холст сильнее самих объектов.
-          <div key={key} className={`${storyObjectClass(object.kind, null)}${selected ? " app-story-object--front" : ""}`} style={storyObjectStyle(object)} onPointerDown={() => { setTouched(key); setToolsOpen(true); }}>
-            {selected && (
-              <span className="app-story-object-tools">
-                <button type="button" className="app-story-object-grip" aria-label={`Передвинуть: ${label}`} onPointerDown={(event) => startDrag(object, event)}>
-                  <ActionIcon name="dots" size={14} filled />
-                </button>
-                <button type="button" className="app-story-object-size" aria-label={`Мельче: ${label}`} disabled={scale === STORY_OBJECT_SCALES[0]} onClick={() => onDraft({ ...draft, objects: resizeStoryObject(draft.objects, key, -1) })}>
-                  <ActionIcon name="minus" size={12} strokeWidth={2.6} />
-                </button>
-                <button type="button" className="app-story-object-size" aria-label={`Крупнее: ${label}`} disabled={scale === STORY_OBJECT_SCALES[STORY_OBJECT_SCALES.length - 1]} onClick={() => onDraft({ ...draft, objects: resizeStoryObject(draft.objects, key, 1) })}>
-                  <ActionIcon name="plus" size={12} strokeWidth={2.6} />
-                </button>
-                <button type="button" className="app-story-object-done" aria-label={`Готово: ${label}`} onClick={() => setToolsOpen(false)}>
-                  <ActionIcon name="check" size={12} strokeWidth={2.6} />
-                </button>
-                <button type="button" className="app-story-object-drop" aria-label={`Убрать: ${label}`} onClick={() => dropObject(key)}>
-                  <ActionIcon name="close" size={12} strokeWidth={2.6} />
-                </button>
-              </span>
+          <div key={key} className={`${storyObjectClass(object.kind, null)}${selected ? " app-story-object--front" : ""}${shaking === key ? " app-story-object--shake" : ""}`} style={storyObjectStyle(object)} onPointerDown={(event) => { setTouched(key); setToolsOpen(true); startDrag(object, event); }}>
+            {shaking === key && (
+              <button type="button" className="app-story-object-delete" aria-label={`Удалить: ${label}`} onClick={() => dropObject(key)}>
+                <ActionIcon name="close" size={12} strokeWidth={2.6} />
+              </button>
             )}
             {body}
           </div>
         );
       })}
+      {deleteTray && <p className="app-story-delete-tray">Отпустите, чтобы удалить</p>}
+      {front !== null && draft.objects.find((object) => storyObjectKey(object) === front)?.kind === "text" && (
+        <div className="app-story-style">
+          {STORY_TEXT_FONTS.map((font) => (
+            <button key={font} type="button" className="app-story-style-chip" onClick={() => onDraft({ ...draft, objects: draft.objects.map((item) => (storyObjectKey(item) === front ? { ...item, font } : item)) })}>
+              {font === "plain" ? "Обычный" : font === "serif" ? "С засечками" : font === "mono" ? "Моно" : "Рукописный"}
+            </button>
+          ))}
+          {STORY_TEXT_COLORS.map((color) => (
+            <button key={color} type="button" className={`app-story-style-swatch app-story-style-swatch--${color}`} aria-label={`Цвет ${color}`} onClick={() => onDraft({ ...draft, objects: draft.objects.map((item) => (storyObjectKey(item) === front ? { ...item, color } : item)) })} />
+          ))}
+          <button type="button" className="app-story-style-chip" onClick={() => setMentionFor((current) => (current === front ? null : front))}>
+            Упомянуть
+          </button>
+        </div>
+      )}
+      {mentionFor !== null && (
+        <ul className="app-story-mentions">
+          {friends.map((friend) => (
+            <li key={friend.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  const handle = `@${friendHandle(friend)} `;
+                  const target = draft.objects.find((object) => storyObjectKey(object) === mentionFor);
+                  if (target?.id) onDraft({ ...draft, objects: draft.objects.map((item) => (item.id === target.id ? { ...item, text: `${item.text ?? ""}${handle}`, mentionIds: [...(item.mentionIds ?? []), friend.id] } : item)) });
+                  else onDraft({ ...draft, text: `${draft.text}${handle}`, objects: draft.objects.map((item) => (storyObjectKey(item) === mentionFor ? { ...item, mentionIds: [...(item.mentionIds ?? []), friend.id] } : item)) });
+                  setMentionFor(null);
+                }}
+              >
+                @{friendHandle(friend)}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {pickingEvent && (
         <div className="app-story-event-sheet" role="dialog" aria-label="Событие истории">
           <div className="app-story-event-sheet-card">
@@ -647,6 +745,7 @@ export function StoryCreatePage() {
   const { navigate, back } = useRoute();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
   const [details, setDetails] = useState<EventDetails | null>(null);
   // Холст пуст: объекты появляются только по действию автора, поэтому objects начинается пустым, а опроса нет вовсе.
   const [draft, setDraft] = useState<StoryDraft>({ canvas: "gradient-1", photoUrl: null, text: "", eventId: null, poll: null, audience: "close-friends", objects: [], rotate: 0, cropX: 0, cropY: 0, cropping: false });
@@ -654,6 +753,12 @@ export function StoryCreatePage() {
 
   useEffect(() => {
     let alive = true;
+    apiClient.listFriends().then(
+      (list) => {
+        if (alive) setFriends(list);
+      },
+      () => {},
+    );
     apiClient.listEvents().then(
       (list) => {
         if (!alive) return;
@@ -733,7 +838,7 @@ export function StoryCreatePage() {
           reader.readAsDataURL(file);
         }}
       />
-      <StoryCreateView draft={draft} sticker={sticker} poll={poll} events={events} state={state} onDraft={setDraft} onPickPhoto={() => fileRef.current?.click()} onPublish={publish} onClose={back} />
+      <StoryCreateView draft={draft} sticker={sticker} poll={poll} events={events} friends={friends} state={state} onDraft={setDraft} onPickPhoto={() => fileRef.current?.click()} onPublish={publish} onClose={back} />
     </>
   );
 }
