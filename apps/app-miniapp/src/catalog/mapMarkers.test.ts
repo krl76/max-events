@@ -24,6 +24,30 @@ describe("buildMapMarkers", () => {
     expect(markers.every((marker) => marker.eventId === null)).toBe(true);
   });
 
+  it("keeps event pins when the places layer is empty, taking coordinates from the catalog", () => {
+    const markers = buildMapMarkers([placedEvent, freeEvent], [], [], { placeCatalog: mockPlaces });
+
+    expect(markers).toHaveLength(2);
+    expect(markers.map((marker) => marker.eventId)).toEqual([placedEvent.id, freeEvent.id]);
+    expect(markers.every((marker) => marker.placeId === null)).toBe(true);
+    expect(markers[0]?.lat).toBe(mockPlaces[0].latitude);
+  });
+
+  it("does not invent event pins from the catalog when the events layer is empty", () => {
+    const markers = buildMapMarkers([], mockPlaces, [], { placeCatalog: mockPlaces });
+
+    expect(markers.every((marker) => marker.eventId === null)).toBe(true);
+    expect(markers).toHaveLength(mockPlaces.length);
+  });
+
+  it("adds event pins on top of place pins so both layers together have more markers than places alone", () => {
+    const placesOnly = buildMapMarkers([], mockPlaces);
+    const both = buildMapMarkers([placedEvent], mockPlaces);
+
+    expect(both.length).toBe(placesOnly.length + 1);
+    expect(both.filter((marker) => marker.eventId === placedEvent.id)).toHaveLength(1);
+  });
+
   it("marks every place at its own coordinates", () => {
     const markers = buildMapMarkers([], mockPlaces);
     const placeMarkers = markers.filter((marker) => marker.eventId === null);
@@ -77,6 +101,13 @@ describe("the «друзья были здесь» layer", () => {
 
   it("leaves the map exactly as it was when the layer is off", () => {
     expect(buildMapMarkers(mockEvents, mockPlaces)).toEqual(buildMapMarkers(mockEvents, mockPlaces, []));
+  });
+
+  it("still draws friend pins when the places layer list is empty", () => {
+    const markers = buildMapMarkers([], [], [visit(0, 1)], { placeCatalog: mockPlaces });
+
+    expect(markers).toHaveLength(1);
+    expect(markers[0]).toMatchObject({ friends: true, placeId: mockPlaces[0].id, lat: mockPlaces[0].latitude });
   });
 });
 

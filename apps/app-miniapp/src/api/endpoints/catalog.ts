@@ -575,9 +575,13 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/places/${placeId}/page?userId=${encodeURIComponent(userId)}`, PlacePageSchema);
     }
 
-    /** City weather behind the map chip (макет, экран 16); GET /weather?city=. */
-    getMapWeather(city: string): Promise<MapWeather> {
-      return this.request(`/weather?city=${encodeURIComponent(city)}`, MapWeatherSchema);
+    /** City weather behind the map chip (макет, экран 16); GET /weather?city= or lat/lng of the viewer. */
+    getMapWeather(city: string, origin?: { latitude: number; longitude: number }): Promise<MapWeather> {
+      const query =
+        origin === undefined
+          ? `city=${encodeURIComponent(city)}`
+          : `lat=${encodeURIComponent(String(origin.latitude))}&lng=${encodeURIComponent(String(origin.longitude))}`;
+      return this.request(`/weather?${query}`, MapWeatherSchema);
     }
 
     /**

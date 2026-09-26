@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockEvents, mockFriends, mockPlaces } from "../api/mock";
 import { basemapById, STANDARD_BASEMAP } from "./basemaps";
 import { buildMapMarkers, type MapMarker } from "./mapMarkers";
-import { escapeHtml, formatMapChange, formatMapTemperature, formatTravelOption, initEventMap, mapFriendsLine, mapNotice, mapRainHint, type MapCallbacks, type MapNoticeInput, type MapView } from "./MapScreen";
+import { escapeHtml, formatMapChange, formatMapTemperature, formatTravelOption, initEventMap, mapFriendsLine, mapNotice, mapRainHint, mapWeatherChipText, type MapCallbacks, type MapNoticeInput, type MapView } from "./MapScreen";
 
 const leaflet = vi.hoisted(() => ({
   map: vi.fn(),
@@ -40,6 +40,7 @@ const container = {} as HTMLElement;
 const STREET_ZOOM = 18;
 
 let zoom = STREET_ZOOM;
+let clusterSpanMeters = 400;
 let tileHandlers: Record<string, () => void> = {};
 
 function fakeLayerGroup() {
@@ -49,7 +50,17 @@ function fakeLayerGroup() {
 
 /** Ровно то, что экран спрашивает у leaflet, — остальное карта в тестах не трогает. */
 function fakeMap() {
-  const api = { remove: vi.fn(), on: vi.fn(), off: vi.fn(), getZoom: vi.fn(() => zoom), setZoom: vi.fn(), flyTo: vi.fn(), flyToBounds: vi.fn() };
+  const api = {
+    remove: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+    getZoom: vi.fn(() => zoom),
+    getMaxZoom: vi.fn(() => 20),
+    setZoom: vi.fn(),
+    flyTo: vi.fn(),
+    flyToBounds: vi.fn(),
+    distance: vi.fn(() => clusterSpanMeters),
+  };
   return api;
 }
 
@@ -60,6 +71,7 @@ const callbacks = (extra: Partial<MapCallbacks> = {}): MapCallbacks => ({ onOpen
 
 beforeEach(() => {
   zoom = STREET_ZOOM;
+  clusterSpanMeters = 400;
   tileHandlers = {};
   vi.stubGlobal("document", { createElement: () => fakeNode() });
   for (const spy of Object.values(leaflet)) spy.mockReset();
@@ -76,11 +88,22 @@ beforeEach(() => {
   });
   leaflet.layerGroup.mockImplementation(fakeLayerGroup);
   leaflet.marker.mockImplementation(() => {
-    const api = { addTo: vi.fn(() => api), bindPopup: vi.fn(() => api), on: vi.fn(() => api) };
+    const api: { addTo: ReturnType<typeof vi.fn>; bindPopup: ReturnType<typeof vi.fn>; on: ReturnType<typeof vi.fn>; click: (() => void) | null } = {
+      addTo: vi.fn(() => api),
+      bindPopup: vi.fn(() => api),
+      on: vi.fn((type: string, handler: () => void) => {
+        if (type === "click") api.click = handler;
+        return api;
+      }),
+      click: null,
+    };
     return api;
   });
   leaflet.polyline.mockImplementation(() => ({ addTo: vi.fn() }));
-  leaflet.latLngBounds.mockImplementation((points: unknown) => points);
+  leaflet.latLngBounds.mockImplementation((points: [number, number][]) => ({
+    getNorthEast: () => points[0],
+    getSouthWest: () => points[points.length - 1] ?? points[0],
+  }));
   leaflet.divIcon.mockImplementation((options: unknown) => options);
 });
 
@@ -126,7 +149,7 @@ describe("initEventMap", () => {
 
   it("creates one marker per mapped event/place at the mapped coordinates", async () => {
     const unique: MapMarker[] = [
-      { key: "a", eventId: "e1", placeId: null, promoted: false, friends: false, glyph: "event", title: "A", subtitle: "", lat: 55.75, lng: 37.61 },
+      { key: "a", eventId: "e1", placeId: null, promoted: false, friends: false, glyph: "afisha", title: "A", subtitle: "", lat: 55.75, lng: 37.61 },
       { key: "b", eventId: null, placeId: "p1", promoted: false, friends: false, glyph: "place", title: "B", subtitle: "", lat: 55.76, lng: 37.64 },
     ];
     await initEventMap(container, view(unique), callbacks());
@@ -214,6 +237,51 @@ describe("initEventMap", () => {
     expect(leaflet.marker).toHaveBeenCalledTimes(1);
     expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin app-map-pin--cluster" }));
     expect((leaflet.divIcon.mock.calls[0][0] as { html: string }).html).toContain(">3<");
+  });
+
+  it("zooms into a spread cluster so the numbered bubble opens onto its events and places", async () => {
+    zoom = 11;
+    const crowd: MapMarker[] = [0, 1, 2].map((index) => ({ key: `place-${index}`, eventId: null, placeId: `p${index}`, promoted: false, friends: false, glyph: "place", title: `Место ${index}`, subtitle: "", lat: 55.75 + index * 0.0005, lng: 37.61 + index * 0.0005 }));
+    await initEventMap(container, view(crowd), callbacks());
+    const map = leaflet.map.mock.results[0]?.value as { flyTo: ReturnType<typeof vi.fn>; flyToBounds: ReturnType<typeof vi.fn> };
+    const bubble = leaflet.marker.mock.results[0]?.value as { click: (() => void) | null };
+
+    bubble.click?.();
+
+    expect(map.flyToBounds.mock.calls.length).toBe(1);
+    expect(map.flyTo.mock.calls.length).toBe(0);
+    expect((leaflet.divIcon.mock.calls[0][0] as { html: string }).html).toContain(">3<");
+  });
+
+  it("zooms into a tight venue cluster instead of spreading pins at city scale", async () => {
+    zoom = 11;
+    clusterSpanMeters = 10;
+    const stacked: MapMarker[] = [0, 1].map((index) => ({ key: `event-${index}`, eventId: `e${index}`, placeId: null, promoted: false, friends: false, glyph: "afisha", title: `Событие ${index}`, subtitle: "", lat: 55.75, lng: 37.61 }));
+    await initEventMap(container, view(stacked), callbacks());
+    const map = leaflet.map.mock.results[0]?.value as { flyTo: ReturnType<typeof vi.fn>; flyToBounds: ReturnType<typeof vi.fn> };
+    const bubble = leaflet.marker.mock.results[0]?.value as { click: (() => void) | null };
+
+    bubble.click?.();
+
+    expect(map.flyTo.mock.calls[0]?.[0]).toEqual([55.75, 37.61]);
+    expect(Number(map.flyTo.mock.calls[0]?.[1])).toBeGreaterThanOrEqual(16);
+    expect(map.flyToBounds.mock.calls.length).toBe(0);
+  });
+
+  it("spreads stacked pins only after the map is already at street zoom", async () => {
+    zoom = STREET_ZOOM;
+    clusterSpanMeters = 10;
+    const stacked: MapMarker[] = [0, 1].map((index) => ({ key: `event-${index}`, eventId: `e${index}`, placeId: null, promoted: false, friends: false, glyph: "afisha", title: `Событие ${index}`, subtitle: "", lat: 55.75, lng: 37.61 }));
+    await initEventMap(container, view(stacked), callbacks());
+    const map = leaflet.map.mock.results[0]?.value as { flyTo: ReturnType<typeof vi.fn>; flyToBounds: ReturnType<typeof vi.fn> };
+    const bubble = leaflet.marker.mock.results[0]?.value as { click: (() => void) | null };
+    const before = leaflet.marker.mock.calls.length;
+
+    bubble.click?.();
+
+    expect(leaflet.marker.mock.calls.length).toBe(before + stacked.length);
+    expect(map.flyTo.mock.calls.length).toBe(0);
+    expect(map.flyToBounds.mock.calls.length).toBe(0);
   });
 
   it("marks where the viewer stands and draws the walking geometry", async () => {
@@ -311,6 +379,8 @@ describe("map chrome formatting", () => {
     expect(formatMapTemperature({ ...WEATHER, temperatureC: -4.4 })).toBe("-4°");
     expect(formatMapChange(WEATHER)).toMatch(/^дождь в \d\d:\d\d$/);
     expect(formatMapChange({ ...WEATHER, changesAt: null, changesTo: null })).toBeNull();
+    expect(mapWeatherChipText(WEATHER)).toBe("+19°");
+    expect(mapWeatherChipText(null)).toBe("—");
   });
 
   it("advises the metro only when there is rain to dodge and a metro to dodge it with", () => {

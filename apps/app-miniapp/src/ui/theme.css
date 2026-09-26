@@ -4865,6 +4865,7 @@ html[data-theme="dark"] body {
   color: var(--app-text);
   cursor: pointer;
   display: flex;
+  flex-shrink: 0;
   font: inherit;
   font-size: var(--app-font-size-callout);
   font-weight: 800;
@@ -4881,7 +4882,10 @@ html[data-theme="dark"] body {
 
 .app-map16-top-right {
   display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
   gap: var(--app-space-s);
+  justify-content: flex-end;
 }
 
 .app-map16-weather {
@@ -4890,9 +4894,10 @@ html[data-theme="dark"] body {
   border: none;
   border-radius: var(--app-radius-pill);
   box-shadow: var(--app-shadow-lift);
-  color: inherit;
+  color: var(--app-text);
   cursor: pointer;
   display: flex;
+  flex-shrink: 0;
   font: inherit;
   gap: 6px;
   height: 40px;
@@ -4908,6 +4913,7 @@ html[data-theme="dark"] body {
   color: var(--app-text);
   cursor: pointer;
   display: flex;
+  flex-shrink: 0;
   font: inherit;
   font-size: var(--app-font-size-caption);
   font-weight: 800;
@@ -18366,6 +18372,7 @@ button.app-cal-peer-chip {
  * учитывал (1001), экран 16 — нет. Поднято разом, чтобы правка не расползлась по правилам. */
 .app-map16-top,
 .app-map16-top-right,
+.app-map16-weather,
 .app-map16-rows,
 .app-map16-layers,
 .app-map16-zoom,

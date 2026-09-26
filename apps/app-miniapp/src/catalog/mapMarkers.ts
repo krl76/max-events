@@ -18,7 +18,7 @@
 // - clusterCellDegrees - grid cell side in degrees for a zoom level
 // - clusterMapMarkers - markers + zoom -> the points to draw, singles kept as singles
 // - friendsWereHereSubtitle - «Были: Аня, Пётр» plus how many more, for the friends-layer popup
-// - buildMapMarkers - events (via place coordinates) + places -> marker list, with the optional friends layer
+// - buildMapMarkers - events (via place coordinates) + places -> marker list, with the optional friends layer; placeCatalog supplies coordinates when the places layer is off
 // END_MODULE_MAP
 
 import type { Event, FriendPlaceVisit, Place } from "@max-events/api-contracts";
@@ -149,8 +149,9 @@ export function friendsWereHereSubtitle(visit: FriendPlaceVisit): string {
   return names.length > 2 ? `Были: ${shown} и ещё ${names.length - 2}` : `Были: ${shown}`;
 }
 
-export function buildMapMarkers(events: Event[], places: Place[], friendVisits: FriendPlaceVisit[] = []): MapMarker[] {
-  const placeById = new Map(places.map((place) => [place.id, place]));
+export function buildMapMarkers(events: Event[], places: Place[], friendVisits: FriendPlaceVisit[] = [], options: { placeCatalog?: Place[] } = {}): MapMarker[] {
+  const catalog = options.placeCatalog ?? places;
+  const placeById = new Map(catalog.map((place) => [place.id, place]));
   const markers: MapMarker[] = [];
   for (const event of events) {
     const place = event.placeId === null ? undefined : placeById.get(event.placeId);
@@ -170,8 +171,10 @@ export function buildMapMarkers(events: Event[], places: Place[], friendVisits: 
     });
   }
   const visitByPlace = new Map(friendVisits.map((visit) => [visit.place.id, visit]));
+  const emittedPlaces = new Set<string>();
   for (const place of places) {
     if (!hasMapPoint(place.latitude, place.longitude)) continue;
+    emittedPlaces.add(place.id);
     const visit = visitByPlace.get(place.id);
     if (visit !== undefined) {
       // One pin per place: where friends have been, the friends marker is the place marker.
@@ -179,6 +182,12 @@ export function buildMapMarkers(events: Event[], places: Place[], friendVisits: 
       continue;
     }
     markers.push({ key: `place-${place.id}`, eventId: null, placeId: place.id, promoted: false, friends: false, glyph: placePinGlyph(place.category), title: place.title, subtitle: place.address, lat: place.latitude, lng: place.longitude });
+  }
+  for (const visit of friendVisits) {
+    if (emittedPlaces.has(visit.place.id)) continue;
+    const place = visit.place;
+    if (!hasMapPoint(place.latitude, place.longitude)) continue;
+    markers.push({ key: `friends-${place.id}`, eventId: null, placeId: place.id, promoted: false, friends: true, glyph: placePinGlyph(place.category), title: place.title, subtitle: friendsWereHereSubtitle(visit), lat: place.latitude, lng: place.longitude });
   }
   return markers;
 }

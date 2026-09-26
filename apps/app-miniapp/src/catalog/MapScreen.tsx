@@ -14,6 +14,7 @@
 // - MapLayer - union of the layer names
 // - mapWrapClass - the wrapper class by basemap tone: dark raster and the own vector basemap escape the dark-scheme inversion (theme.css)
 // - formatMapTemperature - «+19°», with the sign the chip prints
+// - mapWeatherChipText - chip label: temperature, or «—» while the forecast is missing so the chip never disappears
 // - formatMapChange - «дождь в 19:00»; null when nothing is expected (#495)
 // - mapRainHint - «Дождь с 19:00 — метро суше, зонт не понадобится»; null without rain or without a metro option
 // - formatTravelOption - one travel tile: the big «18 мин» and the «пешком · 1,4 км» under it (#504)
@@ -74,6 +75,11 @@ const MAP_LAYER_LABELS: Record<MapLayer, string> = { friends: "Друзья", ev
 export function formatMapTemperature(weather: MapWeather): string {
   const rounded = Math.round(weather.temperatureC);
   return `${rounded > 0 ? "+" : ""}${rounded}°`;
+}
+
+/** The weather chip stays on the map even when the forecast request failed. */
+export function mapWeatherChipText(weather: MapWeather | null): string {
+  return weather === null ? "—" : formatMapTemperature(weather);
 }
 
 /** «дождь в 19:00»; null when the forecast expects no change (#495). */
@@ -328,7 +334,12 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
         bubble.on("click", () => {
           const bounds = L.latLngBounds(cluster.markers.map((marker) => [marker.lat, marker.lng] as [number, number]));
           const span = map.distance(bounds.getNorthEast(), bounds.getSouthWest());
+          const streetZoom = Math.min(MAP_CLUSTER_MAX_ZOOM + 3, map.getMaxZoom());
           if (span < 80) {
+            if (map.getZoom() + 0.4 < streetZoom) {
+              map.flyTo([cluster.lat, cluster.lng], streetZoom, { duration: 0.45 });
+              return;
+            }
             cluster.markers.forEach((marker, index) => {
               const angle = (2 * Math.PI * index) / cluster.markers.length;
               const lat = cluster.lat + 0.00035 * Math.cos(angle);
@@ -342,7 +353,7 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
             });
             return;
           }
-          map.flyToBounds(bounds, { padding: [56, 56], maxZoom: MAP_CLUSTER_MAX_ZOOM + 2, duration: 0.5 });
+          map.flyToBounds(bounds, { padding: [56, 56], maxZoom: streetZoom, duration: 0.45 });
         });
         continue;
       }
@@ -532,17 +543,17 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
 
   useEffect(() => {
     let alive = true;
-    apiClient.getMapWeather(city).then(
+    apiClient.getMapWeather(city, { latitude: origin.latitude, longitude: origin.longitude }).then(
       (loaded) => {
         if (alive) setWeather(loaded);
       },
-      // The chip is decoration on a working map; a failed forecast simply does not show up.
+      // The chip stays on the map with «—»; a failed forecast must not hide it.
       () => {},
     );
     return () => {
       alive = false;
     };
-  }, [city]);
+  }, [city, origin.latitude, origin.longitude]);
 
   const readyPlaces = places.status === "ready" ? places.places : [];
   const needle = query.trim().toLowerCase();
@@ -550,7 +561,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   const shownPlaces = useMemo(() => (layers.places ? readyPlaces.filter((item) => needle === "" || item.title.toLowerCase().includes(needle)) : []), [readyPlaces, layers.places, needle]);
   // A fresh [] on every render would land in the map's dependency list and rebuild Leaflet each time.
   const visits = useMemo(() => (layers.friends ? friendVisits : EMPTY_VISITS), [layers.friends, friendVisits]);
-  const markers = useMemo(() => buildMapMarkers(shownEvents, shownPlaces, visits), [shownEvents, shownPlaces, visits]);
+  const markers = useMemo(() => buildMapMarkers(shownEvents, shownPlaces, visits, { placeCatalog: readyPlaces }), [shownEvents, shownPlaces, visits, readyPlaces]);
 
   const selectedPlaceId = selected === null ? null : (selected.placeId ?? events.find((item) => item.id === selected.eventId)?.placeId ?? null);
   const selectedPlace = selectedPlaceId === null ? undefined : readyPlaces.find((item) => item.id === selectedPlaceId);
@@ -675,13 +686,10 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
           </button>
         )}
         <div className="app-map16-top-right">
-          {weather !== null && (
-            <button type="button" className="app-map16-weather" onClick={() => setWeatherOpen(true)}>
-              <ActionIcon name="weather" size={20} />
-              <span className="app-map16-weather-value">{formatMapTemperature(weather)}</span>
-              {weatherChange !== null && <span className="app-map16-weather-note">{weatherChange}</span>}
-            </button>
-          )}
+          <button type="button" className="app-map16-weather" aria-label="Погода" onClick={() => setWeatherOpen(true)}>
+            <ActionIcon name="weather" size={20} />
+            <span className="app-map16-weather-value">{mapWeatherChipText(weather)}</span>
+          </button>
           <button type="button" className="app-map16-tool" aria-expanded={layersOpen} onClick={() => setLayersOpen((open) => !open)}>
             Слои
           </button>
@@ -738,16 +746,22 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
           и менялась вместе с подложкой. На запасном полотне тайлов нет, и ссылаться там не на что: подпись снимается с подложкой. */}
       {status !== "error" && <span className="app-map16-credit">{basemapCredit(basemap)}</span>}
       {selected !== null && <MapSelectionCard title={selected.title} subtitle={selected.subtitle} category={selectedCategory} friendsLine={friendsLine} travel={travel} rainHint={mapRainHint(weather, travel)} routeOn={routeOn} onRoute={() => setRouteOn((on) => !on)} onDiscuss={onDiscuss} onOpen={() => (selected.eventId !== null ? onOpenEvent(selected.eventId) : selected.placeId !== null ? onOpenPlace(selected.placeId) : undefined)} onClose={() => setSelected(null)} />}
-      {weatherOpen && weather !== null && (
+      {weatherOpen && (
         <section className="app-map16-weather-sheet" role="dialog" aria-label="Прогноз погоды">
           <button type="button" className="app-map16-card-close" aria-label="Закрыть" onClick={() => setWeatherOpen(false)}>
             <ActionIcon name="close" size={16} strokeWidth={2} />
           </button>
           <h2 className="app-map16-card-title">Погода сейчас</h2>
-          <p className="app-map16-weather-now">
-            {formatMapTemperature(weather)} · {weather.condition}
-          </p>
-          {weatherChange !== null && <p className="app-map16-weather-next">Ожидается: {weatherChange}</p>}
+          {weather === null ? (
+            <p className="app-map16-weather-now">Прогноз пока недоступен</p>
+          ) : (
+            <>
+              <p className="app-map16-weather-now">
+                {formatMapTemperature(weather)} · {weather.condition}
+              </p>
+              {weatherChange !== null && <p className="app-map16-weather-next">Ожидается: {weatherChange}</p>}
+            </>
+          )}
         </section>
       )}
       <form className="app-map16-search" role="search" onSubmit={(event) => event.preventDefault()}>
