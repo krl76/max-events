@@ -35,6 +35,9 @@ export class StoryEntity {
   @Column({ type: "varchar", length: 32, default: "friends" })
   audience?: "close-friends" | "friends" | "city";
 
+  @Column({ type: "jsonb", default: [] })
+  objects?: Array<{ kind: "text" | "event" | "poll" | "seats"; x: number; y: number; scale?: number }>;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 }

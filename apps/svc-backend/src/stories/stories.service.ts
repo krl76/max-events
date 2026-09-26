@@ -55,6 +55,7 @@ export class StoriesService {
         sticker: payload.sticker ?? null,
         poll: payload.poll ?? null,
         audience: payload.audience ?? "friends",
+        objects: payload.objects ?? [],
       }),
     );
     return toStoryDto(saved);
@@ -82,6 +83,7 @@ export function toStoryDto(row: StoryEntity): Story {
     sticker: row.sticker ?? null,
     poll: row.poll ?? null,
     audience: row.audience ?? "friends",
+    objects: row.objects ?? [],
     createdAt: row.createdAt.toISOString(),
   });
 }

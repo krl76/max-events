@@ -30,12 +30,28 @@ export const StoryPollSchema = z.object({
 });
 export type StoryPoll = z.infer<typeof StoryPollSchema>;
 
+export const STORY_OBJECT_KINDS = ["text", "event", "poll", "seats"] as const;
+export const StoryObjectKindSchema = z.enum(STORY_OBJECT_KINDS);
+export type StoryObjectKind = z.infer<typeof StoryObjectKindSchema>;
+
+export const STORY_OBJECT_SCALES = [0.75, 0.9, 1, 1.15, 1.25] as const;
+export const StoryObjectScaleSchema = z.union([z.literal(0.75), z.literal(0.9), z.literal(1), z.literal(1.15), z.literal(1.25)]);
+
+export const StoryCanvasObjectSchema = z.object({
+  kind: StoryObjectKindSchema,
+  x: z.number().min(0).max(100),
+  y: z.number().min(0).max(100),
+  scale: StoryObjectScaleSchema.optional(),
+});
+export type StoryCanvasObject = z.infer<typeof StoryCanvasObjectSchema>;
+
 export const CreateStoryWriteSchema = z.object({
   imageUrl: z.string().min(1),
   text: z.string().max(500).optional(),
   sticker: StoryPlaceStickerSchema.nullable().optional(),
   poll: StoryPollSchema.nullable().optional(),
   audience: StoryAudienceSchema.optional(),
+  objects: z.array(StoryCanvasObjectSchema).max(20).optional(),
 });
 export type CreateStoryWrite = z.infer<typeof CreateStoryWriteSchema>;
 
@@ -52,6 +68,7 @@ export const StorySchema = z.object({
   sticker: StoryPlaceStickerSchema.nullable().default(null),
   poll: StoryPollSchema.nullable().default(null),
   audience: StoryAudienceSchema.default("friends"),
+  objects: z.array(StoryCanvasObjectSchema).default([]),
   createdAt: z.string().min(1),
 });
 export type Story = z.infer<typeof StorySchema>;

@@ -52,6 +52,21 @@ describe("StoriesService", () => {
     expect(created.createdAt).not.toHaveLength(0);
   });
 
+  it("keeps canvas objects so the viewer can rebuild the frame", async () => {
+    const { service } = createService();
+    const created = await service.create(author, {
+      imageUrl: "data:image/png;base64,abc",
+      objects: [
+        { kind: "text", x: 50, y: 18, scale: 1.15 },
+        { kind: "event", x: 50, y: 70 },
+      ],
+    });
+    expect(created.objects).toEqual([
+      { kind: "text", x: 50, y: 18, scale: 1.15 },
+      { kind: "event", x: 50, y: 70 },
+    ]);
+  });
+
   it("lists own and friends' stories from the last 24 hours, freshest author first", async () => {
     const { service, stories } = createService([other]);
     const now = new Date("2026-09-16T12:00:00Z");
