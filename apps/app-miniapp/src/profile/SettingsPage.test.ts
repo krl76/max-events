@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { DEFAULT_SMART_ALERTS, type Profile, type User } from "@max-events/api-contracts";
 import type { AppSettings } from "../api/client";
 import type { Friend } from "@max-events/api-contracts";
-import { APP_PREFERENCE_KEYS, APP_VERSION, CloseFriendsList, SettingsView, THEME_OPTIONS, appCacheBytes, clearAppCache, formatBytes, identityHint, interestsHint, planVisibilityLabel, quietHoursHint, quietHoursLabel, radiusLabel, themeLabel } from "./SettingsPage";
+import { APP_PREFERENCE_KEYS, APP_VERSION, CloseFriendsDialog, SettingsView, THEME_OPTIONS, appCacheBytes, clearAppCache, filterCloseFriends, formatBytes, identityHint, interestsHint, planVisibilityLabel, quietHoursHint, quietHoursLabel, radiusLabel, themeLabel } from "./SettingsPage";
 
 const user: User = {
   id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
@@ -154,41 +154,39 @@ describe("app cache", () => {
   });
 });
 
-function person(id: string, name: string): Friend {
-  return { id, name, avatarUrl: null };
+function person(id: string, name: string, username?: string, avatarUrl: string | null = null): Friend {
+  return { id, name, avatarUrl, ...(username === undefined ? {} : { username }) };
 }
 
-describe("CloseFriendsList", () => {
-  it("keeps people already marked and offers the followers who are not", () => {
-    const html = renderToStaticMarkup(createElement(CloseFriendsList, { closeFriends: [person("a0000000-0000-4000-8000-000000000001", "Анна")], followers: [person("a0000000-0000-4000-8000-000000000001", "Анна"), person("a0000000-0000-4000-8000-000000000002", "Дима")], onToggle: () => {} }));
+describe("filterCloseFriends", () => {
+  const people = [person("a0000000-0000-4000-8000-000000000001", "Анна Соколова", "anna_s"), person("a0000000-0000-4000-8000-000000000002", "Дима Кузнецов", "dima_k")];
 
-    expect(html).toContain("Анна");
-    expect(html).toContain("Убрать");
-    expect(html).toContain("Дима");
-    expect(html).toContain(">Добавить<");
-    expect(html).not.toContain("Пока никого");
+  it("matches a surname and a nick, with or without @", () => {
+    expect(filterCloseFriends(people, "сокол").map((friend) => friend.id)).toEqual(["a0000000-0000-4000-8000-000000000001"]);
+    expect(filterCloseFriends(people, "@dima").map((friend) => friend.id)).toEqual(["a0000000-0000-4000-8000-000000000002"]);
+    expect(filterCloseFriends(people, "   ")).toEqual(people);
   });
+});
 
-  it("points at the followers when the close list is still empty", () => {
-    const html = renderToStaticMarkup(createElement(CloseFriendsList, { closeFriends: [], followers: [person("a0000000-0000-4000-8000-000000000002", "Дима")], onToggle: () => {} }));
+describe("CloseFriendsDialog", () => {
+  it("shows an avatar, the name and the nick, and keeps add apart from remove", () => {
+    const html = renderToStaticMarkup(createElement(CloseFriendsDialog, { closeFriends: [person("a0000000-0000-4000-8000-000000000001", "Анна Соколова", "anna_s", "https://example.com/a.png")], followers: [person("a0000000-0000-4000-8000-000000000001", "Анна Соколова", "anna_s", "https://example.com/a.png"), person("a0000000-0000-4000-8000-000000000002", "Дима Кузнецов", "dima_k")], onToggle: () => {}, onClose: () => {} }));
 
-    expect(html).toContain("Пока никого. Добавьте из подписчиков ниже.");
-    expect(html).toContain("Дима");
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain("Имя или ник");
+    expect(html).toContain('src="https://example.com/a.png"');
+    expect(html).toContain("Анна Соколова");
+    expect(html).toContain("@anna_s");
+    expect(html).toContain("Убрать");
+    expect(html).toContain("Дима Кузнецов");
+    expect(html).toContain("@dima_k");
     expect(html).toContain(">Добавить<");
   });
 
   it("says there is nobody to add when nobody follows the viewer", () => {
-    const html = renderToStaticMarkup(createElement(CloseFriendsList, { closeFriends: [], followers: [], onToggle: () => {} }));
+    const html = renderToStaticMarkup(createElement(CloseFriendsDialog, { closeFriends: [], followers: [], onToggle: () => {}, onClose: () => {} }));
 
     expect(html).toContain("На вас пока никто не подписан.");
-    expect(html).not.toContain("Добавить");
-  });
-
-  it("says every follower is already close", () => {
-    const anna = person("a0000000-0000-4000-8000-000000000001", "Анна");
-    const html = renderToStaticMarkup(createElement(CloseFriendsList, { closeFriends: [anna], followers: [anna], onToggle: () => {} }));
-
-    expect(html).toContain("Все подписчики уже в близких.");
     expect(html).not.toContain("Добавить");
   });
 });
@@ -213,6 +211,7 @@ describe("SettingsView", () => {
     const html = renderSettings();
 
     expect(html).not.toContain("app-set-picker");
+    expect(html).not.toContain('role="dialog"');
     expect(html).toContain('aria-expanded="false"');
   });
 

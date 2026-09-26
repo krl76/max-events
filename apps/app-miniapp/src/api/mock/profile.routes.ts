@@ -14,7 +14,7 @@ import type { Friend, Profile } from "@max-events/api-contracts";
 import { type UpdateAppSettings } from "../client";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
 import { achievementsFor, afterMePicks, appSettingsFor, mockCustomAvatars, mockProfiles, myCityFor, profileCountersFor, profileFor, tasteProfile, updateMockAppSettings, userFor, userPostsFor, visitStatsFor, visitedPlacesFor } from "./profile";
-import { followersOf, followingOf, mockOnboardingContacts } from "./social";
+import { followersOf, followingOf, mockOnboardingContacts, withContactNick } from "./social";
 
 const mockCloseFriends = new Set<string>();
 
@@ -27,7 +27,7 @@ export function setMockCloseFriend(userId: string, close: boolean): "ok" | "forb
 }
 
 export function mockCloseFriendsOf(): Friend[] {
-  return mockOnboardingContacts.filter((person) => mockCloseFriends.has(person.id));
+  return mockOnboardingContacts.filter((person) => mockCloseFriends.has(person.id)).map(withContactNick);
 }
 
 export function profileRoutes(url: URL, init: RequestInit | undefined): Response | null {

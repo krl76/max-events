@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 41 «Настройки»: the MAX identity row and the grouped sections — Приложение, Приватность, Близкие, Уведомления, Мини-приложение — plus «Отключить мини-приложение». Organizer settings only when organizer mode is already on. Close friends are assembled from people who follow the viewer.
-// SCOPE: The settings screen only. What the Profile contract carries (city, interests, privacy, smart alerts) is written with apiClient.updateProfile; the rest is apiClient.getAppSettings/updateAppSettings; the colour scheme is the useAppTheme preference, not a server field. Pickers are inline disclosures — no separate screen per row.
+// SCOPE: The settings screen only. What the Profile contract carries (city, interests, privacy, smart alerts) is written with apiClient.updateProfile; the rest is apiClient.getAppSettings/updateAppSettings; the colour scheme is the useAppTheme preference, not a server field. Pickers are inline disclosures — no separate screen per row. Close friends open the same bottom sheet as friend pickers.
 // DEPENDS: ../api/client.js (apiClient, AppSettings), ../auth/AuthContext.js, ../max/bridge.js (getWebApp), ../onboarding/onboarding.js (ONBOARDING_CITIES, ONBOARDING_INTERESTS), ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.js (useAppTheme, ThemePreference), @max-events/api-contracts (Profile, UpdateProfile, User), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -25,20 +25,23 @@
 // - SettingsSwitchRow - row with a switch
 // - SettingsPicker - the inline option list a value row discloses
 // - SettingsGroup - one bordered section with its uppercase caption
-// - CloseFriendsList - the disclosed list: current close friends, then followers who can still be added
+// - filterCloseFriends - the sheet's search: any part of the name or the nick, with or without @
+// - CloseFriendsDialog - bottom sheet: avatars, search, add from followers, remove from the close list
 // - SettingsViewProps - what the settings screen renders and writes, including optional cover/avatar restore
 // - SettingsView - presentational: identity row, the groups, the disable button
 // - SettingsPage - route container: resolves auth, loads profile + app settings, writes both and binds the theme preference
 // END_MODULE_MAP
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { PROFILE_BIO_MAX, type Friend, type Profile, type UpdateProfile, type User } from "@max-events/api-contracts";
 import { apiClient, type AppSettings } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { isCustomProfileAvatar } from "./ProfilePage";
 import { pluralRu } from "../catalog/format";
 import { readFeedPhoto } from "../feed/photo";
+import { PersonAvatar } from "../friends/avatar";
 import { getWebApp } from "../max/bridge";
+import { friendHandle } from "../ui/friend-handle";
 import { ONBOARDING_CITIES, ONBOARDING_INTERESTS } from "../onboarding/onboarding";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
@@ -167,26 +170,98 @@ export function SettingsPicker({ options, selected, multiple = false, onPick }: 
   );
 }
 
-export function CloseFriendsList({ closeFriends, followers, onToggle }: { closeFriends: readonly Friend[]; followers: readonly Friend[]; onToggle: (userId: string, close: boolean) => void }) {
+const CLOSE_FOCUSABLE = "button:not([disabled]), input:not([disabled])";
+
+/** Name or nick, case-insensitive. A leading @ is the same nick the row prints. */
+export function filterCloseFriends(people: readonly Friend[], query: string): Friend[] {
+  const needle = query.trim().toLowerCase().replace(/^@/, "");
+  if (needle === "") return [...people];
+  return people.filter((person) => {
+    const nick = (person.username ?? "").replace(/^@/, "").toLowerCase();
+    return person.name.toLowerCase().includes(needle) || nick.includes(needle) || friendHandle(person).toLowerCase().includes(needle);
+  });
+}
+
+function closeFriendRows(closeFriends: readonly Friend[], followers: readonly Friend[]): { person: Friend; close: boolean }[] {
   const closeIds = new Set(closeFriends.map((person) => person.id));
-  const candidates = followers.filter((person) => !closeIds.has(person.id));
+  return [...closeFriends.map((person) => ({ person, close: true })), ...followers.filter((person) => !closeIds.has(person.id)).map((person) => ({ person, close: false }))];
+}
+
+export function CloseFriendsDialog({ closeFriends, followers, loading = false, onToggle, onClose }: { closeFriends: readonly Friend[]; followers: readonly Friend[]; loading?: boolean; onToggle: (userId: string, close: boolean) => void; onClose: () => void }) {
+  const [query, setQuery] = useState("");
+  const sheet = useRef<HTMLDivElement | null>(null);
+  const search = useRef<HTMLInputElement | null>(null);
+  const rows = closeFriendRows(closeFriends, followers);
+  const shown = filterCloseFriends(rows.map((row) => row.person), query);
+  const shownIds = new Set(shown.map((person) => person.id));
+  const visible = rows.filter((row) => shownIds.has(row.person.id));
+
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    search.current?.focus();
+    return () => opener?.focus();
+  }, []);
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      onClose();
+      return;
+    }
+    if (event.key !== "Tab" || sheet.current === null) return;
+    const nodes = [...sheet.current.querySelectorAll<HTMLElement>(CLOSE_FOCUSABLE)];
+    if (nodes.length === 0) return;
+    const first = nodes[0];
+    const last = nodes[nodes.length - 1];
+    if (first === undefined || last === undefined) return;
+    const active = document.activeElement;
+    if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  const empty = loading ? "Загрузка…" : query.trim() !== "" ? "Никого не нашлось." : followers.length === 0 && closeFriends.length === 0 ? "На вас пока никто не подписан." : "Пока никого. Добавьте из подписчиков.";
+
   return (
-    <div className="app-set-picker">
-      {closeFriends.length === 0 && candidates.length > 0 && <p className="app-set-note">Пока никого. Добавьте из подписчиков ниже.</p>}
-      {closeFriends.map((person) => (
-        <button key={person.id} type="button" className="app-set-option" onClick={() => onToggle(person.id, false)}>
-          <span>{person.name}</span>
-          <span className="app-set-identity-action">Убрать</span>
+    <div className="app-fpick" role="dialog" aria-modal="true" aria-label="Близкие друзья" onKeyDown={onKeyDown}>
+      <button type="button" className="app-fpick-scrim" tabIndex={-1} aria-label="Закрыть" onClick={onClose} />
+      <div className="app-fpick-sheet" ref={sheet}>
+        <div className="app-fpick-head">
+          <h2 className="app-fpick-title">Близкие друзья</h2>
+          <button type="button" className="app-fpick-close" aria-label="Закрыть" onClick={onClose}>
+            <ActionIcon name="close" size={18} strokeWidth={2.2} />
+          </button>
+        </div>
+        <p className="app-fpick-hint">Только из тех, кто на вас подписан</p>
+        <input ref={search} className="app-fpick-search" type="text" value={query} aria-label="Поиск по имени или нику" placeholder="Имя или ник" onChange={(change) => setQuery(change.target.value)} />
+        {visible.length === 0 ? (
+          <p className="app-fpick-empty">{empty}</p>
+        ) : (
+          <ul className="app-fpick-list">
+            {visible.map(({ person, close }) => (
+              <li key={person.id}>
+                <div className={close ? "app-fpick-row app-fpick-row--on app-close-row" : "app-fpick-row app-close-row"}>
+                  {person.avatarUrl ? <img className="app-fpick-avatar" src={person.avatarUrl} alt="" /> : <PersonAvatar id={person.id} name={person.name} size={36} />}
+                  <span className="app-fpick-name">
+                    {person.name}
+                    <span className="app-fpick-handle">@{friendHandle(person)}</span>
+                  </span>
+                  <button type="button" className="app-fpick-mini" onClick={() => onToggle(person.id, !close)}>
+                    {close ? "Убрать" : "Добавить"}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <button type="button" className="app-fpick-confirm" onClick={onClose}>
+          Готово
         </button>
-      ))}
-      {followers.length === 0 && <p className="app-set-note">На вас пока никто не подписан.</p>}
-      {followers.length > 0 && candidates.length === 0 && <p className="app-set-note">Все подписчики уже в близких.</p>}
-      {candidates.map((person) => (
-        <button key={person.id} type="button" className="app-set-option" onClick={() => onToggle(person.id, true)}>
-          <span>{person.name}</span>
-          <span className="app-set-identity-action">Добавить</span>
-        </button>
-      ))}
+      </div>
     </div>
   );
 }
@@ -200,7 +275,7 @@ export function SettingsGroup({ title, children }: { title: string; children: Re
   );
 }
 
-type PickerName = "identity" | "city" | "theme" | "interests" | "radius" | "plans" | "quiet" | "about" | "disable" | "bio" | "close" | null;
+type PickerName = "identity" | "city" | "theme" | "interests" | "radius" | "plans" | "quiet" | "about" | "disable" | "bio" | null;
 
 export interface SettingsViewProps {
   user: User;
@@ -224,6 +299,7 @@ export interface SettingsViewProps {
 
 export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable, onPickCover, onResetCover, onResetAvatar, closeFriends, followers, onToggleClose }: SettingsViewProps) {
   const [picker, setPicker] = useState<PickerName>(null);
+  const [closeOpen, setCloseOpen] = useState(false);
   const open = (name: Exclude<PickerName, null>) => setPicker((current) => (current === name ? null : name));
 
   return (
@@ -279,10 +355,9 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
       </SettingsGroup>
 
       <SettingsGroup title="Близкие">
-        <SettingsValueRow title="Близкие друзья" hint="Только из тех, кто на вас подписан" value={closeFriends === undefined ? undefined : closeFriends.length === 0 ? "Нет" : String(closeFriends.length)} expanded={picker === "close"} onOpen={() => open("close")} />
-        {picker === "close" && closeFriends !== undefined && followers !== undefined && <CloseFriendsList closeFriends={closeFriends} followers={followers} onToggle={onToggleClose ?? (() => {})} />}
-        {picker === "close" && (closeFriends === undefined || followers === undefined) && <p className="app-set-note">Загрузка…</p>}
+        <SettingsValueRow title="Близкие друзья" hint="Только из тех, кто на вас подписан" value={closeFriends === undefined ? undefined : closeFriends.length === 0 ? "Нет" : String(closeFriends.length)} expanded={closeOpen} onOpen={() => setCloseOpen(true)} />
       </SettingsGroup>
+      {closeOpen && <CloseFriendsDialog closeFriends={closeFriends ?? []} followers={followers ?? []} loading={closeFriends === undefined || followers === undefined} onToggle={onToggleClose ?? (() => {})} onClose={() => setCloseOpen(false)} />}
 
       <SettingsGroup title="Уведомления">
         {/* Один переключатель на два поля контракта: маршрут и погода — это ровно то, из чего складывается «когда выходить». */}

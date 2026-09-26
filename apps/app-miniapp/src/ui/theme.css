@@ -7495,11 +7495,6 @@ button.app-set-row {
   flex-direction: column;
 }
 
-.app-set-picker .app-set-note {
-  margin: 0;
-  padding: var(--app-space-m) var(--app-space-l);
-}
-
 .app-set-option {
   align-items: center;
   background: none;
@@ -18181,6 +18176,23 @@ button.app-cal-peer-chip {
   color: var(--app-text);
   display: flex;
   flex: none;
+}
+
+.app-close-row {
+  cursor: default;
+}
+
+.app-fpick-mini {
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  padding: 8px 12px;
 }
 
 .app-fpick-empty {

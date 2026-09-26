@@ -16,6 +16,7 @@
 // - friendSuggestions - mock GET /friends/suggestions: the onboarding contacts with their hint line and current follow state
 // - followMockFriends - mock PUT /friends/follows: replace the followed set, "unknown" when an id is not a contact
 // - followingOf - mock GET /users/:id/following: the people the viewer follows, in contact order
+// - withContactNick - copy a contact with the demo nick used by the close-friends sheet
 // - followersOf - mock GET /users/:id/followers: the people following the viewer; the backend keeps no reverse direction at all
 // - mockGatherings - shared with social.routes
 // - MOCK_GATHERING_ID - seeded deep-link demo gathering (hosted by a friend; the demo user is an invitee so the response flow is reachable in mock mode)
@@ -80,6 +81,15 @@ export function syncMockFriends(): Friend[] {
  */
 export const mockOnboardingContacts: readonly Friend[] = [...mockFriends, { id: "a0000000-0000-4000-8000-0000000000b8", name: "Марина Ким", avatarUrl: null }, { id: "a0000000-0000-4000-8000-0000000000b9", name: "Олег Савин", avatarUrl: null }, { id: "a0000000-0000-4000-8000-0000000000ba", name: "Сергей Ильин", avatarUrl: null }, { id: "a0000000-0000-4000-8000-0000000000bb", name: "Юля Крылова", avatarUrl: null }, { id: "a0000000-0000-4000-8000-0000000000bc", name: "Максим Зотов", avatarUrl: null }];
 
+/** Nicks parallel to mockOnboardingContacts. Kept off the shared friend fixtures so story mentions stay on the first name. */
+const MOCK_CONTACT_NICKS: readonly string[] = ["anna_s", "dima_k", "katya", "petr", "maria_b", "igor", "lena_g", "marina", "oleg", "sergey", "yulia", "maxim"];
+
+export function withContactNick(person: Friend): Friend {
+  const index = mockOnboardingContacts.findIndex((contact) => contact.id === person.id);
+  const username = index < 0 ? undefined : MOCK_CONTACT_NICKS[index];
+  return username === undefined ? person : { ...person, username };
+}
+
 /** The макет hint under each name; the backend has nothing to compute it from, so it is fixture text by position. */
 const MOCK_CONTACT_HINTS: readonly string[] = ["12 общих планов", "8 общих чатов", "была на джазе", "играет в падел", "5 общих планов", "из чата «Двор»", "ходит на лекции", "из чата «Падел»", "3 общих плана", "из чата «Работа»", "волонтёрит", "из чата «Дача»"];
 
@@ -119,7 +129,7 @@ export function followingOf(userId: string): Friend[] {
 const MOCK_FOLLOWER_POSITIONS: readonly number[] = [0, 1, 3, 4, 6, 7, 9, 11];
 
 export function followersOf(userId: string): Friend[] {
-  if (userId === mockDemoUser.id) return MOCK_FOLLOWER_POSITIONS.flatMap((index) => (mockOnboardingContacts[index] === undefined ? [] : [mockOnboardingContacts[index]]));
+  if (userId === mockDemoUser.id) return MOCK_FOLLOWER_POSITIONS.flatMap((index) => (mockOnboardingContacts[index] === undefined ? [] : [withContactNick(mockOnboardingContacts[index])]));
   return mockFriends.filter((person) => person.id !== userId).slice(2, 6);
 }
 
