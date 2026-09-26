@@ -56,6 +56,25 @@ export class FriendsService {
     });
   }
 
+  async following(userId: string): Promise<Friend[]> {
+    const me = await this.users.findOneBy({ id: userId });
+    if (!me) throw new NotFoundException("User not found");
+    return this.list(userId);
+  }
+
+  async followers(userId: string): Promise<Friend[]> {
+    const me = await this.users.findOneBy({ id: userId });
+    if (!me) throw new NotFoundException("User not found");
+    const rows = await this.friendships.find({ where: { friendUserId: userId } });
+    if (rows.length === 0) return [];
+    const users = await this.users.find({ where: { id: In(rows.map((row) => row.userId)) } });
+    const byId = new Map(users.map((row) => [row.id, row]));
+    return rows.flatMap((row) => {
+      const user = byId.get(row.userId);
+      return user ? [toFriendDto(user)] : [];
+    });
+  }
+
   async sync(userId: string): Promise<Friend[]> {
     const me = await this.users.findOneBy({ id: userId });
     if (!me) throw new NotFoundException("User not found");

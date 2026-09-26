@@ -15,13 +15,13 @@ import { EventEntity } from "../events/event.entity";
 import { MaxBotModule } from "../max-bot/max-bot.module";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { UserEntity } from "../users/user.entity";
-import { EventFriendsController, FriendsController } from "./friends.controller";
+import { EventFriendsController, FriendsController, UserFollowsController } from "./friends.controller";
 import { FriendshipEntity } from "./friendship.entity";
 import { FriendsService } from "./friends.service";
 
 @Module({
   imports: [TypeOrmModule.forFeature([FriendshipEntity, UserEntity, ParticipationEntity, EventEntity]), MaxBotModule],
-  controllers: [FriendsController, EventFriendsController],
+  controllers: [FriendsController, EventFriendsController, UserFollowsController],
   providers: [FriendsService],
   exports: [FriendsService],
 })

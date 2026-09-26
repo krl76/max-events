@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - FriendsController - /friends list, sync, activity
+// - UserFollowsController - GET /users/:userId/following and /followers
 // - EventFriendsController - /events/:eventId/friends summary
 // END_MODULE_MAP
 
@@ -50,6 +51,21 @@ export class FriendsController {
     const parsed = ReplaceFollowsWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid follows payload");
     return this.friends.replaceFollows(user.id, parsed.data.userIds);
+  }
+}
+
+@Controller("users")
+export class UserFollowsController {
+  constructor(@Inject(FriendsService) private readonly friends: FriendsService) {}
+
+  @Get(":userId/following")
+  following(@Param("userId", ParseUUIDPipe) userId: string): Promise<Friend[]> {
+    return this.friends.following(userId);
+  }
+
+  @Get(":userId/followers")
+  followers(@Param("userId", ParseUUIDPipe) userId: string): Promise<Friend[]> {
+    return this.friends.followers(userId);
   }
 }
 
