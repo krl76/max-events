@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { envSchema, parseModeratorIds, validateEnv } from "./env";
+import { DEFAULT_MODEL_API_MODELS, DEFAULT_MODEL_API_URL, envSchema, parseModeratorIds, validateEnv } from "./env";
 
 const valid = {
   DATABASE_URL: "postgres://max_events:max_events@localhost:5443/max_events",
@@ -67,10 +67,13 @@ describe("validateEnv", () => {
     expect(() => validateEnv({ ...valid, ORGANIZER_PASSWORD: "" })).toThrow(/ORGANIZER_PASSWORD/);
   });
 
-  it("defaults the LLM provider to none and accepts sandbox", () => {
-    expect(validateEnv(valid).LLM_PROVIDER).toBe("none");
-    expect(validateEnv({ ...valid, LLM_PROVIDER: "sandbox" }).LLM_PROVIDER).toBe("sandbox");
-    expect(validateEnv({ ...valid, LLM_PROVIDER: "xai", XAI_API_KEY: "replace-with-your-xai-api-key" }).LLM_PROVIDER).toBe("xai");
+  it("keeps the model API off until a key is set and parses the model list", () => {
+    expect(validateEnv(valid).MODEL_API_KEY).toBeUndefined();
+    expect(validateEnv(valid).MODEL_API_URL).toBe(DEFAULT_MODEL_API_URL);
+    expect(validateEnv(valid).MODEL_API_MODELS).toEqual([...DEFAULT_MODEL_API_MODELS]);
+    expect(validateEnv({ ...valid, MODEL_API_KEY: "replace-with-your-model-api-key", MODEL_API_MODELS: "fast, fast, slow" }).MODEL_API_MODELS).toEqual(["fast", "slow"]);
+    expect(() => validateEnv({ ...valid, MODEL_API_URL: "not-a-url" })).toThrow(/MODEL_API_URL/);
+    expect(() => validateEnv({ ...valid, MODEL_API_KEY: "" })).toThrow(/MODEL_API_KEY/);
   });
 });
 

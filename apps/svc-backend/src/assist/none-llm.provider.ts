@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Disabled LLM provider — fail-closed when LLM_PROVIDER=none.
+// PURPOSE: Disabled LLM provider — fail-closed when MODEL_API_KEY is unset.
 // SCOPE: parseQuery throws LlmProviderError llm_disabled.
 // DEPENDS: ./llm-provider
 // LINKS: M-SVC-BACKEND

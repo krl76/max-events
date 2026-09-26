@@ -8,6 +8,9 @@
 // START_MODULE_MAP
 // - envSchema - zod schema for backend environment variables
 // - validateEnv - parses raw env input and throws a readable error on invalid values
+// - DEFAULT_MODEL_API_URL - OpenCode Zen chat-completions root
+// - DEFAULT_MODEL_API_MODELS - failover order, fast models first
+// - parseModelApiModels - comma-separated model ids, blanks and duplicates dropped
 // - parseModeratorIds - comma-separated MAX user ids for moderation
 // - Env - inferred validated env type
 // END_MODULE_MAP
@@ -16,6 +19,25 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { config } from "dotenv";
 import { z } from "zod";
+
+/** OpenCode Zen chat-completions root. Override with MODEL_API_URL for another OpenAI-compatible host. */
+export const DEFAULT_MODEL_API_URL = "https://opencode.ai/zen/v1";
+
+/** Fast models first so a hung reasoning model is only reached after the others fail. */
+export const DEFAULT_MODEL_API_MODELS = ["mimo-v2.6-flash-free", "ling-3.0-flash-fin-free", "nemotron-3.5-lightning-free", "mimo-v2.5-free", "big-pickle", "muse-spark-1.3-contributor-free"] as const;
+
+export function parseModelApiModels(raw: string | undefined): string[] {
+  const source = raw?.trim() ? raw : DEFAULT_MODEL_API_MODELS.join(",");
+  const seen = new Set<string>();
+  const models: string[] = [];
+  for (const part of source.split(",")) {
+    const id = part.trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    models.push(id);
+  }
+  return models.length > 0 ? models : [...DEFAULT_MODEL_API_MODELS];
+}
 
 // Resolve the closest .env walking up from this module regardless of cwd
 // (dotenv reads .env relative to process cwd, which differs across run styles:
@@ -53,10 +75,14 @@ export const envSchema = z.object({
   PAYMENT_SECRET: z.string().min(1).optional(),
   PAYMENT_SANDBOX_FAIL_AMOUNT: z.coerce.number().int().positive().default(13),
   PAYMENT_COMMISSION_BPS: z.coerce.number().int().min(0).max(10_000).default(1000),
-  LLM_PROVIDER: z.enum(["sandbox", "none", "xai"]).default("none"),
-  XAI_API_KEY: z.string().min(1).optional(),
-  XAI_API_URL: z.string().url().default("https://api.x.ai/v1"),
-  XAI_MODEL: z.string().min(1).default("grok-4.5"),
+  // OpenAI-compatible catalog parser (OpenCode Zen and the same wire format).
+  // Unset key keeps the keyword parser. Models are tried in order.
+  MODEL_API_KEY: z.string().min(1).optional(),
+  MODEL_API_URL: z.string().url().default(DEFAULT_MODEL_API_URL),
+  MODEL_API_MODELS: z
+    .string()
+    .optional()
+    .transform((value) => parseModelApiModels(value)),
   // MAX Bridge exposes no friend list. Treating every app user as a friend is a demo convenience
   // that leaks who else uses the app, so it is opt-in, off by default, and ignored unless
   // NODE_ENV is development or test (see FriendsService.demoFallbackEnabled).
