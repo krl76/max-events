@@ -28,6 +28,7 @@
 // - interestsCtaLabel - the interests CTA with the running counter
 // - isOnboardingDone - whether the flow already ran on this device (storage failures read as "not yet")
 // - markOnboardingDone - persist the flag (storage failures are non-fatal: the flow must still finish)
+// - bioCtaLabel - «Пропустить» until the bio has something in it, «Готово» after
 // END_MODULE_MAP
 
 import { pluralRu } from "../catalog/format";

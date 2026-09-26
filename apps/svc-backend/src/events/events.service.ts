@@ -8,12 +8,12 @@
 // START_MODULE_MAP
 // - EventListQuery - catalog list filters including q and sort
 // - EVENT_SORTS - whitelist of catalog orderings the list may ask for
+// - EventSort - one allowed catalog ordering
 // - EVENT_LIST_MAX_LIMIT - hard cap on catalog rows read per request
 // - EVENT_LIST_SCAN_CAP - rows scanned when rating/near cannot be cut in SQL
 // - CHAT_SYNC_BATCH - events retried per chat-sync tick
 // - pickEventFields - patch keys allowed on update
 // - EventsService - CRUD + list against EventEntity + chat-sync retry
-// - listCards - catalog list wrapped as search-tab cards (distance, rating, placeTitle)
 // - toEventDto - map EventEntity to the api-contracts Event shape
 // END_MODULE_MAP
 

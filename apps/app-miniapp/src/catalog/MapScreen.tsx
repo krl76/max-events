@@ -16,7 +16,7 @@
 // - formatMapTemperature - «+19°», with the sign the chip prints
 // - mapWeatherChipText - chip temperature, or «—» while the forecast is missing so the chip never disappears
 // - formatMapChange - «дождь в 19:00»; null when nothing is expected (#495)
-// - MAP_HOURLY_COLUMNS / mapHourlyWindow - eight hours from the current UTC hour for GET /weather/hourly
+// - MAP_HOURLY_COLUMNS - how many hours the map weather strip shows
 // - mapHourGlyph - WMO code -> sun / cloud / rain on the map sheet strip
 // - formatMapHour - «19:00» for one strip column
 // - mapRainHint - «Дождь с 19:00 — метро суше, зонт не понадобится»; null without rain or without a metro option
@@ -30,6 +30,7 @@
 // - initEventMap - create Leaflet map + the basemap layer of the view (raster L.tileLayer or the vector MapLibre layer via ./vectorBasemap.ts; swapped in place when the view brings another, the dead-tiles report re-armed with it, a late-arriving vector layer dropped if the user moved on, a scheme change restyling the vector one) + the pin layer (clustered, promoted events highlighted #205, the friends layer keeping its tile pin #472), the «Вы здесь» marker and the dotted route; returns the handle
 // - MapSelectionCard - the card of the selected object: friends, title, the two travel tiles, the rain hint and «Построить маршрут»
 // - MapScreen - экран 16: pins, layers, the basemap picker (chips under the layers, the choice persisted through ./basemaps.js, the credit line following it), weather, selection, route and the map search over the Leaflet lifecycle via useLeafletMap
+// - mapHourlyWindow - the eight-hour window the map weather chip asks the backend for
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

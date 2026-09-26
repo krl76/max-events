@@ -12,6 +12,8 @@
 // - List - list type
 // - ListItemSchema - list entry referencing an event or a place with the time it was added
 // - ListItem - list item type
+// - ListPostSchema - saved feed post on a list: text, photo, author and the event it belongs to
+// - ListPost - saved post type
 // - AddListItemWriteSchema - add-event payload
 // - CreateListWriteSchema - title of a new list of one's own
 // - CreateListWrite - create payload type

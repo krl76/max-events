@@ -16,6 +16,8 @@
 // - BookingsState - union of the fetch states (loading / error / ready)
 // - MyBookingsView - presentational: topbar, segments, filters, the grouped cards and the past list
 // - MyBookingsPage - route container: loads the three sources, filters locally, leaves a waitlist, opens a ticket
+// - ReschedulePicker - the open «Перенести» sheet: which ticket, what it can move to, and what went wrong
+// - rescheduleErrorMessage - ru line for a refused move: no seats, wrong event, or anything else
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";

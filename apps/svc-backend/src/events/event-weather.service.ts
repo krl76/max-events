@@ -9,9 +9,13 @@
 // - WEATHER_CACHE_TTL_SECONDS - Redis TTL for a successful hourly snapshot
 // - WEATHER_MISS_TTL_SECONDS - shorter TTL for cached provider/out-of-range misses
 // - FORECAST_SOURCE - Open-Meteo; printed on the event page, never a different provider
-// - FORECAST_STEP_HOURS / FORECAST_COLUMNS - strip of экран 17
+// - FORECAST_STEP_HOURS - hours between two columns of the strip
+// - FORECAST_COLUMNS - how many columns that strip holds
+// - HOURLY_MAX_SPAN_MS - widest from->to window the hourly endpoint accepts
+// - EventWeatherHour - one column: time, temperature, condition and whether it falls inside the event
 // - EventWeatherService - attach snapshots; hourlyForEvent; hoursAt; mapNow
-// - EventForecast / MapWeatherNow - HTTP payloads matching the miniapp schemas
+// - EventForecast - HTTP payload of the event strip, matching the miniapp schema
+// - MapWeatherNow - HTTP payload of the map chip: now, and what it changes to
 // END_MODULE_MAP
 
 import { Inject, Injectable } from "@nestjs/common";

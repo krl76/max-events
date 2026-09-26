@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - AuthContextValue - the auth state plus the way a screen writes the user back
 // - AuthProvider - resolves the auth state on mount and provides it via context; in mock mode (VITE_USE_MOCK=1) lazily imports the demo user so screens are reachable outside MAX
 // - useAuth - read the current AuthState
 // END_MODULE_MAP

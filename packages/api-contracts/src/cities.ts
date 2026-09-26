@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - CitiesSchema - sorted unique city names
+// - Cities - city list type
 // END_MODULE_MAP
 
 import { z } from "zod";

@@ -194,6 +194,7 @@
 // - userPostsFor - post grid of экран 36: the seeded own posts plus everything this author published live, newest first
 // - followingOf - mock GET /users/:id/following: the people the viewer follows, in contact order
 // - followersOf - mock GET /users/:id/followers: the people following the viewer; the backend keeps no reverse direction at all
+// - removeMockSharedCalendarPeer - drop a peer from the shared calendar (re-export from mock/plans)
 // END_MODULE_MAP
 
 export { MOCK_PROMO_CODE, MOCK_SANDBOX_FAIL_AMOUNT, MOCK_SINGLE_USE_PROMO_CODE, OFFER_TTL_MS, createMockCheckIn, resetMockBookings, resetMockCheckIns, resetMockPromo, resetMockWaitlist, waitlistAheadCount } from "./mock/bookings";

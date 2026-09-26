@@ -14,6 +14,12 @@
 // - StatsPeriod - period type
 // - OrganizerEventStatsSchema - aggregated counters plus the period they cover
 // - OrganizerEventStats - stats type
+// - OrganizerTrafficSourceSchema - where a booking came from: chats, feed or search
+// - OrganizerTrafficSource - traffic source type
+// - OrganizerTrafficShareSchema - one source and its percentage of the whole
+// - OrganizerTrafficShare - traffic share type
+// - OrganizerSummarySchema - organizer dashboard: bookings and their delta, attendance, cancellations, weekday spread and traffic sources
+// - OrganizerSummary - organizer summary type
 // END_MODULE_MAP
 
 import { z } from "zod";

@@ -6,6 +6,8 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - CheckInCode - one booking and the code its holder shows at the door
+// - OrganizerGuestCheckIn - one guest in the organizer's door list: who, how many, booked when, checked in when
 // - utcVisitDate - YYYY-MM-DD from a Date
 // - toCheckInDto - entity to CheckIn contract
 // - CheckInsService - create, stats, listCodes, checkInByCode

@@ -16,6 +16,7 @@
 // - feedEventPicked - resolve the free-text event to a real event id; matched=false means the typed title matches no known event
 // - FeedCreateView - presentational publish form: photo picker with a preview, event datalist, text
 // - FeedCreatePage - route container: author id from the auth context, event options via apiClient.listEvents, draft state, publish via createFeedPost
+// - PostAuthorAvatar - author avatar with the story ring when they have one
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useRef, useState } from "react";

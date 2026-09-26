@@ -11,6 +11,7 @@
 // - toSubscriptionDto - entity plus the resolved target title to the Subscription contract
 // - matchesSubscription - place/organizer/interest match against a new event
 // - formatSubscriptionNotice - DM body
+// - inQuietHours - whether the moment falls inside the subscriber's quiet window
 // - SubscriptionsService - create, list, remove, notifyNewEvent
 // END_MODULE_MAP
 

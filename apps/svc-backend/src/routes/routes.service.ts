@@ -6,7 +6,10 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - travelMinutes - meters at the speed of the chosen mode
 // - walkingMinutes - meters at 80 m/min
+// - pickMode - walk, metro or taxi for a distance, honouring the cheaper / no-taxi preference
+// - transferFor - one leg: its mode, its minutes and what it costs
 // - toDayRoute - points to legs and totals
 // - shortestPermutation - keep start, permute the rest
 // - RoutesService - build, optimize, travelToPlace

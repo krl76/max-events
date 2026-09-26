@@ -10,6 +10,12 @@
 // - OrganizerPlace - contract place plus the draft flag read from the raw `published` field (returned by toPlaceDto; a missing flag reads as published)
 // - UpdateOrganizerEvent - minimal event edit payload (backend PATCH /events/:id whitelist)
 // - UpdateOrganizerPlace - place edit payload (backend PATCH /places/:id validates CreatePlaceSchema.partial())
+// - OrganizerActivity - re-exported activity of an organization
+// - OrganizerSetupStep - re-exported step of the setup rail
+// - OrganizerPayoutMode - re-exported payout mode
+// - OrganizerSetupPayouts - re-exported payouts half of the setup
+// - OrganizerSetup - re-exported setup state
+// - UpdateOrganizerSetup - re-exported setup patch
 // - StatsPeriodQuery - optional from/to window for the organizer reports
 // - statsPeriodQuery - period into a ?from&to query string
 // - ORGANIZER_TRAFFIC_SOURCES - where a booking came from, in the order экраны 45 и 48 list it
@@ -24,10 +30,10 @@
 // - OrganizerSlot - one venue slot chip of экран 47 (the slots domain does not exist yet, #492)
 // - OrganizerAttendance - the event day of экран 47: counters, participants, waitlist, slots
 // - organizerEntryCode - entry code of a booking: the last six characters of its id, uppercased (no code column exists yet)
-// - ORGANIZER_ACTIVITIES / OrganizerActivity - re-export of the contract «чем занимаетесь» enum
-// - ORGANIZER_SETUP_STEPS / OrganizerSetupStep - re-export of the contract rail
-// - ORGANIZER_PAYOUT_MODES / OrganizerPayoutMode - re-export: external | none (no in-app live charges)
-// - OrganizerSetupVenue / OrganizerSetupPayouts / OrganizerSetup / UpdateOrganizerSetup - re-export of GET/PATCH /organizer/setup
+// - ORGANIZER_ACTIVITIES - re-export of the contract «чем занимаетесь» enum
+// - ORGANIZER_SETUP_STEPS - re-export of the contract rail
+// - ORGANIZER_PAYOUT_MODES - re-export: external | none (no in-app live charges)
+// - OrganizerSetupVenue - re-export of the venue half of GET/PATCH /organizer/setup
 // - withOrganizer - the organizer event/place surface, the sales/stats reports (#196), the period summary and the event day (макет, экраны 42/44/45), the organizer ratings (#199), the campaign/promotion/promocode surface (#206, #372), the promotion placements (#205) and the настройка state of экран 44 (#537)
 // END_MODULE_MAP
 

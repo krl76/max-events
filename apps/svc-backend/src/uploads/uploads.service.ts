@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - UploadPurpose - what an upload is for, out of the purposes the service accepts
 // - UploadsService - presign, store, read
 // END_MODULE_MAP
 

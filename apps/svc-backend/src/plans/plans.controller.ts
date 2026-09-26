@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - PlansController - /plans CRUD and participant actions
+// - parseRoutePrefer - timeline preference from the query, rejecting anything the contract does not allow
 // - parseOrigin - optional latitude/longitude pair
 // END_MODULE_MAP
 

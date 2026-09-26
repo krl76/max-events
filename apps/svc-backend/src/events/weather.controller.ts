@@ -7,7 +7,6 @@
 //
 // START_MODULE_MAP
 // - WeatherController - GET /weather and GET /weather/hourly
-// - parseWeatherPoint - city or lat/lng pair
 // END_MODULE_MAP
 
 import { BadRequestException, Controller, Get, Inject, NotFoundException, Query } from "@nestjs/common";

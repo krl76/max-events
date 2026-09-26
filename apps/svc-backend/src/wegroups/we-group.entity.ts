@@ -9,6 +9,7 @@
 // - WeGroupEntity - we_groups table row
 // - WeGroupMemberEntity - we_group_members table row
 // - WeGroupItemEntity - we_group_items table row
+// - WeGroupPhotoEntity - we_group_photos table row
 // END_MODULE_MAP
 
 import "reflect-metadata";

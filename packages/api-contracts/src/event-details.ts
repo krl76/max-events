@@ -8,6 +8,10 @@
 // START_MODULE_MAP
 // - EventDetailsSchema - aggregated event details payload
 // - EventDetails - event details type
+// - EventCompanionSchema - one person going to the event, as the companions screen shows them
+// - EventCompanion - companion type
+// - EventGatheringTeaserSchema - the open gathering an event carries, teased on the companions screen
+// - EventGatheringTeaser - gathering teaser type
 // - EventCompanionsSchema - экран 23 aggregate (#538)
 // - EventCompanions - companions type
 // - EventBookingOfferSchema - экран 18 waitlist-ahead + friends with tickets (#539)

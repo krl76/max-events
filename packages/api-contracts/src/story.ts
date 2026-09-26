@@ -6,6 +6,23 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - StoryAudienceSchema - who sees a story: close friends, friends or the city
+// - StoryAudience - story audience type
+// - StoryPlaceStickerSchema - the event sticker a story can carry, with the seats left on it
+// - StoryPlaceSticker - event sticker type
+// - StoryPollSchema - poll inside a story: question, two to four options and the viewer's answer
+// - StoryPoll - story poll type
+// - STORY_OBJECT_KINDS - what can stand on the canvas: text, event, poll, seats
+// - StoryObjectKindSchema - one canvas object kind
+// - StoryObjectKind - canvas object kind type
+// - STORY_OBJECT_SCALES - the five sizes a canvas object may take
+// - StoryObjectScaleSchema - one allowed object scale
+// - StoryCanvasObjectSchema - one object placed on the story canvas
+// - StoryCanvasObject - canvas object type
+// - CreateStoryWriteSchema - publish payload: image, text, sticker, poll, audience and canvas objects
+// - CreateStoryWrite - story publish type
+// - StoryPollVoteWriteSchema - answering the poll of a story
+// - StoryPollVoteWrite - poll vote type
 // - StorySchema - story (id, userId, imageUrl, createdAt)
 // - Story - story type
 // END_MODULE_MAP

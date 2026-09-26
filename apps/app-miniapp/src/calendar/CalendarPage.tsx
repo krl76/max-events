@@ -16,6 +16,7 @@
 // - calendarShareText - что уходит в чат MAX по «Поделиться» и «Ссылка на календарь»
 // - SharedCalendarView - презентационно: месяц, сетка, легенда, день со списком записей и низ экрана
 // - CalendarPage - контейнер разделов «Мои брони» и «Календарь»: загрузка обеих половин, «Пойду», приглашение друзей через FriendPicker и отмена брони
+// - filterCalendarScope - свои записи либо записи календаря одного друга
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useMemo, useState } from "react";
