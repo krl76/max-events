@@ -12,6 +12,8 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { CheckInEntity } from "../checkins/check-in.entity";
+import { EventEntity } from "../events/event.entity";
+import { FeedPostEntity } from "../feed/feed-post.entity";
 import { FriendsModule } from "../friends/friends.module";
 import { ListsModule } from "../lists/lists.module";
 import { PlaceEntity } from "../places/place.entity";
@@ -21,7 +23,7 @@ import { SwipeController } from "./swipe.controller";
 import { SwipeService } from "./swipe.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([SwipeDecisionEntity, PlaceEntity, CheckInEntity]), TasteModule, ListsModule, FriendsModule],
+  imports: [TypeOrmModule.forFeature([SwipeDecisionEntity, PlaceEntity, CheckInEntity, EventEntity, FeedPostEntity]), TasteModule, ListsModule, FriendsModule],
   controllers: [SwipeController],
   providers: [SwipeService],
 })

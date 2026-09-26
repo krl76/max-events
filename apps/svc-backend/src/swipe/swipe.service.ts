@@ -18,6 +18,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import { PlaceCategorySchema, type Friend, type Place, type PlaceCategory, type TasteProfile } from "@max-events/api-contracts";
 import { CheckInEntity } from "../checkins/check-in.entity";
+import { EventEntity } from "../events/event.entity";
+import { FeedPostEntity } from "../feed/feed-post.entity";
 import { FriendsService } from "../friends/friends.service";
 import { ListsService } from "../lists/lists.service";
 import { haversineKm } from "../geo/haversine";
@@ -40,6 +42,8 @@ export const SWIPE_DECK_CAP = 50;
 
 export type SwipeCandidate = {
   place: Place;
+  /** Photo on the card: the venue logo, else an event cover at that venue, else a feed photo from there. */
+  previewUrl: string | null;
   areaLine: string | null;
   offerLabel: string | null;
   distanceKm: number | null;
@@ -66,6 +70,8 @@ export class SwipeService {
     @InjectRepository(SwipeDecisionEntity) private readonly decisions: Repository<SwipeDecisionEntity>,
     @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
     @InjectRepository(CheckInEntity) private readonly checkIns: Repository<CheckInEntity>,
+    @InjectRepository(EventEntity) private readonly events: Repository<EventEntity>,
+    @InjectRepository(FeedPostEntity) private readonly posts: Repository<FeedPostEntity>,
     @Inject(TasteService) private readonly taste: TasteService,
     @Inject(ListsService) private readonly lists: ListsService,
     @Inject(FriendsService) private readonly friends: FriendsService,
@@ -79,6 +85,7 @@ export class SwipeService {
     const friends = await this.friends.list(userId);
     const friendIds = new Set(friends.map((row) => row.id));
     const visitors = await this.visitorsByPlace(rows.map((row) => row.id), friendIds);
+    const previews = await this.previewByPlace(rows);
     const scored = rows.map((row) => {
       const place = toPlaceDto(row);
       const matchPercent = matchPercentFor(row.category, profile);
@@ -86,6 +93,7 @@ export class SwipeService {
       const here = visitors.get(row.id) ?? new Set<string>();
       return {
         place,
+        previewUrl: previews.get(row.id) ?? null,
         areaLine: null,
         offerLabel: null,
         distanceKm,
@@ -112,6 +120,28 @@ export class SwipeService {
       await this.decisions.save(this.decisions.create({ userId, placeId, decision }));
     }
     if (decision === "like") await this.lists.addPlaceToPreset(userId, "favorites", placeId);
+  }
+
+  /** Logo first, then the newest event cover at the venue, then a feed photo of that event or place. */
+  private async previewByPlace(places: PlaceEntity[]): Promise<Map<string, string>> {
+    const result = new Map<string, string>();
+    const ids = places.map((place) => place.id);
+    for (const place of places) {
+      if (place.logoUrl) result.set(place.id, place.logoUrl);
+    }
+    if (ids.length === 0) return result;
+    const events = await this.events.find({ where: { placeId: In(ids), published: true } });
+    const placeOfEvent = new Map(events.flatMap((event) => (event.placeId ? [[event.id, event.placeId] as const] : [])));
+    const covers = events.filter((event) => event.placeId && event.coverUrl).sort((a, b) => b.startsAt.getTime() - a.startsAt.getTime());
+    for (const event of covers) {
+      if (event.placeId && event.coverUrl && !result.has(event.placeId)) result.set(event.placeId, event.coverUrl);
+    }
+    const posts = (await this.posts.find({ where: { published: true } })).filter((post) => post.photoUrl).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    for (const post of posts) {
+      const placeId = post.placeId ?? placeOfEvent.get(post.eventId) ?? null;
+      if (placeId && ids.includes(placeId) && post.photoUrl && !result.has(placeId)) result.set(placeId, post.photoUrl);
+    }
+    return result;
   }
 
   private async visitorsByPlace(placeIds: string[], friendIds: Set<string>): Promise<Map<string, Set<string>>> {

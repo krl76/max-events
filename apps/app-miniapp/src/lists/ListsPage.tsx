@@ -176,6 +176,10 @@ export function ListsView({ state, onOpen, topbar = false, creating = false, new
             {presets.map((summary) => (
               <ListTile key={summary.list.id} summary={summary} onOpen={onOpen} />
             ))}
+            <button type="button" className="app-lists-new" onClick={onCreateStart} disabled={busy}>
+              <ActionIcon name="plus" size={20} strokeWidth={2.8} />
+              <span>Новый список</span>
+            </button>
           </div>
           <div className="app-lists-head">
             <span className="app-lists-head-label">МОИ СПИСКИ</span>

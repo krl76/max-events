@@ -708,7 +708,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       if (friendshipEdges.has(key)) continue;
       friendshipEdges.add(key);
       const createdAt = shiftDays(now, -int(1, 60), int(9, 22));
-      friendships.push({ id: uuid(), userId, friendUserId, createdAt, updatedAt: createdAt });
+      friendships.push({ id: uuid(), userId, friendUserId, closeFriend: false, createdAt, updatedAt: createdAt });
     }
   };
   users.forEach((user, i) => {

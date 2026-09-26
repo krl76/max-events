@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: TypeORM entity for the friendships table (directed user → friend edges).
-// SCOPE: FriendshipEntity columns: uuid id, userId, friendUserId, timestamps; unique (userId, friendUserId).
+// SCOPE: FriendshipEntity columns: uuid id, userId, friendUserId, closeFriend, timestamps; unique (userId, friendUserId).
 // DEPENDS: typeorm
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -23,6 +23,10 @@ export class FriendshipEntity {
 
   @Column({ type: "uuid" })
   friendUserId!: string;
+
+  /** The viewer marked this person as a close friend. Stories with audience close-friends are shown only to these rows. */
+  @Column({ type: "boolean", default: false })
+  closeFriend!: boolean;
 
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;

@@ -17,6 +17,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { Story } from "@max-events/api-contracts";
+import { StoryFrame } from "./StoryFrame";
 
 export const STORY_DURATION_MS = 5000;
 
@@ -96,7 +97,7 @@ export function StoryViewer({ groups, startGroup = 0, onView, onClose }: { group
 
   return (
     <div className="app-story-viewer" role="dialog" aria-label={`История: ${current.authorName}`}>
-      <img key={current.story.id} className="app-story-viewer-image" src={current.story.imageUrl} alt="" />
+      <StoryFrame key={current.story.id} story={current.story} />
       <div className="app-story-viewer-top">
         <div className="app-story-viewer-segments" style={segmentsStyle}>
           {/* key с номером автора: у нового автора первый сегмент — новый элемент, и его заполнение стартует с нуля */}

@@ -33,7 +33,7 @@ import { apiClient, type ListSummary, type ProfileCounters, type ProfilePost, ty
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { readFeedPhoto } from "../feed/photo";
-import { shareResult, webApp } from "../max/bridge";
+import { announceShare, getWebApp, shareResult } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { AppMedia, AppSkeleton, AppState } from "../ui/primitives";
@@ -200,6 +200,8 @@ export interface ProfileEntries {
   onFriends: () => void;
   onSubscribe: () => void;
   onWrite: () => void;
+  onToggleClose?: () => void;
+  closeFriend?: boolean;
   onInvite: () => void;
   onOpenPost: (post: ProfilePost) => void;
   onNewPost: () => void;
@@ -400,6 +402,11 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
           <button type="button" className="app-me-action" onClick={entries.onWrite}>
             Написать
           </button>
+          {entries.onToggleClose !== undefined && (
+            <button type="button" className="app-me-action" aria-pressed={entries.closeFriend === true} onClick={entries.onToggleClose}>
+              {entries.closeFriend ? "В близких" : "В близкие"}
+            </button>
+          )}
           <button type="button" className="app-me-action" onClick={entries.onInvite}>
             Позвать
           </button>
@@ -538,6 +545,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
   const [subject, setSubject] = useState<User | null>(own ? viewer : null);
   const [followingThem, setFollowingThem] = useState(false);
   const [subscribePending, setSubscribePending] = useState(false);
+  const [closeFriend, setCloseFriend] = useState(false);
   const [myFollows, setMyFollows] = useState<string[]>([]);
   const [localCover, setLocalCover] = useState<string | null | undefined>(undefined);
   const avatarRef = useRef<HTMLInputElement | null>(null);
@@ -556,6 +564,12 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
       () => {
         if (alive) setSubject(null);
       },
+    );
+    apiClient.getCloseFriend(subjectId).then(
+      (close) => {
+        if (alive) setCloseFriend(close);
+      },
+      () => {},
     );
     apiClient.listFollowing(viewer.id).then(
       (list) => {
@@ -657,7 +671,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         subscribePending={subscribePending}
         onTab={setTab}
         onSettings={() => navigate({ name: "settings" })}
-        onShare={() => void shareResult(webApp, `${[shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ")} в Афише MAX`)}
+        onShare={() => void shareResult(getWebApp(), `${[shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ")} в Афише MAX`).then(announceShare)}
         onLists={() => navigate({ name: "plans" })}
         onSubscriptions={() => navigate({ name: "subscriptions" })}
         onFollowers={() => navigate({ name: "followers" })}
@@ -665,7 +679,20 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         onWeGroups={() => navigate({ name: "we-groups" })}
         onFriends={() => navigate({ name: "friends" })}
         onSubscribe={toggleFollow}
-        onWrite={() => void shareResult(webApp, `${[shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ")} в Афише MAX`)}
+        onWrite={() => {
+          const name = [shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ");
+          void shareResult(getWebApp(), `Привет, ${name}! Пишу из Афиши MAX.`).then(announceShare);
+        }}
+        closeFriend={closeFriend}
+        onToggleClose={
+          subjectId === null
+            ? undefined
+            : () => {
+                const next = !closeFriend;
+                setCloseFriend(next);
+                apiClient.setCloseFriend(subjectId, next).then(setCloseFriend, () => setCloseFriend(!next));
+              }
+        }
         onInvite={() => navigate({ name: "plan-new" })}
         onOpenPost={(post) => navigate({ name: "post", id: post.postId })}
         onNewPost={() => navigate({ name: "feed-new", eventId: null })}

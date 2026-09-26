@@ -118,11 +118,15 @@ export type StoryObjectKind = "text" | "event" | "poll" | "seats";
  * on every other. Nothing on the backend holds it yet (#502).
  */
 export interface StoryCanvasObject {
+  /** Set on every text after the first, so several captions can share one story. */
+  id?: string;
   kind: StoryObjectKind;
   x: number;
   y: number;
   /** How much bigger the author made the object; absent while it stays at its natural size. */
   scale?: number;
+  /** Caption of this text object. The first caption may also live on the story's text field. */
+  text?: string;
 }
 
 /** Who a published post is shown to (макет, экран 06); no audience column behind it (#502). */
@@ -371,6 +375,28 @@ export function withFeed<TBase extends ApiMixin>(Base: TBase) {
      */
     createStory(imageUrl: string, composition?: StoryComposition): Promise<Story> {
       return this.request("/stories", StorySchema, { body: composition === undefined ? { imageUrl } : { imageUrl, ...composition } });
+    }
+
+    /** Store a data URL and return the public path. A url that is already hosted is returned as it is. */
+    async storeImage(dataUrl: string, purpose: "story" | "cover" | "feed" | "review"): Promise<string> {
+      if (!dataUrl.startsWith("data:image/")) return dataUrl;
+      const ticketSchema: ZodSchema<{ id: string; publicUrl: string }> = {
+        safeParse(data: unknown) {
+          if (typeof data !== "object" || data === null) return { success: false as const, error: "invalid upload" };
+          const raw = data as { id?: unknown; publicUrl?: unknown };
+          if (typeof raw.id !== "string" || typeof raw.publicUrl !== "string") return { success: false as const, error: "invalid upload" };
+          return { success: true as const, data: { id: raw.id, publicUrl: raw.publicUrl } };
+        },
+      };
+      const storedSchema: ZodSchema<{ publicUrl: string }> = {
+        safeParse(data: unknown) {
+          if (typeof data !== "object" || data === null || typeof (data as { publicUrl?: unknown }).publicUrl !== "string") return { success: false as const, error: "invalid upload" };
+          return { success: true as const, data: { publicUrl: (data as { publicUrl: string }).publicUrl } };
+        },
+      };
+      const ticket = await this.request("/uploads", ticketSchema, { body: { purpose } });
+      const put = await this.request(`/uploads/${ticket.id}`, storedSchema, { method: "PUT", body: { dataUrl } });
+      return put.publicUrl;
     }
 
     /**

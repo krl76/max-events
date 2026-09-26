@@ -3136,6 +3136,62 @@ html[data-theme="dark"] body {
   width: 100%;
 }
 
+.app-story-frame {
+  inset: 0;
+  position: absolute;
+}
+
+.app-story-frame-object {
+  position: absolute;
+  z-index: 2;
+}
+
+.app-story-frame-text {
+  color: var(--brand-white);
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  margin: 0;
+  text-align: center;
+  text-shadow: 0 2px 12px rgba(13, 0, 26, 0.65);
+}
+
+.app-story-frame-text--loose {
+  left: 50%;
+  position: absolute;
+  top: 22%;
+  transform: translate(-50%, -50%);
+  width: calc(100% - 48px);
+}
+
+.app-story-frame-sticker,
+.app-story-frame-seats,
+.app-story-frame-poll {
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 16px;
+  color: var(--brand-void);
+  padding: 10px 14px;
+}
+
+.app-story-frame-sticker,
+.app-story-frame-seats,
+.app-story-frame-poll {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-story-frame-poll div {
+  display: flex;
+  gap: 6px;
+}
+
+.app-story-frame-poll span {
+  background: rgba(13, 0, 26, 0.06);
+  border-radius: 10px;
+  font-weight: 800;
+  padding: 6px 8px;
+}
+
 .app-story-viewer-top {
   background: linear-gradient(rgba(13, 0, 26, 0.45), transparent);
   left: 0;
@@ -5462,6 +5518,14 @@ html[data-theme="dark"] body {
   user-select: none;
 }
 
+.app-swipe-photo {
+  height: 100%;
+  inset: 0;
+  object-fit: cover;
+  position: absolute;
+  width: 100%;
+}
+
 /* Уход решённой карточки: вправо с наклоном — в избранное, влево — мимо. Кадры сильнее инлайнового
  * transform, но стартуют с него, поэтому карточка улетает из той точки, где её отпустили.
  * По animationend контейнер снимает её с экрана. */
@@ -5963,12 +6027,95 @@ html[data-theme="dark"] body {
 
 /* Стикер сам себе выбор события: отдельной строки макет не рисует, а нативный список лежит поверх пилюли прозрачным слоем */
 .app-story-sticker-pick {
+  background: transparent;
+  border: none;
   cursor: pointer;
   height: 100%;
   left: 0;
   opacity: 0;
+  padding: 0;
   position: absolute;
   top: 0;
+  width: 100%;
+}
+
+.app-story-event-sheet {
+  align-items: flex-end;
+  background: rgba(13, 0, 26, 0.45);
+  display: flex;
+  inset: 0;
+  position: absolute;
+  z-index: 30;
+}
+
+.app-story-event-sheet-card {
+  background: var(--brand-white);
+  border-radius: 20px 20px 0 0;
+  color: var(--brand-void);
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  width: 100%;
+}
+
+.app-story-event-sheet-title {
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+
+.app-story-event-sheet-list {
+  list-style: none;
+  margin: 0;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.app-story-event-sheet-list button {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(13, 0, 26, 0.08);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 12px 4px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-story-event-sheet-list button[aria-pressed="true"] {
+  font-weight: 800;
+}
+
+.app-story-event-sheet-close {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  margin-top: 8px;
+  padding: 12px;
+}
+
+.app-share-notice {
+  background: var(--brand-void);
+  border-radius: 14px;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  color: var(--brand-white);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  left: 16px;
+  margin: 0;
+  padding: 12px 14px;
+  position: fixed;
+  right: 16px;
+  text-align: center;
+  z-index: 40;
+}
+
+.app-lists-new--sheet {
+  margin: 8px 0 12px;
   width: 100%;
 }
 
@@ -18525,6 +18672,7 @@ button.app-cal-peer-chip {
 }
 
 .app-story-object-drop,
+.app-story-object-done,
 .app-story-object-grip {
   align-items: center;
   background: rgba(13, 0, 26, 0.72);

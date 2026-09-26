@@ -67,7 +67,7 @@ describe("story audience", () => {
   });
 
   it("labels the opening audience as the design does", () => {
-    expect(storyAudienceLabel("close-friends")).toBe("Близкие друзья");
+    expect(storyAudienceLabel("close-friends")).toBe("Кто увидит: Близкие друзья");
   });
 });
 
@@ -95,6 +95,15 @@ describe("storyCanvasImage", () => {
 });
 
 describe("объекты холста", () => {
+  it("adds another caption instead of replacing the first one", () => {
+    const first = addStoryObject([], "text");
+    const second = addStoryObject(first, "text");
+
+    expect(second).toHaveLength(2);
+    expect(second[1]?.id).toBe("text-2");
+    expect(second[0]).toEqual(first[0]);
+  });
+
   it("кладёт объект на его место из каталога и не дублирует его повторным добавлением", () => {
     const once = addStoryObject([], "event");
     const twice = addStoryObject(once, "event");

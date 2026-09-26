@@ -130,6 +130,7 @@ export function SwipeCard({ candidate, dx, settling = false, leaving = null, ges
 
   return (
     <div className={cardClass} {...gesture} style={style} onAnimationEnd={leaving === null ? undefined : onAnimationEnd}>
+      {candidate.previewUrl !== null && <img className="app-swipe-photo" src={candidate.previewUrl} alt="" />}
       <span className="app-swipe-glow" aria-hidden="true" />
       <span className="app-swipe-glow app-swipe-glow--cool" aria-hidden="true" />
       <span className="app-swipe-tint app-swipe-tint--like" aria-hidden="true" />

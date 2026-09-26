@@ -227,10 +227,25 @@ export function microEventCardFrom(id: string, events: MicroEvent[], places: Pla
   return { event, place: places.find((item) => item.id === event.placeId) ?? null, participants };
 }
 
+const CloseFriendSchema: ZodSchema<{ close: boolean }> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null || typeof (data as { close?: unknown }).close !== "boolean") return { success: false as const, error: "invalid close friend" };
+    return { success: true as const, data: { close: (data as { close: boolean }).close } };
+  },
+};
+
 export function withSocial<TBase extends ApiMixin>(Base: TBase) {
   return class SocialEndpoints extends Base {
     listFriends(): Promise<Friend[]> {
       return this.request("/friends", FriendSchema.array());
+    }
+
+    getCloseFriend(userId: string): Promise<boolean> {
+      return this.request(`/users/${encodeURIComponent(userId)}/close`, CloseFriendSchema).then((row) => row.close);
+    }
+
+    setCloseFriend(userId: string, close: boolean): Promise<boolean> {
+      return this.request(`/users/${encodeURIComponent(userId)}/close`, CloseFriendSchema, { method: "PUT", body: { close } }).then((row) => row.close);
     }
 
     getFriendsActivity(userId: string): Promise<FriendActivityByFriend[]> {

@@ -33,9 +33,9 @@ function createStoreRepo(initial: StoryEntity[] = []) {
   };
 }
 
-function createService(friendIds: string[] = []) {
+function createService(friendIds: string[] = [], markedCloseBy: string[] = []) {
   const stories = createStoreRepo();
-  const friends = { friendIds: async () => new Set(friendIds) } as unknown as FriendsService;
+  const friends = { friendIds: async () => new Set(friendIds), authorsWhoMarkedClose: async () => new Set(markedCloseBy) } as unknown as FriendsService;
   const service = new StoriesService(stories as unknown as Repository<StoryEntity>, friends);
   return { service, stories };
 }
@@ -83,11 +83,22 @@ describe("StoriesService", () => {
     expect(listed.map((story) => story.imageUrl)).toEqual(["fresh"]);
   });
 
-  it("fills the rail from anyone's last-day stories when the viewer has no friends yet", async () => {
+  it("shows a city story to a stranger and hides a friends-only story until they are friends", async () => {
     const { service, stories } = createService();
     const now = new Date("2026-09-16T12:00:00Z");
-    stories.store.push({ id: "00000000-0000-4000-8000-0000000000f1", userId: other, imageUrl: "stranger", createdAt: new Date("2026-09-16T11:00:00Z") }, { id: "00000000-0000-4000-8000-0000000000f2", userId: author, imageUrl: "own", createdAt: new Date("2026-09-16T10:00:00Z") });
+    stories.store.push({ id: "00000000-0000-4000-8000-0000000000f1", userId: other, imageUrl: "stranger", audience: "friends", createdAt: new Date("2026-09-16T11:00:00Z") } as StoryEntity, { id: "00000000-0000-4000-8000-0000000000f2", userId: author, imageUrl: "own", createdAt: new Date("2026-09-16T10:00:00Z") } as StoryEntity, { id: "00000000-0000-4000-8000-0000000000f3", userId: other, imageUrl: "city", audience: "city", createdAt: new Date("2026-09-16T09:00:00Z") } as StoryEntity);
     const listed = await service.list(author, now);
-    expect(listed.map((story) => story.imageUrl)).toEqual(["stranger", "own"]);
+    expect(listed.map((story) => story.imageUrl)).toEqual(["own", "city"]);
+  });
+
+  it("shows a close-friends story only to someone the author marked close", async () => {
+    const now = new Date("2026-09-16T12:00:00Z");
+    const row = { id: "00000000-0000-4000-8000-0000000000f1", userId: author, imageUrl: "close", audience: "close-friends" as const, createdAt: new Date("2026-09-16T11:00:00Z") } as StoryEntity;
+    const hidden = createService([author]);
+    hidden.stories.store.push(row);
+    expect((await hidden.service.list(other, now)).map((story) => story.imageUrl)).toEqual([]);
+    const shown = createService([], [author]);
+    shown.stories.store.push(row);
+    expect((await shown.service.list(other, now)).map((story) => story.imageUrl)).toEqual(["close"]);
   });
 });

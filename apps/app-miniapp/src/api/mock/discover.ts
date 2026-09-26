@@ -114,6 +114,7 @@ function swipeCandidate(place: Place, origin: { latitude: number; longitude: num
   const friends: Friend[] = (seed?.friendIndexes ?? []).flatMap((index) => (mockFriends[index] === undefined ? [] : [mockFriends[index]]));
   return {
     place,
+    previewUrl: place.logoUrl,
     areaLine: seed?.areaLine ?? null,
     offerLabel: seed?.offerLabel ?? null,
     distanceKm: origin === null ? null : Math.round(haversineKm(origin.latitude, origin.longitude, place.latitude, place.longitude) * 10) / 10,

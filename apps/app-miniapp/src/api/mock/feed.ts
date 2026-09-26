@@ -98,7 +98,15 @@ export function listMockStories(): Story[] {
 export const mockStoryCompositions: StoryComposition[] = [];
 
 export function createMockStory(imageUrl: string, composition: StoryComposition | null = null): Story {
-  const story: Story = storySeed("e1000000-0000-4000-8000-00000000000a", mockDemoUser.id, imageUrl, new Date().toISOString());
+  const seeded = storySeed("e1000000-0000-4000-8000-00000000000a", mockDemoUser.id, imageUrl, new Date().toISOString());
+  const story = StorySchema.parse({
+    ...seeded,
+    text: composition?.text ?? "",
+    sticker: composition?.sticker ?? null,
+    poll: composition?.poll ?? null,
+    audience: composition?.audience ?? "friends",
+    objects: composition?.objects ?? [],
+  });
   if (composition !== null) mockStoryCompositions.push(composition);
   if (typeof window !== "undefined") window.localStorage.setItem(MOCK_OWN_STORY_KEY, JSON.stringify(story));
   return story;

@@ -7,11 +7,23 @@
 // END_MODULE_CONTRACT
 
 import "reflect-metadata";
+import { json, urlencoded } from "express";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  // Photos travel as data URLs until they are stored. The default 100kb parser rejects them.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
+  app.use(
+    json({
+      limit: "12mb",
+      verify: (req, _res, buf) => {
+        (req as { rawBody?: Buffer }).rawBody = buf;
+      },
+    }),
+  );
+  app.use(urlencoded({ extended: true, limit: "12mb" }));
   app.setGlobalPrefix("api");
   app.enableCors();
   await app.listen(Number(process.env.PORT ?? 3100));

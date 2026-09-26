@@ -16,6 +16,8 @@ import { mockDemoUser, parseBookingBody } from "./fixtures";
 import { achievementsFor, afterMePicks, appSettingsFor, mockCustomAvatars, mockProfiles, myCityFor, profileCountersFor, profileFor, tasteProfile, updateMockAppSettings, userFor, userPostsFor, visitStatsFor, visitedPlacesFor } from "./profile";
 import { followersOf, followingOf } from "./social";
 
+const mockCloseFriends = new Set<string>();
+
 export function profileRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/taste") {
     return Response.json(tasteProfile(mockDemoUser.id));
@@ -70,6 +72,16 @@ export function profileRoutes(url: URL, init: RequestInit | undefined): Response
   const followers = /^\/api\/users\/([^/]+)\/followers$/.exec(url.pathname);
   if (followers) {
     return Response.json(followersOf(followers[1]));
+  }
+  const close = /^\/api\/users\/([^/]+)\/close$/.exec(url.pathname);
+  if (close) {
+    if (init?.method === "PUT") {
+      const body = parseBookingBody(init) as { close?: unknown } | undefined;
+      if (typeof body?.close !== "boolean") return new Response(null, { status: 400 });
+      if (body.close) mockCloseFriends.add(close[1]);
+      else mockCloseFriends.delete(close[1]);
+    }
+    return Response.json({ close: mockCloseFriends.has(close[1]) });
   }
   const appSettings = /^\/api\/users\/([^/]+)\/app-settings$/.exec(url.pathname);
   if (appSettings) {

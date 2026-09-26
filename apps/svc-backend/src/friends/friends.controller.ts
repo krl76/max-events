@@ -67,6 +67,19 @@ export class UserFollowsController {
   followers(@Param("userId", ParseUUIDPipe) userId: string): Promise<Friend[]> {
     return this.friends.followers(userId);
   }
+
+  @Get(":userId/close")
+  async close(@CurrentUser() user: UserEntity, @Param("userId", ParseUUIDPipe) userId: string): Promise<{ close: boolean }> {
+    return { close: await this.friends.isCloseFriend(user.id, userId) };
+  }
+
+  @Put(":userId/close")
+  async setClose(@CurrentUser() user: UserEntity, @Param("userId", ParseUUIDPipe) userId: string, @Body() body: unknown): Promise<{ close: boolean }> {
+    const close = body !== null && typeof body === "object" && (body as { close?: unknown }).close === true;
+    const off = body !== null && typeof body === "object" && (body as { close?: unknown }).close === false;
+    if (!close && !off) throw new BadRequestException("Invalid close friend");
+    return { close: await this.friends.setCloseFriend(user.id, userId, close) };
+  }
 }
 
 @Controller("events/:eventId/friends")

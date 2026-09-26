@@ -34,7 +34,8 @@ import type { Event, Friend, ParticipationStatus } from "@max-events/api-contrac
 import { apiClient, type FeedCard, type FeedCardCounts, type FeedComment, type FeedFriendCard, type FeedPlaceCard } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
-import { shareResult, webApp } from "../max/bridge";
+import { announceShare, getWebApp, shareResult } from "../max/bridge";
+import { replayScroll } from "../ui/scroll-memory";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { SaveToList } from "../event/SaveToList";
@@ -467,6 +468,13 @@ export function FeedScreen() {
   }, [fetchCards]);
 
   useEffect(() => {
+    if (state.status !== "ready") return;
+    replayScroll("home");
+    const frame = requestAnimationFrame(() => replayScroll("home"));
+    return () => cancelAnimationFrame(frame);
+  }, [state.status]);
+
+  useEffect(() => {
     apiClient.listStories().then(
       (stories) => setStoryAuthors(new Set(stories.map((story) => story.userId))),
       () => {},
@@ -498,7 +506,7 @@ export function FeedScreen() {
       void settle(card.myStatus === "going" ? apiClient.deleteParticipation(card.event.id, userId) : apiClient.setParticipationStatus(card.event.id, userId, "going"));
     },
     onOpenComments: (card) => navigate({ name: "post", id: card.id }),
-    onShare: (card) => void shareResult(webApp, `${card.author.name} — ${card.event.title}: ${card.text}`),
+    onShare: (card) => void shareResult(getWebApp(), `${card.author.name} — ${card.event.title}: ${card.text}`).then(announceShare),
     onPlaceStatus: (card, status) => {
       if (userId === null) return;
       void settle(apiClient.setPlaceParticipationStatus(card.place.id, userId, card.myStatus === status ? null : status));

@@ -22,10 +22,12 @@
 // - routeHasHeader - header hidden on «Куда пойдём?» (экраны 11 и 12), whose title changes with the wizard step — «Куда пойдём?» over the questions, the number found over the result
 // END_MODULE_MAP
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { apiClient } from "../api/client";
+import { SHARE_NOTICE, shareNoticeText, type ShareChannel } from "../max/bridge";
 import { isTabRoute, useRoute, type Route } from "../routing/router";
 import { ActionIcon, TabIconGlyph, type TabIcon } from "./icons";
+import { consumeFrozenScroll, freezeScroll, noteAppliedScroll, rememberScroll, routeScrollKey } from "./scroll-memory";
 
 export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string) => boolean; route: "home" | "search" | "create" | "plans" | "profile" }> = [
   { icon: "feed", label: "Лента", route: "home", active: (name) => name === "home" || name === "micro" || name === "micro-event" },
@@ -197,8 +199,47 @@ export function FeedHeader({ onSearch, onNotifications }: { onSearch: () => void
   );
 }
 
+function scrollKey(route: Route): string {
+  if ("id" in route && typeof route.id === "string") return routeScrollKey(route.name, route.id);
+  if ("eventId" in route && typeof route.eventId === "string") return routeScrollKey(route.name, route.eventId);
+  return route.name;
+}
+
 export function Layout({ children }: { children: ReactNode }) {
-  const { route, navigate, back, transition, navSeq } = useRoute();
+  const { route, navigate, back, transition: _transition, navSeq } = useRoute();
+  const scroller = useRef<HTMLElement>(null);
+  const acceptScroll = useRef(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const key = scrollKey(route);
+
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    const top = consumeFrozenScroll(key);
+    acceptScroll.current = false;
+    if (el && top !== undefined) {
+      el.scrollTop = top;
+      noteAppliedScroll(key, top);
+    }
+    acceptScroll.current = true;
+    return () => {
+      acceptScroll.current = false;
+    };
+  }, [navSeq, key]);
+
+  useEffect(() => {
+    const onNotice = (event: Event) => {
+      const channel = (event as CustomEvent<ShareChannel>).detail;
+      setNotice(shareNoticeText(channel));
+    };
+    window.addEventListener(SHARE_NOTICE, onNotice);
+    return () => window.removeEventListener(SHARE_NOTICE, onNotice);
+  }, []);
+
+  useEffect(() => {
+    if (notice === null) return;
+    const timer = window.setTimeout(() => setNotice(null), 2800);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   return (
     <>
@@ -219,9 +260,24 @@ export function Layout({ children }: { children: ReactNode }) {
           )}
         </header>
       )}
-      <main key={navSeq} className={`app-content app-screen--${transition}${routeIsFlush(route) ? " app-content--flush" : ""}${routeIsFullscreen(route) ? " app-content--full" : ""}`}>
+      <main
+        key={navSeq}
+        ref={scroller}
+        className={`app-content app-screen--${_transition}${routeIsFlush(route) ? " app-content--flush" : ""}${routeIsFullscreen(route) ? " app-content--full" : ""}`}
+        onScroll={(event) => {
+          if (!event.isTrusted || !acceptScroll.current) return;
+          const top = event.currentTarget.scrollTop;
+          rememberScroll(key, top);
+          freezeScroll(key, top);
+        }}
+      >
         {children}
       </main>
+      {notice !== null && (
+        <p className="app-share-notice" role="status">
+          {notice}
+        </p>
+      )}
       {!routeIsFullscreen(route) && (
         <nav className="app-tabbar">
           {TABS.map((tab) => (

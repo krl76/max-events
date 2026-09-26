@@ -10,7 +10,7 @@
 // - toFriendDto - map UserEntity to api-contracts Friend
 // END_MODULE_MAP
 
-import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
@@ -45,6 +45,37 @@ export class FriendsService {
   async friendIds(userId: string): Promise<Set<string>> {
     const rows = await this.friendships.find({ where: { userId } });
     return new Set(rows.map((row) => row.friendUserId));
+  }
+
+  async closeFriendIds(userId: string): Promise<Set<string>> {
+    const rows = await this.friendships.find({ where: { userId, closeFriend: true } });
+    return new Set(rows.map((row) => row.friendUserId));
+  }
+
+  /** Authors who put this viewer on their close-friends list. Their close-friends stories are visible here. */
+  async authorsWhoMarkedClose(viewerId: string): Promise<Set<string>> {
+    const rows = await this.friendships.find({ where: { friendUserId: viewerId, closeFriend: true } });
+    return new Set(rows.map((row) => row.userId));
+  }
+
+  async isCloseFriend(userId: string, friendUserId: string): Promise<boolean> {
+    const row = await this.friendships.findOneBy({ userId, friendUserId });
+    return row?.closeFriend === true;
+  }
+
+  async setCloseFriend(userId: string, friendUserId: string, close: boolean): Promise<boolean> {
+    if (userId === friendUserId) throw new BadRequestException("Invalid close friend");
+    const person = await this.users.findOneBy({ id: friendUserId });
+    if (!person) throw new NotFoundException("User not found");
+    const existing = await this.friendships.findOneBy({ userId, friendUserId });
+    if (!existing) {
+      if (!close) return false;
+      await this.friendships.save(this.friendships.create({ userId, friendUserId, closeFriend: true }));
+      return true;
+    }
+    existing.closeFriend = close;
+    await this.friendships.save(existing);
+    return close;
   }
 
   async list(userId: string): Promise<Friend[]> {

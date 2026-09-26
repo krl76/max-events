@@ -50,12 +50,14 @@ function createFriendshipRepo(initial: FriendshipEntity[] = []) {
   return {
     store,
     create: (fields: Partial<FriendshipEntity>) => ({ ...fields }) as FriendshipEntity,
-    find: async (opts: { where?: { userId?: string; friendUserId?: string } } = {}) =>
+    find: async (opts: { where?: { userId?: string; friendUserId?: string; closeFriend?: boolean } } = {}) =>
       store.filter((row) => {
         if (opts.where?.userId && row.userId !== opts.where.userId) return false;
         if (opts.where?.friendUserId && row.friendUserId !== opts.where.friendUserId) return false;
+        if (opts.where?.closeFriend !== undefined && row.closeFriend !== opts.where.closeFriend) return false;
         return true;
       }),
+    findOneBy: async (where: { userId?: string; friendUserId?: string }) => store.find((row) => (!where.userId || row.userId === where.userId) && (!where.friendUserId || row.friendUserId === where.friendUserId)) ?? null,
     delete: async (where: { id: string }) => {
       const index = store.findIndex((row) => row.id === where.id);
       if (index < 0) return { affected: 0 };
@@ -165,6 +167,16 @@ describe("FriendsService", () => {
     const afterBlindSync = await service.sync(meId);
     expect(afterBlindSync.map((row) => row.name)).toEqual(["Анна Соколова"]);
     expect(friendships.store).toHaveLength(1);
+  });
+
+  it("marks a person close and remembers that they were marked by this user", async () => {
+    const { service } = createService();
+    expect(await service.isCloseFriend(meId, annaId)).toBe(false);
+    expect(await service.setCloseFriend(meId, annaId, true)).toBe(true);
+    expect(await service.isCloseFriend(meId, annaId)).toBe(true);
+    expect([...(await service.authorsWhoMarkedClose(annaId))]).toEqual([meId]);
+    expect(await service.setCloseFriend(meId, annaId, false)).toBe(false);
+    expect([...(await service.authorsWhoMarkedClose(annaId))]).toEqual([]);
   });
 
   it("makes nobody a friend on a first sync without a MAX friends list", async () => {

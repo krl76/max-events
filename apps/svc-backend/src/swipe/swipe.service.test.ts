@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { FindOperator, type Repository } from "typeorm";
 import type { TasteProfile } from "@max-events/api-contracts";
 import { CheckInEntity } from "../checkins/check-in.entity";
+import { EventEntity } from "../events/event.entity";
+import { FeedPostEntity } from "../feed/feed-post.entity";
 import type { FriendsService } from "../friends/friends.service";
 import type { ListsService } from "../lists/lists.service";
 import { PlaceEntity } from "../places/place.entity";
@@ -80,7 +82,9 @@ function createService(options: { places?: PlaceEntity[]; checkIns?: CheckInEnti
     },
   } as unknown as ListsService;
   const friends = { list: async () => options.friends ?? [] } as unknown as FriendsService;
-  const service = new SwipeService(decisions as unknown as Repository<SwipeDecisionEntity>, places as unknown as Repository<PlaceEntity>, checkIns as unknown as Repository<CheckInEntity>, taste, lists, friends);
+  const events = createStoreRepo<EventEntity>([]);
+  const posts = createStoreRepo<FeedPostEntity>([]);
+  const service = new SwipeService(decisions as unknown as Repository<SwipeDecisionEntity>, places as unknown as Repository<PlaceEntity>, checkIns as unknown as Repository<CheckInEntity>, events as unknown as Repository<EventEntity>, posts as unknown as Repository<FeedPostEntity>, taste, lists, friends);
   return { service, decisions, favorites };
 }
 

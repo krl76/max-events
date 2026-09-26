@@ -90,6 +90,19 @@ export function openChatLink(url: string): void {
 
 export type ShareChannel = "bridge" | "clipboard" | "unavailable";
 
+export const SHARE_NOTICE = "max-share-notice";
+
+export function shareNoticeText(channel: ShareChannel): string {
+  if (channel === "bridge") return "Выберите чат в MAX и отправьте сообщение";
+  if (channel === "clipboard") return "Скопировано. Отправьте его из MAX";
+  return "Не удалось поделиться. Откройте MAX и напишите оттуда";
+}
+
+export function announceShare(channel: ShareChannel): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent<ShareChannel>(SHARE_NOTICE, { detail: channel }));
+}
+
 /**
  * Share text into a MAX chat. Platform way: WebApp.shareMaxContent({ text }) opens the
  * MAX share screen (dialogs/group chats) — documented at dev.max.ru/docs/webapps/bridge.

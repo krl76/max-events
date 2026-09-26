@@ -38,10 +38,12 @@ export const STORY_OBJECT_SCALES = [0.75, 0.9, 1, 1.15, 1.25] as const;
 export const StoryObjectScaleSchema = z.union([z.literal(0.75), z.literal(0.9), z.literal(1), z.literal(1.15), z.literal(1.25)]);
 
 export const StoryCanvasObjectSchema = z.object({
+  id: z.string().min(1).max(40).optional(),
   kind: StoryObjectKindSchema,
   x: z.number().min(0).max(100),
   y: z.number().min(0).max(100),
   scale: StoryObjectScaleSchema.optional(),
+  text: z.string().max(500).optional(),
 });
 export type StoryCanvasObject = z.infer<typeof StoryCanvasObjectSchema>;
 

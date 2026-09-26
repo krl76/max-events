@@ -28,6 +28,7 @@ import { useRoute } from "../routing/router";
 import { ReportButton } from "../event/ReportButton";
 import { SaveToList } from "../event/SaveToList";
 import { StoryViewer, type StoryGroup } from "../stories/StoryViewer";
+import { OPEN_OWN_STORY } from "../create/StoryCreatePage";
 import { markStoriesSeen, readSeenStories, storyRail } from "../stories/rail";
 import { AppAvatar, AppButton, AppChip, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
@@ -362,6 +363,13 @@ export function StoriesRow() {
 
   const rail = storyRail(friends, stories, myId, seen);
   const openEditor = () => navigate({ name: "story-new" });
+
+  useEffect(() => {
+    if (typeof sessionStorage === "undefined" || sessionStorage.getItem(OPEN_OWN_STORY) !== "1") return;
+    if (rail.own.group === null) return;
+    sessionStorage.removeItem(OPEN_OWN_STORY);
+    setViewer({ groups: rail.groups, start: rail.own.group });
+  }, [rail.own.group, rail.groups]);
 
   // Отметка просмотра не меняет список, если история уже просмотрена: иначе показ истории
   // перерисовывал бы рельс под открытым просмотрщиком на каждом кадре.

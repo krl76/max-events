@@ -170,6 +170,8 @@ export const SWIPE_CATEGORIES: readonly SwipeCategory[] = ["all", "food", "outdo
  */
 export interface SwipeCandidate {
   place: Place;
+  /** Cover on the card. Null when the venue, its events and its posts have no photo. */
+  previewUrl: string | null;
   /** «Серебряный Бор · 4-я линия у воды» — where in the city the spot is; null when the venue has no such line. */
   areaLine: string | null;
   /** «Мангальная зона» — what the spot offers, the chip over the photo; null without an offer. */
@@ -202,8 +204,10 @@ const SwipeCandidatesSchema: ZodSchema<SwipeCandidate[]> = {
       const amenities = Array.isArray(raw.amenities) && raw.amenities.every((entry) => typeof entry === "string") ? (raw.amenities as string[]) : null;
       if (!place.success || !friendsHere.success || amenities === null) return { success: false as const, error: "invalid swipe candidate" };
       if (!isNullableString(raw.areaLine) || !isNullableString(raw.offerLabel)) return { success: false as const, error: "invalid swipe candidate" };
+      if (raw.previewUrl !== undefined && raw.previewUrl !== null && typeof raw.previewUrl !== "string") return { success: false as const, error: "invalid swipe candidate" };
       if (!isNullableNumber(raw.distanceKm) || !isNullableNumber(raw.rating) || !isNullableNumber(raw.reviewsCount) || !isNullableNumber(raw.pricePerHourRub) || !isNullableNumber(raw.matchPercent)) return { success: false as const, error: "invalid swipe candidate" };
-      candidates.push({ place: place.data, areaLine: raw.areaLine, offerLabel: raw.offerLabel, distanceKm: raw.distanceKm, rating: raw.rating, reviewsCount: raw.reviewsCount, pricePerHourRub: raw.pricePerHourRub, amenities, friendsHere: friendsHere.data, matchPercent: raw.matchPercent });
+      const previewUrl = typeof raw.previewUrl === "string" ? raw.previewUrl : null;
+      candidates.push({ place: place.data, previewUrl, areaLine: raw.areaLine, offerLabel: raw.offerLabel, distanceKm: raw.distanceKm, rating: raw.rating, reviewsCount: raw.reviewsCount, pricePerHourRub: raw.pricePerHourRub, amenities, friendsHere: friendsHere.data, matchPercent: raw.matchPercent });
     }
     return { success: true as const, data: candidates };
   },

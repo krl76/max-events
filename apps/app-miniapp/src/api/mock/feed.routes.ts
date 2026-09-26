@@ -39,7 +39,9 @@ function parseStoryComposition(body: Record<string, unknown> | null | undefined)
     if (raw.answer !== null && typeof raw.answer !== "number") return { ok: false };
     poll = { question: raw.question, options: raw.options, answer: raw.answer };
   }
-  return { ok: true, value: { text: body.text, sticker, poll, audience: body.audience } };
+  const value: StoryComposition = { text: body.text, sticker, poll, audience: body.audience };
+  if (Array.isArray(body.objects)) value.objects = body.objects as StoryComposition["objects"];
+  return { ok: true, value };
 }
 
 export function feedRoutes(url: URL, init: RequestInit | undefined): Response | null {

@@ -17,7 +17,7 @@ import { AppButton, AppState } from "../ui/primitives";
 
 export type SaveToListState = { status: "loading" } | { status: "error" } | { status: "ready"; summaries: ListSummary[] };
 
-export function SaveToListView({ state, onToggle, onDone }: { state: SaveToListState; onToggle: (summary: ListSummary) => void; onDone: () => void }) {
+export function SaveToListView({ state, onToggle, onDone, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, createError = null }: { state: SaveToListState; onToggle: (summary: ListSummary) => void; onDone: () => void; creating?: boolean; newTitle?: string; onNewTitle?: (value: string) => void; onCreateStart?: () => void; onCreateSubmit?: () => void; createError?: string | null }) {
   return (
     <div className="app-save-sheet">
       <button type="button" className="app-save-sheet-backdrop" aria-label="Закрыть" onClick={onDone} />
@@ -36,6 +36,23 @@ export function SaveToListView({ state, onToggle, onDone }: { state: SaveToListS
                 </li>
               ))}
             </ul>
+          )}
+          {state.status === "ready" && !creating && (
+            <button type="button" className="app-lists-new app-lists-new--sheet" onClick={onCreateStart}>
+              Новый список
+            </button>
+          )}
+          {creating && (
+            <div className="app-lists-form">
+              <label className="app-lists-form-label" htmlFor="save-new-title">
+                Название списка
+              </label>
+              <input id="save-new-title" className="app-lists-form-input" value={newTitle} placeholder="Например, «С друзьями»" onChange={(change) => onNewTitle(change.target.value)} />
+              {createError !== null && <AppState error>{createError}</AppState>}
+              <AppButton disabled={newTitle.trim() === ""} onClick={onCreateSubmit}>
+                Создать список
+              </AppButton>
+            </div>
           )}
           <AppButton onClick={onDone} stretched>
             Готово
@@ -57,6 +74,9 @@ export function SaveToList({ eventId, feedPostId, userId, open, onClose }: { eve
   const isOpen = controlled ? open : selfOpen;
   const [state, setState] = useState<SaveToListState>({ status: "loading" });
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
+  const [creating, setCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const load = useCallback(
     (quiet = false) => {
@@ -121,5 +141,32 @@ export function SaveToList({ eventId, feedPostId, userId, open, onClose }: { eve
       </section>
     );
   }
-  return <SaveToListView state={state} onToggle={toggle} onDone={() => (controlled ? onClose?.() : setSelfOpen(false))} />;
+  return (
+    <SaveToListView
+      state={state}
+      onToggle={toggle}
+      creating={creating}
+      newTitle={newTitle}
+      createError={createError}
+      onNewTitle={setNewTitle}
+      onCreateStart={() => {
+        setCreateError(null);
+        setCreating(true);
+      }}
+      onCreateSubmit={() => {
+        const title = newTitle.trim();
+        if (title === "") return;
+        apiClient.createList(title).then(
+          () => {
+            setNewTitle("");
+            setCreating(false);
+            setCreateError(null);
+            load(true);
+          },
+          () => setCreateError("Не удалось создать список."),
+        );
+      }}
+      onDone={() => (controlled ? onClose?.() : setSelfOpen(false))}
+    />
+  );
 }
