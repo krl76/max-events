@@ -1,6 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { AssistDayResponseSchema, AssistQueryWriteSchema, AssistResponseSchema } from "./assist.js";
+import { AssistChatResponseSchema, AssistChatWriteSchema, AssistDayResponseSchema, AssistQueryWriteSchema, AssistResponseSchema } from "./assist.js";
 import type { Event } from "./event.js";
+
+const event: Event = {
+  id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90",
+  title: "Вечер джаза",
+  description: "",
+  category: "afisha",
+  city: "Москва",
+  placeId: null,
+  startsAt: "2026-09-19T19:00:00+03:00",
+  endsAt: null,
+  isPaid: true,
+  priceRub: 1800,
+  paymentUrl: "https://example.com/pay",
+  capacity: null,
+  chatLink: null,
+  promoted: false,
+  published: true,
+  bookingOpensAt: null,
+  weather: null,
+  coverUrl: null,
+};
+const day = {
+  summary: "Собрал день на субботу 2026-09-19: 1 событий",
+  date: "2026-09-19",
+  stops: [{ at: event.startsAt, event, explanation: "Слот субботнего дня" }],
+  planDraft: { eventId: event.id, participantIds: [], meetingPoint: "Вечер джаза", meetingAt: event.startsAt },
+};
 
 describe("AssistQueryWriteSchema", () => {
   it("accepts the README NL query and rejects an empty string", () => {
@@ -24,26 +51,6 @@ describe("AssistResponseSchema", () => {
 });
 
 describe("AssistDayResponseSchema", () => {
-  const event: Event = {
-    id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90",
-    title: "Вечер джаза",
-    description: "",
-    category: "afisha",
-    city: "Москва",
-    placeId: null,
-    startsAt: "2026-09-19T19:00:00+03:00",
-    endsAt: null,
-    isPaid: true,
-    priceRub: 1800,
-    paymentUrl: "https://example.com/pay",
-    capacity: null,
-    chatLink: null,
-    promoted: false,
-    published: true,
-    bookingOpensAt: null,
-    weather: null,
-    coverUrl: null,
-  };
   const planCard = {
     plan: {
       id: "018f3c5a-0000-7000-8000-000000000020",
@@ -58,12 +65,6 @@ describe("AssistDayResponseSchema", () => {
     event,
     distanceMeters: 0,
   };
-  const day = {
-    summary: "Собрал день на субботу 2026-09-19: 1 событий",
-    date: "2026-09-19",
-    stops: [{ at: event.startsAt, event, explanation: "Слот субботнего дня" }],
-    planDraft: { eventId: event.id, participantIds: [], meetingPoint: "Вечер джаза", meetingAt: event.startsAt },
-  };
 
   it("parses a saved PlanCard payload", () => {
     expect(AssistDayResponseSchema.parse({ ...day, plan: planCard }).plan?.plan.id).toBe(planCard.plan.id);
@@ -75,5 +76,48 @@ describe("AssistDayResponseSchema", () => {
 
   it("defaults plan to null when omitted", () => {
     expect(AssistDayResponseSchema.parse(day).plan).toBeNull();
+  });
+});
+
+describe("AssistChatResponseSchema", () => {
+  it("accepts a spoken reply, a pick, an opened card, a day, and silence", () => {
+    expect(AssistChatResponseSchema.parse({ silence: false, fallback: false, reply: "Как насчёт вечера?" }).reply).toBe("Как насчёт вечера?");
+    expect(
+      AssistChatResponseSchema.parse({
+        silence: false,
+        fallback: false,
+        reply: "Вот два варианта.",
+        items: [{ event, explanation: "Подходит по запросу" }],
+        openEventId: event.id,
+      }).openEventId,
+    ).toBe(event.id);
+    expect(AssistChatResponseSchema.parse({ silence: false, fallback: false, reply: "Собрал день.", day }).day?.date).toBe(day.date);
+    expect(AssistChatResponseSchema.parse({ silence: true, fallback: false })).toEqual({ silence: true, fallback: false });
+  });
+
+  it("rejects an opened id that is not one of the cards", () => {
+    expect(
+      AssistChatResponseSchema.safeParse({
+        silence: false,
+        fallback: false,
+        reply: "Беру его.",
+        items: [{ event, explanation: "Подходит по запросу" }],
+        openEventId: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d91",
+      }).success,
+    ).toBe(false);
+    expect(AssistChatResponseSchema.safeParse({ silence: true, fallback: false, reply: "нет" }).success).toBe(false);
+  });
+});
+
+describe("AssistChatWriteSchema", () => {
+  it("accepts a short transcript and four offered ids", () => {
+    const eventId = event.id;
+    const parsed = AssistChatWriteSchema.parse({
+      message: "берём второй",
+      transcript: [{ role: "user", text: "вечером" }, { role: "assistant", text: "Два варианта." }],
+      offeredEventIds: [eventId, eventId],
+    });
+    expect(parsed.transcript).toHaveLength(2);
+    expect(AssistChatWriteSchema.safeParse({ message: "" }).success).toBe(false);
   });
 });

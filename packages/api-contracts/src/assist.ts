@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Zod contracts for NL event assist (AI helper, not a separate chat).
-// SCOPE: query write, parsed criteria, picks with explanations, response summary, Saturday day draft with typed plan card.
+// PURPOSE: Zod contracts for NL event assist and the MAX AI chat payload (not a stored chat).
+// SCOPE: query write, parsed criteria, picks with explanations, response summary, Saturday day draft with typed plan card, chat write and chat response.
 // DEPENDS: zod, ./event.js, ./plan.js
 // LINKS: M-PKG-API-CONTRACTS, V-M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -16,6 +16,10 @@
 // - AssistCriteria - criteria type
 // - AssistQueryWriteSchema - raw NL query
 // - AssistQueryWrite - query write type
+// - AssistChatRoleSchema - user or assistant turn
+// - AssistChatTurnSchema - one transcript turn
+// - AssistChatWriteSchema - chat message, transcript, and offered ids
+// - AssistChatWrite - chat write type
 // - AssistPickSchema - event plus explanation
 // - AssistPick - pick type
 // - AssistResponseSchema - summary, criteria, picks
@@ -24,6 +28,8 @@
 // - AssistDayStop - day stop type
 // - AssistDayResponseSchema - Saturday draft with typed PlanCard payload
 // - AssistDayResponse - day response type
+// - AssistChatResponseSchema - reply, picks, opened card, day, or silence
+// - AssistChatResponse - chat response type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -52,6 +58,21 @@ export const AssistQueryWriteSchema = z.object({
   save: z.boolean().optional(),
 });
 export type AssistQueryWrite = z.infer<typeof AssistQueryWriteSchema>;
+
+export const AssistChatRoleSchema = z.enum(["user", "assistant"]);
+
+export const AssistChatTurnSchema = z.object({
+  role: AssistChatRoleSchema,
+  text: z.string().trim().min(1).max(400),
+});
+
+export const AssistChatWriteSchema = z.object({
+  message: z.string().trim().min(1).max(500),
+  transcript: z.array(AssistChatTurnSchema).max(8).default([]),
+  offeredEventIds: z.array(z.string().uuid()).max(4).default([]),
+  save: z.boolean().optional(),
+});
+export type AssistChatWrite = z.infer<typeof AssistChatWriteSchema>;
 
 export const AssistPickSchema = z.object({
   event: EventSchema,
@@ -86,3 +107,27 @@ export const AssistDayResponseSchema = z.object({
   plan: PlanCardSchema.nullable().default(null),
 });
 export type AssistDayResponse = z.infer<typeof AssistDayResponseSchema>;
+
+export const AssistChatResponseSchema = z
+  .object({
+    silence: z.boolean(),
+    fallback: z.boolean(),
+    reply: z.string().trim().min(1).max(400).optional(),
+    items: z.array(AssistPickSchema).max(4).optional(),
+    openEventId: z.string().uuid().optional(),
+    day: AssistDayResponseSchema.optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.silence) {
+      if (value.fallback || value.reply || value.items?.length || value.openEventId || value.day) {
+        context.addIssue({ code: "custom", message: "silence carries no reply" });
+      }
+      return;
+    }
+    if (!value.reply) context.addIssue({ code: "custom", message: "reply required" });
+    if (value.day && value.items?.length) context.addIssue({ code: "custom", message: "a day has no picks" });
+    if (value.openEventId && !value.items?.some((pick) => pick.event.id === value.openEventId)) {
+      context.addIssue({ code: "custom", message: "openEventId must be one of the cards" });
+    }
+  });
+export type AssistChatResponse = z.infer<typeof AssistChatResponseSchema>;
