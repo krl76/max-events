@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 10 «MAX AI ассистент»: переписка с подборщиком — реплики, карточки вариантов под ответом, сборка плана на вечер, подсказки и строка ввода.
-// SCOPE: Данные только через реальные эндпоинты ассистента — apiClient.assistQuery (POST /assist) и apiClient.assistDay (POST /assist/day); 429 отдаёт текст про частые запросы; «Открыть» ведёт на событие, собранный план — на экран плана. Ветка переписки хранится в состоянии экрана: истории диалогов на бэкенде нет и она ей не нужна.
-// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (AssistDayResponse, AssistPick, AssistResponse, Event, PlanCardSchema), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../plans/PlanTimeline.js (planStepTime), ./AssistSection.js (assistErrorMessage), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
+// SCOPE: Данные только через apiClient.assistChat (POST /assist/chat); 429 отдаёт текст про частые запросы; молчание не добавляет реплику MAX; «Открыть» и openEventId ведут на событие, собранный план — на экран плана. Ветка переписки хранится в состоянии экрана: истории диалогов на бэкенде нет и она ей не нужна.
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (AssistChatResponse, AssistDayResponse, AssistPick, AssistResponse, Event, PlanCardSchema), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ../plans/PlanTimeline.js (planStepTime), ./AssistSection.js (assistErrorMessage), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -11,18 +11,19 @@
 // - ASSIST_PLACEHOLDER - плейсхолдер строки ввода
 // - AssistBubble - одна реплика ветки: чья, текст, приложенные варианты и собранный план
 // - AssistThread - ветка реплик
-// - isSaturdayPlanPrompt - просьба собрать план (суббота, шашлык, мангал), на которую MAX отвечает днём, а не подборкой
+// - isSaturdayPlanPrompt - просьба собрать план (суббота, шашлык, мангал); экран больше не ветвится на ней и шлёт фразу в чат
 // - askedThread - добавить вопрос пользователя в ветку
 // - answeredThread - добавить ответ MAX с вариантами
 // - plannedThread - добавить ответ MAX с планом на вечер
+// - chatThread - молчание оставляет ветку; иначе реплика MAX из reply, карточек и дня
 // - assistPickMeta - «20:00 · Концерт · 1 800 ₽» под названием варианта; бесплатный вход говорит об этом словами
 // - AssistPageState - idle/loading/error статус запроса к ассистенту
 // - AssistPageView - презентационная часть: шапка-градиент, ветка, подсказки и композер
-// - AssistPage - контейнер маршрута assist: ведёт переписку через реальные эндпоинты
+// - AssistPage - контейнер маршрута assist: ведёт переписку через POST /assist/chat
 // END_MODULE_MAP
 
 import { useEffect, useRef, useState } from "react";
-import type { AssistDayResponse, AssistPick, AssistResponse, Event } from "@max-events/api-contracts";
+import type { AssistChatResponse, AssistDayResponse, AssistPick, AssistResponse, Event } from "@max-events/api-contracts";
 import { PlanCardSchema } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
@@ -65,6 +66,12 @@ export function answeredThread(thread: AssistThread, result: AssistResponse): As
 
 export function plannedThread(thread: AssistThread, result: AssistDayResponse): AssistThread {
   return [...thread, { id: thread.length + 1, role: "max", text: result.summary, picks: [], day: result }];
+}
+
+/** Молчание — та же ветка, без пузыря MAX. Иначе текст пузыря это reply, не старый шаблон summary. */
+export function chatThread(thread: AssistThread, response: AssistChatResponse): AssistThread {
+  if (response.silence) return thread;
+  return [...thread, { id: thread.length + 1, role: "max", text: response.reply ?? "", picks: response.items ?? [], day: response.day ?? null }];
 }
 
 /** Строка под названием варианта. Расстояния у события нет — оно живёт у площадки, — поэтому его здесь и нет. */
@@ -213,6 +220,15 @@ export function AssistPage({ ask = null }: { ask?: string | null }) {
     setDraft(ask ?? "");
   }, [ask]);
 
+  const finishChat = (response: AssistChatResponse) => {
+    pending.current = false;
+    if (!response.silence) {
+      setThread((current) => chatThread(current, response));
+      if (response.openEventId !== undefined) navigate({ name: "event", id: response.openEventId });
+    }
+    setState({ status: "idle" });
+  };
+
   const askMax = (question: string) => {
     const text = question.trim();
     if (text === "" || pending.current) return;
@@ -221,36 +237,48 @@ export function AssistPage({ ask = null }: { ask?: string | null }) {
     setLastQuestion(text);
     setDraft("");
     setState({ status: "loading" });
-    const request = isSaturdayPlanPrompt(text) ? apiClient.assistDay(text, false).then((day) => ({ kind: "day" as const, day })) : apiClient.assistQuery(text).then((result) => ({ kind: "picks" as const, result }));
-    request.then(
-      (payload) => {
-        pending.current = false;
-        setThread((current) => (payload.kind === "day" ? plannedThread(current, payload.day) : answeredThread(current, payload.result)));
-        setState({ status: "idle" });
-      },
-      (error: unknown) => {
+    apiClient
+      .assistChat({
+        message: text,
+        transcript: thread.slice(-8).map((bubble) => ({ role: bubble.role === "me" ? "user" : "assistant", text: bubble.text })),
+        offeredEventIds: [
+          ...(thread
+            .slice()
+            .reverse()
+            .find((bubble) => bubble.role === "max")?.picks ?? []),
+        ]
+          .slice(0, 4)
+          .map((pick) => pick.event.id),
+      })
+      .then(finishChat, (error: unknown) => {
         pending.current = false;
         setState({ status: "error", message: assistErrorMessage(error, "Не удалось подобрать варианты. Попробуйте ещё раз.") });
-      },
-    );
+      });
   };
 
   const planEvening = () => {
     if (pending.current) return;
     pending.current = true;
-    // save=true: кнопка обещает план, а не черновик — бэкенд сохраняет его и возвращает карточку.
+    // Кнопка обещает сохранённый план: тот же чат, но с save=true, а не прямой POST /assist/day.
     setState({ status: "loading" });
-    apiClient.assistDay(lastQuestion ?? "План на вечер", true).then(
-      (result) => {
-        pending.current = false;
-        setThread((current) => plannedThread(current, result));
-        setState({ status: "idle" });
-      },
-      (error: unknown) => {
+    apiClient
+      .assistChat({
+        message: "Собрать план на вечер",
+        save: true,
+        transcript: thread.slice(-8).map((bubble) => ({ role: bubble.role === "me" ? "user" : "assistant", text: bubble.text })),
+        offeredEventIds: [
+          ...(thread
+            .slice()
+            .reverse()
+            .find((bubble) => bubble.role === "max")?.picks ?? []),
+        ]
+          .slice(0, 4)
+          .map((pick) => pick.event.id),
+      })
+      .then(finishChat, (error: unknown) => {
         pending.current = false;
         setState({ status: "error", message: assistErrorMessage(error, "Не удалось собрать план на вечер.") });
-      },
-    );
+      });
   };
 
   return <AssistPageView thread={thread} draft={draft} state={state} lastQuestion={lastQuestion} onDraft={setDraft} onSubmit={() => askMax(draft)} onPlanEvening={planEvening} onMoreOptions={() => askMax(lastQuestion === null ? "Ещё варианты" : `${lastQuestion}, ещё варианты`)} onPrompt={askMax} onOpenEvent={(id) => navigate({ name: "event", id })} onOpenPlan={(id) => navigate({ name: "plan", id })} onClose={back} />;

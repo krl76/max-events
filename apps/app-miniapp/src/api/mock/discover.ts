@@ -24,9 +24,10 @@
 // - mockAssistSuggest - explained picks with history/partner explanations (mock POST /assist, backend AssistService.suggest parity)
 // - mockAssistSaturdayKey - next Saturday (today counts) Moscow day key from MOCK_NOW (backend nextSaturdayKey parity)
 // - mockAssistDay - upcoming Saturday stops (startsAt >= now) + planDraft, plan persisted when save=true (mock POST /assist/day, backend planSaturday parity)
+// - mockAssistChat - «как дела?» small-talk reply, otherwise one future catalog pick (mock POST /assist/chat; insult silence stays in the backend and is not imported)
 // END_MODULE_MAP
 
-import type { AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, Event, EventCategory, Friend, LeisureMood, NearbyBucket, NearbyCard, NearbyTimeline, Place, PlaceCategory, PlanCard, WheretoMood, WheretoQuery } from "@max-events/api-contracts";
+import type { AssistChatResponse, AssistChatWrite, AssistCriteria, AssistDayResponse, AssistPick, AssistQueryWrite, AssistResponse, Event, EventCategory, Friend, LeisureMood, NearbyBucket, NearbyCard, NearbyTimeline, Place, PlaceCategory, PlanCard, WheretoMood, WheretoQuery } from "@max-events/api-contracts";
 import type { LeisureChain, LeisureChainStop, SwipeCandidate, SwipeCategory, SwipeDecision, TodayCard, TodayDigest, WheretoPicks } from "../client";
 import { mockCheckIns, remainingSeats } from "./bookings";
 import { mockEventDistanceKm, mockEventRatingValue, placePageFor } from "./catalog";
@@ -409,4 +410,13 @@ export function mockAssistDay(payload: AssistQueryWrite, now: Date = MOCK_NOW): 
     mockPlans.push(plan);
   }
   return { summary: `Собрал день на субботу ${date}: ${stops.length} событий`, date, stops, planDraft, plan };
+}
+
+/** Mock POST /assist/chat. The Nest insult helper is not imported; only the small-talk sentence is duplicated here. */
+export function mockAssistChat(payload: AssistChatWrite): AssistChatResponse | MockAssistError {
+  if (!mockAssistRateHit()) return "rate_limited";
+  if (payload.message === "как дела?") return { silence: false, fallback: false, reply: "Нормально. Могу подобрать событие." };
+  const event = mockEvents.filter((item) => new Date(item.startsAt).getTime() >= MOCK_NOW.getTime()).sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))[0];
+  if (event === undefined) return "no_events";
+  return { silence: false, fallback: false, reply: "Вот вариант из афиши.", items: [{ event, explanation: "Подходит по запросу" }] };
 }

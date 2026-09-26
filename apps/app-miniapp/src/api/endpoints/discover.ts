@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Discovery endpoints of the api client: the today digest of экран 08, the «Куда пойдём?» wizard, the nearby timeline with its free-window leisure chains, the NL assistant and the swipe deck of экран 09.
-// SCOPE: GET /today, GET /whereto, GET /nearby[/free], POST /assist[/day], GET /discover/swipe, POST /discover/swipe/:placeId; the TodayDigest, WheretoPicks, LeisureChain and SwipeCandidate aggregates are client-side shapes like EventDetails in ./catalog.ts.
+// SCOPE: GET /today, GET /whereto, GET /nearby[/free], POST /assist[/day|/chat], GET /discover/swipe, POST /discover/swipe/:placeId; the TodayDigest, WheretoPicks, LeisureChain and SwipeCandidate aggregates are client-side shapes like EventDetails in ./catalog.ts.
 // DEPENDS: ./transport.js, ./catalog.js (CatalogCard), @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -17,11 +17,11 @@
 // - SWIPE_CATEGORIES - the chips in design order, so the screen cannot invent a fifth
 // - SwipeCandidate - one card of the swipe deck: the venue plus its amenities, friends and the match score (#498)
 // - SwipeDecision - what the swipe meant: right = into favourites, left = past it
-// - withDiscover - ApiClient.getToday / getWhereto / getNearbyTimeline / getLeisureOptions / assistQuery / assistDay / listSwipeCandidates / saveSwipeDecision
+// - withDiscover - ApiClient.getToday / getWhereto / getNearbyTimeline / getLeisureOptions / assistQuery / assistDay / assistChat / listSwipeCandidates / saveSwipeDecision
 // END_MODULE_MAP
 
-import { AssistDayResponseSchema, AssistResponseSchema, EventSchema, FriendSchema, LeisureOptionSchema, NearbyTimelineSchema, PlaceSchema, TodayCardLabelSchema, TodaySummarySchema } from "@max-events/api-contracts";
-import type { AssistDayResponse, AssistResponse, Event, Friend, LeisureMood, LeisureOption, LeisureStop, NearbyTimeline, Place, TodayCardLabel, TodaySummary, WheretoQuery } from "@max-events/api-contracts";
+import { AssistChatResponseSchema, AssistDayResponseSchema, AssistResponseSchema, EventSchema, FriendSchema, LeisureOptionSchema, NearbyTimelineSchema, PlaceSchema, TodayCardLabelSchema, TodaySummarySchema } from "@max-events/api-contracts";
+import type { AssistChatResponse, AssistChatWrite, AssistDayResponse, AssistResponse, Event, Friend, LeisureMood, LeisureOption, LeisureStop, NearbyTimeline, Place, TodayCardLabel, TodaySummary, WheretoQuery } from "@max-events/api-contracts";
 import type { CatalogCard } from "./catalog";
 import type { ApiMixin, ZodSchema } from "./transport";
 
@@ -251,6 +251,11 @@ export function withDiscover<TBase extends ApiMixin>(Base: TBase) {
 
     assistDay(query: string, save?: boolean): Promise<AssistDayResponse> {
       return this.request("/assist/day", AssistDayResponseSchema, { body: { query, ...(save === undefined ? {} : { save }) } });
+    }
+
+    /** POST /assist/chat. Omitted transcript and offeredEventIds are sent as []; AssistChatWrite's parsed output already requires them. */
+    assistChat(input: { message: AssistChatWrite["message"]; transcript?: AssistChatWrite["transcript"]; offeredEventIds?: AssistChatWrite["offeredEventIds"]; save?: AssistChatWrite["save"] }): Promise<AssistChatResponse> {
+      return this.request("/assist/chat", AssistChatResponseSchema, { body: { message: input.message, transcript: input.transcript ?? [], offeredEventIds: input.offeredEventIds ?? [], ...(input.save === undefined ? {} : { save: input.save }) } });
     }
 
     /** The swipe deck of экран 09; GET /discover/swipe. */

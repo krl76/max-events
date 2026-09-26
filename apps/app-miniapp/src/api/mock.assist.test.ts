@@ -48,6 +48,13 @@ describe("assist API via mock", () => {
     expect(saved?.explanation).toBe("Уже в сохранённых");
   });
 
+  it("posts a chat turn to /api/assist/chat", async () => {
+    restore = installMockApi();
+    const result = await client().assistChat({ message: "как дела?" });
+    expect(result.silence).toBe(false);
+    expect(result.reply?.length).toBeGreaterThan(0);
+  });
+
   it("rejects an empty query with 400", async () => {
     restore = installMockApi();
     await expect(client().assistQuery("")).rejects.toMatchObject({ name: "ApiError", status: 400 });

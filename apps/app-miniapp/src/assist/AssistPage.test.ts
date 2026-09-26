@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { AssistDayResponse, AssistResponse } from "@max-events/api-contracts";
-import { ASSIST_GREETING, ASSIST_PLACEHOLDER, ASSIST_PROMPTS, AssistPageView, answeredThread, askedThread, assistPickMeta, isSaturdayPlanPrompt, plannedThread, type AssistThread } from "./AssistPage";
+import { ASSIST_GREETING, ASSIST_PLACEHOLDER, ASSIST_PROMPTS, AssistPageView, answeredThread, askedThread, assistPickMeta, chatThread, isSaturdayPlanPrompt, plannedThread, type AssistThread } from "./AssistPage";
 import { mockAssistDay, mockAssistSuggest, mockEvents, resetMockAssist } from "../api/mock";
 
 const START: AssistThread = [{ id: 0, role: "max", text: ASSIST_GREETING, picks: [], day: null }];
@@ -53,6 +53,19 @@ describe("thread transitions", () => {
     const thread = plannedThread(answeredThread(askedThread(START, "раз"), suggestion()), evening());
 
     expect(new Set(thread.map((bubble) => bubble.id)).size).toBe(thread.length);
+  });
+
+  it("leaves the thread unchanged for silence and appends a fallback reply with cards", () => {
+    const asked = askedThread(START, "иди на хуй");
+    expect(chatThread(asked, { silence: true, fallback: false })).toBe(asked);
+    const fallback = chatThread(askedThread(START, "как дела?"), {
+      silence: false,
+      fallback: true,
+      reply: "Не получилось сформировать ответ. Вот что есть в афише.",
+      items: suggestion().items.slice(0, 1),
+    });
+    expect(fallback.at(-1)?.text).toContain("Не получилось сформировать ответ");
+    expect(fallback.at(-1)?.picks).toHaveLength(1);
   });
 });
 
@@ -133,5 +146,16 @@ describe("AssistPageView", () => {
   it("tells the viewer what went wrong instead of an empty thread", () => {
     expect(view({ state: { status: "error", message: "Слишком много запросов подряд" } })).toContain("Слишком много запросов подряд");
     expect(view({ state: { status: "loading" } })).toContain("MAX подбирает…");
+  });
+
+  it("prints the chat reply on the last bubble instead of the old summary template", () => {
+    const result = suggestion();
+    const reply = "Не получилось сформировать ответ. Вот что есть в афише.";
+    const thread = chatThread(askedThread(START, "как дела?"), { silence: false, fallback: true, reply, items: result.items.slice(0, 1) });
+    const html = view({ thread, lastQuestion: "как дела?" });
+
+    expect(thread.at(-1)?.text).toBe(reply);
+    expect(html).toContain(reply);
+    expect(html).not.toContain(result.summary);
   });
 });
