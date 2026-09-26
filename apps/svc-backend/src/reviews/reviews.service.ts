@@ -15,6 +15,7 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, QueryFailedError, Repository } from "typeorm";
 import { ReviewSchema, type CreateReviewWrite, type EventRating, type Review } from "@max-events/api-contracts";
+import { REVIEW_FACT_TAGS } from "./fact-tags";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import { ReviewEntity } from "./review.entity";
@@ -41,6 +42,7 @@ export class ReviewsService {
       wouldGoAgain: payload.wouldGoAgain,
       photoUrls: (payload.photos ?? []).map((photo) => photo.url),
       text: payload.text ?? null,
+      factTags: payload.factTags ?? [],
     };
     try {
       const saved = existing ? await this.reviews.save(Object.assign(existing, fields)) : await this.reviews.save(this.reviews.create({ userId, eventId: payload.eventId, ...fields }));
@@ -55,11 +57,49 @@ export class ReviewsService {
     }
   }
 
+  async factTags(eventId: string): Promise<Array<{ code: string; label: string }>> {
+    const event = await this.events.findOneBy({ id: eventId });
+    if (!event || event.published === false) throw new NotFoundException("Event not found");
+    return REVIEW_FACT_TAGS.map((tag) => ({ code: tag.code, label: tag.label }));
+  }
+
+  async moodTags(eventId: string): Promise<Array<{ code: string; label: string; count: number }>> {
+    const event = await this.events.findOneBy({ id: eventId });
+    if (!event || event.published === false) throw new NotFoundException("Event not found");
+    const rows = await this.reviews.find({ where: { eventId } });
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      for (const code of row.factTags ?? []) {
+        counts.set(code, (counts.get(code) ?? 0) + 1);
+      }
+    }
+    return REVIEW_FACT_TAGS.flatMap((tag) => {
+      const count = counts.get(tag.code) ?? 0;
+      return count === 0 ? [] : [{ code: tag.code, label: tag.label, count }];
+    });
+  }
+
   async eventRating(eventId: string): Promise<EventRating> {
     const event = await this.events.findOneBy({ id: eventId });
     if (!event) throw new NotFoundException("Event not found");
     const rows = await this.reviews.find({ where: { eventId } });
     return buildRating(rows, { eventId, placeId: null });
+  }
+
+  async averagesByEventIds(eventIds: string[]): Promise<Map<string, number>> {
+    if (eventIds.length === 0) return new Map();
+    const rows = await this.reviews.find({ where: { eventId: In(eventIds) } });
+    const stars = new Map<string, number[]>();
+    for (const row of rows) {
+      const list = stars.get(row.eventId) ?? [];
+      list.push(row.stars);
+      stars.set(row.eventId, list);
+    }
+    const averages = new Map<string, number>();
+    for (const [eventId, values] of stars) {
+      averages.set(eventId, values.reduce((sum, value) => sum + value, 0) / values.length);
+    }
+    return averages;
   }
 
   /**

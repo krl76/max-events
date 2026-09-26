@@ -24,7 +24,7 @@ function viewHtml(over: { options?: RouteStopOption[] | "loading" | "error"; sel
 
 describe("route labels", () => {
   it("formats a leg as minutes over kilometers", () => {
-    expect(formatLeg({ fromTitle: "А", toTitle: "Б", travelMinutes: 15, distanceKm: 2.1 })).toBe("15 мин / 2.1 км");
+    expect(formatLeg({ fromTitle: "А", toTitle: "Б", travelMinutes: 15, distanceKm: 2.1, mode: "walk", transfers: 0, priceRub: null })).toBe("15 мин / 2.1 км");
   });
 
   it("formats the totals line", () => {

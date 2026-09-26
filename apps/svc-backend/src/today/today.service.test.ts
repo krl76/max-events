@@ -74,6 +74,14 @@ describe("buildTodayDigest", () => {
     expect(digest.cards.map((card) => card.event.title)).toEqual(["Джаз"]);
   });
 
+  it("boosts cards that match interests without dropping the rest", () => {
+    const sport = event({ id: "00000000-0000-4000-8000-0000000000e8", title: "Забег", category: "sport", startsAt: new Date("2026-09-12T12:00:00Z") });
+    const jazz = event({ id: "00000000-0000-4000-8000-0000000000e1", title: "Джаз вечером", startsAt: new Date("2026-09-12T18:00:00Z") });
+    const digest = buildTodayDigest(input({ events: [sport, jazz], interests: ["джаз"], participations: [] }));
+    expect(digest.cards.map((card) => card.event.title)).toEqual(["Джаз вечером", "Забег"]);
+    expect(digest.summary.suitableCount).toBe(1);
+  });
+
   it("promotes after-me categories and labels them", () => {
     const sport = event({ id: "00000000-0000-4000-8000-0000000000e9", title: "Забег", category: "sport", startsAt: new Date("2026-09-14T10:00:00Z") });
     const digest = buildTodayDigest(input({ events: [...input().events, sport], afterMe: { fromCategory: "afisha", toCategory: "sport", afterCount: 3 } }));

@@ -85,6 +85,13 @@ export interface StoryDraft {
   audience: StoryAudience;
   /** Что автор положил на холст, в порядке добавления. Пусто на входе: история начинается с чистого кадра. */
   objects: StoryCanvasObject[];
+  /** Поворот выбранного фото, градусы; 0 пока автор не трогал кадр. */
+  rotate: number;
+  /** 1:1 cover pan, −50..50 from the center. Reset when the photo changes. */
+  cropX: number;
+  cropY: number;
+  /** Crop mode: drag the photo instead of canvas objects. */
+  cropping: boolean;
 }
 
 export function storyTimeLabel(startsAt: string): string {
@@ -223,6 +230,71 @@ export function storyObjectStyle(object: StoryCanvasObject): CSSProperties {
   return { left: `${object.x}%`, top: `${object.y}%`, transform: `translate(-50%, -50%) scale(${object.scale ?? 1})` };
 }
 
+export function rotateStoryPhoto(degrees: number): number {
+  return (degrees + 90) % 360;
+}
+
+export function clampStoryCrop(value: number): number {
+  return Math.max(-50, Math.min(50, value));
+}
+
+export function panStoryCrop(cropX: number, cropY: number, dx: number, dy: number): { cropX: number; cropY: number } {
+  return { cropX: clampStoryCrop(cropX + dx), cropY: clampStoryCrop(cropY + dy) };
+}
+
+export function cropDeltaFromPointer(dxPx: number, dyPx: number, frameSize: number): { dx: number; dy: number } {
+  const size = frameSize > 0 ? frameSize : 1;
+  return { dx: (dxPx / size) * 100, dy: (dyPx / size) * 100 };
+}
+
+export function storyPhotoStyle(draft: Pick<StoryDraft, "rotate" | "cropX" | "cropY">): CSSProperties {
+  return { transform: `rotate(${draft.rotate}deg)`, objectPosition: `${50 + draft.cropX}% ${50 + draft.cropY}%` };
+}
+
+export function bakeRotatedPhoto(photoUrl: string, degrees: number): Promise<string> {
+  return bakeStoryPhoto(photoUrl, degrees, 0, 0);
+}
+
+export function bakeStoryPhoto(photoUrl: string, degrees: number, cropX: number, cropY: number): Promise<string> {
+  if (degrees % 360 === 0 && cropX === 0 && cropY === 0) return Promise.resolve(photoUrl);
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const swap = degrees % 180 !== 0;
+      const rotatedW = swap ? image.height : image.width;
+      const rotatedH = swap ? image.width : image.height;
+      const canvas = document.createElement("canvas");
+      canvas.width = rotatedW;
+      canvas.height = rotatedH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(photoUrl);
+        return;
+      }
+      ctx.translate(rotatedW / 2, rotatedH / 2);
+      ctx.rotate((degrees * Math.PI) / 180);
+      ctx.drawImage(image, -image.width / 2, -image.height / 2);
+      const side = Math.min(rotatedW, rotatedH);
+      const extraX = rotatedW - side;
+      const extraY = rotatedH - side;
+      const sx = Math.max(0, Math.min(extraX, extraX / 2 + (cropX / 50) * (extraX / 2)));
+      const sy = Math.max(0, Math.min(extraY, extraY / 2 + (cropY / 50) * (extraY / 2)));
+      const cropped = document.createElement("canvas");
+      cropped.width = side;
+      cropped.height = side;
+      const cut = cropped.getContext("2d");
+      if (!cut) {
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+        return;
+      }
+      cut.drawImage(canvas, sx, sy, side, side, 0, 0, side, side);
+      resolve(cropped.toDataURL("image/jpeg", 0.85));
+    };
+    image.onerror = () => resolve(photoUrl);
+    image.src = photoUrl;
+  });
+}
+
 /** В теле публикации едет только то, что автор положил на холст: пустой холст — история из одного фона. */
 export function storyComposition(draft: StoryDraft, sticker: StoryPlaceSticker | null, poll: StoryPoll | null): StoryComposition {
   const onCanvas = (kind: StoryObjectKind) => hasStoryObject(draft.objects, kind);
@@ -252,6 +324,7 @@ interface StoryCreateViewProps {
 export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, onPickPhoto, onPublish, onClose }: StoryCreateViewProps) {
   const captionRef = useRef<HTMLTextAreaElement | null>(null);
   const frameRef = useRef<HTMLElement | null>(null);
+  const cropDrag = useRef<{ x: number; y: number; cropX: number; cropY: number } | null>(null);
   // Кого трогали последним — тот и впереди: порядок публикации от этого не зависит, это только холст.
   // Пока не трогали никого, выбран последний положенный: холст без выбранного объекта не показывал
   // бы ручек вовсе, а первым делом после добавления их и ищут.
@@ -358,8 +431,31 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
   const drawn = draft.objects.map((object) => ({ object, body: objectBody(object.kind) })).filter((item) => item.body !== null);
 
   return (
-    <section ref={frameRef} className={onPhotoCanvas ? "app-story-compose app-story-compose--photo" : `app-story-compose app-story-compose--${draft.canvas}`} aria-label="Публикация истории">
-      {onPhotoCanvas && <img className="app-story-photo" src={draft.photoUrl ?? ""} alt="" />}
+    <section ref={frameRef} className={onPhotoCanvas ? `app-story-compose app-story-compose--photo${draft.cropping ? " app-story-compose--cropping" : ""}` : `app-story-compose app-story-compose--${draft.canvas}`} aria-label="Публикация истории">
+      {onPhotoCanvas && (
+        <img
+          className="app-story-photo"
+          src={draft.photoUrl ?? ""}
+          alt=""
+          style={storyPhotoStyle(draft)}
+          onPointerDown={(event) => {
+            if (!draft.cropping) return;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            cropDrag.current = { x: event.clientX, y: event.clientY, cropX: draft.cropX, cropY: draft.cropY };
+          }}
+          onPointerMove={(event) => {
+            const start = cropDrag.current;
+            const frame = frameRef.current;
+            if (start === null || frame === null) return;
+            const size = Math.min(frame.clientWidth, frame.clientHeight);
+            const delta = cropDeltaFromPointer(event.clientX - start.x, event.clientY - start.y, size);
+            onDraft({ ...draft, ...panStoryCrop(start.cropX, start.cropY, -delta.dx, -delta.dy) });
+          }}
+          onPointerUp={() => {
+            cropDrag.current = null;
+          }}
+        />
+      )}
       <span className="app-story-orb app-story-orb--light" aria-hidden="true" />
       <span className="app-story-orb app-story-orb--status" aria-hidden="true" />
 
@@ -379,13 +475,24 @@ export function StoryCreateView({ draft, sticker, poll, events, state, onDraft, 
           >
             <ActionIcon name="text" size={20} strokeWidth={2} />
           </button>
-          {/* Кадрирование и эффекты рисует макет, но редактора кадра в продукте нет (#502): глифы остаются декором, а не ложными кнопками. */}
-          <span className="app-story-round app-story-round--muted" aria-hidden="true">
-            <ActionIcon name="adjust" size={20} strokeWidth={2} />
-          </span>
-          <span className="app-story-round app-story-round--muted" aria-hidden="true">
-            <ActionIcon name="sparkle" size={20} strokeWidth={2} />
-          </span>
+          {onPhotoCanvas ? (
+            <button type="button" className="app-story-round" aria-label="Повернуть фото" onClick={() => onDraft({ ...draft, rotate: rotateStoryPhoto(draft.rotate) })}>
+              <ActionIcon name="adjust" size={20} strokeWidth={2} />
+            </button>
+          ) : (
+            <span className="app-story-round app-story-round--muted" aria-hidden="true">
+              <ActionIcon name="adjust" size={20} strokeWidth={2} />
+            </span>
+          )}
+          {onPhotoCanvas ? (
+            <button type="button" className="app-story-round" aria-label="Кадрировать фото" aria-pressed={draft.cropping} onClick={() => onDraft({ ...draft, cropping: !draft.cropping })}>
+              <ActionIcon name="sparkle" size={20} strokeWidth={2} />
+            </button>
+          ) : (
+            <span className="app-story-round app-story-round--muted" aria-hidden="true">
+              <ActionIcon name="sparkle" size={20} strokeWidth={2} />
+            </span>
+          )}
         </div>
       </div>
 
@@ -466,7 +573,7 @@ export function StoryCreatePage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [details, setDetails] = useState<EventDetails | null>(null);
   // Холст пуст: объекты появляются только по действию автора, поэтому objects начинается пустым, а опроса нет вовсе.
-  const [draft, setDraft] = useState<StoryDraft>({ canvas: "gradient-1", photoUrl: null, text: "", eventId: null, poll: null, audience: "close-friends", objects: [] });
+  const [draft, setDraft] = useState<StoryDraft>({ canvas: "gradient-1", photoUrl: null, text: "", eventId: null, poll: null, audience: "close-friends", objects: [], rotate: 0, cropX: 0, cropY: 0, cropping: false });
   const [state, setState] = useState<StoryPublishState>("idle");
 
   useEffect(() => {
@@ -508,11 +615,14 @@ export function StoryCreatePage() {
 
   const publish = () => {
     setState("publishing");
-    const imageUrl = draft.canvas === "photo" && draft.photoUrl !== null ? draft.photoUrl : storyCanvasImage(draft.canvas);
-    apiClient.createStory(imageUrl, storyComposition(draft, sticker, poll)).then(
-      () => navigate({ name: "home" }),
-      () => setState("error"),
-    );
+    const raw = draft.canvas === "photo" && draft.photoUrl !== null ? draft.photoUrl : storyCanvasImage(draft.canvas);
+    const baked = draft.canvas === "photo" && draft.photoUrl !== null ? bakeStoryPhoto(draft.photoUrl, draft.rotate, draft.cropX, draft.cropY) : Promise.resolve(raw);
+    baked
+      .then((imageUrl) => apiClient.createStory(imageUrl, storyComposition(draft, sticker, poll)))
+      .then(
+        () => navigate({ name: "home" }),
+        () => setState("error"),
+      );
   };
 
   return (
@@ -530,7 +640,7 @@ export function StoryCreatePage() {
           const reader = new FileReader();
           reader.onload = () => {
             if (typeof reader.result !== "string") return;
-            setDraft((current) => ({ ...current, photoUrl: reader.result as string, canvas: "photo" }));
+            setDraft((current) => ({ ...current, photoUrl: reader.result as string, canvas: "photo", rotate: 0, cropX: 0, cropY: 0, cropping: false }));
             setState("idle");
           };
           reader.readAsDataURL(file);

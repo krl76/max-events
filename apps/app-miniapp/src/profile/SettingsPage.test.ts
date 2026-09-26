@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Profile, User } from "@max-events/api-contracts";
+import { DEFAULT_SMART_ALERTS, type Profile, type User } from "@max-events/api-contracts";
 import type { AppSettings } from "../api/client";
 import { APP_PREFERENCE_KEYS, APP_VERSION, SettingsView, THEME_OPTIONS, appCacheBytes, clearAppCache, formatBytes, identityHint, interestsHint, planVisibilityLabel, quietHoursHint, quietHoursLabel, radiusLabel, themeLabel } from "./SettingsPage";
 
@@ -20,7 +20,7 @@ const profile: Profile = {
   userId: user.id,
   city: "Москва",
   interests: ["Концерты", "Спорт"],
-  smartAlerts: { leaveNow: true, weather: true, friendLeft: true, listDigest: true },
+  smartAlerts: { ...DEFAULT_SMART_ALERTS, quietHoursEnabled: true },
   privacy: { visitHistory: "friends", routes: "friends" },
   recommendationsEnabled: true,
   bio: "",

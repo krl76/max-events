@@ -29,6 +29,7 @@ describe("AuthController.organizerLogin", () => {
     expect(() => OrganizerSessionSchema.parse(session)).not.toThrow();
     expect(session.organization.name).toBe("demo");
     expect(session.organization.contacts).toBeNull();
+    expect(session.organization.activities).toEqual([]);
   });
 
   it("rejects wrong credentials with 401", async () => {

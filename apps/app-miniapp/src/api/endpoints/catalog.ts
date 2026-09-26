@@ -11,7 +11,7 @@
 // - EventFilters - optional catalog list filters (category/city/date/dateFrom/dateTo/minRating/query/sort/limit/offset)
 // - serializeEventFilters - filters -> query string ("" when empty)
 // - parseEventFilters - query string -> filters, invalid values dropped
-// - CatalogCard - list card of экран 08: the event plus the distance, rating and venue line the list DTO does not carry (#496)
+// - CatalogCard - list card of экран 08: GET /events/cards (event, distanceKm, rating, placeTitle)
 // - catalogCardsFromEvents - catalog cards built out of GET /events + GET /places, for a server that does not answer GET /events/cards yet
 // - eventCompanionsFrom - экран 23 built out of the participation stats and the friends on the event, for a server that does not answer GET /events/:id/companions yet
 // - MapWeather - city weather behind the map chip (макет, экран 16): now plus the change to come (#495)
@@ -37,8 +37,8 @@ import { ApiError, isEndpointMissing } from "./transport";
 import type { ApiMixin, ZodSchema } from "./transport";
 
 /**
- * Catalog ordering (#497). The backend orders by start time and nothing else, so this is the
- * parameter that endpoint will take: «Сегодня рядом» asks for `near`, the plain list for `soon`.
+ * Catalog ordering (#497). GET /events accepts these as `sort=`; «Сегодня рядом» asks for `near`,
+ * the plain list for `soon`.
  */
 export type EventSort = "soon" | "near" | "rating";
 
@@ -54,9 +54,9 @@ export interface EventFilters {
   date?: string;
   /** Average review score the event must reach, 1..5; an event nobody reviewed never qualifies. */
   minRating?: number;
-  /** Full-text needle over the title, description and venue; there is no such endpoint yet (#497). */
+  /** Full-text needle over the title and description, sent as `q`. */
   query?: string;
-  /** Ordering of the answer; the backend hardcodes «soonest first» today (#497). */
+  /** Ordering of the answer, sent as `sort`. */
   sort?: EventSort;
   /** Inclusive range start (YYYY-MM-DD); sent as date_from. */
   dateFrom?: string;
@@ -65,6 +65,8 @@ export interface EventFilters {
   /** Page window of the catalog list (1..100 / 0..); the screen pages by these, the URL never carries them. */
   limit?: number;
   offset?: number;
+  lat?: number;
+  lng?: number;
 }
 
 const isDay = (value: string | null): value is string => value !== null && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -82,6 +84,8 @@ export function serializeEventFilters(filters: EventFilters): string {
   if (filters.sort) params.set("sort", filters.sort);
   if (filters.limit) params.set("limit", String(filters.limit));
   if (filters.offset) params.set("offset", String(filters.offset));
+  if (filters.lat !== undefined) params.set("lat", String(filters.lat));
+  if (filters.lng !== undefined) params.set("lng", String(filters.lng));
   return params.toString();
 }
 
@@ -545,9 +549,8 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
         return await this.request(`/events/cards${query ? `?${query}` : ""}`, CatalogCardsSchema);
       } catch (error) {
         if (!isCatalogCardsMissing(error)) throw error;
-        // The origin is dropped: without /events/cards nothing measures a distance anyway, and a
-        // coordinate the plain listing does not know is one more way for the fallback to be refused.
-        const [events, places] = await Promise.all([this.request(`/events${filterQuery ? `?${filterQuery}` : ""}`, EventSchema.array()), this.request("/places", PlaceSchema.array())]);
+        const fallbackQuery = serializeEventFilters(origin === null ? filters : { ...filters, lat: origin.latitude, lng: origin.longitude });
+        const [events, places] = await Promise.all([this.request(`/events${fallbackQuery ? `?${fallbackQuery}` : ""}`, EventSchema.array()), this.request("/places", PlaceSchema.array())]);
         return catalogCardsFromEvents(events, places);
       }
     }
@@ -572,7 +575,7 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/places/${placeId}/page?userId=${encodeURIComponent(userId)}`, PlacePageSchema);
     }
 
-    /** City weather behind the map chip (макет, экран 16); mock-only until a «weather now» surface exists (#495). */
+    /** City weather behind the map chip (макет, экран 16); GET /weather?city=. */
     getMapWeather(city: string): Promise<MapWeather> {
       return this.request(`/weather?city=${encodeURIComponent(city)}`, MapWeatherSchema);
     }
@@ -605,17 +608,17 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/places/${placeId}/participation?userId=${encodeURIComponent(userId)}`, PlaceParticipationSchema, { method: "PUT", body: { status } });
     }
 
-    /** Hourly weather over the event window (макет, экран 17); mock-only, the domain stores one snapshot (#495). */
+    /** Hourly weather over the event window (макет, экран 17); GET /events/:id/weather/hourly. */
     getEventForecast(eventId: string): Promise<EventForecast> {
       return this.request(`/events/${eventId}/weather/hourly`, EventForecastSchema);
     }
 
-    /** «Обстановка» tags of экран 17; mock-only, there is no such dictionary in the domain. */
+    /** «Обстановка» tags of экран 17; GET /events/:id/mood-tags. */
     listEventMoodTags(eventId: string): Promise<EventMoodTag[]> {
       return this.request(`/events/${eventId}/mood-tags`, EventMoodTagsSchema);
     }
 
-    /** «Рядом» venues around the event (макет, экран 17); mock-only, nothing selects places around an event. */
+    /** «Рядом» venues around the event (макет, экран 17); GET /events/:id/nearby. */
     listEventNearby(eventId: string): Promise<EventNearbySpot[]> {
       return this.request(`/events/${eventId}/nearby`, EventNearbySchema);
     }

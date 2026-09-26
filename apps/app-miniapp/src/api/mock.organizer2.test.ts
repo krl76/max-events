@@ -54,6 +54,7 @@ describe("organizer stats, sales, page views, rating and campaigns via mock", ()
     expect(report.commissionRub).toBe(100);
     expect(report.netRub).toBe(900);
     expect(report.rows[0]).toMatchObject({ grossRub: 500, commissionRub: 50, netRub: 450, status: "succeeded" });
+    expect(report.provider).toBe("sandbox");
   });
 
   it("returns an empty report for an owned event without sales and 404 for foreign or unknown events (backend parity: sales 404s both)", async () => {

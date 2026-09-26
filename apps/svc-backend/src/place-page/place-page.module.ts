@@ -17,12 +17,13 @@ import { FriendsModule } from "../friends/friends.module";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { ReviewsModule } from "../reviews/reviews.module";
+import { SlotsModule } from "../slots/slots.module";
 import { UserEntity } from "../users/user.entity";
 import { PlacePageController } from "./place-page.controller";
 import { PlacePageService } from "./place-page.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PlaceEntity, EventEntity, CheckInEntity, ParticipationEntity, UserEntity]), FriendsModule, ReviewsModule],
+  imports: [TypeOrmModule.forFeature([PlaceEntity, EventEntity, CheckInEntity, ParticipationEntity, UserEntity]), FriendsModule, ReviewsModule, SlotsModule],
   controllers: [PlacePageController],
   providers: [PlacePageService],
 })

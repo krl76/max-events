@@ -3,7 +3,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CalendarEntry, MySlotsBoard, PlaceSlot } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
-import { bookingCards, filterBookingCards, MyBookingsView, type BookingsBoard } from "./MyBookingsPage";
+import { ApiError } from "../api/client";
+import { bookingCards, filterBookingCards, MyBookingsView, rescheduleErrorMessage, type BookingsBoard } from "./MyBookingsPage";
 
 const park = mockPlaces[0];
 const luzhniki = mockPlaces[2];
@@ -75,6 +76,10 @@ function viewHtml(overrides: Partial<Parameters<typeof MyBookingsView>[0]> = {})
         onShare: () => {},
         onRate: () => {},
         onRepeat: () => {},
+        onReschedule: () => {},
+        picker: null,
+        onPickReschedule: () => {},
+        onClosePicker: () => {},
         ...overrides,
       }),
     ),
@@ -169,5 +174,21 @@ describe("MyBookingsView", () => {
 
   it("explains an empty search instead of showing a blank screen", () => {
     expect(viewHtml({ query: "ничего", searching: true })).toContain("Ничего не нашлось.");
+  });
+
+  it("lists other events in the reschedule picker and words a 409", () => {
+    const ticket = board().active.find((card) => card.kind === "ticket")!;
+    const html = viewHtml({
+      picker: {
+        card: ticket,
+        events: [{ ...upcomingEvent, id: "c000000e-0000-4000-8000-00000000000e", title: "Другой концерт" }],
+        error: rescheduleErrorMessage(new ApiError(409, "full")),
+        busy: false,
+      },
+    });
+    expect(html).toContain("Куда перенести");
+    expect(html).toContain("Другой концерт");
+    expect(html).toContain("На это событие нет мест.");
+    expect(rescheduleErrorMessage(new ApiError(400, "past"))).toBe("Нельзя перенести на это событие.");
   });
 });

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for shared plans — list/get PlanCard, create, invite, respond, delete.
-// SCOPE: GET/POST /plans, GET/DELETE /plans/:id, POST /plans/:id/participants, PATCH /plans/:id/participants/me, GET :id/budget, POST :id/expenses.
+// SCOPE: GET/POST /plans, GET/DELETE /plans/:id, POST /plans/:id/chat, POST /plans/:id/participants, PATCH /plans/:id/participants/me, GET :id/budget, POST :id/expenses.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./plans.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -11,7 +11,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
-import { CreateAutoPlanWriteSchema, CreatePlanExpenseWriteSchema, CreatePlanWriteSchema, PlanCancelScopeSchema, IdSchema, PlanParticipantWriteSchema, type AutoPlanProposal, type PlanBudget, type PlanCard } from "@max-events/api-contracts";
+import { CreateAutoPlanWriteSchema, CreatePlanExpenseWriteSchema, CreatePlanWriteSchema, PlanCancelScopeSchema, IdSchema, PlanParticipantWriteSchema, type AutoPlanProposal, type PlanBudget, type PlanCard, type RoutePrefer } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { PlansService, type GeoOrigin } from "./plans.service";
@@ -39,6 +39,11 @@ export class PlansController {
     return this.plans.create(user.id, parsed.data);
   }
 
+  @Get(":id/timeline")
+  timeline(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Query("prefer") prefer?: string) {
+    return this.plans.timeline(user.id, id, parseRoutePrefer(prefer));
+  }
+
   @Get(":id/budget")
   budget(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PlanBudget> {
     return this.plans.getBudget(user.id, id);
@@ -49,6 +54,11 @@ export class PlansController {
     const parsed = CreatePlanExpenseWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid expense payload");
     return this.plans.addExpense(user.id, id, parsed.data);
+  }
+
+  @Post(":id/chat")
+  openChat(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PlanCard> {
+    return this.plans.openChat(user.id, id);
   }
 
   @Get(":id")
@@ -79,6 +89,12 @@ export class PlansController {
     if (!parsed.success) throw new BadRequestException("Invalid plan payload");
     return this.plans.respond(user.id, id, parsed.data.status);
   }
+}
+
+export function parseRoutePrefer(value: string | undefined): RoutePrefer {
+  if (value === undefined || value === "" || value === "default") return "default";
+  if (value === "cheaper" || value === "no_taxi") return value;
+  throw new BadRequestException("Invalid timeline prefer");
 }
 
 export function parseOrigin(query: Record<string, string | undefined>): GeoOrigin | null {

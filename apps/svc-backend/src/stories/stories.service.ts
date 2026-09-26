@@ -11,10 +11,10 @@
 // - STORY_TTL_MS - stories expire 24 hours after creation; older ones leave the list
 // END_MODULE_MAP
 
-import { Inject, Injectable } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { StorySchema, type Story } from "@max-events/api-contracts";
+import { StorySchema, type CreateStoryWrite, type Story } from "@max-events/api-contracts";
 import { FriendsService } from "../friends/friends.service";
 import { StoryEntity } from "./story.entity";
 
@@ -32,9 +32,14 @@ export class StoriesService {
     const allowed = await this.friends.friendIds(userId);
     allowed.add(userId);
     const recent = (await this.stories.find({ order: { createdAt: "DESC" } })).filter((row) => row.createdAt.getTime() > cutoff.getTime());
+    const visible = recent.filter((row) => {
+      if (row.userId === userId) return true;
+      if (row.audience === "city") return true;
+      return allowed.has(row.userId);
+    });
     // An empty friends graph used to hide every seeded story: the rail showed only «Твоя история».
-    // With no friends yet, the last-day stories still stand in the rail so the home screen is not blank.
-    const rows = recent.some((row) => row.userId !== userId && allowed.has(row.userId)) ? recent.filter((row) => allowed.has(row.userId)) : recent;
+    // With no friends yet and no city stories, last-day stories still stand so the home screen is not blank.
+    const rows = visible.some((row) => row.userId !== userId) ? visible : recent;
     const groups = new Map<string, StoryEntity[]>();
     for (const row of rows) {
       const bucket = groups.get(row.userId) ?? [];
@@ -44,9 +49,31 @@ export class StoriesService {
     return [...groups.values()].flatMap((group) => group.map(toStoryDto));
   }
 
-  async create(userId: string, imageUrl: string): Promise<Story> {
-    const saved = await this.stories.save(this.stories.create({ userId, imageUrl }));
+  async create(userId: string, payload: CreateStoryWrite): Promise<Story> {
+    const saved = await this.stories.save(
+      this.stories.create({
+        userId,
+        imageUrl: payload.imageUrl,
+        text: payload.text ?? "",
+        sticker: payload.sticker ?? null,
+        poll: payload.poll ?? null,
+        audience: payload.audience ?? "friends",
+        objects: payload.objects ?? [],
+      }),
+    );
     return toStoryDto(saved);
+  }
+
+  async vote(userId: string, storyId: string, optionIndex: number): Promise<Story> {
+    const row = await this.stories.findOneBy({ id: storyId });
+    if (!row || !row.poll) throw new NotFoundException("Story not found");
+    if (optionIndex < 0 || optionIndex >= row.poll.options.length) throw new BadRequestException("Invalid story payload");
+    const allowed = await this.friends.friendIds(userId);
+    allowed.add(userId);
+    if (row.audience !== "city" && !allowed.has(row.userId) && row.userId !== userId) throw new NotFoundException("Story not found");
+    row.poll = { ...row.poll, answer: optionIndex };
+    await this.stories.save(row);
+    return toStoryDto(row);
   }
 }
 
@@ -55,6 +82,11 @@ export function toStoryDto(row: StoryEntity): Story {
     id: row.id,
     userId: row.userId,
     imageUrl: row.imageUrl,
+    text: row.text ?? "",
+    sticker: row.sticker ?? null,
+    poll: row.poll ?? null,
+    audience: row.audience ?? "friends",
+    objects: row.objects ?? [],
     createdAt: row.createdAt.toISOString(),
   });
 }

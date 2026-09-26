@@ -35,6 +35,10 @@ export function withBookings<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/bookings/${bookingId}`, BookingWithSeatsSchema, { method: "DELETE" });
     }
 
+    rescheduleBooking(bookingId: string, eventId: string): Promise<BookingWithSeats> {
+      return this.request(`/bookings/${bookingId}`, BookingWithSeatsSchema, { method: "PATCH", body: { eventId } });
+    }
+
     /** Join the event waitlist; the userId param is ignored server-side, identity comes from initData. */
     joinWaitlist(eventId: string, userId: string): Promise<WaitlistEntry> {
       return this.request(`/waitlist?userId=${encodeURIComponent(userId)}`, WaitlistEntrySchema, { body: { eventId } });

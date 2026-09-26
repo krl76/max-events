@@ -27,7 +27,7 @@ import { useRoute } from "../routing/router";
 import { ReportButton } from "../event/ReportButton";
 import { StoryViewer, type StoryGroup } from "../stories/StoryViewer";
 import { markStoriesSeen, readSeenStories, storyRail } from "../stories/rail";
-import { AppAvatar, AppButton, AppChip, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
+import { AppAvatar, AppButton, AppChip, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { pluralRu } from "../catalog/format";
 
@@ -182,7 +182,7 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
           Не удалось загрузить впечатления.
         </AppState>
       ) : state.posts.length === 0 ? (
-        <AppState>Пока нет постов — расскажи первым.</AppState>
+        <AppEmptyState kind="empty-feed" onAction={() => navigate({ name: "feed-new", eventId: null })} />
       ) : (
         state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} eventCategory={events.find((item) => item.id === post.eventId)?.category} userId={userId ?? ""} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)
       )}

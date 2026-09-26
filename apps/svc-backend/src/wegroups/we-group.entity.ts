@@ -69,3 +69,21 @@ export class WeGroupItemEntity {
   @Column({ type: "uuid", nullable: true })
   placeId!: string | null;
 }
+
+@Entity("we_group_photos")
+export class WeGroupPhotoEntity {
+  @PrimaryGeneratedColumn("uuid")
+  id!: string;
+
+  @Column({ type: "uuid" })
+  groupId!: string;
+
+  @Column({ type: "uuid" })
+  userId!: string;
+
+  @Column({ type: "text" })
+  url!: string;
+
+  @CreateDateColumn({ type: "timestamptz" })
+  createdAt!: Date;
+}

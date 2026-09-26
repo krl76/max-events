@@ -10,9 +10,10 @@
 // - User - full user type
 // - CreateUserSchema - user creation payload (server-side from validated initData)
 // - CreateUser - user creation payload type
-// - SmartAlertSettingsSchema - per-type smart-alert toggles
+// - SmartAlertSettingsSchema - per-type smart-alert toggles plus quiet hours
 // - SmartAlertSettings - smart-alert prefs type
-// - DEFAULT_SMART_ALERTS - all types on
+// - QuietHoursTimeSchema - HH:MM window edge
+// - DEFAULT_SMART_ALERTS - all types on, quiet hours off, window 23:00–09:00
 // - PrivacySettingsSchema - visit history and route visibility
 // - PrivacySettings - privacy type
 // - DEFAULT_PRIVACY - visible to friends
@@ -22,9 +23,12 @@
 // - Profile - profile type
 // - UpdateProfileSchema - profile edit payload (nested partial smartAlerts/privacy, optional bio/cover/avatar)
 // - UpdateProfile - profile edit type
+// - ProfileCountersSchema / VisitedPlaceSchema / ProfilePostSchema / AppSettingsSchema (#543)
+// - UpdateAppSettingsSchema - partial PATCH without field defaults
 // END_MODULE_MAP
 
 import { z } from "zod";
+import { EventCategorySchema } from "./event.js";
 import { IdSchema, TimestampSchema } from "./primitives.js";
 
 /**
@@ -52,11 +56,17 @@ export type User = z.infer<typeof UserSchema>;
 export const CreateUserSchema = UserSchema.omit({ id: true, createdAt: true, updatedAt: true });
 export type CreateUser = z.infer<typeof CreateUserSchema>;
 
+export const QuietHoursTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+export type QuietHoursTime = z.infer<typeof QuietHoursTimeSchema>;
+
 export const SmartAlertSettingsSchema = z.object({
   leaveNow: z.boolean(),
   weather: z.boolean(),
   friendLeft: z.boolean(),
   listDigest: z.boolean(),
+  quietHoursEnabled: z.boolean(),
+  quietHoursFrom: QuietHoursTimeSchema,
+  quietHoursTo: QuietHoursTimeSchema,
 });
 export type SmartAlertSettings = z.infer<typeof SmartAlertSettingsSchema>;
 
@@ -65,6 +75,9 @@ export const DEFAULT_SMART_ALERTS: SmartAlertSettings = {
   weather: true,
   friendLeft: true,
   listDigest: true,
+  quietHoursEnabled: false,
+  quietHoursFrom: "23:00",
+  quietHoursTo: "09:00",
 };
 
 export const PrivacySettingsSchema = z.object({
@@ -101,3 +114,72 @@ export const UpdateProfileSchema = z.object({
   avatarUrl: ProfileMediaUrlSchema.nullable().optional(),
 });
 export type UpdateProfile = z.infer<typeof UpdateProfileSchema>;
+
+export const ProfileCountersSchema = z.object({
+  userId: IdSchema,
+  eventsCount: z.number().int().min(0),
+  placesCount: z.number().int().min(0),
+  companiesCount: z.number().int().min(0).nullable(),
+});
+export type ProfileCounters = z.infer<typeof ProfileCountersSchema>;
+
+export const VisitedPlaceSchema = z.object({
+  placeId: IdSchema,
+  title: z.string().min(1),
+  visits: z.number().int().min(1),
+});
+export type VisitedPlace = z.infer<typeof VisitedPlaceSchema>;
+
+export const ProfilePostSchema = z.object({
+  postId: IdSchema,
+  eventId: IdSchema,
+  eventTitle: z.string().min(1),
+  category: EventCategorySchema,
+  photoUrl: z.string().nullable(),
+  likesCount: z.number().int().min(0),
+  commentsCount: z.number().int().min(0),
+});
+export type ProfilePost = z.infer<typeof ProfilePostSchema>;
+
+export const AppSettingsSchema = z.object({
+  userId: IdSchema,
+  searchRadiusKm: z.number().positive().max(100),
+  showOnMap: z.boolean(),
+  lookingForCompany: z.boolean(),
+  seatFreed: z.boolean(),
+  quietHours: z.boolean(),
+  quietHoursFrom: QuietHoursTimeSchema,
+  quietHoursTo: QuietHoursTimeSchema,
+  organizerMode: z.boolean(),
+  geoAccess: z.boolean(),
+  contactsAccess: z.boolean(),
+});
+export type AppSettings = z.infer<typeof AppSettingsSchema>;
+
+export const DEFAULT_APP_SETTINGS: Omit<AppSettings, "userId"> = {
+  searchRadiusKm: 5,
+  showOnMap: true,
+  lookingForCompany: false,
+  seatFreed: true,
+  quietHours: false,
+  quietHoursFrom: "23:00",
+  quietHoursTo: "09:00",
+  organizerMode: false,
+  geoAccess: true,
+  contactsAccess: true,
+};
+
+/** Partial PATCH: no field defaults, so omitted keys stay omitted (zod 4). */
+export const UpdateAppSettingsSchema = z.object({
+  searchRadiusKm: z.number().positive().max(100).optional(),
+  showOnMap: z.boolean().optional(),
+  lookingForCompany: z.boolean().optional(),
+  seatFreed: z.boolean().optional(),
+  quietHours: z.boolean().optional(),
+  quietHoursFrom: QuietHoursTimeSchema.optional(),
+  quietHoursTo: QuietHoursTimeSchema.optional(),
+  organizerMode: z.boolean().optional(),
+  geoAccess: z.boolean().optional(),
+  contactsAccess: z.boolean().optional(),
+});
+export type UpdateAppSettings = z.infer<typeof UpdateAppSettingsSchema>;

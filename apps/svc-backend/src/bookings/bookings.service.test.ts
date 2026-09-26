@@ -438,4 +438,19 @@ describe("BookingsService.cancel refunds", () => {
     expect(healed.status).toBe("cancelled");
     expect(fake.events[0]?.bookedCount).toBe(0);
   });
+
+  it("moves an active booking onto another event with a free seat and refuses a full or past one", async () => {
+    const otherId = "00000000-0000-4000-8000-0000000000e2";
+    const { service, events } = createService(seedEvent({ capacity: 2 }));
+    events.push(seedEvent({ id: otherId, title: "Другое", bookedCount: 0, capacity: 1, startsAt: new Date("2026-09-20T16:00:00Z") }));
+    const booked = await service.create(userA, eventId);
+    const moved = await service.reschedule(userA, booked.id, otherId, new Date("2026-09-15T00:00:00Z"));
+    expect(moved.eventId).toBe(otherId);
+    expect(events[0]?.bookedCount).toBe(0);
+    expect(events[1]?.bookedCount).toBe(1);
+    await expect(service.reschedule(userA, moved.id, otherId, new Date("2026-09-15T00:00:00Z"))).rejects.toBeInstanceOf(BadRequestException);
+    const pastId = "00000000-0000-4000-8000-0000000000e3";
+    events.push(seedEvent({ id: pastId, title: "Прошло", startsAt: new Date("2026-09-01T16:00:00Z") }));
+    await expect(service.reschedule(userA, moved.id, pastId, new Date("2026-09-15T00:00:00Z"))).rejects.toBeInstanceOf(BadRequestException);
+  });
 });

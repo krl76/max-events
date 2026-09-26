@@ -20,6 +20,7 @@ const place: Place = {
   latitude: 55.729,
   longitude: 37.601,
   published: true,
+  logoUrl: null,
   createdAt: "2026-09-01T10:00:00.000Z",
   updatedAt: "2026-09-01T10:00:00.000Z",
 };
@@ -51,6 +52,10 @@ const post: FeedPost = {
   eventId: EVENT_ID,
   text: "Только вернулись — до сих пор под впечатлением.",
   photoUrl: null,
+  placeId: null,
+  taggedFriendIds: [],
+  audience: "friends",
+  allowJoin: false,
   likesCount: 3,
   likedByMe: false,
   comments: [{ id: "3f2b1a0c-5555-4000-8000-000000000005", author: { id: AUTHOR_ID, name: "Дима", avatarUrl: null }, text: "буду к трём" }],
@@ -217,10 +222,15 @@ describe("ApiClient against a backend without the card endpoints", () => {
   it("builds the catalog cards out of /events and /places", async () => {
     routeFetch({ "/api/events": [event], "/api/places": [place] });
 
-    const cards = await new ApiClient("/api").listEventCards({ category: "sport" });
+    const cards = await new ApiClient("/api").listEventCards({ category: "sport", sort: "near" }, { latitude: 55.75, longitude: 37.62 });
 
     expect(cards).toHaveLength(1);
     expect(cards[0].event.id).toBe(EVENT_ID);
+    const eventUrls = vi
+      .mocked(fetch)
+      .mock.calls.map((call) => String(call[0]))
+      .filter((url) => url.includes("/api/events?"));
+    expect(eventUrls.some((url) => url.includes("lat=55.75") && url.includes("lng=37.62") && url.includes("sort=near"))).toBe(true);
   });
 
   it("falls back on the 400 a server without /events/cards answers to the uuid pipe", async () => {

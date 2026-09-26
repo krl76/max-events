@@ -27,7 +27,7 @@ describe("AuthService.organizerLogin", () => {
     expect(result.user.maxUserId).toBe("organizer:demo");
     expect(result.user.firstName).toBe("demo");
     expect(result.user.lastName).toBeNull();
-    expect(redis.store.get(`organizer-session:${result.token}`)).toBe(result.user.id);
+    expect(redis.store.get(`organizer-session:${result.token}`)).toBe(result.organization.id);
     const sessionCall = redis.setCalls.find((call) => call.key === `organizer-session:${result.token}`);
     expect(sessionCall?.args).toEqual(["EX", 7 * 24 * 60 * 60]);
     expect(userRepo.store).toHaveLength(1);

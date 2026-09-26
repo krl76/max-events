@@ -14,6 +14,8 @@
 // - Event - full event type
 // - CreateEventSchema - event creation payload (no id, no server-owned chatLink/promoted/published/bookingOpensAt/weather)
 // - CreateEvent - event creation payload type
+// - CatalogCardSchema - search-tab card: Event plus distance/rating/placeTitle (#536)
+// - CatalogCard - search-tab card type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -52,6 +54,11 @@ const EventObjectSchema = z.object({
   bookedCount: z.number().int().nonnegative().optional(),
   remainingSeats: z.number().int().nonnegative().nullable().optional(),
   hitOfTheWeek: z.boolean().optional(),
+  distanceKm: z.number().nonnegative().nullable().optional(),
+  organizerName: z.string().nullable().optional(),
+  ratingAverage: z.number().min(0).max(5).nullable().optional(),
+  waitlistCount: z.number().int().nonnegative().optional(),
+  friendsGoing: z.array(z.object({ id: IdSchema, name: z.string().min(1) })).optional(),
 });
 
 const hasValidPaymentLink = (data: { isPaid: boolean; paymentUrl: string | null }) => (data.isPaid ? data.paymentUrl !== null : data.paymentUrl === null);
@@ -64,5 +71,29 @@ const paymentLinkInvariant = {
 export const EventSchema = EventObjectSchema.refine(hasValidPaymentLink, paymentLinkInvariant);
 export type Event = z.infer<typeof EventSchema>;
 
-export const CreateEventSchema = EventObjectSchema.omit({ id: true, chatLink: true, promoted: true, published: true, bookingOpensAt: true, weather: true, bookedCount: true, remainingSeats: true, hitOfTheWeek: true }).refine(hasValidPaymentLink, paymentLinkInvariant);
+export const CreateEventSchema = EventObjectSchema.omit({
+  id: true,
+  chatLink: true,
+  promoted: true,
+  published: true,
+  bookingOpensAt: true,
+  weather: true,
+  bookedCount: true,
+  remainingSeats: true,
+  hitOfTheWeek: true,
+  distanceKm: true,
+  organizerName: true,
+  ratingAverage: true,
+  waitlistCount: true,
+  friendsGoing: true,
+}).refine(hasValidPaymentLink, paymentLinkInvariant);
 export type CreateEvent = z.infer<typeof CreateEventSchema>;
+
+/** Search-tab card (экран 08). Distance/rating/place stay off Event so the plain listing stays a listing. */
+export const CatalogCardSchema = z.object({
+  event: EventSchema,
+  distanceKm: z.number().nonnegative().nullable(),
+  rating: z.number().min(0).max(5).nullable(),
+  placeTitle: z.string().nullable(),
+});
+export type CatalogCard = z.infer<typeof CatalogCardSchema>;

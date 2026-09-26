@@ -15,11 +15,19 @@
 // - CreateFeedPostWrite - create-post type
 // - AddFeedCommentWriteSchema - add-comment payload
 // - AddFeedCommentWrite - add-comment type
+// - FeedDraftWriteSchema - composer autosave (#542)
+// - FeedDraftSavedSchema - { savedAt } receipt
+// - FeedCardCountsSchema - wants/going/waitlist/freeSeats, null only when unknown
+// - FeedFriendCardSchema / FeedPlaceCardSchema - home feed cards (#541)
+// - FeedCardSchema - discriminated union
 // END_MODULE_MAP
 
 import { z } from "zod";
+import { EventSchema } from "./event.js";
 import { FriendSchema } from "./friends.js";
-import { IdSchema } from "./primitives.js";
+import { ParticipationStatusSchema } from "./participation.js";
+import { PlaceSchema } from "./place.js";
+import { IdSchema, TimestampSchema } from "./primitives.js";
 
 /**
  * A picked photo travels inline as a data URL until object storage lands (#477), so this is a payload
@@ -45,12 +53,19 @@ export const FeedCommentSchema = z.object({
 });
 export type FeedComment = z.infer<typeof FeedCommentSchema>;
 
+export const PostAudienceSchema = z.enum(["friends", "city", "company"]);
+export type PostAudience = z.infer<typeof PostAudienceSchema>;
+
 export const FeedPostSchema = z.object({
   id: IdSchema,
   author: FriendSchema,
   eventId: IdSchema,
   text: z.string().min(1).max(5000),
   photoUrl: photoUrlSchema.nullable().default(null),
+  placeId: IdSchema.nullable().default(null),
+  taggedFriendIds: z.array(IdSchema).default([]),
+  audience: PostAudienceSchema.default("friends"),
+  allowJoin: z.boolean().default(false),
   likesCount: z.number().int().min(0),
   likedByMe: z.boolean(),
   comments: z.array(FeedCommentSchema).default([]),
@@ -61,6 +76,10 @@ export const CreateFeedPostWriteSchema = z.object({
   eventId: IdSchema,
   text: z.string().min(1).max(5000),
   photoUrl: photoUrlSchema.nullable().optional(),
+  placeId: IdSchema.nullable().optional(),
+  taggedFriendIds: z.array(IdSchema).optional(),
+  audience: PostAudienceSchema.optional(),
+  allowJoin: z.boolean().optional(),
 });
 export type CreateFeedPostWrite = z.infer<typeof CreateFeedPostWriteSchema>;
 
@@ -68,3 +87,73 @@ export const AddFeedCommentWriteSchema = z.object({
   text: z.string().min(1).max(2000),
 });
 export type AddFeedCommentWrite = z.infer<typeof AddFeedCommentWriteSchema>;
+
+export const FeedDraftWriteSchema = z.object({
+  eventId: IdSchema.nullable(),
+  text: z.string().max(5000).default(""),
+  photoUrls: z.array(photoUrlSchema).max(10).optional(),
+  placeId: IdSchema.nullable().optional(),
+  taggedFriendIds: z.array(IdSchema).optional(),
+  audience: PostAudienceSchema.optional(),
+  allowJoin: z.boolean().optional(),
+});
+export type FeedDraftWrite = z.infer<typeof FeedDraftWriteSchema>;
+
+export const FeedDraftSavedSchema = z.object({
+  savedAt: TimestampSchema,
+});
+export type FeedDraftSaved = z.infer<typeof FeedDraftSavedSchema>;
+
+export const FeedCardCountsSchema = z.object({
+  wantsToGo: z.number().int().min(0).nullable(),
+  going: z.number().int().min(0).nullable(),
+  waitlist: z.number().int().min(0).nullable(),
+  freeSeats: z.number().int().min(0).nullable(),
+});
+export type FeedCardCounts = z.infer<typeof FeedCardCountsSchema>;
+
+export const FeedFriendCardSchema = z.object({
+  kind: z.literal("friend"),
+  id: IdSchema,
+  author: FriendSchema,
+  placeTitle: z.string().nullable(),
+  distanceKm: z.number().nonnegative().nullable(),
+  event: EventSchema,
+  live: z.boolean(),
+  hit: z.boolean(),
+  counts: FeedCardCountsSchema,
+  myStatus: ParticipationStatusSchema.nullable(),
+  text: z.string(),
+  likesCount: z.number().int().min(0),
+  likedByMe: z.boolean(),
+  comments: z.array(FeedCommentSchema),
+  commentsCount: z.number().int().min(0),
+  publishedAt: TimestampSchema.nullable(),
+});
+export type FeedFriendCard = z.infer<typeof FeedFriendCardSchema>;
+
+export const FeedPlaceCardSchema = z.object({
+  kind: z.literal("place"),
+  id: IdSchema,
+  place: PlaceSchema,
+  verified: z.boolean(),
+  distanceKm: z.number().nonnegative().nullable(),
+  travelMinutes: z.number().int().min(0).nullable(),
+  rating: z.number().min(0).max(5).nullable(),
+  pricePerHourRub: z.number().int().min(0).nullable(),
+  slotLabel: z.string().nullable(),
+  offerLabel: z.string().nullable(),
+  goingFriends: z.array(FriendSchema),
+  title: z.string(),
+  text: z.string(),
+  quote: z.object({ author: FriendSchema, text: z.string() }).nullable(),
+  likesCount: z.number().int().min(0),
+  likedByMe: z.boolean(),
+  commentsCount: z.number().int().min(0),
+  myStatus: ParticipationStatusSchema.nullable(),
+  publishedAt: TimestampSchema,
+});
+export type FeedPlaceCard = z.infer<typeof FeedPlaceCardSchema>;
+
+export const FeedCardSchema = z.discriminatedUnion("kind", [FeedFriendCardSchema, FeedPlaceCardSchema]);
+export type FeedCard = z.infer<typeof FeedCardSchema>;

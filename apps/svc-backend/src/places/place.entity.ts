@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: TypeORM entity for the places table (venues that host events).
-// SCOPE: PlaceEntity columns: uuid id, title, address, city, category, geo, timestamps; unique (title, address, city).
+// SCOPE: PlaceEntity columns: uuid id, title, address, city, category, geo, optional logoUrl, timestamps; unique (title, address, city).
 // DEPENDS: typeorm, @max-events/api-contracts (PlaceCategory type)
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -40,8 +40,14 @@ export class PlaceEntity {
   @Column({ type: "uuid", nullable: true })
   organizerUserId!: string | null;
 
+  @Column({ type: "uuid", nullable: true })
+  organizerOrganizationId?: string | null;
+
   @Column({ type: "boolean", default: true })
   published!: boolean;
+
+  @Column({ type: "varchar", nullable: true })
+  logoUrl?: string | null;
 
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;

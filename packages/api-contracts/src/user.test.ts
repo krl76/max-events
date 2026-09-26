@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CreateUserSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, ProfileSchema, UpdateProfileSchema, UserSchema } from "./user.js";
+import { CreateUserSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, ProfileSchema, UpdateAppSettingsSchema, UpdateProfileSchema, UserSchema } from "./user.js";
 
 const validUser = {
   id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f",
@@ -54,7 +54,9 @@ describe("ProfileSchema", () => {
 describe("UpdateProfileSchema", () => {
   it("accepts partial profile edits without userId", () => {
     expect(UpdateProfileSchema.safeParse({ city: "Казань" }).success).toBe(true);
-    expect(UpdateProfileSchema.safeParse({ smartAlerts: { weather: false } }).success).toBe(true);
+    expect(UpdateProfileSchema.parse({ smartAlerts: { weather: false } }).smartAlerts).toEqual({ weather: false });
+    expect(UpdateProfileSchema.safeParse({ smartAlerts: { quietHoursEnabled: true, quietHoursFrom: "22:00" } }).success).toBe(true);
+    expect(UpdateProfileSchema.safeParse({ smartAlerts: { quietHoursFrom: "25:00" } }).success).toBe(false);
     expect(UpdateProfileSchema.safeParse({ privacy: { visitHistory: "hidden" } }).success).toBe(true);
     expect(UpdateProfileSchema.safeParse({ recommendationsEnabled: false }).success).toBe(true);
     expect(UpdateProfileSchema.safeParse({ bio: "Люблю джаз и падел" }).success).toBe(true);
@@ -64,5 +66,17 @@ describe("UpdateProfileSchema", () => {
   it("rejects a bio over the Instagram-like cap and a non-image cover", () => {
     expect(UpdateProfileSchema.safeParse({ bio: "x".repeat(151) }).success).toBe(false);
     expect(UpdateProfileSchema.safeParse({ coverUrl: "javascript:alert(1)" }).success).toBe(false);
+  });
+});
+
+describe("UpdateAppSettingsSchema", () => {
+  it("keeps omitted keys omitted instead of filling defaults", () => {
+    const parsed = UpdateAppSettingsSchema.parse({ quietHours: true });
+    expect(parsed).toEqual({ quietHours: true });
+    expect("searchRadiusKm" in parsed).toBe(false);
+  });
+
+  it("rejects a broken quiet-hours clock", () => {
+    expect(UpdateAppSettingsSchema.safeParse({ quietHoursFrom: "25:00" }).success).toBe(false);
   });
 });

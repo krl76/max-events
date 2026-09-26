@@ -10,7 +10,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post } from "@nestjs/common";
-import { AddWeGroupEventWriteSchema, AddWeGroupPlaceWriteSchema, CreateWeGroupWriteSchema, type ReviewPhoto, type WeGroupScreen, type WeGroupSummary } from "@max-events/api-contracts";
+import { AddWeGroupEventWriteSchema, AddWeGroupPhotoWriteSchema, AddWeGroupPlaceWriteSchema, CreateWeGroupWriteSchema, type ReviewPhoto, type WeGroupScreen, type WeGroupSummary } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { WeGroupsService } from "./we-groups.service";
@@ -34,6 +34,13 @@ export class WeGroupsController {
   @Get(":id/photos")
   photos(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<ReviewPhoto[]> {
     return this.groups.photos(user.id, id);
+  }
+
+  @Post(":id/photos")
+  async addPhoto(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<WeGroupScreen> {
+    const parsed = AddWeGroupPhotoWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid we-group payload");
+    return this.groups.addPhoto(user.id, id, parsed.data.url);
   }
 
   @Get(":id")

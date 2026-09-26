@@ -15,15 +15,18 @@
 // - PLAN_POLL_WINDOW_MS - look-ahead window for occurrence polls
 // - settleBalances - greedy debt settlement
 // - budgetFromExpenses - split expenses into per-person nets and debts
-// - PlansService - create, findExisting, findActiveForEvent, list, get, addParticipant, respond, remove, spawnRecurring, pollRecurring, remindMeeting, budget
+// - PlansService - create, findExisting, findActiveForEvent, list, get, openChat, addParticipant, respond, remove, spawnRecurring, pollRecurring, remindMeeting, budget
 // END_MODULE_MAP
 
-import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { IsNull, QueryFailedError, Repository } from "typeorm";
 import type { AutoPlanProposal, CreatePlanExpenseWrite, CreatePlanWrite, Plan, PlanBudget, PlanCancelScope, PlanCard, PlanDebt, PlanParticipantStatus, Place } from "@max-events/api-contracts";
 import { moscowIsoWeekday, PlanRecurringRuleSchema, upcomingRecurringAts } from "@max-events/api-contracts";
-import { toEventDto } from "../events/events.service";
+import { toEventDto } from "../events/event.mapper";
+import { haversineMeters } from "../geo/haversine";
+import { transferFor } from "../routes/routes.service";
+import type { RoutePrefer } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { MaxBotClient } from "../max-bot/max-bot.client";
@@ -54,15 +57,7 @@ const WEEKDAY_POLL: Record<number, string> = {
   7: "воскресенье",
 };
 
-export function haversineMeters(from: GeoOrigin, latitude: number, longitude: number): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const earth = 6_371_000;
-  const dLat = toRad(latitude - from.latitude);
-  const dLon = toRad(longitude - from.longitude);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(from.latitude)) * Math.cos(toRad(latitude)) * Math.sin(dLon / 2) ** 2;
-  const meters = 2 * earth * Math.asin(Math.min(1, Math.sqrt(a)));
-  return Math.max(0, Math.round(meters));
-}
+export { haversineMeters };
 
 export function formatPlanReminderText(title: string, meetingPoint: string, meetingAt: Date): string {
   return `Напоминание: сбор «${title}» ${meetingPoint} в ${meetingAt.toISOString()}`;
@@ -159,7 +154,7 @@ export class PlansService {
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
   ) {}
 
-  async create(hostUserId: string, payload: CreatePlanWrite, origin: GeoOrigin | null = null): Promise<PlanCard> {
+  async create(hostUserId: string, payload: CreatePlanWrite, origin: GeoOrigin | null = null, options?: { assembledByMax?: boolean }): Promise<PlanCard> {
     const event = await this.events.findOneBy({ id: payload.eventId });
     if (!event) throw new NotFoundException("Event not found");
     const ids = [...new Set(payload.participantIds)];
@@ -181,6 +176,7 @@ export class PlansService {
         seriesId: null,
         sourcePlanId: null,
         cancelledAt: null,
+        assembledByMax: options?.assembledByMax ?? false,
       }),
     );
     if (payload.recurringRule) {
@@ -321,7 +317,7 @@ export class PlansService {
     // Collecting the plan twice (a second tap, or a reload of the page) must land on the plan that
     // already exists — creating another one also created a second MAX chat for the same outing.
     const existing = await this.findActiveForEvent(hostUserId, eventId);
-    const card = existing ?? (await this.create(hostUserId, { eventId, participantIds: [], meetingPoint: proposedMeetingPoint, meetingAt: proposedMeetupAt.toISOString() }, origin));
+    const card = existing ?? (await this.create(hostUserId, { eventId, participantIds: [], meetingPoint: proposedMeetingPoint, meetingAt: proposedMeetupAt.toISOString() }, origin, { assembledByMax: true }));
     const meetupAt = new Date(card.plan.meetingAt);
     const dinnerAt = new Date(meetupAt.getTime() - DINNER_MIN * 60_000);
     const timeline = [];
@@ -356,6 +352,22 @@ export class PlansService {
     const event = await this.events.findOneBy({ id: plan.eventId });
     if (!event) throw new NotFoundException("Event not found");
     return this.toCard(plan, event, origin);
+  }
+
+  async timeline(userId: string, planId: string, prefer: RoutePrefer = "default"): Promise<{ assembledByMax: boolean; steps: Array<{ at: string; title: string; detail: string; transfer: { mode: "walk" | "metro" | "taxi"; minutes: number; priceRub: number | null } | null; eventId: string | null }> }> {
+    const plan = await this.requireActivePlan(planId);
+    const card = await this.get(userId, planId);
+    const event = await this.events.findOneBy({ id: plan.eventId });
+    const venue = event?.placeId ? await this.places.findOneBy({ id: event.placeId }) : null;
+    const meetingPlace = (await this.places.find({ where: { published: true } })).find((place) => place.title === plan.meetingPoint) ?? null;
+    const transfer = meetingPlace && venue && meetingPlace.id !== venue.id ? transferFor(haversineMeters({ latitude: meetingPlace.latitude, longitude: meetingPlace.longitude }, venue.latitude, venue.longitude), prefer) : null;
+    return {
+      assembledByMax: plan.assembledByMax === true,
+      steps: [
+        { at: card.plan.meetingAt, title: card.plan.meetingPoint, detail: "Сбор", transfer: null, eventId: null },
+        { at: card.event.startsAt, title: card.event.title, detail: card.event.city, transfer, eventId: card.event.id },
+      ],
+    };
   }
 
   async addParticipant(hostUserId: string, planId: string, userId: string): Promise<PlanCard> {
@@ -502,6 +514,19 @@ export class PlansService {
       }),
     );
     return this.getBudget(actorId, planId);
+  }
+
+  async openChat(actorId: string, planId: string): Promise<PlanCard> {
+    const plan = await this.requireActivePlan(planId);
+    if (plan.hostUserId !== actorId) throw new ForbiddenException("Not the host");
+    if (plan.chatLink) return this.get(actorId, planId);
+    const event = await this.events.findOneBy({ id: plan.eventId });
+    if (!event) throw new NotFoundException("Event not found");
+    const chat = await this.bot.createChat(`План: ${event.title}`);
+    if (!chat) throw new ServiceUnavailableException("Chat is unavailable");
+    plan.chatLink = chat.link;
+    await this.plans.save(plan);
+    return this.get(actorId, planId);
   }
 
   async getBudget(actorId: string, planId: string): Promise<PlanBudget> {

@@ -1,139 +1,12 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import type { FindOperator, Repository } from "typeorm";
-import { CreateEventSchema, type CreateEvent, type Event, type Place } from "@max-events/api-contracts";
-import { MaxBotClient } from "../max-bot/max-bot.client";
-import { PlacesService } from "../places/places.service";
-import type { SubscriptionsService } from "../subscriptions/subscriptions.service";
-import type { UsersService } from "../users/users.service";
+import { CreateEventSchema, type Event } from "@max-events/api-contracts";
 import type { PromotionService } from "../promotion/promotion.service";
 import type { WaitlistService } from "../waitlist/waitlist.service";
-import type { ReviewsService } from "../reviews/reviews.service";
 import { EventEntity } from "./event.entity";
 import type { EventWeatherService } from "./event-weather.service";
-import { EVENT_LIST_MAX_LIMIT, EventsService, toEventDto } from "./events.service";
-
-const placeId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f";
-
-const payload: CreateEvent = CreateEventSchema.parse({
-  title: "Джаз в парке",
-  category: "afisha",
-  city: "Москва",
-  startsAt: "2026-09-12T19:00:00+03:00",
-});
-
-function createRepo(initial: EventEntity[] = []) {
-  const store: EventEntity[] = [...initial];
-  let seq = 0;
-  const nextId = () => {
-    seq += 1;
-    return `00000000-0000-4000-8000-${String(seq).padStart(12, "0")}`;
-  };
-  const now = () => new Date("2026-09-01T07:00:00Z");
-
-  return {
-    store,
-    create: (fields: Partial<EventEntity>) => ({ ...fields }) as EventEntity,
-    merge: (target: EventEntity, fields: Partial<EventEntity>) => Object.assign(target, fields),
-    save: async (entity: EventEntity) => {
-      if (!store.includes(entity)) {
-        entity.id ??= nextId();
-        entity.createdAt ??= now();
-        entity.updatedAt ??= now();
-        entity.published ??= true;
-        store.push(entity);
-      } else {
-        entity.updatedAt = now();
-      }
-      return entity;
-    },
-    findOneBy: async (where: { id: string }) => store.find((row) => row.id === where.id) ?? null,
-    find: async (opts: { where?: { published?: boolean; city?: string; category?: string; organizerUserId?: string; startsAt?: FindOperator<Date>; chatSyncPending?: boolean; chatLink?: FindOperator<string>; id?: FindOperator<string> }; order?: { startsAt?: "ASC" | "DESC"; id?: "ASC" | "DESC"; createdAt?: "ASC" | "DESC" }; skip?: number; take?: number }) => {
-      let rows = [...store];
-      if (opts.where?.published === true) rows = rows.filter((row) => row.published);
-      // The rating filter narrows by id before the page is read, so the fake has to honour In() too.
-      const ids = opts.where?.id;
-      if (ids) rows = rows.filter((row) => (ids.value as unknown as string[]).includes(row.id));
-      if (opts.where?.city) rows = rows.filter((row) => row.city === opts.where?.city);
-      if (opts.where?.category) rows = rows.filter((row) => row.category === opts.where?.category);
-      if (opts.where?.organizerUserId) rows = rows.filter((row) => row.organizerUserId === opts.where?.organizerUserId);
-      if (opts.where?.chatSyncPending !== undefined) rows = rows.filter((row) => row.chatSyncPending === opts.where?.chatSyncPending);
-      if (opts.where?.chatLink?.type === "isNull") rows = rows.filter((row) => row.chatLink === null);
-      const startsAt = opts.where?.startsAt;
-      if (startsAt) rows = rows.filter((row) => matchesDateOperator(row.startsAt, startsAt));
-      if (opts.order?.createdAt === "ASC") rows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
-      else rows.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
-      const from = opts.skip ?? 0;
-      return opts.take === undefined ? rows.slice(from) : rows.slice(from, from + opts.take);
-    },
-    delete: async (where: { id: string }) => {
-      const index = store.findIndex((row) => row.id === where.id);
-      if (index < 0) return { affected: 0 };
-      store.splice(index, 1);
-      return { affected: 1 };
-    },
-  };
-}
-
-// The catalog list now pushes its start window into the WHERE clause, so the fake repository has to
-// read the same find operators postgres would.
-function matchesDateOperator(value: Date, operator: FindOperator<Date>): boolean {
-  if (operator.type === "and") return (operator.value as unknown as FindOperator<Date>[]).every((inner) => matchesDateOperator(value, inner));
-  const bound = operator.value as unknown as Date;
-  if (operator.type === "moreThanOrEqual") return value.getTime() >= bound.getTime();
-  if (operator.type === "lessThan") return value.getTime() < bound.getTime();
-  if (operator.type === "lessThanOrEqual") return value.getTime() <= bound.getTime();
-  throw new Error(`unsupported find operator in fake repository: ${operator.type}`);
-}
-
-function passthroughWeather(): EventWeatherService {
-  return { attach: async (events: Event[]) => events } as unknown as EventWeatherService;
-}
-
-function createService(options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean; promotions?: PromotionService; weather?: EventWeatherService; ratedIds?: Record<number, string[]> } = {}) {
-  const knownPlaces = new Set(options.placeIds ?? []);
-  const draftPlaces = new Set(options.draftPlaceIds ?? []);
-  const chatCalls: string[] = [];
-  const notifyCalls: string[] = [];
-  const innerBot = options.bot ?? { createChat: async () => null };
-  const places = {
-    getById: async (id: string) => {
-      if (!knownPlaces.has(id)) throw new NotFoundException("Place not found");
-      return { id } as Place;
-    },
-    resolveForEventBind: async (id: string, actorId?: string) => {
-      if (knownPlaces.has(id)) return;
-      if (draftPlaces.has(id) && actorId && actorId === options.ownerId) return;
-      throw new NotFoundException("Place not found");
-    },
-  } as unknown as PlacesService;
-  const repo = createRepo(options.store ?? []);
-  const bot = {
-    createChat: async (title: string) => {
-      chatCalls.push(title);
-      return innerBot.createChat(title);
-    },
-  };
-  const subscriptions = {
-    notifyNewEvent: async (event: EventEntity) => {
-      notifyCalls.push(event.id);
-      return { sent: 0, failed: 0 };
-    },
-  } as unknown as SubscriptionsService;
-  const users = {
-    assertCanPublish: async () => {
-      if (options.banned) throw new ForbiddenException("Organizer is banned from publishing");
-    },
-  } as unknown as UsersService;
-  const waitlist = options.waitlist ?? ({ fillVacancies: async () => undefined } as unknown as WaitlistService);
-  const promotions = options.promotions ?? ({ listActive: async () => [], promotedEventIds: async () => new Set<string>() } as unknown as PromotionService);
-  const weather = options.weather ?? passthroughWeather();
-  // Argument-aware: a filter that asked for the wrong threshold would otherwise still look right.
-  const ratedIdsByThreshold = options.ratedIds ?? {};
-  const reviews = { eventIdsRatedAtLeast: async (minStars: number) => ratedIdsByThreshold[minStars] ?? [] } as unknown as ReviewsService;
-  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist, promotions, weather, reviews);
-  return { repo, service, waitlist, chatCalls, notifyCalls };
-}
+import { EVENT_LIST_MAX_LIMIT, toEventDto } from "./events.service";
+import { createService, farPlaceId, payload, placeId } from "./events.service.testHarness";
 
 describe("EventsService", () => {
   it("creates a free event and maps it to the Event contract", async () => {
@@ -263,6 +136,36 @@ describe("EventsService", () => {
     expect(onDay.map((item) => item.title)).toEqual(["Субботник", "Джаз в парке"]);
   });
 
+  it("filters the catalog by a case-insensitive title or description needle", async () => {
+    const { service } = createService();
+    await service.create(payload);
+    await service.create(CreateEventSchema.parse({ ...payload, title: "Позже", description: "вечер на набережной", startsAt: "2026-09-20T19:00:00+03:00" }));
+    expect((await service.list({ q: "ДЖАЗ" })).map((item) => item.title)).toEqual(["Джаз в парке"]);
+    expect((await service.list({ q: "набережной" })).map((item) => item.title)).toEqual(["Позже"]);
+    expect(await service.list({ q: "несуществующий запрос 42" })).toEqual([]);
+    expect(await service.list({ q: "%%%" })).toEqual([]);
+  });
+
+  it("orders the catalog by rating and by distance when asked", async () => {
+    const { repo, service: writer } = createService({ placeIds: [placeId, farPlaceId] });
+    const jazz = await writer.create(CreateEventSchema.parse({ ...payload, placeId, startsAt: "2026-09-12T19:00:00+03:00" }));
+    const later = await writer.create(CreateEventSchema.parse({ ...payload, title: "Позже", placeId: farPlaceId, startsAt: "2026-09-20T19:00:00+03:00" }));
+    await writer.create(CreateEventSchema.parse({ ...payload, title: "Без отзывов", startsAt: "2026-09-13T19:00:00+03:00" }));
+    const rated = createService({ store: repo.store, placeIds: [placeId, farPlaceId], averages: { [jazz.id]: 3, [later.id]: 5 } }).service;
+    expect((await rated.list({ sort: "rating" })).map((item) => item.title)).toEqual(["Позже", "Джаз в парке", "Без отзывов"]);
+    expect((await rated.list({ sort: "soon" })).map((item) => item.title)).toEqual(["Джаз в парке", "Без отзывов", "Позже"]);
+    expect((await rated.list({ sort: "near", latitude: 56.75, longitude: 37.62 })).map((item) => item.title)).toEqual(["Позже", "Джаз в парке", "Без отзывов"]);
+    const boosted = createService({
+      store: repo.store,
+      placeIds: [placeId, farPlaceId],
+      promotions: {
+        listActive: async () => [{ eventId: later.id }],
+        promotedEventIds: async () => new Set([later.id]),
+      } as unknown as PromotionService,
+    }).service;
+    expect((await boosted.list({ sort: "near" })).map((item) => item.title)).toEqual(["Джаз в парке", "Без отзывов", "Позже"]);
+  });
+
   it("reads only the requested page of the catalog", async () => {
     const { repo, service } = createService();
     for (const day of ["13", "14", "15"]) {
@@ -351,6 +254,18 @@ describe("EventsService", () => {
     expect((await service.listMine(organizer)).map((row) => row.id)).toEqual([draft.id]);
   });
 
+  it("binds create and listMine to the organization id the organizer panel passes", async () => {
+    const orgId = "00000000-0000-4000-8000-0000000000c1";
+    const userId = "00000000-0000-4000-8000-00000000000a";
+    const otherOrg = "00000000-0000-4000-8000-0000000000c2";
+    const { repo, service } = createService({ organization: { id: orgId, organizerUserId: userId } });
+    const created = await service.create(payload, orgId, { draft: true });
+    expect(repo.store[0]?.organizerOrganizationId).toBe(orgId);
+    expect(repo.store[0]?.organizerUserId).toBe(userId);
+    expect((await service.listMine(orgId)).map((row) => row.id)).toEqual([created.id]);
+    expect(await service.listMine(otherOrg)).toEqual([]);
+  });
+
   it("lets an organizer bind their own unpublished place and blocks a banned publisher", async () => {
     const organizer = "00000000-0000-4000-8000-00000000000a";
     const { service } = createService({ draftPlaceIds: [placeId], ownerId: organizer });
@@ -386,6 +301,38 @@ describe("EventsService", () => {
     repo.store[0].published = false;
     const listed = await service.list({});
     expect(listed.map((item) => item.title)).toEqual(["Позже"]);
+  });
+
+  it("boosts catalog rows that match the viewer's interests without hiding the rest", async () => {
+    const { service } = createService({ interests: ["джаз"] });
+    await service.create(CreateEventSchema.parse({ ...payload, title: "Пробежка", startsAt: "2026-09-12T18:00:00+03:00" }));
+    await service.create(CreateEventSchema.parse({ ...payload, title: "Вечер джаза", startsAt: "2026-09-13T19:00:00+03:00" }));
+    const titles = (await service.list({ viewerId: "00000000-0000-4000-8000-00000000000a" })).map((item) => item.title);
+    expect(titles[0]).toBe("Вечер джаза");
+    expect(titles).toContain("Пробежка");
+  });
+
+  it("wraps the catalog as search cards with distance, rating and the venue line", async () => {
+    const { repo, service: writer } = createService({ placeIds: [placeId] });
+    const jazz = await writer.create(CreateEventSchema.parse({ ...payload, placeId }));
+    await writer.create(CreateEventSchema.parse({ ...payload, title: "Без площадки", startsAt: "2026-09-13T19:00:00+03:00" }));
+    const cards = await createService({
+      store: repo.store,
+      placeIds: [placeId],
+      averages: { [jazz.id]: 4.8 },
+    }).service.listCards({ latitude: 55.75, longitude: 37.62, viewerId: "00000000-0000-4000-8000-00000000000a" });
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toMatchObject({ distanceKm: 0, rating: 4.8, placeTitle: "Площадка" });
+    expect(cards[0]?.event.id).toBe(jazz.id);
+    expect(cards[1]).toMatchObject({ distanceKm: null, rating: null, placeTitle: null });
+  });
+
+  it("leaves distance null when the caller names no origin", async () => {
+    const { service } = createService({ placeIds: [placeId] });
+    await service.create(CreateEventSchema.parse({ ...payload, placeId }));
+    const [card] = await service.listCards({ viewerId: "00000000-0000-4000-8000-00000000000a" });
+    expect(card?.distanceKm).toBeNull();
+    expect(card?.placeTitle).toBe("Площадка");
   });
 });
 

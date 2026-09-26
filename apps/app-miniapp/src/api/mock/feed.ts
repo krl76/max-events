@@ -54,18 +54,22 @@ function hoursAgo(hours: number): string {
   return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 }
 
+function storySeed(id: string, userId: string, imageUrl: string, createdAt: string): Story {
+  return { id, userId, imageUrl, createdAt, text: "", sticker: null, poll: null, audience: "friends", objects: [] };
+}
+
 export const mockFriendStories: Story[] = [
-  { id: "e1000000-0000-4000-8000-000000000001", userId: mockFriendIds[0], imageUrl: storyImage(...storyGradient(0)), createdAt: hoursAgo(8) },
-  { id: "e1000000-0000-4000-8000-000000000002", userId: mockFriendIds[0], imageUrl: storyImage(...storyGradient(1)), createdAt: hoursAgo(7) },
-  { id: "e1000000-0000-4000-8000-000000000003", userId: mockFriendIds[1], imageUrl: storyImage(...storyGradient(2)), createdAt: hoursAgo(6) },
-  { id: "e1000000-0000-4000-8000-000000000004", userId: mockFriendIds[2], imageUrl: storyImage(...storyGradient(3)), createdAt: hoursAgo(5) },
-  { id: "e1000000-0000-4000-8000-000000000005", userId: mockFriendIds[2], imageUrl: storyImage(...storyGradient(4)), createdAt: hoursAgo(4) },
-  { id: "e1000000-0000-4000-8000-000000000006", userId: mockFriendIds[3], imageUrl: storyImage(...storyGradient(5)), createdAt: hoursAgo(3.5) },
-  { id: "e1000000-0000-4000-8000-000000000007", userId: mockFriendIds[4], imageUrl: storyImage(...storyGradient(6)), createdAt: hoursAgo(3) },
-  { id: "e1000000-0000-4000-8000-000000000008", userId: mockFriendIds[4], imageUrl: storyImage(...storyGradient(7)), createdAt: hoursAgo(2.5) },
-  { id: "e1000000-0000-4000-8000-000000000009", userId: mockFriendIds[4], imageUrl: storyImage(...storyGradient(8)), createdAt: hoursAgo(2) },
-  { id: "e1000000-0000-4000-8000-00000000000b", userId: mockFriendIds[5], imageUrl: storyImage(...storyGradient(9)), createdAt: hoursAgo(1.5) },
-  { id: "e1000000-0000-4000-8000-00000000000c", userId: mockFriendIds[6], imageUrl: storyImage(...storyGradient(10)), createdAt: hoursAgo(1) },
+  storySeed("e1000000-0000-4000-8000-000000000001", mockFriendIds[0], storyImage(...storyGradient(0)), hoursAgo(8)),
+  storySeed("e1000000-0000-4000-8000-000000000002", mockFriendIds[0], storyImage(...storyGradient(1)), hoursAgo(7)),
+  storySeed("e1000000-0000-4000-8000-000000000003", mockFriendIds[1], storyImage(...storyGradient(2)), hoursAgo(6)),
+  storySeed("e1000000-0000-4000-8000-000000000004", mockFriendIds[2], storyImage(...storyGradient(3)), hoursAgo(5)),
+  storySeed("e1000000-0000-4000-8000-000000000005", mockFriendIds[2], storyImage(...storyGradient(4)), hoursAgo(4)),
+  storySeed("e1000000-0000-4000-8000-000000000006", mockFriendIds[3], storyImage(...storyGradient(5)), hoursAgo(3.5)),
+  storySeed("e1000000-0000-4000-8000-000000000007", mockFriendIds[4], storyImage(...storyGradient(6)), hoursAgo(3)),
+  storySeed("e1000000-0000-4000-8000-000000000008", mockFriendIds[4], storyImage(...storyGradient(7)), hoursAgo(2.5)),
+  storySeed("e1000000-0000-4000-8000-000000000009", mockFriendIds[4], storyImage(...storyGradient(8)), hoursAgo(2)),
+  storySeed("e1000000-0000-4000-8000-00000000000b", mockFriendIds[5], storyImage(...storyGradient(9)), hoursAgo(1.5)),
+  storySeed("e1000000-0000-4000-8000-00000000000c", mockFriendIds[6], storyImage(...storyGradient(10)), hoursAgo(1)),
 ];
 
 /** Own mock story persists in localStorage so it survives reloads. */
@@ -94,7 +98,7 @@ export function listMockStories(): Story[] {
 export const mockStoryCompositions: StoryComposition[] = [];
 
 export function createMockStory(imageUrl: string, composition: StoryComposition | null = null): Story {
-  const story: Story = { id: "e1000000-0000-4000-8000-00000000000a", userId: mockDemoUser.id, imageUrl, createdAt: new Date().toISOString() };
+  const story: Story = storySeed("e1000000-0000-4000-8000-00000000000a", mockDemoUser.id, imageUrl, new Date().toISOString());
   if (composition !== null) mockStoryCompositions.push(composition);
   if (typeof window !== "undefined") window.localStorage.setItem(MOCK_OWN_STORY_KEY, JSON.stringify(story));
   return story;
@@ -138,6 +142,10 @@ export function seedMockFeed(): void {
       eventId: mockEvents[seed.event].id,
       text: seed.text,
       photoUrl: null,
+      placeId: null,
+      taggedFriendIds: [],
+      audience: "friends",
+      allowJoin: false,
       likesCount: seed.likes,
       likedByMe: false,
       comments: (seed.comments ?? []).map((comment) => {
@@ -314,7 +322,7 @@ export function mockFeedCards(userId: string): FeedCard[] {
 export function createMockFeedPost(payload: CreateFeedPost): FeedPost | null {
   if (!mockEvents.some((event) => event.id === payload.eventId)) return null;
   mockFeedSeq += 1;
-  const post: FeedPost = { id: `30000000-0000-4000-8000-${String(mockFeedSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), eventId: payload.eventId, text: payload.text, photoUrl: payload.photoUrl ?? null, likesCount: 0, likedByMe: false, comments: [] };
+  const post: FeedPost = { id: `30000000-0000-4000-8000-${String(mockFeedSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), eventId: payload.eventId, text: payload.text, photoUrl: payload.photoUrl ?? null, placeId: payload.placeId ?? null, taggedFriendIds: payload.taggedFriendIds ?? [], audience: payload.audience ?? "friends", allowJoin: payload.allowJoin ?? false, likesCount: 0, likedByMe: false, comments: [] };
   mockFeedPosts.push(post);
   // Kept beside the post rather than inside it: none of these has a column, and when #502 lands only this table goes away.
   mockFeedPostExtras.set(post.id, { photoUrls: payload.photoUrls ?? [], placeId: payload.placeId ?? null, taggedFriendIds: payload.taggedFriendIds ?? [], audience: payload.audience ?? "friends", allowJoin: payload.allowJoin ?? false });

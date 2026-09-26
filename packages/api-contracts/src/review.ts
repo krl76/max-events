@@ -14,6 +14,8 @@
 // - Review - review type
 // - RatingSummarySchema - aggregated rating for an event or a place
 // - RatingSummary - rating summary type
+// - REVIEW_FACT_TAG_CODES - post-event «Что было правдой?» codes
+// - ReviewFactTagCodeSchema - one fact-tag code
 // - CreateReviewWriteSchema - review submission payload (booked event)
 // - CreateReviewWrite - review submission type
 // - EventRatingSchema - event-page rating aggregate with per-category averages
@@ -70,6 +72,10 @@ export const RatingSummarySchema = z
   });
 export type RatingSummary = z.infer<typeof RatingSummarySchema>;
 
+export const REVIEW_FACT_TAG_CODES = ["calm", "kids_ok", "crowded", "pricey", "beginner_friendly"] as const;
+export const ReviewFactTagCodeSchema = z.enum(REVIEW_FACT_TAG_CODES);
+export type ReviewFactTagCode = z.infer<typeof ReviewFactTagCodeSchema>;
+
 export const CreateReviewWriteSchema = z.object({
   eventId: IdSchema,
   stars: z.number().int().min(1).max(5),
@@ -77,6 +83,7 @@ export const CreateReviewWriteSchema = z.object({
   wouldGoAgain: z.boolean(),
   photos: z.array(ReviewPhotoSchema).default([]),
   text: z.string().max(2000).nullable().optional(),
+  factTags: z.array(ReviewFactTagCodeSchema).optional(),
 });
 export type CreateReviewWrite = z.infer<typeof CreateReviewWriteSchema>;
 

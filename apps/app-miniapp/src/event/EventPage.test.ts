@@ -46,7 +46,7 @@ describe("eventShareText", () => {
 
 describe("organizerDisplayName", () => {
   it("prefers the organization the visitor is dealing with over the account behind it", () => {
-    const withOrg = organizerDisplayName(detailsOf({ organization: { id: "e0000000-0000-4000-8000-000000000001", name: "Парк Горького", contacts: null } }));
+    const withOrg = organizerDisplayName(detailsOf({ organization: { id: "e0000000-0000-4000-8000-000000000001", name: "Парк Горького", contacts: null, activities: [] } }));
 
     expect(withOrg).toBe("Парк Горького");
   });

@@ -90,13 +90,14 @@ function isUniqueViolation(error: unknown): boolean {
  * before an organizer account existed, showing "Организатор не указан". Only ownerless ones are taken —
  * an event somebody already owns is never moved.
  */
-async function adoptOwnerlessPoolEvents(events: Repository<EventEntity>, organizerUserId: string): Promise<number> {
+async function adoptOwnerlessPoolEvents(events: Repository<EventEntity>, organizerUserId: string, organizationId: string): Promise<number> {
   const pool = new Set(SEED_EVENTS.map((spec) => JSON.stringify([spec.title, spec.city])));
   const ownerless = await events.find({ where: { organizerUserId: IsNull() } });
   let bound = 0;
   for (const row of ownerless) {
     if (!pool.has(JSON.stringify([row.title, row.city]))) continue;
     row.organizerUserId = organizerUserId;
+    row.organizerOrganizationId = organizationId;
     await events.save(row);
     bound += 1;
   }
@@ -122,7 +123,7 @@ export async function seedDatabase(repos: SeedRepositories, options: SeedOptions
       placeIds.set(payload.title, existing.id);
       continue;
     }
-    const saved = await places.save(places.create(payload));
+    const saved = await places.save(places.create({ ...payload, organizerUserId: organizer.id, organizerOrganizationId: organization.id }));
     placeIds.set(payload.title, saved.id);
     placesInserted += 1;
   }
@@ -162,6 +163,7 @@ export async function seedDatabase(repos: SeedRepositories, options: SeedOptions
         paymentUrl: payload.paymentUrl,
         capacity: payload.capacity,
         organizerUserId: organizer.id,
+        organizerOrganizationId: organization.id,
         bookedCount: 0,
         published: true,
         chatLink: null,
@@ -170,7 +172,7 @@ export async function seedDatabase(repos: SeedRepositories, options: SeedOptions
     );
     eventsInserted += 1;
   }
-  const eventsBound = await adoptOwnerlessPoolEvents(events, organizer.id);
+  const eventsBound = await adoptOwnerlessPoolEvents(events, organizer.id, organization.id);
 
   return { placesInserted, eventsInserted, eventsBound, organizationInserted };
 }

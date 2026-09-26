@@ -15,7 +15,7 @@ import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import type { EventFriendsSummary, Friend, FriendActivityByFriend, FriendSuggestion, FriendsSyncStatus } from "@max-events/api-contracts";
-import { toEventDto } from "../events/events.service";
+import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { ParticipationEntity } from "../participations/participation.entity";
@@ -49,12 +49,6 @@ export class FriendsService {
     return this.friendsOfIds(await this.friendIds(userId));
   }
 
-  /** People who follow this person: the reverse of the follow set GET /users/:id/following reads. */
-  async followers(userId: string): Promise<Friend[]> {
-    const rows = await this.friendships.find({ where: { friendUserId: userId } });
-    return this.friendsOfIds(new Set(rows.map((row) => row.userId)));
-  }
-
   private async friendsOfIds(ids: Set<string>): Promise<Friend[]> {
     if (ids.size === 0) return [];
     const users = await this.users.find();
@@ -63,6 +57,19 @@ export class FriendsService {
       const user = byId.get(id);
       return user ? [toFriendDto(user)] : [];
     });
+  }
+
+  async following(userId: string): Promise<Friend[]> {
+    const me = await this.users.findOneBy({ id: userId });
+    if (!me) throw new NotFoundException("User not found");
+    return this.list(userId);
+  }
+
+  async followers(userId: string): Promise<Friend[]> {
+    const me = await this.users.findOneBy({ id: userId });
+    if (!me) throw new NotFoundException("User not found");
+    const rows = await this.friendships.find({ where: { friendUserId: userId } });
+    return this.friendsOfIds(new Set(rows.map((row) => row.userId)));
   }
 
   async sync(userId: string): Promise<Friend[]> {

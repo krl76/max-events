@@ -15,7 +15,7 @@
 // - OWN_BASEMAP - собственная подложка «Своя»: Москва и область, собрана Planetiler из OSM в схеме OpenMapTiles и лежит рядом с приложением (/tiles, см. DEPLOY.md)
 // - STANDARD_BASEMAP - стандартная растровая OSM: запасная, к которой экран возвращается, если своя не поднялась (нет WebGL, MapLibre не догрузился)
 // - MAP_BASEMAPS - каталог подложек в порядке чипов; своя первая, потому что она по умолчанию, стандартная OSM сразу за ней
-// - DEFAULT_BASEMAP - подложка по умолчанию — своя векторная; сохранённый выбор её переопределяет
+// - DEFAULT_BASEMAP - first paint is raster OSM; saved choice overrides; «Своя» stays first in the chip row
 // - isVectorBasemap - сужение типа: подложке нужен MapLibre, а не L.tileLayer
 // - basemapById - подложка по id; незнакомый id (устаревший или испорченный сохранённый выбор) отдаёт подложку по умолчанию
 // - readBasemapPreference - сохранённый выбор или подложка по умолчанию; сбой storage читается как «не выбирали»
@@ -87,8 +87,8 @@ export const MAP_BASEMAPS: readonly MapBasemap[] = [
   { id: "opentopo", label: "Рельеф", kind: "raster", url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", subdomains: "abc", maxZoom: 17, tone: "light", credit: [OSM, "SRTM", "© OpenTopoMap"] },
 ];
 
-/** Своя по умолчанию — ради неё переключатель и появился; на устройстве без WebGL экран сам уходит на STANDARD_BASEMAP. */
-export const DEFAULT_BASEMAP: MapBasemap = MAP_BASEMAPS[0];
+/** First paint is raster OSM so MapLibre (~1 MB) stays out until the viewer picks «Своя». */
+export const DEFAULT_BASEMAP: MapBasemap = STANDARD_BASEMAP;
 
 export function isVectorBasemap(basemap: MapBasemap): basemap is VectorBasemap {
   return basemap.kind === "vector";

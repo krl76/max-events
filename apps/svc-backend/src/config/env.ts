@@ -47,6 +47,8 @@ export const envSchema = z.object({
   // Once an account row exists it wins; with neither row nor these vars POST /auth/organizer/login is 503 (fail-closed).
   ORGANIZER_LOGIN: z.string().min(1).optional(),
   ORGANIZER_PASSWORD: z.string().min(1).optional(),
+  // In-app charges: sandbox (fake) or none. `live` is not a value — production cannot take a ruble in-app.
+  // Paid events collect money through Event.paymentUrl, outside the product.
   PAYMENT_PROVIDER: z.enum(["sandbox", "none"]).default("none"),
   PAYMENT_SECRET: z.string().min(1).optional(),
   PAYMENT_SANDBOX_FAIL_AMOUNT: z.coerce.number().int().positive().default(13),
@@ -69,6 +71,7 @@ export const envSchema = z.object({
     .transform((value) => value === "true"),
   // Optional JSON MAX user for AUTH_ALLOW_BROWSER. Unset = tools/max-dev-accounts.json owner.
   AUTH_BROWSER_USER: z.string().min(1).optional(),
+  STORAGE_DIR: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

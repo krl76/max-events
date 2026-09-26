@@ -20,7 +20,9 @@ import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { ReviewsService } from "../reviews/reviews.service";
-import { moscowDateKey } from "../time/moscow-date";
+import { SlotsService } from "../slots/slots.service";
+import { utcVisitDate } from "../checkins/check-ins.service";
+import { moscowDateKey, moscowHour } from "../time/moscow-date";
 import { UserEntity } from "../users/user.entity";
 
 const GOING: ParticipationEntity["status"][] = ["going", "wants_to_go"];
@@ -35,6 +37,7 @@ export class PlacePageService {
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @Inject(FriendsService) private readonly friends: FriendsService,
     @Inject(ReviewsService) private readonly reviews: ReviewsService,
+    @Inject(SlotsService) private readonly venueSlots: SlotsService,
   ) {}
 
   async get(placeId: string, viewerId: string, now = new Date()): Promise<PlacePage> {
@@ -69,4 +72,78 @@ export class PlacePageService {
     const rating = await this.reviews.placeRating(placeId);
     return { placeId, todayEvents, friends, rating, popularityToday, personalVisitsCount };
   }
+
+  async board(placeId: string, viewerId: string, now = new Date()): Promise<PlaceBoard> {
+    const place = await this.places.findOneBy({ id: placeId });
+    if (!place || place.published === false) throw new NotFoundException("Place not found");
+    const atPlace = await this.events.find({ where: { placeId, published: true } });
+    const eventIds = atPlace.map((row) => row.id);
+    const checkInWhere = eventIds.length === 0 ? [{ placeId }] : [{ placeId }, { eventId: In(eventIds) }];
+    const scopedCheckIns = await this.checkIns.find({ where: checkInWhere });
+    const weekEnd = now.getTime() + 7 * 24 * 60 * 60 * 1000;
+    const weekEventsCount = atPlace.filter((row) => row.startsAt.getTime() >= now.getTime() && row.startsAt.getTime() <= weekEnd).length;
+    const todayUtc = utcVisitDate(now);
+    const checkedInToday = scopedCheckIns.some((row) => row.userId === viewerId && row.placeId === placeId && row.visitDate === todayUtc);
+    const { occupancy, occupancyNowHour } = occupancyFrom(scopedCheckIns, now);
+    const history = visitMonthsFrom(scopedCheckIns.filter((row) => row.userId === viewerId));
+    return {
+      placeId,
+      openUntil: null,
+      checkedInToday,
+      weekEventsCount,
+      occupancy,
+      occupancyNowHour,
+      visitMonths: history.months,
+      visitMonthsMore: history.more,
+      unitTitle: "Площадка",
+      pricePerHourRub: null,
+      cancelBefore: null,
+      slots: await this.venueSlots.upcoming(placeId, 3, now),
+      upcoming: [],
+    };
+  }
+}
+
+export type PlaceOccupancyHour = { hour: number; load: number };
+export type PlaceVisitMonth = { month: string; visitsCount: number };
+export type PlaceBoard = {
+  placeId: string;
+  openUntil: string | null;
+  checkedInToday: boolean;
+  weekEventsCount: number;
+  occupancy: PlaceOccupancyHour[];
+  occupancyNowHour: number | null;
+  visitMonths: PlaceVisitMonth[];
+  visitMonthsMore: number;
+  unitTitle: string | null;
+  pricePerHourRub: number | null;
+  cancelBefore: string | null;
+  slots: unknown[];
+  upcoming: unknown[];
+};
+
+export function occupancyFrom(rows: CheckInEntity[], now: Date): { occupancy: PlaceOccupancyHour[]; occupancyNowHour: number | null } {
+  const hours = new Map<number, number>();
+  for (const row of rows) {
+    const hour = moscowHour(row.checkedInAt);
+    hours.set(hour, (hours.get(hour) ?? 0) + 1);
+  }
+  if (hours.size === 0) return { occupancy: [], occupancyNowHour: null };
+  const max = Math.max(...hours.values());
+  const occupancy = [...hours.entries()]
+    .sort((left, right) => left[0] - right[0])
+    .map(([hour, count]) => ({ hour, load: count / max }));
+  return { occupancy, occupancyNowHour: moscowHour(now) };
+}
+
+function visitMonthsFrom(rows: CheckInEntity[]): { months: PlaceVisitMonth[]; more: number } {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    const month = moscowDateKey(row.checkedInAt).slice(0, 7);
+    counts.set(month, (counts.get(month) ?? 0) + 1);
+  }
+  const months = [...counts.entries()].map(([month, visitsCount]) => ({ month, visitsCount })).sort((left, right) => left.month.localeCompare(right.month));
+  const shown = months.slice(-3);
+  const more = months.slice(0, Math.max(0, months.length - 3)).reduce((sum, item) => sum + item.visitsCount, 0);
+  return { months: shown, more };
 }

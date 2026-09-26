@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
 import { BookingEntity } from "../bookings/booking.entity";
+import { CheckInEntity } from "../checkins/check-in.entity";
 import { EventEntity } from "../events/event.entity";
 import { PageViewEntity } from "./page-view.entity";
 import { parseStatsPeriod } from "./stats.controller";
@@ -41,7 +42,7 @@ describe("StatsService", () => {
     const views = createStoreRepo<PageViewEntity>();
     const events = createStoreRepo<EventEntity>([{ id: eventId, organizerUserId: owner, isPaid: true } as EventEntity]);
     const bookings = createStoreRepo<BookingEntity>([{ id: "b1", eventId, status: "active" } as BookingEntity, { id: "b2", eventId, status: "cancelled" } as BookingEntity]);
-    const service = new StatsService(views as unknown as Repository<PageViewEntity>, events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>);
+    const service = new StatsService(views as unknown as Repository<PageViewEntity>, events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, createStoreRepo<CheckInEntity>() as unknown as Repository<CheckInEntity>);
     expect(await service.recordView(owner, "event", eventId, now)).toEqual({ recorded: true });
     expect(await service.recordView(owner, "event", eventId, now)).toEqual({ recorded: false });
     const stats = await service.eventStats(owner, eventId);
@@ -53,7 +54,7 @@ describe("StatsService", () => {
     const views = createStoreRepo<PageViewEntity>([{ userId: owner, targetType: "event", targetId: eventId, createdAt: august } as PageViewEntity, { userId: other, targetType: "event", targetId: eventId, createdAt: september } as PageViewEntity]);
     const events = createStoreRepo<EventEntity>([{ id: eventId, organizerUserId: owner, isPaid: true } as EventEntity]);
     const bookings = createStoreRepo<BookingEntity>([{ id: "b1", eventId, status: "active", createdAt: august } as BookingEntity, { id: "b2", eventId, status: "cancelled", createdAt: september } as BookingEntity, { id: "b3", eventId, status: "active", createdAt: september } as BookingEntity]);
-    const service = new StatsService(views as unknown as Repository<PageViewEntity>, events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>);
+    const service = new StatsService(views as unknown as Repository<PageViewEntity>, events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, createStoreRepo<CheckInEntity>() as unknown as Repository<CheckInEntity>);
 
     const wholeTime = await service.eventStats(owner, eventId);
     expect(wholeTime).toMatchObject({ views: 2, bookings: 3, cancellations: 1, paidBookings: 2 });
@@ -65,6 +66,26 @@ describe("StatsService", () => {
     // An open-ended window still narrows the side it names.
     const sinceSeptember = await service.eventStats(owner, eventId, { from: period.from, to: null });
     expect(sinceSeptember).toMatchObject({ views: 1, bookings: 2 });
+  });
+});
+
+describe("organizationSummary", () => {
+  it("splits traffic sources, weekdays and the previous window", async () => {
+    const events = createStoreRepo<EventEntity>([{ id: eventId, organizerOrganizationId: owner, organizerUserId: owner } as EventEntity]);
+    const bookings = createStoreRepo<BookingEntity>([
+      { id: "b1", eventId, status: "active", source: "chats", createdAt: september } as BookingEntity,
+      { id: "b2", eventId, status: "cancelled", source: "feed", createdAt: september } as BookingEntity,
+      { id: "b3", eventId, status: "active", source: "chats", createdAt: august } as BookingEntity,
+    ]);
+    const checkIns = createStoreRepo<CheckInEntity>([{ userId: other, eventId } as CheckInEntity]);
+    const service = new StatsService(createStoreRepo<PageViewEntity>() as unknown as Repository<PageViewEntity>, events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, checkIns as unknown as Repository<CheckInEntity>);
+    const period = { from: "2026-09-01T00:00:00.000Z", to: "2026-09-30T23:59:59.000Z" };
+    const summary = await service.organizationSummary(owner, period);
+    expect(summary.bookings).toBe(2);
+    expect(summary.cancelledPercent).toBe(50);
+    expect(summary.sources.find((row) => row.source === "chats")?.percent).toBe(50);
+    expect(summary.byWeekday.reduce((sum, count) => sum + count, 0)).toBe(2);
+    expect(service.exportCsv(summary)).toContain("bookings,2");
   });
 });
 

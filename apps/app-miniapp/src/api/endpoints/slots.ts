@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Slot endpoints of the api client: the bookable windows of a venue (макет, экраны 34 и 19), the booking they produce with its entry code and chat (экран 20) and the viewer's own slot bookings and waiting positions (экран 21).
-// SCOPE: GET /places/:id/board, GET /slots, POST/GET/DELETE /slots/bookings[/:id], GET /slots/my, DELETE /slots/waitlist/:id, GET /check-in-codes. The whole domain is mock-backed: no slot table, endpoint or field exists on the backend (#492), so every shape here is the signature that endpoint will answer.
+// SCOPE: GET /slots, POST/GET/DELETE /slots/bookings[/:id], GET /slots/my, POST/DELETE /slots/waitlist, GET /check-in-codes. Live backend: place_slots, extras, waitlist and chat.
 // DEPENDS: ./transport.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -43,7 +43,7 @@ export const SLOT_STATUSES: readonly SlotStatus[] = ["free", "held", "booked"];
 /**
  * One bookable window of a venue. This is the shape the slot endpoint will answer, and the reason
  * the four fields are together: a slot is a place plus a time window plus a capacity plus a price.
- * Nothing of the kind exists on the backend — no table, no endpoint, no field (#492).
+ * Live GET /slots answers this shape.
  */
 export interface PlaceSlot {
   id: string;
@@ -475,7 +475,7 @@ const CheckInCodesSchema = schemaOf("check-in code list", arrayOf(parseCheckInCo
 
 export function withSlots<TBase extends ApiMixin>(Base: TBase) {
   return class SlotEndpoints extends Base {
-    /** Everything экран 34 needs beyond the place page aggregate; mock-only (#492, #495). */
+    /** Everything экран 34 needs beyond the place page aggregate; occupancy is live, slots stay empty until #492. */
     getPlaceBoard(placeId: string, userId: string): Promise<PlaceBoard> {
       return this.request(`/places/${placeId}/board?userId=${encodeURIComponent(userId)}`, PlaceBoardSchema);
     }
@@ -504,11 +504,15 @@ export function withSlots<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/slots/my?userId=${encodeURIComponent(userId)}`, MySlotsBoardSchema);
     }
 
+    joinSlotWaitlist(slotId: string, seats = 1): Promise<SlotWaitlistEntry> {
+      return this.request("/slots/waitlist", SlotWaitlistEntrySchema, { body: { slotId, seats } });
+    }
+
     leaveSlotWaitlist(entryId: string): Promise<SlotWaitlistEntry> {
       return this.request(`/slots/waitlist/${entryId}`, SlotWaitlistEntrySchema, { method: "DELETE" });
     }
 
-    /** Entry codes of the viewer's bookings, keyed by booking id; mock-only until a booking carries one (#492). */
+    /** Entry codes of the viewer's active bookings, keyed by booking id. */
     listCheckInCodes(userId: string): Promise<CheckInCode[]> {
       return this.request(`/check-in-codes?userId=${encodeURIComponent(userId)}`, CheckInCodesSchema);
     }

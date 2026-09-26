@@ -286,7 +286,7 @@ describe("ApiClient.profile", () => {
     vi.unstubAllGlobals();
   });
 
-  const profile = { userId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", city: "Москва", interests: ["бег"], smartAlerts: { leaveNow: true, weather: true, friendLeft: true, listDigest: true }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null };
+  const profile = { userId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", city: "Москва", interests: ["бег"], smartAlerts: { leaveNow: true, weather: true, friendLeft: true, listDigest: true, quietHoursEnabled: false, quietHoursFrom: "23:00", quietHoursTo: "09:00" }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null };
 
   it("patches the profile with method PATCH, a JSON body and content-type", async () => {
     const getInit = mockFetchCaptured(profile);
@@ -436,6 +436,7 @@ describe("event filter serialization", () => {
 
   it("serializes a date range and a page window the way the backend query contract does", () => {
     expect(serializeEventFilters({ dateFrom: "2026-09-01", dateTo: "2026-09-07", limit: 20, offset: 20 })).toBe("date_from=2026-09-01&date_to=2026-09-07&limit=20&offset=20");
+    expect(serializeEventFilters({ lat: 55.75, lng: 37.62 })).toBe("lat=55.75&lng=37.62");
     expect(parseEventFilters("?date_from=2026-09-01&date_to=2026-09-07&limit=20&offset=20")).toEqual({ dateFrom: "2026-09-01", dateTo: "2026-09-07", limit: 20, offset: 20 });
   });
 });

@@ -17,6 +17,7 @@ import { EntityManager, QueryFailedError, Repository } from "typeorm";
 import type { CreatePromoCampaignWrite, CreatePromoCodeWrite, OrganizerBookingRow, PromoCampaign, PromoCode } from "@max-events/api-contracts";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
+import { isOrganizerOwner } from "../organizations/organizer-ownership";
 import { UserEntity } from "../users/user.entity";
 import { PromoCampaignEntity } from "./promo-campaign.entity";
 import { PromoCodeEntity } from "./promo-code.entity";
@@ -39,7 +40,7 @@ export class PromoService {
       const saved = await this.codes.save(
         this.codes.create({
           eventId: event.id,
-          organizerUserId: actorId,
+          organizerUserId: event.organizerUserId ?? actorId,
           code,
           maxRedemptions: payload.maxRedemptions ?? null,
           redeemedCount: 0,
@@ -103,7 +104,7 @@ export class PromoService {
       const saved = await this.campaigns.save(
         this.campaigns.create({
           eventId: event.id,
-          organizerUserId: actorId,
+          organizerUserId: event.organizerUserId ?? actorId,
           type: payload.type,
           status: "active",
           code,
@@ -204,7 +205,7 @@ export class PromoService {
   private async requireOwnedEvent(actorId: string, eventId: string): Promise<EventEntity> {
     const event = await this.events.findOneBy({ id: eventId });
     if (!event) throw new NotFoundException("Event not found");
-    if (event.organizerUserId !== actorId) throw new ForbiddenException("Not the organizer");
+    if (!isOrganizerOwner(event, actorId)) throw new ForbiddenException("Not the organizer");
     return event;
   }
 }

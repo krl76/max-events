@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Achievement, Friend, Profile, Subscription, User, WeGroupScreen } from "@max-events/api-contracts";
+import { DEFAULT_SMART_ALERTS, type Achievement, type Friend, type Profile, type Subscription, type User, type WeGroupScreen } from "@max-events/api-contracts";
 import type { ListSummary, ProfileCounters, ProfilePost, VisitedPlace } from "../api/client";
 import { ProfileView, achievementsHint, followMetrics, friendsHint, listsHint, profileAbout, profileMetrics, profileTabLabel, socialMetrics, visitsLabel, weGroupsHint } from "./ProfilePage";
 
@@ -20,7 +20,7 @@ const profile: Profile = {
   userId: user.id,
   city: "Москва",
   interests: ["джаз", "падел"],
-  smartAlerts: { leaveNow: true, weather: true, friendLeft: true, listDigest: true },
+  smartAlerts: { ...DEFAULT_SMART_ALERTS },
   privacy: { visitHistory: "friends", routes: "friends" },
   recommendationsEnabled: true,
   bio: "",

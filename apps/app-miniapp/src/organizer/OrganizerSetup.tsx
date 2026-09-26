@@ -84,7 +84,7 @@ function VenueStep({ setup, onToggleActivity }: Pick<OrganizerSetupViewProps, "s
       </header>
       <div className="app-onboarding-body">
         <div className="app-org-setup-venue">
-          {/* Логотипа у площадки в контракте нет — плитка макета несёт инициалы названия */}
+          {/* Place.logoUrl exists; file upload waits on object storage (#477), so the tile still draws initials. */}
           <span className="app-org-setup-logo" aria-hidden="true">
             {organizerVenueInitials(setup.venue.title)}
           </span>
@@ -93,13 +93,11 @@ function VenueStep({ setup, onToggleActivity }: Pick<OrganizerSetupViewProps, "s
             <span className="app-org-setup-venue-meta">
               {setup.venue.address} · {setup.venue.city}
             </span>
-            {/* Кнопка макета есть, а поля под логотип нет ни у места, ни у организации. Запертая
-                кнопка с причиной честнее живой, которой некуда положить картинку. */}
             <span className="app-org-setup-logo-row">
               <button type="button" className="app-org-setup-logo-btn" disabled>
                 Заменить логотип
               </button>
-              <span className="app-org-setup-logo-note">Пока рисуем инициалы: своего логотипа площадка ещё не хранит</span>
+              <span className="app-org-setup-logo-note">Пока рисуем инициалы: загрузка файла ещё не подключена</span>
             </span>
           </div>
         </div>

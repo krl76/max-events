@@ -18,6 +18,8 @@
 // - DayRoute - day route type
 // - OptimizeRouteSchema - original vs optimized with savings
 // - OptimizeRoute - optimize result type
+// - TravelOptionSchema - walk/metro tile for a map pin (#537)
+// - TravelOption - map travel tile type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -34,10 +36,17 @@ export const RouteStopWriteSchema = z
   });
 export type RouteStopWrite = z.infer<typeof RouteStopWriteSchema>;
 
+export const RoutePreferSchema = z.enum(["default", "cheaper", "no_taxi"]);
+export type RoutePrefer = z.infer<typeof RoutePreferSchema>;
+
+export const RouteModeSchema = z.enum(["walk", "metro", "taxi"]);
+export type RouteMode = z.infer<typeof RouteModeSchema>;
+
 export const CreateDayRouteWriteSchema = z.object({
   stops: z.array(RouteStopWriteSchema).min(2).max(8),
   latitude: z.number().gte(-90).lte(90).optional(),
   longitude: z.number().gte(-180).lte(180).optional(),
+  prefer: RoutePreferSchema.optional(),
 });
 export type CreateDayRouteWrite = z.infer<typeof CreateDayRouteWriteSchema>;
 
@@ -56,6 +65,9 @@ export const RouteLegSchema = z.object({
   toTitle: z.string().min(1),
   travelMinutes: z.number().int().min(0),
   distanceKm: z.number().nonnegative(),
+  mode: RouteModeSchema.default("walk"),
+  transfers: z.number().int().min(0).default(0),
+  priceRub: z.number().int().min(0).nullable().default(null),
 });
 export type RouteLeg = z.infer<typeof RouteLegSchema>;
 
@@ -74,3 +86,12 @@ export const OptimizeRouteSchema = z.object({
   savedKm: z.number(),
 });
 export type OptimizeRoute = z.infer<typeof OptimizeRouteSchema>;
+
+/** One way from the viewer to a map pin (экран 16): walk and metro tiles. */
+export const TravelOptionSchema = z.object({
+  mode: z.enum(["walk", "metro"]),
+  minutes: z.number().int().min(0),
+  distanceKm: z.number().nonnegative().nullable(),
+  transfers: z.number().int().min(0).nullable(),
+});
+export type TravelOption = z.infer<typeof TravelOptionSchema>;

@@ -51,11 +51,13 @@ export type OrganizerSessionStore = {
 };
 
 /**
- * Sessions are opaque tokens keyed by the organizer user id, with a 7-day TTL and no link back to the
- * password. Changing the hash therefore does not end a session the leaked password opened — this does.
+ * Sessions are opaque tokens with a 7-day TTL and no link back to the password. T-003 stores the
+ * organization id; T-002 stored the organizer user id. Changing the hash therefore does not end a
+ * session the leaked password opened — this does, matching either value.
  */
-export async function revokeOrganizerSessions(sessions: OrganizerSessionStore, organizerUserId: string | null): Promise<number> {
-  if (!organizerUserId) return 0;
+export async function revokeOrganizerSessions(sessions: OrganizerSessionStore, ...sessionValues: Array<string | null | undefined>): Promise<number> {
+  const mineIds = new Set(sessionValues.filter((value): value is string => typeof value === "string" && value.length > 0));
+  if (mineIds.size === 0) return 0;
   const mine: string[] = [];
   let cursor = "0";
   // Collect first, delete after: deleting mid-scan moves the cursor's ground under it, and one pass
@@ -64,7 +66,8 @@ export async function revokeOrganizerSessions(sessions: OrganizerSessionStore, o
     const [next, keys] = await sessions.scan(cursor, "MATCH", `${ORGANIZER_SESSION_PREFIX}*`, "COUNT", 200);
     cursor = next;
     for (const key of keys) {
-      if ((await sessions.get(key)) === organizerUserId) mine.push(key);
+      const value = await sessions.get(key);
+      if (value && mineIds.has(value)) mine.push(key);
     }
   } while (cursor !== "0");
   let revoked = 0;

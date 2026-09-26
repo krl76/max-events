@@ -23,6 +23,21 @@ export class StoryEntity {
   @Column({ type: "text" })
   imageUrl!: string;
 
+  @Column({ type: "varchar", length: 500, default: "" })
+  text?: string;
+
+  @Column({ type: "jsonb", nullable: true })
+  sticker?: { eventId: string; title: string; subtitle: string; seatsLeft: number | null } | null;
+
+  @Column({ type: "jsonb", nullable: true })
+  poll?: { question: string; options: string[]; answer: number | null } | null;
+
+  @Column({ type: "varchar", length: 32, default: "friends" })
+  audience?: "close-friends" | "friends" | "city";
+
+  @Column({ type: "jsonb", default: [] })
+  objects?: Array<{ kind: "text" | "event" | "poll" | "seats"; x: number; y: number; scale?: number }>;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 }

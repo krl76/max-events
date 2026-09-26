@@ -35,23 +35,25 @@ export class RatingService {
     @Inject(OrganizationsService) private readonly organizations: OrganizationsService,
   ) {}
 
-  /**
-   * The organizer panel holds an organization id while events are still keyed by organizerUserId, so an
-   * id naming an organization resolves to its organizer user first (C-ORGANIZER-SPACE T-004 removes this).
-   */
   async forOrganizer(id: string, now = new Date()): Promise<OrganizerRatingResponse> {
-    const organizerUserId = (await this.organizations.organizerUserIdOf(id)) ?? id;
-    const owned = await this.events.find({ where: { organizerUserId } });
-    const eventIds = owned.map((row) => row.id);
+    const org = await this.organizations.findById(id);
+    const organizationId = org?.id ?? null;
+    const organizerUserId = org?.organizerUserId ?? (await this.organizations.organizerUserIdOf(id)) ?? id;
+    const owned = organizationId
+      ? await this.events.find({ where: [{ organizerOrganizationId: organizationId }, { organizerUserId }] })
+      : await this.events.find({ where: { organizerUserId } });
+    const unique = [...new Map(owned.map((row) => [row.id, row])).values()];
+    const eventIds = unique.map((row) => row.id);
     const [reviewRows, checkInRows] = await Promise.all([eventIds.length === 0 ? Promise.resolve([] as ReviewEntity[]) : this.reviews.find({ where: { eventId: In(eventIds) } }), eventIds.length === 0 ? Promise.resolve([] as CheckInEntity[]) : this.checkIns.find({ where: { eventId: In(eventIds) } })]);
-    return { rating: buildOrganizerRating(organizerUserId, owned, reviewRows, checkInRows, now) };
+    return { rating: buildOrganizerRating(organizationId ?? organizerUserId, unique, reviewRows, checkInRows, now) };
   }
 
   async forEvent(eventId: string, now = new Date()): Promise<OrganizerRatingResponse> {
     const event = await this.events.findOneBy({ id: eventId });
     if (!event || event.published === false) throw new NotFoundException("Event not found");
-    if (!event.organizerUserId) return { rating: null };
-    return this.forOrganizer(event.organizerUserId, now);
+    const key = event.organizerOrganizationId ?? event.organizerUserId;
+    if (!key) return { rating: null };
+    return this.forOrganizer(key, now);
   }
 }
 

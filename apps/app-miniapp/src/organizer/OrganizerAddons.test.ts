@@ -25,6 +25,7 @@ const report: EventSalesReport = {
   grossRub: 500,
   commissionRub: 50,
   netRub: 450,
+  provider: "sandbox",
 };
 
 const unpaidCampaign: PromotionCampaign = { id: "f4000000-0000-4000-8000-000000000001", eventId: stats.eventId, type: "boost", status: "active", startsAt: "2027-01-01T10:00:00+03:00", endsAt: "2027-01-08T10:00:00+03:00", tariffCode: "boost-7", priceRub: 990, paidAt: null, audience: null, createdAt: "2026-09-01T10:00:00+03:00", completedAt: null };
@@ -70,16 +71,23 @@ describe("EventStatsView", () => {
     expect(html).toContain("Записи: 3");
     expect(html).toContain("Отмены: 1");
     expect(html).toContain("Оплаченные записи: 2");
-    expect(html).toContain("Продажи: 500 ₽");
+    expect(html).toContain("Продажи (песочница, не выплата): 500 ₽");
     expect(html).toContain("комиссия 50 ₽");
-    expect(html).toContain("к выплате 450 ₽");
+    expect(html).toContain("нетто 450 ₽");
+    expect(html).not.toContain("к выплате");
   });
 
   it("renders zero totals without sale rows for an event without sales", () => {
     const html = renderToStaticMarkup(createElement(EventStatsView, { stats: { ...stats, views: 0, bookings: 0, cancellations: 0, paidBookings: 0 }, report: { ...report, rows: [], grossRub: 0, commissionRub: 0, netRub: 0 } }));
     expect(html).toContain("Просмотры: 0");
-    expect(html).toContain("Продажи: 0 ₽");
-    expect(html).not.toContain("к выплате 450 ₽");
+    expect(html).toContain("Продажи (песочница, не выплата): 0 ₽");
+    expect(html).not.toContain("нетто 450 ₽");
+  });
+
+  it("does not call sandbox totals a payout when in-app payments are off", () => {
+    const html = renderToStaticMarkup(createElement(EventStatsView, { stats, report: { ...report, provider: "none" } }));
+    expect(html).toContain("приём оплаты в продукте выключен");
+    expect(html).not.toContain("к выплате");
   });
 });
 

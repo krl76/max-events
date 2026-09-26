@@ -17,11 +17,14 @@
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, QueryFailedError, Repository } from "typeorm";
-import type { CreateSubscription, Subscription } from "@max-events/api-contracts";
+import { DEFAULT_SMART_ALERTS, type CreateSubscription, type SmartAlertSettings, type Subscription } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { PlaceEntity } from "../places/place.entity";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
+import { moscowTimeLabel } from "../time/moscow-date";
+import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 import { SubscriptionEntity } from "./subscription.entity";
 
@@ -58,6 +61,8 @@ export class SubscriptionsService {
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
     @Inject(OrganizationsService) private readonly organizations: OrganizationsService,
+    @InjectRepository(ProfileEntity) private readonly profiles: Repository<ProfileEntity>,
+    @InjectRepository(NotificationEntity) private readonly notifications: Repository<NotificationEntity>,
   ) {}
 
   /**
@@ -154,17 +159,45 @@ export class SubscriptionsService {
     return dto;
   }
 
-  async notifyNewEvent(event: EventEntity): Promise<SubscriptionNotifyResult> {
+  async notifyNewEvent(event: EventEntity, now = new Date()): Promise<SubscriptionNotifyResult> {
     const result: SubscriptionNotifyResult = { sent: 0, failed: 0 };
-    const rows = await this.subscriptions.find();
-    const matchedUserIds = [...new Set(rows.filter((row) => matchesSubscription(event, row)).map((row) => row.userId))];
-    if (matchedUserIds.length === 0) return result;
+    const [rows, profiles] = await Promise.all([this.subscriptions.find(), this.profiles.find()]);
+    const matched = new Set(rows.filter((row) => matchesSubscription(event, row)).map((row) => row.userId));
+    for (const profile of profiles) {
+      for (const interest of profile.interests ?? []) {
+        if (matchesSubscription(event, { type: "interest", interest, placeId: null, organizerUserId: null, targetUserId: null } as SubscriptionEntity)) {
+          matched.add(profile.userId);
+        }
+      }
+    }
+    if (matched.size === 0) return result;
     const users = await this.users.find();
+    const profileById = new Map(profiles.map((row) => [row.userId, row]));
     const text = formatSubscriptionNotice(event.title);
-    for (const userId of matchedUserIds) {
+    for (const userId of matched) {
       const user = users.find((row) => row.id === userId);
       if (!user) {
         result.failed += 1;
+        continue;
+      }
+      await this.notifications.save(
+        this.notifications.create({
+          userId,
+          type: "event-soon",
+          actorUserId: null,
+          title: "Новое событие по интересу",
+          body: text,
+          quote: null,
+          readAt: null,
+          link: { target: "event", id: event.id },
+          actions: [],
+          deadlineAt: null,
+          answeredActionId: null,
+          urgent: false,
+        }),
+      );
+      if (inQuietHours(profileById.get(userId)?.smartAlerts, now)) {
+        result.sent += 1;
         continue;
       }
       let ok = false;
@@ -173,15 +206,21 @@ export class SubscriptionsService {
       } catch {
         ok = false;
       }
-      if (!ok) {
-        this.logger.warn(`Subscription notify failed for user ${userId}`);
-        result.failed += 1;
-        continue;
-      }
+      if (!ok) this.logger.warn(`Subscription notify DM failed for user ${userId}`);
       result.sent += 1;
     }
     return result;
   }
+}
+
+export function inQuietHours(alerts: SmartAlertSettings | undefined, now: Date): boolean {
+  const settings = alerts ?? DEFAULT_SMART_ALERTS;
+  if (!settings.quietHoursEnabled) return false;
+  const t = moscowTimeLabel(now);
+  const from = settings.quietHoursFrom;
+  const to = settings.quietHoursTo;
+  if (from <= to) return t >= from && t < to;
+  return t >= from || t < to;
 }
 
 type SubscriptionTarget = { type: SubscriptionEntity["type"]; organizerUserId: string | null; placeId: string | null; targetUserId: string | null; interest: string | null };

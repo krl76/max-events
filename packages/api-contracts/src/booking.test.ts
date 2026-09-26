@@ -37,7 +37,9 @@ describe("CreateBookingSchema", () => {
     expect(CreateBookingSchema.parse({ userId, eventId, promoCode: null })).toEqual({ userId, eventId, promoCode: null });
     expect(CreateBookingSchema.parse({ userId, eventId, promoCode: "EARLY" }).promoCode).toBe("EARLY");
     expect(CreateBookingSchema.parse({ userId, eventId, referralCode: "FRIEND" }).referralCode).toBe("FRIEND");
+    expect(CreateBookingSchema.parse({ userId, eventId, source: "feed" }).source).toBe("feed");
     expect(CreateBookingSchema.safeParse({ userId, eventId, promoCode: "" }).success).toBe(false);
+    expect(CreateBookingSchema.safeParse({ userId, eventId, source: "email" }).success).toBe(false);
   });
 
   it("rejects a non-uuid event reference", () => {

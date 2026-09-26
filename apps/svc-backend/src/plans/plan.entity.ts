@@ -57,6 +57,9 @@ export class PlanEntity {
   @Column({ type: "timestamptz", nullable: true })
   cancelledAt!: Date | null;
 
+  @Column({ type: "boolean", default: false })
+  assembledByMax!: boolean;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

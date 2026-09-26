@@ -30,7 +30,7 @@ const taste: TasteProfile = {
 };
 
 function post(id: string, photoUrl: string | null): FeedPost {
-  return { id, author: mockFriends[0], eventId: event.id, text: "было классно", photoUrl, likesCount: 0, likedByMe: false, comments: [] };
+  return { id, author: mockFriends[0], eventId: event.id, text: "было классно", photoUrl, placeId: null, taggedFriendIds: [], audience: "friends", allowJoin: false, likesCount: 0, likedByMe: false, comments: [] };
 }
 
 function renderAfterEvent(overrides: Partial<Parameters<typeof AfterEventView>[0]> = {}): string {

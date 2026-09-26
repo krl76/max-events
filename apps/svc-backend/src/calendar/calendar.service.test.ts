@@ -3,7 +3,7 @@ import type { FindOperator, Repository } from "typeorm";
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import { PlaceEntity } from "../places/place.entity";
-import { CalendarService } from "./calendar.service";
+import { CalendarService, parseCalendarRange } from "./calendar.service";
 
 const userId = "00000000-0000-4000-8000-00000000000a";
 const otherUser = "00000000-0000-4000-8000-00000000000b";
@@ -67,6 +67,16 @@ function inValues(operator: FindOperator<string>): string[] {
   return operator.value as unknown as string[];
 }
 
+function emptyRepo() {
+  return {
+    find: async () => [],
+    findOneBy: async () => null,
+    create: (fields: object) => fields,
+    save: async (entity: object) => entity,
+    delete: async () => ({ affected: 0 }),
+  };
+}
+
 function createService(bookings: BookingEntity[], events: EventEntity[], places: PlaceEntity[] = []) {
   // Counted so the batching stays batching: the calendar must not go back to a query per booking.
   const queries = { events: 0, places: 0 };
@@ -87,7 +97,18 @@ function createService(bookings: BookingEntity[], events: EventEntity[], places:
       return places.filter((row) => ids.includes(row.id));
     },
   };
-  const service = new CalendarService(bookingsRepo as unknown as Repository<BookingEntity>, eventsRepo as unknown as Repository<EventEntity>, placesRepo as unknown as Repository<PlaceEntity>);
+  const empty = emptyRepo();
+  const friends = { friendIds: async () => new Set<string>() };
+  const service = new CalendarService(
+    bookingsRepo as unknown as Repository<BookingEntity>,
+    eventsRepo as unknown as Repository<EventEntity>,
+    placesRepo as unknown as Repository<PlaceEntity>,
+    empty as never,
+    empty as never,
+    empty as never,
+    empty as never,
+    friends as never,
+  );
   return { service, queries };
 }
 
@@ -123,5 +144,24 @@ describe("CalendarService", () => {
     const { service } = createService([booking("b-orphan", "e-missing"), booking("b-ok", "e1")], [event("e1", "2026-09-20T16:00:00Z")]);
     const calendar = await service.list(userId, now);
     expect(calendar.upcoming.map((entry) => entry.booking.id)).toEqual(["b-ok"]);
+  });
+
+  it("keeps only bookings whose event start sits inside from/to", async () => {
+    const { service } = createService(
+      [booking("b-early", "e-early"), booking("b-in", "e-in"), booking("b-late", "e-late")],
+      [event("e-early", "2026-09-10T16:00:00Z"), event("e-in", "2026-09-20T16:00:00Z"), event("e-late", "2026-09-30T16:00:00Z")],
+    );
+    const calendar = await service.list(userId, now, { from: new Date("2026-09-15T00:00:00Z"), to: new Date("2026-09-25T00:00:00Z") });
+    expect(calendar.upcoming.map((entry) => entry.booking.id)).toEqual(["b-in"]);
+    expect(calendar.past).toEqual([]);
+  });
+});
+
+describe("parseCalendarRange", () => {
+  it("treats omitted bounds as an open window and rejects a reversed one", () => {
+    expect(parseCalendarRange({})).toEqual({ from: null, to: null });
+    expect(parseCalendarRange({ from: "2026-09-15T00:00:00Z" }).from?.toISOString()).toBe("2026-09-15T00:00:00.000Z");
+    expect(() => parseCalendarRange({ from: "2026-09-30T00:00:00Z", to: "2026-09-01T00:00:00Z" })).toThrow(/Invalid calendar range/);
+    expect(() => parseCalendarRange({ from: "not-a-date" })).toThrow(/Invalid calendar range/);
   });
 });

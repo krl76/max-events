@@ -49,7 +49,12 @@ function createFriendshipRepo(initial: FriendshipEntity[] = []) {
   return {
     store,
     create: (fields: Partial<FriendshipEntity>) => ({ ...fields }) as FriendshipEntity,
-    find: async (opts: { where?: { userId?: string } } = {}) => store.filter((row) => !opts.where?.userId || row.userId === opts.where.userId),
+    find: async (opts: { where?: { userId?: string; friendUserId?: string } } = {}) =>
+      store.filter((row) => {
+        if (opts.where?.userId && row.userId !== opts.where.userId) return false;
+        if (opts.where?.friendUserId && row.friendUserId !== opts.where.friendUserId) return false;
+        return true;
+      }),
     delete: async (where: { id: string }) => {
       const index = store.findIndex((row) => row.id === where.id);
       if (index < 0) return { affected: 0 };
@@ -206,5 +211,14 @@ describe("FriendsService", () => {
     const saved = await withDima.service.replaceFollows(meId, [dimaId, dimaId, meId]);
     expect(saved).toEqual([dimaId]);
     expect((await withDima.service.list(meId)).map((row) => row.id)).toEqual([dimaId]);
+  });
+
+  it("lists outgoing follows and incoming followers", async () => {
+    const { service } = createService({ botFriends: ["2", "3"] });
+    await service.replaceFollows(meId, [annaId]);
+    expect((await service.following(meId)).map((row) => row.id)).toEqual([annaId]);
+    expect((await service.followers(annaId)).map((row) => row.id)).toEqual([meId]);
+    expect(await service.followers(meId)).toEqual([]);
+    await expect(service.following("00000000-0000-4000-8000-0000000000ff")).rejects.toBeInstanceOf(NotFoundException);
   });
 });

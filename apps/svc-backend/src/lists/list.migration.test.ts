@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { QueryRunner } from "typeorm";
 import { CreateLists20260911220000 } from "../database/migrations/20260911220000-CreateLists";
 import { AddListItemPlaceUnique20260919120400 } from "../database/migrations/20260919120400-AddListItemPlaceUnique";
+import { AddListMembers20260919150000 } from "../database/migrations/20260919150000-AddListMembers";
 
 describe("CreateLists20260911220000", () => {
   it("creates lists and list_items and drops them on revert", async () => {
@@ -46,5 +47,25 @@ describe("AddListItemPlaceUnique20260919120400", () => {
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries[0]).toContain("UQ_list_items_list_place");
+  });
+});
+
+describe("AddListMembers20260919150000", () => {
+  it("creates list_members and addedByUserId, and drops them on revert", async () => {
+    const queries: string[] = [];
+    const queryRunner = {
+      query: async (sql: string) => {
+        queries.push(sql);
+      },
+    } as unknown as QueryRunner;
+    const migration = new AddListMembers20260919150000();
+    await migration.up(queryRunner);
+    expect(queries[0]).toContain('CREATE TABLE "list_members"');
+    expect(queries[0]).toContain('CONSTRAINT "UQ_list_members_list_user" UNIQUE ("listId", "userId")');
+    expect(queries[1]).toContain('"addedByUserId"');
+    queries.length = 0;
+    await migration.down(queryRunner);
+    expect(queries[0]).toContain("FK_list_items_added_by");
+    expect(queries[2]).toContain('DROP TABLE "list_members"');
   });
 });

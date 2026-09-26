@@ -22,7 +22,7 @@ export interface EventRating {
   categoryAverages: { atmosphere: number | null; organization: number | null; price: number | null; place: number | null };
 }
 
-/** One «Что было правдой?» tag of экран 35. There is no tag dictionary in the domain yet (#500), so the list is mock-backed behind the signature the endpoint will take. */
+/** One «Что было правдой?» tag of экран 35. */
 export interface ReviewFactTag {
   code: string;
   label: string;

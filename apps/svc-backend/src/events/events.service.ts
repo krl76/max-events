@@ -1,35 +1,47 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Event persistence — CRUD and catalog list mapped to api-contracts Event.
-// SCOPE: Create/read/update/delete, optional place FK, payment-link invariant, catalog filters on city/category/start date pushed into SQL and capped by limit/offset; the rating filter narrows by event id before the page is read, so limit/offset describe the filtered catalog.
+// SCOPE: Create/read/update/delete, optional place FK, payment-link invariant, catalog filters on city/category/start date/q pushed into SQL and capped by limit/offset; sort is a whitelist (soon/near/rating); the rating filter narrows by event id before the page is read, so limit/offset describe the filtered catalog.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../places/places.service, ../reviews/reviews.service, ./event.entity
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - EventListQuery - catalog list filters
+// - EventListQuery - catalog list filters including q and sort
+// - EVENT_SORTS - whitelist of catalog orderings the list may ask for
 // - EVENT_LIST_MAX_LIMIT - hard cap on catalog rows read per request
+// - EVENT_LIST_SCAN_CAP - rows scanned when rating/near cannot be cut in SQL
 // - CHAT_SYNC_BATCH - events retried per chat-sync tick
 // - pickEventFields - patch keys allowed on update
 // - EventsService - CRUD + list against EventEntity + chat-sync retry
+// - listCards - catalog list wrapped as search-tab cards (distance, rating, placeTitle)
 // - toEventDto - map EventEntity to the api-contracts Event shape
 // END_MODULE_MAP
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { And, FindOperator, In, IsNull, LessThan, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
-import { CreateEventSchema, EventSchema, type CreateEvent, type Event, type EventCategory } from "@max-events/api-contracts";
+import { And, FindOperator, ILike, In, IsNull, LessThan, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
+import { CreateEventSchema, EventSchema, type CatalogCard, type CreateEvent, type Event, type EventCategory } from "@max-events/api-contracts";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
+import { OrganizationsService } from "../organizations/organizations.service";
+import { ProfilesService } from "../users/profiles.service";
+import { isOrganizerOwner } from "../organizations/organizer-ownership";
 import { UsersService } from "../users/users.service";
 import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { PromotionService } from "../promotion/promotion.service";
 import { ReviewsService } from "../reviews/reviews.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
+import { FriendshipEntity } from "../friends/friendship.entity";
+import { ParticipationEntity } from "../participations/participation.entity";
+import { haversineKm } from "../geo/haversine";
 import { EventEntity } from "./event.entity";
 import { EventWeatherService } from "./event-weather.service";
 import { toEventDto } from "./event.mapper";
 
 export { toEventDto } from "./event.mapper";
+
+export const EVENT_SORTS = ["soon", "near", "rating"] as const;
+export type EventSort = (typeof EVENT_SORTS)[number];
 
 export type EventListQuery = {
   city?: string;
@@ -39,12 +51,22 @@ export type EventListQuery = {
   dateTo?: Date;
   /** Average review score the event must reach; an event nobody reviewed never qualifies. */
   minRating?: number;
+  /** Case-insensitive needle over title and description. */
+  q?: string;
+  /** Explicit catalog order; omitted keeps boost-then-soonest. */
+  sort?: EventSort;
   limit?: number;
   offset?: number;
+  latitude?: number;
+  longitude?: number;
+  viewerId?: string;
 };
 
 /** Ceiling on rows a single catalog read may pull; also the default when the caller names no limit. */
 export const EVENT_LIST_MAX_LIMIT = 100;
+
+/** Rows scanned when rating/near cannot page in SQL. */
+export const EVENT_LIST_SCAN_CAP = 500;
 
 /** Events a single chat-sync tick retries, so a long backlog is drained over several ticks. */
 export const CHAT_SYNC_BATCH = 20;
@@ -66,10 +88,23 @@ export class EventsService {
     @Inject(PromotionService) private readonly promotions: PromotionService,
     @Inject(EventWeatherService) private readonly eventWeather: EventWeatherService,
     @Inject(ReviewsService) private readonly reviews: ReviewsService,
+    @InjectRepository(FriendshipEntity) private readonly friendships: Repository<FriendshipEntity>,
+    @InjectRepository(ParticipationEntity) private readonly participations: Repository<ParticipationEntity>,
+    @Inject(OrganizationsService) private readonly organizations: OrganizationsService,
+    @Inject(ProfilesService) private readonly profiles: ProfilesService,
   ) {}
 
+  private async ownerFields(actorId?: string): Promise<{ organizerUserId: string | null; organizerOrganizationId: string | null }> {
+    if (!actorId) return { organizerUserId: null, organizerOrganizationId: null };
+    const asOrg = await this.organizations.findById(actorId);
+    if (asOrg) return { organizerOrganizationId: asOrg.id, organizerUserId: asOrg.organizerUserId };
+    const asUserOrg = await this.organizations.findByOrganizerUserId(actorId);
+    return { organizerOrganizationId: asUserOrg?.id ?? null, organizerUserId: actorId };
+  }
+
   async create(payload: CreateEvent, organizerUserId?: string, options?: { draft?: boolean }): Promise<Event> {
-    if (organizerUserId) await this.users.assertCanPublish(organizerUserId);
+    const owner = await this.ownerFields(organizerUserId);
+    if (owner.organizerUserId) await this.users.assertCanPublish(owner.organizerUserId);
     await assertPlaceBound(this.places, payload.placeId, organizerUserId, { requirePublished: !options?.draft });
     assertTimeRange(payload.startsAt, payload.endsAt);
     const saved = await this.events.save(
@@ -79,7 +114,8 @@ export class EventsService {
         bookedCount: 0,
         chatLink: null,
         chatSyncPending: true,
-        organizerUserId: organizerUserId ?? null,
+        organizerUserId: owner.organizerUserId,
+        organizerOrganizationId: owner.organizerOrganizationId,
       }),
     );
     if (!options?.draft) {
@@ -94,17 +130,27 @@ export class EventsService {
   }
 
   async getById(id: string): Promise<Event> {
-    const found = await this.events.findOneBy({ id });
-    if (!found || found.published === false) throw new NotFoundException("Event not found");
+    const found = await this.requirePublished(id);
     const promoted = (await this.promotions.promotedEventIds()).has(found.id);
     const [withWeather] = await this.eventWeather.attach([toEventDto(found, { promoted })]);
     return withWeather ?? toEventDto(found, { promoted });
   }
 
+  /** Published catalog row without a weather round-trip; the hourly strip fetches its own series. */
+  async getPublished(id: string): Promise<Event> {
+    return toEventDto(await this.requirePublished(id));
+  }
+
+  private async requirePublished(id: string): Promise<EventEntity> {
+    const found = await this.events.findOneBy({ id });
+    if (!found || found.published === false) throw new NotFoundException("Event not found");
+    return found;
+  }
+
   async update(id: string, patch: Record<string, unknown>, actorId?: string): Promise<Event> {
     const existing = await this.events.findOneBy({ id });
     if (!existing) throw new NotFoundException("Event not found");
-    assertOrganizer(existing.organizerUserId, actorId);
+    assertOrganizer(existing, actorId);
     const merged = EventSchema.safeParse({ ...toEventDto(existing), ...pickEventFields(patch) });
     if (!merged.success) throw new BadRequestException("Invalid event payload");
     await assertPlaceBound(this.places, merged.data.placeId, actorId, { requirePublished: existing.published !== false });
@@ -146,20 +192,31 @@ export class EventsService {
   async remove(id: string, actorId?: string): Promise<void> {
     const existing = await this.events.findOneBy({ id });
     if (!existing) throw new NotFoundException("Event not found");
-    assertOrganizer(existing.organizerUserId, actorId);
+    assertOrganizer(existing, actorId);
     await this.events.delete({ id });
   }
 
-  async listMine(organizerUserId: string): Promise<Event[]> {
-    const rows = await this.events.find({ where: { organizerUserId }, order: { startsAt: "ASC", id: "ASC" } });
-    return rows.map((row) => toEventDto(row));
+  async listMine(actorId: string): Promise<Event[]> {
+    const rows = await this.events.find({
+      where: [{ organizerOrganizationId: actorId }, { organizerUserId: actorId }],
+      order: { startsAt: "ASC", id: "ASC" },
+    });
+    const seen = new Set<string>();
+    return rows
+      .filter((row) => {
+        if (seen.has(row.id)) return false;
+        seen.add(row.id);
+        return true;
+      })
+      .map((row) => toEventDto(row));
   }
 
   async publish(id: string, actorId: string): Promise<Event> {
-    await this.users.assertCanPublish(actorId);
+    const owner = await this.ownerFields(actorId);
+    if (owner.organizerUserId) await this.users.assertCanPublish(owner.organizerUserId);
     const existing = await this.events.findOneBy({ id });
     if (!existing) throw new NotFoundException("Event not found");
-    assertOrganizer(existing.organizerUserId, actorId);
+    assertOrganizer(existing, actorId);
     if (existing.placeId) {
       try {
         await this.places.getById(existing.placeId);
@@ -183,29 +240,122 @@ export class EventsService {
   }
 
   async list(query: EventListQuery, now = new Date()): Promise<Event[]> {
-    const where: { published: true; city?: string; category?: EventCategory; startsAt?: FindOperator<Date>; id?: FindOperator<string> } = { published: true };
-    if (query.city) where.city = query.city;
-    if (query.category) where.category = query.category;
+    const whereBase: { published: true; city?: string; category?: EventCategory; startsAt?: FindOperator<Date>; id?: FindOperator<string> } = { published: true };
+    if (query.city) whereBase.city = query.city;
+    if (query.category) whereBase.category = query.category;
     if (query.minRating !== undefined) {
       // Resolved before the page is read, so limit/offset still describe the filtered catalog.
       const rated = await this.reviews.eventIdsRatedAtLeast(query.minRating);
       if (rated.length === 0) return [];
-      where.id = In(rated);
+      whereBase.id = In(rated);
     }
     // The start window belongs in SQL: filtering it in memory meant reading every published event
     // to answer "what is on Saturday".
     const window = startWindow(query);
-    if (window) where.startsAt = window;
+    if (window) whereBase.startsAt = window;
+    const like = query.q ? containsPattern(query.q) : null;
+    if (query.q && like === null) return [];
+    const where = like
+      ? [
+          { ...whereBase, title: ILike(like) },
+          { ...whereBase, description: ILike(like) },
+        ]
+      : whereBase;
+    const pageOffset = query.offset ?? 0;
+    const pageTake = Math.min(query.limit ?? EVENT_LIST_MAX_LIMIT, EVENT_LIST_MAX_LIMIT);
+    const hasOrigin = query.latitude !== undefined && query.longitude !== undefined;
+    const scan = query.sort === "rating" || (query.sort === "near" && hasOrigin);
     const visible = await this.events.find({
       where,
       order: { startsAt: "ASC", id: "ASC" },
-      skip: query.offset,
-      take: Math.min(query.limit ?? EVENT_LIST_MAX_LIMIT, EVENT_LIST_MAX_LIMIT),
+      skip: scan ? 0 : pageOffset,
+      take: scan ? EVENT_LIST_SCAN_CAP : pageTake,
     });
-    const [boosts, promoted] = await Promise.all([this.promotions.listActive(now, "boost"), this.promotions.promotedEventIds(now)]);
+    const ordered = await this.orderCatalog(visible, query, now);
+    const page = scan ? ordered.slice(pageOffset, pageOffset + pageTake) : ordered;
+    const promoted = await this.promotions.promotedEventIds(now);
+    const dtos = await this.eventWeather.attach(page.map((row) => toEventDto(row, { promoted: promoted.has(row.id) })));
+    if (!query.viewerId && query.latitude === undefined) return dtos;
+    return this.enrichList(page, dtos, query);
+  }
+
+  async listCards(query: EventListQuery, now = new Date()): Promise<CatalogCard[]> {
+    const events = await this.list(query, now);
+    const placeIds = [...new Set(events.map((event) => event.placeId).filter((id): id is string => id !== null))];
+    const places = await this.places.findByIds(placeIds);
+    const titleById = new Map(places.map((place) => [place.id, place.title]));
+    return events.map((event) => ({
+      event,
+      distanceKm: event.distanceKm ?? null,
+      rating: event.ratingAverage ?? null,
+      placeTitle: event.placeId ? (titleById.get(event.placeId) ?? null) : null,
+    }));
+  }
+
+  private async orderCatalog(rows: EventEntity[], query: EventListQuery, now: Date): Promise<EventEntity[]> {
+    if (query.sort === "rating") {
+      const averages = await this.reviews.averagesByEventIds(rows.map((row) => row.id));
+      return [...rows].sort((a, b) => compareRating(averages.get(a.id), averages.get(b.id)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+    }
+    if (query.sort === "near" && query.latitude !== undefined && query.longitude !== undefined) {
+      const placeIds = [...new Set(rows.map((row) => row.placeId).filter((id): id is string => id !== null))];
+      const places = await this.places.findByIds(placeIds);
+      const byId = new Map(places.map((place) => [place.id, place]));
+      const dist = (row: EventEntity) => {
+        const place = row.placeId ? byId.get(row.placeId) : undefined;
+        return place ? haversineKm(query.latitude!, query.longitude!, place.latitude, place.longitude) : Number.POSITIVE_INFINITY;
+      };
+      return [...rows].sort((a, b) => dist(a) - dist(b) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+    }
+    if (query.sort === "soon" || query.sort === "near") {
+      return [...rows].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+    }
+    const boosts = await this.promotions.listActive(now, "boost");
     const boosted = new Set(boosts.map((row) => row.eventId));
-    const ordered = [...visible].sort((a, b) => Number(boosted.has(b.id)) - Number(boosted.has(a.id)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
-    return this.eventWeather.attach(ordered.map((row) => toEventDto(row, { promoted: promoted.has(row.id) })));
+    const interests = query.viewerId ? (await this.profiles.getOrCreate(query.viewerId)).interests : [];
+    return [...rows].sort((a, b) => Number(boosted.has(b.id)) - Number(boosted.has(a.id)) || Number(matchesInterest(b, interests)) - Number(matchesInterest(a, interests)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+  }
+
+  private async enrichList(rows: EventEntity[], dtos: Event[], query: EventListQuery): Promise<Event[]> {
+    if (rows.length === 0) return dtos;
+    const eventIds = rows.map((row) => row.id);
+    const placeIds = [...new Set(rows.map((row) => row.placeId).filter((id): id is string => id !== null))];
+    const organizerIds = [...new Set(rows.map((row) => row.organizerUserId).filter((id): id is string => id !== null))];
+    const [places, organizers, ratings, waitlists, going] = await Promise.all([this.places.findByIds(placeIds), this.users.findByIds(organizerIds), this.reviews.averagesByEventIds(eventIds), this.waitlist.queueCountsByEventIds(eventIds), query.viewerId ? this.goingFriends(query.viewerId, eventIds) : Promise.resolve(new Map<string, Array<{ id: string; name: string }>>())]);
+    const placeById = new Map(places.map((place) => [place.id, place]));
+    const organizerById = new Map(organizers.map((user) => [user.id, user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName]));
+    const origin = query.latitude !== undefined && query.longitude !== undefined ? { latitude: query.latitude, longitude: query.longitude } : null;
+    return dtos.map((dto, index) => {
+      const row = rows[index]!;
+      const place = row.placeId ? placeById.get(row.placeId) : undefined;
+      const distanceKm = origin && place ? Math.round(haversineKm(origin.latitude, origin.longitude, place.latitude, place.longitude) * 10) / 10 : null;
+      return {
+        ...dto,
+        distanceKm,
+        organizerName: (row.organizerUserId ? organizerById.get(row.organizerUserId) : undefined) ?? place?.title ?? null,
+        ratingAverage: ratings.get(dto.id) ?? null,
+        waitlistCount: waitlists.get(dto.id) ?? 0,
+        friendsGoing: going.get(dto.id) ?? [],
+      };
+    });
+  }
+
+  private async goingFriends(userId: string, eventIds: string[]): Promise<Map<string, Array<{ id: string; name: string }>>> {
+    const going = new Map<string, Array<{ id: string; name: string }>>();
+    const edges = await this.friendships.find({ where: { userId } });
+    const friendIds = edges.map((row) => row.friendUserId);
+    if (friendIds.length === 0) return going;
+    const rows = await this.participations.find({ where: { eventId: In(eventIds), userId: In(friendIds), status: "going" } });
+    const users = rows.length === 0 ? [] : await this.users.findByIds([...new Set(rows.map((row) => row.userId))]);
+    const nameById = new Map(users.map((user) => [user.id, user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName]));
+    for (const row of rows) {
+      const name = nameById.get(row.userId);
+      if (!name) continue;
+      const list = going.get(row.eventId) ?? [];
+      list.push({ id: row.userId, name });
+      going.set(row.eventId, list);
+    }
+    return going;
   }
 }
 
@@ -233,6 +383,21 @@ function toColumns(payload: CreateEvent | Event): Omit<CreateEvent, "startsAt" |
     capacity: parsed.capacity,
     coverUrl: parsed.coverUrl ?? null,
   };
+}
+
+function containsPattern(q: string): string | null {
+  const compact = q
+    .replace(/[%_\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return compact.length === 0 ? null : `%${compact}%`;
+}
+
+function compareRating(left: number | undefined, right: number | undefined): number {
+  if (left === undefined && right === undefined) return 0;
+  if (left === undefined) return 1;
+  if (right === undefined) return -1;
+  return right - left;
 }
 
 function startWindow(query: EventListQuery): FindOperator<Date> | undefined {
@@ -272,9 +437,14 @@ async function assertPlaceBound(places: PlacesService, placeId: string | null, a
   }
 }
 
-function assertOrganizer(ownerId: string | null, actorId?: string): void {
-  if (!actorId) return;
-  if (!ownerId || ownerId !== actorId) throw new ForbiddenException("Not the organizer");
+function assertOrganizer(row: { organizerUserId?: string | null; organizerOrganizationId?: string | null }, actorId?: string): void {
+  if (!isOrganizerOwner(row, actorId)) throw new ForbiddenException("Not the organizer");
+}
+
+function matchesInterest(event: EventEntity, interests: string[]): boolean {
+  if (interests.length === 0) return false;
+  const haystack = `${event.category} ${event.title} ${event.description}`.toLowerCase();
+  return interests.some((interest) => haystack.includes(interest.toLowerCase()));
 }
 
 function assertTimeRange(startsAt: string, endsAt: string | null): void {

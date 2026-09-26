@@ -65,6 +65,11 @@ export const AddWeGroupPlaceWriteSchema = z.object({
 });
 export type AddWeGroupPlaceWrite = z.infer<typeof AddWeGroupPlaceWriteSchema>;
 
+export const AddWeGroupPhotoWriteSchema = z.object({
+  url: z.string().url().max(16_000).regex(/^(data:image\/|https:\/\/)/, "photo must be an image data URL or an https URL"),
+});
+export type AddWeGroupPhotoWrite = z.infer<typeof AddWeGroupPhotoWriteSchema>;
+
 export const WeGroupEventGoingSchema = z.object({
   eventId: IdSchema,
   going: z.array(FriendSchema),

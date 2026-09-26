@@ -13,7 +13,19 @@ const payload: CreatePlace = {
   category: "park",
   latitude: 55.7297,
   longitude: 37.6035,
+  logoUrl: null,
 };
+
+function matchesTextOperator(value: string, clause: unknown): boolean {
+  if (clause === undefined) return true;
+  if (clause && typeof clause === "object" && "type" in (clause as object) && (clause as { type: string }).type === "ilike") {
+    const pattern = String((clause as { value?: unknown }).value ?? "");
+    const needle = pattern.startsWith("%") && pattern.endsWith("%") ? pattern.slice(1, -1) : pattern;
+    return value.toLowerCase().includes(needle.toLowerCase());
+  }
+  if (typeof clause === "string") return value === clause;
+  return true;
+}
 
 function uniqueViolation(): QueryFailedError {
   return new QueryFailedError("INSERT", [], Object.assign(new Error("duplicate key value"), { code: "23505" }));
@@ -50,11 +62,20 @@ function createRepo(initial: PlaceEntity[] = []) {
       return entity;
     },
     findOneBy: async (where: { id: string }) => store.find((row) => row.id === where.id) ?? null,
-    find: async (opts: { where?: { published?: boolean; city?: string; category?: string }; skip?: number; take?: number; order?: { title?: "ASC" | "DESC"; id?: "ASC" | "DESC" } }) => {
-      let rows = [...store];
-      if (opts.where?.published === true) rows = rows.filter((row) => row.published !== false);
-      if (opts.where?.city) rows = rows.filter((row) => row.city === opts.where?.city);
-      if (opts.where?.category) rows = rows.filter((row) => row.category === opts.where?.category);
+    find: async (opts: { where?: Record<string, unknown> | Array<Record<string, unknown>>; skip?: number; take?: number; order?: { title?: "ASC" | "DESC"; id?: "ASC" | "DESC" } }) => {
+      const clauses = Array.isArray(opts.where) ? opts.where : opts.where ? [opts.where] : [{}];
+      let rows = store.filter((row) =>
+        clauses.some((clause) => {
+          if (clause.published === true && row.published === false) return false;
+          if (!matchesTextOperator(row.title, clause.title)) return false;
+          if (!matchesTextOperator(row.address, clause.address)) return false;
+          if (clause.city && row.city !== clause.city) return false;
+          if (clause.category && row.category !== clause.category) return false;
+          if (clause.organizerUserId && row.organizerUserId !== clause.organizerUserId) return false;
+          if (clause.organizerOrganizationId && row.organizerOrganizationId !== clause.organizerOrganizationId) return false;
+          return true;
+        }),
+      );
       rows.sort((a, b) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
       const skip = opts.skip ?? 0;
       const take = opts.take ?? rows.length - skip;
@@ -69,10 +90,14 @@ function createRepo(initial: PlaceEntity[] = []) {
   };
 }
 
-function createService(store: PlaceEntity[] = []) {
+function createService(store: PlaceEntity[] = [], organization?: { id: string; organizerUserId: string }) {
   const repo = createRepo(store);
   const users = { assertCanPublish: async () => undefined } as unknown as UsersService;
-  const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, users);
+  const organizations = {
+    findById: async (id: string) => (organization?.id === id ? organization : null),
+    findByOrganizerUserId: async (organizerUserId: string) => (organization?.organizerUserId === organizerUserId ? organization : null),
+  };
+  const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, users, organizations as never);
   return { repo, service };
 }
 
@@ -82,6 +107,7 @@ describe("PlacesService", () => {
     const created = await service.create(payload);
     expect(repo.store).toHaveLength(1);
     expect(created.title).toBe("Парк Горького");
+    expect(created.logoUrl).toBeNull();
     expect(created.category).toBe("park");
     expect(created.latitude).toBe(55.7297);
     expect(created.id).toMatch(/^[0-9a-f-]{36}$/);
@@ -105,10 +131,11 @@ describe("PlacesService", () => {
   it("updates allowed fields of an existing place", async () => {
     const { service } = createService();
     const created = await service.create(payload);
-    const updated = await service.update(created.id, { title: "Парк Горького (новое)" });
+    const updated = await service.update(created.id, { title: "Парк Горького (новое)", logoUrl: "https://cdn.example.com/gorky.png" });
     expect(updated.id).toBe(created.id);
     expect(updated.title).toBe("Парк Горького (новое)");
     expect(updated.city).toBe("Москва");
+    expect(updated.logoUrl).toBe("https://cdn.example.com/gorky.png");
   });
 
   it("deletes an existing place", async () => {
@@ -130,6 +157,11 @@ describe("PlacesService", () => {
     const museums = await service.list({ category: "museum", offset: 0 });
     expect(museums).toHaveLength(1);
     expect(museums[0]?.title).toBe("Эрмитаж");
+
+    expect((await service.list({ q: "эрмитаж", offset: 0 })).map((item) => item.title)).toEqual(["Эрмитаж"]);
+    expect((await service.list({ q: "дворцовая", offset: 0 })).map((item) => item.title)).toEqual(["Эрмитаж"]);
+    expect(await service.list({ q: "несуществующий запрос 42", offset: 0 })).toEqual([]);
+    expect(await service.list({ q: "%%%", offset: 0 })).toEqual([]);
   });
 
   it("paginates with limit and offset", async () => {
@@ -155,6 +187,18 @@ describe("PlacesService", () => {
     expect((await service.publish(draft.id, owner)).published).toBe(true);
   });
 
+  it("binds create and listMine to the organization id the organizer panel passes", async () => {
+    const orgId = "00000000-0000-4000-8000-0000000000c1";
+    const userId = "00000000-0000-4000-8000-00000000000a";
+    const otherOrg = "00000000-0000-4000-8000-0000000000c2";
+    const { repo, service } = createService([], { id: orgId, organizerUserId: userId });
+    const created = await service.create(payload, orgId, { draft: true });
+    expect(repo.store[0]?.organizerOrganizationId).toBe(orgId);
+    expect(repo.store[0]?.organizerUserId).toBe(userId);
+    expect((await service.listMine(orgId)).map((row) => row.id)).toEqual([created.id]);
+    expect(await service.listMine(otherOrg)).toEqual([]);
+  });
+
   it("forbids a banned organizer from publishing a draft place", async () => {
     const owner = "00000000-0000-4000-8000-00000000000a";
     const { repo } = createService();
@@ -163,7 +207,7 @@ describe("PlacesService", () => {
         throw new ForbiddenException("Organizer is banned from publishing");
       },
     } as unknown as UsersService;
-    const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, users);
+    const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, users, { findById: async () => null, findByOrganizerUserId: async () => null } as never);
     repo.store.push({
       id: "00000000-0000-4000-8000-0000000000p1",
       ...payload,
@@ -181,7 +225,7 @@ describe("PlacesService", () => {
     repo.save = async () => {
       throw boom;
     };
-    const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, { assertCanPublish: async () => undefined } as unknown as UsersService);
+    const service = new PlacesService(repo as unknown as Repository<PlaceEntity>, { assertCanPublish: async () => undefined } as unknown as UsersService, { findById: async () => null, findByOrganizerUserId: async () => null } as never);
     await expect(service.create(payload)).rejects.toBe(boom);
   });
 });
@@ -198,6 +242,7 @@ describe("toPlaceDto", () => {
       longitude: 37.6035,
       organizerUserId: null,
       published: true,
+      logoUrl: null,
       createdAt: new Date("2026-09-01T07:00:00Z"),
       updatedAt: new Date("2026-09-01T07:00:00Z"),
     };
@@ -210,6 +255,7 @@ describe("toPlaceDto", () => {
       latitude: 55.7297,
       longitude: 37.6035,
       published: true,
+      logoUrl: null,
       createdAt: "2026-09-01T07:00:00.000Z",
       updatedAt: "2026-09-01T07:00:00.000Z",
     });

@@ -17,6 +17,7 @@ import type { CreatePromotionWrite, PromotionCampaign, PromotionCampaignPublic, 
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
+import { isOrganizerOwner } from "../organizations/organizer-ownership";
 import { toPlaceDto } from "../places/places.service";
 import { PlaceEntity } from "../places/place.entity";
 import { PromotionCampaignEntity } from "./promotion-campaign.entity";
@@ -44,7 +45,7 @@ export class PromotionService {
     const saved = await this.campaigns.save(
       this.campaigns.create({
         eventId: event.id,
-        organizerUserId: actorId,
+        organizerUserId: event.organizerUserId ?? actorId,
         type: payload.type,
         status: expired ? "completed" : "active",
         startsAt,
@@ -166,7 +167,7 @@ export class PromotionService {
   private async requireOwnedEvent(actorId: string, eventId: string): Promise<EventEntity> {
     const event = await this.events.findOneBy({ id: eventId });
     if (!event) throw new NotFoundException("Event not found");
-    if (event.organizerUserId !== actorId) throw new ForbiddenException("Not the organizer");
+    if (!isOrganizerOwner(event, actorId)) throw new ForbiddenException("Not the organizer");
     return event;
   }
 }

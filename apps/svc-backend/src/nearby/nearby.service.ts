@@ -19,10 +19,13 @@ import type { LeisureMood, LeisureOption, LeisureStop, NearbyBucket, NearbyCard,
 import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService } from "../friends/friends.service";
+import { haversineKm } from "../geo/haversine";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { toPlaceDto } from "../places/places.service";
 import { PlaceEntity } from "../places/place.entity";
 import { PromotionService } from "../promotion/promotion.service";
+
+export { haversineKm } from "../geo/haversine";
 
 const HOUR_MS = 60 * 60 * 1000;
 const MAX_KM = 15;
@@ -37,14 +40,6 @@ function placeStop(title: string, placeId: string, km: number): LeisureStop {
 
 function eventStop(card: NearbyCard): LeisureStop {
   return { kind: "event", placeId: card.place.id, eventId: card.event.id, title: card.event.title, startsAt: card.event.startsAt, distanceKm: card.distanceKm, priceRub: card.event.priceRub };
-}
-
-export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
 export function moscowParts(date: Date): { y: number; m: number; d: number; h: number } {

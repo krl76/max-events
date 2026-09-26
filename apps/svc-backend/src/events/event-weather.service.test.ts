@@ -2,7 +2,7 @@ import { NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import type { Event, Place } from "@max-events/api-contracts";
 import { OPEN_METEO_FORECAST_URL, WeatherClient, type WeatherFetch } from "../smart-alerts/weather.client";
-import { EventWeatherService } from "./event-weather.service";
+import { EventWeatherService, FORECAST_SOURCE } from "./event-weather.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
 const startsAt = "2026-09-12T16:30:00.000Z";
@@ -37,6 +37,7 @@ const park: Place = {
   latitude: 55.7298,
   longitude: 37.6019,
   published: true,
+  logoUrl: null,
   createdAt: "2026-08-01T12:00:00.000Z",
   updatedAt: "2026-08-01T12:00:00.000Z",
 };
@@ -85,6 +86,7 @@ function createService(options: { fetchImpl?: WeatherFetch; place?: Place | null
       if (!options.place || options.place.id !== id) throw new NotFoundException("Place not found");
       return options.place;
     },
+    list: async () => (options.place ? [options.place] : []),
   };
   const redis = options.redis ?? createRedis();
   return { service: new EventWeatherService(weather, places, redis), calls, placeCalls, redis };
@@ -162,5 +164,85 @@ describe("EventWeatherService.attach", () => {
     expect(placeCalls).toEqual([park.id]);
     expect(calls).toHaveLength(1);
     expect(attached.every((row) => row.weather !== null)).toBe(true);
+  });
+});
+
+function openMeteoHours(): WeatherFetch {
+  return async () =>
+    jsonResponse(200, {
+      hourly: {
+        time: ["2026-09-12T16:00", "2026-09-12T17:00", "2026-09-12T18:00", "2026-09-12T20:00", "2026-09-12T22:00", "2026-09-13T00:00"],
+        temperature_2m: [12.4, 12.0, 11.1, 9.0, 8.2, 7.0],
+        weather_code: [2, 2, 2, 61, 61, 3],
+        precipitation: [0, 0, 0, 1.1, 0.4, 0],
+        precipitation_probability: [40, 40, 45, 80, 70, 20],
+      },
+    });
+}
+
+describe("EventWeatherService.hourlyForEvent", () => {
+  it("builds the two-hour strip, credits Open-Meteo, and notes the first rain", async () => {
+    const { service, calls } = createService({ place: park, fetchImpl: openMeteoHours() });
+    const forecast = await service.hourlyForEvent({ ...event, endsAt: "2026-09-12T19:00:00.000Z" }, now);
+    expect(forecast.source).toBe(FORECAST_SOURCE);
+    expect(forecast.hours.map((hour) => hour.at)).toEqual(["2026-09-12T16:00:00.000Z", "2026-09-12T18:00:00.000Z", "2026-09-12T20:00:00.000Z", "2026-09-12T22:00:00.000Z", "2026-09-13T00:00:00.000Z"]);
+    expect(forecast.hours[0]?.withinEvent).toBe(true);
+    expect(forecast.hours[2]?.withinEvent).toBe(false);
+    expect(forecast.hours[2]?.condition).toBe("дождь");
+    expect(forecast.note).toContain("вероятность 80%");
+    expect(calls).toHaveLength(1);
+  });
+
+  it("returns an empty strip without a place or when the provider is down", async () => {
+    const noPlace = createService({ place: null, fetchImpl: openMeteoHours() }).service;
+    await expect(noPlace.hourlyForEvent({ ...event, placeId: null }, now)).resolves.toEqual({ source: FORECAST_SOURCE, hours: [], note: null });
+    const down = createService({ place: park, fetchImpl: async () => jsonResponse(503, {}) }).service;
+    await expect(down.hourlyForEvent(event, now)).resolves.toEqual({ source: FORECAST_SOURCE, hours: [], note: null });
+  });
+});
+
+describe("EventWeatherService.mapNow and hoursAt", () => {
+  it("reports the current hour and the first later change", async () => {
+    const { service } = createService({ place: park, fetchImpl: openMeteoHours() });
+    const atStart = new Date("2026-09-12T16:10:00Z");
+    await expect(service.mapNow(park.latitude, park.longitude, atStart)).resolves.toEqual({
+      temperatureC: 12.4,
+      condition: "облачно",
+      changesAt: "2026-09-12T20:00:00.000Z",
+      changesTo: "дождь",
+    });
+  });
+
+  it("names rain as the coming change while the WMO code is still cloudy", async () => {
+    const fetchImpl: WeatherFetch = async () =>
+      jsonResponse(200, {
+        hourly: {
+          time: ["2026-09-12T16:00", "2026-09-12T17:00", "2026-09-12T20:00"],
+          temperature_2m: [12.4, 11.8, 9.0],
+          weather_code: [2, 2, 61],
+          precipitation: [0, 0, 1.1],
+          precipitation_probability: [20, 80, 90],
+        },
+      });
+    const { service } = createService({ place: park, fetchImpl });
+    await expect(service.mapNow(park.latitude, park.longitude, new Date("2026-09-12T16:10:00Z"))).resolves.toEqual({
+      temperatureC: 12.4,
+      condition: "облачно",
+      changesAt: "2026-09-12T17:00:00.000Z",
+      changesTo: "дождь",
+    });
+  });
+
+  it("filters the series to the asked-for window", async () => {
+    const { service } = createService({ place: park, fetchImpl: openMeteoHours() });
+    const forecast = await service.hoursAt(park.latitude, park.longitude, new Date("2026-09-12T18:00:00Z"), new Date("2026-09-12T20:00:00Z"), now);
+    expect(forecast.hours.map((hour) => hour.at)).toEqual(["2026-09-12T18:00:00.000Z", "2026-09-12T20:00:00.000Z"]);
+    expect(forecast.source).toBe(FORECAST_SOURCE);
+  });
+
+  it("resolves city coords from a published place", async () => {
+    const { service } = createService({ place: park });
+    await expect(service.coordsForCity("Москва")).resolves.toEqual({ latitude: park.latitude, longitude: park.longitude });
+    await expect(createService({ place: null }).service.coordsForCity("Казань")).resolves.toBeNull();
   });
 });

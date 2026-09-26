@@ -224,9 +224,9 @@ export function NotificationsPage() {
   useEffect(() => {
     if (viewerId === null) return;
     let alive = true;
-    apiClient.getAppSettings(viewerId).then(
-      (settings) => {
-        if (alive) setQuietHours({ enabled: settings.quietHours, from: settings.quietHoursFrom, to: settings.quietHoursTo });
+    apiClient.getProfile().then(
+      (profile) => {
+        if (alive) setQuietHours({ enabled: profile.smartAlerts.quietHoursEnabled, from: profile.smartAlerts.quietHoursFrom, to: profile.smartAlerts.quietHoursTo });
       },
       () => {},
     );
@@ -281,9 +281,8 @@ export function NotificationsPage() {
     if (viewerId === null || quietHours === null) return;
     const next = !quietHours.enabled;
     setQuietHours({ ...quietHours, enabled: next });
-    apiClient.updateAppSettings(viewerId, { quietHours: next }).then(
-      (settings) => setQuietHours({ enabled: settings.quietHours, from: settings.quietHoursFrom, to: settings.quietHoursTo }),
-      // Настройка не записалась — переключатель возвращается туда, где стоял, а не врёт про сохранение.
+    apiClient.updateProfile({ smartAlerts: { quietHoursEnabled: next } }).then(
+      (profile) => setQuietHours({ enabled: profile.smartAlerts.quietHoursEnabled, from: profile.smartAlerts.quietHoursFrom, to: profile.smartAlerts.quietHoursTo }),
       () => setQuietHours({ ...quietHours, enabled: !next }),
     );
   }, [viewerId, quietHours]);

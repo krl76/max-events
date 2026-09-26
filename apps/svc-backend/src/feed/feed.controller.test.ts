@@ -11,13 +11,26 @@ const placeId = "00000000-0000-4000-8000-0000000000a1";
 
 function createController() {
   const calls: Array<{ filter: FeedListFilter; limit: number; offset: number }> = [];
+  let cardsFor: string | undefined;
   const feed = {
     list: async (_viewerId: string, filter: FeedListFilter, limit: number, offset: number) => {
       calls.push({ filter, limit, offset });
       return [] as FeedPost[];
     },
+    listCards: async (viewerId: string) => {
+      cardsFor = viewerId;
+      return [];
+    },
+    saveDraft: async (viewerId: string, payload: { text: string }) => ({ savedAt: "2026-09-12T10:00:00.000Z", viewerId, text: payload.text }),
+    join: async (viewerId: string, postId: string) => ({ id: postId, userId: viewerId, eventId, status: "active", source: "feed" }),
   } as unknown as FeedService;
-  return { controller: new FeedController(feed), calls };
+  return {
+    controller: new FeedController(feed),
+    calls,
+    get cardsFor() {
+      return cardsFor;
+    },
+  };
 }
 
 describe("FeedController.list", () => {
@@ -43,5 +56,21 @@ describe("FeedController.list", () => {
     expect(() => controller.list(user, eventId, placeId)).toThrow(BadRequestException);
     expect(() => controller.list(user, eventId, undefined, "0")).toThrow(BadRequestException);
     expect(() => controller.list(user, eventId, undefined, "10", "-1")).toThrow(BadRequestException);
+  });
+});
+
+describe("FeedController.saveDraft", () => {
+  it("rejects a draft without eventId and forwards a valid one", async () => {
+    const { controller } = createController();
+    await expect(controller.saveDraft(user, { text: "x" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.saveDraft(user, { eventId: null, text: "черновик" })).resolves.toMatchObject({ savedAt: "2026-09-12T10:00:00.000Z" });
+  });
+});
+
+describe("FeedController.listCards", () => {
+  it("asks the service for the current user's home cards", async () => {
+    const created = createController();
+    await expect(created.controller.listCards(user)).resolves.toEqual([]);
+    expect(created.cardsFor).toBe(user.id);
   });
 });

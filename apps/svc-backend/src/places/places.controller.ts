@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for places — authenticated CRUD and filtered list under /api/places.
-// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/limit/offset.
+// SCOPE: POST/GET/PATCH/DELETE; zod body validation (400); list query city/category/q/limit/offset.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ./places.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -67,5 +67,16 @@ export function parseListQuery(query: Record<string, string | undefined>): Place
   if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > 100)) {
     throw new BadRequestException("Invalid place query");
   }
-  return { city, category, limit, offset };
+  const q = parseSearchNeedle(query.q);
+  return { city, category, q, limit, offset };
+}
+
+const SEARCH_NEEDLE_MAX = 200;
+
+function parseSearchNeedle(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return undefined;
+  if (trimmed.length > SEARCH_NEEDLE_MAX) throw new BadRequestException("Invalid place query");
+  return trimmed;
 }

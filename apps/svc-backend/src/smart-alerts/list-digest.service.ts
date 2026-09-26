@@ -26,7 +26,7 @@ import { EventEntity } from "../events/event.entity";
 import { ListItemEntity } from "../lists/list-item.entity";
 import { ListEntity } from "../lists/list.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
-import { haversineKm } from "../nearby/nearby.service";
+import { haversineKm } from "../geo/haversine";
 import { PlaceEntity } from "../places/place.entity";
 import { moscowDateKey } from "../time/moscow-date";
 import { ProfileEntity } from "../users/profile.entity";

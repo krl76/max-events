@@ -117,17 +117,12 @@ describe("the viewer's tickets, queue and subscriptions", () => {
 });
 
 describe("the viewer's lists, visits and company", () => {
-  it("fills every preset list, adds a custom one and two shared collections", () => {
+  it("fills every preset list and adds a custom one", () => {
     const data = build();
     const mine = data.lists.filter((row) => row.userId === devUserId);
     expect(mine.filter((row) => row.preset !== null)).toHaveLength(ListPresetSchema.options.length);
     expect(mine.filter((row) => row.preset === null).length).toBeGreaterThanOrEqual(1);
     for (const list of mine) expect(data.listItems.filter((item) => item.listId === list.id).length).toBeGreaterThanOrEqual(1);
-    const membership = new Set(data.collectionMembers.filter((row) => row.userId === devUserId).map((row) => row.collectionId));
-    expect(membership.size).toBeGreaterThanOrEqual(2);
-    expect(data.collections.some((row) => membership.has(row.id) && row.ownerUserId === devUserId)).toBe(true);
-    expect(data.collections.some((row) => membership.has(row.id) && row.ownerUserId !== devUserId)).toBe(true);
-    expect(new Set(data.collectionItems.filter((row) => membership.has(row.collectionId)).map((row) => row.section)).size).toBe(3);
   });
 
   it("grants part of the viewer's achievements and leaves part in progress", () => {

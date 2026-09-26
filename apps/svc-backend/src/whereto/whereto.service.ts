@@ -13,6 +13,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { Event, EventCategory, WheretoMood, WheretoQuery, WheretoResponse } from "@max-events/api-contracts";
 import { EventsService } from "../events/events.service";
+import { ProfilesService } from "../users/profiles.service";
 
 const MOOD_CATEGORIES: Record<WheretoMood, EventCategory[]> = {
   active: ["sport", "tourism"],
@@ -22,21 +23,31 @@ const MOOD_CATEGORIES: Record<WheretoMood, EventCategory[]> = {
 
 @Injectable()
 export class WheretoService {
-  constructor(@Inject(EventsService) private readonly events: EventsService) {}
+  constructor(
+    @Inject(EventsService) private readonly events: EventsService,
+    @Inject(ProfilesService) private readonly profiles: ProfilesService,
+  ) {}
 
-  async suggest(query: WheretoQuery, now = new Date()): Promise<WheretoResponse> {
-    const catalog = await this.events.list({ dateFrom: now });
-    return { items: selectWheretoItems(catalog, query) };
+  async suggest(query: WheretoQuery, viewerId?: string, now = new Date()): Promise<WheretoResponse> {
+    const catalog = await this.events.list({ dateFrom: now, viewerId });
+    const interests = viewerId ? (await this.profiles.getOrCreate(viewerId)).interests : [];
+    return { items: selectWheretoItems(catalog, query, interests) };
   }
 }
 
-export function selectWheretoItems(events: Event[], query: WheretoQuery): Event[] {
+export function selectWheretoItems(events: Event[], query: WheretoQuery, interests: string[] = []): Event[] {
   return events
     .filter((item) => MOOD_CATEGORIES[query.mood].includes(item.category))
     .filter((item) => matchesBudget(item, query.budget))
     .filter((item) => matchesCompany(item, query.company))
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
+    .sort((a, b) => Number(matchesInterest(b, interests)) - Number(matchesInterest(a, interests)) || a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
     .slice(0, 5);
+}
+
+function matchesInterest(event: Event, interests: string[]): boolean {
+  if (interests.length === 0) return false;
+  const haystack = `${event.category} ${event.title} ${event.description}`.toLowerCase();
+  return interests.some((interest) => haystack.includes(interest.toLowerCase()));
 }
 
 function matchesBudget(event: Event, budget: WheretoQuery["budget"]): boolean {

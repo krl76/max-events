@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - FriendsController - /friends list, sync, activity
-// - UserGraphController - GET /users/:id/following and /followers
+// - UserFollowsController - GET /users/:userId/following and /followers
 // - EventFriendsController - /events/:eventId/friends summary
 // END_MODULE_MAP
 
@@ -54,17 +54,17 @@ export class FriendsController {
   }
 }
 
-@Controller("users/:userId")
-export class UserGraphController {
+@Controller("users")
+export class UserFollowsController {
   constructor(@Inject(FriendsService) private readonly friends: FriendsService) {}
 
-  @Get("following")
-  async following(@CurrentUser() _viewer: UserEntity, @Param("userId", ParseUUIDPipe) userId: string): Promise<Friend[]> {
-    return this.friends.list(userId);
+  @Get(":userId/following")
+  following(@Param("userId", ParseUUIDPipe) userId: string): Promise<Friend[]> {
+    return this.friends.following(userId);
   }
 
-  @Get("followers")
-  async followers(@CurrentUser() _viewer: UserEntity, @Param("userId", ParseUUIDPipe) userId: string): Promise<Friend[]> {
+  @Get(":userId/followers")
+  followers(@Param("userId", ParseUUIDPipe) userId: string): Promise<Friend[]> {
     return this.friends.followers(userId);
   }
 }

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for the feed wall.
-// SCOPE: GET /feed (?eventId or ?placeId wall), POST /feed, POST /feed/:id/like, POST /feed/:id/comments.
+// SCOPE: GET /feed (?eventId or ?placeId wall), GET /feed/cards, POST /feed, POST /feed/:id/like, POST /feed/:id/comments.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./feed.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -11,7 +11,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
-import { AddFeedCommentWriteSchema, CreateFeedPostWriteSchema, type FeedPost } from "@max-events/api-contracts";
+import { AddFeedCommentWriteSchema, CreateFeedPostWriteSchema, FeedDraftWriteSchema, type BookingWithSeats, type FeedCard, type FeedDraftSaved, type FeedPost } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { FeedService } from "./feed.service";
@@ -37,11 +37,28 @@ export class FeedController {
     return this.feed.list(user.id, { eventId: event, placeId: place }, limit, offset);
   }
 
+  @Get("cards")
+  listCards(@CurrentUser() user: UserEntity): Promise<FeedCard[]> {
+    return this.feed.listCards(user.id);
+  }
+
   @Post()
   async create(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<FeedPost> {
     const parsed = CreateFeedPostWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid feed post payload");
     return this.feed.create(user.id, parsed.data);
+  }
+
+  @Post("drafts")
+  async saveDraft(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<FeedDraftSaved> {
+    const parsed = FeedDraftWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid feed draft payload");
+    return this.feed.saveDraft(user.id, parsed.data);
+  }
+
+  @Post(":id/join")
+  join(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<BookingWithSeats> {
+    return this.feed.join(user.id, id);
   }
 
   @Post(":id/like")

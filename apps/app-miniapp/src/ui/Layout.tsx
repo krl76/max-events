@@ -135,9 +135,7 @@ export function routeHasHeader(route: Route): boolean {
  * Шапка ленты (макет, экран 03): словомарк, поиск и колокольчик со счётчиком.
  *
  * Колокольчик — кнопка и вход на экран 07 («Вход: колокольчик в ленте» написано в самом макете).
- * Счётчик приходит с мока: домена уведомлений на бэкенде нет (#494, smart-alerts — планировщик
- * исходящих сообщений, а не входящие с прочитанностью), поэтому и сводка, и сам экран живут за той
- * сигнатурой, которую примет будущий эндпоинт — ../api/endpoints/notifications.ts.
+ * Счётчик приходит с GET /notifications/summary. Планировщик smart-alerts по-прежнему шлёт MAX DM.
  */
 export function FeedHeader({ onSearch, onNotifications }: { onSearch: () => void; onNotifications: () => void }) {
   const [unread, setUnread] = useState(0);

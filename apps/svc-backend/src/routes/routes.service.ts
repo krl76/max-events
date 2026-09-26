@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Day-route timeline with walking legs and order optimization (min total distance).
-// SCOPE: build() from event/place stops; optimize() brute-force permutation of 2–8 points.
-// DEPENDS: typeorm, @max-events/api-contracts, events/places, plans haversine
+// SCOPE: build() from event/place stops; optimize() brute-force permutation of 2–8 points; travelToPlace() walk/metro tiles for a map pin.
+// DEPENDS: typeorm, @max-events/api-contracts, events/places, geo/haversine
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -9,21 +9,45 @@
 // - walkingMinutes - meters at 80 m/min
 // - toDayRoute - points to legs and totals
 // - shortestPermutation - keep start, permute the rest
-// - RoutesService - build and optimize
+// - RoutesService - build, optimize, travelToPlace
 // END_MODULE_MAP
 
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import type { CreateDayRouteWrite, DayRoute, OptimizeRoute, RoutePoint } from "@max-events/api-contracts";
+import type { CreateDayRouteWrite, DayRoute, OptimizeRoute, RouteMode, RoutePoint, RoutePrefer, TravelOption } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
-import { haversineMeters } from "../plans/plans.service";
+import { haversineMeters } from "../geo/haversine";
 import { PlaceEntity } from "../places/place.entity";
 
 const WALK_M_PER_MIN = 80;
+const METRO_M_PER_MIN = 400;
+const TAXI_M_PER_MIN = 500;
+const METRO_FARE_RUB = 67;
+const TAXI_LANDING_RUB = 150;
+const TAXI_PER_KM_RUB = 40;
 
 export function walkingMinutes(meters: number): number {
-  return Math.max(0, Math.round(meters / WALK_M_PER_MIN));
+  return travelMinutes(meters, "walk");
+}
+
+export function travelMinutes(meters: number, mode: RouteMode): number {
+  const speed = mode === "taxi" ? TAXI_M_PER_MIN : mode === "metro" ? METRO_M_PER_MIN : WALK_M_PER_MIN;
+  return Math.max(0, Math.round(meters / speed));
+}
+
+export function pickMode(meters: number, prefer: RoutePrefer = "default"): RouteMode {
+  if (prefer === "no_taxi" || prefer === "cheaper") return meters >= 1500 ? "metro" : "walk";
+  if (meters >= 8000) return "taxi";
+  if (meters >= 1500) return "metro";
+  return "walk";
+}
+
+export function transferFor(meters: number, prefer: RoutePrefer = "default"): { mode: RouteMode; minutes: number; priceRub: number | null } {
+  const mode = pickMode(meters, prefer);
+  const minutes = travelMinutes(meters, mode);
+  const priceRub = mode === "metro" ? METRO_FARE_RUB : mode === "taxi" ? TAXI_LANDING_RUB + Math.round((meters / 1000) * TAXI_PER_KM_RUB) : null;
+  return { mode, minutes, priceRub };
 }
 
 @Injectable()
@@ -35,14 +59,26 @@ export class RoutesService {
 
   async build(payload: CreateDayRouteWrite): Promise<DayRoute> {
     const points = await this.resolve(payload);
-    return toDayRoute(points);
+    return toDayRoute(points, payload.prefer ?? "default");
+  }
+
+  async travelToPlace(placeId: string, origin: { latitude: number; longitude: number }): Promise<TravelOption[]> {
+    const place = await this.places.findOneBy({ id: placeId });
+    if (!place || place.published === false) throw new NotFoundException("Place not found");
+    const meters = haversineMeters(origin, place.latitude, place.longitude);
+    const distanceKm = Math.round((meters / 1000) * 10) / 10;
+    return [
+      { mode: "walk", minutes: travelMinutes(meters, "walk"), distanceKm, transfers: null },
+      { mode: "metro", minutes: travelMinutes(meters, "metro"), distanceKm, transfers: meters >= 4000 ? 1 : 0 },
+    ];
   }
 
   async optimize(payload: CreateDayRouteWrite): Promise<OptimizeRoute> {
     const points = await this.resolve(payload);
-    const original = toDayRoute(points);
+    const prefer = payload.prefer ?? "default";
+    const original = toDayRoute(points, prefer);
     const best = shortestPermutation(points);
-    const optimized = toDayRoute(best);
+    const optimized = toDayRoute(best, prefer);
     return {
       original,
       optimized,
@@ -75,17 +111,29 @@ export class RoutesService {
   }
 }
 
-export function toDayRoute(points: RoutePoint[]): DayRoute {
+export function toDayRoute(points: RoutePoint[], prefer: RoutePrefer = "default"): DayRoute {
   const legs = [];
   let totalMeters = 0;
+  let totalMinutes = 0;
   for (let i = 0; i < points.length - 1; i += 1) {
     const from = points[i]!;
     const to = points[i + 1]!;
     const meters = haversineMeters({ latitude: from.latitude, longitude: from.longitude }, to.latitude, to.longitude);
     totalMeters += meters;
-    legs.push({ fromTitle: from.title, toTitle: to.title, travelMinutes: walkingMinutes(meters), distanceKm: Math.round((meters / 1000) * 10) / 10 });
+    const mode = pickMode(meters, prefer);
+    const minutes = travelMinutes(meters, mode);
+    totalMinutes += minutes;
+    legs.push({
+      fromTitle: from.title,
+      toTitle: to.title,
+      travelMinutes: minutes,
+      distanceKm: Math.round((meters / 1000) * 10) / 10,
+      mode,
+      transfers: mode === "metro" && meters >= 4000 ? 1 : 0,
+      priceRub: mode === "metro" ? METRO_FARE_RUB : mode === "taxi" ? TAXI_LANDING_RUB + Math.round((meters / 1000) * TAXI_PER_KM_RUB) : null,
+    });
   }
-  return { points, legs, totalMinutes: walkingMinutes(totalMeters), totalKm: Math.round((totalMeters / 1000) * 10) / 10 };
+  return { points, legs, totalMinutes, totalKm: Math.round((totalMeters / 1000) * 10) / 10 };
 }
 
 export function shortestPermutation(points: RoutePoint[]): RoutePoint[] {

@@ -13,7 +13,8 @@
 // - OrganizerLoginResult - organizerLogin outcome: { token, user, organization } | "disabled" (no account and no env credentials) | "locked" (rate limited) | null (bad credentials)
 // - AuthService.organizerLogin - organization-account credential check, rate limit, find-or-create organizer user, store token in Redis
 // - AuthService.organizerLogout - delete organizer-session:{token} from Redis
-// - AuthService.authenticateOrganizerToken - Bearer token -> Redis lookup -> organizer user
+// - AuthService.authenticateOrganizerSession - Bearer token -> Redis lookup -> organizer user + organization
+// - AuthService.authenticateOrganizerToken - Bearer token -> organizer user (session.user)
 // - BROWSER_DEFAULT_USER - owner MAX payload minted for AUTH_ALLOW_BROWSER (keep in sync with tools/max-dev-accounts.json)
 // - BROWSER_DEMO_USER - alias of BROWSER_DEFAULT_USER
 // - AuthService.issueBrowserInitData - signed initData for the staging browser host, or "disabled"
@@ -137,7 +138,7 @@ export class AuthService {
     // row keeps the link until T-004 moves the binding onto the organization itself.
     const linked = await this.organizations.linkOrganizerUser(organization, user.id);
     const token = randomBytes(32).toString("hex");
-    await this.redis.set(organizerSessionKey(token), user.id, "EX", ORGANIZER_SESSION_TTL_SECONDS);
+    await this.redis.set(organizerSessionKey(token), linked.id, "EX", ORGANIZER_SESSION_TTL_SECONDS);
     return { token, user, organization: linked };
   }
 
@@ -173,10 +174,25 @@ export class AuthService {
     await this.redis.del(organizerSessionKey(token));
   }
 
+  async authenticateOrganizerSession(token: string): Promise<{ user: UserEntity; organization: OrganizationEntity } | null> {
+    const stored = await this.redis.get(organizerSessionKey(token));
+    if (!stored) return null;
+    const byOrg = await this.organizations.findById(stored);
+    if (byOrg?.organizerUserId) {
+      const user = await this.userRepo.findOneBy({ id: byOrg.organizerUserId });
+      if (user) return { user, organization: byOrg };
+    }
+    // Sessions issued before T-003 stored the organizer user id. Resolve the linked organization.
+    const user = await this.userRepo.findOneBy({ id: stored });
+    if (!user) return null;
+    const organization = await this.organizations.findByOrganizerUserId(user.id);
+    if (!organization) return null;
+    return { user, organization };
+  }
+
   async authenticateOrganizerToken(token: string): Promise<UserEntity | null> {
-    const userId = await this.redis.get(organizerSessionKey(token));
-    if (!userId) return null;
-    return this.userRepo.findOneBy({ id: userId });
+    const session = await this.authenticateOrganizerSession(token);
+    return session?.user ?? null;
   }
 
   private async findOrCreateOrganizer(login: string): Promise<UserEntity> {

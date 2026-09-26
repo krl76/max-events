@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Event page aggregate — event + place + organizer + organization + seats + viewer-scoped booking/check-in/participation + rating.
-// SCOPE: GET /events/:id/details payload; unpublished/unknown events 404; viewer fields from CurrentUser id; remainingSeats = capacity - bookedCount (clamped at 0); the organization is resolved from the organizer user and carries name and contacts only.
+// SCOPE: GET /events/:id/details payload; unpublished/unknown events 404; viewer fields from CurrentUser id; remainingSeats = capacity - bookedCount (clamped at 0); the organization is resolved from organizerOrganizationId, then the organizer user.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../places/places.service, ../reviews/reviews.service, ../promotion/promotion.service, ../organizations/organizations.service, ./event.entity, ./event.mapper
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -17,6 +17,7 @@ import { BookingEntity } from "../bookings/booking.entity";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { OrganizationsService, toOrganizationDto } from "../organizations/organizations.service";
 import { ParticipationEntity } from "../participations/participation.entity";
+import { haversineKm } from "../geo/haversine";
 import { PlacesService } from "../places/places.service";
 import { PromotionService } from "../promotion/promotion.service";
 import { ReviewsService } from "../reviews/reviews.service";
@@ -25,6 +26,15 @@ import { toUserDto } from "../users/users.service";
 import { EventEntity } from "./event.entity";
 import { EventWeatherService } from "./event-weather.service";
 import { toEventDto } from "./event.mapper";
+
+export const EVENT_NEARBY_RADIUS_M = 1200;
+
+export type EventNearbySpot = {
+  id: string;
+  title: string;
+  distanceM: number;
+  category: Place["category"];
+};
 
 @Injectable()
 export class EventDetailsService {
@@ -44,7 +54,7 @@ export class EventDetailsService {
   async get(eventId: string, viewerId: string): Promise<EventDetails> {
     const event = await this.events.findOneBy({ id: eventId });
     if (!event || event.published === false) throw new NotFoundException("Event not found");
-    const [place, organizer, organization, activeBooking, checkIn, participation, rating, promoted] = await Promise.all([this.placeFor(event.placeId), this.organizerFor(event.organizerUserId), this.organizationFor(event.organizerUserId), this.bookings.findOneBy({ userId: viewerId, eventId, status: "active" }), this.checkIns.findOneBy({ userId: viewerId, eventId }), this.participations.findOneBy({ userId: viewerId, eventId }), this.reviews.eventRating(eventId), this.promotions.promotedEventIds()]);
+    const [place, organizer, organization, activeBooking, checkIn, participation, rating, promoted] = await Promise.all([this.placeFor(event.placeId), this.organizerFor(event.organizerUserId), this.organizationFor(event), this.bookings.findOneBy({ userId: viewerId, eventId, status: "active" }), this.checkIns.findOneBy({ userId: viewerId, eventId }), this.participations.findOneBy({ userId: viewerId, eventId }), this.reviews.eventRating(eventId), this.promotions.promotedEventIds()]);
     const mapped = toEventDto(event, { promoted: promoted.has(event.id) });
     const [withWeather] = await this.eventWeather.attach([mapped]);
     return {
@@ -58,6 +68,24 @@ export class EventDetailsService {
       myParticipationStatus: participation?.status ?? null,
       rating,
     };
+  }
+
+  async nearby(eventId: string): Promise<EventNearbySpot[]> {
+    const event = await this.events.findOneBy({ id: eventId });
+    if (!event || event.published === false) throw new NotFoundException("Event not found");
+    const venue = await this.placeFor(event.placeId);
+    if (!venue) return [];
+    const places = await this.places.list({ offset: 0 });
+    return places
+      .filter((place) => place.id !== venue.id)
+      .map((place) => ({
+        id: place.id,
+        title: place.title,
+        category: place.category,
+        distanceM: Math.round(haversineKm(venue.latitude, venue.longitude, place.latitude, place.longitude) * 1000),
+      }))
+      .filter((spot) => spot.distanceM <= EVENT_NEARBY_RADIUS_M)
+      .sort((a, b) => a.distanceM - b.distanceM || a.id.localeCompare(b.id));
   }
 
   private async placeFor(placeId: string | null): Promise<Place | null> {
@@ -76,10 +104,13 @@ export class EventDetailsService {
     return user ? toUserDto(user) : null;
   }
 
-  /** Events are still keyed by the organizer user, so the organization is found through that link. */
-  private async organizationFor(organizerUserId: string | null): Promise<Organization | null> {
-    if (!organizerUserId) return null;
-    const organization = await this.organizations.findByOrganizerUserId(organizerUserId);
+  private async organizationFor(event: EventEntity): Promise<Organization | null> {
+    if (event.organizerOrganizationId) {
+      const byId = await this.organizations.findById(event.organizerOrganizationId);
+      if (byId) return toOrganizationDto(byId);
+    }
+    if (!event.organizerUserId) return null;
+    const organization = await this.organizations.findByOrganizerUserId(event.organizerUserId);
     return organization ? toOrganizationDto(organization) : null;
   }
 }

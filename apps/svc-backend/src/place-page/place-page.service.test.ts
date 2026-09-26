@@ -74,7 +74,7 @@ describe("PlacePageService", () => {
     const friends = { friendIds: async () => new Set([friendId]) } as unknown as FriendsService;
     const rating: EventRating = { summary: { eventId: null, placeId, averageStars: 4.8, reviewsCount: 2 }, categoryAverages: { atmosphere: 4.8, organization: null, price: null, place: null } };
     const reviews = { placeRating: async () => rating } as unknown as ReviewsService;
-    const service = new PlacePageService(places as unknown as Repository<PlaceEntity>, events as unknown as Repository<EventEntity>, checkIns as unknown as Repository<CheckInEntity>, participations as unknown as Repository<ParticipationEntity>, users as unknown as Repository<UserEntity>, friends, reviews);
+    const service = new PlacePageService(places as unknown as Repository<PlaceEntity>, events as unknown as Repository<EventEntity>, checkIns as unknown as Repository<CheckInEntity>, participations as unknown as Repository<ParticipationEntity>, users as unknown as Repository<UserEntity>, friends, reviews, { upcoming: async () => [] } as never);
     const page = await service.get(placeId, viewer, now);
     expect(page.todayEvents).toHaveLength(1);
     expect(page.popularityToday).toBe(2);
@@ -111,7 +111,7 @@ describe("PlacePageService", () => {
       } as EventEntity,
     ]);
     const empty = createStoreRepo();
-    const service = new PlacePageService(places as unknown as Repository<PlaceEntity>, events as unknown as Repository<EventEntity>, empty as unknown as Repository<CheckInEntity>, empty as unknown as Repository<ParticipationEntity>, empty as unknown as Repository<UserEntity>, { friendIds: async () => new Set() } as unknown as FriendsService, { placeRating: async () => ({ summary: { eventId: null, placeId, averageStars: 0, reviewsCount: 0 }, categoryAverages: { atmosphere: null, organization: null, price: null, place: null } }) } as unknown as ReviewsService);
+    const service = new PlacePageService(places as unknown as Repository<PlaceEntity>, events as unknown as Repository<EventEntity>, empty as unknown as Repository<CheckInEntity>, empty as unknown as Repository<ParticipationEntity>, empty as unknown as Repository<UserEntity>, { friendIds: async () => new Set() } as unknown as FriendsService, { placeRating: async () => ({ summary: { eventId: null, placeId, averageStars: 0, reviewsCount: 0 }, categoryAverages: { atmosphere: null, organization: null, price: null, place: null } }) } as unknown as ReviewsService, { upcoming: async () => [] } as never);
     const afternoon = await service.get(placeId, viewer, now);
     expect(afternoon.todayEvents).toHaveLength(0);
     const late = await service.get(placeId, viewer, new Date("2026-09-12T21:30:00Z"));
@@ -121,13 +121,13 @@ describe("PlacePageService", () => {
   it("rejects an unpublished place", async () => {
     const places = createStoreRepo<PlaceEntity>([{ id: placeId, title: "ВДНХ", published: false } as PlaceEntity]);
     const empty = createStoreRepo();
-    const service = new PlacePageService(places as unknown as Repository<PlaceEntity>, empty as unknown as Repository<EventEntity>, empty as unknown as Repository<CheckInEntity>, empty as unknown as Repository<ParticipationEntity>, empty as unknown as Repository<UserEntity>, { friendIds: async () => new Set() } as unknown as FriendsService, { placeRating: async () => ({ summary: { eventId: null, placeId, averageStars: 0, reviewsCount: 0 }, categoryAverages: { atmosphere: null, organization: null, price: null, place: null } }) } as unknown as ReviewsService);
+    const service = new PlacePageService(places as unknown as Repository<PlaceEntity>, empty as unknown as Repository<EventEntity>, empty as unknown as Repository<CheckInEntity>, empty as unknown as Repository<ParticipationEntity>, empty as unknown as Repository<UserEntity>, { friendIds: async () => new Set() } as unknown as FriendsService, { placeRating: async () => ({ summary: { eventId: null, placeId, averageStars: 0, reviewsCount: 0 }, categoryAverages: { atmosphere: null, organization: null, price: null, place: null } }) } as unknown as ReviewsService, { upcoming: async () => [] } as never);
     await expect(service.get(placeId, viewer, now)).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it("rejects an unknown place", async () => {
     const empty = createStoreRepo();
-    const service = new PlacePageService(empty as unknown as Repository<PlaceEntity>, empty as unknown as Repository<EventEntity>, empty as unknown as Repository<CheckInEntity>, empty as unknown as Repository<ParticipationEntity>, empty as unknown as Repository<UserEntity>, { friendIds: async () => new Set() } as unknown as FriendsService, { placeRating: async () => ({ summary: { eventId: null, placeId, averageStars: 0, reviewsCount: 0 }, categoryAverages: { atmosphere: null, organization: null, price: null, place: null } }) } as unknown as ReviewsService);
+    const service = new PlacePageService(empty as unknown as Repository<PlaceEntity>, empty as unknown as Repository<EventEntity>, empty as unknown as Repository<CheckInEntity>, empty as unknown as Repository<ParticipationEntity>, empty as unknown as Repository<UserEntity>, { friendIds: async () => new Set() } as unknown as FriendsService, { placeRating: async () => ({ summary: { eventId: null, placeId, averageStars: 0, reviewsCount: 0 }, categoryAverages: { atmosphere: null, organization: null, price: null, place: null } }) } as unknown as ReviewsService, { upcoming: async () => [] } as never);
     await expect(service.get(placeId, viewer, now)).rejects.toBeInstanceOf(NotFoundException);
   });
 });

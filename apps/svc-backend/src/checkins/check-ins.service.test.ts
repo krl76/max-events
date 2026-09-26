@@ -1,15 +1,20 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { FindOperator, QueryFailedError, type Repository } from "typeorm";
+import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import { PlaceEntity } from "../places/place.entity";
+import type { UsersService } from "../users/users.service";
 import { CheckInEntity } from "./check-in.entity";
 import { CheckInsService, utcVisitDate } from "./check-ins.service";
+import { entryCodeFromBookingId } from "./entry-code";
 
 const now = new Date("2026-09-12T10:00:00Z");
 const userId = "00000000-0000-4000-8000-00000000000a";
 const otherUser = "00000000-0000-4000-8000-00000000000b";
 const eventId = "00000000-0000-4000-8000-0000000000e1";
+const orgId = "00000000-0000-4000-8000-0000000000c1";
+const bookingId = "00000000-0000-4000-8000-0000000000b1";
 const placeId = "00000000-0000-4000-8000-0000000000p1";
 const otherPlaceId = "00000000-0000-4000-8000-0000000000p2";
 
@@ -22,6 +27,7 @@ function eventRow(): EventEntity {
     city: "Москва",
     placeId,
     organizerUserId: null,
+    organizerOrganizationId: orgId,
     startsAt: now,
     endsAt: null,
     isPaid: false,
@@ -68,13 +74,15 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
   };
 }
 
-function createService() {
+function createService(options: { bookings?: BookingEntity[] } = {}) {
   const checkIns = createStoreRepo<CheckInEntity>();
   const events = createStoreRepo<EventEntity>([eventRow()]);
   // otherPlaceId sits in the same 0.01° cell as placeId, so two places can still be one district.
   const places = createStoreRepo<PlaceEntity>([{ id: placeId, latitude: 55.73, longitude: 37.6 } as PlaceEntity, { id: otherPlaceId, latitude: 55.731, longitude: 37.601 } as PlaceEntity]);
-  const service = new CheckInsService(checkIns as unknown as Repository<CheckInEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>);
-  return { service, checkIns, places };
+  const bookings = createStoreRepo<BookingEntity>(options.bookings ?? []);
+  const users = { findByIds: async (ids: string[]) => ids.map((id) => ({ id, firstName: "Анна", lastName: "Иванова" })) } as unknown as UsersService;
+  const service = new CheckInsService(checkIns as unknown as Repository<CheckInEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, bookings as unknown as Repository<BookingEntity>, users);
+  return { service, checkIns, places, bookings };
 }
 
 function uniqueViolation(): QueryFailedError {
@@ -170,5 +178,41 @@ describe("CheckInsService", () => {
     await expect(service.create(userId, { eventId: "00000000-0000-4000-8000-0000000000e9" }, now)).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.create(userId, { placeId: "00000000-0000-4000-8000-0000000000p9" }, now)).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.stats(otherUser, userId)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("lists entry codes of the viewer's active bookings only", async () => {
+    const { service } = createService({
+      bookings: [
+        { id: bookingId, userId, eventId, status: "active", createdAt: now } as BookingEntity,
+        { id: "00000000-0000-4000-8000-0000000000b2", userId, eventId, status: "cancelled", createdAt: now } as BookingEntity,
+        { id: "00000000-0000-4000-8000-0000000000b3", userId: otherUser, eventId, status: "active", createdAt: now } as BookingEntity,
+      ],
+    });
+    await expect(service.listCodes(userId)).resolves.toEqual([{ bookingId, code: entryCodeFromBookingId(bookingId) }]);
+  });
+
+  it("marks a guest by entry code, is idempotent, and 404s an unknown code", async () => {
+    const { service } = createService({
+      bookings: [{ id: bookingId, userId, eventId, status: "active", createdAt: now } as BookingEntity],
+    });
+    const first = await service.checkInByCode(orgId, eventId, entryCodeFromBookingId(bookingId).toLowerCase(), now);
+    expect(first).toMatchObject({ bookingId, userId, name: "Анна Иванова", guests: 0, checkedInAt: now.toISOString(), bookedAt: now.toISOString() });
+    const again = await service.checkInByCode(orgId, eventId, entryCodeFromBookingId(bookingId), now);
+    expect(again.checkedInAt).toBe(first.checkedInAt);
+    await expect(service.checkInByCode(orgId, eventId, "ZZZZZZ", now)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.checkInByCode(otherUser, eventId, entryCodeFromBookingId(bookingId), now)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.checkInByCode(orgId, eventId, "   ", now)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("refuses to check in when two active bookings share a code suffix", async () => {
+    const twinId = "ffffffff-ffff-4fff-8fff-0000000000b1";
+    const { service } = createService({
+      bookings: [
+        { id: bookingId, userId, eventId, status: "active", createdAt: now } as BookingEntity,
+        { id: twinId, userId: otherUser, eventId, status: "active", createdAt: now } as BookingEntity,
+      ],
+    });
+    expect(entryCodeFromBookingId(bookingId)).toBe(entryCodeFromBookingId(twinId));
+    await expect(service.checkInByCode(orgId, eventId, entryCodeFromBookingId(bookingId), now)).rejects.toBeInstanceOf(ConflictException);
   });
 });

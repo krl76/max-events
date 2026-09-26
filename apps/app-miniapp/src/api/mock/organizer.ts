@@ -42,7 +42,7 @@
 // - checkInMockOrganizerGuest - mock POST /organizer/events/:id/check-ins: mark a booking arrived by its entry code
 // - inviteMockOrganizerWaitlist - mock POST /organizer/events/:id/waitlist/invites: offer the freed seats to the head of the waitlist
 // - resetMockOrganizerSetup - clear the настройка state of экран 44 (test isolation and the «первый заход» case of a browser pass)
-// - mockOrganizerSetup - mock GET /organizer/setup: the seeded venue card of макета; no backend column holds any of this
+// - mockOrganizerSetup - mock GET /organizer/setup: the seeded venue card of макета (parity with OrganizationsService.getSetup)
 // - updateMockOrganizerSetup - mock PATCH /organizer/setup: merges the patch, refusing a payment link the Event contract would refuse
 // - completeMockOrganizerSetup - mock POST /organizer/setup/complete: idempotent completedAt stamp
 // END_MODULE_MAP
@@ -146,7 +146,7 @@ export function createMockOrganizerEvent(payload: CreateEvent): MockOrganizerEve
 /** Backend organizer create parity for places. */
 export function createMockOrganizerPlace(payload: CreatePlace): MockOrganizerPlace {
   mockOrganizerSeq += 1;
-  const created: MockOrganizerPlace = { ...payload, id: `f2000000-0000-4000-8000-${String(mockOrganizerSeq).padStart(12, "0")}`, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP, published: false };
+  const created: MockOrganizerPlace = { ...payload, id: `f2000000-0000-4000-8000-${String(mockOrganizerSeq).padStart(12, "0")}`, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP, published: false, logoUrl: payload.logoUrl ?? null };
   mockOrganizerState.places.push(created);
   return created;
 }
@@ -245,6 +245,7 @@ export function mockEventSalesReport(eventId: string, period: StatsPeriod = ALL_
     grossRub: frozen.reduce((sum, payment) => sum + payment.amountRub, 0),
     commissionRub: frozen.reduce((sum, payment) => sum + (payment.commissionRub ?? 0), 0),
     netRub: frozen.reduce((sum, payment) => sum + (payment.netRub ?? 0), 0),
+    provider: "sandbox",
   };
 }
 
@@ -594,14 +595,9 @@ export function inviteMockOrganizerWaitlist(eventId: string, count: number): { i
 }
 
 /**
- * Настройка организатора (макет, экран 44). На бэкенде нет ни одной колонки под это: у организации
- * есть только id, name, contacts, login, passwordHash и organizerUserId, у площадки нет логотипа, а
- * «чем занимаетесь» не существует ни как поле, ни как справочник. Поэтому весь шаг живёт здесь — за
- * той сигнатурой, которую эндпоинт получит, когда его заведут.
- *
- * В отличие от остальных моков этот переживает перезагрузку: признак «прошёл настройку» настоящий
- * сервер хранил бы у себя, и без этого повторный заход в панель снова упирался бы в настройку — то
- * есть витрина врала бы ровно в том месте, которое и надо проверять.
+ * Настройка организатора (макет, экран 44). Паритет с OrganizationsService.getSetup/updateSetup/completeSetup.
+ * Переживает перезагрузку, как серверный completedAt: без этого повторный заход в панель снова
+ * упирался бы в настройку.
  */
 const MOCK_SETUP_KEY = "max-events.mock-organizer-setup";
 

@@ -52,7 +52,7 @@ describe("OrganizerSetupView, шаг «Площадка»", () => {
     expect(draw().match(/aria-current="step"/g)).toHaveLength(1);
   });
 
-  it("puts the venue behind the initials tile, since no logo field exists", () => {
+  it("puts the venue behind the initials tile while file upload is not connected", () => {
     const html = draw();
 
     expect(html).toContain("ПГ");
@@ -66,7 +66,7 @@ describe("OrganizerSetupView, шаг «Площадка»", () => {
     expect(html).toContain("Заменить логотип");
     expect(html).toContain("app-org-setup-logo-btn");
     expect(html).toContain("disabled");
-    expect(html).toContain("логотипа площадка ещё не хранит");
+    expect(html).toContain("загрузка файла ещё не подключена");
   });
 
   it("presses exactly the activities the setup carries", () => {

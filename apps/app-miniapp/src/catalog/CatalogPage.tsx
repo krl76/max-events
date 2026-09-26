@@ -26,6 +26,7 @@ import { EventCategorySchema } from "@max-events/api-contracts";
 import { apiClient, parseEventFilters, serializeEventFilters, type EventFilters } from "../api/client";
 import { useRoute } from "../routing/router";
 import { AppChip, AppState, AppMedia } from "../ui/primitives";
+import { useViewerOrigin } from "../geo/viewer-origin";
 import { CATEGORY_LABELS, formatEventWeather, formatStartsAt } from "./format";
 import { MapScreen } from "./MapScreen";
 
@@ -47,7 +48,7 @@ export type CatalogViewName = "list" | "map";
 export const CATALOG_PAGE_SIZE = 20;
 export const CATALOG_MAP_LIMIT = 100;
 
-function useCatalog(filters: EventFilters, offset: number, view: CatalogViewName, attempt: number): CatalogState & { hasMore: boolean; loadingMore: boolean; loadFailed: boolean } {
+function useCatalog(filters: EventFilters, offset: number, view: CatalogViewName, attempt: number, origin: { latitude: number; longitude: number }): CatalogState & { hasMore: boolean; loadingMore: boolean; loadFailed: boolean } {
   const [state, setState] = useState<CatalogState>({ status: "loading" });
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -59,13 +60,13 @@ function useCatalog(filters: EventFilters, offset: number, view: CatalogViewName
   useEffect(() => {
     generationRef.current += 1;
     pagesRef.current = new Map();
-  }, [filters, view]);
+  }, [filters, view, origin.latitude, origin.longitude]);
 
   useEffect(() => {
     const generation = generationRef.current;
     if (offset === 0) setState({ status: "loading" });
     else setLoadingMore(true);
-    apiClient.listEvents({ ...filters, limit: pageSize, offset }).then(
+    apiClient.listEvents({ ...filters, limit: pageSize, offset, lat: origin.latitude, lng: origin.longitude }).then(
       (events) => {
         if (generation !== generationRef.current) return;
         pagesRef.current.set(offset, events);
@@ -85,7 +86,7 @@ function useCatalog(filters: EventFilters, offset: number, view: CatalogViewName
         }
       },
     );
-  }, [filters, offset, view, pageSize, attempt]);
+  }, [filters, offset, view, pageSize, attempt, origin.latitude, origin.longitude]);
 
   return { ...state, hasMore, loadingMore, loadFailed };
 }
@@ -114,8 +115,13 @@ export function EventCard({ event, onOpen }: { event: Event; onOpen?: (id: strin
         </span>
         <span className="app-card-subtitle">
           {event.city} · {event.priceRub === null ? "Бесплатно" : `${event.priceRub} ₽`}
+          {event.organizerName ? ` · ${event.organizerName}` : ""}
+          {event.distanceKm !== undefined && event.distanceKm !== null ? ` · ${event.distanceKm.toFixed(1)} км` : ""}
           {event.remainingSeats !== undefined && event.remainingSeats !== null ? ` · осталось ${event.remainingSeats}` : event.bookedCount !== undefined ? ` · ${event.bookedCount} идут` : ""}
+          {event.ratingAverage !== undefined && event.ratingAverage !== null ? ` · ${event.ratingAverage.toFixed(1)}` : ""}
+          {event.waitlistCount ? ` · ${event.waitlistCount} в листе` : ""}
         </span>
+        {event.friendsGoing && event.friendsGoing.length > 0 ? <span className="app-card-subtitle">{event.friendsGoing.map((friend) => friend.name).join(", ")}</span> : null}
         {event.hitOfTheWeek ? <span className="app-today-chip">ХИТ НЕДЕЛИ</span> : event.promoted ? <span className="app-today-chip">Промо</span> : null}
         {event.weather && <span className="app-today-chip">{formatEventWeather(event.weather)}</span>}
       </div>
@@ -254,7 +260,8 @@ export function CatalogPage({ view = "list", onView }: { view?: CatalogViewName;
   const [filters, setFilters] = useState<EventFilters>(() => parseEventFilters(window.location.search));
   const [offset, setOffset] = useState(0);
   const [attempt, setAttempt] = useState(0);
-  const catalog = useCatalog(filters, offset, view, attempt);
+  const origin = useViewerOrigin();
+  const catalog = useCatalog(filters, offset, view, attempt, origin);
   const { navigate } = useRoute();
   const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
   const openPlace = useCallback((id: string) => navigate({ name: "place", id }), [navigate]);

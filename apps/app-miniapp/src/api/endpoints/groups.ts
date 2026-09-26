@@ -16,6 +16,22 @@ import { FriendSchema, VoteSchema, WeGroupScreenSchema, WeGroupSummarySchema } f
 import type { CreateVoteWrite, CreateWeGroupWrite, Friend, Vote, WeGroupScreen, WeGroupSummary } from "@max-events/api-contracts";
 import type { ApiMixin, ZodSchema } from "./transport";
 
+const UploadTicketSchema: ZodSchema<{ id: string; uploadUrl: string; publicUrl: string }> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null) return { success: false as const, error: "invalid upload" };
+    const raw = data as Record<string, unknown>;
+    if (typeof raw.id !== "string" || typeof raw.uploadUrl !== "string" || typeof raw.publicUrl !== "string") return { success: false as const, error: "invalid upload" };
+    return { success: true as const, data: { id: raw.id, uploadUrl: raw.uploadUrl, publicUrl: raw.publicUrl } };
+  },
+};
+
+const UploadStoredSchema: ZodSchema<{ publicUrl: string }> = {
+  safeParse(data: unknown) {
+    if (typeof data !== "object" || data === null || typeof (data as { publicUrl?: unknown }).publicUrl !== "string") return { success: false as const, error: "invalid upload" };
+    return { success: true as const, data: { publicUrl: (data as { publicUrl: string }).publicUrl } };
+  },
+};
+
 /**
  * Screen aggregate of экраны 30 и 31. The WeGroupScreen DTO already carries the six blocks of the
  * design (members, events, places, bookings, route, budget, photos); these two fields are what the
@@ -143,6 +159,16 @@ export function withGroups<TBase extends ApiMixin>(Base: TBase) {
 
     archiveWeGroup(id: string): Promise<WeGroupCard> {
       return this.request(`/we-groups/${id}/archive`, WeGroupCardSchema, { method: "POST" });
+    }
+
+    async addWeGroupPhoto(id: string, url: string): Promise<WeGroupCard> {
+      let stored = url;
+      if (url.startsWith("data:image/")) {
+        const ticket = await this.request("/uploads", UploadTicketSchema, { body: { purpose: "wegroup" } });
+        const put = await this.request(`/uploads/${ticket.id}`, UploadStoredSchema, { method: "PUT", body: { dataUrl: url } });
+        stored = put.publicUrl;
+      }
+      return this.request(`/we-groups/${id}/photos`, WeGroupCardSchema, { body: { url: stored } });
     }
 
     createVote(payload: CreateVoteWrite): Promise<VoteScreen> {

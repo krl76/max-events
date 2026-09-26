@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AddListItemWriteSchema, ListItemCardSchema, ListPresetSchema, ListItemSchema, ListSchema, ListSummarySchema } from "./list.js";
+import { AddListItemWriteSchema, InviteListMemberWriteSchema, ListItemCardSchema, ListPresetSchema, ListItemSchema, ListSchema, ListSummarySchema } from "./list.js";
 
 const list = {
   id: "018f3c5a-0000-7000-8000-000000000030",
@@ -123,5 +123,12 @@ describe("ListItemCardSchema", () => {
 
   it("rejects a card without event and place", () => {
     expect(ListItemCardSchema.safeParse({ item, event: null, place: null, addedBy: null }).success).toBe(false);
+  });
+});
+
+describe("InviteListMemberWriteSchema", () => {
+  it("requires a uuid user id", () => {
+    expect(InviteListMemberWriteSchema.parse({ userId: list.userId }).userId).toBe(list.userId);
+    expect(InviteListMemberWriteSchema.safeParse({ userId: "not-a-uuid" }).success).toBe(false);
   });
 });

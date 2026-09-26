@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import { CreateEventSchema, type CreateEvent, type Event } from "@max-events/api-contracts";
 import { UserEntity } from "../users/user.entity";
 import { parseEventListQuery, EventsController } from "./events.controller";
+import type { EventBookingOfferService } from "./event-booking-offer.service";
+import type { EventCompanionsService } from "./event-companions.service";
 import type { EventDetailsService } from "./event-details.service";
+import type { EventWeatherService } from "./event-weather.service";
 import type { EventListQuery, EventsService } from "./events.service";
 
 const payload: CreateEvent = CreateEventSchema.parse({
@@ -27,7 +30,7 @@ const event: Event = {
 };
 
 function createController() {
-  const calls: { create?: CreateEvent; list?: EventListQuery; getById?: string; details?: { id: string; viewerId: string }; update?: { id: string; patch: Record<string, unknown> }; remove?: string } = {};
+  const calls: { create?: CreateEvent; list?: EventListQuery; listCards?: EventListQuery; getById?: string; details?: { id: string; viewerId: string }; companions?: { id: string; viewerId: string }; bookingOffer?: { id: string; viewerId: string }; hourly?: string; update?: { id: string; patch: Record<string, unknown> }; remove?: string } = {};
   const service = {
     create: async (body: CreateEvent) => {
       calls.create = body;
@@ -37,7 +40,15 @@ function createController() {
       calls.list = query;
       return [event];
     },
+    listCards: async (query: EventListQuery) => {
+      calls.listCards = query;
+      return [{ event, distanceKm: 2.1, rating: 4.8, placeTitle: "Парк Горького" }];
+    },
     getById: async (id: string) => {
+      calls.getById = id;
+      return event;
+    },
+    getPublished: async (id: string) => {
       calls.getById = id;
       return event;
     },
@@ -55,7 +66,25 @@ function createController() {
       return { event };
     },
   } as unknown as EventDetailsService;
-  return { calls, controller: new EventsController(service, details) };
+  const weather = {
+    hourlyForEvent: async () => {
+      calls.hourly = event.id;
+      return { source: "Open-Meteo", hours: [], note: null };
+    },
+  } as unknown as EventWeatherService;
+  const companions = {
+    get: async (id: string, viewerId: string) => {
+      calls.companions = { id, viewerId };
+      return { counts: { going: 0, wants: 0, looking: 0 }, myStatus: null, companions: [], gathering: null };
+    },
+  } as unknown as EventCompanionsService;
+  const bookingOffer = {
+    get: async (id: string, viewerId: string) => {
+      calls.bookingOffer = { id, viewerId };
+      return { waitlistAhead: 0, friendsWithTickets: [] };
+    },
+  } as unknown as EventBookingOfferService;
+  return { calls, controller: new EventsController(service, details, weather, companions, bookingOffer) };
 }
 
 describe("EventsController", () => {
@@ -73,13 +102,13 @@ describe("EventsController", () => {
 
   it("passes catalog filters through to the service", async () => {
     const { calls, controller } = createController();
-    const result = await controller.list({ city: "Москва", category: "afisha", date: "2026-09-12", date_from: "2026-09-01T00:00:00.000Z" });
-    expect(calls.list).toEqual({
+    const result = await controller.list(user, { city: "Москва", category: "afisha", date: "2026-09-12", date_from: "2026-09-01T00:00:00.000Z" });
+    expect(calls.list).toMatchObject({
       city: "Москва",
       category: "afisha",
       date: "2026-09-12",
       dateFrom: new Date("2026-09-01T00:00:00.000Z"),
-      dateTo: undefined,
+      viewerId: user.id,
     });
     expect(result).toEqual([event]);
   });
@@ -95,6 +124,8 @@ describe("EventsController", () => {
     expect(() => parseEventListQuery({ min_rating: "6" })).toThrow(BadRequestException);
     expect(() => parseEventListQuery({ min_rating: "4.5" })).toThrow(BadRequestException);
     expect(() => parseEventListQuery({ min_rating: "четыре" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ sort: "popular" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ q: "x".repeat(201) })).toThrow(BadRequestException);
   });
 
   it("passes a valid page window through to the service", () => {
@@ -103,14 +134,48 @@ describe("EventsController", () => {
 
   it("passes the rating threshold through, and leaves it unset when absent", () => {
     expect(parseEventListQuery({ min_rating: "4" })).toMatchObject({ minRating: 4 });
+    expect(parseEventListQuery({ lat: "55.75", lng: "37.62" })).toMatchObject({ latitude: 55.75, longitude: 37.62 });
+    expect(parseEventListQuery({ latitude: "55.75", longitude: "37.62" })).toMatchObject({ latitude: 55.75, longitude: 37.62 });
+    expect(() => parseEventListQuery({ lat: "55.75" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ latitude: "55.75" })).toThrow(BadRequestException);
+    expect(() => parseEventListQuery({ lat: "91", lng: "37" })).toThrow(BadRequestException);
     expect(parseEventListQuery({}).minRating).toBeUndefined();
     expect(parseEventListQuery({ min_rating: "" }).minRating).toBeUndefined();
+    expect(parseEventListQuery({ q: "  джаз  ", sort: "near" })).toMatchObject({ q: "джаз", sort: "near" });
+    expect(parseEventListQuery({ q: "" }).q).toBeUndefined();
+    expect(parseEventListQuery({ sort: "soon" }).sort).toBe("soon");
+  });
+
+  it("serves catalog cards with the same filters as the list", async () => {
+    const { calls, controller } = createController();
+    const result = await controller.listCards(user, { city: "Москва", latitude: "55.75", longitude: "37.62" });
+    expect(calls.listCards).toMatchObject({ city: "Москва", latitude: 55.75, longitude: 37.62, viewerId: user.id });
+    expect(result).toEqual([{ event, distanceKm: 2.1, rating: 4.8, placeTitle: "Парк Горького" }]);
+  });
+
+  it("serves a booking offer for the current user", async () => {
+    const { calls, controller } = createController();
+    await expect(controller.getBookingOffer(user, event.id)).resolves.toEqual({ waitlistAhead: 0, friendsWithTickets: [] });
+    expect(calls.bookingOffer).toEqual({ id: event.id, viewerId: user.id });
+  });
+
+  it("serves companions for the current user", async () => {
+    const { calls, controller } = createController();
+    await expect(controller.listCompanions(user, event.id)).resolves.toMatchObject({ gathering: null, companions: [] });
+    expect(calls.companions).toEqual({ id: event.id, viewerId: user.id });
   });
 
   it("serves the details aggregate for the current user", async () => {
     const { calls, controller } = createController();
     await expect(controller.getDetails(user, event.id)).resolves.toEqual({ event });
     expect(calls.details).toEqual({ id: event.id, viewerId: user.id });
+  });
+
+  it("serves the hourly forecast for a published event", async () => {
+    const { calls, controller } = createController();
+    await expect(controller.hourlyForecast(event.id)).resolves.toEqual({ source: "Open-Meteo", hours: [], note: null });
+    expect(calls.getById).toBe(event.id);
+    expect(calls.hourly).toBe(event.id);
   });
 
   it("updates, fetches, and deletes by id", async () => {

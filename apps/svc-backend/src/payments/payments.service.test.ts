@@ -140,10 +140,10 @@ describe("PaymentsService.ensureForBooking", () => {
     const eventId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d20";
     const organizerId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d21";
     const events = {
-      findOneBy: async (where: { id: string; organizerUserId: string }) => (where.id === eventId && where.organizerUserId === organizerId ? { id: eventId, organizerUserId: organizerId } : null),
+      findOneBy: async (where: { id: string }) => (where.id === eventId ? { id: eventId, organizerUserId: organizerId } : null),
     };
     const bookings = { find: async () => [{ id: bookingId, eventId }] };
-    const service = new PaymentsService(new SandboxPaymentProvider(), rows as unknown as Repository<PaymentEntity>, events as never, bookings as never, { get: () => 1000 } as never);
+    const service = new PaymentsService(new SandboxPaymentProvider(), rows as unknown as Repository<PaymentEntity>, events as never, bookings as never, { get: (key: string) => (key === "PAYMENT_PROVIDER" ? "sandbox" : 1000) } as never);
     await service.ensureForBooking(bookingId, 850, "Билет: Джаз");
     rows.store.push({
       id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d12",
@@ -165,6 +165,7 @@ describe("PaymentsService.ensureForBooking", () => {
     expect(report.commissionRub).toBe(85);
     expect(report.netRub).toBe(765);
     expect(report.rows).toHaveLength(1);
+    expect(report.provider).toBe("sandbox");
     await expect(service.salesReport("018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d99", eventId)).rejects.toMatchObject({ status: 404 });
     const refunded = await service.refundForBooking(bookingId);
     expect(refunded?.status).toBe("refunded");

@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - OFFER_TTL_MS - confirmation window
 // - formatWaitlistOfferText - offer DM: which event and until when
-// - WaitlistService - join/confirm/decline/getMe/expire/onSeatFreed/fillVacancies
+// - WaitlistService - join/confirm/decline/getMe/expire/onSeatFreed/fillVacancies/inviteNext
 // - toWaitlistDto - entity plus FIFO position
 // END_MODULE_MAP
 
@@ -51,6 +51,14 @@ export class WaitlistService {
     @Inject(PromoService) private readonly promo: PromoService,
     @Inject(PaymentsService) private readonly payments: PaymentsService,
   ) {}
+
+  async queueCountsByEventIds(eventIds: string[]): Promise<Map<string, number>> {
+    if (eventIds.length === 0) return new Map();
+    const rows = await this.entries.find({ where: { eventId: In(eventIds), status: In(QUEUE_STATUSES) } });
+    const counts = new Map<string, number>();
+    for (const row of rows) counts.set(row.eventId, (counts.get(row.eventId) ?? 0) + 1);
+    return counts;
+  }
 
   async join(userId: string, eventId: string, now = new Date(), referralCode?: string | null): Promise<WaitlistEntry> {
     return this.dataSource.transaction(async (manager) => {
@@ -189,6 +197,21 @@ export class WaitlistService {
       }
       return manager.save(WaitlistEntryEntity, next);
     }
+  }
+
+  async inviteNext(eventId: string, count: number, now = new Date()): Promise<number> {
+    const offered: WaitlistEntryEntity[] = [];
+    await this.dataSource.transaction(async (manager) => {
+      const event = await manager.findOne(EventEntity, { where: { id: eventId }, lock: { mode: "pessimistic_write" } });
+      if (!event || event.published === false || event.capacity === null) return;
+      for (let i = 0; i < count && event.bookedCount < event.capacity; i += 1) {
+        const next = await this.onSeatFreed(manager, event, now, true);
+        if (!next) break;
+        offered.push(next);
+      }
+    });
+    for (const entry of offered) await this.notifyOffer(entry);
+    return offered.length;
   }
 
   async fillVacancies(eventId: string, now = new Date()): Promise<void> {

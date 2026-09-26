@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { readInitialEntryMode } from "../App";
 import { AfishaWordmark, EntryPage } from "./EntryPage";
 
 describe("EntryPage", () => {
@@ -36,5 +37,20 @@ describe("AfishaWordmark", () => {
     const html = renderToStaticMarkup(createElement(AfishaWordmark, { className: "app-wordmark--on-media" }));
 
     expect(html).toContain('class="app-wordmark app-wordmark--on-media"');
+  });
+});
+
+describe("readInitialEntryMode", () => {
+  it("skips the chooser when a MAX or browser user session is already present", () => {
+    expect(readInitialEntryMode({ browserAuth: true, hasInitData: false, hasOrganizerSession: false })).toBe("user");
+    expect(readInitialEntryMode({ browserAuth: false, hasInitData: true, hasOrganizerSession: true })).toBe("user");
+  });
+
+  it("opens the organizer space when a stored organizer session is alive", () => {
+    expect(readInitialEntryMode({ browserAuth: false, hasInitData: false, hasOrganizerSession: true })).toBe("organizer");
+  });
+
+  it("keeps the chooser when nobody is signed in", () => {
+    expect(readInitialEntryMode({ browserAuth: false, hasInitData: false, hasOrganizerSession: false })).toBeNull();
   });
 });

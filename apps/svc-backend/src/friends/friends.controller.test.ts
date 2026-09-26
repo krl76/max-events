@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EventFriendsSummary, Friend, FriendActivityByFriend } from "@max-events/api-contracts";
 import { UserEntity } from "../users/user.entity";
-import { EventFriendsController, FriendsController, UserGraphController } from "./friends.controller";
+import { EventFriendsController, FriendsController, UserFollowsController } from "./friends.controller";
 import type { FriendsService } from "./friends.service";
 
 const user = { id: "00000000-0000-4000-8000-00000000000a" } as UserEntity;
@@ -41,6 +41,10 @@ function createService() {
       calls.eventFriends = { userId, eventId: bookedEventId };
       return summary;
     },
+    following: async (userId: string) => {
+      calls.list = userId;
+      return friends;
+    },
     followers: async (userId: string) => {
       calls.followers = userId;
       return friends;
@@ -63,13 +67,13 @@ describe("FriendsController", () => {
   });
 });
 
-describe("UserGraphController", () => {
-  it("reads both follow directions for the person in the path, not the viewer", async () => {
+describe("UserFollowsController", () => {
+  it("reads both follow directions for the person in the path", async () => {
     const { calls, service } = createService();
-    const controller = new UserGraphController(service);
+    const controller = new UserFollowsController(service);
     const other = "00000000-0000-4000-8000-0000000000b1";
-    await expect(controller.following(user, other)).resolves.toEqual(friends);
-    await expect(controller.followers(user, other)).resolves.toEqual(friends);
+    await expect(controller.following(other)).resolves.toEqual(friends);
+    await expect(controller.followers(other)).resolves.toEqual(friends);
     expect(calls.list).toBe(other);
     expect(calls.followers).toBe(other);
   });

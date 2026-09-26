@@ -133,6 +133,18 @@ describe("revokeOrganizerSessions", () => {
     await expect(revokeOrganizerSessions(sessions, null)).resolves.toBe(0);
     expect(sessions.store.size).toBe(1);
   });
+
+  it("drops both T-003 organization-id sessions and leftover T-002 user-id sessions", async () => {
+    const organizationId = "00000000-0000-4000-8000-0000000000c1";
+    const sessions = createSessionStoreFake({
+      [`${ORGANIZER_SESSION_PREFIX}new`]: organizationId,
+      [`${ORGANIZER_SESSION_PREFIX}legacy`]: organizerUserId,
+      [`${ORGANIZER_SESSION_PREFIX}theirs`]: "00000000-0000-4000-8000-0000000000bb",
+    });
+
+    await expect(revokeOrganizerSessions(sessions, organizationId, organizerUserId)).resolves.toBe(2);
+    expect([...sessions.store.values()]).toEqual(["00000000-0000-4000-8000-0000000000bb"]);
+  });
 });
 
 describe("formatRotationReport", () => {

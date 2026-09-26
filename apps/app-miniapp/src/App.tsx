@@ -6,6 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - readInitialEntryMode - cold-start entry: MAX/browser user, stored organizer session, or the chooser
 // - App - IonApp > entry gate -> AuthProvider > UserShell > OnboardingGate > RouteProvider > Layout > routed pages, or the organizer space
 // - UserShell - blocks the user flow outside MAX unless a browser-auth shim supplied initData
 // - OnboardingGate - the onboarding runs once: a device that already passed it goes straight to the feed and never loads the flow chunk
@@ -18,6 +19,7 @@ import { EntryPage, type EntryMode } from "./auth/EntryPage";
 import { getWebApp } from "./max/bridge";
 import { isOnboardingDone } from "./onboarding/onboarding";
 import { OrganizerSpace } from "./organizer/OrganizerSpace";
+import { readStoredSession } from "./organizer/OrganizerAuthContext";
 import { RoutedPages } from "./pages/pages";
 import { RouteProvider } from "./routing/router";
 import { Layout } from "./ui/Layout";
@@ -27,8 +29,20 @@ const BROWSER_AUTH = import.meta.env.VITE_BROWSER_AUTH === "1";
 
 const OnboardingFlow = lazy(() => import("./onboarding/OnboardingFlow").then((module) => ({ default: module.OnboardingFlow })));
 
+export function readInitialEntryMode(input: { browserAuth: boolean; hasInitData: boolean; hasOrganizerSession: boolean }): EntryMode | null {
+  if (input.browserAuth || input.hasInitData) return "user";
+  if (input.hasOrganizerSession) return "organizer";
+  return null;
+}
+
 export function App() {
-  const [mode, setMode] = useState<EntryMode | null>(() => (BROWSER_AUTH || getWebApp()?.initData ? "user" : null));
+  const [mode, setMode] = useState<EntryMode | null>(() =>
+    readInitialEntryMode({
+      browserAuth: BROWSER_AUTH,
+      hasInitData: Boolean(getWebApp()?.initData),
+      hasOrganizerSession: typeof window !== "undefined" && readStoredSession(window.localStorage) !== null,
+    }),
+  );
 
   useEffect(() => {
     getWebApp()?.ready();

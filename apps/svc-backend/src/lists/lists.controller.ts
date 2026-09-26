@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for personal lists — summaries, items with events, add/remove event, and the lists a user makes themselves.
-// SCOPE: GET /lists, POST /lists, PATCH /lists/:id, DELETE /lists/:id, GET /lists/:id, GET/POST /lists/:id/items, DELETE /lists/:id/items/:itemId; CurrentUser identity; a preset list refuses rename and delete.
+// SCOPE: GET /lists, POST /lists, PATCH /lists/:id, DELETE /lists/:id, GET /lists/:id, GET/POST /lists/:id/items, DELETE /lists/:id/items/:itemId, POST /lists/:id/invites, POST /lists/:id/leave; CurrentUser identity; a preset list refuses rename and delete.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./lists.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -10,7 +10,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
-import { AddListItemWriteSchema, CreateListWriteSchema, IdSchema, RenameListWriteSchema, type List, type ListItem, type ListItemCard, type ListScreen, type ListSummary } from "@max-events/api-contracts";
+import { AddListItemWriteSchema, CreateListWriteSchema, IdSchema, InviteListMemberWriteSchema, RenameListWriteSchema, type List, type ListItem, type ListItemCard, type ListScreen, type ListSummary } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { ListsService } from "./lists.service";
@@ -47,6 +47,18 @@ export class ListsController {
   @Delete(":id")
   removeList(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<List> {
     return this.lists.remove(user.id, id);
+  }
+
+  @Post(":id/invites")
+  async invite(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<ListScreen> {
+    const parsed = InviteListMemberWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid list payload");
+    return this.lists.invite(user.id, id, parsed.data.userId);
+  }
+
+  @Post(":id/leave")
+  leave(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<List> {
+    return this.lists.leave(user.id, id);
   }
 
   @Get(":id/items")

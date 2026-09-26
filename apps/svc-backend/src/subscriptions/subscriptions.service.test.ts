@@ -6,9 +6,11 @@ import type { MaxBotClient } from "../max-bot/max-bot.client";
 import { OrganizationEntity } from "../organizations/organization.entity";
 import type { OrganizationsService } from "../organizations/organizations.service";
 import { PlaceEntity } from "../places/place.entity";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
+import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 import { SubscriptionEntity } from "./subscription.entity";
-import { matchesSubscription, SubscriptionsService } from "./subscriptions.service";
+import { inQuietHours, matchesSubscription, SubscriptionsService } from "./subscriptions.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
 const userId = "00000000-0000-4000-8000-00000000000a";
@@ -69,8 +71,10 @@ function createService(options: { organizationName?: string } = {}) {
       return true;
     },
   } as unknown as MaxBotClient;
-  const service = new SubscriptionsService(subscriptions as unknown as Repository<SubscriptionEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, bot, organizations);
-  return { service, messages, subscriptions };
+  const profiles = createStoreRepo<ProfileEntity>();
+  const notifications = createStoreRepo<NotificationEntity>();
+  const service = new SubscriptionsService(subscriptions as unknown as Repository<SubscriptionEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, bot, organizations, profiles as unknown as Repository<ProfileEntity>, notifications as unknown as Repository<NotificationEntity>);
+  return { service, messages, subscriptions, profiles, notifications };
 }
 
 function uniqueViolation(): QueryFailedError {
@@ -155,6 +159,7 @@ describe("SubscriptionsService", () => {
     await service.create(userId, { type: "place", placeId });
     await service.create(userId, { type: "interest", interest: "поход" });
     const event = {
+      id: "00000000-0000-4000-8000-0000000000e1",
       title: "Поход",
       description: "",
       category: "tourism",
@@ -164,6 +169,27 @@ describe("SubscriptionsService", () => {
     const result = await service.notifyNewEvent(event);
     expect(result.sent).toBe(1);
     expect(messages).toHaveLength(1);
+  });
+
+  it("matches onboarding profile interests and skips the MAX DM during quiet hours", async () => {
+    const { service, messages, profiles, notifications } = createService();
+    profiles.store.push({
+      userId,
+      interests: ["джаз"],
+      smartAlerts: { leaveNow: true, weather: true, friendLeft: true, listDigest: true, quietHoursEnabled: true, quietHoursFrom: "00:00", quietHoursTo: "23:59" },
+    } as ProfileEntity);
+    const event = { id: "00000000-0000-4000-8000-0000000000e2", title: "Джаз в парке", description: "", category: "afisha", placeId: null, organizerUserId: null } as EventEntity;
+    const result = await service.notifyNewEvent(event, new Date("2026-09-12T12:00:00Z"));
+    expect(result.sent).toBe(1);
+    expect(messages).toHaveLength(0);
+    expect(notifications.store).toHaveLength(1);
+    expect(notifications.store[0]?.link).toEqual({ target: "event", id: event.id });
+  });
+
+  it("treats a wrapping quiet-hours window as overnight", () => {
+    const alerts = { quietHoursEnabled: true, quietHoursFrom: "23:00", quietHoursTo: "09:00" };
+    expect(inQuietHours(alerts as never, new Date("2026-09-12T21:30:00Z"))).toBe(true);
+    expect(inQuietHours({ ...alerts, quietHoursEnabled: false } as never, new Date("2026-09-12T21:30:00Z"))).toBe(false);
   });
 
   it("follows a user by targetUserId and refuses a self-follow", async () => {

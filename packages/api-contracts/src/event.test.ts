@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CreateEventSchema, EventSchema } from "./event.js";
+import { CatalogCardSchema, CreateEventSchema, EventSchema } from "./event.js";
 
 const validEvent = {
   id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f",
@@ -18,6 +18,22 @@ describe("EventSchema", () => {
     expect(parsed.published).toBe(true);
     expect(parsed.bookingOpensAt).toBeNull();
     expect(parsed.coverUrl).toBeNull();
+  });
+
+  it("accepts catalog card extras", () => {
+    const parsed = EventSchema.parse({
+      ...validEvent,
+      organizerName: "Парк Горького",
+      ratingAverage: 4.9,
+      waitlistCount: 7,
+      distanceKm: 2.1,
+      friendsGoing: [{ id: "018f3c5a-0000-7000-8000-0000000000b1", name: "Анна" }],
+    });
+    expect(parsed.organizerName).toBe("Парк Горького");
+    expect(parsed.ratingAverage).toBe(4.9);
+    expect(parsed.waitlistCount).toBe(7);
+    expect(parsed.distanceKm).toBe(2.1);
+    expect(parsed.friendsGoing).toEqual([{ id: "018f3c5a-0000-7000-8000-0000000000b1", name: "Анна" }]);
   });
 
   it("parses bookingOpensAt as ISO timestamp or null", () => {
@@ -63,6 +79,25 @@ describe("EventSchema", () => {
   it("rejects precipitationProbability outside 0..100", () => {
     const weather = { temperatureC: 12, condition: "ясно", conditionCode: 0, precipitationProbability: 101 };
     expect(EventSchema.safeParse({ ...validEvent, weather }).success).toBe(false);
+  });
+});
+
+describe("CatalogCardSchema", () => {
+  it("wraps an event with nullable distance, rating and place title", () => {
+    const card = CatalogCardSchema.parse({
+      event: validEvent,
+      distanceKm: 2.1,
+      rating: 4.8,
+      placeTitle: "Парк Горького",
+    });
+    expect(card.distanceKm).toBe(2.1);
+    expect(card.rating).toBe(4.8);
+    expect(card.placeTitle).toBe("Парк Горького");
+  });
+
+  it("rejects a card that invents a distance or rating", () => {
+    expect(CatalogCardSchema.safeParse({ event: validEvent, distanceKm: 2.1, rating: 4.8 }).success).toBe(false);
+    expect(CatalogCardSchema.safeParse({ event: validEvent, distanceKm: -1, rating: null, placeTitle: null }).success).toBe(false);
   });
 });
 

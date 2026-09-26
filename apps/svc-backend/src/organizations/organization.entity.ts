@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: TypeORM entity for an Organization account — the organizer identity behind the organizer panel.
-// SCOPE: OrganizationEntity columns: uuid id, name, optional contacts, unique login, password hash, the organizer user its content is still keyed by, timestamps.
+// SCOPE: OrganizationEntity columns: uuid id, name, optional contacts, unique login, password hash, the organizer user its content is still keyed by, setup state of экран 44, timestamps.
 // DEPENDS: typeorm
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -11,6 +11,7 @@
 
 import "reflect-metadata";
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from "typeorm";
+import type { OrganizerActivity, OrganizerPayoutMode, OrganizerSetupStep } from "@max-events/api-contracts";
 
 @Entity("organizations")
 @Unique("UQ_organizations_login", ["login"])
@@ -37,6 +38,33 @@ export class OrganizationEntity {
    */
   @Column({ type: "uuid", nullable: true })
   organizerUserId!: string | null;
+
+  @Column({ type: "varchar", length: 16, default: "venue" })
+  setupStep!: OrganizerSetupStep;
+
+  @Column({ type: "timestamptz", nullable: true })
+  setupCompletedAt!: Date | null;
+
+  @Column({ type: "jsonb", default: [] })
+  activities!: OrganizerActivity[];
+
+  @Column({ type: "uuid", nullable: true })
+  venuePlaceId!: string | null;
+
+  @Column({ type: "varchar", length: 200, default: "" })
+  venueTitle!: string;
+
+  @Column({ type: "varchar", length: 300, default: "" })
+  venueAddress!: string;
+
+  @Column({ type: "varchar", length: 200, default: "" })
+  venueCity!: string;
+
+  @Column({ type: "varchar", length: 16, default: "none" })
+  payoutMode!: OrganizerPayoutMode;
+
+  @Column({ type: "varchar", nullable: true })
+  paymentUrl!: string | null;
 
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;

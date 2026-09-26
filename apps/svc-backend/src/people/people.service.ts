@@ -19,7 +19,7 @@ import { CheckInEntity } from "../checkins/check-in.entity";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
-import { haversineKm } from "../nearby/nearby.service";
+import { haversineKm } from "../geo/haversine";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { moscowDateKey } from "../time/moscow-date";

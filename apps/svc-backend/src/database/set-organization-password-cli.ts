@@ -54,7 +54,7 @@ export async function runSetOrganizationPasswordCli() {
     const sessions = createRedisClient(redisUrl);
     let revoked = 0;
     try {
-      revoked = await revokeOrganizerSessions(sessions as unknown as OrganizerSessionStore, organization.organizerUserId);
+      revoked = await revokeOrganizerSessions(sessions as unknown as OrganizerSessionStore, organization.id, organization.organizerUserId);
     } catch (error: unknown) {
       // The password is already changed, so the operator has to hear that the second half failed.
       throw new Error(`Password updated, but the live organizer sessions were NOT revoked: ${error instanceof Error ? error.message : "redis error"}`);

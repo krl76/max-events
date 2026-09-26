@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { EventDetails } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
-import { addStoryObject, editStoryPoll, hasStoryObject, moveStoryObject, nextStoryAudience, removeStoryObject, resizeStoryObject, StoryCreateView, STORY_CANVASES, STORY_OBJECT_ORDER, STORY_OBJECT_SCALES, STORY_OBJECTS, storyAudienceLabel, storyCanvasImage, storyComposition, storyDraftPoll, storyObjectClass, storyObjectEnabled, storyObjectStyle, storyPoll, storySticker, storyTimeLabel, type StoryDraft } from "./StoryCreatePage";
+import { addStoryObject, clampStoryCrop, editStoryPoll, hasStoryObject, moveStoryObject, nextStoryAudience, panStoryCrop, removeStoryObject, resizeStoryObject, StoryCreateView, STORY_CANVASES, STORY_OBJECT_ORDER, STORY_OBJECT_SCALES, STORY_OBJECTS, storyAudienceLabel, storyCanvasImage, storyComposition, storyDraftPoll, storyObjectClass, storyObjectEnabled, storyObjectStyle, storyPhotoStyle, storyPoll, storySticker, storyTimeLabel, type StoryDraft } from "./StoryCreatePage";
 
 // Локальное время без смещения: «14:00» обязано читаться одинаково в любой зоне прогона.
 const STARTS_AT = "2026-09-19T14:00:00";
@@ -20,7 +20,7 @@ const detailsOf = (over: Partial<EventDetails> = {}): EventDetails => ({
   ...over,
 });
 
-const draftOf = (over: Partial<StoryDraft> = {}): StoryDraft => ({ canvas: "gradient-1", photoUrl: null, text: "", eventId: mockEvents[0].id, poll: null, audience: "close-friends", objects: [], ...over });
+const draftOf = (over: Partial<StoryDraft> = {}): StoryDraft => ({ canvas: "gradient-1", photoUrl: null, text: "", eventId: mockEvents[0].id, poll: null, audience: "close-friends", objects: [], rotate: 0, cropX: 0, cropY: 0, cropping: false, ...over });
 
 /** Черновик с объектами, разложенными по их местам из каталога — то, что получается после кнопок добавления. */
 const filledDraft = (over: Partial<StoryDraft> = {}): StoryDraft => ({ ...draftOf({ objects: STORY_OBJECT_ORDER.reduce<StoryDraft["objects"]>((objects, kind) => addStoryObject(objects, kind), []) }), ...over });
@@ -84,6 +84,13 @@ describe("storyCanvasImage", () => {
 
   it("still answers an image when the canvas is the picked photo, since POST /stories takes no empty url", () => {
     expect(storyCanvasImage("photo").startsWith("data:image/svg+xml;utf8,")).toBe(true);
+  });
+
+  it("clamps the 1:1 pan and offsets object-position from center", () => {
+    expect(clampStoryCrop(80)).toBe(50);
+    expect(clampStoryCrop(-80)).toBe(-50);
+    expect(panStoryCrop(40, 0, 20, 0)).toEqual({ cropX: 50, cropY: 0 });
+    expect(storyPhotoStyle({ rotate: 90, cropX: -20, cropY: 10 })).toMatchObject({ objectPosition: "30% 60%", transform: "rotate(90deg)" });
   });
 });
 
@@ -248,6 +255,11 @@ describe("StoryCreateView", () => {
         ...over,
       }),
     );
+
+  it("turns the crop control on for a photo and keeps it muted on a gradient", () => {
+    expect(view({ draft: draftOf({ canvas: "photo", photoUrl: "data:image/jpeg;base64,xx" }) })).toContain("Кадрировать фото");
+    expect(view()).not.toContain("Кадрировать фото");
+  });
 
   it("открывается пустым холстом: ни чужой подписи, ни стикера, ни опроса, только подсказка", () => {
     const html = view();

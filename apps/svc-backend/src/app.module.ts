@@ -38,7 +38,6 @@ import { FeedModule } from "./feed/feed.module";
 import { ReportsModule } from "./reports/reports.module";
 import { PlacePageModule } from "./place-page/place-page.module";
 import { MicroEventsModule } from "./microevents/micro-events.module";
-import { CollectionsModule } from "./collections/collections.module";
 import { NearbyModule } from "./nearby/nearby.module";
 import { RoutesModule } from "./routes/routes.module";
 import { LeaveNowModule } from "./leave-now/leave-now.module";
@@ -56,6 +55,9 @@ import { VotesModule } from "./votes/votes.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { AssistModule } from "./assist/assist.module";
 import { StoriesModule } from "./stories/stories.module";
+import { SwipeModule } from "./swipe/swipe.module";
+import { SlotsModule } from "./slots/slots.module";
+import { UploadsModule } from "./uploads/uploads.module";
 
 @Module({
   imports: [
@@ -94,13 +96,15 @@ import { StoriesModule } from "./stories/stories.module";
     ReportsModule,
     PlacePageModule,
     MicroEventsModule,
-    CollectionsModule,
     NearbyModule,
     RoutesModule,
     LeaveNowModule,
     SmartAlertsModule,
     TasteModule,
     DiscoveryModule,
+    SwipeModule,
+    SlotsModule,
+    UploadsModule,
     PeopleModule,
     OrganizerModule,
     StatsModule,

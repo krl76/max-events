@@ -105,6 +105,11 @@ export function MyOrganizerRatingCard({ organizationId }: { organizationId: stri
 
 export type EventStatsState = { status: "loading" } | { status: "error" } | { status: "ready"; stats: OrganizerEventStats; report: EventSalesReport };
 
+function salesSummary(report: EventSalesReport): string {
+  if (report.provider !== "sandbox") return "Продажи: приём оплаты в продукте выключен — цифры не выплата";
+  return `Продажи (песочница, не выплата): ${report.grossRub} ₽ · комиссия ${report.commissionRub} ₽ · нетто ${report.netRub} ₽`;
+}
+
 export function EventStatsView({ stats, report }: { stats: OrganizerEventStats; report: EventSalesReport }) {
   return (
     <div>
@@ -114,14 +119,12 @@ export function EventStatsView({ stats, report }: { stats: OrganizerEventStats; 
         <li>Отмены: {stats.cancellations}</li>
         <li>Оплаченные записи: {stats.paidBookings}</li>
       </ul>
-      <p className="app-card-subtitle">
-        Продажи: {report.grossRub} ₽ · комиссия {report.commissionRub} ₽ · к выплате {report.netRub} ₽
-      </p>
+      <p className="app-card-subtitle">{salesSummary(report)}</p>
       {report.rows.length > 0 && (
         <ul className="app-participation-counters">
           {report.rows.map((row) => (
             <li key={row.paymentId}>
-              {row.grossRub} ₽ · комиссия {row.commissionRub} ₽ · {row.netRub} ₽ к выплате
+              {row.grossRub} ₽ · комиссия {row.commissionRub} ₽ · {row.netRub} ₽ нетто
             </li>
           ))}
         </ul>

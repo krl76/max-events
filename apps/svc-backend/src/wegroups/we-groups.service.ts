@@ -28,7 +28,7 @@ import { ParticipationEntity } from "../participations/participation.entity";
 import { ReviewEntity } from "../reviews/review.entity";
 import { toDayRoute } from "../routes/routes.service";
 import { UserEntity } from "../users/user.entity";
-import { WeGroupEntity, WeGroupItemEntity, WeGroupMemberEntity } from "./we-group.entity";
+import { WeGroupEntity, WeGroupItemEntity, WeGroupMemberEntity, WeGroupPhotoEntity } from "./we-group.entity";
 
 @Injectable()
 export class WeGroupsService {
@@ -46,6 +46,7 @@ export class WeGroupsService {
     @InjectRepository(PlanExpenseEntity) private readonly expenses: Repository<PlanExpenseEntity>,
     @InjectRepository(ReviewEntity) private readonly reviews: Repository<ReviewEntity>,
     @InjectRepository(ParticipationEntity) private readonly participations: Repository<ParticipationEntity>,
+    @InjectRepository(WeGroupPhotoEntity) private readonly groupPhotos: Repository<WeGroupPhotoEntity>,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
   ) {}
 
@@ -109,6 +110,12 @@ export class WeGroupsService {
     return this.get(actorId, groupId);
   }
 
+  async addPhoto(actorId: string, groupId: string, url: string): Promise<WeGroupScreen> {
+    const group = await this.requireActiveMember(actorId, groupId);
+    await this.groupPhotos.save(this.groupPhotos.create({ groupId: group.id, userId: actorId, url }));
+    return this.get(actorId, groupId);
+  }
+
   async archive(actorId: string, groupId: string, now = new Date()): Promise<WeGroupScreen> {
     const group = await this.requireMember(actorId, groupId);
     if (group.ownerUserId !== actorId) throw new ForbiddenException("Only the owner can archive the group");
@@ -147,10 +154,12 @@ export class WeGroupsService {
       .map((row) => userById.get(row.userId))
       .filter((row): row is UserEntity => row !== undefined)
       .map(toFriendDto);
-    const photos = await this.memberPhotos(
+    const uploaded = await this.groupPhotos.find({ where: { groupId: group.id } });
+    const reviewPhotos = await this.memberPhotos(
       memberIds,
       events.map((row) => row.id),
     );
+    const photos = [...uploaded.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()).map((row) => ({ url: row.url })), ...reviewPhotos];
     return {
       group: toWeGroupDto(group),
       members,

@@ -11,11 +11,12 @@
 
 import { Module } from "@nestjs/common";
 import { EventsModule } from "../events/events.module";
+import { UsersModule } from "../users/users.module";
 import { WheretoController } from "./whereto.controller";
 import { WheretoService } from "./whereto.service";
 
 @Module({
-  imports: [EventsModule],
+  imports: [EventsModule, UsersModule],
   controllers: [WheretoController],
   providers: [WheretoService],
 })
