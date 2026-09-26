@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: NL event assist — parse via LlmProvider, match catalog, explain from history and a friend's lists.
-// SCOPE: suggest(userId, query) and planSaturday (the query shapes the day through the same LLM parse); keys never logged; max 7 picks, max 4 day stops.
+// SCOPE: suggest(userId, query), planSaturday, and chat; one prepareQuery per call; Saturday assembly does not call the model again; keys and messages never logged; max 7 picks, max 4 day stops, max 4 chat cards.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, @max-events/api-contracts, events/checkins/lists/friends
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -10,13 +10,13 @@
 // - formatAssistSummary - README-style copy
 // - nextSaturdayKey - next Saturday YYYY-MM-DD in Moscow
 // - formatDaySummary - README-style copy for a generated day
-// - AssistService - suggest, planSaturday (LLM criteria shape the day, skips past Saturday hours, idempotent save)
+// - AssistService - suggest, planSaturday, chat (chat does not call planSaturday; Saturday word check stays in this file)
 // END_MODULE_MAP
 
 import { BadRequestException, HttpException, HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
-import type { AssistCriteria, AssistDayResponse, AssistPick, AssistResponse, Event, PlanCard } from "@max-events/api-contracts";
+import type { AssistChatResponse, AssistChatWrite, AssistCriteria, AssistDayResponse, AssistPick, AssistResponse, Event, PlanCard } from "@max-events/api-contracts";
 import { moscowIsoWeekday } from "@max-events/api-contracts";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { toEventDto } from "../events/event.mapper";
@@ -27,7 +27,8 @@ import { ListEntity } from "../lists/list.entity";
 import { PlansService } from "../plans/plans.service";
 
 import { moscowDateKey } from "../time/moscow-date";
-import { LLM_PROVIDER, type LlmProvider } from "./llm-provider";
+import { isDirectInsult, offeredChoiceIndex } from "./chat-guard";
+import { LLM_PROVIDER, type AssistChatDraft, type LlmProvider } from "./llm-provider";
 import { parseAssistQuery } from "./parse-nl";
 import { AssistRateLimiter } from "./rate-limit";
 import { sanitizeAssistQuery } from "./sanitize";
@@ -71,6 +72,55 @@ export class AssistService {
   async planSaturday(userId: string, query: string, save = false, now = new Date()): Promise<AssistDayResponse> {
     const cleaned = this.prepareQuery(userId, query);
     const criteria = await this.parseCriteria(cleaned);
+    return this.assembleSaturday(userId, criteria, save, now);
+  }
+
+  async chat(userId: string, input: AssistChatWrite, now = new Date()): Promise<AssistChatResponse> {
+    const cleaned = this.prepareQuery(userId, input.message);
+    if (isDirectInsult(cleaned)) return { silence: true, fallback: false };
+
+    const future = await this.futureEvents(now);
+    const byId = new Map(future.map((event) => [event.id, event]));
+    // Index the cards the screen offered. A missing id is not renumbered; it simply does not open.
+    const choiceIndex = offeredChoiceIndex(cleaned, input.offeredEventIds.length);
+    const chosen = choiceIndex === null ? undefined : byId.get(input.offeredEventIds[choiceIndex] ?? "");
+    if (chosen) {
+      return { silence: false, fallback: false, reply: `Открываю «${chosen.title}».`, items: [{ event: chosen, explanation: "Подходит по запросу" }], openEventId: chosen.id };
+    }
+
+    const cards = future.slice(0, 12).map((event) => ({ id: event.id, title: event.title, startsAt: event.startsAt, priceRub: event.priceRub, category: event.category }));
+    let draft: AssistChatDraft;
+    try {
+      draft = await this.llm.chatTurn(cleaned, input.transcript, cards);
+    } catch {
+      return this.chatFallback(userId, cleaned, input.save === true, now, future);
+    }
+    if (draft.refuse) return { silence: true, fallback: false };
+    if (draft.plan) {
+      const day = await this.assembleSaturday(userId, draft.criteria ?? parseAssistQuery(cleaned), input.save === true, now);
+      return { silence: false, fallback: false, reply: draft.reply, day };
+    }
+
+    const allowed = new Set<string>([...cards.map((card) => card.id), ...input.offeredEventIds.filter((id) => byId.has(id))]);
+    const ids: string[] = [];
+    for (const id of draft.eventIds) {
+      if (!allowed.has(id) || ids.includes(id)) continue;
+      ids.push(id);
+    }
+    const openId = draft.openEventId && allowed.has(draft.openEventId) ? draft.openEventId : null;
+    if (openId && !ids.includes(openId)) ids.push(openId);
+    let limited = ids.slice(0, 4);
+    // openEventId has to be one of items, and items stay at most 4.
+    if (openId && !limited.includes(openId)) limited = [...limited.slice(0, 3), openId];
+    const items: AssistPick[] = limited.flatMap((id) => {
+      const event = byId.get(id);
+      return event ? [{ event, explanation: "Подходит по запросу" }] : [];
+    });
+    const openEventId = openId && items.some((pick) => pick.event.id === openId) ? openId : undefined;
+    return { silence: false, fallback: false, reply: draft.reply, ...(items.length > 0 ? { items } : {}), ...(openEventId ? { openEventId } : {}) };
+  }
+
+  private async assembleSaturday(userId: string, criteria: AssistCriteria, save: boolean, now: Date): Promise<AssistDayResponse> {
     const date = nextSaturdayKey(now);
     const saturday = (await this.events.find())
       .filter((row) => row.published !== false && moscowDateKey(row.startsAt) === date && row.startsAt.getTime() >= now.getTime())
@@ -99,6 +149,26 @@ export class AssistService {
       planDraft,
       plan,
     };
+  }
+
+  private async futureEvents(now: Date): Promise<Event[]> {
+    return (await this.events.find())
+      .filter((row) => row.published !== false && row.startsAt.getTime() >= now.getTime())
+      .map((row) => toEventDto(row))
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+  }
+
+  private async chatFallback(userId: string, cleaned: string, save: boolean, now: Date, future: Event[]): Promise<AssistChatResponse> {
+    const criteria = parseAssistQuery(cleaned);
+    const recognized = criteriaRecognized(criteria);
+    const reply = recognized ? "Не получилось сформировать ответ. Подобрал по словам запроса." : "Не получилось сформировать ответ. Вот что есть в афише.";
+    if (isSaturdayPlanPrompt(cleaned)) {
+      const day = await this.assembleSaturday(userId, criteria, save, now);
+      return { silence: false, fallback: true, reply, day };
+    }
+    const picked = (recognized ? matchAssistEvents(future, criteria) : future).slice(0, 4);
+    const items = picked.map((event) => ({ event, explanation: "Подходит по запросу" }));
+    return { silence: false, fallback: true, reply, ...(items.length > 0 ? { items } : {}) };
   }
 
   private async parseCriteria(cleaned: string): Promise<AssistCriteria> {
@@ -201,4 +271,13 @@ function matchesGenre(event: Event, genre: AssistCriteria["genre"]): boolean {
 function moscowHour(date: Date): number {
   const hour = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Moscow", hour: "2-digit", hourCycle: "h23" }).formatToParts(date).find((part) => part.type === "hour")?.value;
   return Number(hour ?? "0");
+}
+
+function criteriaRecognized(criteria: AssistCriteria): boolean {
+  return criteria.when !== "any" || criteria.budgetMaxRub !== null || criteria.company !== "alone" || criteria.genre !== "any";
+}
+
+function isSaturdayPlanPrompt(text: string): boolean {
+  const lower = text.toLowerCase();
+  return lower.includes("план") && (lower.includes("суббот") || lower.includes("шашлык") || lower.includes("мангал"));
 }
