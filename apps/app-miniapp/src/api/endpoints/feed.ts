@@ -194,6 +194,8 @@ export interface FeedFriendCard {
   commentsCount: number;
   /** When the post was published; null when the card was built from a post DTO that carries no time at all (see feedCardsFromPosts). */
   publishedAt: string | null;
+  /** Attached impression photo; null when the post has none. */
+  photoUrl: string | null;
 }
 
 /** Venue post of the home feed (макет, экран 03): a place posting its own offer, with the viewer status block. */
@@ -267,7 +269,9 @@ function parseFriendCard(raw: Record<string, unknown>): FeedFriendCard | null {
   if (typeof raw.id !== "string" || typeof raw.text !== "string" || !isNullableString(raw.publishedAt)) return null;
   if (typeof raw.likesCount !== "number" || typeof raw.likedByMe !== "boolean" || typeof raw.commentsCount !== "number") return null;
   if (typeof raw.live !== "boolean" || typeof raw.hit !== "boolean" || !isNullableString(raw.placeTitle) || !isNullableNumber(raw.distanceKm)) return null;
-  return { kind: "friend", id: raw.id, author: author.data, placeTitle: raw.placeTitle, distanceKm: raw.distanceKm, event: event.data, live: raw.live, hit: raw.hit, counts, myStatus: myStatus.value, text: raw.text, likesCount: raw.likesCount, likedByMe: raw.likedByMe, comments: comments.data, commentsCount: raw.commentsCount, publishedAt: raw.publishedAt };
+  const photoUrl = raw.photoUrl === undefined ? null : raw.photoUrl;
+  if (!isNullableString(photoUrl)) return null;
+  return { kind: "friend", id: raw.id, author: author.data, placeTitle: raw.placeTitle, distanceKm: raw.distanceKm, event: event.data, live: raw.live, hit: raw.hit, counts, myStatus: myStatus.value, text: raw.text, likesCount: raw.likesCount, likedByMe: raw.likedByMe, comments: comments.data, commentsCount: raw.commentsCount, publishedAt: raw.publishedAt, photoUrl };
 }
 
 function parseQuote(raw: unknown): { ok: true; value: FeedPlaceCard["quote"] } | { ok: false } {
@@ -348,6 +352,7 @@ export function feedCardsFromPosts(posts: FeedPost[], events: Event[], places: P
         // The wall answers the whole thread, so its length IS the count rather than a head of it.
         commentsCount: post.comments.length,
         publishedAt: null,
+        photoUrl: post.photoUrl,
       },
     ];
   });

@@ -207,14 +207,15 @@ describe("initEventMap", () => {
     expect((leaflet.divIcon.mock.calls[0][0] as { html: string }).html).toContain(">3<");
   });
 
-  it("marks where the viewer stands and dots the line to the selected object", async () => {
-    await initEventMap(container, view([], { origin: [55.75, 37.61], route: [55.76, 37.62] }), callbacks());
+  it("marks where the viewer stands and draws the walking geometry", async () => {
+    await initEventMap(container, view([], { origin: [55.75, 37.61], route: [[55.75, 37.61], [55.753, 37.615], [55.76, 37.62]] }), callbacks());
 
     expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin app-map-pin--me" }));
     expect((leaflet.divIcon.mock.calls[0][0] as { html: string }).html).toContain("Вы здесь");
     expect(leaflet.polyline).toHaveBeenCalledWith(
       [
         [55.75, 37.61],
+        [55.753, 37.615],
         [55.76, 37.62],
       ],
       expect.objectContaining({ className: "app-map-route" }),

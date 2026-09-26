@@ -250,6 +250,7 @@ function toFriendCard(post: FeedPost, event: EventEntity, place: Place | null, b
     comments: post.comments,
     commentsCount: post.comments.length,
     publishedAt: createdAt ? createdAt.toISOString() : null,
+    photoUrl: post.photoUrl ?? null,
   };
 }
 

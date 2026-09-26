@@ -129,6 +129,7 @@ export const FeedFriendCardSchema = z.object({
   comments: z.array(FeedCommentSchema),
   commentsCount: z.number().int().min(0),
   publishedAt: TimestampSchema.nullable(),
+  photoUrl: photoUrlSchema.nullable().default(null),
 });
 export type FeedFriendCard = z.infer<typeof FeedFriendCardSchema>;
 

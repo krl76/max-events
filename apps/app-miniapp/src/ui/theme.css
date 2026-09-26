@@ -2215,6 +2215,71 @@ html[data-theme="dark"] body {
   white-space: nowrap;
 }
 
+.app-feed-author-btn {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  gap: var(--app-space-s);
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.app-feed-photo-btn {
+  background: none;
+  border: none;
+  display: block;
+  padding: 0;
+  width: 100%;
+}
+
+.app-feed-photo {
+  aspect-ratio: 4 / 5;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-feed-event {
+  background-color: transparent;
+  border: none;
+  border-radius: var(--app-radius-media);
+  box-sizing: border-box;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 6px;
+  margin: var(--app-space-s) var(--app-space-screen) 0;
+  overflow: hidden;
+  padding: var(--app-space-m);
+  text-align: left;
+  width: calc(100% - 2 * var(--app-space-screen));
+}
+
+.app-feed-event-meta {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: var(--app-font-size-description);
+}
+
+.app-feed-event-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.app-feed-event-title {
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
 /* Hero поста: цвет даёт категория (.app-media--*), поэтому фон здесь только обнуляется как у кнопки */
 .app-feed-hero {
   align-items: flex-start;
@@ -4822,12 +4887,49 @@ html[data-theme="dark"] body {
 .app-map16-weather {
   align-items: center;
   background: var(--app-card);
+  border: none;
   border-radius: var(--app-radius-pill);
   box-shadow: var(--app-shadow-lift);
+  color: inherit;
+  cursor: pointer;
   display: flex;
+  font: inherit;
   gap: 6px;
   height: 40px;
   padding: 0 var(--app-space-m);
+}
+
+.app-map16-tool {
+  align-items: center;
+  background: var(--app-card);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  box-shadow: var(--app-shadow-lift);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+  height: 40px;
+  padding: 0 12px;
+}
+
+.app-map16-weather-sheet {
+  background: var(--app-card);
+  border-radius: var(--app-radius-card);
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  box-shadow: var(--app-shadow-lift);
+  left: var(--app-space-screen);
+  padding: var(--app-space-l);
+  position: absolute;
+  right: var(--app-space-screen);
+  z-index: 4;
+}
+
+.app-map16-weather-now,
+.app-map16-weather-next {
+  margin: var(--app-space-s) 0 0;
 }
 
 .app-map16-weather-value {

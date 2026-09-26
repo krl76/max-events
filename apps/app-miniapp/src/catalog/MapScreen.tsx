@@ -34,11 +34,12 @@ import "leaflet/dist/leaflet.css";
 import { apiClient, type MapWeather, type TravelOption } from "../api/client";
 import { pluralRu } from "./format";
 import { useViewerOrigin } from "../geo/viewer-origin";
-import { ActionIcon, TabIconGlyph } from "../ui/icons";
+import { ActionIcon } from "../ui/icons";
 import { AppChip } from "../ui/primitives";
 import { useAppliedScheme, type ThemeScheme } from "../ui/theme";
 import { basemapCredit, MAP_BASEMAPS, readBasemapPreference, STANDARD_BASEMAP, writeBasemapPreference, type MapBasemap } from "./basemaps";
 import { buildMapMarkers, clusterMapMarkers, MAP_CLUSTER_MAX_ZOOM, type MapMarker, type MapPinGlyph } from "./mapMarkers";
+import { walkingRoute } from "./walkingRoute";
 import { useLeafletMap } from "./useLeafletMap";
 import { mountVectorBasemap, type VectorBasemapLayer } from "./vectorBasemap";
 
@@ -229,8 +230,8 @@ export interface MapView {
   markers: MapMarker[];
   /** Where the viewer stands: draws the «Вы здесь» marker and anchors the route. */
   origin: [number, number] | null;
-  /** Straight line from the origin to the selected object; the routing domain answers no geometry yet (#504). */
-  route: [number, number] | null;
+  /** Walking geometry from the origin to the selected object. */
+  route: [number, number][] | null;
   /** Ключ выбранного маркера: его пин приподнят, чтобы карточка внизу и точка на карте читались как одно. */
   selectedKey: string | null;
   /** Подложка, с которой карта берёт тайлы; смена id на месте меняет слой тайлов, ничего больше не пересобирая. */
@@ -322,7 +323,7 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
     for (const cluster of clusters) {
       if (cluster.markers.length > 1) {
         const size = clusterSize(cluster.markers.length);
-        const icon = L.divIcon({ className: "app-map-pin app-map-pin--cluster", iconSize: [size, size], html: `<span class="app-map-cluster"><span class="app-map-cluster-count">${cluster.markers.length}</span></span>` });
+        const icon = L.divIcon({ className: "app-map-pin app-map-pin--cluster", iconSize: [size, size], html: `<span class="app-map-cluster" aria-label="${cluster.markers.length} точек"><span class="app-map-cluster-count">${cluster.markers.length}</span></span>` });
         const bubble = L.marker([cluster.lat, cluster.lng], { icon }).addTo(pins);
         // Тап по скоплению раскрывает его, а не открывает случайный объект из середины.
         bubble.on("click", () => map.flyToBounds(L.latLngBounds(cluster.markers.map((marker) => [marker.lat, marker.lng] as [number, number])), { padding: [56, 56], maxZoom: MAP_CLUSTER_MAX_ZOOM + 2, duration: 0.5 }));
@@ -342,9 +343,7 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
     overlay.clearLayers();
     if (view.origin === null) return;
     L.marker(view.origin, { icon: L.divIcon({ className: "app-map-pin app-map-pin--me", iconSize: [22, 22], iconAnchor: [11, 11], html: '<span class="app-map-me-dot"></span><span class="app-map-me-label">Вы здесь</span>' }) }).addTo(overlay);
-    // The line is the honest shape of what we know: a distance, not a turn-by-turn route (#504) —
-    // пунктир и говорит об этом прямо, сплошная линия обещала бы проложенный маршрут.
-    if (view.route) L.polyline([view.origin, view.route], { className: "app-map-route", weight: 4, dashArray: "1 9", lineCap: "round" }).addTo(overlay);
+    if (view.route !== null && view.route.length >= 2) L.polyline(view.route, { className: "app-map-route", weight: 4, lineCap: "round" }).addTo(overlay);
   }
 
   map.on("zoomend", drawPins);
@@ -472,6 +471,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<MapMarker | null>(null);
   const [routeOn, setRouteOn] = useState(false);
+  const [routePath, setRoutePath] = useState<[number, number][] | null>(null);
+  const [weatherOpen, setWeatherOpen] = useState(false);
   const [centered, setCentered] = useState(false);
   const [weather, setWeather] = useState<MapWeather | null>(null);
   const [travel, setTravel] = useState<TravelOption[]>([]);
@@ -559,7 +560,24 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   }, [selectedPlaceId, origin.latitude, origin.longitude]);
 
   const originPoint = useMemo<[number, number]>(() => [origin.latitude, origin.longitude], [origin.latitude, origin.longitude]);
-  const routePoint = useMemo<[number, number] | null>(() => (routeOn && selectedPlace !== undefined ? [selectedPlace.latitude, selectedPlace.longitude] : null), [routeOn, selectedPlace]);
+  useEffect(() => {
+    if (!routeOn || selectedPlace === undefined) {
+      setRoutePath(null);
+      return;
+    }
+    const dest: [number, number] = [selectedPlace.latitude, selectedPlace.longitude];
+    setRoutePath([originPoint, dest]);
+    let alive = true;
+    walkingRoute(originPoint, dest).then(
+      (path) => {
+        if (alive) setRoutePath(path);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [routeOn, originPoint, selectedPlace]);
   const select = useCallback((marker: MapMarker) => {
     setSelected(marker);
     setRouteOn(false);
@@ -584,7 +602,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
     }),
     [],
   );
-  const view = useMemo<MapView>(() => ({ markers, origin: originPoint, route: routePoint, selectedKey: selected?.key ?? null, basemap, scheme }), [markers, originPoint, routePoint, selected, basemap, scheme]);
+  const view = useMemo<MapView>(() => ({ markers, origin: originPoint, route: routePath, selectedKey: selected?.key ?? null, basemap, scheme }), [markers, originPoint, routePath, selected, basemap, scheme]);
   const create = useCallback((container: HTMLElement, initial: MapView) => initEventMap(container, initial, callbacks), [callbacks]);
   const { containerRef, handleRef, status } = useLeafletMap<MapView, MapHandle>(create, view);
 
@@ -641,17 +659,17 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
         )}
         <div className="app-map16-top-right">
           {weather !== null && (
-            <span className="app-map16-weather">
+            <button type="button" className="app-map16-weather" onClick={() => setWeatherOpen(true)}>
               <ActionIcon name="weather" size={20} />
               <span className="app-map16-weather-value">{formatMapTemperature(weather)}</span>
               {weatherChange !== null && <span className="app-map16-weather-note">{weatherChange}</span>}
-            </span>
+            </button>
           )}
-          <button type="button" className="app-map16-round" aria-label="Слои карты" aria-expanded={layersOpen} onClick={() => setLayersOpen((open) => !open)}>
-            <ActionIcon name="layers" size={20} />
+          <button type="button" className="app-map16-tool" aria-expanded={layersOpen} onClick={() => setLayersOpen((open) => !open)}>
+            Слои
           </button>
-          <button type="button" className="app-map16-round" aria-label="Подложка карты" aria-expanded={basemapsOpen} onClick={() => setBasemapsOpen((open) => !open)}>
-            <TabIconGlyph name="map" size={20} />
+          <button type="button" className="app-map16-tool" aria-expanded={basemapsOpen} onClick={() => setBasemapsOpen((open) => !open)}>
+            Карта
           </button>
         </div>
       </div>
@@ -703,6 +721,18 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
           и менялась вместе с подложкой. На запасном полотне тайлов нет, и ссылаться там не на что: подпись снимается с подложкой. */}
       {status !== "error" && <span className="app-map16-credit">{basemapCredit(basemap)}</span>}
       {selected !== null && <MapSelectionCard title={selected.title} subtitle={selected.subtitle} category={selectedCategory} friendsLine={friendsLine} travel={travel} rainHint={mapRainHint(weather, travel)} routeOn={routeOn} onRoute={() => setRouteOn((on) => !on)} onDiscuss={onDiscuss} onOpen={() => (selected.eventId !== null ? onOpenEvent(selected.eventId) : selected.placeId !== null ? onOpenPlace(selected.placeId) : undefined)} onClose={() => setSelected(null)} />}
+      {weatherOpen && weather !== null && (
+        <section className="app-map16-weather-sheet" role="dialog" aria-label="Прогноз погоды">
+          <button type="button" className="app-map16-card-close" aria-label="Закрыть" onClick={() => setWeatherOpen(false)}>
+            <ActionIcon name="close" size={16} strokeWidth={2} />
+          </button>
+          <h2 className="app-map16-card-title">Погода сейчас</h2>
+          <p className="app-map16-weather-now">
+            {formatMapTemperature(weather)} · {weather.condition}
+          </p>
+          {weatherChange !== null && <p className="app-map16-weather-next">Ожидается: {weatherChange}</p>}
+        </section>
+      )}
       <form className="app-map16-search" role="search" onSubmit={(event) => event.preventDefault()}>
         <ActionIcon name="search" size={18} />
         <input className="app-map16-search-input" type="search" aria-label="Искать на карте" placeholder={`${city} · искать на карте`} value={query} onChange={(typed) => setQuery(typed.target.value)} />

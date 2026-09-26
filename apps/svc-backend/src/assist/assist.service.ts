@@ -13,7 +13,7 @@
 // - AssistService - suggest, planSaturday (LLM criteria shape the day, skips past Saturday hours, idempotent save)
 // END_MODULE_MAP
 
-import { BadRequestException, HttpException, HttpStatus, Inject, Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, HttpException, HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import type { AssistCriteria, AssistDayResponse, AssistPick, AssistResponse, Event, PlanCard } from "@max-events/api-contracts";
@@ -27,7 +27,8 @@ import { ListEntity } from "../lists/list.entity";
 import { PlansService } from "../plans/plans.service";
 
 import { moscowDateKey } from "../time/moscow-date";
-import { LLM_PROVIDER, LlmProviderError, type LlmProvider } from "./llm-provider";
+import { LLM_PROVIDER, type LlmProvider } from "./llm-provider";
+import { parseAssistQuery } from "./parse-nl";
 import { AssistRateLimiter } from "./rate-limit";
 import { sanitizeAssistQuery } from "./sanitize";
 
@@ -103,9 +104,8 @@ export class AssistService {
   private async parseCriteria(cleaned: string): Promise<AssistCriteria> {
     try {
       return await this.llm.parseQuery(cleaned);
-    } catch (error) {
-      if (error instanceof LlmProviderError) throw new ServiceUnavailableException(error.message);
-      throw error;
+    } catch {
+      return parseAssistQuery(cleaned);
     }
   }
 

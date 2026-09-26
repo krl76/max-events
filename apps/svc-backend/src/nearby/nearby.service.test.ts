@@ -74,6 +74,16 @@ describe("NearbyService", () => {
     expect(timeline.inAnHour).toHaveLength(0);
   });
 
+  it("honours a tighter search radius from settings", async () => {
+    const near = place(placeId, 55.751, 37.618);
+    const mid = place("00000000-0000-4000-8000-0000000000a5", 55.8, 37.7);
+    const events = [event("00000000-0000-4000-8000-0000000000e1", new Date("2026-09-12T14:20:00+03:00"), placeId), event("00000000-0000-4000-8000-0000000000e2", new Date("2026-09-12T14:20:00+03:00"), mid.id)];
+    const service = new NearbyService({ find: async () => events } as unknown as Repository<EventEntity>, { find: async () => [near, mid] } as unknown as Repository<PlaceEntity>, { find: async () => [] } as unknown as Repository<ParticipationEntity>, { friendIds: async () => new Set() } as unknown as FriendsService, promotionsStub());
+    const tight = await service.timeline(55.75, 37.62, now, 3);
+    expect(tight.now).toHaveLength(1);
+    expect(tight.now[0]?.event.id).toBe("00000000-0000-4000-8000-0000000000e1");
+  });
+
   it("marks pin-promoted events and sorts them first", async () => {
     const near = place(placeId, 55.751, 37.618);
     const closer = place("00000000-0000-4000-8000-0000000000a4", 55.7505, 37.6205);

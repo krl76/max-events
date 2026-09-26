@@ -278,6 +278,7 @@ function friendCard(post: FeedPost, event: Event, extra: FeedCardExtra | undefin
     comments: post.comments,
     commentsCount: post.comments.length + (extra?.extraComments ?? 0),
     publishedAt: publishedAgo(extra?.agoMinutes ?? 0),
+    photoUrl: post.photoUrl,
   };
 }
 

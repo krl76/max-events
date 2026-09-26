@@ -142,7 +142,12 @@ export function recordSwipeDecision(placeId: string, decision: SwipeDecision): b
   return true;
 }
 
-const NEARBY_MAX_KM = 15;
+const DEFAULT_NEARBY_RADIUS_KM = 15;
+
+function nearbyRadiusKm(km: number | undefined): number {
+  if (km === undefined || !Number.isFinite(km) || km <= 0) return DEFAULT_NEARBY_RADIUS_KM;
+  return Math.min(100, km);
+}
 
 /** Exclusive bucket of an event start relative to the demo now (mirrors the backend nearbyBucket). */
 function mockNearbyBucket(startsAt: string, now: Date = MOCK_NOW): NearbyBucket | null {
@@ -156,7 +161,7 @@ function mockNearbyBucket(startsAt: string, now: Date = MOCK_NOW): NearbyBucket 
 }
 
 /** Four-bucket nearby timeline from fixtures within 48h of the demo now and 15 km of the requested coords, promoted first then by distance (backend parity). */
-export function nearbyTimeline(latitude: number, longitude: number, now: Date = MOCK_NOW): NearbyTimeline {
+export function nearbyTimeline(latitude: number, longitude: number, now: Date = MOCK_NOW, radiusKm?: number): NearbyTimeline {
   const timeline: NearbyTimeline = { now: [], inAnHour: [], evening: [], tomorrow: [] };
   const cards: NearbyCard[] = [];
   const horizon = now.getTime() + 48 * HOUR_MS;
@@ -169,7 +174,7 @@ export function nearbyTimeline(latitude: number, longitude: number, now: Date = 
     const bucket = mockNearbyBucket(item.startsAt, now);
     if (bucket === null) continue;
     const km = haversineKm(latitude, longitude, place.latitude, place.longitude);
-    if (km > NEARBY_MAX_KM) continue;
+    if (km > nearbyRadiusKm(radiusKm)) continue;
     cards.push({ event: item, place, distanceKm: Math.round(km * 10) / 10, bucket, promoted: item.promoted });
   }
   cards.sort((a, b) => Number(b.promoted) - Number(a.promoted) || a.distanceKm - b.distanceKm || a.event.startsAt.localeCompare(b.event.startsAt));
@@ -194,7 +199,7 @@ export const MOCK_LEISURE_PLACE_PRICE: Record<PlaceCategory, { priceRub: number 
 const LEISURE_STOP_MINUTES = 90;
 
 /** Deterministic per-mood leisure chains from fixtures inside the free window; the title is the chain joined by arrows (README «Парк → выставка → бар» style). */
-export function leisureOptions(hours: number, mood: LeisureMood, latitude: number, longitude: number, now: Date = MOCK_NOW): LeisureChain[] {
+export function leisureOptions(hours: number, mood: LeisureMood, latitude: number, longitude: number, now: Date = MOCK_NOW, radiusKm?: number): LeisureChain[] {
   const until = now.getTime() + hours * HOUR_MS;
   const events = mockEvents
     .filter((item) => {
@@ -204,7 +209,7 @@ export function leisureOptions(hours: number, mood: LeisureMood, latitude: numbe
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   const places = mockPlaces
     .map((place) => ({ place, km: haversineKm(latitude, longitude, place.latitude, place.longitude) }))
-    .filter((row) => row.km <= NEARBY_MAX_KM)
+    .filter((row) => row.km <= nearbyRadiusKm(radiusKm))
     .sort((a, b) => a.km - b.km);
   const km = (place: Place | undefined): number | null => (place === undefined ? null : Math.round(haversineKm(latitude, longitude, place.latitude, place.longitude) * 10) / 10);
   // startsAt stays null here: the chain is scheduled in one pass below, once its order is known.

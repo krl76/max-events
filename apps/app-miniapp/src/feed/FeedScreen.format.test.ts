@@ -23,6 +23,7 @@ const friendCard: FeedFriendCard = {
   comments: [{ id: "31000000-0000-4000-8000-000000000001", author: mockFriends[1], text: "буду к девяти" }],
   commentsCount: 3,
   publishedAt: at(18, 11, 35),
+  photoUrl: null,
 };
 
 describe("feed formatting", () => {

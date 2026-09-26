@@ -16,6 +16,13 @@ import { parseBookingBody, parseMockCoords, parseMockOrigin } from "./fixtures";
 
 const isSwipeCategory = (value: string | null): value is SwipeCategory => value !== null && (SWIPE_CATEGORIES as readonly string[]).includes(value);
 
+function parseMockRadius(url: URL): number | undefined {
+  const raw = url.searchParams.get("radiusKm");
+  if (raw === null || raw === "") return undefined;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 && parsed <= 100 ? parsed : undefined;
+}
+
 export function discoverRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/today") {
     const origin = parseMockOrigin(url);
@@ -46,12 +53,12 @@ export function discoverRoutes(url: URL, init: RequestInit | undefined): Respons
     const hours = Number(url.searchParams.get("hours"));
     const mood = LeisureMoodSchema.safeParse(url.searchParams.get("mood"));
     if (coords === null || !Number.isInteger(hours) || hours < 1 || hours > 8 || !mood.success) return new Response(null, { status: 400 });
-    return Response.json(leisureOptions(hours, mood.data, coords[0], coords[1]));
+    return Response.json(leisureOptions(hours, mood.data, coords[0], coords[1], undefined, parseMockRadius(url)));
   }
   if (url.pathname === "/api/nearby") {
     const coords = parseMockCoords(url);
     if (coords === null) return new Response(null, { status: 400 });
-    return Response.json(nearbyTimeline(coords[0], coords[1]));
+    return Response.json(nearbyTimeline(coords[0], coords[1], undefined, parseMockRadius(url)));
   }
   if (url.pathname === "/api/assist/day" && init?.method === "POST") {
     const parsed = AssistQueryWriteSchema.safeParse(parseBookingBody(init));

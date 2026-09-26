@@ -28,6 +28,7 @@ const friendCard: FeedFriendCard = {
   comments: [{ id: "31000000-0000-4000-8000-000000000001", author: mockFriends[1], text: "буду к девяти" }],
   commentsCount: 3,
   publishedAt: at(18, 11, 35),
+  photoUrl: null,
 };
 
 const placeCard: FeedPlaceCard = {
@@ -63,17 +64,24 @@ describe("FeedWhereToCard", () => {
 });
 
 describe("FeedFriendPost", () => {
-  const post = (over: Partial<FeedFriendCard> = {}) => renderToStaticMarkup(createElement(FeedFriendPost, { card: { ...friendCard, ...over }, now: NOW, onToggleLike: noop, onToggleGoing: noop, onOpenComments: noop, onShare: noop }));
+  const post = (over: Partial<FeedFriendCard> = {}) => renderToStaticMarkup(createElement(FeedFriendPost, { card: { ...friendCard, ...over }, now: NOW, onToggleLike: noop, onToggleGoing: noop, onOpenComments: noop, onShare: noop, onOpenEvent: noop, onOpenAuthor: noop, userId: "u1" }));
 
-  it("carries the author, the place with the distance and the event hero", () => {
+  it("carries the author, the place with the distance and the event as its own block", () => {
     const html = post();
 
     expect(html).toContain("Анна Соколова");
     expect(html).toContain("Клуб «Эссе» · 1,2 км");
     expect(html).toContain("Джаз-квартет в «Эссе»");
     expect(html).toContain("Сегодня · 20:00 · бесплатно");
-    // Категория красит hero: цвет семантичен, а не ротируется по позиции.
-    expect(html).toContain("app-media--afisha");
+    expect(html).toContain("app-feed-event");
+    expect(html).toContain("Сохранить");
+    expect(html).not.toContain("app-feed-photo");
+  });
+
+  it("shows the attached photo above the event block", () => {
+    const html = post({ photoUrl: "https://cdn.example.com/p.jpg" });
+    expect(html).toContain('src="https://cdn.example.com/p.jpg"');
+    expect(html.indexOf("cdn.example.com/p.jpg")).toBeLessThan(html.indexOf("Джаз-квартет"));
   });
 
   it("shows the live chip only while the event runs and the week badge only on a hit", () => {
@@ -110,7 +118,7 @@ describe("FeedFriendPost", () => {
     expect(post()).toContain(`src="${mockFriends[0].avatarUrl}"`);
     expect(post()).not.toContain("app-story-ring--active");
     expect(post()).not.toContain("app-feed-ring-inner");
-    const withStory = renderToStaticMarkup(createElement(FeedFriendPost, { card: friendCard, now: NOW, onToggleLike: noop, onToggleGoing: noop, onOpenComments: noop, onShare: noop, hasStory: true }));
+    const withStory = renderToStaticMarkup(createElement(FeedFriendPost, { card: friendCard, now: NOW, onToggleLike: noop, onToggleGoing: noop, onOpenComments: noop, onShare: noop, onOpenEvent: noop, onOpenAuthor: noop, userId: "u1", hasStory: true }));
     expect(withStory).toContain("app-story-ring--active");
   });
 });

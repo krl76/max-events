@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, HttpException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
 import type { PlanCard } from "@max-events/api-contracts";
@@ -76,9 +76,12 @@ describe("AssistService", () => {
     expect(formatAssistSummary(7, 2, 1)).toBe("Нашел 7 вариантов, 2 по твоей истории, 1 уже сохранила твоя девушка");
   });
 
-  it("fails closed when the LLM provider is disabled", async () => {
-    const service = new AssistService(new NoneLlmProvider(), { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { create: async () => ({}) } as never, new AssistRateLimiter());
-    await expect(service.suggest(userId, "что угодно")).rejects.toBeInstanceOf(ServiceUnavailableException);
+  it("falls back to the local parser when the LLM provider is disabled", async () => {
+    const { events } = createService();
+    const service = new AssistService(new NoneLlmProvider(), { find: async () => events } as unknown as Repository<EventEntity>, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { create: async () => ({}) } as never, new AssistRateLimiter());
+    const result = await service.suggest(userId, "что угодно вечером", now);
+    expect(result.criteria.when).toBe("evening");
+    expect(result.items.length).toBeGreaterThan(0);
   });
 
   it("builds a Saturday day with timings and a saveable plan draft", async () => {
@@ -113,9 +116,9 @@ describe("AssistService", () => {
     expect(day.summary).toContain("Ничего точно по запросу");
   });
 
-  it("fails closed when the LLM cannot read the day request", async () => {
+  it("still plans a Saturday when the LLM is down if the catalog has events", async () => {
     const service = new AssistService(new NoneLlmProvider(), { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { create: async () => ({}) } as never, new AssistRateLimiter());
-    await expect(service.planSaturday(userId, "Сделай нам план на субботу")).rejects.toBeInstanceOf(ServiceUnavailableException);
+    await expect(service.planSaturday(userId, "Сделай нам план на субботу")).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("skips Saturday events that already started", async () => {

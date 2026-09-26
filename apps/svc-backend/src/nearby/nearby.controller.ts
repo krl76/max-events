@@ -20,18 +20,18 @@ export class NearbyController {
   constructor(@Inject(NearbyService) private readonly nearby: NearbyService) {}
 
   @Get("free")
-  leisure(@CurrentUser() user: UserEntity, @Query("latitude") latitude?: string, @Query("longitude") longitude?: string, @Query("hours") hours?: string, @Query("mood") mood?: string): Promise<LeisureOption[]> {
+  leisure(@CurrentUser() user: UserEntity, @Query("latitude") latitude?: string, @Query("longitude") longitude?: string, @Query("hours") hours?: string, @Query("mood") mood?: string, @Query("radiusKm") radiusKm?: string): Promise<LeisureOption[]> {
     const [lat, lng] = parseCoords(latitude, longitude);
     const parsedHours = Number(hours);
     if (!Number.isInteger(parsedHours) || parsedHours < 1 || parsedHours > 8) throw new BadRequestException("Invalid hours");
     const parsedMood = LeisureMoodSchema.safeParse(mood);
     if (!parsedMood.success) throw new BadRequestException("Invalid mood");
-    return this.nearby.leisure(lat, lng, parsedHours, parsedMood.data, user.id);
+    return this.nearby.leisure(lat, lng, parsedHours, parsedMood.data, user.id, new Date(), parseRadiusKm(radiusKm));
   }
 
   @Get()
-  timeline(@Query("latitude") latitude?: string, @Query("longitude") longitude?: string): Promise<NearbyTimeline> {
-    return this.nearby.timeline(...parseCoords(latitude, longitude));
+  timeline(@Query("latitude") latitude?: string, @Query("longitude") longitude?: string, @Query("radiusKm") radiusKm?: string): Promise<NearbyTimeline> {
+    return this.nearby.timeline(...parseCoords(latitude, longitude), new Date(), parseRadiusKm(radiusKm));
   }
 }
 
@@ -42,4 +42,11 @@ function parseCoords(latitude?: string, longitude?: string): [number, number] {
     throw new BadRequestException("Invalid coordinates");
   }
   return [lat, lng];
+}
+
+function parseRadiusKm(value?: string): number | undefined {
+  if (value === undefined || value === "") return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 100) throw new BadRequestException("Invalid radius");
+  return parsed;
 }

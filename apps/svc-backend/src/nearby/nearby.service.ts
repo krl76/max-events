@@ -28,7 +28,12 @@ import { PromotionService } from "../promotion/promotion.service";
 export { haversineKm } from "../geo/haversine";
 
 const HOUR_MS = 60 * 60 * 1000;
-const MAX_KM = 15;
+export const DEFAULT_NEARBY_RADIUS_KM = 15;
+
+function clampRadiusKm(km: number | undefined): number {
+  if (km === undefined || !Number.isFinite(km) || km <= 0) return DEFAULT_NEARBY_RADIUS_KM;
+  return Math.min(100, km);
+}
 
 function roundKm(km: number): number {
   return Math.round(km * 10) / 10;
@@ -79,19 +84,20 @@ export class NearbyService {
     @Inject(PromotionService) private readonly promotions: PromotionService,
   ) {}
 
-  async timeline(latitude: number, longitude: number, now = new Date()): Promise<NearbyTimeline> {
-    const cards = await this.cards(latitude, longitude, now);
+  async timeline(latitude: number, longitude: number, now = new Date(), radiusKm?: number): Promise<NearbyTimeline> {
+    const cards = await this.cards(latitude, longitude, now, radiusKm);
     const empty: NearbyTimeline = { now: [], inAnHour: [], evening: [], tomorrow: [] };
     for (const card of cards) empty[card.bucket].push(card);
     return empty;
   }
 
-  async leisure(latitude: number, longitude: number, hours: number, mood: LeisureMood, userId: string, now = new Date()): Promise<LeisureOption[]> {
+  async leisure(latitude: number, longitude: number, hours: number, mood: LeisureMood, userId: string, now = new Date(), radiusKm?: number): Promise<LeisureOption[]> {
     const until = new Date(now.getTime() + hours * HOUR_MS);
-    const cards = (await this.cards(latitude, longitude, now)).filter((card) => Date.parse(card.event.startsAt) <= until.getTime());
+    const radius = clampRadiusKm(radiusKm);
+    const cards = (await this.cards(latitude, longitude, now, radius)).filter((card) => Date.parse(card.event.startsAt) <= until.getTime());
     const places = (await this.places.find({ where: { published: true } }))
       .map((place) => ({ place, km: haversineKm(latitude, longitude, place.latitude, place.longitude) }))
-      .filter((row) => row.km <= MAX_KM)
+      .filter((row) => row.km <= radius)
       .sort((a, b) => a.km - b.km);
 
     if (mood === "relax") {
@@ -126,7 +132,8 @@ export class NearbyService {
     return stops.length === 0 ? [] : [{ mood, title: "С друзьями", stops }];
   }
 
-  private async cards(latitude: number, longitude: number, now: Date): Promise<NearbyCard[]> {
+  private async cards(latitude: number, longitude: number, now: Date, radiusKm?: number): Promise<NearbyCard[]> {
+    const maxKm = clampRadiusKm(radiusKm);
     const horizon = new Date(now.getTime() + 48 * HOUR_MS);
     const events = await this.events.find({ where: { published: true, startsAt: Between(now, horizon) } });
     const places = await this.places.find({ where: { published: true } });
@@ -140,7 +147,7 @@ export class NearbyService {
       const bucket = nearbyBucket(event.startsAt, now);
       if (!bucket) continue;
       const distanceKm = haversineKm(latitude, longitude, place.latitude, place.longitude);
-      if (distanceKm > MAX_KM) continue;
+      if (distanceKm > maxKm) continue;
       const promoted = pinIds.has(event.id);
       cards.push({ event: toEventDto(event, { promoted }), place: toPlaceDto(place), distanceKm: Math.round(distanceKm * 10) / 10, bucket, promoted });
     }

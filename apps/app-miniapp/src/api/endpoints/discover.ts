@@ -31,6 +31,7 @@ export interface LeisureQuery {
   mood: LeisureMood;
   latitude: number;
   longitude: number;
+  radiusKm?: number;
 }
 
 const isNullableNumber = (value: unknown): value is number | null => value === null || typeof value === "number";
@@ -228,13 +229,15 @@ export function withDiscover<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/whereto?${params.toString()}`, WheretoPicksSchema);
     }
 
-    getNearbyTimeline(latitude: number, longitude: number): Promise<NearbyTimeline> {
+    getNearbyTimeline(latitude: number, longitude: number, radiusKm?: number): Promise<NearbyTimeline> {
       const query = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude) });
+      if (radiusKm !== undefined) query.set("radiusKm", String(radiusKm));
       return this.request(`/nearby?${query.toString()}`, NearbyTimelineSchema);
     }
 
     getLeisureOptions(query: LeisureQuery): Promise<LeisureChain[]> {
       const params = new URLSearchParams({ hours: String(query.hours), mood: query.mood, latitude: String(query.latitude), longitude: String(query.longitude) });
+      if (query.radiusKm !== undefined) params.set("radiusKm", String(query.radiusKm));
       return this.request(`/nearby/free?${params.toString()}`, LeisureChainsSchema);
     }
 
