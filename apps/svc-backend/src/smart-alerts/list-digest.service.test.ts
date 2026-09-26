@@ -56,7 +56,7 @@ function eventRow(id: string, placeId: string, startsAt: Date): EventEntity {
   return { id, title: id, placeId, startsAt, published: true } as EventEntity;
 }
 
-function createService(options: { eventIds?: string[]; far?: boolean; digestEnabled?: boolean; now?: Date } = {}) {
+function createService(options: { eventIds?: string[]; far?: boolean; digestEnabled?: boolean; quiet?: boolean; now?: Date } = {}) {
   const now = options.now ?? friday;
   const ids = options.eventIds ?? ["00000000-0000-4000-8000-0000000000e1", "00000000-0000-4000-8000-0000000000e2", "00000000-0000-4000-8000-0000000000e3", "00000000-0000-4000-8000-0000000000e4"];
   const placeId = options.far ? farPlaceId : nearPlaceId;
@@ -68,7 +68,8 @@ function createService(options: { eventIds?: string[]; far?: boolean; digestEnab
   const places = createStoreRepo<PlaceEntity>([{ id: nearPlaceId, latitude: 55.747, longitude: 37.584, published: true } as PlaceEntity, { id: farPlaceId, latitude: 59.93, longitude: 30.31, published: true } as PlaceEntity, { id: originPlaceId, latitude: 55.75, longitude: 37.62, published: true } as PlaceEntity]);
   const users = createStoreRepo<UserEntity>([{ id: userId, maxUserId: "1", firstName: "Саша" } as UserEntity]);
   const checkIns = createStoreRepo<CheckInEntity>([{ id: "c1", userId, eventId: null, placeId: originPlaceId, visitDate: "2026-09-11", checkedInAt: now } as CheckInEntity]);
-  const profiles = createStoreRepo<ProfileEntity>(options.digestEnabled === false ? [{ userId, city: "Москва", interests: [], smartAlerts: { ...DEFAULT_SMART_ALERTS, listDigest: false }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null, updatedAt: now } as ProfileEntity] : []);
+  const alerts = options.digestEnabled === false ? { ...DEFAULT_SMART_ALERTS, listDigest: false } : options.quiet ? { ...DEFAULT_SMART_ALERTS, quietHoursEnabled: true } : null;
+  const profiles = createStoreRepo<ProfileEntity>(alerts ? [{ userId, city: "Москва", interests: [], smartAlerts: alerts, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null, updatedAt: now } as ProfileEntity] : []);
   const sends = createStoreRepo<ListDigestSendEntity>();
   const sent: string[] = [];
   const bot = {
@@ -120,5 +121,16 @@ describe("ListDigestService.tick", () => {
     const onSunday = createService({ now: sunday });
     await expect(onSunday.service.tick(sunday)).resolves.toEqual({ sent: 0, failed: 0 });
     expect(onSunday.sent).toHaveLength(0);
+  });
+
+  it("holds the digest through quiet hours and sends it once the window opens", async () => {
+    const { service, sent, sends } = createService({ quiet: true });
+    const night = new Date("2026-09-11T21:00:00Z");
+    await expect(service.tick(night)).resolves.toEqual({ sent: 0, failed: 0 });
+    expect(sent).toHaveLength(0);
+    expect(sends.store).toHaveLength(0);
+    const morning = new Date("2026-09-12T07:00:00Z");
+    await expect(service.tick(morning)).resolves.toEqual({ sent: 1, failed: 0 });
+    expect(sent).toHaveLength(1);
   });
 });

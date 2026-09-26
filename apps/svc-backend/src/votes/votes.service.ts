@@ -19,6 +19,7 @@ import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { deliverInvite } from "../smart-alerts/deliver-invite";
+import { miniappLink, withAppLink } from "../time/human-when";
 import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { UserEntity } from "../users/user.entity";
 import { VoteBallotEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity } from "./vote.entity";
@@ -77,7 +78,7 @@ export class VotesService {
       if (!user) continue;
       try {
         const chat = saved.chatLink ? ` Чат: ${saved.chatLink}` : "";
-        const text = `Тебя зовут проголосовать: «${saved.title}».${chat}`;
+        const text = withAppLink(`Тебя зовут проголосовать: «${saved.title}».${chat}`, miniappLink(`vote-${saved.id}`));
         await deliverInvite(this.bot, this.notices, { userId: user.id, maxUserId: user.maxUserId, actorUserId: hostUserId, type: "vote", title: `Голосование «${saved.title}»`, body: text, link: { target: "vote", id: saved.id } });
       } catch {
         this.logger.warn(`Vote invite DM failed for ${saved.id}`);

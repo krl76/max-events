@@ -10,7 +10,7 @@
 // - toFriendDto - map UserEntity to api-contracts Friend
 // END_MODULE_MAP
 
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
@@ -52,6 +52,10 @@ export class FriendsService {
     return new Set(rows.map((row) => row.friendUserId));
   }
 
+  async listClose(userId: string): Promise<Friend[]> {
+    return this.friendsOfIds(await this.closeFriendIds(userId));
+  }
+
   /** Authors who put this viewer on their close-friends list. Their close-friends stories are visible here. */
   async authorsWhoMarkedClose(viewerId: string): Promise<Set<string>> {
     const rows = await this.friendships.find({ where: { friendUserId: viewerId, closeFriend: true } });
@@ -67,6 +71,10 @@ export class FriendsService {
     if (userId === friendUserId) throw new BadRequestException("Invalid close friend");
     const person = await this.users.findOneBy({ id: friendUserId });
     if (!person) throw new NotFoundException("User not found");
+    if (close) {
+      const follows = await this.subscriptions.find({ where: { userId: friendUserId, type: "user", targetUserId: userId } });
+      if (follows.length === 0) throw new ForbiddenException("Only a follower can be a close friend");
+    }
     const existing = await this.friendships.findOneBy({ userId, friendUserId });
     if (!existing) {
       if (!close) return false;

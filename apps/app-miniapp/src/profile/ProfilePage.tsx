@@ -546,6 +546,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
   const [followingThem, setFollowingThem] = useState(false);
   const [subscribePending, setSubscribePending] = useState(false);
   const [closeFriend, setCloseFriend] = useState(false);
+  const [followedByThem, setFollowedByThem] = useState(false);
   const [myFollows, setMyFollows] = useState<string[]>([]);
   const [localCover, setLocalCover] = useState<string | null | undefined>(undefined);
   const avatarRef = useRef<HTMLInputElement | null>(null);
@@ -576,6 +577,12 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         if (!alive) return;
         setMyFollows(list.map((person) => person.id));
         setFollowingThem(list.some((person) => person.id === subjectId));
+      },
+      () => {},
+    );
+    apiClient.listFollowers(viewer.id).then(
+      (list) => {
+        if (alive) setFollowedByThem(list.some((person) => person.id === subjectId));
       },
       () => {},
     );
@@ -685,7 +692,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         }}
         closeFriend={closeFriend}
         onToggleClose={
-          subjectId === null
+          subjectId === null || (!closeFriend && !followedByThem)
             ? undefined
             : () => {
                 const next = !closeFriend;

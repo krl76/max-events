@@ -24,6 +24,7 @@ import { MaxBotClient } from "../max-bot/max-bot.client";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { PlaceEntity } from "../places/place.entity";
 import { NotificationEntity } from "../smart-alerts/notification.entity";
+import { humanWhen, miniappLink, withAppLink } from "../time/human-when";
 import { moscowTimeLabel } from "../time/moscow-date";
 import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
@@ -48,8 +49,9 @@ export function matchesSubscription(event: EventMatchInput, row: SubscriptionEnt
   return `${event.category} ${event.title} ${event.description}`.toLowerCase().includes(needle);
 }
 
-export function formatSubscriptionNotice(title: string): string {
-  return `Новое событие по подписке: «${title}»`;
+export function formatSubscriptionNotice(title: string, startsAt?: Date, now = new Date()): string {
+  const when = startsAt ? `. ${humanWhen(startsAt, now)}` : "";
+  return `Новое событие по подписке: «${title}»${when}`;
 }
 
 @Injectable()
@@ -174,7 +176,7 @@ export class SubscriptionsService {
     if (matched.size === 0) return result;
     const users = await this.users.find();
     const profileById = new Map(profiles.map((row) => [row.userId, row]));
-    const text = formatSubscriptionNotice(event.title);
+    const text = withAppLink(formatSubscriptionNotice(event.title, event.startsAt, now), miniappLink(`event-${event.id}`));
     for (const userId of matched) {
       const user = users.find((row) => row.id === userId);
       if (!user) {

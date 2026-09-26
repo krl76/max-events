@@ -24,7 +24,8 @@ import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { MaxBotClient } from "../max-bot/max-bot.client";
-import { deliverInvite } from "../smart-alerts/deliver-invite";
+import { deliverInvite, INVITE_REPLY_ACTIONS } from "../smart-alerts/deliver-invite";
+import { humanMeeting, miniappLink, withAppLink } from "../time/human-when";
 import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { UserEntity } from "../users/user.entity";
 import { GatheringInviteeEntity } from "./gathering-invitee.entity";
@@ -55,9 +56,9 @@ export function availabilityOf(target: { startsAt: Date; endsAt: Date | null }, 
   return unknown ? "unknown" : "free";
 }
 
-export function formatGatheringInviteText(title: string, meetingAt: Date, chatLink: string | null): string {
+export function formatGatheringInviteText(title: string, meetingAt: Date, chatLink: string | null, now = new Date()): string {
   const chat = chatLink ? ` Чат: ${chatLink}` : "";
-  return `Тебя зовут на сбор к «${title}» в ${meetingAt.toISOString()}.${chat}`;
+  return `Тебя зовут на сбор к «${title}» ${humanMeeting(meetingAt, "", now)}.${chat}`;
 }
 
 export function formatGatheringReminderText(title: string): string {
@@ -127,9 +128,9 @@ export class GatheringsService {
     for (const userId of friendIds) {
       const user = inviteUsers.find((row) => row.id === userId);
       if (!user) continue;
-      const text = formatGatheringInviteText(event.title, meetingAt, saved.chatLink);
+      const text = withAppLink(formatGatheringInviteText(event.title, meetingAt, saved.chatLink), miniappLink(`gathering-${saved.id}`));
       try {
-        await deliverInvite(this.bot, this.notices, { userId: user.id, maxUserId: user.maxUserId, actorUserId: hostUserId, type: "gathering-invite", title: `Сбор к «${event.title}»`, body: text, link: { target: "gathering", id: saved.id } });
+        await deliverInvite(this.bot, this.notices, { userId: user.id, maxUserId: user.maxUserId, actorUserId: hostUserId, type: "gathering-invite", title: `Сбор к «${event.title}»`, body: text, link: { target: "gathering", id: saved.id }, actions: INVITE_REPLY_ACTIONS });
       } catch {
         this.logger.warn(`Gathering invite DM failed for ${saved.id}`);
       }

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for friend graph sync, activity feed, and per-event friend summary.
-// SCOPE: POST /friends/sync, GET /friends, GET /friends/activity, GET /friends/suggestions, GET /friends/sync, PUT /friends/follows, GET /users/:id/following, GET /users/:id/followers, GET /events/:eventId/friends; CurrentUser identity.
+// SCOPE: POST /friends/sync, GET /friends, GET /friends/close, GET /friends/activity, GET /friends/suggestions, GET /friends/sync, PUT /friends/follows, GET /users/:id/following, GET /users/:id/followers, GET/PUT /users/:id/close, GET /events/:eventId/friends; CurrentUser identity.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./friends.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -24,6 +24,11 @@ export class FriendsController {
   @Get()
   async list(@CurrentUser() user: UserEntity): Promise<Friend[]> {
     return this.friends.list(user.id);
+  }
+
+  @Get("close")
+  async closeList(@CurrentUser() user: UserEntity): Promise<Friend[]> {
+    return this.friends.listClose(user.id);
   }
 
   @Get("activity")

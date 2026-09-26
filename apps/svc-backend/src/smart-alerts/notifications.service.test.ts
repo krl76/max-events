@@ -83,4 +83,15 @@ describe("NotificationsService", () => {
     expect(await service.summary(otherUserId)).toEqual({ unreadCount: 1 });
     await expect(service.markRead(userId, "00000000-0000-4000-8000-0000000000n2")).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it("confirms a plan when the inbox button says going", async () => {
+    const planId = "00000000-0000-4000-8000-0000000000c1";
+    const calls: string[] = [];
+    const plans = { respond: async (id: string, target: string, status: string) => void calls.push(`${id}:${target}:${status}`) };
+    const rows = createRows([row({ type: "plan-invite", link: { target: "plan", id: planId }, actions: [{ id: "going", label: "Пойду", tone: "confirm", link: null }] })]);
+    const users = { findByIds: async () => [] };
+    const service = new NotificationsService(rows as unknown as Repository<NotificationEntity>, users as never, plans as never);
+    await service.answer(userId, "00000000-0000-4000-8000-0000000000n1", "going", now);
+    expect(calls).toEqual([`${userId}:${planId}:confirmed`]);
+  });
 });

@@ -9,12 +9,16 @@
 // - NotificationsService - list, summary, markRead, markAllRead, answer
 // END_MODULE_MAP
 
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import type { AppNotification, NotificationsSummary } from "@max-events/api-contracts";
 import { toFriendDto } from "../friends/friends.service";
+import { GatheringsService } from "../gatherings/gatherings.service";
+import { MicroEventsService } from "../microevents/micro-events.service";
+import { PlansService } from "../plans/plans.service";
 import { UsersService } from "../users/users.service";
+import { WaitlistService } from "../waitlist/waitlist.service";
 import { NotificationEntity } from "./notification.entity";
 
 @Injectable()
@@ -22,6 +26,10 @@ export class NotificationsService {
   constructor(
     @InjectRepository(NotificationEntity) private readonly rows: Repository<NotificationEntity>,
     @Inject(UsersService) private readonly users: UsersService,
+    @Optional() @Inject(PlansService) private readonly plans?: PlansService,
+    @Optional() @Inject(GatheringsService) private readonly gatherings?: GatheringsService,
+    @Optional() @Inject(MicroEventsService) private readonly micros?: MicroEventsService,
+    @Optional() @Inject(WaitlistService) private readonly waitlist?: WaitlistService,
   ) {}
 
   async list(userId: string): Promise<AppNotification[]> {
@@ -56,11 +64,32 @@ export class NotificationsService {
     const row = await this.requireOwn(userId, id);
     if (!row.actions.some((action) => action.id === actionId)) throw new NotFoundException("Notification action not found");
     if (row.answeredActionId === null) {
+      await this.perform(userId, row, actionId);
       row.answeredActionId = actionId;
       row.readAt ??= now;
       await this.rows.save(row);
     }
     return (await this.toDtos([row]))[0]!;
+  }
+
+  /** «Пойду» records the real plan, gathering, or micro response. A seat offer confirms or declines the waitlist row. */
+  private async perform(userId: string, row: NotificationEntity, actionId: string): Promise<void> {
+    const id = row.link?.id;
+    if (row.type === "plan-invite" && row.link?.target === "plan" && id && this.plans) {
+      if (actionId === "going") await this.plans.respond(userId, id, "confirmed");
+      if (actionId === "decline") await this.plans.respond(userId, id, "declined");
+    }
+    if (row.type === "gathering-invite" && row.link?.target === "gathering" && id && this.gatherings) {
+      if (actionId === "going") await this.gatherings.respond(userId, id, "accepted");
+      if (actionId === "decline") await this.gatherings.respond(userId, id, "busy");
+    }
+    if (row.type === "micro-invite" && row.link?.target === "micro" && id && this.micros && actionId === "going") {
+      await this.micros.join(userId, id);
+    }
+    if (row.type === "seat-freed" && this.waitlist) {
+      if (actionId.startsWith("confirm:")) await this.waitlist.confirm(userId, actionId.slice("confirm:".length));
+      if (actionId.startsWith("decline:")) await this.waitlist.decline(userId, actionId.slice("decline:".length));
+    }
   }
 
   private async requireOwn(userId: string, id: string): Promise<NotificationEntity> {

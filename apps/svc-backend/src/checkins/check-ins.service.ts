@@ -51,6 +51,13 @@ export class CheckInsService {
     @Inject(UsersService) private readonly users: UsersService,
   ) {}
 
+  private progressHook: ((userId: string, before: VisitStats) => Promise<void>) | null = null;
+
+  /** Achievements registers this on boot. A missing hook leaves check-in behaviour unchanged. */
+  setProgressHook(hook: (userId: string, before: VisitStats) => Promise<void>): void {
+    this.progressHook = hook;
+  }
+
   async create(userId: string, payload: CreateCheckInWrite, now = new Date()): Promise<CheckIn> {
     if (payload.eventId) {
       const eventId = payload.eventId;
@@ -59,7 +66,7 @@ export class CheckInsService {
       const match = (row: CheckInEntity) => row.eventId === eventId;
       const existing = await this.findMine(userId, match);
       if (existing) return toCheckInDto(existing);
-      return toCheckInDto(await this.insertOrExisting(userId, { userId, eventId, placeId: null, visitDate: null }, match));
+      return toCheckInDto(await this.insertFresh(userId, { userId, eventId, placeId: null, visitDate: null }, match));
     }
     const placeId = payload.placeId!;
     const place = await this.places.findOneBy({ id: placeId });
@@ -68,7 +75,7 @@ export class CheckInsService {
     const match = (row: CheckInEntity) => row.placeId === placeId && row.visitDate === day;
     const existing = await this.findMine(userId, match);
     if (existing) return toCheckInDto(existing);
-    return toCheckInDto(await this.insertOrExisting(userId, { userId, eventId: null, placeId, visitDate: day }, match));
+    return toCheckInDto(await this.insertFresh(userId, { userId, eventId: null, placeId, visitDate: day }, match));
   }
 
   private async findMine(userId: string, match: (row: CheckInEntity) => boolean): Promise<CheckInEntity | undefined> {
@@ -77,6 +84,19 @@ export class CheckInsService {
 
   // The unique indexes (user+event, user+place+day) are the real gate: a parallel double-click
   // loses the insert race and must read back the winner instead of surfacing a 500.
+  private async insertFresh(userId: string, fields: Partial<CheckInEntity>, match: (row: CheckInEntity) => boolean): Promise<CheckInEntity> {
+    const before = this.progressHook ? await this.stats(userId, userId) : null;
+    const saved = await this.insertOrExisting(userId, fields, match);
+    if (before && this.progressHook) {
+      try {
+        await this.progressHook(userId, before);
+      } catch {
+        // The visit is stored. The bell line can wait until the next check-in.
+      }
+    }
+    return saved;
+  }
+
   private async insertOrExisting(userId: string, fields: Partial<CheckInEntity>, match: (row: CheckInEntity) => boolean): Promise<CheckInEntity> {
     try {
       return await this.checkIns.save(this.checkIns.create(fields));

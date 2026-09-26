@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock route table for the social graph: friends, the gathering flow, UGC micro-events, reverse discovery and people matching.
-// SCOPE: /api/friends[/activity|/availability|/suggestions|/follows|/sync], /api/gatherings[/:id[/response]], /api/micro-events[/:id[/join]], /api/discovery[/friend-places|/friends/:userId/route], /api/people.
+// SCOPE: /api/friends[/activity|/availability|/close|/suggestions|/follows|/sync], /api/gatherings[/:id[/response]], /api/micro-events[/:id[/join]], /api/discovery[/friend-places|/friends/:userId/route], /api/people.
 // DEPENDS: ./social.js, ./fixtures.js, ../client.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -9,10 +9,11 @@
 // - socialRoutes - route table entry: null when the path belongs to another domain
 // END_MODULE_MAP
 
-import { GatheringResponseWriteSchema, IdSchema } from "@max-events/api-contracts";
+import { CreatePlanExpenseWriteSchema, GatheringResponseWriteSchema, IdSchema } from "@max-events/api-contracts";
 import { type CreateGathering, type CreateMicroEvent } from "../client";
 import { MOCK_PEOPLE_CENTER, mockEvents, mockFriends, parseBookingBody, parseMockOrigin } from "./fixtures";
-import { createMockGathering, createMockMicroEvent, discoverySummary, followMockFriends, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, friendsSyncState, joinMockMicroEvent, leaveMockMicroEvent, microEventCard, microEvents, mockGatherings, peopleSuggest, respondMockGathering, syncMockFriends } from "./social";
+import { mockCloseFriendsOf } from "./profile.routes";
+import { addMockMicroEventExpense, createMockGathering, createMockMicroEvent, discoverySummary, followMockFriends, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, friendsSyncState, joinMockMicroEvent, leaveMockMicroEvent, microEventCard, microEvents, mockGatherings, mockMicroEventBudget, peopleSuggest, respondMockGathering, syncMockFriends } from "./social";
 
 export function socialRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/friends/activity") {
@@ -23,6 +24,9 @@ export function socialRoutes(url: URL, init: RequestInit | undefined): Response 
   }
   if (url.pathname === "/api/friends/suggestions") {
     return Response.json(friendSuggestions());
+  }
+  if (url.pathname === "/api/friends/close") {
+    return Response.json(mockCloseFriendsOf());
   }
   if (url.pathname === "/api/friends/follows" && init?.method === "PUT") {
     const payload = parseBookingBody(init) as { userIds?: unknown } | undefined;
@@ -98,6 +102,21 @@ export function socialRoutes(url: URL, init: RequestInit | undefined): Response 
     if (userId === "") return new Response(null, { status: 400 });
     const result = leaveMockMicroEvent(microJoin[1], userId);
     return result === null ? new Response(null, { status: 404 }) : Response.json(result);
+  }
+  const microBudget = /^\/api\/micro-events\/([^/]+)\/budget$/.exec(url.pathname);
+  if (microBudget) {
+    const userId = url.searchParams.get("userId") ?? "";
+    if (userId === "") return new Response(null, { status: 400 });
+    const budget = mockMicroEventBudget(microBudget[1], userId);
+    return budget === null ? new Response(null, { status: 404 }) : budget === "forbidden" ? new Response(null, { status: 403 }) : Response.json(budget);
+  }
+  const microExpenses = /^\/api\/micro-events\/([^/]+)\/expenses$/.exec(url.pathname);
+  if (microExpenses && init?.method === "POST") {
+    const userId = url.searchParams.get("userId") ?? "";
+    const parsed = CreatePlanExpenseWriteSchema.safeParse(parseBookingBody(init));
+    if (userId === "" || !parsed.success) return new Response(null, { status: 400 });
+    const budget = addMockMicroEventExpense(microExpenses[1], userId, parsed.data);
+    return budget === null ? new Response(null, { status: 404 }) : budget === "forbidden" ? new Response(null, { status: 403 }) : budget === "invalid" ? new Response(null, { status: 400 }) : Response.json(budget);
   }
   const microEvent = /^\/api\/micro-events\/([^/]+)$/.exec(url.pathname);
   if (microEvent) {

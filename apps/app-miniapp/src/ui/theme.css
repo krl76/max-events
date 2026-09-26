@@ -7495,6 +7495,11 @@ button.app-set-row {
   flex-direction: column;
 }
 
+.app-set-picker .app-set-note {
+  margin: 0;
+  padding: var(--app-space-m) var(--app-space-l);
+}
+
 .app-set-option {
   align-items: center;
   background: none;
@@ -17176,6 +17181,18 @@ button.app-cal-peer-chip {
   border: none;
   cursor: pointer;
   padding: 0;
+  position: relative;
+}
+
+.app-header-bell-dot {
+  background: var(--app-accent);
+  border-radius: 50%;
+  height: 8px;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 8px;
 }
 
 /* ===== Волна 10: подбор (экраны 11, 12, 13, 14) =====

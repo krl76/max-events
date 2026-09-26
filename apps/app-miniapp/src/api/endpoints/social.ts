@@ -20,8 +20,8 @@
 // - withSocial - ApiClient.listFriends / getFriendsActivity / getFriendAvailability / getFriendsSync / syncFriends / listFriendSuggestions / followFriends / listFollowing / listFollowers / createGathering / getGathering / respondToGathering / listMicroEvents / getMicroEventCard / createMicroEvent / joinMicroEvent / leaveMicroEvent / getDiscovery / listFriendPlaces / getFriendRoute / getPeople
 // END_MODULE_MAP
 
-import { DiscoveryResponseSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendPlaceVisitSchema, FriendRouteSchema, FriendSchema, GatheringSchema, MicroEventSchema, PeopleResponseSchema, PlaceSchema } from "@max-events/api-contracts";
-import type { Friend, FriendActivityByFriend, FriendAvailability, FriendPlaceVisit, Gathering, InviteeResponse, MicroEvent, PeopleResponse, Place } from "@max-events/api-contracts";
+import { DiscoveryResponseSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendPlaceVisitSchema, FriendRouteSchema, FriendSchema, GatheringSchema, MicroBudgetSchema, MicroEventSchema, PeopleResponseSchema, PlaceSchema } from "@max-events/api-contracts";
+import type { CreatePlanExpenseWrite, Friend, FriendActivityByFriend, FriendAvailability, FriendPlaceVisit, Gathering, InviteeResponse, MicroBudget, MicroEvent, PeopleResponse, Place } from "@max-events/api-contracts";
 import { isEndpointMissing } from "./transport";
 import type { ApiMixin, ZodSchema } from "./transport";
 
@@ -243,6 +243,11 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
       return this.request("/friends", FriendSchema.array());
     }
 
+    /** People the viewer marked close. Adding someone is limited to followers; this list is whoever is marked now. */
+    listCloseFriends(): Promise<Friend[]> {
+      return this.request("/friends/close", FriendSchema.array());
+    }
+
     getCloseFriend(userId: string): Promise<boolean> {
       return this.request(`/users/${encodeURIComponent(userId)}/close`, CloseFriendSchema).then((row) => row.close);
     }
@@ -342,6 +347,15 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
     /** Leave a micro-event; the userId param is ignored server-side, identity comes from initData. */
     leaveMicroEvent(id: string, userId: string): Promise<MicroEvent> {
       return this.request(`/micro-events/${id}/join?userId=${encodeURIComponent(userId)}`, MicroEventSchema, { method: "DELETE" });
+    }
+
+    /** Shared expenses of a gathering. userId is for the mock; the server reads the signed-in user. */
+    getMicroEventBudget(id: string, userId: string): Promise<MicroBudget> {
+      return this.request(`/micro-events/${id}/budget?userId=${encodeURIComponent(userId)}`, MicroBudgetSchema);
+    }
+
+    addMicroEventExpense(id: string, userId: string, payload: CreatePlanExpenseWrite): Promise<MicroBudget> {
+      return this.request(`/micro-events/${id}/expenses?userId=${encodeURIComponent(userId)}`, MicroBudgetSchema, { method: "POST", body: payload });
     }
 
     getDiscovery(): Promise<DiscoveryScreen> {

@@ -28,12 +28,15 @@ import { NotificationEntity } from "./notification.entity";
 import { NotificationsController } from "./notifications.controller";
 import { NotificationsService } from "./notifications.service";
 import { SmartAlertsScheduler } from "./smart-alerts.scheduler";
+import { GatheringsModule } from "../gatherings/gatherings.module";
+import { MicroEventsModule } from "../microevents/micro-events.module";
+import { PlansModule } from "../plans/plans.module";
+import { WaitlistModule } from "../waitlist/waitlist.module";
 import { SmartAlertsService } from "./smart-alerts.service";
-import { WeatherClient } from "./weather.client";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, EventEntity, PlaceEntity, UserEntity, CheckInEntity, ProfileEntity, ListEntity, ListItemEntity, ListDigestSendEntity, NotificationEntity]), MaxBotModule, UsersModule],
+  imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, EventEntity, PlaceEntity, UserEntity, CheckInEntity, ProfileEntity, ListEntity, ListItemEntity, ListDigestSendEntity, NotificationEntity]), MaxBotModule, UsersModule, PlansModule, GatheringsModule, MicroEventsModule, WaitlistModule],
   controllers: [NotificationsController],
-  providers: [WeatherClient, SmartAlertsService, ListDigestService, SmartAlertsScheduler, NotificationsService],
+  providers: [SmartAlertsService, ListDigestService, SmartAlertsScheduler, NotificationsService],
 })
 export class SmartAlertsModule {}

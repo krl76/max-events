@@ -15,12 +15,13 @@ import { MaxBotModule } from "../max-bot/max-bot.module";
 import { PlaceEntity } from "../places/place.entity";
 import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { UsersModule } from "../users/users.module";
+import { MicroEventExpenseEntity } from "./micro-event-expense.entity";
 import { MicroEventEntity, MicroEventParticipantEntity } from "./micro-event.entity";
 import { MicroEventsController } from "./micro-events.controller";
 import { MicroEventsService } from "./micro-events.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([MicroEventEntity, MicroEventParticipantEntity, PlaceEntity, NotificationEntity]), UsersModule, MaxBotModule],
+  imports: [TypeOrmModule.forFeature([MicroEventEntity, MicroEventParticipantEntity, MicroEventExpenseEntity, PlaceEntity, NotificationEntity]), UsersModule, MaxBotModule],
   controllers: [MicroEventsController],
   providers: [MicroEventsService],
   exports: [MicroEventsService],

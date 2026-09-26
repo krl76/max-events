@@ -98,6 +98,8 @@ export const envSchema = z.object({
   // Optional JSON MAX user for AUTH_ALLOW_BROWSER. Unset = tools/max-dev-accounts.json owner.
   AUTH_BROWSER_USER: z.string().min(1).optional(),
   STORAGE_DIR: z.string().min(1).optional(),
+  // Origin of this miniapp, no path. Bot messages append ?startapp=plan-<id>. Blank or unset means no URL in the text.
+  PUBLIC_APP_URL: z.preprocess((value) => (typeof value === "string" && value.trim() === "" ? undefined : value), z.string().url().optional()),
 });
 
 export type Env = z.infer<typeof envSchema>;

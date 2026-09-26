@@ -16,12 +16,20 @@
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import type { Friend, PlanBudget } from "@max-events/api-contracts";
+import type { CreatePlanExpenseWrite, Friend, PlanBudgetPerson, PlanDebt } from "@max-events/api-contracts";
 import { apiClient, ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { AppButton, AppState } from "../ui/primitives";
 
-export type BudgetState = { status: "loading" } | { status: "error" } | { status: "hidden" } | { status: "ready"; budget: PlanBudget };
+/** What the form draws. A plan budget and a micro-event budget both fit: the parent id stays on the line the API owns. */
+export type BudgetSnapshot = {
+  expenses: Array<{ id: string; title: string; amountRub: number; payerUserId: string; shareUserIds: string[] }>;
+  perPerson: PlanBudgetPerson[];
+  debts: PlanDebt[];
+  totalRub: number;
+};
+
+export type BudgetState = { status: "loading" } | { status: "error" } | { status: "hidden" } | { status: "ready"; budget: BudgetSnapshot };
 
 export interface ExpenseDraft {
   title: string;
@@ -50,7 +58,7 @@ export function expenseNameOf(members: Friend[], userId: string, ownId: string |
 }
 
 interface BudgetViewProps {
-  budget: PlanBudget;
+  budget: BudgetSnapshot;
   members: Friend[];
   ownId: string | null;
   draft: ExpenseDraft;
@@ -65,7 +73,7 @@ export function BudgetView({ budget, members, ownId, draft, saving, failed, show
   const errors = expenseDraftErrors(draft);
   const toggleShare = (userId: string) => onDraftChange({ ...draft, shareUserIds: draft.shareUserIds.includes(userId) ? draft.shareUserIds.filter((item) => item !== userId) : [...draft.shareUserIds, userId] });
   return (
-    <section className="app-plan" aria-label="Бюджет плана">
+    <section className="app-plan" aria-label="Бюджет">
       <p className="app-card-title">Бюджет</p>
       {budget.expenses.length === 0 && <AppState>Пока нет расходов.</AppState>}
       <ul className="app-plan-participants" aria-label="Расходы">
@@ -144,7 +152,7 @@ export function BudgetView({ budget, members, ownId, draft, saving, failed, show
   );
 }
 
-export function BudgetSection({ planId, members }: { planId: string; members: Friend[] }) {
+export function BudgetSection({ planId, members, load, add }: { planId?: string; members: Friend[]; load?: () => Promise<BudgetSnapshot>; add?: (payload: CreatePlanExpenseWrite) => Promise<BudgetSnapshot> }) {
   const auth = useAuth();
   const ownId = auth.status === "authenticated" ? auth.user.id : null;
   const [state, setState] = useState<BudgetState>({ status: "loading" });
@@ -156,7 +164,8 @@ export function BudgetSection({ planId, members }: { planId: string; members: Fr
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
-    apiClient.getPlanBudget(planId).then(
+    const run = load ?? (() => apiClient.getPlanBudget(planId ?? ""));
+    run().then(
       (budget) => {
         if (!alive) return;
         setState({ status: "ready", budget });
@@ -170,7 +179,7 @@ export function BudgetSection({ planId, members }: { planId: string; members: Fr
     return () => {
       alive = false;
     };
-  }, [planId]);
+  }, [planId, load]);
 
   const submit = () => {
     if (state.status !== "ready") return;
@@ -180,7 +189,8 @@ export function BudgetSection({ planId, members }: { planId: string; members: Fr
     }
     setSaving(true);
     setFailed(false);
-    apiClient.addPlanExpense(planId, { title: draft.title.trim(), amountRub: Number(draft.amount), payerUserId: draft.payerUserId, shareUserIds: draft.shareUserIds }).then(
+    const send = add ?? ((payload: CreatePlanExpenseWrite) => apiClient.addPlanExpense(planId ?? "", payload));
+    send({ title: draft.title.trim(), amountRub: Number(draft.amount), payerUserId: draft.payerUserId, shareUserIds: draft.shareUserIds }).then(
       (budget) => {
         setState({ status: "ready", budget });
         setDraft(emptyExpenseDraft(draft.payerUserId));

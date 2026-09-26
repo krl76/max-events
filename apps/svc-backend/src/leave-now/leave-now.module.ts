@@ -17,13 +17,15 @@ import { MaxBotModule } from "../max-bot/max-bot.module";
 import { PlaceEntity } from "../places/place.entity";
 import { PlanParticipantEntity } from "../plans/plan-participant.entity";
 import { PlanEntity } from "../plans/plan.entity";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
+import { WeatherClient } from "../smart-alerts/weather.client";
 import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 import { LeaveNowScheduler } from "./leave-now.scheduler";
 import { LeaveNowService } from "./leave-now.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, EventEntity, PlaceEntity, UserEntity, CheckInEntity, ProfileEntity]), MaxBotModule],
-  providers: [LeaveNowService, LeaveNowScheduler],
+  imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, EventEntity, PlaceEntity, UserEntity, CheckInEntity, ProfileEntity, NotificationEntity]), MaxBotModule],
+  providers: [WeatherClient, LeaveNowService, LeaveNowScheduler],
 })
 export class LeaveNowModule {}

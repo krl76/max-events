@@ -14,10 +14,12 @@
 // - MicroEventPage - route container: loads the card, wires join/leave and the venue navigation
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import type { CreatePlanExpenseWrite } from "@max-events/api-contracts";
 import { ApiError, apiClient, type MicroEventCard } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { PersonAvatar } from "../friends/avatar";
+import { BudgetSection } from "../plans/BudgetSection";
 import { microCtaState, microTime } from "./MicroEventsPage";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
@@ -91,9 +93,10 @@ interface MicroEventViewProps {
   onJoin: () => void;
   onLeave: () => void;
   onRetry: () => void;
+  expenses?: ReactNode;
 }
 
-export function MicroEventView({ state, viewerId, busy = false, now = new Date(), onBack, onOpenPlace, onOpenPin, onJoin, onLeave, onRetry }: MicroEventViewProps) {
+export function MicroEventView({ state, viewerId, busy = false, now = new Date(), onBack, onOpenPlace, onOpenPin, onJoin, onLeave, onRetry, expenses = null }: MicroEventViewProps) {
   const card = state.status === "ready" ? state.card : null;
   const joined = card !== null && viewerId !== null && card.event.participantIds.includes(viewerId);
   const cta = card === null ? null : microCtaState(card.event, joined);
@@ -147,6 +150,7 @@ export function MicroEventView({ state, viewerId, busy = false, now = new Date()
             ))}
           </ul>
           )}
+          {expenses}
           {hint !== null && (
             <p className="app-micro-hint">
               <ActionIcon name="alert" size={18} strokeWidth={2.4} />
@@ -217,5 +221,29 @@ export function MicroEventPage({ id }: { id: string }) {
     [load],
   );
 
-  return <MicroEventView state={state} viewerId={viewerId} busy={busy} onBack={back} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} onOpenPin={(pin) => navigate({ name: "map", pin })} onJoin={() => viewerId !== null && act(apiClient.joinMicroEvent(id, viewerId))} onLeave={() => viewerId !== null && act(apiClient.leaveMicroEvent(id, viewerId))} onRetry={load} />;
+  const joined = state.status === "ready" && viewerId !== null && state.card.event.participantIds.includes(viewerId);
+  const members = state.status === "ready" ? state.card.participants.map((row) => row.friend) : [];
+  const loadBudget = useCallback(() => (viewerId === null ? Promise.reject(new Error("signed out")) : apiClient.getMicroEventBudget(id, viewerId)), [id, viewerId]);
+  const addExpense = useCallback((payload: CreatePlanExpenseWrite) => (viewerId === null ? Promise.reject(new Error("signed out")) : apiClient.addMicroEventExpense(id, viewerId, payload)), [id, viewerId]);
+  return (
+    <MicroEventView
+      state={state}
+      viewerId={viewerId}
+      busy={busy}
+      onBack={back}
+      onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })}
+      onOpenPin={(pin) => navigate({ name: "map", pin })}
+      onJoin={() => viewerId !== null && act(apiClient.joinMicroEvent(id, viewerId))}
+      onLeave={() => viewerId !== null && act(apiClient.leaveMicroEvent(id, viewerId))}
+      onRetry={load}
+      expenses={
+        joined ? (
+          <details className="app-plan-expenses">
+            <summary>Расходы и долги</summary>
+            <BudgetSection members={members} load={loadBudget} add={addExpense} />
+          </details>
+        ) : null
+      }
+    />
+  );
 }

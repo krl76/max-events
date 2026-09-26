@@ -27,5 +27,6 @@ import { GatheringsService } from "./gatherings.service";
   imports: [TypeOrmModule.forFeature([GatheringEntity, GatheringInviteeEntity, BookingEntity, EventEntity, UserEntity, NotificationEntity]), FriendsModule, MaxBotModule],
   controllers: [FriendAvailabilityController, GatheringsController],
   providers: [GatheringsService, GatheringsScheduler],
+  exports: [GatheringsService],
 })
 export class GatheringsModule {}

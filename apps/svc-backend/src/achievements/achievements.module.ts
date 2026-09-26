@@ -12,12 +12,13 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { CheckInsModule } from "../checkins/check-ins.module";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { UserAchievementEntity } from "./user-achievement.entity";
 import { AchievementsController } from "./achievements.controller";
 import { AchievementsService } from "./achievements.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserAchievementEntity]), CheckInsModule],
+  imports: [TypeOrmModule.forFeature([UserAchievementEntity, NotificationEntity]), CheckInsModule],
   controllers: [AchievementsController],
   providers: [AchievementsService],
 })

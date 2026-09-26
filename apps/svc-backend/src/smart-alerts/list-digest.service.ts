@@ -28,6 +28,7 @@ import { ListEntity } from "../lists/list.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { haversineKm } from "../geo/haversine";
 import { PlaceEntity } from "../places/place.entity";
+import { inQuietHours } from "../subscriptions/subscriptions.service";
 import { moscowDateKey } from "../time/moscow-date";
 import { ProfileEntity } from "../users/profile.entity";
 import { readAlertPrefs } from "../users/profiles.service";
@@ -149,7 +150,8 @@ export class ListDigestService {
         const nearbyIds = nearby.map((row) => row.id);
         const fingerprint = digestFingerprint(nearbyIds);
         if (sentFingerprints.has(`${userId}:${fingerprint}`)) continue;
-        const saturdayCount = nearby.filter((row) => moscowDateKey(row.startsAt) === window.saturdayKey).length;
+        if (inQuietHours(prefs, now)) continue;
+        const saturdayCount = nearby.filter((row) => moscowDateKey(row.startsAt) === window.saturdayKey).length
         const text = formatListDigestText(nearby.length, saturdayCount);
         try {
           const ok = await this.bot.sendMessage(user.maxUserId, text);

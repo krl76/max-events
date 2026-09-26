@@ -188,11 +188,7 @@ export function FeedHeader({ onSearch, onNotifications }: { onSearch: () => void
         </button>
         <button type="button" className="app-header-bell" aria-label={unread === 0 ? "Уведомления" : `Уведомления: ${unread} новых`} onClick={onNotifications}>
           <ActionIcon name="bell" size={24} />
-          {unread > 0 && (
-            <span className="app-header-bell-count" aria-hidden="true">
-              {unread}
-            </span>
-          )}
+          {unread > 0 && <span className="app-header-bell-dot" aria-hidden="true" />}
         </button>
       </span>
     </>

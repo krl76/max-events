@@ -1,8 +1,9 @@
-import { ConflictException, ForbiddenException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { FindOperator, type DataSource, type EntityManager, type Repository } from "typeorm";
 import { PlaceEntity } from "../places/place.entity";
 import type { UsersService } from "../users/users.service";
+import { MicroEventExpenseEntity } from "./micro-event-expense.entity";
 import { MicroEventEntity, MicroEventParticipantEntity } from "./micro-event.entity";
 import { MicroEventsService } from "./micro-events.service";
 
@@ -69,8 +70,9 @@ function createService() {
       return run(manager as unknown as EntityManager);
     },
   } as unknown as DataSource;
-  const service = new MicroEventsService(dataSource, events as unknown as Repository<MicroEventEntity>, participants as unknown as Repository<MicroEventParticipantEntity>, places as unknown as Repository<PlaceEntity>, users);
-  return { service, participants };
+  const expenses = createStoreRepo<MicroEventExpenseEntity>();
+  const service = new MicroEventsService(dataSource, events as unknown as Repository<MicroEventEntity>, participants as unknown as Repository<MicroEventParticipantEntity>, places as unknown as Repository<PlaceEntity>, users, undefined, undefined, expenses as unknown as Repository<MicroEventExpenseEntity>);
+  return { service, participants, expenses };
 }
 
 describe("MicroEventsService", () => {
@@ -114,5 +116,20 @@ describe("MicroEventsService", () => {
 
     const left = await service.leave(other, created.id);
     expect(left.participantIds).toEqual([author]);
+  });
+
+  it("splits a gathering expense across the people who are in it", async () => {
+    const { service } = createService();
+    const created = await service.create(author, { title: "День рождения", startsAt: now.toISOString(), locationText: "дом", participantsLimit: 4 });
+    await service.join(other, created.id);
+    const budget = await service.addExpense(author, created.id, { title: "Торт", amountRub: 3000, payerUserId: author, shareUserIds: [author, other] });
+    expect(budget.totalRub).toBe(3000);
+    expect(budget.expenses[0]).toMatchObject({ title: "Торт", microEventId: created.id, payerUserId: author });
+    expect(budget.debts).toEqual([{ fromUserId: other, toUserId: author, amountRub: 1500 }]);
+    await expect(service.addExpense(other, created.id, { title: "Такси", amountRub: 400, payerUserId: author, shareUserIds: [author, other] })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.addExpense(third, created.id, { title: "Чужой", amountRub: 10, payerUserId: third, shareUserIds: [third] })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.addExpense(author, created.id, { title: "Чужой", amountRub: 10, payerUserId: author, shareUserIds: [author, third] })).rejects.toBeInstanceOf(BadRequestException);
+    const own = await service.addExpense(other, created.id, { title: "Сок", amountRub: 200, payerUserId: other, shareUserIds: [author, other] });
+    expect(own.totalRub).toBe(3200);
   });
 });

@@ -9,7 +9,9 @@ import { PlanEntity } from "../plans/plan.entity";
 import { haversineMeters } from "../plans/plans.service";
 import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
-import { formatLeaveNowText, LeaveNowService, shouldLeaveNow, walkingMinutes } from "./leave-now.service";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
+import type { WeatherClient } from "../smart-alerts/weather.client";
+import { formatCombinedDepartureText, formatLeaveNowText, LeaveNowService, shouldLeaveNow, walkingMinutes } from "./leave-now.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
 const hostId = "00000000-0000-4000-8000-00000000000a";
@@ -51,8 +53,9 @@ function createStoreRepo<T extends object>(initial: T[] = []) {
   };
 }
 
-function createService(options: { startsInMin: number; dimaStatus?: PlanParticipantEntity["status"]; withOrigin?: boolean; hostLeaveNow?: boolean } = { startsInMin: travel + 20 }) {
-  const startsAt = new Date(now.getTime() + options.startsInMin * 60_000);
+function createService(options: { startsInMin: number; dimaStatus?: PlanParticipantEntity["status"]; withOrigin?: boolean; hostLeaveNow?: boolean; rain?: boolean; quiet?: boolean; inbox?: NotificationEntity[]; at?: Date } = { startsInMin: travel + 20 }) {
+  const base = options.at ?? now;
+  const startsAt = new Date(base.getTime() + options.startsInMin * 60_000);
   const meetingAt = new Date(startsAt.getTime() - 20 * 60_000);
   const plans = createStoreRepo<PlanEntity>([
     {
@@ -99,13 +102,38 @@ function createService(options: { startsInMin: number; dimaStatus?: PlanParticip
       return true;
     },
   } as unknown as MaxBotClient;
-  const service = new LeaveNowService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, checkIns as unknown as Repository<CheckInEntity>, createStoreRepo<ProfileEntity>(options.hostLeaveNow === false ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: false, weather: true, friendLeft: true, listDigest: true, quietHoursEnabled: false, quietHoursFrom: "23:00", quietHoursTo: "09:00" }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null, updatedAt: now } as ProfileEntity] : []) as unknown as Repository<ProfileEntity>, bot);
+  const quietAlerts = { leaveNow: true, weather: true, friendLeft: true, listDigest: true, quietHoursEnabled: true, quietHoursFrom: "23:00", quietHoursTo: "09:00" };
+  const profiles = createStoreRepo<ProfileEntity>(
+    options.quiet
+      ? [hostId, dimaId].map((userId) => ({ userId, city: "Москва", interests: [], smartAlerts: quietAlerts, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null, updatedAt: now }) as ProfileEntity)
+      : options.hostLeaveNow === false
+        ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: false, weather: true, friendLeft: true, listDigest: true, quietHoursEnabled: false, quietHoursFrom: "23:00", quietHoursTo: "09:00" }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null, updatedAt: now } as ProfileEntity]
+        : [],
+  );
+  const weather =
+    options.rain === undefined
+      ? undefined
+      : ({
+          precipitationAt: async () => (options.rain ? { precipitationMm: 1.2, precipitationProbability: 80 } : { precipitationMm: 0, precipitationProbability: 0 }),
+        } as unknown as WeatherClient);
+  const notices = options.inbox
+    ? ({
+        create: (fields: Partial<NotificationEntity>) => fields as NotificationEntity,
+        save: async (entity: NotificationEntity) => {
+          options.inbox?.push(entity);
+          return entity;
+        },
+      } as unknown as Repository<NotificationEntity>)
+    : undefined;
+  const service = new LeaveNowService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, checkIns as unknown as Repository<CheckInEntity>, profiles as unknown as Repository<ProfileEntity>, bot, weather, notices);
   return { service, sent, plans, participants };
 }
 
 describe("formatLeaveNowText and shouldLeaveNow", () => {
   it("matches the README early-arrival phrasing", () => {
     expect(formatLeaveNowText("Концерт", 48, 28, 20)).toContain("будешь за 20 минут до начала");
+    expect(formatCombinedDepartureText("Концерт", 48, 28, 20)).toContain("будет дождь");
+    expect(formatCombinedDepartureText("Концерт", 48, 28, 20)).toContain("будешь за 20 минут до начала");
     expect(shouldLeaveNow(48, 28)).toBe(true);
     expect(shouldLeaveNow(180, 28)).toBe(false);
     expect(shouldLeaveNow(10, 28)).toBe(false);
@@ -151,5 +179,30 @@ describe("LeaveNowService.tick", () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]?.startsWith("2:")).toBe(true);
     expect(plans.store[0]?.leaveNowSentAt).toBeNull();
+  });
+
+  it("sends rain and leave-now as one sentence and does not ping again", async () => {
+    const { service, sent, plans } = createService({ startsInMin: travel + 20, rain: true });
+    const result = await service.tick(now);
+    expect(result.sent).toBe(2);
+    expect(sent.every((row) => row.includes("будет дождь") && row.includes("будешь за"))).toBe(true);
+    expect(plans.store[0]?.weatherAlertSentAt).toEqual(now);
+    expect(plans.store[0]?.leaveNowSentAt).toEqual(now);
+    expect(await service.tick(now)).toEqual({ sent: 0, failed: 0 });
+  });
+
+  it("puts rain in the bell during quiet hours and still DMs when it is time to leave", async () => {
+    const night = new Date("2026-09-12T20:30:00Z");
+    const inbox: NotificationEntity[] = [];
+    const rainOnly = createService({ startsInMin: travel + 120, rain: true, quiet: true, inbox, at: night });
+    await expect(rainOnly.service.tick(night)).resolves.toEqual({ sent: 0, failed: 0 });
+    expect(rainOnly.sent).toHaveLength(0);
+    expect(inbox.length).toBeGreaterThan(0);
+    expect(inbox.every((row) => row.type === "weather")).toBe(true);
+
+    const leaving = createService({ startsInMin: travel + 20, quiet: true, at: night });
+    const left = await leaving.service.tick(night);
+    expect(left.sent).toBe(2);
+    expect(leaving.sent.every((row) => row.includes("будешь за"))).toBe(true);
   });
 });

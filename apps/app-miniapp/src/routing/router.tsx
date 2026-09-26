@@ -94,9 +94,17 @@ const START_PARAM_PREFIXES = [
   ["list-", "list"],
   ["gathering-", "gathering"],
   ["vote-", "vote"],
+  ["micro-", "micro-event"],
   // Пуш после брони ведёт на экран 20 с кодом входа
   ["booking-", "slot-ticket"],
 ] as const satisfies ReadonlyArray<readonly [string, Route["name"]]>;
+
+/** Browser stand: ?startapp= or ?start= carries the same payload MAX puts in start_param. */
+export function startParamFromSearch(search: string): string | null {
+  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  const value = (params.get("startapp") ?? params.get("start"))?.trim();
+  return value ? value : null;
+}
 
 export function routeFromStartParam(startParam: string | null): Route {
   // Экран 35 «После события» is opened by the push that follows an event, so its deep link carries
@@ -278,7 +286,9 @@ interface NavState {
 
 export function RouteProvider({ children }: { children: ReactNode }) {
   const [nav, setNav] = useState<NavState>(() => {
-    const initial: RouteHistoryState = { route: routeFromStartParam(getStartParam(getWebApp())), idx: 0 };
+    const fromMax = getStartParam(getWebApp());
+    const fromUrl = typeof window === "undefined" ? null : startParamFromSearch(window.location.search);
+    const initial: RouteHistoryState = { route: routeFromStartParam(fromMax ?? fromUrl), idx: 0 };
     writeHistory(initial, "replace");
     return { history: initial, transition: "none", seq: 0 };
   });

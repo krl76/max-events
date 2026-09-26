@@ -9,7 +9,7 @@ import { PlanEntity } from "../plans/plan.entity";
 import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 import { formatFriendLeftText, formatWeatherAlertText, SmartAlertsService } from "./smart-alerts.service";
-import type { HourlyPrecip, WeatherClient } from "./weather.client";
+
 
 const now = new Date("2026-09-12T10:00:00Z");
 const hostId = "00000000-0000-4000-8000-00000000000a";
@@ -47,7 +47,7 @@ function createStoreRepo<T extends object>(initial: T[] = []) {
   };
 }
 
-function createService(options: { rain?: HourlyPrecip | null; dimaLeft?: boolean; dimaCheckInAtVenue?: boolean; dimaStatus?: PlanParticipantEntity["status"]; hostWeather?: boolean } = {}) {
+function createService(options: { dimaLeft?: boolean; dimaCheckInAtVenue?: boolean; dimaStatus?: PlanParticipantEntity["status"]; hostWeather?: boolean } = {}) {
   const plans = createStoreRepo<PlanEntity>([
     {
       id: planId,
@@ -88,10 +88,7 @@ function createService(options: { rain?: HourlyPrecip | null; dimaLeft?: boolean
       return true;
     },
   } as unknown as MaxBotClient;
-  const weather = {
-    precipitationAt: async () => options.rain ?? null,
-  } as unknown as WeatherClient;
-  const service = new SmartAlertsService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, checkIns as unknown as Repository<CheckInEntity>, createStoreRepo<ProfileEntity>(options.hostWeather === false ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: true, weather: false, friendLeft: true, listDigest: true, quietHoursEnabled: false, quietHoursFrom: "23:00", quietHoursTo: "09:00" }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null, updatedAt: now } as ProfileEntity] : []) as unknown as Repository<ProfileEntity>, bot, weather);
+  const service = new SmartAlertsService(plans as unknown as Repository<PlanEntity>, participants as unknown as Repository<PlanParticipantEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, checkIns as unknown as Repository<CheckInEntity>, createStoreRepo<ProfileEntity>(options.hostWeather === false ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: true, weather: false, friendLeft: true, listDigest: true, quietHoursEnabled: false, quietHoursFrom: "23:00", quietHoursTo: "09:00" }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null, updatedAt: now } as ProfileEntity] : []) as unknown as Repository<ProfileEntity>, bot);
   return { service, sent, plans, participants };
 }
 
@@ -103,26 +100,6 @@ describe("smart alert copy", () => {
 });
 
 describe("SmartAlertsService.tick", () => {
-  it("DMs the plan when Open-Meteo reports rain in the event hour", async () => {
-    const { service, sent, plans } = createService({ rain: { precipitationMm: 1.2, precipitationProbability: 70 } });
-    const result = await service.tick(now);
-    expect(result.sent).toBe(2);
-    expect(sent.every((row) => row.includes("Похоже, будет дождь"))).toBe(true);
-    expect(plans.store[0]?.weatherAlertSentAt).toEqual(now);
-    const again = await service.tick(now);
-    expect(again.sent).toBe(0);
-  });
-
-  it("does not send a weather DM when the forecast is dry or the provider fails", async () => {
-    const dry = createService({ rain: { precipitationMm: 0, precipitationProbability: 10 } });
-    await expect(dry.service.tick(now)).resolves.toEqual({ sent: 0, failed: 0 });
-    expect(dry.sent).toHaveLength(0);
-
-    const down = createService({ rain: null });
-    await expect(down.service.tick(now)).resolves.toEqual({ sent: 0, failed: 0 });
-    expect(down.sent).toHaveLength(0);
-  });
-
   it("notifies others when a confirmed friend has leaveNowSentAt", async () => {
     const { service, sent, participants } = createService({ dimaLeft: true });
     const result = await service.tick(now);
@@ -131,14 +108,6 @@ describe("SmartAlertsService.tick", () => {
     expect(participants.store[0]?.friendLeftBroadcastAt).toEqual(now);
     const again = await service.tick(now);
     expect(again.sent).toBe(0);
-  });
-
-  it("skips weather DMs for a user who disabled weather alerts", async () => {
-    const { service, sent } = createService({ rain: { precipitationMm: 1.2, precipitationProbability: 70 }, hostWeather: false });
-    const result = await service.tick(now);
-    expect(result.sent).toBe(1);
-    expect(sent).toHaveLength(1);
-    expect(sent[0]?.startsWith("2:")).toBe(true);
   });
 
   it("treats a venue check-in as left and skips declined members", async () => {

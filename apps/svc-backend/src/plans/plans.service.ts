@@ -18,7 +18,7 @@
 // - PlansService - create, findExisting, findActiveForEvent, list, get, openChat, addParticipant, respond, remove, spawnRecurring, pollRecurring, remindMeeting, budget
 // END_MODULE_MAP
 
-import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, Optional, ServiceUnavailableException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { IsNull, QueryFailedError, Repository } from "typeorm";
 import type { AutoPlanProposal, CreatePlanExpenseWrite, CreatePlanWrite, Plan, PlanBudget, PlanCancelScope, PlanCard, PlanDebt, PlanParticipantStatus, Place } from "@max-events/api-contracts";
@@ -30,11 +30,14 @@ import type { RoutePrefer } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { MaxBotClient } from "../max-bot/max-bot.client";
-import { deliverInvite } from "../smart-alerts/deliver-invite";
+import { deliverInvite, INVITE_REPLY_ACTIONS } from "../smart-alerts/deliver-invite";
 import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { toPlaceDto } from "../places/places.service";
 import { isInReminderWindow } from "../reminders/reminders.service";
+import { inQuietHours } from "../subscriptions/subscriptions.service";
+import { humanMeeting, miniappLink, withAppLink } from "../time/human-when";
+import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 import { PlanExpenseEntity } from "./plan-expense.entity";
 import { PlanParticipantEntity } from "./plan-participant.entity";
@@ -61,8 +64,8 @@ const WEEKDAY_POLL: Record<number, string> = {
 
 export { haversineMeters };
 
-export function formatPlanReminderText(title: string, meetingPoint: string, meetingAt: Date): string {
-  return `Напоминание: сбор «${title}» ${meetingPoint} в ${meetingAt.toISOString()}`;
+export function formatPlanReminderText(title: string, meetingPoint: string, meetingAt: Date, now = new Date()): string {
+  return `Напоминание: сбор «${title}» ${humanMeeting(meetingAt, meetingPoint, now)}`;
 }
 
 export function settleBalances(balances: Map<string, number>): PlanDebt[] {
@@ -131,14 +134,14 @@ function toExpenseDto(row: PlanExpenseEntity) {
   };
 }
 
-export function formatPlanInviteText(title: string, meetingPoint: string, meetingAt: Date, chatLink: string | null): string {
+export function formatPlanInviteText(title: string, meetingPoint: string, meetingAt: Date, chatLink: string | null, now = new Date()): string {
   const chat = chatLink ? ` Чат: ${chatLink}` : "";
-  return `Тебя зовут в план «${title}». Сбор ${meetingAt.toISOString()} ${meetingPoint}.${chat}`;
+  return `Тебя зовут в план «${title}». Сбор ${humanMeeting(meetingAt, meetingPoint, now)}.${chat}`;
 }
 
-export function formatPlanPollText(title: string, meetingPoint: string, meetingAt: Date): string {
+export function formatPlanPollText(title: string, meetingPoint: string, meetingAt: Date, now = new Date()): string {
   const weekday = WEEKDAY_POLL[moscowIsoWeekday(meetingAt)] ?? "встречу";
-  return `Идёшь на ${weekday}? План «${title}». Сбор ${meetingAt.toISOString()} ${meetingPoint}. Ответь в приложении.`;
+  return `Идёшь на ${weekday}? План «${title}». Сбор ${humanMeeting(meetingAt, meetingPoint, now)}. Ответь в приложении.`;
 }
 
 @Injectable()
@@ -154,7 +157,8 @@ export class PlansService {
     @InjectRepository(PlanExpenseEntity) private readonly expenses: Repository<PlanExpenseEntity>,
     @Inject(FriendsService) private readonly friends: FriendsService,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
-    @InjectRepository(NotificationEntity) private readonly notices?: Repository<NotificationEntity>,
+    @Optional() @InjectRepository(NotificationEntity) private readonly notices?: Repository<NotificationEntity>,
+    @Optional() @InjectRepository(ProfileEntity) private readonly profiles?: Repository<ProfileEntity>,
   ) {}
 
   async create(hostUserId: string, payload: CreatePlanWrite, origin: GeoOrigin | null = null, options?: { assembledByMax?: boolean }): Promise<PlanCard> {
@@ -202,9 +206,9 @@ export class PlansService {
     for (const userId of ids) {
       const user = users.find((row) => row.id === userId);
       if (!user) continue;
-      const text = formatPlanInviteText(event.title, saved.meetingPoint, saved.meetingAt, saved.chatLink);
+      const text = withAppLink(formatPlanInviteText(event.title, saved.meetingPoint, saved.meetingAt, saved.chatLink), miniappLink(`plan-${saved.id}`));
       try {
-        await deliverInvite(this.bot, this.notices, { userId: user.id, maxUserId: user.maxUserId, actorUserId: hostUserId, type: "plan-invite", title: `План «${event.title}»`, body: text, link: { target: "plan", id: saved.id } });
+        await deliverInvite(this.bot, this.notices, { userId: user.id, maxUserId: user.maxUserId, actorUserId: hostUserId, type: "plan-invite", title: `План «${event.title}»`, body: text, link: { target: "plan", id: saved.id }, actions: INVITE_REPLY_ACTIONS });
       } catch {
         this.logger.warn(`Plan invite DM failed for ${saved.id}`);
       }
@@ -419,14 +423,17 @@ export class PlansService {
     const events = await this.events.find();
     const users = await this.users.find();
     const participants = await this.participants.find();
+    const profileRows = this.profiles ? await this.profiles.find() : [];
+    const profileById = new Map(profileRows.map((row) => [row.userId, row]));
     for (const plan of plans) {
       if (plan.cancelledAt || !plan.sourcePlanId) continue;
       if (!isInReminderWindow(plan.meetingAt, now, PLAN_POLL_WINDOW_MS)) continue;
       const event = events.find((row) => row.id === plan.eventId);
       if (!event) continue;
-      const text = formatPlanPollText(event.title, plan.meetingPoint, plan.meetingAt);
+      const text = withAppLink(formatPlanPollText(event.title, plan.meetingPoint, plan.meetingAt), miniappLink(`plan-${plan.id}`));
       for (const row of participants.filter((item) => item.planId === plan.id)) {
         if (row.status !== "invited" || row.pollSentAt) continue;
+        if (inQuietHours(profileById.get(row.userId)?.smartAlerts, now)) continue;
         const user = users.find((item) => item.id === row.userId);
         if (!user) {
           result.failed += 1;
@@ -454,7 +461,7 @@ export class PlansService {
       if (!isInReminderWindow(plan.meetingAt, now)) continue;
       const event = events.find((row) => row.id === plan.eventId);
       if (!event) continue;
-      const text = formatPlanReminderText(event.title, plan.meetingPoint, plan.meetingAt);
+      const text = withAppLink(formatPlanReminderText(event.title, plan.meetingPoint, plan.meetingAt), miniappLink(`plan-${plan.id}`));
       const host = users.find((row) => row.id === plan.hostUserId);
       if (host && !plan.reminderSentAt) {
         const sent = await this.dm(host, text, () => {

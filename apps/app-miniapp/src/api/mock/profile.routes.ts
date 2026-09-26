@@ -10,13 +10,25 @@
 // END_MODULE_MAP
 
 import { UpdateProfileSchema } from "@max-events/api-contracts";
-import type { Profile } from "@max-events/api-contracts";
+import type { Friend, Profile } from "@max-events/api-contracts";
 import { type UpdateAppSettings } from "../client";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
 import { achievementsFor, afterMePicks, appSettingsFor, mockCustomAvatars, mockProfiles, myCityFor, profileCountersFor, profileFor, tasteProfile, updateMockAppSettings, userFor, userPostsFor, visitStatsFor, visitedPlacesFor } from "./profile";
-import { followersOf, followingOf } from "./social";
+import { followersOf, followingOf, mockOnboardingContacts } from "./social";
 
 const mockCloseFriends = new Set<string>();
+
+/** Close is a subset the viewer assembles. A person can be added only while they follow the demo user; removal stays open after they unfollow. */
+export function setMockCloseFriend(userId: string, close: boolean): "ok" | "forbidden" {
+  if (close && !followersOf(mockDemoUser.id).some((person) => person.id === userId)) return "forbidden";
+  if (close) mockCloseFriends.add(userId);
+  else mockCloseFriends.delete(userId);
+  return "ok";
+}
+
+export function mockCloseFriendsOf(): Friend[] {
+  return mockOnboardingContacts.filter((person) => mockCloseFriends.has(person.id));
+}
 
 export function profileRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/taste") {
@@ -78,8 +90,7 @@ export function profileRoutes(url: URL, init: RequestInit | undefined): Response
     if (init?.method === "PUT") {
       const body = parseBookingBody(init) as { close?: unknown } | undefined;
       if (typeof body?.close !== "boolean") return new Response(null, { status: 400 });
-      if (body.close) mockCloseFriends.add(close[1]);
-      else mockCloseFriends.delete(close[1]);
+      if (setMockCloseFriend(close[1], body.close) === "forbidden") return new Response(null, { status: 403 });
     }
     return Response.json({ close: mockCloseFriends.has(close[1]) });
   }

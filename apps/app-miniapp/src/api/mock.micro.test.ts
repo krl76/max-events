@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { MicroEventSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { createMockMicroEvent, installMockApi, joinMockMicroEvent, leaveMockMicroEvent, microEventCard, microEvents, mockDemoUser, mockFriendIds, mockPlaces, resetMockMicroEvents } from "./mock";
+import { addMockMicroEventExpense, createMockMicroEvent, installMockApi, joinMockMicroEvent, leaveMockMicroEvent, microEventCard, microEvents, mockDemoUser, mockFriendIds, mockMicroEventBudget, mockPlaces, resetMockMicroEvents } from "./mock";
 
 const DEMO_USER_ID = mockDemoUser.id;
 const UNKNOWN_ID = "00000000-0000-4000-8000-000000000000";
@@ -139,5 +139,17 @@ describe("micro-event card mock", () => {
     expect(microEventCard(UNKNOWN_ID)).toBeNull();
     await expect(api.getMicroEventCard(UNKNOWN_ID)).rejects.toMatchObject({ name: "ApiError", status: 404 });
     await expect(api.getMicroEventCard("not-a-uuid")).rejects.toMatchObject({ name: "ApiError", status: 400 });
+  });
+
+  it("splits a cake across the people who joined", async () => {
+    restore = installMockApi();
+    const api = new ApiClient("/api");
+    const created = await api.createMicroEvent({ userId: DEMO_USER_ID, title: "День рождения", startsAt: STARTS_AT, locationText: "дом", participantsLimit: 4 });
+    await api.joinMicroEvent(created.id, mockFriendIds[0]);
+    const budget = await api.addMicroEventExpense(created.id, DEMO_USER_ID, { title: "Торт", amountRub: 3000, payerUserId: DEMO_USER_ID, shareUserIds: [DEMO_USER_ID, mockFriendIds[0]] });
+    expect(budget.totalRub).toBe(3000);
+    expect(budget.debts).toEqual([{ fromUserId: mockFriendIds[0], toUserId: DEMO_USER_ID, amountRub: 1500 }]);
+    expect(mockMicroEventBudget(created.id, mockFriendIds[1])).toBe("forbidden");
+    expect(addMockMicroEventExpense(created.id, mockFriendIds[0], { title: "Чужой", amountRub: 10, payerUserId: DEMO_USER_ID, shareUserIds: [DEMO_USER_ID] })).toBe("forbidden");
   });
 });

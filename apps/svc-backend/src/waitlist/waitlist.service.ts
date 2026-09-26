@@ -12,7 +12,7 @@
 // - toWaitlistDto - entity plus FIFO position
 // END_MODULE_MAP
 
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, Optional } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, EntityManager, In, LessThanOrEqual, QueryFailedError, Repository } from "typeorm";
 import type { WaitlistEntry, WaitlistStatus } from "@max-events/api-contracts";
@@ -21,6 +21,9 @@ import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PaymentsService } from "../payments/payments.service";
 import { PromoService } from "../promo/promo.service";
+import { writeInbox } from "../smart-alerts/deliver-invite";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
+import { miniappLink, withAppLink } from "../time/human-when";
 import { moscowTimeLabel } from "../time/moscow-date";
 import { UserEntity } from "../users/user.entity";
 import { WaitlistEntryEntity } from "./waitlist-entry.entity";
@@ -50,6 +53,7 @@ export class WaitlistService {
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
     @Inject(PromoService) private readonly promo: PromoService,
     @Inject(PaymentsService) private readonly payments: PaymentsService,
+    @Optional() @InjectRepository(NotificationEntity) private readonly notices?: Repository<NotificationEntity>,
   ) {}
 
   async queueCountsByEventIds(eventIds: string[]): Promise<Map<string, number>> {
@@ -276,7 +280,23 @@ export class WaitlistService {
       this.logger.warn(`Waitlist offer ${entry.id} has no event ${entry.eventId}: no DM sent`);
       return;
     }
-    await this.bot.sendMessage(user.maxUserId, formatWaitlistOfferText(event.title, entry.offeredUntil));
+    const text = withAppLink(formatWaitlistOfferText(event.title, entry.offeredUntil), miniappLink(`event-${event.id}`));
+    const actions = [
+      { id: `confirm:${entry.id}`, label: "Заберу", tone: "confirm" as const, link: { target: "event" as const, id: event.id } },
+      { id: `decline:${entry.id}`, label: "Не смогу", tone: "secondary" as const, link: null },
+    ];
+    await writeInbox(this.notices, {
+      userId: user.id,
+      type: "seat-freed",
+      actorUserId: null,
+      title: "Место освободилось",
+      body: text,
+      link: { target: "event", id: event.id },
+      actions,
+      deadlineAt: entry.offeredUntil,
+      urgent: true,
+    });
+    await this.bot.sendMessage(user.maxUserId, text);
   }
 }
 

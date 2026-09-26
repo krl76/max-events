@@ -26,7 +26,7 @@ import { DEFAULT_SMART_ALERTS, type SmartAlertSettings } from "@max-events/api-c
 import { ProfileEntity } from "../users/profile.entity";
 import { readAlertPrefs } from "../users/profiles.service";
 import { UserEntity } from "../users/user.entity";
-import { isRainy, WeatherClient } from "./weather.client";
+
 
 export const WEATHER_WINDOW_MS = 3 * 60 * 60 * 1000;
 
@@ -54,7 +54,6 @@ export class SmartAlertsService {
     @InjectRepository(CheckInEntity) private readonly checkIns: Repository<CheckInEntity>,
     @InjectRepository(ProfileEntity) private readonly profiles: Repository<ProfileEntity>,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
-    @Inject(WeatherClient) private readonly weather: WeatherClient,
   ) {}
 
   async tick(now = new Date()): Promise<SmartAlertTickResult> {
@@ -83,38 +82,13 @@ export class SmartAlertsService {
         if (!event || event.published === false || event.startsAt.getTime() <= now.getTime()) continue;
         const confirmed = participantRows.filter((row) => row.planId === plan.id && row.status === "confirmed");
         const audienceIds = [plan.hostUserId, ...confirmed.map((row) => row.userId)];
-        const venue = event.placeId ? placeById.get(event.placeId) : undefined;
-        await this.sendWeather(plan, event, venue, audienceIds, userById, prefsByUser, now, result);
+        // Rain and «пора выходить» leave from LeaveNowService, so one tick can fold both into a single sentence.
         await this.sendFriendLeft(plan, event, confirmed, audienceIds, userById, latestCheckIn, prefsByUser, now, result);
       }
       return result;
     } finally {
       this.running = false;
     }
-  }
-
-  private async sendWeather(plan: PlanEntity, event: EventEntity, venue: PlaceEntity | undefined, audienceIds: string[], userById: Map<string, UserEntity>, prefsByUser: Map<string, SmartAlertSettings>, now: Date, result: SmartAlertTickResult): Promise<void> {
-    if (plan.weatherAlertSentAt || !venue) return;
-    const until = event.startsAt.getTime() - now.getTime();
-    if (until <= 0 || until > WEATHER_WINDOW_MS) return;
-    const hour = await this.weather.precipitationAt(venue.latitude, venue.longitude, event.startsAt);
-    if (!hour || !isRainy(hour)) return;
-    const text = formatWeatherAlertText(event.title);
-    for (const userId of audienceIds) {
-      const prefs = prefsByUser.get(userId) ?? DEFAULT_SMART_ALERTS;
-      if (!prefs.weather) continue;
-      const user = userById.get(userId);
-      if (!user) {
-        result.failed += 1;
-        continue;
-      }
-      const ok = await this.dm(user, text);
-      if (ok) {
-        result.sent += 1;
-      } else result.failed += 1;
-    }
-    plan.weatherAlertSentAt = now;
-    await this.plans.save(plan);
   }
 
   private async sendFriendLeft(plan: PlanEntity, event: EventEntity, confirmed: PlanParticipantEntity[], audienceIds: string[], userById: Map<string, UserEntity>, latestCheckIn: Map<string, CheckInEntity>, prefsByUser: Map<string, SmartAlertSettings>, now: Date, result: SmartAlertTickResult): Promise<void> {

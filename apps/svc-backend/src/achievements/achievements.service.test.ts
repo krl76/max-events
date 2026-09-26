@@ -4,7 +4,7 @@ import type { Repository } from "typeorm";
 import type { VisitStats } from "@max-events/api-contracts";
 import type { CheckInsService } from "../checkins/check-ins.service";
 import { UserAchievementEntity } from "./user-achievement.entity";
-import { achievementsFromStats, AchievementsService, ACHIEVEMENT_CATALOG } from "./achievements.service";
+import { achievementInboxLine, achievementsFromStats, AchievementsService, ACHIEVEMENT_CATALOG } from "./achievements.service";
 
 const userId = "00000000-0000-4000-8000-00000000000a";
 const otherUser = "00000000-0000-4000-8000-00000000000b";
@@ -33,6 +33,14 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
     },
   };
 }
+
+describe("achievementInboxLine", () => {
+  it("names the stamp the screen uses and stays inside the bell", () => {
+    expect(achievementInboxLine("music_fan", 3, 5)).toBe("Меломан — осталось 2 концерта");
+    expect(achievementInboxLine("music_fan", 5, 5)).toBe("Меломан — получено");
+    expect(achievementInboxLine("weekend_city", 1, 3)).toBe("Город на выходных — осталось 2 района");
+  });
+});
 
 describe("achievementsFromStats", () => {
   it("returns four README achievements at zero without grants", () => {

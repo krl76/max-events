@@ -15,6 +15,7 @@ import { EventEntity } from "../events/event.entity";
 import { FriendsModule } from "../friends/friends.module";
 import { MaxBotModule } from "../max-bot/max-bot.module";
 import { PlaceEntity } from "../places/place.entity";
+import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 import { PlanExpenseEntity } from "./plan-expense.entity";
 import { PlanParticipantEntity } from "./plan-participant.entity";
@@ -25,7 +26,7 @@ import { PlansScheduler } from "./plans.scheduler";
 import { PlansService } from "./plans.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, PlanExpenseEntity, EventEntity, PlaceEntity, UserEntity, NotificationEntity]), FriendsModule, MaxBotModule],
+  imports: [TypeOrmModule.forFeature([PlanEntity, PlanParticipantEntity, PlanExpenseEntity, EventEntity, PlaceEntity, UserEntity, NotificationEntity, ProfileEntity]), FriendsModule, MaxBotModule],
   controllers: [PlansController],
   providers: [PlansService, PlansScheduler],
   exports: [PlansService],

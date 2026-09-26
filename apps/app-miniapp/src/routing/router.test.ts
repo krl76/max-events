@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTabRoute, nextHistory, routeFromHistoryState, routeFromStartParam, transitionFromIdx } from "./router";
+import { isTabRoute, nextHistory, routeFromHistoryState, routeFromStartParam, startParamFromSearch, transitionFromIdx } from "./router";
 
 describe("routeFromStartParam", () => {
   it("opens the event route from an event-* deep link", () => {
@@ -37,6 +37,17 @@ describe("routeFromStartParam", () => {
   it("maps the push that follows an event to экран 35, which carries an eventId rather than an id", () => {
     expect(routeFromStartParam("after-c0000001-0000-4000-8000-000000000001")).toEqual({ name: "after-event", eventId: "c0000001-0000-4000-8000-000000000001" });
     expect(routeFromStartParam("after-")).toEqual({ name: "home" });
+  });
+
+  it("opens a micro-event from a micro-* deep link", () => {
+    expect(routeFromStartParam("micro-m1")).toEqual({ name: "micro-event", id: "m1" });
+    expect(routeFromStartParam("micro-")).toEqual({ name: "home" });
+  });
+
+  it("reads startapp and start from a browser query", () => {
+    expect(startParamFromSearch("?startapp=plan-p1")).toBe("plan-p1");
+    expect(startParamFromSearch("start=event-1")).toBe("event-1");
+    expect(startParamFromSearch("")).toBeNull();
   });
 
   it("opens the vote route from a vote-* deep link", () => {

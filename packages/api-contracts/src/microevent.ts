@@ -16,6 +16,7 @@
 
 import { z } from "zod";
 import { FriendSchema } from "./friends.js";
+import { PlanBudgetPersonSchema, PlanDebtSchema } from "./plan-budget.js";
 import { IdSchema, TimestampSchema } from "./primitives.js";
 
 export const MicroEventStatusSchema = z.enum(["open", "cancelled"]);
@@ -65,3 +66,23 @@ export const CreateMicroEventWriteSchema = z
     path: ["locationText"],
   });
 export type CreateMicroEventWrite = z.infer<typeof CreateMicroEventWriteSchema>;
+
+export const MicroExpenseSchema = z.object({
+  id: IdSchema,
+  microEventId: IdSchema,
+  title: z.string().min(1).max(200),
+  amountRub: z.number().int().positive().max(2_147_483_647),
+  payerUserId: IdSchema,
+  shareUserIds: z.array(IdSchema).min(1),
+  createdAt: TimestampSchema,
+});
+export type MicroExpense = z.infer<typeof MicroExpenseSchema>;
+
+/** Same split as a plan budget: who paid, who shares, and who owes whom. The write payload is CreatePlanExpenseWrite. */
+export const MicroBudgetSchema = z.object({
+  expenses: z.array(MicroExpenseSchema),
+  perPerson: z.array(PlanBudgetPersonSchema),
+  debts: z.array(PlanDebtSchema),
+  totalRub: z.number().int().nonnegative(),
+});
+export type MicroBudget = z.infer<typeof MicroBudgetSchema>;

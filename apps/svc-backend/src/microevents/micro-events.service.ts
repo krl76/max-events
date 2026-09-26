@@ -10,18 +10,44 @@
 // - toMicroEventDto - entity plus its participant ids to the MicroEvent contract
 // END_MODULE_MAP
 
-import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
-import { MicroEventSchema, type CreateMicroEventWrite, type Friend, type MicroEvent, type Place } from "@max-events/api-contracts";
+import { MicroEventSchema, type CreateMicroEventWrite, type CreatePlanExpenseWrite, type Friend, type MicroBudget, type MicroEvent, type Place } from "@max-events/api-contracts";
 import { toFriendDto } from "../friends/friends.service";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlaceEntity } from "../places/place.entity";
 import { toPlaceDto } from "../places/places.service";
-import { deliverInvite } from "../smart-alerts/deliver-invite";
+import { PlanExpenseEntity } from "../plans/plan-expense.entity";
+import { budgetFromExpenses } from "../plans/plans.service";
+import { deliverInvite, INVITE_REPLY_ACTIONS } from "../smart-alerts/deliver-invite";
+import { humanWhen, miniappLink, withAppLink } from "../time/human-when";
 import { NotificationEntity } from "../smart-alerts/notification.entity";
 import { UsersService } from "../users/users.service";
+import { MicroEventExpenseEntity } from "./micro-event-expense.entity";
 import { MicroEventEntity, MicroEventParticipantEntity } from "./micro-event.entity";
+
+/** Plan split, rewritten so each line names the micro-event instead of a plan. */
+export function microBudgetFromRows(rows: MicroEventExpenseEntity[], party: Iterable<string>): MicroBudget {
+  const budget = budgetFromExpenses(
+    rows.map((row) => ({ ...row, planId: row.microEventId }) as PlanExpenseEntity),
+    party,
+  );
+  return {
+    expenses: budget.expenses.map((expense) => ({
+      id: expense.id,
+      microEventId: expense.planId,
+      title: expense.title,
+      amountRub: expense.amountRub,
+      payerUserId: expense.payerUserId,
+      shareUserIds: expense.shareUserIds,
+      createdAt: expense.createdAt,
+    })),
+    perPerson: budget.perPerson,
+    debts: budget.debts,
+    totalRub: budget.totalRub,
+  };
+}
 
 @Injectable()
 export class MicroEventsService {
@@ -31,8 +57,9 @@ export class MicroEventsService {
     @InjectRepository(MicroEventParticipantEntity) private readonly participants: Repository<MicroEventParticipantEntity>,
     @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
     @Inject(UsersService) private readonly users: UsersService,
-    @Inject(MaxBotClient) private readonly bot?: MaxBotClient,
-    @InjectRepository(NotificationEntity) private readonly notices?: Repository<NotificationEntity>,
+    @Optional() @Inject(MaxBotClient) private readonly bot?: MaxBotClient,
+    @Optional() @InjectRepository(NotificationEntity) private readonly notices?: Repository<NotificationEntity>,
+    @Optional() @InjectRepository(MicroEventExpenseEntity) private readonly expenses?: Repository<MicroEventExpenseEntity>,
   ) {}
 
   async getCard(id: string): Promise<{ event: MicroEvent; place: Place | null; participants: Array<{ friend: Friend; author: boolean }> }> {
@@ -81,15 +108,47 @@ export class MicroEventsService {
     if (invitees.length > 0 && this.bot) {
       const people = await this.users.findByIds(invitees);
       for (const person of people) {
-        const text = `Тебя зовут на микро-событие «${saved.title}». ${saved.locationText ?? "Точка на карте"}.`;
+        const where = saved.locationText ?? "Точка на карте";
+        const text = withAppLink(`Тебя зовут на микро-событие «${saved.title}». ${humanWhen(saved.startsAt)}, ${where}.`, miniappLink(`micro-${saved.id}`));
         try {
-          await deliverInvite(this.bot, this.notices, { userId: person.id, maxUserId: person.maxUserId, actorUserId: userId, type: "micro-invite", title: `Микро-событие «${saved.title}»`, body: text, link: { target: "micro", id: saved.id } });
+          await deliverInvite(this.bot, this.notices, { userId: person.id, maxUserId: person.maxUserId, actorUserId: userId, type: "micro-invite", title: `Микро-событие «${saved.title}»`, body: text, link: { target: "micro", id: saved.id }, actions: INVITE_REPLY_ACTIONS });
         } catch {
           // An invite that fails to leave the process still leaves the event itself published.
         }
       }
     }
     return this.toDto(saved);
+  }
+
+  async getBudget(actorId: string, id: string): Promise<MicroBudget> {
+    const event = await this.requirePublished(id);
+    const party = await this.partyIds(id);
+    if (!party.has(actorId)) throw new ForbiddenException("Cannot view this gathering's budget");
+    const rows = this.expenses ? await this.expenses.find({ where: { microEventId: event.id } }) : [];
+    return microBudgetFromRows(rows, party);
+  }
+
+  async addExpense(actorId: string, id: string, payload: CreatePlanExpenseWrite): Promise<MicroBudget> {
+    if (!this.expenses) throw new ServiceUnavailableException("Budget is unavailable");
+    const event = await this.requirePublished(id);
+    const party = await this.partyIds(id);
+    if (!party.has(actorId)) throw new ForbiddenException("Cannot edit this gathering's budget");
+    if (event.authorId !== actorId && payload.payerUserId !== actorId) {
+      throw new ForbiddenException("Cannot attribute a payment to another person");
+    }
+    if (!party.has(payload.payerUserId) || payload.shareUserIds.some((userId) => !party.has(userId))) {
+      throw new BadRequestException("Invalid expense payload");
+    }
+    await this.expenses.save(
+      this.expenses.create({
+        microEventId: event.id,
+        title: payload.title.trim(),
+        amountRub: payload.amountRub,
+        payerUserId: payload.payerUserId,
+        shareUserIds: [...new Set(payload.shareUserIds)],
+      }),
+    );
+    return this.getBudget(actorId, id);
   }
 
   async join(userId: string, id: string): Promise<MicroEvent> {
@@ -120,6 +179,17 @@ export class MicroEventsService {
     if (!event) throw new NotFoundException("Micro-event not found");
     event.published = false;
     await this.events.save(event);
+  }
+
+  private async requirePublished(id: string): Promise<MicroEventEntity> {
+    const event = await this.events.findOneBy({ id });
+    if (!event || !event.published) throw new NotFoundException("Micro-event not found");
+    return event;
+  }
+
+  private async partyIds(id: string): Promise<Set<string>> {
+    const rows = await this.participants.find({ where: { microEventId: id } });
+    return new Set(rows.map((row) => row.userId));
   }
 
   private async toDto(row: MicroEventEntity): Promise<MicroEvent> {

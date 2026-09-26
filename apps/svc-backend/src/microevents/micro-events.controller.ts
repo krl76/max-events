@@ -10,7 +10,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Post } from "@nestjs/common";
-import { CreateMicroEventWriteSchema, type MicroEvent } from "@max-events/api-contracts";
+import { CreateMicroEventWriteSchema, CreatePlanExpenseWriteSchema, type MicroBudget, type MicroEvent } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { MicroEventsService } from "./micro-events.service";
@@ -22,6 +22,18 @@ export class MicroEventsController {
   @Get()
   list(): Promise<MicroEvent[]> {
     return this.microEvents.list();
+  }
+
+  @Get(":id/budget")
+  budget(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<MicroBudget> {
+    return this.microEvents.getBudget(user.id, id);
+  }
+
+  @Post(":id/expenses")
+  async addExpense(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<MicroBudget> {
+    const parsed = CreatePlanExpenseWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid expense payload");
+    return this.microEvents.addExpense(user.id, id, parsed.data);
   }
 
   @Get(":id")

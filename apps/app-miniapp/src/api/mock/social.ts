@@ -37,11 +37,12 @@
 // END_MODULE_MAP
 
 import { MicroEventSchema, TimestampSchema } from "@max-events/api-contracts";
-import type { Friend, FriendActivityByFriend, FriendAvailability, FriendPlaceVisit, Gathering, InviteeResponse, MicroEvent, ParticipationStatus, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlaceCategory } from "@max-events/api-contracts";
+import type { CreatePlanExpenseWrite, Friend, FriendActivityByFriend, FriendAvailability, FriendPlaceVisit, Gathering, InviteeResponse, MicroBudget, MicroEvent, ParticipationStatus, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlaceCategory } from "@max-events/api-contracts";
 import { type CreateGathering, type CreateMicroEvent, type DiscoveryFriendCard, type DiscoveryScreen, type FriendSuggestion, type MicroEventCard, type MicroParticipant } from "../client";
 import { mockCheckIns } from "./bookings";
 import { mockParticipations } from "./catalog";
 import { HOUR_MS, MOCK_NOW, PLACE_STAMP, haversineKm, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockPlaces } from "./fixtures";
+import { mockBudgetFromExpenses } from "./plans";
 import { profileFor } from "./profile";
 
 /** Mock availability per friend (by mockFriends index); the backend P1-6-b does not exist yet. */
@@ -259,11 +260,19 @@ export const mockMicroEvents: MicroEvent[] = [];
 
 const mockMicroMemberships = new Set<string>();
 
+type MockMicroExpense = { id: string; microEventId: string; title: string; amountRub: number; payerUserId: string; shareUserIds: string[]; createdAt: string };
+
+const mockMicroExpenses: MockMicroExpense[] = [];
+
+let mockMicroExpenseSeq = 0;
+
 let mockMicroSeq = 0;
 
 export function seedMockMicroEvents(): void {
   mockMicroEvents.length = 0;
   mockMicroMemberships.clear();
+  mockMicroExpenses.length = 0;
+  mockMicroExpenseSeq = 0;
   mockMicroSeq = MICRO_EVENT_SEED.length;
   for (const seed of MICRO_EVENT_SEED) {
     mockMicroEvents.push({ ...seed, participantIds: [...seed.participantIds], participants: mockMicroParticipants(seed.participantIds), createdAt: PLACE_STAMP });
@@ -330,6 +339,55 @@ export function leaveMockMicroEvent(id: string, userId: string): MicroEvent | nu
     target.participantIds = target.participantIds.filter((item) => item !== userId);
   }
   return target;
+}
+
+function microBudgetOf(event: MicroEvent): MicroBudget {
+  const rows = mockMicroExpenses.filter((row) => row.microEventId === event.id);
+  const budget = mockBudgetFromExpenses(
+    rows.map((row) => ({ ...row, planId: row.microEventId })),
+    event.participantIds,
+  );
+  return {
+    ...budget,
+    expenses: budget.expenses.map((expense) => ({
+      id: expense.id,
+      microEventId: expense.planId,
+      title: expense.title,
+      amountRub: expense.amountRub,
+      payerUserId: expense.payerUserId,
+      shareUserIds: expense.shareUserIds,
+      createdAt: expense.createdAt,
+    })),
+  };
+}
+
+/** Mock GET /micro-events/:id/budget. null = unknown, "forbidden" = the viewer is not in the gathering. */
+export function mockMicroEventBudget(id: string, userId: string): MicroBudget | null | "forbidden" {
+  const event = mockMicroEvents.find((item) => item.id === id);
+  if (!event) return null;
+  if (!event.participantIds.includes(userId)) return "forbidden";
+  return microBudgetOf(event);
+}
+
+/** Mock POST /micro-events/:id/expenses. Same gates as the plan budget, with the author allowed to name any participant as payer. */
+export function addMockMicroEventExpense(id: string, userId: string, payload: CreatePlanExpenseWrite): MicroBudget | null | "forbidden" | "invalid" {
+  const event = mockMicroEvents.find((item) => item.id === id);
+  if (!event) return null;
+  if (!event.participantIds.includes(userId)) return "forbidden";
+  if (event.authorId !== userId && payload.payerUserId !== userId) return "forbidden";
+  const party = new Set(event.participantIds);
+  if (!party.has(payload.payerUserId) || payload.shareUserIds.some((item) => !party.has(item))) return "invalid";
+  mockMicroExpenseSeq += 1;
+  mockMicroExpenses.push({
+    id: `97000000-0000-4000-8000-${String(mockMicroExpenseSeq).padStart(12, "0")}`,
+    microEventId: id,
+    title: payload.title.trim(),
+    amountRub: payload.amountRub,
+    payerUserId: payload.payerUserId,
+    shareUserIds: [...new Set(payload.shareUserIds)],
+    createdAt: new Date().toISOString(),
+  });
+  return microBudgetOf(event);
 }
 
 /** Who a participant id belongs to: a friend, the demo viewer, or — for a stranger the graph does not know — a nameless row the counter still counts. */

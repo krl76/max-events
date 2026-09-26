@@ -19,6 +19,7 @@ import { And, In, IsNull, LessThan, MoreThanOrEqual, Repository } from "typeorm"
 import { BookingEntity } from "../bookings/booking.entity";
 import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
+import { humanWhen, miniappLink, withAppLink } from "../time/human-when";
 import { UserEntity } from "../users/user.entity";
 
 export const DEFAULT_REMINDER_WINDOW_MS = 2 * 60 * 60 * 1000;
@@ -29,8 +30,8 @@ export function isInReminderWindow(startsAt: Date, now: Date, windowMs = DEFAULT
   return t >= from && t < from + windowMs;
 }
 
-export function formatReminderText(title: string, startsAt: Date): string {
-  return `Напоминание: «${title}» начнётся ${startsAt.toISOString()}`;
+export function formatReminderText(title: string, startsAt: Date, now = new Date()): string {
+  return `Напоминание: «${title}» ${humanWhen(startsAt, now)}`;
 }
 
 export type ReminderTickResult = { sent: number; failed: number };
@@ -74,7 +75,7 @@ export class RemindersService {
       if (!claim.affected) return false;
       let ok = false;
       try {
-        ok = await this.bot.sendMessage(user.maxUserId, formatReminderText(event.title, event.startsAt));
+        ok = await this.bot.sendMessage(user.maxUserId, withAppLink(formatReminderText(event.title, event.startsAt), miniappLink(`event-${event.id}`)));
       } catch {
         ok = false;
       }

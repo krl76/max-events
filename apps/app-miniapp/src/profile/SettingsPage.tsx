@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 41 «Настройки»: the MAX identity row and the grouped sections — Приложение, Приватность, Уведомления, Мини-приложение — plus «Отключить мини-приложение». Organizer settings only when organizer mode is already on.
+// PURPOSE: Экран 41 «Настройки»: the MAX identity row and the grouped sections — Приложение, Приватность, Близкие, Уведомления, Мини-приложение — plus «Отключить мини-приложение». Organizer settings only when organizer mode is already on. Close friends are assembled from people who follow the viewer.
 // SCOPE: The settings screen only. What the Profile contract carries (city, interests, privacy, smart alerts) is written with apiClient.updateProfile; the rest is apiClient.getAppSettings/updateAppSettings; the colour scheme is the useAppTheme preference, not a server field. Pickers are inline disclosures — no separate screen per row.
 // DEPENDS: ../api/client.js (apiClient, AppSettings), ../auth/AuthContext.js, ../max/bridge.js (getWebApp), ../onboarding/onboarding.js (ONBOARDING_CITIES, ONBOARDING_INTERESTS), ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.js (useAppTheme, ThemePreference), @max-events/api-contracts (Profile, UpdateProfile, User), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
@@ -25,13 +25,14 @@
 // - SettingsSwitchRow - row with a switch
 // - SettingsPicker - the inline option list a value row discloses
 // - SettingsGroup - one bordered section with its uppercase caption
+// - CloseFriendsList - the disclosed list: current close friends, then followers who can still be added
 // - SettingsViewProps - what the settings screen renders and writes, including optional cover/avatar restore
 // - SettingsView - presentational: identity row, the groups, the disable button
 // - SettingsPage - route container: resolves auth, loads profile + app settings, writes both and binds the theme preference
 // END_MODULE_MAP
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { PROFILE_BIO_MAX, type Profile, type UpdateProfile, type User } from "@max-events/api-contracts";
+import { PROFILE_BIO_MAX, type Friend, type Profile, type UpdateProfile, type User } from "@max-events/api-contracts";
 import { apiClient, type AppSettings } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { isCustomProfileAvatar } from "./ProfilePage";
@@ -166,6 +167,30 @@ export function SettingsPicker({ options, selected, multiple = false, onPick }: 
   );
 }
 
+export function CloseFriendsList({ closeFriends, followers, onToggle }: { closeFriends: readonly Friend[]; followers: readonly Friend[]; onToggle: (userId: string, close: boolean) => void }) {
+  const closeIds = new Set(closeFriends.map((person) => person.id));
+  const candidates = followers.filter((person) => !closeIds.has(person.id));
+  return (
+    <div className="app-set-picker">
+      {closeFriends.length === 0 && candidates.length > 0 && <p className="app-set-note">Пока никого. Добавьте из подписчиков ниже.</p>}
+      {closeFriends.map((person) => (
+        <button key={person.id} type="button" className="app-set-option" onClick={() => onToggle(person.id, false)}>
+          <span>{person.name}</span>
+          <span className="app-set-identity-action">Убрать</span>
+        </button>
+      ))}
+      {followers.length === 0 && <p className="app-set-note">На вас пока никто не подписан.</p>}
+      {followers.length > 0 && candidates.length === 0 && <p className="app-set-note">Все подписчики уже в близких.</p>}
+      {candidates.map((person) => (
+        <button key={person.id} type="button" className="app-set-option" onClick={() => onToggle(person.id, true)}>
+          <span>{person.name}</span>
+          <span className="app-set-identity-action">Добавить</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <>
@@ -175,7 +200,7 @@ export function SettingsGroup({ title, children }: { title: string; children: Re
   );
 }
 
-type PickerName = "identity" | "city" | "theme" | "interests" | "radius" | "plans" | "quiet" | "about" | "disable" | "bio" | null;
+type PickerName = "identity" | "city" | "theme" | "interests" | "radius" | "plans" | "quiet" | "about" | "disable" | "bio" | "close" | null;
 
 export interface SettingsViewProps {
   user: User;
@@ -192,9 +217,12 @@ export interface SettingsViewProps {
   onPickCover?: () => void;
   onResetCover?: () => void;
   onResetAvatar?: () => void;
+  closeFriends?: readonly Friend[];
+  followers?: readonly Friend[];
+  onToggleClose?: (userId: string, close: boolean) => void;
 }
 
-export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable, onPickCover, onResetCover, onResetAvatar }: SettingsViewProps) {
+export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable, onPickCover, onResetCover, onResetAvatar, closeFriends, followers, onToggleClose }: SettingsViewProps) {
   const [picker, setPicker] = useState<PickerName>(null);
   const open = (name: Exclude<PickerName, null>) => setPicker((current) => (current === name ? null : name));
 
@@ -250,6 +278,12 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
         <SettingsSwitchRow title="История посещений" hint="Используется для подборок" checked={profile.privacy.visitHistory === "friends"} onChange={(on) => onProfile({ privacy: { visitHistory: on ? "friends" : "hidden" } })} />
       </SettingsGroup>
 
+      <SettingsGroup title="Близкие">
+        <SettingsValueRow title="Близкие друзья" hint="Только из тех, кто на вас подписан" value={closeFriends === undefined ? undefined : closeFriends.length === 0 ? "Нет" : String(closeFriends.length)} expanded={picker === "close"} onOpen={() => open("close")} />
+        {picker === "close" && closeFriends !== undefined && followers !== undefined && <CloseFriendsList closeFriends={closeFriends} followers={followers} onToggle={onToggleClose ?? (() => {})} />}
+        {picker === "close" && (closeFriends === undefined || followers === undefined) && <p className="app-set-note">Загрузка…</p>}
+      </SettingsGroup>
+
       <SettingsGroup title="Уведомления">
         {/* Один переключатель на два поля контракта: маршрут и погода — это ровно то, из чего складывается «когда выходить». */}
         <SettingsSwitchRow title="Когда выходить" hint="С учётом маршрута и погоды" checked={profile.smartAlerts.leaveNow} onChange={(on) => onProfile({ smartAlerts: { leaveNow: on, weather: on } })} />
@@ -300,6 +334,8 @@ function AuthenticatedSettings({ user }: { user: User }) {
   const [cacheBytes, setCacheBytes] = useState(0);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [closeFriends, setCloseFriends] = useState<Friend[] | null>(null);
+  const [followers, setFollowers] = useState<Friend[] | null>(null);
   const coverRef = useRef<HTMLInputElement | null>(null);
   const profileWrite = useRef(0);
   const bioTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -320,6 +356,22 @@ function AuthenticatedSettings({ user }: { user: User }) {
       },
       // The rows this aggregate feeds keep their last known state; the screen is the profile's, not its.
       () => {},
+    );
+    apiClient.listCloseFriends().then(
+      (value) => {
+        if (alive) setCloseFriends(value);
+      },
+      () => {
+        if (alive) setCloseFriends([]);
+      },
+    );
+    apiClient.listFollowers(user.id).then(
+      (value) => {
+        if (alive) setFollowers(value);
+      },
+      () => {
+        if (alive) setFollowers([]);
+      },
     );
     if (typeof window !== "undefined") setCacheBytes(appCacheBytes(window.localStorage));
     return () => {
@@ -439,6 +491,26 @@ function AuthenticatedSettings({ user }: { user: User }) {
       // MAX Bridge has no "disable" call (https://dev.max.ru/docs/webapps/bridge): closing is all a
       // mini-app may do about itself, the removal happens in MAX.
       onDisable={() => getWebApp()?.close()}
+      closeFriends={closeFriends ?? undefined}
+      followers={followers ?? undefined}
+      onToggleClose={(userId, close) => {
+        if (closeFriends === null || followers === null) return;
+        setSaveFailed(false);
+        const previous = closeFriends;
+        const person = followers.find((row) => row.id === userId) ?? previous.find((row) => row.id === userId);
+        if (person === undefined) return;
+        setCloseFriends(close ? [...previous.filter((row) => row.id !== userId), person] : previous.filter((row) => row.id !== userId));
+        apiClient.setCloseFriend(userId, close).then(
+          (stored) => {
+            if (stored === close) return;
+            setCloseFriends(previous);
+          },
+          () => {
+            setCloseFriends(previous);
+            setSaveFailed(true);
+          },
+        );
+      }}
     />
     </>
   );

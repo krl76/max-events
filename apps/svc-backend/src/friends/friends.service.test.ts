@@ -1,4 +1,4 @@
-import { NotFoundException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
 import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
@@ -169,14 +169,17 @@ describe("FriendsService", () => {
     expect(friendships.store).toHaveLength(1);
   });
 
-  it("marks a person close and remembers that they were marked by this user", async () => {
-    const { service } = createService();
+  it("marks a follower close and remembers that they were marked by this user", async () => {
+    const { service, subscriptions } = createService();
+    await subscriptions.save(subscriptions.create({ userId: annaId, type: "user", targetUserId: meId, organizerUserId: null, placeId: null, interest: null }));
     expect(await service.isCloseFriend(meId, annaId)).toBe(false);
     expect(await service.setCloseFriend(meId, annaId, true)).toBe(true);
+    expect((await service.listClose(meId)).map((row) => row.id)).toEqual([annaId]);
     expect(await service.isCloseFriend(meId, annaId)).toBe(true);
     expect([...(await service.authorsWhoMarkedClose(annaId))]).toEqual([meId]);
     expect(await service.setCloseFriend(meId, annaId, false)).toBe(false);
     expect([...(await service.authorsWhoMarkedClose(annaId))]).toEqual([]);
+    await expect(service.setCloseFriend(meId, dimaId, true)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("makes nobody a friend on a first sync without a MAX friends list", async () => {
