@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Catalog endpoints of the api client: the event and place listings, the event page aggregate, the participation block and the map context of экран 16 (weather, travel time).
-// SCOPE: Event filters (serialize/parse), GET /events[/:id[/details]], GET /events/cards with its plain-listing fallback, GET /places[/:id[/page]], the /events/:id/participation surface, GET /weather and GET /travel; client-side aggregates EventDetails, ParticipationStats, CatalogCard, MapWeather and TravelOption live here.
+// SCOPE: Event filters (serialize/parse), GET /events[/:id[/details]], GET /events/cards with its plain-listing fallback, GET /places[/:id[/page]], the /events/:id/participation surface, GET /weather, GET /weather/hourly and GET /travel; client-side aggregates EventDetails, ParticipationStats, CatalogCard, MapWeather and TravelOption live here.
 // DEPENDS: ./transport.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -28,7 +28,7 @@
 // - EventGatheringTeaser - the «Собирается компания» block of экран 23: who is already agreeing and where they meet
 // - EventCompanions - экран 23 aggregate: the three tab counters, the viewer status, the people and the gathering teaser
 // - BookingOffer - экран 18 aggregate the booking sheet needs on top of EventDetails: the queue length ahead and the friends already holding tickets (#496)
-// - withCatalog - ApiClient.listEvents / listEventCards / listPlaces / getEvent / getEventDetails / getPlace / getPlacePage / getMapWeather / getTravelOptions / getParticipationStats / setParticipationStatus / deleteParticipation / setPlaceParticipationStatus / getEventForecast / listEventMoodTags / listEventNearby / getEventCompanions / getBookingOffer
+// - withCatalog - ApiClient.listEvents / listEventCards / listPlaces / getEvent / getEventDetails / getPlace / getPlacePage / getMapWeather / getMapHourlyWeather / getTravelOptions / getParticipationStats / setParticipationStatus / deleteParticipation / setPlaceParticipationStatus / getEventForecast / listEventMoodTags / listEventNearby / getEventCompanions / getBookingOffer
 // END_MODULE_MAP
 
 import { EventCategorySchema, EventFriendsSummarySchema, EventSchema, FriendSchema, OrganizationSchema, ParticipationSchema, ParticipationStatusSchema, PlacePageSchema, PlaceSchema, UserSchema } from "@max-events/api-contracts";
@@ -582,6 +582,17 @@ export function withCatalog<TBase extends ApiMixin>(Base: TBase) {
           ? `city=${encodeURIComponent(city)}`
           : `lat=${encodeURIComponent(String(origin.latitude))}&lng=${encodeURIComponent(String(origin.longitude))}`;
       return this.request(`/weather?${query}`, MapWeatherSchema);
+    }
+
+    /** Hourly forecast at the viewer point; GET /weather/hourly?lat=&lng=&from=&to=. */
+    getMapHourlyWeather(origin: { latitude: number; longitude: number }, from: Date, to: Date): Promise<EventForecast> {
+      const params = new URLSearchParams({
+        lat: String(origin.latitude),
+        lng: String(origin.longitude),
+        from: from.toISOString(),
+        to: to.toISOString(),
+      });
+      return this.request(`/weather/hourly?${params.toString()}`, EventForecastSchema);
     }
 
     /**

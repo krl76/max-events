@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock catalog store: the event and place page aggregates, the catalog filter, the card list of экран 08 and the map context of экран 16 (weather, travel time), plus the participation counters.
-// SCOPE: filterMockEvents, catalogCards, mapWeatherFor, travelOptionsFor, eventDetails, placePageFor, participationStats and the in-memory participations; the HTTP surface is in ./catalog.routes.ts.
+// SCOPE: filterMockEvents, catalogCards, mapWeatherFor, mapHourlyForecast, travelOptionsFor, eventDetails, placePageFor, participationStats and the in-memory participations; the HTTP surface is in ./catalog.routes.ts.
 // DEPENDS: @max-events/api-contracts, ../client.js and the sibling ./mock domain modules it imports
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -14,6 +14,8 @@
 // - MOCK_METRO_KMH - metro speed the mock travel estimate uses, on top of MOCK_METRO_OVERHEAD_MIN
 // - MOCK_METRO_OVERHEAD_MIN - fixed minutes a metro trip spends outside the train (entrance, platform, exit)
 // - mapWeatherFor - mock GET /weather: the fixed demo forecast behind the map chip (#495)
+// - MAP_HOURLY_COLUMNS - hours drawn on the map weather sheet
+// - mapHourlyForecast - mock GET /weather/hourly: eight hours from the chip snapshot, rain landing at changesAt
 // - travelOptionsFor - mock GET /travel: walking and metro estimates from the distance alone (#504)
 // - mockParticipations - shared with catalog.routes, social
 // - nextMockParticipationSeq - Bumps and returns the participation sequence; the route table writes participations from its own module, and an imported binding is read-only
@@ -117,6 +119,37 @@ export const MOCK_METRO_OVERHEAD_MIN = 4;
  */
 export function mapWeatherFor(): MapWeather {
   return { temperatureC: 19, condition: "ясно", changesAt: `${MOCK_TODAY}T19:00:00+03:00`, changesTo: "дождь" };
+}
+
+/** Hours the map sheet draws: now through the evening, one column each. */
+export const MAP_HOURLY_COLUMNS = 8;
+
+/**
+ * Mock GET /weather/hourly. Columns follow the chip snapshot: clear until `changesAt`, then rain.
+ * `from` is the first column; missing/invalid from starts at noon of the demo day.
+ */
+export function mapHourlyForecast(from?: Date): EventForecast {
+  const now = mapWeatherFor();
+  const start = from !== undefined && Number.isFinite(from.getTime()) ? from.getTime() : Date.parse(`${MOCK_TODAY}T12:00:00+03:00`);
+  const chipRain = now.changesAt === null ? Number.NaN : Date.parse(now.changesAt);
+  const rainAt = Number.isFinite(chipRain) && chipRain >= start ? chipRain : start + 5 * HOUR_MS;
+  const hours: EventWeatherHour[] = [];
+  for (let index = 0; index < MAP_HOURLY_COLUMNS; index += 1) {
+    const at = start + index * HOUR_MS;
+    const raining = at >= rainAt;
+    hours.push({
+      at: new Date(at).toISOString(),
+      temperatureC: Math.round(now.temperatureC - index * 0.5),
+      conditionCode: raining ? MOCK_RAIN_CODE : 0,
+      condition: raining ? "дождь" : now.condition,
+      withinEvent: true,
+    });
+  }
+  return {
+    source: MOCK_FORECAST_SOURCE,
+    hours,
+    note: `Дождь с ${moscowTime(rainAt)}`,
+  };
 }
 
 /**

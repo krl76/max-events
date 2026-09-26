@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock route table for the catalog: the event and place listings, the card list of экран 08, the map context of экран 16, the event page aggregate and the participation block.
-// SCOPE: GET /api/places[/:id[/page]], PUT /api/places/:id/participation, GET /api/events[/cards][/:id[/details]], GET /api/events/:id/participation/stats, PUT/DELETE /api/events/:id/participation, GET /api/events/:id/(weather/hourly|mood-tags|nearby|companions|booking-offer), GET /api/weather, GET /api/travel. The PATCH variants of /api/events/:id and /api/places/:id belong to the organizer table, which runs before this one.
+// SCOPE: GET /api/places[/:id[/page]], PUT /api/places/:id/participation, GET /api/events[/cards][/:id[/details]], GET /api/events/:id/participation/stats, PUT/DELETE /api/events/:id/participation, GET /api/events/:id/(weather/hourly|mood-tags|nearby|companions|booking-offer), GET /api/weather[/hourly], GET /api/travel. The PATCH variants of /api/events/:id and /api/places/:id belong to the organizer table, which runs before this one.
 // DEPENDS: ./catalog.js, ./fixtures.js, ./promo.js, ../client.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -12,11 +12,17 @@
 import { IdSchema, ParticipationStatusSchema } from "@max-events/api-contracts";
 import type { Participation } from "@max-events/api-contracts";
 import { parseEventFilters } from "../client";
-import { bookingOfferFor, catalogCards, eventCompanions, eventDetails, eventForecast, eventMoodTags, eventNearby, filterMockEvents, mapWeatherFor, mockParticipations, mockPlaceStatuses, nextMockParticipationSeq, participationStats, placePageFor, travelOptionsFor } from "./catalog";
+import { bookingOfferFor, catalogCards, eventCompanions, eventDetails, eventForecast, eventMoodTags, eventNearby, filterMockEvents, mapHourlyForecast, mapWeatherFor, mockParticipations, mockPlaceStatuses, nextMockParticipationSeq, participationStats, placePageFor, travelOptionsFor } from "./catalog";
 import { mockEvents, mockPlaces, parseBookingBody, parseMockCoords } from "./fixtures";
 import { MOCK_BOOSTED_EVENT_IDS, eventPromoted } from "./promo";
 
 export function catalogRoutes(url: URL, init: RequestInit | undefined): Response | null {
+  if (url.pathname === "/api/weather/hourly") {
+    const fromRaw = url.searchParams.get("from");
+    const from = fromRaw === null || fromRaw === "" ? undefined : new Date(fromRaw);
+    if (from !== undefined && Number.isNaN(from.getTime())) return new Response(null, { status: 400 });
+    return Response.json(mapHourlyForecast(from));
+  }
   if (url.pathname === "/api/weather") {
     return Response.json(mapWeatherFor());
   }

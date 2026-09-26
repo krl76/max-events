@@ -4950,6 +4950,46 @@ html[data-theme="dark"] body {
   color: var(--app-status);
   font-size: var(--app-font-size-caption);
   font-weight: 700;
+  max-width: 11em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-map16-weather-strip {
+  display: flex;
+  gap: var(--app-space-xs);
+  list-style: none;
+  margin: var(--app-space-m) 0 0;
+  overflow-x: auto;
+  padding: 0;
+}
+
+.app-map16-weather-hour {
+  align-items: center;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 44px;
+}
+
+.app-map16-weather-at {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+}
+
+.app-map16-weather-temp {
+  font-size: var(--app-font-size-caption);
+  font-weight: 800;
+}
+
+.app-map16-weather-source {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-weight: 600;
+  margin: var(--app-space-s) 0 0;
 }
 
 .app-map16-round {

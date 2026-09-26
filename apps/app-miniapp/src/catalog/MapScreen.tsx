@@ -14,8 +14,11 @@
 // - MapLayer - union of the layer names
 // - mapWrapClass - the wrapper class by basemap tone: dark raster and the own vector basemap escape the dark-scheme inversion (theme.css)
 // - formatMapTemperature - «+19°», with the sign the chip prints
-// - mapWeatherChipText - chip label: temperature, or «—» while the forecast is missing so the chip never disappears
+// - mapWeatherChipText - chip temperature, or «—» while the forecast is missing so the chip never disappears
 // - formatMapChange - «дождь в 19:00»; null when nothing is expected (#495)
+// - MAP_HOURLY_COLUMNS / mapHourlyWindow - eight hours from the current UTC hour for GET /weather/hourly
+// - mapHourGlyph - WMO code -> sun / cloud / rain on the map sheet strip
+// - formatMapHour - «19:00» for one strip column
 // - mapRainHint - «Дождь с 19:00 — метро суше, зонт не понадобится»; null without rain or without a metro option
 // - formatTravelOption - one travel tile: the big «18 мин» and the «пешком · 1,4 км» under it (#504)
 // - mapFriendsLine - «Анна была здесь», «Анна и Дима были здесь»; null when no friend has
@@ -32,10 +35,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Event, FriendPlaceVisit, Place } from "@max-events/api-contracts";
 import "leaflet/dist/leaflet.css";
-import { apiClient, type MapWeather, type TravelOption } from "../api/client";
+import { apiClient, type EventForecast, type EventWeatherHour, type MapWeather, type TravelOption } from "../api/client";
 import { pluralRu } from "./format";
 import { useViewerOrigin } from "../geo/viewer-origin";
-import { ActionIcon } from "../ui/icons";
+import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { AppChip } from "../ui/primitives";
 import { useAppliedScheme, type ThemeScheme } from "../ui/theme";
 import { basemapCredit, MAP_BASEMAPS, readBasemapPreference, STANDARD_BASEMAP, writeBasemapPreference, type MapBasemap } from "./basemaps";
@@ -86,6 +89,25 @@ export function mapWeatherChipText(weather: MapWeather | null): string {
 export function formatMapChange(weather: MapWeather): string | null {
   if (weather.changesAt === null || weather.changesTo === null) return null;
   return `${weather.changesTo} в ${new Date(weather.changesAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+/** Hours the map sheet asks from GET /weather/hourly: now through the next seven. */
+export const MAP_HOURLY_COLUMNS = 8;
+
+export function mapHourlyWindow(now = new Date()): { from: Date; to: Date } {
+  const from = new Date(now);
+  from.setUTCMinutes(0, 0, 0);
+  const to = new Date(from.getTime() + (MAP_HOURLY_COLUMNS - 1) * 60 * 60 * 1000);
+  return { from, to };
+}
+
+export function mapHourGlyph(conditionCode: number): ActionIconName {
+  if (conditionCode >= 51) return "rain";
+  return conditionCode === 0 ? "sun" : "weather";
+}
+
+export function formatMapHour(at: string): string {
+  return new Date(at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
 /**
@@ -401,6 +423,17 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
   };
 }
 
+function MapHourColumn({ hour }: { hour: EventWeatherHour }) {
+  const rounded = Math.round(hour.temperatureC);
+  return (
+    <li className="app-map16-weather-hour">
+      <span className="app-map16-weather-at">{formatMapHour(hour.at)}</span>
+      <ActionIcon name={mapHourGlyph(hour.conditionCode)} size={18} />
+      <span className="app-map16-weather-temp">{`${rounded > 0 ? "+" : ""}${rounded}°`}</span>
+    </li>
+  );
+}
+
 const EMPTY_VISITS: FriendPlaceVisit[] = [];
 
 type PlacesState = { status: "loading" } | { status: "error" } | { status: "ready"; places: Place[] };
@@ -503,6 +536,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   const [weatherOpen, setWeatherOpen] = useState(false);
   const [centered, setCentered] = useState(false);
   const [weather, setWeather] = useState<MapWeather | null>(null);
+  const [hourly, setHourly] = useState<EventForecast | null>(null);
   const [travel, setTravel] = useState<TravelOption[]>([]);
   const [tilesFailed, setTilesFailed] = useState(false);
   const [vectorFallback, setVectorFallback] = useState(false);
@@ -543,12 +577,22 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
 
   useEffect(() => {
     let alive = true;
-    apiClient.getMapWeather(city, { latitude: origin.latitude, longitude: origin.longitude }).then(
+    const point = { latitude: origin.latitude, longitude: origin.longitude };
+    apiClient.getMapWeather(city, point).then(
       (loaded) => {
         if (alive) setWeather(loaded);
       },
-      // The chip stays on the map with «—»; a failed forecast must not hide it.
+      // The chip stays on the map with «—»; a failed now-cast must not hide it.
       () => {},
+    );
+    const range = mapHourlyWindow();
+    apiClient.getMapHourlyWeather(point, range.from, range.to).then(
+      (loaded) => {
+        if (alive) setHourly(loaded);
+      },
+      () => {
+        if (alive) setHourly(null);
+      },
     );
     return () => {
       alive = false;
@@ -689,6 +733,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
           <button type="button" className="app-map16-weather" aria-label="Погода" onClick={() => setWeatherOpen(true)}>
             <ActionIcon name="weather" size={20} />
             <span className="app-map16-weather-value">{mapWeatherChipText(weather)}</span>
+            {weatherChange !== null && <span className="app-map16-weather-note">{weatherChange}</span>}
           </button>
           <button type="button" className="app-map16-tool" aria-expanded={layersOpen} onClick={() => setLayersOpen((open) => !open)}>
             Слои
@@ -762,6 +807,15 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
               {weatherChange !== null && <p className="app-map16-weather-next">Ожидается: {weatherChange}</p>}
             </>
           )}
+          {hourly !== null && hourly.hours.length > 0 && (
+            <ol className="app-map16-weather-strip" aria-label="Прогноз на ближайшие часы">
+              {hourly.hours.map((hour) => (
+                <MapHourColumn key={hour.at} hour={hour} />
+              ))}
+            </ol>
+          )}
+          {hourly?.note != null && hourly.note !== "" && <p className="app-map16-weather-next">{hourly.note}</p>}
+          {hourly !== null && <p className="app-map16-weather-source">{hourly.source}</p>}
         </section>
       )}
       <form className="app-map16-search" role="search" onSubmit={(event) => event.preventDefault()}>

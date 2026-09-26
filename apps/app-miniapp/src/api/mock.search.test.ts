@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ApiClient } from "./client";
-import { catalogCards, installMockApi, mapWeatherFor, mockPlaces, recordSwipeDecision, resetMockSwipeDecisions, swipeCandidates, travelOptionsFor } from "./mock";
+import { catalogCards, installMockApi, mapHourlyForecast, mapWeatherFor, MOCK_TODAY, mockPlaces, recordSwipeDecision, resetMockSwipeDecisions, swipeCandidates, travelOptionsFor } from "./mock";
 
 const ORIGIN = { latitude: 55.7522, longitude: 37.6156 };
 
@@ -70,11 +70,24 @@ describe("map weather and travel", () => {
     expect(travelOptionsFor("no-such-place", ORIGIN)).toBeNull();
   });
 
+  it("turns the hourly strip to rain from the chip's changesAt", () => {
+    const forecast = mapHourlyForecast(new Date(`${MOCK_TODAY}T16:00:00+03:00`));
+
+    expect(forecast.hours[0]?.condition).toBe("ясно");
+    expect(forecast.hours.some((hour) => hour.condition === "дождь")).toBe(true);
+    expect(forecast.note).toMatch(/^Дождь с /);
+  });
+
   it("serves both through the typed client", async () => {
     const restore = installMockApi();
     try {
       const client = new ApiClient("/api");
       expect(await client.getMapWeather("Москва")).toEqual(mapWeatherFor());
+      const from = new Date("2026-09-21T12:00:00.000Z");
+      const hourly = await client.getMapHourlyWeather(ORIGIN, from, new Date(from.getTime() + 7 * 60 * 60 * 1000));
+      expect(hourly).toEqual(mapHourlyForecast(from));
+      expect(hourly.hours).toHaveLength(8);
+      expect(hourly.source).toBe("Open-Meteo");
       expect(await client.getTravelOptions(mockPlaces[0].id, ORIGIN)).toEqual(travelOptionsFor(mockPlaces[0].id, ORIGIN));
     } finally {
       restore();

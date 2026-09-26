@@ -69,6 +69,7 @@
 // - listMockWeGroups - mock GET /we-groups: screens of the demo user's groups, newest first
 // - listSummaries - preset lists of a user with item counters, the saved-item id for the checked event and shared-collection participants
 // - mapWeatherFor - mock GET /weather: the fixed demo forecast behind the map chip of экран 16 (#495)
+// - mapHourlyForecast - mock GET /weather/hourly: eight hours from the chip snapshot
 // - microEventCard - mock GET /micro-events/:id: the event, its venue and the participants by name (макет, экран 25)
 // - microEvents - open micro-events soonest first
 // - mockAssistDay - upcoming Saturday stops (startsAt >= now) + planDraft, plan persisted when save=true (mock POST /assist/day, backend planSaturday parity)
@@ -196,7 +197,7 @@
 // END_MODULE_MAP
 
 export { MOCK_PROMO_CODE, MOCK_SANDBOX_FAIL_AMOUNT, MOCK_SINGLE_USE_PROMO_CODE, OFFER_TTL_MS, createMockCheckIn, resetMockBookings, resetMockCheckIns, resetMockPromo, resetMockWaitlist, waitlistAheadCount } from "./mock/bookings";
-export { bookingOfferFor, catalogCards, eventCompanions, eventForecast, eventMoodTags, eventNearby, filterMockEvents, mapWeatherFor, participationStats, placePageFor, resetMockParticipations, travelOptionsFor } from "./mock/catalog";
+export { bookingOfferFor, catalogCards, eventCompanions, eventForecast, eventMoodTags, eventNearby, filterMockEvents, mapHourlyForecast, mapWeatherFor, participationStats, placePageFor, resetMockParticipations, travelOptionsFor } from "./mock/catalog";
 export { leisureOptions, MOCK_ASSIST_RATE_LIMIT, MOCK_LEISURE_PLACE_PRICE, mockAssistDay, mockAssistSaturdayKey, mockAssistSuggest, mockParseAssistQuery, nearbyTimeline, recordSwipeDecision, resetMockAssist, resetMockSwipeDecisions, swipeCandidates, todayPicks, wheretoSuggestions } from "./mock/discover";
 export { createMockStory, feedPosts, listMockStories, mockFeedCards, mockFeedPostExtras, mockFriendStories, mockPostDrafts, mockStoryCompositions, resetMockFeed, saveMockPostDraft } from "./mock/feed";
 export { MOCK_EARLY_ACCESS_EVENT_ID, MOCK_NOW, MOCK_ORGANIZER_CREDENTIALS, MOCK_TODAY, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganization, mockOrganizers, mockPlaces } from "./mock/fixtures";

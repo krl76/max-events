@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockEvents, mockFriends, mockPlaces } from "../api/mock";
 import { basemapById, STANDARD_BASEMAP } from "./basemaps";
 import { buildMapMarkers, type MapMarker } from "./mapMarkers";
-import { escapeHtml, formatMapChange, formatMapTemperature, formatTravelOption, initEventMap, mapFriendsLine, mapNotice, mapRainHint, mapWeatherChipText, type MapCallbacks, type MapNoticeInput, type MapView } from "./MapScreen";
+import { escapeHtml, formatMapChange, formatMapHour, formatMapTemperature, formatTravelOption, initEventMap, mapFriendsLine, mapHourGlyph, mapHourlyWindow, MAP_HOURLY_COLUMNS, mapNotice, mapRainHint, mapWeatherChipText, type MapCallbacks, type MapNoticeInput, type MapView } from "./MapScreen";
 
 const leaflet = vi.hoisted(() => ({
   map: vi.fn(),
@@ -381,6 +381,21 @@ describe("map chrome formatting", () => {
     expect(formatMapChange({ ...WEATHER, changesAt: null, changesTo: null })).toBeNull();
     expect(mapWeatherChipText(WEATHER)).toBe("+19°");
     expect(mapWeatherChipText(null)).toBe("—");
+  });
+
+  it("asks for eight hours from the current UTC hour", () => {
+    const { from, to } = mapHourlyWindow(new Date("2026-09-21T12:10:00.000Z"));
+
+    expect(from.toISOString()).toBe("2026-09-21T12:00:00.000Z");
+    expect(to.toISOString()).toBe("2026-09-21T19:00:00.000Z");
+    expect((to.getTime() - from.getTime()) / 3_600_000).toBe(MAP_HOURLY_COLUMNS - 1);
+  });
+
+  it("picks a strip glyph from the WMO code and prints the hour in Russian", () => {
+    expect(mapHourGlyph(0)).toBe("sun");
+    expect(mapHourGlyph(2)).toBe("weather");
+    expect(mapHourGlyph(61)).toBe("rain");
+    expect(formatMapHour("2026-09-21T16:00:00.000Z")).toMatch(/^\d\d:\d\d$/);
   });
 
   it("advises the metro only when there is rain to dodge and a metro to dodge it with", () => {
