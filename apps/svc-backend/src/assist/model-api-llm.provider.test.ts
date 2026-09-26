@@ -84,4 +84,16 @@ describe("ModelApiLlmProvider", () => {
       vi.useRealTimers();
     }
   });
+
+  it("parses a chat draft and skips a model that returns an empty reply", async () => {
+    const seen: string[] = [];
+    const provider = new ModelApiLlmProvider(key, "https://example.test/v1", ["qwen/qwen3.8-27b:free", "z-ai/glm-5.2:free"], async (_url, init) => {
+      const model = modelOf(init as RequestInit);
+      seen.push(model);
+      if (model.startsWith("qwen")) return jsonResponse("not json");
+      return jsonResponse(JSON.stringify({ refuse: false, reply: "Могу подобрать событие.", eventIds: [], openEventId: null, plan: false, criteria: null }));
+    });
+    await expect(provider.chatTurn("как дела?", [], [])).resolves.toMatchObject({ reply: "Могу подобрать событие.", eventIds: [] });
+    expect(seen).toEqual(["qwen/qwen3.8-27b:free", "z-ai/glm-5.2:free"]);
+  });
 });

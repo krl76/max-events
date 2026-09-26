@@ -71,6 +71,9 @@ describe("validateEnv", () => {
     expect(validateEnv(valid).MODEL_API_KEY).toBeUndefined();
     expect(validateEnv(valid).MODEL_API_URL).toBe(DEFAULT_MODEL_API_URL);
     expect(validateEnv(valid).MODEL_API_MODELS).toEqual([...DEFAULT_MODEL_API_MODELS]);
+    expect(validateEnv(valid).MODEL_API_MODELS[0]).toBe("qwen/qwen3.8-27b:free");
+    expect(validateEnv(valid).MODEL_API_MODELS[1]).toBe("z-ai/glm-5.2:free");
+    expect(validateEnv(valid).MODEL_API_MODELS.at(-1)).toBe("liquid/lfm-2.5-2.6b:free");
     expect(validateEnv({ ...valid, MODEL_API_KEY: "replace-with-your-model-api-key", MODEL_API_MODELS: "fast, fast, slow" }).MODEL_API_MODELS).toEqual(["fast", "slow"]);
     expect(() => validateEnv({ ...valid, MODEL_API_URL: "not-a-url" })).toThrow(/MODEL_API_URL/);
     expect(() => validateEnv({ ...valid, MODEL_API_KEY: "" })).toThrow(/MODEL_API_KEY/);

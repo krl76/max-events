@@ -1,19 +1,24 @@
 // START_MODULE_CONTRACT
 // PURPOSE: OpenAI-compatible chat-completions adapter. Keys stay in env; never logged.
-// SCOPE: Tries MODEL_API_MODELS in order. Timeout, HTTP failure, and unusable JSON move to the next model. 401/403 stops the chain.
+// SCOPE: Tries MODEL_API_MODELS in order for parseQuery and chatTurn. Timeout, HTTP failure, unusable JSON, and a non-refuse draft with a missing or empty reply move to the next model. 401/403 stops the chain. Chat ids outside the given cards are dropped.
 // DEPENDS: ./llm-provider, @max-events/api-contracts
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - MODEL_API_REQUEST_TIMEOUT_MS - abort window for a single chat-completions call
-// - ModelApiLlmProvider - live LlmProvider that fails over across models
+// - ModelApiLlmProvider - live LlmProvider that fails over across models for criteria and chat drafts
 // END_MODULE_MAP
 
 import { AssistCriteriaSchema, type AssistCriteria } from "@max-events/api-contracts";
-import { LlmProviderError, type LlmProvider } from "./llm-provider";
+import { LlmProviderError, type AssistCatalogCard, type AssistChatDraft, type LlmProvider } from "./llm-provider";
 
 const SYSTEM = 'Reply with JSON only: {"when":"morning|afternoon|evening|any","budgetMaxRub":number|null,"company":"alone|friends|partner|kids","genre":"music|sport|outdoors|any"}';
+
+const CHAT_SYSTEM = `You are MAX, a short leisure assistant for a real event catalog. Reply in Russian, one or two sentences.
+Return JSON only: {"refuse":false,"reply":"...","eventIds":[],"openEventId":null,"plan":false,"criteria":null}
+refuse is true only for a direct insult. eventIds and openEventId must be copied from the catalog ids you were given. Use plan true only when the user asks to assemble a day. criteria is {"when":"morning|afternoon|evening|any","budgetMaxRub":number|null,"company":"alone|friends|partner|kids","genre":"music|sport|outdoors|any"} or null.
+For small talk, reply and invite the user to pick an event. Leave eventIds empty.`;
 
 /** A hung model must not hold the assist request forever; the next id still gets its own window. */
 export const MODEL_API_REQUEST_TIMEOUT_MS = 10_000;
@@ -32,7 +37,7 @@ export class ModelApiLlmProvider implements LlmProvider {
     let lastError = new LlmProviderError("llm_http", "LLM request failed");
     for (const model of this.models) {
       try {
-        const content = await this.complete(model, query);
+        const content = await this.complete(model, SYSTEM, query);
         const parsed = AssistCriteriaSchema.safeParse(extractJson(content));
         if (parsed.success) return parsed.data;
         lastError = new LlmProviderError("llm_parse", "LLM request failed");
@@ -44,7 +49,25 @@ export class ModelApiLlmProvider implements LlmProvider {
     throw lastError;
   }
 
-  private async complete(model: string, query: string): Promise<string> {
+  async chatTurn(message: string, transcript: { role: "user" | "assistant"; text: string }[], cards: AssistCatalogCard[]): Promise<AssistChatDraft> {
+    if (this.models.length === 0) throw new LlmProviderError("llm_disabled", "LLM request failed");
+    let lastError = new LlmProviderError("llm_http", "LLM request failed");
+    const user = JSON.stringify({ message, transcript, catalog: cards });
+    for (const model of this.models) {
+      try {
+        const content = await this.complete(model, CHAT_SYSTEM, user);
+        const draft = parseChatDraft(extractJson(content), cards);
+        if (draft) return draft;
+        lastError = new LlmProviderError("llm_parse", "LLM request failed");
+      } catch (error) {
+        if (error instanceof LlmProviderError && error.code === "llm_auth") throw error;
+        lastError = error instanceof LlmProviderError ? error : new LlmProviderError("llm_network", "LLM request failed");
+      }
+    }
+    throw lastError;
+  }
+
+  private async complete(model: string, system: string, user: string): Promise<string> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
@@ -56,8 +79,8 @@ export class ModelApiLlmProvider implements LlmProvider {
           model,
           temperature: 0,
           messages: [
-            { role: "system", content: SYSTEM },
-            { role: "user", content: query },
+            { role: "system", content: system },
+            { role: "user", content: user },
           ],
         }),
       });
@@ -72,6 +95,25 @@ export class ModelApiLlmProvider implements LlmProvider {
       clearTimeout(timer);
     }
   }
+}
+
+function parseChatDraft(raw: unknown, cards: readonly AssistCatalogCard[]): AssistChatDraft | null {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+  const value = raw as Record<string, unknown>;
+  const refuse = value.refuse === true;
+  const reply = typeof value.reply === "string" ? value.reply : "";
+  if (!refuse && reply.trim() === "") return null;
+  const allowed = new Set(cards.map((card) => card.id));
+  const eventIds = Array.isArray(value.eventIds) ? value.eventIds.filter((id): id is string => typeof id === "string" && allowed.has(id)) : [];
+  const criteria = AssistCriteriaSchema.safeParse(value.criteria);
+  return {
+    refuse,
+    reply,
+    eventIds,
+    openEventId: typeof value.openEventId === "string" && eventIds.includes(value.openEventId) ? value.openEventId : null,
+    plan: value.plan === true,
+    criteria: criteria.success ? criteria.data : null,
+  };
 }
 
 function extractJson(content: string): unknown {
