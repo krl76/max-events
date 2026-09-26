@@ -10,6 +10,8 @@
 // - EventDetails - event details type
 // - EventCompanionsSchema - экран 23 aggregate (#538)
 // - EventCompanions - companions type
+// - EventBookingOfferSchema - экран 18 waitlist-ahead + friends with tickets (#539)
+// - EventBookingOffer - booking-offer type
 // END_MODULE_MAP
 
 import { z } from "zod";
@@ -65,3 +67,10 @@ export const EventCompanionsSchema = z.object({
   gathering: EventGatheringTeaserSchema.nullable(),
 });
 export type EventCompanions = z.infer<typeof EventCompanionsSchema>;
+
+/** Экран 18: how many wait in front of the viewer, and which friends already hold a ticket. */
+export const EventBookingOfferSchema = z.object({
+  waitlistAhead: z.number().int().min(0),
+  friendsWithTickets: z.array(FriendSchema),
+});
+export type EventBookingOffer = z.infer<typeof EventBookingOfferSchema>;

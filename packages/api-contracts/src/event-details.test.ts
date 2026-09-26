@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EventCompanionsSchema, EventDetailsSchema } from "./event-details.js";
+import { EventBookingOfferSchema, EventCompanionsSchema, EventDetailsSchema } from "./event-details.js";
 
 const eventId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f";
 const organizerId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90";
@@ -113,5 +113,15 @@ describe("EventCompanionsSchema", () => {
         gathering: null,
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("EventBookingOfferSchema", () => {
+  it("accepts an empty friends list and a zero queue", () => {
+    expect(EventBookingOfferSchema.parse({ waitlistAhead: 0, friendsWithTickets: [] }).waitlistAhead).toBe(0);
+  });
+
+  it("rejects a negative queue length", () => {
+    expect(EventBookingOfferSchema.safeParse({ waitlistAhead: -1, friendsWithTickets: [] }).success).toBe(false);
   });
 });

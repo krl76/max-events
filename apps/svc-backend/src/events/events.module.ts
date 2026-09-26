@@ -20,6 +20,7 @@ import { ParticipationEntity } from "../participations/participation.entity";
 import { FriendshipEntity } from "../friends/friendship.entity";
 import { PlacesModule } from "../places/places.module";
 import { ProfileEntity } from "../users/profile.entity";
+import { WaitlistEntryEntity } from "../waitlist/waitlist-entry.entity";
 import { ReviewsModule } from "../reviews/reviews.module";
 import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 import { UserEntity } from "../users/user.entity";
@@ -28,6 +29,7 @@ import { PromotionModule } from "../promotion/promotion.module";
 import { WaitlistModule } from "../waitlist/waitlist.module";
 import { EventChatScheduler } from "./event-chat.scheduler";
 import { OrganizationsModule } from "../organizations/organizations.module";
+import { EventBookingOfferService } from "./event-booking-offer.service";
 import { EventCompanionsService } from "./event-companions.service";
 import { EventDetailsService } from "./event-details.service";
 import { EventEntity } from "./event.entity";
@@ -38,9 +40,9 @@ import { WeatherController } from "./weather.controller";
 import { WeatherClient } from "../smart-alerts/weather.client";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([EventEntity, BookingEntity, CheckInEntity, ParticipationEntity, UserEntity, FriendshipEntity, ProfileEntity, GatheringEntity, GatheringInviteeEntity]), PlacesModule, MaxBotModule, SubscriptionsModule, UsersModule, WaitlistModule, PromotionModule, ReviewsModule, OrganizationsModule],
+  imports: [TypeOrmModule.forFeature([EventEntity, BookingEntity, CheckInEntity, ParticipationEntity, UserEntity, FriendshipEntity, ProfileEntity, GatheringEntity, GatheringInviteeEntity, WaitlistEntryEntity]), PlacesModule, MaxBotModule, SubscriptionsModule, UsersModule, WaitlistModule, PromotionModule, ReviewsModule, OrganizationsModule],
   controllers: [EventsController, WeatherController],
-  providers: [WeatherClient, EventWeatherService, EventsService, EventDetailsService, EventCompanionsService, EventChatScheduler],
+  providers: [WeatherClient, EventWeatherService, EventsService, EventDetailsService, EventCompanionsService, EventBookingOfferService, EventChatScheduler],
   exports: [EventsService],
 })
 export class EventsModule {}
