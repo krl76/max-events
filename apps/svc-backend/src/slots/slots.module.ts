@@ -13,12 +13,13 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { FriendsModule } from "../friends/friends.module";
 import { PlaceEntity } from "../places/place.entity";
+import { PlaceExtraEntity, SlotChatMessageEntity, SlotWaitlistEntity } from "./slot-extra.entity";
 import { PlaceSlotEntity, SlotBookingEntity } from "./slot.entity";
 import { SlotsController } from "./slots.controller";
 import { SlotsService } from "./slots.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PlaceSlotEntity, SlotBookingEntity, PlaceEntity]), FriendsModule],
+  imports: [TypeOrmModule.forFeature([PlaceSlotEntity, SlotBookingEntity, PlaceEntity, PlaceExtraEntity, SlotWaitlistEntity, SlotChatMessageEntity]), FriendsModule],
   controllers: [SlotsController],
   providers: [SlotsService],
   exports: [SlotsService],

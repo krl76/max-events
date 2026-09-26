@@ -50,4 +50,31 @@ export class SlotsController {
   cancel(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string) {
     return this.slots.cancel(user.id, id);
   }
+
+  @Post("waitlist")
+  async joinWaitlist(@CurrentUser() user: UserEntity, @Body() body: unknown) {
+    const slotId = body !== null && typeof body === "object" ? (body as { slotId?: unknown }).slotId : undefined;
+    const parsed = IdSchema.safeParse(slotId);
+    if (!parsed.success) throw new BadRequestException("Invalid waitlist payload");
+    const seatsRaw = body !== null && typeof body === "object" ? (body as { seats?: unknown }).seats : undefined;
+    const seats = typeof seatsRaw === "number" && Number.isInteger(seatsRaw) && seatsRaw > 0 ? seatsRaw : 1;
+    return this.slots.joinWaitlist(user.id, parsed.data, seats);
+  }
+
+  @Delete("waitlist/:id")
+  leaveWaitlist(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string) {
+    return this.slots.leaveWaitlist(user.id, id);
+  }
+
+  @Get("bookings/:id/messages")
+  listChat(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string) {
+    return this.slots.listChat(user.id, id);
+  }
+
+  @Post("bookings/:id/messages")
+  async addChat(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const text = body !== null && typeof body === "object" ? (body as { text?: unknown }).text : undefined;
+    if (typeof text !== "string") throw new BadRequestException("Invalid chat payload");
+    return this.slots.addChat(user.id, id, text);
+  }
 }

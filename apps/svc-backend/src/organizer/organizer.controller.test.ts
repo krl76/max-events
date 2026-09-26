@@ -48,7 +48,7 @@ describe("OrganizerController", () => {
       attendance: async () => ({ eventId: eventDto.id, capacity: null, bookedCount: 0, waitlistCount: 0, checkedInCount: 0, freedSeats: 0, chatMessages: null, participants: [], waitlist: [], slots: [] }),
       inviteWaitlist: async () => ({ invited: 1 }),
     };
-    const controller = new OrganizerController(events, places, promo as never, promotions as never, payments as never, bookings as never, organizations as never, {} as never, day as never);
+    const controller = new OrganizerController(events, places, promo as never, promotions as never, payments as never, bookings as never, organizations as never, {} as never, day as never, { updateSlot: async () => ({}) } as never);
     await expect(controller.listEvents(organization)).resolves.toEqual([eventDto]);
     await expect(controller.createEventDraft(organization, event)).resolves.toEqual(eventDto);
     expect(calls.create).toEqual({ draft: true });

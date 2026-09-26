@@ -22,6 +22,7 @@ import { PaymentsService } from "../payments/payments.service";
 import { PromotionService } from "../promotion/promotion.service";
 import { parseStatsPeriod } from "../stats/stats.controller";
 import { StatsService } from "../stats/stats.service";
+import { SlotsService } from "../slots/slots.service";
 import { OrganizerDayService } from "./organizer-day.service";
 
 @OrganizerOnly()
@@ -37,6 +38,7 @@ export class OrganizerController {
     @Inject(OrganizationsService) private readonly organizations: OrganizationsService,
     @Inject(StatsService) private readonly stats: StatsService,
     @Inject(OrganizerDayService) private readonly day: OrganizerDayService,
+    @Inject(SlotsService) private readonly slotWindows: SlotsService,
   ) {}
 
   @Get("summary/export")
@@ -100,6 +102,25 @@ export class OrganizerController {
   @Post("places/:id/publish")
   publishPlace(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string): Promise<Place> {
     return this.places.publish(id, organization.id);
+  }
+
+  @Patch("places/:placeId/slots/:slotId")
+  async updateSlot(@CurrentOrganization() organization: OrganizationEntity, @Param("placeId", ParseUUIDPipe) placeId: string, @Param("slotId", ParseUUIDPipe) slotId: string, @Body() body: unknown) {
+    const payload = body !== null && typeof body === "object" ? (body as { capacity?: unknown; priceRub?: unknown; unitTitle?: unknown }) : {};
+    const patch: { capacity?: number; priceRub?: number | null; unitTitle?: string } = {};
+    if (payload.capacity !== undefined) {
+      if (typeof payload.capacity !== "number") throw new BadRequestException("Invalid slot patch");
+      patch.capacity = payload.capacity;
+    }
+    if (payload.priceRub !== undefined) {
+      if (payload.priceRub !== null && typeof payload.priceRub !== "number") throw new BadRequestException("Invalid slot patch");
+      patch.priceRub = payload.priceRub;
+    }
+    if (payload.unitTitle !== undefined) {
+      if (typeof payload.unitTitle !== "string") throw new BadRequestException("Invalid slot patch");
+      patch.unitTitle = payload.unitTitle;
+    }
+    return this.slotWindows.updateSlot(organization.id, placeId, slotId, patch);
   }
 
   @Post("events/:id/promocodes")

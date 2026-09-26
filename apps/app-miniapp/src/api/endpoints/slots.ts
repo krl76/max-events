@@ -504,6 +504,10 @@ export function withSlots<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/slots/my?userId=${encodeURIComponent(userId)}`, MySlotsBoardSchema);
     }
 
+    joinSlotWaitlist(slotId: string, seats = 1): Promise<SlotWaitlistEntry> {
+      return this.request("/slots/waitlist", SlotWaitlistEntrySchema, { body: { slotId, seats } });
+    }
+
     leaveSlotWaitlist(entryId: string): Promise<SlotWaitlistEntry> {
       return this.request(`/slots/waitlist/${entryId}`, SlotWaitlistEntrySchema, { method: "DELETE" });
     }

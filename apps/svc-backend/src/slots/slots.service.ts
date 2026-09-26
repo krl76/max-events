@@ -9,14 +9,16 @@
 // - SlotsService - board, book, cancel, mine, upcoming
 // END_MODULE_MAP
 
-import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { IdSchema } from "@max-events/api-contracts";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, QueryFailedError, Repository } from "typeorm";
 import { FriendsService } from "../friends/friends.service";
+import { isOrganizerOwner } from "../organizations/organizer-ownership";
 import { PlaceEntity } from "../places/place.entity";
 import { toPlaceDto } from "../places/places.service";
 import { moscowDateKey } from "../time/moscow-date";
+import { PlaceExtraEntity, SlotChatMessageEntity, SlotWaitlistEntity } from "./slot-extra.entity";
 import { PlaceSlotEntity, SlotBookingEntity } from "./slot.entity";
 
 const WINDOWS = [
@@ -36,11 +38,15 @@ export class SlotsService {
     @InjectRepository(SlotBookingEntity) private readonly bookings: Repository<SlotBookingEntity>,
     @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
     @Inject(FriendsService) private readonly friends: FriendsService,
+    @InjectRepository(PlaceExtraEntity) private readonly extras: Repository<PlaceExtraEntity>,
+    @InjectRepository(SlotWaitlistEntity) private readonly waitlist: Repository<SlotWaitlistEntity>,
+    @InjectRepository(SlotChatMessageEntity) private readonly chat: Repository<SlotChatMessageEntity>,
   ) {}
 
   async board(placeId: string, viewerId: string, date?: string, now = new Date()) {
     const place = await this.requirePlace(placeId);
     await this.ensureWeek(place.id, now);
+    await this.ensureExtras(place.id);
     const days = this.weekKeys(now);
     const asked = date && days.includes(date) ? date : days[0]!;
     const weekSlots = await this.slots.find({ where: { placeId: place.id } });
@@ -52,7 +58,7 @@ export class SlotsService {
       pricePerHourRub: null,
       cancelBefore: null,
       amenities: [],
-      extras: [],
+      extras: (await this.extras.find({ where: { placeId: place.id } })).map((row) => ({ id: row.id, title: row.title, priceRub: row.priceRub })),
       days: days.map((key) => ({
         date: key,
         weather: null,
@@ -69,7 +75,10 @@ export class SlotsService {
     await this.requirePlace(placeId);
     await this.ensureWeek(placeId, now);
     const rows = (await this.slots.find({ where: { placeId } })).filter((row) => row.startsAt.getTime() >= now.getTime() && row.takenSeats < row.capacity);
-    return rows.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime()).slice(0, limit).map(toPlaceSlot);
+    return rows
+      .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+      .slice(0, limit)
+      .map(toPlaceSlot);
   }
 
   async book(userId: string, slotId: string, companionIds: string[] = [], extraIds: string[] = []) {
@@ -78,6 +87,10 @@ export class SlotsService {
     const slot = await this.slots.findOneBy({ id: slotId });
     if (!slot) throw new NotFoundException("Slot not found");
     await this.requirePlace(slot.placeId);
+    await this.ensureExtras(slot.placeId);
+    const catalog = await this.extras.find({ where: { placeId: slot.placeId } });
+    const chosen = catalog.filter((row) => extras.includes(row.id));
+    const extrasTotal = chosen.reduce((sum, row) => sum + row.priceRub, 0);
     const partySize = 1 + companions.length;
     if (slot.takenSeats + partySize > slot.capacity) throw new ConflictException("No seats left");
     const duplicate = await this.bookings.findOneBy({ slotId, userId, status: "active" });
@@ -92,8 +105,8 @@ export class SlotsService {
           userId,
           status: "active",
           partySize,
-          extraIds: extras,
-          totalRub: slot.priceRub ?? 0,
+          extraIds: chosen.map((row) => row.id),
+          totalRub: (slot.priceRub ?? 0) + extrasTotal,
           cancelBefore: slot.startsAt,
         }),
       );
@@ -122,7 +135,7 @@ export class SlotsService {
       freeSeats: Math.max(0, slot.capacity - slot.takenSeats),
       distanceKm: null,
       travelMinutes: null,
-      chat: [],
+      chat: (await this.chat.find({ where: { bookingId: booking.id } })).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id)).map((row) => ({ id: row.id, userId: row.userId, text: row.text, createdAt: row.createdAt.toISOString() })),
     };
   }
 
@@ -157,13 +170,82 @@ export class SlotsService {
         if (!slot || !place) return [];
         return [{ booking: toSlotBooking(row, slot), slot: toPlaceSlot(slot), place: toPlaceDto(place), unitTitle: slot.unitTitle, activity: place.category, company: [] }];
       });
-    return { bookings, waitlist: [] };
+    const waiting = await this.waitlist.find({ where: { userId } });
+    const waitSlots = waiting.length === 0 ? [] : await this.slots.find({ where: { id: In(waiting.map((row) => row.slotId)) } });
+    const waitSlotById = new Map(waitSlots.map((row) => [row.id, row]));
+    const queues = new Map<string, SlotWaitlistEntity[]>();
+    for (const row of waiting) {
+      if (!queues.has(row.slotId)) queues.set(row.slotId, await this.waitlist.find({ where: { slotId: row.slotId } }));
+    }
+    const waitlist = waiting.flatMap((row) => {
+      const slot = waitSlotById.get(row.slotId);
+      const place = slot ? placeById.get(slot.placeId) : undefined;
+      if (!slot || !place) return [];
+      const ahead = (queues.get(row.slotId) ?? []).filter((other) => other.createdAt.getTime() < row.createdAt.getTime()).length;
+      return [{ entry: { id: row.id, slotId: row.slotId, placeId: row.placeId, userId: row.userId, position: ahead + 1, seats: row.seats }, slot: toPlaceSlot(slot), place: toPlaceDto(place), unitTitle: slot.unitTitle, activity: place.category }];
+    });
+    return { bookings, waitlist };
+  }
+
+  async joinWaitlist(userId: string, slotId: string, seats = 1) {
+    const slot = await this.slots.findOneBy({ id: slotId });
+    if (!slot) throw new NotFoundException("Slot not found");
+    await this.requirePlace(slot.placeId);
+    if (slot.takenSeats < slot.capacity) throw new ConflictException("Seats are still free");
+    const existing = await this.waitlist.findOneBy({ slotId, userId });
+    if (existing) return existing;
+    return this.waitlist.save(this.waitlist.create({ slotId, placeId: slot.placeId, userId, seats: Math.max(1, seats) }));
+  }
+
+  async leaveWaitlist(userId: string, entryId: string) {
+    const row = await this.waitlist.findOneBy({ id: entryId });
+    if (!row || row.userId !== userId) throw new NotFoundException("Waitlist entry not found");
+    const copy = { id: row.id, slotId: row.slotId, placeId: row.placeId, userId: row.userId, seats: row.seats };
+    await this.waitlist.delete({ id: row.id });
+    return { id: copy.id, slotId: copy.slotId, placeId: copy.placeId, userId: copy.userId, position: 0, seats: copy.seats };
+  }
+
+  async listChat(userId: string, bookingId: string) {
+    const booking = await this.bookings.findOneBy({ id: bookingId });
+    if (!booking || booking.userId !== userId) throw new NotFoundException("Booking not found");
+    const rows = await this.chat.find({ where: { bookingId } });
+    return rows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id)).map((row) => ({ id: row.id, userId: row.userId, text: row.text, createdAt: row.createdAt.toISOString() }));
+  }
+
+  async addChat(userId: string, bookingId: string, text: string) {
+    const booking = await this.bookings.findOneBy({ id: bookingId });
+    if (!booking || booking.userId !== userId) throw new NotFoundException("Booking not found");
+    const trimmed = text.trim();
+    if (trimmed.length === 0 || trimmed.length > 2000) throw new BadRequestException("Invalid chat payload");
+    const saved = await this.chat.save(this.chat.create({ bookingId, userId, text: trimmed }));
+    return { id: saved.id, userId: saved.userId, text: saved.text, createdAt: saved.createdAt.toISOString() };
+  }
+
+  async updateSlot(actorId: string, placeId: string, slotId: string, patch: { capacity?: number; priceRub?: number | null; unitTitle?: string }) {
+    const place = await this.requirePlace(placeId);
+    if (!isOrganizerOwner(place, actorId)) throw new ForbiddenException("Not the organizer");
+    const slot = await this.slots.findOneBy({ id: slotId, placeId });
+    if (!slot) throw new NotFoundException("Slot not found");
+    if (patch.capacity !== undefined) {
+      if (!Number.isInteger(patch.capacity) || patch.capacity < slot.takenSeats || patch.capacity < 1) throw new ConflictException("Invalid capacity");
+      slot.capacity = patch.capacity;
+    }
+    if (patch.priceRub !== undefined) slot.priceRub = patch.priceRub;
+    if (patch.unitTitle !== undefined && patch.unitTitle.trim() !== "") slot.unitTitle = patch.unitTitle.trim();
+    await this.slots.save(slot);
+    return toPlaceSlot(slot);
   }
 
   private async requirePlace(placeId: string): Promise<PlaceEntity> {
     const place = await this.places.findOneBy({ id: placeId });
     if (!place || place.published === false) throw new NotFoundException("Place not found");
     return place;
+  }
+
+  private async ensureExtras(placeId: string): Promise<void> {
+    const existing = await this.extras.find({ where: { placeId } });
+    if (existing.length > 0) return;
+    await this.extras.save(this.extras.create({ placeId, title: "Уголь и шампуры", priceRub: 600 }));
   }
 
   private async ensureWeek(placeId: string, now: Date): Promise<void> {
@@ -229,5 +311,3 @@ function toSlotBooking(row: SlotBookingEntity, slot: PlaceSlotEntity) {
     updatedAt: row.updatedAt.toISOString(),
   };
 }
-
-
