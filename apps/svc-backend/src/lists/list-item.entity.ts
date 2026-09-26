@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: TypeORM entity for list items (exactly one of eventId or placeId).
-// SCOPE: ListItemEntity columns: listId, nullable eventId, nullable placeId, addedAt.
+// PURPOSE: TypeORM entity for list items (exactly one of eventId, placeId or feedPostId).
+// SCOPE: ListItemEntity columns: listId, nullable eventId, nullable placeId, nullable feedPostId, addedAt.
 // DEPENDS: typeorm
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
