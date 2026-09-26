@@ -466,7 +466,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   const origin = useViewerOrigin();
   const [places, setPlaces] = useState<PlacesState>({ status: "loading" });
   const [friendVisits, setFriendVisits] = useState<FriendPlaceVisit[]>([]);
-  const [layers, setLayers] = useState<Record<MapLayer, boolean>>({ friends: true, events: true, places: true });
+  const [friendsAsked, setFriendsAsked] = useState(false);
+  const [layers, setLayers] = useState<Record<MapLayer, boolean>>({ friends: false, events: true, places: true });
   const [layersOpen, setLayersOpen] = useState(true);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<MapMarker | null>(null);
@@ -497,20 +498,19 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
     };
   }, []);
 
-  // The layer chip counts the friends, so the visits load with the map rather than with the toggle.
   useEffect(() => {
+    if (!friendsAsked) return;
     let alive = true;
     apiClient.listFriendPlaces().then(
       (visits) => {
         if (alive) setFriendVisits(visits);
       },
-      // The layer is an extra, not the map: a failed load leaves it empty rather than taking the screen down.
       () => {},
     );
     return () => {
       alive = false;
     };
-  }, []);
+  }, [friendsAsked]);
 
   useEffect(() => {
     let alive = true;
@@ -625,7 +625,11 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
           целиком, вместе с классами leaflet (.leaflet-container и его правило max-width для тайлов —
           без него тайлы схлопываются в нулевую ширину). Тон подложки поэтому висит на обёртке выше. */}
       <div ref={containerRef} className={`app-map${status === "error" ? " app-map--blank" : ""}`} aria-label="Карта событий и мест" />
-      {status === "loading" && <span className="app-map-skeleton" aria-hidden="true" />}
+      {status === "loading" && (
+        <span className="app-map-skeleton" aria-live="polite">
+          <span className="app-map-here-chip">Вы здесь</span>
+        </span>
+      )}
       <div className="app-map16-top">
         {onBack !== undefined && (
           <button type="button" className="app-map16-back" onClick={onBack}>
@@ -656,7 +660,15 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
           {layersOpen && (
             <div className="app-map16-layers" role="group" aria-label="Слои карты">
               {MAP_LAYERS.map((layer) => (
-                <AppChip key={layer} pressed={layers[layer]} className="app-map16-layer" onClick={() => setLayers((current) => ({ ...current, [layer]: !current[layer] }))}>
+                <AppChip
+                  key={layer}
+                  pressed={layers[layer]}
+                  className="app-map16-layer"
+                  onClick={() => {
+                    if (layer === "friends" && !layers.friends) setFriendsAsked(true);
+                    setLayers((current) => ({ ...current, [layer]: !current[layer] }));
+                  }}
+                >
                   {layer === "friends" && friendVisits.length > 0 ? `${MAP_LAYER_LABELS[layer]} · ${friendVisits.length}` : MAP_LAYER_LABELS[layer]}
                 </AppChip>
               ))}
