@@ -83,6 +83,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   notifications: "Умные уведомления",
   // «Подписчики»: обратная сторона подписки, вход — счётчик в шапке профиля
   followers: "Подписчики",
+  post: "Пост",
 };
 
 export function routeTitle(route: Route): string {

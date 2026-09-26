@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - FeedPostCard - presentational Instagram-style post: author header, the post photo in the 4:5 frame (category placeholder without one), icon actions (like/comment/share), likes line, caption, comments, add form and a «Пожаловаться» report control
+// - FeedPostPage - one post by id: the card of the wall, opened from the profile grid and the feed
 // - StoriesRow - stories rail over the home feed, Instagram-style: the own tile carries a «+» corner that opens the story editor, unseen rings burn with the brand gradient and go neutral once watched (seen state from ../stories/rail.js)
 // - FeedState - union of the feed fetch states (loading / error / ready)
 // - FeedSection - container: posts (optionally one event or one place — the wall), event titles for the cards, like/comment wiring, «+» publish CTA
@@ -104,6 +105,59 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
       </form>
       {userId !== "" && <ReportButton target={{ feedPostId: post.id }} userId={userId} />}
     </article>
+  );
+}
+
+export function FeedPostPage({ id }: { id: string }) {
+  const auth = useAuth();
+  const { navigate } = useRoute();
+  const userId = auth.status === "authenticated" ? auth.user.id : "";
+  const [post, setPost] = useState<FeedPost | null>(null);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const load = useCallback(() => {
+    setFailed(false);
+    apiClient.getFeedPost(id).then(
+      (row) => {
+        setPost(row);
+        apiClient.listEvents().then(
+          (list) => setEvent(list.find((item) => item.id === row.eventId) ?? null),
+          () => {},
+        );
+      },
+      () => setFailed(true),
+    );
+  }, [id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (failed)
+    return (
+      <AppState error action={{ label: "Повторить", onClick: load }}>
+        Не удалось загрузить пост.
+      </AppState>
+    );
+  if (post === null) return <AppState>Загрузка…</AppState>;
+
+  return (
+    <FeedPostCard
+      post={post}
+      eventTitle={event?.title ?? ""}
+      eventCategory={event?.category}
+      userId={userId}
+      onToggleLike={() => {
+        if (userId === "") return;
+        apiClient.toggleFeedLike(post.id, userId).then(setPost);
+      }}
+      onAddComment={(text) => {
+        if (userId === "") return;
+        apiClient.addFeedComment(post.id, { userId, text }).then(setPost);
+      }}
+      onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })}
+    />
   );
 }
 

@@ -175,6 +175,7 @@ describe("bio step", () => {
     expect(html).toContain("Пара слов о себе");
     expect(html).toContain("Пропустить");
     expect(html).toContain("textarea");
+    expect(html).not.toContain("Инстаграм");
   });
 
   it("turns the CTA into «Готово» once there is a bio", () => {

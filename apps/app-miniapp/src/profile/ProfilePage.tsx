@@ -9,6 +9,7 @@
 // - profileAbout - «Москва · джаз, падел» — the city and the interests on one line, city alone when there are no interests
 // - profileMetrics - the three visit counters with their ru labels declined for the number; «компании» drops out when nothing counts it (#496)
 // - followMetrics - the two clickable counters of the header: everything the viewer follows and everyone following them; a direction that has not arrived is left out rather than printed as a zero
+// - socialMetrics - second header row: subscriptions, posts, followers
 // - ProfileTab - which grid the profile shows: the posts of the person or the places they have been
 // - PROFILE_TABS - the two grids in screen order, «Посты» first
 // - profileTabLabel - «Посты · 8» — the tab label with its count, bare until the count arrives
@@ -77,11 +78,13 @@ export function followMetrics(input: { subscriptions: Subscription[] | null; fol
   return metrics;
 }
 
-/** Header counters a social profile is read by: posts, then the two follow directions. */
+/** Second header row: subscriptions, posts, followers — visits stay on the row above. */
 export function socialMetrics(input: { posts: number | null; subscriptions: Subscription[] | null; following: Friend[] | null; followers: Friend[] | null }): { id: "posts" | "subscriptions" | "followers"; value: number; label: string }[] {
-  const metrics: { id: "posts" | "subscriptions" | "followers"; value: number; label: string }[] = [];
-  if (input.posts !== null) metrics.push({ id: "posts", value: input.posts, label: pluralRu(input.posts, "пост", "поста", "постов") });
-  return [...metrics, ...followMetrics(input)];
+  const follows = followMetrics(input);
+  const posts = input.posts === null ? [] : [{ id: "posts" as const, value: input.posts, label: pluralRu(input.posts, "пост", "поста", "постов") }];
+  const subscriptions = follows.filter((metric) => metric.id === "subscriptions");
+  const followers = follows.filter((metric) => metric.id === "followers");
+  return [...subscriptions, ...posts, ...followers];
 }
 
 export type ProfileTab = "posts" | "places";
@@ -233,13 +236,14 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
   const about = profileAbout(profile);
   return (
     <section className="app-me">
-      <div className={own && entries.onPickCover ? "app-me-hero app-me-hero--edit" : "app-me-hero"}>
+      <div className="app-me-hero">
         {profile.coverUrl !== null ? <img className="app-me-hero-cover" src={profile.coverUrl} alt="" /> : null}
         <span className="app-me-blob app-me-blob--light" aria-hidden="true" />
         <span className="app-me-blob app-me-blob--cool" aria-hidden="true" />
         {own && entries.onPickCover !== undefined && (
           <button type="button" className="app-me-hero-edit" aria-label="Сменить шапку" onClick={entries.onPickCover}>
             <ActionIcon name="upload" size={16} strokeWidth={2} />
+            Шапка
           </button>
         )}
         <span className="app-me-hero-actions">
@@ -264,20 +268,28 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
       )}
       <h1 className="app-me-name">{name}</h1>
       <p className="app-me-about">{about}</p>
-      {numbers.length + social.length > 0 && (
-        <div className="app-me-metrics app-me-metrics--wrap">
-          {numbers.map((metric) => (
-            <span key={metric.label} className="app-me-metric">
-              <span className="app-me-metric-value">{metric.value}</span>
-              <span className="app-me-metric-label">{metric.label}</span>
-            </span>
-          ))}
-          {social.map((metric) => (
-            <button key={metric.id} type="button" className="app-me-metric app-me-metric--link" onClick={openList[metric.id]}>
-              <span className="app-me-metric-value">{metric.value}</span>
-              <span className="app-me-metric-label">{metric.label}</span>
-            </button>
-          ))}
+      {(numbers.length > 0 || social.length > 0) && (
+        <div className="app-me-metrics">
+          {numbers.length > 0 && (
+            <div className="app-me-metrics-row">
+              {numbers.map((metric) => (
+                <span key={metric.label} className="app-me-metric">
+                  <span className="app-me-metric-value">{metric.value}</span>
+                  <span className="app-me-metric-label">{metric.label}</span>
+                </span>
+              ))}
+            </div>
+          )}
+          {social.length > 0 && (
+            <div className="app-me-metrics-row">
+              {social.map((metric) => (
+                <button key={metric.id} type="button" className="app-me-metric app-me-metric--link" onClick={openList[metric.id]}>
+                  <span className="app-me-metric-value">{metric.value}</span>
+                  <span className="app-me-metric-label">{metric.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {!own && (
@@ -554,7 +566,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         onSubscribe={toggleFollow}
         onWrite={() => void shareResult(webApp, `${[shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ")} в Афише MAX`)}
         onInvite={() => navigate({ name: "plan-new" })}
-        onOpenPost={(post) => navigate({ name: "event", id: post.eventId })}
+        onOpenPost={(post) => navigate({ name: "post", id: post.postId })}
         onNewPost={() => navigate({ name: "feed-new", eventId: null })}
         onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })}
         onPickAvatar={own ? () => avatarRef.current?.click() : undefined}

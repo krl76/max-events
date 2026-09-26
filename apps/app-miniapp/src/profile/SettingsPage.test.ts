@@ -129,11 +129,11 @@ describe("app cache", () => {
 });
 
 describe("SettingsView", () => {
-  it("renders the five groups of the design in order", () => {
+  it("renders the four groups of a regular profile in order", () => {
     const html = renderSettings();
 
     const groups = [...html.matchAll(/class="app-set-group-title">([^<]+)</g)].map((match) => match[1]);
-    expect(groups).toEqual(["Приложение", "Приватность", "Уведомления", "Организаторам", "Мини-приложение"]);
+    expect(groups).toEqual(["Приложение", "Приватность", "Уведомления", "Мини-приложение"]);
   });
 
   it("shows the theme row with the current preference as its value", () => {
@@ -172,6 +172,16 @@ describe("SettingsView", () => {
   it("says nothing about a failed save until one fails", () => {
     expect(renderSettings()).not.toContain("app-set-error");
     expect(renderSettings({ failed: true })).toContain("Не удалось сохранить настройку");
+  });
+
+  it("hides organizer settings until organizer mode is on", () => {
+    expect(renderSettings()).not.toContain("Организаторам");
+    expect(renderSettings({ settings: { ...settings, organizerMode: true } })).toContain("Организаторам");
+  });
+
+  it("does not compare the bio to Instagram", () => {
+    expect(renderSettings()).not.toContain("Инстаграм");
+    expect(renderSettings()).toContain("Коротко, по желанию");
   });
 
   it("offers the disable control without arming it", () => {

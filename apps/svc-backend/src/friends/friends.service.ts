@@ -124,11 +124,19 @@ export class FriendsService {
     const me = await this.users.findOneBy({ id: userId });
     if (!me) throw new NotFoundException("User not found");
     const fromBot = await this.bot.listFriends(me.maxUserId);
-    if (fromBot === null) return [...(await this.friendIds(userId))];
     const unique = [...new Set(userIds)].filter((id) => id !== userId);
-    const allowed = fromBot.length === 0 ? [] : await this.users.find({ where: { maxUserId: In(fromBot) } });
-    const known = new Set(allowed.filter((row) => fromBot.includes(row.maxUserId)).map((row) => row.id));
-    const nextIds = unique.filter((id) => known.has(id));
+    const existingIds = await this.friendIds(userId);
+    const all = await this.users.find();
+    const allowed = new Set<string>();
+    if (fromBot === null) {
+      // Staging/browser contour has no MAX contacts list. Unfollow still has to write.
+      for (const row of all) allowed.add(row.id);
+    } else {
+      for (const row of all) {
+        if (fromBot.includes(row.maxUserId) || existingIds.has(row.id)) allowed.add(row.id);
+      }
+    }
+    const nextIds = unique.filter((id) => allowed.has(id));
     const next = new Set(nextIds);
     const existing = await this.friendships.find({ where: { userId } });
     for (const row of existing) {

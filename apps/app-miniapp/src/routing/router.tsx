@@ -84,7 +84,8 @@ export type Route =
   // Экран 07 «Умные уведомления»: входящие пользователя, вход — колокольчик в шапке ленты
   | { name: "notifications" }
   // «Подписчики»: обратная сторона подписки, вход — счётчик в шапке профиля
-  | { name: "followers" };
+  | { name: "followers" }
+  | { name: "post"; id: string };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -189,7 +190,8 @@ function toRoute(value: unknown): Route | null {
     case "list":
     case "we-group":
     case "vote":
-    case "slot-ticket": {
+    case "slot-ticket":
+    case "post": {
       const { id } = value as { id?: unknown };
       return typeof id === "string" ? ({ name, id } as Route) : null;
     }

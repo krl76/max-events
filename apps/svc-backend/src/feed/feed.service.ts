@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - FeedListFilter - event wall or place wall selector
-// - FeedService - list/create/saveDraft/join/toggleLike/addComment/listCards
+// - FeedService - list/get/create/saveDraft/join/toggleLike/addComment/listCards
 // END_MODULE_MAP
 
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
@@ -59,6 +59,10 @@ export class FeedService {
     }
     const rows = await this.posts.find({ where, order: { createdAt: "DESC", id: "DESC" }, take, skip });
     return this.toDtoMany(rows, viewerId);
+  }
+
+  async get(viewerId: string, postId: string): Promise<FeedPost> {
+    return this.toDto(await this.requirePost(postId), viewerId);
   }
 
   async listCards(viewerId: string, now = new Date()): Promise<FeedCard[]> {

@@ -40,6 +40,14 @@ describe("feed mock endpoints", () => {
     expect(await new ApiClient("/api").listFeedPosts()).toEqual(feedPosts(null));
   });
 
+  it("loads one post by id", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+    const post = (await client.listFeedPosts())[0];
+    expect(await client.getFeedPost(post.id)).toEqual(post);
+    await expect(client.getFeedPost("00000000-0000-4000-8000-0000000000ff")).rejects.toMatchObject({ status: 404 });
+  });
+
   it("serve the wall of one event through the typed client", async () => {
     restore = installMockApi();
     const client = new ApiClient("/api");

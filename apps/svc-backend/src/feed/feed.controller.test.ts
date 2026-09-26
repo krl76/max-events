@@ -21,6 +21,7 @@ function createController() {
       cardsFor = viewerId;
       return [];
     },
+    get: async (_viewerId: string, id: string) => ({ id }) as FeedPost,
     saveDraft: async (viewerId: string, payload: { text: string }) => ({ savedAt: "2026-09-12T10:00:00.000Z", viewerId, text: payload.text }),
     join: async (viewerId: string, postId: string) => ({ id: postId, userId: viewerId, eventId, status: "active", source: "feed" }),
   } as unknown as FeedService;
@@ -72,5 +73,13 @@ describe("FeedController.listCards", () => {
     const created = createController();
     await expect(created.controller.listCards(user)).resolves.toEqual([]);
     expect(created.cardsFor).toBe(user.id);
+  });
+});
+
+describe("FeedController.get", () => {
+  it("loads one post by id", async () => {
+    const { controller } = createController();
+    const postId = "00000000-0000-4000-8000-0000000000f1";
+    await expect(controller.get(user, postId)).resolves.toMatchObject({ id: postId });
   });
 });

@@ -203,7 +203,7 @@ function BioStep({ bio, saveFailed, onBio, onNext }: Pick<OnboardingViewProps, "
     <>
       <header className="app-onboarding-head">
         <h1 className="app-onboarding-title">Пара слов о себе</h1>
-        <p className="app-onboarding-lead">Как в Инстаграме: коротко, по желанию. Потом можно поменять.</p>
+        <p className="app-onboarding-lead">Коротко, по желанию. Потом можно поменять в настройках.</p>
       </header>
       <div className="app-onboarding-body">
         <textarea className="app-review-text" maxLength={PROFILE_BIO_MAX} placeholder="Люблю концерты, падел и долгие ужины" value={bio} onChange={(change) => onBio(change.target.value)} />

@@ -108,7 +108,7 @@ describe("FeedFriendPost", () => {
 });
 
 describe("FeedPlacePost", () => {
-  const post = (over: Partial<FeedPlaceCard> = {}) => renderToStaticMarkup(createElement(FeedPlacePost, { card: { ...placeCard, ...over }, now: NOW, onOpenPlace: noop, onStatus: noop, onSlots: noop, onGather: noop }));
+  const post = (over: Partial<FeedPlaceCard> = {}) => renderToStaticMarkup(createElement(FeedPlacePost, { card: { ...placeCard, ...over }, now: NOW, onOpenPlace: noop, onOpenPost: noop, onStatus: noop, onSlots: noop, onGather: noop }));
 
   it("heads the venue with its address, travel time and rating", () => {
     const html = post();

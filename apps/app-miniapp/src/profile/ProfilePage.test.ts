@@ -143,10 +143,10 @@ describe("profileMetrics", () => {
 });
 
 describe("socialMetrics", () => {
-  it("puts posts first, then the two follow directions", () => {
+  it("puts subscriptions, then posts, then followers", () => {
     expect(socialMetrics({ posts: 8, subscriptions: [], following: [person("p1", "Анна")], followers: [person("p2", "Дима")] })).toEqual([
-      { id: "posts", value: 8, label: "постов" },
       { id: "subscriptions", value: 1, label: "подписка" },
+      { id: "posts", value: 8, label: "постов" },
       { id: "followers", value: 1, label: "подписчик" },
     ]);
   });
@@ -262,7 +262,15 @@ describe("ProfileView", () => {
     expect(html).toContain("подписки");
     expect(html).toContain("подписчика");
     expect(html.match(/app-me-metric app-me-metric--link/g)).toHaveLength(3);
+    expect(html.match(/app-me-metrics-row/g)).toHaveLength(2);
     expect(html).not.toMatch(/app-me-row-title">Подписки/);
+  });
+
+  it("lets the owner change the cover from a labeled control on the hero", () => {
+    const html = renderProfileView({ onPickCover: () => {} });
+
+    expect(html).toContain("Сменить шапку");
+    expect(html).toContain("Шапка");
   });
 
   it("still shows the posts counter while the follow directions have not answered", () => {

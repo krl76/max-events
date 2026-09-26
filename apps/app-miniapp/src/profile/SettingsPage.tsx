@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 41 «Настройки»: the MAX identity row and the five grouped sections — Приложение (город, тема, интересы, радиус), Приватность, Уведомления, Организаторам, Мини-приложение — plus «Отключить мини-приложение».
+// PURPOSE: Экран 41 «Настройки»: the MAX identity row and the grouped sections — Приложение, Приватность, Уведомления, Мини-приложение — plus «Отключить мини-приложение». Organizer settings only when organizer mode is already on.
 // SCOPE: The settings screen only. What the Profile contract carries (city, interests, privacy, smart alerts) is written with apiClient.updateProfile; the rest is apiClient.getAppSettings/updateAppSettings; the colour scheme is the useAppTheme preference, not a server field. Pickers are inline disclosures — no separate screen per row.
 // DEPENDS: ../api/client.js (apiClient, AppSettings), ../auth/AuthContext.js, ../max/bridge.js (getWebApp), ../onboarding/onboarding.js (ONBOARDING_CITIES, ONBOARDING_INTERESTS), ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.js (useAppTheme, ThemePreference), @max-events/api-contracts (Profile, UpdateProfile, User), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
@@ -26,15 +26,16 @@
 // - SettingsPicker - the inline option list a value row discloses
 // - SettingsGroup - one bordered section with its uppercase caption
 // - SettingsViewProps - what the settings screen renders and writes
-// - SettingsView - presentational: identity row, the five groups, the disable button
+// - SettingsView - presentational: identity row, the groups, the disable button
 // - SettingsPage - route container: resolves auth, loads profile + app settings, writes both and binds the theme preference
 // END_MODULE_MAP
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PROFILE_BIO_MAX, type Profile, type UpdateProfile, type User } from "@max-events/api-contracts";
 import { apiClient, type AppSettings } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
+import { readFeedPhoto } from "../feed/photo";
 import { getWebApp } from "../max/bridge";
 import { ONBOARDING_CITIES, ONBOARDING_INTERESTS } from "../onboarding/onboarding";
 import { useRoute } from "../routing/router";
@@ -187,9 +188,10 @@ export interface SettingsViewProps {
   onClearCache: () => void;
   onOrganizer: () => void;
   onDisable: () => void;
+  onPickCover?: () => void;
 }
 
-export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable }: SettingsViewProps) {
+export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable, onPickCover }: SettingsViewProps) {
   const [picker, setPicker] = useState<PickerName>(null);
   const open = (name: Exclude<PickerName, null>) => setPicker((current) => (current === name ? null : name));
 
@@ -205,7 +207,7 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
         </span>
         <span className="app-set-identity-action">Изменить</span>
       </button>
-      {picker === "identity" && <p className="app-set-note">Имя и телефон — из профиля MAX. Аватар и шапку можно сменить в профиле Афиши.</p>}
+      {picker === "identity" && <p className="app-set-note">Имя и телефон — из профиля MAX. Аватар меняется нажатием на фото в профиле.</p>}
       {failed && <p className="app-set-error">Не удалось сохранить настройку. Попробуй ещё раз.</p>}
 
       <SettingsGroup title="Приложение">
@@ -213,8 +215,9 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
         {picker === "city" && <SettingsPicker options={ONBOARDING_CITIES.map((city) => ({ value: city.name, label: city.name }))} selected={[profile.city]} onPick={(city) => onProfile({ city })} />}
         <SettingsValueRow title="Тема" hint="Светлая, тёмная или как в системе" value={themeLabel(theme.preference)} expanded={picker === "theme"} onOpen={() => open("theme")} />
         {picker === "theme" && <SettingsPicker options={THEME_OPTIONS.map((option) => ({ value: option.value, label: option.label }))} selected={[theme.preference]} onPick={(value) => theme.setPreference(value as ThemePreference)} />}
-        <SettingsValueRow title="О себе" hint={profile.bio.trim() === "" ? "Как в Инстаграме, по желанию" : profile.bio} value="Изменить" expanded={picker === "bio"} onOpen={() => open("bio")} />
+        <SettingsValueRow title="О себе" hint={profile.bio.trim() === "" ? "Коротко, по желанию" : profile.bio} value="Изменить" expanded={picker === "bio"} onOpen={() => open("bio")} />
         {picker === "bio" && <textarea className="app-review-text" maxLength={PROFILE_BIO_MAX} value={profile.bio} onChange={(change) => onProfile({ bio: change.target.value })} placeholder="Пара слов о себе" />}
+        {onPickCover !== undefined && <SettingsValueRow title="Шапка профиля" hint={profile.coverUrl === null ? "Фон сверху профиля" : "Нажми, чтобы заменить"} value="Изменить" expanded={false} onOpen={onPickCover} />}
         <SettingsValueRow title="Интересы" hint={interestsHint(profile.interests)} value="Изменить" expanded={picker === "interests"} onOpen={() => open("interests")} />
         {picker === "interests" && <SettingsPicker multiple options={ONBOARDING_INTERESTS.map((interest) => ({ value: interest, label: interest }))} selected={profile.interests} onPick={(interest) => onProfile({ interests: profile.interests.includes(interest) ? profile.interests.filter((item) => item !== interest) : [...profile.interests, interest] })} />}
         <SettingsValueRow title="Радиус поиска" hint="Что считать «рядом»" value={settings === null ? undefined : radiusLabel(settings.searchRadiusKm)} expanded={picker === "radius"} onOpen={() => open("radius")} />
@@ -256,10 +259,12 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
         )}
       </SettingsGroup>
 
-      <SettingsGroup title="Организаторам">
-        <SettingsSwitchRow title="Режим организатора" hint="Панель, события и промо" checked={settings?.organizerMode ?? false} onChange={(organizerMode) => onSettings({ organizerMode })} />
-        <SettingsValueRow title="Реквизиты и оплата" hint="Билеты продаются у вас" value="Настроить" expanded={false} onOpen={onOrganizer} />
-      </SettingsGroup>
+      {settings?.organizerMode === true && (
+        <SettingsGroup title="Организаторам">
+          <SettingsSwitchRow title="Режим организатора" hint="Панель, события и промо" checked={settings.organizerMode} onChange={(organizerMode) => onSettings({ organizerMode })} />
+          <SettingsValueRow title="Реквизиты и оплата" hint="Билеты продаются у вас" value="Настроить" expanded={false} onOpen={onOrganizer} />
+        </SettingsGroup>
+      )}
 
       <SettingsGroup title="Мини-приложение">
         <SettingsSwitchRow title="Доступ к геолокации MAX" hint="Нужен для карты и «рядом»" checked={settings?.geoAccess ?? false} onChange={(geoAccess) => onSettings({ geoAccess })} />
@@ -285,6 +290,9 @@ function AuthenticatedSettings({ user }: { user: User }) {
   const [cacheBytes, setCacheBytes] = useState(0);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const coverRef = useRef<HTMLInputElement | null>(null);
+  const profileWrite = useRef(0);
+  const bioTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -321,6 +329,24 @@ function AuthenticatedSettings({ user }: { user: User }) {
     );
 
   return (
+    <>
+      <input
+        ref={coverRef}
+        type="file"
+        accept="image/*"
+        hidden
+        aria-label="Файл шапки"
+        onChange={(change) => {
+          const file = change.target.files?.[0];
+          change.target.value = "";
+          if (!file) return;
+          void readFeedPhoto(file).then((url) => {
+            if (url === null) return;
+            setProfile((current) => (current === null ? current : { ...current, coverUrl: url }));
+            apiClient.updateProfile({ coverUrl: url }).then(setProfile, () => setSaveFailed(true));
+          });
+        }}
+      />
     <SettingsView
       user={user}
       profile={profile}
@@ -328,16 +354,36 @@ function AuthenticatedSettings({ user }: { user: User }) {
       theme={theme}
       cacheBytes={cacheBytes}
       failed={saveFailed}
+      onPickCover={() => coverRef.current?.click()}
       onProfile={(patch) => {
         setSaveFailed(false);
         // Optimistic: a switch that waits for the server reads as a broken switch. The response is the
         // truth that lands afterwards, and a rejected write puts the old value back.
         const previous = profile;
         setProfile({ ...profile, ...patch, smartAlerts: { ...profile.smartAlerts, ...patch.smartAlerts }, privacy: { ...profile.privacy, ...patch.privacy } });
-        apiClient.updateProfile(patch).then(setProfile, () => {
-          setProfile(previous);
-          setSaveFailed(true);
-        });
+        const flush = () => {
+          const n = ++profileWrite.current;
+          apiClient.updateProfile(patch).then(
+            (saved) => {
+              if (n !== profileWrite.current) {
+                setProfile((current) => (current === null ? saved : patch.bio !== undefined ? { ...saved, bio: current.bio } : saved));
+                return;
+              }
+              setProfile(saved);
+            },
+            () => {
+              if (n !== profileWrite.current) return;
+              setProfile(previous);
+              setSaveFailed(true);
+            },
+          );
+        };
+        if (patch.bio !== undefined) {
+          if (bioTimer.current) clearTimeout(bioTimer.current);
+          bioTimer.current = setTimeout(flush, 350);
+          return;
+        }
+        flush();
       }}
       onSettings={(patch) => {
         setSaveFailed(false);
@@ -358,6 +404,7 @@ function AuthenticatedSettings({ user }: { user: User }) {
       // mini-app may do about itself, the removal happens in MAX.
       onDisable={() => getWebApp()?.close()}
     />
+    </>
   );
 }
 

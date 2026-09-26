@@ -186,7 +186,7 @@ export function FeedFriendPost({ card, now, onOpenEvent, onToggleLike, onToggleG
           {where !== "" && <span className="app-feed-post-where">{where}</span>}
         </span>
       </header>
-      <button type="button" className={`app-feed-hero app-media--${card.event.category}`} onClick={() => onOpenEvent(card.event.id)}>
+      <button type="button" className={`app-feed-hero app-media--${card.event.category}`} onClick={onOpenComments}>
         <span className="app-feed-hero-glow" aria-hidden="true" />
         <span className="app-feed-hero-glow app-feed-hero-glow--cool" aria-hidden="true" />
         <span className="app-feed-hero-chips">
@@ -238,12 +238,13 @@ interface FeedPlacePostProps {
   card: FeedPlaceCard;
   now: Date;
   onOpenPlace: (placeId: string) => void;
+  onOpenPost: () => void;
   onStatus: (status: ParticipationStatus) => void;
   onSlots: () => void;
   onGather: () => void;
 }
 
-export function FeedPlacePost({ card, now, onOpenPlace, onStatus, onSlots, onGather }: FeedPlacePostProps) {
+export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onStatus, onSlots, onGather }: FeedPlacePostProps) {
   const travel = formatFeedTravel(card.travelMinutes, card.distanceKm);
   const rating = formatFeedRating(card.rating);
   const price = formatPricePerHour(card.pricePerHourRub);
@@ -256,7 +257,9 @@ export function FeedPlacePost({ card, now, onOpenPlace, onStatus, onSlots, onGat
         </span>
         <span className="app-feed-post-id">
           <span className="app-feed-place-name">
-            <span>{card.place.title}</span>
+            <button type="button" className="app-feed-place-name-btn" onClick={() => onOpenPlace(card.place.id)}>
+              {card.place.title}
+            </button>
             {card.verified && (
               <span className="app-feed-verified" aria-label="Проверенная площадка">
                 <ActionIcon name="check" size={14} strokeWidth={2.4} />
@@ -276,7 +279,7 @@ export function FeedPlacePost({ card, now, onOpenPlace, onStatus, onSlots, onGat
           </span>
         )}
       </header>
-      <button type="button" className="app-feed-hero app-feed-hero--place" onClick={() => onOpenPlace(card.place.id)}>
+      <button type="button" className="app-feed-hero app-feed-hero--place" onClick={onOpenPost}>
         <span className="app-feed-hero-glow" aria-hidden="true" />
         <span className="app-feed-hero-glow app-feed-hero-glow--cool" aria-hidden="true" />
         <span className="app-feed-hero-chips">
@@ -348,6 +351,7 @@ export function FeedPlacePost({ card, now, onOpenPlace, onStatus, onSlots, onGat
 export interface FeedCardHandlers {
   onOpenEvent: (eventId: string) => void;
   onOpenPlace: (placeId: string) => void;
+  onOpenPost: (postId: string) => void;
   onToggleLike: (card: FeedFriendCard) => void;
   onToggleGoing: (card: FeedFriendCard) => void;
   onOpenComments: (card: FeedFriendCard) => void;
@@ -358,7 +362,7 @@ export interface FeedCardHandlers {
 }
 
 export function FeedCardList({ cards, now, handlers }: { cards: FeedCard[]; now: Date; handlers: FeedCardHandlers }) {
-  return <div className="app-feed-posts">{cards.map((card) => (card.kind === "friend" ? <FeedFriendPost key={card.id} card={card} now={now} onOpenEvent={handlers.onOpenEvent} onToggleLike={() => handlers.onToggleLike(card)} onToggleGoing={() => handlers.onToggleGoing(card)} onOpenComments={() => handlers.onOpenComments(card)} onShare={() => handlers.onShare(card)} /> : <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} />))}</div>;
+  return <div className="app-feed-posts">{cards.map((card) => (card.kind === "friend" ? <FeedFriendPost key={card.id} card={card} now={now} onOpenEvent={handlers.onOpenEvent} onToggleLike={() => handlers.onToggleLike(card)} onToggleGoing={() => handlers.onToggleGoing(card)} onOpenComments={() => handlers.onOpenComments(card)} onShare={() => handlers.onShare(card)} /> : <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} />))}</div>;
 }
 
 /** Экран 04: the rows are aria-hidden, so the status label is what assistive tech reads. */
@@ -438,6 +442,7 @@ export function FeedScreen() {
   const handlers: FeedCardHandlers = {
     onOpenEvent: (eventId) => navigate({ name: "event", id: eventId }),
     onOpenPlace: (placeId) => navigate({ name: "place", id: placeId }),
+    onOpenPost: (postId) => navigate({ name: "post", id: postId }),
     onToggleLike: (card) => {
       if (userId === null) return;
       void settle(apiClient.toggleFeedLike(card.id, userId));
@@ -446,8 +451,7 @@ export function FeedScreen() {
       if (userId === null) return;
       void settle(card.myStatus === "going" ? apiClient.deleteParticipation(card.event.id, userId) : apiClient.setParticipationStatus(card.event.id, userId, "going"));
     },
-    // The thread lives on the event wall; the card shows only its head.
-    onOpenComments: (card) => navigate({ name: "event", id: card.event.id }),
+    onOpenComments: (card) => navigate({ name: "post", id: card.id }),
     onShare: (card) => void shareResult(webApp, `${card.author.name} — ${card.event.title}: ${card.text}`),
     onPlaceStatus: (card, status) => {
       if (userId === null) return;

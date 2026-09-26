@@ -11,7 +11,8 @@
 
 import { type CreateFeedPost, type PostDraft, type StoryComposition } from "../client";
 import { addMockFeedComment, createMockFeedPost, createMockStory, feedPosts, listMockStories, mockFeedCards, saveMockPostDraft, toggleMockFeedLike } from "./feed";
-import { parseBookingBody } from "./fixtures";
+import { mockDemoUser, parseBookingBody } from "./fixtures";
+import { userPostsFor } from "./profile";
 
 const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
 
@@ -70,6 +71,27 @@ export function feedRoutes(url: URL, init: RequestInit | undefined): Response | 
   }
   if (url.pathname === "/api/feed") {
     return Response.json(feedPosts(url.searchParams.get("eventId"), url.searchParams.get("placeId")));
+  }
+  const feedOne = /^\/api\/feed\/([^/]+)$/.exec(url.pathname);
+  if (feedOne && (init?.method === undefined || init.method === "GET")) {
+    const fromWall = feedPosts(null).find((row) => row.id === feedOne[1]);
+    if (fromWall) return Response.json(fromWall);
+    const tile = userPostsFor(mockDemoUser.id).find((row) => row.postId === feedOne[1]);
+    if (!tile) return new Response(null, { status: 404 });
+    return Response.json({
+      id: tile.postId,
+      author: { id: mockDemoUser.id, name: mockDemoUser.firstName, avatarUrl: mockDemoUser.avatarUrl },
+      eventId: tile.eventId,
+      text: tile.eventTitle,
+      photoUrl: tile.photoUrl,
+      placeId: null,
+      taggedFriendIds: [],
+      audience: "friends",
+      allowJoin: false,
+      likesCount: tile.likesCount,
+      likedByMe: false,
+      comments: [],
+    });
   }
   const feedLike = /^\/api\/feed\/([^/]+)\/like$/.exec(url.pathname);
   if (feedLike && init?.method === "POST") {

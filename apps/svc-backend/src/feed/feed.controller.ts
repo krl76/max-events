@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for the feed wall.
-// SCOPE: GET /feed (?eventId or ?placeId wall), GET /feed/cards, POST /feed, POST /feed/:id/like, POST /feed/:id/comments.
+// SCOPE: GET /feed (?eventId or ?placeId wall), GET /feed/cards, GET /feed/:id, POST /feed, POST /feed/:id/like, POST /feed/:id/comments.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./feed.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -40,6 +40,11 @@ export class FeedController {
   @Get("cards")
   listCards(@CurrentUser() user: UserEntity): Promise<FeedCard[]> {
     return this.feed.listCards(user.id);
+  }
+
+  @Get(":id")
+  get(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<FeedPost> {
+    return this.feed.get(user.id, id);
   }
 
   @Post()

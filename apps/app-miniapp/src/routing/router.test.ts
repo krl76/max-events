@@ -170,6 +170,10 @@ describe("routeFromHistoryState", () => {
     expect(routeFromHistoryState({ route: { name: "feed-new", eventId: null }, idx: 1 })).toEqual({ route: { name: "feed-new", eventId: null }, idx: 1 });
   });
 
+  it("restores a post detail route", () => {
+    expect(routeFromHistoryState({ route: { name: "post", id: "30000000-0000-4000-8000-000000000001" }, idx: 2 })).toEqual({ route: { name: "post", id: "30000000-0000-4000-8000-000000000001" }, idx: 2 });
+  });
+
   it("rejects a payload without a numeric idx", () => {
     expect(routeFromHistoryState({ route: { name: "home" } })).toBeNull();
   });

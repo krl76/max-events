@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Feed and stories endpoints of the api client: the stories rail, the home feed cards (макет, экран 03), the impression wall with its likes and comments, and the two publication screens (макет, экраны 05 и 06).
-// SCOPE: GET/POST /stories, GET /feed/cards, GET/POST /feed, POST /feed/drafts, POST /feed/:id/like, POST /feed/:id/comments, plus GET /events and GET /places read as the fallback behind GET /feed/cards; the FeedCard aggregate is a client-side shape like EventDetails in ./catalog.ts. The header bell of экран 03 moved out with its screen: the inbox and its unread count live in ./notifications.ts.
+// SCOPE: GET/POST /stories, GET /feed/cards, GET/POST /feed, GET /feed/:id, POST /feed/drafts, POST /feed/:id/like, POST /feed/:id/comments, plus GET /events and GET /places read as the fallback behind GET /feed/cards; the FeedCard aggregate is a client-side shape like EventDetails in ./catalog.ts. The header bell of экран 03 moved out with its screen: the inbox and its unread count live in ./notifications.ts.
 // DEPENDS: ./transport.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -25,7 +25,7 @@
 // - FeedPlaceCard - venue post of the home feed: the place header with rating and travel time, the slot offer, the friend quote and the viewer status block
 // - FeedCard - discriminated union of the two home feed card kinds
 // - feedCardsFromPosts - home feed cards built out of GET /feed + GET /events + GET /places, for a server that does not answer GET /feed/cards yet
-// - withFeed - ApiClient.listStories / createStory / listFeedCards / listFeedPosts / createFeedPost / savePostDraft / toggleFeedLike / addFeedComment
+// - withFeed - ApiClient.listStories / createStory / listFeedCards / listFeedPosts / getFeedPost / createFeedPost / savePostDraft / toggleFeedLike / addFeedComment
 // END_MODULE_MAP
 
 import { EventSchema, FeedCommentSchema, FeedPostSchema, FriendSchema, ParticipationStatusSchema, PlaceSchema, StorySchema } from "@max-events/api-contracts";
@@ -391,6 +391,10 @@ export function withFeed<TBase extends ApiMixin>(Base: TBase) {
     listFeedPosts(eventId?: string, placeId?: string): Promise<FeedPost[]> {
       const query = eventId !== undefined ? `?eventId=${encodeURIComponent(eventId)}` : placeId !== undefined ? `?placeId=${encodeURIComponent(placeId)}` : "";
       return this.request(`/feed${query}`, FeedPostSchema.array());
+    }
+
+    getFeedPost(postId: string): Promise<FeedPost> {
+      return this.request(`/feed/${postId}`, FeedPostSchema);
     }
 
     createFeedPost(payload: CreateFeedPost): Promise<FeedPost> {

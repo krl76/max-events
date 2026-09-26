@@ -213,6 +213,15 @@ describe("FriendsService", () => {
     expect((await withDima.service.list(meId)).map((row) => row.id)).toEqual([dimaId]);
   });
 
+  it("unfollows even when MAX has no contacts list", async () => {
+    const { service, botState } = createService({ botFriends: ["2"] });
+    await service.replaceFollows(meId, [annaId]);
+    expect((await service.list(meId)).map((row) => row.id)).toEqual([annaId]);
+    botState.friends = null;
+    expect(await service.replaceFollows(meId, [])).toEqual([]);
+    expect(await service.list(meId)).toEqual([]);
+  });
+
   it("lists outgoing follows and incoming followers", async () => {
     const { service } = createService({ botFriends: ["2", "3"] });
     await service.replaceFollows(meId, [annaId]);
