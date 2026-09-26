@@ -14,6 +14,8 @@
 // - SetParticipationStatus - status write payload type
 // - ParticipationStatusWriteSchema - authenticated write body ({ status } only)
 // - ParticipationStatusWrite - authenticated write body type
+// - PlaceParticipationSchema - viewer status on a venue (#540)
+// - PlaceParticipationWriteSchema - PUT body, status null clears the row
 // - ParticipationCountsSchema - per-status counters for one event
 // - ParticipationCounts - per-status counters type
 // - ParticipationStatsSchema - counters plus friendsCount and current-user myStatus
@@ -47,6 +49,17 @@ export const ParticipationStatusWriteSchema = z.object({
   status: ParticipationStatusSchema,
 });
 export type ParticipationStatusWrite = z.infer<typeof ParticipationStatusWriteSchema>;
+
+export const PlaceParticipationSchema = z.object({
+  placeId: IdSchema,
+  status: ParticipationStatusSchema.nullable(),
+});
+export type PlaceParticipation = z.infer<typeof PlaceParticipationSchema>;
+
+export const PlaceParticipationWriteSchema = z.object({
+  status: ParticipationStatusSchema.nullable(),
+});
+export type PlaceParticipationWrite = z.infer<typeof PlaceParticipationWriteSchema>;
 
 export const ParticipationCountsSchema = z.object({
   wants_to_go: z.number().int().nonnegative(),

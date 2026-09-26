@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ParticipationSchema, ParticipationStatsSchema, ParticipationStatusSchema, ParticipationStatusWriteSchema, SetParticipationStatusSchema } from "./participation.js";
+import { ParticipationSchema, ParticipationStatsSchema, ParticipationStatusSchema, ParticipationStatusWriteSchema, PlaceParticipationSchema, PlaceParticipationWriteSchema, SetParticipationStatusSchema } from "./participation.js";
 
 const userId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f";
 const eventId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90";
@@ -60,6 +60,23 @@ describe("ParticipationStatusWriteSchema", () => {
 
   it("rejects an unknown status", () => {
     expect(ParticipationStatusWriteSchema.safeParse({ status: "confirmed" }).success).toBe(false);
+  });
+});
+
+describe("PlaceParticipationWriteSchema", () => {
+  it("accepts a status or a clear", () => {
+    expect(PlaceParticipationWriteSchema.parse({ status: "going" }).status).toBe("going");
+    expect(PlaceParticipationWriteSchema.parse({ status: null }).status).toBeNull();
+  });
+
+  it("rejects an unknown status", () => {
+    expect(PlaceParticipationWriteSchema.safeParse({ status: "confirmed" }).success).toBe(false);
+  });
+});
+
+describe("PlaceParticipationSchema", () => {
+  it("round-trips a venue status", () => {
+    expect(PlaceParticipationSchema.parse({ placeId: eventId, status: null }).status).toBeNull();
   });
 });
 
