@@ -23,8 +23,8 @@ import { z } from "zod";
 /** OpenCode Zen chat-completions root. Override with MODEL_API_URL for another OpenAI-compatible host. */
 export const DEFAULT_MODEL_API_URL = "https://opencode.ai/zen/v1";
 
-/** Fast models first so a hung reasoning model is only reached after the others fail. */
-export const DEFAULT_MODEL_API_MODELS = ["mimo-v2.6-flash-free", "ling-3.0-flash-fin-free", "nemotron-3.5-lightning-free", "mimo-v2.5-free", "big-pickle", "muse-spark-1.3-contributor-free"] as const;
+/** Fast models first. A hung or unusable reply falls through to the next id. */
+export const DEFAULT_MODEL_API_MODELS = ["liquid/lfm-2.5-2.6b:free", "thinkingmachines/inkling-small:free", "inclusionai/ling-3.0-flash-fin:free", "inclusionai/ling-3.0-flash-vl:free", "inclusionai/ling-3.0-flash-sante:free", "nex-agi/nex-n2.5-mini:free", "nvidia/nemotron-3.5-lightning:free", "qwen/qwen3.8-27b:free", "google/gemma-4-26b-a4b-it:free", "thinkingmachines/inkling:free", "poolside/laguna-xs-2.1:free", "cohere/north-mini-code:free", "google/gemma-4-31b-it:free", "z-ai/glm-5.2:free", "poolside/laguna-s-2.1:free", "dots-studio/dots-3-note-preview:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "nex-agi/nex-n2.5-pro:free", "openrouter/free", "nvidia/nemotron-3.5-content-safety:free", "nvidia/nemotron-3-super-120b-a12b:free", "nvidia/nemotron-3-ultra-550b-a55b:free"] as const;
 
 export function parseModelApiModels(raw: string | undefined): string[] {
   const source = raw?.trim() ? raw : DEFAULT_MODEL_API_MODELS.join(",");
