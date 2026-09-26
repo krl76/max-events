@@ -34,4 +34,17 @@ describe("AssistController", () => {
     await expect(controller.planDay(user, { query: "Сделай нам план на субботу", save: true })).resolves.toMatchObject({ date: "2026-09-12", plan: { id: "plan-1" } });
     expect(seenSave).toBe(true);
   });
+
+  it("passes a chat body through and rejects an empty message", async () => {
+    const seen: unknown[] = [];
+    const controller = new AssistController({
+      chat: async (_userId: string, input: unknown) => {
+        seen.push(input);
+        return { silence: true, fallback: false };
+      },
+    } as unknown as AssistService);
+    await expect(controller.chat(user, { message: "как дела?" })).resolves.toEqual({ silence: true, fallback: false });
+    expect(seen).toEqual([{ message: "как дела?", transcript: [], offeredEventIds: [] }]);
+    await expect(controller.chat(user, { message: "  " })).rejects.toBeInstanceOf(BadRequestException);
+  });
 });
