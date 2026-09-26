@@ -95,7 +95,7 @@ export function buildTodayDigest(input: TodayDigestInput): TodayResponse {
     if (!attendingByEvent.has(row.eventId)) attendingByEvent.set(row.eventId, friendNameById.get(row.userId) ?? "друг");
   }
   const placeById = new Map(input.places.map((row) => [row.id, row]));
-  const ranked = input.afterMe ? [...nearby].sort((a, b) => Number(b.category === input.afterMe?.toCategory) - Number(a.category === input.afterMe?.toCategory) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id)) : nearby;
+  const ranked = [...nearby].sort((a, b) => Number(input.interests.length > 0 && matchesInterests(b, input.interests)) - Number(input.interests.length > 0 && matchesInterests(a, input.interests)) || (input.afterMe ? Number(b.category === input.afterMe.toCategory) - Number(a.category === input.afterMe.toCategory) : 0) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
   const cards: TodayEventCard[] = ranked.slice(0, CARD_LIMIT).map((row) => ({
     event: toEventDto(row),
     labels: cardLabels(row, row.placeId ? placeById.get(row.placeId) : undefined, input.origin, attendingByEvent.get(row.id), input.afterMe),

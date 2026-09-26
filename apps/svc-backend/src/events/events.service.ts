@@ -24,6 +24,7 @@ import { CreateEventSchema, EventSchema, type CatalogCard, type CreateEvent, typ
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { PlacesService } from "../places/places.service";
 import { OrganizationsService } from "../organizations/organizations.service";
+import { ProfilesService } from "../users/profiles.service";
 import { isOrganizerOwner } from "../organizations/organizer-ownership";
 import { UsersService } from "../users/users.service";
 import { SubscriptionsService } from "../subscriptions/subscriptions.service";
@@ -90,6 +91,7 @@ export class EventsService {
     @InjectRepository(FriendshipEntity) private readonly friendships: Repository<FriendshipEntity>,
     @InjectRepository(ParticipationEntity) private readonly participations: Repository<ParticipationEntity>,
     @Inject(OrganizationsService) private readonly organizations: OrganizationsService,
+    @Inject(ProfilesService) private readonly profiles: ProfilesService,
   ) {}
 
   private async ownerFields(actorId?: string): Promise<{ organizerUserId: string | null; organizerOrganizationId: string | null }> {
@@ -310,7 +312,8 @@ export class EventsService {
     }
     const boosts = await this.promotions.listActive(now, "boost");
     const boosted = new Set(boosts.map((row) => row.eventId));
-    return [...rows].sort((a, b) => Number(boosted.has(b.id)) - Number(boosted.has(a.id)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+    const interests = query.viewerId ? (await this.profiles.getOrCreate(query.viewerId)).interests : [];
+    return [...rows].sort((a, b) => Number(boosted.has(b.id)) - Number(boosted.has(a.id)) || Number(matchesInterest(b, interests)) - Number(matchesInterest(a, interests)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
   }
 
   private async enrichList(rows: EventEntity[], dtos: Event[], query: EventListQuery): Promise<Event[]> {
@@ -436,6 +439,12 @@ async function assertPlaceBound(places: PlacesService, placeId: string | null, a
 
 function assertOrganizer(row: { organizerUserId?: string | null; organizerOrganizationId?: string | null }, actorId?: string): void {
   if (!isOrganizerOwner(row, actorId)) throw new ForbiddenException("Not the organizer");
+}
+
+function matchesInterest(event: EventEntity, interests: string[]): boolean {
+  if (interests.length === 0) return false;
+  const haystack = `${event.category} ${event.title} ${event.description}`.toLowerCase();
+  return interests.some((interest) => haystack.includes(interest.toLowerCase()));
 }
 
 function assertTimeRange(startsAt: string, endsAt: string | null): void {

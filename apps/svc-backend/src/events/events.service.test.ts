@@ -303,6 +303,15 @@ describe("EventsService", () => {
     expect(listed.map((item) => item.title)).toEqual(["Позже"]);
   });
 
+  it("boosts catalog rows that match the viewer's interests without hiding the rest", async () => {
+    const { service } = createService({ interests: ["джаз"] });
+    await service.create(CreateEventSchema.parse({ ...payload, title: "Пробежка", startsAt: "2026-09-12T18:00:00+03:00" }));
+    await service.create(CreateEventSchema.parse({ ...payload, title: "Вечер джаза", startsAt: "2026-09-13T19:00:00+03:00" }));
+    const titles = (await service.list({ viewerId: "00000000-0000-4000-8000-00000000000a" })).map((item) => item.title);
+    expect(titles[0]).toBe("Вечер джаза");
+    expect(titles).toContain("Пробежка");
+  });
+
   it("wraps the catalog as search cards with distance, rating and the venue line", async () => {
     const { repo, service: writer } = createService({ placeIds: [placeId] });
     const jazz = await writer.create(CreateEventSchema.parse({ ...payload, placeId }));

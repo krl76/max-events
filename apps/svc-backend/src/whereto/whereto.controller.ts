@@ -11,6 +11,8 @@
 
 import { BadRequestException, Controller, Get, Inject, Query } from "@nestjs/common";
 import { WheretoQuerySchema, type WheretoResponse } from "@max-events/api-contracts";
+import { CurrentUser } from "../auth/auth.guard";
+import { UserEntity } from "../users/user.entity";
 import { WheretoService } from "./whereto.service";
 
 @Controller("whereto")
@@ -18,9 +20,9 @@ export class WheretoController {
   constructor(@Inject(WheretoService) private readonly whereto: WheretoService) {}
 
   @Get()
-  async suggest(@Query() query: Record<string, string | undefined>): Promise<WheretoResponse> {
+  async suggest(@CurrentUser() user: UserEntity, @Query() query: Record<string, string | undefined>): Promise<WheretoResponse> {
     const parsed = WheretoQuerySchema.safeParse({ company: query.company, mood: query.mood, budget: query.budget });
     if (!parsed.success) throw new BadRequestException("Invalid whereto query");
-    return this.whereto.suggest(parsed.data);
+    return this.whereto.suggest(parsed.data, user.id);
   }
 }

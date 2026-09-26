@@ -89,9 +89,10 @@ describe("WheretoService", () => {
         return catalog;
       },
     } as unknown as EventsService;
-    const service = new WheretoService(events);
-    const result = await service.suggest(query({ mood: "active" }), now);
-    expect(calls).toEqual([{ dateFrom: now }]);
+    const profiles = { getOrCreate: async () => ({ interests: [] }) } as never;
+    const service = new WheretoService(events, profiles);
+    const result = await service.suggest(query({ mood: "active" }), undefined, now);
+    expect(calls).toEqual([{ dateFrom: now, viewerId: undefined }]);
     expect(result.items).toHaveLength(5);
     expect(result.items[0].title).toBe("Пробежка");
   });

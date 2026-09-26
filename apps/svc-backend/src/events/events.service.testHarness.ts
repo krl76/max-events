@@ -109,7 +109,7 @@ function passthroughWeather(): EventWeatherService {
   return { attach: async (events: Event[]) => events } as unknown as EventWeatherService;
 }
 
-export function createService(options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean; promotions?: PromotionService; weather?: EventWeatherService; ratedIds?: Record<number, string[]>; averages?: Record<string, number>; organization?: { id: string; organizerUserId: string } } = {}) {
+export function createService(options: { placeIds?: string[]; draftPlaceIds?: string[]; ownerId?: string; store?: EventEntity[]; bot?: Pick<MaxBotClient, "createChat">; waitlist?: WaitlistService; banned?: boolean; promotions?: PromotionService; weather?: EventWeatherService; ratedIds?: Record<number, string[]>; averages?: Record<string, number>; organization?: { id: string; organizerUserId: string }; interests?: string[] } = {}) {
   const knownPlaces = new Set(options.placeIds ?? []);
   const draftPlaces = new Set(options.draftPlaceIds ?? []);
   const chatCalls: string[] = [];
@@ -121,12 +121,14 @@ export function createService(options: { placeIds?: string[]; draftPlaceIds?: st
       return { id } as Place;
     },
     findByIds: async (ids: string[]) =>
-      ids.filter((id) => knownPlaces.has(id)).map((id) => ({
-        id,
-        title: "Площадка",
-        latitude: id === farPlaceId ? 56.75 : 55.75,
-        longitude: 37.62,
-      })),
+      ids
+        .filter((id) => knownPlaces.has(id))
+        .map((id) => ({
+          id,
+          title: "Площадка",
+          latitude: id === farPlaceId ? 56.75 : 55.75,
+          longitude: 37.62,
+        })),
     resolveForEventBind: async (id: string, actorId?: string) => {
       if (knownPlaces.has(id)) return;
       if (draftPlaces.has(id) && actorId && actorId === options.ownerId) return;
@@ -173,6 +175,7 @@ export function createService(options: { placeIds?: string[]; draftPlaceIds?: st
     findById: async (id: string) => (options.organization?.id === id ? options.organization : null),
     findByOrganizerUserId: async (organizerUserId: string) => (options.organization?.organizerUserId === organizerUserId ? options.organization : null),
   };
-  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist, promotions, weather, reviews, friendships, participations, organizations as never);
+  const profiles = { getOrCreate: async () => ({ interests: options.interests ?? [] }) } as never;
+  const service = new EventsService(repo as unknown as Repository<EventEntity>, places, bot as MaxBotClient, subscriptions, users, waitlist, promotions, weather, reviews, friendships, participations, organizations as never, profiles);
   return { repo, service, waitlist, chatCalls, notifyCalls };
 }
