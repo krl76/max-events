@@ -118,6 +118,17 @@ describe("UsersService.upsertFromMax", () => {
     expect(again.avatarCustom).toBe(true);
   });
 
+  it("clears a custom avatar so the next MAX login restores photo_url", async () => {
+    const { service } = createService();
+    const created = await service.upsertFromMax({ ...maxUser, photo_url: "https://max.example/from-max.png" });
+    created.id = "00000000-0000-4000-8000-00000000000a";
+    await service.updateAvatar(created.id, "https://cdn.example.com/custom.jpg");
+    await service.updateAvatar(created.id, null);
+    const again = await service.upsertFromMax({ ...maxUser, photo_url: "https://max.example/from-max.png" });
+    expect(again.avatarUrl).toBe("https://max.example/from-max.png");
+    expect(again.avatarCustom).toBe(false);
+  });
+
   it("survives a create-create race: concurrent first sign-ins both succeed and store one record", async () => {
     const { repo, service } = createService();
     const [a, b] = await Promise.all([service.upsertFromMax(maxUser), service.upsertFromMax(maxUser)]);

@@ -51,4 +51,10 @@ describe("ProfilesController", () => {
     expect(calls.avatar).toEqual({ userId: user.id, avatarUrl: "https://cdn.example.com/a.jpg" });
     expect(calls.update).toEqual({ userId: user.id, patch: {} });
   });
+
+  it("clears a custom avatar with a null avatarUrl", async () => {
+    const { calls, controller } = createController();
+    await expect(controller.update(user, { avatarUrl: null })).resolves.toMatchObject(profile);
+    expect(calls.avatar).toEqual({ userId: user.id, avatarUrl: null });
+  });
 });

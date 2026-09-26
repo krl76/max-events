@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - UsersService - upsertFromMax: find by maxUserId, create if absent, update only when profile fields changed
+// - UsersService.updateAvatar - in-app avatar; null clears avatarCustom so the next upsert restores photo_url
 // - toUserDto - map UserEntity to the api-contracts User shape
 // END_MODULE_MAP
 

@@ -49,4 +49,17 @@ describe("profile mock endpoints", () => {
 
     await expect(new ApiClient("/api").updateProfile({ city: "" })).rejects.toMatchObject({ name: "ApiError", status: 400 });
   });
+
+  it("clears a custom cover and restores the original avatar on a null patch", async () => {
+    restore = installMockApi();
+    const api = new ApiClient("/api");
+
+    await api.updateProfile({ coverUrl: "https://cdn.example.com/c.jpg", avatarUrl: "https://cdn.example.com/a.jpg" });
+    expect((await api.getProfile()).coverUrl).toBe("https://cdn.example.com/c.jpg");
+    expect((await api.getMe()).user.avatarUrl).toBe("https://cdn.example.com/a.jpg");
+
+    await api.updateProfile({ coverUrl: null, avatarUrl: null });
+    expect((await api.getProfile()).coverUrl).toBeNull();
+    expect((await api.getMe()).user.avatarUrl).toBeNull();
+  });
 });

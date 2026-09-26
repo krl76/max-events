@@ -330,7 +330,7 @@ export function profileFor(userId: string): Profile {
 }
 
 /** In-app avatars keyed by user id; the MAX photo stays on mockDemoUser until one is picked. */
-export const mockCustomAvatars = new Map<string, string | null>();
+export const mockCustomAvatars = new Map<string, string>();
 
 export function userFor(userId: string): User | null {
   if (userId === mockDemoUser.id) return { ...mockDemoUser, avatarUrl: mockCustomAvatars.get(userId) ?? mockDemoUser.avatarUrl };

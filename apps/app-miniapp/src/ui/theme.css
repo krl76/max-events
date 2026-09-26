@@ -6451,12 +6451,22 @@ html[data-theme="dark"] body {
   width: 100%;
 }
 
+.app-me-hero-edits {
+  align-items: flex-end;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: absolute;
+  right: var(--app-space-l);
+  z-index: 2;
+}
+
 .app-me-hero-edit {
   align-items: center;
   background: rgba(13, 0, 26, 0.55);
   border: none;
   border-radius: var(--app-radius-pill);
-  bottom: 16px;
   color: var(--brand-white);
   cursor: pointer;
   display: flex;
@@ -6467,9 +6477,6 @@ html[data-theme="dark"] body {
   height: 36px;
   justify-content: center;
   padding: 0 12px;
-  position: absolute;
-  right: var(--app-space-l);
-  z-index: 2;
 }
 
 button.app-me-avatar-ring {
@@ -6524,6 +6531,70 @@ button.app-me-avatar-ring {
   justify-content: center;
   padding: 0;
   width: 36px;
+}
+
+.app-me-pop {
+  align-items: center;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: var(--app-space-l);
+  position: fixed;
+  z-index: 50;
+}
+
+.app-me-pop-scrim {
+  background: rgba(13, 0, 26, 0.45);
+  border: none;
+  cursor: pointer;
+  inset: 0;
+  padding: 0;
+  position: absolute;
+}
+
+.app-me-pop-card {
+  background: var(--app-card);
+  border-radius: var(--app-radius-card);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--app-space-l);
+  position: relative;
+  width: min(100%, 320px);
+}
+
+.app-me-pop-title {
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--app-space-s);
+}
+
+.app-me-pop-action {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 44px;
+  padding: 0 16px;
+}
+
+.app-me-pop-action--danger {
+  background: transparent;
+  border: 1px solid var(--app-danger-border);
+  color: var(--app-danger-label);
+}
+
+.app-me-pop-action--ghost {
+  background: none;
+  color: var(--app-text-secondary);
+  font-weight: 600;
+  height: 40px;
 }
 
 .app-me-avatar-ring {
@@ -6871,6 +6942,20 @@ button.app-me-avatar-ring {
   line-height: var(--app-line-height-body);
   margin: 0 0 var(--app-space-m);
   max-width: var(--app-measure);
+}
+
+.app-set-reset {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 36px;
+  margin: 0 0 var(--app-space-m);
+  padding: 0 14px;
 }
 
 .app-set-error {

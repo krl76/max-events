@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DEFAULT_SMART_ALERTS, type Achievement, type Friend, type Profile, type Subscription, type User, type WeGroupScreen } from "@max-events/api-contracts";
 import type { ListSummary, ProfileCounters, ProfilePost, VisitedPlace } from "../api/client";
-import { ProfileView, achievementsHint, followMetrics, friendsHint, listsHint, profileAbout, profileMetrics, profileTabLabel, socialMetrics, visitsLabel, weGroupsHint } from "./ProfilePage";
+import { AvatarEditDialog, ProfileView, achievementsHint, followMetrics, friendsHint, isCustomProfileAvatar, listsHint, profileAbout, profileMetrics, profileTabLabel, socialMetrics, visitsLabel, weGroupsHint } from "./ProfilePage";
 
 const user: User = {
   id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
@@ -230,13 +230,24 @@ describe("ProfileView", () => {
   });
 
   it("offers subscribe, write and invite only on someone else's profile", () => {
-    const html = renderProfileView({ own: false });
+    const html = renderProfileView({
+      own: false,
+      profile: { ...profile, coverUrl: "https://cdn.example.com/c.jpg" },
+      user: { ...user, avatarUrl: "data:image/jpeg;base64,abc" },
+      onPickCover: () => {},
+      onResetCover: () => {},
+      onPickAvatar: () => {},
+      onResetAvatar: () => {},
+    });
 
     expect(html).toContain("Подписаться");
     expect(html).toContain("Написать");
     expect(html).toContain("Позвать");
     expect(html).not.toContain("Настройки");
     expect(html).not.toContain("Списки");
+    expect(html).not.toContain("Исходная");
+    expect(html).not.toContain("Фото профиля");
+    expect(html).not.toContain("Удалить");
   });
 
   it("renders the avatar letter without a MAX photo and the photo with one", () => {
@@ -271,6 +282,48 @@ describe("ProfileView", () => {
 
     expect(html).toContain("Сменить шапку");
     expect(html).toContain("Шапка");
+    expect(html).not.toContain("Вернуть исходную шапку");
+  });
+
+  it("offers to restore the original cover from the hero and keeps the avatar restore inside the popup", () => {
+    const html = renderProfileView({
+      user: { ...user, avatarUrl: "data:image/jpeg;base64,abc" },
+      profile: { ...profile, coverUrl: "https://cdn.example.com/c.jpg" },
+      onPickCover: () => {},
+      onResetCover: () => {},
+      onPickAvatar: () => {},
+      onResetAvatar: () => {},
+    });
+
+    expect(html).toContain("Вернуть исходную шапку");
+    expect(html).toContain("Исходная");
+    expect(html).toContain("Сменить аватар");
+    expect(html).not.toContain("Фото профиля");
+    expect(html).not.toContain("Удалить");
+  });
+
+  it("lets a custom avatar be replaced or deleted from the photo popup", () => {
+    const html = renderToStaticMarkup(createElement(AvatarEditDialog, { custom: true, onPick: () => {}, onReset: () => {}, onClose: () => {} }));
+
+    expect(html).toContain("Фото профиля");
+    expect(html).toContain("Изменить фото");
+    expect(html).toContain("Удалить");
+    expect(html).toContain("Отмена");
+    expect(html).not.toContain("Добавить фото");
+  });
+
+  it("offers only to add a photo when the avatar is still the original", () => {
+    const html = renderToStaticMarkup(createElement(AvatarEditDialog, { custom: false, onPick: () => {}, onClose: () => {} }));
+
+    expect(html).toContain("Добавить фото");
+    expect(html).not.toContain("Изменить фото");
+    expect(html).not.toContain("Удалить");
+  });
+
+  it("treats an in-app data-URL avatar as custom and an https MAX photo as original", () => {
+    expect(isCustomProfileAvatar("data:image/jpeg;base64,abc")).toBe(true);
+    expect(isCustomProfileAvatar("https://platform-lookaside.fbsbx.com/a.png")).toBe(false);
+    expect(isCustomProfileAvatar(null)).toBe(false);
   });
 
   it("still shows the posts counter while the follow directions have not answered", () => {

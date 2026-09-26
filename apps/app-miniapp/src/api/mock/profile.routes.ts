@@ -27,7 +27,10 @@ export function profileRoutes(url: URL, init: RequestInit | undefined): Response
     const parsed = UpdateProfileSchema.safeParse(parseBookingBody(init));
     if (!parsed.success) return new Response(null, { status: 400 });
     const current = profileFor(mockDemoUser.id);
-    if (parsed.data.avatarUrl !== undefined) mockCustomAvatars.set(mockDemoUser.id, parsed.data.avatarUrl);
+    if (parsed.data.avatarUrl !== undefined) {
+      if (parsed.data.avatarUrl === null) mockCustomAvatars.delete(mockDemoUser.id);
+      else mockCustomAvatars.set(mockDemoUser.id, parsed.data.avatarUrl);
+    }
     const { avatarUrl: _avatarUrl, ...profilePatch } = parsed.data;
     const updated: Profile = { ...current, ...profilePatch, smartAlerts: { ...current.smartAlerts, ...profilePatch.smartAlerts }, privacy: { ...current.privacy, ...profilePatch.privacy }, recommendationsEnabled: profilePatch.recommendationsEnabled ?? current.recommendationsEnabled, bio: profilePatch.bio ?? current.bio, coverUrl: profilePatch.coverUrl === undefined ? current.coverUrl : profilePatch.coverUrl };
     mockProfiles.set(mockDemoUser.id, updated);

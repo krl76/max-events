@@ -74,6 +74,8 @@ describe("ProfilesService", () => {
     const withBio = await service.update(userId, { bio: "Люблю джаз", coverUrl: "https://cdn.example.com/c.jpg" });
     expect(withBio.bio).toBe("Люблю джаз");
     expect(withBio.coverUrl).toBe("https://cdn.example.com/c.jpg");
+    const clearedCover = await service.update(userId, { coverUrl: null });
+    expect(clearedCover.coverUrl).toBeNull();
   });
 
   it("survives a create-create race on first GET", async () => {

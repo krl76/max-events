@@ -25,7 +25,7 @@
 // - SettingsSwitchRow - row with a switch
 // - SettingsPicker - the inline option list a value row discloses
 // - SettingsGroup - one bordered section with its uppercase caption
-// - SettingsViewProps - what the settings screen renders and writes
+// - SettingsViewProps - what the settings screen renders and writes, including optional cover/avatar restore
 // - SettingsView - presentational: identity row, the groups, the disable button
 // - SettingsPage - route container: resolves auth, loads profile + app settings, writes both and binds the theme preference
 // END_MODULE_MAP
@@ -34,6 +34,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PROFILE_BIO_MAX, type Profile, type UpdateProfile, type User } from "@max-events/api-contracts";
 import { apiClient, type AppSettings } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { isCustomProfileAvatar } from "./ProfilePage";
 import { pluralRu } from "../catalog/format";
 import { readFeedPhoto } from "../feed/photo";
 import { getWebApp } from "../max/bridge";
@@ -189,9 +190,11 @@ export interface SettingsViewProps {
   onOrganizer: () => void;
   onDisable: () => void;
   onPickCover?: () => void;
+  onResetCover?: () => void;
+  onResetAvatar?: () => void;
 }
 
-export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable, onPickCover }: SettingsViewProps) {
+export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable, onPickCover, onResetCover, onResetAvatar }: SettingsViewProps) {
   const [picker, setPicker] = useState<PickerName>(null);
   const open = (name: Exclude<PickerName, null>) => setPicker((current) => (current === name ? null : name));
 
@@ -207,7 +210,12 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
         </span>
         <span className="app-set-identity-action">Изменить</span>
       </button>
-      {picker === "identity" && <p className="app-set-note">Имя и телефон — из профиля MAX. Аватар меняется нажатием на фото в профиле.</p>}
+      {picker === "identity" && (
+        <>
+          <p className="app-set-note">Имя и телефон — из профиля MAX. Аватар меняется нажатием на фото в профиле.</p>
+          {onResetAvatar !== undefined && <button type="button" className="app-set-reset" onClick={onResetAvatar}>Вернуть фото MAX</button>}
+        </>
+      )}
       {failed && <p className="app-set-error">Не удалось сохранить настройку. Попробуй ещё раз.</p>}
 
       <SettingsGroup title="Приложение">
@@ -217,7 +225,8 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
         {picker === "theme" && <SettingsPicker options={THEME_OPTIONS.map((option) => ({ value: option.value, label: option.label }))} selected={[theme.preference]} onPick={(value) => theme.setPreference(value as ThemePreference)} />}
         <SettingsValueRow title="О себе" hint={profile.bio.trim() === "" ? "Коротко, по желанию" : profile.bio} value="Изменить" expanded={picker === "bio"} onOpen={() => open("bio")} />
         {picker === "bio" && <textarea className="app-review-text" maxLength={PROFILE_BIO_MAX} value={profile.bio} onChange={(change) => onProfile({ bio: change.target.value })} placeholder="Пара слов о себе" />}
-        {onPickCover !== undefined && <SettingsValueRow title="Шапка профиля" hint={profile.coverUrl === null ? "Фон сверху профиля" : "Нажми, чтобы заменить"} value="Изменить" expanded={false} onOpen={onPickCover} />}
+        {onPickCover !== undefined && <SettingsValueRow title="Шапка профиля" hint={profile.coverUrl === null ? "Градиент Афиши" : "Своя фотография"} value={profile.coverUrl === null ? "Добавить" : "Изменить"} expanded={false} onOpen={onPickCover} />}
+        {profile.coverUrl !== null && onResetCover !== undefined && <SettingsValueRow title="Исходная шапка" hint="Вернуть градиент Афиши" value="Сбросить" expanded={false} onOpen={onResetCover} />}
         <SettingsValueRow title="Интересы" hint={interestsHint(profile.interests)} value="Изменить" expanded={picker === "interests"} onOpen={() => open("interests")} />
         {picker === "interests" && <SettingsPicker multiple options={ONBOARDING_INTERESTS.map((interest) => ({ value: interest, label: interest }))} selected={profile.interests} onPick={(interest) => onProfile({ interests: profile.interests.includes(interest) ? profile.interests.filter((item) => item !== interest) : [...profile.interests, interest] })} />}
         <SettingsValueRow title="Радиус поиска" hint="Что считать «рядом»" value={settings === null ? undefined : radiusLabel(settings.searchRadiusKm)} expanded={picker === "radius"} onOpen={() => open("radius")} />
@@ -284,6 +293,7 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
 
 function AuthenticatedSettings({ user }: { user: User }) {
   const { navigate } = useRoute();
+  const { updateUser } = useAuth();
   const theme = useAppTheme();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -355,6 +365,32 @@ function AuthenticatedSettings({ user }: { user: User }) {
       cacheBytes={cacheBytes}
       failed={saveFailed}
       onPickCover={() => coverRef.current?.click()}
+      onResetCover={
+        profile.coverUrl === null
+          ? undefined
+          : () => {
+              setSaveFailed(false);
+              const previous = profile;
+              setProfile({ ...profile, coverUrl: null });
+              apiClient.updateProfile({ coverUrl: null }).then(setProfile, () => {
+                setProfile(previous);
+                setSaveFailed(true);
+              });
+            }
+      }
+      onResetAvatar={
+        isCustomProfileAvatar(user.avatarUrl)
+          ? () => {
+              setSaveFailed(false);
+              apiClient.updateProfile({ avatarUrl: null }).then(
+                () => {
+                  apiClient.getMe().then(({ user: next }) => updateUser(next), () => updateUser({ ...user, avatarUrl: null }));
+                },
+                () => setSaveFailed(true),
+              );
+            }
+          : undefined
+      }
       onProfile={(patch) => {
         setSaveFailed(false);
         // Optimistic: a switch that waits for the server reads as a broken switch. The response is the

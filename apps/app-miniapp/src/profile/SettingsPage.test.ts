@@ -105,6 +105,31 @@ describe("settings labels", () => {
   });
 });
 
+describe("restoring original media", () => {
+  it("offers to clear a custom cover and keeps the MAX-avatar restore inside the identity disclosure", () => {
+    const html = renderSettings({
+      user: { ...user, avatarUrl: "data:image/jpeg;base64,abc" },
+      profile: { ...profile, coverUrl: "https://cdn.example.com/c.jpg" },
+      onPickCover: () => {},
+      onResetCover: () => {},
+      onResetAvatar: () => {},
+    });
+
+    expect(html).toContain("Исходная шапка");
+    expect(html).toContain("Сбросить");
+    expect(html).toContain("Своя фотография");
+    expect(html).not.toContain("Вернуть фото MAX");
+  });
+
+  it("hides restore rows when the cover and avatar are already original", () => {
+    const html = renderSettings({ onPickCover: () => {} });
+
+    expect(html).toContain("Градиент Афиши");
+    expect(html).not.toContain("Исходная шапка");
+    expect(html).not.toContain("Вернуть фото MAX");
+  });
+});
+
 describe("app cache", () => {
   it("measures only the cached entries, never the preferences", () => {
     const storage = storageOf({ "max-events:theme": "dark", "max-events.mock-own-story": "0123456789", "other-app": "x" });
