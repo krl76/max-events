@@ -11,7 +11,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
-import { AddFeedCommentWriteSchema, CreateFeedPostWriteSchema, type FeedCard, type FeedPost } from "@max-events/api-contracts";
+import { AddFeedCommentWriteSchema, CreateFeedPostWriteSchema, FeedDraftWriteSchema, type BookingWithSeats, type FeedCard, type FeedDraftSaved, type FeedPost } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { FeedService } from "./feed.service";
@@ -47,6 +47,18 @@ export class FeedController {
     const parsed = CreateFeedPostWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid feed post payload");
     return this.feed.create(user.id, parsed.data);
+  }
+
+  @Post("drafts")
+  async saveDraft(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<FeedDraftSaved> {
+    const parsed = FeedDraftWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid feed draft payload");
+    return this.feed.saveDraft(user.id, parsed.data);
+  }
+
+  @Post(":id/join")
+  join(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<BookingWithSeats> {
+    return this.feed.join(user.id, id);
   }
 
   @Post(":id/like")

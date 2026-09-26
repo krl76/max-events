@@ -15,6 +15,8 @@
 // - CreateFeedPostWrite - create-post type
 // - AddFeedCommentWriteSchema - add-comment payload
 // - AddFeedCommentWrite - add-comment type
+// - FeedDraftWriteSchema - composer autosave (#542)
+// - FeedDraftSavedSchema - { savedAt } receipt
 // - FeedCardCountsSchema - wants/going/waitlist/freeSeats, null only when unknown
 // - FeedFriendCardSchema / FeedPlaceCardSchema - home feed cards (#541)
 // - FeedCardSchema - discriminated union
@@ -85,6 +87,22 @@ export const AddFeedCommentWriteSchema = z.object({
   text: z.string().min(1).max(2000),
 });
 export type AddFeedCommentWrite = z.infer<typeof AddFeedCommentWriteSchema>;
+
+export const FeedDraftWriteSchema = z.object({
+  eventId: IdSchema.nullable(),
+  text: z.string().max(5000).default(""),
+  photoUrls: z.array(photoUrlSchema).max(10).optional(),
+  placeId: IdSchema.nullable().optional(),
+  taggedFriendIds: z.array(IdSchema).optional(),
+  audience: PostAudienceSchema.optional(),
+  allowJoin: z.boolean().optional(),
+});
+export type FeedDraftWrite = z.infer<typeof FeedDraftWriteSchema>;
+
+export const FeedDraftSavedSchema = z.object({
+  savedAt: TimestampSchema,
+});
+export type FeedDraftSaved = z.infer<typeof FeedDraftSavedSchema>;
 
 export const FeedCardCountsSchema = z.object({
   wantsToGo: z.number().int().min(0).nullable(),

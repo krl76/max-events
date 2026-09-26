@@ -21,6 +21,8 @@ function createController() {
       cardsFor = viewerId;
       return [];
     },
+    saveDraft: async (viewerId: string, payload: { text: string }) => ({ savedAt: "2026-09-12T10:00:00.000Z", viewerId, text: payload.text }),
+    join: async (viewerId: string, postId: string) => ({ id: postId, userId: viewerId, eventId, status: "active", source: "feed" }),
   } as unknown as FeedService;
   return {
     controller: new FeedController(feed),
@@ -54,6 +56,14 @@ describe("FeedController.list", () => {
     expect(() => controller.list(user, eventId, placeId)).toThrow(BadRequestException);
     expect(() => controller.list(user, eventId, undefined, "0")).toThrow(BadRequestException);
     expect(() => controller.list(user, eventId, undefined, "10", "-1")).toThrow(BadRequestException);
+  });
+});
+
+describe("FeedController.saveDraft", () => {
+  it("rejects a draft without eventId and forwards a valid one", async () => {
+    const { controller } = createController();
+    await expect(controller.saveDraft(user, { text: "x" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.saveDraft(user, { eventId: null, text: "черновик" })).resolves.toMatchObject({ savedAt: "2026-09-12T10:00:00.000Z" });
   });
 });
 

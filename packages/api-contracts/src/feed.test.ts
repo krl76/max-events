@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CreateFeedPostWriteSchema, FeedCardSchema, FeedPostSchema, MAX_FEED_PHOTO_URL_LENGTH } from "./feed.js";
+import { CreateFeedPostWriteSchema, FeedCardSchema, FeedDraftSavedSchema, FeedDraftWriteSchema, FeedPostSchema, MAX_FEED_PHOTO_URL_LENGTH } from "./feed.js";
 
 const author = { id: "018f3c5a-0000-7000-8000-000000000001", name: "Анна", avatarUrl: null };
 const post = {
@@ -41,6 +41,17 @@ describe("CreateFeedPostWriteSchema", () => {
   it("requires event and non-empty text", () => {
     expect(CreateFeedPostWriteSchema.safeParse({ eventId: post.eventId, text: "" }).success).toBe(false);
     expect(CreateFeedPostWriteSchema.parse({ eventId: post.eventId, text: "фото" }).text).toBe("фото");
+  });
+});
+
+describe("FeedDraftWriteSchema", () => {
+  it("saves a draft without an event and with empty text", () => {
+    expect(FeedDraftWriteSchema.parse({ eventId: null, text: "" }).eventId).toBeNull();
+    expect(FeedDraftSavedSchema.parse({ savedAt: "2026-09-12T10:00:00.000Z" }).savedAt).toBe("2026-09-12T10:00:00.000Z");
+  });
+
+  it("rejects a non-uuid event", () => {
+    expect(FeedDraftWriteSchema.safeParse({ eventId: "event-1", text: "x" }).success).toBe(false);
   });
 });
 

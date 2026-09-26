@@ -1,7 +1,8 @@
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
 import type { Place } from "@max-events/api-contracts";
+import type { BookingsService } from "../bookings/bookings.service";
 import { EventEntity } from "../events/event.entity";
 import { FriendshipEntity } from "../friends/friendship.entity";
 import { ParticipationEntity } from "../participations/participation.entity";
@@ -9,6 +10,7 @@ import type { PlacesService } from "../places/places.service";
 import { UserEntity } from "../users/user.entity";
 import type { UsersService } from "../users/users.service";
 import type { WaitlistService } from "../waitlist/waitlist.service";
+import { FeedDraftEntity } from "./feed-draft.entity";
 import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "./feed-post.entity";
 import { FeedService } from "./feed.service";
 
@@ -46,6 +48,7 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
       return rows.slice(skip, skip + (opts.take ?? rows.length));
     },
     findOneBy: async (where: Record<string, string>) => store.find((row) => matchesWhere(row as object, where)) ?? null,
+    merge: (entity: T, fields: Partial<T>) => Object.assign(entity, fields),
     save: async (entity: T) => {
       if (!store.includes(entity)) {
         entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
@@ -117,8 +120,19 @@ function createService(eventPublished = true) {
   const waitlist = { queueCountsByEventIds: async () => waitlistMap } as unknown as WaitlistService;
   const participations = createStoreRepo<ParticipationEntity>();
   const friendships = createStoreRepo<FriendshipEntity>();
-  const service = new FeedService(posts as unknown as Repository<FeedPostEntity>, likes as unknown as Repository<FeedLikeEntity>, comments as unknown as Repository<FeedCommentEntity>, events as unknown as Repository<EventEntity>, users as unknown as Repository<UserEntity>, publishers, places, waitlist, participations as unknown as Repository<ParticipationEntity>, friendships as unknown as Repository<FriendshipEntity>);
-  return { service, likes, posts, participations, waitlistMap };
+  const drafts = createStoreRepo<FeedDraftEntity>();
+  const bookings = {
+    create: async (_userId: string, bookedEventId: string, _promo?: string | null, _now?: Date, _referral?: string | null, source?: string | null) => ({
+      id: "00000000-0000-4000-8000-0000000000b1",
+      userId,
+      eventId: bookedEventId,
+      status: "active",
+      source,
+      freeSeats: null,
+    }),
+  } as unknown as BookingsService;
+  const service = new FeedService(posts as unknown as Repository<FeedPostEntity>, likes as unknown as Repository<FeedLikeEntity>, comments as unknown as Repository<FeedCommentEntity>, events as unknown as Repository<EventEntity>, users as unknown as Repository<UserEntity>, publishers, places, waitlist, participations as unknown as Repository<ParticipationEntity>, friendships as unknown as Repository<FriendshipEntity>, drafts as unknown as Repository<FeedDraftEntity>, bookings);
+  return { service, likes, posts, participations, waitlistMap, drafts };
 }
 
 describe("FeedService", () => {
@@ -208,6 +222,27 @@ describe("FeedService", () => {
     const page = await service.list(userId, { eventId }, 1, 0);
     expect(page).toHaveLength(1);
     expect(page[0]?.text).toBe("second");
+  });
+
+  it("upserts one composer draft per author", async () => {
+    const { service, drafts } = createService();
+    const first = await service.saveDraft(userId, { eventId: null, text: "черновик" }, now);
+    expect(first.savedAt).toBe(now.toISOString());
+    expect(drafts.store).toHaveLength(1);
+    await service.saveDraft(userId, { eventId, text: "обновили", allowJoin: true }, now);
+    expect(drafts.store).toHaveLength(1);
+    expect(drafts.store[0]?.text).toBe("обновили");
+    expect(drafts.store[0]?.allowJoin).toBe(true);
+  });
+
+  it("books the post event when join is allowed and refuses otherwise", async () => {
+    const { service } = createService();
+    const allowed = await service.create(userId, { eventId, text: "Собираемся", allowJoin: true });
+    const booking = await service.join(userId, allowed.id);
+    expect(booking.eventId).toBe(eventId);
+    expect(booking.source).toBe("feed");
+    const blocked = await service.create(userId, { eventId, text: "Без записи", allowJoin: false });
+    await expect(service.join(userId, blocked.id)).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("wraps friend posts as home cards with counted zeros rather than nulls", async () => {

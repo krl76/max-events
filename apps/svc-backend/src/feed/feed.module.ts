@@ -11,6 +11,7 @@
 
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { BookingsModule } from "../bookings/bookings.module";
 import { EventEntity } from "../events/event.entity";
 import { FriendshipEntity } from "../friends/friendship.entity";
 import { ParticipationEntity } from "../participations/participation.entity";
@@ -20,11 +21,12 @@ import { UserEntity } from "../users/user.entity";
 import { UsersModule } from "../users/users.module";
 import { WaitlistModule } from "../waitlist/waitlist.module";
 import { FeedController } from "./feed.controller";
+import { FeedDraftEntity } from "./feed-draft.entity";
 import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "./feed-post.entity";
 import { FeedService } from "./feed.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FeedPostEntity, FeedLikeEntity, FeedCommentEntity, EventEntity, UserEntity, PlaceEntity, ParticipationEntity, FriendshipEntity]), UsersModule, PlacesModule, WaitlistModule],
+  imports: [TypeOrmModule.forFeature([FeedPostEntity, FeedLikeEntity, FeedCommentEntity, FeedDraftEntity, EventEntity, UserEntity, PlaceEntity, ParticipationEntity, FriendshipEntity]), UsersModule, PlacesModule, WaitlistModule, BookingsModule],
   controllers: [FeedController],
   providers: [FeedService],
   exports: [FeedService],

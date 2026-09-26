@@ -7,13 +7,14 @@
 //
 // START_MODULE_MAP
 // - FeedListFilter - event wall or place wall selector
-// - FeedService - list/create/toggleLike/addComment/listCards
+// - FeedService - list/create/saveDraft/join/toggleLike/addComment/listCards
 // END_MODULE_MAP
 
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { FindOperator, In, QueryFailedError, Repository } from "typeorm";
-import type { CreateFeedPostWrite, FeedCard, FeedCardCounts, FeedPost, ParticipationStatus, Place } from "@max-events/api-contracts";
+import type { BookingWithSeats, CreateFeedPostWrite, FeedCard, FeedCardCounts, FeedDraftSaved, FeedDraftWrite, FeedPost, ParticipationStatus, Place } from "@max-events/api-contracts";
+import { BookingsService } from "../bookings/bookings.service";
 import { EventEntity } from "../events/event.entity";
 import { toEventDto } from "../events/event.mapper";
 import { FriendshipEntity } from "../friends/friendship.entity";
@@ -23,6 +24,7 @@ import { PlacesService } from "../places/places.service";
 import { UserEntity } from "../users/user.entity";
 import { UsersService } from "../users/users.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
+import { FeedDraftEntity } from "./feed-draft.entity";
 import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "./feed-post.entity";
 
 export type FeedListFilter = { eventId?: string; placeId?: string };
@@ -40,6 +42,8 @@ export class FeedService {
     @Inject(WaitlistService) private readonly waitlist: WaitlistService,
     @InjectRepository(ParticipationEntity) private readonly participations: Repository<ParticipationEntity>,
     @InjectRepository(FriendshipEntity) private readonly friendships: Repository<FriendshipEntity>,
+    @InjectRepository(FeedDraftEntity) private readonly drafts: Repository<FeedDraftEntity>,
+    @Inject(BookingsService) private readonly bookings: BookingsService,
   ) {}
 
   async list(viewerId: string, filter: FeedListFilter = {}, limit = 50, offset = 0): Promise<FeedPost[]> {
@@ -101,6 +105,28 @@ export class FeedService {
       }),
     );
     return this.toDto(saved, userId);
+  }
+
+  async saveDraft(userId: string, payload: FeedDraftWrite, now = new Date()): Promise<FeedDraftSaved> {
+    const existing = await this.drafts.findOneBy({ authorUserId: userId });
+    const fields = {
+      eventId: payload.eventId,
+      text: payload.text,
+      photoUrls: payload.photoUrls ?? [],
+      placeId: payload.placeId ?? null,
+      taggedFriendIds: payload.taggedFriendIds ?? [],
+      audience: payload.audience ?? "friends",
+      allowJoin: payload.allowJoin ?? false,
+      updatedAt: now,
+    };
+    const saved = existing ? await this.drafts.save(this.drafts.merge(existing, fields)) : await this.drafts.save(this.drafts.create({ authorUserId: userId, ...fields, createdAt: now }));
+    return { savedAt: saved.updatedAt.toISOString() };
+  }
+
+  async join(userId: string, postId: string): Promise<BookingWithSeats> {
+    const post = await this.requirePost(postId);
+    if (!post.allowJoin || !post.eventId) throw new BadRequestException("Join is not allowed");
+    return this.bookings.create(userId, post.eventId, undefined, new Date(), undefined, "feed");
   }
 
   async toggleLike(userId: string, postId: string): Promise<FeedPost> {
