@@ -216,7 +216,7 @@ export function isCustomProfileAvatar(avatarUrl: string | null): boolean {
   return avatarUrl !== null && avatarUrl.startsWith("data:");
 }
 
-function stopPointer(event: { preventDefault: () => void; stopPropagation: () => void }): void {
+function stopClick(event: { preventDefault: () => void; stopPropagation: () => void }): void {
   event.preventDefault();
   event.stopPropagation();
 }
@@ -232,50 +232,20 @@ export function ProfileMediaDialog({ title, custom, onPick, onReset, onClose }: 
 
   return (
     <div className="app-me-pop" role="dialog" aria-modal="true" aria-labelledby="app-me-pop-title">
-      <button
-        type="button"
-        className="app-me-pop-scrim"
-        tabIndex={-1}
-        aria-label="Закрыть"
-        onPointerDown={(event) => {
-          stopPointer(event);
-          onClose();
-        }}
-      />
-      <div className="app-me-pop-card" onPointerDown={stopPointer}>
+      <button type="button" className="app-me-pop-scrim" tabIndex={-1} aria-label="Закрыть" onClick={onClose} />
+      <div className="app-me-pop-card" onClick={stopClick}>
         <h2 id="app-me-pop-title" className="app-me-pop-title">
           {title}
         </h2>
-        <button
-          type="button"
-          className="app-me-pop-action"
-          onPointerDown={(event) => {
-            stopPointer(event);
-            onPick();
-          }}
-        >
+        <button type="button" className="app-me-pop-action" onClick={onPick}>
           {custom ? "Изменить фото" : "Добавить фото"}
         </button>
         {custom && onReset !== undefined && (
-          <button
-            type="button"
-            className="app-me-pop-action app-me-pop-action--danger"
-            onPointerDown={(event) => {
-              stopPointer(event);
-              onReset();
-            }}
-          >
+          <button type="button" className="app-me-pop-action app-me-pop-action--danger" onClick={onReset}>
             Удалить
           </button>
         )}
-        <button
-          type="button"
-          className="app-me-pop-action app-me-pop-action--ghost"
-          onPointerDown={(event) => {
-            stopPointer(event);
-            onClose();
-          }}
-        >
+        <button type="button" className="app-me-pop-action app-me-pop-action--ghost" onClick={onClose}>
           Отмена
         </button>
       </div>
@@ -306,6 +276,16 @@ interface ProfileViewProps extends ProfileEntries {
 
 export function ProfileView({ user, profile, counters, lists, subscriptions, following, followers, achievements, weGroups, friendsCount, posts, postsFailed, visitedPlaces, tab, own = true, followingThem = false, subscribePending = false, ...entries }: ProfileViewProps) {
   const [mediaMenu, setMediaMenu] = useState<"avatar" | "cover" | null>(null);
+  const [clickShield, setClickShield] = useState(false);
+  const dismissMenu = useCallback(() => {
+    setMediaMenu(null);
+    setClickShield(true);
+  }, []);
+  useEffect(() => {
+    if (!clickShield) return;
+    const id = window.setTimeout(() => setClickShield(false), 400);
+    return () => window.clearTimeout(id);
+  }, [clickShield]);
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
   const numbers = profileMetrics(counters);
   const social = socialMetrics({ posts: posts === null ? null : posts.length, subscriptions, following, followers });
@@ -352,18 +332,18 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
           title="Фото профиля"
           custom={customAvatar}
           onPick={() => {
-            setMediaMenu(null);
             entries.onPickAvatar?.();
+            dismissMenu();
           }}
           onReset={
             customAvatar && entries.onResetAvatar !== undefined
               ? () => {
                   entries.onResetAvatar?.();
-                  setMediaMenu(null);
+                  dismissMenu();
                 }
               : undefined
           }
-          onClose={() => setMediaMenu(null)}
+          onClose={dismissMenu}
         />
       )}
       {mediaMenu === "cover" && entries.onPickCover !== undefined && (
@@ -371,20 +351,21 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
           title="Шапка профиля"
           custom={customCover}
           onPick={() => {
-            setMediaMenu(null);
             entries.onPickCover?.();
+            dismissMenu();
           }}
           onReset={
             customCover && entries.onResetCover !== undefined
               ? () => {
                   entries.onResetCover?.();
-                  setMediaMenu(null);
+                  dismissMenu();
                 }
               : undefined
           }
-          onClose={() => setMediaMenu(null)}
+          onClose={dismissMenu}
         />
       )}
+      {clickShield && <div className="app-me-pop-shield" aria-hidden="true" />}
       <h1 className="app-me-name">{name}</h1>
       <p className="app-me-about">{about}</p>
       {(numbers.length > 0 || social.length > 0) && (
@@ -697,9 +678,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
                 const previous = viewer;
                 updateUser({ ...viewer, avatarUrl: null });
                 apiClient.updateProfile({ avatarUrl: null }).then(
-                  () => {
-                    apiClient.getMe().then(({ user: next }) => updateUser(next), () => {});
-                  },
+                  () => {},
                   () => updateUser(previous),
                 );
               }

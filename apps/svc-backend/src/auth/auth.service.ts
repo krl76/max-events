@@ -17,7 +17,7 @@
 // - AuthService.authenticateOrganizerToken - Bearer token -> organizer user (session.user)
 // - BROWSER_DEFAULT_USER - owner MAX payload minted for AUTH_ALLOW_BROWSER (keep in sync with tools/max-dev-accounts.json)
 // - BROWSER_DEMO_USER - alias of BROWSER_DEFAULT_USER
-// - AuthService.issueBrowserInitData - signed initData for the staging browser host, or "disabled"
+// - AuthService.issueBrowserInitData - signed initData for the staging browser host, or "disabled"; does not copy a stored avatar into photo_url
 // END_MODULE_MAP
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
@@ -82,9 +82,7 @@ export class AuthService {
     const botToken = this.config.get<string>("MAX_BOT_TOKEN");
     if (!botToken) return "disabled";
     const base = this.browserUser();
-    const row = await this.userRepo.findOneBy({ maxUserId: String(base.id) });
-    const user = row?.avatarUrl ? { ...base, photo_url: row.avatarUrl } : base;
-    return signInitData({ auth_date: String(nowSeconds), user: JSON.stringify(user) }, botToken);
+    return signInitData({ auth_date: String(nowSeconds), user: JSON.stringify(base) }, botToken);
   }
 
   private browserUser(): { id: number; first_name: string; username?: string | null; language_code?: string } {

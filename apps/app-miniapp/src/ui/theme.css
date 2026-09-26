@@ -6565,6 +6565,12 @@ button.app-me-avatar-ring {
   z-index: 1;
 }
 
+.app-me-pop-shield {
+  inset: 0;
+  position: fixed;
+  z-index: 50;
+}
+
 .app-me-pop-title {
   font-size: var(--app-font-size-title);
   font-weight: 800;

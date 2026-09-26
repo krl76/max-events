@@ -42,6 +42,14 @@ describe("AuthService bootstrap", () => {
     expect(parsed?.user.first_name).toBe(BROWSER_DEMO_USER.first_name);
   });
 
+  it("does not put a stored profile avatar into browser initData photo_url", async () => {
+    const userRepoWithAvatar = { findOneBy: async () => ({ avatarUrl: "data:image/jpeg;base64,abc" }) } as unknown as Repository<UserEntity>;
+    const service = new AuthService(new ConfigService({ MAX_BOT_TOKEN: "token", AUTH_ALLOW_BROWSER: "true" }), {} as UsersService, friends, redis, userRepoWithAvatar, organizations);
+    const signed = await service.issueBrowserInitData(1_800_000_000);
+    const parsed = validateInitData(signed as string, "token", 1_800_000_000);
+    expect(parsed?.user.photo_url).toBeUndefined();
+  });
+
   it("warns when organizer credentials are not configured", () => {
     const warn = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => {});
     createService({ MAX_BOT_TOKEN: "token" });
