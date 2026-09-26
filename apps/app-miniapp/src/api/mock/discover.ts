@@ -415,7 +415,7 @@ export function mockAssistDay(payload: AssistQueryWrite, now: Date = MOCK_NOW): 
 /** Mock POST /assist/chat. The Nest insult helper is not imported; only the small-talk sentence is duplicated here. */
 export function mockAssistChat(payload: AssistChatWrite): AssistChatResponse | MockAssistError {
   if (!mockAssistRateHit()) return "rate_limited";
-  if (payload.message === "как дела?") return { silence: false, fallback: false, reply: "Нормально. Могу подобрать событие." };
+  if (payload.message === "как дела?") return { silence: false, fallback: false, reply: "Нормально. Могу подобрать, куда сходить.", guides: ["search", "plans"] };
   if (payload.message.toLowerCase().includes("пользоват")) return { silence: false, fallback: false, reply: "Можно смотреть афишу, карту и планы.", guides: ["search", "map", "plans"] };
   const event = mockEvents.filter((item) => new Date(item.startsAt).getTime() >= MOCK_NOW.getTime()).sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))[0];
   if (event === undefined) return "no_events";

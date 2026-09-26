@@ -121,9 +121,9 @@ describe("AssistService.chat", () => {
     expect(music.reply).toBe("Не получилось сформировать ответ. Подобрал по словам запроса.");
     expect(music.items?.length).toBeGreaterThan(0);
     const hello = await service.chat(userId, { message: "как дела?", transcript: [], offeredEventIds: [] }, now);
-    expect(hello.reply).toBe("Не получилось сформировать ответ. Вот что есть в афише.");
-    expect(hello.items?.length).toBeGreaterThan(0);
-    expect(hello.items?.length).toBeLessThanOrEqual(4);
+    expect(hello.reply).toBe("На связи. Могу подобрать, куда сходить, или подсказать, что есть в приложении.");
+    expect(hello.items).toBeUndefined();
+    expect(hello.guides).toEqual(["search", "plans"]);
   });
 
   it("saves an evening plan when the model fails on «Собрать план на вечер»", async () => {
@@ -164,7 +164,7 @@ describe("AssistService.chat", () => {
     const { service } = createService();
     const result = await service.chat(userId, { message: "как пользоваться приложением?", transcript: [], offeredEventIds: [] }, now);
     expect(result.fallback).toBe(true);
-    expect(result.reply).toBe("Не получилось сформировать ответ. Вот чем можно пользоваться.");
+    expect(result.reply).toBe("Можно смотреть афишу и карту, собирать планы и звать друзей. Нажми, куда зайти.");
     expect(result.items).toBeUndefined();
     expect(result.guides).toEqual(["search", "map", "plans", "friends"]);
   });

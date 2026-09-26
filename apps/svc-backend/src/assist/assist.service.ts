@@ -162,10 +162,23 @@ export class AssistService {
   private async chatFallback(userId: string, cleaned: string, save: boolean, now: Date, future: Event[]): Promise<AssistChatResponse> {
     const criteria = parseAssistQuery(cleaned);
     const recognized = criteriaRecognized(criteria);
-    const reply = clampAssistReply(recognized ? "Не получилось сформировать ответ. Подобрал по словам запроса." : "Не получилось сформировать ответ. Вот что есть в афише.");
-    if (isAppGuideRequest(cleaned) && !recognized && !isPlanRequest(cleaned)) {
-      return { silence: false, fallback: true, reply: clampAssistReply("Не получилось сформировать ответ. Вот чем можно пользоваться."), guides: ["search", "map", "plans", "friends"] };
+    if (isAppGuideRequest(cleaned) && !isPlanRequest(cleaned)) {
+      return {
+        silence: false,
+        fallback: true,
+        reply: clampAssistReply("Можно смотреть афишу и карту, собирать планы и звать друзей. Нажми, куда зайти."),
+        guides: ["search", "map", "plans", "friends"],
+      };
     }
+    if (!recognized && !isPlanRequest(cleaned)) {
+      return {
+        silence: false,
+        fallback: true,
+        reply: clampAssistReply("На связи. Могу подобрать, куда сходить, или подсказать, что есть в приложении."),
+        guides: ["search", "plans"],
+      };
+    }
+    const reply = clampAssistReply(recognized ? "Не получилось сформировать ответ. Подобрал по словам запроса." : "Не получилось сформировать ответ. Вот что есть в афише.");
     if (isPlanRequest(cleaned)) {
       const day = await this.assembleSaturday(userId, criteria, save, now);
       return { silence: false, fallback: true, reply, day };
@@ -301,7 +314,7 @@ function keepGuides(raw: readonly string[] | undefined): AssistGuideId[] {
 
 function isAppGuideRequest(text: string): boolean {
   const lower = text.toLowerCase();
-  return lower.includes("пользоват") || lower.includes("функционал") || lower.includes("что тут") || lower.includes("как тут") || lower.includes("что можно") || lower.includes("возможност") || lower.includes("раздел");
+  return lower.includes("пользоват") || lower.includes("функционал") || lower.includes("что тут") || lower.includes("как тут") || lower.includes("что можно") || lower.includes("возможност") || lower.includes("раздел") || lower.includes("приложен");
 }
 
 function isPlanRequest(text: string): boolean {
