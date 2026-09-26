@@ -136,6 +136,8 @@ describe("routeIsFullscreen", () => {
     expect(routeIsFullscreen({ name: "story-new" })).toBe(true);
     expect(routeIsFullscreen({ name: "feed-new", eventId: null })).toBe(true);
     expect(routeIsFullscreen({ name: "calendar" })).toBe(true);
+    expect(routeIsFullscreen({ name: "assist", ask: null })).toBe(true);
+    expect(routeIsFullscreen({ name: "day-route" })).toBe(true);
   });
 
   it("leaves the shell in place everywhere else, the «Создать» hub included", () => {

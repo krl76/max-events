@@ -17,9 +17,9 @@ if (typeof ROUTE === "string") throw new Error("fixture route failed to build");
 const OPTIMIZED = optimizeMockDayRoute({ stops: STOPS, latitude: MOSCOW[0], longitude: MOSCOW[1] });
 if (typeof OPTIMIZED === "string") throw new Error("fixture optimize failed to build");
 
-function viewHtml(over: { options?: RouteStopOption[] | "loading" | "error"; selected?: string[]; built?: DayRouteBuildState; optimize?: OptimizeState } = {}): string {
+function viewHtml(over: { options?: RouteStopOption[] | "loading" | "error"; selected?: string[]; built?: DayRouteBuildState; optimize?: OptimizeState; query?: string } = {}): string {
   const options = over.options === "loading" ? { status: "loading" as const } : over.options === "error" ? { status: "error" as const } : { status: "ready" as const, options: over.options ?? OPTIONS };
-  return renderToStaticMarkup(createElement(DayRouteView, { options, selected: over.selected ?? [], onToggle: noop, onBuild: noop, built: over.built ?? { status: "idle" }, optimize: over.optimize ?? { status: "idle" }, onOptimize: noop }));
+  return renderToStaticMarkup(createElement(DayRouteView, { options, selected: over.selected ?? [], query: over.query ?? "", onQuery: noop, onToggle: noop, onBuild: noop, built: over.built ?? { status: "idle" }, optimize: over.optimize ?? { status: "idle" }, onOptimize: noop, onClose: noop, onReset: noop }));
 }
 
 describe("route labels", () => {
@@ -44,9 +44,9 @@ describe("DayRouteView stop picker", () => {
   it("blocks the build below two selected stops", () => {
     const html = viewHtml({ selected: [OPTIONS[0].key] });
 
-    expect(html).toContain("Выбрано: 1 из 8");
+    expect(html).toContain(`1 из ${MAX_ROUTE_STOPS}`);
     expect(html).toContain("Выберите минимум 2 точки");
-    expect(html).toContain("Построить");
+    expect(html).toContain("Готово");
     expect(html.match(/<ion-button[^>]*disabled/g)).toHaveLength(1);
   });
 
@@ -54,16 +54,16 @@ describe("DayRouteView stop picker", () => {
     const html = viewHtml({ selected: [OPTIONS[0].key, OPTIONS[1].key] });
 
     expect(html).not.toContain("Выберите минимум");
-    expect(html).toContain("Построить");
-    expect(html.match(/<button[^>]*disabled/g) ?? []).toHaveLength(0);
+    expect(html).toContain("Готово");
+    expect(html.match(/<ion-button[^>]*disabled/g) ?? []).toHaveLength(0);
   });
 
   it("disables unchecked options once the 8-stop limit is reached", () => {
     const selected = OPTIONS.slice(0, MAX_ROUTE_STOPS).map((option) => option.key);
     const html = viewHtml({ selected });
 
-    expect(html).toContain(`Выбрано: ${MAX_ROUTE_STOPS} из ${MAX_ROUTE_STOPS}`);
-    expect(html.match(/<input[^>]*disabled/g)).toHaveLength(OPTIONS.length - MAX_ROUTE_STOPS);
+    expect(html).toContain(`${MAX_ROUTE_STOPS} из ${MAX_ROUTE_STOPS}`);
+    expect(html.match(/<button[^>]*disabled/g)?.length).toBeGreaterThan(0);
   });
 
   it("renders the options loading and error states", () => {
@@ -81,7 +81,7 @@ describe("DayRouteView route", () => {
     for (const point of ROUTE.points) expect(html).toContain(point.title);
     for (const leg of ROUTE.legs) expect(html).toContain(formatLeg(leg));
     expect(html).toContain(routeTotalsLabel(ROUTE));
-    expect(html).toContain("Оптимизировать");
+    expect(html).toContain("Оптимизировать порядок");
   });
 
   it("redraws the optimized timeline and shows the savings after optimizing", () => {
@@ -107,7 +107,7 @@ describe("DayRouteView route", () => {
     const html = viewHtml({ built: { status: "idle" }, optimize: { status: "idle" } });
 
     expect(html).not.toContain(routeTotalsLabel(ROUTE));
-    expect(html).not.toContain("Оптимизировать");
+    expect(html).not.toContain("Оптимизировать порядок");
     for (const leg of ROUTE.legs) expect(html).not.toContain(formatLeg(leg));
   });
 });

@@ -233,6 +233,7 @@ export function SharedCalendarView({
           <h1 className="app-cal-top-title">{viewingPeer ? viewingPeer.friend.name.split(" ")[0] : "Календарь"}</h1>
         </div>
       )}
+      <div className="app-cal-scroll">
       <div className="app-cal-head">
         <h2 className="app-cal-month">{monthTitle(month)}</h2>
         <button type="button" className="app-cal-share" onClick={onShare}>
@@ -301,6 +302,7 @@ export function SharedCalendarView({
       )}
 
       {notice !== null && <p className="app-cal-reminder">{notice}</p>}
+      </div>
 
       <div className="app-cal-cta">
         <button type="button" className="app-cal-cta-side" onClick={onShare}>

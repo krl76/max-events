@@ -19,27 +19,30 @@ export type SaveToListState = { status: "loading" } | { status: "error" } | { st
 
 export function SaveToListView({ state, onToggle, onDone }: { state: SaveToListState; onToggle: (summary: ListSummary) => void; onDone: () => void }) {
   return (
-    <section className="app-ev-save" aria-label="Сохранить в список">
-      <div className="app-ev-save-body">
-        {state.status === "loading" && <AppState>Загрузка…</AppState>}
-        {state.status === "error" && <AppState error>Не удалось загрузить списки.</AppState>}
-        {state.status === "ready" && (
-          <ul className="app-lists-picker">
-            {state.summaries.map((summary) => (
-              <li key={summary.list.id}>
-                <button type="button" className="app-lists-row" aria-pressed={summary.savedItemId !== null} onClick={() => onToggle(summary)}>
-                  <span className="app-lists-row-title">{summary.list.title}</span>
-                  <span className="app-lists-row-state">{summary.savedItemId === null ? "Добавить" : "В списке"}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <AppButton onClick={onDone} stretched>
-          Готово
-        </AppButton>
-      </div>
-    </section>
+    <div className="app-save-sheet">
+      <button type="button" className="app-save-sheet-backdrop" aria-label="Закрыть" onClick={onDone} />
+      <section className="app-ev-save app-save-sheet-card" aria-label="Сохранить в список">
+        <div className="app-ev-save-body">
+          {state.status === "loading" && <AppState>Загрузка…</AppState>}
+          {state.status === "error" && <AppState error>Не удалось загрузить списки.</AppState>}
+          {state.status === "ready" && (
+            <ul className="app-lists-picker">
+              {state.summaries.map((summary) => (
+                <li key={summary.list.id}>
+                  <button type="button" className="app-lists-row" aria-pressed={summary.savedItemId !== null} onClick={() => onToggle(summary)}>
+                    <span className="app-lists-row-title">{summary.list.title}</span>
+                    <span className="app-lists-row-state">{summary.savedItemId === null ? "Добавить" : "В списке"}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <AppButton onClick={onDone} stretched>
+            Готово
+          </AppButton>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -53,25 +56,56 @@ export function SaveToList({ eventId, feedPostId, userId, open, onClose }: { eve
   const controlled = open !== undefined;
   const isOpen = controlled ? open : selfOpen;
   const [state, setState] = useState<SaveToListState>({ status: "loading" });
+  const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
 
-  const load = useCallback(() => {
-    setState({ status: "loading" });
-    apiClient.listLists(userId, eventId, feedPostId).then(
-      (summaries) => setState({ status: "ready", summaries }),
-      () => setState({ status: "error" }),
-    );
-  }, [userId, eventId, feedPostId]);
+  const load = useCallback(
+    (quiet = false) => {
+      if (!quiet) setState({ status: "loading" });
+      apiClient.listLists(userId, eventId, feedPostId).then(
+        (summaries) => setState({ status: "ready", summaries }),
+        () => {
+          if (!quiet) setState({ status: "error" });
+        },
+      );
+    },
+    [userId, eventId, feedPostId],
+  );
   useEffect(() => {
     if (isOpen) load();
   }, [isOpen, load]);
 
   const toggle = useCallback(
     (summary: ListSummary) => {
+      if (pending.has(summary.list.id)) return;
       const payload = eventId !== undefined ? { userId, eventId } : { userId, feedPostId: feedPostId! };
-      const call = summary.savedItemId === null ? apiClient.addListItem(summary.list.id, payload) : apiClient.removeListItem(summary.list.id, summary.savedItemId);
-      call.then(load, load);
+      const adding = summary.savedItemId === null;
+      setPending((current) => new Set(current).add(summary.list.id));
+      setState((current) =>
+        current.status === "ready"
+          ? { status: "ready", summaries: current.summaries.map((row) => (row.list.id === summary.list.id ? { ...row, savedItemId: adding ? row.list.id : null, itemsCount: adding ? row.itemsCount + 1 : Math.max(0, row.itemsCount - 1) } : row)) }
+          : current,
+      );
+      const call = adding ? apiClient.addListItem(summary.list.id, payload) : apiClient.removeListItem(summary.list.id, summary.savedItemId!);
+      call.then(
+        () => {
+          setPending((current) => {
+            const next = new Set(current);
+            next.delete(summary.list.id);
+            return next;
+          });
+          load(true);
+        },
+        () => {
+          setPending((current) => {
+            const next = new Set(current);
+            next.delete(summary.list.id);
+            return next;
+          });
+          load();
+        },
+      );
     },
-    [userId, eventId, feedPostId, load],
+    [userId, eventId, feedPostId, load, pending],
   );
 
   if (!isOpen) {

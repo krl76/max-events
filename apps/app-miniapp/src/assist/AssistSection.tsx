@@ -63,8 +63,8 @@ export function AssistView({ query, state, day, onQuery, onSubmit, onPlanDay, on
         onOpenAssistant === undefined ? undefined : (
           // Секция отвечает одним подбором; переписка целиком — экран 10, и попасть на него надо
           // отсюда, иначе он остаётся достижим только из вкладки «Планы».
-          <AppButton tone="ghost" size="small" onClick={onOpenAssistant}>
-            Ассистент
+          <AppButton tone="secondary" size="small" onClick={onOpenAssistant}>
+            MAX AI
           </AppButton>
         )
       }

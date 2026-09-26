@@ -25,6 +25,8 @@ import type { DayRoute, OptimizeRoute, RouteLeg, RouteStopWrite } from "@max-eve
 import { apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { useViewerOrigin } from "../geo/viewer-origin";
+import { useRoute } from "../routing/router";
+import { ActionIcon } from "../ui/icons";
 import { AppButton, AppState } from "../ui/primitives";
 
 export const MIN_ROUTE_STOPS = 2;
@@ -74,64 +76,141 @@ export function RouteTimeline({ route }: { route: DayRoute }) {
 interface DayRouteViewProps {
   options: RouteOptionsState;
   selected: string[];
+  query: string;
+  onQuery: (value: string) => void;
   onToggle: (key: string) => void;
   onBuild: () => void;
   built: DayRouteBuildState;
   optimize: OptimizeState;
   onOptimize: () => void;
+  onClose: () => void;
+  onReset: () => void;
 }
 
-export function DayRouteView({ options, selected, onToggle, onBuild, built, optimize, onOptimize }: DayRouteViewProps) {
+export function DayRouteView({ options, selected, query, onQuery, onToggle, onBuild, built, optimize, onOptimize, onClose, onReset }: DayRouteViewProps) {
   const selectedSet = new Set(selected);
   const limitReached = selected.length >= MAX_ROUTE_STOPS;
   const displayRoute = built.status === "ready" ? (optimize.status === "ready" ? optimize.result.optimized : built.route) : null;
+  const ready = options.status === "ready" ? options.options : [];
+  const picked = ready.filter((option) => selectedSet.has(option.key));
+  const needle = query.trim().toLowerCase();
+  const visible = ready.filter((option) => needle === "" || option.title.toLowerCase().includes(needle) || (option.hint !== null && option.hint.toLowerCase().includes(needle)));
+  const events = visible.filter((option) => option.stop.eventId != null);
+  const places = visible.filter((option) => option.stop.placeId != null);
+  const canBuild = selected.length >= MIN_ROUTE_STOPS && built.status !== "loading";
   return (
-    <>
-      {options.status === "loading" && <AppState>Загружаем точки…</AppState>}
-      {options.status === "error" && <AppState error>Не удалось загрузить точки маршрута.</AppState>}
-      {options.status === "ready" && (
-        <>
-          <p className="app-whereto-hint">
-            Выбрано: {selected.length} из {MAX_ROUTE_STOPS}
+    <section className="app-dayroute" aria-label="Маршрут на день">
+      <header className="app-dayroute-top">
+        <button type="button" className="app-dayroute-close" aria-label="Закрыть" onClick={onClose}>
+          <ActionIcon name="close" size={20} strokeWidth={2.2} />
+        </button>
+        <div className="app-dayroute-heading">
+          <h1 className="app-dayroute-title">Маршрут на день</h1>
+          <p className="app-dayroute-sub">
+            {selected.length} из {MAX_ROUTE_STOPS} · минимум {MIN_ROUTE_STOPS}
           </p>
-          <ul className="app-plan-participants" aria-label="Точки маршрута">
-            {options.options.map((option) => (
-              <li key={option.key} className="app-plan-participant">
-                <label>
-                  <input type="checkbox" checked={selectedSet.has(option.key)} disabled={!selectedSet.has(option.key) && limitReached} onChange={() => onToggle(option.key)} /> {option.title}
-                  {option.hint !== null ? ` · ${option.hint}` : ""}
-                </label>
-              </li>
-            ))}
-          </ul>
-          {selected.length < MIN_ROUTE_STOPS && <p className="app-whereto-hint">Выберите минимум {MIN_ROUTE_STOPS} точки.</p>}
-          <AppButton onClick={onBuild} disabled={selected.length < MIN_ROUTE_STOPS || built.status === "loading"} stretched>
-            Построить
-          </AppButton>
-        </>
+        </div>
+      </header>
+
+      {picked.length > 0 && (
+        <div className="app-dayroute-picked" aria-label="Выбранные точки">
+          {picked.map((option, index) => (
+            <button key={option.key} type="button" className="app-dayroute-chip" onClick={() => onToggle(option.key)}>
+              <span className="app-dayroute-chip-n">{index + 1}</span>
+              {option.title}
+              <ActionIcon name="close" size={12} strokeWidth={2.4} />
+            </button>
+          ))}
+        </div>
       )}
-      {built.status === "loading" && <AppState>Строим маршрут…</AppState>}
-      {built.status === "error" && <AppState error>Не удалось построить маршрут.</AppState>}
-      {displayRoute !== null && (
-        <>
+
+      {displayRoute !== null ? (
+        <div className="app-dayroute-result">
           <RouteTimeline route={displayRoute} />
-          <AppState>{routeTotalsLabel(displayRoute)}</AppState>
-          {optimize.status === "ready" && <AppState>{savingsLabel(optimize.result)}</AppState>}
+          <p className="app-dayroute-totals">{routeTotalsLabel(displayRoute)}</p>
+          {optimize.status === "ready" && <p className="app-dayroute-save">{savingsLabel(optimize.result)}</p>}
           <AppButton onClick={onOptimize} tone="secondary" stretched disabled={optimize.status === "loading"}>
-            Оптимизировать
+            Оптимизировать порядок
           </AppButton>
           {optimize.status === "loading" && <AppState>Оптимизируем…</AppState>}
           {optimize.status === "error" && <AppState error>Не удалось оптимизировать маршрут.</AppState>}
+        </div>
+      ) : (
+        <>
+          {options.status === "loading" && <AppState>Загружаем точки…</AppState>}
+          {options.status === "error" && <AppState error>Не удалось загрузить точки маршрута.</AppState>}
+          {options.status === "ready" && (
+            <>
+              <input className="app-filters-input" type="search" value={query} placeholder="Найти событие или место" aria-label="Поиск точек" onChange={(event) => onQuery(event.target.value)} />
+              {visible.length === 0 && <AppState>Ничего не нашлось по запросу.</AppState>}
+              {events.length > 0 && (
+                <div className="app-dayroute-group">
+                  <h2 className="app-dayroute-label">События</h2>
+                  <ul className="app-dayroute-list" aria-label="События">
+                    {events.map((option) => (
+                      <li key={option.key}>
+                        <button type="button" className={selectedSet.has(option.key) ? "app-dayroute-row app-dayroute-row--on" : "app-dayroute-row"} disabled={!selectedSet.has(option.key) && limitReached} onClick={() => onToggle(option.key)}>
+                          <span className="app-dayroute-check" aria-hidden="true">
+                            {selectedSet.has(option.key) ? "✓" : ""}
+                          </span>
+                          <span className="app-dayroute-row-body">
+                            <span className="app-dayroute-row-title">{option.title}</span>
+                            {option.hint !== null && <span className="app-dayroute-row-hint">{option.hint}</span>}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {places.length > 0 && (
+                <div className="app-dayroute-group">
+                  <h2 className="app-dayroute-label">Места</h2>
+                  <ul className="app-dayroute-list" aria-label="Места">
+                    {places.map((option) => (
+                      <li key={option.key}>
+                        <button type="button" className={selectedSet.has(option.key) ? "app-dayroute-row app-dayroute-row--on" : "app-dayroute-row"} disabled={!selectedSet.has(option.key) && limitReached} onClick={() => onToggle(option.key)}>
+                          <span className="app-dayroute-check" aria-hidden="true">
+                            {selectedSet.has(option.key) ? "✓" : ""}
+                          </span>
+                          <span className="app-dayroute-row-body">
+                            <span className="app-dayroute-row-title">{option.title}</span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+          {built.status === "loading" && <AppState>Строим маршрут…</AppState>}
+          {built.status === "error" && <AppState error>Не удалось построить маршрут. Нужны минимум две точки с адресом.</AppState>}
         </>
       )}
-    </>
+
+      <div className="app-dayroute-cta">
+        {displayRoute !== null ? (
+          <AppButton tone="secondary" stretched onClick={onReset}>
+            Изменить точки
+          </AppButton>
+        ) : (
+          <AppButton onClick={onBuild} disabled={!canBuild} stretched>
+            Готово
+          </AppButton>
+        )}
+        {selected.length < MIN_ROUTE_STOPS && displayRoute === null && <p className="app-dayroute-hint">Выберите минимум {MIN_ROUTE_STOPS} точки — и нажмите «Готово».</p>}
+      </div>
+    </section>
   );
 }
 
 export function DayRoutePage() {
   const origin = useViewerOrigin();
+  const { back } = useRoute();
   const [options, setOptions] = useState<RouteOptionsState>({ status: "loading" });
   const [selected, setSelected] = useState<string[]>([]);
+  const [query, setQuery] = useState("");
   const [built, setBuilt] = useState<DayRouteBuildState>({ status: "idle" });
   const [optimize, setOptimize] = useState<OptimizeState>({ status: "idle" });
 
@@ -187,5 +266,22 @@ export function DayRoutePage() {
     );
   };
 
-  return <DayRouteView options={options} selected={selected} onToggle={toggle} onBuild={build} built={built} optimize={optimize} onOptimize={runOptimize} />;
+  return (
+    <DayRouteView
+      options={options}
+      selected={selected}
+      query={query}
+      onQuery={setQuery}
+      onToggle={toggle}
+      onBuild={build}
+      built={built}
+      optimize={optimize}
+      onOptimize={runOptimize}
+      onClose={back}
+      onReset={() => {
+        setBuilt({ status: "idle" });
+        setOptimize({ status: "idle" });
+      }}
+    />
+  );
 }

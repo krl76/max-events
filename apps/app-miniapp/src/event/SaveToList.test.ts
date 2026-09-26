@@ -44,6 +44,7 @@ describe("SaveToListView", () => {
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('aria-pressed="false"');
     expect(html).toContain("Готово");
+    expect(html).toContain("app-save-sheet");
   });
 });
 
