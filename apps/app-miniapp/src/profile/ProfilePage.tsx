@@ -22,7 +22,7 @@
 // - ProfilePostGrid - the post grid of the profile with its three states: the tiles, the invitation to publish, the loading placeholders
 // - ProfileEntries - what the entry rows, the counters and the grids of экран 36 lead to
 // - isCustomProfileAvatar - in-app pick is a data URL; MAX photo_url is https
-// - AvatarEditDialog - popup on avatar tap: add/change photo, or delete back to the MAX original
+// - ProfileMediaDialog - popup to add/change a photo or delete it back to the original (avatar or cover)
 // - ProfileView - presentational: hero, avatar, identity, counters, actions, entry rows, the grid switch and the grid under it
 // - ProfilePage - route container: resolves auth, loads the profile and every counter the screen shows, wires the navigation and the share action
 // END_MODULE_MAP
@@ -216,7 +216,12 @@ export function isCustomProfileAvatar(avatarUrl: string | null): boolean {
   return avatarUrl !== null && avatarUrl.startsWith("data:");
 }
 
-export function AvatarEditDialog({ custom, onPick, onReset, onClose }: { custom: boolean; onPick: () => void; onReset?: () => void; onClose: () => void }) {
+function stopPointer(event: { preventDefault: () => void; stopPropagation: () => void }): void {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+export function ProfileMediaDialog({ title, custom, onPick, onReset, onClose }: { title: string; custom: boolean; onPick: () => void; onReset?: () => void; onClose: () => void }) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -227,20 +232,50 @@ export function AvatarEditDialog({ custom, onPick, onReset, onClose }: { custom:
 
   return (
     <div className="app-me-pop" role="dialog" aria-modal="true" aria-labelledby="app-me-pop-title">
-      <button type="button" className="app-me-pop-scrim" tabIndex={-1} aria-label="Закрыть" onClick={onClose} />
-      <div className="app-me-pop-card">
+      <button
+        type="button"
+        className="app-me-pop-scrim"
+        tabIndex={-1}
+        aria-label="Закрыть"
+        onPointerDown={(event) => {
+          stopPointer(event);
+          onClose();
+        }}
+      />
+      <div className="app-me-pop-card" onPointerDown={stopPointer}>
         <h2 id="app-me-pop-title" className="app-me-pop-title">
-          Фото профиля
+          {title}
         </h2>
-        <button type="button" className="app-me-pop-action" onClick={onPick}>
+        <button
+          type="button"
+          className="app-me-pop-action"
+          onPointerDown={(event) => {
+            stopPointer(event);
+            onPick();
+          }}
+        >
           {custom ? "Изменить фото" : "Добавить фото"}
         </button>
         {custom && onReset !== undefined && (
-          <button type="button" className="app-me-pop-action app-me-pop-action--danger" onClick={onReset}>
+          <button
+            type="button"
+            className="app-me-pop-action app-me-pop-action--danger"
+            onPointerDown={(event) => {
+              stopPointer(event);
+              onReset();
+            }}
+          >
             Удалить
           </button>
         )}
-        <button type="button" className="app-me-pop-action app-me-pop-action--ghost" onClick={onClose}>
+        <button
+          type="button"
+          className="app-me-pop-action app-me-pop-action--ghost"
+          onPointerDown={(event) => {
+            stopPointer(event);
+            onClose();
+          }}
+        >
           Отмена
         </button>
       </div>
@@ -270,13 +305,14 @@ interface ProfileViewProps extends ProfileEntries {
 }
 
 export function ProfileView({ user, profile, counters, lists, subscriptions, following, followers, achievements, weGroups, friendsCount, posts, postsFailed, visitedPlaces, tab, own = true, followingThem = false, subscribePending = false, ...entries }: ProfileViewProps) {
-  const [avatarMenu, setAvatarMenu] = useState(false);
+  const [mediaMenu, setMediaMenu] = useState<"avatar" | "cover" | null>(null);
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
   const numbers = profileMetrics(counters);
   const social = socialMetrics({ posts: posts === null ? null : posts.length, subscriptions, following, followers });
   const openList = { posts: () => entries.onTab("posts"), subscriptions: entries.onSubscriptions, followers: entries.onFollowers };
   const about = profileAbout(profile);
   const customAvatar = isCustomProfileAvatar(user.avatarUrl);
+  const customCover = profile.coverUrl !== null;
   return (
     <section className="app-me">
       <div className="app-me-hero">
@@ -285,15 +321,10 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
         <span className="app-me-blob app-me-blob--cool" aria-hidden="true" />
         {own && entries.onPickCover !== undefined && (
           <div className="app-me-hero-edits">
-            <button type="button" className="app-me-hero-edit" aria-label="Сменить шапку" onClick={entries.onPickCover}>
+            <button type="button" className="app-me-hero-edit" aria-label="Сменить шапку" aria-haspopup="dialog" aria-expanded={mediaMenu === "cover"} onClick={() => setMediaMenu("cover")}>
               <ActionIcon name="upload" size={16} strokeWidth={2} />
               Шапка
             </button>
-            {profile.coverUrl !== null && entries.onResetCover !== undefined && (
-              <button type="button" className="app-me-hero-edit" aria-label="Вернуть исходную шапку" onClick={entries.onResetCover}>
-                Исходная
-              </button>
-            )}
           </div>
         )}
         <span className="app-me-hero-actions">
@@ -308,7 +339,7 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
         </span>
       </div>
       {own && entries.onPickAvatar !== undefined ? (
-        <button type="button" className="app-me-avatar-ring" aria-label="Сменить аватар" aria-haspopup="dialog" aria-expanded={avatarMenu} onClick={() => setAvatarMenu(true)}>
+        <button type="button" className="app-me-avatar-ring" aria-label="Сменить аватар" aria-haspopup="dialog" aria-expanded={mediaMenu === "avatar"} onClick={() => setMediaMenu("avatar")}>
           <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={user.avatarUrl} />}</span>
         </button>
       ) : (
@@ -316,22 +347,42 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
           <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={user.avatarUrl} />}</span>
         </div>
       )}
-      {avatarMenu && entries.onPickAvatar !== undefined && (
-        <AvatarEditDialog
+      {mediaMenu === "avatar" && entries.onPickAvatar !== undefined && (
+        <ProfileMediaDialog
+          title="Фото профиля"
           custom={customAvatar}
           onPick={() => {
-            setAvatarMenu(false);
+            setMediaMenu(null);
             entries.onPickAvatar?.();
           }}
           onReset={
             customAvatar && entries.onResetAvatar !== undefined
               ? () => {
-                  setAvatarMenu(false);
                   entries.onResetAvatar?.();
+                  setMediaMenu(null);
                 }
               : undefined
           }
-          onClose={() => setAvatarMenu(false)}
+          onClose={() => setMediaMenu(null)}
+        />
+      )}
+      {mediaMenu === "cover" && entries.onPickCover !== undefined && (
+        <ProfileMediaDialog
+          title="Шапка профиля"
+          custom={customCover}
+          onPick={() => {
+            setMediaMenu(null);
+            entries.onPickCover?.();
+          }}
+          onReset={
+            customCover && entries.onResetCover !== undefined
+              ? () => {
+                  entries.onResetCover?.();
+                  setMediaMenu(null);
+                }
+              : undefined
+          }
+          onClose={() => setMediaMenu(null)}
         />
       )}
       <h1 className="app-me-name">{name}</h1>
@@ -643,11 +694,13 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         onResetAvatar={
           own
             ? () => {
+                const previous = viewer;
+                updateUser({ ...viewer, avatarUrl: null });
                 apiClient.updateProfile({ avatarUrl: null }).then(
                   () => {
-                    apiClient.getMe().then(({ user: next }) => updateUser(next), () => updateUser({ ...viewer, avatarUrl: null }));
+                    apiClient.getMe().then(({ user: next }) => updateUser(next), () => {});
                   },
-                  () => {},
+                  () => updateUser(previous),
                 );
               }
             : undefined

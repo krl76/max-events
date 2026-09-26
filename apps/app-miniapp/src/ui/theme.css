@@ -6562,6 +6562,7 @@ button.app-me-avatar-ring {
   padding: var(--app-space-l);
   position: relative;
   width: min(100%, 320px);
+  z-index: 1;
 }
 
 .app-me-pop-title {
