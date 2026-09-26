@@ -30,24 +30,24 @@ function matchesWhere(row: unknown, where: Record<string, unknown>): boolean {
   });
 }
 
-function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
+function createStoreRepo<T extends object>(initial: T[] = []) {
   const store = [...initial];
   let seq = 0;
   return {
     store,
-    create: (fields: Partial<T>) => ({ ...fields }) as T,
+    create: (fields: Partial<T>) => ({ ...fields }) as unknown as T,
     find: async (opts: { where?: Record<string, unknown> } = {}) => store.filter((row) => matchesWhere(row, opts.where ?? {})),
     findOneBy: async (where: Record<string, unknown>) => store.find((row) => matchesWhere(row, where)) ?? null,
     save: async (entity: T) => {
       if (!store.includes(entity)) {
-        entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
+        (entity as { id?: string }).id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
         (entity as { createdAt?: Date }).createdAt ??= now;
         store.push(entity);
       }
       return entity;
     },
     delete: async (where: { id: string }) => {
-      const index = store.findIndex((row) => row.id === where.id);
+      const index = store.findIndex((row) => (row as { id?: string }).id === where.id);
       if (index < 0) return { affected: 0 };
       store.splice(index, 1);
       return { affected: 1 };

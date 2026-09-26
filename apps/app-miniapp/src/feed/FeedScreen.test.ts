@@ -63,7 +63,7 @@ describe("FeedWhereToCard", () => {
 });
 
 describe("FeedFriendPost", () => {
-  const post = (over: Partial<FeedFriendCard> = {}) => renderToStaticMarkup(createElement(FeedFriendPost, { card: { ...friendCard, ...over }, now: NOW, onOpenEvent: noop, onToggleLike: noop, onToggleGoing: noop, onOpenComments: noop, onShare: noop }));
+  const post = (over: Partial<FeedFriendCard> = {}) => renderToStaticMarkup(createElement(FeedFriendPost, { card: { ...friendCard, ...over }, now: NOW, onToggleLike: noop, onToggleGoing: noop, onOpenComments: noop, onShare: noop }));
 
   it("carries the author, the place with the distance and the event hero", () => {
     const html = post();
@@ -110,7 +110,7 @@ describe("FeedFriendPost", () => {
     expect(post()).toContain(`src="${mockFriends[0].avatarUrl}"`);
     expect(post()).not.toContain("app-story-ring--active");
     expect(post()).not.toContain("app-feed-ring-inner");
-    const withStory = renderToStaticMarkup(createElement(FeedFriendPost, { card: friendCard, now: NOW, onOpenEvent: noop, onToggleLike: noop, onToggleGoing: noop, onOpenComments: noop, onShare: noop, hasStory: true }));
+    const withStory = renderToStaticMarkup(createElement(FeedFriendPost, { card: friendCard, now: NOW, onToggleLike: noop, onToggleGoing: noop, onOpenComments: noop, onShare: noop, hasStory: true }));
     expect(withStory).toContain("app-story-ring--active");
   });
 });

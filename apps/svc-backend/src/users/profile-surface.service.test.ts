@@ -29,7 +29,7 @@ function matchesWhere(row: object, where: Record<string, unknown>): boolean {
   });
 }
 
-function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
+function createStoreRepo<T extends object>(initial: T[] = []) {
   const store = [...initial];
   return {
     store,
@@ -39,7 +39,7 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
       if (opts.order?.createdAt === "DESC") rows = [...rows].reverse();
       return rows;
     },
-    create: (fields: Partial<T>) => ({ ...fields }) as T,
+    create: (fields: Partial<T>) => ({ ...fields }) as unknown as T,
     save: async (entity: T) => {
       if (!store.includes(entity)) store.push(entity);
       return entity;

@@ -163,7 +163,6 @@ export function FeedWhereToCard({ onStart }: { onStart: () => void }) {
 interface FeedFriendPostProps {
   card: FeedFriendCard;
   now: Date;
-  onOpenEvent: (eventId: string) => void;
   onToggleLike: () => void;
   onToggleGoing: () => void;
   onOpenComments: () => void;
@@ -171,7 +170,7 @@ interface FeedFriendPostProps {
   hasStory?: boolean;
 }
 
-export function FeedFriendPost({ card, now, onOpenEvent, onToggleLike, onToggleGoing, onOpenComments, onShare, hasStory = false }: FeedFriendPostProps) {
+export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenComments, onShare, hasStory = false }: FeedFriendPostProps) {
   const where = [card.placeTitle, formatFeedDistance(card.distanceKm)].filter((part): part is string => part !== null && part !== "").join(" · ");
   const counts = feedCountsLine(card.counts, card.live);
   const comments = feedCommentsLine(card.comments, card.commentsCount);
@@ -348,7 +347,6 @@ export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onStatus, on
 }
 
 export interface FeedCardHandlers {
-  onOpenEvent: (eventId: string) => void;
   onOpenPlace: (placeId: string) => void;
   onOpenPost: (postId: string) => void;
   onToggleLike: (card: FeedFriendCard) => void;
@@ -361,7 +359,7 @@ export interface FeedCardHandlers {
 }
 
 export function FeedCardList({ cards, now, handlers, storyAuthors }: { cards: FeedCard[]; now: Date; handlers: FeedCardHandlers; storyAuthors?: ReadonlySet<string> }) {
-  return <div className="app-feed-posts">{cards.map((card) => (card.kind === "friend" ? <FeedFriendPost key={card.id} card={card} now={now} onOpenEvent={handlers.onOpenEvent} onToggleLike={() => handlers.onToggleLike(card)} onToggleGoing={() => handlers.onToggleGoing(card)} onOpenComments={() => handlers.onOpenComments(card)} onShare={() => handlers.onShare(card)} hasStory={storyAuthors?.has(card.author.id) === true} /> : <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} />))}</div>;
+  return <div className="app-feed-posts">{cards.map((card) => (card.kind === "friend" ? <FeedFriendPost key={card.id} card={card} now={now} onToggleLike={() => handlers.onToggleLike(card)} onToggleGoing={() => handlers.onToggleGoing(card)} onOpenComments={() => handlers.onOpenComments(card)} onShare={() => handlers.onShare(card)} hasStory={storyAuthors?.has(card.author.id) === true} /> : <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} />))}</div>;
 }
 
 /** Экран 04: the rows are aria-hidden, so the status label is what assistive tech reads. */
@@ -447,7 +445,6 @@ export function FeedScreen() {
   );
 
   const handlers: FeedCardHandlers = {
-    onOpenEvent: (eventId) => navigate({ name: "event", id: eventId }),
     onOpenPlace: (placeId) => navigate({ name: "place", id: placeId }),
     onOpenPost: (postId) => navigate({ name: "post", id: postId }),
     onToggleLike: (card) => {

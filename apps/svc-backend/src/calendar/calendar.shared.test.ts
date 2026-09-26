@@ -58,12 +58,12 @@ function matchesCell(cell: unknown, condition: unknown): boolean {
   return cell === condition;
 }
 
-function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
+function createStoreRepo<T extends object>(initial: T[] = []) {
   const store = [...initial];
   let seq = 0;
   return {
     store,
-    create: (fields: Partial<T>) => ({ ...fields, createdAt: now }) as T,
+    create: (fields: Partial<T>) => ({ ...fields, createdAt: now }) as unknown as T,
     find: async (opts: { where?: Record<string, unknown> } = {}) => {
       const where = opts.where ?? {};
       return store.filter((row) => Object.entries(where).every(([key, value]) => matchesCell((row as Record<string, unknown>)[key], value)));
@@ -71,7 +71,7 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
     findOneBy: async (where: Record<string, string>) => store.find((row) => Object.entries(where).every(([key, value]) => (row as Record<string, unknown>)[key] === value)) ?? null,
     save: async (entity: T) => {
       if (!store.includes(entity)) {
-        entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
+        (entity as { id?: string }).id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
         store.push(entity);
       }
       return entity;
@@ -95,16 +95,7 @@ function createService(opts: { friendIds?: string[]; bookings?: BookingEntity[];
   const goings = createStoreRepo<CalendarGoingEntity>();
   const users = createStoreRepo<UserEntity>([user(userId, "Саша"), user(annaId, "Анна"), user(dimaId, "Дима")]);
   const friends = { friendIds: async () => new Set(opts.friendIds ?? [annaId]) } as unknown as FriendsService;
-  const service = new CalendarService(
-    bookings as unknown as Repository<BookingEntity>,
-    events as unknown as Repository<EventEntity>,
-    places as unknown as Repository<PlaceEntity>,
-    shares as unknown as Repository<CalendarShareEntity>,
-    invites as unknown as Repository<CalendarInviteEntity>,
-    goings as unknown as Repository<CalendarGoingEntity>,
-    users as unknown as Repository<UserEntity>,
-    friends,
-  );
+  const service = new CalendarService(bookings as unknown as Repository<BookingEntity>, events as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>, shares as unknown as Repository<CalendarShareEntity>, invites as unknown as Repository<CalendarInviteEntity>, goings as unknown as Repository<CalendarGoingEntity>, users as unknown as Repository<UserEntity>, friends);
   return { service, shares, invites, goings };
 }
 

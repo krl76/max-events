@@ -52,7 +52,7 @@ function createRepo(initial: EventEntity[] = []) {
     findOneBy: async (where: { id: string }) => store.find((row) => row.id === where.id) ?? null,
     find: async (opts: { where?: Record<string, unknown> | Array<Record<string, unknown>>; order?: { startsAt?: "ASC" | "DESC"; id?: "ASC" | "DESC"; createdAt?: "ASC" | "DESC" }; skip?: number; take?: number }) => {
       const clauses = Array.isArray(opts.where) ? opts.where : opts.where ? [opts.where] : [{}];
-      let rows = store.filter((row) => clauses.some((clause) => matchesEventWhere(row, clause)));
+      const rows = store.filter((row) => clauses.some((clause) => matchesEventWhere(row, clause)));
       if (opts.order?.createdAt === "ASC") rows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
       else rows.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
       const from = opts.skip ?? 0;

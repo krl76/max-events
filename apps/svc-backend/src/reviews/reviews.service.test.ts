@@ -85,6 +85,7 @@ describe("ReviewsService.create", () => {
       categoryScores: {},
       wouldGoAgain: false,
       photoUrls: [],
+      factTags: [],
       text: null,
       createdAt: now,
     } as ReviewEntity);
