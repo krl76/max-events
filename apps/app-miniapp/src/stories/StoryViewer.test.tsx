@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { Story } from "@max-events/api-contracts";
 import { flattenStoryGroups, nextPosition, prevPosition, STORY_DURATION_MS, StoryViewer, type StoryGroup } from "./StoryViewer";
 
-const story = (id: string): Story => ({ id, userId: "a0000000-0000-4000-8000-0000000000b1", imageUrl: "data:image/svg+xml;utf8,x", createdAt: "2026-09-16T10:00:00+03:00" });
+const story = (id: string): Story => ({ id, userId: "a0000000-0000-4000-8000-0000000000b1", imageUrl: "data:image/svg+xml;utf8,x", createdAt: "2026-09-16T10:00:00+03:00", text: "", sticker: null, poll: null, audience: "friends", objects: [] });
 
 const GROUPS: StoryGroup[] = [
   { authorName: "Анна", stories: [story("e1000000-0000-4000-8000-000000000001"), story("e1000000-0000-4000-8000-000000000002")] },

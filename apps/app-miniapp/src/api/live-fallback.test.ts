@@ -52,6 +52,10 @@ const post: FeedPost = {
   eventId: EVENT_ID,
   text: "Только вернулись — до сих пор под впечатлением.",
   photoUrl: null,
+  placeId: null,
+  taggedFriendIds: [],
+  audience: "friends",
+  allowJoin: false,
   likesCount: 3,
   likedByMe: false,
   comments: [{ id: "3f2b1a0c-5555-4000-8000-000000000005", author: { id: AUTHOR_ID, name: "Дима", avatarUrl: null }, text: "буду к трём" }],
@@ -222,7 +226,10 @@ describe("ApiClient against a backend without the card endpoints", () => {
 
     expect(cards).toHaveLength(1);
     expect(cards[0].event.id).toBe(EVENT_ID);
-    const eventUrls = vi.mocked(fetch).mock.calls.map((call) => String(call[0])).filter((url) => url.includes("/api/events?"));
+    const eventUrls = vi
+      .mocked(fetch)
+      .mock.calls.map((call) => String(call[0]))
+      .filter((url) => url.includes("/api/events?"));
     expect(eventUrls.some((url) => url.includes("lat=55.75") && url.includes("lng=37.62") && url.includes("sort=near"))).toBe(true);
   });
 

@@ -50,18 +50,22 @@ const storyGradient = (index: number): readonly [string, string] => STORY_GRADIE
 const MOCK_OWN_STORY_KEY = "max-events.mock-own-story";
 
 /** Seeded friend stories: every friend has 1–3 stories so the rail is fully active. */
+function storySeed(id: string, userId: string, imageUrl: string, createdAt: string): Story {
+  return { id, userId, imageUrl, createdAt, text: "", sticker: null, poll: null, audience: "friends", objects: [] };
+}
+
 export const mockFriendStories: Story[] = [
-  { id: "e1000000-0000-4000-8000-000000000001", userId: mockFriendIds[0], imageUrl: storyImage(...storyGradient(0)), createdAt: "2026-09-16T09:00:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000002", userId: mockFriendIds[0], imageUrl: storyImage(...storyGradient(1)), createdAt: "2026-09-16T10:00:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000003", userId: mockFriendIds[1], imageUrl: storyImage(...storyGradient(2)), createdAt: "2026-09-16T11:00:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000004", userId: mockFriendIds[2], imageUrl: storyImage(...storyGradient(3)), createdAt: "2026-09-16T11:30:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000005", userId: mockFriendIds[2], imageUrl: storyImage(...storyGradient(4)), createdAt: "2026-09-16T12:00:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000006", userId: mockFriendIds[3], imageUrl: storyImage(...storyGradient(5)), createdAt: "2026-09-16T12:30:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000007", userId: mockFriendIds[4], imageUrl: storyImage(...storyGradient(6)), createdAt: "2026-09-16T13:00:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000008", userId: mockFriendIds[4], imageUrl: storyImage(...storyGradient(7)), createdAt: "2026-09-16T13:30:00+03:00" },
-  { id: "e1000000-0000-4000-8000-000000000009", userId: mockFriendIds[4], imageUrl: storyImage(...storyGradient(8)), createdAt: "2026-09-16T14:00:00+03:00" },
-  { id: "e1000000-0000-4000-8000-00000000000b", userId: mockFriendIds[5], imageUrl: storyImage(...storyGradient(9)), createdAt: "2026-09-16T14:30:00+03:00" },
-  { id: "e1000000-0000-4000-8000-00000000000c", userId: mockFriendIds[6], imageUrl: storyImage(...storyGradient(10)), createdAt: "2026-09-16T15:00:00+03:00" },
+  storySeed("e1000000-0000-4000-8000-000000000001", mockFriendIds[0], storyImage(...storyGradient(0)), "2026-09-16T09:00:00+03:00"),
+  storySeed("e1000000-0000-4000-8000-000000000002", mockFriendIds[0], storyImage(...storyGradient(1)), "2026-09-16T10:00:00+03:00"),
+  storySeed("e1000000-0000-4000-8000-000000000003", mockFriendIds[1], storyImage(...storyGradient(2)), "2026-09-16T11:00:00+03:00"),
+  storySeed("e1000000-0000-4000-8000-000000000004", mockFriendIds[2], storyImage(...storyGradient(3)), "2026-09-16T11:30:00+03:00"),
+  storySeed("e1000000-0000-4000-8000-000000000005", mockFriendIds[2], storyImage(...storyGradient(4)), "2026-09-16T12:00:00+03:00"),
+  storySeed("e1000000-0000-4000-8000-000000000006", mockFriendIds[3], storyImage(...storyGradient(5)), "2026-09-16T12:30:00+03:00"),
+  storySeed("e1000000-0000-4000-8000-000000000007", mockFriendIds[4], storyImage(...storyGradient(6)), "2026-09-16T13:00:00+03:00"),
+  storySeed("e1000000-0000-4000-8000-000000000008", mockFriendIds[4], storyImage(...storyGradient(7)), "2026-09-16T13:30:00+03:00"),
+  storySeed("e1000000-0000-4000-8000-000000000009", mockFriendIds[4], storyImage(...storyGradient(8)), "2026-09-16T14:00:00+03:00"),
+  storySeed("e1000000-0000-4000-8000-00000000000b", mockFriendIds[5], storyImage(...storyGradient(9)), "2026-09-16T14:30:00+03:00"),
+  storySeed("e1000000-0000-4000-8000-00000000000c", mockFriendIds[6], storyImage(...storyGradient(10)), "2026-09-16T15:00:00+03:00"),
 ];
 
 /** Own mock story persists in localStorage so it survives reloads. */
@@ -90,7 +94,7 @@ export function listMockStories(): Story[] {
 export const mockStoryCompositions: StoryComposition[] = [];
 
 export function createMockStory(imageUrl: string, composition: StoryComposition | null = null): Story {
-  const story: Story = { id: "e1000000-0000-4000-8000-00000000000a", userId: mockDemoUser.id, imageUrl, createdAt: new Date().toISOString() };
+  const story: Story = storySeed("e1000000-0000-4000-8000-00000000000a", mockDemoUser.id, imageUrl, new Date().toISOString());
   if (composition !== null) mockStoryCompositions.push(composition);
   if (typeof window !== "undefined") window.localStorage.setItem(MOCK_OWN_STORY_KEY, JSON.stringify(story));
   return story;
@@ -134,6 +138,10 @@ export function seedMockFeed(): void {
       eventId: mockEvents[seed.event].id,
       text: seed.text,
       photoUrl: null,
+      placeId: null,
+      taggedFriendIds: [],
+      audience: "friends",
+      allowJoin: false,
       likesCount: seed.likes,
       likedByMe: false,
       comments: (seed.comments ?? []).map((comment) => {
@@ -310,7 +318,7 @@ export function mockFeedCards(userId: string): FeedCard[] {
 export function createMockFeedPost(payload: CreateFeedPost): FeedPost | null {
   if (!mockEvents.some((event) => event.id === payload.eventId)) return null;
   mockFeedSeq += 1;
-  const post: FeedPost = { id: `30000000-0000-4000-8000-${String(mockFeedSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), eventId: payload.eventId, text: payload.text, photoUrl: payload.photoUrl ?? null, likesCount: 0, likedByMe: false, comments: [] };
+  const post: FeedPost = { id: `30000000-0000-4000-8000-${String(mockFeedSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), eventId: payload.eventId, text: payload.text, photoUrl: payload.photoUrl ?? null, placeId: payload.placeId ?? null, taggedFriendIds: payload.taggedFriendIds ?? [], audience: payload.audience ?? "friends", allowJoin: payload.allowJoin ?? false, likesCount: 0, likedByMe: false, comments: [] };
   mockFeedPosts.push(post);
   // Kept beside the post rather than inside it: none of these has a column, and when #502 lands only this table goes away.
   mockFeedPostExtras.set(post.id, { photoUrls: payload.photoUrls ?? [], placeId: payload.placeId ?? null, taggedFriendIds: payload.taggedFriendIds ?? [], audience: payload.audience ?? "friends", allowJoin: payload.allowJoin ?? false });

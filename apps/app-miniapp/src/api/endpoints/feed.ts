@@ -15,7 +15,7 @@
 // - StoryPoll - the poll drawn on a story: one question, its options and the highlighted answer (макет, экран 05)
 // - StoryComposition - everything a composed story carries beyond its image; POST /stories takes only imageUrl today and strips the rest (#502)
 // - StoryObjectKind - what an author can put on the story canvas: caption, event sticker, poll, free-seats counter (макет, экран 05)
-// - StoryCanvasObject - one object of the canvas and its place in the frame, in percent (#502)
+// - StoryCanvasObject - canvas object persisted on POST /stories and returned by GET /stories
 // - PostAudience - who a published post is shown to (макет, экран 06): friends / city / the company only
 // - POST_AUDIENCES - the post audiences in design order, «Друзья» first
 // - PostDraft - the автосохранение payload of the post composer (макет, экран 06); no draft table exists (#502)

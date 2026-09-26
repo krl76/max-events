@@ -11,7 +11,7 @@
 // - EventFilters - optional catalog list filters (category/city/date/dateFrom/dateTo/minRating/query/sort/limit/offset)
 // - serializeEventFilters - filters -> query string ("" when empty)
 // - parseEventFilters - query string -> filters, invalid values dropped
-// - CatalogCard - list card of экран 08: the event plus the distance, rating and venue line the list DTO does not carry (#496)
+// - CatalogCard - list card of экран 08: GET /events/cards (event, distanceKm, rating, placeTitle)
 // - catalogCardsFromEvents - catalog cards built out of GET /events + GET /places, for a server that does not answer GET /events/cards yet
 // - eventCompanionsFrom - экран 23 built out of the participation stats and the friends on the event, for a server that does not answer GET /events/:id/companions yet
 // - MapWeather - city weather behind the map chip (макет, экран 16): now plus the change to come (#495)

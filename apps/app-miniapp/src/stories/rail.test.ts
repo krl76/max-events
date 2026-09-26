@@ -7,7 +7,7 @@ const MY_ID = "a0000000-0000-4000-8000-000000000001";
 
 const friend = (index: number, name: string): Friend => ({ id: `a0000000-0000-4000-8000-0000000000b${index}`, name, avatarUrl: null });
 
-const story = (id: string, userId: string, createdAt: string): Story => ({ id, userId, imageUrl: `data:image/svg+xml;utf8,${id}`, createdAt });
+const story = (id: string, userId: string, createdAt: string): Story => ({ id, userId, imageUrl: `data:image/svg+xml;utf8,${id}`, createdAt, text: "", sticker: null, poll: null, audience: "friends", objects: [] });
 
 const ANNA = friend(1, "Анна Соколова");
 const DIMA = friend(2, "Дима Кузнецов");

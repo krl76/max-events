@@ -399,7 +399,7 @@ export function mockDayRoute(points: RoutePoint[]): DayRoute {
     const to = points[index + 1];
     const meters = haversineMeters(from.latitude, from.longitude, to.latitude, to.longitude);
     totalMeters += meters;
-    legs.push({ fromTitle: from.title, toTitle: to.title, travelMinutes: walkingMinutes(meters), distanceKm: Math.round((meters / 1000) * 10) / 10 });
+    legs.push({ fromTitle: from.title, toTitle: to.title, travelMinutes: walkingMinutes(meters), distanceKm: Math.round((meters / 1000) * 10) / 10, mode: "walk", transfers: 0, priceRub: null });
   }
   return { points, legs, totalMinutes: walkingMinutes(totalMeters), totalKm: Math.round((totalMeters / 1000) * 10) / 10 };
 }
