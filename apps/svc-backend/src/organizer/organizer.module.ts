@@ -10,6 +10,10 @@
 // END_MODULE_MAP
 
 import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { BookingEntity } from "../bookings/booking.entity";
+import { CheckInEntity } from "../checkins/check-in.entity";
+import { EventEntity } from "../events/event.entity";
 import { EventsModule } from "../events/events.module";
 import { PlacesModule } from "../places/places.module";
 import { BookingsModule } from "../bookings/bookings.module";
@@ -18,10 +22,16 @@ import { PaymentsModule } from "../payments/payments.module";
 import { PromoModule } from "../promo/promo.module";
 import { PromotionModule } from "../promotion/promotion.module";
 import { StatsModule } from "../stats/stats.module";
+import { UserEntity } from "../users/user.entity";
+import { WaitlistEntryEntity } from "../waitlist/waitlist-entry.entity";
+import { WaitlistModule } from "../waitlist/waitlist.module";
+import { EventOptionsEntity } from "./event-options.entity";
 import { OrganizerController } from "./organizer.controller";
+import { OrganizerDayService } from "./organizer-day.service";
 
 @Module({
-  imports: [EventsModule, PlacesModule, PromoModule, PromotionModule, PaymentsModule, BookingsModule, OrganizationsModule, StatsModule],
+  imports: [TypeOrmModule.forFeature([EventEntity, EventOptionsEntity, BookingEntity, CheckInEntity, WaitlistEntryEntity, UserEntity]), EventsModule, PlacesModule, PromoModule, PromotionModule, PaymentsModule, BookingsModule, OrganizationsModule, StatsModule, WaitlistModule],
   controllers: [OrganizerController],
+  providers: [OrganizerDayService],
 })
 export class OrganizerModule {}

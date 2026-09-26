@@ -10,7 +10,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Get, Header, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
-import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPromotionPaymentWriteSchema, UpdateOrganizerSetupSchema, type BookingWithSeats, type Event, type EventSalesReport, type OrganizerBookingRow, type OrganizerSetup, type OrganizerSummary, type Place, type PromoCampaign, type PromoCode, type PromotionCampaign } from "@max-events/api-contracts";
+import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, RecordPromotionPaymentWriteSchema, UpdateOrganizerEventOptionsSchema, UpdateOrganizerSetupSchema, WaitlistInviteWriteSchema, type BookingWithSeats, type Event, type EventSalesReport, type OrganizerAttendance, type OrganizerBookingRow, type OrganizerEventOptions, type OrganizerSetup, type OrganizerSummary, type Place, type PromoCampaign, type PromoCode, type PromotionCampaign, type WaitlistInviteResult } from "@max-events/api-contracts";
 import { CurrentOrganization, OrganizerOnly } from "../auth/auth.guard";
 import { EventsService } from "../events/events.service";
 import { OrganizationEntity } from "../organizations/organization.entity";
@@ -22,6 +22,7 @@ import { PaymentsService } from "../payments/payments.service";
 import { PromotionService } from "../promotion/promotion.service";
 import { parseStatsPeriod } from "../stats/stats.controller";
 import { StatsService } from "../stats/stats.service";
+import { OrganizerDayService } from "./organizer-day.service";
 
 @OrganizerOnly()
 @Controller("organizer")
@@ -35,6 +36,7 @@ export class OrganizerController {
     @Inject(BookingsService) private readonly bookings: BookingsService,
     @Inject(OrganizationsService) private readonly organizations: OrganizationsService,
     @Inject(StatsService) private readonly stats: StatsService,
+    @Inject(OrganizerDayService) private readonly day: OrganizerDayService,
   ) {}
 
   @Get("summary/export")
@@ -156,6 +158,30 @@ export class OrganizerController {
   @Get("events/:id/promotions")
   listPromotions(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string): Promise<PromotionCampaign[]> {
     return this.promotions.list(organization.id, id);
+  }
+
+  @Get("events/:id/options")
+  getOptions(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string): Promise<OrganizerEventOptions> {
+    return this.day.getOptions(organization.id, id);
+  }
+
+  @Patch("events/:id/options")
+  async updateOptions(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<OrganizerEventOptions> {
+    const parsed = UpdateOrganizerEventOptionsSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid event options");
+    return this.day.updateOptions(organization.id, id, parsed.data);
+  }
+
+  @Get("events/:id/attendance")
+  attendance(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string): Promise<OrganizerAttendance> {
+    return this.day.attendance(organization.id, id);
+  }
+
+  @Post("events/:id/waitlist/invites")
+  async inviteWaitlist(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<WaitlistInviteResult> {
+    const parsed = WaitlistInviteWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid waitlist invite");
+    return this.day.inviteWaitlist(organization.id, id, parsed.data.count);
   }
 
   @Post("events/:id/promotions/:campaignId/paid")
