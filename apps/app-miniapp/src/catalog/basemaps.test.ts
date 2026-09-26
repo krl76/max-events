@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { BASEMAP_STORAGE_KEY, DEFAULT_BASEMAP, MAP_BASEMAPS, OWN_BASEMAP, STANDARD_BASEMAP, basemapById, basemapCredit, isVectorBasemap, readBasemapPreference, writeBasemapPreference } from "./basemaps";
 
 describe("basemap catalogue", () => {
-  it("opens on raster OSM so MapLibre stays out of the first paint, with own vector first in the chip row", () => {
-    expect(DEFAULT_BASEMAP).toBe(STANDARD_BASEMAP);
+  it("opens on the own vector basemap, with standard OSM next as the fallback", () => {
+    expect(DEFAULT_BASEMAP).toBe(OWN_BASEMAP);
     expect(MAP_BASEMAPS[0]).toBe(OWN_BASEMAP);
     expect(MAP_BASEMAPS[1]).toBe(STANDARD_BASEMAP);
     expect(STANDARD_BASEMAP.id).toBe("osm");
@@ -11,7 +11,7 @@ describe("basemap catalogue", () => {
   });
 
   it("keeps the fallback a raster, so a device without WebGL can never loop back into a vector default", () => {
-    expect(isVectorBasemap(DEFAULT_BASEMAP)).toBe(false);
+    expect(isVectorBasemap(DEFAULT_BASEMAP)).toBe(true);
     expect(isVectorBasemap(STANDARD_BASEMAP)).toBe(false);
     expect(STANDARD_BASEMAP.kind).toBe("raster");
     expect(STANDARD_BASEMAP.tone).toBe("light");
@@ -46,7 +46,7 @@ describe("basemap catalogue", () => {
     expect(basemapCredit(basemapById("opentopo"))).toBe("© OpenStreetMap · SRTM · © OpenTopoMap");
     expect(basemapCredit(OWN_BASEMAP)).toBe("© OpenStreetMap · © OpenMapTiles");
     expect(basemapCredit(STANDARD_BASEMAP)).toBe("© OpenStreetMap");
-    expect(basemapCredit(DEFAULT_BASEMAP)).toBe("© OpenStreetMap");
+    expect(basemapCredit(DEFAULT_BASEMAP)).toBe("© OpenStreetMap · © OpenMapTiles");
   });
 
   it("keeps every entry keyless and the tone and kind inside their unions", () => {
