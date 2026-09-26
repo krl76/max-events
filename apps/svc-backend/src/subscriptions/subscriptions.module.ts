@@ -14,13 +14,15 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { MaxBotModule } from "../max-bot/max-bot.module";
 import { OrganizationsModule } from "../organizations/organizations.module";
 import { PlaceEntity } from "../places/place.entity";
+import { NotificationEntity } from "../smart-alerts/notification.entity";
+import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 import { SubscriptionEntity } from "./subscription.entity";
 import { SubscriptionsController } from "./subscriptions.controller";
 import { SubscriptionsService } from "./subscriptions.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([SubscriptionEntity, PlaceEntity, UserEntity]), MaxBotModule, OrganizationsModule],
+  imports: [TypeOrmModule.forFeature([SubscriptionEntity, PlaceEntity, UserEntity, ProfileEntity, NotificationEntity]), MaxBotModule, OrganizationsModule],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService],
   exports: [SubscriptionsService],
