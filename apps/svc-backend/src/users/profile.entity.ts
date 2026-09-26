@@ -11,7 +11,7 @@
 
 import "reflect-metadata";
 import { Column, Entity, PrimaryColumn, UpdateDateColumn } from "typeorm";
-import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, type PrivacySettings, type SmartAlertSettings } from "@max-events/api-contracts";
+import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, type AppSettings, type PrivacySettings, type SmartAlertSettings } from "@max-events/api-contracts";
 
 @Entity("profiles")
 export class ProfileEntity {
@@ -32,6 +32,9 @@ export class ProfileEntity {
 
   @Column({ type: "boolean", default: true })
   recommendationsEnabled!: boolean;
+
+  @Column({ type: "jsonb", default: {} })
+  appSettings?: Omit<AppSettings, "userId">;
 
   @UpdateDateColumn({ type: "timestamptz" })
   updatedAt!: Date;

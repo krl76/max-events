@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CreateUserSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, ProfileSchema, UpdateProfileSchema, UserSchema } from "./user.js";
+import { CreateUserSchema, DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, ProfileSchema, UpdateAppSettingsSchema, UpdateProfileSchema, UserSchema } from "./user.js";
 
 const validUser = {
   id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f",
@@ -51,5 +51,17 @@ describe("UpdateProfileSchema", () => {
     expect(UpdateProfileSchema.safeParse({ smartAlerts: { quietHoursFrom: "25:00" } }).success).toBe(false);
     expect(UpdateProfileSchema.safeParse({ privacy: { visitHistory: "hidden" } }).success).toBe(true);
     expect(UpdateProfileSchema.safeParse({ recommendationsEnabled: false }).success).toBe(true);
+  });
+});
+
+describe("UpdateAppSettingsSchema", () => {
+  it("keeps omitted keys omitted instead of filling defaults", () => {
+    const parsed = UpdateAppSettingsSchema.parse({ quietHours: true });
+    expect(parsed).toEqual({ quietHours: true });
+    expect("searchRadiusKm" in parsed).toBe(false);
+  });
+
+  it("rejects a broken quiet-hours clock", () => {
+    expect(UpdateAppSettingsSchema.safeParse({ quietHoursFrom: "25:00" }).success).toBe(false);
   });
 });
