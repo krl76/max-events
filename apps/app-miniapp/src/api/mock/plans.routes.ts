@@ -11,7 +11,7 @@
 
 import { CreateAutoPlanWriteSchema, CreateDayRouteWriteSchema, CreatePlanExpenseWriteSchema, CreatePlanWriteSchema, IdSchema, PlanCancelScopeSchema } from "@max-events/api-contracts";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
-import { addMockPlanExpense, addMockPlanParticipant, addMockSharedCalendarPeer, buildMockDayRoute, calendarEntries, cancelMockPlan, createMockAutoPlan, createMockPlan, joinMockSharedCalendarEntry, mockPlanBudget, mockPlanTimeline, mockSharedCalendar, openMockPlanChat, optimizeMockDayRoute, planCard, planCards } from "./plans";
+import { addMockPlanExpense, addMockPlanParticipant, addMockSharedCalendarPeer, buildMockDayRoute, calendarEntries, cancelMockPlan, createMockAutoPlan, createMockPlan, joinMockSharedCalendarEntry, mockPlanBudget, mockPlanTimeline, mockSharedCalendar, openMockPlanChat, optimizeMockDayRoute, planCard, planCards, removeMockSharedCalendarPeer } from "./plans";
 
 export function plansRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/plans/auto" && init?.method === "POST") {
@@ -86,6 +86,12 @@ export function plansRoutes(url: URL, init: RequestInit | undefined): Response |
     const userId = IdSchema.safeParse(parseBookingBody(init)?.userId);
     if (!userId.success) return new Response(null, { status: 400 });
     const calendar = addMockSharedCalendarPeer(userId.data);
+    return calendar ? Response.json(calendar) : new Response(null, { status: 404 });
+  }
+  const revokePeer = /^\/api\/calendar\/shared\/peers\/([^/]+)$/.exec(url.pathname);
+  if (revokePeer && init?.method === "DELETE") {
+    if (!IdSchema.safeParse(revokePeer[1]).success) return new Response(null, { status: 400 });
+    const calendar = removeMockSharedCalendarPeer(revokePeer[1]);
     return calendar ? Response.json(calendar) : new Response(null, { status: 404 });
   }
   const sharedGoing = /^\/api\/calendar\/shared\/entries\/([^/]+)\/going$/.exec(url.pathname);

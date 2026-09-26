@@ -138,7 +138,14 @@ export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
     <>
       <div className="app-tab-row" role="group" aria-label="Разделы «Моё»">
         {PLANS_TABS.map((item) => (
-          <AppChip key={item.id} pressed={active === item.id} onClick={() => setActive(item.id)}>
+          <AppChip
+            key={item.id}
+            pressed={active === item.id}
+            onClick={() => {
+              if (item.id === "calendar") navigate({ name: "calendar" });
+              else setActive(item.id);
+            }}
+          >
             {item.label}
           </AppChip>
         ))}
@@ -159,7 +166,7 @@ export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
       )}
       {/* Одно и то же место в дереве на оба раздела календаря: переключение брони ↔ месяц не размонтирует
           контейнер и не перезапрашивает обе половины календаря заново. */}
-      {(active === "bookings" || active === "calendar") && <CalendarPage tab={active === "bookings" ? "bookings" : "month"} />}
+      {active === "bookings" && <CalendarPage tab="bookings" />}
       {active === "saved" && <ListsPage />}
     </>
   );

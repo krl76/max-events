@@ -20,14 +20,20 @@ export class ListsController {
   constructor(@Inject(ListsService) private readonly lists: ListsService) {}
 
   @Get()
-  async list(@CurrentUser() user: UserEntity, @Query("eventId") eventId?: string): Promise<ListSummary[]> {
+  async list(@CurrentUser() user: UserEntity, @Query("eventId") eventId?: string, @Query("feedPostId") feedPostId?: string): Promise<ListSummary[]> {
     let savedEventId: string | null = null;
+    let savedPostId: string | null = null;
     if (eventId !== undefined && eventId !== "") {
       const parsed = IdSchema.safeParse(eventId);
       if (!parsed.success) throw new BadRequestException("Invalid list query");
       savedEventId = parsed.data;
     }
-    return this.lists.list(user.id, savedEventId);
+    if (feedPostId !== undefined && feedPostId !== "") {
+      const parsed = IdSchema.safeParse(feedPostId);
+      if (!parsed.success) throw new BadRequestException("Invalid list query");
+      savedPostId = parsed.data;
+    }
+    return this.lists.list(user.id, savedEventId, savedPostId);
   }
 
   @Post()
@@ -76,7 +82,8 @@ export class ListsController {
     const parsed = AddListItemWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid list payload");
     if (parsed.data.eventId) return this.lists.addEvent(user.id, id, parsed.data.eventId);
-    return this.lists.addPlace(user.id, id, parsed.data.placeId!);
+    if (parsed.data.placeId) return this.lists.addPlace(user.id, id, parsed.data.placeId);
+    return this.lists.addPost(user.id, id, parsed.data.feedPostId!);
   }
 
   @Delete(":id/items/:itemId")

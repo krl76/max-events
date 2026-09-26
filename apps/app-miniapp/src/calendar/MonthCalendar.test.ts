@@ -11,7 +11,7 @@ function booking(eventIndex: number, id: string): CalendarEntry {
 }
 
 function entry(over: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
-  return { id: "x", sources: ["own"], title: "Запись", startsAt: "2026-09-18T19:00:00+03:00", endsAt: null, note: "", needsResponse: false, faces: ["Я"], eventId: null, planId: null, sharedId: null, ...over };
+  return { id: "x", sources: ["own"], title: "Запись", startsAt: "2026-09-18T19:00:00+03:00", endsAt: null, note: "", needsResponse: false, faces: ["Я"], eventId: null, planId: null, sharedId: null, ownerId: null, ...over };
 }
 
 describe("dayKey", () => {

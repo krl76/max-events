@@ -12,6 +12,7 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { EventEntity } from "../events/event.entity";
+import { FeedPostEntity } from "../feed/feed-post.entity";
 import { FriendsModule } from "../friends/friends.module";
 import { PlaceEntity } from "../places/place.entity";
 import { UsersModule } from "../users/users.module";
@@ -22,7 +23,7 @@ import { ListsController } from "./lists.controller";
 import { ListsService } from "./lists.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ListEntity, ListItemEntity, ListMemberEntity, EventEntity, PlaceEntity]), UsersModule, FriendsModule],
+  imports: [TypeOrmModule.forFeature([ListEntity, ListItemEntity, ListMemberEntity, EventEntity, PlaceEntity, FeedPostEntity]), UsersModule, FriendsModule],
   controllers: [ListsController],
   providers: [ListsService],
   exports: [ListsService],

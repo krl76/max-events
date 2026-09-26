@@ -27,6 +27,9 @@ export class ListItemEntity {
   placeId!: string | null;
 
   @Column({ type: "uuid", nullable: true })
+  feedPostId!: string | null;
+
+  @Column({ type: "uuid", nullable: true })
   addedByUserId?: string | null;
 
   @CreateDateColumn({ type: "timestamptz" })

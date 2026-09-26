@@ -15,6 +15,7 @@ const item = {
   listId: list.id,
   eventId: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90",
   placeId: null,
+  feedPostId: null,
   addedAt: "2026-09-11T11:00:00+03:00",
 } as const;
 
@@ -57,8 +58,12 @@ describe("ListItemSchema", () => {
     expect(ListItemSchema.parse(placeItem)).toEqual(placeItem);
   });
 
-  it("rejects an item without event or place", () => {
+  it("rejects an item without event, place or post", () => {
     expect(ListItemSchema.safeParse({ ...item, eventId: null }).success).toBe(false);
+  });
+
+  it("accepts an item with feedPostId", () => {
+    expect(ListItemSchema.parse({ ...item, eventId: null, feedPostId: "018f3c5a-0000-7000-8000-0000000000aa" }).feedPostId).toBe("018f3c5a-0000-7000-8000-0000000000aa");
   });
 
   it("rejects an item with both event and place", () => {
@@ -72,6 +77,7 @@ describe("AddListItemWriteSchema", () => {
     expect(AddListItemWriteSchema.parse({ placeId: "018f3c5a-0000-7000-8000-000000000099" }).placeId).toBe("018f3c5a-0000-7000-8000-000000000099");
     expect(AddListItemWriteSchema.safeParse({}).success).toBe(false);
     expect(AddListItemWriteSchema.safeParse({ eventId: item.eventId, placeId: "018f3c5a-0000-7000-8000-000000000099" }).success).toBe(false);
+    expect(AddListItemWriteSchema.parse({ feedPostId: "018f3c5a-0000-7000-8000-0000000000aa" }).feedPostId).toBe("018f3c5a-0000-7000-8000-0000000000aa");
   });
 });
 
@@ -121,8 +127,14 @@ describe("ListItemCardSchema", () => {
     expect(ListItemCardSchema.parse({ item: placeItem, event: null, place, addedBy: null })).toMatchObject({ item: placeItem, event: null, place, addedBy: null });
   });
 
-  it("rejects a card without event and place", () => {
-    expect(ListItemCardSchema.safeParse({ item, event: null, place: null, addedBy: null }).success).toBe(false);
+  it("rejects a card without event, place and post", () => {
+    expect(ListItemCardSchema.safeParse({ item, event: null, place: null, post: null, addedBy: null }).success).toBe(false);
+  });
+
+  it("accepts a card with a post", () => {
+    const postItem = { ...item, eventId: null, feedPostId: "018f3c5a-0000-7000-8000-0000000000aa" };
+    const post = { id: "018f3c5a-0000-7000-8000-0000000000aa", text: "Круто", photoUrl: null, author: { id: list.userId, name: "Демо", avatarUrl: null }, eventTitle: "Джаз" };
+    expect(ListItemCardSchema.parse({ item: postItem, event: null, place: null, post, addedBy: null }).post?.id).toBe(post.id);
   });
 });
 

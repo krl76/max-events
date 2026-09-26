@@ -139,6 +139,12 @@ export function peersLabel(shared: SharedCalendar): string | null {
   return `Общий с ${names.join(", ")}`;
 }
 
+/** Свои записи — источники с «own»; календарь друга — только его ownerId. */
+export function filterCalendarScope(entries: CalendarDayEntry[], scope: "own" | string): CalendarDayEntry[] {
+  if (scope === "own") return entries.filter((entry) => entry.sources.includes("own"));
+  return entries.filter((entry) => entry.ownerId === scope);
+}
+
 export function calendarShareText(shared: SharedCalendar): string {
   const names = shared.peers.map((peer) => peer.friend.name).join(", ");
   const head = names === "" ? "Мой календарь планов в MAX Афише" : `Общий календарь планов: ${names}`;
@@ -185,15 +191,48 @@ interface SharedCalendarViewProps {
   /** «Добавить друга» больше ничего не раскрывает внутри экрана — выбор живёт во всплывающем окне. */
   onAddFriend: () => void;
   notice?: string | null;
+  /** Полноэкранный календарь: крест сверху и нижняя панель вместо таббара. */
+  chrome?: boolean;
+  onClose?: () => void;
+  scope?: "own" | string;
+  onSelectScope?: (scope: "own" | string) => void;
+  onRemovePeer?: (userId: string) => void;
 }
 
-export function SharedCalendarView({ shared, entries, month, selected, now, onSelect, onOpen, onGoing, onShare, onAddFriend, notice = null }: SharedCalendarViewProps) {
+export function SharedCalendarView({
+  shared,
+  entries,
+  month,
+  selected,
+  now,
+  onSelect,
+  onOpen,
+  onGoing,
+  onShare,
+  onAddFriend,
+  notice = null,
+  chrome = false,
+  onClose,
+  scope = "own",
+  onSelectScope,
+  onRemovePeer,
+}: SharedCalendarViewProps) {
   const dayEntries = entriesOn(entries, selected);
   const warnings = overlapWarnings(dayEntries);
   const reminder = calendarReminder(entries, now);
   const peers = shared.status === "ready" ? peersLabel(shared.shared) : null;
+  const viewingOwn = scope === "own";
+  const viewingPeer = shared.status === "ready" ? shared.shared.peers.find((peer) => peer.friend.id === scope) : undefined;
   return (
-    <section className="app-cal" aria-label="Календарь планов">
+    <section className={chrome ? "app-cal app-cal--screen" : "app-cal"} aria-label="Календарь планов">
+      {chrome && (
+        <div className="app-cal-top">
+          <button type="button" className="app-cal-close" aria-label="Закрыть" onClick={onClose}>
+            <ActionIcon name="close" size={20} strokeWidth={2.2} />
+          </button>
+          <h1 className="app-cal-top-title">{viewingPeer ? viewingPeer.friend.name.split(" ")[0] : "Календарь"}</h1>
+        </div>
+      )}
       <div className="app-cal-head">
         <h2 className="app-cal-month">{monthTitle(month)}</h2>
         <button type="button" className="app-cal-share" onClick={onShare}>
@@ -203,18 +242,26 @@ export function SharedCalendarView({ shared, entries, month, selected, now, onSe
       </div>
 
       {shared.status === "error" && <AppState error>Не удалось загрузить общий календарь.</AppState>}
-      {peers !== null && shared.status === "ready" && (
+      {shared.status === "ready" && (shared.shared.peers.length > 0 || onSelectScope !== undefined) && (
         <div className="app-cal-peers">
-          <span className="app-cal-faces" role="img" aria-label={peers}>
-            <span className="app-cal-face">Я</span>
+          <div className="app-cal-peer-chips" role="group" aria-label="Чей календарь">
+            <button type="button" className={viewingOwn ? "app-cal-peer-chip app-cal-peer-chip--on" : "app-cal-peer-chip"} aria-pressed={viewingOwn} onClick={() => onSelectScope?.("own")}>
+              Мой календарь
+            </button>
             {shared.shared.peers.map((peer) => (
-              <span key={peer.friend.id} className="app-cal-face app-cal-face--alt">
-                {peer.friend.name.charAt(0)}
+              <span key={peer.friend.id} className={scope === peer.friend.id ? "app-cal-peer-chip app-cal-peer-chip--on" : "app-cal-peer-chip"}>
+                <button type="button" className="app-cal-peer-chip-name" aria-pressed={scope === peer.friend.id} onClick={() => onSelectScope?.(peer.friend.id)}>
+                  {peer.friend.name.split(" ")[0]}
+                </button>
+                {onRemovePeer !== undefined && (
+                  <button type="button" className="app-cal-peer-drop" aria-label={`Убрать ${peer.friend.name.split(" ")[0]} из календаря`} onClick={() => onRemovePeer(peer.friend.id)}>
+                    <ActionIcon name="close" size={12} strokeWidth={2.4} />
+                  </button>
+                )}
               </span>
             ))}
-          </span>
-          <span className="app-cal-peers-label">{peers}</span>
-          {shared.shared.peers.every((peer) => peer.canEdit) && <span className="app-cal-peers-right">можно редактировать</span>}
+          </div>
+          {peers !== null && viewingOwn && <span className="app-cal-peers-label">{peers}</span>}
         </div>
       )}
 
@@ -283,6 +330,7 @@ export function CalendarPage({ tab = "month" }: { tab?: CalendarTab } = {}) {
   const [notice, setNotice] = useState<string | null>(null);
   const [selected, setSelected] = useState<Date>(() => new Date());
   const [attempt, setAttempt] = useState(0);
+  const [scope, setScope] = useState<"own" | string>("own");
 
   useEffect(() => {
     if (userId === null) return;
@@ -338,7 +386,10 @@ export function CalendarPage({ tab = "month" }: { tab?: CalendarTab } = {}) {
     );
   }, []);
 
-  const entries = useMemo(() => mergeCalendarEntries(state.status === "ready" ? state.entries : [], plans, shared.status === "ready" ? shared.shared : null), [state, plans, shared]);
+  const entries = useMemo(() => {
+    const merged = mergeCalendarEntries(state.status === "ready" ? state.entries : [], plans, shared.status === "ready" ? shared.shared : null);
+    return filterCalendarScope(merged, scope);
+  }, [state, plans, shared, scope]);
 
   const peerIds = new Set(shared.status === "ready" ? shared.shared.peers.map((peer) => peer.friend.id) : []);
   const invitable = friends.filter((friend) => !peerIds.has(friend.id));
@@ -380,6 +431,17 @@ export function CalendarPage({ tab = "month" }: { tab?: CalendarTab } = {}) {
     );
   };
 
+  const removePeer = (peerId: string) => {
+    setNotice(null);
+    apiClient.removeSharedCalendarPeer(peerId).then(
+      (loaded) => {
+        setShared({ status: "ready", shared: loaded });
+        if (scope === peerId) setScope("own");
+      },
+      () => setNotice("Не удалось убрать друга из календаря."),
+    );
+  };
+
   return (
     <>
       {tab === "month" ? (
@@ -398,6 +460,11 @@ export function CalendarPage({ tab = "month" }: { tab?: CalendarTab } = {}) {
           onShare={share}
           onAddFriend={() => setPicking(true)}
           notice={notice}
+          chrome
+          onClose={() => navigate({ name: "plans" })}
+          scope={scope}
+          onSelectScope={setScope}
+          onRemovePeer={removePeer}
         />
       ) : (
         <>

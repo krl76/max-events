@@ -89,10 +89,12 @@ describe("RoutedPages", () => {
     expect(html).toContain("Сохранённое");
   });
 
-  it("maps the calendar route to the «Моё» screen opened on the calendar tab", async () => {
-    const html = await routedHtml({ name: "calendar" }, "Сохранённое");
+  it("maps the calendar route to the fullscreen calendar, without the «Моё» pills", async () => {
+    const html = await routedHtml({ name: "calendar" }, "Ссылка на календарь");
 
-    expect(html).toMatch(/<button[^>]*app-chip--on[^>]*>Календарь</);
+    expect(html).toContain("Добавить друга");
+    expect(html).toContain("Закрыть");
+    expect(html).not.toContain("Сохранённое");
   });
 
   it("maps the search route to экран 08 with its tiles and blocks", async () => {

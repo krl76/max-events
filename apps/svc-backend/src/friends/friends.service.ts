@@ -19,6 +19,7 @@ import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { ParticipationEntity } from "../participations/participation.entity";
+import { SubscriptionEntity } from "../subscriptions/subscription.entity";
 import { UserEntity } from "../users/user.entity";
 import { FriendshipEntity } from "./friendship.entity";
 
@@ -38,6 +39,7 @@ export class FriendsService {
     private readonly events: Repository<EventEntity>,
     @Inject(MaxBotClient) private readonly bot: MaxBotClient,
     @Inject(ConfigService) private readonly config: ConfigService,
+    @InjectRepository(SubscriptionEntity) private readonly subscriptions: Repository<SubscriptionEntity>,
   ) {}
 
   async friendIds(userId: string): Promise<Set<string>> {
@@ -62,13 +64,14 @@ export class FriendsService {
   async following(userId: string): Promise<Friend[]> {
     const me = await this.users.findOneBy({ id: userId });
     if (!me) throw new NotFoundException("User not found");
-    return this.list(userId);
+    const rows = await this.subscriptions.find({ where: { userId, type: "user" } });
+    return this.friendsOfIds(new Set(rows.flatMap((row) => (row.targetUserId ? [row.targetUserId] : []))));
   }
 
   async followers(userId: string): Promise<Friend[]> {
     const me = await this.users.findOneBy({ id: userId });
     if (!me) throw new NotFoundException("User not found");
-    const rows = await this.friendships.find({ where: { friendUserId: userId } });
+    const rows = await this.subscriptions.find({ where: { targetUserId: userId, type: "user" } });
     return this.friendsOfIds(new Set(rows.map((row) => row.userId)));
   }
 
@@ -123,29 +126,20 @@ export class FriendsService {
   async replaceFollows(userId: string, userIds: string[]): Promise<string[]> {
     const me = await this.users.findOneBy({ id: userId });
     if (!me) throw new NotFoundException("User not found");
-    const fromBot = await this.bot.listFriends(me.maxUserId);
+    // Follows live on subscriptions (type=user). Friendships are the MAX contact list
+    // (GET /friends) and must survive an unfollow.
     const unique = [...new Set(userIds)].filter((id) => id !== userId);
-    const existingIds = await this.friendIds(userId);
-    const all = await this.users.find();
-    const allowed = new Set<string>();
-    if (fromBot === null) {
-      // Staging/browser contour has no MAX contacts list. Unfollow still has to write.
-      for (const row of all) allowed.add(row.id);
-    } else {
-      for (const row of all) {
-        if (fromBot.includes(row.maxUserId) || existingIds.has(row.id)) allowed.add(row.id);
-      }
-    }
-    const nextIds = unique.filter((id) => allowed.has(id));
+    const known = new Set((await this.users.find()).map((row) => row.id));
+    const nextIds = unique.filter((id) => known.has(id));
     const next = new Set(nextIds);
-    const existing = await this.friendships.find({ where: { userId } });
+    const existing = await this.subscriptions.find({ where: { userId, type: "user" } });
     for (const row of existing) {
-      if (!next.has(row.friendUserId)) await this.friendships.delete({ id: row.id });
+      if (row.targetUserId && !next.has(row.targetUserId)) await this.subscriptions.delete({ id: row.id });
     }
-    const have = new Set(existing.filter((row) => next.has(row.friendUserId)).map((row) => row.friendUserId));
+    const have = new Set(existing.flatMap((row) => (row.targetUserId && next.has(row.targetUserId) ? [row.targetUserId] : [])));
     for (const id of nextIds) {
       if (have.has(id)) continue;
-      await this.friendships.save(this.friendships.create({ userId, friendUserId: id }));
+      await this.subscriptions.save(this.subscriptions.create({ userId, type: "user", organizerUserId: null, placeId: null, targetUserId: id, interest: null }));
     }
     return nextIds;
   }

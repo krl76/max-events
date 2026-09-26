@@ -26,6 +26,7 @@ import { shareResult, webApp } from "../max/bridge";
 import { readFeedPhoto } from "./photo";
 import { useRoute } from "../routing/router";
 import { ReportButton } from "../event/ReportButton";
+import { SaveToList } from "../event/SaveToList";
 import { StoryViewer, type StoryGroup } from "../stories/StoryViewer";
 import { markStoriesSeen, readSeenStories, storyRail } from "../stories/rail";
 import { AppAvatar, AppButton, AppChip, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
@@ -40,10 +41,23 @@ interface FeedPostCardProps {
   onToggleLike: () => void;
   onAddComment: (text: string) => void;
   onOpenEvent?: (eventId: string) => void;
+  hasStory?: boolean;
 }
 
-export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenEvent }: FeedPostCardProps) {
+/** Аватар автора поста: фото, если оно есть, и градиентное кольцо только при живой истории. */
+export function PostAuthorAvatar({ friend, hasStory = false, size = 36 }: { friend: Friend; hasStory?: boolean; size?: number }) {
+  const avatar = (
+    <AppAvatar src={friend.avatarUrl} size={size}>
+      {friend.name[0]}
+    </AppAvatar>
+  );
+  if (!hasStory) return avatar;
+  return <span className="app-story-ring app-story-ring--active">{avatar}</span>;
+}
+
+export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenEvent, hasStory = false }: FeedPostCardProps) {
   const [comment, setComment] = useState("");
+  const [saving, setSaving] = useState(false);
   const commentRef = useRef<HTMLInputElement | null>(null);
   const eventLink = onOpenEvent ? (
     <button type="button" className="app-plan-event" onClick={() => onOpenEvent(post.eventId)}>
@@ -55,7 +69,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
   return (
     <article className="app-card app-card--post">
       <header className="app-post-head">
-        <AppAvatar size={36}>{post.author.name[0]}</AppAvatar>
+        <PostAuthorAvatar friend={post.author} hasStory={hasStory} />
         <span className="app-post-id">
           <span className="app-post-author">{post.author.name}</span>
           {eventTitle !== "" && <span className="app-post-place">{eventLink}</span>}
@@ -72,10 +86,17 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         <button type="button" className="app-post-action" aria-label="Поделиться" onClick={() => void shareResult(webApp, `${post.author.name} — ${eventTitle}: ${post.text}`)}>
           <ActionIcon name="share" />
         </button>
-        <span className="app-post-action app-post-action--muted" aria-hidden="true">
-          <ActionIcon name="bookmark" />
-        </span>
+        {userId === "" ? (
+          <span className="app-post-action app-post-action--muted" aria-hidden="true">
+            <ActionIcon name="bookmark" />
+          </span>
+        ) : (
+          <button type="button" className="app-post-action" aria-pressed={saving} aria-label="Сохранить" onClick={() => setSaving(true)}>
+            <ActionIcon name="bookmark" />
+          </button>
+        )}
       </div>
+      {saving && userId !== "" && <SaveToList feedPostId={post.id} userId={userId} open onClose={() => setSaving(false)} />}
       <p className="app-post-likes">
         {post.likesCount} {pluralRu(post.likesCount, "отметка", "отметки", "отметок")} «нравится»
       </p>
@@ -115,6 +136,7 @@ export function FeedPostPage({ id }: { id: string }) {
   const [post, setPost] = useState<FeedPost | null>(null);
   const [event, setEvent] = useState<Event | null>(null);
   const [failed, setFailed] = useState(false);
+  const [storyAuthors, setStoryAuthors] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
     setFailed(false);
@@ -133,6 +155,13 @@ export function FeedPostPage({ id }: { id: string }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    apiClient.listStories().then(
+      (stories) => setStoryAuthors(new Set(stories.map((story) => story.userId))),
+      () => {},
+    );
+  }, []);
 
   if (failed)
     return (
@@ -157,6 +186,7 @@ export function FeedPostPage({ id }: { id: string }) {
         apiClient.addFeedComment(post.id, { userId, text }).then(setPost);
       }}
       onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })}
+      hasStory={storyAuthors.has(post.author.id)}
     />
   );
 }
@@ -169,6 +199,7 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
   const { navigate } = useRoute();
   const [state, setState] = useState<FeedState>({ status: "loading" });
   const [events, setEvents] = useState<Event[]>([]);
+  const [storyAuthors, setStoryAuthors] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
     apiClient.listFeedPosts(eventId, placeId).then(
@@ -185,6 +216,12 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
     apiClient.listEvents().then(
       (list) => {
         if (alive) setEvents(list);
+      },
+      () => {},
+    );
+    apiClient.listStories().then(
+      (stories) => {
+        if (alive) setStoryAuthors(new Set(stories.map((story) => story.userId)));
       },
       () => {},
     );
@@ -238,7 +275,7 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
       ) : state.posts.length === 0 ? (
         <AppEmptyState kind="empty-feed" onAction={() => navigate({ name: "feed-new", eventId: null })} />
       ) : (
-        state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} eventCategory={events.find((item) => item.id === post.eventId)?.category} userId={userId ?? ""} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} />)
+        state.posts.map((post) => <FeedPostCard key={post.id} post={post} eventTitle={eventTitle(post.eventId)} eventCategory={events.find((item) => item.id === post.eventId)?.category} userId={userId ?? ""} onToggleLike={() => toggleLike(post.id)} onAddComment={(text) => addComment(post.id, text)} onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined} hasStory={storyAuthors.has(post.author.id)} />)
       )}
     </AppSection>
   );

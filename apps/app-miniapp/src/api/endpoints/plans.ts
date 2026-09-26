@@ -226,5 +226,10 @@ export function withPlans<TBase extends ApiMixin>(Base: TBase) {
     addSharedCalendarPeer(userId: string): Promise<SharedCalendar> {
       return this.request("/calendar/shared/peers", SharedCalendarSchema, { body: { userId } });
     }
+
+    /** Убрать друга из общего календаря. */
+    removeSharedCalendarPeer(userId: string): Promise<SharedCalendar> {
+      return this.request(`/calendar/shared/peers/${userId}`, SharedCalendarSchema, { method: "DELETE" });
+    }
   };
 }

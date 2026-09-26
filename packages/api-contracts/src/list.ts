@@ -53,10 +53,11 @@ export const ListItemSchema = z
     listId: IdSchema,
     eventId: IdSchema.nullable().default(null),
     placeId: IdSchema.nullable().default(null),
+    feedPostId: IdSchema.nullable().default(null),
     addedAt: TimestampSchema,
   })
-  .refine((data) => (data.eventId !== null) !== (data.placeId !== null), {
-    message: "list item must reference exactly one of eventId or placeId",
+  .refine((data) => [data.eventId, data.placeId, data.feedPostId].filter((value) => value !== null).length === 1, {
+    message: "list item must reference exactly one of eventId, placeId or feedPostId",
     path: ["eventId"],
   });
 export type ListItem = z.infer<typeof ListItemSchema>;
@@ -65,9 +66,10 @@ export const AddListItemWriteSchema = z
   .object({
     eventId: IdSchema.optional(),
     placeId: IdSchema.optional(),
+    feedPostId: IdSchema.optional(),
   })
-  .refine((data) => (data.eventId !== undefined) !== (data.placeId !== undefined), {
-    message: "list item must reference exactly one of eventId or placeId",
+  .refine((data) => [data.eventId, data.placeId, data.feedPostId].filter((value) => value !== undefined).length === 1, {
+    message: "list item must reference exactly one of eventId, placeId or feedPostId",
     path: ["eventId"],
   });
 export type AddListItemWrite = z.infer<typeof AddListItemWriteSchema>;
@@ -94,15 +96,25 @@ export const ListSummarySchema = z.object({
 });
 export type ListSummary = z.infer<typeof ListSummarySchema>;
 
+export const ListPostSchema = z.object({
+  id: IdSchema,
+  text: z.string(),
+  photoUrl: z.string().nullable(),
+  author: FriendSchema,
+  eventTitle: z.string(),
+});
+export type ListPost = z.infer<typeof ListPostSchema>;
+
 export const ListItemCardSchema = z
   .object({
     item: ListItemSchema,
     event: EventSchema.nullable().default(null),
     place: PlaceSchema.nullable().default(null),
+    post: ListPostSchema.nullable().default(null),
     addedBy: FriendSchema.nullable().default(null),
   })
-  .refine((data) => (data.event !== null) !== (data.place !== null), {
-    message: "list item card must reference exactly one of event or place",
+  .refine((data) => [data.event, data.place, data.post].filter((value) => value !== null).length === 1, {
+    message: "list item card must reference exactly one of event, place or post",
     path: ["event"],
   });
 export type ListItemCard = z.infer<typeof ListItemCardSchema>;

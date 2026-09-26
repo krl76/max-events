@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CalendarView, SharedCalendarView, calendarShareText, instrumentalName, peersLabel, splitCalendarEntries } from "./CalendarPage";
+import { CalendarView, SharedCalendarView, calendarShareText, filterCalendarScope, instrumentalName, peersLabel, splitCalendarEntries } from "./CalendarPage";
 import type { Booking, Friend } from "@max-events/api-contracts";
 import type { CalendarEntry, SharedCalendar } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
+import type { CalendarSource } from "./MonthCalendar";
 
 const NOW = new Date("2026-09-20T12:00:00+03:00");
 
@@ -130,7 +131,7 @@ describe("CalendarView", () => {
 });
 
 describe("SharedCalendarView", () => {
-  const props = { shared: { status: "ready" as const, shared: sharedWith(["Анна Соколова"]) }, entries: [], month: NOW, selected: NOW, now: NOW, onSelect: () => {}, onOpen: () => {}, onGoing: () => {}, onShare: () => {}, onAddFriend: () => {} };
+  const props = { shared: { status: "ready" as const, shared: sharedWith(["Анна Соколова"]) }, entries: [], month: NOW, selected: NOW, now: NOW, onSelect: () => {}, onOpen: () => {}, onGoing: () => {}, onShare: () => {}, onAddFriend: () => {}, chrome: true, onClose: () => {}, onSelectScope: () => {}, onRemovePeer: () => {} };
 
   it("keeps «Добавить друга» a single button and no longer unfolds a list inside the screen", () => {
     const html = renderToStaticMarkup(createElement(SharedCalendarView, props));
@@ -146,5 +147,24 @@ describe("SharedCalendarView", () => {
 
     expect(html).not.toContain("app-cal-switch");
     expect(html).not.toContain("Мои брони");
+  });
+
+  it("pins a close control and a way back to the own calendar, and can drop a friend", () => {
+    const html = renderToStaticMarkup(createElement(SharedCalendarView, props));
+
+    expect(html).toContain("Закрыть");
+    expect(html).toContain("Мой календарь");
+    expect(html).toContain("Убрать Анна из календаря");
+    expect(html).toContain("Ссылка на календарь");
+  });
+});
+
+describe("filterCalendarScope", () => {
+  it("keeps own rows on own scope and a friend's rows when that friend is selected", () => {
+    const own = { id: "o", sources: ["own"] as CalendarSource[], title: "Своё", startsAt: "2026-10-01T12:00:00+03:00", endsAt: null, note: "", needsResponse: false, faces: ["Я"], eventId: null, planId: null, sharedId: null, ownerId: null };
+    const peer = { ...own, id: "p", sources: ["peer"] as CalendarSource[], title: "Друга", ownerId: "friend-1" };
+
+    expect(filterCalendarScope([own, peer], "own").map((row) => row.id)).toEqual(["o"]);
+    expect(filterCalendarScope([own, peer], "friend-1").map((row) => row.id)).toEqual(["p"]);
   });
 });

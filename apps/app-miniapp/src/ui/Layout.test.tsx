@@ -119,7 +119,7 @@ describe("routeHasHeader", () => {
   it("keeps the header on the home tab and the detail routes", () => {
     expect(routeHasHeader({ name: "home" })).toBe(true);
     expect(routeHasHeader({ name: "settings" })).toBe(true);
-    expect(routeHasHeader({ name: "calendar" })).toBe(true);
+    expect(routeHasHeader({ name: "calendar" })).toBe(false);
     // Карточка площадки (макет, экран 34) шапку потеряла: она несёт собственную кнопку назад поверх
     // полотна и собственную нижнюю панель, поэтому маршрут переехал в полноэкранные.
     expect(routeHasHeader({ name: "place", id: "p1" })).toBe(false);
@@ -135,6 +135,7 @@ describe("routeIsFullscreen", () => {
   it("gives the whole viewport to the story and post composers, whose own bottom rail the tabbar would cover", () => {
     expect(routeIsFullscreen({ name: "story-new" })).toBe(true);
     expect(routeIsFullscreen({ name: "feed-new", eventId: null })).toBe(true);
+    expect(routeIsFullscreen({ name: "calendar" })).toBe(true);
   });
 
   it("leaves the shell in place everywhere else, the «Создать» hub included", () => {

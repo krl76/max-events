@@ -13,8 +13,8 @@
 // - withLists - ApiClient.listLists / createList / renameList / deleteList / addListItem / removeListItem / getList / inviteListMember / leaveList / listSubscriptions / createSubscription / removeSubscription
 // END_MODULE_MAP
 
-import { EventSchema, FriendSchema, ListItemSchema, ListSchema, PlaceSchema, SubscriptionSchema } from "@max-events/api-contracts";
-import type { CreateSubscription, Event, Friend, List, ListItem, Place, Subscription } from "@max-events/api-contracts";
+import { EventSchema, FriendSchema, ListItemSchema, ListPostSchema, ListSchema, PlaceSchema, SubscriptionSchema } from "@max-events/api-contracts";
+import type { CreateSubscription, Event, Friend, List, ListItem, ListPost, Place, Subscription } from "@max-events/api-contracts";
 import type { ApiMixin, ZodSchema } from "./transport";
 
 /** Lists screen aggregate: a preset or custom list, its item count, the id of the item saving the checked event (null when not saved) and the participants of a shared collection (empty for personal lists). */
@@ -48,11 +48,12 @@ const ListSummaryArraySchema: ZodSchema<ListSummary[]> = {
   },
 };
 
-/** List screen aggregate: a list item enriched with exactly one of its event or its place, and the participant who added it (null outside shared collections). */
+/** List screen aggregate: a list item enriched with exactly one of its event, place or post, and the participant who added it (null outside shared collections). */
 export interface ListItemCard {
   item: ListItem;
   event: Event | null;
   place: Place | null;
+  post: ListPost | null;
   addedBy: Friend | null;
 }
 
@@ -65,14 +66,15 @@ const ListItemCardArraySchema: ZodSchema<ListItemCard[]> = {
       const raw = entry as Record<string, unknown>;
       const item = ListItemSchema.safeParse(raw.item);
       if (!item.success) return { success: false as const, error: "invalid list item card" };
-      // A list keeps events and places alike; a card names one of the two, never both and never neither.
       const event = raw.event === undefined || raw.event === null ? null : EventSchema.safeParse(raw.event);
       const place = raw.place === undefined || raw.place === null ? null : PlaceSchema.safeParse(raw.place);
-      if ((event !== null && !event.success) || (place !== null && !place.success)) return { success: false as const, error: "invalid list item card" };
-      if ((event !== null) === (place !== null)) return { success: false as const, error: "invalid list item card" };
+      const post = raw.post === undefined || raw.post === null ? null : ListPostSchema.safeParse(raw.post);
+      if ((event !== null && !event.success) || (place !== null && !place.success) || (post !== null && !post.success)) return { success: false as const, error: "invalid list item card" };
+      const named = [event !== null, place !== null, post !== null].filter(Boolean).length;
+      if (named !== 1) return { success: false as const, error: "invalid list item card" };
       const addedBy = raw.addedBy === undefined || raw.addedBy === null ? null : FriendSchema.safeParse(raw.addedBy);
       if (addedBy !== null && !addedBy.success) return { success: false as const, error: "invalid list item card" };
-      cards.push({ item: item.data, event: event !== null && event.success ? event.data : null, place: place !== null && place.success ? place.data : null, addedBy: addedBy !== null && addedBy.success ? addedBy.data : null });
+      cards.push({ item: item.data, event: event !== null && event.success ? event.data : null, place: place !== null && place.success ? place.data : null, post: post !== null && post.success ? post.data : null, addedBy: addedBy !== null && addedBy.success ? addedBy.data : null });
     }
     return { success: true as const, data: cards };
   },
@@ -102,17 +104,20 @@ const ListScreenSchema: ZodSchema<ListScreen> = {
   },
 };
 
-/** Save-to-list payload: the owner user and the saved event; the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token). */
+/** Save-to-list payload: the owner user and exactly one of event/place/post; userId is a mock-only convenience ignored by the live backend. */
 export interface AddListItem {
   userId: string;
-  eventId: string;
+  eventId?: string;
+  placeId?: string;
+  feedPostId?: string;
 }
 
 export function withLists<TBase extends ApiMixin>(Base: TBase) {
   return class ListEndpoints extends Base {
-    listLists(userId: string, eventId?: string): Promise<ListSummary[]> {
+    listLists(userId: string, eventId?: string, feedPostId?: string): Promise<ListSummary[]> {
       const query = new URLSearchParams({ userId });
       if (eventId !== undefined) query.set("eventId", eventId);
+      if (feedPostId !== undefined) query.set("feedPostId", feedPostId);
       return this.request(`/lists?${query.toString()}`, ListSummaryArraySchema);
     }
 

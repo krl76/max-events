@@ -69,6 +69,19 @@ describe("FeedPostCard", () => {
   it("renders the report button for the post", () => {
     expect(card()).toContain("Пожаловаться");
   });
+
+  it("uses the author photo and a story ring when the author has a live story", () => {
+    const withPhoto = card({ author: { ...post.author, avatarUrl: "https://cdn.example.com/anna.jpg" } });
+    expect(withPhoto).toContain('src="https://cdn.example.com/anna.jpg"');
+    expect(withPhoto).not.toContain("app-story-ring--active");
+    const withStory = renderToStaticMarkup(createElement(FeedPostCard, { post: { ...post, author: { ...post.author, avatarUrl: "https://cdn.example.com/anna.jpg" } }, eventTitle: mockEvents[0].title, userId: DEMO_USER_ID, onToggleLike: noop, onAddComment: noop, hasStory: true }));
+    expect(withStory).toContain("app-story-ring--active");
+    expect(withStory).toContain('src="https://cdn.example.com/anna.jpg"');
+  });
+
+  it("turns the bookmark into a save control", () => {
+    expect(card()).toContain('aria-label="Сохранить"');
+  });
 });
 
 describe("feedDraftReady", () => {

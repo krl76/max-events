@@ -6,6 +6,7 @@ import { EventEntity } from "../events/event.entity";
 import type { MaxBotClient } from "../max-bot/max-bot.client";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { UserEntity } from "../users/user.entity";
+import { SubscriptionEntity } from "../subscriptions/subscription.entity";
 import { FriendshipEntity } from "./friendship.entity";
 import { FriendsService } from "./friends.service";
 
@@ -103,6 +104,36 @@ function createEventRepo(initial: EventEntity[]) {
   };
 }
 
+function createSubscriptionRepo(initial: SubscriptionEntity[] = []) {
+  const store = [...initial];
+  let seq = 0;
+  return {
+    store,
+    create: (fields: Partial<SubscriptionEntity>) => ({ ...fields }) as SubscriptionEntity,
+    find: async (opts: { where?: { userId?: string; type?: string; targetUserId?: string } } = {}) =>
+      store.filter((row) => {
+        if (opts.where?.userId && row.userId !== opts.where.userId) return false;
+        if (opts.where?.type && row.type !== opts.where.type) return false;
+        if (opts.where?.targetUserId && row.targetUserId !== opts.where.targetUserId) return false;
+        return true;
+      }),
+    delete: async (where: { id: string }) => {
+      const index = store.findIndex((row) => row.id === where.id);
+      if (index < 0) return { affected: 0 };
+      store.splice(index, 1);
+      return { affected: 1 };
+    },
+    save: async (entity: SubscriptionEntity) => {
+      if (!store.includes(entity)) {
+        entity.id ??= `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
+        entity.createdAt ??= now;
+        store.push(entity);
+      }
+      return entity;
+    },
+  };
+}
+
 function createService(options: { botFriends?: string[] | null; users?: UserEntity[]; participations?: ParticipationEntity[]; events?: EventEntity[]; demoAllUsers?: boolean; nodeEnv?: string } = {}) {
   const users = options.users ?? [user(meId, "1", "Демо"), user(annaId, "2", "Анна", "Соколова"), user(dimaId, "3", "Дима", "Кузнецов")];
   const events = options.events ?? [eventRow(eventJazz, "Джаз в парке", "2026-09-20T16:00:00.000Z"), eventRow(eventMatch, "Матч", "2026-09-18T16:00:00.000Z")];
@@ -118,8 +149,9 @@ function createService(options: { botFriends?: string[] | null; users?: UserEnti
       return undefined;
     },
   } as unknown as ConfigService;
-  const service = new FriendsService(friendships as unknown as Repository<FriendshipEntity>, createUserRepo(users) as unknown as Repository<UserEntity>, createParticipationRepo(participations) as unknown as Repository<ParticipationEntity>, createEventRepo(events) as unknown as Repository<EventEntity>, bot as MaxBotClient, config);
-  return { friendships, botState, service };
+  const subscriptions = createSubscriptionRepo();
+  const service = new FriendsService(friendships as unknown as Repository<FriendshipEntity>, createUserRepo(users) as unknown as Repository<UserEntity>, createParticipationRepo(participations) as unknown as Repository<ParticipationEntity>, createEventRepo(events) as unknown as Repository<EventEntity>, bot as MaxBotClient, config, subscriptions as unknown as Repository<SubscriptionEntity>);
+  return { friendships, subscriptions, botState, service };
 }
 
 describe("FriendsService", () => {
@@ -205,21 +237,21 @@ describe("FriendsService", () => {
     expect(hints.map((row) => row.friend.id)).toEqual([annaId]);
     expect(hints[0]?.following).toBe(true);
     expect(hints[0]?.hint).toBe("уже в друзьях");
-    expect(await service.replaceFollows(meId, [dimaId, dimaId, meId])).toEqual([]);
-
-    const withDima = createService({ botFriends: ["2", "3"] });
-    const saved = await withDima.service.replaceFollows(meId, [dimaId, dimaId, meId]);
-    expect(saved).toEqual([dimaId]);
-    expect((await withDima.service.list(meId)).map((row) => row.id)).toEqual([dimaId]);
+    expect(await service.replaceFollows(meId, [dimaId, dimaId, meId])).toEqual([dimaId]);
+    expect((await service.following(meId)).map((row) => row.id)).toEqual([dimaId]);
+    expect((await service.list(meId)).map((row) => row.id)).toEqual([annaId]);
   });
 
-  it("unfollows even when MAX has no contacts list", async () => {
-    const { service, botState } = createService({ botFriends: ["2"] });
-    await service.replaceFollows(meId, [annaId]);
+  it("unfollows even when MAX has no contacts list, and leaves the friends roster alone", async () => {
+    const { service, friendships } = createService({ botFriends: ["2"] });
+    await service.sync(meId);
     expect((await service.list(meId)).map((row) => row.id)).toEqual([annaId]);
-    botState.friends = null;
+    await service.replaceFollows(meId, [annaId]);
+    expect((await service.following(meId)).map((row) => row.id)).toEqual([annaId]);
     expect(await service.replaceFollows(meId, [])).toEqual([]);
-    expect(await service.list(meId)).toEqual([]);
+    expect(await service.following(meId)).toEqual([]);
+    expect((await service.list(meId)).map((row) => row.id)).toEqual([annaId]);
+    expect(friendships.store).toHaveLength(1);
   });
 
   it("lists outgoing follows and incoming followers", async () => {
@@ -228,6 +260,7 @@ describe("FriendsService", () => {
     expect((await service.following(meId)).map((row) => row.id)).toEqual([annaId]);
     expect((await service.followers(annaId)).map((row) => row.id)).toEqual([meId]);
     expect(await service.followers(meId)).toEqual([]);
+    expect(await service.list(meId)).toEqual([]);
     await expect(service.following("00000000-0000-4000-8000-0000000000ff")).rejects.toBeInstanceOf(NotFoundException);
   });
 });

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ListPresetSchema, ListItemSchema, ListSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { installMockApi, LIST_PRESET_TITLES, listItemCards, listSummaries, mockEvents, resetMockLists } from "./mock";
+import { feedPosts, installMockApi, LIST_PRESET_TITLES, listItemCards, listSummaries, mockEvents, resetMockLists } from "./mock";
 
 const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
@@ -168,5 +168,20 @@ describe("lists mock endpoints", () => {
     await expect(client.addListItem(list.list.id, { userId: DEMO_USER_ID, eventId: "00000000-0000-4000-8000-000000000000" })).rejects.toMatchObject({ name: "ApiError", status: 404 });
     await expect(client.addListItem(list.list.id, { userId: "", eventId: mockEvents[0].id })).rejects.toMatchObject({ name: "ApiError", status: 400 });
     await expect(client.removeListItem(list.list.id, "71000000-0000-4000-8000-000000000099")).rejects.toMatchObject({ name: "ApiError", status: 404 });
+  });
+
+  it("saves a feed post into a list and marks it as saved", async () => {
+    restore = installMockApi();
+    const client = new ApiClient("/api");
+    const post = feedPosts(null)[0];
+    const list = (await client.listLists(DEMO_USER_ID)).find((summary) => summary.list.preset === "favorites")!;
+    const item = await client.addListItem(list.list.id, { userId: DEMO_USER_ID, feedPostId: post.id });
+
+    expect(item.feedPostId).toBe(post.id);
+    expect(item.eventId).toBeNull();
+    const after = (await client.listLists(DEMO_USER_ID, undefined, post.id)).find((summary) => summary.list.id === list.list.id)!;
+    expect(after.savedItemId).toBe(item.id);
+    const cards = listItemCards(list.list.id)!;
+    expect(cards.some((card) => card.post?.id === post.id)).toBe(true);
   });
 });

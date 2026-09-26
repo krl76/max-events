@@ -56,6 +56,7 @@ const GatheringFlowPage = lazyNamed(() => import("../gathering/GatheringFlowPage
 const GatheringStatusPage = lazyNamed(() => import("../gathering/GatheringStatusPage"), "GatheringStatusPage");
 const VotePage = lazyNamed(() => import("../votes/VotePage"), "VotePage");
 const PlansPage = lazyNamed(() => import("../plans/PlansPage"), "PlansPage");
+const CalendarPage = lazyNamed(() => import("../calendar/CalendarPage"), "CalendarPage");
 const PlanPage = lazyNamed(() => import("../plans/PlanPage"), "PlanPage");
 const PlanCreatePage = lazyNamed(() => import("../plans/PlanCreatePage"), "PlanCreatePage");
 const SearchPage = lazyNamed(() => import("../search/SearchPage"), "SearchPage");
@@ -130,7 +131,7 @@ function Routed() {
   if (route.name === "friends") return <FriendsPage />;
   if (route.name === "discovery") return <DiscoveryPage />;
   if (route.name === "people") return <PeoplePage />;
-  if (route.name === "calendar") return <PlansPage tab="calendar" />;
+  if (route.name === "calendar") return <CalendarPage />;
   if (route.name === "search") return <SearchPage />;
   if (route.name === "swipe") return <SwipePage />;
   if (route.name === "map") return <MapPage />;

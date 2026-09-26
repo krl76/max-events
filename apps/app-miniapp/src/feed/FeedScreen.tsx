@@ -38,7 +38,7 @@ import { shareResult, webApp } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppEmptyState, AppSkeleton, AppState } from "../ui/primitives";
-import { StoriesRow } from "./FeedPage";
+import { PostAuthorAvatar, StoriesRow } from "./FeedPage";
 
 /** The enum has six statuses; the venue block of the design offers these four, in this order. */
 export const FEED_PLACE_STATUSES = ["wants_to_go", "going", "looking_for_company", "looking_for_travel_buddy"] as const satisfies readonly ParticipationStatus[];
@@ -168,9 +168,10 @@ interface FeedFriendPostProps {
   onToggleGoing: () => void;
   onOpenComments: () => void;
   onShare: () => void;
+  hasStory?: boolean;
 }
 
-export function FeedFriendPost({ card, now, onOpenEvent, onToggleLike, onToggleGoing, onOpenComments, onShare }: FeedFriendPostProps) {
+export function FeedFriendPost({ card, now, onOpenEvent, onToggleLike, onToggleGoing, onOpenComments, onShare, hasStory = false }: FeedFriendPostProps) {
   const where = [card.placeTitle, formatFeedDistance(card.distanceKm)].filter((part): part is string => part !== null && part !== "").join(" · ");
   const counts = feedCountsLine(card.counts, card.live);
   const comments = feedCommentsLine(card.comments, card.commentsCount);
@@ -178,9 +179,7 @@ export function FeedFriendPost({ card, now, onOpenEvent, onToggleLike, onToggleG
   return (
     <article className="app-feed-post">
       <header className="app-feed-post-head">
-        <span className="app-feed-ring" aria-hidden="true">
-          <span className="app-feed-ring-inner">{card.author.name.charAt(0)}</span>
-        </span>
+        <PostAuthorAvatar friend={card.author} hasStory={hasStory} />
         <span className="app-feed-post-id">
           <span className="app-feed-post-author">{card.author.name}</span>
           {where !== "" && <span className="app-feed-post-where">{where}</span>}
@@ -361,8 +360,8 @@ export interface FeedCardHandlers {
   onGather: (card: FeedPlaceCard) => void;
 }
 
-export function FeedCardList({ cards, now, handlers }: { cards: FeedCard[]; now: Date; handlers: FeedCardHandlers }) {
-  return <div className="app-feed-posts">{cards.map((card) => (card.kind === "friend" ? <FeedFriendPost key={card.id} card={card} now={now} onOpenEvent={handlers.onOpenEvent} onToggleLike={() => handlers.onToggleLike(card)} onToggleGoing={() => handlers.onToggleGoing(card)} onOpenComments={() => handlers.onOpenComments(card)} onShare={() => handlers.onShare(card)} /> : <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} />))}</div>;
+export function FeedCardList({ cards, now, handlers, storyAuthors }: { cards: FeedCard[]; now: Date; handlers: FeedCardHandlers; storyAuthors?: ReadonlySet<string> }) {
+  return <div className="app-feed-posts">{cards.map((card) => (card.kind === "friend" ? <FeedFriendPost key={card.id} card={card} now={now} onOpenEvent={handlers.onOpenEvent} onToggleLike={() => handlers.onToggleLike(card)} onToggleGoing={() => handlers.onToggleGoing(card)} onOpenComments={() => handlers.onOpenComments(card)} onShare={() => handlers.onShare(card)} hasStory={storyAuthors?.has(card.author.id) === true} /> : <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} />))}</div>;
 }
 
 /** Экран 04: the rows are aria-hidden, so the status label is what assistive tech reads. */
@@ -411,6 +410,7 @@ export function FeedScreen() {
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
   const [state, setState] = useState<FeedScreenState>({ status: "loading" });
+  const [storyAuthors, setStoryAuthors] = useState<Set<string>>(new Set());
   const now = new Date();
 
   const fetchCards = useCallback(
@@ -428,6 +428,13 @@ export function FeedScreen() {
   useEffect(() => {
     fetchCards(true);
   }, [fetchCards]);
+
+  useEffect(() => {
+    apiClient.listStories().then(
+      (stories) => setStoryAuthors(new Set(stories.map((story) => story.userId))),
+      () => {},
+    );
+  }, []);
 
   // Both paths re-read the feed: a rejected write must leave the screen showing what the server holds, not what the tap implied.
   const settle = useCallback(
@@ -475,7 +482,7 @@ export function FeedScreen() {
       ) : state.cards.length === 0 ? (
         <AppEmptyState kind="empty-feed" onAction={() => navigate({ name: "create" })} />
       ) : (
-        <FeedCardList cards={state.cards} now={now} handlers={handlers} />
+        <FeedCardList cards={state.cards} now={now} handlers={handlers} storyAuthors={storyAuthors} />
       )}
     </section>
   );

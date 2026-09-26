@@ -54,14 +54,16 @@ export function listsRoutes(url: URL, init: RequestInit | undefined): Response |
     return created === "too_many" ? new Response(null, { status: 409 }) : Response.json(created);
   }
   if (url.pathname === "/api/lists") {
-    return Response.json(listSummaries(url.searchParams.get("userId") ?? "", url.searchParams.get("eventId")));
+    return Response.json(listSummaries(url.searchParams.get("userId") ?? "", url.searchParams.get("eventId"), url.searchParams.get("feedPostId")));
   }
   const listItems = /^\/api\/lists\/([^/]+)\/items$/.exec(url.pathname);
   if (listItems && init?.method === "POST") {
     const payload = parseBookingBody(init) as AddListItem | undefined;
-    if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || payload.userId === "" || typeof payload.eventId !== "string") return new Response(null, { status: 400 });
+    if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || payload.userId === "") return new Response(null, { status: 400 });
+    const named = [typeof payload.eventId === "string", typeof payload.placeId === "string", typeof payload.feedPostId === "string"].filter(Boolean).length;
+    if (named !== 1) return new Response(null, { status: 400 });
     const result = addMockListItem(listItems[1], payload);
-    return result === "no_list" || result === "no_event" ? new Response(null, { status: 404 }) : Response.json(result);
+    return result === "no_list" || result === "no_event" || result === "no_post" ? new Response(null, { status: 404 }) : Response.json(result);
   }
   if (listItems) {
     const cards = listItemCards(listItems[1]);

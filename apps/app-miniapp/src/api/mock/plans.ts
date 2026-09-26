@@ -29,6 +29,7 @@
 // - mockSharedCalendar - mock GET /calendar/shared: the peer records of макет экрана 22
 // - joinMockSharedCalendarEntry - mock POST /calendar/shared/entries/:id/going: «Пойду» on a peer record
 // - addMockSharedCalendarPeer - mock POST /calendar/shared/peers: share the calendar with one more friend
+// - removeMockSharedCalendarPeer - mock DELETE /calendar/shared/peers/:id
 // - resetMockSharedCalendar - restore the seeded shared calendar (test isolation)
 // END_MODULE_MAP
 
@@ -558,6 +559,17 @@ export function addMockSharedCalendarPeer(userId: string): SharedCalendar | null
   const friend = mockFriends.find((row) => row.id === userId);
   if (friend === undefined) return null;
   if (!mockSharedPeers.some((row) => row.friend.id === userId)) mockSharedPeers.push({ friend, canEdit: true });
+  return mockSharedCalendar();
+}
+
+/** Mock DELETE /calendar/shared/peers/:id: drop a friend from the shared calendar. */
+export function removeMockSharedCalendarPeer(userId: string): SharedCalendar | null {
+  const index = mockSharedPeers.findIndex((row) => row.friend.id === userId);
+  if (index < 0) return null;
+  mockSharedPeers.splice(index, 1);
+  for (let i = mockSharedEntries.length - 1; i >= 0; i -= 1) {
+    if (mockSharedEntries[i]!.owner.id === userId) mockSharedEntries.splice(i, 1);
+  }
   return mockSharedCalendar();
 }
 

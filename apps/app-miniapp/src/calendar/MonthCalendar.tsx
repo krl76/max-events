@@ -48,6 +48,8 @@ export interface CalendarDayEntry {
   planId: string | null;
   /** Заполнен у записи друга: по нему уходит «Пойду». */
   sharedId: string | null;
+  /** Чья это запись: null — своя, иначе id друга из общего календаря. */
+  ownerId: string | null;
 }
 
 export function dayKey(value: string | Date): string {
@@ -93,7 +95,7 @@ export function mergeCalendarEntries(bookings: CalendarEntry[], plans: PlanCard[
   const rows: CalendarDayEntry[] = [];
   for (const { booking, event, place } of bookings) {
     if (bothGoingEventIds.has(event.id)) continue;
-    rows.push({ id: `booking-${booking.id}`, sources: ["own"], title: event.title, startsAt: event.startsAt, endsAt: event.endsAt, note: place === null ? "ваша бронь" : `ваша бронь · ${place.title}`, needsResponse: false, faces: ["Я"], eventId: event.id, planId: null, sharedId: null });
+    rows.push({ id: `booking-${booking.id}`, sources: ["own"], title: event.title, startsAt: event.startsAt, endsAt: event.endsAt, note: place === null ? "ваша бронь" : `ваша бронь · ${place.title}`, needsResponse: false, faces: ["Я"], eventId: event.id, planId: null, sharedId: null, ownerId: null });
   }
   for (const { plan, event } of plans) {
     if (bothGoingEventIds.has(event.id)) continue;
@@ -109,6 +111,7 @@ export function mergeCalendarEntries(bookings: CalendarEntry[], plans: PlanCard[
       eventId: event.id,
       planId: plan.id,
       sharedId: null,
+      ownerId: null,
     });
   }
   for (const entry of sharedEntries) {
@@ -124,6 +127,7 @@ export function mergeCalendarEntries(bookings: CalendarEntry[], plans: PlanCard[
       eventId: entry.eventId,
       planId: null,
       sharedId: entry.id,
+      ownerId: entry.owner.id,
     });
   }
   return rows.sort((a, b) => a.startsAt.localeCompare(b.startsAt));

@@ -48,7 +48,7 @@ export function SaveToListView({ state, onToggle, onDone }: { state: SaveToListS
  * in the hero, so the page owns the flag; anywhere the picker is on its own it still carries its own
  * «Сохранить» button rather than forcing every caller to invent one.
  */
-export function SaveToList({ eventId, userId, open, onClose }: { eventId: string; userId: string; open?: boolean; onClose?: () => void }) {
+export function SaveToList({ eventId, feedPostId, userId, open, onClose }: { eventId?: string; feedPostId?: string; userId: string; open?: boolean; onClose?: () => void }) {
   const [selfOpen, setSelfOpen] = useState(false);
   const controlled = open !== undefined;
   const isOpen = controlled ? open : selfOpen;
@@ -56,21 +56,22 @@ export function SaveToList({ eventId, userId, open, onClose }: { eventId: string
 
   const load = useCallback(() => {
     setState({ status: "loading" });
-    apiClient.listLists(userId, eventId).then(
+    apiClient.listLists(userId, eventId, feedPostId).then(
       (summaries) => setState({ status: "ready", summaries }),
       () => setState({ status: "error" }),
     );
-  }, [userId, eventId]);
+  }, [userId, eventId, feedPostId]);
   useEffect(() => {
     if (isOpen) load();
   }, [isOpen, load]);
 
   const toggle = useCallback(
     (summary: ListSummary) => {
-      const call = summary.savedItemId === null ? apiClient.addListItem(summary.list.id, { userId, eventId }) : apiClient.removeListItem(summary.list.id, summary.savedItemId);
+      const payload = eventId !== undefined ? { userId, eventId } : { userId, feedPostId: feedPostId! };
+      const call = summary.savedItemId === null ? apiClient.addListItem(summary.list.id, payload) : apiClient.removeListItem(summary.list.id, summary.savedItemId);
       call.then(load, load);
     },
-    [userId, eventId, load],
+    [userId, eventId, feedPostId, load],
   );
 
   if (!isOpen) {

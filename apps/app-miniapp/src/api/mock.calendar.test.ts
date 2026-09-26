@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { addMockPlanParticipant, addMockSharedCalendarPeer, joinMockSharedCalendarEntry, mockFriends, mockPlanTimeline, mockSharedCalendar, openMockPlanChat, planCards, resetMockPlans, resetMockSharedCalendar } from "./mock";
+import { addMockPlanParticipant, addMockSharedCalendarPeer, joinMockSharedCalendarEntry, mockFriends, mockPlanTimeline, mockSharedCalendar, openMockPlanChat, planCards, removeMockSharedCalendarPeer, resetMockPlans, resetMockSharedCalendar } from "./mock";
 
 const UNKNOWN_ID = "90000000-0000-4000-8000-0000000000ff";
 
@@ -138,5 +138,16 @@ describe("addMockSharedCalendarPeer", () => {
 
   it("refuses someone who is not a friend", () => {
     expect(addMockSharedCalendarPeer("a0000000-0000-4000-8000-0000000000ff")).toBeNull();
+  });
+});
+
+describe("removeMockSharedCalendarPeer", () => {
+  it("drops a friend and their entries from the shared calendar", () => {
+    const before = mockSharedCalendar();
+    expect(before.peers.map((peer) => peer.friend.id)).toContain(mockFriends[0].id);
+    const after = removeMockSharedCalendarPeer(mockFriends[0].id);
+    expect(after?.peers.map((peer) => peer.friend.id)).not.toContain(mockFriends[0].id);
+    expect(after?.entries.some((entry) => entry.owner.id === mockFriends[0].id)).toBe(false);
+    expect(removeMockSharedCalendarPeer(mockFriends[0].id)).toBeNull();
   });
 });

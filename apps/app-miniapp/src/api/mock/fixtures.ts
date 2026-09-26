@@ -96,15 +96,22 @@ export const MOCK_ORGANIZER_CREDENTIALS = { login: "demo", password: "demo" } as
 
 export const mockFriendIds: string[] = ["a0000000-0000-4000-8000-0000000000b1", "a0000000-0000-4000-8000-0000000000b2", "a0000000-0000-4000-8000-0000000000b3", "a0000000-0000-4000-8000-0000000000b4", "a0000000-0000-4000-8000-0000000000b5", "a0000000-0000-4000-8000-0000000000b6", "a0000000-0000-4000-8000-0000000000b7"];
 
-/** Friend fixtures for the friends feed; avatarUrl is null so the UI renders initials avatars. */
+/** Compact portrait so a post, a story ring and a profile tile show the same face. */
+function mockPortrait(name: string, hue: number): string {
+  const letter = name.charAt(0);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue} 72% 48%)"/><stop offset="1" stop-color="hsl(${(hue + 36) % 360} 68% 34%)"/></linearGradient></defs><rect width="96" height="96" fill="url(#g)"/><text x="48" y="62" text-anchor="middle" fill="#fff" font-size="40" font-family="system-ui,sans-serif">${letter}</text></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+/** Friend fixtures for the friends feed; each portrait is reused on posts, stories and the profile. */
 export const mockFriends: Friend[] = [
-  { id: mockFriendIds[0], name: "Анна Соколова", avatarUrl: null },
-  { id: mockFriendIds[1], name: "Дима Кузнецов", avatarUrl: null },
-  { id: mockFriendIds[2], name: "Катя Орлова", avatarUrl: null },
-  { id: mockFriendIds[3], name: "Пётр Новиков", avatarUrl: null },
-  { id: mockFriendIds[4], name: "Мария Белова", avatarUrl: null },
-  { id: mockFriendIds[5], name: "Игорь Фомин", avatarUrl: null },
-  { id: mockFriendIds[6], name: "Лена Гусева", avatarUrl: null },
+  { id: mockFriendIds[0], name: "Анна Соколова", avatarUrl: mockPortrait("Анна Соколова", 262) },
+  { id: mockFriendIds[1], name: "Дима Кузнецов", avatarUrl: mockPortrait("Дима Кузнецов", 198) },
+  { id: mockFriendIds[2], name: "Катя Орлова", avatarUrl: mockPortrait("Катя Орлова", 328) },
+  { id: mockFriendIds[3], name: "Пётр Новиков", avatarUrl: mockPortrait("Пётр Новиков", 28) },
+  { id: mockFriendIds[4], name: "Мария Белова", avatarUrl: mockPortrait("Мария Белова", 148) },
+  { id: mockFriendIds[5], name: "Игорь Фомин", avatarUrl: mockPortrait("Игорь Фомин", 210) },
+  { id: mockFriendIds[6], name: "Лена Гусева", avatarUrl: mockPortrait("Лена Гусева", 12) },
 ];
 
 /** The fixed demo "now" for the nearby surface: noon of MOCK_TODAY, so the four buckets fill deterministically (12:30 -> now, 15:00 -> inAnHour, 19:00 -> evening, next morning -> tomorrow). */

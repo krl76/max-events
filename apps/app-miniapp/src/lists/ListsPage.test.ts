@@ -28,8 +28,8 @@ function summary(overrides: Partial<ListSummary> = {}): ListSummary {
 
 const own = summary({ list: { ...list, id: "70000000-0000-4000-8000-000000000009", preset: null, title: "Джаз по четвергам" } });
 
-const item = { id: "71000000-0000-4000-8000-000000000001", listId: list.id, eventId: mockEvents[0].id, placeId: null, addedAt: "2026-09-11T11:00:00+03:00" } as const;
-const card: ListItemCard = { item, event: mockEvents[0], place: null, addedBy: null };
+const item = { id: "71000000-0000-4000-8000-000000000001", listId: list.id, eventId: mockEvents[0].id, placeId: null, feedPostId: null, addedAt: "2026-09-11T11:00:00+03:00" } as const;
+const card: ListItemCard = { item, event: mockEvents[0], place: null, post: null, addedBy: null };
 
 describe("list labels", () => {
   it("pluralizes the counter and calls an empty list empty", () => {
@@ -165,6 +165,20 @@ describe("ListView", () => {
     expect(renderToStaticMarkup(createElement(ListView, { state: { status: "ready", cards: [] }, onOpenEvent: () => {} }))).toContain("Пока ничего не сохранено.");
     expect(renderToStaticMarkup(createElement(ListView, { state: { status: "loading" }, onOpenEvent: () => {} }))).toContain("Загрузка…");
     expect(renderToStaticMarkup(createElement(ListView, { state: { status: "error" }, onOpenEvent: () => {} }))).toContain("Не удалось загрузить список.");
+  });
+
+  it("renders a saved post by its text and author", () => {
+    const postCard: ListItemCard = {
+      item: { ...item, eventId: null, feedPostId: "30000000-0000-4000-8000-000000000001" },
+      event: null,
+      place: null,
+      post: { id: "30000000-0000-4000-8000-000000000001", text: "Выставка впечатляет", photoUrl: null, author: anna, eventTitle: "Выставка" },
+      addedBy: null,
+    };
+    const html = renderToStaticMarkup(createElement(ListView, { state: { status: "ready", cards: [postCard] }, onOpenEvent: () => {} }));
+
+    expect(html).toContain("Выставка впечатляет");
+    expect(html).toContain("Анна Соколова");
   });
 });
 

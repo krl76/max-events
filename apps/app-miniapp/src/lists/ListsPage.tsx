@@ -48,9 +48,12 @@ export function listShareText(list: List, cards: ListItemCard[], shared: boolean
   return `${shared ? "Совместная коллекция" : "Список"} «${list.title}»: ${cards.map((card) => listCardTitle(card)).join(", ")}`;
 }
 
-/** A card names an event or a place; the contract promises exactly one of them, so the empty string is only a type-level guard. */
+/** A card names an event, a place or a post; the contract promises exactly one of them. */
 export function listCardTitle(card: ListItemCard): string {
-  return card.event?.title ?? card.place?.title ?? "";
+  if (card.event !== null) return card.event.title;
+  if (card.place !== null) return card.place.title;
+  if (card.post !== null) return card.post.text.trim() === "" ? (card.post.eventTitle || "Пост") : card.post.text;
+  return "";
 }
 
 export function listCountLabel(count: number): string {
@@ -273,31 +276,38 @@ interface ListViewProps {
   onOpenEvent: (eventId: string) => void;
   /** A list may hold places as well as events; without a handler a saved place is shown but not opened. */
   onOpenPlace?: (placeId: string) => void;
+  onOpenPost?: (postId: string) => void;
   /** Who added what only means something where more than one person adds: a shared collection. */
   showAuthors?: boolean;
   viewerId?: string | null;
   onRemove?: (itemId: string) => void;
 }
 
-export function ListView({ state, onOpenEvent, onOpenPlace, showAuthors = false, viewerId = null, onRemove }: ListViewProps) {
+export function ListView({ state, onOpenEvent, onOpenPlace, onOpenPost, showAuthors = false, viewerId = null, onRemove }: ListViewProps) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "error") return <AppState error>Не удалось загрузить список.</AppState>;
   if (state.cards.length === 0) return <AppState>Пока ничего не сохранено.</AppState>;
   return (
     <div className="app-list-items">
       {state.cards.map((card) => {
-        const { item, event, place, addedBy } = card;
+        const { item, event, place, post, addedBy } = card;
         const author = showAuthors ? listAuthorLabel(addedBy, viewerId) : null;
         const title = listCardTitle(card);
+        const open = () => {
+          if (event !== null) onOpenEvent(event.id);
+          else if (place !== null) onOpenPlace?.(place.id);
+          else if (post !== null) onOpenPost?.(post.id);
+        };
+        const mediaClass = event !== null ? `app-list-item-media app-media--${event.category}` : post?.photoUrl ? "app-list-item-media" : "app-list-item-media";
+        const meta = event !== null ? listEventMeta(event) : place?.address ?? (post !== null ? [post.author.name, post.eventTitle].filter((part) => part !== "").join(" · ") : "");
         return (
           // The remove control sits beside the card, not inside it: a button inside a button is invalid.
           <div key={item.id} className="app-list-item">
-            {/* A saved place opens its page; the media keeps the category gradient only for events — a place has no event category. */}
-            <button type="button" className="app-list-item-open" onClick={() => (event !== null ? onOpenEvent(event.id) : place !== null ? onOpenPlace?.(place.id) : undefined)}>
-              <span className={event !== null ? `app-list-item-media app-media--${event.category}` : "app-list-item-media"} aria-hidden="true" />
+            <button type="button" className="app-list-item-open" onClick={open}>
+              {post?.photoUrl ? <img className="app-list-item-media" src={post.photoUrl} alt="" /> : <span className={mediaClass} aria-hidden="true" />}
               <span className="app-list-item-body">
                 <span className="app-list-item-title">{title}</span>
-                <span className="app-list-item-meta">{event !== null ? listEventMeta(event) : (place?.address ?? "")}</span>
+                <span className="app-list-item-meta">{meta}</span>
                 {author !== null && <span className="app-list-item-author">{author}</span>}
               </span>
             </button>
@@ -482,7 +492,7 @@ export function ListPage({ id }: { id: string }) {
         </div>
       )}
       {error !== null && <AppState error>{error}</AppState>}
-      <ListView state={{ status: "ready", cards: screen.items }} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} showAuthors={shared} viewerId={userId} onRemove={removeItem} />
+      <ListView state={{ status: "ready", cards: screen.items }} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} onOpenPost={(postId) => navigate({ name: "post", id: postId })} showAuthors={shared} viewerId={userId} onRemove={removeItem} />
       {editable && (
         <div className="app-list-footer">
           <button

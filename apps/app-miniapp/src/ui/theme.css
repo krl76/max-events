@@ -1860,6 +1860,12 @@ html[data-theme="dark"] body {
   transition: transform var(--app-duration-fast) var(--app-ease-out);
 }
 
+.app-post-head .app-story-ring,
+.app-feed-post-head .app-story-ring {
+  flex: none;
+  padding: 2px;
+}
+
 /* Обводка сторис — фирменный gradient-light, один на все кольца:
  * ротация по позиции была декоративной и брендбуку не отвечает. */
 .app-story-ring--active {
@@ -11109,6 +11115,92 @@ button.app-poll-result {
   gap: 0;
 }
 
+.app-cal--screen {
+  min-height: 100%;
+}
+
+.app-cal-top {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin: 0 0 var(--app-space-s);
+}
+
+.app-cal-close {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 50%;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.app-cal-top-title {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.app-cal-peer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-cal-peer-chip {
+  align-items: center;
+  background: var(--app-surface);
+  border: var(--app-hairline);
+  border-radius: 999px;
+  color: var(--app-text);
+  display: inline-flex;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 700;
+  gap: 2px;
+  min-height: 36px;
+  padding: 0 4px 0 12px;
+}
+
+button.app-cal-peer-chip {
+  cursor: pointer;
+  padding-right: 12px;
+}
+
+.app-cal-peer-chip--on {
+  background: var(--app-accent);
+  border-color: transparent;
+  color: var(--app-accent-contrast);
+}
+
+.app-cal-peer-chip-name {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 8px 8px 0;
+}
+
+.app-cal-peer-drop {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  opacity: 0.72;
+  width: 28px;
+}
+
 .app-cal-head {
   align-items: center;
   display: flex;
@@ -11403,15 +11495,15 @@ button.app-poll-result {
   padding: 0 var(--app-space-l);
 }
 
-/* Низ экрана приклеен над таббаром; отступ под таббар уже лежит в поле .app-content — см. .app-assist-composer */
+/* Низ экрана приклеен к низу вьюпорта: на полноэкранном маршруте таббара нет. */
 .app-cal-cta {
   background: var(--app-card);
   border-top: var(--app-hairline);
-  bottom: calc(-1 * var(--app-space-l));
+  bottom: 0;
   display: flex;
   gap: 10px;
-  margin: var(--app-space-m) calc(-1 * var(--app-space-screen)) 0;
-  padding: var(--app-space-m) var(--app-space-screen);
+  margin: auto calc(-1 * var(--app-space-screen)) 0;
+  padding: var(--app-space-m) var(--app-space-screen) calc(var(--app-space-m) + env(safe-area-inset-bottom, 0px));
   position: sticky;
   z-index: 5;
 }

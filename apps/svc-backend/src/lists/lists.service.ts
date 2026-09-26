@@ -21,6 +21,7 @@ import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { toPlaceDto } from "../places/places.service";
+import { FeedPostEntity } from "../feed/feed-post.entity";
 import { PlaceEntity } from "../places/place.entity";
 import { UsersService } from "../users/users.service";
 import { ListItemEntity } from "./list-item.entity";
@@ -46,12 +47,13 @@ export class ListsService {
     @InjectRepository(ListItemEntity) private readonly items: Repository<ListItemEntity>,
     @InjectRepository(EventEntity) private readonly events: Repository<EventEntity>,
     @InjectRepository(PlaceEntity) private readonly places: Repository<PlaceEntity>,
+    @InjectRepository(FeedPostEntity) private readonly posts: Repository<FeedPostEntity>,
     @InjectRepository(ListMemberEntity) private readonly members: Repository<ListMemberEntity>,
     @Inject(UsersService) private readonly users: UsersService,
     @Inject(FriendsService) private readonly friends: FriendsService,
   ) {}
 
-  async list(userId: string, eventId: string | null = null): Promise<ListSummary[]> {
+  async list(userId: string, eventId: string | null = null, feedPostId: string | null = null): Promise<ListSummary[]> {
     const presets = await this.ensurePresets(userId);
     // Presets first, then the lists the user made, newest last — the order the screen reads top down.
     const own = (await this.lists.find({ where: { userId } })).filter((row) => row.preset === null).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
@@ -67,7 +69,7 @@ export class ListsService {
     const participantsByList = await this.participantsByListIds(visible.map((row) => row.id));
     return visible.map((list) => {
       const listItems = items.filter((row) => row.listId === list.id);
-      const saved = eventId ? listItems.find((row) => row.eventId === eventId) : undefined;
+      const saved = eventId ? listItems.find((row) => row.eventId === eventId) : feedPostId ? listItems.find((row) => row.feedPostId === feedPostId) : undefined;
       return { list: toListDto(list), itemsCount: listItems.length, savedItemId: saved?.id ?? null, participants: participantsByList.get(list.id) ?? [] };
     });
   }
@@ -89,7 +91,7 @@ export class ListsService {
     const existing = await this.findEventItem(listId, eventId);
     if (existing) return toItemDto(existing);
     try {
-      return toItemDto(await this.items.save(this.items.create({ listId, eventId, placeId: null, addedByUserId: userId })));
+      return toItemDto(await this.items.save(this.items.create({ listId, eventId, placeId: null, feedPostId: null, addedByUserId: userId })));
     } catch (error) {
       // UQ_list_items_list_event: a parallel "save to list" tap must read back the winner, not 500.
       if (!isUniqueViolation(error)) throw error;
@@ -113,7 +115,7 @@ export class ListsService {
     const existing = await this.findPlaceItem(listId, placeId);
     if (existing) return toItemDto(existing);
     try {
-      return toItemDto(await this.items.save(this.items.create({ listId, eventId: null, placeId, addedByUserId: userId })));
+      return toItemDto(await this.items.save(this.items.create({ listId, eventId: null, placeId, feedPostId: null, addedByUserId: userId })));
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
       const winner = await this.findPlaceItem(listId, placeId);
@@ -128,6 +130,26 @@ export class ListsService {
 
   private async findPlaceItem(listId: string, placeId: string): Promise<ListItemEntity | undefined> {
     return (await this.items.find({ where: { listId } })).find((row) => row.placeId === placeId);
+  }
+
+  async addPost(userId: string, listId: string, feedPostId: string): Promise<ListItem> {
+    await this.requireAccessibleList(userId, listId);
+    const post = await this.posts.findOneBy({ id: feedPostId, published: true });
+    if (!post) throw new NotFoundException("Post not found");
+    const existing = await this.findPostItem(listId, feedPostId);
+    if (existing) return toItemDto(existing);
+    try {
+      return toItemDto(await this.items.save(this.items.create({ listId, eventId: null, placeId: null, feedPostId, addedByUserId: userId })));
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      const winner = await this.findPostItem(listId, feedPostId);
+      if (!winner) throw error;
+      return toItemDto(winner);
+    }
+  }
+
+  private async findPostItem(listId: string, feedPostId: string): Promise<ListItemEntity | undefined> {
+    return (await this.items.find({ where: { listId } })).find((row) => row.feedPostId === feedPostId);
   }
 
   async removeItem(userId: string, listId: string, itemId: string): Promise<ListItem> {
@@ -254,19 +276,29 @@ export class ListsService {
     const rows = (await this.items.find({ where: { listId } })).sort((a, b) => b.addedAt.getTime() - a.addedAt.getTime() || b.id.localeCompare(a.id));
     const events = await this.events.find();
     const places = await this.places.find();
+    const postIds = rows.flatMap((row) => (row.feedPostId ? [row.feedPostId] : []));
+    const feedPosts = postIds.length === 0 ? [] : await this.posts.find();
+    const postAuthors = await this.friendsOf(feedPosts.map((row) => row.authorUserId));
     const authors = await this.friendsOf(rows.flatMap((row) => (row.addedByUserId ? [row.addedByUserId] : [])));
-    const authorById = new Map(authors.map((row) => [row.id, row]));
+    const authorById = new Map([...authors, ...postAuthors].map((row) => [row.id, row]));
     const eventById = new Map(events.map((row) => [row.id, row]));
     const placeById = new Map(places.map((row) => [row.id, row]));
+    const postById = new Map(feedPosts.map((row) => [row.id, row]));
     return rows.flatMap((row): ListItemCard[] => {
       const addedBy = row.addedByUserId ? (authorById.get(row.addedByUserId) ?? null) : null;
       if (row.eventId !== null) {
         const event = eventById.get(row.eventId);
-        return event ? [{ item: toItemDto(row), event: toEventDto(event), place: null, addedBy }] : [];
+        return event ? [{ item: toItemDto(row), event: toEventDto(event), place: null, post: null, addedBy }] : [];
       }
       if (row.placeId !== null) {
         const place = placeById.get(row.placeId);
-        return place ? [{ item: toItemDto(row), event: null, place: toPlaceDto(place), addedBy }] : [];
+        return place ? [{ item: toItemDto(row), event: null, place: toPlaceDto(place), post: null, addedBy }] : [];
+      }
+      if (row.feedPostId !== null) {
+        const post = postById.get(row.feedPostId);
+        const author = post ? authorById.get(post.authorUserId) : undefined;
+        const event = post ? eventById.get(post.eventId) : undefined;
+        return post && author ? [{ item: toItemDto(row), event: null, place: null, post: { id: post.id, text: post.text, photoUrl: post.photoUrl ?? null, author, eventTitle: event?.title ?? "" }, addedBy }] : [];
       }
       return [];
     });
@@ -294,6 +326,7 @@ export function toItemDto(item: ListItemEntity): ListItem {
     listId: item.listId,
     eventId: item.eventId,
     placeId: item.placeId,
+    feedPostId: item.feedPostId ?? null,
     addedAt: item.addedAt.toISOString(),
   };
 }

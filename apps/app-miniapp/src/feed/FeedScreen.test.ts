@@ -105,6 +105,14 @@ describe("FeedFriendPost", () => {
 
     expect(html).not.toContain("app-feed-counts");
   });
+
+  it("shows the author photo and a story ring only when they have a story", () => {
+    expect(post()).toContain(`src="${mockFriends[0].avatarUrl}"`);
+    expect(post()).not.toContain("app-story-ring--active");
+    expect(post()).not.toContain("app-feed-ring-inner");
+    const withStory = renderToStaticMarkup(createElement(FeedFriendPost, { card: friendCard, now: NOW, onOpenEvent: noop, onToggleLike: noop, onToggleGoing: noop, onOpenComments: noop, onShare: noop, hasStory: true }));
+    expect(withStory).toContain("app-story-ring--active");
+  });
 });
 
 describe("FeedPlacePost", () => {

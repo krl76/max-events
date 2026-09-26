@@ -28,7 +28,7 @@
 import { ListPresetSchema } from "@max-events/api-contracts";
 import type { CreateSubscription, Friend, List, ListItem, ListPreset, Subscription } from "@max-events/api-contracts";
 import { type AddListItem, type ListItemCard, type ListSummary } from "../client";
-import { mockUserAsFriend } from "./feed";
+import { mockFeedPosts, mockUserAsFriend } from "./feed";
 import { PLACE_STAMP, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOrganization, mockOrganizers, mockPlaces } from "./fixtures";
 
 const mockSubscriptions: Subscription[] = [];
@@ -175,9 +175,9 @@ const MOCK_SHARED_LIST_SEED: [number, number][] = [
   [7, 0],
 ];
 
-function listItem(listId: string, eventId: string, addedBy: Friend | null = null): ListItem {
+function listItem(listId: string, eventId: string | null, addedBy: Friend | null = null, extra: { placeId?: string | null; feedPostId?: string | null } = {}): ListItem {
   mockListItemSeq += 1;
-  const item: ListItem = { id: `71000000-0000-4000-8000-${String(mockListItemSeq).padStart(12, "0")}`, listId, eventId, placeId: null, addedAt: PLACE_STAMP };
+  const item: ListItem = { id: `71000000-0000-4000-8000-${String(mockListItemSeq).padStart(12, "0")}`, listId, eventId, placeId: extra.placeId ?? null, feedPostId: extra.feedPostId ?? null, addedAt: PLACE_STAMP };
   if (addedBy !== null) mockListItemAuthors.set(item.id, addedBy);
   return item;
 }
@@ -224,11 +224,12 @@ function findList(listId: string): List | undefined {
   return undefined;
 }
 
-/** Preset lists of a user with item counters, shared-collection participants; savedItemId points at the item saving eventId (null when not saved). */
-export function listSummaries(userId: string, eventId: string | null): ListSummary[] {
+/** Preset lists of a user with item counters, shared-collection participants; savedItemId points at the item saving eventId or feedPostId (null when not saved). */
+export function listSummaries(userId: string, eventId: string | null, feedPostId: string | null = null): ListSummary[] {
   return listsFor(userId).map((list) => {
     const items = mockListItems.filter((item) => item.listId === list.id);
-    return { list, itemsCount: items.length, savedItemId: items.find((item) => item.eventId === eventId)?.id ?? null, participants: list.id === SHARED_LIST_ID ? SHARED_LIST_PARTICIPANTS() : [] };
+    const saved = eventId ? items.find((item) => item.eventId === eventId) : feedPostId ? items.find((item) => item.feedPostId === feedPostId) : undefined;
+    return { list, itemsCount: items.length, savedItemId: saved?.id ?? null, participants: list.id === SHARED_LIST_ID ? SHARED_LIST_PARTICIPANTS() : [] };
   });
 }
 
@@ -236,10 +237,21 @@ export function listSummaries(userId: string, eventId: string | null): ListSumma
 export function listItemCards(listId: string): ListItemCard[] | null {
   if (!findList(listId)) return null;
   return mockListItems
-    .filter((item) => item.listId === listId && item.eventId !== null)
-    .flatMap((item) => {
+    .filter((item) => item.listId === listId)
+    .flatMap((item): ListItemCard[] => {
+      const addedBy = mockListItemAuthors.get(item.id) ?? null;
+      if (item.feedPostId !== null) {
+        const post = mockFeedPosts.find((candidate) => candidate.id === item.feedPostId);
+        if (!post) return [];
+        const eventTitle = mockEvents.find((candidate) => candidate.id === post.eventId)?.title ?? "";
+        return [{ item, event: null, place: null, post: { id: post.id, text: post.text, photoUrl: post.photoUrl ?? null, author: post.author, eventTitle }, addedBy }];
+      }
+      if (item.placeId !== null) {
+        const place = mockPlaces.find((candidate) => candidate.id === item.placeId);
+        return place ? [{ item, event: null, place, post: null, addedBy }] : [];
+      }
       const event = mockEvents.find((candidate) => candidate.id === item.eventId);
-      return event ? [{ item, event, place: null, addedBy: mockListItemAuthors.get(item.id) ?? null }] : [];
+      return event ? [{ item, event, place: null, post: null, addedBy }] : [];
     })
     .reverse();
 }
@@ -301,10 +313,18 @@ export function removeMockList(listId: string): List | "no_list" | "preset" {
   return list;
 }
 
-/** Adds an event to a list, idempotent, attributed to the adding user; "no_list"/"no_event" map to 404 in the interceptor. */
-export function addMockListItem(listId: string, payload: AddListItem): ListItem | "no_list" | "no_event" {
+/** Adds an event, place or post to a list, idempotent; "no_list"/"no_event"/"no_post" map to 404. */
+export function addMockListItem(listId: string, payload: AddListItem): ListItem | "no_list" | "no_event" | "no_post" {
   if (!findList(listId)) return "no_list";
-  if (!mockEvents.some((event) => event.id === payload.eventId)) return "no_event";
+  if (payload.feedPostId !== undefined) {
+    if (!mockFeedPosts.some((post) => post.id === payload.feedPostId)) return "no_post";
+    const existing = mockListItems.find((item) => item.listId === listId && item.feedPostId === payload.feedPostId);
+    if (existing) return existing;
+    const item = listItem(listId, null, mockUserAsFriend(payload.userId), { feedPostId: payload.feedPostId });
+    mockListItems.push(item);
+    return item;
+  }
+  if (payload.eventId === undefined || !mockEvents.some((event) => event.id === payload.eventId)) return "no_event";
   const existing = mockListItems.find((item) => item.listId === listId && item.eventId === payload.eventId);
   if (existing) return existing;
   const item = listItem(listId, payload.eventId, mockUserAsFriend(payload.userId));
