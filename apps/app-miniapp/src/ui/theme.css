@@ -8994,7 +8994,7 @@ button.app-set-row {
   font-size: var(--app-font-size-description);
   font-weight: 800;
   gap: 6px;
-  height: 40px;
+  height: 44px;
   padding: 0 14px;
 }
 
@@ -10725,7 +10725,7 @@ button.app-poll-result {
   font: inherit;
   font-size: var(--app-font-size-description);
   font-weight: 800;
-  height: 36px;
+  height: 44px;
   padding: 0 14px;
 }
 

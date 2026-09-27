@@ -163,11 +163,7 @@ export function FriendsView({ state, syncing = false, now = new Date(), onSync, 
           Не удалось загрузить друзей.
         </AppState>
       )}
-      {state.status === "ready" && state.friends.length === 0 && (
-        <AppState action={{ label: "Обновить контакты", onClick: onSync }} hint="Синхронизация читает контакты из чатов MAX.">
-          {FRIENDS_GRAPH_EMPTY_TEXT}
-        </AppState>
-      )}
+      {state.status === "ready" && state.friends.length === 0 && <AppState hint="Синхронизация читает контакты из чатов MAX.">{FRIENDS_GRAPH_EMPTY_TEXT}</AppState>}
       {active.length > 0 && (
         <section className="app-friends-sec" aria-label="Сейчас что-то делают">
           <h2 className="app-friends-sec-label">Сейчас что-то делают · {active.length}</h2>

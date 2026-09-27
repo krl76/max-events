@@ -103,6 +103,8 @@ describe("PeopleView", () => {
   it("renders loading, error and empty states", () => {
     expect(view({ status: "loading" })).toContain("app-skeleton");
     expect(view({ status: "error" })).toContain("Не удалось найти людей рядом.");
-    expect(view({ status: "ready", data: { nearbyCount: 0, lookingForCompanyTodayCount: 0, people: [] } })).toContain("Рядом пока никого с общими интересами.");
+    const empty = view({ status: "ready", data: { nearbyCount: 0, lookingForCompanyTodayCount: 0, people: [] } });
+    expect(empty).toContain("Рядом пока никого с общими интересами.");
+    expect(empty).not.toContain("app-people-stat-count");
   });
 });

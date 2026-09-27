@@ -177,6 +177,8 @@ describe("PlacePageView", () => {
 
     expect(html).toContain("Друзья пока не отмечались здесь.");
     expect(html).toContain("Ты ещё не отмечался здесь");
+    expect(html).not.toContain("твоих визитов");
+    expect(viewHtml(page(), { weekEventsCount: 0 })).not.toContain("на неделе");
     expect(html).toContain("Свободных окон сейчас нет.");
     expect(html).toContain("Пока здесь ничего не запланировано.");
     expect(html).toContain("оценок пока нет");

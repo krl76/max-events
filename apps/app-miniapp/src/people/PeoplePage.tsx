@@ -124,16 +124,22 @@ export function PeopleView({ state, hidden, onInvite, onHide, onRetry, inCity = 
       )}
       {state.status === "ready" && (
         <>
-          <div className="app-people-stats">
-            <div className="app-people-stat">
-              <span className="app-people-stat-count">{state.data.nearbyCount}</span>
-              <span className="app-people-stat-label">{peopleNearLabel(state.data.nearbyCount, inCity)}</span>
+          {(state.data.nearbyCount > 0 || state.data.lookingForCompanyTodayCount > 0) && (
+            <div className="app-people-stats">
+              {state.data.nearbyCount > 0 && (
+                <div className="app-people-stat">
+                  <span className="app-people-stat-count">{state.data.nearbyCount}</span>
+                  <span className="app-people-stat-label">{peopleNearLabel(state.data.nearbyCount, inCity)}</span>
+                </div>
+              )}
+              {state.data.lookingForCompanyTodayCount > 0 && (
+                <div className="app-people-stat app-people-stat--live">
+                  <span className="app-people-stat-count">{state.data.lookingForCompanyTodayCount}</span>
+                  <span className="app-people-stat-label">{lookingLabel(state.data.lookingForCompanyTodayCount)}</span>
+                </div>
+              )}
             </div>
-            <div className="app-people-stat app-people-stat--live">
-              <span className="app-people-stat-count">{state.data.lookingForCompanyTodayCount}</span>
-              <span className="app-people-stat-label">{lookingLabel(state.data.lookingForCompanyTodayCount)}</span>
-            </div>
-          </div>
+          )}
           <p className="app-people-note">Показываем только тех, кто сам согласился быть видимым. Точное местоположение не передаётся — только расстояние.</p>
           {people.length === 0 && <AppState>{peopleEmptyTitle(inCity)}</AppState>}
           {people.map((candidate) => (

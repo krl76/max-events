@@ -248,12 +248,14 @@ export function PlacePageView({ place, page, board, checkedIn, onBack, onCheckIn
           <span className="app-place-stat-value">{placeRatingValue(rating)}</span>
           <span className="app-place-stat-label">{placeRatingLabel(rating)}</span>
         </div>
-        <div className="app-place-stat">
-          <span className="app-place-stat-value">{page.personalVisitsCount}</span>
-          <span className="app-place-stat-label">твоих визитов</span>
-        </div>
-        {/* Нечем считать события недели — плитки нет: «0 событий» прочиталось бы как ответ. */}
-        {board !== null && (
+        {page.personalVisitsCount > 0 && (
+          <div className="app-place-stat">
+            <span className="app-place-stat-value">{page.personalVisitsCount}</span>
+            <span className="app-place-stat-label">твоих визитов</span>
+          </div>
+        )}
+        {/* Ноль — не ответ: пустую неделю и нулевые визиты закрывает текст блоков ниже. */}
+        {board !== null && board.weekEventsCount > 0 && (
           <div className="app-place-stat">
             <span className="app-place-stat-value">{board.weekEventsCount}</span>
             <span className="app-place-stat-label">{pluralRu(board.weekEventsCount, "событие", "события", "событий")} на неделе</span>

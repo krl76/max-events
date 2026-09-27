@@ -124,7 +124,8 @@ describe("FriendsView", () => {
   it("explains an empty graph and keeps the sync within reach", () => {
     const html = view(state({ friends: [], groups: [] }));
 
-    expect(html).toContain("Обновить контакты");
+    expect(html).toContain("Обновить");
+    expect(html).not.toContain("Обновить контакты");
     expect(html).not.toContain("Все друзья");
   });
 
