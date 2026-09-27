@@ -21,7 +21,7 @@
 // END_MODULE_MAP
 
 import { AssistChatResponseSchema, AssistDayResponseSchema, AssistResponseSchema, EventSchema, FriendSchema, LeisureOptionSchema, NearbyTimelineSchema, PlaceSchema, TodayCardLabelSchema, TodaySummarySchema } from "@max-events/api-contracts";
-import type { AssistChatResponse, AssistChatWrite, AssistDayResponse, AssistResponse, Event, Friend, LeisureMood, LeisureOption, LeisureStop, NearbyTimeline, Place, TodayCardLabel, TodaySummary, WheretoQuery } from "@max-events/api-contracts";
+import type { AssistChatResponse, AssistChatWrite, AssistDayResponse, AssistResponse, Event, Friend, LeisureMood, LeisureOption, LeisureStop, NearbyTimeline, Place, TodayBuckets, TodayCardLabel, TodaySummary, WheretoQuery } from "@max-events/api-contracts";
 import type { CatalogCard } from "./catalog";
 import type { ApiMixin, ZodSchema } from "./transport";
 
@@ -131,6 +131,8 @@ export interface TodayCard extends CatalogCard {
 export interface TodayDigest {
   summary: TodaySummary;
   cards: TodayCard[];
+  /** Present when the server names the events behind each counter. Absent on an older answer. */
+  buckets?: TodayBuckets;
 }
 
 const TodayDigestSchema: ZodSchema<TodayDigest> = {
@@ -153,9 +155,21 @@ const TodayDigestSchema: ZodSchema<TodayDigest> = {
       if (!isNullableNumber(distanceKm) || !isNullableNumber(rating) || !isNullableString(placeTitle)) return { success: false as const, error: "invalid today card" };
       cards.push({ event: event.data, labels: labels.data, distanceKm, rating, placeTitle });
     }
-    return { success: true as const, data: { summary: summary.data, cards } };
+    const buckets = readTodayBuckets(raw.buckets);
+    return { success: true as const, data: { summary: summary.data, cards, ...(buckets ? { buckets } : {}) } };
   },
 };
+
+function readTodayBuckets(value: unknown): TodayBuckets | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const raw = value as Record<string, unknown>;
+  const ids = (entry: unknown) => (Array.isArray(entry) && entry.every((item) => typeof item === "string") ? (entry as string[]) : null);
+  const nearbyIds = ids(raw.nearbyIds);
+  const suitableIds = ids(raw.suitableIds);
+  const friendIds = ids(raw.friendIds);
+  if (!nearbyIds || !suitableIds || !friendIds) return undefined;
+  return { nearbyIds, suitableIds, friendIds };
+}
 
 /** The filter chips of экран 09; «all» is the unfiltered deck. */
 export type SwipeCategory = "all" | "food" | "outdoors" | "sport";

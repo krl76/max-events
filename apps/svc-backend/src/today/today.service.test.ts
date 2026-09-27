@@ -72,6 +72,22 @@ describe("buildTodayDigest", () => {
     );
     expect(digest.summary.nearbyCount).toBe(1);
     expect(digest.cards.map((card) => card.event.title)).toEqual(["Джаз"]);
+    expect(digest.buckets).toEqual({ nearbyIds: ["00000000-0000-4000-8000-0000000000e1"], suitableIds: ["00000000-0000-4000-8000-0000000000e1"], friendIds: [] });
+  });
+
+  it("leaves a past friend visit out of the friends the tile counts", () => {
+    const pastId = "00000000-0000-4000-8000-0000000000e6";
+    const digest = buildTodayDigest(
+      input({
+        events: [...input().events, event({ id: pastId, title: "Вчера с другом", startsAt: new Date("2026-09-11T18:00:00Z") })],
+        participations: [
+          { userId: annaId, eventId: "00000000-0000-4000-8000-0000000000e1", status: "going" },
+          { userId: annaId, eventId: pastId, status: "going" },
+        ],
+      }),
+    );
+    expect(digest.summary).toMatchObject({ nearbyCount: 1, withFriendsCount: 1 });
+    expect(digest.buckets?.friendIds).toEqual(["00000000-0000-4000-8000-0000000000e1"]);
   });
 
   it("counts a Russian interest chip against the catalog category", () => {

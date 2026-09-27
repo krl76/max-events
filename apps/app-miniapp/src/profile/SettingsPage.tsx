@@ -11,7 +11,8 @@
 // - THEME_OPTIONS - the three colour-scheme choices in design order with their ru labels
 // - themeLabel - ru label of a theme preference
 // - radiusLabel - «5 км»
-// - planVisibilityLabel - «Друзья» / «Никто» for the routes privacy field
+// - PLAN_VISIBILITY_OPTIONS - «Друзья», «Близкие друзья», «Никто» for the routes privacy field
+// - planVisibilityLabel - ru label of that field
 // - quietHoursLabel - «Вкл» / «Выкл»
 // - quietHoursHint - «23:00–09:00, только срочное»
 // - interestsHint - «6 категорий влияют на подборку»
@@ -68,8 +69,14 @@ export function radiusLabel(km: number): string {
   return `${km} км`;
 }
 
+export const PLAN_VISIBILITY_OPTIONS: { value: Profile["privacy"]["routes"]; label: string }[] = [
+  { value: "friends", label: "Друзья" },
+  { value: "close", label: "Близкие друзья" },
+  { value: "hidden", label: "Никто" },
+];
+
 export function planVisibilityLabel(visibility: Profile["privacy"]["routes"]): string {
-  return visibility === "friends" ? "Друзья" : "Никто";
+  return PLAN_VISIBILITY_OPTIONS.find((option) => option.value === visibility)?.label ?? "Друзья";
 }
 
 export function quietHoursLabel(enabled: boolean): string {
@@ -378,10 +385,7 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
         <SettingsValueRow title="Кто видит мои планы" hint="По умолчанию для новых записей" value={planVisibilityLabel(profile.privacy.routes)} expanded={picker === "plans"} onOpen={() => open("plans")} />
         {picker === "plans" && (
           <SettingsPicker
-            options={[
-              { value: "friends", label: "Друзья" },
-              { value: "hidden", label: "Никто" },
-            ]}
+            options={PLAN_VISIBILITY_OPTIONS}
             selected={[profile.privacy.routes]}
             onPick={(value) => onProfile({ privacy: { routes: value as Profile["privacy"]["routes"] } })}
           />

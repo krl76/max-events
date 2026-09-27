@@ -6,7 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - HomePage - the feed screen (FeedScreen: stories rail, «Куда пойдём?», friend and venue posts — макет, экран 03) + micro-events section (MicroSection) + NL assist section (AssistSection) + «После меня» taste suggestions (AfterMeSection, hidden until the taste graph has something) + promotion banners/collections (PromotionSections, #205). The catalog and the today digest moved to экран 08, which is their home in the design
+// - HomePage - the feed screen (FeedScreen: stories rail, «Куда пойдём?», friend and venue posts — макет, экран 03) + promotion banners. MAX AI, micro-events and «После меня» live on поиск (экран 08), not under the posts. The catalog and the today digest are there too.
 // - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders the search screen (its «На карте» entry pushes the map), map renders the full-screen map, create renders the publication hub of the «Создать» tab and story-new its story screen, feed-new the impression publish form, micro renders экран 24 «Микро-события», micro-event(id) экран 25, micro-new the micro-event creation form, friends renders экран 26 with its own entries to экраны 27 и 29, discovery renders экран 27, people экран 29, friend-route(id) экран 28 «Маршрут друга», calendar renders the «Планы» screen on the calendar tab, profile renders экран 36 with its own entry rows, after-event renders экран 35 for the event its push deep link names, subscriptions renders the follows screen, whereto renders the wizard, nearby renders the nearby timeline/leisure screen, plans renders the «Планы» screen (plans/calendar/saved tabs) and plan(id) the plan screen, day-route renders the day route builder, lists renders экран 37 and list(id) экран 39, we-groups renders экран 30 and we-group(id) экран 31, vote-new renders экран 32 (из группы приходит её id, иначе афиша целиком), vote(id) экран 33, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), moderation renders the moderator queue (hidden behind the backend's 403 for everyone else)
 // - RoutedPages - current page by route; event-<id> deep links render EventPage, place(id) renders PlacePage, search renders экран 08 (its tiles push the map and the swipe deck), map renders экран 16, swipe renders экран 09, create renders the publication hub of the «Создать» tab and story-new its story screen, friends renders the friends feed with discovery/people nav tiles (AppNavTiles), calendar renders the «Планы» screen on the calendar tab, profile renders the profile screen with achievements/subscriptions/my-city nav tiles, subscriptions renders the follows screen, whereto renders the wizard, nearby renders the nearby timeline/leisure screen, discovery renders the reverse discovery screen, people renders the people matching screen, micro-new renders the micro-event creation form, feed-new renders the post composer (макет, экран 06), plans renders the «Планы» screen (plans/calendar/saved tabs) and plan(id) the plan screen, we-groups renders the we-groups list and we-group(id) one we-group, day-route renders the day route builder, list(id) renders one saved list, organizer renders the legacy stub (the panel lives in the organizer space behind the organizer login), vote(id) renders the shared vote screen, moderation renders the moderator queue (hidden behind the backend's 403 for everyone else)
 // - HomePage - the feed screen (FeedScreen: stories rail, «Куда пойдём?», friend and venue posts — макет, экран 03) + micro-events section (MicroSection) + NL assist section (AssistSection) + «После меня» taste suggestions (AfterMeSection, hidden until the taste graph has something) + today digest (TodaySection) + promotion banners/collections (PromotionSections, #205) + catalog screen (CatalogPage) on the home route; all sections hidden in map view so the map gets the viewport
@@ -20,11 +20,9 @@
 
 import { lazy, Suspense, type ElementType, type LazyExoticComponent } from "react";
 import { useRoute } from "../routing/router";
-import { AfterMeSection } from "../taste/AfterMeSection";
-import { AssistSection } from "../assist/AssistSection";
 import { PromotionSections } from "../promo/PromoSections";
 import { FeedScreen } from "../feed/FeedScreen";
-import { MicroEventCreatePage, MicroSection } from "../micro/MicroEvents";
+import { MicroEventCreatePage } from "../micro/MicroEvents";
 import { AppSkeleton } from "../ui/primitives";
 
 /** Component type without the intrinsic (string) constituent of ElementType, i.e. any React component regardless of props. */
@@ -60,6 +58,7 @@ const CalendarPage = lazyNamed(() => import("../calendar/CalendarPage"), "Calend
 const PlanPage = lazyNamed(() => import("../plans/PlanPage"), "PlanPage");
 const PlanCreatePage = lazyNamed(() => import("../plans/PlanCreatePage"), "PlanCreatePage");
 const SearchPage = lazyNamed(() => import("../search/SearchPage"), "SearchPage");
+const BrowsePage = lazyNamed(() => import("../search/BrowsePage"), "BrowsePage");
 const SwipePage = lazyNamed(() => import("../swipe/SwipePage"), "SwipePage");
 const MapPage = lazyNamed(() => import("../catalog/MapPage"), "MapPage");
 const CreatePage = lazyNamed(() => import("../create/CreatePage"), "CreatePage");
@@ -83,17 +82,10 @@ const FollowersPage = lazyNamed(() => import("../subscriptions/Followers"), "Fol
 const FeedPostPage = lazyNamed(() => import("../feed/FeedPage"), "FeedPostPage");
 
 export function HomePage() {
-  const { navigate } = useRoute();
   return (
     <>
-      {/* Макет, экран 03: сторис, «Куда пойдём?» и посты — это весь верх главного экрана. */}
+      {/* Макет, экран 03: сторис, «Куда пойдём?» и посты. MAX, микро-события и «После меня» — на поиске. */}
       <FeedScreen />
-      {/* Каталог и блок «Сегодня» уехали на экран 08 — это их дом по макету. Секции ниже своего экрана
-          в макете пока не имеют (ассистент — это экран 10, промо-подборки и микро-события — ничей),
-          поэтому остаются здесь, а не исчезают вместе с переездом. */}
-      <MicroSection onCreate={() => navigate({ name: "micro-new" })} onOpenAll={() => navigate({ name: "micro" })} />
-      <AssistSection />
-      <AfterMeSection />
       <PromotionSections />
     </>
   );
@@ -131,8 +123,9 @@ function Routed() {
   if (route.name === "friends") return <FriendsPage />;
   if (route.name === "discovery") return <DiscoveryPage />;
   if (route.name === "people") return <PeoplePage />;
-  if (route.name === "calendar") return <PlansPage tab="calendar" inviteToken={route.inviteToken} />;
+  if (route.name === "calendar") return <CalendarPage inviteToken={route.inviteToken} />;
   if (route.name === "search") return <SearchPage />;
+  if (route.name === "browse") return <BrowsePage list={route.list} query={route.query} city={route.city} date={route.date} />;
   if (route.name === "swipe") return <SwipePage />;
   if (route.name === "map") return <MapPage />;
   if (route.name === "create") return <CreatePage />;

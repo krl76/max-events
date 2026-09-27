@@ -70,13 +70,17 @@ export function todayPicks(origin: { latitude: number; longitude: number } = MOC
       { kind: "spots_left", count: 12 },
     ]),
   ];
+  const nearbyIds = mockEvents.map((event) => event.id);
+  const suitableIds = cards.map((card) => card.event.id);
+  const friendIds = cards.filter((card) => card.labels.some((label) => label.kind === "friend_attending")).map((card) => card.event.id);
   return {
     summary: {
-      nearbyCount: mockEvents.length,
-      suitableCount: cards.length,
-      withFriendsCount: cards.filter((card) => card.labels.some((label) => label.kind === "friend_attending")).length,
+      nearbyCount: nearbyIds.length,
+      suitableCount: suitableIds.length,
+      withFriendsCount: friendIds.length,
     },
     cards,
+    buckets: { nearbyIds, suitableIds, friendIds },
   };
 }
 
@@ -299,7 +303,7 @@ export function mockParseAssistQuery(query: string): AssistCriteria {
   const budgetMatch = /(\d[\d\s]*)\s*(₽|руб)/i.exec(text);
   const budget = budgetMatch ? Number(budgetMatch[1].replace(/\s/g, "")) : NaN;
   const company: AssistCriteria["company"] = text.includes("девушк") || text.includes("парн") || text.includes("двоем") || text.includes("вдвоём") ? "partner" : text.includes("дет") ? "kids" : text.includes("друз") || text.includes("компани") ? "friends" : "alone";
-  const genre: AssistCriteria["genre"] = text.includes("музык") || text.includes("джаз") || text.includes("концерт") ? "music" : text.includes("спорт") || text.includes("футбол") || text.includes("зал") ? "sport" : text.includes("парк") || text.includes("прогул") || text.includes("природ") || text.includes("шашлык") || text.includes("мангал") || text.includes("барбекю") || text.includes("беседк") ? "outdoors" : "any";
+  const genre: AssistCriteria["genre"] = text.includes("волонт") || text.includes("волонтер") || text.includes("субботник") ? "volunteering" : text.includes("музык") || text.includes("джаз") || text.includes("концерт") ? "music" : text.includes("спорт") || text.includes("футбол") || text.includes("зал") ? "sport" : text.includes("парк") || text.includes("прогул") || text.includes("природ") || text.includes("шашлык") || text.includes("мангал") || text.includes("барбекю") || text.includes("беседк") ? "outdoors" : "any";
   return { when, budgetMaxRub: Number.isFinite(budget) ? budget : null, company, genre };
 }
 
@@ -342,6 +346,7 @@ function mockAssistMatches(criteria: AssistCriteria, now: Date = MOCK_NOW): Even
       const blob = `${item.title} ${item.description}`.toLowerCase();
       if (criteria.genre === "music") return item.category === "afisha" || /музык|джаз|концерт|симфон|рахманин/.test(blob);
       if (criteria.genre === "sport") return item.category === "sport";
+      if (criteria.genre === "volunteering") return item.category === "volunteering" || /волонт|волонтер|субботник/.test(blob);
       return item.category === "tourism" || item.category === "volunteering";
     })
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))

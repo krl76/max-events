@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { todayPicks } from "../api/mock";
-import { formatPickDistance, formatPickPrice, formatPickRating, formatTodayDate, formatWalkAway, nearbyStatLabel, pickWhere, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, todayLabel, todayPickCards, afterMeGoLabel, todaySummaryTitle, type TodayState } from "./TodaySection";
+import { DayCalendar, dayKey, formatPickDistance, formatPickPrice, formatPickRating, formatTodayDate, formatWalkAway, monthCells, nearbyStatLabel, pickWhere, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, todayLabel, todayPickCards, afterMeGoLabel, todaySummaryTitle, type TodayState } from "./TodaySection";
 
 const noop = () => {};
 const digest = todayPicks();
@@ -59,6 +59,19 @@ describe("digest selectors", () => {
 
   it("returns no hint when the graph said nothing", () => {
     expect(todayAfterMeCard({ summary: digest.summary, cards: todayPickCards(digest) })).toBeNull();
+  });
+});
+
+describe("monthCells", () => {
+  it("starts the grid on Monday and marks the chosen day in the sheet", () => {
+    const cells = monthCells(new Date(2026, 8, 1));
+
+    expect(cells[0]?.getDay()).toBe(1);
+    expect(dayKey(cells[0]!)).toBe("2026-08-31");
+    const html = renderToStaticMarkup(createElement(DayCalendar, { month: new Date(2026, 8, 1), selected: "2026-09-25", today: "2026-09-25", onPick: () => {}, onShift: () => {}, onToday: () => {} }));
+    expect(html).toContain('aria-label="Выбор даты"');
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).not.toContain('type="date"');
   });
 });
 

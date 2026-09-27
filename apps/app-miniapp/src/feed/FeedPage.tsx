@@ -20,7 +20,7 @@
 // - PostAuthorAvatar - author avatar with the story ring when they have one
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 import type { Event, Friend, Story } from "@max-events/api-contracts";
 import { apiClient, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -38,6 +38,7 @@ import { pictured } from "../ui/photos";
 import { AppAvatar, AppButton, AppChip, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { parsePinLabel } from "../ui/pin-label";
+import { useSheetSwipe } from "../ui/sheet";
 import { pluralRu } from "../catalog/format";
 
 type FeedComment = FeedPost["comments"][number];
@@ -87,24 +88,46 @@ function rememberCommentParent(id: string, parentId: string): Record<string, str
   return next;
 }
 
-function threadedComments(comments: FeedComment[], parents: Record<string, string>): Array<{ comment: FeedComment; reply: boolean }> {
-  const ids = new Set(comments.map((item) => item.id));
-  const children = new Map<string, FeedComment[]>();
+/** Top comment of a reply chain. A cycle keeps the smallest id so every reply still has a root. */
+export function commentRootId(id: string, parents: Record<string, string>, known: ReadonlySet<string>): string {
+  let current = id;
+  const chain: string[] = [];
+  const index = new Map<string, number>();
+  while (!index.has(current)) {
+    index.set(current, chain.length);
+    chain.push(current);
+    const parent = parents[current];
+    if (parent === undefined || !known.has(parent)) return current;
+    current = parent;
+  }
+  const cycle = chain.slice(index.get(current) ?? 0);
+  return [...cycle].sort()[0] ?? id;
+}
+
+/** Every reply, including a reply to a reply, sits under the top comment of its chain. */
+export function commentThreads(comments: FeedComment[], parents: Record<string, string>): Array<{ root: FeedComment; replies: FeedComment[] }> {
+  const known = new Set(comments.map((item) => item.id));
+  const replies = new Map<string, FeedComment[]>();
   const roots: FeedComment[] = [];
   for (const comment of comments) {
-    const parent = parents[comment.id];
-    if (parent !== undefined && ids.has(parent)) {
-      const list = children.get(parent) ?? [];
+    const rootId = commentRootId(comment.id, parents, known);
+    if (rootId === comment.id) roots.push(comment);
+    else {
+      const list = replies.get(rootId) ?? [];
       list.push(comment);
-      children.set(parent, list);
-    } else roots.push(comment);
+      replies.set(rootId, list);
+    }
   }
-  const ordered: Array<{ comment: FeedComment; reply: boolean }> = [];
-  for (const root of roots) {
-    ordered.push({ comment: root, reply: false });
-    for (const child of children.get(root.id) ?? []) ordered.push({ comment: child, reply: true });
-  }
-  return ordered;
+  return roots.map((root) => ({ root, replies: replies.get(root.id) ?? [] }));
+}
+
+export function repliesLabel(count: number): string {
+  return `Посмотреть ответы (${count})`;
+}
+
+/** «Смотреть все 3 комментария» — на карточке виден счёт, сами реплики живут в шторке. */
+export function commentsEntryLabel(count: number): string {
+  return `Смотреть все ${count} ${pluralRu(count, "комментарий", "комментария", "комментариев")}`;
 }
 
 function CommentRow({ item, liked, onLike, onReply, onOpenAuthor }: { item: { comment: FeedComment; reply: boolean }; liked: boolean; onLike: () => void; onReply: () => void; onOpenAuthor?: (userId: string) => void }) {
@@ -166,7 +189,114 @@ interface FeedPostCardProps {
   hasStory?: boolean;
 }
 
+function CommentThread({ thread, revealToken, liked, onLike, onReply, onOpenAuthor }: { thread: { root: FeedComment; replies: FeedComment[] }; revealToken: number; liked: Record<string, true>; onLike: (id: string) => void; onReply: (comment: FeedComment) => void; onOpenAuthor?: (userId: string) => void }) {
+  const [opened, setOpened] = useState<boolean | null>(null);
+  const [seenToken, setSeenToken] = useState(revealToken);
+  const tokenChanged = revealToken !== seenToken;
+  if (tokenChanged) {
+    setSeenToken(revealToken);
+    setOpened(revealToken > 0);
+  }
+  const open = tokenChanged ? revealToken > 0 : (opened ?? revealToken > 0);
+  const row = (comment: FeedComment, reply: boolean) => <CommentRow key={comment.id} item={{ comment, reply }} liked={liked[comment.id] === true} onLike={() => onLike(comment.id)} onReply={() => onReply(comment)} onOpenAuthor={onOpenAuthor} />;
+  return (
+    <>
+      {row(thread.root, false)}
+      {thread.replies.length > 0 && (
+        <li className="app-feed-replies">
+          <button type="button" className="app-feed-replies-toggle" aria-expanded={open} onClick={() => setOpened(!open)}>
+            {open ? "Скрыть ответы" : repliesLabel(thread.replies.length)}
+          </button>
+        </li>
+      )}
+      {open && thread.replies.map((comment) => row(comment, true))}
+    </>
+  );
+}
+
 /** Аватар автора поста: фото, если оно есть, и градиентное кольцо только при живой истории. */
+export function CommentSheet({
+  comments,
+  parents,
+  liked,
+  replyTo,
+  reveal,
+  draft,
+  onDraft,
+  onClose,
+  onLike,
+  onReply,
+  onCancelReply,
+  onSubmit,
+  onOpenAuthor,
+  inputRef,
+}: {
+  comments: FeedComment[];
+  parents: Record<string, string>;
+  liked: Record<string, true>;
+  replyTo: FeedComment | null;
+  reveal?: { rootId: string; token: number } | null;
+  draft: string;
+  onDraft: (value: string) => void;
+  onClose: () => void;
+  onLike: (id: string) => void;
+  onReply: (comment: FeedComment) => void;
+  onCancelReply: () => void;
+  onSubmit: () => void;
+  onOpenAuthor?: (userId: string) => void;
+  inputRef: RefObject<HTMLInputElement | null>;
+}) {
+  const swipe = useSheetSwipe(onClose);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [inputRef]);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    onSubmit();
+  };
+  return (
+    <div className="app-picker" role="dialog" aria-modal="true" aria-label="Комментарии">
+      <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={onClose} />
+      <div className="app-picker-sheet app-sheet" style={swipe.style}>
+        <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
+        <div className="app-picker-head">
+          <h2 className="app-picker-title">Комментарии</h2>
+        </div>
+        {comments.length === 0 ? (
+          <p className="app-picker-empty">Пока никто не написал. Будьте первым.</p>
+        ) : (
+          <ul className="app-comments-list">
+            {commentThreads(comments, parents).map((thread) => (
+              <CommentThread key={thread.root.id} thread={thread} revealToken={reveal?.rootId === thread.root.id ? reveal.token : 0} liked={liked} onLike={onLike} onReply={onReply} onOpenAuthor={onOpenAuthor} />
+            ))}
+          </ul>
+        )}
+        {replyTo !== null && (
+          <p className="app-feed-replying">
+            Ответ для {replyTo.author.name}
+            <button type="button" className="app-feed-comment-reply" onClick={onCancelReply}>
+              Отмена
+            </button>
+          </p>
+        )}
+        <form className="app-feed-comment-form" onSubmit={submit}>
+          <input ref={inputRef} className="app-filters-input" placeholder={replyTo === null ? "Добавить комментарий…" : `Ответ для ${replyTo.author.name}`} value={draft} onChange={(change) => onDraft(change.target.value)} />
+          <AppChip disabled={draft.trim() === ""} type="submit">
+            Отправить
+          </AppChip>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function PostAuthorAvatar({ friend, hasStory = false, size = 36 }: { friend: Friend; hasStory?: boolean; size?: number }) {
   const avatar = (
     <AppAvatar src={friend.avatarUrl} size={size}>
@@ -181,12 +311,15 @@ export function PostAuthorAvatar({ friend, hasStory = false, size = 36 }: { frie
   );
 }
 
-export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenComments, onOpenEvent, onOpenMap, onOpenAuthor, hasStory = false }: FeedPostCardProps) {
+export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenEvent, onOpenMap, onOpenAuthor, hasStory = false }: FeedPostCardProps) {
   const [comment, setComment] = useState("");
+  const [commentsOpen, setCommentsOpen] = useState(() => typeof sessionStorage !== "undefined" && sessionStorage.getItem("max-events:open-comments") === post.id);
   const [saving, setSaving] = useState(false);
   const [replyTo, setReplyTo] = useState<FeedComment | null>(null);
   const [likedComments, setLikedComments] = useState<Record<string, true>>(readCommentLikes);
   const [commentParents, setCommentParents] = useState<Record<string, string>>(readCommentParents);
+  const [reveal, setReveal] = useState<{ rootId: string; token: number } | null>(null);
+  const revealSeq = useRef(0);
   const commentRef = useRef<HTMLInputElement | null>(null);
   const eventLink =
     onOpenEvent && post.eventId !== null ? (
@@ -196,6 +329,33 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
     ) : (
       <span className="app-post-place-text">{eventTitle}</span>
     );
+  const pin = parsePinLabel(post.locationLabel ?? "");
+  const showMark = onOpenMap !== undefined && (pin !== null || post.placeId !== null);
+  const markLabel = pin !== null ? "Точка на карте" : "Показать на карте";
+  useEffect(() => {
+    if (typeof sessionStorage === "undefined") return;
+    if (sessionStorage.getItem("max-events:open-comments") === post.id) sessionStorage.removeItem("max-events:open-comments");
+  }, [post.id]);
+  const sendComment = () => {
+    const text = comment.trim();
+    if (text === "") return;
+    const before = new Set(post.comments.map((item) => item.id));
+    const parent = replyTo;
+    const result = onAddComment(text, parent?.id ?? null);
+    setComment("");
+    setReplyTo(null);
+    if (parent !== null && result instanceof Promise) {
+      void result.then((next) => {
+        if (!next) return;
+        const created = next.comments.find((item) => !before.has(item.id));
+        if (!created) return;
+        const parents = rememberCommentParent(created.id, parent.id);
+        setCommentParents(parents);
+        revealSeq.current += 1;
+        setReveal({ rootId: commentRootId(created.id, parents, new Set(next.comments.map((item) => item.id))), token: revealSeq.current });
+      });
+    }
+  };
   return (
     <article className="app-card app-card--post">
       <header className="app-post-head">
@@ -214,8 +374,15 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
           ) : (
             <span className="app-post-author">{post.author.name}</span>
           )}
+          {showMark && (
+            <button type="button" className="app-feed-post-where" onClick={onOpenMap}>
+              <ActionIcon name="pin" size={12} />
+              <span>{markLabel}</span>
+            </button>
+          )}
           {eventTitle !== "" && <span className="app-post-place">{eventLink}</span>}
         </span>
+        {userId !== "" && <ReportButton mode="dialog" target={{ feedPostId: post.id }} userId={userId} />}
       </header>
       {post.photoUrl === null ? <AppMedia category={eventCategory} src={pictured(post.eventId ?? post.id)} /> : <img className="app-card-media app-post-photo" src={post.photoUrl} alt="" />}
       <div className="app-post-actions">
@@ -223,7 +390,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
           <ActionIcon filled={post.likedByMe} name="heart" />
           <span>{post.likesCount}</span>
         </button>
-        <button type="button" className="app-post-action" aria-label="Комментировать" onClick={() => (onOpenComments ? onOpenComments() : commentRef.current?.focus())}>
+        <button type="button" className="app-post-action" aria-label="Комментировать" onClick={() => setCommentsOpen(true)}>
           <ActionIcon name="comment" />
           <span>{post.comments.length}</span>
         </button>
@@ -262,72 +429,32 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         )}{" "}
         {post.text}
       </p>
-      {onOpenMap && (parsePinLabel(post.locationLabel ?? "") !== null || post.placeId !== null) && (
-        <button type="button" className="app-feed-post-where app-post-map-mark" onClick={onOpenMap}>
-          <ActionIcon name="pin" size={14} />
-          {parsePinLabel(post.locationLabel ?? "") ? "Точка на карте" : "Показать на карте"}
+      {post.comments.length > 0 && (
+        <button type="button" className="app-comments-entry" onClick={() => setCommentsOpen(true)}>
+          {commentsEntryLabel(post.comments.length)}
         </button>
       )}
-      <ul className="app-feed-comments">
-        {threadedComments(post.comments, { ...commentParents, ...Object.fromEntries(post.comments.flatMap((item) => (item.parentId ? [[item.id, item.parentId]] : []))) }).map((item) => (
-          <CommentRow
-            key={item.comment.id}
-            item={item}
-            liked={likedComments[item.comment.id] === true}
-            onLike={() => setLikedComments(toggleCommentLike(item.comment.id))}
-            onReply={() => {
-              if (onOpenComments) {
-                onOpenComments();
-                return;
-              }
-              setReplyTo(item.comment);
-              commentRef.current?.focus();
-            }}
-            onOpenAuthor={onOpenAuthor}
-          />
-        ))}
-      </ul>
-      {replyTo !== null && (
-        <p className="app-feed-replying">
-          Ответ для {replyTo.author.name}
-          <button type="button" className="app-feed-comment-reply" onClick={() => setReplyTo(null)}>
-            Отмена
-          </button>
-        </p>
+      {commentsOpen && (
+        <CommentSheet
+          comments={post.comments}
+          parents={{ ...commentParents, ...Object.fromEntries(post.comments.flatMap((item) => (item.parentId ? [[item.id, item.parentId]] : []))) }}
+          liked={likedComments}
+          replyTo={replyTo}
+          reveal={reveal}
+          draft={comment}
+          onDraft={setComment}
+          onClose={() => setCommentsOpen(false)}
+          onLike={(id) => setLikedComments(toggleCommentLike(id))}
+          onReply={(item) => {
+            setReplyTo(item);
+            commentRef.current?.focus();
+          }}
+          onCancelReply={() => setReplyTo(null)}
+          onSubmit={sendComment}
+          onOpenAuthor={onOpenAuthor}
+          inputRef={commentRef}
+        />
       )}
-      {onOpenComments ? (
-        <button type="button" className="app-feed-open-comments" onClick={onOpenComments}>
-          Написать комментарий
-        </button>
-      ) : (
-      <form
-        className="app-feed-comment-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const text = comment.trim();
-          if (text === "") return;
-          const before = new Set(post.comments.map((item) => item.id));
-          const parent = replyTo;
-          const result = onAddComment(text, parent?.id ?? null);
-          setComment("");
-          setReplyTo(null);
-          if (parent !== null && result instanceof Promise) {
-            void result.then((next) => {
-              if (!next) return;
-              const created = next.comments.find((item) => !before.has(item.id));
-              if (!created) return;
-              setCommentParents(rememberCommentParent(created.id, parent.id));
-            });
-          }
-        }}
-      >
-        <input ref={commentRef} className="app-filters-input" placeholder={replyTo === null ? "Добавить комментарий…" : `Ответ для ${replyTo.author.name}`} value={comment} onChange={(change) => setComment(change.target.value)} />
-        <AppChip disabled={comment.trim() === ""} type="submit">
-          Отправить
-        </AppChip>
-      </form>
-      )}
-      {userId !== "" && <ReportButton target={{ feedPostId: post.id }} userId={userId} />}
     </article>
   );
 }
@@ -646,15 +773,12 @@ export function StoriesRow() {
         <button type="button" className="app-story-plus" aria-label="Добавить историю" onClick={openEditor}>
           <ActionIcon name="plus" size={14} strokeWidth={3} />
         </button>
-        <button type="button" className="app-story-name" onClick={() => navigate({ name: "profile" })}>
-          Твоя история
-        </button>
       </div>
       {rail.tiles.map((tile) => (
         <div key={tile.friendId} className="app-story">
           <button type="button" className="app-story-open" aria-label={`История ${tile.name}, ${tile.storyCount}`} onClick={() => setViewer({ groups: rail.groups, start: tile.group })}>
             <StoryRing total={tile.storyCount} unseen={tile.unseenCount} label={tile.unseenCount > 0 ? `${tile.name}: новых историй ${tile.unseenCount} из ${tile.storyCount}` : `${tile.name}: истории ${tile.storyCount}, уже смотрел`}>
-              <AppAvatar size={58} src={tile.avatarUrl}>
+              <AppAvatar size={58} src={tile.avatarUrl ?? friends.find((person) => person.id === tile.friendId)?.avatarUrl}>
                 {tile.initial}
               </AppAvatar>
             </StoryRing>

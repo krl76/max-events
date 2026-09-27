@@ -58,6 +58,8 @@ describe("UpdateProfileSchema", () => {
     expect(UpdateProfileSchema.safeParse({ smartAlerts: { quietHoursEnabled: true, quietHoursFrom: "22:00" } }).success).toBe(true);
     expect(UpdateProfileSchema.safeParse({ smartAlerts: { quietHoursFrom: "25:00" } }).success).toBe(false);
     expect(UpdateProfileSchema.safeParse({ privacy: { visitHistory: "hidden" } }).success).toBe(true);
+    expect(UpdateProfileSchema.safeParse({ privacy: { routes: "close" } }).success).toBe(true);
+    expect(UpdateProfileSchema.safeParse({ privacy: { routes: "city" } }).success).toBe(false);
     expect(UpdateProfileSchema.safeParse({ recommendationsEnabled: false }).success).toBe(true);
     expect(UpdateProfileSchema.safeParse({ bio: "Люблю джаз и падел" }).success).toBe(true);
     expect(UpdateProfileSchema.safeParse({ coverUrl: null, avatarUrl: "https://cdn.example.com/a.jpg" }).success).toBe(true);

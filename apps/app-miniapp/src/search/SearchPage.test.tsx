@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { catalogCards } from "../api/mock";
-import { addRecentSearch, nearbyEntryTitle, RECENT_SEARCHES_LIMIT, railMeta, searchCities, SearchEntryTiles, SearchNearby, SearchQueryForm, SearchTopBar, SearchWayTiles, type SearchState } from "./SearchPage";
+import { addRecentSearch, nearbyEntryTitle, RECENT_SEARCHES_LIMIT, railMeta, searchCities, SearchFilterSheet, SearchFold, SearchNearby, SearchQueryForm, SearchTools, SearchTopBar, type SearchState } from "./SearchPage";
 
 const noop = () => {};
 const CARDS = catalogCards({ sort: "near" }, { latitude: 55.7522, longitude: 37.6156 });
@@ -45,16 +45,13 @@ describe("search helpers", () => {
 });
 
 describe("SearchTopBar", () => {
-  const bar = (over: { city?: string; cities?: string[]; initial?: string } = {}) => renderToStaticMarkup(createElement(SearchTopBar, { city: over.city ?? "Москва", cities: over.cities ?? ["Москва"], onCity: noop, initial: over.initial ?? "К", searchOpen: false, onToggleSearch: noop, onOpenProfile: noop }));
+  const bar = (over: { city?: string; cities?: string[] } = {}) => renderToStaticMarkup(createElement(SearchTopBar, { city: over.city ?? "Москва", cities: over.cities ?? ["Москва"], onCity: noop }));
 
-  it("shows the city, the viewer initial and the search toggle", () => {
+  it("shows the city and keeps the profile shortcut off this screen", () => {
     const html = bar();
 
     expect(html).toContain("Москва");
-    expect(html).toContain(">К<");
-    expect(html).toContain('aria-label="Профиль"');
-    expect(html).toContain('aria-label="Поиск"');
-    // Меню города закрыто, пока по пилюле не нажали.
+    expect(html).not.toContain('aria-label="Профиль"');
     expect(html).not.toContain("app-search-city-menu");
   });
 });
@@ -63,65 +60,74 @@ describe("SearchQueryForm", () => {
   it("shows the recents on a blank query and hides them once something is typed", () => {
     const form = (query: string) => renderToStaticMarkup(createElement(SearchQueryForm, { query, onQuery: noop, onSubmit: noop, recents: ["йога", "Рахманинов"] }));
 
+    expect(form("")).toContain("Недавние");
     expect(form("")).toContain("Рахманинов");
-    expect(form("")).toContain("app-search-recents");
+    expect(form("")).toContain("app-search-recent");
+    expect(form("")).toContain('aria-label="Найти"');
+    expect(form("")).toContain("disabled");
     expect(form("джаз")).not.toContain("app-search-recents");
+    expect(form("джаз")).not.toContain("disabled");
   });
 });
 
 describe("search entries", () => {
-  it("offers the swipe deck and the map as the two tiles of the design", () => {
-    const html = renderToStaticMarkup(createElement(SearchEntryTiles, { onSwipe: noop, onMap: noop }));
+  it("keeps every search door as an icon, with the full name on the button", () => {
+    const html = renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop }));
 
-    expect(html).toContain("Подбор свайпами");
-    expect(html).toContain("Места под твой вкус");
-    expect(html).toContain("На карте");
-    expect(html).toContain("Друзья и маршруты");
-  });
-
-  it("offers the wizard and the nearby screen, and keeps one dark tile between them", () => {
-    const html = renderToStaticMarkup(createElement(SearchWayTiles, { onWhereto: noop, onNearby: noop }));
-
-    expect(html).toContain("Куда пойдём?");
-    expect(html).toContain("Три вопроса — пять вариантов");
-    expect(html).toContain("Рядом со мной");
+    expect(html).toContain('aria-label="Спросить MAX"');
+    expect(html).toContain('aria-label="Подбор свайпами"');
+    expect(html).toContain('aria-label="На карте"');
+    expect(html).toContain('aria-label="Куда пойдём?"');
+    expect(html).toContain('aria-label="Рядом со мной"');
+    expect(html).toContain('aria-label="Микро-события"');
     expect(nearbyEntryTitle(false)).toBe("В городе");
-    expect(renderToStaticMarkup(createElement(SearchWayTiles, { onWhereto: noop, onNearby: noop, inCity: false }))).toContain("В городе");
-    expect(html).toContain("Сейчас, через час, вечером");
-    expect((html.match(/app-search-way--dark/g) ?? []).length).toBe(1);
+    expect(renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop, nearbyLabel: "Город", nearbyAria: "В городе" }))).toContain('aria-label="В городе"');
+  });
+});
+
+describe("SearchFilterSheet", () => {
+  it("offers the categories and a reset once one is chosen", () => {
+    const open = renderToStaticMarkup(createElement(SearchFilterSheet, { category: "sport", onCategory: noop, onClose: noop }));
+
+    expect(open).toContain("Фильтры");
+    expect(open).toContain("Афиша");
+    expect(open).toContain("Волонтёрство");
+    expect(open).toContain("Сбросить");
+    expect(renderToStaticMarkup(createElement(SearchFilterSheet, { category: undefined, onCategory: noop, onClose: noop }))).not.toContain("Сбросить");
+  });
+});
+
+describe("SearchFold", () => {
+  it("hides the section events until the button is opened", () => {
+    const closed = renderToStaticMarkup(createElement(SearchFold, { title: "Для вас", open: false, onToggle: noop, children: "Вечер Рахманинова" }));
+    const open = renderToStaticMarkup(createElement(SearchFold, { title: "Для вас", open: true, onToggle: noop, children: "Вечер Рахманинова" }));
+
+    expect(closed).toContain("Для вас");
+    expect(closed).toContain('aria-expanded="false"');
+    expect(closed).not.toContain("Вечер Рахманинова");
+    expect(open).toContain('aria-expanded="true"');
+    expect(open).toContain("Вечер Рахманинова");
   });
 });
 
 describe("SearchNearby", () => {
-  const rail = (over: { state?: SearchState; query?: string; expanded?: boolean; inCity?: boolean } = {}) => renderToStaticMarkup(createElement(SearchNearby, { state: over.state ?? READY, query: over.query ?? "", expanded: over.expanded ?? false, inCity: over.inCity, onExpand: noop, onOpenEvent: noop, onRetry: noop }));
+  const rail = (over: { state?: SearchState; inCity?: boolean } = {}) => renderToStaticMarkup(createElement(SearchNearby, { state: over.state ?? READY, inCity: over.inCity, onExpand: noop, onOpenEvent: noop, onRetry: noop }));
 
-  it("shows the horizontal rail with «Смотреть все» while nothing is being searched", () => {
+  it("shows the horizontal rail with «Смотреть все»", () => {
     const html = rail();
 
     expect(html).toContain("Сегодня рядом");
     expect(html).toContain("Смотреть все");
     expect(html).toContain("app-rail-strip");
     expect(html).toContain(CARDS[0].event.title);
+    expect(html).not.toContain("app-pick-likes");
   });
 
-  it("drops «Смотреть все» once the catalog is already unfolded", () => {
-    expect(rail({ expanded: true })).not.toContain("Смотреть все");
-  });
-
-  it("turns into a result list under a query, because found things are read down, not sideways", () => {
-    const html = rail({ query: "джаз" });
-
-    expect(html).toContain("Результаты поиска");
-    expect(html).toContain("app-rail-list");
-    expect(html).not.toContain("app-rail-strip");
-    expect(html).not.toContain("Смотреть все");
-  });
-
-  it("says nothing was found under a query and stays neutral without one", () => {
+  it("says the rail is empty without turning that into a search miss", () => {
     const empty: SearchState = { status: "ready", cards: [] };
 
-    expect(rail({ state: empty, query: "несуществующий-запрос" })).toContain("Ничего не найдено");
     expect(rail({ state: empty })).toContain("Рядом сегодня пусто");
+    expect(rail({ state: empty })).toContain("Смотреть все");
     expect(rail({ state: empty, inCity: false })).toContain("Сегодня в городе");
     expect(rail({ state: empty, inCity: false })).toContain("В городе сегодня пусто");
   });

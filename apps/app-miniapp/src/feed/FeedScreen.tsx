@@ -246,7 +246,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
               </button>
               <button type="button" className="app-feed-post-where" onClick={onOpenMark}>
                 <ActionIcon name="pin" size={12} />
-                {markLabel}
+                <span>{markLabel}</span>
               </button>
             </span>
           </div>
@@ -765,7 +765,10 @@ export function FeedScreen() {
       if (card.event === null) return;
       void settle(apiClient.toggleFeedGoing(card.id, userId));
     },
-    onOpenComments: (card) => navigate({ name: "post", id: card.id }),
+    onOpenComments: (card) => {
+      sessionStorage.setItem("max-events:open-comments", card.id);
+      navigate({ name: "post", id: card.id });
+    },
     onShare: (card) => {
       const sentence = card.event ? `${card.author.name} — ${card.event.title}: ${card.text}` : `${card.author.name}: ${card.text}`;
       const payload = sharePayload(sentence, card.event ? `event-${card.event.id}` : `post-${card.id}`);

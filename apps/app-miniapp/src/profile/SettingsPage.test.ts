@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { DEFAULT_SMART_ALERTS, type Profile, type User } from "@max-events/api-contracts";
 import type { AppSettings } from "../api/client";
 import type { Friend } from "@max-events/api-contracts";
-import { APP_PREFERENCE_KEYS, APP_VERSION, CloseFriendsDialog, SettingsView, THEME_OPTIONS, appCacheBytes, clearAppCache, filterCloseFriends, formatBytes, identityHint, interestsHint, planVisibilityLabel, quietHoursHint, quietHoursLabel, radiusLabel, themeLabel } from "./SettingsPage";
+import { APP_PREFERENCE_KEYS, APP_VERSION, CloseFriendsDialog, PLAN_VISIBILITY_OPTIONS, SettingsView, THEME_OPTIONS, appCacheBytes, clearAppCache, filterCloseFriends, formatBytes, identityHint, interestsHint, planVisibilityLabel, quietHoursHint, quietHoursLabel, radiusLabel, themeLabel } from "./SettingsPage";
 
 const user: User = {
   id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
@@ -88,7 +88,9 @@ describe("settings labels", () => {
 
   it("formats the radius, the plan visibility and the quiet hours", () => {
     expect(radiusLabel(5)).toBe("5 км");
+    expect(PLAN_VISIBILITY_OPTIONS.map((option) => option.label)).toEqual(["Друзья", "Близкие друзья", "Никто"]);
     expect(planVisibilityLabel("friends")).toBe("Друзья");
+    expect(planVisibilityLabel("close")).toBe("Близкие друзья");
     expect(planVisibilityLabel("hidden")).toBe("Никто");
     expect(quietHoursLabel(true)).toBe("Вкл");
     expect(quietHoursLabel(false)).toBe("Выкл");

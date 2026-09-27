@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { DiscoveryResponseSchema, FriendPlaceVisitSchema, FriendRouteSchema, PeopleResponseSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { createMockCheckIn, discoverySummary, friendPlaceLayer, friendRoute, installMockApi, mockDemoUser, mockEvents, mockFriendIds, mockPlaces, peopleSuggest, resetMockCheckIns } from "./mock";
+import { createMockCheckIn, discoverySummary, friendPlaceLayer, friendRoute, installMockApi, mockDemoUser, mockEvents, mockFriendIds, mockPlaces, peopleSuggest, resetMockCheckIns, resetMockProfiles } from "./mock";
+import { mockProfiles, profileFor } from "./mock/profile";
+import { resetMockCloseAuthors, setMockCloseAuthor } from "./mock/social";
 
 const DEMO_USER_ID = mockDemoUser.id;
 const UNKNOWN_UUID = "00000000-0000-4000-8000-000000000000";
@@ -12,6 +14,8 @@ const [PARK, GMII, , DEPO, VERANDA] = mockPlaces.map((place) => place.id);
 describe("discoverySummary mock", () => {
   afterEach(() => {
     resetMockCheckIns();
+    resetMockProfiles();
+    resetMockCloseAuthors();
   });
 
   it("passes the contract and counts per-friend unseen places, privacy-gated", () => {
@@ -42,6 +46,23 @@ describe("discoverySummary mock", () => {
 
     expect(lena.newPlacesCount).toBe(1);
     expect(lena.places).toEqual([]);
+  });
+
+  it("shows a close-friends trail only after that friend marked the viewer close", () => {
+    const anna = profileFor(ANNA);
+    mockProfiles.set(ANNA, { ...anna, privacy: { ...anna.privacy, routes: "close" } });
+    const hidden = discoverySummary().byFriend.find((entry) => entry.friend.id === ANNA)!;
+
+    expect(hidden.newPlacesCount).toBe(3);
+    expect(hidden.places).toEqual([]);
+    expect(friendRoute(ANNA)).toBe("hidden");
+    expect(friendPlaceLayer().flatMap((row) => row.friends.map((friend) => friend.id))).not.toContain(ANNA);
+
+    setMockCloseAuthor(ANNA, true);
+    const open = discoverySummary().byFriend.find((entry) => entry.friend.id === ANNA)!;
+    expect(open.places.map((place) => place.id)).toEqual([GMII, DEPO, VERANDA]);
+    expect(friendRoute(ANNA)).toMatchObject({ friend: { id: ANNA } });
+    expect(friendPlaceLayer().flatMap((row) => row.friends.map((friend) => friend.id))).toContain(ANNA);
   });
 
   it("drops the demo user's check-in places from every friend list", () => {

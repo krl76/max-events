@@ -24,6 +24,7 @@
 // - TodayAfterMeCard - the dismissible hint: headline, explanation, the chips of its own card and the two buttons
 // END_MODULE_MAP
 
+import { useEffect, useRef, useState } from "react";
 import type { TodayCardLabel } from "@max-events/api-contracts";
 import type { TodayCard, TodayDigest } from "../api/client";
 import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
@@ -70,6 +71,124 @@ export function todayLabel(label: TodayCardLabel, voice: DistanceVoice = "you"):
 /** «18 сентября» — the day the digest was built for, printed next to its title. */
 export function formatTodayDate(now: Date): string {
   return now.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+
+/** Local calendar day as YYYY-MM-DD, the value a date input reads and writes. */
+export function dayKey(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+
+/** Six weeks of a month grid, Monday first. */
+export function monthCells(anchor: Date): Date[] {
+  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const offset = (first.getDay() + 6) % 7;
+  const start = new Date(first);
+  start.setDate(1 - offset);
+  return Array.from({ length: 42 }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    return day;
+  });
+}
+
+export function monthHeading(date: Date): string {
+  const raw = date.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+  return raw.charAt(0).toUpperCase() + raw.slice(1).replace(" г.", "");
+}
+
+export function DayCalendar({ month, selected, today, onPick, onShift, onToday }: { month: Date; selected: string; today: string; onPick: (day: string) => void; onShift: (month: Date) => void; onToday: () => void }) {
+  return (
+    <div className="app-today-cal" role="dialog" aria-label="Выбор даты">
+      <div className="app-today-cal-head">
+        <button type="button" className="app-today-cal-nav" aria-label="Предыдущий месяц" onClick={() => onShift(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>
+          <ActionIcon name="chevron" size={16} />
+        </button>
+        <span className="app-today-cal-title">{monthHeading(month)}</span>
+        <button type="button" className="app-today-cal-nav app-today-cal-nav--next" aria-label="Следующий месяц" onClick={() => onShift(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>
+          <ActionIcon name="chevron" size={16} />
+        </button>
+      </div>
+      <div className="app-today-cal-week" aria-hidden="true">
+        {WEEKDAYS.map((name) => (
+          <span key={name}>{name}</span>
+        ))}
+      </div>
+      <div className="app-today-cal-grid">
+        {monthCells(month).map((date) => {
+          const key = dayKey(date);
+          const outside = date.getMonth() !== month.getMonth();
+          const classes = ["app-today-cal-day", outside ? "app-today-cal-day--out" : "", key === selected ? "app-today-cal-day--on" : "", key === today && key !== selected ? "app-today-cal-day--today" : ""].filter(Boolean).join(" ");
+          return (
+            <button key={key} type="button" className={classes} aria-pressed={key === selected} onClick={() => onPick(key)}>
+              {date.getDate()}
+            </button>
+          );
+        })}
+      </div>
+      <button type="button" className="app-today-cal-today" onClick={onToday}>
+        Сегодня
+      </button>
+    </div>
+  );
+}
+
+function SearchDayButton({ day, now, onDay }: { day: string; now: Date; onDay: (day: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [cursor, setCursor] = useState(() => new Date(`${day}T12:00:00`));
+  const root = useRef<HTMLDivElement>(null);
+  const shown = new Date(`${day}T12:00:00`);
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div className="app-today-date-wrap" ref={root}>
+      <button
+        type="button"
+        className="app-today-date"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => {
+          setCursor(shown);
+          setOpen((current) => !current);
+        }}
+      >
+        <ActionIcon name="calendar" size={16} />
+        <span>{formatTodayDate(shown)}</span>
+      </button>
+      {open && (
+        <DayCalendar
+          month={cursor}
+          selected={day}
+          today={dayKey(now)}
+          onShift={setCursor}
+          onPick={(next) => {
+            onDay(next);
+            setOpen(false);
+          }}
+          onToday={() => {
+            onDay(dayKey(now));
+            setOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
 }
 
 /** «19 сент. · 14:00» — short enough to sit next to the distance on a pick. */
@@ -119,14 +238,15 @@ export function afterMeGoLabel(voice: DistanceVoice = "you"): string {
   return voice === "center" ? "Показать места в городе" : "Показать места рядом";
 }
 
-export function TodaySummaryBlock({ state, now, distanceFrom = "you" }: { state: TodayState; now: Date; distanceFrom?: DistanceVoice }) {
+export function TodaySummaryBlock({ state, now, day, onDay, distanceFrom = "you", onOpenNearby, onOpenSuitable, onOpenFriends }: { state: TodayState; now: Date; day?: string; onDay?: (day: string) => void; distanceFrom?: DistanceVoice; onOpenNearby?: () => void; onOpenSuitable?: () => void; onOpenFriends?: () => void }) {
   const summary = state.status === "ready" ? state.today.summary : null;
   const title = todaySummaryTitle(distanceFrom);
+  const shown = day === undefined ? now : new Date(`${day}T12:00:00`);
   return (
     <section className="app-today" aria-label={title}>
       <div className="app-today-head">
         <h2 className="app-today-title">{title}</h2>
-        <span className="app-today-date">{formatTodayDate(now)}</span>
+        {onDay ? <SearchDayButton day={day ?? dayKey(now)} now={now} onDay={onDay} /> : <span className="app-today-date">{formatTodayDate(shown)}</span>}
       </div>
       <div className="app-today-stats">
         {summary === null ? (
@@ -138,21 +258,21 @@ export function TodaySummaryBlock({ state, now, distanceFrom = "you" }: { state:
           ))
         ) : (
           <>
-            <span className="app-today-stat">
+            <button type="button" className="app-today-stat" onClick={onOpenNearby}>
               <span className="app-today-stat-value">{summary.nearbyCount}</span>
               <span className="app-today-stat-label">{nearbyStatLabel(summary.nearbyCount, distanceFrom)}</span>
-            </span>
+            </button>
             {summary.suitableCount > 0 && (
-              <span className="app-today-stat">
+              <button type="button" className="app-today-stat" onClick={onOpenSuitable}>
                 <span className="app-today-stat-value">{summary.suitableCount}</span>
                 <span className="app-today-stat-label">{pluralRu(summary.suitableCount, "подходит", "подходят", "подходят")} тебе</span>
-              </span>
+              </button>
             )}
             {summary.withFriendsCount > 0 && (
-              <span className="app-today-stat app-today-stat--friends">
+              <button type="button" className="app-today-stat app-today-stat--friends" onClick={onOpenFriends}>
                 <span className="app-today-stat-value">{summary.withFriendsCount}</span>
                 <span className="app-today-stat-label">с друзьями</span>
-              </span>
+              </button>
             )}
           </>
         )}
@@ -160,10 +280,6 @@ export function TodaySummaryBlock({ state, now, distanceFrom = "you" }: { state:
       {summary !== null && summary.suitableCount === 0 && summary.withFriendsCount === 0 && <p className="app-today-quiet">Под интересы и с друзьями пока ничего. Интересы правятся в профиле.</p>}
     </section>
   );
-}
-
-function pickLikeCount(card: TodayCard, liked: boolean): number {
-  return (card.event.friendsGoing?.length ?? 0) + (liked ? 1 : 0);
 }
 
 function PickCard({ card, hero, onOpen, distanceFrom }: { card: TodayCard; hero: boolean; onOpen: (eventId: string) => void; distanceFrom: DistanceVoice }) {
@@ -177,7 +293,6 @@ function PickCard({ card, hero, onOpen, distanceFrom }: { card: TodayCard; hero:
       <span className="app-pick-glow app-pick-glow--cool" aria-hidden="true" />
       <button type="button" className="app-pick-save" aria-label="Нравится" aria-pressed={liked} onClick={() => toggleEventLike(card.event.id)}>
         <ActionIcon filled={liked} name="heart" size={hero ? 18 : 15} />
-        <span className="app-pick-likes">{pickLikeCount(card, liked)}</span>
       </button>
       <button type="button" className="app-pick-open" aria-label={card.event.title} onClick={() => onOpen(card.event.id)}>
         <span className="app-pick-kind">{CATEGORY_LABELS[card.event.category]}</span>
@@ -229,12 +344,12 @@ function PickCard({ card, hero, onOpen, distanceFrom }: { card: TodayCard; hero:
   );
 }
 
-export function TodayPicksBlock({ state, onOpen, onRetry, distanceFrom = "you" }: { state: TodayState; onOpen: (eventId: string) => void; onRetry: () => void; distanceFrom?: DistanceVoice }) {
+export function TodayPicksBlock({ state, onOpen, onRetry, distanceFrom = "you", showHeading = true }: { state: TodayState; onOpen: (eventId: string) => void; onRetry: () => void; distanceFrom?: DistanceVoice; showHeading?: boolean }) {
   const cards = state.status === "ready" ? todayPickCards(state.today) : [];
   const [hero, ...rest] = cards;
   return (
     <section className="app-picks" aria-label="Для вас">
-      <h2 className="app-screen-title">Для вас</h2>
+      {showHeading && <h2 className="app-screen-title">Для вас</h2>}
       {state.status === "loading" && <AppSkeleton variant="block" className="app-picks-skeleton" />}
       {state.status === "error" && (
         <AppState error action={{ label: "Повторить", onClick: onRetry }}>
