@@ -27,7 +27,7 @@ describe("theme.css scroll shell", () => {
 });
 
 describe("theme.css MAX palette", () => {
-  const BRAND_HEX = ["#007aff", "#479fff", "#006ee5", "#ff303c", "#ff4b55", "#ce4257", "#2bc644", "#1abe43", "#6813ff", "#a473ff", "#060708", "#17181c", "#25262d", "#0f0f12", "#ff9315", "#ffffff"];
+  const BRAND_HEX = ["#007aff", "#479fff", "#006ee5", "#ff303c", "#ff4b55", "#ce4257", "#2bc644", "#1abe43", "#6813ff", "#a473ff", "#060708", "#ff9315", "#ffffff"];
   const BRANDBOOK_HEX = ["#471aff", "#6e1aff", "#9500ff", "#00bfff", "#0d001a", "#c9b6ff"];
 
   it("uses no hex outside the two official MAX palettes, and keeps brandbook hues inside gradient lines", () => {
@@ -36,6 +36,8 @@ describe("theme.css MAX palette", () => {
       for (const match of line.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
         const hex = match[0].toLowerCase();
         if (BRAND_HEX.includes(hex)) continue;
+        // brand-void is the dark canvas, the same kind of role brand-white has in the light scheme.
+        if (hex === "#0d001a" && line.includes("--brand-void")) continue;
         if (BRANDBOOK_HEX.includes(hex) && line.includes("gradient")) continue;
         foreign.push(hex);
       }
@@ -110,10 +112,10 @@ describe("theme.css MAX palette", () => {
     expect(icon.slice(0, icon.indexOf("}"))).toContain("color: var(--app-danger);");
   });
 
-  it("keeps the danger label in the dark negative red, readable on graphite", () => {
+  it("keeps the danger label on brand-red in both schemes, readable on void", () => {
     expect(css).toContain("--app-danger-label: var(--brand-red);");
     const dark = css.slice(css.indexOf('.app-root[data-theme="dark"]'));
-    expect(dark.slice(0, dark.indexOf("}"))).toContain("--app-danger-label: var(--brand-red-dark);");
+    expect(dark.slice(0, dark.indexOf("}"))).not.toContain("--app-danger-label:");
   });
 
   it("keeps the only shadow neutral and reserved for the lift", () => {
@@ -129,13 +131,13 @@ describe("theme.css colour schemes", () => {
     expect(css).toContain("--app-divider: rgba(var(--app-scheme-neutral), var(--app-alpha-border));");
   });
 
-  it("flips that base to brand-white transparencies in the dark scheme", () => {
+  it("flips that base to brand-white transparencies on brand-void in the dark scheme", () => {
     const dark = css.slice(css.indexOf('.app-root[data-theme="dark"]'));
     const block = dark.slice(0, dark.indexOf("}"));
 
     expect(block).toContain("--app-scheme-neutral: 255, 255, 255;");
-    expect(block).toContain("--app-canvas: var(--brand-graphite-deep);");
-    expect(block).toContain("--app-card: var(--brand-graphite-card);");
+    expect(block).toContain("--app-canvas: var(--brand-void);");
+    expect(block).not.toContain("--app-card:");
     expect(block).toContain("--app-alpha-surface: 0.06;");
     expect(block).toContain("--app-alpha-border: 0.12;");
     expect(block).toContain("--app-alpha-text-secondary: 0.6;");
@@ -151,10 +153,10 @@ describe("theme.css colour schemes", () => {
     expect(css).toContain("html:not([data-theme]) .app-root:not([data-theme])");
   });
 
-  it("hands the accent-as-text role to brand-blue-hover in the dark scheme, where brand-blue drops below contrast", () => {
+  it("keeps accent-as-text on brand-blue in the dark scheme, where it holds 5:1 on brand-void", () => {
     expect(css).toContain("--app-accent-text: var(--brand-blue);");
     const dark = css.slice(css.indexOf('.app-root[data-theme="dark"]'));
-    expect(dark.slice(0, dark.indexOf("}"))).toContain("--app-accent-text: var(--brand-blue-hover);");
+    expect(dark.slice(0, dark.indexOf("}"))).not.toContain("--app-accent-text:");
   });
 });
 
