@@ -30,9 +30,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getStartParam, getWebApp } from "../max/bridge";
 
+export type BrowseList = "nearby" | "suitable" | "friends" | "results";
+
 export type Route =
   | { name: "home" }
   | { name: "search"; focus?: boolean }
+  // Отдельный список с поиска: рядом, под интересы, с друзьями или результаты запроса.
+  | { name: "browse"; list: BrowseList; query?: string; city?: string }
   | { name: "swipe" }
   | { name: "create" }
   | { name: "map"; pin?: { lat: number; lng: number }; placeId?: string }
@@ -154,7 +158,11 @@ function toRoute(value: unknown): Route | null {
   if (typeof name !== "string") return null;
   switch (name) {
     case "home":
-    case "search":
+      return { name };
+    case "search": {
+      const { focus } = value as { focus?: unknown };
+      return focus === true ? { name: "search", focus: true } : { name: "search" };
+    }
     case "swipe":
     case "create":
       return { name };
@@ -242,6 +250,13 @@ function toRoute(value: unknown): Route | null {
     // Экран 07 параметров не несёт; отдельным case, а не строкой в общем блоке — чтобы правка не легла в чужую
     case "notifications":
       return { name };
+    case "browse": {
+      const { list, query, city } = value as { list?: unknown; query?: unknown; city?: unknown };
+      if (list !== "nearby" && list !== "suitable" && list !== "friends" && list !== "results") return null;
+      const text = typeof query === "string" && query.trim() !== "" ? query : undefined;
+      const place = typeof city === "string" && city.trim() !== "" ? city : undefined;
+      return { name, list, ...(text ? { query: text } : {}), ...(place ? { city: place } : {}) };
+    }
     // «Подписчики» параметров не несёт; отдельным case, а не строкой в общем блоке — чтобы правка не легла в чужую
     case "followers":
       return { name };

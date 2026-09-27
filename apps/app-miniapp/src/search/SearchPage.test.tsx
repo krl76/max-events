@@ -64,7 +64,10 @@ describe("SearchQueryForm", () => {
 
     expect(form("")).toContain("Рахманинов");
     expect(form("")).toContain("app-search-recents");
+    expect(form("")).toContain('aria-label="Найти"');
+    expect(form("")).toContain("disabled");
     expect(form("джаз")).not.toContain("app-search-recents");
+    expect(form("джаз")).not.toContain("disabled");
   });
 });
 
@@ -96,35 +99,23 @@ describe("SearchFilterSheet", () => {
 });
 
 describe("SearchNearby", () => {
-  const rail = (over: { state?: SearchState; query?: string; expanded?: boolean; inCity?: boolean } = {}) => renderToStaticMarkup(createElement(SearchNearby, { state: over.state ?? READY, query: over.query ?? "", expanded: over.expanded ?? false, inCity: over.inCity, onExpand: noop, onOpenEvent: noop, onRetry: noop }));
+  const rail = (over: { state?: SearchState; inCity?: boolean } = {}) => renderToStaticMarkup(createElement(SearchNearby, { state: over.state ?? READY, inCity: over.inCity, onExpand: noop, onOpenEvent: noop, onRetry: noop }));
 
-  it("shows the horizontal rail with «Смотреть все» while nothing is being searched", () => {
+  it("shows the horizontal rail with «Смотреть все»", () => {
     const html = rail();
 
     expect(html).toContain("Сегодня рядом");
     expect(html).toContain("Смотреть все");
     expect(html).toContain("app-rail-strip");
     expect(html).toContain(CARDS[0].event.title);
+    expect(html).not.toContain("app-pick-likes");
   });
 
-  it("drops «Смотреть все» once the catalog is already unfolded", () => {
-    expect(rail({ expanded: true })).not.toContain("Смотреть все");
-  });
-
-  it("turns into a result list under a query, because found things are read down, not sideways", () => {
-    const html = rail({ query: "джаз" });
-
-    expect(html).toContain("Результаты поиска");
-    expect(html).toContain("app-rail-list");
-    expect(html).not.toContain("app-rail-strip");
-    expect(html).not.toContain("Смотреть все");
-  });
-
-  it("says nothing was found under a query and stays neutral without one", () => {
+  it("says the rail is empty without turning that into a search miss", () => {
     const empty: SearchState = { status: "ready", cards: [] };
 
-    expect(rail({ state: empty, query: "несуществующий-запрос" })).toContain("Ничего не найдено");
     expect(rail({ state: empty })).toContain("Рядом сегодня пусто");
+    expect(rail({ state: empty })).toContain("Смотреть все");
     expect(rail({ state: empty, inCity: false })).toContain("Сегодня в городе");
     expect(rail({ state: empty, inCity: false })).toContain("В городе сегодня пусто");
   });

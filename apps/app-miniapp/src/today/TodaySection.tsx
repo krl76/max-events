@@ -119,7 +119,7 @@ export function afterMeGoLabel(voice: DistanceVoice = "you"): string {
   return voice === "center" ? "Показать места в городе" : "Показать места рядом";
 }
 
-export function TodaySummaryBlock({ state, now, distanceFrom = "you" }: { state: TodayState; now: Date; distanceFrom?: DistanceVoice }) {
+export function TodaySummaryBlock({ state, now, distanceFrom = "you", onOpenNearby, onOpenSuitable, onOpenFriends }: { state: TodayState; now: Date; distanceFrom?: DistanceVoice; onOpenNearby?: () => void; onOpenSuitable?: () => void; onOpenFriends?: () => void }) {
   const summary = state.status === "ready" ? state.today.summary : null;
   const title = todaySummaryTitle(distanceFrom);
   return (
@@ -138,21 +138,21 @@ export function TodaySummaryBlock({ state, now, distanceFrom = "you" }: { state:
           ))
         ) : (
           <>
-            <span className="app-today-stat">
+            <button type="button" className="app-today-stat" onClick={onOpenNearby}>
               <span className="app-today-stat-value">{summary.nearbyCount}</span>
               <span className="app-today-stat-label">{nearbyStatLabel(summary.nearbyCount, distanceFrom)}</span>
-            </span>
+            </button>
             {summary.suitableCount > 0 && (
-              <span className="app-today-stat">
+              <button type="button" className="app-today-stat" onClick={onOpenSuitable}>
                 <span className="app-today-stat-value">{summary.suitableCount}</span>
                 <span className="app-today-stat-label">{pluralRu(summary.suitableCount, "подходит", "подходят", "подходят")} тебе</span>
-              </span>
+              </button>
             )}
             {summary.withFriendsCount > 0 && (
-              <span className="app-today-stat app-today-stat--friends">
+              <button type="button" className="app-today-stat app-today-stat--friends" onClick={onOpenFriends}>
                 <span className="app-today-stat-value">{summary.withFriendsCount}</span>
                 <span className="app-today-stat-label">с друзьями</span>
-              </span>
+              </button>
             )}
           </>
         )}
@@ -160,10 +160,6 @@ export function TodaySummaryBlock({ state, now, distanceFrom = "you" }: { state:
       {summary !== null && summary.suitableCount === 0 && summary.withFriendsCount === 0 && <p className="app-today-quiet">Под интересы и с друзьями пока ничего. Интересы правятся в профиле.</p>}
     </section>
   );
-}
-
-function pickLikeCount(card: TodayCard, liked: boolean): number {
-  return (card.event.friendsGoing?.length ?? 0) + (liked ? 1 : 0);
 }
 
 function PickCard({ card, hero, onOpen, distanceFrom }: { card: TodayCard; hero: boolean; onOpen: (eventId: string) => void; distanceFrom: DistanceVoice }) {
@@ -177,7 +173,6 @@ function PickCard({ card, hero, onOpen, distanceFrom }: { card: TodayCard; hero:
       <span className="app-pick-glow app-pick-glow--cool" aria-hidden="true" />
       <button type="button" className="app-pick-save" aria-label="Нравится" aria-pressed={liked} onClick={() => toggleEventLike(card.event.id)}>
         <ActionIcon filled={liked} name="heart" size={hero ? 18 : 15} />
-        <span className="app-pick-likes">{pickLikeCount(card, liked)}</span>
       </button>
       <button type="button" className="app-pick-open" aria-label={card.event.title} onClick={() => onOpen(card.event.id)}>
         <span className="app-pick-kind">{CATEGORY_LABELS[card.event.category]}</span>

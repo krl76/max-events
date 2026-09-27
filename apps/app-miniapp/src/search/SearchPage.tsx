@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 08 «Поиск»: the city switcher, «Спросить MAX», the category chips, the swipe/map tiles, «Сегодня для тебя», the «Куда пойдём?» and «Рядом со мной» entries, a short entry to micro-events, «После меня» when the taste graph has something, and the «Сегодня рядом» rail over the full catalog.
-// SCOPE: The search tab only. Cards come from apiClient.listEventCards (sorted by distance) and the digest from apiClient.getToday; the query is a filter of that request, the recents persist in localStorage. The map (экран 16) and the swipe deck (экран 09) are entered from here, neither is a tab; «Смотреть все» unfolds the catalog screen with its own date/city/rating filters.
-// DEPENDS: ../api/client.js (apiClient, CatalogCard, EventFilters), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CatalogPage), ../catalog/format.js (CATEGORY_LABELS), ../geo/viewer-origin.js, ../routing/router.js, ../today/TodaySection.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
+// SCOPE: The search tab only. Cards come from apiClient.listEventCards (sorted by distance) and the digest from apiClient.getToday; a query, «Смотреть все» and the three counters open a separate list. Recents persist in localStorage. The map (экран 16) and the swipe deck (экран 09) are entered from here, neither is a tab.
+// DEPENDS: ../api/client.js (apiClient, CatalogCard, EventFilters), ../auth/AuthContext.js, ../catalog/format.js (CATEGORY_LABELS), ../geo/viewer-origin.js, ../routing/router.js, ../today/TodaySection.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -27,10 +27,9 @@ import { useSheetSwipe } from "../ui/sheet";
 import type { EventCategory } from "@max-events/api-contracts";
 import { apiClient, type CatalogCard, type EventFilters } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { CatalogPage } from "../catalog/CatalogPage";
 import { CATEGORY_LABELS } from "../catalog/format";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
-import { useRoute } from "../routing/router";
+import { useRoute, type BrowseList } from "../routing/router";
 import { AfterMeSection } from "../taste/AfterMeSection";
 import { toggleEventLike, useEventLiked } from "../ui/event-likes";
 import { eventFillLabel, pictured } from "../ui/photos";
@@ -131,7 +130,7 @@ export function SearchTopBar({ city, cities, onCity, initial, onOpenProfile }: S
   );
 }
 
-export function SearchQueryForm({ query, onQuery, onSubmit, recents, autoFocus = false }: { query: string; onQuery: (query: string) => void; onSubmit: () => void; recents: string[]; autoFocus?: boolean }) {
+export function SearchQueryForm({ query, onQuery, onSubmit, onPickRecent, recents, autoFocus = false }: { query: string; onQuery: (query: string) => void; onSubmit: () => void; onPickRecent?: (query: string) => void; recents: string[]; autoFocus?: boolean }) {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     onSubmit();
@@ -141,11 +140,14 @@ export function SearchQueryForm({ query, onQuery, onSubmit, recents, autoFocus =
       <span className="app-search-field">
         <ActionIcon name="search" size={18} />
         <input className="app-search-input" type="search" aria-label="Поиск событий" placeholder="Событие, место или город" value={query} autoFocus={autoFocus} onChange={(change) => onQuery(change.target.value)} />
+        <button type="submit" className="app-search-go" aria-label="Найти" disabled={query.trim() === ""}>
+          <ActionIcon name="arrow" size={16} />
+        </button>
       </span>
       {query.trim() === "" && recents.length > 0 && (
         <div className="app-search-recents" role="group" aria-label="Недавние запросы">
           {recents.map((item) => (
-            <AppChip key={item} onClick={() => onQuery(item)}>
+            <AppChip key={item} onClick={() => (onPickRecent ?? onQuery)(item)}>
               {item}
             </AppChip>
           ))}
@@ -306,8 +308,6 @@ export function SearchWayTiles({ onWhereto, onNearby, inCity = true }: { onWhere
 
 interface SearchNearbyProps {
   state: SearchState;
-  query: string;
-  expanded: boolean;
   /** The rail lists one city. When the viewer is outside it, the title must not say the events are nearby. */
   inCity?: boolean;
   onExpand: () => void;
@@ -330,26 +330,22 @@ function RailCard({ card, inCity, onOpen }: { card: CatalogCard; inCity: boolean
       </button>
       <button type="button" className="app-pick-save" aria-label="Нравится" aria-pressed={liked} onClick={() => toggleEventLike(card.event.id)}>
         <ActionIcon filled={liked} name="heart" size={16} />
-        <span className="app-pick-likes">{(card.event.friendsGoing?.length ?? 0) + (liked ? 1 : 0)}</span>
       </button>
     </article>
   );
 }
 
-export function SearchNearby({ state, query, expanded, inCity = true, onExpand, onOpenEvent, onRetry }: SearchNearbyProps) {
-  const searching = query.trim() !== "";
+export function SearchNearby({ state, inCity = true, onExpand, onOpenEvent, onRetry }: SearchNearbyProps) {
   const cards = state.status === "ready" ? state.cards : [];
   const idleTitle = inCity ? "Сегодня рядом" : "Сегодня в городе";
   return (
-    <section className="app-rail" aria-label={searching ? "Результаты поиска" : idleTitle}>
+    <section className="app-rail" aria-label={idleTitle}>
       <div className="app-rail-head">
-        <h2 className="app-screen-title">{searching ? "Результаты поиска" : idleTitle}</h2>
-        {!searching && !expanded && (
-          <button type="button" className="app-rail-all" onClick={onExpand}>
-            Смотреть все
-            <ActionIcon name="chevron" size={14} strokeWidth={2} />
-          </button>
-        )}
+        <h2 className="app-screen-title">{idleTitle}</h2>
+        <button type="button" className="app-rail-all" onClick={onExpand}>
+          Смотреть все
+          <ActionIcon name="chevron" size={14} strokeWidth={2} />
+        </button>
       </div>
       {state.status === "loading" && (
         <div className="app-rail-strip" aria-hidden="true">
@@ -363,10 +359,9 @@ export function SearchNearby({ state, query, expanded, inCity = true, onExpand, 
           Не удалось загрузить события.
         </AppState>
       )}
-      {state.status === "ready" && cards.length === 0 && <AppState>{searching ? "Ничего не найдено. Попробуйте другой запрос." : inCity ? "Рядом сегодня пусто. Загляните позже!" : "В городе сегодня пусто. Загляните позже!"}</AppState>}
+      {state.status === "ready" && cards.length === 0 && <AppState>{inCity ? "Рядом сегодня пусто. Загляните позже!" : "В городе сегодня пусто. Загляните позже!"}</AppState>}
       {state.status === "ready" && cards.length > 0 && (
-        // Горизонтальная лента — витрина; найденное читают списком, а не прокруткой вбок.
-        <div className={searching ? "app-rail-list" : "app-rail-strip"}>
+        <div className="app-rail-strip">
           {cards.map((card) => (
             <RailCard key={card.event.id} card={card} inCity={inCity} onOpen={() => onOpenEvent(card.event.id)} />
           ))}
@@ -382,6 +377,8 @@ interface SearchViewProps {
   query: string;
   onQuery: (query: string) => void;
   onSubmit: () => void;
+  onPickRecent: (query: string) => void;
+  onOpenList: (list: BrowseList) => void;
   recents: string[];
   city: string;
   cities: string[];
@@ -389,7 +386,6 @@ interface SearchViewProps {
   category: EventCategory | undefined;
   onCategory: (category: EventCategory | undefined) => void;
   initial: string;
-  expanded: boolean;
   onExpand: () => void;
   hintDismissed: boolean;
   onDismissHint: () => void;
@@ -418,16 +414,14 @@ export function SearchView(props: SearchViewProps) {
   return (
     <div className="app-search">
       <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} initial={props.initial} onOpenProfile={props.onOpenProfile} />
-      <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
+      <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} onPickRecent={props.onPickRecent} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
       <SearchFilters category={props.category} onCategory={props.onCategory} />
       <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
-      <TodaySummaryBlock state={props.today} now={props.now} distanceFrom={distanceFrom} />
-      <SearchNearby state={props.state} query={props.query} expanded={props.expanded} inCity={props.catalogInCity !== false} onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
+      <TodaySummaryBlock state={props.today} now={props.now} distanceFrom={distanceFrom} onOpenNearby={() => props.onOpenList("nearby")} onOpenSuitable={() => props.onOpenList("suitable")} onOpenFriends={() => props.onOpenList("friends")} />
+      <SearchNearby state={props.state} inCity={props.catalogInCity !== false} onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
       <TodayPicksBlock state={props.today} onOpen={props.onOpenEvent} onRetry={props.onRetry} distanceFrom={distanceFrom} />
       <AfterMeSection />
       {hint !== null && !props.hintDismissed && <TodayAfterMeCard card={hint} onShow={props.onNearby} onDismiss={props.onDismissHint} distanceFrom={distanceFrom} />}
-      {/* Полный каталог с его фильтрами по дате, городу и рейтингу: витрина выше показывает ближайшее, вход в каталог живёт здесь */}
-      {props.expanded && <CatalogPage showCategories={false} category={props.category} />}
     </div>
   );
 }
@@ -442,7 +436,6 @@ export function SearchPage() {
   const [city, setCity] = useState("Москва");
   const [homeCity, setHomeCity] = useState<string | null>(null);
   const [cities, setCities] = useState<string[]>([]);
-  const [expanded, setExpanded] = useState(false);
   const [hintDismissed, setHintDismissed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<SearchState>({ status: "loading" });
@@ -453,7 +446,7 @@ export function SearchPage() {
   // A GPS fix outside the opened city would mark every card «далеко»; the city's own center is the point then.
   const catalogPoint = useMemo(() => browsedCityOrigin(origin, city), [origin, city]);
   const todayPoint = useMemo(() => browsedCityOrigin(origin, homeCity ?? city), [origin, homeCity, city]);
-  const filters = useMemo<EventFilters>(() => ({ category, city, query: query.trim() || undefined, sort: "near" }), [category, city, query]);
+  const filters = useMemo<EventFilters>(() => ({ category, city, sort: "near" }), [category, city]);
 
   useEffect(() => {
     let alive = true;
@@ -516,13 +509,20 @@ export function SearchPage() {
     };
   }, []);
 
-  const submit = useCallback(() => {
-    setRecents((current) => {
-      const next = addRecentSearch(current, query);
-      writeRecentSearches(next);
-      return next;
-    });
-  }, [query]);
+  const openResults = useCallback(
+    (text: string) => {
+      const normalized = text.trim();
+      if (normalized === "") return;
+      setQuery(normalized);
+      setRecents((current) => {
+        const next = addRecentSearch(current, normalized);
+        writeRecentSearches(next);
+        return next;
+      });
+      navigate({ name: "browse", list: "results", query: normalized, city });
+    },
+    [city, navigate],
+  );
 
-  return <SearchView state={state} today={today} query={query} onQuery={setQuery} onSubmit={submit} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} initial={auth.status === "authenticated" ? auth.user.firstName.charAt(0) : "?"} expanded={expanded} onExpand={() => setExpanded(true)} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onOpenProfile={() => navigate({ name: "profile" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
+  return <SearchView state={state} today={today} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} initial={auth.status === "authenticated" ? auth.user.firstName.charAt(0) : "?"} onExpand={() => navigate({ name: "browse", list: "nearby", city })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onOpenProfile={() => navigate({ name: "profile" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
 }
