@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 08 «Поиск»: the city switcher and the header identity, the category chips, the swipe/map tiles, «Сегодня для тебя», the «Куда пойдём?» and «Рядом со мной» entries, «Для вас», the «после меня» hint and the «Сегодня рядом» rail over the full catalog.
+// PURPOSE: Экран 08 «Поиск»: the city switcher, «Спросить MAX», the category chips, the swipe/map tiles, «Сегодня для тебя», the «Куда пойдём?» and «Рядом со мной» entries, a short entry to micro-events, «После меня» when the taste graph has something, and the «Сегодня рядом» rail over the full catalog.
 // SCOPE: The search tab only. Cards come from apiClient.listEventCards (sorted by distance) and the digest from apiClient.getToday; the query is a filter of that request, the recents persist in localStorage. The map (экран 16) and the swipe deck (экран 09) are entered from here, neither is a tab; «Смотреть все» unfolds the catalog screen with its own date/city/rating filters.
 // DEPENDS: ../api/client.js (apiClient, CatalogCard, EventFilters), ../auth/AuthContext.js, ../catalog/CatalogPage.js (CatalogPage), ../catalog/format.js (CATEGORY_LABELS), ../geo/viewer-origin.js, ../routing/router.js, ../today/TodaySection.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
@@ -13,6 +13,7 @@
 // - searchCities - the cities the loaded cards name, in first-seen order: there is no city directory endpoint to ask
 // - railMeta - «2,1 км · Бесплатно»; «от центра», когда точка — центр города
 // - SearchTopBar - the city switcher with its menu, the viewer avatar and the search toggle
+// - SearchHubRows - «Спросить MAX» under the header, and «Микро-события» as one row rather than a second feed
 // - SearchQueryForm - the search field with its recent queries; full-text search is client-visible only as this filter (#497)
 // - SearchEntryTiles - «Подбор свайпами» and «На карте»
 // - SearchWayTiles - «Куда пойдём?» and «Рядом со мной»
@@ -29,6 +30,7 @@ import { CatalogPage } from "../catalog/CatalogPage";
 import { CATEGORY_LABELS } from "../catalog/format";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
+import { AfterMeSection } from "../taste/AfterMeSection";
 import { toggleEventLike, useEventLiked } from "../ui/event-likes";
 import { eventFillLabel, pictured } from "../ui/photos";
 import { formatPickDistance, formatPickPrice, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, type DistanceVoice, type TodayState } from "../today/TodaySection";
@@ -154,6 +156,34 @@ export function SearchQueryForm({ query, onQuery, onSubmit, recents, autoFocus =
         </div>
       )}
     </form>
+  );
+}
+
+/** One row, not a form: the conversation itself is the MAX AI screen. */
+export function SearchAskRow({ onAsk }: { onAsk: () => void }) {
+  return (
+    <button type="button" className="app-search-hub-row app-search-hub-row--ask" onClick={onAsk}>
+      <ActionIcon name="spark" size={20} />
+      <span className="app-search-hub-copy">
+        <span className="app-search-hub-title">Спросить MAX</span>
+        <span className="app-search-hub-hint">Событие, вечер или план на день</span>
+      </span>
+      <ActionIcon name="chevron" size={16} />
+    </button>
+  );
+}
+
+/** The open gatherings live on their own screen. Search only shows the door, so the catalog stays the page. */
+export function SearchMicroRow({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button type="button" className="app-search-hub-row" onClick={onOpen}>
+      <ActionIcon name="users" size={20} />
+      <span className="app-search-hub-copy">
+        <span className="app-search-hub-title">Микро-события</span>
+        <span className="app-search-hub-hint">Сборы рядом, которых нет в афише</span>
+      </span>
+      <ActionIcon name="chevron" size={16} />
+    </button>
   );
 }
 
@@ -297,6 +327,8 @@ interface SearchViewProps {
   onWhereto: () => void;
   onNearby: () => void;
   onOpenProfile: () => void;
+  onAsk: () => void;
+  onOpenMicro: () => void;
   onRetry: () => void;
   /** The feed search icon opens this screen with the field already open. */
   searchFieldOpen?: boolean;
@@ -313,6 +345,7 @@ export function SearchView(props: SearchViewProps) {
   return (
     <div className="app-search">
       <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} initial={props.initial} searchOpen={searchOpen} onToggleSearch={() => setSearchOpen((open) => !open)} onOpenProfile={props.onOpenProfile} />
+      <SearchAskRow onAsk={props.onAsk} />
       {searchOpen && <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} recents={props.recents} autoFocus />}
       <div className="app-line-tabs" role="tablist" aria-label="Категория">
         {SEARCH_CATEGORIES.map((category) => (
@@ -324,6 +357,8 @@ export function SearchView(props: SearchViewProps) {
       <SearchEntryTiles onSwipe={props.onSwipe} onMap={props.onMap} />
       <TodaySummaryBlock state={props.today} now={props.now} distanceFrom={distanceFrom} />
       <SearchWayTiles onWhereto={props.onWhereto} onNearby={props.onNearby} inCity={props.distancesFromViewer !== false} />
+      <SearchMicroRow onOpen={props.onOpenMicro} />
+      <AfterMeSection />
       <TodayPicksBlock state={props.today} onOpen={props.onOpenEvent} onRetry={props.onRetry} distanceFrom={distanceFrom} />
       {hint !== null && !props.hintDismissed && <TodayAfterMeCard card={hint} onShow={props.onNearby} onDismiss={props.onDismissHint} distanceFrom={distanceFrom} />}
       <SearchNearby state={props.state} query={props.query} expanded={props.expanded} inCity={props.catalogInCity !== false} onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
@@ -425,5 +460,5 @@ export function SearchPage() {
     });
   }, [query]);
 
-  return <SearchView state={state} today={today} query={query} onQuery={setQuery} onSubmit={submit} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} initial={auth.status === "authenticated" ? auth.user.firstName.charAt(0) : "?"} expanded={expanded} onExpand={() => setExpanded(true)} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onOpenProfile={() => navigate({ name: "profile" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
+  return <SearchView state={state} today={today} query={query} onQuery={setQuery} onSubmit={submit} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} initial={auth.status === "authenticated" ? auth.user.firstName.charAt(0) : "?"} expanded={expanded} onExpand={() => setExpanded(true)} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onOpenProfile={() => navigate({ name: "profile" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
 }

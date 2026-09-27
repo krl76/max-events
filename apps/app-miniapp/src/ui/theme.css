@@ -2005,8 +2005,26 @@ html[data-theme="dark"] #root {
 
 .app-post-id {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
+}
+
+.app-post-id .app-feed-author-open {
+  min-height: 0;
+  min-width: 0;
+}
+
+.app-post-more {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  margin-left: auto;
+  padding: 8px;
 }
 
 .app-post-author {
@@ -2167,6 +2185,30 @@ html[data-theme="dark"] #root {
   align-self: center;
 }
 
+.app-comments-entry {
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  padding: var(--app-space-xs) var(--app-space-screen) 0;
+  text-align: left;
+}
+
+.app-comments-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--app-space-xs);
+  list-style: none;
+  margin: 0;
+  max-height: 48dvh;
+  overflow: auto;
+  padding: 0;
+}
+
 /* Ротации градиентов по позиции больше нет: цвет медиа-плейсхолдера задаётся категорией (.app-media--*) */
 
 /* --- Экран 03 «Лента»: ряд сторис, «Куда пойдём?», посты друзей и посты площадок --- */
@@ -2325,7 +2367,14 @@ html[data-theme="dark"] #root {
 
 .app-feed-post-id {
   display: flex;
+  flex: 1;
   flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.app-feed-post-id .app-feed-author-open {
+  min-height: 0;
   min-width: 0;
 }
 
@@ -4407,6 +4456,45 @@ html[data-theme="dark"] #root {
   justify-content: space-between;
 }
 
+.app-search-hub-row {
+  align-items: center;
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 12px;
+  margin-top: var(--app-space-m);
+  padding: 12px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-search-hub-row--ask {
+  background: var(--app-surface);
+  border-color: transparent;
+}
+
+.app-search-hub-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-search-hub-title {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-search-hub-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+}
+
 .app-search-city-wrap {
   position: relative;
 }
@@ -6462,6 +6550,10 @@ html[data-theme="dark"] #root {
   padding: 6px var(--app-space-screen) calc(var(--app-space-l) + env(safe-area-inset-bottom, 0px));
   position: absolute;
   right: 0;
+}
+
+.app-picker-sheet--above-tabs {
+  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
 .app-picker-head {
@@ -20609,12 +20701,25 @@ button.app-feed-place-where,
   align-items: center;
   background: none;
   border: none;
+  color: var(--app-text-secondary);
   cursor: pointer;
   display: flex;
   font: inherit;
+  font-size: var(--app-font-size-caption);
   gap: 4px;
+  max-width: 100%;
+  min-width: 0;
   padding: 0;
   text-align: left;
+}
+
+button.app-feed-post-where > span,
+button.app-feed-place-where > span,
+.app-post-map-mark > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-feed-author-open {

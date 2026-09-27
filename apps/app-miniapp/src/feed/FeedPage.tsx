@@ -20,7 +20,7 @@
 // - PostAuthorAvatar - author avatar with the story ring when they have one
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 import type { Event, Friend, Story } from "@max-events/api-contracts";
 import { apiClient, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -37,6 +37,7 @@ import { pictured } from "../ui/photos";
 import { AppAvatar, AppButton, AppChip, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { parsePinLabel } from "../ui/pin-label";
+import { useSheetSwipe } from "../ui/sheet";
 import { pluralRu } from "../catalog/format";
 
 type FeedComment = FeedPost["comments"][number];
@@ -106,6 +107,11 @@ function threadedComments(comments: FeedComment[], parents: Record<string, strin
   return ordered;
 }
 
+/** «Смотреть все 3 комментария» — на карточке виден счёт, сами реплики живут в шторке. */
+export function commentsEntryLabel(count: number): string {
+  return `Смотреть все ${count} ${pluralRu(count, "комментарий", "комментария", "комментариев")}`;
+}
+
 function CommentRow({ item, liked, onLike, onReply, onOpenAuthor }: { item: { comment: FeedComment; reply: boolean }; liked: boolean; onLike: () => void; onReply: () => void; onOpenAuthor?: (userId: string) => void }) {
   const { comment, reply } = item;
   return (
@@ -146,6 +152,86 @@ interface FeedPostCardProps {
 }
 
 /** Аватар автора поста: фото, если оно есть, и градиентное кольцо только при живой истории. */
+export function CommentSheet({
+  comments,
+  parents,
+  liked,
+  replyTo,
+  draft,
+  onDraft,
+  onClose,
+  onLike,
+  onReply,
+  onCancelReply,
+  onSubmit,
+  onOpenAuthor,
+  inputRef,
+}: {
+  comments: FeedComment[];
+  parents: Record<string, string>;
+  liked: Record<string, true>;
+  replyTo: FeedComment | null;
+  draft: string;
+  onDraft: (value: string) => void;
+  onClose: () => void;
+  onLike: (id: string) => void;
+  onReply: (comment: FeedComment) => void;
+  onCancelReply: () => void;
+  onSubmit: () => void;
+  onOpenAuthor?: (userId: string) => void;
+  inputRef: RefObject<HTMLInputElement | null>;
+}) {
+  const swipe = useSheetSwipe(onClose);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [inputRef]);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    onSubmit();
+  };
+  return (
+    <div className="app-picker" role="dialog" aria-modal="true" aria-label="Комментарии">
+      <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={onClose} />
+      <div className="app-picker-sheet app-picker-sheet--above-tabs app-sheet" style={swipe.style}>
+        <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
+        <div className="app-picker-head">
+          <h2 className="app-picker-title">Комментарии</h2>
+        </div>
+        {comments.length === 0 ? (
+          <p className="app-picker-empty">Пока никто не написал. Будьте первым.</p>
+        ) : (
+          <ul className="app-comments-list">
+            {threadedComments(comments, parents).map((item) => (
+              <CommentRow key={item.comment.id} item={item} liked={liked[item.comment.id] === true} onLike={() => onLike(item.comment.id)} onReply={() => onReply(item.comment)} onOpenAuthor={onOpenAuthor} />
+            ))}
+          </ul>
+        )}
+        {replyTo !== null && (
+          <p className="app-feed-replying">
+            Ответ для {replyTo.author.name}
+            <button type="button" className="app-feed-comment-reply" onClick={onCancelReply}>
+              Отмена
+            </button>
+          </p>
+        )}
+        <form className="app-feed-comment-form" onSubmit={submit}>
+          <input ref={inputRef} className="app-filters-input" placeholder={replyTo === null ? "Добавить комментарий…" : `Ответ для ${replyTo.author.name}`} value={draft} onChange={(change) => onDraft(change.target.value)} />
+          <AppChip disabled={draft.trim() === ""} type="submit">
+            Отправить
+          </AppChip>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function PostAuthorAvatar({ friend, hasStory = false, size = 36 }: { friend: Friend; hasStory?: boolean; size?: number }) {
   const avatar = (
     <AppAvatar src={friend.avatarUrl} size={size}>
@@ -158,6 +244,7 @@ export function PostAuthorAvatar({ friend, hasStory = false, size = 36 }: { frie
 
 export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenEvent, onOpenMap, onOpenAuthor, hasStory = false }: FeedPostCardProps) {
   const [comment, setComment] = useState("");
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [replyTo, setReplyTo] = useState<FeedComment | null>(null);
   const [likedComments, setLikedComments] = useState<Record<string, true>>(readCommentLikes);
@@ -171,6 +258,26 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
     ) : (
       <span className="app-post-place-text">{eventTitle}</span>
     );
+  const pin = parsePinLabel(post.locationLabel ?? "");
+  const showMark = onOpenMap !== undefined && (pin !== null || post.placeId !== null);
+  const markLabel = pin !== null ? "Точка на карте" : "Показать на карте";
+  const sendComment = () => {
+    const text = comment.trim();
+    if (text === "") return;
+    const before = new Set(post.comments.map((item) => item.id));
+    const parent = replyTo;
+    const result = onAddComment(text);
+    setComment("");
+    setReplyTo(null);
+    if (parent !== null && result instanceof Promise) {
+      void result.then((next) => {
+        if (!next) return;
+        const created = next.comments.find((item) => !before.has(item.id));
+        if (!created) return;
+        setCommentParents(rememberCommentParent(created.id, parent.id));
+      });
+    }
+  };
   return (
     <article className="app-card app-card--post">
       <header className="app-post-head">
@@ -189,8 +296,15 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
           ) : (
             <span className="app-post-author">{post.author.name}</span>
           )}
+          {showMark && (
+            <button type="button" className="app-feed-post-where" onClick={onOpenMap}>
+              <ActionIcon name="pin" size={12} />
+              <span>{markLabel}</span>
+            </button>
+          )}
           {eventTitle !== "" && <span className="app-post-place">{eventLink}</span>}
         </span>
+        {userId !== "" && <ReportButton mode="dialog" target={{ feedPostId: post.id }} userId={userId} />}
       </header>
       {post.photoUrl === null ? <AppMedia category={eventCategory} src={pictured(post.eventId ?? post.id)} /> : <img className="app-card-media app-post-photo" src={post.photoUrl} alt="" />}
       <div className="app-post-actions">
@@ -198,7 +312,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
           <ActionIcon filled={post.likedByMe} name="heart" />
           <span>{post.likesCount}</span>
         </button>
-        <button type="button" className="app-post-action" aria-label="Комментировать" onClick={() => commentRef.current?.focus()}>
+        <button type="button" className="app-post-action" aria-label="Комментировать" onClick={() => setCommentsOpen(true)}>
           <ActionIcon name="comment" />
           <span>{post.comments.length}</span>
         </button>
@@ -237,62 +351,31 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         )}{" "}
         {post.text}
       </p>
-      {onOpenMap && (parsePinLabel(post.locationLabel ?? "") !== null || post.placeId !== null) && (
-        <button type="button" className="app-feed-post-where app-post-map-mark" onClick={onOpenMap}>
-          <ActionIcon name="pin" size={14} />
-          {parsePinLabel(post.locationLabel ?? "") ? "Точка на карте" : "Показать на карте"}
+      {post.comments.length > 0 && (
+        <button type="button" className="app-comments-entry" onClick={() => setCommentsOpen(true)}>
+          {commentsEntryLabel(post.comments.length)}
         </button>
       )}
-      <ul className="app-feed-comments">
-        {threadedComments(post.comments, commentParents).map((item) => (
-          <CommentRow
-            key={item.comment.id}
-            item={item}
-            liked={likedComments[item.comment.id] === true}
-            onLike={() => setLikedComments(toggleCommentLike(item.comment.id))}
-            onReply={() => {
-              setReplyTo(item.comment);
-              commentRef.current?.focus();
-            }}
-            onOpenAuthor={onOpenAuthor}
-          />
-        ))}
-      </ul>
-      {replyTo !== null && (
-        <p className="app-feed-replying">
-          Ответ для {replyTo.author.name}
-          <button type="button" className="app-feed-comment-reply" onClick={() => setReplyTo(null)}>
-            Отмена
-          </button>
-        </p>
+      {commentsOpen && (
+        <CommentSheet
+          comments={post.comments}
+          parents={commentParents}
+          liked={likedComments}
+          replyTo={replyTo}
+          draft={comment}
+          onDraft={setComment}
+          onClose={() => setCommentsOpen(false)}
+          onLike={(id) => setLikedComments(toggleCommentLike(id))}
+          onReply={(item) => {
+            setReplyTo(item);
+            commentRef.current?.focus();
+          }}
+          onCancelReply={() => setReplyTo(null)}
+          onSubmit={sendComment}
+          onOpenAuthor={onOpenAuthor}
+          inputRef={commentRef}
+        />
       )}
-      <form
-        className="app-feed-comment-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const text = comment.trim();
-          if (text === "") return;
-          const before = new Set(post.comments.map((item) => item.id));
-          const parent = replyTo;
-          const result = onAddComment(text);
-          setComment("");
-          setReplyTo(null);
-          if (parent !== null && result instanceof Promise) {
-            void result.then((next) => {
-              if (!next) return;
-              const created = next.comments.find((item) => !before.has(item.id));
-              if (!created) return;
-              setCommentParents(rememberCommentParent(created.id, parent.id));
-            });
-          }
-        }}
-      >
-        <input ref={commentRef} className="app-filters-input" placeholder={replyTo === null ? "Добавить комментарий…" : `Ответ для ${replyTo.author.name}`} value={comment} onChange={(change) => setComment(change.target.value)} />
-        <AppChip disabled={comment.trim() === ""} type="submit">
-          Отправить
-        </AppChip>
-      </form>
-      {userId !== "" && <ReportButton target={{ feedPostId: post.id }} userId={userId} />}
     </article>
   );
 }
@@ -594,13 +677,10 @@ export function StoriesRow() {
         {/* Подписи кружка и плюса разные: две кнопки с одним именем неразличимы и для скринридера, и для теста. */}
         <button type="button" className="app-story-open" aria-label={rail.own.group === null ? "Твоя история: добавить" : "Твоя история: смотреть"} onClick={() => (rail.own.group === null ? openEditor() : setViewer({ groups: rail.groups, start: rail.own.group }))}>
           <span className={storyRingClass(rail.own.unseen)}>
-            {rail.own.coverUrl === null ? (
-              <AppAvatar size={58} src={me?.avatarUrl}>
-                {me?.firstName[0] ?? "Я"}
-              </AppAvatar>
-            ) : (
-              <img className="app-story-thumb" src={rail.own.coverUrl} alt="" />
-            )}
+            {/* Кольцо говорит, что история есть. В кружке всегда аватар, не кадр истории. */}
+            <AppAvatar size={58} src={me?.avatarUrl}>
+              {me?.firstName[0] ?? "Я"}
+            </AppAvatar>
           </span>
         </button>
         <button type="button" className="app-story-plus" aria-label="Добавить историю" onClick={openEditor}>
@@ -614,7 +694,9 @@ export function StoriesRow() {
         <div key={tile.friendId} className="app-story">
           <button type="button" className="app-story-open" aria-label={`История ${tile.name}`} onClick={() => setViewer({ groups: rail.groups, start: tile.group })}>
             <span className={storyRingClass(tile.unseen)}>
-              <img className="app-story-thumb" src={tile.coverUrl} alt="" />
+              <AppAvatar size={58} src={friends.find((person) => person.id === tile.friendId)?.avatarUrl}>
+                {tile.initial}
+              </AppAvatar>
             </span>
           </button>
           <button type="button" className="app-story-name" aria-label={`Профиль ${tile.name}`} onClick={() => navigate({ name: "user", id: tile.friendId })}>

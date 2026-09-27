@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - profileInterestLine - up to three interests, then «и ещё N»
-// - profileAbout - «Москва · джаз, падел» — the city and the interests on one line, city alone when there are no interests
+// - profileAbout - the bio under the name; the city and interests line is not shown
 // - profileMetrics - the visit counters with their ru labels; a zero and an uncounted «компании» are left out (#496)
 // - socialEntryLabel - «Подписки» / «Посты» / «Подписчики» when that counter is still zero
 // - followMetrics - the two clickable counters of the header: everything the viewer follows and everyone following them; a direction that has not arrived is left out rather than printed as a zero
@@ -51,10 +51,9 @@ export function profileInterestLine(interests: readonly string[]): string {
   return `${interests.slice(0, INTERESTS_ON_LINE).join(", ")} и ещё ${rest}`;
 }
 
-/** The single line under the name: город and interests, separated the way the design separates them. */
-export function profileAbout(profile: Pick<Profile, "city" | "interests" | "bio">): string {
-  const line = profile.interests.length === 0 ? profile.city : `${profile.city} · ${profileInterestLine(profile.interests)}`;
-  return profile.bio.trim() === "" ? line : `${line}\n${profile.bio.trim()}`;
+/** The line under the name is the bio only. City and interests used to sit above it and crowded the header. */
+export function profileAbout(profile: Pick<Profile, "bio">): string {
+  return profile.bio.trim();
 }
 
 /**
@@ -403,7 +402,7 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
       )}
       {clickShield && <div className="app-me-pop-shield" aria-hidden="true" />}
       <h1 className="app-me-name">{name}</h1>
-      <p className="app-me-about">{about}</p>
+      {about !== "" && <p className="app-me-about">{about}</p>}
       {(numbers.length > 0 || social.some((metric) => metric.id !== "posts")) && (
         <div className="app-me-metrics">
           {numbers.length > 0 && (
@@ -422,8 +421,8 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
                 .filter((metric) => metric.id !== "posts")
                 .map((metric) => (
                   <button key={metric.id} type="button" className="app-me-metric app-me-metric--link" onClick={openList[metric.id]}>
-                    {metric.value > 0 && <span className="app-me-metric-value">{metric.value}</span>}
-                    <span className="app-me-metric-label">{metric.value > 0 ? metric.label : socialEntryLabel(metric.id)}</span>
+                    <span className="app-me-metric-value">{metric.value}</span>
+                    <span className="app-me-metric-label">{metric.label}</span>
                   </button>
                 ))}
             </div>

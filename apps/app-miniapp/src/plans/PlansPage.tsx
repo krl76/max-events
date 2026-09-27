@@ -168,7 +168,20 @@ export function PlansPage({ tab = "plans", inviteToken }: { tab?: PlansTab; invi
     <>
       <div className="app-tab-row app-segments" role="group" aria-label="Разделы «Моё»">
         {PLANS_TABS.map((item) => (
-          <button key={item.id} type="button" className={active === item.id ? "app-chip app-chip--on" : "app-chip"} aria-pressed={active === item.id} onClick={() => setActive(item.id)}>
+          <button
+            key={item.id}
+            type="button"
+            className={active === item.id ? "app-chip app-chip--on" : "app-chip"}
+            aria-pressed={active === item.id}
+            onClick={() => {
+              // Календарь — отдельный экран, не третья колонка под теми же пилюлями.
+              if (item.id === "calendar") {
+                navigate({ name: "calendar" });
+                return;
+              }
+              setActive(item.id);
+            }}
+          >
             {item.label}
           </button>
         ))}
@@ -183,10 +196,6 @@ export function PlansPage({ tab = "plans", inviteToken }: { tab?: PlansTab; invi
             <button type="button" onClick={() => navigate({ name: "day-route" })}>
               <ActionIcon name="pin" size={20} />
               Маршрут на день
-            </button>
-            <button type="button" onClick={() => navigate({ name: "assist", ask: null })}>
-              <ActionIcon name="spark" size={20} />
-              Спросить MAX
             </button>
           </div>
           <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} onCreate={() => navigate({ name: "plan-new" })} distancesFromViewer={point.fromViewer} />
