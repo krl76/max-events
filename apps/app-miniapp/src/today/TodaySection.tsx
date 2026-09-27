@@ -25,6 +25,7 @@
 // END_MODULE_MAP
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { TodayCardLabel } from "@max-events/api-contracts";
 import type { TodayCard, TodayDigest } from "../api/client";
 import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
@@ -71,6 +72,12 @@ export function todayLabel(label: TodayCardLabel, voice: DistanceVoice = "you"):
 /** «18 сентября» — the day the digest was built for, printed next to its title. */
 export function formatTodayDate(now: Date): string {
   return now.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+
+/** «26 СЕН» — the short plaque next to «Афиша». */
+export function afishaDayChip(date: Date): string {
+  const month = date.toLocaleDateString("ru-RU", { month: "short" }).replace(".", "").slice(0, 3).toUpperCase();
+  return `${date.getDate()} ${month}`;
 }
 
 /** Local calendar day as YYYY-MM-DD, the value a date input reads and writes. */
@@ -136,15 +143,18 @@ export function DayCalendar({ month, selected, today, onPick, onShift, onToday }
   );
 }
 
-export function SearchDayButton({ day, now, onDay, iconOnly = false }: { day: string; now: Date; onDay: (day: string) => void; iconOnly?: boolean }) {
+export function SearchDayButton({ day, now, onDay, chip = false }: { day: string; now: Date; onDay: (day: string) => void; chip?: boolean }) {
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(() => new Date(`${day}T12:00:00`));
   const root = useRef<HTMLDivElement>(null);
+  const layerRef = useRef<HTMLDivElement>(null);
   const shown = new Date(`${day}T12:00:00`);
   useEffect(() => {
     if (!open) return;
     const onPointer = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (root.current?.contains(target) || layerRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
@@ -156,38 +166,46 @@ export function SearchDayButton({ day, now, onDay, iconOnly = false }: { day: st
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+  const calendar = (
+    <DayCalendar
+      month={cursor}
+      selected={day}
+      today={dayKey(now)}
+      onShift={setCursor}
+      onPick={(next) => {
+        onDay(next);
+        setOpen(false);
+      }}
+      onToday={() => {
+        onDay(dayKey(now));
+        setOpen(false);
+      }}
+    />
+  );
   return (
     <div className="app-today-date-wrap" ref={root}>
       <button
         type="button"
-        className={iconOnly ? "app-today-date app-today-date--icon" : "app-today-date"}
+        className={chip ? "app-today-date app-today-date--chip" : "app-today-date"}
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label={iconOnly ? `Дата афиши: ${formatTodayDate(shown)}` : undefined}
-        onClick={() => {
+        aria-label={`Дата афиши: ${formatTodayDate(shown)}`}
+        onClick={(event) => {
+          event.stopPropagation();
           setCursor(shown);
           setOpen((current) => !current);
         }}
       >
-        <ActionIcon name="calendar" size={16} />
-        {iconOnly ? null : <span>{formatTodayDate(shown)}</span>}
+        {chip ? <span>{afishaDayChip(shown)}</span> : <span>{formatTodayDate(shown)}</span>}
+        <ActionIcon name="calendar" size={14} />
       </button>
-      {open && (
-        <DayCalendar
-          month={cursor}
-          selected={day}
-          today={dayKey(now)}
-          onShift={setCursor}
-          onPick={(next) => {
-            onDay(next);
-            setOpen(false);
-          }}
-          onToday={() => {
-            onDay(dayKey(now));
-            setOpen(false);
-          }}
-        />
-      )}
+      {open &&
+        createPortal(
+          <div ref={layerRef} className="app-today-cal-layer" onPointerDown={() => setOpen(false)}>
+            <div onPointerDown={(event) => event.stopPropagation()}>{calendar}</div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

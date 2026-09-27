@@ -477,7 +477,10 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
       <div className="app-bills">
         <section className={fold === "hot" ? "app-bill app-bill--open" : "app-bill"}>
           <button type="button" className="app-bill-title" aria-expanded={fold === "hot"} onClick={() => openFold("hot")}>
-            Популярное
+            <span>Популярное</span>
+            <span className="app-bill-chevron" aria-hidden="true">
+              <ActionIcon name="chevron" size={16} />
+            </span>
           </button>
           <button type="button" className="app-bill-open" aria-label="Открыть популярные события" onClick={() => openFold("hot")}>
             <BillStack photos={billPhotos(hotCards)} count={hotCards.length} />
@@ -486,9 +489,12 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
         <section className={fold === "today" ? "app-bill app-bill--open" : "app-bill"}>
           <div className="app-bill-head">
             <button type="button" className="app-bill-title" aria-expanded={fold === "today"} onClick={() => openFold("today")}>
-              Афиша
+              <span>Афиша</span>
             </button>
-            <SearchDayButton day={props.day} now={props.now} onDay={props.onDay} iconOnly />
+            <SearchDayButton day={props.day} now={props.now} onDay={props.onDay} chip />
+            <button type="button" className="app-bill-chevron" aria-label="Открыть афишу" onClick={() => openFold("today")}>
+              <ActionIcon name="chevron" size={16} />
+            </button>
           </div>
           <button type="button" className="app-bill-open" aria-label="Открыть афишу на выбранный день" onClick={() => openFold("today")}>
             <BillStack photos={billPhotos(todayCards)} count={todayCards.length} />
@@ -496,7 +502,7 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
         </section>
       </div>
       <div className="app-search-feed" aria-label={fold === "today" ? "Афиша" : "Популярное"}>
-          {shown.length === 0 ? <p className="app-today-quiet">В этом разделе пока пусто.</p> : shown.map((card) => <EventPoster key={card.event.id} card={card} onOpen={props.onOpenEvent} />)}
+          {shown.length === 0 ? <p className="app-today-quiet">По этим фильтрам событий нет</p> : shown.map((card) => <EventPoster key={card.event.id} card={card} onOpen={props.onOpenEvent} />)}
         </div>
     </div>
   );
