@@ -125,7 +125,7 @@ export function OrganizerOrganization({ organizationId, organizationName, onLogo
         </>
       )}
       <MyOrganizerRatingCard organizationId={organizationId} />
-      <AppButton tone="secondary" stretched onClick={onLogout}>
+      <AppButton stretched onClick={onLogout}>
         Выйти
       </AppButton>
     </section>

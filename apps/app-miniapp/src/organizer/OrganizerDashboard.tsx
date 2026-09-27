@@ -179,7 +179,7 @@ export function OrganizerDashboardView({ organizationName, summary, events, fill
             <span className="app-me-metric-label">оценка</span>
           </span>
         </div>
-        <AppButton tone="secondary" onClick={onOpenOrganization}>
+        <AppButton stretched onClick={onOpenOrganization}>
           Организация
         </AppButton>
       </div>
@@ -255,7 +255,7 @@ export function OrganizerDashboardView({ organizationName, summary, events, fill
       )}
       {reportNotice !== null && <p className="app-org-notice">{reportNotice}</p>}
       <div className="app-org-actions">
-        <AppButton tone="secondary" stretched disabled={reportBusy || events.length === 0} onClick={onReport}>
+        <AppButton stretched disabled={reportBusy || events.length === 0} onClick={onReport}>
           {reportBusy ? "Собираем отчёт…" : "Отчёт за период"}
         </AppButton>
       </div>

@@ -18,19 +18,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PromoCampaign, PromoCode, PromotionCampaign, PromotionType } from "@max-events/api-contracts";
 import { apiClient, type OrganizerEvent } from "../api/client";
-import { pluralRu } from "../catalog/format";
+import { formatStartsAt, pluralRu } from "../catalog/format";
+import { EventPicker } from "../ui/EventPicker";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
-import { AppButton, AppSkeletonList, AppState } from "../ui/primitives";
+import { pictured } from "../ui/photos";
+import { AppButton, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 import { type OrganizerPromoIntent } from "./OrganizerDashboard";
 
 export { PROMO_PERIODS, formatDelta, periodQueryFor, salesCsv } from "./OrganizerDashboard";
 
-export const PROMOTION_ACTIONS: Array<{ intent: OrganizerPromoIntent; label: string }> = [
-  { intent: "boost", label: "Поднять в ленте" },
-  { intent: "target_collection", label: "Рассылка в чаты" },
-  { intent: "promocode", label: "Промокод" },
-  { intent: "referral", label: "Приведи друга" },
-  { intent: "early_access", label: "Ранний доступ" },
+export const PROMOTION_ACTIONS: Array<{ intent: OrganizerPromoIntent; label: string; aria: string; icon: ActionIconName; dark?: boolean }> = [
+  { intent: "boost", label: "Лента", aria: "Поднять в ленте", icon: "trend", dark: true },
+  { intent: "target_collection", label: "Рассылка", aria: "Рассылка в чаты", icon: "megaphone" },
+  { intent: "promocode", label: "Промокод", aria: "Промокод", icon: "ticket" },
+  { intent: "referral", label: "Друг", aria: "Приведи друга", icon: "users" },
+  { intent: "early_access", label: "Ранний", aria: "Ранний доступ", icon: "clock" },
 ];
 
 export function promotionTimeLeft(endsAt: string, now: Date = new Date()): string {
@@ -112,16 +114,21 @@ interface OrganizerPromoViewProps {
 
 export function OrganizerPromoView({ organizationName, events, rows, loaded, draft, busy, notice, failed, onOpenDraft, onDraft, onCreate, onCancelDraft, onOpenEvent }: OrganizerPromoViewProps) {
   const month = new Date().toLocaleDateString("ru-RU", { month: "long" });
+  const [pickingEvent, setPickingEvent] = useState(false);
+  const bound = draft === null ? null : (events.find((item) => item.id === draft.eventId) ?? null);
   return (
     <section className="app-gathering" aria-label="Продвижение">
       <p className="app-gathering-hint">
         {organizationName} · {month}
       </p>
       <h2 className="app-section-title">Запустить</h2>
-        <div className="app-org-addons">
+        <div className="app-search-tools">
           {PROMOTION_ACTIONS.map((action) => (
-            <button key={action.intent} type="button" className="app-org-addon" disabled={events.length === 0} onClick={() => onOpenDraft(action.intent)}>
-              <span>{action.label}</span>
+            <button key={action.intent} type="button" className="app-search-tool" aria-label={action.aria} disabled={events.length === 0} onClick={() => onOpenDraft(action.intent)}>
+              <span className={action.dark ? "app-search-tool-bubble app-search-tool-bubble--dark" : "app-search-tool-bubble"}>
+                <ActionIcon name={action.icon} size={20} />
+              </span>
+              {action.label}
             </button>
           ))}
         </div>
@@ -151,26 +158,43 @@ export function OrganizerPromoView({ organizationName, events, rows, loaded, dra
               onCreate();
             }}
           >
-            <label className="app-org-field">
-              <span className="app-org-field-label">Событие</span>
-              <select className="app-org-field-input" value={draft.eventId} onChange={(change) => onDraft({ ...draft, eventId: change.target.value })}>
-                {events.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="app-org-field">
-              <span className="app-org-field-label">Что делаем</span>
-              <select className="app-org-field-input" value={draft.kind} onChange={(change) => onDraft({ ...draft, kind: change.target.value as CampaignKind })}>
-                {PROMOTION_ACTIONS.map((action) => (
-                  <option key={action.intent} value={action.intent}>
-                    {action.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="app-post-compose-rows">
+              <div className="app-post-compose-row app-post-compose-row--event">
+                <button type="button" className="app-post-compose-row-hit" onClick={() => setPickingEvent(true)}>
+                  {bound === null ? (
+                    <span className="app-post-compose-row-media" aria-hidden="true" />
+                  ) : (
+                    <AppMedia category={bound.category} src={pictured(bound.id, bound.coverUrl)} className="app-post-compose-thumb" />
+                  )}
+                  <span className="app-post-compose-row-text">
+                    <span className="app-post-compose-row-title">{bound === null ? "Привязать событие" : bound.title}</span>
+                    <span className="app-post-compose-row-note">{bound === null ? "Фото, дата и место — в окне выбора" : formatStartsAt(bound.startsAt)}</span>
+                  </span>
+                  {bound === null && (
+                    <span className="app-post-compose-row-chevron" aria-hidden="true">
+                      <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+                    </span>
+                  )}
+                </button>
+                {bound !== null && (
+                  <button type="button" className="app-post-compose-row-drop" aria-label="Отвязать событие" onClick={() => onDraft({ ...draft, eventId: "" })}>
+                    <ActionIcon name="close" size={18} strokeWidth={2.6} />
+                  </button>
+                )}
+              </div>
+              {pickingEvent && (
+                <EventPicker
+                  title="Событие"
+                  events={events}
+                  selectedId={draft.eventId === "" ? null : draft.eventId}
+                  onPick={(event) => {
+                    onDraft({ ...draft, eventId: event.id });
+                    setPickingEvent(false);
+                  }}
+                  onClose={() => setPickingEvent(false)}
+                />
+              )}
+            </div>
             {(draft.kind === "promocode" || draft.kind === "referral") && (
               <label className="app-org-field">
                 <span className="app-org-field-label">Код</span>
@@ -193,7 +217,7 @@ export function OrganizerPromoView({ organizationName, events, rows, loaded, dra
               <AppButton stretched type="submit" disabled={busy}>
                 {busy ? "Создаём…" : "Создать"}
               </AppButton>
-              <AppButton tone="ghost" stretched type="button" onClick={onCancelDraft}>
+              <AppButton stretched type="button" onClick={onCancelDraft}>
                 Отмена
               </AppButton>
             </div>

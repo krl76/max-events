@@ -131,7 +131,7 @@ export function OrganizerEventManageView({ event, attendance, tab, scanning, cod
           </span>
         </div>
       </div>
-      <AppButton tone="secondary" onClick={onPromo}>
+      <AppButton stretched onClick={onPromo}>
         Продвижение
       </AppButton>
       <div className="app-filters-chips" role="tablist" aria-label="Разделы события">
@@ -172,7 +172,7 @@ export function OrganizerEventManageView({ event, attendance, tab, scanning, cod
               >
                 {/* Камеры у мини-аппа нет: код с билета вводится или вставляется, проверка одна и та же. */}
                 <input className="app-org-field-input" aria-label="Код входа" placeholder="Код с билета" value={code} onChange={(change) => onCode(change.target.value)} />
-                <AppButton size="small" type="submit" disabled={busy || code.trim() === ""}>
+                <AppButton stretched type="submit" disabled={busy || code.trim() === ""}>
                   Отметить
                 </AppButton>
               </form>
@@ -219,10 +219,10 @@ export function OrganizerEventManageView({ event, attendance, tab, scanning, cod
                 </span>
                 <span className="app-org-offer-note">Позвать первых из листа ожидания?</span>
                 <div className="app-org-offer-actions">
-                  <AppButton tone="confirm" disabled={busy} onClick={onInvite}>
+                  <AppButton stretched disabled={busy} onClick={onInvite}>
                     Позвать {Math.min(attendance.freedSeats, waitlist.length)}
                   </AppButton>
-                  <AppButton tone="secondary" disabled={busy} onClick={onRefresh}>
+                  <AppButton stretched disabled={busy} onClick={onRefresh}>
                     Оставить
                   </AppButton>
                 </div>

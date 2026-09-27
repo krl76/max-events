@@ -198,7 +198,7 @@ function EventStep({ setup, onCreateEvent, onDashboard }: Pick<OrganizerSetupVie
         <AppButton stretched onClick={onCreateEvent}>
           Создать событие
         </AppButton>
-        <AppButton tone="secondary" stretched onClick={onDashboard}>
+        <AppButton stretched onClick={onDashboard}>
           Позже · в дашборд
         </AppButton>
       </div>

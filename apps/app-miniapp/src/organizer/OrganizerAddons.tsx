@@ -319,7 +319,7 @@ export function PromotionCampaignRow({ campaign, paying, onPaid }: { campaign: P
         )}
         {campaign.paidAt === null && (
           <span className="app-card-subtitle">
-            <AppButton size="small" tone="secondary" disabled={paying} onClick={onPaid}>
+            <AppButton stretched disabled={paying} onClick={onPaid}>
               {paying ? "Сохранение…" : "Отметить оплаченной"}
             </AppButton>
           </span>
@@ -382,7 +382,7 @@ export function PromotionForm({ draft, errors, submitting, failed, onChange, onS
       <AppButton disabled={submitting} type="submit" stretched>
         {submitting ? "Сохранение…" : "Создать кампанию"}
       </AppButton>
-      <AppButton type="button" tone="ghost" stretched onClick={onCancel}>
+      <AppButton type="button" stretched onClick={onCancel}>
         Отмена
       </AppButton>
     </form>
@@ -438,7 +438,7 @@ export function PromotionSection({ eventId }: { eventId: string }) {
           ))}
           {form === null ? (
             <AppButton
-              tone="secondary"
+             
               stretched
               onClick={() => {
                 setErrors([]);
@@ -532,7 +532,7 @@ export function PromoForm({ draft, errors, submitting, failed, onChange, onSubmi
       <AppButton disabled={submitting} type="submit" stretched>
         {submitting ? "Сохранение…" : "Создать промокод"}
       </AppButton>
-      <AppButton type="button" tone="ghost" stretched onClick={onCancel}>
+      <AppButton type="button" stretched onClick={onCancel}>
         Отмена
       </AppButton>
     </form>
@@ -576,7 +576,7 @@ export function PromoCodeSection({ eventId }: { eventId: string }) {
           ))}
           {form === null ? (
             <AppButton
-              tone="secondary"
+             
               stretched
               onClick={() => {
                 setErrors([]);
@@ -670,7 +670,7 @@ export function CampaignForm({ draft, errors, submitting, failed, onChange, onSu
       <AppButton disabled={submitting} type="submit" stretched>
         {submitting ? "Сохранение…" : "Создать акцию"}
       </AppButton>
-      <AppButton type="button" tone="ghost" stretched onClick={onCancel}>
+      <AppButton type="button" stretched onClick={onCancel}>
         Отмена
       </AppButton>
     </form>
@@ -714,7 +714,7 @@ export function CampaignSection({ eventId }: { eventId: string }) {
           ))}
           {form === null ? (
             <AppButton
-              tone="secondary"
+             
               stretched
               onClick={() => {
                 setErrors([]);

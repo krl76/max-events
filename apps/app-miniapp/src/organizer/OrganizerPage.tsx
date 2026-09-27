@@ -266,11 +266,11 @@ export function OrganizerEventCard({ item, placeTitle = null, publishing, failed
       {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
       <span className="app-org-card-actions">
         {item.draft && (
-          <AppButton size="small" disabled={publishing} onClick={onPublish}>
+          <AppButton stretched disabled={publishing} onClick={onPublish}>
             {publishing ? "Публикация…" : "Опубликовать"}
           </AppButton>
         )}
-        <AppButton size="small" tone="secondary" onClick={onEdit}>
+        <AppButton stretched onClick={onEdit}>
           Изменить
         </AppButton>
       </span>
@@ -292,11 +292,11 @@ export function OrganizerPlaceCard({ item, publishing, failed, onPublish, onEdit
         {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
         <span className="app-org-card-actions">
           {item.draft && (
-            <AppButton size="small" disabled={publishing} onClick={onPublish}>
+            <AppButton stretched disabled={publishing} onClick={onPublish}>
               {publishing ? "Публикация…" : "Опубликовать"}
             </AppButton>
           )}
-          <AppButton size="small" tone="secondary" onClick={onEdit}>
+          <AppButton stretched onClick={onEdit}>
             Изменить
           </AppButton>
         </span>
@@ -400,7 +400,7 @@ export function EventDraftForm({ draft, errors, submitting, failed, submitLabel,
       <AppButton disabled={submitting} type="submit" stretched>
         {submitting ? "Сохранение…" : submitLabel}
       </AppButton>
-      <AppButton type="button" tone="ghost" stretched onClick={onCancel}>
+      <AppButton type="button" stretched onClick={onCancel}>
         Отмена
       </AppButton>
     </form>
@@ -463,7 +463,7 @@ export function PlaceDraftForm({ draft, errors, submitting, failed, submitLabel,
       <AppButton disabled={submitting} type="submit" stretched>
         {submitting ? "Сохранение…" : submitLabel}
       </AppButton>
-      <AppButton type="button" tone="ghost" stretched onClick={onCancel}>
+      <AppButton type="button" stretched onClick={onCancel}>
         Отмена
       </AppButton>
     </form>
