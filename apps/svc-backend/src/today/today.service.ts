@@ -100,13 +100,17 @@ export function buildTodayDigest(input: TodayDigestInput): TodayResponse {
     event: toEventDto(row),
     labels: cardLabels(row, row.placeId ? placeById.get(row.placeId) : undefined, input.origin, attendingByEvent.get(row.id), input.afterMe),
   }));
+  const nearbyIds = nearby.map((row) => row.id);
+  const suitableIds = suitable.map((row) => row.id);
+  const friendEventIds = nearbyIds.filter((id) => withFriends.has(id));
   return {
     summary: {
-      nearbyCount: nearby.length,
-      suitableCount: suitable.length,
-      withFriendsCount: nearby.filter((row) => withFriends.has(row.id)).length,
+      nearbyCount: nearbyIds.length,
+      suitableCount: suitableIds.length,
+      withFriendsCount: friendEventIds.length,
     },
     cards,
+    buckets: { nearbyIds, suitableIds, friendIds: friendEventIds },
   };
 }
 

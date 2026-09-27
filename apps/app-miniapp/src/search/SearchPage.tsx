@@ -12,7 +12,7 @@
 // - SEARCH_CATEGORIES - the category chips in design order, «Все» first
 // - searchCities - the cities the loaded cards name, in first-seen order: there is no city directory endpoint to ask
 // - railMeta - «2,1 км · Бесплатно»; «от центра», когда точка — центр города
-// - SearchTopBar - the city switcher with its menu, the viewer avatar and the search toggle
+// - SearchTopBar - the city switcher with its menu
 // - SearchHubRows - «Спросить MAX» under the header, and «Микро-события» as one row rather than a second feed
 // - SearchQueryForm - the search field with its recent queries; full-text search is client-visible only as this filter (#497)
 // - SearchEntryTiles - «Подбор свайпами» and «На карте»
@@ -22,11 +22,10 @@
 // - SearchPage - container: digest and card fetches per filter, query/recents/city state, navigation to swipe, map, event and the two wizards
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useSheetSwipe } from "../ui/sheet";
 import type { EventCategory } from "@max-events/api-contracts";
 import { apiClient, type CatalogCard, type EventFilters } from "../api/client";
-import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS } from "../catalog/format";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute, type BrowseList } from "../routing/router";
@@ -84,11 +83,9 @@ interface SearchTopBarProps {
   city: string;
   cities: string[];
   onCity: (city: string) => void;
-  initial: string;
-  onOpenProfile: () => void;
 }
 
-export function SearchTopBar({ city, cities, onCity, initial, onOpenProfile }: SearchTopBarProps) {
+export function SearchTopBar({ city, cities, onCity }: SearchTopBarProps) {
   const [menu, setMenu] = useState(false);
   return (
     <div className="app-search-top">
@@ -121,11 +118,6 @@ export function SearchTopBar({ city, cities, onCity, initial, onOpenProfile }: S
           </div>
         )}
       </div>
-      <div className="app-search-id">
-        <button type="button" className="app-search-avatar" aria-label="Профиль" onClick={onOpenProfile}>
-          {initial}
-        </button>
-      </div>
     </div>
   );
 }
@@ -146,10 +138,11 @@ export function SearchQueryForm({ query, onQuery, onSubmit, onPickRecent, recent
       </span>
       {query.trim() === "" && recents.length > 0 && (
         <div className="app-search-recents" role="group" aria-label="Недавние запросы">
+          <span className="app-search-recents-label">Недавние</span>
           {recents.map((item) => (
-            <AppChip key={item} onClick={() => (onPickRecent ?? onQuery)(item)}>
+            <button key={item} type="button" className="app-search-recent" onClick={() => (onPickRecent ?? onQuery)(item)}>
               {item}
-            </AppChip>
+            </button>
           ))}
         </div>
       )}
@@ -313,6 +306,12 @@ interface SearchNearbyProps {
   onExpand: () => void;
   onOpenEvent: (eventId: string) => void;
   onRetry: () => void;
+  /** The fold button already names the section. */
+  showHeading?: boolean;
+  /** «Смотреть все» opens the full list. The afisha fold is already that list. */
+  showAll?: boolean;
+  layout?: "strip" | "list";
+  emptyCopy?: string;
 }
 
 function RailCard({ card, inCity, onOpen }: { card: CatalogCard; inCity: boolean; onOpen: () => void }) {
@@ -335,18 +334,23 @@ function RailCard({ card, inCity, onOpen }: { card: CatalogCard; inCity: boolean
   );
 }
 
-export function SearchNearby({ state, inCity = true, onExpand, onOpenEvent, onRetry }: SearchNearbyProps) {
+export function SearchNearby({ state, inCity = true, onExpand, onOpenEvent, onRetry, showHeading = true, showAll = true, layout = "strip", emptyCopy }: SearchNearbyProps) {
   const cards = state.status === "ready" ? state.cards : [];
   const idleTitle = inCity ? "Сегодня рядом" : "Сегодня в городе";
+  const empty = emptyCopy ?? (inCity ? "Рядом сегодня пусто. Загляните позже!" : "В городе сегодня пусто. Загляните позже!");
   return (
     <section className="app-rail" aria-label={idleTitle}>
-      <div className="app-rail-head">
-        <h2 className="app-screen-title">{idleTitle}</h2>
-        <button type="button" className="app-rail-all" onClick={onExpand}>
-          Смотреть все
-          <ActionIcon name="chevron" size={14} strokeWidth={2} />
-        </button>
-      </div>
+      {(showHeading || showAll) && (
+        <div className="app-rail-head">
+          {showHeading && <h2 className="app-screen-title">{idleTitle}</h2>}
+          {showAll && (
+            <button type="button" className="app-rail-all" onClick={onExpand}>
+              Смотреть все
+              <ActionIcon name="chevron" size={14} strokeWidth={2} />
+            </button>
+          )}
+        </div>
+      )}
       {state.status === "loading" && (
         <div className="app-rail-strip" aria-hidden="true">
           {[0, 1, 2].map((tile) => (
@@ -359,15 +363,32 @@ export function SearchNearby({ state, inCity = true, onExpand, onOpenEvent, onRe
           Не удалось загрузить события.
         </AppState>
       )}
-      {state.status === "ready" && cards.length === 0 && <AppState>{inCity ? "Рядом сегодня пусто. Загляните позже!" : "В городе сегодня пусто. Загляните позже!"}</AppState>}
+      {state.status === "ready" && cards.length === 0 && <AppState>{empty}</AppState>}
       {state.status === "ready" && cards.length > 0 && (
-        <div className="app-rail-strip">
+        <div className={layout === "list" ? "app-rail-list" : "app-rail-strip"}>
           {cards.map((card) => (
             <RailCard key={card.event.id} card={card} inCity={inCity} onOpen={() => onOpenEvent(card.event.id)} />
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+export type SearchFoldId = "nearby" | "picks" | "after" | "afisha";
+
+/** One closed section under «Сегодня для тебя». Opening it shows the events that section was holding. */
+export function SearchFold({ title, open, onToggle, children }: { title: string; open: boolean; onToggle: () => void; children: ReactNode }) {
+  return (
+    <div className={open ? "app-search-fold app-search-fold--open" : "app-search-fold"}>
+      <button type="button" className="app-search-fold-btn" aria-expanded={open} onClick={onToggle}>
+        <span>{title}</span>
+        <span className="app-search-fold-caret" aria-hidden="true">
+          <ActionIcon name="chevron" size={16} />
+        </span>
+      </button>
+      {open && <div className="app-search-fold-panel">{children}</div>}
+    </div>
   );
 }
 
@@ -385,7 +406,6 @@ interface SearchViewProps {
   onCity: (city: string) => void;
   category: EventCategory | undefined;
   onCategory: (category: EventCategory | undefined) => void;
-  initial: string;
   onExpand: () => void;
   hintDismissed: boolean;
   onDismissHint: () => void;
@@ -395,7 +415,6 @@ interface SearchViewProps {
   onMap: () => void;
   onWhereto: () => void;
   onNearby: () => void;
-  onOpenProfile: () => void;
   onAsk: () => void;
   onOpenMicro: () => void;
   onRetry: () => void;
@@ -411,24 +430,42 @@ export function SearchView(props: SearchViewProps) {
   const hint = props.today.status === "ready" ? todayAfterMeCard(props.today.today) : null;
   const distanceFrom = props.distancesFromViewer === false ? "center" : "you";
   const inCity = props.distancesFromViewer !== false;
+  const nearbyTitle = props.catalogInCity === false ? "Сегодня в городе" : "Сегодня рядом";
+  const [fold, setFold] = useState<SearchFoldId | null>(null);
+  const toggle = (id: SearchFoldId) => setFold((current) => (current === id ? null : id));
   return (
     <div className="app-search">
-      <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} initial={props.initial} onOpenProfile={props.onOpenProfile} />
+      <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} />
       <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} onPickRecent={props.onPickRecent} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
       <SearchFilters category={props.category} onCategory={props.onCategory} />
       <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
       <TodaySummaryBlock state={props.today} now={props.now} distanceFrom={distanceFrom} onOpenNearby={() => props.onOpenList("nearby")} onOpenSuitable={() => props.onOpenList("suitable")} onOpenFriends={() => props.onOpenList("friends")} />
-      <SearchNearby state={props.state} inCity={props.catalogInCity !== false} onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
-      <TodayPicksBlock state={props.today} onOpen={props.onOpenEvent} onRetry={props.onRetry} distanceFrom={distanceFrom} />
-      <AfterMeSection />
-      {hint !== null && !props.hintDismissed && <TodayAfterMeCard card={hint} onShow={props.onNearby} onDismiss={props.onDismissHint} distanceFrom={distanceFrom} />}
+      <div className="app-search-folds">
+        <SearchFold title={nearbyTitle} open={fold === "nearby"} onToggle={() => toggle("nearby")}>
+          <SearchNearby state={props.state} inCity={props.catalogInCity !== false} showHeading={false} onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
+        </SearchFold>
+        <SearchFold title="Для вас" open={fold === "picks"} onToggle={() => toggle("picks")}>
+          <TodayPicksBlock state={props.today} showHeading={false} onOpen={props.onOpenEvent} onRetry={props.onRetry} distanceFrom={distanceFrom} />
+        </SearchFold>
+        <SearchFold title="После меня" open={fold === "after"} onToggle={() => toggle("after")}>
+          {hint !== null && (
+            <button type="button" className="app-search-fold-event" onClick={() => props.onOpenEvent(hint.event.id)}>
+              {hint.event.title}
+            </button>
+          )}
+          {hint !== null && !props.hintDismissed && <TodayAfterMeCard card={hint} onShow={props.onNearby} onDismiss={props.onDismissHint} distanceFrom={distanceFrom} />}
+          <AfterMeSection showTitle={false} placeholder={hint === null ? "После твоих визитов пока ничего не подобралось." : undefined} />
+        </SearchFold>
+        <SearchFold title="Афиша" open={fold === "afisha"} onToggle={() => toggle("afisha")}>
+          <SearchNearby state={props.state} inCity={props.catalogInCity !== false} showHeading={false} showAll={false} layout="list" emptyCopy="В афише пока пусто." onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
+        </SearchFold>
+      </div>
     </div>
   );
 }
 
 export function SearchPage() {
   const { navigate, route } = useRoute();
-  const auth = useAuth();
   const origin = useViewerOrigin();
   const [query, setQuery] = useState("");
   const [recents, setRecents] = useState<string[]>(readRecentSearches);
@@ -524,5 +561,5 @@ export function SearchPage() {
     [city, navigate],
   );
 
-  return <SearchView state={state} today={today} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} initial={auth.status === "authenticated" ? auth.user.firstName.charAt(0) : "?"} onExpand={() => navigate({ name: "browse", list: "nearby", city })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onOpenProfile={() => navigate({ name: "profile" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
+  return <SearchView state={state} today={today} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} onExpand={() => navigate({ name: "browse", list: "nearby", city })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
 }

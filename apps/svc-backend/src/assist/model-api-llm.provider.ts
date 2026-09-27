@@ -13,11 +13,11 @@
 import { AssistCriteriaSchema, AssistGuideIdSchema, type AssistCriteria } from "@max-events/api-contracts";
 import { LlmProviderError, type AssistCatalogCard, type AssistChatDraft, type LlmProvider } from "./llm-provider";
 
-const SYSTEM = 'Reply with JSON only: {"when":"morning|afternoon|evening|any","budgetMaxRub":number|null,"company":"alone|friends|partner|kids","genre":"music|sport|outdoors|any"}';
+const SYSTEM = 'Reply with JSON only: {"when":"morning|afternoon|evening|any","budgetMaxRub":number|null,"company":"alone|friends|partner|kids","genre":"music|sport|outdoors|volunteering|any"}';
 
 const CHAT_SYSTEM = `You are MAX, a short leisure assistant for a real event catalog and for the app itself. Reply in Russian, one or two sentences.
 Return JSON only: {"refuse":false,"reply":"...","eventIds":[],"openEventId":null,"plan":false,"criteria":null,"guides":[]}
-refuse is true only for a direct insult. eventIds and openEventId must be copied from the catalog ids you were given. Use plan true only when the user asks to assemble a day. criteria is {"when":"morning|afternoon|evening|any","budgetMaxRub":number|null,"company":"alone|friends|partner|kids","genre":"music|sport|outdoors|any"} or null.
+refuse is true only for a direct insult. eventIds and openEventId must be copied from the catalog ids you were given. Use plan true only when the user asks to assemble a day. criteria is {"when":"morning|afternoon|evening|any","budgetMaxRub":number|null,"company":"alone|friends|partner|kids","genre":"music|sport|outdoors|volunteering|any"} or null.
 guides is up to 4 ids from this list only: search, map, swipe, plans, calendar, friends, lists, story, post, nearby, day-route, profile, companies, micro.
 search is the poster, map is the map, swipe is liking events, plans is a meetup, calendar is the schedule, friends is people, lists is saved events, story is a short video, post is the feed, nearby is free time nearby, day-route is a day of stops, profile is the user, companies is a group vote, micro is a short nearby meetup.
 When the user asks what the app can do, reply and put 2-4 guides in guides. Leave eventIds empty.

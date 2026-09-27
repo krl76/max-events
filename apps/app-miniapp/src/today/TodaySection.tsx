@@ -224,12 +224,12 @@ function PickCard({ card, hero, onOpen, distanceFrom }: { card: TodayCard; hero:
   );
 }
 
-export function TodayPicksBlock({ state, onOpen, onRetry, distanceFrom = "you" }: { state: TodayState; onOpen: (eventId: string) => void; onRetry: () => void; distanceFrom?: DistanceVoice }) {
+export function TodayPicksBlock({ state, onOpen, onRetry, distanceFrom = "you", showHeading = true }: { state: TodayState; onOpen: (eventId: string) => void; onRetry: () => void; distanceFrom?: DistanceVoice; showHeading?: boolean }) {
   const cards = state.status === "ready" ? todayPickCards(state.today) : [];
   const [hero, ...rest] = cards;
   return (
     <section className="app-picks" aria-label="Для вас">
-      <h2 className="app-screen-title">Для вас</h2>
+      {showHeading && <h2 className="app-screen-title">Для вас</h2>}
       {state.status === "loading" && <AppSkeleton variant="block" className="app-picks-skeleton" />}
       {state.status === "error" && (
         <AppState error action={{ label: "Повторить", onClick: onRetry }}>

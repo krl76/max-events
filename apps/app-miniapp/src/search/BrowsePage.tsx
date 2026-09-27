@@ -8,15 +8,17 @@
 // START_MODULE_MAP
 // - BrowseList - nearby | suitable | friends | results
 // - eventFitsInterests - the today-digest interest rule, so «Подходят тебе» matches the counter
-// - selectBrowseCards - the list a stat or a query should show
+// - cardsByIds - catalog cards in the order of a digest bucket
+// - selectBrowseCards - the list a stat or a query should show; digest buckets win over a local guess
 // - browseTitle - header of that list
-// - browseEmptyCopy - «Ничего не нашлось…» plus the offer of something else
-// - BrowseView - the list, the empty line and the suggested events
+// - browseEmptyCopy - «Ничего не нашлось…»
+// - BrowseSuggestion - one AI pick shown when the query itself missed
+// - BrowseView - the list, the empty line and the similar events
 // - BrowsePage - container: fetches the cards for the route and opens an event
 // END_MODULE_MAP
 
 import { useEffect, useMemo, useState } from "react";
-import type { Event } from "@max-events/api-contracts";
+import type { AssistCriteria, Event } from "@max-events/api-contracts";
 import { apiClient, type CatalogCard, type EventFilters, type TodayCard, type TodayDigest } from "../api/client";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute, type BrowseList } from "../routing/router";
@@ -53,7 +55,20 @@ export function eventFitsInterests(event: Pick<Event, "category" | "title" | "de
   });
 }
 
+/** Catalog rows lined up with a counter: an id the page did not load is skipped, the rest keep the bucket order. */
+export function cardsByIds(cards: CatalogCard[], ids: readonly string[]): CatalogCard[] {
+  const byId = new Map(cards.map((card) => [card.event.id, card]));
+  return ids.flatMap((id) => {
+    const card = byId.get(id);
+    return card ? [card] : [];
+  });
+}
+
 export function selectBrowseCards(cards: CatalogCard[], list: BrowseList, interests: string[], digest: TodayDigest | null = null): CatalogCard[] {
+  const buckets = digest?.buckets;
+  if (buckets && list === "friends") return cardsByIds(cards, buckets.friendIds);
+  if (buckets && list === "suitable") return cardsByIds(cards, buckets.suitableIds);
+  if (buckets && list === "nearby") return cardsByIds(cards, buckets.nearbyIds);
   if (list === "friends") return selectFriendCards(cards, digest?.cards ?? []);
   if (list === "suitable") return selectSuitableCards(cards, interests, digest);
   return cards;
@@ -94,16 +109,24 @@ export function browseEmptyCopy(list: BrowseList, query?: string): string {
   return "Рядом сегодня пусто. Загляните позже!";
 }
 
-type BrowseStatus = { status: "loading" } | { status: "error" } | { status: "ready"; cards: CatalogCard[]; suggestions: CatalogCard[] };
+export type BrowseSuggestion = { card: CatalogCard; reason: string | null };
+
+/** An untouched parse matches the whole catalog. That is not a similar-events answer. */
+export function assistNarrowed(criteria: AssistCriteria): boolean {
+  return criteria.genre !== "any" || criteria.when !== "any" || criteria.budgetMaxRub !== null || criteria.company !== "alone";
+}
+
+type BrowseStatus = { status: "loading" } | { status: "error" } | { status: "ready"; cards: CatalogCard[]; suggestions: BrowseSuggestion[]; suggesting: boolean };
 
 export function BrowseView({ list, query, state, inCity, onOpen, onBack, onRetry }: { list: BrowseList; query?: string; state: BrowseStatus; inCity: boolean; onOpen: (eventId: string) => void; onBack: () => void; onRetry: () => void }) {
   const title = browseTitle(list, query);
   const voice = inCity ? "you" : "center";
-  const row = (card: CatalogCard) => (
+  const row = (card: CatalogCard, reason: string | null = null) => (
     <button key={card.event.id} type="button" className="app-browse-row" onClick={() => onOpen(card.event.id)}>
       <img className="app-browse-photo" alt="" src={pictured(card.event.id, card.event.coverUrl)} />
       <span className="app-browse-copy">
         <span className="app-browse-title">{card.event.title}</span>
+        {reason !== null && reason !== "" && <span className="app-browse-reason">{reason}</span>}
         <span className="app-browse-meta">{railMeta(card, voice)}</span>
       </span>
     </button>
@@ -129,19 +152,17 @@ export function BrowseView({ list, query, state, inCity, onOpen, onBack, onRetry
       )}
       {state.status === "ready" && state.cards.length === 0 && (
         <>
-          <AppState>
-            {browseEmptyCopy(list, query)}
-            {state.suggestions.length > 0 ? " Может подойти вот это." : ""}
-          </AppState>
+          <AppState>{browseEmptyCopy(list, query)}</AppState>
+          {state.suggesting && <p className="app-today-quiet">MAX ищет похожее…</p>}
           {state.suggestions.length > 0 && (
-            <>
-              <h2 className="app-browse-suggest">Может подойти</h2>
-              <div className="app-browse-list">{state.suggestions.map(row)}</div>
-            </>
+            <div className="app-browse-similar">
+              <h2 className="app-browse-similar-title">Похожее</h2>
+              <div className="app-browse-list">{state.suggestions.map((item) => row(item.card, item.reason))}</div>
+            </div>
           )}
         </>
       )}
-      {state.status === "ready" && state.cards.length > 0 && <div className="app-browse-list">{state.cards.map(row)}</div>}
+      {state.status === "ready" && state.cards.length > 0 && <div className="app-browse-list">{state.cards.map((card) => row(card))}</div>}
     </section>
   );
 }
@@ -149,12 +170,13 @@ export function BrowseView({ list, query, state, inCity, onOpen, onBack, onRetry
 export function BrowsePage({ list, query, city }: { list: BrowseList; query?: string; city?: string }) {
   const origin = useViewerOrigin();
   const [homeCity, setHomeCity] = useState<string | null>(null);
+  const [cityReady, setCityReady] = useState(list === "results");
   const [interests, setInterests] = useState<string[] | null>(list === "suitable" ? null : []);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<BrowseStatus>({ status: "loading" });
   const { navigate, back } = useRoute();
-  const place = city ?? homeCity ?? "Москва";
-  const point = useMemo(() => browsedCityOrigin(origin, place), [origin, place]);
+  const routeCity = city ?? homeCity ?? "Москва";
+  const point = useMemo(() => browsedCityOrigin(origin, list === "results" ? routeCity : (homeCity ?? routeCity)), [origin, homeCity, list, routeCity]);
 
   useEffect(() => {
     let alive = true;
@@ -163,9 +185,12 @@ export function BrowsePage({ list, query, city }: { list: BrowseList; query?: st
         if (!alive) return;
         setHomeCity(profile.city);
         if (list === "suitable") setInterests(profile.interests);
+        setCityReady(true);
       },
       () => {
-        if (alive && list === "suitable") setInterests([]);
+        if (!alive) return;
+        if (list === "suitable") setInterests([]);
+        setCityReady(true);
       },
     );
     return () => {
@@ -174,27 +199,44 @@ export function BrowsePage({ list, query, city }: { list: BrowseList; query?: st
   }, [list]);
 
   useEffect(() => {
+    if (!cityReady) return;
     if (list === "suitable" && interests === null) return;
     let alive = true;
     setState({ status: "loading" });
-    const filters: EventFilters = { city: place, sort: "near", ...(list === "results" && query ? { query } : {}) };
+    // The three tiles count the profile city from now on. A search city must not swap that set.
+    const listCity = list === "results" ? routeCity : (homeCity ?? routeCity);
+    const filters: EventFilters = {
+      city: listCity,
+      sort: list === "results" ? "near" : "soon",
+      limit: 100,
+      ...(list === "results" ? {} : { dateFrom: new Date(Date.now() - 2 * 60 * 1000).toISOString() }),
+      ...(list === "results" && query ? { query } : {}),
+    };
     const originPoint = { latitude: point.latitude, longitude: point.longitude };
-    const digestPromise = list === "suitable" || list === "friends" ? apiClient.getToday(originPoint).catch(() => null) : Promise.resolve(null);
+    const digestPromise = list === "results" ? Promise.resolve(null) : apiClient.getToday(originPoint).catch(() => null);
     Promise.all([apiClient.listEventCards(filters, originPoint), digestPromise]).then(
       ([cards, digest]) => {
         const picked = selectBrowseCards(cards, list, interests ?? [], digest);
-        if (list === "results" && picked.length === 0) {
-          apiClient.listEventCards({ city: place, sort: "near" }, originPoint).then(
-            (suggestions) => {
-              if (alive) setState({ status: "ready", cards: [], suggestions: suggestions.slice(0, 6) });
+        if (list === "results" && picked.length === 0 && query) {
+          if (alive) setState({ status: "ready", cards: [], suggestions: [], suggesting: true });
+          apiClient.assistQuery(query).then(
+            (result) => {
+              if (!alive) return;
+              const suggestions = assistNarrowed(result.criteria)
+                ? result.items.map((item) => ({
+                    card: { event: item.event, distanceKm: item.event.distanceKm ?? null, rating: item.event.ratingAverage ?? null, placeTitle: null },
+                    reason: item.explanation,
+                  }))
+                : [];
+              setState({ status: "ready", cards: [], suggesting: false, suggestions });
             },
             () => {
-              if (alive) setState({ status: "ready", cards: [], suggestions: [] });
+              if (alive) setState({ status: "ready", cards: [], suggestions: [], suggesting: false });
             },
           );
           return;
         }
-        if (alive) setState({ status: "ready", cards: picked, suggestions: [] });
+        if (alive) setState({ status: "ready", cards: picked, suggestions: [], suggesting: false });
       },
       () => {
         if (alive) setState({ status: "error" });
@@ -203,7 +245,7 @@ export function BrowsePage({ list, query, city }: { list: BrowseList; query?: st
     return () => {
       alive = false;
     };
-  }, [attempt, interests, list, place, point.latitude, point.longitude, query]);
+  }, [attempt, cityReady, homeCity, interests, list, point.latitude, point.longitude, query, routeCity]);
 
   return <BrowseView list={list} query={query} state={state} inCity={point.fromViewer} onOpen={(id) => navigate({ name: "event", id })} onBack={back} onRetry={() => setAttempt((count) => count + 1)} />;
 }

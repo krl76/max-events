@@ -4460,7 +4460,76 @@ html[data-theme="dark"] #root {
 .app-search {
   display: flex;
   flex-direction: column;
-  padding-top: var(--app-space-l);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 36px);
+}
+
+.app-search-folds {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: var(--app-space-l);
+}
+
+.app-search-fold-btn {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 16px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 14px 16px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-search-fold--open .app-search-fold-btn {
+  background: var(--app-text);
+  color: var(--app-card);
+}
+
+.app-search-fold-caret {
+  display: flex;
+  flex: none;
+}
+
+.app-search-fold--open .app-search-fold-caret {
+  transform: rotate(90deg);
+}
+
+.app-search-fold-panel {
+  background: var(--app-surface);
+  border-radius: 16px;
+  margin-top: -4px;
+  padding: 12px;
+}
+
+.app-search-fold-panel .app-rail-strip {
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.app-search-fold-event {
+  background: var(--app-card);
+  border: none;
+  border-radius: 14px;
+  color: inherit;
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0 0 10px;
+  padding: 14px;
+  text-align: left;
+  width: 100%;
 }
 
 .app-search-top {
@@ -4711,9 +4780,27 @@ html[data-theme="dark"] #root {
 }
 
 .app-search-recents {
+  align-items: baseline;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--app-space-s);
+  gap: 4px 12px;
+  padding: 2px 4px 0;
+}
+
+.app-search-recents-label {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+}
+
+.app-search-recent {
+  background: none;
+  border: none;
+  color: var(--app-accent-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0;
 }
 
 .app-line-tabs {
@@ -4897,12 +4984,17 @@ button.app-today-stat {
   position: relative;
 }
 
+.app-browse {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
+}
+
 .app-browse-top {
   align-items: center;
   display: grid;
   gap: 4px;
   grid-template-columns: 44px 1fr 44px;
   margin: 0 0 16px;
+  padding-top: 8px;
 }
 
 .app-browse-back {
@@ -4978,10 +5070,21 @@ button.app-today-stat {
   font-size: 13px;
 }
 
-.app-browse-suggest {
-  font-size: 20px;
-  font-weight: 800;
-  margin: 20px 0 12px;
+.app-browse-similar {
+  margin-top: 4px;
+}
+
+.app-browse-similar-title {
+  color: var(--app-text-secondary);
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+
+.app-browse-reason {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .app-today-quiet {

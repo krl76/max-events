@@ -12,7 +12,9 @@
 // - TodayCardLabel - card label type
 // - TodayEventCardSchema - event card with contextual typed labels
 // - TodayEventCard - event card type
-// - TodayResponseSchema - digest response (summary + cards)
+// - TodayBucketsSchema - event ids behind the three counters, in the same order the lists should show
+// - TodayBuckets - those id lists
+// - TodayResponseSchema - digest response (summary + cards + optional buckets)
 // - TodayResponse - digest response type
 // END_MODULE_MAP
 
@@ -56,8 +58,17 @@ export const TodayEventCardSchema = z.object({
 });
 export type TodayEventCard = z.infer<typeof TodayEventCardSchema>;
 
+/** Ids of the events each counter is counting, so a list opened from the tile is that same set. */
+export const TodayBucketsSchema = z.object({
+  nearbyIds: z.array(z.string()),
+  suitableIds: z.array(z.string()),
+  friendIds: z.array(z.string()),
+});
+export type TodayBuckets = z.infer<typeof TodayBucketsSchema>;
+
 export const TodayResponseSchema = z.object({
   summary: TodaySummarySchema,
   cards: z.array(TodayEventCardSchema),
+  buckets: TodayBucketsSchema.optional(),
 });
 export type TodayResponse = z.infer<typeof TodayResponseSchema>;

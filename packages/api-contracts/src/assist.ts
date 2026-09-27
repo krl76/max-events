@@ -44,7 +44,7 @@ export type AssistWhen = z.infer<typeof AssistWhenSchema>;
 export const AssistCompanySchema = z.enum(["alone", "friends", "partner", "kids"]);
 export type AssistCompany = z.infer<typeof AssistCompanySchema>;
 
-export const AssistGenreSchema = z.enum(["music", "sport", "outdoors", "any"]);
+export const AssistGenreSchema = z.enum(["music", "sport", "outdoors", "volunteering", "any"]);
 export type AssistGenre = z.infer<typeof AssistGenreSchema>;
 
 export const AssistCriteriaSchema = z.object({

@@ -23,6 +23,8 @@
 // - formatTravelOption - one travel tile: the big «18 мин» and the «пешком · 1,4 км» under it (#504)
 // - mapFriendsLine - «Анна была здесь», «Анна и Дима были здесь»; null when no friend has
 // - MapNoticeInput - everything the one line over the canvas has to weigh: failures, emptiness, filters, geolocation
+// - MAP_EVENT_CATEGORIES - «Афиша», «Туризм», «Спорт», «Волонтёрство» on the map filter row
+// - filterMapEvents - event pins after the category chip and the map search
 // - mapNotice - the single line the map says about itself; null when there is nothing to explain
 // - MapView - the data the map is drawn from: markers, viewer origin, route, selected key, the basemap the tiles come from and the rendered colour scheme
 // - MapCallbacks - what the map calls back into React: open event, open place, select a pin, report dead tiles, fall back from a vector basemap that could not mount
@@ -34,10 +36,10 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Event, FriendPlaceVisit, Place } from "@max-events/api-contracts";
+import type { Event, EventCategory, FriendPlaceVisit, Place } from "@max-events/api-contracts";
 import "leaflet/dist/leaflet.css";
 import { apiClient, type EventForecast, type EventWeatherHour, type MapWeather, type TravelOption } from "../api/client";
-import { pluralRu } from "./format";
+import { CATEGORY_LABELS, pluralRu } from "./format";
 import { useProfileCityPoint } from "../geo/profile-city";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { pictured } from "../ui/photos";
@@ -157,6 +159,8 @@ export interface MapNoticeInput {
   eventsFailed: boolean;
   markerCount: number;
   query: string;
+  /** Set when a category chip is hiding the other events. */
+  categoryLabel?: string | null;
   anyLayerOn: boolean;
   geoDenied: boolean;
   locateOn: boolean;
@@ -181,7 +185,17 @@ export function mapNotice(input: MapNoticeInput): string | null {
   // сказать «рядом ничего нет» было бы неправдой — искать было нечем.
   if (input.placesFailed || input.eventsFailed) return "Объекты не загрузились. Карта на месте, попробуйте позже.";
   if (input.query.trim() !== "") return `По запросу «${input.query.trim()}» на карте ничего нет.`;
+  if (input.categoryLabel) return `В категории «${input.categoryLabel}» на карте ничего нет.`;
   return input.inCity === false ? "В городе ничего не нашлось." : "Рядом ничего не нашлось.";
+}
+
+/** Categories the map offers, in the same order as the search filter. Undefined is «Все». */
+export const MAP_EVENT_CATEGORIES: readonly EventCategory[] = ["afisha", "tourism", "sport", "volunteering"];
+
+/** Event pins only. Places and friend visits stay; a blank category keeps every event the search needle still matches. */
+export function filterMapEvents(events: Event[], category: EventCategory | undefined, needle: string): Event[] {
+  const query = needle.trim().toLowerCase();
+  return events.filter((item) => (category === undefined || item.category === category) && (query === "" || item.title.toLowerCase().includes(query)));
 }
 
 function popupNode(marker: MapMarker, onOpenEvent: (id: string) => void, onOpenPlace: (id: string) => void): HTMLElement {
@@ -548,6 +562,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   const [friendsAsked, setFriendsAsked] = useState(false);
   const [layers, setLayers] = useState<Record<MapLayer, boolean>>({ friends: false, events: true, places: true });
   const [layersOpen, setLayersOpen] = useState(true);
+  const [category, setCategory] = useState<EventCategory | undefined>(undefined);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<MapMarker | null>(null);
   const [routeOn, setRouteOn] = useState(false);
@@ -620,7 +635,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
 
   const readyPlaces = places.status === "ready" ? places.places : [];
   const needle = query.trim().toLowerCase();
-  const shownEvents = useMemo(() => (layers.events ? events.filter((item) => needle === "" || item.title.toLowerCase().includes(needle)) : []), [events, layers.events, needle]);
+  const shownEvents = useMemo(() => (layers.events ? filterMapEvents(events, category, needle) : []), [events, layers.events, category, needle]);
   const shownPlaces = useMemo(() => (layers.places ? readyPlaces.filter((item) => needle === "" || item.title.toLowerCase().includes(needle)) : []), [readyPlaces, layers.places, needle]);
   // A fresh [] on every render would land in the map's dependency list and rebuild Leaflet each time.
   const visits = useMemo(() => (layers.friends ? friendVisits : EMPTY_VISITS), [layers.friends, friendVisits]);
@@ -629,6 +644,10 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   const selectedPlaceId = selected === null ? null : (selected.placeId ?? events.find((item) => item.id === selected.eventId)?.placeId ?? null);
   const selectedPlace = selectedPlaceId === null ? undefined : readyPlaces.find((item) => item.id === selectedPlaceId);
   const selectedCategory = selected === null || selected.eventId === null ? null : (events.find((item) => item.id === selected.eventId)?.category ?? null);
+  useEffect(() => {
+    if (selected?.eventId == null || category === undefined) return;
+    if (selectedCategory !== category) setSelected(null);
+  }, [category, selected, selectedCategory]);
 
   useEffect(() => {
     if (selectedPlaceId === null) {
@@ -742,6 +761,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
     eventsFailed,
     markerCount: markers.length,
     query,
+    categoryLabel: category === undefined ? null : CATEGORY_LABELS[category],
     anyLayerOn: MAP_LAYERS.some((layer) => layers[layer]),
     geoDenied: located.state === "denied",
     inCity: located.settled && located.fromViewer,
@@ -791,8 +811,19 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
           </button>
         </div>
       </div>
-      {(layersOpen || basemapsOpen) && (
-        <div className="app-map16-rows">
+      <div className="app-map16-rows">
+        <div className="app-map16-layers" role="group" aria-label="Фильтр событий">
+          <AppChip pressed={category === undefined} className="app-map16-layer" onClick={() => setCategory(undefined)}>
+            Все
+          </AppChip>
+          {MAP_EVENT_CATEGORIES.map((item) => (
+            <AppChip key={item} pressed={category === item} className="app-map16-layer" onClick={() => setCategory(item)}>
+              {CATEGORY_LABELS[item]}
+            </AppChip>
+          ))}
+        </div>
+        {(layersOpen || basemapsOpen) && (
+          <>
           {layersOpen && (
             <div className="app-map16-layers" role="group" aria-label="Слои карты">
               {MAP_LAYERS.map((layer) => (
@@ -820,8 +851,9 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
               ))}
             </div>
           )}
-        </div>
-      )}
+          </>
+        )}
+      </div>
       <div className="app-map16-zoom">
         <button type="button" className="app-map16-zoom-btn" aria-label="Приблизить" onClick={() => handleRef.current?.zoomBy(1)}>
           <ActionIcon name="plus" size={18} strokeWidth={2} />

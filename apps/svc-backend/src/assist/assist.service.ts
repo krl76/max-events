@@ -29,7 +29,7 @@ import { PlansService } from "../plans/plans.service";
 import { moscowDateKey } from "../time/moscow-date";
 import { isDirectInsult, offeredChoiceIndex } from "./chat-guard";
 import { LLM_PROVIDER, type AssistChatDraft, type LlmProvider } from "./llm-provider";
-import { parseAssistQuery } from "./parse-nl";
+import { applyKeywordGenre, parseAssistQuery } from "./parse-nl";
 import { AssistRateLimiter } from "./rate-limit";
 import { sanitizeAssistQuery } from "./sanitize";
 
@@ -190,7 +190,7 @@ export class AssistService {
 
   private async parseCriteria(cleaned: string): Promise<AssistCriteria> {
     try {
-      return await this.llm.parseQuery(cleaned);
+      return applyKeywordGenre(cleaned, await this.llm.parseQuery(cleaned));
     } catch {
       return parseAssistQuery(cleaned);
     }
@@ -282,6 +282,7 @@ function matchesGenre(event: Event, genre: AssistCriteria["genre"]): boolean {
   const blob = `${event.title} ${event.description}`.toLowerCase();
   if (genre === "music") return event.category === "afisha" || /музык|джаз|концерт|симфон|рахманин/.test(blob);
   if (genre === "sport") return event.category === "sport";
+  if (genre === "volunteering") return event.category === "volunteering" || /волонт|волонтер|субботник/.test(blob);
   return event.category === "tourism" || event.category === "volunteering";
 }
 

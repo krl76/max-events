@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { catalogCards } from "../api/mock";
-import { addRecentSearch, nearbyEntryTitle, RECENT_SEARCHES_LIMIT, railMeta, searchCities, SearchFilterSheet, SearchNearby, SearchQueryForm, SearchTools, SearchTopBar, type SearchState } from "./SearchPage";
+import { addRecentSearch, nearbyEntryTitle, RECENT_SEARCHES_LIMIT, railMeta, searchCities, SearchFilterSheet, SearchFold, SearchNearby, SearchQueryForm, SearchTools, SearchTopBar, type SearchState } from "./SearchPage";
 
 const noop = () => {};
 const CARDS = catalogCards({ sort: "near" }, { latitude: 55.7522, longitude: 37.6156 });
@@ -45,15 +45,13 @@ describe("search helpers", () => {
 });
 
 describe("SearchTopBar", () => {
-  const bar = (over: { city?: string; cities?: string[]; initial?: string } = {}) => renderToStaticMarkup(createElement(SearchTopBar, { city: over.city ?? "Москва", cities: over.cities ?? ["Москва"], onCity: noop, initial: over.initial ?? "К", onOpenProfile: noop }));
+  const bar = (over: { city?: string; cities?: string[] } = {}) => renderToStaticMarkup(createElement(SearchTopBar, { city: over.city ?? "Москва", cities: over.cities ?? ["Москва"], onCity: noop }));
 
-  it("shows the city and the viewer initial", () => {
+  it("shows the city and keeps the profile shortcut off this screen", () => {
     const html = bar();
 
     expect(html).toContain("Москва");
-    expect(html).toContain(">К<");
-    expect(html).toContain('aria-label="Профиль"');
-    // Меню города закрыто, пока по пилюле не нажали.
+    expect(html).not.toContain('aria-label="Профиль"');
     expect(html).not.toContain("app-search-city-menu");
   });
 });
@@ -62,8 +60,9 @@ describe("SearchQueryForm", () => {
   it("shows the recents on a blank query and hides them once something is typed", () => {
     const form = (query: string) => renderToStaticMarkup(createElement(SearchQueryForm, { query, onQuery: noop, onSubmit: noop, recents: ["йога", "Рахманинов"] }));
 
+    expect(form("")).toContain("Недавние");
     expect(form("")).toContain("Рахманинов");
-    expect(form("")).toContain("app-search-recents");
+    expect(form("")).toContain("app-search-recent");
     expect(form("")).toContain('aria-label="Найти"');
     expect(form("")).toContain("disabled");
     expect(form("джаз")).not.toContain("app-search-recents");
@@ -95,6 +94,19 @@ describe("SearchFilterSheet", () => {
     expect(open).toContain("Волонтёрство");
     expect(open).toContain("Сбросить");
     expect(renderToStaticMarkup(createElement(SearchFilterSheet, { category: undefined, onCategory: noop, onClose: noop }))).not.toContain("Сбросить");
+  });
+});
+
+describe("SearchFold", () => {
+  it("hides the section events until the button is opened", () => {
+    const closed = renderToStaticMarkup(createElement(SearchFold, { title: "Для вас", open: false, onToggle: noop, children: "Вечер Рахманинова" }));
+    const open = renderToStaticMarkup(createElement(SearchFold, { title: "Для вас", open: true, onToggle: noop, children: "Вечер Рахманинова" }));
+
+    expect(closed).toContain("Для вас");
+    expect(closed).toContain('aria-expanded="false"');
+    expect(closed).not.toContain("Вечер Рахманинова");
+    expect(open).toContain('aria-expanded="true"');
+    expect(open).toContain("Вечер Рахманинова");
   });
 });
 
