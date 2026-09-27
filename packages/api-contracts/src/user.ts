@@ -93,7 +93,7 @@ export const DEFAULT_SMART_ALERTS: SmartAlertSettings = {
 
 export const PrivacySettingsSchema = z.object({
   visitHistory: z.enum(["friends", "hidden"]),
-  routes: z.enum(["friends", "hidden"]),
+  routes: z.enum(["friends", "close", "hidden"]),
 });
 export type PrivacySettings = z.infer<typeof PrivacySettingsSchema>;
 

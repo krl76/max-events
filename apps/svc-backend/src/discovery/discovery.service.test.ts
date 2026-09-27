@@ -37,14 +37,14 @@ function place(id: string, title: string): PlaceEntity {
   return { id, title, address: "x", city: "Москва", category: "park", latitude: 55.75, longitude: 37.62, published: true, createdAt: now, updatedAt: now } as PlaceEntity;
 }
 
-function createService(options: { hidden?: boolean; routesHidden?: boolean; unpublishedMuseum?: boolean } = {}) {
+function createService(options: { hidden?: boolean; routesHidden?: boolean; routesClose?: boolean; markedClose?: boolean; unpublishedMuseum?: boolean } = {}) {
   const museum = place(museumId, "Музей");
   if (options.unpublishedMuseum) museum.published = false;
-  const privacy = options.hidden ? { visitHistory: "hidden" as const, routes: "hidden" as const } : options.routesHidden ? { visitHistory: "friends" as const, routes: "hidden" as const } : null;
+  const privacy = options.hidden ? { visitHistory: "hidden" as const, routes: "hidden" as const } : options.routesHidden ? { visitHistory: "friends" as const, routes: "hidden" as const } : options.routesClose ? { visitHistory: "friends" as const, routes: "close" as const } : null;
   const checkIns = createStoreRepo<CheckInEntity>([{ id: "c1", userId: me, eventId: null, placeId: parkId, checkedInAt: now } as CheckInEntity, { id: "c2", userId: anna, eventId: null, placeId: parkId, checkedInAt: now } as CheckInEntity, { id: "c3", userId: anna, eventId: null, placeId: museumId, checkedInAt: now } as CheckInEntity]);
   const users = createStoreRepo<UserEntity>([{ id: me, firstName: "Саша", lastName: null, avatarUrl: null } as UserEntity, { id: anna, firstName: "Анна", lastName: null, avatarUrl: null } as UserEntity]);
   const profiles = createStoreRepo<ProfileEntity>(privacy ? [{ userId: anna, city: "Москва", interests: [], smartAlerts: { leaveNow: true, weather: true, friendLeft: true, listDigest: true }, privacy, updatedAt: now } as unknown as ProfileEntity] : []);
-  const friends = { friendIds: async () => new Set([anna]) } as unknown as FriendsService;
+  const friends = { friendIds: async () => new Set([anna]), authorsWhoMarkedClose: async () => new Set(options.markedClose ? [anna] : []) } as unknown as FriendsService;
   const service = new DiscoveryService(checkIns as unknown as Repository<CheckInEntity>, createStoreRepo<EventEntity>() as unknown as Repository<EventEntity>, createStoreRepo<PlaceEntity>([place(parkId, "Парк"), museum]) as unknown as Repository<PlaceEntity>, users as unknown as Repository<UserEntity>, profiles as unknown as Repository<ProfileEntity>, friends);
   return { service };
 }
@@ -67,6 +67,18 @@ describe("DiscoveryService", () => {
     expect(payload.byFriend[0]?.newPlacesCount).toBe(1);
     expect(payload.byFriend[0]?.places).toEqual([]);
     await expect(service.route(me, anna)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("shows a close-friends trail only to someone that friend marked close", async () => {
+    const closed = await createService({ routesClose: true }).service.summary(me);
+    expect(closed.newPlacesCount).toBe(1);
+    expect(closed.byFriend[0]?.places).toEqual([]);
+    await expect(createService({ routesClose: true }).service.route(me, anna)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(await createService({ routesClose: true }).service.friendPlaces(me)).toEqual([]);
+
+    const open = await createService({ routesClose: true, markedClose: true }).service.summary(me);
+    expect(open.byFriend[0]?.places.map((row) => row.title)).toEqual(["Музей"]);
+    expect((await createService({ routesClose: true, markedClose: true }).service.route(me, anna)).places).toHaveLength(1);
   });
 
   it("drops unpublished places from the friend trail", async () => {

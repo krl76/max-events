@@ -2144,6 +2144,20 @@ html[data-theme="dark"] #root {
   margin-left: 28px;
 }
 
+.app-feed-replies-toggle {
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0 0 4px 28px;
+  min-height: 44px;
+  padding: 0;
+  text-align: left;
+}
+
 .app-feed-comment-like,
 .app-feed-comment-reply {
   align-items: center;

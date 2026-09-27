@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { commentsEntryLabel, feedDraftReady, feedEventPicked, feedWallEmptyCopy, CommentSheet, FeedCreateView, FeedPostCard, type FeedDraft } from "./FeedPage";
+import { commentThreads, commentsEntryLabel, feedDraftReady, feedEventPicked, feedWallEmptyCopy, repliesLabel, CommentSheet, FeedCreateView, FeedPostCard, type FeedDraft } from "./FeedPage";
 import type { FeedPost } from "../api/client";
 import { mockEvents } from "../api/mock";
 
@@ -52,6 +52,27 @@ describe("FeedPostCard", () => {
     expect(html).toContain("Класс!");
     expect(html).toContain("Добавить комментарий…");
     expect(html).toContain('aria-label="Профиль Дима Кузнецов"');
+  });
+
+  it("keeps a reply to a reply under the top comment and hides the chain until it is opened", () => {
+    const root = post.comments[0];
+    const reply = { ...root, id: "31000000-0000-4000-8000-000000000002", text: "Согласен" };
+    const nested = { ...root, id: "31000000-0000-4000-8000-000000000003", text: "И я" };
+    const parents = { [reply.id]: root.id, [nested.id]: reply.id };
+
+    expect(commentThreads([root, reply, nested], parents)).toEqual([{ root, replies: [reply, nested] }]);
+    expect(commentThreads([root, { ...nested, id: "31000000-0000-4000-8000-000000000009", text: "Сам по себе" }], { "31000000-0000-4000-8000-000000000009": "00000000-0000-4000-8000-000000000099" }).map((thread) => thread.root.text)).toEqual(["Класс!", "Сам по себе"]);
+
+    const sheet = (reveal: { rootId: string; token: number } | null) => renderToStaticMarkup(createElement(CommentSheet, { comments: [root, reply, nested], parents, liked: {}, replyTo: null, reveal, draft: "", onDraft: noop, onClose: noop, onLike: noop, onReply: noop, onCancelReply: noop, onSubmit: noop, inputRef: { current: null } }));
+    const closed = sheet(null);
+    expect(closed).toContain(repliesLabel(2));
+    expect(closed).toContain("Класс!");
+    expect(closed).not.toContain("Согласен");
+    expect(closed).not.toContain("И я");
+    const open = sheet({ rootId: root.id, token: 1 });
+    expect(open).toContain("Согласен");
+    expect(open).toContain("И я");
+    expect(open).toContain("Скрыть ответы");
   });
 
   it("shows the post photo in the 4:5 frame, and the category placeholder only without one", () => {

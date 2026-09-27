@@ -87,24 +87,41 @@ function rememberCommentParent(id: string, parentId: string): Record<string, str
   return next;
 }
 
-function threadedComments(comments: FeedComment[], parents: Record<string, string>): Array<{ comment: FeedComment; reply: boolean }> {
-  const ids = new Set(comments.map((item) => item.id));
-  const children = new Map<string, FeedComment[]>();
+/** Top comment of a reply chain. A cycle keeps the smallest id so every reply still has a root. */
+export function commentRootId(id: string, parents: Record<string, string>, known: ReadonlySet<string>): string {
+  let current = id;
+  const chain: string[] = [];
+  const index = new Map<string, number>();
+  while (!index.has(current)) {
+    index.set(current, chain.length);
+    chain.push(current);
+    const parent = parents[current];
+    if (parent === undefined || !known.has(parent)) return current;
+    current = parent;
+  }
+  const cycle = chain.slice(index.get(current) ?? 0);
+  return [...cycle].sort()[0] ?? id;
+}
+
+/** Every reply, including a reply to a reply, sits under the top comment of its chain. */
+export function commentThreads(comments: FeedComment[], parents: Record<string, string>): Array<{ root: FeedComment; replies: FeedComment[] }> {
+  const known = new Set(comments.map((item) => item.id));
+  const replies = new Map<string, FeedComment[]>();
   const roots: FeedComment[] = [];
   for (const comment of comments) {
-    const parent = parents[comment.id];
-    if (parent !== undefined && ids.has(parent)) {
-      const list = children.get(parent) ?? [];
+    const rootId = commentRootId(comment.id, parents, known);
+    if (rootId === comment.id) roots.push(comment);
+    else {
+      const list = replies.get(rootId) ?? [];
       list.push(comment);
-      children.set(parent, list);
-    } else roots.push(comment);
+      replies.set(rootId, list);
+    }
   }
-  const ordered: Array<{ comment: FeedComment; reply: boolean }> = [];
-  for (const root of roots) {
-    ordered.push({ comment: root, reply: false });
-    for (const child of children.get(root.id) ?? []) ordered.push({ comment: child, reply: true });
-  }
-  return ordered;
+  return roots.map((root) => ({ root, replies: replies.get(root.id) ?? [] }));
+}
+
+export function repliesLabel(count: number): string {
+  return `Посмотреть ответы (${count})`;
 }
 
 /** «Смотреть все 3 комментария» — на карточке виден счёт, сами реплики живут в шторке. */
@@ -151,12 +168,38 @@ interface FeedPostCardProps {
   hasStory?: boolean;
 }
 
+function CommentThread({ thread, revealToken, liked, onLike, onReply, onOpenAuthor }: { thread: { root: FeedComment; replies: FeedComment[] }; revealToken: number; liked: Record<string, true>; onLike: (id: string) => void; onReply: (comment: FeedComment) => void; onOpenAuthor?: (userId: string) => void }) {
+  const [opened, setOpened] = useState<boolean | null>(null);
+  const [seenToken, setSeenToken] = useState(revealToken);
+  const tokenChanged = revealToken !== seenToken;
+  if (tokenChanged) {
+    setSeenToken(revealToken);
+    setOpened(revealToken > 0);
+  }
+  const open = tokenChanged ? revealToken > 0 : (opened ?? revealToken > 0);
+  const row = (comment: FeedComment, reply: boolean) => <CommentRow key={comment.id} item={{ comment, reply }} liked={liked[comment.id] === true} onLike={() => onLike(comment.id)} onReply={() => onReply(comment)} onOpenAuthor={onOpenAuthor} />;
+  return (
+    <>
+      {row(thread.root, false)}
+      {thread.replies.length > 0 && (
+        <li className="app-feed-replies">
+          <button type="button" className="app-feed-replies-toggle" aria-expanded={open} onClick={() => setOpened(!open)}>
+            {open ? "Скрыть ответы" : repliesLabel(thread.replies.length)}
+          </button>
+        </li>
+      )}
+      {open && thread.replies.map((comment) => row(comment, true))}
+    </>
+  );
+}
+
 /** Аватар автора поста: фото, если оно есть, и градиентное кольцо только при живой истории. */
 export function CommentSheet({
   comments,
   parents,
   liked,
   replyTo,
+  reveal,
   draft,
   onDraft,
   onClose,
@@ -171,6 +214,7 @@ export function CommentSheet({
   parents: Record<string, string>;
   liked: Record<string, true>;
   replyTo: FeedComment | null;
+  reveal?: { rootId: string; token: number } | null;
   draft: string;
   onDraft: (value: string) => void;
   onClose: () => void;
@@ -208,8 +252,8 @@ export function CommentSheet({
           <p className="app-picker-empty">Пока никто не написал. Будьте первым.</p>
         ) : (
           <ul className="app-comments-list">
-            {threadedComments(comments, parents).map((item) => (
-              <CommentRow key={item.comment.id} item={item} liked={liked[item.comment.id] === true} onLike={() => onLike(item.comment.id)} onReply={() => onReply(item.comment)} onOpenAuthor={onOpenAuthor} />
+            {commentThreads(comments, parents).map((thread) => (
+              <CommentThread key={thread.root.id} thread={thread} revealToken={reveal?.rootId === thread.root.id ? reveal.token : 0} liked={liked} onLike={onLike} onReply={onReply} onOpenAuthor={onOpenAuthor} />
             ))}
           </ul>
         )}
@@ -249,6 +293,8 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
   const [replyTo, setReplyTo] = useState<FeedComment | null>(null);
   const [likedComments, setLikedComments] = useState<Record<string, true>>(readCommentLikes);
   const [commentParents, setCommentParents] = useState<Record<string, string>>(readCommentParents);
+  const [reveal, setReveal] = useState<{ rootId: string; token: number } | null>(null);
+  const revealSeq = useRef(0);
   const commentRef = useRef<HTMLInputElement | null>(null);
   const eventLink =
     onOpenEvent && post.eventId !== null ? (
@@ -274,7 +320,10 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         if (!next) return;
         const created = next.comments.find((item) => !before.has(item.id));
         if (!created) return;
-        setCommentParents(rememberCommentParent(created.id, parent.id));
+        const parents = rememberCommentParent(created.id, parent.id);
+        setCommentParents(parents);
+        revealSeq.current += 1;
+        setReveal({ rootId: commentRootId(created.id, parents, new Set(next.comments.map((item) => item.id))), token: revealSeq.current });
       });
     }
   };
@@ -362,6 +411,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
           parents={commentParents}
           liked={likedComments}
           replyTo={replyTo}
+          reveal={reveal}
           draft={comment}
           onDraft={setComment}
           onClose={() => setCommentsOpen(false)}
