@@ -20522,3 +20522,69 @@ button.app-feed-place-where,
   margin-left: auto;
   font-weight: 800;
 }
+
+/* Все собственные «Назад» — плашка со словом, не круг 40px. Поздние свойства перекрывают круги выше. */
+.app-swipe-back,
+.app-list-bar-round--back,
+.app-we-round--back,
+.app-micro-back,
+.app-froute-back,
+.app-slots-back,
+.app-org-round--back,
+.app-mod-round,
+.app-evc-back,
+.app-wt-back,
+.app-wt-bar-back,
+.app-onboarding-back {
+  border-radius: var(--app-radius-pill);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 4px;
+  height: 44px;
+  padding: 0 12px;
+  width: auto;
+}
+
+.app-org-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-org-places {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-org-place {
+  background: var(--app-surface);
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 10px 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-org-place--on {
+  border-color: var(--app-accent);
+}
+
+.app-plans {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+}
+
+.app-when {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}

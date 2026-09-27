@@ -279,7 +279,8 @@ export function VoteCreatePage({ groupId }: { groupId: string | null }) {
     <section className="app-poll-screen" aria-label="Создание голосования">
       <div className="app-we-bar">
         <button type="button" className="app-we-round app-we-round--back" aria-label="Назад" onClick={back}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <h1 className="app-we-bar-name">Новое голосование</h1>
       </div>

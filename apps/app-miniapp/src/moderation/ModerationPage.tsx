@@ -95,7 +95,8 @@ export function ModerationCaseView({ group, confirm, busy, done, failed, onConfi
     <section className="app-mod" aria-label="Разбор жалобы">
       <div className="app-mod-topbar">
         <button type="button" className="app-mod-round" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.6} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <h1 className="app-mod-topbar-title">
           {source === "spot_check" ? "Проверка" : "Жалоба"} · {REPORT_TARGET_LABELS[group.targetType].toLowerCase()}

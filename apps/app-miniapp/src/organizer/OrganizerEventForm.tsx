@@ -25,7 +25,7 @@ import { EventCategorySchema, type CreateEvent, type EventCategory } from "@max-
 import { apiClient, type OrganizerEvent, type OrganizerEventOptions, type OrganizerPlace, type UpdateOrganizerEventOptions } from "../api/client";
 import { CATEGORY_LABELS } from "../catalog/format";
 import { ActionIcon } from "../ui/icons";
-import { AppButton, AppState } from "../ui/primitives";
+import { AppButton, AppChip, AppState } from "../ui/primitives";
 
 export interface OrganizerEventFormDraft {
   title: string;
@@ -221,7 +221,8 @@ export function OrganizerEventFormView({ draft, organizationName, places, errors
     <section className="app-org-screen" aria-label="Новое событие">
       <div className="app-org-topbar">
         <button type="button" className="app-org-round app-org-round--back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.6} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <span className="app-org-topbar-text">
           <span className="app-org-topbar-title">{draft.title.trim() === "" ? "Новое событие" : draft.title}</span>
@@ -259,23 +260,25 @@ export function OrganizerEventFormView({ draft, organizationName, places, errors
           </FieldCard>
         </div>
         <FieldCard label="Категория" note="Влияет на подборки и ленту">
-          <select className="app-org-field-input" value={draft.category} onChange={(change) => onChange("category", change.target.value as EventCategory)}>
+          <div className="app-org-choice" role="group" aria-label="Категория">
             {EventCategorySchema.options.map((category) => (
-              <option key={category} value={category}>
+              <AppChip key={category} pressed={draft.category === category} onClick={() => onChange("category", category)}>
                 {CATEGORY_LABELS[category]}
-              </option>
+              </AppChip>
             ))}
-          </select>
+          </div>
         </FieldCard>
         <FieldCard label="Место" note={draft.placeId === "" ? "Точки на карте не будет — только город" : "Точка на карте выбрана"}>
-          <select className="app-org-field-input" aria-label="Площадка" value={draft.placeId} onChange={(change) => onChange("placeId", change.target.value)}>
-            <option value="">Без площадки</option>
+          <div className="app-org-places" role="listbox" aria-label="Площадка">
+            <button type="button" className={draft.placeId === "" ? "app-org-place app-org-place--on" : "app-org-place"} role="option" aria-selected={draft.placeId === ""} onClick={() => onChange("placeId", "")}>
+              Без площадки
+            </button>
             {places.map((item) => (
-              <option key={item.id} value={item.id}>
+              <button key={item.id} type="button" className={draft.placeId === item.id ? "app-org-place app-org-place--on" : "app-org-place"} role="option" aria-selected={draft.placeId === item.id} onClick={() => onChange("placeId", item.id)}>
                 {item.title}
-              </option>
+              </button>
             ))}
-          </select>
+          </div>
           <input className="app-org-field-input" type="text" aria-label="Город" placeholder="Город" value={draft.city} onChange={(change) => onChange("city", change.target.value)} />
         </FieldCard>
         <div className="app-org-fields-row">

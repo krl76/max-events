@@ -108,7 +108,8 @@ export function MicroEventView({ state, viewerId, busy = false, now = new Date()
     <section className="app-micro-card">
       <div className="app-micro-topbar">
         <button type="button" className="app-micro-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <h1 className="app-micro-topbar-title">Микро-событие</h1>
       </div>
@@ -140,15 +141,15 @@ export function MicroEventView({ state, viewerId, busy = false, now = new Date()
           {card.participants.length === 0 ? (
             <p className="app-micro-hint">{card.event.participantsCount === 0 ? "Пока никто не вступил." : `В сборе ${card.event.participantsCount}. Имена подтянутся, когда список обновится.`}</p>
           ) : (
-          <ul className="app-micro-people">
-            {card.participants.map((participant) => (
-              <li key={participant.friend.id} className="app-micro-person">
-                <PersonAvatar id={participant.friend.id} name={participant.friend.name} size={36} />
-                <span className="app-micro-person-name">{participant.friend.name}</span>
-                {participant.author && <span className="app-micro-person-role">позвал</span>}
-              </li>
-            ))}
-          </ul>
+            <ul className="app-micro-people">
+              {card.participants.map((participant) => (
+                <li key={participant.friend.id} className="app-micro-person">
+                  <PersonAvatar id={participant.friend.id} name={participant.friend.name} size={36} />
+                  <span className="app-micro-person-name">{participant.friend.name}</span>
+                  {participant.author && <span className="app-micro-person-role">позвал</span>}
+                </li>
+              ))}
+            </ul>
           )}
           {expenses}
           {hint !== null && (

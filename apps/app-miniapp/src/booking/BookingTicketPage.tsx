@@ -104,7 +104,8 @@ export function BookingTicketView({ screen, confirming, busy, failed, shared, on
     <section className="app-ticket">
       <header className="app-ticket-bar">
         <button type="button" className="app-slots-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2.5} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <h1 className="app-ticket-bar-title">{cancelled ? "Бронь отменена" : "Бронь подтверждена"}</h1>
       </header>

@@ -220,7 +220,8 @@ export function SwipeView(props: SwipeViewProps) {
     <div className="app-swipe">
       <header className="app-swipe-head">
         <button type="button" className="app-swipe-back" aria-label="Назад" onClick={props.onBack}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <span className="app-swipe-head-text">
           <h1 className="app-screen-title">Подбор мест</h1>

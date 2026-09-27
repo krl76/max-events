@@ -160,7 +160,8 @@ export function CompanionsView({ event, companions, failed, tab, pickerOpen, onT
     <div className="app-evc">
       <header className="app-evc-bar">
         <button type="button" className="app-evc-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <span className="app-evc-bar-text">
           <span className="app-evc-bar-label">С кем пойти</span>

@@ -110,7 +110,8 @@ export function OrganizerEventManageView({ event, attendance, tab, scanning, cod
         <span className="app-org-hero-blob" aria-hidden="true" />
         <div className="app-org-day-head">
           <button type="button" className="app-org-round app-org-round--on-media app-org-round--back" aria-label="Назад" onClick={onBack}>
-            <ActionIcon name="chevron" size={18} strokeWidth={2.6} />
+            <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+            Назад
           </button>
           <span className="app-org-day-text">
             <span className="app-org-day-when">{when}</span>

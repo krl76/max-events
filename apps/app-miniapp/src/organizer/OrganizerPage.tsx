@@ -237,13 +237,13 @@ export function EventDraftForm({ draft, errors, submitting, failed, submitLabel,
       }}
     >
       <input className="app-profile-input" type="text" aria-label="Название" placeholder="Название события" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
-      <select className="app-profile-input" aria-label="Категория" value={draft.category} onChange={(change) => onChange("category", change.target.value)}>
+      <div className="app-org-choice" role="group" aria-label="Категория">
         {EventCategorySchema.options.map((category) => (
-          <option key={category} value={category}>
+          <AppChip key={category} pressed={draft.category === category} onClick={() => onChange("category", category)}>
             {CATEGORY_LABELS[category]}
-          </option>
+          </AppChip>
         ))}
-      </select>
+      </div>
       <input className="app-profile-input" type="text" aria-label="Город" placeholder="Город" value={draft.city} onChange={(change) => onChange("city", change.target.value)} />
       <input className="app-profile-input" type="datetime-local" aria-label="Начало" value={draft.startsAt} onChange={(change) => onChange("startsAt", change.target.value)} />
       <input className="app-profile-input" type="datetime-local" aria-label="Окончание (необязательно)" value={draft.endsAt} onChange={(change) => onChange("endsAt", change.target.value)} />
@@ -289,13 +289,13 @@ export function PlaceDraftForm({ draft, errors, submitting, failed, submitLabel,
       <input className="app-profile-input" type="text" aria-label="Название" placeholder="Название места" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
       <input className="app-profile-input" type="text" aria-label="Адрес" placeholder="Адрес" value={draft.address} onChange={(change) => onChange("address", change.target.value)} />
       <input className="app-profile-input" type="text" aria-label="Город" placeholder="Город" value={draft.city} onChange={(change) => onChange("city", change.target.value)} />
-      <select className="app-profile-input" aria-label="Категория" value={draft.category} onChange={(change) => onChange("category", change.target.value)}>
+      <div className="app-org-choice" role="group" aria-label="Категория">
         {PlaceCategorySchema.options.map((category) => (
-          <option key={category} value={category}>
+          <AppChip key={category} pressed={draft.category === category} onClick={() => onChange("category", category)}>
             {PLACE_CATEGORY_LABELS[category]}
-          </option>
+          </AppChip>
         ))}
-      </select>
+      </div>
       <input className="app-profile-input" type="text" inputMode="decimal" aria-label="Широта" placeholder="Широта" value={draft.latitude} onChange={(change) => onChange("latitude", change.target.value)} />
       <input className="app-profile-input" type="text" inputMode="decimal" aria-label="Долгота" placeholder="Долгота" value={draft.longitude} onChange={(change) => onChange("longitude", change.target.value)} />
       {errors.map((error) => (

@@ -100,7 +100,8 @@ export function VoteView({ state, ownId, myChoice, voting, closing, revoting, fa
       <section className="app-poll" aria-label="Голосование">
         <div className="app-we-bar">
           <button type="button" className="app-we-round app-we-round--back" aria-label="Назад" onClick={onBack}>
-            <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
+            <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+            Назад
           </button>
           <h1 className="app-we-bar-name">Голосование</h1>
         </div>
@@ -126,7 +127,8 @@ export function VoteView({ state, ownId, myChoice, voting, closing, revoting, fa
     <section className="app-poll" aria-label="Голосование">
       <div className="app-we-bar">
         <button type="button" className="app-we-round app-we-round--back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <h1 className="app-we-bar-name">{vote.title}</h1>
       </div>

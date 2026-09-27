@@ -61,7 +61,8 @@ function SetupRail({ step, onBack }: { step: OrganizerSetupStep; onBack: () => v
     <div className="app-onboarding-nav">
       {/* Назад по шагам даёт смахивание вправо — и ровно то же обязано быть доступно тапом */}
       <button type="button" className="app-onboarding-back" aria-label="Назад" onClick={onBack}>
-        <ActionIcon name="chevron" size={20} strokeWidth={2} />
+        <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+        Назад
       </button>
       <ol className={`app-onboarding-rail app-onboarding-rail--${index}`} aria-label="Шаги настройки">
         {ORGANIZER_SETUP_RAIL.map((item, position) => (

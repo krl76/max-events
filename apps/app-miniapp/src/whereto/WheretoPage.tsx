@@ -206,7 +206,8 @@ function QuestionScreen({ at, answers, onPick, onStep, onNext, onBack }: { at: n
       <p className="app-whereto-hint">Подбор работает по правилам: время, расстояние и цена. Вкусы и история посещений не учитываются.</p>
       <div className="app-wt-bar">
         <button type="button" className="app-wt-bar-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <button type="button" className="app-wt-bar-cta" disabled={!chosen} onClick={onNext}>
           {next === undefined ? "Показать варианты" : "Дальше"}
@@ -282,7 +283,8 @@ export function WheretoView({ state, answers, result, now = new Date(), onPick, 
     <section className="app-wt">
       <div className="app-wt-topbar">
         <button type="button" className="app-wt-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <h1 className="app-wt-title">{title}</h1>
       </div>

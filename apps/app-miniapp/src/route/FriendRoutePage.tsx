@@ -108,7 +108,8 @@ export function FriendRouteView({ state, friend, onBack, onOpenPlace, onRepeatAs
     <section className="app-froute">
       <div className="app-froute-topbar">
         <button type="button" className="app-froute-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <h1 className="app-froute-title">{title}</h1>
       </div>

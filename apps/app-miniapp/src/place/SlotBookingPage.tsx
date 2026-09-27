@@ -118,7 +118,8 @@ export function SlotBookingView({ board, day, slotId, extraIds, company, busy, f
     <section className="app-slots">
       <header className="app-slots-bar">
         <button type="button" className="app-slots-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2.5} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <span className="app-slots-bar-titles">
           <span className="app-slots-bar-title">{board.unitTitle}</span>

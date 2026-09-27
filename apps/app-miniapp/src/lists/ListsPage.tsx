@@ -53,7 +53,7 @@ export function listShareText(list: List, cards: ListItemCard[], shared: boolean
 export function listCardTitle(card: ListItemCard): string {
   if (card.event !== null) return card.event.title;
   if (card.place !== null) return card.place.title;
-  if (card.post !== null) return card.post.text.trim() === "" ? (card.post.eventTitle || "Пост") : card.post.text;
+  if (card.post !== null) return card.post.text.trim() === "" ? card.post.eventTitle || "Пост" : card.post.text;
   return "";
 }
 
@@ -304,7 +304,7 @@ export function ListView({ state, onOpenEvent, onOpenPlace, onOpenPost, showAuth
           else if (post !== null) onOpenPost?.(post.id);
         };
         const mediaClass = event !== null ? `app-list-item-media app-media--${event.category}` : post?.photoUrl ? "app-list-item-media" : "app-list-item-media";
-        const meta = event !== null ? listEventMeta(event) : place?.address ?? (post !== null ? [post.author.name, post.eventTitle].filter((part) => part !== "").join(" · ") : "");
+        const meta = event !== null ? listEventMeta(event) : (place?.address ?? (post !== null ? [post.author.name, post.eventTitle].filter((part) => part !== "").join(" · ") : ""));
         return (
           // The remove control sits beside the card, not inside it: a button inside a button is invalid.
           <div key={item.id} className="app-list-item">
@@ -434,7 +434,8 @@ export function ListPage({ id }: { id: string }) {
     <section className="app-list-screen" aria-label={screen.list.title}>
       <div className="app-list-bar">
         <button type="button" className="app-list-bar-round app-list-bar-round--back" aria-label="Назад" onClick={back}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <h1 className="app-list-bar-title">{screen.list.title}</h1>
         {/* An empty list would share as «Список «С детьми»: » — a colon with nothing after it. */}
