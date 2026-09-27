@@ -63,7 +63,7 @@ export function AppButton({ tone = "primary", stretched = false, className, ...p
 export function AppIconButton({ className, children, ...props }: ComponentProps<typeof IonButton>) {
   const buttonClass = `app-icon-btn${className ? ` ${className}` : ""}`;
   return (
-    <IonButton className={buttonClass} color="primary" shape="round" size="small" {...props}>
+    <IonButton className={buttonClass} color="primary" shape="round" {...props}>
       {children}
     </IonButton>
   );
@@ -196,7 +196,7 @@ export function AppSection({ title, action, className, ariaLabel, children }: { 
       {title !== undefined && (
         <div className="app-section-head">
           <h2 className="app-section-title">{title}</h2>
-          {action}
+          {action !== undefined && <div className="app-section-actions">{action}</div>}
         </div>
       )}
       {children}

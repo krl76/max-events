@@ -11,6 +11,7 @@
 // - StoriesRow - stories rail over the home feed, Instagram-style: the own tile carries a «+» corner that opens the story editor, unseen rings burn with the brand gradient and go neutral once watched (seen state from ../stories/rail.js)
 // - FeedState - union of the feed fetch states (loading / error / ready)
 // - FeedSection - container: posts (optionally one event or one place — the wall), event titles for the cards, like/comment wiring, «+» publish CTA
+// - feedWallEmptyCopy - empty line of a scoped wall; null on the general feed, which keeps its own weekend copy
 // - FeedDraft - publish form draft (event title, text)
 // - feedDraftReady - the event is picked and the text is non-empty
 // - feedEventPicked - resolve the free-text event to a real event id; matched=false means the typed title matches no known event
@@ -64,13 +65,14 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
   const commentRef = useRef<HTMLInputElement | null>(null);
-  const eventLink = onOpenEvent && post.eventId !== null ? (
-    <button type="button" className="app-plan-event" onClick={() => onOpenEvent(post.eventId!)}>
-      {eventTitle}
-    </button>
-  ) : (
-    <span className="app-post-place-text">{eventTitle}</span>
-  );
+  const eventLink =
+    onOpenEvent && post.eventId !== null ? (
+      <button type="button" className="app-plan-event" onClick={() => onOpenEvent(post.eventId!)}>
+        {eventTitle}
+      </button>
+    ) : (
+      <span className="app-post-place-text">{eventTitle}</span>
+    );
   return (
     <article className="app-card app-card--post">
       <header className="app-post-head">
@@ -88,7 +90,15 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         <button type="button" className="app-post-action" aria-label="Комментировать" onClick={() => commentRef.current?.focus()}>
           <ActionIcon name="comment" />
         </button>
-        <button type="button" className="app-post-action" aria-label="Поделиться" onClick={() => { const payload = sharePayload(`${post.author.name} — ${eventTitle}: ${post.text}`, post.eventId ? `event-${post.eventId}` : `post-${post.id}`); void shareResult(webApp, payload.text, payload.link); }}>
+        <button
+          type="button"
+          className="app-post-action"
+          aria-label="Поделиться"
+          onClick={() => {
+            const payload = sharePayload(`${post.author.name} — ${eventTitle}: ${post.text}`, post.eventId ? `event-${post.eventId}` : `post-${post.id}`);
+            void shareResult(webApp, payload.text, payload.link);
+          }}
+        >
           <ActionIcon name="share" />
         </button>
         {userId === "" ? (
@@ -209,6 +219,19 @@ export function FeedPostPage({ id }: { id: string }) {
 
 export type FeedState = { status: "loading" } | { status: "error" } | { status: "ready"; posts: FeedPost[] };
 
+/** A wall of one event or place is not the weekend feed. Null means the caller keeps the feed empty state. */
+export function feedWallEmptyCopy(eventId?: string, placeId?: string): { text: string; action: string } | null {
+  if (eventId !== undefined) return { text: "Пока никто не написал об этом событии", action: "Написать первым" };
+  if (placeId !== undefined) return { text: "Пока никто не написал об этом месте", action: "Написать первым" };
+  return null;
+}
+
+function FeedWallEmpty({ eventId, placeId, onCreate, onCompose }: { eventId?: string; placeId?: string; onCreate: () => void; onCompose: () => void }) {
+  const wall = feedWallEmptyCopy(eventId, placeId);
+  if (wall === null) return <AppEmptyState kind="empty-feed" onAction={onCompose} />;
+  return <AppState action={{ label: wall.action, onClick: onCreate }}>{wall.text}</AppState>;
+}
+
 export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; placeId?: string; onCreate: () => void }) {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
@@ -289,7 +312,7 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
           Не удалось загрузить впечатления.
         </AppState>
       ) : state.posts.length === 0 ? (
-        <AppEmptyState kind="empty-feed" onAction={() => navigate({ name: "feed-new", eventId: null })} />
+        <FeedWallEmpty eventId={eventId} placeId={placeId} onCreate={onCreate} onCompose={() => navigate({ name: "feed-new", eventId: null })} />
       ) : (
         state.posts.map((post) => (
           <FeedPostCard

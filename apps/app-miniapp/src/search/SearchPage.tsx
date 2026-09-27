@@ -81,9 +81,10 @@ interface SearchTopBarProps {
   initial: string;
   searchOpen: boolean;
   onToggleSearch: () => void;
+  onOpenProfile: () => void;
 }
 
-export function SearchTopBar({ city, cities, onCity, initial, searchOpen, onToggleSearch }: SearchTopBarProps) {
+export function SearchTopBar({ city, cities, onCity, initial, searchOpen, onToggleSearch, onOpenProfile }: SearchTopBarProps) {
   const [menu, setMenu] = useState(false);
   return (
     <div className="app-search-top">
@@ -117,9 +118,9 @@ export function SearchTopBar({ city, cities, onCity, initial, searchOpen, onTogg
         )}
       </div>
       <div className="app-search-id">
-        <span className="app-search-avatar" aria-hidden="true">
+        <button type="button" className="app-search-avatar" aria-label="Профиль" onClick={onOpenProfile}>
           {initial}
-        </span>
+        </button>
         <button type="button" className="app-search-icon-btn" aria-label="Поиск" aria-expanded={searchOpen} onClick={onToggleSearch}>
           <ActionIcon name="search" size={20} />
         </button>
@@ -268,6 +269,7 @@ interface SearchViewProps {
   onMap: () => void;
   onWhereto: () => void;
   onNearby: () => void;
+  onOpenProfile: () => void;
   onRetry: () => void;
 }
 
@@ -276,7 +278,7 @@ export function SearchView(props: SearchViewProps) {
   const hint = props.today.status === "ready" ? todayAfterMeCard(props.today.today) : null;
   return (
     <div className="app-search">
-      <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} initial={props.initial} searchOpen={searchOpen} onToggleSearch={() => setSearchOpen((open) => !open)} />
+      <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} initial={props.initial} searchOpen={searchOpen} onToggleSearch={() => setSearchOpen((open) => !open)} onOpenProfile={props.onOpenProfile} />
       {searchOpen && <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} recents={props.recents} />}
       <div className="app-search-chips" role="group" aria-label="Категория">
         {SEARCH_CATEGORIES.map((category) => (
@@ -372,5 +374,5 @@ export function SearchPage() {
     });
   }, [query]);
 
-  return <SearchView state={state} today={today} query={query} onQuery={setQuery} onSubmit={submit} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} initial={auth.status === "authenticated" ? auth.user.firstName.charAt(0) : "?"} expanded={expanded} onExpand={() => setExpanded(true)} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onRetry={() => setAttempt((count) => count + 1)} />;
+  return <SearchView state={state} today={today} query={query} onQuery={setQuery} onSubmit={submit} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} initial={auth.status === "authenticated" ? auth.user.firstName.charAt(0) : "?"} expanded={expanded} onExpand={() => setExpanded(true)} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onOpenProfile={() => navigate({ name: "profile" })} onRetry={() => setAttempt((count) => count + 1)} />;
 }

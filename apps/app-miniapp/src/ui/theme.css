@@ -687,6 +687,13 @@ html[data-theme="dark"] #root {
   margin: 0;
 }
 
+.app-section-actions {
+  align-items: center;
+  display: flex;
+  flex: none;
+  gap: var(--app-space-s);
+}
+
 /* Плоские списки внутри секций: строки разделяются хайрлайнами */
 .app-cards-flat .app-card {
   border-top: var(--app-hairline);
@@ -828,10 +835,18 @@ html[data-theme="dark"] #root {
 
 /* Круглые icon-кнопки (AppIconButton) */
 .app-root .app-icon-btn {
-  --border-radius: var(--app-radius-pill);
   --background-activated: var(--app-accent-press);
-  --padding-start: 0;
+  --border-radius: 50%;
+  --padding-bottom: 0;
   --padding-end: 0;
+  --padding-start: 0;
+  --padding-top: 0;
+  flex: none;
+  height: 44px;
+  margin: 0;
+  min-height: 44px;
+  min-width: 44px;
+  width: 44px;
 }
 
 /* Аватар-заглушка с инициалами (AppAvatar без src) */
@@ -4365,14 +4380,18 @@ html[data-theme="dark"] #root {
 .app-search-avatar {
   align-items: center;
   background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-hover));
+  border: none;
   border-radius: 50%;
   color: var(--brand-white);
+  cursor: pointer;
   display: flex;
+  font: inherit;
   font-size: var(--app-font-size-callout);
   font-weight: 800;
-  height: 40px;
+  height: 44px;
   justify-content: center;
-  width: 40px;
+  padding: 0;
+  width: 44px;
 }
 
 /* Тёмный круг поиска инвертируется вместе со схемой, как и кнопка подтверждения */
@@ -4384,10 +4403,10 @@ html[data-theme="dark"] #root {
   color: var(--app-confirm-contrast);
   cursor: pointer;
   display: flex;
-  height: 40px;
+  height: 44px;
   justify-content: center;
   padding: 0;
-  width: 40px;
+  width: 44px;
 }
 
 .app-search-form {
@@ -4942,7 +4961,8 @@ html[data-theme="dark"] #root {
   font-size: var(--app-font-size-description);
   font-weight: 700;
   gap: var(--app-space-xs);
-  padding: 0;
+  min-height: 44px;
+  padding: 0 var(--app-space-s);
 }
 
 .app-rail-strip {
@@ -10210,6 +10230,7 @@ button.app-poll-result {
   font: inherit;
   font-size: var(--app-font-size-description);
   font-weight: 800;
+  min-height: 44px;
   padding: 0 var(--app-space-s);
 }
 
@@ -15676,38 +15697,17 @@ button.app-cal-peer-chip {
   opacity: 0.9;
 }
 
-/* Занято из вместимости: белый круг поверх градиента, цвета фиксированы в обеих схемах */
+/* Занятость словами: белая плашка на градиенте, цвета фиксированы в обеих схемах */
 .app-ev-hero-seats {
-  align-items: center;
   background: var(--brand-white);
-  border-radius: 50%;
+  border-radius: var(--app-radius-pill);
   color: var(--brand-ink);
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  height: 64px;
-  justify-content: center;
-  width: 64px;
-}
-
-.app-ev-hero-seats-taken {
-  font-size: var(--app-font-size-body);
-  font-weight: 800;
-  line-height: 1;
-}
-
-.app-ev-hero-seats-rule {
-  background: rgba(6, 7, 8, 0.2);
-  height: 1px;
-  margin: 2px 0;
-  width: 26px;
-}
-
-.app-ev-hero-seats-cap {
-  color: rgba(6, 7, 8, 0.62);
+  display: inline-block;
   font-size: var(--app-font-size-description);
-  font-weight: 700;
-  line-height: 1;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 8px 0 0;
+  padding: 6px 10px;
 }
 
 /* Дата, день недели со временем и условие входа — одной строкой */
@@ -17438,6 +17438,16 @@ button.app-cal-peer-chip {
   cursor: pointer;
   padding: 0;
   position: relative;
+}
+
+.app-header-action,
+.app-header-bell {
+  align-items: center;
+  box-sizing: border-box;
+  flex: none;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
 }
 
 .app-header-bell-dot {

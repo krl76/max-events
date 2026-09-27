@@ -244,6 +244,17 @@ describe("layout primitives", () => {
     expect(html).not.toContain('aria-label="Видимый"');
   });
 
+  it("keeps the section action grouped beside the title", () => {
+    const html = renderToStaticMarkup(
+      <AppSection title="Секции" action={<button type="button">Все</button>}>
+        body
+      </AppSection>,
+    );
+
+    expect(html).toContain("app-section-actions");
+    expect(html.indexOf("app-section-title")).toBeLessThan(html.indexOf("app-section-actions"));
+  });
+
   it("omits the section head without a title", () => {
     const html = renderToStaticMarkup(<AppSection>body</AppSection>);
 

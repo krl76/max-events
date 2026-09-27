@@ -109,6 +109,11 @@ export function seatOccupancy(details: Pick<EventDetails, "remainingSeats"> & { 
   return { taken: Math.max(0, capacity - details.remainingSeats), capacity };
 }
 
+/** «Занято 1 место из 20». The noun follows the taken count; a bare fraction reads as a score. */
+export function formatSeatLine(taken: number, capacity: number): string {
+  return `Занято ${taken} ${pluralRu(taken, "место", "места", "мест")} из ${capacity}`;
+}
+
 /**
  * The sticky CTA carries the state of the record, not just its verb: «осталось 4» is the reason to
  * press now, and once booked the button becomes the way out of the booking. An early-access window
@@ -167,8 +172,7 @@ export function EventHero({ details, saveOpen, onBack, onShare, onSave }: EventH
             Поделиться
           </button>
           <button type="button" className="app-ev-hero-btn" aria-pressed={saveOpen} aria-label="Сохранить в список" onClick={onSave}>
-            <ActionIcon name="bookmark" size={16} filled={saveOpen} />
-            В список
+            <ActionIcon name="bookmark" size={16} filled={saveOpen} />В список
           </button>
         </span>
       </div>
@@ -181,14 +185,8 @@ export function EventHero({ details, saveOpen, onBack, onShare, onSave }: EventH
             {place !== null && ` · ${place.title}`}
             {event.promoted && " · Промо"}
           </p>
+          {seats !== null && <p className="app-ev-hero-seats">{formatSeatLine(seats.taken, seats.capacity)}</p>}
         </div>
-        {seats !== null && (
-          <span className="app-ev-hero-seats" aria-label={`Занято ${seats.taken} мест из ${seats.capacity}`}>
-            <span className="app-ev-hero-seats-taken">{seats.taken}</span>
-            <span className="app-ev-hero-seats-rule" aria-hidden="true" />
-            <span className="app-ev-hero-seats-cap">{seats.capacity}</span>
-          </span>
-        )}
       </div>
     </header>
   );

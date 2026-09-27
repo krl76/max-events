@@ -43,13 +43,14 @@ describe("search helpers", () => {
 });
 
 describe("SearchTopBar", () => {
-  const bar = (over: { city?: string; cities?: string[]; initial?: string } = {}) => renderToStaticMarkup(createElement(SearchTopBar, { city: over.city ?? "Москва", cities: over.cities ?? ["Москва"], onCity: noop, initial: over.initial ?? "К", searchOpen: false, onToggleSearch: noop }));
+  const bar = (over: { city?: string; cities?: string[]; initial?: string } = {}) => renderToStaticMarkup(createElement(SearchTopBar, { city: over.city ?? "Москва", cities: over.cities ?? ["Москва"], onCity: noop, initial: over.initial ?? "К", searchOpen: false, onToggleSearch: noop, onOpenProfile: noop }));
 
   it("shows the city, the viewer initial and the search toggle", () => {
     const html = bar();
 
     expect(html).toContain("Москва");
     expect(html).toContain(">К<");
+    expect(html).toContain('aria-label="Профиль"');
     expect(html).toContain('aria-label="Поиск"');
     // Меню города закрыто, пока по пилюле не нажали.
     expect(html).not.toContain("app-search-city-menu");

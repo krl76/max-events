@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EventDetails } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
-import { bookingCtaLabel, forecastGlyph, formatDateBadge, formatDayLine, formatDistance, formatPrice, formatTemperature, formatTimeRange, formatTravel, initials, moodTagLabel, organizerEventsLabel, seatOccupancy } from "./EventScreen";
+import { bookingCtaLabel, forecastGlyph, formatDateBadge, formatDayLine, formatDistance, formatPrice, formatSeatLine, formatTemperature, formatTimeRange, formatTravel, initials, moodTagLabel, organizerEventsLabel, seatOccupancy } from "./EventScreen";
 
 const STARTS_AT = "2026-09-19T14:00:00";
 const ENDS_AT = "2026-09-19T18:00:00";
@@ -71,6 +71,9 @@ describe("seatOccupancy and bookingCtaLabel", () => {
   it("derives the taken seats from the capacity and what is left", () => {
     expect(seatOccupancy(detailsOf())).toEqual({ taken: 16, capacity: 20 });
     expect(seatOccupancy(detailsOf({ event: { ...mockEvents[2], capacity: null }, remainingSeats: null }))).toBeNull();
+    expect(formatSeatLine(16, 20)).toBe("Занято 16 мест из 20");
+    expect(formatSeatLine(1, 20)).toBe("Занято 1 место из 20");
+    expect(formatSeatLine(2, 20)).toBe("Занято 2 места из 20");
   });
 
   it("carries the state of the record into the CTA", () => {

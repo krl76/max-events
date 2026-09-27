@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { feedDraftReady, feedEventPicked, FeedCreateView, FeedPostCard, type FeedDraft } from "./FeedPage";
+import { feedDraftReady, feedEventPicked, feedWallEmptyCopy, FeedCreateView, FeedPostCard, type FeedDraft } from "./FeedPage";
 import type { FeedPost } from "../api/client";
 import { mockEvents } from "../api/mock";
 
@@ -151,5 +151,13 @@ describe("FeedCreateView", () => {
 
   it("shows an explicit input error when the event title matches no known event", () => {
     expect(view({ draft: readyDraft, eventMissing: true })).toContain("Выбери событие из списка.");
+  });
+});
+
+describe("feedWallEmptyCopy", () => {
+  it("talks about the event or the place, and leaves the weekend feed alone", () => {
+    expect(feedWallEmptyCopy("e1")).toEqual({ text: "Пока никто не написал об этом событии", action: "Написать первым" });
+    expect(feedWallEmptyCopy(undefined, "p1")).toEqual({ text: "Пока никто не написал об этом месте", action: "Написать первым" });
+    expect(feedWallEmptyCopy()).toBeNull();
   });
 });
