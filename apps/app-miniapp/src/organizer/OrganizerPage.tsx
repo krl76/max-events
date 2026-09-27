@@ -461,7 +461,7 @@ function upsert<T extends { id: string }>(items: T[], item: T): T[] {
 }
 
 /** createOnMount: the «Создать» tab of the organizer bar (макет, экран 46) lands straight on the empty event draft. */
-export function OrganizerPanel({ organizationId, createOnMount = false, onPromote }: { organizationId: string; createOnMount?: boolean; onPromote?: (eventId: string, intent: OrganizerPromoIntent) => void }) {
+export function OrganizerPanel({ organizationId, createOnMount = false, onPromote, onComposer, closeComposerTick = 0 }: { organizationId: string; createOnMount?: boolean; onPromote?: (eventId: string, intent: OrganizerPromoIntent) => void; onComposer?: (title: string | null) => void; closeComposerTick?: number }) {
   const [tab, setTab] = useState<"events" | "places">("events");
   const [events, setEvents] = useState<OrganizerListState<OrganizerEvent>>({ status: "loading" });
   const [places, setPlaces] = useState<OrganizerListState<OrganizerPlace>>({ status: "loading" });
@@ -502,6 +502,17 @@ export function OrganizerPanel({ organizationId, createOnMount = false, onPromot
     setPlaceForm(null);
     setEventForm(next);
   };
+
+  useEffect(() => {
+    onComposer?.(eventForm === null ? null : eventForm.mode === "create" ? "Новое событие" : "Событие");
+  }, [eventForm, onComposer]);
+
+  useEffect(() => {
+    if (closeComposerTick === 0) return;
+    setEventForm(null);
+    setErrors([]);
+    setFailed(false);
+  }, [closeComposerTick]);
 
   const openPlaceForm = (next: PlaceFormState) => {
     setErrors([]);
@@ -599,6 +610,14 @@ export function OrganizerPanel({ organizationId, createOnMount = false, onPromot
     );
   };
 
+  if (eventForm !== null) {
+    return (
+      <section className="app-gathering" aria-label={eventForm.mode === "create" ? "Новое событие" : "Событие"}>
+        <EventDraftForm draft={eventForm.draft} errors={errors} submitting={submitting} failed={failed} submitLabel={eventForm.mode === "create" ? "Создать черновик" : "Сохранить"} onChange={(field, value) => setEventForm((current) => (current === null ? current : { ...current, draft: { ...current.draft, [field]: value } }))} onSubmit={submitEvent} onCancel={() => openEventForm(null)} />
+      </section>
+    );
+  }
+
   return (
     <section className="app-gathering">
       <p className="app-gathering-hint">Черновики видны только вам — опубликуйте, когда всё готово</p>
@@ -615,8 +634,7 @@ export function OrganizerPanel({ organizationId, createOnMount = false, onPromot
         <>
           <OrganizerListStatus state={events} emptyText="Пока нет событий — создайте первое." />
           {events.status === "ready" &&
-            events.items.map((item) =>
-              eventForm?.mode === "edit" && eventForm.id === item.id ? null : (
+            events.items.map((item) => (
                 <div key={item.id}>
                   <OrganizerEventCard
                     item={item}
@@ -637,15 +655,10 @@ export function OrganizerPanel({ organizationId, createOnMount = false, onPromot
                   />
                   {onPromote !== undefined && <OrganizerPromoteShortcuts onOpen={(intent) => onPromote(item.id, intent)} />}
                 </div>
-              ),
-            )}
-          {eventForm === null ? (
-            <AppButton tone="secondary" stretched onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
-              Создать событие
-            </AppButton>
-          ) : (
-            <EventDraftForm draft={eventForm.draft} errors={errors} submitting={submitting} failed={failed} submitLabel={eventForm.mode === "create" ? "Создать черновик" : "Сохранить"} onChange={(field, value) => setEventForm((current) => (current === null ? current : { ...current, draft: { ...current.draft, [field]: value } }))} onSubmit={submitEvent} onCancel={() => openEventForm(null)} />
-          )}
+            ))}
+          <AppButton tone="secondary" stretched onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
+            Создать событие
+          </AppButton>
         </>
       )}
       {tab === "places" && (
