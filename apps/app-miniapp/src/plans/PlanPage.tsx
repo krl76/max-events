@@ -90,7 +90,7 @@ interface PlanViewProps {
   onCancel?: (scope: PlanCancelScope) => void;
 }
 
-export function PlanView({ state, timeline, budget, onBack = () => {}, onOpenEvent = () => {}, onAsk = () => {}, onChat = () => {}, onShare = () => {}, onCalendar = () => {}, notice = null, editingParty = false, onEditParty = () => {}, invitable = [], onInvite = () => {}, viewerId = null, cancelling = false, cancelFailed = false, onCancelStart = () => {}, onCancelDismiss = () => {}, onCancel = () => {} }: PlanViewProps) {
+export function PlanView({ state, timeline, budget, onOpenEvent = () => {}, onAsk = () => {}, onChat = () => {}, onShare = () => {}, onCalendar = () => {}, notice = null, editingParty = false, onEditParty = () => {}, invitable = [], onInvite = () => {}, viewerId = null, cancelling = false, cancelFailed = false, onCancelStart = () => {}, onCancelDismiss = () => {}, onCancel = () => {} }: PlanViewProps) {
   if (state.status === "loading")
     return (
       <div className="app-plan" aria-busy="true">
@@ -107,10 +107,6 @@ export function PlanView({ state, timeline, budget, onBack = () => {}, onOpenEve
   return (
     <section className="app-plan">
       <header className="app-plan-top">
-        <button type="button" className="app-plan-back" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <span className="app-plan-top-text">
           <span className="app-plan-top-line">
             <h1 className="app-plan-top-title">План на вечер</h1>

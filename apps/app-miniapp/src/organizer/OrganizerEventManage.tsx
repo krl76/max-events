@@ -100,7 +100,7 @@ interface OrganizerEventManageViewProps {
   onPromo: () => void;
 }
 
-export function OrganizerEventManageView({ event, attendance, tab, scanning, code, busy, notice, failed, onTab, onScan, onCode, onSubmitCode, onCheckIn, onInvite, onRefresh, onBack, onPromo }: OrganizerEventManageViewProps) {
+export function OrganizerEventManageView({ event, attendance, tab, scanning, code, busy, notice, failed, onTab, onScan, onCode, onSubmitCode, onCheckIn, onInvite, onRefresh, onPromo }: OrganizerEventManageViewProps) {
   const groups = splitParticipants(attendance?.participants ?? []);
   const waitlist: OrganizerWaitlistEntry[] = attendance?.waitlist ?? [];
   const when = `${new Date(event.startsAt).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" })} · ${hhmm(event.startsAt)}`;
@@ -109,10 +109,6 @@ export function OrganizerEventManageView({ event, attendance, tab, scanning, cod
       <div className="app-org-day-hero">
         <span className="app-org-hero-blob" aria-hidden="true" />
         <div className="app-org-day-head">
-          <button type="button" className="app-org-round app-org-round--on-media app-org-round--back" aria-label="Назад" onClick={onBack}>
-            <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-            Назад
-          </button>
           <span className="app-org-day-text">
             <span className="app-org-day-when">{when}</span>
             <span className="app-org-day-title">{event.title}</span>

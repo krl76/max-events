@@ -215,15 +215,11 @@ interface OrganizerEventFormViewProps {
   onBack: () => void;
 }
 
-export function OrganizerEventFormView({ draft, organizationName, places, errors, published, submitting, failed, onChange, onPublish, onSaveDraft, onBack }: OrganizerEventFormViewProps) {
+export function OrganizerEventFormView({ draft, organizationName, places, errors, published, submitting, failed, onChange, onPublish, onSaveDraft }: OrganizerEventFormViewProps) {
   const price = draft.price.trim() === "" ? 0 : Number(draft.price);
   return (
     <section className="app-org-screen" aria-label="Новое событие">
       <div className="app-org-topbar">
-        <button type="button" className="app-org-round app-org-round--back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <span className="app-org-topbar-text">
           <span className="app-org-topbar-title">{draft.title.trim() === "" ? "Новое событие" : draft.title}</span>
           <span className="app-org-topbar-sub">

@@ -239,7 +239,7 @@ describe("ProfileView", () => {
     expect(html).toContain("Кирилл Соколов");
     expect(html).toContain("Москва · джаз, падел");
     expect(html).toContain(">112</span>");
-    expect(html).toContain("поста");
+    expect(html).toContain("Посты · 2");
     expect(html).not.toContain("Подписаться");
     expect(html).not.toContain("Написать");
     expect(html).not.toContain("Позвать");
@@ -285,10 +285,11 @@ describe("ProfileView", () => {
   it("puts posts and the two follow counters in the header as the clickable numbers", () => {
     const html = renderProfileView({ subscriptions: [subscription("1", "organizer")], following: [person("p1", "Анна")], followers: [person("p2", "Дима"), person("p3", "Катя")] });
 
-    expect(html).toContain("поста");
+    expect(html).toContain("Посты · 2");
+    expect(html).not.toContain(">поста<");
     expect(html).toContain("подписки");
     expect(html).toContain("подписчика");
-    expect(html.match(/app-me-metric app-me-metric--link/g)).toHaveLength(3);
+    expect(html.match(/app-me-metric app-me-metric--link/g)).toHaveLength(2);
     expect(html.match(/app-me-metrics-row/g)).toHaveLength(2);
     expect(html).not.toMatch(/app-me-row-title">Подписки/);
   });
@@ -353,9 +354,10 @@ describe("ProfileView", () => {
     expect(isCustomProfileAvatar(null)).toBe(false);
   });
 
-  it("still shows the posts counter while the follow directions have not answered", () => {
+  it("keeps the posts count on the tab and does not repeat it as a metric while follows are unknown", () => {
     const html = renderProfileView();
-    expect(html).toContain("поста");
+    expect(html).toContain("Посты · 2");
+    expect(html).not.toContain(">поста<");
     expect(html).not.toContain("подписк");
   });
 

@@ -97,16 +97,12 @@ interface BookingTicketViewProps {
   onCancel: () => void;
 }
 
-export function BookingTicketView({ screen, confirming, busy, failed, shared, onBack, onRoute, onCalendar, onShare, onCancel }: BookingTicketViewProps) {
+export function BookingTicketView({ screen, confirming, busy, failed, shared, onRoute, onCalendar, onShare, onCancel }: BookingTicketViewProps) {
   const { booking, slot } = screen;
   const cancelled = booking.status === "cancelled";
   return (
     <section className="app-ticket">
       <header className="app-ticket-bar">
-        <button type="button" className="app-slots-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <h1 className="app-ticket-bar-title">{cancelled ? "Бронь отменена" : "Бронь подтверждена"}</h1>
       </header>
 

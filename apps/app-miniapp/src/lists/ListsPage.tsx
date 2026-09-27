@@ -329,7 +329,7 @@ export type ListScreenState = { status: "loading" } | { status: "error" } | { st
 export function ListPage({ id }: { id: string }) {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
-  const { navigate, back } = useRoute();
+  const { navigate } = useRoute();
   const [state, setState] = useState<ListScreenState>({ status: "loading" });
   const [channel, setChannel] = useState<ShareChannel | null>(null);
   const [adding, setAdding] = useState(false);
@@ -429,10 +429,6 @@ export function ListPage({ id }: { id: string }) {
   return (
     <section className="app-list-screen" aria-label={screen.list.title}>
       <div className="app-list-bar">
-        <button type="button" className="app-list-bar-round app-list-bar-round--back" aria-label="Назад" onClick={back}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <h1 className="app-list-bar-title">{screen.list.title}</h1>
         {/* An empty list would share as «Список «С детьми»: » — a colon with nothing after it. */}
         <button

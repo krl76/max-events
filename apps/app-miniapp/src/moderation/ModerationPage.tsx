@@ -87,17 +87,13 @@ interface ModerationCaseViewProps {
   onBack: () => void;
 }
 
-export function ModerationCaseView({ group, confirm, busy, done, failed, onConfirm, onRun, onOpenTarget, onBack }: ModerationCaseViewProps) {
+export function ModerationCaseView({ group, confirm, busy, done, failed, onConfirm, onRun, onOpenTarget }: ModerationCaseViewProps) {
   const source = group.reports[0]?.source ?? "user";
   const claims = [...group.reports].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const copy = confirm === null ? null : MODERATION_CONFIRM_COPY[confirm];
   return (
     <section className="app-mod" aria-label="Разбор жалобы">
       <div className="app-mod-topbar">
-        <button type="button" className="app-mod-round" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <h1 className="app-mod-topbar-title">
           {source === "spot_check" ? "Проверка" : "Жалоба"} · {REPORT_TARGET_LABELS[group.targetType].toLowerCase()}
         </h1>

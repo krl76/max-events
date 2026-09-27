@@ -171,15 +171,11 @@ interface WeGroupViewProps {
   onAddPhoto?: () => void;
 }
 
-export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, pickerOptions, pickerLoading, actionFailed, onBack, onToggleMenu, onTogglePicker, onPick, onArchive, onChat, onVote, onOpenEvent, onOpenPlace, onOpenMap, onAddPhoto }: WeGroupViewProps) {
+export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, pickerOptions, pickerLoading, actionFailed, onToggleMenu, onTogglePicker, onPick, onArchive, onChat, onVote, onOpenEvent, onOpenPlace, onOpenMap, onAddPhoto }: WeGroupViewProps) {
   if (state.status !== "ready") {
     return (
       <section className="app-we-group" aria-label="Группа «Мы»">
         <div className="app-we-bar">
-          <button type="button" className="app-we-round app-we-round--back" aria-label="Назад" onClick={onBack}>
-            <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-            Назад
-          </button>
           <h1 className="app-we-bar-name">Группа</h1>
         </div>
         {state.status === "loading" && <AppSkeletonList rows={4} />}
@@ -202,10 +198,6 @@ export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, 
   return (
     <section className="app-we-group" aria-label="Группа «Мы»">
       <div className="app-we-bar">
-        <button type="button" className="app-we-round app-we-round--back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <h1 className="app-we-bar-name">{group.title}</h1>
         {menuAvailable && (
           <button type="button" className="app-we-round" aria-label="Действия группы" aria-expanded={menuOpen} onClick={onToggleMenu}>

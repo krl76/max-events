@@ -205,7 +205,7 @@ export function placeRatingLabel(rating: { reviewsCount: number } | null): strin
   return `${rating.reviewsCount.toLocaleString("ru-RU")} ${pluralRu(rating.reviewsCount, "оценка", "оценки", "оценок")}`;
 }
 
-export function PlacePageView({ place, page, board, checkedIn, onBack, onCheckIn, onOpenEvent, onOpenSlots, onOpenSubscriptions, onCreateHere, onSave }: PlacePageViewProps) {
+export function PlacePageView({ place, page, board, checkedIn, onCheckIn, onOpenEvent, onOpenSlots, onOpenSubscriptions, onCreateHere, onSave }: PlacePageViewProps) {
   const alreadyHere = checkedIn || (board?.checkedInToday ?? false);
   const rating = page.rating?.summary ?? null;
   const occupancy = board === null ? null : occupancyLabel(board);
@@ -215,10 +215,7 @@ export function PlacePageView({ place, page, board, checkedIn, onBack, onCheckIn
       <div className="app-place-hero">
         <span className="app-place-blob" aria-hidden="true" />
         <span className="app-place-blob app-place-blob--cyan" aria-hidden="true" />
-        <button type="button" className="app-place-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
+
         <div className="app-place-hero-veil">
           <span className="app-place-kind">{placeKindLabel(place, board?.openUntil ?? null)}</span>
           <h1 className="app-place-title">{place.title}</h1>

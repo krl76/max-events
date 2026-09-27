@@ -10,7 +10,7 @@
 // - toMicroEventDto - entity plus its participant ids to the MicroEvent contract
 // END_MODULE_MAP
 
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, OnModuleInit, Optional, ServiceUnavailableException } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { MicroEventSchema, type CreateMicroEventWrite, type CreatePlanExpenseWrite, type Friend, type MicroBudget, type MicroEvent, type Place } from "@max-events/api-contracts";
@@ -23,6 +23,7 @@ import { budgetFromExpenses } from "../plans/plans.service";
 import { deliverInvite, INVITE_REPLY_ACTIONS } from "../smart-alerts/deliver-invite";
 import { humanWhen, miniappLink, withAppLink } from "../time/human-when";
 import { NotificationEntity } from "../smart-alerts/notification.entity";
+import { UserEntity } from "../users/user.entity";
 import { UsersService } from "../users/users.service";
 import { MicroEventExpenseEntity } from "./micro-event-expense.entity";
 import { MicroEventEntity, MicroEventParticipantEntity } from "./micro-event.entity";
@@ -49,8 +50,18 @@ export function microBudgetFromRows(rows: MicroEventExpenseEntity[], party: Iter
   };
 }
 
+/** Shown on the home feed when production has no open micro-events yet, so the block can be judged. */
+export const SHOWCASE_MICRO_EVENTS: ReadonlyArray<{ title: string; where: string; days: number; hour: number; limit: number }> = [
+  { title: "Утренняя пробежка в Лужниках", where: "Лужники", days: 1, hour: 9, limit: 12 },
+  { title: "Настолки в кофейне", where: "Патриаршие", days: 2, hour: 19, limit: 6 },
+  { title: "Вечерний волейбол", where: "Парк Горького", days: 3, hour: 18, limit: 10 },
+  { title: "Прогулка по набережной", where: "Крымская набережная", days: 1, hour: 20, limit: 8 },
+  { title: "Завтрак и выставка", where: "Третьяковская галерея", days: 4, hour: 11, limit: 5 },
+  { title: "Субботник у пруда", where: "Чистые пруды", days: 5, hour: 12, limit: 15 },
+];
+
 @Injectable()
-export class MicroEventsService {
+export class MicroEventsService implements OnModuleInit {
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     @InjectRepository(MicroEventEntity) private readonly events: Repository<MicroEventEntity>,
@@ -61,6 +72,23 @@ export class MicroEventsService {
     @Optional() @InjectRepository(NotificationEntity) private readonly notices?: Repository<NotificationEntity>,
     @Optional() @InjectRepository(MicroEventExpenseEntity) private readonly expenses?: Repository<MicroEventExpenseEntity>,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    try {
+      const open = await this.events.count({ where: { published: true, status: "open" } });
+      if (open > 0) return;
+      const [author] = await this.dataSource.getRepository(UserEntity).find({ take: 1, order: { createdAt: "ASC" } });
+      if (!author) return;
+      const now = new Date();
+      for (const item of SHOWCASE_MICRO_EVENTS) {
+        const startsAt = new Date(now.getTime() + item.days * 24 * 60 * 60 * 1000);
+        startsAt.setHours(item.hour, 0, 0, 0);
+        await this.events.save(this.events.create({ authorId: author.id, title: item.title, startsAt, locationText: item.where, placeId: null, participantsLimit: item.limit, status: "open", published: true }));
+      }
+    } catch {
+      // A database that is still migrating must boot. The home block stays empty until the next start.
+    }
+  }
 
   async getCard(id: string): Promise<{ event: MicroEvent; place: Place | null; participants: Array<{ friend: Friend; author: boolean }> }> {
     const row = await this.events.findOneBy({ id });

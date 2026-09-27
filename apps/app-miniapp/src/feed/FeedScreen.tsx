@@ -210,6 +210,7 @@ interface FeedFriendPostProps {
   onToggleGoing: () => void;
   onOpenComments: () => void;
   onShare: () => void;
+  onRepost?: () => void;
   onOpenEvent: () => void;
   onOpenAuthor: () => void;
   onOpenMark?: () => void;
@@ -217,7 +218,7 @@ interface FeedFriendPostProps {
   hasStory?: boolean;
 }
 
-export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenComments, onShare, onOpenEvent, onOpenAuthor, onOpenMark, userId, hasStory = false }: FeedFriendPostProps) {
+export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenComments, onShare, onRepost = onShare, onOpenEvent, onOpenAuthor, onOpenMark, userId, hasStory = false }: FeedFriendPostProps) {
   const [saving, setSaving] = useState(false);
   const where = [card.placeTitle, formatFeedDistance(card.distanceKm)].filter((part): part is string => part !== null && part !== "").join(" · ");
   const dropped = parsePinLabel(card.locationLabel ?? card.placeTitle ?? "");
@@ -283,9 +284,14 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
       <div className="app-feed-actions">
         <button type="button" className="app-post-action" aria-pressed={card.likedByMe} aria-label="Нравится" onClick={onToggleLike}>
           <ActionIcon filled={card.likedByMe} name="heart" size={26} />
+          <span>{card.likesCount}</span>
         </button>
         <button type="button" className="app-post-action" aria-label="Комментарии" onClick={onOpenComments}>
           <ActionIcon name="comment" size={26} />
+          <span>{card.commentsCount}</span>
+        </button>
+        <button type="button" className="app-post-action" aria-label="Репост" onClick={onRepost}>
+          <ActionIcon name="refresh" size={26} />
         </button>
         <button type="button" className="app-post-action" aria-label="Поделиться" onClick={onShare}>
           <ActionIcon name="share" size={26} />
@@ -326,13 +332,15 @@ interface FeedPlacePostProps {
   now: Date;
   onOpenPlace: (placeId: string) => void;
   onOpenPost: () => void;
+  onToggleLike?: () => void;
+  onRepost?: () => void;
   onStatus: (status: ParticipationStatus) => void;
   onSlots: () => void;
   onGather: () => void;
   onOpenUser?: (userId: string) => void;
 }
 
-export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onShowOnMap, onStatus, onSlots, onGather, onOpenUser }: FeedPlacePostProps & { onShowOnMap?: () => void }) {
+export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onToggleLike, onRepost, onShowOnMap, onStatus, onSlots, onGather, onOpenUser }: FeedPlacePostProps & { onShowOnMap?: () => void }) {
   const travel = formatFeedTravel(card.travelMinutes, card.distanceKm);
   const rating = formatFeedRating(card.rating);
   const price = formatPricePerHour(card.pricePerHourRub);
@@ -418,16 +426,18 @@ export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onShowOnMap,
           {price !== null && <span className="app-feed-hero-pill app-feed-hero-pill--price">{price}</span>}
         </span>
       </div>
-      {/* Counters without controls: a venue post is not a feed post, so there is nothing to like or comment on yet (#492). */}
       <div className="app-feed-actions">
-        <span className="app-feed-count">
-          <ActionIcon name="heart" size={22} />
-          {card.likesCount}
-        </span>
-        <span className="app-feed-count">
-          <ActionIcon name="comment" size={22} />
-          {card.commentsCount}
-        </span>
+        <button type="button" className="app-post-action" aria-pressed={card.likedByMe} aria-label="Нравится" onClick={onToggleLike ?? onOpenPost}>
+          <ActionIcon filled={card.likedByMe} name="heart" size={26} />
+          <span>{card.likesCount}</span>
+        </button>
+        <button type="button" className="app-post-action" aria-label="Комментарии" onClick={onOpenPost}>
+          <ActionIcon name="comment" size={26} />
+          <span>{card.commentsCount}</span>
+        </button>
+        <button type="button" className="app-post-action" aria-label="Репост" onClick={onRepost ?? onOpenPost}>
+          <ActionIcon name="refresh" size={26} />
+        </button>
       </div>
       <h3 className="app-feed-place-title">{card.title}</h3>
       <p className="app-feed-place-text">{card.text}</p>
@@ -478,6 +488,9 @@ export interface FeedCardHandlers {
   onToggleGoing: (card: FeedFriendCard) => void;
   onOpenComments: (card: FeedFriendCard) => void;
   onShare: (card: FeedFriendCard) => void;
+  onRepost: (card: FeedFriendCard) => void;
+  onPlaceLike: (card: FeedPlaceCard) => void;
+  onPlaceRepost: (card: FeedPlaceCard) => void;
   onPlaceStatus: (card: FeedPlaceCard, status: ParticipationStatus) => void;
   onSlots: (card: FeedPlaceCard) => void;
   onGather: (card: FeedPlaceCard) => void;
@@ -496,6 +509,7 @@ export function FeedCardList({ cards, now, handlers, storyAuthors }: { cards: Fe
             onToggleGoing={() => handlers.onToggleGoing(card)}
             onOpenComments={() => handlers.onOpenComments(card)}
             onShare={() => handlers.onShare(card)}
+            onRepost={() => handlers.onRepost(card)}
             onOpenEvent={() => {
               if (card.event) handlers.onOpenEvent(card.event.id);
             }}
@@ -505,7 +519,7 @@ export function FeedCardList({ cards, now, handlers, storyAuthors }: { cards: Fe
             hasStory={storyAuthors?.has(card.author.id) === true}
           />
         ) : (
-          <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onShowOnMap={handlers.onOpenPlaceMap ? () => handlers.onOpenPlaceMap?.(card) : undefined} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} onOpenUser={handlers.onOpenAuthor} />
+          <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onToggleLike={() => handlers.onPlaceLike(card)} onRepost={() => handlers.onPlaceRepost(card)} onShowOnMap={handlers.onOpenPlaceMap ? () => handlers.onOpenPlaceMap?.(card) : undefined} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} onOpenUser={handlers.onOpenAuthor} />
         ),
       )}
     </div>
@@ -558,9 +572,21 @@ function feedDateBadge(startsAt: string): { month: string; day: string } {
   return { month: date.toLocaleDateString("ru-RU", { month: "short" }).replace(".", "").slice(0, 3).toUpperCase(), day: date.toLocaleDateString("ru-RU", { day: "numeric" }) };
 }
 
+/** «12 из 30» — сколько мест уже занято. Без вместимости строка не появляется. */
+function eventFill(event: Event): string | null {
+  if (event.capacity == null) return null;
+  const booked = event.bookedCount ?? (event.remainingSeats != null ? Math.max(0, event.capacity - event.remainingSeats) : null);
+  if (booked == null) return null;
+  return `${booked} из ${event.capacity}`;
+}
+
 /** The social feed can be empty. The city still has events, and they should look like photographs. */
-function FeedCityPhotos({ onOpen, onCreate }: { onOpen: (id: string) => void; onCreate: () => void }) {
+function FeedCityPhotos({ userId, onOpen, onCreate, onChanged }: { userId: string | null; onOpen: (id: string) => void; onCreate: () => void; onChanged: () => void }) {
   const [events, setEvents] = useState<Event[] | null>(null);
+  const [likes, setLikes] = useState<Record<string, true>>({});
+  const [commentFor, setCommentFor] = useState<string | null>(null);
+  const [comment, setComment] = useState("");
+  const [note, setNote] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
     apiClient.listEvents().then(
@@ -585,22 +611,94 @@ function FeedCityPhotos({ onOpen, onCreate }: { onOpen: (id: string) => void; on
       <div className="app-feed-city-grid">
         {events.map((event) => {
           const badge = feedDateBadge(event.startsAt);
+          const fill = eventFill(event);
+          const liked = likes[event.id] === true;
+          const going = event.friendsGoing?.length ?? 0;
           return (
-            <button key={event.id} type="button" className="app-feed-city-card" onClick={() => onOpen(event.id)}>
-              <img alt="" src={pictured(event.id, event.coverUrl)} />
-              <span className="app-feed-city-date">
-                <span>{badge.month}</span>
-                <b>{badge.day}</b>
-              </span>
-              <span className="app-feed-city-veil">
-                <span className="app-feed-city-kicker">Событие</span>
-                <span className="app-feed-city-title">{event.title}</span>
-                <span className="app-feed-city-meta">{event.city}</span>
-              </span>
-            </button>
+            <article key={event.id} className="app-feed-city-item">
+              <button type="button" className="app-feed-city-card" onClick={() => onOpen(event.id)}>
+                <img alt="" src={pictured(event.id, event.coverUrl)} />
+                <span className="app-feed-city-date">
+                  <span>{badge.month}</span>
+                  <b>{badge.day}</b>
+                </span>
+                <span className="app-feed-city-veil">
+                  <span className="app-feed-city-kicker">Событие</span>
+                  <span className="app-feed-city-title">{event.title}</span>
+                  <span className="app-feed-city-meta">{fill === null ? event.city : `${event.city} · занято ${fill}`}</span>
+                  {going > 0 && (
+                    <span className="app-feed-city-meta">
+                      {going} {pluralRu(going, "человек идёт", "человека идут", "человек идут")}
+                    </span>
+                  )}
+                </span>
+              </button>
+              <div className="app-feed-city-actions">
+                <button
+                  type="button"
+                  className="app-post-action"
+                  aria-pressed={liked}
+                  aria-label="Нравится"
+                  onClick={() =>
+                    setLikes((current) => {
+                      const next = { ...current };
+                      if (next[event.id]) delete next[event.id];
+                      else next[event.id] = true;
+                      return next;
+                    })
+                  }
+                >
+                  <ActionIcon filled={liked} name="heart" size={22} />
+                  <span>{going + (liked ? 1 : 0)}</span>
+                </button>
+                <button type="button" className="app-post-action" aria-label="Комментарии" onClick={() => setCommentFor((current) => (current === event.id ? null : event.id))}>
+                  <ActionIcon name="comment" size={22} />
+                </button>
+                <button
+                  type="button"
+                  className="app-post-action"
+                  aria-label="Репост"
+                  onClick={() => {
+                    if (userId === null) return;
+                    void apiClient.createFeedPost({ userId, eventId: event.id, text: event.title }).then(
+                      () => {
+                        setNote("Пост у вас в ленте");
+                        onChanged();
+                      },
+                      () => setNote("Не удалось репостнуть"),
+                    );
+                  }}
+                >
+                  <ActionIcon name="refresh" size={22} />
+                </button>
+              </div>
+              {commentFor === event.id && (
+                <form
+                  className="app-feed-city-comment"
+                  onSubmit={(submit) => {
+                    submit.preventDefault();
+                    const text = comment.trim();
+                    if (text === "" || userId === null) return;
+                    void apiClient.createFeedPost({ userId, eventId: event.id, text }).then(
+                      () => {
+                        setComment("");
+                        setCommentFor(null);
+                        setNote("Комментарий опубликован");
+                        onChanged();
+                      },
+                      () => setNote("Не удалось отправить комментарий"),
+                    );
+                  }}
+                >
+                  <input aria-label="Комментарий" placeholder="Написать комментарий" value={comment} onChange={(change) => setComment(change.target.value)} />
+                  <button type="submit">Отправить</button>
+                </form>
+              )}
+            </article>
           );
         })}
       </div>
+      {note !== null && <p className="app-feed-city-meta">{note}</p>}
     </div>
   );
 }
@@ -680,6 +778,18 @@ export function FeedScreen() {
       const payload = sharePayload(sentence, card.event ? `event-${card.event.id}` : `post-${card.id}`);
       void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
     },
+    onRepost: (card) => {
+      if (userId === null) return;
+      void settle(apiClient.createFeedPost({ userId, eventId: card.event?.id ?? null, text: card.text }));
+    },
+    onPlaceLike: (card) => {
+      if (userId === null) return;
+      void settle(apiClient.toggleFeedLike(card.id, userId));
+    },
+    onPlaceRepost: (card) => {
+      if (userId === null) return;
+      void settle(apiClient.createFeedPost({ userId, eventId: null, placeId: card.place.id, text: card.title }));
+    },
     onPlaceStatus: (card, status) => {
       if (userId === null) return;
       void settle(apiClient.setPlaceParticipationStatus(card.place.id, userId, card.myStatus === status ? null : status));
@@ -700,7 +810,7 @@ export function FeedScreen() {
           Не удалось загрузить ленту.
         </AppState>
       ) : state.cards.length === 0 ? (
-        <FeedCityPhotos onOpen={(id) => navigate({ name: "event", id })} onCreate={() => navigate({ name: "create" })} />
+        <FeedCityPhotos userId={userId} onOpen={(id) => navigate({ name: "event", id })} onCreate={() => navigate({ name: "create" })} onChanged={() => fetchCards(false)} />
       ) : (
         <FeedCardList cards={state.cards} now={now} handlers={handlers} storyAuthors={storyAuthors} />
       )}

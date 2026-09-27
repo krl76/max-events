@@ -162,7 +162,7 @@ function Progress({ at }: { at: number }) {
   );
 }
 
-function QuestionScreen({ at, answers, onPick, onStep, onNext, onBack }: { at: number; answers: WheretoAnswers } & Pick<WheretoViewProps, "onPick" | "onStep" | "onNext" | "onBack">) {
+function QuestionScreen({ at, answers, onPick, onStep, onNext }: { at: number; answers: WheretoAnswers } & Pick<WheretoViewProps, "onPick" | "onStep" | "onNext" | "onBack">) {
   const question = WHERETO_QUESTIONS[at];
   const next = WHERETO_QUESTIONS[at + 1];
   const options = at === 0 ? COMPANY_ORDER.map((value) => ({ value, label: COMPANY_LABELS[value], hint: null, on: answers.company === value, pick: () => onPick({ ...answers, company: value }) })) : at === 1 ? MOOD_ORDER.map((value) => ({ value, label: MOOD_LABELS[value], hint: MOOD_HINTS[value], on: answers.mood === value, pick: () => onPick({ ...answers, mood: value }) })) : BUDGET_ORDER.map((value) => ({ value, label: BUDGET_LABELS[value], hint: null, on: answers.budget === value, pick: () => onPick({ ...answers, budget: value }) }));
@@ -205,10 +205,6 @@ function QuestionScreen({ at, answers, onPick, onStep, onNext, onBack }: { at: n
       )}
       <p className="app-whereto-hint">Подбор работает по правилам: время, расстояние и цена. Вкусы и история посещений не учитываются.</p>
       <div className="app-wt-bar">
-        <button type="button" className="app-wt-bar-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <button type="button" className="app-wt-bar-cta" disabled={!chosen} onClick={onNext}>
           {next === undefined ? "Показать варианты" : "Дальше"}
           <ActionIcon name="arrow" size={18} strokeWidth={2.6} />
@@ -276,19 +272,15 @@ function ResultScreen({ query, result, now, onStep, onRestart, onRetry, onOpenEv
   );
 }
 
-export function WheretoView({ state, answers, result, now = new Date(), onPick, onStep, onNext, onBack, onRestart, onRetry, onOpenEvent }: WheretoViewProps) {
+export function WheretoView({ state, answers, result, now = new Date(), onPick, onStep, onNext, onRestart, onRetry, onOpenEvent }: WheretoViewProps) {
   const title = state.step === "ask" ? "Куда пойдём?" : resultTitle(result.status === "ready" ? result.items.length : 0);
 
   return (
     <section className="app-wt">
       <div className="app-wt-topbar">
-        <button type="button" className="app-wt-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <h1 className="app-wt-title">{title}</h1>
       </div>
-      {state.step === "ask" ? <QuestionScreen at={state.at} answers={answers} onPick={onPick} onStep={onStep} onNext={onNext} onBack={onBack} /> : <ResultScreen query={state.query} result={result} now={now} onStep={onStep} onRestart={onRestart} onRetry={onRetry} onOpenEvent={onOpenEvent} />}
+      {state.step === "ask" ? <QuestionScreen at={state.at} answers={answers} onPick={onPick} onStep={onStep} onNext={onNext} /> : <ResultScreen query={state.query} result={result} now={now} onStep={onStep} onRestart={onRestart} onRetry={onRetry} onOpenEvent={onOpenEvent} />}
     </section>
   );
 }

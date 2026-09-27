@@ -388,7 +388,7 @@ interface StoryCreateViewProps {
   onClose: () => void;
 }
 
-export function StoryCreateView({ draft, sticker, poll, events, friends = [], state, onDraft, onPickPhoto, onPublish }: StoryCreateViewProps) {
+export function StoryCreateView({ draft, sticker, poll, events, friends = [], state, onDraft, onPickPhoto, onPublish, onClose }: StoryCreateViewProps) {
   const captionRef = useRef<HTMLTextAreaElement | null>(null);
   const frameRef = useRef<HTMLElement | null>(null);
   const cropDrag = useRef<{ x: number; y: number; cropX: number; cropY: number } | null>(null);
@@ -399,6 +399,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
   const [editing, setEditing] = useState<string | null>(null);
   const [deleteTray, setDeleteTray] = useState(false);
   const [mentionFor, setMentionFor] = useState<string | null>(null);
+  const [mentionDraft, setMentionDraft] = useState("");
   const lastKey = draft.objects.length === 0 ? null : storyObjectKey(draft.objects[draft.objects.length - 1]!);
   const front = toolsOpen ? (touched ?? lastKey) : null;
   const onPhotoCanvas = draft.canvas === "photo" && draft.photoUrl !== null;
@@ -424,6 +425,21 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
     setTouched((current) => (current === key ? null : current));
     setShaking((current) => (current === key ? null : current));
     setEditing((current) => (current === key ? null : current));
+    setMentionFor((current) => (current === key ? null : current));
+  };
+
+  /** Упоминание пишется в выбранный текст: друг — с id, набранное имя — просто @ник. */
+  const insertMention = (raw: string, friend?: Friend) => {
+    const nick = raw.trim().replace(/^@/, "");
+    if (nick === "" || mentionFor === null) return;
+    const handle = `@${nick} `;
+    const mention = friend === undefined ? null : { id: friend.id, handle: nick };
+    const target = draft.objects.find((object) => storyObjectKey(object) === mentionFor);
+    const withMention = (item: StoryCanvasObject): StoryCanvasObject => (mention === null ? item : { ...item, mentionIds: [...(item.mentionIds ?? []), mention.id], mentions: [...(item.mentions ?? []), mention] });
+    if (target?.id) onDraft({ ...draft, objects: draft.objects.map((item) => (item.id === target.id ? { ...withMention(item), text: `${item.text ?? ""}${handle}` } : item)) });
+    else onDraft({ ...draft, text: `${draft.text}${handle}`, objects: draft.objects.map((item) => (storyObjectKey(item) === mentionFor ? withMention(item) : item)) });
+    setMentionFor(null);
+    setMentionDraft("");
   };
 
   const toggleObject = (kind: StoryObjectKind) => {
@@ -630,11 +646,11 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
       <span className="app-story-orb app-story-orb--status" aria-hidden="true" />
 
       <div className="app-story-bar">
-        <div className="app-story-bar-actions">
-          <button type="button" className="app-story-add-text" onClick={() => toggleObject("text")}>
-            <ActionIcon name="text" size={18} strokeWidth={2} />
-            Текст
-          </button>
+        <button type="button" className="app-story-back" onClick={onClose}>
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
+        </button>
+        <div className="app-story-tools">
           {onPhotoCanvas && (
             <button type="button" className="app-story-round" aria-label="Повернуть фото" onClick={() => onDraft({ ...draft, rotate: rotateStoryPhoto(draft.rotate) })}>
               <ActionIcon name="adjust" size={20} strokeWidth={2} />
@@ -645,10 +661,21 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
               <ActionIcon name="sparkle" size={20} strokeWidth={2} />
             </button>
           )}
+          <div className="app-story-catalog">
+            {STORY_OBJECT_ORDER.map((kind) => {
+              const on = hasStoryObject(draft.objects, kind);
+              return (
+                <button key={kind} type="button" className={on ? "app-story-catalog-chip app-story-catalog-chip--on" : "app-story-catalog-chip"} aria-pressed={on} disabled={!on && !storyObjectEnabled(kind, sticker, asked)} onClick={() => toggleObject(kind)}>
+                  <ActionIcon name={STORY_OBJECTS[kind].icon} size={16} strokeWidth={2.2} />
+                  {STORY_OBJECTS[kind].label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {drawn.length === 0 && <p className="app-story-empty">Пустой холст. Выберите фон и добавьте объекты снизу: текст, событие, опрос, счётчик мест.</p>}
+      {drawn.length === 0 && <p className="app-story-empty">Пустой холст. Справа сверху — текст, событие, опрос и места. Снизу правится то, что выбрано.</p>}
 
       {drawn.map(({ object, body }) => {
         const label = STORY_OBJECTS[object.kind].label;
@@ -705,27 +732,33 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
       {deleteTray && <p className="app-story-delete-tray">Отпустите, чтобы удалить</p>}
 
       {mentionFor !== null && (
-        <ul className="app-story-mentions">
-          {friends.map((friend) => (
-            <li key={friend.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  const nick = friendHandle(friend);
-                  const handle = `@${nick} `;
-                  const mention = { id: friend.id, handle: nick };
-                  const target = draft.objects.find((object) => storyObjectKey(object) === mentionFor);
-                  const withMention = (item: StoryCanvasObject): StoryCanvasObject => ({ ...item, mentionIds: [...(item.mentionIds ?? []), friend.id], mentions: [...(item.mentions ?? []), mention] });
-                  if (target?.id) onDraft({ ...draft, objects: draft.objects.map((item) => (item.id === target.id ? { ...withMention(item), text: `${item.text ?? ""}${handle}` } : item)) });
-                  else onDraft({ ...draft, text: `${draft.text}${handle}`, objects: draft.objects.map((item) => (storyObjectKey(item) === mentionFor ? withMention(item) : item)) });
-                  setMentionFor(null);
-                }}
-              >
-                @{friendHandle(friend)}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="app-story-mentions">
+          <p className="app-story-mentions-title">Кого упомянуть</p>
+          {friends.length === 0 ? (
+            <p className="app-story-mentions-empty">В друзьях пока никого. Напишите @имя — оно встанет в текст.</p>
+          ) : (
+            <ul>
+              {friends.map((friend) => (
+                <li key={friend.id}>
+                  <button type="button" onClick={() => insertMention(friendHandle(friend), friend)}>
+                    <span>{friend.name}</span>
+                    <span>@{friendHandle(friend)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <form
+            className="app-story-mention-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              insertMention(mentionDraft);
+            }}
+          >
+            <input aria-label="Кого упомянуть" placeholder="@имя" value={mentionDraft} onChange={(change) => setMentionDraft(change.target.value)} />
+            <button type="submit">Вставить</button>
+          </form>
+        </div>
       )}
       {pickingEvent && (
         <EventPicker
@@ -760,20 +793,14 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
             </button>
           </div>
         )}
-        {/* Каталог объектов: в макете они были показом возможностей, здесь — кнопки, которыми автор собирает свою историю. */}
-        <div className="app-story-catalog">
-          {STORY_OBJECT_ORDER.map((kind) => {
-            const on = hasStoryObject(draft.objects, kind);
-            return (
-              // Лежащий на холсте объект снимается всегда: у события без мест счётчик не рисуется, и
-              // погашенная кнопка запирала бы его в черновике — снять его было бы уже нечем.
-              <button key={kind} type="button" className={on ? "app-story-catalog-chip app-story-catalog-chip--on" : "app-story-catalog-chip"} aria-pressed={on} disabled={!on && !storyObjectEnabled(kind, sticker, asked)} onClick={() => toggleObject(kind)}>
-                <ActionIcon name={STORY_OBJECTS[kind].icon} size={16} strokeWidth={2.2} />
-                {STORY_OBJECTS[kind].label}
-              </button>
-            );
-          })}
-        </div>
+        {front !== null && (draft.objects.find((object) => storyObjectKey(object) === front)?.kind === "event" || draft.objects.find((object) => storyObjectKey(object) === front)?.kind === "seats") && (
+          <div className="app-story-style">
+            <button type="button" className="app-story-style-chip" onClick={() => setPickingEvent(true)}>
+              Сменить событие
+            </button>
+          </div>
+        )}
+        {front !== null && draft.objects.find((object) => storyObjectKey(object) === front)?.kind === "poll" && <p className="app-story-editor-note">Вопрос и варианты правятся прямо на опросе.</p>}
         <div className="app-story-rail">
           {STORY_CANVASES.map((canvas, index) => (
             <button key={canvas} type="button" className={draft.canvas === canvas ? `app-story-tile app-story-tile--${canvas} app-story-tile--on` : `app-story-tile app-story-tile--${canvas}`} aria-pressed={draft.canvas === canvas} aria-label={`Фон ${index + 1}`} onClick={() => onDraft({ ...draft, canvas })} />
@@ -818,7 +845,17 @@ export function StoryCreatePage() {
     let alive = true;
     apiClient.listFriends().then(
       (list) => {
-        if (alive) setFriends(list);
+        if (!alive) return;
+        if (list.length > 0 || userId === null) {
+          setFriends(list);
+          return;
+        }
+        apiClient.listFollowing(userId).then(
+          (following) => {
+            if (alive) setFriends(following);
+          },
+          () => {},
+        );
       },
       () => {},
     );
@@ -835,7 +872,7 @@ export function StoryCreatePage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (draft.eventId === null || userId === null) return;

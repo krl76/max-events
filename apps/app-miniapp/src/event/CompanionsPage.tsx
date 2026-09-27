@@ -153,16 +153,12 @@ interface CompanionsViewProps {
 
 const PARTICIPATION_STATUSES = ParticipationStatusSchema.options;
 
-export function CompanionsView({ event, companions, failed, tab, pickerOpen, onTab, onBack, onGather, onToggleLooking, onTogglePicker, onStatus, onInvite, onChat, onRetry }: CompanionsViewProps) {
+export function CompanionsView({ event, companions, failed, tab, pickerOpen, onTab, onGather, onToggleLooking, onTogglePicker, onStatus, onInvite, onChat, onRetry }: CompanionsViewProps) {
   const listed = companions === null ? [] : companions.companions.filter((companion) => tabOfStatus(companion.status) === tab);
   const looking = companions?.myStatus === "looking_for_company";
   return (
     <div className="app-evc">
       <header className="app-evc-bar">
-        <button type="button" className="app-evc-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <span className="app-evc-bar-text">
           <span className="app-evc-bar-label">С кем пойти</span>
           <span className="app-evc-bar-title">{event?.title ?? "Событие"}</span>

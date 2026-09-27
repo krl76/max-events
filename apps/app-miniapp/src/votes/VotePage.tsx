@@ -94,15 +94,11 @@ interface VoteViewProps {
   onOpenEvent: (eventId: string) => void;
 }
 
-export function VoteView({ state, ownId, myChoice, voting, closing, revoting, failed, onBack, onVote, onRevote, onClose, onChat, onOpenEvent }: VoteViewProps) {
+export function VoteView({ state, ownId, myChoice, voting, closing, revoting, failed, onVote, onRevote, onClose, onChat, onOpenEvent }: VoteViewProps) {
   if (state.status !== "ready") {
     return (
       <section className="app-poll" aria-label="Голосование">
         <div className="app-we-bar">
-          <button type="button" className="app-we-round app-we-round--back" aria-label="Назад" onClick={onBack}>
-            <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-            Назад
-          </button>
           <h1 className="app-we-bar-name">Голосование</h1>
         </div>
         {state.status === "loading" && <AppSkeletonList rows={3} />}
@@ -126,10 +122,6 @@ export function VoteView({ state, ownId, myChoice, voting, closing, revoting, fa
   return (
     <section className="app-poll" aria-label="Голосование">
       <div className="app-we-bar">
-        <button type="button" className="app-we-round app-we-round--back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <h1 className="app-we-bar-name">{vote.title}</h1>
       </div>
 

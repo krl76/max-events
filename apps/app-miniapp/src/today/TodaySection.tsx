@@ -24,10 +24,12 @@
 // - TodayAfterMeCard - the dismissible hint: headline, explanation, the chips of its own card and the two buttons
 // END_MODULE_MAP
 
+import { useState } from "react";
 import type { TodayCardLabel } from "@max-events/api-contracts";
 import type { TodayCard, TodayDigest } from "../api/client";
 import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppSkeleton, AppState } from "../ui/primitives";
 
 export type TodayState = { status: "loading" } | { status: "error" } | { status: "ready"; today: TodayDigest };
@@ -160,67 +162,107 @@ export function TodaySummaryBlock({ state, now, distanceFrom = "you" }: { state:
   );
 }
 
-function PickCard({ card, hero, onOpen, distanceFrom }: { card: TodayCard; hero: boolean; onOpen: (eventId: string) => void; distanceFrom: DistanceVoice }) {
+const EVENT_LIKES_KEY = "max-events:event-likes";
+
+function readEventLikes(): Record<string, true> {
+  try {
+    if (typeof localStorage === "undefined") return {};
+    const raw = localStorage.getItem(EVENT_LIKES_KEY);
+    const parsed: unknown = raw === null ? {} : JSON.parse(raw);
+    if (parsed === null || typeof parsed !== "object") return {};
+    return parsed as Record<string, true>;
+  } catch {
+    return {};
+  }
+}
+
+function writeEventLikes(likes: Record<string, true>): void {
+  try {
+    localStorage.setItem(EVENT_LIKES_KEY, JSON.stringify(likes));
+  } catch {
+    // A private window still toggles the heart for this visit.
+  }
+}
+
+function pickLikeCount(card: TodayCard, liked: boolean): number {
+  return (card.event.friendsGoing?.length ?? 0) + (liked ? 1 : 0);
+}
+
+function PickCard({ card, hero, liked, onLike, onOpen, distanceFrom }: { card: TodayCard; hero: boolean; liked: boolean; onLike: () => void; onOpen: (eventId: string) => void; distanceFrom: DistanceVoice }) {
   const rating = formatPickRating(card.rating);
   const distance = formatPickDistance(card.distanceKm);
   return (
-    <button type="button" className={`app-pick${hero ? " app-pick--hero" : ""} app-media--${card.event.category}`} onClick={() => onOpen(card.event.id)}>
+    <article className={`app-pick${hero ? " app-pick--hero" : ""} app-media--${card.event.category}`}>
+      <img className="app-pick-photo" alt="" src={pictured(card.event.id, card.event.coverUrl)} />
       <span className="app-pick-glow" aria-hidden="true" />
       <span className="app-pick-glow app-pick-glow--cool" aria-hidden="true" />
-      <span className="app-pick-kind">{CATEGORY_LABELS[card.event.category]}</span>
-      <span className="app-pick-save" aria-hidden="true">
-        <ActionIcon name="heart" size={hero ? 18 : 15} />
-      </span>
-      <span className="app-pick-veil">
-        <span className="app-pick-title">{card.event.title}</span>
-        <span className="app-pick-where">{pickWhere(card)}</span>
-        {hero && (
-          <>
-            <span className="app-pick-meta">
-              <span className="app-pick-meta-item">
-                <ActionIcon name="calendar" size={14} />
-                {formatPickWhen(card.event.startsAt)}
-              </span>
-              {distance !== null && (
-                <span className="app-pick-meta-item">
-                  <ActionIcon name="pin" size={14} />
-                  {distance}
-                </span>
-              )}
-            </span>
-            <span className="app-pick-labels">
-              {card.labels.map((label, index) => (
-                <span key={index} className="app-pick-label">
-                  {todayLabel(label, distanceFrom)}
-                </span>
-              ))}
-            </span>
-          </>
-        )}
-        {/* Подвал героя ведёт на страницу события, подвал плитки — это цена и рейтинг (макет, экран 08) */}
-        <span className="app-pick-foot">
+      <button type="button" className="app-pick-save" aria-label="Нравится" aria-pressed={liked} onClick={onLike}>
+        <ActionIcon filled={liked} name="heart" size={hero ? 18 : 15} />
+        <span className="app-pick-likes">{pickLikeCount(card, liked)}</span>
+      </button>
+      <button type="button" className="app-pick-open" aria-label={card.event.title} onClick={() => onOpen(card.event.id)}>
+        <span className="app-pick-kind">{CATEGORY_LABELS[card.event.category]}</span>
+        <span className="app-pick-veil">
+          <span className="app-pick-title">{card.event.title}</span>
+          <span className="app-pick-where">{pickWhere(card)}</span>
           {hero && (
-            <span className="app-pick-more">
-              Подробнее
-              <ActionIcon name="arrow" size={16} strokeWidth={2} />
-            </span>
+            <>
+              <span className="app-pick-meta">
+                <span className="app-pick-meta-item">
+                  <ActionIcon name="calendar" size={14} />
+                  {formatPickWhen(card.event.startsAt)}
+                </span>
+                {distance !== null && (
+                  <span className="app-pick-meta-item">
+                    <ActionIcon name="pin" size={14} />
+                    {distance}
+                  </span>
+                )}
+              </span>
+              <span className="app-pick-labels">
+                {card.labels.map((label, index) => (
+                  <span key={index} className="app-pick-label">
+                    {todayLabel(label, distanceFrom)}
+                  </span>
+                ))}
+              </span>
+            </>
           )}
-          <span className="app-pick-price">{formatPickPrice(card.event)}</span>
-          {!hero && rating !== null && (
-            <span className="app-pick-rating">
-              <ActionIcon name="star" size={13} filled />
-              {rating}
-            </span>
-          )}
+          {/* Подвал героя ведёт на страницу события, подвал плитки — это цена и рейтинг (макет, экран 08) */}
+          <span className="app-pick-foot">
+            {hero && (
+              <span className="app-pick-more">
+                Подробнее
+                <ActionIcon name="arrow" size={16} strokeWidth={2} />
+              </span>
+            )}
+            <span className="app-pick-price">{formatPickPrice(card.event)}</span>
+            {!hero && rating !== null && (
+              <span className="app-pick-rating">
+                <ActionIcon name="star" size={13} filled />
+                {rating}
+              </span>
+            )}
+          </span>
         </span>
-      </span>
-    </button>
+      </button>
+    </article>
   );
 }
 
 export function TodayPicksBlock({ state, onOpen, onRetry, distanceFrom = "you" }: { state: TodayState; onOpen: (eventId: string) => void; onRetry: () => void; distanceFrom?: DistanceVoice }) {
   const cards = state.status === "ready" ? todayPickCards(state.today) : [];
   const [hero, ...rest] = cards;
+  const [likes, setLikes] = useState(readEventLikes);
+  const toggleLike = (id: string) => {
+    setLikes((current) => {
+      const next = { ...current };
+      if (next[id]) delete next[id];
+      else next[id] = true;
+      writeEventLikes(next);
+      return next;
+    });
+  };
   return (
     <section className="app-picks" aria-label="Для вас">
       <h2 className="app-screen-title">Для вас</h2>
@@ -231,11 +273,11 @@ export function TodayPicksBlock({ state, onOpen, onRetry, distanceFrom = "you" }
         </AppState>
       )}
       {state.status === "ready" && hero === undefined && <AppState>На сегодня пока ничего нет. Загляните позже!</AppState>}
-      {hero !== undefined && <PickCard card={hero} hero onOpen={onOpen} distanceFrom={distanceFrom} />}
+      {hero !== undefined && <PickCard card={hero} hero liked={likes[hero.event.id] === true} onLike={() => toggleLike(hero.event.id)} onOpen={onOpen} distanceFrom={distanceFrom} />}
       {rest.length > 0 && (
         <div className="app-picks-grid">
           {rest.map((card) => (
-            <PickCard key={card.event.id} card={card} hero={false} onOpen={onOpen} distanceFrom={distanceFrom} />
+            <PickCard key={card.event.id} card={card} hero={false} liked={likes[card.event.id] === true} onLike={() => toggleLike(card.event.id)} onOpen={onOpen} distanceFrom={distanceFrom} />
           ))}
         </div>
       )}

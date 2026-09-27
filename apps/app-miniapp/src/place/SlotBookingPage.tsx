@@ -108,7 +108,7 @@ interface SlotBookingViewProps {
   onBook: () => void;
 }
 
-export function SlotBookingView({ board, day, slotId, extraIds, company, busy, failed, onBack, onPickDay, onPickSlot, onToggleExtra, onAddCompanion, onBook }: SlotBookingViewProps) {
+export function SlotBookingView({ board, day, slotId, extraIds, company, busy, failed, onPickDay, onPickSlot, onToggleExtra, onAddCompanion, onBook }: SlotBookingViewProps) {
   const slot = board.slots.find((item) => item.id === slotId) ?? null;
   const extras: SlotExtra[] = board.extras.filter((extra) => extraIds.includes(extra.id));
   const partySize = company.length + 1;
@@ -117,10 +117,6 @@ export function SlotBookingView({ board, day, slotId, extraIds, company, busy, f
   return (
     <section className="app-slots">
       <header className="app-slots-bar">
-        <button type="button" className="app-slots-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <span className="app-slots-bar-titles">
           <span className="app-slots-bar-title">{board.unitTitle}</span>
           <span className="app-slots-bar-subtitle">{slotBoardSubtitle(board)}</span>

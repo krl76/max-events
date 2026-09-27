@@ -29,7 +29,8 @@ import { useRoute } from "../routing/router";
 import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
 import { PinPicker } from "../ui/PinPicker";
-import { AppIconButton, AppButton, AppState, AppSkeleton, AppSection } from "../ui/primitives";
+import { pictured } from "../ui/photos";
+import { AppIconButton, AppButton, AppMedia, AppState, AppSkeleton, AppSection } from "../ui/primitives";
 import { WhenField } from "../ui/WhenField";
 
 export function microWhere(item: MicroEvent, places: Place[]): string {
@@ -61,6 +62,7 @@ export function MicroCard({ item, places, joined, onJoin, onLeave, onOpen }: Mic
   );
   return (
     <article className="app-card app-micro-plan-card">
+      <AppMedia src={pictured(item.id)} className="app-micro-plan-photo" />
       {onOpen === undefined ? (
         <div className="app-card-body">{body}</div>
       ) : (

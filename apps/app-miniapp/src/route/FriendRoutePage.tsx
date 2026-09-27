@@ -101,16 +101,12 @@ interface FriendRouteViewProps {
   onRetry: () => void;
 }
 
-export function FriendRouteView({ state, friend, onBack, onOpenPlace, onRepeatAsPlan, onInvite, onRetry }: FriendRouteViewProps) {
+export function FriendRouteView({ state, friend, onOpenPlace, onRepeatAsPlan, onInvite, onRetry }: FriendRouteViewProps) {
   const person = state.status === "ready" ? state.route.friend : friend;
   const title = person === null ? "Маршрут друга" : `Маршрут ${genitiveName(person.name)}`;
   return (
     <section className="app-froute">
       <div className="app-froute-topbar">
-        <button type="button" className="app-froute-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <h1 className="app-froute-title">{title}</h1>
       </div>
       {state.status === "loading" && <AppSkeletonList rows={4} />}

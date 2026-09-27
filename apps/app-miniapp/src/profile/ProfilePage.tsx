@@ -344,6 +344,7 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
         <span className="app-me-hero-actions">
           <button type="button" className="app-me-hero-action" aria-label="Поделиться профилем" onClick={entries.onShare}>
             <ActionIcon name="upload" size={18} strokeWidth={2} />
+            Поделиться
           </button>
           {own && (
             <button type="button" className="app-me-hero-action" aria-label="Настройки" onClick={entries.onSettings}>
@@ -402,7 +403,7 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
       {clickShield && <div className="app-me-pop-shield" aria-hidden="true" />}
       <h1 className="app-me-name">{name}</h1>
       <p className="app-me-about">{about}</p>
-      {(numbers.length > 0 || social.length > 0) && (
+      {(numbers.length > 0 || social.some((metric) => metric.id !== "posts")) && (
         <div className="app-me-metrics">
           {numbers.length > 0 && (
             <div className="app-me-metrics-row">
@@ -414,14 +415,16 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
               ))}
             </div>
           )}
-          {social.length > 0 && (
+          {social.some((metric) => metric.id !== "posts") && (
             <div className="app-me-metrics-row">
-              {social.map((metric) => (
-                <button key={metric.id} type="button" className="app-me-metric app-me-metric--link" onClick={openList[metric.id]}>
-                  {metric.value > 0 && <span className="app-me-metric-value">{metric.value}</span>}
-                  <span className="app-me-metric-label">{metric.value > 0 ? metric.label : socialEntryLabel(metric.id)}</span>
-                </button>
-              ))}
+              {social
+                .filter((metric) => metric.id !== "posts")
+                .map((metric) => (
+                  <button key={metric.id} type="button" className="app-me-metric app-me-metric--link" onClick={openList[metric.id]}>
+                    {metric.value > 0 && <span className="app-me-metric-value">{metric.value}</span>}
+                    <span className="app-me-metric-label">{metric.value > 0 ? metric.label : socialEntryLabel(metric.id)}</span>
+                  </button>
+                ))}
             </div>
           )}
         </div>

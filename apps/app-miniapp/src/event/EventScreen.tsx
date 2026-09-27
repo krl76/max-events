@@ -154,7 +154,7 @@ interface EventHeroProps {
   onSave: () => void;
 }
 
-export function EventHero({ details, saveOpen, onBack, onShare, onSave }: EventHeroProps) {
+export function EventHero({ details, saveOpen, onShare, onSave }: EventHeroProps) {
   const { event, place } = details;
   const seats = seatOccupancy(details);
   return (
@@ -163,10 +163,6 @@ export function EventHero({ details, saveOpen, onBack, onShare, onSave }: EventH
       <span className="app-ev-hero-blob app-ev-hero-blob--light" aria-hidden="true" />
       <span className="app-ev-hero-blob app-ev-hero-blob--cool" aria-hidden="true" />
       <div className="app-ev-hero-bar">
-        <button type="button" className="app-ev-hero-btn app-ev-hero-btn--back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <span className="app-ev-hero-bar-right">
           <button type="button" className="app-ev-hero-btn" aria-label="Поделиться" onClick={onShare}>
             <ActionIcon name="share" size={16} />

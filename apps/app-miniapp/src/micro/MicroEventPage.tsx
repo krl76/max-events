@@ -96,7 +96,7 @@ interface MicroEventViewProps {
   expenses?: ReactNode;
 }
 
-export function MicroEventView({ state, viewerId, busy = false, now = new Date(), onBack, onOpenPlace, onOpenPin, onJoin, onLeave, onRetry, expenses = null }: MicroEventViewProps) {
+export function MicroEventView({ state, viewerId, busy = false, now = new Date(), onOpenPlace, onOpenPin, onJoin, onLeave, onRetry, expenses = null }: MicroEventViewProps) {
   const card = state.status === "ready" ? state.card : null;
   const joined = card !== null && viewerId !== null && card.event.participantIds.includes(viewerId);
   const cta = card === null ? null : microCtaState(card.event, joined);
@@ -107,10 +107,6 @@ export function MicroEventView({ state, viewerId, busy = false, now = new Date()
   return (
     <section className="app-micro-card">
       <div className="app-micro-topbar">
-        <button type="button" className="app-micro-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <h1 className="app-micro-topbar-title">Микро-событие</h1>
       </div>
       {state.status === "loading" && <AppSkeletonList rows={3} />}

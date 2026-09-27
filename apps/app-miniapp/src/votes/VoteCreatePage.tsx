@@ -278,10 +278,6 @@ export function VoteCreatePage({ groupId }: { groupId: string | null }) {
   return (
     <section className="app-poll-screen" aria-label="Создание голосования">
       <div className="app-we-bar">
-        <button type="button" className="app-we-round app-we-round--back" aria-label="Назад" onClick={back}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <h1 className="app-we-bar-name">Новое голосование</h1>
       </div>
       {seed.status === "loading" && <AppSkeletonList rows={4} />}

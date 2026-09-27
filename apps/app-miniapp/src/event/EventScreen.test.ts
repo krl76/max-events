@@ -30,7 +30,7 @@ describe("EventHero", () => {
     expect(html).toContain("Мангальная зона в парке Горького");
     expect(html).toContain("Парк Горького");
     expect(html).toContain("Занято 16 мест из 20");
-    expect(html).toContain('aria-label="Назад"');
+    expect(html).not.toContain('aria-label="Назад"');
   });
 
   it("drops the counter for an event without a capacity", () => {

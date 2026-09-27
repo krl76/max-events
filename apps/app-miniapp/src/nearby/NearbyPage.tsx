@@ -33,6 +33,7 @@ import { apiClient, type LeisureChain, type LeisureChainStop } from "../api/clie
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { useProfileCityPoint } from "../geo/profile-city";
+import { pictured } from "../ui/photos";
 import { useHeaderTitle } from "../ui/Layout";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
@@ -135,7 +136,7 @@ function TimelineCard({ card, onOpenEvent }: { card: NearbyCard; onOpenEvent: (i
   return (
     <button type="button" className="app-nb-card" onClick={() => onOpenEvent(card.event.id)}>
       <span className="app-nb-card-media">
-        <AppMedia category={card.event.category} />
+        <AppMedia category={card.event.category} src={pictured(card.event.id, card.event.coverUrl)} />
         {card.promoted && <span className="app-nb-card-promo">Промо</span>}
       </span>
       <span className="app-nb-card-body">
