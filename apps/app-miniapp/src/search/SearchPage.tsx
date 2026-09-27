@@ -133,7 +133,7 @@ export function SearchTopBar({ city, cities, onCity, initial, searchOpen, onTogg
   );
 }
 
-export function SearchQueryForm({ query, onQuery, onSubmit, recents }: { query: string; onQuery: (query: string) => void; onSubmit: () => void; recents: string[] }) {
+export function SearchQueryForm({ query, onQuery, onSubmit, recents, autoFocus = false }: { query: string; onQuery: (query: string) => void; onSubmit: () => void; recents: string[]; autoFocus?: boolean }) {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     onSubmit();
@@ -142,7 +142,7 @@ export function SearchQueryForm({ query, onQuery, onSubmit, recents }: { query: 
     <form className="app-search-form" role="search" onSubmit={submit}>
       <span className="app-search-field">
         <ActionIcon name="search" size={18} />
-        <input className="app-search-input" type="search" aria-label="Поиск событий" placeholder="Событие, место или город" value={query} onChange={(change) => onQuery(change.target.value)} />
+        <input className="app-search-input" type="search" aria-label="Поиск событий" placeholder="Событие, место или город" value={query} autoFocus={autoFocus} onChange={(change) => onQuery(change.target.value)} />
       </span>
       {query.trim() === "" && recents.length > 0 && (
         <div className="app-search-recents" role="group" aria-label="Недавние запросы">
@@ -298,6 +298,8 @@ interface SearchViewProps {
   onNearby: () => void;
   onOpenProfile: () => void;
   onRetry: () => void;
+  /** The feed search icon opens this screen with the field already open. */
+  searchFieldOpen?: boolean;
   /** False when the digest is measured from the profile city's center, not from the viewer. */
   distancesFromViewer?: boolean;
   /** False when the rail is measured from the selected city's center. */
@@ -305,13 +307,13 @@ interface SearchViewProps {
 }
 
 export function SearchView(props: SearchViewProps) {
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(props.searchFieldOpen === true);
   const hint = props.today.status === "ready" ? todayAfterMeCard(props.today.today) : null;
   const distanceFrom = props.distancesFromViewer === false ? "center" : "you";
   return (
     <div className="app-search">
       <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} initial={props.initial} searchOpen={searchOpen} onToggleSearch={() => setSearchOpen((open) => !open)} onOpenProfile={props.onOpenProfile} />
-      {searchOpen && <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} recents={props.recents} />}
+      {searchOpen && <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} recents={props.recents} autoFocus />}
       <div className="app-line-tabs" role="tablist" aria-label="Категория">
         {SEARCH_CATEGORIES.map((category) => (
           <button key={category ?? "all"} type="button" role="tab" aria-selected={props.category === category} className={props.category === category ? "app-line-tab app-line-tab--on" : "app-line-tab"} onClick={() => props.onCategory(category)}>
@@ -332,7 +334,7 @@ export function SearchView(props: SearchViewProps) {
 }
 
 export function SearchPage() {
-  const { navigate } = useRoute();
+  const { navigate, route } = useRoute();
   const auth = useAuth();
   const origin = useViewerOrigin();
   const [query, setQuery] = useState("");
@@ -423,5 +425,5 @@ export function SearchPage() {
     });
   }, [query]);
 
-  return <SearchView state={state} today={today} query={query} onQuery={setQuery} onSubmit={submit} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} initial={auth.status === "authenticated" ? auth.user.firstName.charAt(0) : "?"} expanded={expanded} onExpand={() => setExpanded(true)} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onOpenProfile={() => navigate({ name: "profile" })} onRetry={() => setAttempt((count) => count + 1)} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
+  return <SearchView state={state} today={today} query={query} onQuery={setQuery} onSubmit={submit} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} initial={auth.status === "authenticated" ? auth.user.firstName.charAt(0) : "?"} expanded={expanded} onExpand={() => setExpanded(true)} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onOpenProfile={() => navigate({ name: "profile" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
 }

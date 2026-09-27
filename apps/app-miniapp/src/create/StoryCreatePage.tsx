@@ -388,7 +388,7 @@ interface StoryCreateViewProps {
   onClose: () => void;
 }
 
-export function StoryCreateView({ draft, sticker, poll, events, friends = [], state, onDraft, onPickPhoto, onPublish, onClose }: StoryCreateViewProps) {
+export function StoryCreateView({ draft, sticker, poll, events, friends = [], state, onDraft, onPickPhoto, onPublish }: StoryCreateViewProps) {
   const captionRef = useRef<HTMLTextAreaElement | null>(null);
   const frameRef = useRef<HTMLElement | null>(null);
   const cropDrag = useRef<{ x: number; y: number; cropX: number; cropY: number } | null>(null);
@@ -456,11 +456,10 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
   /** Drag the block itself. A long press makes it shake so the red cross can delete it; a drag into the bottom tray deletes it too. Two fingers pinch the size. */
   const startDrag = (object: StoryCanvasObject, event: ReactPointerEvent<HTMLElement>) => {
     const target = event.target;
-    if (target instanceof Element && target.closest("input, textarea, select, a, .app-story-object-delete, .app-story-pick")) return;
+    if (target instanceof Element && target.closest("input, textarea, select, a, .app-story-object-delete, .app-story-handle, .app-story-pick")) return;
     const key = storyObjectKey(object);
     const frame = frameRef.current;
     if (frame === null) return;
-    event.preventDefault();
     const box = frame.getBoundingClientRect();
     const fromX = event.clientX;
     const fromY = event.clientY;
@@ -502,6 +501,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
         hold = undefined;
         setShaking(null);
       }
+      if (!moved && pointers.size < 2) return;
       const y = object.y + ((movedEvent.clientY - fromY) / box.height) * 100;
       setDeleteTray(storyDeleteZone(y));
       onDraft({ ...draft, objects: moveStoryObject(draft.objects, key, object.x + ((movedEvent.clientX - fromX) / box.width) * 100, y) });
@@ -539,7 +539,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
       const key = storyObjectKey(object);
       if (editing !== key)
         return (
-          <p className={value === "" ? `${storyCaptionClass(object)} app-story-caption--empty` : storyCaptionClass(object)} aria-label="Подпись истории">
+          <p className={value === "" ? `${storyCaptionClass(object)} app-story-caption--empty` : storyCaptionClass(object)} aria-label="Подпись истории" onClick={() => setEditing(key)}>
             {value === "" ? "Ваш текст" : <StoryMentionText text={value} mentions={object.mentions ?? []} />}
           </p>
         );
@@ -646,10 +646,6 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
       <span className="app-story-orb app-story-orb--status" aria-hidden="true" />
 
       <div className="app-story-bar">
-        <button type="button" className="app-story-back" onClick={onClose}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <div className="app-story-tools">
           {onPhotoCanvas && (
             <button type="button" className="app-story-round" aria-label="Повернуть фото" onClick={() => onDraft({ ...draft, rotate: rotateStoryPhoto(draft.rotate) })}>
@@ -694,7 +690,16 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
             }}
           >
             {(selected || shaking === key) && (
-              <button type="button" className="app-story-object-delete" aria-label={`Удалить: ${label}`} onPointerDown={(press) => press.stopPropagation()} onClick={() => dropObject(key)}>
+              <button
+                type="button"
+                className="app-story-object-delete"
+                aria-label={`Удалить: ${label}`}
+                onPointerDown={(press) => press.stopPropagation()}
+                onClick={(press) => {
+                  press.stopPropagation();
+                  dropObject(key);
+                }}
+              >
                 <ActionIcon name="close" size={12} strokeWidth={2.6} />
               </button>
             )}

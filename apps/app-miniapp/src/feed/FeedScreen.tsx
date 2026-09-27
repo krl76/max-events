@@ -267,6 +267,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
       )}
       {card.event !== null && (
         <button type="button" className={`app-feed-event app-media--${card.event.category}`} onClick={onOpenEvent}>
+          <img className="app-feed-event-photo" alt="" src={pictured(card.event.id, card.event.coverUrl)} />
           <span className="app-feed-event-chips">
             <span className="app-feed-chip">{CATEGORY_LABELS[card.event.category]}</span>
             {card.live && (

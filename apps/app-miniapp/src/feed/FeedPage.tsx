@@ -39,13 +39,105 @@ import { ActionIcon } from "../ui/icons";
 import { parsePinLabel } from "../ui/pin-label";
 import { pluralRu } from "../catalog/format";
 
+type FeedComment = FeedPost["comments"][number];
+const COMMENT_LIKES = "max-events:comment-likes";
+const COMMENT_PARENTS = "max-events:comment-parents";
+
+function readJson(key: string): Record<string, string> {
+  try {
+    if (typeof localStorage === "undefined") return {};
+    const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? "{}");
+    if (parsed === null || typeof parsed !== "object") return {};
+    return parsed as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+function readCommentLikes(): Record<string, true> {
+  const stored = readJson(COMMENT_LIKES);
+  return Object.fromEntries(Object.keys(stored).map((id) => [id, true as const]));
+}
+
+function readCommentParents(): Record<string, string> {
+  return readJson(COMMENT_PARENTS);
+}
+
+function toggleCommentLike(id: string): Record<string, true> {
+  const next = readCommentLikes();
+  if (next[id]) delete next[id];
+  else next[id] = true;
+  const stored = Object.fromEntries(Object.keys(next).map((key) => [key, "1"]));
+  try {
+    localStorage.setItem(COMMENT_LIKES, JSON.stringify(stored));
+  } catch {
+    // The heart still flips for this visit.
+  }
+  return next;
+}
+
+function rememberCommentParent(id: string, parentId: string): Record<string, string> {
+  const next = { ...readCommentParents(), [id]: parentId };
+  try {
+    localStorage.setItem(COMMENT_PARENTS, JSON.stringify(next));
+  } catch {
+    // The reply still shows in the flat list.
+  }
+  return next;
+}
+
+function threadedComments(comments: FeedComment[], parents: Record<string, string>): Array<{ comment: FeedComment; reply: boolean }> {
+  const ids = new Set(comments.map((item) => item.id));
+  const children = new Map<string, FeedComment[]>();
+  const roots: FeedComment[] = [];
+  for (const comment of comments) {
+    const parent = parents[comment.id];
+    if (parent !== undefined && ids.has(parent)) {
+      const list = children.get(parent) ?? [];
+      list.push(comment);
+      children.set(parent, list);
+    } else roots.push(comment);
+  }
+  const ordered: Array<{ comment: FeedComment; reply: boolean }> = [];
+  for (const root of roots) {
+    ordered.push({ comment: root, reply: false });
+    for (const child of children.get(root.id) ?? []) ordered.push({ comment: child, reply: true });
+  }
+  return ordered;
+}
+
+function CommentRow({ item, liked, onLike, onReply, onOpenAuthor }: { item: { comment: FeedComment; reply: boolean }; liked: boolean; onLike: () => void; onReply: () => void; onOpenAuthor?: (userId: string) => void }) {
+  const { comment, reply } = item;
+  return (
+    <li className={reply ? "app-feed-comment app-feed-comment--reply" : "app-feed-comment"}>
+      <div className="app-feed-comment-line">
+        {onOpenAuthor ? (
+          <button type="button" className="app-feed-comment-author" aria-label={`Профиль ${comment.author.name}`} onClick={() => onOpenAuthor(comment.author.id)}>
+            {comment.author.name}
+          </button>
+        ) : (
+          <span className="app-feed-comment-author">{comment.author.name}</span>
+        )}
+        <span>{comment.text}</span>
+        <button type="button" className="app-feed-comment-like" aria-pressed={liked} aria-label="Нравится" onClick={onLike}>
+          <ActionIcon filled={liked} name="heart" size={16} />
+          {liked ? 1 : 0}
+        </button>
+        <button type="button" className="app-feed-comment-reply" onClick={onReply}>
+          Ответить
+        </button>
+      </div>
+    </li>
+  );
+}
+
 interface FeedPostCardProps {
   post: FeedPost;
   eventTitle: string;
   eventCategory?: Event["category"];
   userId: string;
   onToggleLike: () => void;
-  onAddComment: (text: string) => void;
+  onAddComment: (text: string) => void | Promise<FeedPost | void>;
   onOpenEvent?: (eventId: string) => void;
   onOpenMap?: () => void;
   /** Avatar, name, caption and each comment author open this person's profile. */
@@ -67,6 +159,9 @@ export function PostAuthorAvatar({ friend, hasStory = false, size = 36 }: { frie
 export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenEvent, onOpenMap, onOpenAuthor, hasStory = false }: FeedPostCardProps) {
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
+  const [replyTo, setReplyTo] = useState<FeedComment | null>(null);
+  const [likedComments, setLikedComments] = useState<Record<string, true>>(readCommentLikes);
+  const [commentParents, setCommentParents] = useState<Record<string, string>>(readCommentParents);
   const commentRef = useRef<HTMLInputElement | null>(null);
   const eventLink =
     onOpenEvent && post.eventId !== null ? (
@@ -149,29 +244,50 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         </button>
       )}
       <ul className="app-feed-comments">
-        {post.comments.map((item) => (
-          <li key={item.id} className="app-feed-comment">
-            {onOpenAuthor ? (
-              <button type="button" className="app-feed-comment-author" aria-label={`Профиль ${item.author.name}`} onClick={() => onOpenAuthor(item.author.id)}>
-                {item.author.name}
-              </button>
-            ) : (
-              <span className="app-feed-comment-author">{item.author.name}</span>
-            )}{" "}
-            {item.text}
-          </li>
+        {threadedComments(post.comments, commentParents).map((item) => (
+          <CommentRow
+            key={item.comment.id}
+            item={item}
+            liked={likedComments[item.comment.id] === true}
+            onLike={() => setLikedComments(toggleCommentLike(item.comment.id))}
+            onReply={() => {
+              setReplyTo(item.comment);
+              commentRef.current?.focus();
+            }}
+            onOpenAuthor={onOpenAuthor}
+          />
         ))}
       </ul>
+      {replyTo !== null && (
+        <p className="app-feed-replying">
+          Ответ для {replyTo.author.name}
+          <button type="button" className="app-feed-comment-reply" onClick={() => setReplyTo(null)}>
+            Отмена
+          </button>
+        </p>
+      )}
       <form
         className="app-feed-comment-form"
         onSubmit={(event) => {
           event.preventDefault();
-          if (comment.trim() === "") return;
-          onAddComment(comment);
+          const text = comment.trim();
+          if (text === "") return;
+          const before = new Set(post.comments.map((item) => item.id));
+          const parent = replyTo;
+          const result = onAddComment(text);
           setComment("");
+          setReplyTo(null);
+          if (parent !== null && result instanceof Promise) {
+            void result.then((next) => {
+              if (!next) return;
+              const created = next.comments.find((item) => !before.has(item.id));
+              if (!created) return;
+              setCommentParents(rememberCommentParent(created.id, parent.id));
+            });
+          }
         }}
       >
-        <input ref={commentRef} className="app-filters-input" placeholder="Добавить комментарий…" value={comment} onChange={(change) => setComment(change.target.value)} />
+        <input ref={commentRef} className="app-filters-input" placeholder={replyTo === null ? "Добавить комментарий…" : `Ответ для ${replyTo.author.name}`} value={comment} onChange={(change) => setComment(change.target.value)} />
         <AppChip disabled={comment.trim() === ""} type="submit">
           Отправить
         </AppChip>
@@ -235,7 +351,10 @@ export function FeedPostPage({ id }: { id: string }) {
       }}
       onAddComment={(text) => {
         if (userId === "") return;
-        apiClient.addFeedComment(post.id, { userId, text }).then(setPost);
+        return apiClient.addFeedComment(post.id, { userId, text }).then((next) => {
+          setPost(next);
+          return next;
+        });
       }}
       onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })}
       onOpenMap={() => {
@@ -316,7 +435,10 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
   const addComment = useCallback(
     (postId: string, text: string) => {
       if (userId === null) return;
-      apiClient.addFeedComment(postId, { userId, text }).then(update);
+      return apiClient.addFeedComment(postId, { userId, text }).then((next) => {
+        update(next);
+        return next;
+      });
     },
     [userId, update],
   );

@@ -32,7 +32,7 @@ import { getStartParam, getWebApp } from "../max/bridge";
 
 export type Route =
   | { name: "home" }
-  | { name: "search" }
+  | { name: "search"; focus?: boolean }
   | { name: "swipe" }
   | { name: "create" }
   | { name: "map"; pin?: { lat: number; lng: number }; placeId?: string }

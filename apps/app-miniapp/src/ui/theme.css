@@ -2116,6 +2116,48 @@ html[data-theme="dark"] #root {
   font-weight: var(--app-font-weight-title);
 }
 
+.app-feed-comment-line {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.app-feed-comment--reply {
+  margin-left: 28px;
+}
+
+.app-feed-comment-like,
+.app-feed-comment-reply {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 8px;
+}
+
+.app-feed-comment-like[aria-pressed="true"] {
+  color: var(--app-accent);
+}
+
+.app-feed-replying {
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 8px;
+  margin: 0;
+  padding: 0 var(--app-space-screen);
+}
+
 .app-feed-comment-form {
   display: flex;
   gap: var(--app-space-s);
@@ -2407,11 +2449,35 @@ html[data-theme="dark"] #root {
   flex-direction: column;
   font: inherit;
   gap: 6px;
+  justify-content: flex-end;
   margin: var(--app-space-s) var(--app-space-screen) 0;
+  min-height: 148px;
   overflow: hidden;
   padding: var(--app-space-m);
+  position: relative;
   text-align: left;
   width: calc(100% - 2 * var(--app-space-screen));
+}
+
+.app-feed-event-photo {
+  height: 100%;
+  inset: 0;
+  object-fit: cover;
+  position: absolute;
+  width: 100%;
+}
+
+.app-feed-event::after {
+  background: linear-gradient(transparent, rgba(6, 7, 8, 0.72));
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.app-feed-event > span {
+  position: relative;
+  z-index: 1;
 }
 
 .app-feed-event-meta {
@@ -2617,8 +2683,9 @@ html[data-theme="dark"] #root {
 .app-feed-actions {
   align-items: center;
   display: flex;
-  gap: var(--app-space-l);
-  padding: var(--app-space-m) calc(var(--app-space-screen) - var(--app-space-xs)) 0;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: var(--app-space-m) var(--app-space-screen) 0;
 }
 
 .app-feed-count {
@@ -6182,33 +6249,12 @@ html[data-theme="dark"] #root {
 .app-story-bar {
   align-items: flex-start;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   left: 12px;
   position: absolute;
   right: 12px;
   top: 12px;
   z-index: 6;
-}
-
-.app-story-back {
-  align-items: center;
-  background: rgba(6, 7, 8, 0.72);
-  border: none;
-  border-radius: 999px;
-  color: var(--brand-white);
-  cursor: pointer;
-  display: inline-flex;
-  flex: none;
-  font: inherit;
-  font-size: 15px;
-  font-weight: 800;
-  gap: 2px;
-  height: 44px;
-  padding: 0 14px 0 8px;
-}
-
-.app-story-back svg {
-  transform: rotate(180deg);
 }
 
 .app-story-tools {
@@ -6410,10 +6456,10 @@ html[data-theme="dark"] #root {
   color: var(--app-text);
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-m);
+  gap: 8px;
   left: 0;
   max-height: 86dvh;
-  padding: var(--app-space-l) var(--app-space-screen) calc(var(--app-space-l) + env(safe-area-inset-bottom, 0px));
+  padding: 6px var(--app-space-screen) calc(var(--app-space-l) + env(safe-area-inset-bottom, 0px));
   position: absolute;
   right: 0;
 }
@@ -18401,25 +18447,27 @@ button.app-cal-peer-chip {
   padding: 9px 14px;
 }
 
-/* Разделы одного экрана — тот же ряд, что и категории поиска: слова не сжимаются и не переносятся. */
+/* Четыре раздела и короткие действия помещаются целиком: два столбца, слово не обрезается краем. */
 .app-tab-row.app-segments {
   background: transparent;
   border-radius: 0;
   box-sizing: border-box;
-  display: flex;
+  display: grid;
   gap: 8px;
-  margin: 12px calc(-1 * var(--app-space-screen)) 0;
-  overflow-x: auto;
-  padding: 0 var(--app-space-screen) 2px;
-  width: auto;
+  grid-template-columns: 1fr 1fr;
+  margin: 12px 0 0;
+  overflow: visible;
+  padding: 0;
+  width: 100%;
 }
 
 .app-tab-row.app-segments .app-chip {
   font-size: 15px;
   justify-content: center;
   letter-spacing: 0;
-  padding: 8px 14px;
+  padding: 8px 10px;
   white-space: nowrap;
+  width: 100%;
 }
 
 .app-plans .app-card--link {
@@ -20391,15 +20439,34 @@ button.app-cal-peer-chip {
   height: 56px;
 }
 
+.app-story-object > .app-story-caption,
+.app-story-object > .app-story-sticker,
+.app-story-object > .app-story-seats,
+.app-story-object > .app-story-poll {
+  inset: auto;
+  left: auto;
+  max-width: min(240px, 68vw);
+  position: relative;
+  right: auto;
+  top: auto;
+  width: max-content;
+}
+
 .app-story-object > .app-story-caption {
   appearance: none;
   background: transparent;
   border: 0;
   box-shadow: none;
+  min-width: 140px;
   outline: none;
   overflow: hidden;
   resize: none;
   text-align: center;
+}
+
+.app-story-object > textarea.app-story-caption {
+  min-height: 64px;
+  width: 220px;
 }
 
 .app-story-caption--empty {
@@ -20664,11 +20731,12 @@ button.app-story-viewer-author {
 
 .app-plans-quick {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  margin: 12px calc(-1 * var(--app-space-screen)) 4px;
-  overflow-x: auto;
-  padding: 0 var(--app-space-screen);
-  scrollbar-width: none;
+  margin: 12px 0 4px;
+  overflow: visible;
+  padding: 0;
+  width: 100%;
 }
 
 .app-plans-quick button {
@@ -20679,7 +20747,7 @@ button.app-story-viewer-author {
   color: var(--app-text);
   cursor: pointer;
   display: flex;
-  flex: none;
+  flex: 1 1 auto;
   font: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -20838,7 +20906,8 @@ button.app-story-viewer-author {
   background: transparent;
   cursor: grab;
   display: flex;
-  height: 44px;
+  flex: none;
+  height: 20px;
   justify-content: center;
   margin: 0;
   touch-action: none;

@@ -265,7 +265,7 @@ export function Layout({ children }: { children: ReactNode }) {
       {routeHasHeader(route) && (
         <header className="app-header">
           {route.name === "home" ? (
-            <FeedHeader onSearch={() => navigate({ name: "search" })} onNotifications={() => navigate({ name: "notifications" })} />
+            <FeedHeader onSearch={() => navigate({ name: "search", focus: true })} onNotifications={() => navigate({ name: "notifications" })} />
           ) : (
             <>
               <span className="app-header-title">{titleOverride ?? routeTitle(route)}</span>
