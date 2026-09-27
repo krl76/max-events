@@ -22187,8 +22187,8 @@ button.app-story-viewer-author {
 .app-bill-head {
   align-items: center;
   display: flex;
-  gap: 8px;
-  justify-content: space-between;
+  gap: 6px;
+  justify-content: flex-start;
 }
 
 .app-bill-title {
@@ -22859,9 +22859,11 @@ html:not([data-theme="dark"]) .app-root .app-btn--primary {
 html:not([data-theme="dark"]) :is(
   .app-feed-whereto-start,
   .app-feed-going,
-  .app-feed-going--on,
+  .app-feed-chip--slot,
+  .app-feed-slot,
   .app-micro-new,
   .app-story-publish,
+  .app-story-plus,
   .app-post-compose-publish,
   .app-map16-route,
   .app-map16-routebar button,
@@ -22869,8 +22871,71 @@ html:not([data-theme="dark"]) :is(
   .app-post-see-card--on,
   .app-plan-repeat-option--on,
   .app-when-day--on,
-  .app-when-tick--on
+  .app-when-tick--on,
+  .app-gathering-response .app-btn[aria-pressed],
+  .app-gathering-friend[aria-pressed="true"],
+  .app-story-poll-option--on,
+  .app-me-action--primary,
+  .app-ach-next-cta,
+  .app-after-save,
+  .app-lists-create,
+  .app-we-create,
+  .app-we-form-submit,
+  .app-poll-launch,
+  .app-froute-repeat,
+  .app-dayroute-chip,
+  .app-cal-peer-chip--on,
+  .app-cal-cta-main,
+  .app-place-plan,
+  .app-slots-day--on,
+  .app-slots-book,
+  .app-book-action--primary,
+  .app-org-topbar-action,
+  .app-ev-bar-cta,
+  .app-evb-cta:not(.app-evb-cta--booked),
+  .app-evc-gather,
+  .app-evc-pick--on,
+  .app-evc-invite,
+  .app-wt-bar-cta,
+  .app-nb-plan,
+  .app-follower-act,
+  .app-today-cal-day--on,
+  .app-today-cal-today
 ) {
   background: var(--app-gradient-dark);
   color: #ffffff;
+}
+
+html:not([data-theme="dark"]) :is(
+  .app-feed-going:active,
+  .app-post-compose-publish:active:not(:disabled),
+  .app-evb-cta:hover:not(:disabled):not(.app-evb-cta--booked),
+  .app-evb-cta:active:not(:disabled):not(.app-evb-cta--booked),
+  .app-ev-bar-cta:hover,
+  .app-ev-bar-cta:active,
+  .app-ach-next-cta:active,
+  .app-notify-act--confirm:active
+) {
+  background: var(--app-gradient-dark);
+  color: #ffffff;
+}
+
+.app-today-date--icon {
+  border-radius: 10px;
+  flex: none;
+  height: 32px;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0;
+  width: 32px;
+}
+
+.app-search .app-today-cal {
+  left: 16px;
+  max-height: calc(100dvh - 148px);
+  overflow: auto;
+  position: fixed;
+  right: 16px;
+  top: 72px;
+  width: auto;
 }

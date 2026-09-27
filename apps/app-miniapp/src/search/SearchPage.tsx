@@ -464,26 +464,17 @@ function BillStack({ photos, count }: { photos: string[]; count: number }) {
 }
 
 export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] }) {
-  const [fold, setFold] = useState<null | "today" | "hot">(null);
+  const [fold, setFold] = useState<"today" | "hot">("hot");
   const inCity = props.distancesFromViewer !== false;
   const todayCards = props.state.status === "ready" ? props.state.cards : [];
   const hotCards = [...(props.popular ?? [])].sort((left, right) => (right.rating ?? 0) - (left.rating ?? 0) || (right.event.bookedCount ?? 0) - (left.event.bookedCount ?? 0)).slice(0, 12);
-  const openFold = (next: "today" | "hot") => setFold((current) => (current === next ? null : next));
+  const openFold = (next: "today" | "hot") => setFold(next);
   const shown = fold === "today" ? todayCards : fold === "hot" ? hotCards : [];
   return (
     <div className="app-search">
       <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} onPickRecent={props.onPickRecent} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
       <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
       <div className="app-bills">
-        <section className={fold === "today" ? "app-bill app-bill--open" : "app-bill"}>
-          <button type="button" className="app-bill-title" aria-expanded={fold === "today"} onClick={() => openFold("today")}>
-            Афиша сегодня
-          </button>
-          <SearchDayButton day={props.day} now={props.now} onDay={props.onDay} />
-          <button type="button" className="app-bill-open" aria-label="Открыть афишу на выбранный день" onClick={() => openFold("today")}>
-            <BillStack photos={billPhotos(todayCards)} count={todayCards.length} />
-          </button>
-        </section>
         <section className={fold === "hot" ? "app-bill app-bill--open" : "app-bill"}>
           <button type="button" className="app-bill-title" aria-expanded={fold === "hot"} onClick={() => openFold("hot")}>
             Популярное
@@ -492,12 +483,21 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
             <BillStack photos={billPhotos(hotCards)} count={hotCards.length} />
           </button>
         </section>
+        <section className={fold === "today" ? "app-bill app-bill--open" : "app-bill"}>
+          <div className="app-bill-head">
+            <button type="button" className="app-bill-title" aria-expanded={fold === "today"} onClick={() => openFold("today")}>
+              Афиша
+            </button>
+            <SearchDayButton day={props.day} now={props.now} onDay={props.onDay} iconOnly />
+          </div>
+          <button type="button" className="app-bill-open" aria-label="Открыть афишу на выбранный день" onClick={() => openFold("today")}>
+            <BillStack photos={billPhotos(todayCards)} count={todayCards.length} />
+          </button>
+        </section>
       </div>
-      {fold !== null && (
-        <div className="app-search-feed" aria-label={fold === "today" ? "Афиша сегодня" : "Популярное"}>
+      <div className="app-search-feed" aria-label={fold === "today" ? "Афиша" : "Популярное"}>
           {shown.length === 0 ? <p className="app-today-quiet">В этом разделе пока пусто.</p> : shown.map((card) => <EventPoster key={card.event.id} card={card} onOpen={props.onOpenEvent} />)}
         </div>
-      )}
     </div>
   );
 }

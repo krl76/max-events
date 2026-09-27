@@ -136,7 +136,7 @@ export function DayCalendar({ month, selected, today, onPick, onShift, onToday }
   );
 }
 
-export function SearchDayButton({ day, now, onDay }: { day: string; now: Date; onDay: (day: string) => void }) {
+export function SearchDayButton({ day, now, onDay, iconOnly = false }: { day: string; now: Date; onDay: (day: string) => void; iconOnly?: boolean }) {
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(() => new Date(`${day}T12:00:00`));
   const root = useRef<HTMLDivElement>(null);
@@ -160,16 +160,17 @@ export function SearchDayButton({ day, now, onDay }: { day: string; now: Date; o
     <div className="app-today-date-wrap" ref={root}>
       <button
         type="button"
-        className="app-today-date"
+        className={iconOnly ? "app-today-date app-today-date--icon" : "app-today-date"}
         aria-expanded={open}
         aria-haspopup="dialog"
+        aria-label={iconOnly ? `Дата афиши: ${formatTodayDate(shown)}` : undefined}
         onClick={() => {
           setCursor(shown);
           setOpen((current) => !current);
         }}
       >
         <ActionIcon name="calendar" size={16} />
-        <span>{formatTodayDate(shown)}</span>
+        {iconOnly ? null : <span>{formatTodayDate(shown)}</span>}
       </button>
       {open && (
         <DayCalendar
