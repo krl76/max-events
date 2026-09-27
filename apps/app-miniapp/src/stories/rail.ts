@@ -100,8 +100,8 @@ export function storyRail(friends: readonly Friend[], stories: readonly Story[],
   const unseenCount = (items: Story[]) => items.filter((item) => !seenIds.has(item.id)).length;
   const own = myId === null ? [] : stories.filter((item) => item.userId === myId).sort(byAge);
   const authors = friends.map((friend) => ({ friend, items: stories.filter((item) => item.userId === friend.id).sort(byAge) })).filter((author) => author.items.length > 0);
-  // Непросмотренные вперёд: иначе единственное горящее кольцо уезжает за правый край рельса.
-  const ordered = [...authors.filter((author) => anyUnseen(author.items)), ...authors.filter((author) => !anyUnseen(author.items))];
+  // Порядок друзей не прыгает после просмотра: полосу листают, а не ждут, пока кто-то выедет в начало.
+  const ordered = authors;
 
   const groups: StoryGroup[] = own.length > 0 ? [{ authorName: "Вы", stories: own }] : [];
   const tiles = ordered.map((author) => {

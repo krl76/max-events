@@ -33,21 +33,21 @@ import { useProfileCityPoint } from "../geo/profile-city";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { eventFillLabel, pictured } from "../ui/photos";
-import { AppEmptyState, AppMedia, AppSkeleton, AppSkeletonList, AppState } from "../ui/primitives";
+import { AppEmptyState, AppMedia, AppState } from "../ui/primitives";
 
 export const COMPANY_LABELS: Record<WheretoCompany, string> = { alone: "Я один", friends: "С друзьями", partner: "С парой", kids: "С детьми" };
 
-export const MOOD_LABELS: Record<WheretoMood, string> = { active: "Активно", calm: "Спокойно", unusual: "Необычно" };
+export const MOOD_LABELS: Record<WheretoMood, string> = { active: "Событие", calm: "Прогулка", unusual: "Прогулка и событие" };
 
-/** The second line of a mood option; only this question carries one in the design. */
-export const MOOD_HINTS: Record<WheretoMood, string> = { active: "спорт, танцы, что-то с движением", calm: "разговоры, еда, музыка фоном", unusual: "то, чего вы ещё не пробовали" };
+/** What the evening is made of. The API still stores it as the mood field. */
+export const MOOD_HINTS: Record<WheretoMood, string> = { active: "концерт, спорт, выставка", calm: "парк, набережная, двор", unusual: "сначала пройтись, потом событие" };
 
 export const BUDGET_LABELS: Record<WheretoBudget, string> = { free: "Бесплатно", under_3000: "До 3000 ₽", any: "Любой" };
 
 /** The three questions in order: the heading over the options, the topic the «— следующий вопрос» preview names, and the label of the answered summary. */
 export const WHERETO_QUESTIONS = [
   { heading: "С кем идёте?", topic: "Компания", summary: "С кем идёте" },
-  { heading: "Какое настроение?", topic: "Настроение", summary: "Настроение" },
+  { heading: "Что в вечере?", topic: "Вечер", summary: "Вечер" },
   { heading: "Какой бюджет?", topic: "Бюджет", summary: "Бюджет" },
 ] as const;
 
@@ -60,6 +60,19 @@ export interface WheretoAnswers {
   company: WheretoCompany | null;
   mood: WheretoMood | null;
   budget: WheretoBudget | null;
+  /** Typed rubles. The request still uses the nearest budget band. */
+  budgetRub: number | null;
+}
+
+/** A typed sum becomes the nearest band the catalog understands. */
+export function budgetFromRub(raw: string): { budget: WheretoBudget; rub: number } | null {
+  const digits = raw.replace(/\D/g, "");
+  if (digits === "") return null;
+  const rub = Number(digits);
+  if (!Number.isFinite(rub)) return null;
+  if (rub <= 0) return { budget: "free", rub: 0 };
+  if (rub <= 3000) return { budget: "under_3000", rub };
+  return { budget: "any", rub };
 }
 
 /** Where the wizard stands. The answers live beside it, not inside it: «Изменить» reopens one question without losing the other two. */
@@ -83,7 +96,7 @@ export function answeredRows(answers: WheretoAnswers, at: number): Array<{ at: n
   const rows: Array<{ at: number; label: string; value: string }> = [];
   if (at > 0 && answers.company !== null) rows.push({ at: 0, label: WHERETO_QUESTIONS[0].summary, value: COMPANY_LABELS[answers.company] });
   if (at > 1 && answers.mood !== null) rows.push({ at: 1, label: WHERETO_QUESTIONS[1].summary, value: MOOD_LABELS[answers.mood] });
-  if (at > 2 && answers.budget !== null) rows.push({ at: 2, label: WHERETO_QUESTIONS[2].summary, value: BUDGET_LABELS[answers.budget] });
+  if (at > 2 && answers.budget !== null) rows.push({ at: 2, label: WHERETO_QUESTIONS[2].summary, value: answers.budgetRub !== null && answers.budgetRub > 0 ? `${answers.budgetRub.toLocaleString("ru-RU")} ₽` : BUDGET_LABELS[answers.budget] });
   return rows;
 }
 
@@ -166,7 +179,7 @@ function Progress({ at }: { at: number }) {
 function QuestionScreen({ at, answers, onPick, onStep, onNext }: { at: number; answers: WheretoAnswers } & Pick<WheretoViewProps, "onPick" | "onStep" | "onNext">) {
   const question = WHERETO_QUESTIONS[at];
   const next = WHERETO_QUESTIONS[at + 1];
-  const options = at === 0 ? COMPANY_ORDER.map((value) => ({ value, label: COMPANY_LABELS[value], hint: null, on: answers.company === value, pick: () => onPick({ ...answers, company: value }) })) : at === 1 ? MOOD_ORDER.map((value) => ({ value, label: MOOD_LABELS[value], hint: MOOD_HINTS[value], on: answers.mood === value, pick: () => onPick({ ...answers, mood: value }) })) : BUDGET_ORDER.map((value) => ({ value, label: BUDGET_LABELS[value], hint: null, on: answers.budget === value, pick: () => onPick({ ...answers, budget: value }) }));
+  const options = at === 0 ? COMPANY_ORDER.map((value) => ({ value, label: COMPANY_LABELS[value], hint: null, on: answers.company === value, pick: () => onPick({ ...answers, company: value }) })) : at === 1 ? MOOD_ORDER.map((value) => ({ value, label: MOOD_LABELS[value], hint: MOOD_HINTS[value], on: answers.mood === value, pick: () => onPick({ ...answers, mood: value }) })) : BUDGET_ORDER.map((value) => ({ value, label: BUDGET_LABELS[value], hint: null, on: answers.budget === value && answers.budgetRub === null, pick: () => onPick({ ...answers, budget: value, budgetRub: null }) }));
   const chosen = options.some((option) => option.on);
 
   return (
@@ -204,7 +217,21 @@ function QuestionScreen({ at, answers, onPick, onStep, onNext }: { at: number; a
           <span className="app-wt-next-text">{next.topic} — следующий вопрос</span>
         </div>
       )}
-      <p className="app-whereto-hint">Подбор работает по правилам: время, расстояние и цена. Вкусы и история посещений не учитываются.</p>
+      {at === 2 && (
+        <label className="app-wt-budget">
+          <span>Своя сумма</span>
+          <input
+            inputMode="numeric"
+            aria-label="Свой бюджет"
+            placeholder="Например 1500"
+            value={answers.budgetRub ?? ""}
+            onChange={(change) => {
+              const parsed = budgetFromRub(change.target.value);
+              onPick(parsed === null ? { ...answers, budget: null, budgetRub: null } : { ...answers, budget: parsed.budget, budgetRub: parsed.rub });
+            }}
+          />
+        </label>
+      )}
       <div className="app-wt-bar">
         <button type="button" className="app-wt-bar-cta" disabled={!chosen} onClick={onNext}>
           {next === undefined ? "Показать варианты" : "Дальше"}
@@ -230,9 +257,15 @@ function ResultScreen({ query, result, now, onStep, onRestart, onRetry, onOpenEv
         </button>
       </div>
       {result.status === "loading" && (
-        <div className="app-wt-loading">
-          <AppSkeleton variant="block" className="app-wt-hero-skeleton" />
-          <AppSkeletonList rows={3} />
+        <div className="app-wt-assemble" role="status" aria-label="Собираем вечер">
+          <p className="app-ai-seek">
+            <span className="app-ai-seek-word">Собираем вечер</span>
+          </p>
+          <ol className="app-wt-path">
+            <li>Прогулка по городу</li>
+            <li>Точка, где остановиться</li>
+            <li>Событие на вечер</li>
+          </ol>
         </div>
       )}
       {result.status === "error" && (
@@ -241,6 +274,7 @@ function ResultScreen({ query, result, now, onStep, onRestart, onRetry, onOpenEv
         </AppState>
       )}
       {result.status === "ready" && items.length === 0 && <AppEmptyState kind="empty-match" onAction={() => onStep(2)} onSecondaryAction={onRestart} />}
+      {(query.mood === "calm" || query.mood === "unusual") && items.length > 0 && <p className="app-wt-walk">Сначала прогулка по городу, потом событие.</p>}
       {hero !== undefined && (
         <button type="button" className="app-wt-hero" onClick={() => onOpenEvent(hero.id)}>
           <AppMedia category={hero.category} src={pictured(hero.id, hero.coverUrl)} />
@@ -286,7 +320,7 @@ export function WheretoView({ state, answers, result, now = new Date(), onPick, 
   );
 }
 
-const NO_ANSWERS: WheretoAnswers = { company: null, mood: null, budget: null };
+const NO_ANSWERS: WheretoAnswers = { company: null, mood: null, budget: null, budgetRub: null };
 
 export function WheretoPage() {
   const { navigate, back } = useRoute();

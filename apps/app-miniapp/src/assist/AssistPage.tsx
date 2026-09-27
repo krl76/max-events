@@ -207,7 +207,11 @@ export function AssistPageView({ thread, draft, state, lastQuestion, onDraft, on
             )}
           </div>
         ))}
-        {state.status === "loading" && <AppState>MAX подбирает…</AppState>}
+        {state.status === "loading" && (
+          <p className="app-ai-seek" role="status">
+            <span className="app-ai-seek-word">Подбираем</span>
+          </p>
+        )}
         {state.status === "error" && <AppState error>{state.message}</AppState>}
         {answered && lastQuestion !== null && state.status !== "loading" && (
           <div className="app-assist-actions">

@@ -159,7 +159,11 @@ export function BrowseView({ list, query, date, state, inCity, onOpen, onBack, o
       {state.status === "ready" && state.cards.length === 0 && (
         <>
           <AppState>{browseEmptyCopy(list, query)}</AppState>
-          {state.suggesting && <p className="app-today-quiet">MAX ищет похожее…</p>}
+          {state.suggesting && (
+            <p className="app-ai-seek" role="status">
+              <span className="app-ai-seek-word">Подбираем похожее</span>
+            </p>
+          )}
           {state.suggestions.length > 0 && (
             <div className="app-browse-similar">
               <h2 className="app-browse-similar-title">Похожее</h2>

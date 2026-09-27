@@ -97,11 +97,25 @@ export function StoryViewer({ groups, startGroup = 0, onView, onClose }: { group
     const prev = prevPosition(flat);
     if (prev !== null) setFlat(prev);
   };
+  const [paused, setPaused] = useState(false);
+  const remain = useRef(STORY_DURATION_MS);
+  const pressedAt = useRef(0);
+  const held = useRef(false);
 
   useEffect(() => {
-    const timer = setTimeout(goNext, STORY_DURATION_MS);
-    return () => clearTimeout(timer);
-  });
+    remain.current = STORY_DURATION_MS;
+    setPaused(false);
+  }, [flat]);
+
+  useEffect(() => {
+    if (paused || current === undefined) return;
+    const started = Date.now();
+    const timer = setTimeout(goNext, remain.current);
+    return () => {
+      remain.current = Math.max(0, remain.current - (Date.now() - started));
+      clearTimeout(timer);
+    };
+  }, [paused, flat, current?.story.id]);
 
   // Просмотр засчитывается по показу, а не по открытию просмотрщика: иначе кольцо гасло бы у
   // историй, до которых автор не долистал. Колбэк живёт в ref: он приходит из рельса, который сам
@@ -135,7 +149,21 @@ export function StoryViewer({ groups, startGroup = 0, onView, onClose }: { group
   const segmentsStyle = { "--app-story-duration": `${STORY_DURATION_MS}ms` } as CSSProperties;
 
   return (
-    <div className="app-story-viewer" role="dialog" aria-label={`История: ${current.authorName}`}>
+    <div
+      className={paused ? "app-story-viewer app-story-viewer--paused" : "app-story-viewer"}
+      role="dialog"
+      aria-label={`История: ${current.authorName}`}
+      onPointerDown={() => {
+        pressedAt.current = Date.now();
+        held.current = false;
+        setPaused(true);
+      }}
+      onPointerUp={() => {
+        if (Date.now() - pressedAt.current > 220) held.current = true;
+        setPaused(false);
+      }}
+      onPointerCancel={() => setPaused(false)}
+    >
       <StoryFrame key={current.story.id} story={shownStory} friends={friends} onOpenEvent={(eventId) => eventId !== "" && navigate({ name: "event", id: eventId })} onOpenUser={(userId) => navigate({ name: "user", id: userId })} onVote={vote} />
       <div className="app-story-viewer-top">
         <div className="app-story-viewer-segments" style={segmentsStyle}>
@@ -153,8 +181,8 @@ export function StoryViewer({ groups, startGroup = 0, onView, onClose }: { group
           </button>
         </div>
       </div>
-      <button type="button" className="app-story-viewer-tap app-story-viewer-tap--left" aria-label="Предыдущая история" onClick={goPrev} />
-      <button type="button" className="app-story-viewer-tap app-story-viewer-tap--right" aria-label="Следующая история" onClick={goNext} />
+      <button type="button" className="app-story-viewer-tap app-story-viewer-tap--left" aria-label="Предыдущая история" onClick={() => { if (held.current) { held.current = false; return; } goPrev(); }} />
+      <button type="button" className="app-story-viewer-tap app-story-viewer-tap--right" aria-label="Следующая история" onClick={() => { if (held.current) { held.current = false; return; } goNext(); }} />
     </div>
   );
 }
