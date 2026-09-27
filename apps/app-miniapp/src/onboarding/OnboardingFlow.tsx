@@ -15,12 +15,12 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { FriendSuggestion } from "../api/client";
 import { apiClient } from "../api/client";
 import { AfishaWordmark } from "../auth/EntryPage";
-import { useViewerOrigin } from "../geo/viewer-origin";
 import { useSwipeDrag } from "../ui/gestures";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppChip, AppState } from "../ui/primitives";
 import { PROFILE_BIO_MAX } from "@max-events/api-contracts";
-import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, bioCtaLabel, cityDetectionHint, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, markOnboardingDone, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type IntroDirection, type OnboardingStep } from "./onboarding";
+import { useViewerOrigin, requestViewerOrigin } from "../geo/viewer-origin";
+import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, bioCtaLabel, cityCardMeta, cityDetectionHint, cityForwardBlock, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, markOnboardingDone, matchedOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type CityDetectState, type IntroDirection, type OnboardingStep } from "./onboarding";
 
 const RAIL_LABELS = ["Город", "Друзья", "Интересы", "О себе"] as const;
 
@@ -36,8 +36,10 @@ export interface OnboardingViewProps {
   intro: number;
   /** The side the intro copy enters from; the container derives it from the slide it came from. Forward when absent. */
   introDirection?: IntroDirection;
-  city: string;
-  citySource: "geo" | "fallback";
+  city: string | null;
+  cityDetect: CityDetectState;
+  /** True once the viewer tapped a city. The card must not keep saying the fix chose it. */
+  cityPicked: boolean;
   suggestions: FriendSuggestion[];
   followed: string[];
   interests: string[];
@@ -49,6 +51,7 @@ export interface OnboardingViewProps {
   onIntro: (index: number) => void;
   onSkipIntro: () => void;
   onCity: (city: string) => void;
+  onLocate: () => void;
   onToggleFriend: (userId: string) => void;
   onToggleInterest: (interest: string) => void;
   onBio: (bio: string) => void;
@@ -119,12 +122,13 @@ function IntroStep({ intro, introDirection: direction = "forward", onIntro, onSk
   );
 }
 
-function CityStep({ city, citySource, onCity, onNext }: Pick<OnboardingViewProps, "city" | "citySource" | "onCity" | "onNext">) {
+function CityStep({ city, cityDetect, cityPicked, onCity, onLocate, onNext }: Pick<OnboardingViewProps, "city" | "cityDetect" | "cityPicked" | "onCity" | "onLocate" | "onNext">) {
+  const name = city ?? (cityDetect === "pending" ? "Определяем…" : "Не выбран");
   return (
     <>
       <header className="app-onboarding-head">
         <h1 className="app-onboarding-title">Твой город</h1>
-        <p className="app-onboarding-lead">{cityDetectionHint(citySource)}</p>
+        <p className="app-onboarding-lead">{cityDetectionHint(cityDetect)}</p>
       </header>
       <div className="app-onboarding-body">
         <div className="app-onboarding-city-card">
@@ -132,11 +136,14 @@ function CityStep({ city, citySource, onCity, onNext }: Pick<OnboardingViewProps
             <ActionIcon name="pin" size={22} strokeWidth={2} />
           </span>
           <span className="app-onboarding-city-text">
-            <span className="app-onboarding-city-name">{city}</span>
-            <span className="app-onboarding-city-meta">Рядом с тобой</span>
+            <span className="app-onboarding-city-name">{name}</span>
+            <span className="app-onboarding-city-meta">{cityCardMeta(cityDetect, cityPicked)}</span>
           </span>
           <span className="app-onboarding-city-live" aria-hidden="true" />
         </div>
+        <AppButton className="app-onboarding-locate" tone="secondary" stretched onClick={onLocate}>
+          Определить по геолокации
+        </AppButton>
         <ul className="app-onboarding-city-list">
           {ONBOARDING_CITIES.map((option) => (
             <li key={option.name}>
@@ -291,7 +298,7 @@ export function OnboardingView(props: OnboardingViewProps) {
   if (props.status === "error") return <AppState error>Не удалось загрузить данные онбординга.</AppState>;
   return stage(
     <StepShell step={props.step} onBack={props.onBack}>
-      {props.step === "city" ? <CityStep city={props.city} citySource={props.citySource} onCity={props.onCity} onNext={props.onNext} /> : props.step === "friends" ? <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} /> : props.step === "interests" ? <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} /> : <BioStep bio={props.bio} saveFailed={props.saveFailed} onBio={props.onBio} onNext={props.onNext} />}
+      {props.step === "city" ? <CityStep city={props.city} cityDetect={props.cityDetect} cityPicked={props.cityPicked} onCity={props.onCity} onLocate={props.onLocate} onNext={props.onNext} /> : props.step === "friends" ? <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} /> : props.step === "interests" ? <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} /> : <BioStep bio={props.bio} saveFailed={props.saveFailed} onBio={props.onBio} onNext={props.onNext} />}
     </StepShell>,
   );
 }
@@ -335,10 +342,11 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
     };
   }, []);
 
-  // Геолокация приходит позже профиля, поэтому город — производная, а не состояние: явный выбор
-  // пользователя побеждает всегда, иначе побеждает геопозиция, и только потом — город из профиля.
-  const detected = useMemo(() => (origin.source === "geo" ? nearestOnboardingCity(origin.latitude, origin.longitude).name : null), [origin]);
-  const city = picked ?? detected ?? loaded?.city ?? ONBOARDING_CITIES[0].name;
+  // Город профиля при создании — всегда «Москва», поэтому он не подставляется. Явный тап побеждает.
+  // Геопозиция выбирает город, только если точка реально рядом с ним, а не «ближайший из пяти» за тысячу километров.
+  const cityDetect: CityDetectState = origin.state === "pending" ? "pending" : origin.source !== "geo" ? "denied" : matchedOnboardingCity(origin.latitude, origin.longitude) === null ? "outside" : "matched";
+  const detected = useMemo(() => (origin.source === "geo" ? (matchedOnboardingCity(origin.latitude, origin.longitude)?.name ?? null) : null), [origin]);
+  const city = picked ?? detected;
   // Обновления идут функционально: пока выбор не тронут, его база — загруженные данные, и два
   // быстрых тапа подряд не должны считаться от одного и того же снимка.
   const seededFollows = loaded?.suggestions.filter((item) => item.followed).map((item) => item.friend.id) ?? [];
@@ -386,7 +394,20 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
     setBlocked(null);
     if (step === "intro") {
       if (intro < INTRO_SLIDES.length - 1) goIntro(intro + 1);
-      else setStep("city");
+      else {
+        // Повторный запрос из жеста: в iframe мини-приложения браузер часто молчит на вызов без тапа.
+        requestViewerOrigin();
+        setStep("city");
+      }
+      return;
+    }
+    if (step === "city") {
+      const cityBlock = cityForwardBlock(city, cityDetect);
+      if (cityBlock !== null || city === null) {
+        setBlocked(cityBlock ?? "Выбери город из списка");
+        return;
+      }
+      save(apiClient.updateProfile({ city }));
       return;
     }
     if (step === "friends") {
@@ -401,7 +422,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
       return;
     }
     if (step === "interests") {
-      save(apiClient.updateProfile({ city, interests: currentInterests }));
+      save(apiClient.updateProfile(city === null ? { interests: currentInterests } : { city, interests: currentInterests }));
       return;
     }
     if (step === "bio") {
@@ -417,5 +438,36 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
     setInterests((current) => toggle(current ?? loaded?.interests ?? [], interest));
   }
 
-  return <OnboardingView step={step} intro={intro} introDirection={slideDirection} city={city} citySource={origin.source} suggestions={loaded?.suggestions ?? []} followed={currentFollowed} interests={currentInterests} bio={currentBio} status={failed ? "error" : loaded === null ? "loading" : "ready"} saveFailed={saveFailed} blocked={blocked} onIntro={goIntro} onSkipIntro={() => setStep("city")} onCity={setPicked} onToggleFriend={(userId) => setFollowed((current) => toggle(current ?? seededFollows, userId))} onToggleInterest={onToggleInterest} onBio={setBio} onNext={onNext} onBack={onBack} />;
+  return (
+    <OnboardingView
+      step={step}
+      intro={intro}
+      introDirection={slideDirection}
+      city={city}
+      cityDetect={cityDetect}
+      cityPicked={picked !== null}
+      suggestions={loaded?.suggestions ?? []}
+      followed={currentFollowed}
+      interests={currentInterests}
+      bio={currentBio}
+      status={failed ? "error" : loaded === null ? "loading" : "ready"}
+      saveFailed={saveFailed}
+      blocked={blocked}
+      onIntro={goIntro}
+      onSkipIntro={() => {
+        requestViewerOrigin();
+        setStep("city");
+      }}
+      onCity={setPicked}
+      onLocate={() => {
+        setPicked(null);
+        requestViewerOrigin();
+      }}
+      onToggleFriend={(userId) => setFollowed((current) => toggle(current ?? seededFollows, userId))}
+      onToggleInterest={onToggleInterest}
+      onBio={setBio}
+      onNext={onNext}
+      onBack={onBack}
+    />
+  );
 }

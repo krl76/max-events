@@ -76,31 +76,61 @@ export function browsedCityOrigin(origin: { latitude: number; longitude: number 
   return { latitude: city.latitude, longitude: city.longitude, fromViewer: false };
 }
 
-export function useViewerOrigin(): ViewerOrigin {
-  const [origin, setOrigin] = useState<ViewerOrigin>(() => cityFallback("pending"));
-  useEffect(() => {
+// Не вычислять на импорте: MOSCOW_CENTER приходит из MapScreen, а тот импортирует этот модуль.
+let currentOrigin: ViewerOrigin | null = null;
+const originListeners = new Set<(origin: ViewerOrigin) => void>();
+
+function readOrigin(): ViewerOrigin {
+  currentOrigin ??= cityFallback("pending");
+  return currentOrigin;
+}
+
+function publishOrigin(next: ViewerOrigin): void {
+  currentOrigin = next;
+  originListeners.forEach((listener) => listener(next));
+}
+
+/**
+ * A fresh fix. Called on mount and again from a tap: a cross-origin mini-app often may ask for
+ * geolocation only while the click is still the user gesture, and a cached position must not
+ * pretend to be today's city.
+ */
+export function requestViewerOrigin(): Promise<ViewerOrigin> {
+  return new Promise((resolve) => {
+    const finish = (next: ViewerOrigin) => {
+      publishOrigin(next);
+      resolve(next);
+    };
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setOrigin(viewerOriginFrom(null));
+      finish(viewerOriginFrom(null));
       return;
     }
-    let alive = true;
+    if (readOrigin().state !== "pending") publishOrigin({ ...readOrigin(), state: "pending" });
     try {
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          if (alive) setOrigin(viewerOriginFrom(pos.coords));
-        },
-        () => {
-          if (alive) setOrigin(viewerOriginFrom(null));
-        },
-        { enableHighAccuracy: false, maximumAge: 120_000, timeout: 8_000 },
+        (pos) => finish(viewerOriginFrom(pos.coords)),
+        () => finish(viewerOriginFrom(null)),
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
       );
     } catch {
       // Часть webview бросает синхронно вместо вызова колбэка ошибки; для экрана это тот же отказ.
-      setOrigin(viewerOriginFrom(null));
+      finish(viewerOriginFrom(null));
     }
+  });
+}
+
+export function useViewerOrigin(): ViewerOrigin {
+  const [origin, setOrigin] = useState<ViewerOrigin>(readOrigin);
+  useEffect(() => {
+    originListeners.add(setOrigin);
+    setOrigin(readOrigin());
     return () => {
-      alive = false;
+      originListeners.delete(setOrigin);
     };
+  }, []);
+  useEffect(() => {
+    // A later screen must not throw away a fix the onboarding tap already earned.
+    if (readOrigin().state === "pending") requestViewerOrigin();
   }, []);
   return origin;
 }

@@ -125,9 +125,45 @@ export function nearestOnboardingCity(latitude: number, longitude: number): Onbo
   return nearest;
 }
 
-/** The макет line claims a detection; without a real fix the screen must not claim it. */
-export function cityDetectionHint(source: "geo" | "fallback"): string {
-  return source === "geo" ? "Определили по геолокации. Можно поменять в любой момент." : "Геолокация недоступна — выбери город сам. Можно поменять в любой момент.";
+/** A fix this far from every listed city is not that city. Moscow is not a default for the rest of the country. */
+export const CITY_MATCH_KM = 80;
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/** The listed city the viewer is actually standing in, or null when the fix is outside all of them. */
+export function matchedOnboardingCity(latitude: number, longitude: number): OnboardingCity | null {
+  const nearest = nearestOnboardingCity(latitude, longitude);
+  return haversineKm(latitude, longitude, nearest.latitude, nearest.longitude) <= CITY_MATCH_KM ? nearest : null;
+}
+
+export type CityDetectState = "pending" | "matched" | "outside" | "denied";
+
+/** The макет line claims a detection only after a fix landed inside a listed city. */
+export function cityDetectionHint(state: CityDetectState): string {
+  if (state === "pending") return "Смотрим геолокацию…";
+  if (state === "matched") return "Определили по геолокации. Можно поменять в любой момент.";
+  if (state === "outside") return "Геолокация есть, но ты не рядом ни с одним городом из списка. Выбери свой.";
+  return "Геолокация недоступна — выбери город сам. Можно поменять в любой момент.";
+}
+
+export function cityCardMeta(state: CityDetectState, picked: boolean): string {
+  if (picked) return "Твой выбор";
+  if (state === "matched") return "Рядом с тобой";
+  if (state === "pending") return "Ждём ответ браузера";
+  return "Выбери из списка";
+}
+
+/** Null city does not leave the step: a seeded «Москва» must not be saved in place of a real check. */
+export function cityForwardBlock(city: string | null, state: CityDetectState): string | null {
+  if (city !== null) return null;
+  if (state === "pending") return "Ждём геолокацию. Можно выбрать город из списка, не дожидаясь.";
+  return "Выбери город из списка";
 }
 
 export const ONBOARDING_INTERESTS: readonly string[] = ["Концерты", "Спорт", "На природе", "Волонтёрство", "С детьми", "Еда и рынки", "Театр", "Лекции", "Настолки", "Выставки", "Йога", "Ночная жизнь"];

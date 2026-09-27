@@ -3922,6 +3922,10 @@ html[data-theme="dark"] #root {
   padding: var(--app-space-l);
 }
 
+.app-onboarding-locate {
+  margin-bottom: var(--app-space-l);
+}
+
 .app-onboarding-city-icon {
   align-items: center;
   background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-hover));
@@ -7657,6 +7661,21 @@ button.app-me-avatar-ring {
   height: 36px;
   margin: 0 0 var(--app-space-m);
   padding: 0 14px;
+}
+
+.app-set-locate {
+  background: var(--app-surface);
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  margin: 0 0 var(--app-space-m);
+  min-height: 44px;
+  padding: 0 14px;
+  width: 100%;
 }
 
 .app-set-error {

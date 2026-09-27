@@ -42,7 +42,8 @@ import { readFeedPhoto } from "../feed/photo";
 import { PersonAvatar } from "../friends/avatar";
 import { getWebApp } from "../max/bridge";
 import { friendHandle } from "../ui/friend-handle";
-import { ONBOARDING_CITIES, ONBOARDING_INTERESTS } from "../onboarding/onboarding";
+import { requestViewerOrigin } from "../geo/viewer-origin";
+import { matchedOnboardingCity, ONBOARDING_CITIES, ONBOARDING_INTERESTS } from "../onboarding/onboarding";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppSkeleton, AppState } from "../ui/primitives";
@@ -192,7 +193,10 @@ export function CloseFriendsDialog({ closeFriends, followers, loading = false, o
   const sheet = useRef<HTMLDivElement | null>(null);
   const search = useRef<HTMLInputElement | null>(null);
   const rows = closeFriendRows(closeFriends, followers);
-  const shown = filterCloseFriends(rows.map((row) => row.person), query);
+  const shown = filterCloseFriends(
+    rows.map((row) => row.person),
+    query,
+  );
   const shownIds = new Set(shown.map((person) => person.id));
   const visible = rows.filter((row) => shownIds.has(row.person.id));
 
@@ -300,6 +304,7 @@ export interface SettingsViewProps {
 export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable, onPickCover, onResetCover, onResetAvatar, closeFriends, followers, onToggleClose }: SettingsViewProps) {
   const [picker, setPicker] = useState<PickerName>(null);
   const [closeOpen, setCloseOpen] = useState(false);
+  const [locateNote, setLocateNote] = useState<string | null>(null);
   const open = (name: Exclude<PickerName, null>) => setPicker((current) => (current === name ? null : name));
 
   return (
@@ -317,14 +322,45 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
       {picker === "identity" && (
         <>
           <p className="app-set-note">Имя и телефон — из профиля MAX. Аватар меняется нажатием на фото в профиле.</p>
-          {onResetAvatar !== undefined && <button type="button" className="app-set-reset" onClick={onResetAvatar}>Вернуть фото MAX</button>}
+          {onResetAvatar !== undefined && (
+            <button type="button" className="app-set-reset" onClick={onResetAvatar}>
+              Вернуть фото MAX
+            </button>
+          )}
         </>
       )}
       {failed && <p className="app-set-error">Не удалось сохранить настройку. Попробуй ещё раз.</p>}
 
       <SettingsGroup title="Приложение">
-        <SettingsValueRow title="Город" hint="Определяется по геолокации" value={profile.city} expanded={picker === "city"} onOpen={() => open("city")} />
-        {picker === "city" && <SettingsPicker options={ONBOARDING_CITIES.map((city) => ({ value: city.name, label: city.name }))} selected={[profile.city]} onPick={(city) => onProfile({ city })} />}
+        <SettingsValueRow title="Город" hint="По геолокации или из списка" value={profile.city} expanded={picker === "city"} onOpen={() => open("city")} />
+        {picker === "city" && (
+          <>
+            <button
+              type="button"
+              className="app-set-locate"
+              onClick={() => {
+                setLocateNote("Смотрим геолокацию…");
+                void requestViewerOrigin().then((origin) => {
+                  if (origin.source !== "geo") {
+                    setLocateNote("Геолокация недоступна — выбери город из списка.");
+                    return;
+                  }
+                  const match = matchedOnboardingCity(origin.latitude, origin.longitude);
+                  if (match === null) {
+                    setLocateNote("Рядом нет города из списка. Выбери сам.");
+                    return;
+                  }
+                  onProfile({ city: match.name });
+                  setLocateNote(`Определили: ${match.name}`);
+                });
+              }}
+            >
+              Определить по геолокации
+            </button>
+            {locateNote !== null && <p className="app-set-note">{locateNote}</p>}
+            <SettingsPicker options={ONBOARDING_CITIES.map((city) => ({ value: city.name, label: city.name }))} selected={[profile.city]} onPick={(city) => onProfile({ city })} />
+          </>
+        )}
         <SettingsValueRow title="Тема" hint="Светлая, тёмная или как в системе" value={themeLabel(theme.preference)} expanded={picker === "theme"} onOpen={() => open("theme")} />
         {picker === "theme" && <SettingsPicker options={THEME_OPTIONS.map((option) => ({ value: option.value, label: option.label }))} selected={[theme.preference]} onPick={(value) => theme.setPreference(value as ThemePreference)} />}
         <SettingsValueRow title="О себе" hint={profile.bio.trim() === "" ? "Коротко, по желанию" : profile.bio} value="Изменить" expanded={picker === "bio"} onOpen={() => open("bio")} />
@@ -484,109 +520,112 @@ function AuthenticatedSettings({ user }: { user: User }) {
           });
         }}
       />
-    <SettingsView
-      user={user}
-      profile={profile}
-      settings={settings}
-      theme={theme}
-      cacheBytes={cacheBytes}
-      failed={saveFailed}
-      onPickCover={() => coverRef.current?.click()}
-      onResetCover={
-        profile.coverUrl === null
-          ? undefined
-          : () => {
-              setSaveFailed(false);
-              const previous = profile;
-              setProfile({ ...profile, coverUrl: null });
-              apiClient.updateProfile({ coverUrl: null }).then(setProfile, () => {
+      <SettingsView
+        user={user}
+        profile={profile}
+        settings={settings}
+        theme={theme}
+        cacheBytes={cacheBytes}
+        failed={saveFailed}
+        onPickCover={() => coverRef.current?.click()}
+        onResetCover={
+          profile.coverUrl === null
+            ? undefined
+            : () => {
+                setSaveFailed(false);
+                const previous = profile;
+                setProfile({ ...profile, coverUrl: null });
+                apiClient.updateProfile({ coverUrl: null }).then(setProfile, () => {
+                  setProfile(previous);
+                  setSaveFailed(true);
+                });
+              }
+        }
+        onResetAvatar={
+          isCustomProfileAvatar(user.avatarUrl)
+            ? () => {
+                setSaveFailed(false);
+                apiClient.updateProfile({ avatarUrl: null }).then(
+                  () => {
+                    apiClient.getMe().then(
+                      ({ user: next }) => updateUser(next),
+                      () => updateUser({ ...user, avatarUrl: null }),
+                    );
+                  },
+                  () => setSaveFailed(true),
+                );
+              }
+            : undefined
+        }
+        onProfile={(patch) => {
+          setSaveFailed(false);
+          // Optimistic: a switch that waits for the server reads as a broken switch. The response is the
+          // truth that lands afterwards, and a rejected write puts the old value back.
+          const previous = profile;
+          setProfile({ ...profile, ...patch, smartAlerts: { ...profile.smartAlerts, ...patch.smartAlerts }, privacy: { ...profile.privacy, ...patch.privacy } });
+          const flush = () => {
+            const n = ++profileWrite.current;
+            apiClient.updateProfile(patch).then(
+              (saved) => {
+                if (n !== profileWrite.current) {
+                  setProfile((current) => (current === null ? saved : patch.bio !== undefined ? { ...saved, bio: current.bio } : saved));
+                  return;
+                }
+                setProfile(saved);
+              },
+              () => {
+                if (n !== profileWrite.current) return;
                 setProfile(previous);
                 setSaveFailed(true);
-              });
-            }
-      }
-      onResetAvatar={
-        isCustomProfileAvatar(user.avatarUrl)
-          ? () => {
-              setSaveFailed(false);
-              apiClient.updateProfile({ avatarUrl: null }).then(
-                () => {
-                  apiClient.getMe().then(({ user: next }) => updateUser(next), () => updateUser({ ...user, avatarUrl: null }));
-                },
-                () => setSaveFailed(true),
-              );
-            }
-          : undefined
-      }
-      onProfile={(patch) => {
-        setSaveFailed(false);
-        // Optimistic: a switch that waits for the server reads as a broken switch. The response is the
-        // truth that lands afterwards, and a rejected write puts the old value back.
-        const previous = profile;
-        setProfile({ ...profile, ...patch, smartAlerts: { ...profile.smartAlerts, ...patch.smartAlerts }, privacy: { ...profile.privacy, ...patch.privacy } });
-        const flush = () => {
-          const n = ++profileWrite.current;
-          apiClient.updateProfile(patch).then(
-            (saved) => {
-              if (n !== profileWrite.current) {
-                setProfile((current) => (current === null ? saved : patch.bio !== undefined ? { ...saved, bio: current.bio } : saved));
-                return;
-              }
-              setProfile(saved);
+              },
+            );
+          };
+          if (patch.bio !== undefined) {
+            if (bioTimer.current) clearTimeout(bioTimer.current);
+            bioTimer.current = setTimeout(flush, 350);
+            return;
+          }
+          flush();
+        }}
+        onSettings={(patch) => {
+          setSaveFailed(false);
+          const previous = settings;
+          if (settings !== null) setSettings({ ...settings, ...patch });
+          apiClient.updateAppSettings(user.id, patch).then(setSettings, () => {
+            setSettings(previous);
+            setSaveFailed(true);
+          });
+        }}
+        onClearCache={() => {
+          if (typeof window === "undefined") return;
+          clearAppCache(window.localStorage);
+          setCacheBytes(appCacheBytes(window.localStorage));
+        }}
+        onOrganizer={() => navigate({ name: "organizer" })}
+        // MAX Bridge has no "disable" call (https://dev.max.ru/docs/webapps/bridge): closing is all a
+        // mini-app may do about itself, the removal happens in MAX.
+        onDisable={() => getWebApp()?.close()}
+        closeFriends={closeFriends ?? undefined}
+        followers={followers ?? undefined}
+        onToggleClose={(userId, close) => {
+          if (closeFriends === null || followers === null) return;
+          setSaveFailed(false);
+          const previous = closeFriends;
+          const person = followers.find((row) => row.id === userId) ?? previous.find((row) => row.id === userId);
+          if (person === undefined) return;
+          setCloseFriends(close ? [...previous.filter((row) => row.id !== userId), person] : previous.filter((row) => row.id !== userId));
+          apiClient.setCloseFriend(userId, close).then(
+            (stored) => {
+              if (stored === close) return;
+              setCloseFriends(previous);
             },
             () => {
-              if (n !== profileWrite.current) return;
-              setProfile(previous);
+              setCloseFriends(previous);
               setSaveFailed(true);
             },
           );
-        };
-        if (patch.bio !== undefined) {
-          if (bioTimer.current) clearTimeout(bioTimer.current);
-          bioTimer.current = setTimeout(flush, 350);
-          return;
-        }
-        flush();
-      }}
-      onSettings={(patch) => {
-        setSaveFailed(false);
-        const previous = settings;
-        if (settings !== null) setSettings({ ...settings, ...patch });
-        apiClient.updateAppSettings(user.id, patch).then(setSettings, () => {
-          setSettings(previous);
-          setSaveFailed(true);
-        });
-      }}
-      onClearCache={() => {
-        if (typeof window === "undefined") return;
-        clearAppCache(window.localStorage);
-        setCacheBytes(appCacheBytes(window.localStorage));
-      }}
-      onOrganizer={() => navigate({ name: "organizer" })}
-      // MAX Bridge has no "disable" call (https://dev.max.ru/docs/webapps/bridge): closing is all a
-      // mini-app may do about itself, the removal happens in MAX.
-      onDisable={() => getWebApp()?.close()}
-      closeFriends={closeFriends ?? undefined}
-      followers={followers ?? undefined}
-      onToggleClose={(userId, close) => {
-        if (closeFriends === null || followers === null) return;
-        setSaveFailed(false);
-        const previous = closeFriends;
-        const person = followers.find((row) => row.id === userId) ?? previous.find((row) => row.id === userId);
-        if (person === undefined) return;
-        setCloseFriends(close ? [...previous.filter((row) => row.id !== userId), person] : previous.filter((row) => row.id !== userId));
-        apiClient.setCloseFriend(userId, close).then(
-          (stored) => {
-            if (stored === close) return;
-            setCloseFriends(previous);
-          },
-          () => {
-            setCloseFriends(previous);
-            setSaveFailed(true);
-          },
-        );
-      }}
-    />
+        }}
+      />
     </>
   );
 }

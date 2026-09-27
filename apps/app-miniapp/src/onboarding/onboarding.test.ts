@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, ONBOARDING_STEPS, ONBOARDING_STORAGE_KEY, bioCtaLabel, cityDetectionHint, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, isOnboardingDone, markOnboardingDone, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep } from "./onboarding";
+import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, ONBOARDING_STEPS, ONBOARDING_STORAGE_KEY, bioCtaLabel, cityDetectionHint, cityForwardBlock, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, isOnboardingDone, markOnboardingDone, matchedOnboardingCity, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep } from "./onboarding";
 
 describe("onboarding step order", () => {
   it("walks вступление → город → друзья → интересы → о себе and then hands over to the feed", () => {
@@ -68,9 +68,20 @@ describe("city detection", () => {
     expect(nearestOnboardingCity(55.0, 73.4).name).toBe("Новосибирск");
   });
 
-  it("claims a detection only when the origin really came from geolocation", () => {
-    expect(cityDetectionHint("geo")).toContain("Определили по геолокации");
-    expect(cityDetectionHint("fallback")).toContain("Геолокация недоступна");
+  it("accepts a fix only inside the city and refuses a far point even when Moscow is the nearest", () => {
+    expect(matchedOnboardingCity(55.76, 37.62)?.name).toBe("Москва");
+    expect(matchedOnboardingCity(59.94, 30.31)?.name).toBe("Санкт-Петербург");
+    expect(matchedOnboardingCity(43.1, 131.9)).toBeNull();
+    expect(matchedOnboardingCity(47.2, 39.7)).toBeNull();
+  });
+
+  it("claims a detection only after a fix landed in a listed city", () => {
+    expect(cityDetectionHint("matched")).toContain("Определили по геолокации");
+    expect(cityDetectionHint("pending")).toContain("Смотрим геолокацию");
+    expect(cityDetectionHint("outside")).toContain("Выбери свой");
+    expect(cityDetectionHint("denied")).toContain("Геолокация недоступна");
+    expect(cityForwardBlock(null, "outside")).toBe("Выбери город из списка");
+    expect(cityForwardBlock("Казань", "outside")).toBeNull();
   });
 });
 

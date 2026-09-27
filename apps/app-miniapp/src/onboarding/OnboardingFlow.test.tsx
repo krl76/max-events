@@ -18,8 +18,9 @@ function viewHtml(over: Partial<OnboardingViewProps> = {}): string {
     step: over.step ?? "intro",
     intro: over.intro ?? 0,
     introDirection: over.introDirection,
-    city: over.city ?? "Москва",
-    citySource: over.citySource ?? "geo",
+    city: over.city === undefined ? "Москва" : over.city,
+    cityDetect: over.cityDetect ?? "matched",
+    cityPicked: over.cityPicked ?? false,
     suggestions: over.suggestions ?? suggestions,
     followed: over.followed ?? ["a1"],
     interests: over.interests ?? [],
@@ -30,6 +31,7 @@ function viewHtml(over: Partial<OnboardingViewProps> = {}): string {
     onIntro: noop,
     onSkipIntro: noop,
     onCity: noop,
+    onLocate: noop,
     onToggleFriend: noop,
     onToggleInterest: noop,
     onBio: noop,
@@ -107,11 +109,21 @@ describe("city step", () => {
     expect(viewHtml({ step: "intro" })).not.toContain('aria-label="Назад"');
   });
 
-  it("drops the detection claim when the origin is the Moscow fallback", () => {
-    const html = viewHtml({ step: "city", citySource: "fallback" });
+  it("drops the detection claim when geolocation was refused and does not pretend Moscow was found", () => {
+    const html = viewHtml({ step: "city", city: null, cityDetect: "denied" });
 
     expect(html).toContain("Геолокация недоступна");
+    expect(html).toContain("Не выбран");
     expect(html).not.toContain("Определили по геолокации");
+    expect(html).not.toContain("Рядом с тобой");
+  });
+
+  it("asks for a choice when the fix is outside every listed city", () => {
+    const html = viewHtml({ step: "city", city: null, cityDetect: "outside" });
+
+    expect(html).toContain("не рядом ни с одним городом");
+    expect(html).toContain("Определить по геолокации");
+    expect(html).not.toContain("Рядом с тобой");
   });
 });
 
