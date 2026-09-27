@@ -26,27 +26,35 @@ describe("theme.css scroll shell", () => {
   });
 });
 
-describe("theme.css brandbook palette", () => {
-  const BRAND_HEX = ["#0d001a", "#471aff", "#6e1aff", "#9500ff", "#00bfff", "#ffffff"];
+describe("theme.css MAX palette", () => {
+  const BRAND_HEX = ["#007aff", "#479fff", "#006ee5", "#ff303c", "#ff4b55", "#ce4257", "#2bc644", "#1abe43", "#6813ff", "#a473ff", "#060708", "#17181c", "#25262d", "#0f0f12", "#ff9315", "#ffffff"];
+  const BRANDBOOK_HEX = ["#471aff", "#6e1aff", "#9500ff", "#00bfff", "#0d001a", "#c9b6ff"];
 
-  it("uses no hex colour outside the six brand colours, bar the one lilac stop of gradient-light", () => {
-    const hexes = [...declarations.matchAll(/#[0-9a-fA-F]{3,8}\b/g)].map((match) => match[0].toLowerCase());
+  it("uses no hex outside the two official MAX palettes, and keeps brandbook hues inside gradient lines", () => {
+    const foreign: string[] = [];
+    for (const line of declarations.split("\n")) {
+      for (const match of line.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
+        const hex = match[0].toLowerCase();
+        if (BRAND_HEX.includes(hex)) continue;
+        if (BRANDBOOK_HEX.includes(hex) && line.includes("gradient")) continue;
+        foreign.push(hex);
+      }
+    }
 
-    expect(hexes.length).toBeGreaterThan(0);
-    const foreign = hexes.filter((hex) => !BRAND_HEX.includes(hex) && hex !== "#c9b6ff");
     expect(foreign).toEqual([]);
   });
 
-  it("allows #c9b6ff exactly once and only inside gradient-light", () => {
-    const lilac = [...declarations.matchAll(/#c9b6ff/gi)];
-
-    expect(lilac).toHaveLength(1);
-    const line = declarations.split("\n").find((candidate) => candidate.toLowerCase().includes("#c9b6ff"));
-    expect(line).toContain("--app-gradient-light");
+  it("keeps the brandbook composite gradients for the branded surfaces", () => {
+    expect(css).toContain("--app-gradient-light: linear-gradient(135deg, var(--brand-white), #c9b6ff 40%, #6e1aff 75%, #00bfff);");
+    expect(css).toContain("--app-gradient-dark: linear-gradient(135deg, #0d001a, #471aff 50%, #9500ff 80%, #00bfff);");
   });
 
-  it("builds every rgb/rgba literal from a brand colour or the scheme-neutral channels", () => {
-    const allowed = new Set(["13, 0, 26", "255, 255, 255", "71, 26, 255", "149, 0, 255", "var(--app-scheme-neutral)"]);
+  it("exposes the MAX UI attention orange for warnings", () => {
+    expect(css).toContain("--app-attention: #ff9315;");
+  });
+
+  it("builds every rgb/rgba literal from a MAX colour or the scheme-neutral channels", () => {
+    const allowed = new Set(["6, 7, 8", "255, 255, 255", "0, 122, 255", "255, 48, 60", "206, 66, 87", "var(--app-scheme-neutral)"]);
     // Channels only: the alpha that follows is free, the colour it tints is not.
     const literals = [...declarations.matchAll(/rgba?\(\s*(var\(--[a-z-]+\)|\d+,\s*\d+,\s*\d+)\s*[,)]/g)].map((match) => match[1]);
 
@@ -54,13 +62,14 @@ describe("theme.css brandbook palette", () => {
     expect(literals.filter((literal) => !allowed.has(literal))).toEqual([]);
   });
 
-  it("points the ionic primary palette at brand-blue and presses it to brand-violet", () => {
-    expect(css).toContain("--ion-color-primary: #471aff;");
-    expect(css).toContain("--ion-color-primary-shade: #6e1aff;");
-    expect(css).not.toContain("#007aff");
+  it("points the ionic primary palette at brand-blue and presses it to brand-blue-pressed", () => {
+    expect(css).toContain("--ion-color-primary: #007aff;");
+    expect(css).toContain("--ion-color-primary-shade: #006ee5;");
+    const ion = css.slice(css.indexOf("--ion-color-primary"), css.indexOf("--ion-font-family"));
+    expect(ion).not.toContain("#471aff");
   });
 
-  it("separates the three purple roles by form, since the brandbook has no red to spend", () => {
+  it("separates the danger, confirm and badge roles by form and hue", () => {
     const danger = css.slice(css.indexOf(".app-root .app-btn--danger"));
     const dangerBlock = danger.slice(0, danger.indexOf("}"));
     const confirm = css.slice(css.indexOf(".app-root .app-btn--confirm"));
@@ -88,7 +97,7 @@ describe("theme.css brandbook palette", () => {
     expect(block).not.toContain("var(--app-danger)");
   });
 
-  it("routes danger text through the label token and leaves only the glyph on raw purple", () => {
+  it("routes danger text through the label token and leaves only the glyph on raw red", () => {
     const textRules = [".app-state--error", ".app-gathering-friend-status--busy", ".app-plan-friend-status--declined"];
 
     for (const selector of textRules) {
@@ -101,14 +110,14 @@ describe("theme.css brandbook palette", () => {
     expect(icon.slice(0, icon.indexOf("}"))).toContain("color: var(--app-danger);");
   });
 
-  it("drops the danger label to brand-white in the dark scheme, where purple is decor only", () => {
-    expect(css).toContain("--app-danger-label: var(--brand-purple);");
+  it("keeps the danger label in the dark negative red, readable on graphite", () => {
+    expect(css).toContain("--app-danger-label: var(--brand-red);");
     const dark = css.slice(css.indexOf('.app-root[data-theme="dark"]'));
-    expect(dark.slice(0, dark.indexOf("}"))).toContain("--app-danger-label: var(--brand-white);");
+    expect(dark.slice(0, dark.indexOf("}"))).toContain("--app-danger-label: var(--brand-red-dark);");
   });
 
-  it("keeps the only shadow blue-tinted and reserved for the lift", () => {
-    expect(css).toContain("--app-shadow-lift: 0 4px 16px rgba(71, 26, 255, 0.1);");
+  it("keeps the only shadow neutral and reserved for the lift", () => {
+    expect(css).toContain("--app-shadow-lift: 0 4px 16px rgba(6, 7, 8, 0.1);");
     expect(css).not.toContain("--app-elevation-");
     expect(css).toContain("transform: translateY(-2px);");
   });
@@ -125,7 +134,7 @@ describe("theme.css colour schemes", () => {
     const block = dark.slice(0, dark.indexOf("}"));
 
     expect(block).toContain("--app-scheme-neutral: 255, 255, 255;");
-    expect(block).toContain("--app-canvas: var(--brand-void);");
+    expect(block).toContain("--app-canvas: var(--brand-graphite);");
     expect(block).toContain("--app-alpha-surface: 0.06;");
     expect(block).toContain("--app-alpha-border: 0.12;");
     expect(block).toContain("--app-alpha-text-secondary: 0.6;");
@@ -141,10 +150,10 @@ describe("theme.css colour schemes", () => {
     expect(css).toContain("html:not([data-theme]) .app-root:not([data-theme])");
   });
 
-  it("hands the accent-as-text role to brand-cyan in the dark scheme, where brand-blue drops to 2.7:1", () => {
+  it("hands the accent-as-text role to brand-blue-hover in the dark scheme, where brand-blue drops below contrast", () => {
     expect(css).toContain("--app-accent-text: var(--brand-blue);");
     const dark = css.slice(css.indexOf('.app-root[data-theme="dark"]'));
-    expect(dark.slice(0, dark.indexOf("}"))).toContain("--app-accent-text: var(--brand-cyan);");
+    expect(dark.slice(0, dark.indexOf("}"))).toContain("--app-accent-text: var(--brand-blue-hover);");
   });
 });
 
