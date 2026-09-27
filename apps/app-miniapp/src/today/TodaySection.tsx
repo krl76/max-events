@@ -24,6 +24,7 @@
 // - TodayAfterMeCard - the dismissible hint: headline, explanation, the chips of its own card and the two buttons
 // END_MODULE_MAP
 
+import { useEffect, useRef, useState } from "react";
 import type { TodayCardLabel } from "@max-events/api-contracts";
 import type { TodayCard, TodayDigest } from "../api/client";
 import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
@@ -77,6 +78,117 @@ export function dayKey(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${date.getFullYear()}-${month}-${day}`;
+}
+
+const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+
+/** Six weeks of a month grid, Monday first. */
+export function monthCells(anchor: Date): Date[] {
+  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const offset = (first.getDay() + 6) % 7;
+  const start = new Date(first);
+  start.setDate(1 - offset);
+  return Array.from({ length: 42 }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    return day;
+  });
+}
+
+export function monthHeading(date: Date): string {
+  const raw = date.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+  return raw.charAt(0).toUpperCase() + raw.slice(1).replace(" г.", "");
+}
+
+export function DayCalendar({ month, selected, today, onPick, onShift, onToday }: { month: Date; selected: string; today: string; onPick: (day: string) => void; onShift: (month: Date) => void; onToday: () => void }) {
+  return (
+    <div className="app-today-cal" role="dialog" aria-label="Выбор даты">
+      <div className="app-today-cal-head">
+        <button type="button" className="app-today-cal-nav" aria-label="Предыдущий месяц" onClick={() => onShift(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>
+          <ActionIcon name="chevron" size={16} />
+        </button>
+        <span className="app-today-cal-title">{monthHeading(month)}</span>
+        <button type="button" className="app-today-cal-nav app-today-cal-nav--next" aria-label="Следующий месяц" onClick={() => onShift(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>
+          <ActionIcon name="chevron" size={16} />
+        </button>
+      </div>
+      <div className="app-today-cal-week" aria-hidden="true">
+        {WEEKDAYS.map((name) => (
+          <span key={name}>{name}</span>
+        ))}
+      </div>
+      <div className="app-today-cal-grid">
+        {monthCells(month).map((date) => {
+          const key = dayKey(date);
+          const outside = date.getMonth() !== month.getMonth();
+          const classes = ["app-today-cal-day", outside ? "app-today-cal-day--out" : "", key === selected ? "app-today-cal-day--on" : "", key === today && key !== selected ? "app-today-cal-day--today" : ""].filter(Boolean).join(" ");
+          return (
+            <button key={key} type="button" className={classes} aria-pressed={key === selected} onClick={() => onPick(key)}>
+              {date.getDate()}
+            </button>
+          );
+        })}
+      </div>
+      <button type="button" className="app-today-cal-today" onClick={onToday}>
+        Сегодня
+      </button>
+    </div>
+  );
+}
+
+function SearchDayButton({ day, now, onDay }: { day: string; now: Date; onDay: (day: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [cursor, setCursor] = useState(() => new Date(`${day}T12:00:00`));
+  const root = useRef<HTMLDivElement>(null);
+  const shown = new Date(`${day}T12:00:00`);
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div className="app-today-date-wrap" ref={root}>
+      <button
+        type="button"
+        className="app-today-date"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => {
+          setCursor(shown);
+          setOpen((current) => !current);
+        }}
+      >
+        <ActionIcon name="calendar" size={16} />
+        <span>{formatTodayDate(shown)}</span>
+      </button>
+      {open && (
+        <DayCalendar
+          month={cursor}
+          selected={day}
+          today={dayKey(now)}
+          onShift={setCursor}
+          onPick={(next) => {
+            onDay(next);
+            setOpen(false);
+          }}
+          onToday={() => {
+            onDay(dayKey(now));
+            setOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
 }
 
 /** «19 сент. · 14:00» — short enough to sit next to the distance on a pick. */
@@ -134,11 +246,7 @@ export function TodaySummaryBlock({ state, now, day, onDay, distanceFrom = "you"
     <section className="app-today" aria-label={title}>
       <div className="app-today-head">
         <h2 className="app-today-title">{title}</h2>
-        <label className="app-today-date">
-          <ActionIcon name="calendar" size={16} />
-          <span>{formatTodayDate(shown)}</span>
-          <input className="app-today-date-input" type="date" aria-label="Выбрать дату" value={day ?? dayKey(now)} onChange={(change) => onDay?.(change.target.value)} />
-        </label>
+        {onDay ? <SearchDayButton day={day ?? dayKey(now)} now={now} onDay={onDay} /> : <span className="app-today-date">{formatTodayDate(shown)}</span>}
       </div>
       <div className="app-today-stats">
         {summary === null ? (
