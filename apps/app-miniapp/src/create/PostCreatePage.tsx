@@ -144,11 +144,6 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
             <textarea ref={textRef} className="app-post-compose-text" aria-label="Текст поста" rows={3} placeholder="Напишите текст" value={draft.text} onChange={(change) => onDraft({ ...draft, text: change.target.value })} />
           </div>
         </div>
-        <ul className="app-need" aria-label="Что нужно для поста">
-          <li className={draft.text.trim() === "" ? "app-need-item" : "app-need-item app-need-item--done"}>{draft.text.trim() === "" ? "Напишите текст — без него пост не опубликуется" : "Текст есть"}</li>
-          <li className="app-need-item app-need-item--done">Фото, точка на карте и событие — по желанию</li>
-        </ul>
-
         <div className={draft.photoUrls.length === 0 ? "app-post-compose-photos app-post-compose-photos--empty" : "app-post-compose-photos"}>
           {draft.photoUrls.length > 0 && (
             <div className="app-post-compose-shot app-post-compose-shot--lead" style={{ backgroundImage: `url(${draft.photoUrls[0]})` }}>
@@ -219,21 +214,26 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
             />
           )}
 
-          <button type="button" className="app-post-compose-row app-post-compose-row--button" onClick={() => setPickingPin(true)}>
-            <ActionIcon name="pin" size={20} strokeWidth={2} />
-            <span className="app-post-compose-row-label">{draft.pinLabel ?? (boundPlace === null ? "Поставить точку на карте" : boundPlace.title)}</span>
-            <span className="app-post-compose-row-chevron" aria-hidden="true">
-              <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
-            </span>
-          </button>
-
-          <button type="button" className="app-post-compose-row app-post-compose-row--button" aria-expanded={taggingOpen} onClick={() => setTaggingOpen(true)}>
-            <ActionIcon name="friends" size={20} strokeWidth={2} />
-            <span className="app-post-compose-row-label">{tagged.length === 0 ? "Отметить друзей" : tagged.map((friend) => `@${friendHandle(friend)}`).join(", ")}</span>
-            <span className="app-post-compose-row-chevron" aria-hidden="true">
-              <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
-            </span>
-          </button>
+          <div className="app-post-compose-pair">
+            <button type="button" className="app-post-compose-tile" onClick={() => setPickingPin(true)}>
+              <span className="app-post-compose-map" aria-hidden="true">
+                <ActionIcon name="pin" size={22} />
+              </span>
+              <span className="app-post-compose-tile-title">{draft.pinLabel ?? boundPlace?.title ?? "Место"}</span>
+              <span className="app-post-compose-tile-note">{draft.pinLabel || boundPlace ? "Точка на карте" : "Добавить точку"}</span>
+            </button>
+            <button type="button" className="app-post-compose-tile" aria-expanded={taggingOpen} onClick={() => setTaggingOpen(true)}>
+              <span className="app-post-compose-faces" aria-hidden="true">
+                {(tagged.length > 0 ? tagged : friends).slice(0, 3).map((friend) => (
+                  <span key={friend.id} className="app-post-compose-face">
+                    {friend.avatarUrl ? <img alt="" src={friend.avatarUrl} /> : friend.name.slice(0, 1)}
+                  </span>
+                ))}
+              </span>
+              <span className="app-post-compose-tile-title">{tagged.length === 0 ? "Друзья" : tagged.map((friend) => friend.name.split(" ")[0]).join(", ")}</span>
+              <span className="app-post-compose-tile-note">{tagged.length === 0 ? "Отметить в посте" : `@${friendHandle(tagged[0]!)}`}</span>
+            </button>
+          </div>
           {taggingOpen && (
             <FriendPicker
               friends={friends}
@@ -260,21 +260,21 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
           )}
         </div>
 
-        <p className="app-post-compose-label">Кто увидит</p>
-        <div className="app-post-compose-audience">
+        <div className="app-post-see" role="group" aria-label="Кто увидит">
           {POST_AUDIENCES.map((audience) => (
-            <button key={audience.id} type="button" className={draft.audience === audience.id ? "app-post-compose-chip app-post-compose-chip--on" : "app-post-compose-chip"} aria-pressed={draft.audience === audience.id} onClick={() => onDraft({ ...draft, audience: audience.id })}>
-              {audience.label}
+            <button key={audience.id} type="button" className={draft.audience === audience.id ? "app-post-see-card app-post-see-card--on" : "app-post-see-card"} aria-pressed={draft.audience === audience.id} onClick={() => onDraft({ ...draft, audience: audience.id })}>
+              <ActionIcon name={audience.id === "friends" ? "friends" : audience.id === "city" ? "pin" : "users"} size={18} />
+              <span>{audience.label}</span>
             </button>
           ))}
         </div>
 
         {draft.eventId !== null && <div className="app-post-compose-join">
           <span className="app-post-compose-join-text">
-            <span className="app-post-compose-join-title">Разрешить запись через пост</span>
-            <span className="app-post-compose-join-note">Друзья смогут присоединиться одним тапом</span>
+            <span className="app-post-compose-join-title">Запись с поста</span>
+            <span className="app-post-compose-join-note">Друг нажимает «Я пойду» прямо здесь</span>
           </span>
-          <button type="button" role="switch" aria-checked={draft.allowJoin} aria-label="Разрешить запись через пост" className={draft.allowJoin ? "app-post-compose-switch app-post-compose-switch--on" : "app-post-compose-switch"} onClick={() => onDraft({ ...draft, allowJoin: !draft.allowJoin })}>
+          <button type="button" role="switch" aria-checked={draft.allowJoin} aria-label="Запись с поста" className={draft.allowJoin ? "app-post-compose-switch app-post-compose-switch--on" : "app-post-compose-switch"} onClick={() => onDraft({ ...draft, allowJoin: !draft.allowJoin })}>
             <span className="app-post-compose-switch-knob" aria-hidden="true" />
           </button>
         </div>}

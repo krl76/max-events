@@ -42,7 +42,7 @@ import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
 import { parsePinLabel } from "../ui/pin-label";
 import { SaveToList } from "../event/SaveToList";
-import { AppChip, AppEmptyState, AppSkeleton, AppState } from "../ui/primitives";
+import { AppAvatar, AppChip, AppEmptyState, AppSkeleton, AppState } from "../ui/primitives";
 import { PhotoGallery } from "./gallery";
 import { PostAuthorAvatar, StoriesRow } from "./FeedPage";
 
@@ -233,6 +233,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
         )}
       </header>
       {photos.length > 0 && <PhotoGallery photos={photos} />}
+      {card.text.trim() !== "" && <p className="app-feed-caption">{card.text}</p>}
       {card.repostOf && (
         <div className="app-feed-embed">
           <button type="button" className="app-feed-embed-author" aria-label={`Профиль ${card.repostOf.author.name}`} onClick={() => (onOpenPerson ? onOpenPerson(card.repostOf!.author.id) : onOpenAuthor())}>
@@ -291,17 +292,14 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
       </div>
       {saving && userId !== null && <SaveToList feedPostId={card.id} userId={userId} open onClose={() => setSaving(false)} />}
       {counts !== null && <p className="app-feed-counts">{counts}</p>}
-      {card.text.trim() !== "" && (
-        <p className="app-feed-caption">
-          <button type="button" className="app-feed-caption-author" aria-label={`Профиль ${card.author.name}`} onClick={onOpenAuthor}>
-            {card.author.name}
-          </button>{" "}
-          {card.text}
-        </p>
-      )}
-      {comments !== null && (
-        <button type="button" className="app-feed-comments" onClick={onOpenComments}>
-          {comments}
+      {comments !== null && card.comments[0] !== undefined && (
+        <button type="button" className="app-feed-comment-preview" onClick={onOpenComments}>
+          <span className="app-feed-comment-avatar">
+            <AppAvatar size={32} src={card.comments[0].author.avatarUrl}>
+              {card.comments[0].author.name.slice(0, 1)}
+            </AppAvatar>
+          </span>
+          <span className="app-feed-comment-preview-text">{comments}</span>
         </button>
       )}
       {/* No line at all rather than «только что» about a post whose card carries no publication time. */}

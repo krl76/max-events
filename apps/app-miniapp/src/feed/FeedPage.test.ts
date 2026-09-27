@@ -36,7 +36,9 @@ describe("FeedPostCard", () => {
     expect(html).toContain(mockEvents[0].title);
     expect(html).toContain("Было здорово");
     expect(html).toContain(commentsEntryLabel(1));
-    expect(html).not.toContain("Класс!");
+    expect(html).toContain("Класс!");
+    expect(html).toContain('aria-label="Профиль Дима Кузнецов"');
+    expect(html.indexOf("Было здорово")).toBeLessThan(html.indexOf("app-post-actions"));
   });
 
   it("turns the author icon and name into profile controls", () => {

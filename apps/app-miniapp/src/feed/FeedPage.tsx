@@ -387,6 +387,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         {userId !== "" && <ReportButton mode="dialog" target={{ feedPostId: post.id }} userId={userId} />}
       </header>
       {photos.length > 0 ? <PhotoGallery photos={photos} /> : <AppMedia category={eventCategory} src={pictured(post.eventId ?? post.id)} />}
+      {post.text.trim() !== "" && <p className="app-post-caption">{post.text}</p>}
       <div className="app-post-actions">
         <button type="button" className="app-post-action" aria-pressed={post.likedByMe} aria-label="Нравится" onClick={onToggleLike}>
           <ActionIcon filled={post.likedByMe} name="heart" />
@@ -421,16 +422,22 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
       <p className="app-post-likes">
         {post.likesCount} {pluralRu(post.likesCount, "отметка", "отметки", "отметок")} «нравится»
       </p>
-      <p className="app-post-caption">
-        {onOpenAuthor ? (
-          <button type="button" className="app-post-caption-author" aria-label={`Профиль ${post.author.name}`} onClick={() => onOpenAuthor(post.author.id)}>
-            {post.author.name}
-          </button>
-        ) : (
-          <span className="app-post-caption-author">{post.author.name}</span>
-        )}{" "}
-        {post.text}
-      </p>
+      {post.comments.length > 0 && (
+        <ul className="app-post-comment-list">
+          {post.comments.slice(0, 2).map((comment) => (
+            <li key={comment.id} className="app-feed-comment">
+              <button type="button" className="app-feed-comment-avatar" aria-label={`Профиль ${comment.author.name}`} onClick={() => onOpenAuthor?.(comment.author.id)}>
+                <AppAvatar size={36} src={comment.author.avatarUrl}>
+                  {comment.author.name.slice(0, 1)}
+                </AppAvatar>
+              </button>
+              <p className="app-feed-comment-text">
+                <span className="app-feed-comment-author">{comment.author.name}</span> {comment.text}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
       {post.comments.length > 0 && (
         <button type="button" className="app-comments-entry" onClick={() => setCommentsOpen(true)}>
           {commentsEntryLabel(post.comments.length)}

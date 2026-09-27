@@ -410,6 +410,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
   const [shaking, setShaking] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [deleteTray, setDeleteTray] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [mentionFor, setMentionFor] = useState<string | null>(null);
   const [mentionDraft, setMentionDraft] = useState("");
   const lastKey = draft.objects.length === 0 ? null : storyObjectKey(draft.objects[draft.objects.length - 1]!);
@@ -487,7 +488,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
   const startDrag = (object: StoryCanvasObject, event: ReactPointerEvent<HTMLElement>) => {
     const target = event.target;
     const onField = target instanceof Element && target.closest("input, textarea, select") !== null;
-    if (target instanceof Element && target.closest("a, .app-story-object-delete, .app-story-handle, .app-story-pick")) return;
+    if (target instanceof Element && target.closest("a, .app-story-bin, .app-story-bin-dot, .app-story-handle, .app-story-pick")) return;
     const key = storyObjectKey(object);
     const frame = frameRef.current;
     if (frame === null) return;
@@ -531,6 +532,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
       if (Math.hypot(movedEvent.clientX - fromX, movedEvent.clientY - fromY) > 8) {
         if (!moved && onField && document.activeElement instanceof HTMLElement) document.activeElement.blur();
         moved = true;
+        setDragging(true);
         if (hold) clearTimeout(hold);
         hold = undefined;
         setShaking(null);
@@ -552,6 +554,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
       else if (!moved && !pinching && !held && object.kind === "text") setEditing(key);
       else if (!moved && !pinching && !held && (object.kind === "event" || object.kind === "seats")) setPickingEvent(true);
       setDeleteTray(false);
+      setDragging(false);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", stop);
@@ -682,16 +685,6 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
               <ActionIcon name="sparkle" size={20} strokeWidth={2} />
             </button>
           )}
-          {front !== null && (
-            <button
-              type="button"
-              className="app-story-object-delete"
-              aria-label={`Удалить: ${STORY_OBJECTS[draft.objects.find((object) => storyObjectKey(object) === front)?.kind ?? "text"].label}`}
-              onClick={() => dropObject(front)}
-            >
-              Удалить
-            </button>
-          )}
           <div className={typing ? "app-story-catalog app-story-catalog--hidden" : "app-story-catalog"}>
             {STORY_OBJECT_ORDER.map((kind) => {
               const on = hasStoryObject(draft.objects, kind);
@@ -724,6 +717,11 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
               startDrag(object, event);
             }}
           >
+            {selected && (
+              <button type="button" className="app-story-bin-dot" aria-label={`Удалить: ${label}`} onPointerDown={(press) => press.stopPropagation()} onClick={() => dropObject(key)}>
+                <ActionIcon name="trash" size={14} strokeWidth={2.4} />
+              </button>
+            )}
             {selected &&
               (["nw", "ne", "sw", "se"] as const).map((corner) => (
                 <button
@@ -755,7 +753,12 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
           </div>
         );
       })}
-      {deleteTray && <p className="app-story-delete-tray">Отпустите, чтобы удалить</p>}
+      {(front !== null || dragging || deleteTray) && (
+        <button type="button" className={deleteTray ? "app-story-bin app-story-bin--hot" : "app-story-bin"} aria-label="Удалить элемент" onClick={() => front !== null && dropObject(front)}>
+          <ActionIcon name="trash" size={22} strokeWidth={2.2} />
+          <span>{deleteTray ? "Отпустите — удалится" : "В корзину"}</span>
+        </button>
+      )}
 
       {mentionFor !== null && (
         <div className="app-story-mentions">
