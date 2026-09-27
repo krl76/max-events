@@ -113,39 +113,46 @@ interface MicroRowProps {
   people: Friend[];
   joined: boolean;
   onOpen: () => void;
+  onJoin?: () => void;
 }
 
 /** One gathering: what, when, where, who is already in and the single action its state allows. */
-export function MicroRow({ item, places, people, joined, onOpen }: MicroRowProps) {
+export function MicroRow({ item, places, people, joined, onOpen, onJoin }: MicroRowProps) {
   const state = microCtaState(item, joined);
   const faces = item.participantIds.map((id) => people.find((person) => person.id === id)).filter((person): person is Friend => person !== undefined);
   return (
-    <button type="button" className="app-micro-row" onClick={onOpen}>
-      <img className="app-micro-row-photo" alt="" src={pictured(item.id)} />
-      <span className="app-micro-head">
-        <span className="app-micro-title">{item.title}</span>
-        <span className="app-micro-clock">{microTime(item.startsAt)}</span>
-      </span>
-      <span className="app-micro-where">
-        <ActionIcon name="pin" size={14} strokeWidth={2.2} />
-        {microWhere(item, places)}
-      </span>
-      <span className="app-micro-foot">
-        <MicroFaces people={faces} />
-        <span className="app-micro-count">
-          {item.participantsCount} из {item.participantsLimit}
+    <div className="app-micro-row">
+      <button type="button" className="app-micro-row-open" onClick={onOpen}>
+        <img className="app-micro-row-photo" alt="" src={pictured(item.id)} />
+        <span className="app-micro-head">
+          <span className="app-micro-title">{item.title}</span>
+          <span className="app-micro-clock">{microTime(item.startsAt)}</span>
         </span>
-        {state === "join" && <span className="app-micro-cta app-micro-cta--join">Иду</span>}
-        {state === "joined" && (
-          <span className="app-micro-cta app-micro-cta--in">
-            <ActionIcon name="check" size={14} strokeWidth={2.6} />
-            Ты в деле
+        <span className="app-micro-where">
+          <ActionIcon name="pin" size={14} strokeWidth={2.2} />
+          {microWhere(item, places)}
+        </span>
+        <span className="app-micro-foot">
+          <MicroFaces people={faces} />
+          <span className="app-micro-count">
+            {item.participantsCount} из {item.participantsLimit}
           </span>
-        )}
-        {state === "full" && <span className="app-micro-cta app-micro-cta--full">Мест нет</span>}
-        {state === "cancelled" && <span className="app-micro-cta app-micro-cta--full">Отменено</span>}
-      </span>
-    </button>
+        </span>
+      </button>
+      {state === "join" && (
+        <button type="button" className="app-micro-cta app-micro-cta--join" onClick={onJoin}>
+          Иду
+        </button>
+      )}
+      {state === "joined" && (
+        <span className="app-micro-cta app-micro-cta--in">
+          <ActionIcon name="check" size={14} strokeWidth={2.6} />
+          Ты в деле
+        </span>
+      )}
+      {state === "full" && <span className="app-micro-cta app-micro-cta--full">Мест нет</span>}
+      {state === "cancelled" && <span className="app-micro-cta app-micro-cta--full">Отменено</span>}
+    </div>
   );
 }
 
@@ -159,10 +166,11 @@ interface MicroEventsViewProps {
   now?: Date;
   onCreate: () => void;
   onOpen: (id: string) => void;
+  onJoin?: (id: string) => void;
   onRetry: () => void;
 }
 
-export function MicroEventsView({ state, places, people, viewerId, now = new Date(), onCreate, onOpen, onRetry }: MicroEventsViewProps) {
+export function MicroEventsView({ state, places, people, viewerId, now = new Date(), onCreate, onOpen, onJoin, onRetry }: MicroEventsViewProps) {
   const groups = state.status === "ready" ? groupMicroEvents(state.events, now) : [];
   return (
     <section className="app-micro-screen">
@@ -185,7 +193,7 @@ export function MicroEventsView({ state, places, people, viewerId, now = new Dat
         <section key={group.bucket} className="app-micro-group" aria-label={group.label}>
           <h2 className="app-micro-group-label">{group.label}</h2>
           {group.events.map((item) => (
-            <MicroRow key={item.id} item={item} places={places} people={people} joined={viewerId !== null && item.participantIds.includes(viewerId)} onOpen={() => onOpen(item.id)} />
+            <MicroRow key={item.id} item={item} places={places} people={people} joined={viewerId !== null && item.participantIds.includes(viewerId)} onOpen={() => onOpen(item.id)} onJoin={() => onJoin?.(item.id)} />
           ))}
         </section>
       ))}
@@ -235,5 +243,10 @@ export function MicroEventsPage() {
   // The viewer is a face too — their own gathering would otherwise show a stack without them in it.
   const people = viewer === null ? friends : [...friends, { id: viewer.id, name: viewer.firstName, avatarUrl: viewer.avatarUrl }];
 
-  return <MicroEventsView state={state} places={places} people={people} viewerId={viewer?.id ?? null} onCreate={() => navigate({ name: "micro-new" })} onOpen={(id) => navigate({ name: "micro-event", id })} onRetry={load} />;
+  const join = (id: string) => {
+    if (viewer === null) return;
+    void apiClient.joinMicroEvent(id, viewer.id).then(load, load);
+  };
+
+  return <MicroEventsView state={state} places={places} people={people} viewerId={viewer?.id ?? null} onCreate={() => navigate({ name: "micro-new" })} onOpen={(id) => navigate({ name: "micro-event", id })} onJoin={join} onRetry={load} />;
 }

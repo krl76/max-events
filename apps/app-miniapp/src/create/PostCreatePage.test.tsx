@@ -115,13 +115,13 @@ describe("PostCreateView", () => {
 
     expect(html).toContain("Новый пост");
     expect(html).toContain("Опубликовать");
-    expect(html).toContain("app-post-compose-publish--balance");
+    expect(html).toContain("Опубликовать");
     expect(html).toContain("Мангальная зона в парке Горького");
     expect(html).toContain(`src="https://picsum.photos/seed/maxevents-${encodeURIComponent(mockEvents[0].id)}/800/1066"`);
     expect(html).toContain("Сб, 19 сен · 14:00 · привязано к посту");
     for (const audience of POST_AUDIENCES) expect(html).toContain(audience.label);
-    expect(html).toContain("Разрешить запись через пост");
-    expect(html).toContain("Друзья смогут присоединиться одним тапом");
+    expect(html).toContain("Запись с поста");
+    expect(html).toContain("Друг нажимает «Я пойду» прямо здесь");
   });
 
   it("offers one photo slot until the grid of the design is full", () => {

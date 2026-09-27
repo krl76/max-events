@@ -61,6 +61,12 @@ export interface StoryRailTile {
   initial: string;
   /** Обложка — самая свежая история автора, как в инстаграме. */
   coverUrl: string;
+  /** Аватар автора: кольцо рисуется вокруг него, а не вокруг кадра истории. */
+  avatarUrl: string | null;
+  /** Сколько историй у автора сейчас в рельсе. */
+  storyCount: number;
+  /** Сколько из них зритель ещё не открывал. */
+  unseenCount: number;
   /** Осталась хоть одна непросмотренная история — кольцо фирменного градиента, иначе нейтральная обводка. */
   unseen: boolean;
   /** Индекс группы в просмотрщике. */
@@ -70,6 +76,8 @@ export interface StoryRailTile {
 export interface StoryRailOwn {
   /** Обложка своей свежей истории; null — историй нет, в кольце аватар. */
   coverUrl: string | null;
+  storyCount: number;
+  unseenCount: number;
   unseen: boolean;
   /** Своя группа просмотрщика; null — смотреть нечего, кружок только открывает редактор. */
   group: number | null;
@@ -89,16 +97,17 @@ function byAge(first: Story, second: Story): number {
 export function storyRail(friends: readonly Friend[], stories: readonly Story[], myId: string | null, seen: readonly string[]): StoryRail {
   const seenIds = new Set(seen);
   const anyUnseen = (items: Story[]) => items.some((item) => !seenIds.has(item.id));
+  const unseenCount = (items: Story[]) => items.filter((item) => !seenIds.has(item.id)).length;
   const own = myId === null ? [] : stories.filter((item) => item.userId === myId).sort(byAge);
   const authors = friends.map((friend) => ({ friend, items: stories.filter((item) => item.userId === friend.id).sort(byAge) })).filter((author) => author.items.length > 0);
-  // Непросмотренные вперёд: иначе единственное горящее кольцо уезжает за правый край рельса.
-  const ordered = [...authors.filter((author) => anyUnseen(author.items)), ...authors.filter((author) => !anyUnseen(author.items))];
+  // Порядок друзей не прыгает после просмотра: полосу листают, а не ждут, пока кто-то выедет в начало.
+  const ordered = authors;
 
   const groups: StoryGroup[] = own.length > 0 ? [{ authorName: "Вы", stories: own }] : [];
   const tiles = ordered.map((author) => {
     const group = groups.push({ authorName: author.friend.name, stories: author.items }) - 1;
-    return { friendId: author.friend.id, name: author.friend.name.split(" ")[0], initial: author.friend.name[0], coverUrl: author.items[author.items.length - 1].imageUrl, unseen: anyUnseen(author.items), group };
+    return { friendId: author.friend.id, name: author.friend.name.split(" ")[0], initial: author.friend.name[0], coverUrl: author.items[author.items.length - 1].imageUrl, avatarUrl: author.friend.avatarUrl, storyCount: author.items.length, unseenCount: unseenCount(author.items), unseen: anyUnseen(author.items), group };
   });
 
-  return { own: { coverUrl: own.length > 0 ? own[own.length - 1].imageUrl : null, unseen: anyUnseen(own), group: own.length > 0 ? 0 : null }, tiles, groups };
+  return { own: { coverUrl: own.length > 0 ? own[own.length - 1].imageUrl : null, storyCount: own.length, unseenCount: unseenCount(own), unseen: anyUnseen(own), group: own.length > 0 ? 0 : null }, tiles, groups };
 }

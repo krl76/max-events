@@ -30,10 +30,13 @@
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import { EventCategorySchema, PlaceCategorySchema, type CreateEvent, type CreatePlace, type EventCategory, type PlaceCategory } from "@max-events/api-contracts";
+import { EventCategorySchema, PlaceCategorySchema, type CreateEvent, type CreatePlace, type EventCategory, type PlaceCategory, type UpdateOrganizerEventOptions } from "@max-events/api-contracts";
 import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganizerEvent } from "../api/client";
-import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
-import { MyOrganizerRatingCard, OrganizerEventAddons } from "./OrganizerAddons";
+import { CATEGORY_LABELS } from "../catalog/CatalogPage";
+import { posterHighlight } from "../search/EventPoster";
+import { pictured } from "../ui/photos";
+import { weeklySeriesUntil } from "./OrganizerEventForm";
+import { SettingsSwitchRow } from "../profile/SettingsPage";
 import { AppButton, AppChip, AppMedia, AppState } from "../ui/primitives";
 import { VenuePinMap } from "./VenuePinMap";
 
@@ -62,6 +65,10 @@ export interface EventDraft {
   /** True after the organizer taps the map. A typed address alone does not move the pin. */
   pinned: boolean;
   placeId: string;
+  waitlistEnabled: boolean;
+  registrationInApp: boolean;
+  externalUrl: string;
+  repeatWeekly: boolean;
 }
 
 export interface PlaceDraft {
@@ -73,7 +80,7 @@ export interface PlaceDraft {
   longitude: string;
 }
 
-export const EMPTY_EVENT_DRAFT: EventDraft = { title: "", description: "", category: "afisha", city: "", startsAt: "", endsAt: "", price: "", paymentUrl: "", capacity: "", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "" };
+export const EMPTY_EVENT_DRAFT: EventDraft = { title: "", description: "", category: "afisha", city: "", startsAt: "", endsAt: "", price: "", paymentUrl: "", capacity: "", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "", waitlistEnabled: false, registrationInApp: true, externalUrl: "", repeatWeekly: false };
 
 const PLACE_FOR_EVENT: Record<EventCategory, PlaceCategory> = { afisha: "other", volunteering: "other", tourism: "park", sport: "sport" };
 
@@ -116,7 +123,27 @@ export function eventDraftErrors(draft: EventDraft): string[] {
   if (price !== null && (!Number.isInteger(price) || price < 0)) errors.push("Цена — целое число от 0");
   if (price !== null && price > 0 && draft.paymentUrl.trim() === "") errors.push("Для платного события нужна ссылка на оплату");
   if (draft.capacity.trim() !== "" && (!Number.isInteger(Number(draft.capacity)) || Number(draft.capacity) < 1)) errors.push("Вместимость — целое число от 1");
+  if (draft.waitlistEnabled && draft.capacity.trim() === "") errors.push("Лист ожидания нужен только там, где есть предел мест");
+  if (!draft.registrationInApp && draft.externalUrl.trim() === "") errors.push("Укажите ссылку на регистрацию на вашем сайте");
+  if (!draft.registrationInApp && draft.externalUrl.trim() !== "") {
+    try {
+      new URL(draft.externalUrl.trim());
+    } catch {
+      errors.push("Ссылка на регистрацию должна начинаться с https://");
+    }
+  }
   return errors;
+}
+
+export function toEventOptions(draft: EventDraft): UpdateOrganizerEventOptions {
+  const date = draft.startsAt.slice(0, 10);
+  const until = draft.repeatWeekly && date !== "" ? weeklySeriesUntil(date) : "";
+  return {
+    waitlistEnabled: draft.waitlistEnabled,
+    registrationInApp: draft.registrationInApp,
+    externalUrl: draft.registrationInApp ? null : draft.externalUrl.trim(),
+    recurrence: until === "" ? null : { rule: "weekly", until: new Date(`${until}T23:59:00`).toISOString() },
+  };
 }
 
 export function placeDraftErrors(draft: PlaceDraft): string[] {
@@ -175,6 +202,10 @@ export function eventDraftFrom(item: OrganizerEvent, place?: OrganizerPlace): Ev
     longitude: place === undefined ? "37.6173" : String(place.longitude),
     pinned: place !== undefined,
     placeId: item.placeId ?? "",
+    waitlistEnabled: item.capacity !== null,
+    registrationInApp: true,
+    externalUrl: "",
+    repeatWeekly: false,
   };
 }
 
@@ -191,40 +222,65 @@ export function OrganizerListStatus<T>({ state, emptyText }: { state: OrganizerL
   return null;
 }
 
-export function OrganizerEventCard({ item, publishing, failed, onPublish, onEdit }: { item: OrganizerEvent; publishing: boolean; failed: boolean; onPublish: () => void; onEdit: () => void }) {
+export function splitOrganizerEvents(items: OrganizerEvent[], now = Date.now()): { drafts: OrganizerEvent[]; upcoming: OrganizerEvent[]; past: OrganizerEvent[] } {
+  const drafts: OrganizerEvent[] = [];
+  const upcoming: OrganizerEvent[] = [];
+  const past: OrganizerEvent[] = [];
+  for (const item of items) {
+    if (item.draft) drafts.push(item);
+    else if (new Date(item.endsAt ?? item.startsAt).getTime() < now) past.push(item);
+    else upcoming.push(item);
+  }
+  return { drafts, upcoming, past };
+}
+
+export function OrganizerEventCard({ item, placeTitle = null, publishing, failed, onOpen, onPublish, onEdit }: { item: OrganizerEvent; placeTitle?: string | null; publishing: boolean; failed: boolean; onOpen?: () => void; onPublish: () => void; onEdit: () => void }) {
+  const when = new Date(item.startsAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const highlight = posterHighlight({ event: item, distanceKm: null, rating: null, placeTitle });
+  const where = placeTitle !== null && placeTitle !== "" ? placeTitle : item.city;
+  const poster = (
+    <>
+      <span className="app-poster-photo">
+        <img alt="" src={pictured(item.id, item.coverUrl)} />
+      </span>
+      <span className="app-poster-copy">
+        {item.draft ? <span className="app-poster-host">Черновик</span> : item.organizerName ? <span className="app-poster-host">{item.organizerName}</span> : null}
+        <span className="app-poster-title">{item.title}</span>
+        <span className="app-poster-meta">
+          {when}
+          {where !== "" ? ` · ${where}` : ""}
+        </span>
+        {highlight !== null && <span className="app-poster-highlight">{highlight}</span>}
+      </span>
+    </>
+  );
   return (
-    <article className="app-card app-org-event-card">
-      <AppMedia category={item.category} src={item.coverUrl} />
-      <div className="app-card-body">
-        <span className="app-card-title">{item.title}</span>
-        <span className="app-card-subtitle">
-          {formatStartsAt(item.startsAt)} · {CATEGORY_LABELS[item.category]}
-        </span>
-        <span className="app-card-subtitle">
-          {item.city} · {item.isPaid && item.priceRub !== null ? `${item.priceRub} ₽` : "Бесплатно"}
-          {item.capacity !== null ? ` · до ${item.capacity} мест` : ""}
-        </span>
-        {item.description !== "" && <span className="app-card-subtitle">{item.description}</span>}
-        {item.draft && <span className="app-micro-badge">Черновик</span>}
-        {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
-        <span className="app-org-card-actions">
-          {item.draft && (
-            <AppButton size="small" disabled={publishing} onClick={onPublish}>
-              {publishing ? "Публикация…" : "Опубликовать"}
-            </AppButton>
-          )}
-          <AppButton size="small" tone="secondary" onClick={onEdit}>
-            Изменить
+    <div className="app-poster-block">
+      {onOpen !== undefined ? (
+        <button type="button" className="app-poster" onClick={onOpen}>
+          {poster}
+        </button>
+      ) : (
+        <article className="app-poster">{poster}</article>
+      )}
+      {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
+      <span className="app-org-card-actions">
+        {item.draft && (
+          <AppButton stretched disabled={publishing} onClick={onPublish}>
+            {publishing ? "Публикация…" : "Опубликовать"}
           </AppButton>
-        </span>
-      </div>
-    </article>
+        )}
+        <AppButton stretched onClick={onEdit}>
+          Изменить
+        </AppButton>
+      </span>
+    </div>
   );
 }
 
 export function OrganizerPlaceCard({ item, publishing, failed, onPublish, onEdit }: { item: OrganizerPlace; publishing: boolean; failed: boolean; onPublish: () => void; onEdit: () => void }) {
   return (
-    <article className="app-card app-org-event-card">
+    <article className="app-card app-card--row">
       <AppMedia category={item.category === "sport" ? "sport" : item.category === "park" ? "tourism" : "afisha"} />
       <div className="app-card-body">
         <span className="app-card-title">{item.title}</span>
@@ -236,11 +292,11 @@ export function OrganizerPlaceCard({ item, publishing, failed, onPublish, onEdit
         {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
         <span className="app-org-card-actions">
           {item.draft && (
-            <AppButton size="small" disabled={publishing} onClick={onPublish}>
+            <AppButton stretched disabled={publishing} onClick={onPublish}>
               {publishing ? "Публикация…" : "Опубликовать"}
             </AppButton>
           )}
-          <AppButton size="small" tone="secondary" onClick={onEdit}>
+          <AppButton stretched onClick={onEdit}>
             Изменить
           </AppButton>
         </span>
@@ -323,6 +379,18 @@ export function EventDraftForm({ draft, errors, submitting, failed, submitLabel,
         <span className="app-org-field-label">Вместимость</span>
         <input className="app-profile-input" type="number" min={1} aria-label="Вместимость (необязательно)" placeholder="Необязательно" value={draft.capacity} onChange={(change) => onChange("capacity", change.target.value)} />
       </label>
+      <div className="app-set-group">
+        <SettingsSwitchRow title="Лист ожидания" hint="Когда места закончатся" checked={draft.waitlistEnabled} onChange={(waitlistEnabled) => onChange("waitlistEnabled", waitlistEnabled)} />
+        <SettingsSwitchRow title="Запись в приложении" hint="Иначе гость уйдёт по вашей ссылке" checked={draft.registrationInApp} onChange={(registrationInApp) => onChange("registrationInApp", registrationInApp)} />
+        <SettingsSwitchRow title="Повторять каждую неделю" hint="Серия до конца следующего месяца" checked={draft.repeatWeekly} onChange={(repeatWeekly) => onChange("repeatWeekly", repeatWeekly)} />
+      </div>
+      {!draft.registrationInApp && (
+        <label className="app-org-field">
+          <span className="app-org-field-label">Ссылка на регистрацию</span>
+          <input className="app-profile-input" type="url" aria-label="Ссылка на регистрацию" placeholder="https://" value={draft.externalUrl} onChange={(change) => onChange("externalUrl", change.target.value)} />
+        </label>
+      )}
+
       {errors.map((error) => (
         <p key={error} className="app-state app-state--error">
           {error}
@@ -332,7 +400,7 @@ export function EventDraftForm({ draft, errors, submitting, failed, submitLabel,
       <AppButton disabled={submitting} type="submit" stretched>
         {submitting ? "Сохранение…" : submitLabel}
       </AppButton>
-      <AppButton type="button" tone="ghost" stretched onClick={onCancel}>
+      <AppButton type="button" stretched onClick={onCancel}>
         Отмена
       </AppButton>
     </form>
@@ -395,7 +463,7 @@ export function PlaceDraftForm({ draft, errors, submitting, failed, submitLabel,
       <AppButton disabled={submitting} type="submit" stretched>
         {submitting ? "Сохранение…" : submitLabel}
       </AppButton>
-      <AppButton type="button" tone="ghost" stretched onClick={onCancel}>
+      <AppButton type="button" stretched onClick={onCancel}>
         Отмена
       </AppButton>
     </form>
@@ -418,7 +486,7 @@ function upsert<T extends { id: string }>(items: T[], item: T): T[] {
 }
 
 /** createOnMount: the «Создать» tab of the organizer bar (макет, экран 46) lands straight on the empty event draft. */
-export function OrganizerPanel({ organizationId, createOnMount = false }: { organizationId: string; createOnMount?: boolean }) {
+export function OrganizerPanel({ organizationId: _organizationId, createOnMount = false, onOpenEvent, onComposer, closeComposerTick = 0 }: { organizationId: string; createOnMount?: boolean; onOpenEvent?: (event: OrganizerEvent) => void; onComposer?: (title: string | null) => void; closeComposerTick?: number }) {
   const [tab, setTab] = useState<"events" | "places">("events");
   const [events, setEvents] = useState<OrganizerListState<OrganizerEvent>>({ status: "loading" });
   const [places, setPlaces] = useState<OrganizerListState<OrganizerPlace>>({ status: "loading" });
@@ -460,6 +528,17 @@ export function OrganizerPanel({ organizationId, createOnMount = false }: { orga
     setEventForm(next);
   };
 
+  useEffect(() => {
+    onComposer?.(eventForm === null ? null : eventForm.mode === "create" ? "Новое событие" : "Событие");
+  }, [eventForm, onComposer]);
+
+  useEffect(() => {
+    if (closeComposerTick === 0) return;
+    setEventForm(null);
+    setErrors([]);
+    setFailed(false);
+  }, [closeComposerTick]);
+
   const openPlaceForm = (next: PlaceFormState) => {
     setErrors([]);
     setFailed(false);
@@ -487,7 +566,8 @@ export function OrganizerPanel({ organizationId, createOnMount = false }: { orga
             });
     const request = placeReady.then((placeId) => {
       const withPlace = { ...draft, placeId };
-      return eventForm.mode === "create" ? apiClient.createOrganizerEvent(toCreateEvent(withPlace)) : apiClient.updateOrganizerEvent(eventForm.id, toEventPatch(withPlace));
+      const saved = eventForm.mode === "create" ? apiClient.createOrganizerEvent(toCreateEvent(withPlace)) : apiClient.updateOrganizerEvent(eventForm.id, toEventPatch(withPlace));
+      return saved.then((item) => apiClient.updateOrganizerEventOptions(item.id, toEventOptions(withPlace)).then(() => item));
     });
     request.then(
       (item) => {
@@ -555,50 +635,83 @@ export function OrganizerPanel({ organizationId, createOnMount = false }: { orga
     );
   };
 
+  if (eventForm !== null) {
+    return (
+      <section className="app-gathering" aria-label={eventForm.mode === "create" ? "Новое событие" : "Событие"}>
+        <EventDraftForm draft={eventForm.draft} errors={errors} submitting={submitting} failed={failed} submitLabel={eventForm.mode === "create" ? "Создать черновик" : "Сохранить"} onChange={(field, value) => setEventForm((current) => (current === null ? current : { ...current, draft: { ...current.draft, [field]: value } }))} onSubmit={submitEvent} onCancel={() => openEventForm(null)} />
+      </section>
+    );
+  }
+
+  const groups = events.status === "ready" ? splitOrganizerEvents(events.items) : null;
+  const placeTitleFor = (placeId: string | null) => (places.status === "ready" ? (places.items.find((place) => place.id === placeId)?.title ?? null) : null);
+  const editEvent = (item: OrganizerEvent) => {
+    openEventForm({ mode: "edit", id: item.id, draft: eventDraftFrom(item, places.status === "ready" ? places.items.find((place) => place.id === item.placeId) : undefined) });
+    apiClient.getOrganizerEventOptions(item.id).then((options) => {
+      setEventForm((current) =>
+        current !== null && current.mode === "edit" && current.id === item.id
+          ? { ...current, draft: { ...current.draft, waitlistEnabled: options.waitlistEnabled, registrationInApp: options.registrationInApp, externalUrl: options.externalUrl ?? "", repeatWeekly: options.recurrence?.rule === "weekly" } }
+          : current,
+      );
+    }, () => {});
+  };
+  const renderEvents = (items: OrganizerEvent[]) => (
+    <div className="app-poster-stack">
+      {items.map((item) => (
+        <OrganizerEventCard key={item.id} item={item} placeTitle={placeTitleFor(item.placeId)} publishing={publishingId === item.id} failed={publishErrorId === item.id} onOpen={onOpenEvent === undefined ? undefined : () => onOpenEvent(item)} onPublish={() => publishEvent(item.id)} onEdit={() => editEvent(item)} />
+      ))}
+    </div>
+  );
+
   return (
     <section className="app-gathering">
-      <p className="app-gathering-hint">Черновики видны только вам — опубликуйте, когда всё готово</p>
-      <MyOrganizerRatingCard organizationId={organizationId} />
       <div className="app-filters-chips">
         <AppChip pressed={tab === "events"} onClick={() => setTab("events")}>
           События
-        </AppChip>{" "}
+        </AppChip>
         <AppChip pressed={tab === "places"} onClick={() => setTab("places")}>
           Места
         </AppChip>
       </div>
       {tab === "events" && (
         <>
+          <AppButton stretched onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
+            Создать событие
+          </AppButton>
+          <p className="app-gathering-hint">Нажмите карточку, чтобы открыть день события: участники, вход и продвижение. «Изменить» правит саму карточку.</p>
           <OrganizerListStatus state={events} emptyText="Пока нет событий — создайте первое." />
-          {events.status === "ready" &&
-            events.items.map((item) =>
-              eventForm?.mode === "edit" && eventForm.id === item.id ? null : (
-                <div key={item.id}>
-                  <OrganizerEventCard item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishEvent(item.id)} onEdit={() => openEventForm({ mode: "edit", id: item.id, draft: eventDraftFrom(item, places.status === "ready" ? places.items.find((place) => place.id === item.placeId) : undefined) })} />
-                  <OrganizerEventAddons eventId={item.id} bookingOpensAt={item.bookingOpensAt} />
-                </div>
-              ),
-            )}
-          {eventForm === null ? (
-            <AppButton tone="secondary" stretched onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
-              Новое событие
-            </AppButton>
-          ) : (
-            <EventDraftForm draft={eventForm.draft} errors={errors} submitting={submitting} failed={failed} submitLabel={eventForm.mode === "create" ? "Создать черновик" : "Сохранить"} onChange={(field, value) => setEventForm((current) => (current === null ? current : { ...current, draft: { ...current.draft, [field]: value } }))} onSubmit={submitEvent} onCancel={() => openEventForm(null)} />
+          {groups !== null && groups.drafts.length > 0 && (
+            <>
+              <h2 className="app-section-title">Черновики</h2>
+              {renderEvents(groups.drafts)}
+            </>
+          )}
+          {groups !== null && groups.upcoming.length > 0 && (
+            <>
+              <h2 className="app-section-title">В афише</h2>
+              {renderEvents(groups.upcoming)}
+            </>
+          )}
+          {groups !== null && groups.past.length > 0 && (
+            <>
+              <h2 className="app-section-title">Прошедшие</h2>
+              {renderEvents(groups.past)}
+            </>
           )}
         </>
       )}
       {tab === "places" && (
         <>
-          <OrganizerListStatus state={places} emptyText="Пока нет мест — создайте первое." />
-          {places.status === "ready" && places.items.map((item) => (placeForm?.mode === "edit" && placeForm.id === item.id ? null : <OrganizerPlaceCard key={item.id} item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishPlace(item.id)} onEdit={() => openPlaceForm({ mode: "edit", id: item.id, draft: placeDraftFrom(item) })} />))}
           {placeForm === null ? (
-            <AppButton tone="secondary" stretched onClick={() => openPlaceForm({ mode: "create", draft: EMPTY_PLACE_DRAFT })}>
+            <AppButton stretched onClick={() => openPlaceForm({ mode: "create", draft: EMPTY_PLACE_DRAFT })}>
               Новое место
             </AppButton>
           ) : (
             <PlaceDraftForm draft={placeForm.draft} errors={errors} submitting={submitting} failed={failed} submitLabel={placeForm.mode === "create" ? "Создать черновик" : "Сохранить"} onChange={(field, value) => setPlaceForm((current) => (current === null ? current : { ...current, draft: { ...current.draft, [field]: value } }))} onSubmit={submitPlace} onCancel={() => openPlaceForm(null)} />
           )}
+          <p className="app-gathering-hint">Место нужно, чтобы поставить адрес на карте. Событие можно создать и без него.</p>
+          <OrganizerListStatus state={places} emptyText="Пока нет мест — создайте первое." />
+          {places.status === "ready" && places.items.map((item) => (placeForm?.mode === "edit" && placeForm.id === item.id ? null : <OrganizerPlaceCard key={item.id} item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishPlace(item.id)} onEdit={() => openPlaceForm({ mode: "edit", id: item.id, draft: placeDraftFrom(item) })} />))}
         </>
       )}
     </section>

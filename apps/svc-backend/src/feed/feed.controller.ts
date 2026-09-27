@@ -10,7 +10,7 @@
 // - requireId - optional uuid query parameter or 400
 // END_MODULE_MAP
 
-import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
 import { AddFeedCommentWriteSchema, CreateFeedPostWriteSchema, FeedDraftWriteSchema, type BookingWithSeats, type FeedCard, type FeedDraftSaved, type FeedPost } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
@@ -47,6 +47,12 @@ export class FeedController {
     return this.feed.get(user.id, id);
   }
 
+  @Delete(":id")
+  @HttpCode(204)
+  remove(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<void> {
+    return this.feed.remove(user.id, id);
+  }
+
   @Post()
   async create(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<FeedPost> {
     const parsed = CreateFeedPostWriteSchema.safeParse(body);
@@ -71,10 +77,25 @@ export class FeedController {
     return this.feed.toggleLike(user.id, id);
   }
 
+  @Post("events/:eventId/repost")
+  repostEvent(@CurrentUser() user: UserEntity, @Param("eventId", ParseUUIDPipe) eventId: string): Promise<FeedPost> {
+    return this.feed.repostEvent(user.id, eventId);
+  }
+
+  @Post(":id/going")
+  toggleGoing(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<FeedPost> {
+    return this.feed.toggleGoing(user.id, id);
+  }
+
+  @Post(":id/repost")
+  repost(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<FeedPost> {
+    return this.feed.repostPost(user.id, id);
+  }
+
   @Post(":id/comments")
   async addComment(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<FeedPost> {
     const parsed = AddFeedCommentWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid comment payload");
-    return this.feed.addComment(user.id, id, parsed.data.text);
+    return this.feed.addComment(user.id, id, parsed.data.text, parsed.data.parentId ?? null);
   }
 }

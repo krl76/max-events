@@ -14,16 +14,15 @@
 // - OrganizerSpace - auth gate + MaxUI chrome: loading/anonymous/error -> login form, authenticated -> onboarding gate -> header + section (or the pushed экран 44) + tab bar
 // END_MODULE_MAP
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { OrganizerEvent } from "../api/client";
 import { apiClient } from "../api/client";
 import { AfishaWordmark } from "../auth/EntryPage";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppState } from "../ui/primitives";
-import { MyOrganizerRatingCard } from "./OrganizerAddons";
 import { OrganizerAuthProvider, useOrganizerAuth } from "./OrganizerAuthContext";
 import { OrganizerDashboard, type OrganizerPromoIntent } from "./OrganizerDashboard";
-import { OrganizerEventForm } from "./OrganizerEventForm";
+import { OrganizerOrganization } from "./OrganizerOrganization";
 import { OrganizerEventManage } from "./OrganizerEventManage";
 import { OrganizerIntro } from "./OrganizerIntro";
 import { isOrganizerIntroDone } from "./organizer-onboarding";
@@ -95,28 +94,31 @@ export function OrganizerLoginForm({ onExit }: { onExit: () => void }) {
 }
 
 export const ORGANIZER_SECTION_TITLES: Record<OrganizerSection, string> = {
-  dashboard: "Дашборд",
+  dashboard: "Обзор",
   events: "События",
-  create: "Новое событие",
-  promo: "Промо и отчёты",
-  profile: "Профиль",
+  promo: "Продвижение",
 };
 
-/** Экраны 45, 46 и 48 несут собственную шапку — общая стала бы второй, как это уже решено для экранов 08 и 16. */
-export const ORGANIZER_BARE_SECTIONS: ReadonlySet<OrganizerSection> = new Set<OrganizerSection>(["dashboard", "create", "promo"]);
+/** Кабинет использует ту же шапку, что и пользовательское приложение. Свой хром остаётся только у вступления и мастера настройки. */
+export const ORGANIZER_BARE_SECTIONS: ReadonlySet<OrganizerSection> = new Set<OrganizerSection>([]);
 
 interface OrganizerSectionContentProps {
   section: OrganizerSection;
   organizationId: string;
   organizationName: string;
   promoIntent: OrganizerPromoIntent | null;
+  promoEventId: string | null;
+  createEvent: boolean;
   onSection: (section: OrganizerSection) => void;
   onManage: (event: OrganizerEvent) => void;
-  onPromoIntent: (intent: OrganizerPromoIntent) => void;
-  onLogout: () => void;
+  onCreateEvent: () => void;
+  onOpenOrganization: () => void;
+  onOpenEvent: (event: OrganizerEvent) => void;
+  onComposer?: (title: string | null) => void;
+  closeComposerTick?: number;
 }
 
-export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, onSection, onManage, onPromoIntent, onLogout }: OrganizerSectionContentProps) {
+export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onOpenEvent, onComposer, closeComposerTick }: OrganizerSectionContentProps) {
   if (section === "dashboard")
     return (
       <OrganizerDashboard
@@ -124,25 +126,12 @@ export function OrganizerSectionContent({ section, organizationId, organizationN
         organizationName={organizationName}
         onOpenEvent={onManage}
         onAllEvents={() => onSection("events")}
-        onTool={(intent) => {
-          onPromoIntent(intent);
-          onSection("promo");
-        }}
+        onCreateEvent={onCreateEvent}
+        onOpenOrganization={onOpenOrganization}
       />
     );
-  if (section === "create") return <OrganizerEventForm organizationName={organizationName} onBack={() => onSection("dashboard")} onPublished={() => onSection("dashboard")} />;
-  if (section === "promo") return <OrganizerPromo organizationName={organizationName} intent={promoIntent} onOpenEvent={() => onSection("events")} />;
-  if (section === "profile")
-    return (
-      <section className="app-gathering">
-        <p className="app-gathering-hint">{organizationName}</p>
-        <MyOrganizerRatingCard organizationId={organizationId} />
-        <AppButton tone="secondary" stretched onClick={onLogout}>
-          Выйти
-        </AppButton>
-      </section>
-    );
-  return <OrganizerPanel organizationId={organizationId} />;
+  if (section === "promo") return <OrganizerPromo organizationName={organizationName} intent={promoIntent} eventId={promoEventId} onOpenEvent={() => onSection("events")} />;
+  return <OrganizerPanel organizationId={organizationId} createOnMount={createEvent} onOpenEvent={onOpenEvent} onComposer={onComposer} closeComposerTick={closeComposerTick} />;
 }
 
 /**
@@ -190,52 +179,100 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   const { state, logout } = useOrganizerAuth();
   const [section, setSection] = useState<OrganizerSection>("dashboard");
   const [manage, setManage] = useState<OrganizerEvent | null>(null);
+  const [organizationOpen, setOrganizationOpen] = useState(false);
+  const [createEvent, setCreateEvent] = useState(false);
   const [promoIntent, setPromoIntent] = useState<OrganizerPromoIntent | null>(null);
+  const [promoEventId, setPromoEventId] = useState<string | null>(null);
+  const [composerTitle, setComposerTitle] = useState<string | null>(null);
+  const [closeComposerTick, setCloseComposerTick] = useState(0);
+  const onComposer = useCallback((title: string | null) => setComposerTitle(title), []);
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
-  const bare = manage !== null || ORGANIZER_BARE_SECTIONS.has(section);
-  // Вступление и настройка идут до панели и без её хрома: у обоих экранов свои шапка и подвал.
+  const pushed = manage !== null || organizationOpen || composerTitle !== null;
+  const title = composerTitle ?? (manage !== null ? manage.title : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section]);
+  const openPromotion = (eventId: string, intent: OrganizerPromoIntent | null) => {
+    setManage(null);
+    setOrganizationOpen(false);
+    setPromoEventId(eventId);
+    setPromoIntent(intent);
+    setSection("promo");
+  };
   return (
-    <OrganizerOnboardingGate onCreateEvent={() => setSection("create")}>
-      {!bare && (
-        <header className="app-header">
-          <span className="app-header-title">{ORGANIZER_SECTION_TITLES[section]}</span>
-        </header>
-      )}
-      <main className={bare ? "app-content app-content--flush" : "app-content"}>
-        {manage === null ? (
+    <OrganizerOnboardingGate
+      onCreateEvent={() => {
+        setCreateEvent(true);
+        setSection("events");
+      }}
+    >
+      <header className="app-header">
+        {pushed && (
+          <button
+            type="button"
+            className="app-header-back"
+            aria-label="Назад"
+            onClick={() => {
+              if (composerTitle !== null) {
+                setCloseComposerTick((tick) => tick + 1);
+                return;
+              }
+              setManage(null);
+              setOrganizationOpen(false);
+            }}
+          >
+            <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+            Назад
+          </button>
+        )}
+        <span className="app-header-title">{title}</span>
+      </header>
+      <main className={composerTitle !== null ? "app-content app-content--full" : "app-content"}>
+        {manage !== null ? (
+          <OrganizerEventManage event={manage} onBack={() => setManage(null)} onPromo={() => openPromotion(manage.id, null)} />
+        ) : organizationOpen ? (
+          <OrganizerOrganization organizationId={state.session.organization.id} organizationName={state.session.organization.name} onLogout={logout} />
+        ) : (
           <OrganizerSectionContent
             section={section}
             organizationId={state.session.organization.id}
             organizationName={state.session.organization.name}
             promoIntent={promoIntent}
+            promoEventId={promoEventId}
+            createEvent={createEvent && section === "events"}
             onSection={(next) => {
-              if (next !== "promo") setPromoIntent(null);
+              if (next !== "promo") {
+                setPromoIntent(null);
+                setPromoEventId(null);
+              }
+              if (next !== "events") setCreateEvent(false);
               setSection(next);
             }}
             onManage={setManage}
-            onPromoIntent={setPromoIntent}
-            onLogout={logout}
-          />
-        ) : (
-          <OrganizerEventManage
-            event={manage}
-            onBack={() => setManage(null)}
-            onPromo={() => {
-              setManage(null);
-              setSection("promo");
+            onCreateEvent={() => {
+              setCreateEvent(true);
+              setSection("events");
             }}
+            onOpenOrganization={() => setOrganizationOpen(true)}
+            onOpenEvent={setManage}
+            onComposer={onComposer}
+            closeComposerTick={closeComposerTick}
           />
         )}
       </main>
+      {composerTitle === null && (
       <OrganizerTabBar
         section={section}
         onSection={(next) => {
           setManage(null);
-          if (next !== "promo") setPromoIntent(null);
+          setOrganizationOpen(false);
+          if (next !== "promo") {
+            setPromoIntent(null);
+            setPromoEventId(null);
+          }
+          if (next !== "events") setCreateEvent(false);
           setSection(next);
         }}
       />
+      )}
     </OrganizerOnboardingGate>
   );
 }

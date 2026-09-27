@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { EMPTY_EVENT_DRAFT, EMPTY_PLACE_DRAFT, EventDraftForm, eventDraftErrors, eventDraftFrom, OrganizerEventCard, OrganizerListStatus, OrganizerPlaceCard, placeDraftErrors, toCreateEvent, toEventPatch, toLocalInput, type EventDraft, type OrganizerListState } from "./OrganizerPage";
+import { EMPTY_EVENT_DRAFT, EMPTY_PLACE_DRAFT, EventDraftForm, eventDraftErrors, eventDraftFrom, OrganizerEventCard, OrganizerListStatus, OrganizerPlaceCard, placeDraftErrors, splitOrganizerEvents, toCreateEvent, toEventPatch, toLocalInput, type EventDraft, type OrganizerListState } from "./OrganizerPage";
 import type { OrganizerEvent, OrganizerPlace } from "../api/client";
 
 const noop = () => {};
@@ -43,7 +43,7 @@ const publishedPlace: OrganizerPlace = {
   logoUrl: null,
 };
 
-const readyDraft: EventDraft = { title: "Встреча книжного клуба", description: "", category: "afisha", city: "Москва", startsAt: "2026-10-20T19:00", endsAt: "", price: "", paymentUrl: "", capacity: "12", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "" };
+const readyDraft: EventDraft = { title: "Встреча книжного клуба", description: "", category: "afisha", city: "Москва", startsAt: "2026-10-20T19:00", endsAt: "", price: "", paymentUrl: "", capacity: "12", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "", waitlistEnabled: false, registrationInApp: true, externalUrl: "", repeatWeekly: false };
 
 describe("eventDraftErrors", () => {
   it("accepts a ready draft and reports every missing required field", () => {
@@ -60,6 +60,12 @@ describe("eventDraftErrors", () => {
   it("rejects an endsAt that is before startsAt", () => {
     expect(eventDraftErrors({ ...readyDraft, startsAt: "2026-10-20T19:00", endsAt: "2026-10-20T09:00" })).toContain("Окончание не может быть раньше начала");
     expect(eventDraftErrors({ ...readyDraft, startsAt: "2026-10-20T19:00", endsAt: "2026-10-20T21:00" })).toEqual([]);
+  });
+
+  it("asks for a capacity when the waitlist is on and for a registration link when signup leaves the app", () => {
+    expect(eventDraftErrors({ ...readyDraft, capacity: "", waitlistEnabled: true })).toContain("Лист ожидания нужен только там, где есть предел мест");
+    expect(eventDraftErrors({ ...readyDraft, registrationInApp: false, externalUrl: "" })).toContain("Укажите ссылку на регистрацию на вашем сайте");
+    expect(eventDraftErrors({ ...readyDraft, registrationInApp: false, externalUrl: "https://tickets.example.com" })).toEqual([]);
   });
 });
 
@@ -134,6 +140,18 @@ describe("toLocalInput", () => {
   });
 });
 
+describe("splitOrganizerEvents", () => {
+  it("keeps drafts apart from upcoming and past published events", () => {
+    const past = { ...draftEvent, id: "f1000000-0000-4000-8000-000000000002", draft: false, startsAt: "2026-01-01T19:00:00+03:00", endsAt: null };
+    const upcoming = { ...draftEvent, id: "f1000000-0000-4000-8000-000000000003", draft: false, startsAt: "2026-12-01T19:00:00+03:00", endsAt: null };
+    const groups = splitOrganizerEvents([draftEvent, past, upcoming], new Date("2026-09-26T12:00:00+03:00").getTime());
+
+    expect(groups.drafts.map((item) => item.id)).toEqual([draftEvent.id]);
+    expect(groups.past.map((item) => item.id)).toEqual([past.id]);
+    expect(groups.upcoming.map((item) => item.id)).toEqual([upcoming.id]);
+  });
+});
+
 describe("OrganizerEventCard", () => {
   const card = (item: OrganizerEvent, failed = false) => renderToStaticMarkup(createElement(OrganizerEventCard, { item, publishing: false, failed, onPublish: noop, onEdit: noop }));
 
@@ -142,7 +160,7 @@ describe("OrganizerEventCard", () => {
     expect(html).toContain("Черновик");
     expect(html).toContain("Опубликовать");
     expect(html).toContain(draftEvent.title);
-    expect(html).toContain("Бесплатно");
+    expect(html).toContain("0 из 40 · свободно 40 мест");
   });
 
   it("shows the inline publish failure message without dropping the card", () => {
@@ -181,6 +199,8 @@ describe("EventDraftForm", () => {
     expect(html).toContain('type="datetime-local"');
     expect(html).toContain("Афиша");
     expect(html).toContain("Создать черновик");
+    expect(html).toContain("Лист ожидания");
+    expect(html).toContain("Повторять каждую неделю");
   });
 
   it("shows inline errors and the failure state instead of alerting", () => {

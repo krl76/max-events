@@ -36,7 +36,9 @@ describe("FeedPostCard", () => {
     expect(html).toContain(mockEvents[0].title);
     expect(html).toContain("Было здорово");
     expect(html).toContain(commentsEntryLabel(1));
-    expect(html).not.toContain("Класс!");
+    expect(html).toContain("Класс!");
+    expect(html).toContain('aria-label="Профиль Дима Кузнецов"');
+    expect(html.indexOf("Было здорово")).toBeLessThan(html.indexOf("app-post-actions"));
   });
 
   it("turns the author icon and name into profile controls", () => {
@@ -50,7 +52,7 @@ describe("FeedPostCard", () => {
 
     expect(html).toContain("Дима Кузнецов");
     expect(html).toContain("Класс!");
-    expect(html).toContain("Добавить комментарий…");
+    expect(html).toContain("Комментарий");
     expect(html).toContain('aria-label="Профиль Дима Кузнецов"');
   });
 
@@ -79,11 +81,11 @@ describe("FeedPostCard", () => {
     const withPhoto = card({ photoUrl: "https://cdn.example.com/post.jpg" });
 
     expect(withPhoto).toContain('src="https://cdn.example.com/post.jpg"');
-    // Same 4:5 frame as the placeholder, and it replaces it rather than sitting under it.
-    expect(withPhoto).toContain('class="app-card-media app-post-photo"');
-    expect((withPhoto.match(/app-card-media/g) ?? []).length).toBe(1);
+    expect(withPhoto).toContain('class="app-feed-photo"');
+    expect(withPhoto).toContain("Открыть фото 1 из 1");
+    expect(withPhoto).not.toContain("app-card-media");
     expect(card({ photoUrl: null })).toContain("picsum.photos");
-    expect(card({ photoUrl: null })).not.toContain("app-post-photo");
+    expect(card({ photoUrl: null })).toContain("app-card-media");
   });
 
   it("reflects the like state and counter on the like button", () => {
@@ -101,7 +103,7 @@ describe("FeedPostCard", () => {
   it("keeps the composer in the comments sheet, disabled until there is text", () => {
     const html = renderToStaticMarkup(createElement(CommentSheet, { comments: post.comments, parents: {}, liked: {}, replyTo: null, draft: "", onDraft: noop, onClose: noop, onLike: noop, onReply: noop, onCancelReply: noop, onSubmit: noop, inputRef: { current: null } }));
 
-    expect(html).toContain("Добавить комментарий…");
+    expect(html).toContain("Комментарий");
     expect(html).toContain("disabled");
   });
 

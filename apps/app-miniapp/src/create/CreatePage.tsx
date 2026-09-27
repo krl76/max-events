@@ -26,28 +26,35 @@ export interface CreateEntry {
 
 /** Макет, экран 03: «Создать» opens публикация — история (05), пост (06), план. The micro-event joins them: it is the fourth thing a viewer publishes. */
 export const CREATE_ENTRIES: CreateEntry[] = [
-  { icon: "clock", label: "История", description: "Фото на сутки — со стикером места", route: { name: "story-new" } },
-  { icon: "comment", label: "Пост", description: "Текст, фото и событие, к которому можно присоединиться", route: { name: "feed-new", eventId: null } },
-  { icon: "bookmark", label: "План", description: "Собрать встречу и позвать друзей", route: { name: "plan-new" } },
-  { icon: "user", label: "Микро-событие", description: "Позвать соседей на пробежку, настолки или каток", route: { name: "micro-new" } },
+  { icon: "clock", label: "История", description: "Сутки у друзей", route: { name: "story-new" } },
+  { icon: "comment", label: "Пост", description: "Фото и событие", route: { name: "feed-new", eventId: null } },
+  { icon: "bookmark", label: "План", description: "Вечер из афиши", route: { name: "plan-new" } },
+  { icon: "user", label: "Микро-событие", description: "Встреча со своими", route: { name: "micro-new" } },
 ];
 
 export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
+  const [story, ...rest] = CREATE_ENTRIES;
   return (
-    <AppSection title="Что публикуем" ariaLabel="Создать">
-      <div className="app-create-entries">
-        {CREATE_ENTRIES.map((entry) => (
-          <button key={entry.label} type="button" className="app-create-entry" onClick={() => onPick(entry.route)}>
-            <span className="app-create-entry-icon" aria-hidden="true">
-              <ActionIcon name={entry.icon} size={22} />
+    <AppSection className="app-create-section" ariaLabel="Создать">
+      {story !== undefined && (
+        <button type="button" className="app-create-hero" onClick={() => onPick(story.route)}>
+          <span className="app-create-hero-ring" aria-hidden="true">
+            <span className="app-create-hero-face">
+              <ActionIcon name="plus" size={22} />
             </span>
-            <span className="app-create-entry-text">
-              <span className="app-create-entry-label">{entry.label}</span>
-              <span className="app-create-entry-description">{entry.description}</span>
-            </span>
-            <span className="app-create-entry-chevron" aria-hidden="true">
-              <ActionIcon name="chevron" size={20} />
-            </span>
+          </span>
+          <span className="app-create-card-copy">
+            <span className="app-create-card-label">{story.label}</span>
+            <span className="app-create-card-line">{story.description}</span>
+          </span>
+        </button>
+      )}
+      <div className="app-create-trio">
+        {rest.map((entry) => (
+          <button key={entry.label} type="button" className="app-create-card" onClick={() => onPick(entry.route)}>
+            <span className={entry.route.name === "plan-new" ? "app-create-mark app-create-mark--plan-new" : entry.route.name === "micro-new" ? "app-create-mark app-create-mark--micro-new" : "app-create-mark app-create-mark--feed-new"} aria-hidden="true" />
+            <span className="app-create-card-label">{entry.label}</span>
+            <span className="app-create-card-line">{entry.description}</span>
           </button>
         ))}
       </div>

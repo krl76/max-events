@@ -288,33 +288,39 @@ interface MicroEventCreateViewProps {
 export function MicroEventCreateView({ draft, places: _places, friends = [], inviteeIds = [], submitting, failed, onChange, onInvite, onInviteMax, onSubmit }: MicroEventCreateViewProps) {
   const [pickingPin, setPickingPin] = useState(false);
   const [pickingFriends, setPickingFriends] = useState(false);
-  const missing = [draft.title.trim() === "" ? "Напишите, что делаем" : "", draft.when === "" ? "Укажите, когда" : "", draft.where.trim() === "" ? "Поставьте точку, где" : "", Number(draft.limit) >= 1 ? "" : "Укажите лимит"].filter((line) => line !== "");
+  const ready = microDraftReady(draft);
+  const limit = Math.max(1, Number(draft.limit) || 1);
   return (
-    <section className="app-gathering">
-      <label className="app-gathering-time">
-        Что делаем
-        <input className="app-gathering-time-input" value={draft.title} placeholder="Играем в баскетбол" onChange={(change) => onChange("title", change.target.value)} />
-        {missing.includes("Напишите, что делаем") && <span className="app-field-hint">Напишите, что делаем</span>}
+    <section className="app-micro-build" aria-label="Своя встреча">
+      <p className="app-micro-lead">Не из афиши. Вы придумываете встречу и зовёте своих.</p>
+      <label className="app-micro-title">
+        <span className="app-plan-kicker">Что делаем</span>
+        <input aria-label="Что делаем" placeholder="Баскетбол, настолки, каток" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
       </label>
-      <label className="app-gathering-time">
-        Когда
-        <WhenField label="Выберите дату и время" value={draft.when} onChange={(value) => onChange("when", value)} />
-        {missing.includes("Укажите, когда") && <span className="app-field-hint">Укажите, когда</span>}
-      </label>
-      <label className="app-gathering-time">
-        Где
-        <input className="app-gathering-time-input" value={draft.where} placeholder="Точка на карте или адрес" onChange={(change) => onChange("where", change.target.value)} />
-        {missing.includes("Поставьте точку, где") && <span className="app-field-hint">Поставьте точку, где</span>}
-      </label>
-      <button type="button" className="app-gathering-row" onClick={() => setPickingPin(true)}>
-        <ActionIcon name="pin" size={18} />
-        <span>Точка на карте</span>
-        <ActionIcon name="chevron" size={16} />
-      </button>
-      <label className="app-gathering-time">
-        Лимит участников
-        <input className="app-gathering-time-input" type="number" min={1} value={draft.limit} onChange={(change) => onChange("limit", change.target.value)} />
-        {missing.includes("Укажите лимит") && <span className="app-field-hint">Укажите лимит</span>}
+      <div className="app-micro-when">
+        <span className="app-plan-kicker">Когда</span>
+        <WhenField label="Когда" value={draft.when} onChange={(value) => onChange("when", value)} />
+      </div>
+      <div className="app-plan-meet">
+        <label className="app-plan-meet-field">
+          <span className="app-plan-kicker">Где</span>
+          <input className="app-plan-meet-input" aria-label="Где" placeholder="Парк, двор, каток" value={draft.where} onChange={(change) => onChange("where", change.target.value)} />
+        </label>
+        <button type="button" className="app-plan-pin" aria-label="Точка на карте" onClick={() => setPickingPin(true)}>
+          <ActionIcon name="pin" size={20} />
+        </button>
+      </div>
+      <label className="app-micro-limit">
+        <span className="app-plan-kicker">Лимит участников</span>
+        <span className="app-micro-stepper">
+          <button type="button" aria-label="Меньше людей" onClick={() => onChange("limit", String(Math.max(1, limit - 1)))}>
+            −
+          </button>
+          <input aria-label="Лимит участников" inputMode="numeric" value={draft.limit} onChange={(change) => onChange("limit", change.target.value.replace(/\D/g, "").slice(0, 3))} />
+          <button type="button" aria-label="Больше людей" onClick={() => onChange("limit", String(limit + 1))}>
+            +
+          </button>
+        </span>
       </label>
       <div className="app-gathering-invite">
         <button type="button" className="app-gathering-row" onClick={() => setPickingFriends(true)}>
@@ -328,14 +334,8 @@ export function MicroEventCreateView({ draft, places: _places, friends = [], inv
           </button>
         )}
       </div>
-      <AppButton
-        disabled={submitting}
-        onClick={() => {
-          if (microDraftReady(draft)) onSubmit();
-        }}
-        stretched
-      >
-        {submitting ? "Публикуем…" : "Опубликовать"}
+      <AppButton disabled={submitting || !ready} onClick={onSubmit} stretched>
+        {submitting ? "Публикуем…" : "Создать микрособытие"}
       </AppButton>
       {failed && <AppState error>Не удалось опубликовать микро-событие.</AppState>}
       {pickingPin && (

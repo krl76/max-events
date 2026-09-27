@@ -305,6 +305,8 @@ interface ProfileViewProps extends ProfileEntries {
   /** Own profile: no subscribe/write/invite, avatar and cover are editable. */
   own?: boolean;
   followingThem?: boolean;
+  /** They already added the viewer, so a return add makes the two friends. */
+  followsYou?: boolean;
   subscribePending?: boolean;
 }
 
@@ -419,7 +421,7 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
       {!own && (
         <div className="app-me-actions">
           <button type="button" className="app-me-action app-me-action--primary" disabled={subscribePending} onClick={entries.onSubscribe}>
-            {followingThem ? "Отписаться" : "Подписаться"}
+            {followingThem && entries.followsYou ? "Друзья" : followingThem ? "Вы добавили" : "Добавить"}
           </button>
           <button type="button" className="app-me-action" onClick={entries.onWrite}>
             Написать
@@ -434,6 +436,7 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
           </button>
         </div>
       )}
+      {!own && <p className="app-me-link-hint">Добавьте человека или позовите ссылкой в MAX. Друзья — когда добавление взаимное.</p>}
       <div className="app-me-tabs" role="tablist" aria-label="Что показывать">
         {PROFILE_TABS.map((candidate) => (
           <button key={candidate.id} type="button" role="tab" id={`app-me-tab-${candidate.id}`} aria-selected={tab === candidate.id} aria-controls="app-me-tabpanel" className={tab === candidate.id ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => entries.onTab(candidate.id)}>
@@ -697,6 +700,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         tab={tab}
         own={own}
         followingThem={followingThem}
+        followsYou={followedByThem}
         subscribePending={subscribePending}
         onTab={setTab}
         onSettings={() => navigate({ name: "settings" })}

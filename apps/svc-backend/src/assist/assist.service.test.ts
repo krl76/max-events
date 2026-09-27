@@ -84,6 +84,19 @@ describe("AssistService", () => {
     expect(result.items.length).toBeGreaterThan(0);
   });
 
+  it("finds sport events for the word Спорт the same way volunteering is found", async () => {
+    const events = [
+      eventRow("00000000-0000-4000-8000-0000000000a1", "Матч любительской лиги по футболу", "2026-09-19T18:00:00+03:00", null, "afisha"),
+      eventRow("00000000-0000-4000-8000-0000000000a2", "Утренняя йога в парке", "2026-09-20T09:00:00+03:00", null, "sport"),
+      eventRow("00000000-0000-4000-8000-0000000000a3", "Субботник в парке", "2026-09-19T11:00:00+03:00", null, "volunteering"),
+    ];
+    const service = new AssistService(new NoneLlmProvider(), { find: async () => events } as never, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { create: async () => ({}) } as never, new AssistRateLimiter());
+    const sport = await service.suggest(userId, "Спорт", now);
+    expect(sport.items.map((item) => item.event.title).sort()).toEqual(["Матч любительской лиги по футболу", "Утренняя йога в парке"]);
+    const volunteering = await service.suggest(userId, "Волонтерство", now);
+    expect(volunteering.items.map((item) => item.event.title)).toEqual(["Субботник в парке"]);
+  });
+
   it("builds a Saturday day with timings and a saveable plan draft", async () => {
     const { service, events } = createService();
     events.push(eventRow("00000000-0000-4000-8000-0000000000e5", "Утро в музее", "2026-09-12T12:00:00+03:00", 400));

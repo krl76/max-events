@@ -1,48 +1,39 @@
 // START_MODULE_CONTRACT
-// PURPOSE: «Промо и отчёты» (макет, экран 48): the period tiles, the bookings-by-day chart, the traffic split, the active campaigns and the month report.
-// SCOPE: Pure helpers plus OrganizerPromoView (presentational) and OrganizerPromo (container). Campaigns and promo codes are real endpoints per event, so the screen fans out over the organizer's own events; the report is built here from the sales rows, because the backend has no export of its own.
+// PURPOSE: Promotion section: running campaigns and the actions that start one (boost, chat mailing, promo code, refer-a-friend, early access). Charts live on the overview.
+// SCOPE: Pure helpers plus OrganizerPromoView (presentational) and OrganizerPromo (container). Campaigns and promo codes are real endpoints per event, so the screen fans out over the organizer's own events.
 // DEPENDS: react, @max-events/api-contracts (PromoCode, PromotionCampaign), ../api/client.js (apiClient, OrganizerEvent, OrganizerSummary, StatsPeriodQuery), ./OrganizerDashboard.js (OrganizerPromoIntent, TRAFFIC_SOURCE_LABELS, barHeights, formatCount), ../catalog/format.js (pluralRu), ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - PROMO_PERIODS - the windows the period pill offers, in design order (30 дней is the default)
-// - WEEKDAY_LABELS - пн…вс under the chart
-// - periodQueryFor - a window of N days back from now as a from/to query
-// - formatDelta - «+18% к прошлому периоду», «—» when there is nothing to compare with
+// - PROMOTION_ACTIONS - the five actions, in the order the screen lists them
 // - promotionTimeLeft - «Осталось 14 ч» / «Осталось 3 дня» / «Завершена»
 // - CampaignRow - one «Активные кампании» row, whichever of the three kinds it came from
 // - campaignRows - promotions, referral campaigns and promo codes merged into the rows the screen lists
 // - PROMOTION_TYPE_LABELS - ru label per promotion type
-// - salesCsv - the month report: one CSV line per settled sale, plus the totals line
-// - OrganizerPromoView - presentational: header with the period pill, tiles, chart, sources, campaigns, actions
+// - OrganizerPromoView - presentational: running campaigns and the action form
 // - OrganizerPromo - container: the summary, the campaigns across own events, creating one and downloading the report
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState } from "react";
-import type { EventSalesReport, PromoCampaign, PromoCode, PromotionCampaign, PromotionType } from "@max-events/api-contracts";
-import { apiClient, type OrganizerEvent, type OrganizerSummary, type StatsPeriodQuery } from "../api/client";
-import { pluralRu } from "../catalog/format";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { PromoCampaign, PromoCode, PromotionCampaign, PromotionType } from "@max-events/api-contracts";
+import { apiClient, type OrganizerEvent } from "../api/client";
+import { formatStartsAt, pluralRu } from "../catalog/format";
+import { EventPicker } from "../ui/EventPicker";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
-import { AppButton, AppSkeletonList, AppState } from "../ui/primitives";
-import { TRAFFIC_SOURCE_LABELS, barHeights, formatCount, type OrganizerPromoIntent } from "./OrganizerDashboard";
+import { pictured } from "../ui/photos";
+import { AppButton, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
+import { type OrganizerPromoIntent } from "./OrganizerDashboard";
 
-export const PROMO_PERIODS: Array<{ days: number; label: string }> = [
-  { days: 7, label: "7 дней" },
-  { days: 30, label: "30 дней" },
-  { days: 90, label: "90 дней" },
+export { PROMO_PERIODS, formatDelta, periodQueryFor, salesCsv } from "./OrganizerDashboard";
+
+export const PROMOTION_ACTIONS: Array<{ intent: OrganizerPromoIntent; label: string; aria: string; icon: ActionIconName; dark?: boolean }> = [
+  { intent: "boost", label: "Лента", aria: "Поднять в ленте", icon: "trend", dark: true },
+  { intent: "target_collection", label: "Рассылка", aria: "Рассылка в чаты", icon: "megaphone" },
+  { intent: "promocode", label: "Промокод", aria: "Промокод", icon: "ticket" },
+  { intent: "referral", label: "Друг", aria: "Приведи друга", icon: "users" },
+  { intent: "early_access", label: "Ранний", aria: "Ранний доступ", icon: "clock" },
 ];
-
-export const WEEKDAY_LABELS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"] as const;
-
-export function periodQueryFor(days: number, now: Date = new Date()): StatsPeriodQuery {
-  return { from: new Date(now.getTime() - days * 86_400_000).toISOString(), to: now.toISOString() };
-}
-
-export function formatDelta(percent: number | null): string {
-  if (percent === null) return "—";
-  return `${percent > 0 ? "+" : ""}${percent}% к прошлому периоду`;
-}
 
 export function promotionTimeLeft(endsAt: string, now: Date = new Date()): string {
   const ms = new Date(endsAt).getTime() - now.getTime();
@@ -95,24 +86,6 @@ export function campaignRows(promotions: PromotionCampaign[], campaigns: PromoCa
   return rows;
 }
 
-/** The month report the design offers as a file: the backend has a sales endpoint but no export of its own. */
-export function salesCsv(reports: Array<{ title: string; report: EventSalesReport }>): string {
-  const lines = ["событие;платёж;бронь;сумма, ₽;комиссия, ₽;нетто, ₽;контур;дата"];
-  let gross = 0;
-  let commission = 0;
-  let net = 0;
-  for (const { title, report } of reports) {
-    for (const row of report.rows) {
-      lines.push([title, row.paymentId, row.bookingId, row.grossRub, row.commissionRub, row.netRub, report.provider, row.commissionFixedAt].join(";"));
-    }
-    gross += report.grossRub;
-    commission += report.commissionRub;
-    net += report.netRub;
-  }
-  lines.push(["ИТОГО", "", "", gross, commission, net, "", ""].join(";"));
-  return lines.join("\n");
-}
-
 type CampaignKind = OrganizerPromoIntent;
 
 interface NewCampaignDraft {
@@ -120,120 +93,64 @@ interface NewCampaignDraft {
   kind: CampaignKind;
   code: string;
   title: string;
+  opensAt: string;
 }
 
 interface OrganizerPromoViewProps {
   organizationName: string;
-  summary: OrganizerSummary | null;
   events: OrganizerEvent[];
   rows: CampaignRow[];
-  days: number;
+  loaded: boolean;
   draft: NewCampaignDraft | null;
   busy: boolean;
   notice: string | null;
   failed: string | null;
-  onDays: (days: number) => void;
   onOpenDraft: (kind: CampaignKind) => void;
   onDraft: (draft: NewCampaignDraft) => void;
   onCreate: () => void;
   onCancelDraft: () => void;
-  onReport: () => void;
   onOpenEvent: (eventId: string) => void;
 }
 
-export function OrganizerPromoView({ organizationName, summary, events, rows, days, draft, busy, notice, failed, onDays, onOpenDraft, onDraft, onCreate, onCancelDraft, onReport, onOpenEvent }: OrganizerPromoViewProps) {
+export function OrganizerPromoView({ organizationName, events, rows, loaded, draft, busy, notice, failed, onOpenDraft, onDraft, onCreate, onCancelDraft, onOpenEvent }: OrganizerPromoViewProps) {
   const month = new Date().toLocaleDateString("ru-RU", { month: "long" });
+  const [pickingEvent, setPickingEvent] = useState(false);
+  const bound = draft === null ? null : (events.find((item) => item.id === draft.eventId) ?? null);
   return (
-    <section className="app-org-screen" aria-label="Промо и отчёты">
-      <div className="app-org-topbar">
-        <span className="app-org-topbar-text">
-          <span className="app-org-topbar-title">Промо и отчёты</span>
-          <span className="app-org-topbar-sub">
-            {organizationName} · {month}
-          </span>
-        </span>
-        <label className="app-org-period">
-          <span className="app-org-period-label">Период</span>
-          <select className="app-org-period-select" aria-label="Период отчёта" value={days} onChange={(change) => onDays(Number(change.target.value))}>
-            {PROMO_PERIODS.map((period) => (
-              <option key={period.days} value={period.days}>
-                {period.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="app-org-form">
-        <div className="app-org-tiles">
-          <div className="app-org-tile">
-            <span className="app-org-tile-label">Записей</span>
-            <span className="app-org-tile-big">{summary === null ? "—" : formatCount(summary.bookings)}</span>
-            <span className="app-org-tile-accent">{formatDelta(summary?.bookingsDeltaPercent ?? null)}</span>
-          </div>
-          <div className="app-org-tile">
-            <span className="app-org-tile-label">Пришли</span>
-            <span className="app-org-tile-big">{summary?.attendedPercent == null ? "—" : `${summary.attendedPercent}%`}</span>
-            <span className="app-org-tile-note">Отмены: {summary?.cancelledPercent == null ? "—" : `${summary.cancelledPercent}%`}</span>
-          </div>
-        </div>
-        <div className="app-org-chart">
-          <span className="app-org-chart-title">Записи по дням</span>
-          <span className="app-org-chart-bars" aria-hidden="true">
-            {barHeights(summary?.byWeekday ?? [0, 0, 0, 0, 0, 0, 0]).map((bar, index) => (
-              <span key={index} className={bar.accent ? "app-org-bar app-org-bar--on" : "app-org-bar"} style={{ height: `${bar.height}%` }} />
-            ))}
-          </span>
-          <span className="app-org-chart-days" aria-hidden="true">
-            {WEEKDAY_LABELS.map((label) => (
-              <span key={label}>{label}</span>
-            ))}
-          </span>
-        </div>
-        <div className="app-org-sources">
-          <span className="app-org-chart-title">Откуда приходят</span>
-          {(summary?.sources ?? []).map((row) => (
-            <span key={row.source} className="app-org-source">
-              <span className="app-org-source-label">{TRAFFIC_SOURCE_LABELS[row.source]}</span>
-              <span className="app-org-source-track" aria-hidden="true">
-                <span className={`app-org-source-fill app-org-source-fill--${row.source}`} style={{ width: `${row.percent}%` }} />
+    <section className="app-gathering" aria-label="Продвижение">
+      <p className="app-gathering-hint">
+        {organizationName} · {month}
+      </p>
+      <h2 className="app-section-title">Запустить</h2>
+        <div className="app-search-tools">
+          {PROMOTION_ACTIONS.map((action) => (
+            <button key={action.intent} type="button" className="app-search-tool" aria-label={action.aria} disabled={events.length === 0} onClick={() => onOpenDraft(action.intent)}>
+              <span className={action.dark ? "app-search-tool-bubble app-search-tool-bubble--dark" : "app-search-tool-bubble"}>
+                <ActionIcon name={action.icon} size={20} />
               </span>
-              <span className="app-org-source-value">{row.percent}%</span>
-            </span>
+              {action.label}
+            </button>
           ))}
-          {summary !== null && summary.sources.length === 0 && <span className="app-org-tile-note">Пока не из чего считать источники.</span>}
         </div>
-        <p className="app-org-group-title">Активные кампании</p>
-        {summary === null && <AppSkeletonList rows={2} />}
-        {summary !== null && rows.length === 0 && <p className="app-org-empty">Кампаний пока нет — соберите первую ниже.</p>}
-        {rows.map((row) => (
-          <button key={row.id} type="button" className="app-org-campaign" onClick={() => onOpenEvent(row.eventId)}>
-            <span className={row.accent ? "app-org-campaign-icon app-org-campaign-icon--on" : "app-org-campaign-icon"} aria-hidden="true">
-              <ActionIcon name={row.icon} size={18} strokeWidth={2.2} />
-            </span>
-            <span className="app-org-campaign-body">
-              <span className="app-org-campaign-title">{row.title}</span>
-              <span className="app-org-campaign-note">{row.note}</span>
-              {row.progress !== null && (
-                <span className="app-org-progress" aria-hidden="true">
-                  <span className="app-org-progress-fill" style={{ width: `${row.progress}%` }} />
+        <h2 className="app-section-title">Уже запущено</h2>
+        {!loaded && <AppSkeletonList rows={2} />}
+        {loaded && rows.length === 0 && <p className="app-gathering-hint">Кампаний пока нет — запустите первую выше.</p>}
+        {rows.length > 0 && (
+          <div className="app-set-group">
+            {rows.map((row) => (
+              <button key={row.id} type="button" className="app-set-row" onClick={() => onOpenEvent(row.eventId)}>
+                <span className="app-set-row-text">
+                  <span className="app-set-row-title">{row.title}</span>
+                  <span className="app-set-row-hint">{row.note}</span>
                 </span>
-              )}
-            </span>
-            <span className="app-org-campaign-open">Открыть</span>
-          </button>
-        ))}
+                <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+              </button>
+            ))}
+          </div>
+        )}
         {notice !== null && <p className="app-org-notice">{notice}</p>}
         {failed !== null && <AppState error>{failed}</AppState>}
-        {draft === null ? (
-          <div className="app-org-actions">
-            <AppButton stretched disabled={events.length === 0} onClick={() => onOpenDraft("boost")}>
-              Новая кампания
-            </AppButton>
-            <AppButton tone="secondary" stretched disabled={busy || events.length === 0} onClick={onReport}>
-              Отчёт за месяц
-            </AppButton>
-          </div>
-        ) : (
+        {draft !== null && (
           <form
             className="app-org-campaign-form"
             onSubmit={(submit) => {
@@ -241,75 +158,87 @@ export function OrganizerPromoView({ organizationName, summary, events, rows, da
               onCreate();
             }}
           >
-            <label className="app-org-field">
-              <span className="app-org-field-label">Событие</span>
-              <select className="app-org-field-input" value={draft.eventId} onChange={(change) => onDraft({ ...draft, eventId: change.target.value })}>
-                {events.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="app-org-field">
-              <span className="app-org-field-label">Что делаем</span>
-              <select className="app-org-field-input" value={draft.kind} onChange={(change) => onDraft({ ...draft, kind: change.target.value as CampaignKind })}>
-                <option value="boost">Поднять в ленте на 24 часа</option>
-                <option value="target_collection">Рассылка тем, кто был раньше</option>
-                <option value="promocode">Промокод со скидкой</option>
-              </select>
-            </label>
-            {draft.kind === "promocode" && (
+            <div className="app-post-compose-rows">
+              <div className="app-post-compose-row app-post-compose-row--event">
+                <button type="button" className="app-post-compose-row-hit" onClick={() => setPickingEvent(true)}>
+                  {bound === null ? (
+                    <span className="app-post-compose-row-media" aria-hidden="true" />
+                  ) : (
+                    <AppMedia category={bound.category} src={pictured(bound.id, bound.coverUrl)} className="app-post-compose-thumb" />
+                  )}
+                  <span className="app-post-compose-row-text">
+                    <span className="app-post-compose-row-title">{bound === null ? "Привязать событие" : bound.title}</span>
+                    <span className="app-post-compose-row-note">{bound === null ? "Фото, дата и место — в окне выбора" : formatStartsAt(bound.startsAt)}</span>
+                  </span>
+                  {bound === null && (
+                    <span className="app-post-compose-row-chevron" aria-hidden="true">
+                      <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+                    </span>
+                  )}
+                </button>
+                {bound !== null && (
+                  <button type="button" className="app-post-compose-row-drop" aria-label="Отвязать событие" onClick={() => onDraft({ ...draft, eventId: "" })}>
+                    <ActionIcon name="close" size={18} strokeWidth={2.6} />
+                  </button>
+                )}
+              </div>
+              {pickingEvent && (
+                <EventPicker
+                  title="Событие"
+                  events={events}
+                  selectedId={draft.eventId === "" ? null : draft.eventId}
+                  onPick={(event) => {
+                    onDraft({ ...draft, eventId: event.id });
+                    setPickingEvent(false);
+                  }}
+                  onClose={() => setPickingEvent(false)}
+                />
+              )}
+            </div>
+            {(draft.kind === "promocode" || draft.kind === "referral") && (
               <label className="app-org-field">
                 <span className="app-org-field-label">Код</span>
                 <input className="app-org-field-input" value={draft.code} placeholder="ОСЕНЬ20" onChange={(change) => onDraft({ ...draft, code: change.target.value })} />
+              </label>
+            )}
+            {draft.kind === "referral" && (
+              <label className="app-org-field">
+                <span className="app-org-field-label">Название акции</span>
+                <input className="app-org-field-input" value={draft.title} placeholder="Приведи друга" onChange={(change) => onDraft({ ...draft, title: change.target.value })} />
+              </label>
+            )}
+            {draft.kind === "early_access" && (
+              <label className="app-org-field">
+                <span className="app-org-field-label">Запись откроется</span>
+                <input className="app-org-field-input" type="datetime-local" aria-label="Запись откроется" value={draft.opensAt} onChange={(change) => onDraft({ ...draft, opensAt: change.target.value })} />
               </label>
             )}
             <div className="app-org-actions">
               <AppButton stretched type="submit" disabled={busy}>
                 {busy ? "Создаём…" : "Создать"}
               </AppButton>
-              <AppButton tone="ghost" stretched type="button" onClick={onCancelDraft}>
+              <AppButton stretched type="button" onClick={onCancelDraft}>
                 Отмена
               </AppButton>
             </div>
           </form>
         )}
-      </div>
     </section>
   );
 }
 
-/** Excel читает кириллицу в CSV только с BOM в начале файла. */
-const CSV_BOM = "\uFEFF";
-
 const DAY_MS = 86_400_000;
 
-export function OrganizerPromo({ organizationName, intent, onOpenEvent }: { organizationName: string; intent: OrganizerPromoIntent | null; onOpenEvent: (eventId: string) => void }) {
-  const [summary, setSummary] = useState<OrganizerSummary | null>(null);
+export function OrganizerPromo({ organizationName, intent, eventId, onOpenEvent }: { organizationName: string; intent: OrganizerPromoIntent | null; eventId: string | null; onOpenEvent: (eventId: string) => void }) {
   const [events, setEvents] = useState<OrganizerEvent[]>([]);
   const [rows, setRows] = useState<CampaignRow[]>([]);
-  const [days, setDays] = useState(30);
+  const [loaded, setLoaded] = useState(false);
   const [draft, setDraft] = useState<NewCampaignDraft | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [reloads, setReloads] = useState(0);
-
-  useEffect(() => {
-    let alive = true;
-    apiClient.getOrganizerSummary(periodQueryFor(days)).then(
-      (payload) => {
-        if (alive) setSummary(payload);
-      },
-      () => {
-        if (alive) setFailed("Не удалось загрузить отчёт.");
-      },
-    );
-    return () => {
-      alive = false;
-    };
-  }, [days, reloads]);
+  const appliedFocus = useRef("");
 
   useEffect(() => {
     let alive = true;
@@ -319,6 +248,7 @@ export function OrganizerPromo({ organizationName, intent, onOpenEvent }: { orga
         setEvents(items);
         const fetched = await Promise.all(items.map((item) => Promise.all([apiClient.listPromotions(item.id).catch(() => []), apiClient.listCampaigns(item.id).catch(() => []), apiClient.listOrganizerPromos(item.id).catch(() => [])])));
         if (!alive) return;
+        setLoaded(true);
         setRows(
           campaignRows(
             fetched.flatMap((row) => row[0]),
@@ -329,7 +259,9 @@ export function OrganizerPromo({ organizationName, intent, onOpenEvent }: { orga
         );
       },
       () => {
-        if (alive) setFailed("Не удалось загрузить кампании.");
+        if (!alive) return;
+        setLoaded(true);
+        setFailed("Не удалось загрузить кампании.");
       },
     );
     return () => {
@@ -338,71 +270,52 @@ export function OrganizerPromo({ organizationName, intent, onOpenEvent }: { orga
   }, [reloads]);
 
   const openDraft = useCallback(
-    (kind: CampaignKind) => {
+    (kind: CampaignKind, preferredEventId?: string) => {
       setNotice(null);
       setFailed(null);
-      setDraft({ eventId: events[0]?.id ?? "", kind, code: "", title: "Приведи друга" });
+      const preferred = preferredEventId ?? eventId ?? undefined;
+      const chosen = preferred !== undefined && events.some((item) => item.id === preferred) ? preferred : (events[0]?.id ?? "");
+      setDraft({ eventId: chosen, kind, code: "", title: "Приведи друга", opensAt: "" });
     },
-    [events],
+    [events, eventId],
   );
 
-  // Тайл «Отчёт» с экрана 45 сразу скачивает файл, остальные три открывают форму на нужном типе.
   useEffect(() => {
-    if (intent === null || intent === "report" || events.length === 0) return;
-    openDraft(intent);
-  }, [intent, events.length, openDraft]);
+    if (intent === null || events.length === 0) return;
+    const key = `${intent}:${eventId ?? ""}`;
+    if (appliedFocus.current === key) return;
+    appliedFocus.current = key;
+    openDraft(intent, eventId ?? undefined);
+  }, [intent, eventId, events.length, openDraft]);
 
   const create = () => {
     if (draft === null || draft.eventId === "") return;
     setBusy(true);
     setFailed(null);
     const now = Date.now();
-    const request = draft.kind === "promocode" ? apiClient.createOrganizerPromo(draft.eventId, { code: draft.code.trim() }) : draft.kind === "boost" ? apiClient.createPromotion(draft.eventId, { type: "boost", startsAt: new Date(now).toISOString(), endsAt: new Date(now + DAY_MS).toISOString(), tariffCode: "boost-24h", priceRub: 0 }) : apiClient.createPromotion(draft.eventId, { type: "target_collection", startsAt: new Date(now).toISOString(), endsAt: new Date(now + 7 * DAY_MS).toISOString(), tariffCode: "target-7d", priceRub: 0, audience: { minVisits: 1, windowDays: 90 } });
+    const request =
+      draft.kind === "promocode"
+        ? apiClient.createOrganizerPromo(draft.eventId, { code: draft.code.trim() })
+        : draft.kind === "referral"
+          ? apiClient.createCampaign(draft.eventId, { type: "refer_a_friend", code: draft.code.trim(), title: draft.title.trim() || "Приведи друга" })
+          : draft.kind === "early_access"
+            ? apiClient.setOrganizerEarlyAccess(draft.eventId, new Date(draft.opensAt).toISOString())
+            : draft.kind === "boost"
+              ? apiClient.createPromotion(draft.eventId, { type: "boost", startsAt: new Date(now).toISOString(), endsAt: new Date(now + DAY_MS).toISOString(), tariffCode: "boost-24h", priceRub: 0 })
+              : apiClient.createPromotion(draft.eventId, { type: "target_collection", startsAt: new Date(now).toISOString(), endsAt: new Date(now + 7 * DAY_MS).toISOString(), tariffCode: "target-7d", priceRub: 0, audience: { minVisits: 1, windowDays: 90 } });
     request.then(
       () => {
         setBusy(false);
         setDraft(null);
-        setNotice("Кампания запущена");
+        setNotice(draft.kind === "early_access" ? "Ранний доступ сохранён" : "Кампания запущена");
         setReloads((value) => value + 1);
       },
       () => {
         setBusy(false);
-        setFailed("Не удалось создать кампанию. Проверьте код — он может быть занят.");
+        setFailed("Не удалось запустить. Проверьте код и дату — код может быть занят.");
       },
     );
   };
 
-  const report = useCallback(() => {
-    setBusy(true);
-    setFailed(null);
-    Promise.all(
-      events.map((item) =>
-        apiClient
-          .getEventSales(item.id, periodQueryFor(days))
-          .then((sales) => ({ title: item.title, report: sales }))
-          .catch(() => null),
-      ),
-    )
-      .then((reports) => {
-        const csv = salesCsv(reports.filter((row): row is { title: string; report: EventSalesReport } => row !== null));
-        const url = URL.createObjectURL(new Blob([CSV_BOM, csv], { type: "text/csv;charset=utf-8" }));
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `otchet-${days}-dney.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
-        setBusy(false);
-        setNotice("Отчёт выгружен файлом");
-      })
-      .catch(() => {
-        setBusy(false);
-        setFailed("Не удалось собрать отчёт.");
-      });
-  }, [days, events]);
-
-  useEffect(() => {
-    if (intent === "report" && events.length > 0) report();
-  }, [intent, events.length, report]);
-
-  return <OrganizerPromoView organizationName={organizationName} summary={summary} events={events} rows={rows} days={days} draft={draft} busy={busy} notice={notice} failed={failed} onDays={setDays} onOpenDraft={openDraft} onDraft={setDraft} onCreate={create} onCancelDraft={() => setDraft(null)} onReport={report} onOpenEvent={onOpenEvent} />;
+  return <OrganizerPromoView organizationName={organizationName} events={events} rows={rows} loaded={loaded} draft={draft} busy={busy} notice={notice} failed={failed} onOpenDraft={openDraft} onDraft={setDraft} onCreate={create} onCancelDraft={() => setDraft(null)} onOpenEvent={onOpenEvent} />;
 }

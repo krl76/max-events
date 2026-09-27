@@ -30,6 +30,9 @@ describe("MapPageView", () => {
     const html = render({ status: "ready", events: mockEvents });
 
     expect(html).toContain('aria-label="Карта событий и мест"');
-    expect(html).toContain("Слои карты");
+    expect(html).toContain("Карта");
+    expect(html).toContain("Поиск");
+    expect(html).not.toContain("Спросить");
+    expect(html).not.toContain(">Поиск<");
   });
 });

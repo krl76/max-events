@@ -25,8 +25,9 @@ import { useRoute } from "../routing/router";
 import { EventPicker } from "../ui/EventPicker";
 import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { PinPicker } from "../ui/PinPicker";
-import { AppButton, AppChip, AppState, AppTitle } from "../ui/primitives";
+import { AppButton, AppState } from "../ui/primitives";
 import { WhenField, whenValue } from "../ui/WhenField";
 
 /**
@@ -120,40 +121,43 @@ export function PlanCreateView({ draft, events, friends, submitting = false, fai
   const [pickingFriends, setPickingFriends] = useState(false);
   const [pickingPin, setPickingPin] = useState(false);
   const [pickingEvent, setPickingEvent] = useState(false);
-  const [attention, setAttention] = useState(false);
+  const chosen = draft.eventId === undefined ? events.find((event) => event.title === draft.event.trim()) : events.find((event) => event.id === draft.eventId);
   return (
-    <section className="app-gathering">
-      <AppTitle asChild>
-        <h2 className="app-section-title">Свой план</h2>
-      </AppTitle>
-      <div className="app-gathering-time">
-        Событие
-        <button type="button" className="app-gathering-time-input app-plan-event-pick" onClick={() => setPickingEvent(true)}>
-          {draft.event.trim() === "" ? "Выберите событие" : draft.event}
-        </button>
-        {eventsFailed && (
-          <button type="button" className="app-field-hint" onClick={onRetryEvents}>
-            Афиша не загрузилась. Нажмите, чтобы повторить.
-          </button>
-        )}
-      </div>
-      <label className="app-gathering-time">
-        Где встречаемся
-        <input className="app-gathering-time-input" value={draft.meetingPoint} placeholder="Например, у метро" onChange={(change) => onDraft({ meetingPoint: change.target.value })} />
-      </label>
-      <button type="button" className="app-gathering-row" onClick={() => setPickingPin(true)}>
-        <ActionIcon name="pin" size={18} />
-        <span>Точка на карте</span>
-        <ActionIcon name="chevron" size={16} />
+    <section className="app-plan-build" aria-label="Свой план">
+      <button type="button" className="app-plan-event" onClick={() => setPickingEvent(true)}>
+        <span className="app-plan-event-photo" style={chosen ? { backgroundImage: `url("${pictured(chosen.id, chosen.coverUrl)}")` } : undefined} aria-hidden="true" />
+        <span className="app-plan-event-copy">
+          <span className="app-plan-kicker">Событие</span>
+          <span className="app-plan-event-title">{draft.event.trim() === "" ? "Из афиши" : draft.event}</span>
+        </span>
       </button>
-      <label className="app-gathering-time">
-        Когда встречаемся
-        <WhenField label="Выберите дату и время" value={draft.meetingAt} onChange={(meetingAt) => onDraft({ meetingAt })} />
-      </label>
-      <button type="button" className="app-gathering-row" onClick={() => setPickingFriends(true)}>
-        <ActionIcon name="friends" size={18} />
+      {eventsFailed && (
+        <button type="button" className="app-field-hint" onClick={onRetryEvents}>
+          Афиша не загрузилась. Нажмите, чтобы повторить.
+        </button>
+      )}
+      <div className="app-plan-meet">
+        <label className="app-plan-meet-field">
+          <span className="app-plan-kicker">Где встречаемся</span>
+          <input className="app-plan-meet-input" value={draft.meetingPoint} placeholder="У входа, у метро, у фонтана" aria-label="Где встречаемся" onChange={(change) => onDraft({ meetingPoint: change.target.value })} />
+        </label>
+        <button type="button" className="app-plan-pin" aria-label="Точка на карте" onClick={() => setPickingPin(true)}>
+          <ActionIcon name="pin" size={20} />
+        </button>
+      </div>
+      <div className="app-plan-when">
+        <span className="app-plan-kicker">Когда встречаемся</span>
+        <WhenField label="Дата и время" value={draft.meetingAt} onChange={(meetingAt) => onDraft({ meetingAt })} />
+      </div>
+      <button type="button" className="app-plan-friends" onClick={() => setPickingFriends(true)}>
+        <span className="app-plan-friend-stack" aria-hidden="true">
+          {friends.slice(0, 3).map((friend) => (
+            <span key={friend.id} className="app-plan-friend-face">
+              {friend.name.slice(0, 1)}
+            </span>
+          ))}
+        </span>
         <span>Пригласить друзей{draft.participantIds.length > 0 ? ` · ${draft.participantIds.length}` : ""}</span>
-        <ActionIcon name="chevron" size={16} />
       </button>
       {pickingFriends && (
         <FriendPicker
@@ -192,59 +196,24 @@ export function PlanCreateView({ draft, events, friends, submitting = false, fai
           onClose={() => setPickingPin(false)}
         />
       )}
-      <div className="app-filters-chips" role="group" aria-label="Повторение">
-        <AppChip pressed={draft.repeat === "none"} onClick={() => onDraft({ repeat: "none" })}>
-          Один раз
-        </AppChip>
-        <AppChip pressed={draft.repeat === "weekly"} onClick={() => onDraft({ repeat: "weekly" })}>
-          Каждую неделю
-        </AppChip>
-        <AppChip pressed={draft.repeat === "monthly"} onClick={() => onDraft({ repeat: "monthly" })}>
-          Раз в месяц
-        </AppChip>
-      </div>
-      {draft.repeat !== "none" && (
-        <>
-          {draft.repeat === "monthly" && (
-            <div className="app-filters-chips" role="group" aria-label="Какая неделя месяца">
-              {nthLabels(draft.weekday).map((label, index) => (
-                <AppChip key={label} pressed={draft.nth === index + 1} onClick={() => onDraft({ nth: index + 1 })}>
-                  {label}
-                </AppChip>
-              ))}
-            </div>
-          )}
-          <div className="app-filters-chips" role="group" aria-label="День недели">
-            {WEEKDAY_LABELS.map((label, index) => (
-              <AppChip key={label} pressed={draft.weekday === index + 1} onClick={() => onDraft({ weekday: index + 1 })}>
-                {label}
-              </AppChip>
-            ))}
-          </div>
-          {/* The rule only sets the day; the time of day comes from the meeting above. */}
-          <p className="app-gathering-hint">Повторяется {planRepeatLabel(rule ?? null)}, в то же время</p>
-        </>
-      )}
-      <ul className={attention && missing.length > 0 ? "app-need app-need--attention" : "app-need"} aria-label="Что нужно для плана">
+      <div className="app-plan-repeat" role="radiogroup" aria-label="Повторение">
         {(
           [
-            ["Выберите событие из списка", "Событие выбрано"],
-            ["Укажите, где встречаемся", "Место указано"],
-            ["Укажите, когда встречаемся", "Время указано"],
+            ["none", "Один раз"],
+            ["weekly", "Каждую неделю в этот день"],
+            ["monthly", "В этот день каждого месяца"],
           ] as const
-        ).map(([gap, done]) => (
-          <li key={gap} className={missing.includes(gap) ? "app-need-item" : "app-need-item app-need-item--done"}>
-            {missing.includes(gap) ? gap : done}
-          </li>
+        ).map(([mode, label]) => (
+          <button key={mode} type="button" role="radio" aria-checked={draft.repeat === mode} className={draft.repeat === mode ? "app-plan-repeat-option app-plan-repeat-option--on" : "app-plan-repeat-option"} onClick={() => onDraft({ repeat: mode })}>
+            {label}
+          </button>
         ))}
-      </ul>
+      </div>
+      {draft.repeat !== "none" && rule !== undefined && <p className="app-plan-repeat-line">Повторяется {planRepeatLabel(rule)}, в то же время</p>}
       <AppButton
         disabled={submitting}
         onClick={() => {
-          if (missing.length > 0) {
-            setAttention(true);
-            return;
-          }
+          if (missing.length > 0) return;
           onSubmit();
         }}
         stretched
@@ -335,7 +304,11 @@ export function PlanCreatePage() {
           const next = { ...current, ...patch };
           // The repeat follows the meeting: choosing Saturday and pressing «каждую неделю» must not
           // quietly repeat on the default Thursday.
-          if (patch.meetingAt !== undefined && !Number.isNaN(new Date(patch.meetingAt).getTime())) next.weekday = moscowIsoWeekday(new Date(patch.meetingAt));
+          if (patch.meetingAt !== undefined && !Number.isNaN(new Date(patch.meetingAt).getTime())) {
+            const at = new Date(patch.meetingAt);
+            next.weekday = moscowIsoWeekday(at);
+            next.nth = Math.min(5, Math.ceil(at.getDate() / 7));
+          }
           return next;
         })
       }

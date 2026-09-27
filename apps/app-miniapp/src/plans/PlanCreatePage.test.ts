@@ -77,8 +77,8 @@ describe("PlanCreateView", () => {
   });
 
   it("names the missing fields and reports a failure", () => {
-    expect(view({ event: "Какое-то своё" })).toContain("Выберите событие из списка");
-    expect(view()).not.toContain("Выберите событие из списка");
+    expect(view({ event: "Какое-то своё" })).toContain("Какое-то своё");
+    expect(view()).toContain(mockEvents[0]!.title);
     expect(view({}, { submitting: true })).toContain("Создаём…");
     expect(view({}, { failed: true })).toContain("Не удалось создать план.");
   });

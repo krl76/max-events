@@ -43,7 +43,7 @@ interface FollowersViewProps {
 
 export function FollowersView({ followers, followingIds = [], pendingId = null, failed = false, onFollowBack = () => {}, onOpenPerson }: FollowersViewProps) {
   if (followers.length === 0) {
-    return <AppState hint="Публикуйте впечатления — так вас находят.">На вас пока никто не подписан</AppState>;
+    return <AppState hint="Публикуйте впечатления — так вас находят.">Вас пока никто не добавил</AppState>;
   }
   return (
     <section className="app-followers" aria-label="Подписчики">
@@ -68,16 +68,16 @@ export function FollowersView({ followers, followingIds = [], pendingId = null, 
               </button>
             )}
             {mutual ? (
-              <span className="app-follower-state">Вы подписаны</span>
+              <span className="app-follower-state">Друзья</span>
             ) : (
-              <button type="button" className="app-follower-act" disabled={pendingId === person.id} aria-label={`Подписаться: ${person.name}`} onClick={() => onFollowBack(person.id)}>
-                Подписаться
+              <button type="button" className="app-follower-act" disabled={pendingId === person.id} aria-label={`Добавить: ${person.name}`} onClick={() => onFollowBack(person.id)}>
+                Добавить
               </button>
             )}
           </div>
         );
       })}
-      {failed && <AppState error>Не удалось подписаться.</AppState>}
+      {failed && <AppState error>Не удалось добавить.</AppState>}
     </section>
   );
 }

@@ -7,7 +7,7 @@ import { MOCK_NOW, wheretoSuggestions } from "../api/mock";
 
 const NOW = MOCK_NOW;
 
-const answers = (over: Partial<WheretoAnswers> = {}): WheretoAnswers => ({ company: null, mood: null, budget: null, ...over });
+const answers = (over: Partial<WheretoAnswers> = {}): WheretoAnswers => ({ company: null, mood: null, budget: null, budgetRub: null, ...over });
 
 const picks = wheretoSuggestions({ company: "friends", mood: "calm", budget: "under_3000" }).items;
 
@@ -55,11 +55,11 @@ describe("чистые функции визарда", () => {
 
     expect(answeredRows(filled, 0)).toEqual([]);
     expect(answeredRows(filled, 1)).toEqual([{ at: 0, label: "С кем идёте", value: "С друзьями" }]);
-    expect(answeredRows(filled, 2).map((row) => row.value)).toEqual(["С друзьями", "Спокойно"]);
+    expect(answeredRows(filled, 2).map((row) => row.value)).toEqual(["С друзьями", "Прогулка"]);
   });
 
   it("пропускает вопрос, который ещё не отвечен", () => {
-    expect(answeredRows(answers({ mood: "calm" }), 2)).toEqual([{ at: 1, label: "Настроение", value: "Спокойно" }]);
+    expect(answeredRows(answers({ mood: "calm" }), 2)).toEqual([{ at: 1, label: "Вечер", value: "Прогулка" }]);
   });
 
   it("ставит выдачу за последним вопросом", () => {
@@ -113,7 +113,7 @@ describe("WheretoView: вопросы (экран 11)", () => {
     expect(html).toContain("С кем идёте?");
     for (const label of Object.values(COMPANY_LABELS)) expect(html).toContain(label);
     expect(html).not.toContain("Изменить");
-    expect(html).toContain("Настроение — следующий вопрос");
+    expect(html).toContain("Вечер — следующий вопрос");
   });
 
   it("на втором вопросе показывает ответ первого и подсказки настроений", () => {
@@ -123,16 +123,18 @@ describe("WheretoView: вопросы (экран 11)", () => {
     expect(html).toContain("С кем идёте");
     expect(html).toContain("С друзьями");
     expect(html).toContain("Изменить");
-    expect(html).toContain("Какое настроение?");
+    expect(html).toContain("Что в вечере?");
     for (const hint of Object.values(MOOD_HINTS)) expect(html).toContain(hint);
     expect(html).toContain("Бюджет — следующий вопрос");
   });
 
-  it("не обещает персонализации", () => {
-    const html = viewHtml({ step: "ask", at: 1 }, { answers: answers({ company: "friends" }) });
+  it("на бюджете предлагает бесплатно, любой и свою сумму", () => {
+    const html = viewHtml({ step: "ask", at: 2 }, { answers: answers({ company: "alone", mood: "calm" }) });
 
-    expect(html).toContain("Подбор работает по правилам");
-    expect(html).toContain("Вкусы и история посещений не учитываются");
+    expect(html).toContain("Бесплатно");
+    expect(html).toContain("Любой");
+    expect(html).toContain("Своя сумма");
+    expect(html).not.toContain("До 3000 ₽");
   });
 
   it("держит «Дальше» выключенной, пока ответа нет", () => {
@@ -172,7 +174,7 @@ describe("WheretoView: выдача (экран 12)", () => {
     const html = viewHtml({ step: "result", query }, { result: ready });
 
     expect(html).toContain("С друзьями");
-    expect(html).toContain("Спокойно");
+    expect(html).toContain("Прогулка");
     expect(html).toContain("До 3000 ₽");
     expect(html).toContain("Ответить заново");
   });

@@ -23,6 +23,7 @@
 // END_MODULE_MAP
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { apiClient } from "../api/client";
 import { getWebApp, SHARE_NOTICE, shareNoticeText, type ShareChannel } from "../max/bridge";
 import { isTabRoute, useRoute, type Route } from "../routing/router";
@@ -120,7 +121,7 @@ export function routeHasBack(route: Route): boolean {
 // «Куда пойдём?» (11 и 12) меняет заголовок вместе с шагом: у вопросов это «Куда пойдём?», у выдачи —
 // «Пять вариантов», то есть число найденного. Таблица ROUTE_TITLES даёт один заголовок на маршрут,
 // поэтому шапку рисует сам экран.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["search", "browse", "swipe", "map", "plans", "profile", "user", "after-event", "lists", "list", "bookings", "moderation", "event", "companions", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "assist", "whereto", "calendar"]);
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["browse", "swipe", "map", "profile", "user", "after-event", "lists", "list", "bookings", "moderation", "event", "companions", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "assist", "whereto", "calendar"]);
 
 /**
  * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и
@@ -162,6 +163,15 @@ export function routeIsFlush(route: Route): boolean {
 
 export function routeHasHeader(route: Route): boolean {
   return !HEADERLESS_ROUTES.has(route.name) && !routeIsFullscreen(route);
+}
+
+const HeaderExtrasContext = createContext<HTMLElement | null>(null);
+
+/** Puts controls into the shell header of the current screen. */
+export function HeaderSlot({ children }: { children: ReactNode }) {
+  const slot = useContext(HeaderExtrasContext);
+  if (slot === null) return null;
+  return createPortal(children, slot);
 }
 
 /**
@@ -218,6 +228,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const acceptScroll = useRef(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [titleOverride, setTitleOverride] = useState<string | null>(null);
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
   const setHeaderTitle = useCallback((title: string | null) => setTitleOverride(title), []);
   const key = scrollKey(route);
 
@@ -264,7 +275,7 @@ export function Layout({ children }: { children: ReactNode }) {
   }, [notice]);
 
   return (
-    <>
+    <HeaderExtrasContext.Provider value={headerSlot}>
       {routeHasHeader(route) && (
         <header className="app-header">
           {route.name === "home" ? (
@@ -272,6 +283,7 @@ export function Layout({ children }: { children: ReactNode }) {
           ) : (
             <>
               <span className="app-header-title">{titleOverride ?? routeTitle(route)}</span>
+              <div className="app-header-extras" ref={setHeaderSlot} />
             </>
           )}
         </header>
@@ -304,6 +316,6 @@ export function Layout({ children }: { children: ReactNode }) {
           ))}
         </nav>
       )}
-    </>
+    </HeaderExtrasContext.Provider>
   );
 }

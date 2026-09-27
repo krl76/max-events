@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
 import type { Place } from "@max-events/api-contracts";
@@ -11,7 +11,7 @@ import { UserEntity } from "../users/user.entity";
 import type { UsersService } from "../users/users.service";
 import type { WaitlistService } from "../waitlist/waitlist.service";
 import { FeedDraftEntity } from "./feed-draft.entity";
-import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "./feed-post.entity";
+import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity, FeedPostGoingEntity } from "./feed-post.entity";
 import { FeedService } from "./feed.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
@@ -121,6 +121,7 @@ function createService(eventPublished = true) {
   const participations = createStoreRepo<ParticipationEntity>();
   const friendships = createStoreRepo<FriendshipEntity>();
   const drafts = createStoreRepo<FeedDraftEntity>();
+  const going = createStoreRepo<FeedPostGoingEntity>();
   // The booking DTO carries no source: what has to be checked is the source FeedService asks for.
   const booked: Array<{ eventId: string; source: string | null | undefined }> = [];
   const bookings = {
@@ -135,8 +136,8 @@ function createService(eventPublished = true) {
       };
     },
   } as unknown as BookingsService;
-  const service = new FeedService(posts as unknown as Repository<FeedPostEntity>, likes as unknown as Repository<FeedLikeEntity>, comments as unknown as Repository<FeedCommentEntity>, events as unknown as Repository<EventEntity>, users as unknown as Repository<UserEntity>, publishers, places, waitlist, participations as unknown as Repository<ParticipationEntity>, friendships as unknown as Repository<FriendshipEntity>, drafts as unknown as Repository<FeedDraftEntity>, bookings);
-  return { service, likes, posts, participations, waitlistMap, drafts, booked };
+  const service = new FeedService(posts as unknown as Repository<FeedPostEntity>, likes as unknown as Repository<FeedLikeEntity>, comments as unknown as Repository<FeedCommentEntity>, events as unknown as Repository<EventEntity>, users as unknown as Repository<UserEntity>, publishers, places, waitlist, participations as unknown as Repository<ParticipationEntity>, friendships as unknown as Repository<FriendshipEntity>, drafts as unknown as Repository<FeedDraftEntity>, bookings, going as unknown as Repository<FeedPostGoingEntity>);
+  return { service, likes, posts, participations, waitlistMap, drafts, booked, users, going };
 }
 
 describe("FeedService", () => {
@@ -289,5 +290,51 @@ describe("FeedService", () => {
     if (card?.kind !== "friend") throw new Error("expected a friend card");
     expect(card.event).toBeNull();
     expect(card.text).toBe("Просто кадр");
+  });
+
+  it("reposts someone else's post once and keeps their caption on them", async () => {
+    const { service, users } = createService();
+    const otherId = "00000000-0000-4000-8000-00000000000b";
+    users.store.push({ id: otherId, firstName: "Дима", lastName: "Кузнецов", avatarUrl: null } as UserEntity);
+    const created = await service.create(userId, { eventId, text: "Мой комментарий к событию" });
+    await service.addComment(userId, created.id, "Это мой коммент");
+    await expect(service.repostPost(userId, created.id)).rejects.toBeInstanceOf(BadRequestException);
+    const reposted = await service.repostPost(otherId, created.id);
+    expect(reposted.text).toBe("");
+    expect(reposted.comments).toEqual([]);
+    expect(reposted.repostOf?.author.name).toBe("Анна Соколова");
+    expect(reposted.repostOf?.text).toBe("Мой комментарий к событию");
+    await expect(service.repostPost(otherId, created.id)).rejects.toBeInstanceOf(ConflictException);
+    const original = await service.get(userId, created.id);
+    expect(original.comments).toHaveLength(1);
+    expect(original.comments[0]?.author.name).toBe("Анна Соколова");
+  });
+
+  it("marks going on one post without changing the sibling post of the same event", async () => {
+    const { service } = createService();
+    const first = await service.create(userId, { eventId, text: "Первый" });
+    const second = await service.create(userId, { eventId, text: "Второй" });
+    await service.toggleGoing(userId, first.id);
+    const cards = await service.listCards(userId, now);
+    const card = (id: string) => {
+      const found = cards.find((item) => item.kind === "friend" && item.id === id);
+      if (found?.kind !== "friend") throw new Error("expected a friend card");
+      return found;
+    };
+    expect(card(first.id).goingByMe).toBe(true);
+    expect(card(second.id).goingByMe).toBe(false);
+    expect(card(first.id).friendsGoing).toBe(1);
+    expect(card(second.id).friendsGoing).toBe(0);
+  });
+
+  it("hangs a reply under the root comment", async () => {
+    const { service } = createService();
+    const created = await service.create(userId, { eventId, text: "Пост" });
+    const withRoot = await service.addComment(userId, created.id, "Корень");
+    const rootId = withRoot.comments[0]?.id;
+    if (rootId === undefined) throw new Error("expected a comment");
+    const withReply = await service.addComment(userId, created.id, "Ответ", rootId);
+    const reply = withReply.comments.find((item) => item.text === "Ответ");
+    expect(reply?.parentId).toBe(rootId);
   });
 });

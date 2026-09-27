@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Turn a picked photo into a data URL small enough to travel inside a feed post.
-// SCOPE: fitWithin sizes the canvas; tooLargeToDecode rejects a file before it reaches the decoder; readFeedPhoto draws the file into the canvas and walks down the side and the JPEG quality until the result fits MAX_FEED_PHOTO_URL_LENGTH, answering null when nothing fits. Until object storage lands (#477) the photo rides inside the request body and inside every feed response, so the budget is small on purpose.
+// PURPOSE: Turn a picked photo into a JPEG data URL sharp enough for the feed, then small enough to upload.
+// SCOPE: fitWithin sizes the canvas; tooLargeToDecode rejects a file before it reaches the decoder; readFeedPhoto draws the file into the canvas and walks down the side and the JPEG quality until the result fits UPLOAD_PHOTO_BUDGET, answering null when nothing fits. The post itself stores the short URL from POST /uploads, not this data URL.
 // DEPENDS: @max-events/api-contracts (MAX_FEED_PHOTO_URL_LENGTH), browser canvas
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -14,15 +14,16 @@
 // - readFeedPhoto - picked file to a data URL that fits the contract, or null when it cannot
 // END_MODULE_MAP
 
-import { MAX_FEED_PHOTO_URL_LENGTH } from "@max-events/api-contracts";
-
 /**
- * A 4:5 card is ~400 CSS px wide on a phone. 480 keeps it honest; the smaller steps are what a noisy
- * photo falls back to instead of being refused — a slightly softer picture beats no picture.
+ * A phone feed is about 400 CSS px wide, and a 3x screen wants roughly 1200 px. 1600 keeps faces
+ * sharp; the smaller steps are what a noisy photo falls back to instead of being refused.
  */
-export const FEED_PHOTO_SIDE_STEPS = [480, 360, 280];
+export const FEED_PHOTO_SIDE_STEPS = [1600, 1280, 960];
 
-export const FEED_PHOTO_QUALITY_STEPS = [0.7, 0.55, 0.4];
+export const FEED_PHOTO_QUALITY_STEPS = [0.86, 0.78, 0.68];
+
+/** The upload body can carry this. The post row then stores only the short /uploads URL. */
+const UPLOAD_PHOTO_BUDGET = 1_500_000;
 
 /** Above this a phone would decode a 100-megapixel file into memory before any resizing could help. */
 export const MAX_PICKED_PHOTO_BYTES = 25 * 1024 * 1024;
@@ -58,7 +59,7 @@ function encodeWithinBudget(image: HTMLImageElement): string | null {
     for (const quality of FEED_PHOTO_QUALITY_STEPS) {
       const dataUrl = drawToDataUrl(image, maxSide, quality);
       if (dataUrl === null) return null;
-      if (dataUrl.length <= MAX_FEED_PHOTO_URL_LENGTH) return dataUrl;
+      if (dataUrl.length <= UPLOAD_PHOTO_BUDGET) return dataUrl;
     }
   }
   return null;

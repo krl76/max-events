@@ -53,18 +53,18 @@ describe("storyRail", () => {
     expect(watched.tiles.find((tile) => tile.friendId === DIMA.id)?.unseen).toBe(true);
   });
 
-  it("puts authors with unseen stories first, so the burning ring is not pushed off the rail", () => {
+  it("keeps friend order after a story is watched, so the rail can be scrolled instead of reshuffled", () => {
     const rail = storyRail([ANNA, DIMA], stories, MY_ID, [ANNA_OLD.id, ANNA_NEW.id]);
 
-    expect(rail.tiles.map((tile) => tile.friendId)).toEqual([DIMA.id, ANNA.id]);
+    expect(rail.tiles.map((tile) => tile.friendId)).toEqual([ANNA.id, DIMA.id]);
   });
 
   it("keeps the groups of the viewer in the order of the tiles, own stories first", () => {
     const rail = storyRail([ANNA, DIMA], stories, MY_ID, [ANNA_OLD.id, ANNA_NEW.id]);
 
-    expect(rail.groups.map((group) => group.authorName)).toEqual(["Вы", "Дима Кузнецов", "Анна Соколова"]);
+    expect(rail.groups.map((group) => group.authorName)).toEqual(["Вы", "Анна Соколова", "Дима Кузнецов"]);
     expect(rail.own.group).toBe(0);
-    expect(rail.tiles.map((tile) => rail.groups[tile.group].authorName)).toEqual(["Дима Кузнецов", "Анна Соколова"]);
+    expect(rail.tiles.map((tile) => rail.groups[tile.group].authorName)).toEqual(["Анна Соколова", "Дима Кузнецов"]);
   });
 
   it("covers a tile with the newest story and plays a group from the oldest", () => {
@@ -90,12 +90,12 @@ describe("storyRail", () => {
   it("holds no own group at all until the author has a story, so the own tile only opens the editor", () => {
     const rail = storyRail([ANNA], [ANNA_OLD], MY_ID, []);
 
-    expect(rail.own).toEqual({ coverUrl: null, unseen: false, group: null });
+    expect(rail.own).toEqual({ coverUrl: null, storyCount: 0, unseenCount: 0, unseen: false, group: null });
     expect(rail.groups[0].authorName).toBe("Анна Соколова");
   });
 
   it("dims the own ring once the author watched their own story back", () => {
-    expect(storyRail([], stories, MY_ID, []).own).toEqual({ coverUrl: MY_ONE.imageUrl, unseen: true, group: 0 });
+    expect(storyRail([], stories, MY_ID, []).own).toEqual({ coverUrl: MY_ONE.imageUrl, storyCount: 1, unseenCount: 1, unseen: true, group: 0 });
     expect(storyRail([], stories, MY_ID, [MY_ONE.id]).own.unseen).toBe(false);
   });
 

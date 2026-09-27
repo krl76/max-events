@@ -5,7 +5,7 @@ import type { PromotionService } from "../promotion/promotion.service";
 import type { WaitlistService } from "../waitlist/waitlist.service";
 import { EventEntity } from "./event.entity";
 import type { EventWeatherService } from "./event-weather.service";
-import { EVENT_LIST_MAX_LIMIT, toEventDto } from "./events.service";
+import { EVENT_LIST_MAX_LIMIT, categoryHintFromQuery, toEventDto } from "./events.service";
 import { createService, farPlaceId, payload, placeId } from "./events.service.testHarness";
 
 describe("EventsService", () => {
@@ -333,6 +333,13 @@ describe("EventsService", () => {
     const [card] = await service.listCards({ viewerId: "00000000-0000-4000-8000-00000000000a" });
     expect(card?.distanceKm).toBeNull();
     expect(card?.placeTitle).toBe("Площадка");
+  });
+
+  it("treats Спорт as the sport category, not only as letters inside a title", () => {
+    expect(categoryHintFromQuery("Спорт")).toBe("sport");
+    expect(categoryHintFromQuery("Волонтерство")).toBe("volunteering");
+    expect(categoryHintFromQuery("джаз")).toBeNull();
+    expect(categoryHintFromQuery("куда сходить")).toBeNull();
   });
 });
 

@@ -10,10 +10,10 @@
 // - FeedService - list/get/create/saveDraft/join/toggleLike/addComment/listCards
 // END_MODULE_MAP
 
-import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { FindOperator, In, QueryFailedError, Repository } from "typeorm";
-import type { BookingWithSeats, CreateFeedPostWrite, FeedCard, FeedCardCounts, FeedDraftSaved, FeedDraftWrite, FeedPost, ParticipationStatus, Place } from "@max-events/api-contracts";
+import type { BookingWithSeats, CreateFeedPostWrite, FeedCard, FeedCardCounts, FeedDraftSaved, FeedDraftWrite, FeedPost, FeedRepost, ParticipationStatus, Place } from "@max-events/api-contracts";
 import { BookingsService } from "../bookings/bookings.service";
 import { EventEntity } from "../events/event.entity";
 import { toEventDto } from "../events/event.mapper";
@@ -25,7 +25,7 @@ import { UserEntity } from "../users/user.entity";
 import { UsersService } from "../users/users.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { FeedDraftEntity } from "./feed-draft.entity";
-import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "./feed-post.entity";
+import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity, FeedPostGoingEntity } from "./feed-post.entity";
 
 export type FeedListFilter = { eventId?: string; placeId?: string };
 
@@ -44,6 +44,7 @@ export class FeedService {
     @InjectRepository(FriendshipEntity) private readonly friendships: Repository<FriendshipEntity>,
     @InjectRepository(FeedDraftEntity) private readonly drafts: Repository<FeedDraftEntity>,
     @Inject(BookingsService) private readonly bookings: BookingsService,
+    @InjectRepository(FeedPostGoingEntity) private readonly going: Repository<FeedPostGoingEntity>,
   ) {}
 
   async list(viewerId: string, filter: FeedListFilter = {}, limit = 50, offset = 0): Promise<FeedPost[]> {
@@ -81,14 +82,28 @@ export class FeedService {
     const placeById = new Map(placeDtos.map((place) => [place.id, place]));
     const counts = countParticipations(parts, viewerId);
     const rowById = new Map(rows.map((row) => [row.id, row]));
+    const postIds = posts.map((post) => post.id);
+    const [friendRows, goingRows] = await Promise.all([this.friendships.find({ where: { userId: viewerId } }), postIds.length === 0 ? Promise.resolve([]) : this.going.find({ where: { postId: In(postIds) } })]);
+    const friendIds = new Set(friendRows.map((row) => row.friendUserId));
     return posts.flatMap((post) => {
       const event = post.eventId ? eventById.get(post.eventId) : undefined;
       if (post.eventId && !event) return [];
       const place = (post.placeId ? placeById.get(post.placeId) : undefined) ?? (event?.placeId ? placeById.get(event.placeId) : undefined);
       const createdAt = rowById.get(post.id)?.createdAt;
+      const marks = goingRows.filter((row) => row.postId === post.id);
+      const goingByMe = marks.some((row) => row.userId === viewerId);
+      // «N идёт» is a friends-only line. A stranger does not see who is going, even as a number.
+      const visible = post.author.id === viewerId || friendIds.has(post.author.id);
+      const friendsGoing = visible ? marks.filter((row) => row.userId === viewerId || friendIds.has(row.userId)).length : null;
       // Площадка события остаётся подписью места. Карточка площадки со слотами здесь прятала фото и писала текст дважды.
-      return [toFriendCard(post, event ?? null, place ?? null, post.eventId ? counts.get(post.eventId) : undefined, post.eventId ? (waitlists.get(post.eventId) ?? 0) : 0, now, createdAt)];
+      return [toFriendCard(post, event ?? null, place ?? null, post.eventId ? counts.get(post.eventId) : undefined, post.eventId ? (waitlists.get(post.eventId) ?? 0) : 0, now, createdAt, friendsGoing, goingByMe)];
     });
+  }
+
+  async remove(userId: string, postId: string): Promise<void> {
+    const post = await this.requirePost(postId);
+    if (post.authorUserId !== userId) throw new ForbiddenException("Only the author can delete this post");
+    await this.posts.delete(post.id);
   }
 
   async create(userId: string, payload: CreateFeedPostWrite): Promise<FeedPost> {
@@ -113,9 +128,90 @@ export class FeedService {
         audience: payload.audience ?? "friends",
         allowJoin: payload.allowJoin ?? false,
         published: true,
+        repostOfPostId: null,
+        repostOfEventId: null,
       }),
     );
     return this.toDto(saved, userId);
+  }
+
+  /** One repost of someone else's post. The original caption and comments stay with the original author. */
+  async repostPost(userId: string, postId: string): Promise<FeedPost> {
+    await this.publishers.assertCanPublish(userId);
+    const source = await this.requirePost(postId);
+    if (source.authorUserId === userId) throw new BadRequestException("Cannot repost your own post");
+    const duplicate = await this.posts.findOneBy({ authorUserId: userId, repostOfPostId: source.id, published: true });
+    if (duplicate) throw new ConflictException("Already reposted");
+    try {
+      const saved = await this.posts.save(
+        this.posts.create({
+          authorUserId: userId,
+          eventId: source.eventId,
+          text: "",
+          photoUrl: null,
+          photoUrls: [],
+          placeId: source.placeId ?? null,
+          locationLabel: source.locationLabel ?? null,
+          taggedFriendIds: [],
+          audience: "friends",
+          allowJoin: false,
+          published: true,
+          repostOfPostId: source.id,
+          repostOfEventId: null,
+        }),
+      );
+      return this.toDto(saved, userId);
+    } catch (error) {
+      if (error instanceof QueryFailedError && error.driverError?.code === "23505") throw new ConflictException("Already reposted");
+      throw error;
+    }
+  }
+
+  /** Share an event into the feed once. A second tap does not create another post under the same name. */
+  async repostEvent(userId: string, eventId: string): Promise<FeedPost> {
+    await this.publishers.assertCanPublish(userId);
+    const event = await this.events.findOneBy({ id: eventId });
+    if (!event || event.published === false) throw new NotFoundException("Event not found");
+    const duplicate = await this.posts.findOneBy({ authorUserId: userId, repostOfEventId: eventId, published: true });
+    if (duplicate) throw new ConflictException("Already reposted");
+    try {
+      const saved = await this.posts.save(
+        this.posts.create({
+          authorUserId: userId,
+          eventId,
+          text: "",
+          photoUrl: null,
+          photoUrls: [],
+          placeId: event.placeId,
+          locationLabel: null,
+          taggedFriendIds: [],
+          audience: "friends",
+          allowJoin: false,
+          published: true,
+          repostOfPostId: null,
+          repostOfEventId: eventId,
+        }),
+      );
+      return this.toDto(saved, userId);
+    } catch (error) {
+      if (error instanceof QueryFailedError && error.driverError?.code === "23505") throw new ConflictException("Already reposted");
+      throw error;
+    }
+  }
+
+  /** «Я иду» on this post only. It does not change the viewer's status on the event or on any other post. */
+  async toggleGoing(userId: string, postId: string): Promise<FeedPost> {
+    const post = await this.requirePost(postId);
+    const existing = await this.going.findOneBy({ postId, userId });
+    if (existing) await this.going.remove(existing);
+    else {
+      try {
+        await this.going.save(this.going.create({ postId, userId }));
+      } catch (error) {
+        if (!(error instanceof QueryFailedError && error.driverError?.code === "23505")) throw error;
+      }
+    }
+    return this.toDto(post, userId);
   }
 
   async saveDraft(userId: string, payload: FeedDraftWrite, now = new Date()): Promise<FeedDraftSaved> {
@@ -154,9 +250,16 @@ export class FeedService {
     return this.toDto(post, userId);
   }
 
-  async addComment(userId: string, postId: string, text: string): Promise<FeedPost> {
+  async addComment(userId: string, postId: string, text: string, parentId?: string | null): Promise<FeedPost> {
     const post = await this.requirePost(postId);
-    await this.comments.save(this.comments.create({ postId, authorUserId: userId, text }));
+    let rootId: string | null = parentId ?? null;
+    if (rootId !== null) {
+      const parent = await this.comments.findOneBy({ id: rootId });
+      if (!parent || parent.postId !== postId) throw new BadRequestException("Invalid comment payload");
+      // One level, as in VK and TikTok: a reply to a reply hangs under the root comment.
+      rootId = parent.parentId ?? parent.id;
+    }
+    await this.comments.save(this.comments.create({ postId, authorUserId: userId, text, parentId: rootId }));
     return this.toDto(post, userId);
   }
 
@@ -187,7 +290,7 @@ export class FeedService {
     const commentAuthorIds = [...new Set(commentRows.map((row) => row.authorUserId))];
     const commentAuthors = commentAuthorIds.length === 0 ? [] : await this.users.find({ where: { id: In(commentAuthorIds) } });
     const userById = new Map([...authors, ...commentAuthors].map((row) => [row.id, row]));
-    return posts.flatMap((post) => {
+    const built = posts.flatMap((post) => {
       const author = userById.get(post.authorUserId);
       if (!author) return [];
       const likes = likeRows.filter((row) => row.postId === post.id);
@@ -196,10 +299,28 @@ export class FeedService {
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
         .flatMap((row) => {
           const commentAuthor = userById.get(row.authorUserId);
-          return commentAuthor ? [{ id: row.id, author: toFriendDto(commentAuthor), text: row.text }] : [];
+          return commentAuthor ? [{ id: row.id, author: toFriendDto(commentAuthor), text: row.text, parentId: row.parentId ?? null }] : [];
         });
       const photoUrls = post.photoUrls && post.photoUrls.length > 0 ? post.photoUrls : post.photoUrl ? [post.photoUrl] : [];
-      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId ?? null, text: post.text, photoUrl: photoUrls[0] ?? null, photoUrls, placeId: post.placeId ?? null, locationLabel: post.locationLabel ?? null, taggedFriendIds: post.taggedFriendIds ?? [], audience: post.audience ?? "friends", allowJoin: post.allowJoin ?? false, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), comments }];
+      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId ?? null, text: post.text, photoUrl: photoUrls[0] ?? null, photoUrls, placeId: post.placeId ?? null, locationLabel: post.locationLabel ?? null, taggedFriendIds: post.taggedFriendIds ?? [], audience: post.audience ?? "friends", allowJoin: post.allowJoin ?? false, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), comments, repostOf: null as FeedRepost | null, repostOfPostId: post.repostOfPostId ?? null }];
+    });
+    return this.withReposts(built);
+  }
+
+  /** Attach the original author and caption. Comments are not copied: they stay on the source post. */
+  private async withReposts(posts: Array<FeedPost & { repostOfPostId: string | null }>): Promise<FeedPost[]> {
+    const ids = [...new Set(posts.flatMap((post) => (post.repostOfPostId ? [post.repostOfPostId] : [])))];
+    const originals = ids.length === 0 ? [] : await this.posts.find({ where: { id: In(ids) } });
+    const authorIds = [...new Set(originals.map((row) => row.authorUserId))];
+    const authors = authorIds.length === 0 ? [] : await this.users.find({ where: { id: In(authorIds) } });
+    const authorById = new Map(authors.map((row) => [row.id, row]));
+    const originalById = new Map(originals.map((row) => [row.id, row]));
+    return posts.map((post) => {
+      const sourceId = post.repostOfPostId;
+      const source = sourceId ? originalById.get(sourceId) : undefined;
+      const author = source ? authorById.get(source.authorUserId) : undefined;
+      const rest: FeedPost = { ...post, repostOf: source && author ? { postId: source.id, author: toFriendDto(author), text: source.text, photoUrl: source.photoUrl } : null };
+      return rest;
     });
   }
 }
@@ -218,7 +339,7 @@ function countParticipations(rows: ParticipationEntity[], viewerId: string): Map
   return map;
 }
 
-function toFriendCard(post: FeedPost, event: EventEntity | null, place: Place | null, bucket: ParticipationBucket | undefined, waitlist: number, now: Date, createdAt: Date | undefined): FeedCard {
+function toFriendCard(post: FeedPost, event: EventEntity | null, place: Place | null, bucket: ParticipationBucket | undefined, waitlist: number, now: Date, createdAt: Date | undefined, friendsGoing: number | null, goingByMe: boolean): FeedCard {
   const counts: FeedCardCounts = event
     ? {
         wantsToGo: bucket?.wantsToGo ?? 0,
@@ -248,5 +369,8 @@ function toFriendCard(post: FeedPost, event: EventEntity | null, place: Place | 
     commentsCount: post.comments.length,
     publishedAt: createdAt ? createdAt.toISOString() : null,
     photoUrl: photos[0] ?? null,
+    friendsGoing,
+    goingByMe,
+    repostOf: post.repostOf ?? null,
   };
 }

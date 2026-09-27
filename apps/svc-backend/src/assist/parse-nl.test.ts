@@ -20,6 +20,7 @@ describe("parseAssistQuery", () => {
     expect(parseAssistQuery("волонтёрский интенсив").genre).toBe("volunteering");
     const open = { when: "any" as const, budgetMaxRub: null, company: "alone" as const, genre: "any" as const };
     expect(applyKeywordGenre("волонтерство", open).genre).toBe("volunteering");
-    expect(applyKeywordGenre("волонтерство", { ...open, genre: "music" }).genre).toBe("music");
+    expect(applyKeywordGenre("волонтерство", { ...open, genre: "music" }).genre).toBe("volunteering");
+    expect(applyKeywordGenre("Спорт", open).genre).toBe("sport");
   });
 });

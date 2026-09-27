@@ -27,13 +27,14 @@ import { useSheetSwipe } from "../ui/sheet";
 import type { EventCategory } from "@max-events/api-contracts";
 import { apiClient, type CatalogCard, type EventFilters } from "../api/client";
 import { CATEGORY_LABELS } from "../catalog/format";
+import { EventPoster } from "./EventPoster";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute, type BrowseList } from "../routing/router";
+import { HeaderSlot } from "../ui/Layout";
 import { countsForCards } from "./BrowsePage";
-import { AfterMeSection } from "../taste/AfterMeSection";
 import { toggleEventLike, useEventLiked } from "../ui/event-likes";
 import { eventFillLabel, pictured } from "../ui/photos";
-import { dayKey, formatPickDistance, formatPickPrice, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, type DistanceVoice, type TodayState } from "../today/TodaySection";
+import { afishaDayChip, dayKey, formatPickDistance, formatPickPrice, SearchDayButton, type DistanceVoice, type TodayState } from "../today/TodaySection";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppSkeleton, AppState } from "../ui/primitives";
 
@@ -205,7 +206,7 @@ export function SearchFilters({ category, onCategory }: { category: EventCategor
 }
 
 const SEARCH_TOOLS: Array<{ id: string; label: string; aria: string; icon: "spark" | "cards" | "pin" | "sparkle" | "clock" | "users"; dark?: boolean }> = [
-  { id: "ask", label: "MAX", aria: "Спросить MAX", icon: "spark", dark: true },
+  { id: "ask", label: "Спросить", aria: "Спросить MAX", icon: "spark", dark: true },
   { id: "swipe", label: "Свайпы", aria: "Подбор свайпами", icon: "cards" },
   { id: "map", label: "Карта", aria: "На карте", icon: "pin" },
   { id: "whereto", label: "Куда", aria: "Куда пойдём?", icon: "sparkle" },
@@ -435,39 +436,72 @@ interface SearchViewProps {
   suitableState?: SearchState;
 }
 
-export function SearchView(props: SearchViewProps) {
-  const hint = props.today.status === "ready" ? todayAfterMeCard(props.today.today) : null;
-  const distanceFrom = props.distancesFromViewer === false ? "center" : "you";
+function billPhotos(cards: CatalogCard[]): string[] {
+  const seen = new Set<string>();
+  const photos: string[] = [];
+  for (const card of cards) {
+    const photo = pictured(card.event.id, card.event.coverUrl);
+    if (seen.has(photo)) continue;
+    seen.add(photo);
+    photos.push(photo);
+    if (photos.length === 4) break;
+  }
+  return photos;
+}
+
+function BillStack({ photos, count }: { photos: string[]; count: number }) {
+  const shown = photos.slice(0, 5);
+  const overlap = shown.length <= 2 ? 8 : shown.length === 3 ? 14 : 20;
+  if (count === 0) return <span className="app-bill-count">0</span>;
+  return (
+    <span className="app-bill-stack">
+      {shown.map((photo, index) => (
+        <img key={photo} alt="" src={photo} style={{ marginLeft: index === 0 ? 0 : -overlap }} />
+      ))}
+      <span className="app-bill-count">{count}</span>
+    </span>
+  );
+}
+
+export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] }) {
+  const [fold, setFold] = useState<"today" | "hot">("hot");
   const inCity = props.distancesFromViewer !== false;
-  const nearbyTitle = props.dayScoped ? "В этот день" : props.catalogInCity === false ? "Сегодня в городе" : "Сегодня рядом";
-  const [fold, setFold] = useState<SearchFoldId | null>(null);
-  const toggle = (id: SearchFoldId) => setFold((current) => (current === id ? null : id));
+  const todayCards = props.state.status === "ready" ? props.state.cards : [];
+  const hotCards = [...(props.popular ?? [])].sort((left, right) => (right.rating ?? 0) - (left.rating ?? 0) || (right.event.bookedCount ?? 0) - (left.event.bookedCount ?? 0)).slice(0, 12);
+  const openFold = (next: "today" | "hot") => setFold(next);
+  const shown = fold === "today" ? todayCards : fold === "hot" ? hotCards : [];
   return (
     <div className="app-search">
-      <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} trailing={<SearchFilters category={props.category} onCategory={props.onCategory} />} />
       <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} onPickRecent={props.onPickRecent} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
       <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
-      <TodaySummaryBlock state={props.today} now={props.now} day={props.day} onDay={props.onDay} distanceFrom={distanceFrom} onOpenNearby={() => props.onOpenList("nearby")} onOpenSuitable={() => props.onOpenList("suitable")} onOpenFriends={() => props.onOpenList("friends")} />
-      <div className="app-search-folds">
-        <SearchFold title={nearbyTitle} open={fold === "nearby"} onToggle={() => toggle("nearby")}>
-          <SearchNearby state={props.state} inCity={props.catalogInCity !== false} showHeading={false} onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
-        </SearchFold>
-        <SearchFold title="Для вас" open={fold === "picks"} onToggle={() => toggle("picks")}>
-          {props.dayScoped ? <SearchNearby state={props.suitableState ?? { status: "loading" }} inCity={props.catalogInCity !== false} showHeading={false} showAll={false} layout="list" emptyCopy="В этот день под тебя ничего нет." onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} /> : <TodayPicksBlock state={props.today} showHeading={false} onOpen={props.onOpenEvent} onRetry={props.onRetry} distanceFrom={distanceFrom} />}
-        </SearchFold>
-        <SearchFold title="После меня" open={fold === "after"} onToggle={() => toggle("after")}>
-          {hint !== null && (
-            <button type="button" className="app-search-fold-event" onClick={() => props.onOpenEvent(hint.event.id)}>
-              {hint.event.title}
+      <div className="app-bills">
+        <section className={fold === "hot" ? "app-bill app-bill--open" : "app-bill"}>
+          <button type="button" className="app-bill-title" aria-expanded={fold === "hot"} onClick={() => openFold("hot")}>
+            <span>Популярное</span>
+            <span className="app-bill-chevron" aria-hidden="true">
+              <ActionIcon name="chevron" size={16} />
+            </span>
+          </button>
+          <button type="button" className="app-bill-open" aria-label="Открыть популярные события" onClick={() => openFold("hot")}>
+            <BillStack photos={billPhotos(hotCards)} count={hotCards.length} />
+          </button>
+        </section>
+        <section className={fold === "today" ? "app-bill app-bill--open" : "app-bill"}>
+          <div className="app-bill-head">
+            <button type="button" className="app-bill-title" aria-expanded={fold === "today"} onClick={() => openFold("today")}>
+              Афиша
             </button>
-          )}
-          {hint !== null && !props.hintDismissed && <TodayAfterMeCard card={hint} onShow={props.onNearby} onDismiss={props.onDismissHint} distanceFrom={distanceFrom} />}
-          <AfterMeSection showTitle={false} placeholder={hint === null ? "После твоих визитов пока ничего не подобралось." : undefined} />
-        </SearchFold>
-        <SearchFold title="Афиша" open={fold === "afisha"} onToggle={() => toggle("afisha")}>
-          <SearchNearby state={props.state} inCity={props.catalogInCity !== false} showHeading={false} showAll={false} layout="list" emptyCopy="В афише пока пусто." onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
-        </SearchFold>
+            <SearchDayButton day={props.day} now={props.now} onDay={props.onDay} chip />
+          </div>
+          <button type="button" className="app-bill-open" aria-label="Открыть афишу на выбранный день" onClick={() => openFold("today")}>
+            <BillStack photos={billPhotos(todayCards)} count={todayCards.length} />
+          </button>
+        </section>
       </div>
+      <div className="app-search-feed" aria-label={fold === "today" ? "Афиша" : "Популярное"}>
+          <p className="app-search-feed-kicker">{fold === "today" ? `Афиша · ${afishaDayChip(new Date(`${props.day}T12:00:00`))}` : "Популярное"}</p>
+          {shown.length === 0 ? <p className="app-today-quiet">По этим фильтрам событий нет</p> : shown.map((card) => <EventPoster key={card.event.id} card={card} onOpen={props.onOpenEvent} />)}
+        </div>
     </div>
   );
 }
@@ -486,6 +520,7 @@ export function SearchPage() {
   const [hintDismissed, setHintDismissed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<SearchState>({ status: "loading" });
+  const [popular, setPopular] = useState<CatalogCard[]>([]);
   const [today, setToday] = useState<TodayState>({ status: "loading" });
   const now = new Date();
   const todayKey = dayKey(now);
@@ -495,7 +530,7 @@ export function SearchPage() {
   // A GPS fix outside the opened city would mark every card «далеко»; the city's own center is the point then.
   const catalogPoint = useMemo(() => browsedCityOrigin(origin, city), [origin, city]);
   const todayPoint = useMemo(() => browsedCityOrigin(origin, homeCity ?? city), [origin, homeCity, city]);
-  const filters = useMemo<EventFilters>(() => ({ category, city, sort: "near", ...(dayScoped ? { date: day } : {}) }), [category, city, day, dayScoped]);
+  const filters = useMemo<EventFilters>(() => ({ category, city, sort: "near", date: day }), [category, city, day]);
 
   useEffect(() => {
     let alive = true;
@@ -527,6 +562,21 @@ export function SearchPage() {
       alive = false;
     };
   }, [filters, catalogPoint.latitude, catalogPoint.longitude, attempt]);
+
+  useEffect(() => {
+    let alive = true;
+    apiClient.listEventCards({ city, sort: "rating", limit: 24 }, { latitude: catalogPoint.latitude, longitude: catalogPoint.longitude }).then(
+      (cards) => {
+        if (alive) setPopular(cards);
+      },
+      () => {
+        if (alive) setPopular([]);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [city, catalogPoint.latitude, catalogPoint.longitude, attempt]);
 
   useEffect(() => {
     let alive = true;
@@ -580,5 +630,12 @@ export function SearchPage() {
     [city, navigate],
   );
 
-  return <SearchView state={state} today={shownToday} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city, ...openDay })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} onExpand={() => navigate({ name: "browse", list: "nearby", city, ...openDay })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} day={day} onDay={(next) => { if (/^\d{4}-\d{2}-\d{2}$/.test(next)) setDay(next); }} dayScoped={dayScoped} suitableState={suitableState} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
+  return (
+    <>
+      <HeaderSlot>
+        <SearchTopBar city={city} cities={cities.length === 0 ? [city] : cities} onCity={setCity} trailing={<SearchFilters category={category} onCategory={setCategory} />} />
+      </HeaderSlot>
+      <SearchView state={state} popular={popular} today={shownToday} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city, ...openDay })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} onExpand={() => navigate({ name: "browse", list: "nearby", city, ...openDay })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} day={day} onDay={(next) => { if (/^\d{4}-\d{2}-\d{2}$/.test(next)) setDay(next); }} dayScoped={dayScoped} suitableState={suitableState} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />
+    </>
+  );
 }

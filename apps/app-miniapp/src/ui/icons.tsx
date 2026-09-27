@@ -14,7 +14,7 @@
 // END_MODULE_MAP
 
 import type { LucideIcon } from "lucide-react";
-import { AlignVerticalJustifyCenter, ArrowRight, Armchair, Bell, Bookmark, Building, CalendarDays, Camera, Car, Check, ChevronRight, CircleAlert, Clock, CloudRain, CloudSun, Ellipsis, Eye, Group, Heart, House, Layers, LayoutDashboard, LocateFixed, Lock, MapPin, Medal, Megaphone, MessageCircle, Minus, Navigation, Plus, RefreshCw, ScanQrCode, Search, Send, Settings, ShieldCheck, SlidersHorizontal, Sparkles, SquarePlus, SquareStack, Star, Sun, Tag, TextAlignCenter, TextAlignStart, Ticket, TramFront, TrendingUp, Undo2, Upload, User, Users, UsersRound, WandSparkles, X } from "lucide-react";
+import { AlignVerticalJustifyCenter, ArrowRight, Armchair, Bell, Bookmark, Building, CalendarDays, Camera, Car, Check, ChevronRight, CircleAlert, Clock, CloudRain, CloudSun, Ellipsis, Eye, Group, Heart, House, Layers, LayoutDashboard, LocateFixed, Lock, MapPin, Medal, Megaphone, MessageCircle, Minus, Navigation, Plus, RefreshCw, Repeat2, ScanQrCode, Search, Send, Settings, ShieldCheck, SlidersHorizontal, Sparkles, SquarePlus, SquareStack, Star, Sun, Tag, TextAlignCenter, TextAlignStart, Ticket, Trash2, TramFront, TrendingUp, Undo2, Upload, User, Users, UsersRound, WandSparkles, X } from "lucide-react";
 
 export type TabIcon = "feed" | "search" | "create" | "map" | "plans" | "profile" | "dashboard" | "events" | "promo";
 
@@ -87,8 +87,10 @@ const ACTIONS = {
   trend: TrendingUp,
   shield: ShieldCheck,
   refresh: RefreshCw,
+  repost: Repeat2,
   minus: Minus,
   eye: Eye,
+  trash: Trash2,
 } satisfies Record<string, LucideIcon>;
 
 export type ActionIconName = keyof typeof ACTIONS;

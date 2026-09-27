@@ -235,7 +235,7 @@ export function CloseFriendsDialog({ closeFriends, followers, loading = false, o
     }
   };
 
-  const empty = loading ? "Загрузка…" : query.trim() !== "" ? "Никого не нашлось." : followers.length === 0 && closeFriends.length === 0 ? "На вас пока никто не подписан." : "Пока никого. Добавьте из подписчиков.";
+  const empty = loading ? "Загрузка…" : query.trim() !== "" ? "Никого не нашлось." : followers.length === 0 && closeFriends.length === 0 ? "Вас пока никто не добавил." : "Пока никого. Добавьте из тех, кто добавил вас.";
 
   return (
     <div className="app-fpick" role="dialog" aria-modal="true" aria-label="Близкие друзья" onKeyDown={onKeyDown}>
@@ -248,7 +248,7 @@ export function CloseFriendsDialog({ closeFriends, followers, loading = false, o
             Закрыть
           </button>
         </div>
-        <p className="app-fpick-hint">Только из тех, кто на вас подписан</p>
+        <p className="app-fpick-hint">Только из тех, кто добавил вас</p>
         <input ref={search} className="app-fpick-search" type="text" value={query} aria-label="Поиск по имени или нику" placeholder="Имя или ник" onChange={(change) => setQuery(change.target.value)} />
         {visible.length === 0 ? (
           <p className="app-fpick-empty">{empty}</p>
@@ -396,7 +396,7 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
       </SettingsGroup>
 
       <SettingsGroup title="Близкие">
-        <SettingsValueRow title="Близкие друзья" hint="Только из тех, кто на вас подписан" value={closeFriends === undefined ? undefined : closeFriends.length === 0 ? "Нет" : String(closeFriends.length)} expanded={closeOpen} onOpen={() => setCloseOpen(true)} />
+        <SettingsValueRow title="Близкие друзья" hint="Только из тех, кто добавил вас" value={closeFriends === undefined ? undefined : closeFriends.length === 0 ? "Нет" : String(closeFriends.length)} expanded={closeOpen} onOpen={() => setCloseOpen(true)} />
       </SettingsGroup>
       {closeOpen && <CloseFriendsDialog closeFriends={closeFriends ?? []} followers={followers ?? []} loading={closeFriends === undefined || followers === undefined} onToggle={onToggleClose ?? (() => {})} onClose={() => setCloseOpen(false)} />}
 

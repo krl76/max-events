@@ -309,7 +309,7 @@ export function OrganizerEventFormView({ draft, organizationName, places, errors
         {failed && <AppState error>Не удалось сохранить. Попробуйте ещё раз.</AppState>}
         <p className="app-org-form-note">После публикации событие попадёт в ленту и поиск, а подписчикам площадки уйдёт уведомление.</p>
         {!published && (
-          <AppButton tone="ghost" stretched disabled={submitting} onClick={onSaveDraft}>
+          <AppButton stretched disabled={submitting} onClick={onSaveDraft}>
             Сохранить черновик
           </AppButton>
         )}

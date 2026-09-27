@@ -120,7 +120,6 @@ export function SwipeCard({ candidate, dx, settling = false, leaving = null, ges
   const match = swipeMatchLine(candidate.matchPercent);
   // Улетающая карточка несёт свой вердикт как штамп и полную подсветку, даже если решение пришло
   // с кнопки или быстрым фликом и она почти не сдвинулась: иначе она уходила бы «пустой».
-  const outcome = leaving ?? swipeOutcome(dx);
   const progress = leaving === null ? swipeProgress(dx) : leaving === "like" ? 1 : -1;
   const cardClass = ["app-swipe-card", settling ? "app-swipe-card--settling" : "", leaving === "like" ? "app-swipe-card--fly-like" : leaving === "skip" ? "app-swipe-card--fly-skip" : ""].filter(Boolean).join(" ");
   // Прогресс решения уходит в CSS-переменную: подсветку и её половины рисует theme.css, а не React
@@ -145,8 +144,17 @@ export function SwipeCard({ candidate, dx, settling = false, leaving = null, ges
       <span className="app-swipe-save" aria-hidden="true">
         <ActionIcon name="heart" size={20} />
       </span>
-      {/* Штамп появляется только когда карточка уже уехала за порог: до этого решения нет */}
-      {outcome !== null && <span className={outcome === "like" ? "app-swipe-stamp" : "app-swipe-stamp app-swipe-stamp--skip"}>{outcome === "like" ? "В ИЗБРАННОЕ" : "МИМО"}</span>}
+      {progress > 0.12 && (
+        <span className="app-swipe-fly app-swipe-fly--like" style={{ opacity: Math.min(1, progress * 1.5), transform: `translate(-50%, ${-20 - progress * 36}%) scale(${0.55 + Math.min(progress, 1) * 0.55})` }}>
+          <ActionIcon name="heart" size={36} />
+          В избранное
+        </span>
+      )}
+      {progress < -0.12 && (
+        <span className="app-swipe-fly app-swipe-fly--skip" style={{ opacity: Math.min(1, -progress * 1.5), transform: `translate(-50%, ${-20 + progress * 36}%) scale(${0.55 + Math.min(-progress, 1) * 0.55})` }}>
+          Мимо
+        </span>
+      )}
       <div className="app-swipe-veil">
         {candidate.areaLine !== null && <p className="app-swipe-area">{candidate.areaLine}</p>}
         <h2 className="app-swipe-title">{candidate.place.title}</h2>

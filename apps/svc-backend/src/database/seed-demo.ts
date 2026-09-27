@@ -18,6 +18,7 @@
 // - buildViewerSlice - the viewer's own plans, groups, votes, subscriptions, bookings, lists and visits
 // - buildUserAchievements - grants derived from the generated check-ins, by the same catalog the API reads
 // - buildDemoData - pure generation of all demo rows (deterministic ids via fakerRU.seed(42))
+// - resetGeneratedContent - empty generated and user-made content tables; accounts stay
 // - seedDemoDatabase - ensure owner users, build data, insert tables in dependency order
 // - DemoData - generated rows per table
 // - DemoSeedResult - inserted counters plus totals
@@ -92,7 +93,7 @@ export type DemoCounts = {
 
 export const DEMO_COUNTS: Record<DemoScale, DemoCounts> = {
   small: { users: 10, places: 10, events: 24, stories: 5, feedPosts: 12, reviews: 15, checkIns: 18, bookings: 10, participations: 20, plans: 3, votes: 2, weGroups: 1, gatherings: 1, microEvents: 4, subscriptions: 5, pageViews: 60, feedLikes: 20, feedComments: 8, waitlistEntries: 4, reports: 3 },
-  normal: { users: 30, places: 25, events: 80, stories: 15, feedPosts: 40, reviews: 50, checkIns: 60, bookings: 30, participations: 60, plans: 10, votes: 5, weGroups: 3, gatherings: 3, microEvents: 10, subscriptions: 15, pageViews: 200, feedLikes: 70, feedComments: 25, waitlistEntries: 10, reports: 8 },
+  normal: { users: 48, places: 40, events: 160, stories: 36, feedPosts: 80, reviews: 90, checkIns: 100, bookings: 50, participations: 100, plans: 18, votes: 8, weGroups: 5, gatherings: 6, microEvents: 18, subscriptions: 24, pageViews: 320, feedLikes: 120, feedComments: 48, waitlistEntries: 16, reports: 10 },
   big: { users: 75, places: 60, events: 200, stories: 40, feedPosts: 100, reviews: 120, checkIns: 150, bookings: 75, participations: 150, plans: 25, votes: 12, weGroups: 7, gatherings: 7, microEvents: 25, subscriptions: 40, pageViews: 500, feedLikes: 180, feedComments: 60, waitlistEntries: 25, reports: 20 },
 };
 
@@ -846,19 +847,21 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
   const promoEventId = events[2]?.isPaid === true ? events[2].id : null;
   const bookings: BookingEntity[] = [];
   const bookingPairs = new Set<string>();
+  const organizerFuture = futureEvents.filter((item) => item.organizerUserId !== null);
   for (let attempt = 0; bookings.length < c.bookings && attempt < c.bookings * 50; attempt += 1) {
     const user = pick(users);
-    const event = pick(futureEvents);
+    const event = organizerFuture.length > 0 && attempt % 3 !== 2 ? organizerFuture[attempt % organizerFuture.length]! : pick(futureEvents);
     const key = `${user.id}:${event.id}`;
     if (bookingPairs.has(key)) continue;
     bookingPairs.add(key);
-    const createdAt = shiftDays(now, -int(1, 5), int(10, 20));
+    const createdAt = shiftDays(now, -((bookings.length * 3) % 21), 8 + (bookings.length % 12));
     bookings.push({
       id: uuid(),
       userId: user.id,
       eventId: event.id,
       status: (bookings.length < c.bookings - 5 ? "active" : "cancelled") as BookingStatus,
       promoCode: promoEventId !== null && event.id === promoEventId && chance(0.4) ? "DEMO20" : null,
+      source: (["chats", "feed", "search"] as const)[bookings.length % 3],
       createdAt,
       updatedAt: createdAt,
       reminderSentAt: null,
@@ -1360,7 +1363,78 @@ export type DemoSeedOptions = {
   ownerMaxUserId: string;
   devMaxUserId: string;
   now?: Date;
+  /** Drop generated and user-made catalog content, then insert a fresh demo. Accounts stay. */
+  reset?: boolean;
 };
+
+/** Content tables a reset may empty. Accounts, profiles and organizations stay so a login still works. */
+const RESET_CONTENT_TABLES = [
+  "feed_comments",
+  "feed_likes",
+  "feed_post_going",
+  "feed_posts",
+  "feed_drafts",
+  "stories",
+  "reviews",
+  "check_ins",
+  "waitlist_entries",
+  "participations",
+  "payments",
+  "promo_fulfillments",
+  "bookings",
+  "plan_expenses",
+  "plan_participants",
+  "plans",
+  "gathering_invitees",
+  "gatherings",
+  "vote_ballots",
+  "vote_participants",
+  "vote_options",
+  "votes",
+  "we_group_photos",
+  "we_group_items",
+  "we_group_members",
+  "we_groups",
+  "micro_event_expenses",
+  "micro_event_participants",
+  "micro_events",
+  "list_items",
+  "list_members",
+  "lists",
+  "subscriptions",
+  "page_views",
+  "reports",
+  "user_achievements",
+  "promotion_campaigns",
+  "promo_campaigns",
+  "promo_codes",
+  "event_options",
+  "events",
+  "place_participations",
+  "slot_chat_messages",
+  "slot_waitlist",
+  "slot_bookings",
+  "place_extras",
+  "place_slots",
+  "places",
+  "notifications",
+  "list_digest_sends",
+  "swipe_decisions",
+  "calendar_goings",
+  "calendar_shares",
+  "calendar_invites",
+  "friendships",
+] as const;
+
+/** Empties stale generated and user-made rows. Missing tables are skipped so an older schema still resets. */
+export async function resetGeneratedContent(dataSource: DataSource): Promise<string[]> {
+  const present: Array<{ tablename: string }> = await dataSource.query(`SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename = ANY($1)`, [RESET_CONTENT_TABLES]);
+  const names = present.map((row) => row.tablename).filter((name) => (RESET_CONTENT_TABLES as readonly string[]).includes(name));
+  if (names.length === 0) return [];
+  const quoted = names.map((name) => `"${name}"`).join(", ");
+  await dataSource.query(`TRUNCATE TABLE ${quoted} RESTART IDENTITY CASCADE`);
+  return names;
+}
 
 export type DemoSeedResult = {
   inserted: Record<string, number>;
@@ -1447,6 +1521,7 @@ function remapPlaceIds(data: DemoData, idMap: Map<string, string>): void {
 }
 
 export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeedOptions): Promise<DemoSeedResult> {
+  if (options.reset) await resetGeneratedContent(dataSource);
   const now = options.now ?? new Date();
   const usersRepo = dataSource.getRepository(UserEntity);
   const owner = await ensureDemoUser(usersRepo, options.ownerMaxUserId, { firstName: "Smoke", lastName: "Runner", username: "max_events_smoke" });

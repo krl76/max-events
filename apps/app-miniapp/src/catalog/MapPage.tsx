@@ -21,14 +21,15 @@ export type MapEventsState = { status: "loading" } | { status: "error" } | { sta
 
 const NO_EVENTS: Event[] = [];
 
-export function MapPageView({ state, onOpenEvent, onOpenPlace, onBack, onDiscuss, pin = null, focusPlaceId = null }: { state: MapEventsState; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void; onBack?: () => void; onDiscuss?: () => void; pin?: { lat: number; lng: number } | null; focusPlaceId?: string | null }) {
-  return <MapScreen events={state.status === "ready" ? state.events : NO_EVENTS} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} onBack={onBack} onDiscuss={onDiscuss} eventsFailed={state.status === "error"} eventsLoading={state.status === "loading"} pin={pin} focusPlaceId={focusPlaceId} />;
+export function MapPageView({ state, onOpenEvent, onOpenPlace, onDiscuss, pin = null, focusPlaceId = null, drawRoute = false }: { state: MapEventsState; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void; onDiscuss?: () => void; pin?: { lat: number; lng: number } | null; focusPlaceId?: string | null; drawRoute?: boolean }) {
+  return <MapScreen events={state.status === "ready" ? state.events : NO_EVENTS} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} onDiscuss={onDiscuss} eventsFailed={state.status === "error"} eventsLoading={state.status === "loading"} pin={pin} focusPlaceId={focusPlaceId} drawRoute={drawRoute} />;
 }
 
 export function MapPage() {
-  const { route, navigate, back } = useRoute();
+  const { route, navigate } = useRoute();
   const pin = route.name === "map" ? (route.pin ?? null) : null;
   const focusPlaceId = route.name === "map" ? (route.placeId ?? null) : null;
+  const drawRoute = route.name === "map" && route.drawRoute === true;
   const [state, setState] = useState<MapEventsState>({ status: "loading" });
 
   useEffect(() => {
@@ -48,8 +49,5 @@ export function MapPage() {
 
   const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
   const openPlace = useCallback((id: string) => navigate({ name: "place", id }), [navigate]);
-  // Обсуждение объекта начинается с плана: план несёт чат, отдельного чата у объекта на карте нет.
-  const discuss = useCallback(() => navigate({ name: "plan-new" }), [navigate]);
-
-  return <MapPageView state={state} onOpenEvent={openEvent} onOpenPlace={openPlace} onBack={back} onDiscuss={discuss} pin={pin} focusPlaceId={focusPlaceId} />;
+  return <MapPageView state={state} onOpenEvent={openEvent} onOpenPlace={openPlace} pin={pin} focusPlaceId={focusPlaceId} drawRoute={drawRoute} />;
 }

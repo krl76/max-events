@@ -25,6 +25,7 @@
 // END_MODULE_MAP
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { TodayCardLabel } from "@max-events/api-contracts";
 import type { TodayCard, TodayDigest } from "../api/client";
 import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
@@ -71,6 +72,12 @@ export function todayLabel(label: TodayCardLabel, voice: DistanceVoice = "you"):
 /** «18 сентября» — the day the digest was built for, printed next to its title. */
 export function formatTodayDate(now: Date): string {
   return now.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+
+/** «26 СЕН» — the short plaque next to «Афиша». */
+export function afishaDayChip(date: Date): string {
+  const month = date.toLocaleDateString("ru-RU", { month: "short" }).replace(".", "").slice(0, 3).toUpperCase();
+  return `${date.getDate()} ${month}`;
 }
 
 /** Local calendar day as YYYY-MM-DD, the value a date input reads and writes. */
@@ -136,15 +143,18 @@ export function DayCalendar({ month, selected, today, onPick, onShift, onToday }
   );
 }
 
-function SearchDayButton({ day, now, onDay }: { day: string; now: Date; onDay: (day: string) => void }) {
+export function SearchDayButton({ day, now, onDay, chip = false }: { day: string; now: Date; onDay: (day: string) => void; chip?: boolean }) {
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(() => new Date(`${day}T12:00:00`));
   const root = useRef<HTMLDivElement>(null);
+  const layerRef = useRef<HTMLDivElement>(null);
   const shown = new Date(`${day}T12:00:00`);
   useEffect(() => {
     if (!open) return;
     const onPointer = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (root.current?.contains(target) || layerRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
@@ -156,37 +166,46 @@ function SearchDayButton({ day, now, onDay }: { day: string; now: Date; onDay: (
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+  const calendar = (
+    <DayCalendar
+      month={cursor}
+      selected={day}
+      today={dayKey(now)}
+      onShift={setCursor}
+      onPick={(next) => {
+        onDay(next);
+        setOpen(false);
+      }}
+      onToday={() => {
+        onDay(dayKey(now));
+        setOpen(false);
+      }}
+    />
+  );
   return (
     <div className="app-today-date-wrap" ref={root}>
       <button
         type="button"
-        className="app-today-date"
+        className={chip ? "app-today-date app-today-date--chip" : "app-today-date"}
         aria-expanded={open}
         aria-haspopup="dialog"
-        onClick={() => {
+        aria-label={`Дата афиши: ${formatTodayDate(shown)}`}
+        onClick={(event) => {
+          event.stopPropagation();
           setCursor(shown);
           setOpen((current) => !current);
         }}
       >
-        <ActionIcon name="calendar" size={16} />
-        <span>{formatTodayDate(shown)}</span>
+        {chip ? <span>{afishaDayChip(shown)}</span> : <span>{formatTodayDate(shown)}</span>}
+        <ActionIcon name="calendar" size={14} />
       </button>
-      {open && (
-        <DayCalendar
-          month={cursor}
-          selected={day}
-          today={dayKey(now)}
-          onShift={setCursor}
-          onPick={(next) => {
-            onDay(next);
-            setOpen(false);
-          }}
-          onToday={() => {
-            onDay(dayKey(now));
-            setOpen(false);
-          }}
-        />
-      )}
+      {open &&
+        createPortal(
+          <div ref={layerRef} className="app-today-cal-layer" onPointerDown={() => setOpen(false)}>
+            <div onPointerDown={(event) => event.stopPropagation()}>{calendar}</div>
+          </div>,
+          document.querySelector(".app-root") ?? document.body,
+        )}
     </div>
   );
 }
@@ -238,7 +257,18 @@ export function afterMeGoLabel(voice: DistanceVoice = "you"): string {
   return voice === "center" ? "Показать места в городе" : "Показать места рядом";
 }
 
-export function TodaySummaryBlock({ state, now, day, onDay, distanceFrom = "you", onOpenNearby, onOpenSuitable, onOpenFriends }: { state: TodayState; now: Date; day?: string; onDay?: (day: string) => void; distanceFrom?: DistanceVoice; onOpenNearby?: () => void; onOpenSuitable?: () => void; onOpenFriends?: () => void }) {
+function StatPhotos({ photos }: { photos?: string[] }) {
+  if (photos === undefined || photos.length === 0) return null;
+  return (
+    <span className="app-today-stat-photos">
+      {photos.slice(0, 3).map((photo) => (
+        <img key={photo} className="app-today-stat-photo" alt="" src={photo} />
+      ))}
+    </span>
+  );
+}
+
+export function TodaySummaryBlock({ state, now, day, onDay, distanceFrom = "you", onOpenNearby, onOpenSuitable, onOpenFriends, nearbyPhotos, suitablePhotos }: { state: TodayState; now: Date; day?: string; onDay?: (day: string) => void; distanceFrom?: DistanceVoice; onOpenNearby?: () => void; onOpenSuitable?: () => void; onOpenFriends?: () => void; nearbyPhotos?: string[]; suitablePhotos?: string[] }) {
   const summary = state.status === "ready" ? state.today.summary : null;
   const title = todaySummaryTitle(distanceFrom);
   const shown = day === undefined ? now : new Date(`${day}T12:00:00`);
@@ -259,11 +289,13 @@ export function TodaySummaryBlock({ state, now, day, onDay, distanceFrom = "you"
         ) : (
           <>
             <button type="button" className="app-today-stat" onClick={onOpenNearby}>
+              <StatPhotos photos={nearbyPhotos} />
               <span className="app-today-stat-value">{summary.nearbyCount}</span>
               <span className="app-today-stat-label">{nearbyStatLabel(summary.nearbyCount, distanceFrom)}</span>
             </button>
             {summary.suitableCount > 0 && (
               <button type="button" className="app-today-stat" onClick={onOpenSuitable}>
+                <StatPhotos photos={suitablePhotos} />
                 <span className="app-today-stat-value">{summary.suitableCount}</span>
                 <span className="app-today-stat-label">{pluralRu(summary.suitableCount, "подходит", "подходят", "подходят")} тебе</span>
               </button>

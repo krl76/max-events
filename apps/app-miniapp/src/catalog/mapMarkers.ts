@@ -77,7 +77,7 @@ export const MAP_CLUSTER_BASE_ZOOM = 11;
 /** Сторона клетки на стартовом зуме: 0,02° широты — примерно 2,2 км, четверть экрана города. */
 export const MAP_CLUSTER_CELL_DEGREES = 0.02;
 /** Ближе этого зума пины уже не налезают друг на друга, и склеивать их значит прятать данные. */
-export const MAP_CLUSTER_MAX_ZOOM = 15;
+export const MAP_CLUSTER_MAX_ZOOM = 14;
 
 /**
  * Клетка делится пополам на каждый шаг зума — так скопление распадается постепенно, а не рывком.
@@ -93,8 +93,10 @@ function loneCluster(marker: MapMarker): MapCluster {
   return { key: marker.key, lat: marker.lat, lng: marker.lng, markers: [marker] };
 }
 
-/** Markers closer than this still share a bubble even at street zoom — same venue, stacked pins. */
+/** Markers closer than this still share a bubble on the city view — a block, not two houses. */
 export const MAP_STACK_DEGREES = 0.0003;
+/** At street zoom only the same doorway stays one bubble. Two houses a few dozen metres apart split. */
+export const MAP_STACK_STREET_DEGREES = 0.00004;
 
 export function clusterMapMarkers(markers: MapMarker[], zoom: number): MapCluster[] {
   const base =
@@ -120,10 +122,11 @@ export function clusterMapMarkers(markers: MapMarker[], zoom: number): MapCluste
             return { key: `cluster-${group[0].key}`, lat, lng, markers: group };
           });
         })();
-  return stackColocated(base);
+  const stackReach = zoom >= MAP_CLUSTER_MAX_ZOOM ? MAP_STACK_STREET_DEGREES : MAP_STACK_DEGREES;
+  return stackColocated(base, stackReach);
 }
 
-function stackColocated(clusters: MapCluster[]): MapCluster[] {
+function stackColocated(clusters: MapCluster[], reach: number): MapCluster[] {
   const leftover = [...clusters];
   const stacked: MapCluster[] = [];
   while (leftover.length > 0) {
@@ -131,7 +134,7 @@ function stackColocated(clusters: MapCluster[]): MapCluster[] {
     const group = [seed];
     for (let index = leftover.length - 1; index >= 0; index -= 1) {
       const other = leftover[index]!;
-      if (Math.hypot(other.lat - seed.lat, other.lng - seed.lng) >= MAP_STACK_DEGREES) continue;
+      if (Math.hypot(other.lat - seed.lat, other.lng - seed.lng) >= reach) continue;
       group.push(other);
       leftover.splice(index, 1);
     }

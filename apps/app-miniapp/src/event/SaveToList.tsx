@@ -14,21 +14,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { apiClient, type ListSummary } from "../api/client";
+import { useSheetSwipe } from "../ui/sheet";
 import { AppButton, AppState } from "../ui/primitives";
 
 export type SaveToListState = { status: "loading" } | { status: "error" } | { status: "ready"; summaries: ListSummary[] };
 
 export function SaveToListView({ state, onToggle, onDone, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, createError = null }: { state: SaveToListState; onToggle: (summary: ListSummary) => void; onDone: () => void; creating?: boolean; newTitle?: string; onNewTitle?: (value: string) => void; onCreateStart?: () => void; onCreateSubmit?: () => void; createError?: string | null }) {
+  const swipe = useSheetSwipe(onDone);
   return (
     <div className="app-save-sheet" role="dialog" aria-modal="true" aria-label="Сохранить в список">
       <button type="button" className="app-save-sheet-backdrop" aria-label="Закрыть" onClick={onDone} />
-      <section className="app-save-sheet-card">
-        <header className="app-save-sheet-head">
-          <h2 className="app-save-sheet-title">Сохранить</h2>
-          <button type="button" className="app-save-sheet-close" aria-label="Закрыть окно" onClick={onDone}>
-            Закрыть
-          </button>
-        </header>
+      <section className="app-save-sheet-card" style={swipe.style}>
+        <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
+        <h2 className="app-save-sheet-title">Сохранить</h2>
         <div className="app-save-sheet-scroll">
           {state.status === "loading" && <AppState>Загрузка…</AppState>}
           {state.status === "error" && <AppState error>Не удалось загрузить списки.</AppState>}
@@ -61,11 +59,6 @@ export function SaveToListView({ state, onToggle, onDone, creating = false, newT
               </AppButton>
             </div>
           )}
-        </div>
-        <div className="app-save-sheet-foot">
-          <AppButton onClick={onDone} stretched>
-            Готово
-          </AppButton>
         </div>
       </section>
     </div>

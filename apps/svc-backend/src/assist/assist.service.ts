@@ -113,10 +113,24 @@ export class AssistService {
     let limited = ids.slice(0, 4);
     // openEventId has to be one of items, and items stay at most 4.
     if (openId && !limited.includes(openId)) limited = [...limited.slice(0, 3), openId];
-    const items: AssistPick[] = limited.flatMap((id) => {
+    const drafted: AssistPick[] = limited.flatMap((id) => {
       const event = byId.get(id);
       return event ? [{ event, explanation: "Подходит по запросу" }] : [];
     });
+    const hinted = parseAssistQuery(cleaned);
+    const fromCatalog = hinted.genre === "any" ? [] : matchAssistEvents(future, hinted);
+    const items: AssistPick[] = [];
+    const seen = new Set<string>();
+    for (const event of fromCatalog) {
+      if (seen.has(event.id) || items.length >= 4) continue;
+      seen.add(event.id);
+      items.push({ event, explanation: "Подходит по запросу" });
+    }
+    for (const pick of drafted) {
+      if (seen.has(pick.event.id) || items.length >= 4) continue;
+      seen.add(pick.event.id);
+      items.push(pick);
+    }
     const openEventId = openId && items.some((pick) => pick.event.id === openId) ? openId : undefined;
     return { silence: false, fallback: false, reply: clampAssistReply(draft.reply), ...(items.length > 0 ? { items } : {}), ...(openEventId ? { openEventId } : {}), ...(guides.length > 0 ? { guides } : {}) };
   }
@@ -281,7 +295,7 @@ function matchesGenre(event: Event, genre: AssistCriteria["genre"]): boolean {
   if (genre === "any") return true;
   const blob = `${event.title} ${event.description}`.toLowerCase();
   if (genre === "music") return event.category === "afisha" || /музык|джаз|концерт|симфон|рахманин/.test(blob);
-  if (genre === "sport") return event.category === "sport";
+  if (genre === "sport") return event.category === "sport" || /спорт|футбол|йог|пробеж|воркаут|трениров|теннис|стритбол|кроссфит|плаван|офп/.test(blob);
   if (genre === "volunteering") return event.category === "volunteering" || /волонт|волонтер|субботник/.test(blob);
   return event.category === "tourism" || event.category === "volunteering";
 }

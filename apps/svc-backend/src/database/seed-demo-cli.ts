@@ -22,7 +22,8 @@ export async function runDemoSeedCli() {
   const ownerMaxUserId = process.env.SEED_DEMO_OWNER_MAX_ID ?? "777000111";
   await AppDataSource.initialize();
   try {
-    const result = await seedDemoDatabase(AppDataSource, { scale, ownerMaxUserId, devMaxUserId: DEV_INITDATA_MAX_ID });
+    const reset = process.env.SEED_DEMO_RESET === "1";
+    const result = await seedDemoDatabase(AppDataSource, { scale, ownerMaxUserId, devMaxUserId: DEV_INITDATA_MAX_ID, reset });
     const counters = Object.entries(result.inserted)
       .map(([table, count]) => `${table}=${count}`)
       .join(" ");

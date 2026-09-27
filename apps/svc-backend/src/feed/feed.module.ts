@@ -22,11 +22,11 @@ import { UsersModule } from "../users/users.module";
 import { WaitlistModule } from "../waitlist/waitlist.module";
 import { FeedController } from "./feed.controller";
 import { FeedDraftEntity } from "./feed-draft.entity";
-import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "./feed-post.entity";
+import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity, FeedPostGoingEntity } from "./feed-post.entity";
 import { FeedService } from "./feed.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FeedPostEntity, FeedLikeEntity, FeedCommentEntity, FeedDraftEntity, EventEntity, UserEntity, PlaceEntity, ParticipationEntity, FriendshipEntity]), UsersModule, PlacesModule, WaitlistModule, BookingsModule],
+  imports: [TypeOrmModule.forFeature([FeedPostEntity, FeedLikeEntity, FeedCommentEntity, FeedPostGoingEntity, FeedDraftEntity, EventEntity, UserEntity, PlaceEntity, ParticipationEntity, FriendshipEntity]), UsersModule, PlacesModule, WaitlistModule, BookingsModule],
   controllers: [FeedController],
   providers: [FeedService],
   exports: [FeedService],

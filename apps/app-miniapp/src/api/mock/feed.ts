@@ -166,6 +166,9 @@ export function seedMockFeed(): void {
 seedMockFeed();
 
 export function resetMockFeed(): void {
+  mockRepostedPosts.clear();
+  mockRepostedEvents.clear();
+  mockPostGoing.clear();
   seedMockFeed();
 }
 
@@ -174,6 +177,15 @@ export function mockUserAsFriend(userId: string): FeedPost["author"] {
 }
 
 /** Impression posts newest first; with an eventId — only the posts of that event (the event wall). */
+/** Drops the author's own post. A stranger's id is refused so the mock matches the server. */
+export function deleteMockFeedPost(postId: string, userId: string): boolean {
+  const index = mockFeedPosts.findIndex((post) => post.id === postId);
+  if (index < 0) return false;
+  if (mockFeedPosts[index]?.author.id !== userId) return false;
+  mockFeedPosts.splice(index, 1);
+  return true;
+}
+
 export function feedPosts(eventId: string | null, placeId: string | null = null): FeedPost[] {
   const newestFirst = [...mockFeedPosts].reverse();
   if (eventId !== null) return newestFirst.filter((post) => post.eventId === eventId);
@@ -200,13 +212,56 @@ export function toggleMockFeedLike(postId: string, userId: string): FeedPost | n
   return post;
 }
 
-/** Appends a comment attributed to its author; null for an unknown post (mock 404). */
-export function addMockFeedComment(postId: string, payload: { userId: string; text: string }): FeedPost | null {
+const mockRepostedPosts = new Set<string>();
+const mockRepostedEvents = new Set<string>();
+const mockPostGoing = new Set<string>();
+
+/** Appends a comment attributed to its author; null for an unknown post (mock 404). A reply hangs under the root comment. */
+export function addMockFeedComment(postId: string, payload: { userId: string; text: string; parentId?: string | null }): FeedPost | null {
   const post = mockFeedPosts.find((item) => item.id === postId);
   if (!post) return null;
+  const parent = payload.parentId ? post.comments.find((item) => item.id === payload.parentId) : undefined;
+  if (payload.parentId && !parent) return null;
   mockFeedCommentSeq += 1;
-  const comment: FeedComment = { id: `31000000-0000-4000-8000-${String(mockFeedCommentSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), text: payload.text };
+  const comment: FeedComment = { id: `31000000-0000-4000-8000-${String(mockFeedCommentSeq).padStart(12, "0")}`, author: mockUserAsFriend(payload.userId), text: payload.text, parentId: parent?.parentId ?? parent?.id ?? null };
   post.comments.push(comment);
+  return post;
+}
+
+/** One repost of someone else's post. "own" and "dup" are the 400 and 409 the route maps. */
+export function repostMockFeedPost(userId: string, postId: string): FeedPost | "own" | "dup" | null {
+  const source = mockFeedPosts.find((item) => item.id === postId);
+  if (!source) return null;
+  if (source.author.id === userId) return "own";
+  const key = `${userId}:${postId}`;
+  if (mockRepostedPosts.has(key)) return "dup";
+  mockRepostedPosts.add(key);
+  const created = createMockFeedPost({ userId, eventId: source.eventId, text: "repost", photoUrl: null });
+  if (!created) return null;
+  created.text = "";
+  created.repostOf = { postId: source.id, author: source.author, text: source.text, photoUrl: source.photoUrl };
+  return created;
+}
+
+/** Share an event once. "dup" when this person already shared it. */
+export function repostMockFeedEvent(userId: string, eventId: string): FeedPost | "dup" | null {
+  if (!mockEvents.some((event) => event.id === eventId)) return null;
+  const key = `${userId}:${eventId}`;
+  if (mockRepostedEvents.has(key)) return "dup";
+  mockRepostedEvents.add(key);
+  const created = createMockFeedPost({ userId, eventId, text: "repost" });
+  if (!created) return null;
+  created.text = "";
+  return created;
+}
+
+/** «Я иду» on this post only. */
+export function toggleMockFeedGoing(userId: string, postId: string): FeedPost | null {
+  const post = mockFeedPosts.find((item) => item.id === postId);
+  if (!post) return null;
+  const key = `${userId}:${postId}`;
+  if (mockPostGoing.has(key)) mockPostGoing.delete(key);
+  else mockPostGoing.add(key);
   return post;
 }
 
@@ -282,6 +337,9 @@ function friendCard(post: FeedPost, event: Event | null, extra: FeedCardExtra | 
     hit: extra?.hit ?? false,
     counts: countsWithMine(extra?.counts ?? NO_COUNTS, mine),
     myStatus: mine,
+    goingByMe: mockPostGoing.has(`${userId}:${post.id}`),
+    friendsGoing: [...mockPostGoing].filter((key) => key.endsWith(`:${post.id}`)).length,
+    repostOf: post.repostOf ?? null,
     text: post.text,
     likesCount: post.likesCount,
     likedByMe: post.likedByMe,
