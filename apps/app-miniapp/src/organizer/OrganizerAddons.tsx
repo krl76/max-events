@@ -47,7 +47,19 @@ import { EventCategorySchema, type CreatePromoCampaignWrite, type CreatePromoCod
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { pluralRu } from "../catalog/format";
+import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { AppButton, AppTitle, AppState } from "../ui/primitives";
+
+function AddonButton({ icon, label, open, onClick }: { icon: ActionIconName; label: string; open: boolean; onClick: () => void }) {
+  return (
+    <button type="button" className={open ? "app-org-addon app-org-addon--on" : "app-org-addon"} aria-pressed={open} onClick={onClick}>
+      <span className="app-org-addon-icon" aria-hidden="true">
+        <ActionIcon name={icon} size={18} strokeWidth={2.2} />
+      </span>
+      <span>{label}</span>
+    </button>
+  );
+}
 
 export function OrganizerRatingView({ rating }: { rating: OrganizerRating | null }) {
   if (rating === null) return null;
@@ -156,9 +168,7 @@ export function EventStatsSection({ eventId }: { eventId: string }) {
 
   return (
     <div>
-      <AppButton size="small" tone="ghost" onClick={toggle}>
-        {open ? "Скрыть статистику" : "Статистика"}
-      </AppButton>
+      <AddonButton icon="trend" label={open ? "Скрыть статистику" : "Статистика"} open={open} onClick={toggle} />
       {open && (
         <div className="app-filters-inputs">
           <input className="app-filters-input" type="date" aria-label="Период с" value={from} onChange={(change) => setFrom(change.target.value)} />
@@ -207,12 +217,10 @@ function useLazyList<T>(load: () => Promise<T[]>) {
   return { open, toggle, state, setState, append };
 }
 
-export function ExpandableSection<T>({ label, openLabel, errorText, list, children }: { label: string; openLabel: string; errorText: string; list: { open: boolean; toggle: () => void; state: LazyListState<T> | null }; children: (items: T[]) => ReactNode }) {
+export function ExpandableSection<T>({ icon = "spark", label, openLabel, errorText, list, children }: { icon?: ActionIconName; label: string; openLabel: string; errorText: string; list: { open: boolean; toggle: () => void; state: LazyListState<T> | null }; children: (items: T[]) => ReactNode }) {
   return (
     <div>
-      <AppButton size="small" tone="ghost" onClick={list.toggle}>
-        {list.open ? openLabel : label}
-      </AppButton>
+      <AddonButton icon={icon} label={list.open ? openLabel : label} open={list.open} onClick={list.toggle} />
       {list.open && list.state?.status === "loading" && <AppState>Загрузка…</AppState>}
       {list.open && list.state?.status === "error" && <AppState error>{errorText}</AppState>}
       {list.open && list.state?.status === "ready" && children(list.state.items)}
@@ -401,7 +409,7 @@ export function PromotionSection({ eventId }: { eventId: string }) {
   };
 
   return (
-    <ExpandableSection list={list} label="Продвижение" openLabel="Скрыть продвижение" errorText="Не удалось загрузить кампании.">
+    <ExpandableSection icon="pin" list={list} label="Продвижение" openLabel="Скрыть продвижение" errorText="Не удалось загрузить кампании.">
       {(items) => (
         <>
           {items.length === 0 && form === null && <AppState>Кампаний пока нет.</AppState>}
@@ -539,7 +547,7 @@ export function PromoCodeSection({ eventId }: { eventId: string }) {
   };
 
   return (
-    <ExpandableSection list={list} label="Промокоды" openLabel="Скрыть промокоды" errorText="Не удалось загрузить промокоды.">
+    <ExpandableSection icon="ticket" list={list} label="Промокоды" openLabel="Скрыть промокоды" errorText="Не удалось загрузить промокоды.">
       {(items) => (
         <>
           {items.length === 0 && form === null && <AppState>Промокодов пока нет.</AppState>}
@@ -677,7 +685,7 @@ export function CampaignSection({ eventId }: { eventId: string }) {
   };
 
   return (
-    <ExpandableSection list={list} label="Акции" openLabel="Скрыть акции" errorText="Не удалось загрузить акции.">
+    <ExpandableSection icon="spark" list={list} label="Акции" openLabel="Скрыть акции" errorText="Не удалось загрузить акции.">
       {(items) => (
         <>
           {items.length === 0 && form === null && <AppState>Акций пока нет.</AppState>}
@@ -706,6 +714,7 @@ export function CampaignSection({ eventId }: { eventId: string }) {
 }
 
 export function EarlyAccessSection({ eventId, bookingOpensAt }: { eventId: string; bookingOpensAt: string | null }) {
+  const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
@@ -730,10 +739,16 @@ export function EarlyAccessSection({ eventId, bookingOpensAt }: { eventId: strin
   const current = saved ?? bookingOpensAt;
   return (
     <div>
-      <AppButton size="small" tone="ghost" onClick={() => setValue(current === null ? "" : current.slice(0, 16))}>
-        Ранний доступ
-      </AppButton>
-      {value !== "" && (
+      <AddonButton
+        icon="clock"
+        label="Ранний доступ"
+        open={open}
+        onClick={() => {
+          setOpen((currentOpen) => !currentOpen);
+          setValue(current === null ? "" : current.slice(0, 16));
+        }}
+      />
+      {open && (
         <form
           className="app-profile-form"
           onSubmit={(submit) => {
@@ -755,7 +770,7 @@ export function EarlyAccessSection({ eventId, bookingOpensAt }: { eventId: strin
 
 export function OrganizerEventAddons({ eventId, bookingOpensAt }: { eventId: string; bookingOpensAt: string | null }) {
   return (
-    <div className="app-card-body">
+    <div className="app-org-addons">
       <EarlyAccessSection eventId={eventId} bookingOpensAt={bookingOpensAt} />
       <EventStatsSection eventId={eventId} />
       <PromoCodeSection eventId={eventId} />

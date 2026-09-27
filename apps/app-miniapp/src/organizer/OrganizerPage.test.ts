@@ -43,7 +43,7 @@ const publishedPlace: OrganizerPlace = {
   logoUrl: null,
 };
 
-const readyDraft: EventDraft = { title: "Встреча книжного клуба", category: "afisha", city: "Москва", startsAt: "2026-10-20T19:00", endsAt: "", price: "", paymentUrl: "", capacity: "12" };
+const readyDraft: EventDraft = { title: "Встреча книжного клуба", description: "", category: "afisha", city: "Москва", startsAt: "2026-10-20T19:00", endsAt: "", price: "", paymentUrl: "", capacity: "12", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "" };
 
 describe("eventDraftErrors", () => {
   it("accepts a ready draft and reports every missing required field", () => {
@@ -107,8 +107,9 @@ describe("toEventPatch / eventDraftFrom", () => {
     expect(patch.capacity).toBe(40);
     // save of an untouched form must preserve the original UTC instant (no TZ drift)
     expect(new Date(patch.startsAt as string).getTime()).toBe(new Date(draftEvent.startsAt).getTime());
-    expect(patch).not.toHaveProperty("category");
-    expect(patch).not.toHaveProperty("city");
+    expect(patch.category).toBe("afisha");
+    expect(patch.city).toBe("Москва");
+    expect(patch.description).toBe("");
   });
 
   it("round-trips an endsAt through prefill and save without drift", () => {
