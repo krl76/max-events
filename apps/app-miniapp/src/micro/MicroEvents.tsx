@@ -22,6 +22,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { Friend, MicroEvent, Place } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { getWebApp, shareResult } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
 import { FriendPicker } from "../ui/FriendPicker";
@@ -59,7 +61,9 @@ export function MicroCard({ item, places, joined, onJoin, onLeave, onOpen }: Mic
   );
   return (
     <article className="app-card app-micro-plan-card">
-      {onOpen === undefined ? <div className="app-card-body">{body}</div> : (
+      {onOpen === undefined ? (
+        <div className="app-card-body">{body}</div>
+      ) : (
         <button type="button" className="app-card-body app-micro-plan-open" onClick={onOpen}>
           <span className="app-micro-plan-copy">{body}</span>
           <ActionIcon name="chevron" size={16} />
@@ -274,21 +278,17 @@ interface MicroEventCreateViewProps {
   failed: boolean;
   onChange: (field: keyof MicroDraft, value: string) => void;
   onInvite?: (ids: string[]) => void;
+  /** Opens the MAX share sheet with this draft, so people who are not in the app can still be invited. */
+  onInviteMax?: () => void;
   onSubmit: () => void;
 }
 
-export function MicroEventCreateView({ draft, places: _places, friends = [], inviteeIds = [], submitting, failed, onChange, onInvite, onSubmit }: MicroEventCreateViewProps) {
+export function MicroEventCreateView({ draft, places: _places, friends = [], inviteeIds = [], submitting, failed, onChange, onInvite, onInviteMax, onSubmit }: MicroEventCreateViewProps) {
   const [pickingPin, setPickingPin] = useState(false);
   const [pickingFriends, setPickingFriends] = useState(false);
-  const missing = [
-    draft.title.trim() === "" ? "Напишите, что делаем" : "",
-    draft.when === "" ? "Укажите, когда" : "",
-    draft.where.trim() === "" ? "Поставьте точку, где" : "",
-    Number(draft.limit) >= 1 ? "" : "Укажите лимит",
-  ].filter((line) => line !== "");
+  const missing = [draft.title.trim() === "" ? "Напишите, что делаем" : "", draft.when === "" ? "Укажите, когда" : "", draft.where.trim() === "" ? "Поставьте точку, где" : "", Number(draft.limit) >= 1 ? "" : "Укажите лимит"].filter((line) => line !== "");
   return (
     <section className="app-gathering">
-      <p className="app-gathering-hint">Четыре поля — и событие в ленте</p>
       <label className="app-gathering-time">
         Что делаем
         <input className="app-gathering-time-input" value={draft.title} placeholder="Играем в баскетбол" onChange={(change) => onChange("title", change.target.value)} />
@@ -314,12 +314,25 @@ export function MicroEventCreateView({ draft, places: _places, friends = [], inv
         <input className="app-gathering-time-input" type="number" min={1} value={draft.limit} onChange={(change) => onChange("limit", change.target.value)} />
         {missing.includes("Укажите лимит") && <span className="app-field-hint">Укажите лимит</span>}
       </label>
-      <button type="button" className="app-gathering-row" onClick={() => setPickingFriends(true)}>
-        <ActionIcon name="friends" size={18} />
-        <span>Пригласить друзей{inviteeIds.length > 0 ? ` · ${inviteeIds.length}` : ""}</span>
-        <ActionIcon name="chevron" size={16} />
-      </button>
-      <AppButton disabled={submitting} onClick={() => { if (microDraftReady(draft)) onSubmit(); }} stretched>
+      <div className="app-gathering-invite">
+        <button type="button" className="app-gathering-row" onClick={() => setPickingFriends(true)}>
+          <ActionIcon name="friends" size={18} />
+          <span>Пригласить друзей{inviteeIds.length > 0 ? ` · ${inviteeIds.length}` : ""}</span>
+          <ActionIcon name="chevron" size={16} />
+        </button>
+        {onInviteMax !== undefined && (
+          <button type="button" className="app-gathering-max" onClick={onInviteMax}>
+            Пригласить в MAX
+          </button>
+        )}
+      </div>
+      <AppButton
+        disabled={submitting}
+        onClick={() => {
+          if (microDraftReady(draft)) onSubmit();
+        }}
+        stretched
+      >
         {submitting ? "Публикуем…" : "Опубликовать"}
       </AppButton>
       {failed && <AppState error>Не удалось опубликовать микро-событие.</AppState>}
@@ -403,5 +416,11 @@ export function MicroEventCreatePage() {
       );
   }, [draft, places, userId, navigate, inviteeIds]);
 
-  return <MicroEventCreateView draft={draft} places={places} friends={friends} inviteeIds={inviteeIds} submitting={submitting} failed={failed} onChange={(field, value) => setDraft((current) => ({ ...current, [field]: value }))} onInvite={setInviteeIds} onSubmit={publish} />;
+  const inviteInMax = () => {
+    const sentence = [draft.title.trim() || "Микро-событие", draft.when, draft.where.trim()].filter((part) => part !== "").join(" · ");
+    const payload = sharePayload(sentence, "micro");
+    void shareResult(getWebApp(), payload.text, payload.link);
+  };
+
+  return <MicroEventCreateView draft={draft} places={places} friends={friends} inviteeIds={inviteeIds} submitting={submitting} failed={failed} onChange={(field, value) => setDraft((current) => ({ ...current, [field]: value }))} onInvite={setInviteeIds} onInviteMax={inviteInMax} onSubmit={publish} />;
 }

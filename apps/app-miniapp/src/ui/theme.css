@@ -1068,14 +1068,6 @@ html[data-theme="dark"] #root {
   font-size: var(--app-type-card-size);
 }
 
-.app-row-chevron {
-  align-self: center;
-  color: var(--app-text-tertiary);
-  display: flex;
-  flex: none;
-  padding-right: var(--app-space-l);
-}
-
 /* Каталог: карта (Leaflet + OSM), пины и карточки-попапы; заполняет остаток высоты контента */
 .app-map {
   border-radius: var(--app-radius-media);
@@ -6111,7 +6103,7 @@ html[data-theme="dark"] #root {
   left: var(--app-space-l);
   position: absolute;
   right: var(--app-space-l);
-  top: 56px;
+  top: 12px;
 }
 
 .app-story-bar-actions {
@@ -6725,7 +6717,7 @@ html[data-theme="dark"] #root {
   display: flex;
   flex: none;
   gap: var(--app-space-m);
-  padding: 60px var(--app-space-screen) 14px;
+  padding: 8px var(--app-space-screen) 10px;
 }
 
 .app-post-compose-back {
@@ -18350,6 +18342,58 @@ button.app-cal-peer-chip {
   padding: 9px 14px;
 }
 
+/* Четыре раздела на ширину телефона: равные ячейки, без горизонтальной прокрутки и обрезанных слов. */
+.app-tab-row.app-segments {
+  background: var(--app-surface);
+  border-radius: 16px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 12px 0 0;
+  overflow: visible;
+  padding: 4px;
+  width: 100%;
+}
+
+.app-tab-row.app-segments .app-chip {
+  font-size: 12px;
+  justify-content: center;
+  letter-spacing: -0.03em;
+  min-width: 0;
+  padding: 8px 2px;
+  width: 100%;
+}
+
+.app-plans .app-card--link {
+  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.app-plans .app-card--link .app-card-media {
+  border-radius: 0;
+  height: 156px;
+  width: 100%;
+}
+
+.app-plan-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px 14px;
+}
+
+.app-plan-meta {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 /* Счётчик рядом с названием раздела (очередь модерации): цифра идёт за словом, а не вместо него */
 .app-tab-count {
   font-variant-numeric: tabular-nums;
@@ -18588,7 +18632,8 @@ button.app-cal-peer-chip {
 }
 
 .app-me-metric--link .app-me-metric-label {
-  color: var(--app-accent-text);
+  color: var(--app-text);
+  font-weight: 700;
 }
 
 .app-me-metric--link:active {
@@ -19473,7 +19518,7 @@ button.app-cal-peer-chip {
 }
 
 .app-post-compose-head {
-  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  padding-top: 8px;
 }
 
 .app-post-compose-foot {
@@ -20530,42 +20575,42 @@ button.app-story-viewer-author {
 }
 
 .app-plans-quick {
-  display: grid;
+  display: flex;
   gap: 8px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 12px 0;
+  margin: 8px 0 4px;
 }
 
 .app-plans-quick button {
   align-items: center;
-  background: var(--app-card);
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 6px;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 0;
+  padding: 0 4px;
+}
+
+.app-plans-create {
+  align-items: center;
+  background: none;
   border: var(--app-hairline);
   border-radius: 16px;
   color: var(--app-text);
   cursor: pointer;
   display: flex;
-  flex-direction: column;
   font: inherit;
-  font-size: 12px;
-  font-weight: 800;
-  gap: 6px;
-  min-height: 76px;
-  padding: 12px 6px;
-}
-
-.app-plans-create {
-  align-items: flex-start;
-  background: var(--brand-graphite-deep);
-  border: none;
-  border-radius: 18px;
-  color: white;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  font: inherit;
-  gap: 2px;
-  margin: 4px 0 14px;
-  padding: 14px 16px;
+  gap: 4px;
+  margin: 8px 0 12px;
+  min-height: 52px;
+  padding: 12px 14px;
   text-align: left;
   width: 100%;
 }
@@ -20688,4 +20733,180 @@ button.app-story-viewer-author {
   flex-direction: column;
   gap: 8px;
   position: relative;
+}
+
+.app-sheet {
+  animation: app-sheet-in 240ms ease;
+}
+
+.app-sheet-grab {
+  background: rgba(6, 7, 8, 0.28);
+  border-radius: 4px;
+  height: 4px;
+  margin: 0 auto 4px;
+  touch-action: none;
+  width: 36px;
+}
+
+@keyframes app-sheet-in {
+  from {
+    transform: translateY(24px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.app-feed-city {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-feed-city-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin: 8px 0;
+}
+
+.app-feed-city-new {
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 44px;
+  padding: 0 4px;
+}
+
+.app-feed-city-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.app-feed-city-card {
+  aspect-ratio: 3 / 4;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 16px;
+  color: white;
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  text-align: left;
+}
+
+.app-feed-city-card img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-feed-city-veil {
+  background: linear-gradient(transparent, rgba(6, 7, 8, 0.72));
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  left: 0;
+  padding: 28px 10px 10px;
+  position: absolute;
+  right: 0;
+}
+
+.app-feed-city-title {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.app-feed-city-meta {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.app-story-handle {
+  background: white;
+  border: 2px solid rgba(6, 7, 8, 0.8);
+  border-radius: 50%;
+  height: 16px;
+  padding: 0;
+  position: absolute;
+  width: 16px;
+  z-index: 2;
+}
+
+.app-story-handle--nw {
+  left: -8px;
+  top: -8px;
+}
+
+.app-story-handle--ne {
+  right: -8px;
+  top: -8px;
+}
+
+.app-story-handle--sw {
+  bottom: -8px;
+  left: -8px;
+}
+
+.app-story-handle--se {
+  bottom: -8px;
+  right: -8px;
+}
+
+.app-story-actions {
+  flex-direction: column;
+}
+
+.app-story-who {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+}
+
+.app-story-publish {
+  flex: none;
+  width: 100%;
+}
+
+.app-story-audience {
+  background: rgba(255, 255, 255, 0.16);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 4px;
+}
+
+.app-story-audience--on {
+  background: white;
+  color: rgba(6, 7, 8, 0.92);
+}
+
+.app-gathering-invite {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-gathering-max {
+  background: var(--app-surface);
+  border: none;
+  border-radius: 14px;
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  min-height: 44px;
+  width: 100%;
 }

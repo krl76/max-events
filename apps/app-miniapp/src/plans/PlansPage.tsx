@@ -27,7 +27,8 @@ import { MyMicroEventsSection } from "../micro/MicroEvents";
 import { ListsPage } from "../lists/ListsPage";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppChip, AppState, AppSkeleton, AppMedia } from "../ui/primitives";
+import { pictured } from "../ui/photos";
+import { AppState, AppSkeleton, AppMedia } from "../ui/primitives";
 
 export function formatMeetingTime(meetingAt: string): string {
   return new Date(meetingAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -101,15 +102,13 @@ export function PlansView({ state, onOpen, onExplore, onCreate, distancesFromVie
       {create}
       {state.cards.map(({ plan, event, distanceMeters }) => (
         <button key={plan.id} type="button" className="app-card app-card--link" onClick={() => onOpen(plan.id)}>
-          <AppMedia category={event.category} />
-          <div className="app-card-body">
+          <AppMedia category={event.category} src={pictured(event.id, event.coverUrl)} />
+          <span className="app-plan-copy">
             <span className="app-card-title">{event.title}</span>
-            <span className="app-card-subtitle">{planCompanyLabel(plan.participants.length)}</span>
-            <span className="app-card-subtitle">{planMeetingLabel(plan)}</span>
-            <span className="app-card-subtitle">{planDistanceLabel(distanceMeters, distancesFromViewer)}</span>
-          </div>
-          <span className="app-row-chevron" aria-hidden="true">
-            <ActionIcon name="chevron" size={16} strokeWidth={2} />
+            <span className="app-plan-meta">
+              {planCompanyLabel(plan.participants.length)} · {planMeetingLabel(plan)}
+            </span>
+            <span className="app-plan-meta">{planDistanceLabel(distanceMeters, distancesFromViewer)}</span>
           </span>
         </button>
       ))}
@@ -167,11 +166,11 @@ export function PlansPage({ tab = "plans", inviteToken }: { tab?: PlansTab; invi
   }, [point.latitude, point.longitude]);
   return (
     <>
-      <div className="app-tab-row" role="group" aria-label="Разделы «Моё»">
+      <div className="app-tab-row app-segments" role="group" aria-label="Разделы «Моё»">
         {PLANS_TABS.map((item) => (
-          <AppChip key={item.id} pressed={active === item.id} onClick={() => setActive(item.id)}>
+          <button key={item.id} type="button" className={active === item.id ? "app-chip app-chip--on" : "app-chip"} aria-pressed={active === item.id} onClick={() => setActive(item.id)}>
             {item.label}
-          </AppChip>
+          </button>
         ))}
       </div>
       {active === "plans" && (

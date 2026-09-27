@@ -18,6 +18,7 @@ import type { Friend } from "@max-events/api-contracts";
 import { PersonAvatar } from "../friends/avatar";
 import { friendHandle } from "./friend-handle";
 import { ActionIcon } from "./icons";
+import { useSheetSwipe } from "./sheet";
 
 /** Что считается фокусируемым внутри окна: ровно то, что окно и рисует. */
 const FOCUSABLE = "button:not([disabled]), input:not([disabled])";
@@ -66,6 +67,7 @@ export function FriendPicker({ friends, title = "Выбери друга", hint 
   const [picked, setPicked] = useState<string[]>([]);
   const sheet = useRef<HTMLDivElement | null>(null);
   const search = useRef<HTMLInputElement | null>(null);
+  const swipe = useSheetSwipe(onClose);
 
   // Фокус уезжает в окно на открытии и возвращается на открывашку на закрытии. Без возврата
   // клавиатура и экранный диктор оказываются в начале страницы — окно как будто отбросило их назад.
@@ -103,8 +105,9 @@ export function FriendPicker({ friends, title = "Выбери друга", hint 
     <div className="app-fpick" role="dialog" aria-modal="true" aria-label={title} onKeyDown={onKeyDown}>
       {/* tabIndex=-1: закрыть фоном — мышиный жест, у клавиатуры для этого есть крестик и Escape */}
       <button type="button" className="app-fpick-scrim" tabIndex={-1} aria-label="Закрыть" onClick={onClose} />
-      <div className="app-fpick-sheet" ref={sheet}>
-        <div className="app-fpick-head">
+      <div className="app-fpick-sheet app-sheet" ref={sheet} style={swipe.style}>
+        <div className="app-sheet-grab" aria-hidden="true" {...swipe} />
+        <div className="app-fpick-head" {...swipe}>
           <h2 className="app-fpick-title">{title}</h2>
           <button type="button" className="app-fpick-close" aria-label="Закрыть" onClick={onClose}>
             <ActionIcon name="close" size={16} strokeWidth={2.6} />

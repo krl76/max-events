@@ -444,14 +444,6 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
           </button>
         </div>
       )}
-      {own && (
-        <nav className="app-me-rows" aria-label="Разделы профиля">
-          <ProfileRow icon="bookmark" title="Списки" hint={lists === null ? null : listsHint(lists)} onClick={entries.onLists} />
-          <ProfileRow icon="medal" title="Достижения" hint={achievements === null ? null : achievementsHint(achievements)} onClick={entries.onAchievements} />
-          <ProfileRow icon="group" title="Мы · группы" hint={weGroups === null ? null : weGroupsHint(weGroups)} onClick={entries.onWeGroups} />
-          <ProfileRow icon="user" title="Друзья" hint={friendsCount === null ? null : friendsHint(friendsCount)} onClick={entries.onFriends} />
-        </nav>
-      )}
       <div className="app-me-tabs" role="tablist" aria-label="Что показывать">
         {PROFILE_TABS.map((candidate) => (
           <button key={candidate.id} type="button" role="tab" id={`app-me-tab-${candidate.id}`} aria-selected={tab === candidate.id} aria-controls="app-me-tabpanel" className={tab === candidate.id ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => entries.onTab(candidate.id)}>
@@ -476,6 +468,14 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
           </div>
         )}
       </div>
+      {own && (
+        <nav className="app-me-rows" aria-label="Разделы профиля">
+          <ProfileRow icon="bookmark" title="Списки" hint={lists === null ? null : listsHint(lists)} onClick={entries.onLists} />
+          <ProfileRow icon="medal" title="Достижения" hint={achievements === null ? null : achievementsHint(achievements)} onClick={entries.onAchievements} />
+          <ProfileRow icon="group" title="Мы · группы" hint={weGroups === null ? null : weGroupsHint(weGroups)} onClick={entries.onWeGroups} />
+          <ProfileRow icon="user" title="Друзья" hint={friendsCount === null ? null : friendsHint(friendsCount)} onClick={entries.onFriends} />
+        </nav>
+      )}
     </section>
   );
 }

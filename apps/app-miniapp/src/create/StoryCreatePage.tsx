@@ -233,6 +233,11 @@ export function storyMentionQuery(text: string, caret: number): string | null {
 }
 
 /** Шаг по лесенке размеров. На краю лесенки объект остаётся как был: кнопка там и без того погашена. */
+/** Corner drag: the object grows as the handle moves away from its center and shrinks as it moves back. */
+export function scaleStoryObject(objects: readonly StoryCanvasObject[], key: string, scale: number): StoryCanvasObject[] {
+  return objects.map((object) => (sameStoryObject(object, key) ? { ...object, scale: nearestStoryScale(scale) } : object));
+}
+
 export function resizeStoryObject(objects: readonly StoryCanvasObject[], key: string, step: 1 | -1): StoryCanvasObject[] {
   return objects.map((object) => {
     if (!sameStoryObject(object, key)) return object;
@@ -361,7 +366,7 @@ export function storyComposition(draft: StoryDraft, sticker: StoryPlaceSticker |
   });
   const firstCaption = objects.find((object) => object.kind === "text")?.text ?? "";
   return {
-    text: onCanvas("text") ? (draft.text.trim() || firstCaption) : "",
+    text: onCanvas("text") ? draft.text.trim() || firstCaption : "",
     // Остаток мест лежит на том же стикере: счётчик без стикера — это тот же стикер, нарисованный одной цифрой.
     sticker: onCanvas("event") || onCanvas("seats") ? sticker : null,
     poll: onCanvas("poll") ? asked : null,
@@ -646,12 +651,48 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
         const selected = front === key;
         return (
           // Ручки живут на выбранном объекте: четыре набора разом закрывали холст сильнее самих объектов.
-          <div key={key} className={`${storyObjectClass(object.kind, null)}${selected ? " app-story-object--front" : ""}${shaking === key ? " app-story-object--shake" : ""}`} style={storyObjectStyle(object)} onPointerDown={(event) => { setTouched(key); setToolsOpen(true); startDrag(object, event); }}>
+          <div
+            key={key}
+            className={`${storyObjectClass(object.kind, null)}${selected ? " app-story-object--front" : ""}${shaking === key ? " app-story-object--shake" : ""}`}
+            style={storyObjectStyle(object)}
+            onPointerDown={(event) => {
+              setTouched(key);
+              setToolsOpen(true);
+              startDrag(object, event);
+            }}
+          >
             {shaking === key && (
               <button type="button" className="app-story-object-delete" aria-label={`Удалить: ${label}`} onPointerDown={(press) => press.stopPropagation()} onClick={() => dropObject(key)}>
                 <ActionIcon name="close" size={12} strokeWidth={2.6} />
               </button>
             )}
+            {selected &&
+              (["nw", "ne", "sw", "se"] as const).map((corner) => (
+                <button
+                  key={corner}
+                  type="button"
+                  className={`app-story-handle app-story-handle--${corner}`}
+                  aria-label={`Размер: ${label}`}
+                  onPointerDown={(press) => {
+                    press.stopPropagation();
+                    const startScale = object.scale ?? 1;
+                    const startX = press.clientX;
+                    const startY = press.clientY;
+                    const signX = corner.includes("e") ? 1 : -1;
+                    const signY = corner.includes("s") ? 1 : -1;
+                    const move = (pointer: PointerEvent) => {
+                      const delta = (signX * (pointer.clientX - startX) + signY * (pointer.clientY - startY)) / 140;
+                      onDraft({ ...draft, objects: scaleStoryObject(draft.objects, key, startScale + delta) });
+                    };
+                    const end = () => {
+                      window.removeEventListener("pointermove", move);
+                      window.removeEventListener("pointerup", end);
+                    };
+                    window.addEventListener("pointermove", move);
+                    window.addEventListener("pointerup", end);
+                  }}
+                />
+              ))}
             {body}
           </div>
         );
@@ -739,10 +780,13 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
         </div>
         {state === "error" && <p className="app-story-error">Не удалось опубликовать историю. Попробуйте ещё раз.</p>}
         <div className="app-story-actions">
-          <button type="button" className="app-story-audience" onClick={() => onDraft({ ...draft, audience: nextStoryAudience(draft.audience) })}>
-            <ActionIcon name="friends" size={18} strokeWidth={2.2} />
-            {storyAudienceLabel(draft.audience)}
-          </button>
+          <div className="app-story-who" role="group" aria-label="Кто увидит">
+            {STORY_AUDIENCES.map((item) => (
+              <button key={item.id} type="button" className={draft.audience === item.id ? "app-story-audience app-story-audience--on" : "app-story-audience"} aria-pressed={draft.audience === item.id} onClick={() => onDraft({ ...draft, audience: item.id })}>
+                {item.label}
+              </button>
+            ))}
+          </div>
           <button type="button" className="app-story-publish" disabled={state === "publishing"} onClick={onPublish}>
             {state === "publishing" ? "Публикуем…" : "В историю"}
             <ActionIcon name="chevron" size={16} strokeWidth={2.6} />

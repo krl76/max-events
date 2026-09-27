@@ -39,6 +39,7 @@ import { sharePayload } from "../max/links";
 import { replayScroll } from "../ui/scroll-memory";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { parsePinLabel } from "../ui/pin-label";
 import { SaveToList } from "../event/SaveToList";
 import { AppChip, AppEmptyState, AppSkeleton, AppState } from "../ui/primitives";
@@ -552,6 +553,48 @@ export function FeedSkeletonScreen({ posts = 2, stories = 5 }: { posts?: number;
 
 export type FeedScreenState = { status: "loading" } | { status: "error" } | { status: "ready"; cards: FeedCard[] };
 
+/** The social feed can be empty. The city still has events, and they should look like photographs. */
+function FeedCityPhotos({ onOpen, onCreate }: { onOpen: (id: string) => void; onCreate: () => void }) {
+  const [events, setEvents] = useState<Event[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    apiClient.listEvents().then(
+      (list) => {
+        if (alive) setEvents(list.slice(0, 6));
+      },
+      () => {
+        if (alive) setEvents([]);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+  if (events === null) return <AppState>Собираем афишу…</AppState>;
+  if (events.length === 0) return <AppEmptyState kind="empty-feed" onAction={onCreate} />;
+  return (
+    <div className="app-feed-city">
+      <div className="app-feed-city-head">
+        <h2 className="app-screen-title">Сейчас в городе</h2>
+        <button type="button" className="app-feed-city-new" onClick={onCreate}>
+          Свой пост
+        </button>
+      </div>
+      <div className="app-feed-city-grid">
+        {events.map((event) => (
+          <button key={event.id} type="button" className="app-feed-city-card" onClick={() => onOpen(event.id)}>
+            <img alt="" src={pictured(event.id, event.coverUrl)} />
+            <span className="app-feed-city-veil">
+              <span className="app-feed-city-title">{event.title}</span>
+              <span className="app-feed-city-meta">{event.city}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function FeedScreen() {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
@@ -647,7 +690,7 @@ export function FeedScreen() {
           Не удалось загрузить ленту.
         </AppState>
       ) : state.cards.length === 0 ? (
-        <AppEmptyState kind="empty-feed" onAction={() => navigate({ name: "create" })} />
+        <FeedCityPhotos onOpen={(id) => navigate({ name: "event", id })} onCreate={() => navigate({ name: "create" })} />
       ) : (
         <FeedCardList cards={state.cards} now={now} handlers={handlers} storyAuthors={storyAuthors} />
       )}

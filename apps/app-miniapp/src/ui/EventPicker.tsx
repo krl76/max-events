@@ -16,6 +16,7 @@ import type { EventCategory } from "@max-events/api-contracts";
 import { formatStartsAt } from "../catalog/format";
 import { ActionIcon } from "./icons";
 import { AppMedia } from "./primitives";
+import { useSheetSwipe } from "./sheet";
 
 export interface PickableEvent {
   id: string;
@@ -35,6 +36,7 @@ export function filterEvents<T extends PickableEvent>(events: T[], query: string
 export function EventPicker<T extends PickableEvent>({ title, events, selectedId, onPick, onClose }: { title: string; events: T[]; selectedId: string | null; onPick: (event: T) => void; onClose: () => void }) {
   const [query, setQuery] = useState("");
   const shown = filterEvents(events, query);
+  const swipe = useSheetSwipe(onClose);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -47,8 +49,9 @@ export function EventPicker<T extends PickableEvent>({ title, events, selectedId
   return (
     <div className="app-picker" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={onClose} />
-      <div className="app-picker-sheet">
-        <div className="app-picker-head">
+      <div className="app-picker-sheet app-sheet" style={swipe.style}>
+        <div className="app-sheet-grab" aria-hidden="true" {...swipe} />
+        <div className="app-picker-head" {...swipe}>
           <h2 className="app-picker-title">{title}</h2>
           <button type="button" className="app-picker-done" onClick={onClose}>
             Закрыть
