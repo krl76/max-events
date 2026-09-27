@@ -79,11 +79,11 @@ describe("FeedPostCard", () => {
     const withPhoto = card({ photoUrl: "https://cdn.example.com/post.jpg" });
 
     expect(withPhoto).toContain('src="https://cdn.example.com/post.jpg"');
-    // Same 4:5 frame as the placeholder, and it replaces it rather than sitting under it.
-    expect(withPhoto).toContain('class="app-card-media app-post-photo"');
-    expect((withPhoto.match(/app-card-media/g) ?? []).length).toBe(1);
+    expect(withPhoto).toContain('class="app-feed-photo"');
+    expect(withPhoto).toContain("Открыть фото 1 из 1");
+    expect(withPhoto).not.toContain("app-card-media");
     expect(card({ photoUrl: null })).toContain("picsum.photos");
-    expect(card({ photoUrl: null })).not.toContain("app-post-photo");
+    expect(card({ photoUrl: null })).toContain("app-card-media");
   });
 
   it("reflects the like state and counter on the like button", () => {

@@ -331,7 +331,7 @@ export function EventPage({ id }: { id: string }) {
       <SaveToList eventId={id} userId={userId} open={saveOpen} onClose={() => setSaveOpen(false)} />
       <EventWhenRow event={event} />
       {forecast !== null && <EventForecastCard forecast={forecast} />}
-      {place !== null && <EventRouteCard address={place.address} hint={place.title} travel={travel} fromCenter={!travelPoint.fromViewer} onRoute={() => navigate({ name: "place", id: place.id })} />}
+      {place !== null && <EventRouteCard address={place.address} hint={place.title} travel={travel} fromCenter={!travelPoint.fromViewer} onRoute={() => navigate({ name: "map", placeId: place.id, drawRoute: true })} />}
       <EventOrganizerCard name={organizerName} eventsCount={details.organizerEventsCount ?? null} rating={rating} subscribe={details.organizer === null ? null : <SubscribeToggle target={{ type: "organizer", organizerUserId: details.organizer.id }} subscribeLabel="Подписаться" unsubscribeLabel="Отписаться" />} />
       {companions !== null && <EventWhoGoesRow companions={companions} onOpen={() => navigate({ name: "companions", eventId: id })} />}
       {event.description !== "" && (

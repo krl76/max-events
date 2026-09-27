@@ -34,7 +34,7 @@ export const CREATE_ENTRIES: CreateEntry[] = [
 
 export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
   return (
-    <AppSection title="Что публикуем" ariaLabel="Создать">
+    <AppSection ariaLabel="Создать">
       <div className="app-create-entries">
         {CREATE_ENTRIES.map((entry) => (
           <button key={entry.label} type="button" className="app-create-entry" onClick={() => onPick(entry.route)}>

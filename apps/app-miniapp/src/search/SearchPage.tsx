@@ -30,10 +30,9 @@ import { CATEGORY_LABELS } from "../catalog/format";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute, type BrowseList } from "../routing/router";
 import { countsForCards } from "./BrowsePage";
-import { AfterMeSection } from "../taste/AfterMeSection";
 import { toggleEventLike, useEventLiked } from "../ui/event-likes";
 import { eventFillLabel, pictured } from "../ui/photos";
-import { dayKey, formatPickDistance, formatPickPrice, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, type DistanceVoice, type TodayState } from "../today/TodaySection";
+import { dayKey, formatPickDistance, formatPickPrice, TodaySummaryBlock, todayAfterMeCard, todayPickCards, type DistanceVoice, type TodayState } from "../today/TodaySection";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppSkeleton, AppState } from "../ui/primitives";
 
@@ -205,7 +204,7 @@ export function SearchFilters({ category, onCategory }: { category: EventCategor
 }
 
 const SEARCH_TOOLS: Array<{ id: string; label: string; aria: string; icon: "spark" | "cards" | "pin" | "sparkle" | "clock" | "users"; dark?: boolean }> = [
-  { id: "ask", label: "MAX", aria: "Спросить MAX", icon: "spark", dark: true },
+  { id: "ask", label: "Спросить", aria: "Спросить MAX", icon: "spark", dark: true },
   { id: "swipe", label: "Свайпы", aria: "Подбор свайпами", icon: "cards" },
   { id: "map", label: "Карта", aria: "На карте", icon: "pin" },
   { id: "whereto", label: "Куда", aria: "Куда пойдём?", icon: "sparkle" },
@@ -440,33 +439,34 @@ export function SearchView(props: SearchViewProps) {
   const distanceFrom = props.distancesFromViewer === false ? "center" : "you";
   const inCity = props.distancesFromViewer !== false;
   const nearbyTitle = props.dayScoped ? "В этот день" : props.catalogInCity === false ? "Сегодня в городе" : "Сегодня рядом";
-  const [fold, setFold] = useState<SearchFoldId | null>(null);
-  const toggle = (id: SearchFoldId) => setFold((current) => (current === id ? null : id));
+  const catalog = props.state.status === "ready" ? props.state.cards : [];
+  const picks = props.today.status === "ready" ? todayPickCards(props.today.today) : [];
+  const suitable = props.suitableState?.status === "ready" ? props.suitableState.cards : [];
+  const photoOf = (card: { event: { id: string; coverUrl?: string | null } } | undefined) => (card === undefined ? null : pictured(card.event.id, card.event.coverUrl));
+  const nearbyPhotos = catalog.slice(0, 3).map((card) => pictured(card.event.id, card.event.coverUrl));
+  const suitablePhotos = (suitable.length > 0 ? suitable : picks).slice(0, 3).map((card) => pictured(card.event.id, card.event.coverUrl));
+  const squares = [
+    { title: nearbyTitle, photo: photoOf(catalog[0]), onOpen: props.onExpand },
+    { title: "Для вас", photo: photoOf(picks[0] ?? suitable[0]), onOpen: () => props.onOpenList("suitable") },
+    { title: "После меня", photo: hint === null ? photoOf(catalog[2]) : pictured(hint.event.id, hint.event.coverUrl), onOpen: props.onNearby },
+    { title: "Афиша", photo: photoOf(catalog[1] ?? catalog[0]), onOpen: props.onExpand },
+  ];
   return (
     <div className="app-search">
       <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} trailing={<SearchFilters category={props.category} onCategory={props.onCategory} />} />
       <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} onPickRecent={props.onPickRecent} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
       <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
-      <TodaySummaryBlock state={props.today} now={props.now} day={props.day} onDay={props.onDay} distanceFrom={distanceFrom} onOpenNearby={() => props.onOpenList("nearby")} onOpenSuitable={() => props.onOpenList("suitable")} onOpenFriends={() => props.onOpenList("friends")} />
-      <div className="app-search-folds">
-        <SearchFold title={nearbyTitle} open={fold === "nearby"} onToggle={() => toggle("nearby")}>
-          <SearchNearby state={props.state} inCity={props.catalogInCity !== false} showHeading={false} onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
-        </SearchFold>
-        <SearchFold title="Для вас" open={fold === "picks"} onToggle={() => toggle("picks")}>
-          {props.dayScoped ? <SearchNearby state={props.suitableState ?? { status: "loading" }} inCity={props.catalogInCity !== false} showHeading={false} showAll={false} layout="list" emptyCopy="В этот день под тебя ничего нет." onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} /> : <TodayPicksBlock state={props.today} showHeading={false} onOpen={props.onOpenEvent} onRetry={props.onRetry} distanceFrom={distanceFrom} />}
-        </SearchFold>
-        <SearchFold title="После меня" open={fold === "after"} onToggle={() => toggle("after")}>
-          {hint !== null && (
-            <button type="button" className="app-search-fold-event" onClick={() => props.onOpenEvent(hint.event.id)}>
-              {hint.event.title}
-            </button>
-          )}
-          {hint !== null && !props.hintDismissed && <TodayAfterMeCard card={hint} onShow={props.onNearby} onDismiss={props.onDismissHint} distanceFrom={distanceFrom} />}
-          <AfterMeSection showTitle={false} placeholder={hint === null ? "После твоих визитов пока ничего не подобралось." : undefined} />
-        </SearchFold>
-        <SearchFold title="Афиша" open={fold === "afisha"} onToggle={() => toggle("afisha")}>
-          <SearchNearby state={props.state} inCity={props.catalogInCity !== false} showHeading={false} showAll={false} layout="list" emptyCopy="В афише пока пусто." onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
-        </SearchFold>
+      <TodaySummaryBlock state={props.today} now={props.now} day={props.day} onDay={props.onDay} distanceFrom={distanceFrom} onOpenNearby={() => props.onOpenList("nearby")} onOpenSuitable={() => props.onOpenList("suitable")} onOpenFriends={() => props.onOpenList("friends")} nearbyPhotos={nearbyPhotos} suitablePhotos={suitablePhotos} />
+      <div className="app-search-squares">
+        {squares.map((square) => (
+          <button key={square.title} type="button" className="app-search-square" style={square.photo ? { backgroundImage: `url("${square.photo}")` } : undefined} onClick={square.onOpen}>
+            {square.photo !== null && <img alt="" src={square.photo} />}
+            <span className="app-search-square-veil">
+              <span className="app-search-square-title">{square.title}</span>
+              <span className="app-search-square-all">Смотреть все</span>
+            </span>
+          </button>
+        ))}
       </div>
     </div>
   );

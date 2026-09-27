@@ -125,10 +125,6 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
   return (
     <section className="app-post-compose" aria-label="Публикация поста">
       <header className="app-post-compose-head">
-        {/* Невидимая копия кнопки слева держит заголовок по центру шапки и не даёт ему прилипнуть к «Опубликовать». */}
-        <span className="app-post-compose-publish app-post-compose-publish--balance" aria-hidden="true">
-          {publishLabel}
-        </span>
         <span className="app-post-compose-title">Новый пост</span>
         <button type="button" className="app-post-compose-publish" disabled={state === "publishing"} onClick={() => {
           if (missing.length === 0) onPublish();

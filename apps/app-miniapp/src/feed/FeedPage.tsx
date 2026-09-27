@@ -34,6 +34,7 @@ import { StoryViewer, type StoryGroup } from "../stories/StoryViewer";
 import { OPEN_OWN_STORY } from "../create/StoryCreatePage";
 import { markStoriesSeen, readSeenStories, storyRail } from "../stories/rail";
 import { StoryRing } from "../stories/StoryRing";
+import { PhotoGallery } from "./gallery";
 import { pictured } from "../ui/photos";
 import { AppAvatar, AppButton, AppChip, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
@@ -321,6 +322,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
   const [reveal, setReveal] = useState<{ rootId: string; token: number } | null>(null);
   const revealSeq = useRef(0);
   const commentRef = useRef<HTMLInputElement | null>(null);
+  const photos = post.photoUrls && post.photoUrls.length > 0 ? post.photoUrls : post.photoUrl ? [post.photoUrl] : [];
   const eventLink =
     onOpenEvent && post.eventId !== null ? (
       <button type="button" className="app-plan-event" onClick={() => onOpenEvent(post.eventId!)}>
@@ -384,7 +386,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         </span>
         {userId !== "" && <ReportButton mode="dialog" target={{ feedPostId: post.id }} userId={userId} />}
       </header>
-      {post.photoUrl === null ? <AppMedia category={eventCategory} src={pictured(post.eventId ?? post.id)} /> : <img className="app-card-media app-post-photo" src={post.photoUrl} alt="" />}
+      {photos.length > 0 ? <PhotoGallery photos={photos} /> : <AppMedia category={eventCategory} src={pictured(post.eventId ?? post.id)} />}
       <div className="app-post-actions">
         <button type="button" className="app-post-action" aria-pressed={post.likedByMe} aria-label="Нравится" onClick={onToggleLike}>
           <ActionIcon filled={post.likedByMe} name="heart" />

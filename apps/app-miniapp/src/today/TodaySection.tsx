@@ -238,7 +238,18 @@ export function afterMeGoLabel(voice: DistanceVoice = "you"): string {
   return voice === "center" ? "Показать места в городе" : "Показать места рядом";
 }
 
-export function TodaySummaryBlock({ state, now, day, onDay, distanceFrom = "you", onOpenNearby, onOpenSuitable, onOpenFriends }: { state: TodayState; now: Date; day?: string; onDay?: (day: string) => void; distanceFrom?: DistanceVoice; onOpenNearby?: () => void; onOpenSuitable?: () => void; onOpenFriends?: () => void }) {
+function StatPhotos({ photos }: { photos?: string[] }) {
+  if (photos === undefined || photos.length === 0) return null;
+  return (
+    <span className="app-today-stat-photos">
+      {photos.slice(0, 3).map((photo) => (
+        <img key={photo} className="app-today-stat-photo" alt="" src={photo} />
+      ))}
+    </span>
+  );
+}
+
+export function TodaySummaryBlock({ state, now, day, onDay, distanceFrom = "you", onOpenNearby, onOpenSuitable, onOpenFriends, nearbyPhotos, suitablePhotos }: { state: TodayState; now: Date; day?: string; onDay?: (day: string) => void; distanceFrom?: DistanceVoice; onOpenNearby?: () => void; onOpenSuitable?: () => void; onOpenFriends?: () => void; nearbyPhotos?: string[]; suitablePhotos?: string[] }) {
   const summary = state.status === "ready" ? state.today.summary : null;
   const title = todaySummaryTitle(distanceFrom);
   const shown = day === undefined ? now : new Date(`${day}T12:00:00`);
@@ -259,11 +270,13 @@ export function TodaySummaryBlock({ state, now, day, onDay, distanceFrom = "you"
         ) : (
           <>
             <button type="button" className="app-today-stat" onClick={onOpenNearby}>
+              <StatPhotos photos={nearbyPhotos} />
               <span className="app-today-stat-value">{summary.nearbyCount}</span>
               <span className="app-today-stat-label">{nearbyStatLabel(summary.nearbyCount, distanceFrom)}</span>
             </button>
             {summary.suitableCount > 0 && (
               <button type="button" className="app-today-stat" onClick={onOpenSuitable}>
+                <StatPhotos photos={suitablePhotos} />
                 <span className="app-today-stat-value">{summary.suitableCount}</span>
                 <span className="app-today-stat-label">{pluralRu(summary.suitableCount, "подходит", "подходят", "подходят")} тебе</span>
               </button>

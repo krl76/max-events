@@ -615,6 +615,9 @@ html[data-theme="dark"] #root {
   color: rgba(255, 255, 255, 0.85);
   display: flex;
   justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
   width: 100%;
 }
 
@@ -623,7 +626,10 @@ html[data-theme="dark"] #root {
   border-radius: inherit;
   display: block;
   height: 100%;
+  inset: 0;
+  max-width: none;
   object-fit: cover;
+  position: absolute;
   width: 100%;
 }
 
@@ -2450,14 +2456,6 @@ html[data-theme="dark"] #root {
   text-align: left;
 }
 
-.app-feed-photo-btn {
-  background: none;
-  border: none;
-  display: block;
-  padding: 0;
-  width: 100%;
-}
-
 .app-feed-photo {
   aspect-ratio: 4 / 5;
   display: block;
@@ -2532,7 +2530,7 @@ html[data-theme="dark"] #root {
 
 .app-feed-event {
   aspect-ratio: 16 / 10;
-  background-color: #1c1c1e;
+  background-color: #17181c;
   background-position: center;
   background-size: cover;
   border: none;
@@ -4495,7 +4493,7 @@ html[data-theme="dark"] #root {
 .app-search {
   display: flex;
   flex-direction: column;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 36px);
+  padding-top: 4px;
 }
 
 .app-search-folds {
@@ -5186,6 +5184,9 @@ button.app-today-stat {
   display: flex;
   font: inherit;
   gap: 12px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   padding: 8px;
   text-align: left;
   width: 100%;
@@ -5193,17 +5194,21 @@ button.app-today-stat {
 
 .app-browse-photo {
   border-radius: 12px;
-  flex: none;
+  flex: 0 0 72px;
   height: 72px;
+  max-width: 72px;
+  min-width: 0;
   object-fit: cover;
   width: 72px;
 }
 
 .app-browse-copy {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .app-browse-kind {
@@ -5429,7 +5434,7 @@ button.app-today-stat {
 }
 
 .app-pick-save[aria-pressed="true"] {
-  color: #ff2d55;
+  color: #ff303c;
 }
 
 .app-pick--hero .app-pick-save {
@@ -7079,6 +7084,8 @@ button.app-today-stat {
 
 .app-picker-event {
   align-items: center;
+  min-width: 0;
+  overflow: hidden;
   background: var(--app-surface);
   border: var(--app-hairline);
   border-radius: var(--app-radius-card);
@@ -7099,8 +7106,10 @@ button.app-today-stat {
 .app-picker-media.app-card-media {
   aspect-ratio: 1;
   border-radius: 12px;
-  flex: none;
+  flex: 0 0 72px;
   height: 72px;
+  max-width: 72px;
+  min-width: 0;
   width: 72px;
 }
 
@@ -7418,7 +7427,9 @@ button.app-today-stat {
   font-weight: 800;
   letter-spacing: -0.01em;
   min-width: 0;
-  text-align: center;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -7439,10 +7450,6 @@ button.app-today-stat {
   justify-content: center;
   padding: 0 12px;
   white-space: nowrap;
-}
-
-.app-post-compose-publish--balance {
-  visibility: hidden;
 }
 
 .app-post-compose-publish:active:not(:disabled) {
@@ -19390,15 +19397,20 @@ button.app-cal-peer-chip {
 
 /* Квадрат вместо 4:5 у .app-card-media: сетка держит ритм только на равных сторонах */
 .app-me-post-media {
-  aspect-ratio: 1 / 1;
+  aspect-ratio: auto;
   border-radius: 0;
   height: 100%;
+  inset: 0;
+  position: absolute;
+  width: 100%;
 }
 
 .app-me-post-photo {
   display: block;
   height: 100%;
+  inset: 0;
   object-fit: cover;
+  position: absolute;
   width: 100%;
 }
 
@@ -21651,7 +21663,7 @@ button.app-story-viewer-author {
 }
 
 .app-story-handle {
-  background: radial-gradient(circle at center, #fff 0 6px, rgba(6, 7, 8, 0.9) 6px 8px, transparent 8px);
+  background: radial-gradient(circle at center, #ffffff 0 6px, rgba(6, 7, 8, 0.9) 6px 8px, transparent 8px);
   border: none;
   height: 44px;
   padding: 0;
@@ -21782,7 +21794,7 @@ button.app-story-viewer-author {
 }
 
 .app-story-arc--seen {
-  stroke: #8e8e93;
+  stroke: #17181c;
 }
 
 .app-story-sticker-cover {
@@ -21849,14 +21861,163 @@ button.app-story-viewer-author {
   margin: 0;
 }
 
-.app-feed-open-comments {
-  background: none;
+.app-ev-hero {
+  background-position: center;
+  background-size: cover;
+  min-height: 240px;
+}
+
+.app-today-stat-photos {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.app-today-stat-photo {
+  border-radius: 50%;
+  flex: 0 0 28px;
+  height: 28px;
+  object-fit: cover;
+  width: 28px;
+}
+
+.app-search-squares {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 16px;
+}
+
+.app-search-square {
+  aspect-ratio: 1;
+  background: #17181c center / cover no-repeat;
   border: none;
-  color: var(--app-text-secondary);
+  border-radius: 18px;
+  color: white;
   cursor: pointer;
-  font: inherit;
-  font-weight: 700;
-  min-height: 44px;
-  padding: 0 var(--app-space-screen);
+  overflow: hidden;
+  padding: 0;
+  position: relative;
   text-align: left;
+}
+
+.app-search-square img {
+  height: 100%;
+  inset: 0;
+  object-fit: cover;
+  position: absolute;
+  width: 100%;
+}
+
+.app-search-square-veil {
+  background: linear-gradient(transparent, rgba(6, 7, 8, 0.78));
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: flex-end;
+  left: 0;
+  padding: 12px;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.app-search-square-title {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.app-search-square-all {
+  align-self: flex-start;
+  background: white;
+  border-radius: 999px;
+  color: #060708;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 6px 10px;
+}
+
+.app-photo-lightbox {
+  background: #060708;
+  inset: 0;
+  position: fixed;
+  z-index: 40;
+}
+
+.app-photo-lightbox-track {
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  width: 100%;
+}
+
+.app-photo-lightbox-slide {
+  align-items: center;
+  display: flex;
+  flex: 0 0 100%;
+  height: 100%;
+  justify-content: center;
+  scroll-snap-align: center;
+}
+
+.app-photo-lightbox-slide img {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.app-photo-lightbox-close {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.16);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  height: 44px;
+  justify-content: center;
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: 44px;
+  z-index: 1;
+}
+
+.app-photo-lightbox-count {
+  background: rgba(6, 7, 8, 0.55);
+  border-radius: 999px;
+  bottom: 24px;
+  color: white;
+  font-weight: 800;
+  left: 50%;
+  padding: 6px 10px;
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+button,
+a,
+[role="button"],
+ion-button,
+ion-chip,
+ion-item,
+ion-fab-button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus,
+a:focus,
+[role="button"]:focus,
+ion-button:focus,
+ion-button.ion-focused {
+  outline: none;
+}
+
+ion-button,
+ion-button.ion-focused {
+  --box-shadow: none;
+  --ripple-color: transparent;
 }

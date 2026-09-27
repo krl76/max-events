@@ -549,9 +549,11 @@ interface MapScreenProps {
   pin?: { lat: number; lng: number } | null;
   /** Площадка с поста: карта подлетает к её пину. */
   focusPlaceId?: string | null;
+  /** Открыть карту уже с построенным маршрутом до выбранной площадки. */
+  drawRoute?: boolean;
 }
 
-export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null }: MapScreenProps) {
+export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false }: MapScreenProps) {
   const located = useProfileCityPoint();
   const weatherCity = located.city ?? city;
   // Until the profile city is known the canvas stays on Moscow. A far GPS fix must not pan the map away from the catalog.
@@ -566,7 +568,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   const [category, setCategory] = useState<EventCategory | undefined>(undefined);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<MapMarker | null>(null);
-  const [routeOn, setRouteOn] = useState(false);
+  const [routeOn, setRouteOn] = useState(drawRoute);
   const [routePath, setRoutePath] = useState<[number, number][] | null>(null);
   const [weatherOpen, setWeatherOpen] = useState(false);
   const [centered, setCentered] = useState(false);

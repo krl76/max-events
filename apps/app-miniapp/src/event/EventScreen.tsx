@@ -158,8 +158,9 @@ interface EventHeroProps {
 export function EventHero({ details, saveOpen, onShare, onSave }: EventHeroProps) {
   const { event, place } = details;
   const seats = seatOccupancy(details);
+  const cover = pictured(event.id, event.coverUrl);
   return (
-    <header className="app-ev-hero">
+    <header className="app-ev-hero" style={{ backgroundImage: `linear-gradient(180deg, rgba(6, 7, 8, 0.25), rgba(6, 7, 8, 0.82)), url("${cover}")` }}>
       {/* Абстрактные пятна вместо фотографии: фото людей бриф запрещает */}
       <span className="app-ev-hero-blob app-ev-hero-blob--light" aria-hidden="true" />
       <span className="app-ev-hero-blob app-ev-hero-blob--cool" aria-hidden="true" />
