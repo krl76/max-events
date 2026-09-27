@@ -181,11 +181,11 @@ function contactsWord(count: number): string {
 }
 
 export function contactsLine(count: number): string {
-  return `${count} ${contactsWord(count)} из чатов MAX пользуются Афишей. Подпишись — их планы появятся в ленте.`;
+  return `${count} ${contactsWord(count)} из чатов MAX пользуются Афишей. Добавьте их — взаимное добавление делает вас друзьями.`;
 }
 
 export function followCtaLabel(count: number): string {
-  return count === 0 ? "Продолжить" : `Подписаться на ${count} и продолжить`;
+  return count === 0 ? "Продолжить" : `Добавить ${count} и продолжить`;
 }
 
 export function interestsCtaLabel(count: number): string {

@@ -135,7 +135,7 @@ describe("friends step", () => {
     expect(html).toContain("3 контакта из чатов MAX");
     expect(html).toContain("Анна Соколова");
     expect(html).toContain("12 общих планов");
-    expect(html).toContain("Подписаться на 1 и продолжить");
+    expect(html).toContain("Добавить 1 и продолжить");
   });
 
   it("marks only the followed avatars and reports a failed write", () => {

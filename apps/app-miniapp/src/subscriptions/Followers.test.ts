@@ -38,27 +38,27 @@ describe("FollowersView", () => {
   it("offers a follow back to everyone the viewer does not follow yet", () => {
     const html = renderToStaticMarkup(createElement(FollowersView, { followers, followingIds: [followers[0]!.id] }));
 
-    expect(html).toContain("Вы подписаны");
-    expect(html.match(/aria-label="Подписаться: /g)).toHaveLength(2);
-    expect(html).not.toContain('aria-label="Подписаться: Анна Соколова"');
+    expect(html).toContain("Друзья");
+    expect(html.match(/aria-label="Добавить: /g)).toHaveLength(2);
+    expect(html).not.toContain('aria-label="Добавить: Анна Соколова"');
   });
 
   it("blocks the button of the person being followed right now, and only that one", () => {
     const html = renderToStaticMarkup(createElement(FollowersView, { followers, pendingId: followers[1]!.id }));
 
-    expect(html).toMatch(new RegExp(`<button[^>]*disabled[^>]*aria-label="Подписаться: ${followers[1]!.name}"`));
-    expect(html).not.toMatch(new RegExp(`<button[^>]*disabled[^>]*aria-label="Подписаться: ${followers[0]!.name}"`));
+    expect(html).toMatch(new RegExp(`<button[^>]*disabled[^>]*aria-label="Добавить: ${followers[1]!.name}"`));
+    expect(html).not.toMatch(new RegExp(`<button[^>]*disabled[^>]*aria-label="Добавить: ${followers[0]!.name}"`));
   });
 
   it("says so when the follow failed, since the button stays where it was", () => {
-    expect(renderToStaticMarkup(createElement(FollowersView, { followers, failed: true }))).toContain("Не удалось подписаться.");
-    expect(renderToStaticMarkup(createElement(FollowersView, { followers }))).not.toContain("Не удалось подписаться.");
+    expect(renderToStaticMarkup(createElement(FollowersView, { followers, failed: true }))).toContain("Не удалось добавить.");
+    expect(renderToStaticMarkup(createElement(FollowersView, { followers }))).not.toContain("Не удалось добавить.");
   });
 
   it("explains an empty list instead of showing a bare counter", () => {
     const html = renderToStaticMarkup(createElement(FollowersView, { followers: [] }));
 
-    expect(html).toContain("На вас пока никто не подписан");
+    expect(html).toContain("Вас пока никто не добавил");
     expect(html).not.toContain("0 подписчиков");
   });
 });

@@ -188,7 +188,7 @@ describe("CloseFriendsDialog", () => {
   it("says there is nobody to add when nobody follows the viewer", () => {
     const html = renderToStaticMarkup(createElement(CloseFriendsDialog, { closeFriends: [], followers: [], onToggle: () => {}, onClose: () => {} }));
 
-    expect(html).toContain("На вас пока никто не подписан.");
+    expect(html).toContain("Вас пока никто не добавил.");
     expect(html).not.toContain("Добавить");
   });
 });
@@ -200,7 +200,7 @@ describe("SettingsView", () => {
     const groups = [...html.matchAll(/class="app-set-group-title">([^<]+)</g)].map((match) => match[1]);
     expect(groups).toEqual(["Приложение", "Приватность", "Близкие", "Уведомления", "Мини-приложение"]);
     expect(html).toContain("Близкие друзья");
-    expect(html).toContain("Только из тех, кто на вас подписан");
+    expect(html).toContain("Только из тех, кто добавил вас");
   });
 
   it("shows the theme row with the current preference as its value", () => {

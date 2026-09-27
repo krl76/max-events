@@ -33,21 +33,28 @@ export const CREATE_ENTRIES: CreateEntry[] = [
 ];
 
 export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
+  const [story, ...rest] = CREATE_ENTRIES;
   return (
     <AppSection className="app-create-section" ariaLabel="Создать">
-      <div className="app-create-board">
-        {CREATE_ENTRIES.map((entry) => (
+      {story !== undefined && (
+        <button type="button" className="app-create-hero" onClick={() => onPick(story.route)}>
+          <span className="app-create-hero-ring" aria-hidden="true">
+            <span className="app-create-hero-face">
+              <ActionIcon name="plus" size={22} />
+            </span>
+          </span>
+          <span className="app-create-card-copy">
+            <span className="app-create-card-label">{story.label}</span>
+            <span className="app-create-card-line">{story.description}</span>
+          </span>
+        </button>
+      )}
+      <div className="app-create-trio">
+        {rest.map((entry) => (
           <button key={entry.label} type="button" className="app-create-card" onClick={() => onPick(entry.route)}>
-            <span className="app-create-card-art" aria-hidden="true">
-              <ActionIcon name={entry.icon} size={22} />
-            </span>
-            <span className="app-create-card-copy">
-              <span className="app-create-card-label">{entry.label}</span>
-              <span className="app-create-card-line">{entry.description}</span>
-            </span>
-            <span className="app-create-card-go" aria-hidden="true">
-              <ActionIcon name="chevron" size={18} />
-            </span>
+            <span className={entry.route.name === "plan-new" ? "app-create-mark app-create-mark--plan-new" : entry.route.name === "micro-new" ? "app-create-mark app-create-mark--micro-new" : "app-create-mark app-create-mark--feed-new"} aria-hidden="true" />
+            <span className="app-create-card-label">{entry.label}</span>
+            <span className="app-create-card-line">{entry.description}</span>
           </button>
         ))}
       </div>

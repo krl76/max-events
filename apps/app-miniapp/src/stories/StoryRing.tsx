@@ -21,11 +21,11 @@ export function StoryRing({ total, unseen, label, children }: { total: number; u
   const hot = unseen > 0;
   return (
     <span className={hot ? "app-story-ring app-story-ring--active app-story-ring-wrap" : "app-story-ring app-story-ring--seen app-story-ring-wrap"} aria-label={label}>
-      <svg className="app-story-ring-svg" viewBox="0 0 72 72" aria-hidden="true">
+      <svg className="app-story-ring-svg" viewBox="0 0 100 100" aria-hidden="true">
         {Array.from({ length: count }, (_, index) => {
           const start = -90 + index * (sweep + gap);
           const fresh = index >= count - unseenShown;
-          return <path key={start} d={arcPath(36, 36, 32, start, sweep)} className={fresh ? "app-story-arc app-story-arc--new" : "app-story-arc app-story-arc--seen"} />;
+          return <path key={start} d={arcPath(50, 50, 44, start, sweep)} className={fresh ? "app-story-arc app-story-arc--new" : "app-story-arc app-story-arc--seen"} />;
         })}
       </svg>
       <span className="app-story-ring-face">{children}</span>

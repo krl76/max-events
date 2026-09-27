@@ -250,7 +250,7 @@ describe("ProfileView", () => {
       onResetAvatar: () => {},
     });
 
-    expect(html).toContain("Подписаться");
+    expect(html).toContain("Добавить");
     expect(html).toContain("Написать");
     expect(html).toContain("Позвать");
     expect(html).not.toContain("Настройки");

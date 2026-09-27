@@ -21,6 +21,7 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import type { Event, Friend, Story } from "@max-events/api-contracts";
 import { apiClient, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -799,7 +800,11 @@ export function StoriesRow() {
           </button>
         </div>
       ))}
-      {viewer !== null && <StoryViewer groups={viewer.groups} startGroup={viewer.start} onView={rememberSeen} onClose={() => setViewer(null)} />}
+      {viewer !== null &&
+        createPortal(
+          <StoryViewer groups={viewer.groups} startGroup={viewer.start} onView={rememberSeen} onClose={() => setViewer(null)} />,
+          document.querySelector(".app-root") ?? document.body,
+        )}
     </div>
   );
 }

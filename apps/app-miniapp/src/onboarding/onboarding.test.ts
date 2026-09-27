@@ -95,7 +95,7 @@ describe("onboarding labels", () => {
   });
 
   it("drops the count from the follow CTA when nobody is selected", () => {
-    expect(followCtaLabel(3)).toBe("Подписаться на 3 и продолжить");
+    expect(followCtaLabel(3)).toBe("Добавить 3 и продолжить");
     expect(followCtaLabel(0)).toBe("Продолжить");
   });
 
