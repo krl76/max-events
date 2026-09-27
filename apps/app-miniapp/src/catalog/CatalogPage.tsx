@@ -163,7 +163,7 @@ export function RatingChips({ value, onChange }: { value: number | undefined; on
   );
 }
 
-function FilterBar({ filters, onFilters }: { filters: EventFilters; onFilters: (filters: EventFilters) => void }) {
+function FilterBar({ filters, onFilters, showCategories = true }: { filters: EventFilters; onFilters: (filters: EventFilters) => void; showCategories?: boolean }) {
   const [cityDraft, setCityDraft] = useState(filters.city ?? "");
   useEffect(() => setCityDraft(filters.city ?? ""), [filters.city]);
   const commitCity = () => onFilters({ ...filters, city: cityDraft.trim() || undefined });
@@ -171,16 +171,18 @@ function FilterBar({ filters, onFilters }: { filters: EventFilters; onFilters: (
 
   return (
     <div className="app-filters">
-      <div className="app-filters-chips" role="group" aria-label="Категория">
-        <AppChip pressed={filters.category === undefined} onClick={() => onFilters({ ...filters, category: undefined })}>
-          Все
-        </AppChip>
-        {CATEGORIES.map((category) => (
-          <AppChip key={category} pressed={filters.category === category} onClick={() => onFilters({ ...filters, category })}>
-            {CATEGORY_LABELS[category]}
+      {showCategories && (
+        <div className="app-filters-chips" role="group" aria-label="Категория">
+          <AppChip pressed={filters.category === undefined} onClick={() => onFilters({ ...filters, category: undefined })}>
+            Все
           </AppChip>
-        ))}
-      </div>
+          {CATEGORIES.map((category) => (
+            <AppChip key={category} pressed={filters.category === category} onClick={() => onFilters({ ...filters, category })}>
+              {CATEGORY_LABELS[category]}
+            </AppChip>
+          ))}
+        </div>
+      )}
       <RatingChips value={filters.minRating} onChange={(minRating) => onFilters({ ...filters, minRating })} />
       <div className="app-filters-inputs">
         <input className="app-filters-input" type="date" aria-label="Дата от" value={filters.dateFrom ?? filters.date ?? ""} onChange={(change) => onFilters({ ...filters, date: undefined, dateFrom: change.target.value || undefined })} />
@@ -229,10 +231,10 @@ function MoreButton({ hasMore, onMore, loadingMore }: { hasMore: boolean; onMore
   );
 }
 
-export function CatalogView({ state, filters, onFilters, view = "list", onView, onOpenEvent, onOpenPlace, hasMore = false, onMore, loadingMore = false }: CatalogViewProps) {
+export function CatalogView({ state, filters, onFilters, view = "list", onView, onOpenEvent, onOpenPlace, hasMore = false, onMore, loadingMore = false, showCategories = true }: CatalogViewProps & { showCategories?: boolean }) {
   return (
     <>
-      <FilterBar filters={filters} onFilters={onFilters} />
+      <FilterBar filters={filters} onFilters={onFilters} showCategories={showCategories} />
       {onView !== undefined && <ViewToggle view={view} onView={onView} />}
       {view === "map" && state.status === "ready" ? (
         <>
@@ -259,7 +261,7 @@ export function CatalogView({ state, filters, onFilters, view = "list", onView, 
 }
 
 /** Both view props are optional: экран 08 embeds the list alone, and a screen without a toggle must not grow one. */
-export function CatalogPage({ view = "list", onView }: { view?: CatalogViewName; onView?: (view: CatalogViewName) => void } = {}) {
+export function CatalogPage({ view = "list", onView, showCategories = true, category }: { view?: CatalogViewName; onView?: (view: CatalogViewName) => void; showCategories?: boolean; category?: EventCategory } = {}) {
   const [filters, setFilters] = useState<EventFilters>(() => parseEventFilters(window.location.search));
   const [offset, setOffset] = useState(0);
   const [attempt, setAttempt] = useState(0);
@@ -275,6 +277,12 @@ export function CatalogPage({ view = "list", onView }: { view?: CatalogViewName;
   const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
   const openPlace = useCallback((id: string) => navigate({ name: "place", id }), [navigate]);
   const pageSize = view === "map" ? CATALOG_MAP_LIMIT : CATALOG_PAGE_SIZE;
+
+  useEffect(() => {
+    if (showCategories) return;
+    setFilters((current) => (current.category === category ? current : { ...current, category }));
+    setOffset(0);
+  }, [showCategories, category]);
 
   useEffect(() => {
     const query = serializeEventFilters({ ...filters, limit: undefined, offset: undefined });
@@ -307,6 +315,7 @@ export function CatalogPage({ view = "list", onView }: { view?: CatalogViewName;
       onOpenPlace={openPlace}
       hasMore={catalog.hasMore}
       loadingMore={catalog.loadingMore}
+      showCategories={showCategories}
       onMore={() => {
         if (catalog.loadFailed) setAttempt((current) => current + 1);
         else setOffset((current) => current + pageSize);

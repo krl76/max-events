@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { catalogCards } from "../api/mock";
-import { addRecentSearch, nearbyEntryTitle, RECENT_SEARCHES_LIMIT, railMeta, searchCities, SearchEntryTiles, SearchNearby, SearchQueryForm, SearchTopBar, SearchWayTiles, type SearchState } from "./SearchPage";
+import { addRecentSearch, nearbyEntryTitle, RECENT_SEARCHES_LIMIT, railMeta, searchCities, SearchFilterSheet, SearchNearby, SearchQueryForm, SearchTools, SearchTopBar, type SearchState } from "./SearchPage";
 
 const noop = () => {};
 const CARDS = catalogCards({ sort: "near" }, { latitude: 55.7522, longitude: 37.6156 });
@@ -45,15 +45,14 @@ describe("search helpers", () => {
 });
 
 describe("SearchTopBar", () => {
-  const bar = (over: { city?: string; cities?: string[]; initial?: string } = {}) => renderToStaticMarkup(createElement(SearchTopBar, { city: over.city ?? "Москва", cities: over.cities ?? ["Москва"], onCity: noop, initial: over.initial ?? "К", searchOpen: false, onToggleSearch: noop, onOpenProfile: noop }));
+  const bar = (over: { city?: string; cities?: string[]; initial?: string } = {}) => renderToStaticMarkup(createElement(SearchTopBar, { city: over.city ?? "Москва", cities: over.cities ?? ["Москва"], onCity: noop, initial: over.initial ?? "К", onOpenProfile: noop }));
 
-  it("shows the city, the viewer initial and the search toggle", () => {
+  it("shows the city and the viewer initial", () => {
     const html = bar();
 
     expect(html).toContain("Москва");
     expect(html).toContain(">К<");
     expect(html).toContain('aria-label="Профиль"');
-    expect(html).toContain('aria-label="Поиск"');
     // Меню города закрыто, пока по пилюле не нажали.
     expect(html).not.toContain("app-search-city-menu");
   });
@@ -70,25 +69,29 @@ describe("SearchQueryForm", () => {
 });
 
 describe("search entries", () => {
-  it("offers the swipe deck and the map as the two tiles of the design", () => {
-    const html = renderToStaticMarkup(createElement(SearchEntryTiles, { onSwipe: noop, onMap: noop }));
+  it("keeps every search door as an icon, with the full name on the button", () => {
+    const html = renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop }));
 
-    expect(html).toContain("Подбор свайпами");
-    expect(html).toContain("Места под твой вкус");
-    expect(html).toContain("На карте");
-    expect(html).toContain("Друзья и маршруты");
-  });
-
-  it("offers the wizard and the nearby screen, and keeps one dark tile between them", () => {
-    const html = renderToStaticMarkup(createElement(SearchWayTiles, { onWhereto: noop, onNearby: noop }));
-
-    expect(html).toContain("Куда пойдём?");
-    expect(html).toContain("Три вопроса — пять вариантов");
-    expect(html).toContain("Рядом со мной");
+    expect(html).toContain('aria-label="Спросить MAX"');
+    expect(html).toContain('aria-label="Подбор свайпами"');
+    expect(html).toContain('aria-label="На карте"');
+    expect(html).toContain('aria-label="Куда пойдём?"');
+    expect(html).toContain('aria-label="Рядом со мной"');
+    expect(html).toContain('aria-label="Микро-события"');
     expect(nearbyEntryTitle(false)).toBe("В городе");
-    expect(renderToStaticMarkup(createElement(SearchWayTiles, { onWhereto: noop, onNearby: noop, inCity: false }))).toContain("В городе");
-    expect(html).toContain("Сейчас, через час, вечером");
-    expect((html.match(/app-search-way--dark/g) ?? []).length).toBe(1);
+    expect(renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop, nearbyLabel: "Город", nearbyAria: "В городе" }))).toContain('aria-label="В городе"');
+  });
+});
+
+describe("SearchFilterSheet", () => {
+  it("offers the categories and a reset once one is chosen", () => {
+    const open = renderToStaticMarkup(createElement(SearchFilterSheet, { category: "sport", onCategory: noop, onClose: noop }));
+
+    expect(open).toContain("Фильтры");
+    expect(open).toContain("Афиша");
+    expect(open).toContain("Волонтёрство");
+    expect(open).toContain("Сбросить");
+    expect(renderToStaticMarkup(createElement(SearchFilterSheet, { category: undefined, onCategory: noop, onClose: noop }))).not.toContain("Сбросить");
   });
 });
 

@@ -23,6 +23,7 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useSheetSwipe } from "../ui/sheet";
 import type { EventCategory } from "@max-events/api-contracts";
 import { apiClient, type CatalogCard, type EventFilters } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -85,12 +86,10 @@ interface SearchTopBarProps {
   cities: string[];
   onCity: (city: string) => void;
   initial: string;
-  searchOpen: boolean;
-  onToggleSearch: () => void;
   onOpenProfile: () => void;
 }
 
-export function SearchTopBar({ city, cities, onCity, initial, searchOpen, onToggleSearch, onOpenProfile }: SearchTopBarProps) {
+export function SearchTopBar({ city, cities, onCity, initial, onOpenProfile }: SearchTopBarProps) {
   const [menu, setMenu] = useState(false);
   return (
     <div className="app-search-top">
@@ -127,9 +126,6 @@ export function SearchTopBar({ city, cities, onCity, initial, searchOpen, onTogg
         <button type="button" className="app-search-avatar" aria-label="Профиль" onClick={onOpenProfile}>
           {initial}
         </button>
-        <button type="button" className="app-search-icon-btn" aria-label="Поиск" aria-expanded={searchOpen} onClick={onToggleSearch}>
-          <ActionIcon name="search" size={20} />
-        </button>
       </div>
     </div>
   );
@@ -156,6 +152,83 @@ export function SearchQueryForm({ query, onQuery, onSubmit, recents, autoFocus =
         </div>
       )}
     </form>
+  );
+}
+
+/** Categories live in this sheet, not as a permanent row on the search screen. */
+export function SearchFilterSheet({ category, onCategory, onClose }: { category: EventCategory | undefined; onCategory: (category: EventCategory | undefined) => void; onClose: () => void }) {
+  const swipe = useSheetSwipe(onClose);
+  return (
+    <div className="app-picker" role="dialog" aria-modal="true" aria-label="Фильтры">
+      <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={onClose} />
+      <div className="app-picker-sheet app-sheet" style={swipe.style}>
+        <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
+        <div className="app-picker-head">
+          <h2 className="app-picker-title">Фильтры</h2>
+        </div>
+        <div className="app-filters-chips" role="group" aria-label="Категория">
+          {SEARCH_CATEGORIES.map((item) => (
+            <AppChip key={item ?? "all"} pressed={category === item} onClick={() => onCategory(item)}>
+              {item === undefined ? "Все" : CATEGORY_LABELS[item]}
+            </AppChip>
+          ))}
+        </div>
+        {category !== undefined && (
+          <button type="button" className="app-filters-reset" onClick={() => onCategory(undefined)}>
+            Сбросить
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function SearchFilters({ category, onCategory }: { category: EventCategory | undefined; onCategory: (category: EventCategory | undefined) => void }) {
+  const [open, setOpen] = useState(false);
+  const chosen = category !== undefined;
+  return (
+    <>
+      <button type="button" className={chosen ? "app-search-filter app-search-filter--on" : "app-search-filter"} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+        <ActionIcon name="filter" size={16} />
+        {chosen ? CATEGORY_LABELS[category] : "Фильтры"}
+      </button>
+      {open && (
+        <SearchFilterSheet
+          category={category}
+          onCategory={(next) => {
+            onCategory(next);
+            setOpen(false);
+          }}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+const SEARCH_TOOLS: Array<{ id: string; label: string; aria: string; icon: "spark" | "cards" | "pin" | "sparkle" | "clock" | "users"; dark?: boolean }> = [
+  { id: "ask", label: "MAX", aria: "Спросить MAX", icon: "spark", dark: true },
+  { id: "swipe", label: "Свайпы", aria: "Подбор свайпами", icon: "cards" },
+  { id: "map", label: "Карта", aria: "На карте", icon: "pin" },
+  { id: "whereto", label: "Куда", aria: "Куда пойдём?", icon: "sparkle" },
+  { id: "nearby", label: "Рядом", aria: "Рядом со мной", icon: "clock" },
+  { id: "micro", label: "Сборы", aria: "Микро-события", icon: "users" },
+];
+
+/** Six doors, one grid. The screens themselves stay where they were. */
+export function SearchTools({ onAsk, onSwipe, onMap, onWhereto, onNearby, onMicro, nearbyLabel = "Рядом", nearbyAria = "Рядом со мной" }: { onAsk: () => void; onSwipe: () => void; onMap: () => void; onWhereto: () => void; onNearby: () => void; onMicro: () => void; nearbyLabel?: string; nearbyAria?: string }) {
+  const go = { ask: onAsk, swipe: onSwipe, map: onMap, whereto: onWhereto, nearby: onNearby, micro: onMicro };
+  return (
+    <div className="app-search-tools">
+      {SEARCH_TOOLS.map((tool) => (
+        <button key={tool.id} type="button" className="app-search-tool" aria-label={tool.id === "nearby" ? nearbyAria : tool.aria} onClick={go[tool.id as keyof typeof go]}>
+          <span className={tool.dark ? "app-search-tool-bubble app-search-tool-bubble--dark" : "app-search-tool-bubble"}>
+            <ActionIcon name={tool.icon} size={20} />
+          </span>
+          {tool.id === "nearby" ? nearbyLabel : tool.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -339,31 +412,22 @@ interface SearchViewProps {
 }
 
 export function SearchView(props: SearchViewProps) {
-  const [searchOpen, setSearchOpen] = useState(props.searchFieldOpen === true);
   const hint = props.today.status === "ready" ? todayAfterMeCard(props.today.today) : null;
   const distanceFrom = props.distancesFromViewer === false ? "center" : "you";
+  const inCity = props.distancesFromViewer !== false;
   return (
     <div className="app-search">
-      <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} initial={props.initial} searchOpen={searchOpen} onToggleSearch={() => setSearchOpen((open) => !open)} onOpenProfile={props.onOpenProfile} />
-      <SearchAskRow onAsk={props.onAsk} />
-      {searchOpen && <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} recents={props.recents} autoFocus />}
-      <div className="app-line-tabs" role="tablist" aria-label="Категория">
-        {SEARCH_CATEGORIES.map((category) => (
-          <button key={category ?? "all"} type="button" role="tab" aria-selected={props.category === category} className={props.category === category ? "app-line-tab app-line-tab--on" : "app-line-tab"} onClick={() => props.onCategory(category)}>
-            {category === undefined ? "Все" : CATEGORY_LABELS[category]}
-          </button>
-        ))}
-      </div>
-      <SearchEntryTiles onSwipe={props.onSwipe} onMap={props.onMap} />
+      <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} initial={props.initial} onOpenProfile={props.onOpenProfile} />
+      <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
+      <SearchFilters category={props.category} onCategory={props.onCategory} />
+      <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
       <TodaySummaryBlock state={props.today} now={props.now} distanceFrom={distanceFrom} />
-      <SearchWayTiles onWhereto={props.onWhereto} onNearby={props.onNearby} inCity={props.distancesFromViewer !== false} />
-      <SearchMicroRow onOpen={props.onOpenMicro} />
-      <AfterMeSection />
-      <TodayPicksBlock state={props.today} onOpen={props.onOpenEvent} onRetry={props.onRetry} distanceFrom={distanceFrom} />
-      {hint !== null && !props.hintDismissed && <TodayAfterMeCard card={hint} onShow={props.onNearby} onDismiss={props.onDismissHint} distanceFrom={distanceFrom} />}
       <SearchNearby state={props.state} query={props.query} expanded={props.expanded} inCity={props.catalogInCity !== false} onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
+      <TodayPicksBlock state={props.today} onOpen={props.onOpenEvent} onRetry={props.onRetry} distanceFrom={distanceFrom} />
+      <AfterMeSection />
+      {hint !== null && !props.hintDismissed && <TodayAfterMeCard card={hint} onShow={props.onNearby} onDismiss={props.onDismissHint} distanceFrom={distanceFrom} />}
       {/* Полный каталог с его фильтрами по дате, городу и рейтингу: витрина выше показывает ближайшее, вход в каталог живёт здесь */}
-      {props.expanded && <CatalogPage />}
+      {props.expanded && <CatalogPage showCategories={false} category={props.category} />}
     </div>
   );
 }
