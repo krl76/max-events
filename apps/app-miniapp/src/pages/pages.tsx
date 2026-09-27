@@ -84,7 +84,7 @@ const FeedPostPage = lazyNamed(() => import("../feed/FeedPage"), "FeedPostPage")
 export function HomePage() {
   return (
     <>
-      {/* Макет, экран 03: сторис и посты. «Куда пойдём?», MAX, микро-события и «После меня» — на поиске. */}
+      {/* Макет, экран 03: сторис, «Куда пойдём?» и посты. MAX, микро-события и «После меня» — на поиске. */}
       <FeedScreen />
       <PromotionSections />
     </>

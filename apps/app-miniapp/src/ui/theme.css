@@ -4912,7 +4912,7 @@ html[data-theme="dark"] #root {
 }
 
 .app-today-head {
-  align-items: baseline;
+  align-items: center;
   display: flex;
   gap: var(--app-space-s);
 }
@@ -4926,18 +4926,28 @@ html[data-theme="dark"] #root {
 }
 
 .app-today-date {
-  color: var(--app-text-secondary);
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
   cursor: pointer;
+  display: inline-flex;
+  flex: none;
   font-size: var(--app-font-size-description);
   font-weight: 700;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px 0 10px;
   position: relative;
 }
 
 .app-today-date-input {
   cursor: pointer;
-  inset: -6px -4px;
+  height: 100%;
+  inset: 0;
   opacity: 0;
   position: absolute;
+  width: 100%;
 }
 
 .app-today-stats {

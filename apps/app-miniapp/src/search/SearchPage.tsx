@@ -29,7 +29,6 @@ import { apiClient, type CatalogCard, type EventFilters } from "../api/client";
 import { CATEGORY_LABELS } from "../catalog/format";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute, type BrowseList } from "../routing/router";
-import { FeedWhereToCard } from "../feed/FeedScreen";
 import { countsForCards } from "./BrowsePage";
 import { AfterMeSection } from "../taste/AfterMeSection";
 import { toggleEventLike, useEventLiked } from "../ui/event-likes";
@@ -448,7 +447,6 @@ export function SearchView(props: SearchViewProps) {
       <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} trailing={<SearchFilters category={props.category} onCategory={props.onCategory} />} />
       <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} onPickRecent={props.onPickRecent} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
       <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
-      <FeedWhereToCard onStart={props.onWhereto} />
       <TodaySummaryBlock state={props.today} now={props.now} day={props.day} onDay={props.onDay} distanceFrom={distanceFrom} onOpenNearby={() => props.onOpenList("nearby")} onOpenSuitable={() => props.onOpenList("suitable")} onOpenFriends={() => props.onOpenList("friends")} />
       <div className="app-search-folds">
         <SearchFold title={nearbyTitle} open={fold === "nearby"} onToggle={() => toggle("nearby")}>

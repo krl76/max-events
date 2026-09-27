@@ -135,8 +135,9 @@ export function TodaySummaryBlock({ state, now, day, onDay, distanceFrom = "you"
       <div className="app-today-head">
         <h2 className="app-today-title">{title}</h2>
         <label className="app-today-date">
-          {formatTodayDate(shown)}
-          <input className="app-today-date-input" type="date" aria-label="Дата" value={day ?? dayKey(now)} onChange={(change) => onDay?.(change.target.value)} />
+          <ActionIcon name="calendar" size={16} />
+          <span>{formatTodayDate(shown)}</span>
+          <input className="app-today-date-input" type="date" aria-label="Выбрать дату" value={day ?? dayKey(now)} onChange={(change) => onDay?.(change.target.value)} />
         </label>
       </div>
       <div className="app-today-stats">

@@ -30,5 +30,5 @@ test("header back button returns to home via history", async ({ page }) => {
   await page.getByRole("button", { name: /Вечер Рахманинова.*Москва/ }).click();
   await expect(page.getByRole("button", { name: "Записаться" })).toBeVisible();
   await page.getByRole("button", { name: "Назад" }).click();
-  await expect(page.locator(".app-feed")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Куда пойдём?" })).toBeVisible();
 });
