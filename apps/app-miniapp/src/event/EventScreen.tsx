@@ -32,6 +32,7 @@
 // END_MODULE_MAP
 
 import type { ReactNode } from "react";
+import { useSheetSwipe } from "../ui/sheet";
 import type { OrganizerRating } from "@max-events/api-contracts";
 import type { EventCompanions, EventDetails, EventForecast, EventMoodTag, EventNearbySpot, EventWeatherHour, TravelOption } from "../api/client";
 import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
@@ -166,9 +167,9 @@ export function EventHero({ details, saveOpen, onShare, onSave }: EventHeroProps
       <span className="app-ev-hero-blob app-ev-hero-blob--cool" aria-hidden="true" />
       <div className="app-ev-hero-bar">
         <span className="app-ev-hero-bar-right">
-          <button type="button" className="app-ev-hero-btn" aria-label="Поделиться" onClick={onShare}>
-            <ActionIcon name="share" size={16} />
-            Поделиться
+          <button type="button" className="app-ev-hero-btn" aria-label="Позвать друзей" onClick={onShare}>
+            <ActionIcon name="users" size={16} />
+            Позвать
           </button>
           <button type="button" className="app-ev-hero-btn" aria-pressed={saveOpen} aria-label="Сохранить в список" onClick={onSave}>
             <ActionIcon name="bookmark" size={16} filled={saveOpen} />В список
@@ -426,6 +427,36 @@ interface EventBookingBarProps {
 }
 
 /** The square keeps the conversation, the pill keeps the record: one shape per kind of action (макет, экран 17). */
+/** Two ways to bring someone: people already in the miniapp, or a MAX chat. The scrim and the grabber close it. */
+export function EventInviteSheet({ onPick, onMax, onClose }: { onPick: () => void; onMax: () => void; onClose: () => void }) {
+  const swipe = useSheetSwipe(onClose);
+  return (
+    <div className="app-save-sheet" role="dialog" aria-modal="true" aria-label="Позвать друзей">
+      <button type="button" className="app-save-sheet-backdrop" aria-label="Закрыть" onClick={onClose} />
+      <section className="app-save-sheet-card" style={swipe.style}>
+        <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
+        <h2 className="app-save-sheet-title">Позвать друзей</h2>
+        <div className="app-invite-actions">
+          <button type="button" className="app-invite-action" onClick={onPick}>
+            <ActionIcon name="users" size={20} />
+            <span>
+              <b>Из приложения</b>
+              <i>Выбрать людей, которые уже здесь</i>
+            </span>
+          </button>
+          <button type="button" className="app-invite-action" onClick={onMax}>
+            <ActionIcon name="share" size={20} />
+            <span>
+              <b>В MAX</b>
+              <i>Отправить приглашение в чат</i>
+            </span>
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function EventBookingBar({ details, chatLink, onChat, onBook }: EventBookingBarProps) {
   return (
     <div className="app-ev-bar">

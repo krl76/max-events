@@ -26,13 +26,14 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNo
 import { useSheetSwipe } from "../ui/sheet";
 import type { EventCategory } from "@max-events/api-contracts";
 import { apiClient, type CatalogCard, type EventFilters } from "../api/client";
-import { CATEGORY_LABELS } from "../catalog/format";
+import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
+import { EventPoster } from "./EventPoster";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute, type BrowseList } from "../routing/router";
 import { countsForCards } from "./BrowsePage";
 import { toggleEventLike, useEventLiked } from "../ui/event-likes";
 import { eventFillLabel, pictured } from "../ui/photos";
-import { dayKey, formatPickDistance, formatPickPrice, TodaySummaryBlock, todayAfterMeCard, todayPickCards, type DistanceVoice, type TodayState } from "../today/TodaySection";
+import { dayKey, formatPickDistance, formatPickPrice, TodaySummaryBlock, todayPickCards, type DistanceVoice, type TodayState } from "../today/TodaySection";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppSkeleton, AppState } from "../ui/primitives";
 
@@ -434,40 +435,53 @@ interface SearchViewProps {
   suitableState?: SearchState;
 }
 
+function foldFact(count: number, lead: string, sample: string | null): string {
+  if (count === 0) return "Пока пусто";
+  const noun = `${count} ${pluralRu(count, "событие", "события", "событий")}`;
+  const tail = sample === null ? "" : ` · ${sample}`;
+  return `${noun} ${lead}${tail}`;
+}
+
 export function SearchView(props: SearchViewProps) {
-  const hint = props.today.status === "ready" ? todayAfterMeCard(props.today.today) : null;
+  const [fold, setFold] = useState<null | "bill" | "you">(null);
   const distanceFrom = props.distancesFromViewer === false ? "center" : "you";
   const inCity = props.distancesFromViewer !== false;
-  const nearbyTitle = props.dayScoped ? "В этот день" : props.catalogInCity === false ? "Сегодня в городе" : "Сегодня рядом";
   const catalog = props.state.status === "ready" ? props.state.cards : [];
   const picks = props.today.status === "ready" ? todayPickCards(props.today.today) : [];
   const suitable = props.suitableState?.status === "ready" ? props.suitableState.cards : [];
-  const photoOf = (card: { event: { id: string; coverUrl?: string | null } } | undefined) => (card === undefined ? null : pictured(card.event.id, card.event.coverUrl));
+  const forYou = suitable.length > 0 ? suitable : picks;
   const nearbyPhotos = catalog.slice(0, 3).map((card) => pictured(card.event.id, card.event.coverUrl));
-  const suitablePhotos = (suitable.length > 0 ? suitable : picks).slice(0, 3).map((card) => pictured(card.event.id, card.event.coverUrl));
+  const suitablePhotos = forYou.slice(0, 3).map((card) => pictured(card.event.id, card.event.coverUrl));
+  const billPhoto = catalog[0] === undefined ? null : pictured(catalog[0].event.id, catalog[0].event.coverUrl);
+  const youPhoto = forYou[0] === undefined ? null : pictured(forYou[0].event.id, forYou[0].event.coverUrl);
+  const openFold = (next: "bill" | "you") => setFold((current) => (current === next ? null : next));
+  const shown = fold === "bill" ? catalog : fold === "you" ? forYou : [];
   const squares = [
-    { title: nearbyTitle, photo: photoOf(catalog[0]), onOpen: props.onExpand },
-    { title: "Для вас", photo: photoOf(picks[0] ?? suitable[0]), onOpen: () => props.onOpenList("suitable") },
-    { title: "После меня", photo: hint === null ? photoOf(catalog[2]) : pictured(hint.event.id, hint.event.coverUrl), onOpen: props.onNearby },
-    { title: "Афиша", photo: photoOf(catalog[1] ?? catalog[0]), onOpen: props.onExpand },
+    { key: "bill" as const, title: "Афиша", fact: foldFact(catalog.length, "в городе", catalog[0]?.event.title ?? null), photo: billPhoto },
+    { key: "you" as const, title: "Для вас", fact: foldFact(forYou.length, "под вас", forYou[0]?.event.title ?? null), photo: youPhoto },
   ];
   return (
     <div className="app-search">
       <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} trailing={<SearchFilters category={props.category} onCategory={props.onCategory} />} />
       <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} onPickRecent={props.onPickRecent} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
       <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
-      <TodaySummaryBlock state={props.today} now={props.now} day={props.day} onDay={props.onDay} distanceFrom={distanceFrom} onOpenNearby={() => props.onOpenList("nearby")} onOpenSuitable={() => props.onOpenList("suitable")} onOpenFriends={() => props.onOpenList("friends")} nearbyPhotos={nearbyPhotos} suitablePhotos={suitablePhotos} />
+      <TodaySummaryBlock state={props.today} now={props.now} day={props.day} onDay={props.onDay} distanceFrom={distanceFrom} onOpenNearby={() => openFold("bill")} onOpenSuitable={() => openFold("you")} onOpenFriends={() => props.onOpenList("friends")} nearbyPhotos={nearbyPhotos} suitablePhotos={suitablePhotos} />
       <div className="app-search-squares">
         {squares.map((square) => (
-          <button key={square.title} type="button" className="app-search-square" style={square.photo ? { backgroundImage: `url("${square.photo}")` } : undefined} onClick={square.onOpen}>
+          <button key={square.key} type="button" className={fold === square.key ? "app-search-square app-search-square--open" : "app-search-square"} aria-expanded={fold === square.key} style={square.photo ? { backgroundImage: `url("${square.photo}")` } : undefined} onClick={() => openFold(square.key)}>
             {square.photo !== null && <img alt="" src={square.photo} />}
             <span className="app-search-square-veil">
               <span className="app-search-square-title">{square.title}</span>
-              <span className="app-search-square-all">Смотреть все</span>
+              <span className="app-search-square-fact">{square.fact}</span>
             </span>
           </button>
         ))}
       </div>
+      {fold !== null && (
+        <div className="app-search-feed" aria-label={fold === "bill" ? "Афиша" : "Для вас"}>
+          {shown.length === 0 ? <p className="app-today-quiet">В этом разделе пока пусто.</p> : shown.map((card) => <EventPoster key={card.event.id} card={card} onOpen={props.onOpenEvent} />)}
+        </div>
+      )}
     </div>
   );
 }

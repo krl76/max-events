@@ -4883,8 +4883,7 @@ html[data-theme="dark"] #root {
 
 .app-search-chips::-webkit-scrollbar,
 .app-swipe-chips-row::-webkit-scrollbar,
-.app-rail-strip::-webkit-scrollbar,
-.app-map16-layers::-webkit-scrollbar {
+.app-rail-strip::-webkit-scrollbar {
   display: none;
 }
 
@@ -5766,30 +5765,6 @@ button.app-today-stat {
   z-index: 2;
 }
 
-.app-map16-back {
-  align-items: center;
-  background: var(--app-card);
-  border: none;
-  border-radius: var(--app-radius-pill);
-  box-shadow: var(--app-shadow-lift);
-  color: var(--app-text);
-  cursor: pointer;
-  display: flex;
-  flex-shrink: 0;
-  font: inherit;
-  font-size: var(--app-font-size-callout);
-  font-weight: 800;
-  gap: 6px;
-  height: 44px;
-  padding: 0 14px 0 10px;
-}
-
-/* Шеврон нарисован вправо; кнопка назад разворачивает его */
-.app-map16-back-caret {
-  display: flex;
-  transform: rotate(180deg);
-}
-
 .app-map16-top-right {
   display: flex;
   flex-shrink: 0;
@@ -5812,29 +5787,6 @@ button.app-today-stat {
   gap: 6px;
   height: 44px;
   padding: 0 var(--app-space-m);
-}
-
-.app-map16-tool {
-  align-items: center;
-  align-self: flex-start;
-  background: var(--app-card);
-  border: none;
-  border-radius: var(--app-radius-pill);
-  box-shadow: var(--app-shadow-lift);
-  color: var(--app-text);
-  cursor: pointer;
-  display: flex;
-  flex-shrink: 0;
-  font: inherit;
-  font-size: var(--app-font-size-caption);
-  font-weight: 800;
-  height: 44px;
-  padding: 0 12px;
-}
-
-.app-map16-tool--on {
-  background: var(--app-text);
-  color: var(--app-card);
 }
 
 .app-map16-weather-head {
@@ -5884,18 +5836,6 @@ button.app-today-stat {
 .app-map16-weather-value {
   font-size: var(--app-font-size-callout);
   font-weight: 800;
-}
-
-/* Перемена погоды — «живой» индикатор, единственная роль, в которой app-status разрешён текстом;
- * на светлом холсте он даёт 2.1:1, поэтому вес здесь несёт не цвет, а соседнее значение. */
-.app-map16-weather-note {
-  color: var(--app-status);
-  font-size: var(--app-font-size-caption);
-  font-weight: 700;
-  max-width: 11em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .app-map16-weather-strip {
@@ -5949,44 +5889,10 @@ button.app-today-stat {
   width: 44px;
 }
 
-/* Ряды чипов под шапкой: слои и подложки складываются в колонку, а не накрывают друг друга */
-.app-map16-rows {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-s);
-  left: var(--app-space-screen);
-  pointer-events: auto;
-  position: absolute;
-  right: var(--app-space-screen);
-  top: 68px;
-  z-index: 1001;
-}
-
-.app-map16-layers {
-  display: flex;
-  gap: var(--app-space-s);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-/* Подложек десять — ряд прокручивается до правого края экрана, как чипы поиска */
-.app-map16-basemaps {
-  margin-right: calc(-1 * var(--app-space-screen));
-  padding-right: var(--app-space-screen);
-}
-
-.app-map16-layer {
-  box-shadow: var(--app-shadow-lift);
-  flex: none;
-  font-size: var(--app-font-size-description);
-  min-height: 44px;
-  padding: 8px var(--app-space-m);
-}
-
 .app-map16-card {
   background: var(--app-card);
   border-radius: 20px;
-  bottom: 96px;
+  bottom: 168px;
   box-shadow: var(--app-shadow-lift);
   left: var(--app-space-l);
   padding: 14px;
@@ -6160,21 +6066,26 @@ button.app-today-stat {
   width: 48px;
 }
 
+.app-map16-dock {
+  bottom: var(--app-space-l);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  left: var(--app-space-l);
+  position: absolute;
+  right: var(--app-space-l);
+}
+
 .app-map16-search {
   align-items: center;
   background: var(--app-card);
   border-radius: var(--app-radius-pill);
-  bottom: var(--app-space-xl);
   box-shadow: var(--app-shadow-lift);
   color: var(--app-text-secondary);
   display: flex;
-  gap: 10px;
-  height: 44px;
-  left: var(--app-space-l);
-  padding: 0 var(--app-space-l);
-  position: absolute;
-  right: var(--app-space-l);
-  z-index: 2;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 8px 0 12px;
 }
 
 .app-map16-search-input {
@@ -17028,33 +16939,13 @@ button.app-cal-peer-chip {
   right: 0;
 }
 
-.app-save-sheet-head {
-  align-items: center;
-  display: flex;
-  flex: none;
-  justify-content: space-between;
-  padding: 14px 8px 8px 16px;
-}
-
 .app-save-sheet-title {
   font-size: 18px;
   font-weight: 800;
   margin: 0;
-}
-
-.app-save-sheet-close {
-  align-items: center;
-  background: var(--app-surface);
-  border: none;
-  border-radius: var(--app-radius-pill);
-  color: inherit;
-  cursor: pointer;
-  display: inline-flex;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  height: 44px;
-  padding: 0 12px;
+  padding: 0 16px 8px;
+  text-align: center;
+  width: 100%;
 }
 
 .app-save-sheet-scroll {
@@ -17062,11 +16953,6 @@ button.app-cal-peer-chip {
   min-height: 0;
   overflow: auto;
   padding: 0 16px;
-}
-
-.app-save-sheet-foot {
-  flex: none;
-  padding: 8px 16px 16px;
 }
 
 .app-ev-save {
@@ -19855,8 +19741,7 @@ button.app-cal-peer-chip {
 .app-map16-top,
 .app-map16-top-right,
 .app-map16-weather,
-.app-map16-rows,
-.app-map16-layers,
+.app-map16-dock,
 .app-map16-zoom,
 .app-map16-notice,
 .app-map16-credit,
@@ -21874,11 +21759,11 @@ button.app-story-viewer-author {
 }
 
 .app-today-stat-photo {
-  border-radius: 50%;
-  flex: 0 0 28px;
-  height: 28px;
+  border-radius: 8px;
+  flex: 0 0 44px;
+  height: 44px;
   object-fit: cover;
-  width: 28px;
+  width: 44px;
 }
 
 .app-search-squares {
@@ -21929,14 +21814,228 @@ button.app-story-viewer-author {
   line-height: 1.15;
 }
 
-.app-search-square-all {
-  align-self: flex-start;
-  background: white;
+.app-search-square-fact {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.app-search-square--open {
+  outline: 2px solid #007aff;
+  outline-offset: 2px;
+}
+
+.app-search-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.app-poster {
+  background: var(--app-card);
+  border: none;
+  border-radius: 16px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  padding: 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-poster-photo {
+  border-radius: 12px;
+  flex: 0 0 96px;
+  height: 96px;
+  overflow: hidden;
+  position: relative;
+  width: 96px;
+}
+
+.app-poster-photo img {
+  height: 100%;
+  inset: 0;
+  object-fit: cover;
+  position: absolute;
+  width: 100%;
+}
+
+.app-poster-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-poster-host,
+.app-poster-highlight {
+  color: #007aff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.app-poster-title {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.app-poster-meta,
+.app-poster-reason {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-map16-basemap-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-map16-basemap-pick {
+  background: var(--app-card);
+  border: none;
+  border-radius: 12px;
+  box-shadow: var(--app-shadow-lift);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 0 0 72px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  width: 72px;
+}
+
+.app-map16-basemap-pick--on {
+  outline: 2px solid #007aff;
+}
+
+.app-map16-basemap-swatch {
+  border-radius: 8px;
+  height: 40px;
+  width: 100%;
+}
+
+.app-map16-basemap-swatch--own {
+  background: linear-gradient(145deg, #17181c, #007aff);
+}
+
+.app-map16-basemap-swatch--osm {
+  background: linear-gradient(145deg, #ffffff, #007aff 55%, #2bc644);
+}
+
+.app-map16-basemap-swatch--osm-de {
+  background: linear-gradient(145deg, #ffffff, #ff9315);
+}
+
+.app-map16-basemap-swatch--osm-fr {
+  background: linear-gradient(145deg, #007aff, #ffffff 50%, #ff303c);
+}
+
+.app-map16-basemap-swatch--hot {
+  background: linear-gradient(145deg, #ff303c, #ff9315);
+}
+
+.app-map16-basemap-swatch--cyclosm {
+  background: linear-gradient(145deg, #2bc644, #007aff);
+}
+
+.app-map16-basemap-swatch--opnv {
+  background: linear-gradient(145deg, #6813ff, #007aff);
+}
+
+.app-map16-basemap-swatch--opentopo {
+  background: linear-gradient(145deg, #2bc644, #ff9315 70%, #ffffff);
+}
+
+.app-map16-basemap-label {
+  font-size: 11px;
+  font-weight: 800;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-map16-assist {
+  background: var(--app-card);
+  border-radius: 12px;
+  font-size: 13px;
+  margin: 0;
+  padding: 8px 12px;
+}
+
+.app-map16-ask-btn {
+  background: #007aff;
+  border: none;
   border-radius: 999px;
-  color: #060708;
+  color: #ffffff;
+  flex: none;
+  font: inherit;
   font-size: 13px;
   font-weight: 800;
-  padding: 6px 10px;
+  height: 32px;
+  padding: 0 10px;
+}
+
+.app-map16-locate--on {
+  color: #007aff;
+}
+
+.app-invite-open {
+  background: var(--app-card);
+  border: none;
+  border-radius: 14px;
+  color: #007aff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  margin: 12px 16px 0;
+  min-height: 44px;
+  width: calc(100% - 32px);
+}
+
+.app-invite-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 20px;
+}
+
+.app-invite-action {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 14px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-invite-action b,
+.app-invite-action i {
+  display: block;
+  font-style: normal;
+}
+
+.app-invite-action i {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .app-photo-lightbox {

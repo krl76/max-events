@@ -255,21 +255,29 @@ export class EventsService {
     if (window) whereBase.startsAt = window;
     const like = query.q ? containsPattern(query.q) : null;
     if (query.q && like === null) return [];
+    const hinted = query.category === undefined && query.q ? categoryHintFromQuery(query.q) : null;
     const where = like
       ? [
           { ...whereBase, title: ILike(like) },
           { ...whereBase, description: ILike(like) },
+          ...(hinted === null ? [] : [{ ...whereBase, category: hinted }]),
         ]
       : whereBase;
     const pageOffset = query.offset ?? 0;
     const pageTake = Math.min(query.limit ?? EVENT_LIST_MAX_LIMIT, EVENT_LIST_MAX_LIMIT);
     const hasOrigin = query.latitude !== undefined && query.longitude !== undefined;
     const scan = query.sort === "rating" || (query.sort === "near" && hasOrigin);
-    const visible = await this.events.find({
+    const visibleRaw = await this.events.find({
       where,
       order: { startsAt: "ASC", id: "ASC" },
       skip: scan ? 0 : pageOffset,
       take: scan ? EVENT_LIST_SCAN_CAP : pageTake,
+    });
+    const seenIds = new Set<string>();
+    const visible = visibleRaw.filter((row) => {
+      if (seenIds.has(row.id)) return false;
+      seenIds.add(row.id);
+      return true;
     });
     const ordered = await this.orderCatalog(visible, query, now);
     const page = scan ? ordered.slice(pageOffset, pageOffset + pageTake) : ordered;
@@ -383,6 +391,16 @@ function toColumns(payload: CreateEvent | Event): Omit<CreateEvent, "startsAt" |
     capacity: parsed.capacity,
     coverUrl: parsed.coverUrl ?? null,
   };
+}
+
+/** The whole query names a category. A word inside a title, such as «джаз», stays a text search. */
+export function categoryHintFromQuery(q: string): EventCategory | null {
+  const text = q.trim().toLowerCase().replaceAll("ё", "е");
+  if (/^(спорт|спортивное|спортивные|футбол|йога)$/.test(text)) return "sport";
+  if (/^(волонтерство|субботник)$/.test(text)) return "volunteering";
+  if (/^афиша$/.test(text)) return "afisha";
+  if (/^(туризм|экскурсия|поход)$/.test(text)) return "tourism";
+  return null;
 }
 
 function containsPattern(q: string): string | null {

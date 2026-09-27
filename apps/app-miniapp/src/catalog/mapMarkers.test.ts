@@ -174,12 +174,13 @@ describe("clusterMapMarkers", () => {
     expect(clusters[1].markers.map((marker) => marker.key)).toEqual(["c"]);
   });
 
-  it("holds stacked pins at one venue even at street zoom, and splits points that are a street apart", () => {
-    const stacked = [point("a", 55.75, 37.61), point("b", 55.7501, 37.6101)];
-    const split = [point("a", 55.75, 37.61), point("c", 55.753, 37.62)];
+  it("holds one doorway together at street zoom and splits two houses without a tap", () => {
+    const sameDoor = [point("a", 55.75, 37.61), point("b", 55.75, 37.61001)];
+    const houses = [point("a", 55.75, 37.61), point("b", 55.75012, 37.61012)];
 
-    expect(clusterMapMarkers(stacked, MAP_CLUSTER_MAX_ZOOM)).toHaveLength(1);
-    expect(clusterMapMarkers(split, MAP_CLUSTER_MAX_ZOOM)).toHaveLength(2);
+    expect(clusterMapMarkers(sameDoor, MAP_CLUSTER_MAX_ZOOM)).toHaveLength(1);
+    expect(clusterMapMarkers(houses, MAP_CLUSTER_MAX_ZOOM)).toHaveLength(2);
+    expect(clusterMapMarkers(houses, MAP_CLUSTER_BASE_ZOOM).some((cluster) => cluster.markers.length > 1)).toBe(true);
   });
 
   it("делит клетку пополам на каждый шаг зума", () => {

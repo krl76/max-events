@@ -345,7 +345,7 @@ function mockAssistMatches(criteria: AssistCriteria, now: Date = MOCK_NOW): Even
       if (criteria.genre === "any") return true;
       const blob = `${item.title} ${item.description}`.toLowerCase();
       if (criteria.genre === "music") return item.category === "afisha" || /музык|джаз|концерт|симфон|рахманин/.test(blob);
-      if (criteria.genre === "sport") return item.category === "sport";
+      if (criteria.genre === "sport") return item.category === "sport" || /спорт|футбол|йог|пробеж|воркаут|трениров|теннис|стритбол|кроссфит|плаван|офп/.test(blob);
       if (criteria.genre === "volunteering") return item.category === "volunteering" || /волонт|волонтер|субботник/.test(blob);
       return item.category === "tourism" || item.category === "volunteering";
     })

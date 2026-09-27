@@ -35,7 +35,7 @@ import { WaitlistSection } from "./WaitlistSection";
 import { PaymentSection } from "./PaymentSection";
 import { AutoPlanSection } from "../plans/AutoPlanSection";
 import { BookingSheet } from "./BookingSheet";
-import { EventBookingBar, EventForecastCard, EventHero, EventMoodTags, EventNearbyList, EventOrganizerCard, EventRouteCard, EventWhenRow, EventWhoGoesRow, formatDayLine, formatTimeRange } from "./EventScreen";
+import { EventBookingBar, EventForecastCard, EventHero, EventInviteSheet, EventMoodTags, EventNearbyList, EventOrganizerCard, EventRouteCard, EventWhenRow, EventWhoGoesRow, formatDayLine, formatTimeRange } from "./EventScreen";
 
 export type EventDetailsState = { status: "loading" } | { status: "error" } | { status: "ready"; details: EventDetails };
 
@@ -130,7 +130,6 @@ export function EventExtras({ details, eventId, userId, payment, paymentBusy, pa
   return (
     <div className="app-ev-extras">
       <PaymentSection payment={payment} busy={paymentBusy} error={paymentFailed} onPay={onPay} />
-      {details.activeBookingId !== null && <AutoPlanSection eventId={eventId} />}
       {details.remainingSeats === 0 && details.activeBookingId === null && <WaitlistSection eventId={eventId} userId={userId} onChanged={onChanged} />}
       <div className="app-ev-secondary">
         <button type="button" className="app-ev-secondary-btn" disabled={details.checkInId !== null} onClick={onCheckIn}>
@@ -221,6 +220,7 @@ export function EventPage({ id }: { id: string }) {
   // bookingId of the failed pay attempt — the error dies with its booking (cancel/re-book resets it)
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
 
   const activeBookingId = state.status === "ready" ? state.details.activeBookingId : null;
@@ -301,7 +301,7 @@ export function EventPage({ id }: { id: string }) {
 
   const share = useCallback(() => {
     if (state.status !== "ready") return;
-    const payload = sharePayload(eventShareText(state.details.event), `event-${state.details.event.id}`);
+    const payload = sharePayload(`Пойдём? ${eventShareText(state.details.event)}`, `event-${state.details.event.id}`);
     void shareResult(getWebApp(), payload.text, payload.link);
   }, [state]);
 
@@ -327,24 +327,41 @@ export function EventPage({ id }: { id: string }) {
 
   return (
     <article className="app-ev">
-      <EventHero details={details} saveOpen={saveOpen} onBack={back} onShare={share} onSave={() => setSaveOpen((open) => !open)} />
+      <EventHero details={details} saveOpen={saveOpen} onBack={back} onShare={() => setInviteOpen(true)} onSave={() => setSaveOpen((open) => !open)} />
       <SaveToList eventId={id} userId={userId} open={saveOpen} onClose={() => setSaveOpen(false)} />
       <EventWhenRow event={event} />
       {forecast !== null && <EventForecastCard forecast={forecast} />}
       {place !== null && <EventRouteCard address={place.address} hint={place.title} travel={travel} fromCenter={!travelPoint.fromViewer} onRoute={() => navigate({ name: "map", placeId: place.id, drawRoute: true })} />}
       <EventOrganizerCard name={organizerName} eventsCount={details.organizerEventsCount ?? null} rating={rating} subscribe={details.organizer === null ? null : <SubscribeToggle target={{ type: "organizer", organizerUserId: details.organizer.id }} subscribeLabel="Подписаться" unsubscribeLabel="Отписаться" />} />
       {companions !== null && <EventWhoGoesRow companions={companions} onOpen={() => navigate({ name: "companions", eventId: id })} />}
+      <button type="button" className="app-invite-open" onClick={() => setInviteOpen(true)}>
+        Позвать друзей
+      </button>
       {event.description !== "" && (
         <section className="app-ev-section" aria-label="О событии">
           <h2 className="app-ev-section-title">О событии</h2>
           <p className="app-ev-about">{event.description}</p>
         </section>
       )}
+      <AutoPlanSection eventId={id} />
       <EventMoodTags tags={moods} />
       <EventNearbyList spots={nearby} onOpen={(spotId) => navigate({ name: "place", id: spotId })} />
       <EventExtras details={details} eventId={id} userId={userId} payment={currentPayment} paymentBusy={paymentBusy} paymentFailed={paymentError !== null && paymentError === details.activeBookingId} onPay={pay} onCheckIn={checkIn} onChanged={refetch} onCreatePost={() => navigate({ name: "feed-new", eventId: id })} />
       <EventBookingBar details={details} chatLink={event.chatLink} onChat={() => event.chatLink !== null && openChatLink(event.chatLink)} onBook={() => setSheetOpen(true)} />
       {sheetOpen && <BookingSheet details={details} offer={offer} organizerName={organizerName} promo={promo} waitlist={details.remainingSeats === 0 && details.activeBookingId === null ? { ahead: offer?.waitlistAhead ?? 0, joined: queued, onJoin: joinWaitlist } : null} onClose={() => setSheetOpen(false)} onBook={book} onCancel={cancel} />}
+      {inviteOpen && (
+        <EventInviteSheet
+          onPick={() => {
+            setInviteOpen(false);
+            navigate({ name: "gathering-new", eventId: id });
+          }}
+          onMax={() => {
+            setInviteOpen(false);
+            share();
+          }}
+          onClose={() => setInviteOpen(false)}
+        />
+      )}
     </article>
   );
 }

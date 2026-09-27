@@ -43,7 +43,10 @@ describe("SaveToListView", () => {
     expect(html).toContain("Добавить");
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('aria-pressed="false"');
-    expect(html).toContain("Готово");
+    expect(html).toContain("Сохранить");
+    expect(html).toContain("app-sheet-grab");
+    expect(html).not.toContain("Закрыть окно");
+    expect(html).not.toContain("Готово");
     expect(html).toContain("app-save-sheet");
   });
 });

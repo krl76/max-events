@@ -24,8 +24,8 @@ import { apiClient, type CatalogCard, type EventFilters, type TodayCard, type To
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute, type BrowseList } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { pictured } from "../ui/photos";
 import { AppSkeleton, AppState } from "../ui/primitives";
+import { EventPoster } from "./EventPoster";
 import { railMeta } from "./SearchPage";
 
 export type { BrowseList };
@@ -136,16 +136,7 @@ type BrowseStatus = { status: "loading" } | { status: "error" } | { status: "rea
 export function BrowseView({ list, query, date, state, inCity, onOpen, onBack, onRetry }: { list: BrowseList; query?: string; date?: string; state: BrowseStatus; inCity: boolean; onOpen: (eventId: string) => void; onBack: () => void; onRetry: () => void }) {
   const title = browseTitle(list, query, date);
   const voice = inCity ? "you" : "center";
-  const row = (card: CatalogCard, reason: string | null = null) => (
-    <button key={card.event.id} type="button" className="app-browse-row" onClick={() => onOpen(card.event.id)}>
-      <img className="app-browse-photo" alt="" src={pictured(card.event.id, card.event.coverUrl)} />
-      <span className="app-browse-copy">
-        <span className="app-browse-title">{card.event.title}</span>
-        {reason !== null && reason !== "" && <span className="app-browse-reason">{reason}</span>}
-        <span className="app-browse-meta">{railMeta(card, voice)}</span>
-      </span>
-    </button>
-  );
+  const row = (card: CatalogCard, reason: string | null = null) => <EventPoster key={card.event.id} card={card} reason={reason ?? railMeta(card, voice)} onOpen={onOpen} />;
   return (
     <section className="app-browse" aria-label={title}>
       <div className="app-browse-top">

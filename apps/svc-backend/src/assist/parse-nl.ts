@@ -50,9 +50,9 @@ function detectGenre(text: string): AssistGenre {
   return "any";
 }
 
-/** A model that leaves genre unset still follows a word the keyword parser already knows. */
+/** A word the person typed wins over a model guess: «Спорт» must stay sport even if the model picked music. */
 export function applyKeywordGenre(query: string, criteria: AssistCriteria): AssistCriteria {
   const hinted = detectGenre(query.toLowerCase());
-  if (hinted === "any" || criteria.genre !== "any") return criteria;
+  if (hinted === "any") return criteria;
   return { ...criteria, genre: hinted };
 }

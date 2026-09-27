@@ -39,11 +39,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Event, EventCategory, FriendPlaceVisit, Place } from "@max-events/api-contracts";
 import "leaflet/dist/leaflet.css";
 import { apiClient, type EventForecast, type EventWeatherHour, type MapWeather, type TravelOption } from "../api/client";
-import { CATEGORY_LABELS, pluralRu } from "./format";
+import { pluralRu } from "./format";
 import { useProfileCityPoint } from "../geo/profile-city";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { pictured } from "../ui/photos";
-import { AppChip } from "../ui/primitives";
 import { useAppliedScheme, type ThemeScheme } from "../ui/theme";
 import { basemapCredit, MAP_BASEMAPS, readBasemapPreference, STANDARD_BASEMAP, writeBasemapPreference, type MapBasemap } from "./basemaps";
 import { buildMapMarkers, clusterMapMarkers, MAP_CLUSTER_MAX_ZOOM, type MapMarker, type MapPinGlyph } from "./mapMarkers";
@@ -76,7 +75,7 @@ export function mapWrapClass(basemap: MapBasemap): string {
   return "app-map-wrap app-map16";
 }
 
-const MAP_LAYER_LABELS: Record<MapLayer, string> = { friends: "Друзья", events: "События", places: "Места" };
+
 
 /** «+19°» — the chip always carries the sign, so a zero reads as measured rather than missing. */
 export function formatMapTemperature(weather: MapWeather): string {
@@ -192,10 +191,26 @@ export function mapNotice(input: MapNoticeInput): string | null {
 /** Categories the map offers, in the same order as the search filter. Undefined is «Все». */
 export const MAP_EVENT_CATEGORIES: readonly EventCategory[] = ["afisha", "tourism", "sport", "volunteering"];
 
-/** Event pins only. Places and friend visits stay; a blank category keeps every event the search needle still matches. */
+const MAP_SPORT = /спорт|футбол|йог|пробеж|воркаут|трениров|теннис|стритбол|кроссфит|плаван|офп/;
+const MAP_VOLUNTEER = /волонт|волонтер|субботник/;
+const MAP_BILL = /афиш|концерт|музык|джаз|кино|лекци/;
+const MAP_TRIP = /туризм|экскурс|поход|прогул/;
+
+/** Event pins only. A category word matches that category in the catalog, not only a title substring. */
 export function filterMapEvents(events: Event[], category: EventCategory | undefined, needle: string): Event[] {
   const query = needle.trim().toLowerCase();
-  return events.filter((item) => (category === undefined || item.category === category) && (query === "" || item.title.toLowerCase().includes(query)));
+  return events.filter((item) => {
+    if (category !== undefined && item.category !== category) return false;
+    if (query === "") return true;
+    const blob = `${item.title} ${item.description}`.toLowerCase();
+    if (blob.includes(query)) return true;
+    const named = query.replaceAll("ё", "е");
+    if (/^(спорт|спортивное|спортивные|футбол|йога)$/.test(named) && (item.category === "sport" || MAP_SPORT.test(blob))) return true;
+    if (/^(волонтерство|субботник)$/.test(named) && (item.category === "volunteering" || MAP_VOLUNTEER.test(blob))) return true;
+    if (named === "афиша" && (item.category === "afisha" || MAP_BILL.test(blob))) return true;
+    if (/^(туризм|экскурсия|поход)$/.test(named) && (item.category === "tourism" || MAP_TRIP.test(blob))) return true;
+    return false;
+  });
 }
 
 function popupNode(marker: MapMarker, onOpenEvent: (id: string) => void, onOpenPlace: (id: string) => void): HTMLElement {
@@ -539,7 +554,6 @@ interface MapScreenProps {
   onOpenEvent: (id: string) => void;
   onOpenPlace: (id: string) => void;
   /** Экран 16 draws its own chrome; without these it stays the plain catalog map view. */
-  onBack?: () => void;
   onDiscuss?: () => void;
   city?: string;
   /** Страница не смогла получить события: карта всё равно открывается, но говорит, чего на ней нет. */
@@ -553,7 +567,7 @@ interface MapScreenProps {
   drawRoute?: boolean;
 }
 
-export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false }: MapScreenProps) {
+export function MapScreen({ events, onOpenEvent, onOpenPlace, onDiscuss, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false }: MapScreenProps) {
   const located = useProfileCityPoint();
   const weatherCity = located.city ?? city;
   // Until the profile city is known the canvas stays on Moscow. A far GPS fix must not pan the map away from the catalog.
@@ -563,10 +577,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   const [friendVisits, setFriendVisits] = useState<FriendPlaceVisit[]>([]);
   const [friendsAsked, setFriendsAsked] = useState(false);
   const [layers, setLayers] = useState<Record<MapLayer, boolean>>({ friends: false, events: true, places: true });
-  const [layersOpen, setLayersOpen] = useState(true);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [category, setCategory] = useState<EventCategory | undefined>(undefined);
   const [query, setQuery] = useState("");
+  const [assistNote, setAssistNote] = useState<string | null>(null);
   const [selected, setSelected] = useState<MapMarker | null>(null);
   const [routeOn, setRouteOn] = useState(drawRoute);
   const [routePath, setRoutePath] = useState<[number, number][] | null>(null);
@@ -579,7 +591,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   const [vectorFallback, setVectorFallback] = useState(false);
   // Подложка читается из хранилища один раз: выбор человека переживает перезаход, а не только сессию
   const [basemap, setBasemap] = useState<MapBasemap>(readBasemapPreference);
-  const [basemapsOpen, setBasemapsOpen] = useState(false);
+  const basemapRef = useRef(basemap);
+  basemapRef.current = basemap;
   // Своя векторная подложка красится под отрисованную схему, а не под предпочтение: карта показывает то же, что и остальной экран
   const scheme = useAppliedScheme();
 
@@ -638,7 +651,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
 
   const readyPlaces = places.status === "ready" ? places.places : [];
   const needle = query.trim().toLowerCase();
-  const shownEvents = useMemo(() => (layers.events ? filterMapEvents(events, category, needle) : []), [events, layers.events, category, needle]);
+  const shownEvents = useMemo(() => (layers.events ? filterMapEvents(events, undefined, needle) : []), [events, layers.events, needle]);
   const shownPlaces = useMemo(() => (layers.places ? readyPlaces.filter((item) => needle === "" || item.title.toLowerCase().includes(needle)) : []), [readyPlaces, layers.places, needle]);
   // A fresh [] on every render would land in the map's dependency list and rebuild Leaflet each time.
   const visits = useMemo(() => (layers.friends ? friendVisits : EMPTY_VISITS), [layers.friends, friendVisits]);
@@ -647,10 +660,6 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   const selectedPlaceId = selected === null ? null : (selected.placeId ?? events.find((item) => item.id === selected.eventId)?.placeId ?? null);
   const selectedPlace = selectedPlaceId === null ? undefined : readyPlaces.find((item) => item.id === selectedPlaceId);
   const selectedCategory = selected === null || selected.eventId === null ? null : (events.find((item) => item.id === selected.eventId)?.category ?? null);
-  useEffect(() => {
-    if (selected?.eventId == null || category === undefined) return;
-    if (selectedCategory !== category) setSelected(null);
-  }, [category, selected, selectedCategory]);
 
   useEffect(() => {
     if (selectedPlaceId === null) {
@@ -704,7 +713,12 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
       onOpenEvent: (id) => handlers.current.onOpenEvent(id),
       onOpenPlace: (id) => handlers.current.onOpenPlace(id),
       onSelect: (marker) => handlers.current.select(marker),
-      onTileTrouble: () => setTilesFailed(true),
+      onTileTrouble: () => {
+        setTilesFailed(true);
+        if (basemapRef.current.id === STANDARD_BASEMAP.id) return;
+        setBasemap(STANDARD_BASEMAP);
+        setVectorFallback(true);
+      },
       // Возврат к стандартной растровой, а не к подложке по умолчанию: та сама векторная, и цикл был бы бесконечным.
       // Выбор не сохраняется: на другом устройстве та же учётка может открыть свою подложку
       onBasemapFallback: () => {
@@ -764,12 +778,29 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
     eventsFailed,
     markerCount: markers.length,
     query,
-    categoryLabel: category === undefined ? null : CATEGORY_LABELS[category],
+    categoryLabel: null,
     anyLayerOn: MAP_LAYERS.some((layer) => layers[layer]),
     geoDenied: located.state === "denied",
     inCity: located.settled && located.fromViewer,
     locateOn: centered,
   });
+
+  function askMap(): void {
+    const text = query.trim();
+    if (text === "") return;
+    apiClient.assistQuery(text).then(
+      (result) => {
+        setAssistNote(result.summary);
+        const first = result.items[0]?.event;
+        if (first === undefined) return;
+        const place = first.placeId === null ? undefined : readyPlaces.find((item) => item.id === first.placeId);
+        if (place !== undefined) handleRef.current?.focus([place.latitude, place.longitude], MAP_CLUSTER_MAX_ZOOM + 2);
+        const marker = markers.find((item) => item.eventId === first.id);
+        if (marker) setSelected(marker);
+      },
+      () => setAssistNote("Ассистент не ответил. На карте осталось то, что совпало по словам."),
+    );
+  }
 
   function pickBasemap(next: MapBasemap): void {
     setBasemap(next);
@@ -792,75 +823,12 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
         </span>
       )}
       <div className="app-map16-top">
-        {onBack !== undefined && (
-          <button type="button" className="app-map16-back" onClick={onBack}>
-            <span className="app-map16-back-caret" aria-hidden="true">
-              <ActionIcon name="chevron" size={18} strokeWidth={2} />
-            </span>
-            Поиск
-          </button>
-        )}
         <div className="app-map16-top-right">
           <button type="button" className="app-map16-weather" aria-label="Погода" onClick={() => setWeatherOpen(true)}>
             <ActionIcon name="weather" size={20} />
-            <span className="app-map16-weather-value">{mapWeatherChipText(weather)}</span>
-            {weatherChange !== null && <span className="app-map16-weather-note">{weatherChange}</span>}
-          </button>
-          <button type="button" className="app-map16-tool" aria-expanded={layersOpen} onClick={() => setLayersOpen((open) => !open)}>
-            Слои
-          </button>
-          <button type="button" className="app-map16-tool" aria-expanded={basemapsOpen} onClick={() => setBasemapsOpen((open) => !open)}>
-            Карта
+            <span className="app-map16-weather-value">{weather === null ? "—" : `${formatMapTemperature(weather)} · ${weather.condition}`}</span>
           </button>
         </div>
-      </div>
-      <div className="app-map16-rows">
-        <button type="button" className={filtersOpen || category !== undefined ? "app-map16-tool app-map16-tool--on" : "app-map16-tool"} aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}>
-          {category === undefined ? "Фильтры" : CATEGORY_LABELS[category]}
-        </button>
-        {filtersOpen && (
-          <div className="app-map16-layers" role="group" aria-label="Фильтр событий">
-            <AppChip pressed={category === undefined} className="app-map16-layer" onClick={() => setCategory(undefined)}>
-              Все
-            </AppChip>
-            {MAP_EVENT_CATEGORIES.map((item) => (
-              <AppChip key={item} pressed={category === item} className="app-map16-layer" onClick={() => setCategory(item)}>
-                {CATEGORY_LABELS[item]}
-              </AppChip>
-            ))}
-          </div>
-        )}
-        {(layersOpen || basemapsOpen) && (
-          <>
-          {layersOpen && (
-            <div className="app-map16-layers" role="group" aria-label="Слои карты">
-              {MAP_LAYERS.map((layer) => (
-                <AppChip
-                  key={layer}
-                  pressed={layers[layer]}
-                  className="app-map16-layer"
-                  onClick={() => {
-                    if (layer === "friends" && !layers.friends) setFriendsAsked(true);
-                    setLayers((current) => ({ ...current, [layer]: !current[layer] }));
-                  }}
-                >
-                  {layer === "friends" && friendVisits.length > 0 ? `${MAP_LAYER_LABELS[layer]} · ${friendVisits.length}` : MAP_LAYER_LABELS[layer]}
-                </AppChip>
-              ))}
-            </div>
-          )}
-          {/* Подложки — растровые тайлы на данных OSM и своя векторная (./basemaps.ts). Ряд прокручивается: их восемь; выбранная одна, поэтому чипы ведут себя как радиокнопки */}
-          {basemapsOpen && (
-            <div className="app-map16-layers app-map16-basemaps" role="group" aria-label="Подложка карты">
-              {MAP_BASEMAPS.map((item) => (
-                <AppChip key={item.id} pressed={basemap.id === item.id} className="app-map16-layer" onClick={() => pickBasemap(item)}>
-                  {item.label}
-                </AppChip>
-              ))}
-            </div>
-          )}
-          </>
-        )}
       </div>
       <div className="app-map16-zoom">
         <button type="button" className="app-map16-zoom-btn" aria-label="Приблизить" onClick={() => handleRef.current?.zoomBy(1)}>
@@ -908,13 +876,39 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
           {hourly !== null && <p className="app-map16-weather-source">{hourly.source}</p>}
         </section>
       )}
-      <form className="app-map16-search" role="search" onSubmit={(event) => event.preventDefault()}>
-        <ActionIcon name="search" size={18} />
-        <input className="app-map16-search-input" type="search" aria-label="Искать на карте" placeholder={`${city} · искать на карте`} value={query} onChange={(typed) => setQuery(typed.target.value)} />
-        <button type="button" className="app-map16-locate" aria-label="Показать, где я" aria-pressed={centered} onClick={() => setCentered((on) => !on)}>
-          <ActionIcon name="locate" size={18} />
-        </button>
-      </form>
+      <div className="app-map16-dock">
+        <div className="app-map16-basemap-strip" role="listbox" aria-label="Подложка карты">
+          {MAP_BASEMAPS.map((item) => (
+            <button key={item.id} type="button" role="option" aria-selected={basemap.id === item.id} className={basemap.id === item.id ? "app-map16-basemap-pick app-map16-basemap-pick--on" : "app-map16-basemap-pick"} onClick={() => pickBasemap(item)}>
+              <span className={`app-map16-basemap-swatch app-map16-basemap-swatch--${item.id}`} aria-hidden="true" />
+              <span className="app-map16-basemap-label">{item.label}</span>
+            </button>
+          ))}
+        </div>
+        {assistNote !== null && <p className="app-map16-assist">{assistNote}</p>}
+        <form className="app-map16-search" role="search" onSubmit={(event) => { event.preventDefault(); askMap(); }}>
+          <ActionIcon name="search" size={18} />
+          <input className="app-map16-search-input" type="search" aria-label="Искать на карте" placeholder={`${city} · спросить ассистента`} value={query} onChange={(typed) => { setQuery(typed.target.value); setAssistNote(null); }} />
+          <button type="submit" className="app-map16-ask-btn" aria-label="Спросить">
+            Спросить
+          </button>
+          <button
+            type="button"
+            className={layers.friends ? "app-map16-locate app-map16-locate--on" : "app-map16-locate"}
+            aria-label="Друзья на карте"
+            aria-pressed={layers.friends}
+            onClick={() => {
+              if (!layers.friends) setFriendsAsked(true);
+              setLayers((current) => ({ ...current, friends: !current.friends }));
+            }}
+          >
+            <ActionIcon name="users" size={18} />
+          </button>
+          <button type="button" className="app-map16-locate" aria-label="Показать, где я" aria-pressed={centered} onClick={() => setCentered((on) => !on)}>
+            <ActionIcon name="locate" size={18} />
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
