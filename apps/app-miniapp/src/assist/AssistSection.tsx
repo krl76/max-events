@@ -30,7 +30,7 @@ export const ASSIST_WHEN_LABELS: Record<AssistWhen, string> = { morning: "Утр
 
 export const ASSIST_COMPANY_LABELS: Record<AssistCompany, string> = { alone: "Один", friends: "С друзьями", partner: "Вдвоём", kids: "С детьми" };
 
-export const ASSIST_GENRE_LABELS: Record<AssistGenre, string> = { music: "Музыка", sport: "Спорт", outdoors: "На природе", any: "Любой жанр" };
+export const ASSIST_GENRE_LABELS: Record<AssistGenre, string> = { music: "Музыка", sport: "Спорт", outdoors: "На природе", volunteering: "Волонтёрство", any: "Любой жанр" };
 
 export function criteriaChips(criteria: AssistCriteria): string[] {
   return [ASSIST_WHEN_LABELS[criteria.when], criteria.budgetMaxRub === null ? "Любой бюджет" : `До ${criteria.budgetMaxRub} ₽`, ASSIST_COMPANY_LABELS[criteria.company], ASSIST_GENRE_LABELS[criteria.genre]];

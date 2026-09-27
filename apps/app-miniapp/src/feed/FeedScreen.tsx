@@ -242,7 +242,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
               </button>
               <button type="button" className="app-feed-post-where" onClick={onOpenMark}>
                 <ActionIcon name="pin" size={12} />
-                {markLabel}
+                <span>{markLabel}</span>
               </button>
             </span>
           </div>

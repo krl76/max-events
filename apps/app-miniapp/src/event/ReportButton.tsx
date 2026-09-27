@@ -13,6 +13,7 @@
 
 import { useCallback, useState } from "react";
 import { ApiError, apiClient, REPORT_REASONS, type ReportReason } from "../api/client";
+import { ActionIcon } from "../ui/icons";
 import { AppChip } from "../ui/primitives";
 
 export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
@@ -36,7 +37,7 @@ export function ReportMenu({ onReport, sending, done }: { onReport: (reason: Rep
   );
 }
 
-export function ReportButton({ target, userId }: { target: { eventId: string } | { placeId: string } | { feedPostId: string }; userId: string }) {
+export function ReportButton({ target, userId, mode = "inline" }: { target: { eventId: string } | { placeId: string } | { feedPostId: string }; userId: string; mode?: "inline" | "dialog" }) {
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState<string | null>(null);
@@ -54,6 +55,28 @@ export function ReportButton({ target, userId }: { target: { eventId: string } |
     },
     [target, userId],
   );
+
+  if (mode === "dialog") {
+    return (
+      <>
+        <button type="button" className="app-post-more" aria-label="Пожаловаться" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+          <ActionIcon name="dots" size={20} />
+        </button>
+        {open && (
+          <div className="app-me-pop" role="dialog" aria-modal="true" aria-label="Пожаловаться">
+            <button type="button" className="app-me-pop-scrim" aria-label="Закрыть" onClick={() => setOpen(false)} />
+            <div className="app-me-pop-card">
+              <h2 className="app-me-pop-title">Пожаловаться</h2>
+              <ReportMenu onReport={report} sending={sending} done={done} />
+              <button type="button" className="app-me-pop-action app-me-pop-action--ghost" onClick={() => setOpen(false)}>
+                Закрыть
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <section className="app-event">

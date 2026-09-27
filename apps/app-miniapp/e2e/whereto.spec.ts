@@ -3,7 +3,7 @@ import { enterAsUser } from "./enter";
 
 test("whereto wizard walks through company, context and shows the result", async ({ page }) => {
   await enterAsUser(page);
-  await page.getByRole("button", { name: "Куда пойдём?" }).click();
+  await page.getByRole("button", { name: "Начать" }).click();
   await expect(page.getByText("Шаг 1 из 3 — Кто идёт?")).toBeVisible();
 
   await page.getByRole("button", { name: "С друзьями" }).click();

@@ -72,6 +72,13 @@ export function formatTodayDate(now: Date): string {
   return now.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
 
+/** Local calendar day as YYYY-MM-DD, the value a date input reads and writes. */
+export function dayKey(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 /** «19 сент. · 14:00» — short enough to sit next to the distance on a pick. */
 export function formatPickWhen(startsAt: string): string {
   const date = new Date(startsAt);
@@ -119,14 +126,19 @@ export function afterMeGoLabel(voice: DistanceVoice = "you"): string {
   return voice === "center" ? "Показать места в городе" : "Показать места рядом";
 }
 
-export function TodaySummaryBlock({ state, now, distanceFrom = "you" }: { state: TodayState; now: Date; distanceFrom?: DistanceVoice }) {
+export function TodaySummaryBlock({ state, now, day, onDay, distanceFrom = "you", onOpenNearby, onOpenSuitable, onOpenFriends }: { state: TodayState; now: Date; day?: string; onDay?: (day: string) => void; distanceFrom?: DistanceVoice; onOpenNearby?: () => void; onOpenSuitable?: () => void; onOpenFriends?: () => void }) {
   const summary = state.status === "ready" ? state.today.summary : null;
   const title = todaySummaryTitle(distanceFrom);
+  const shown = day === undefined ? now : new Date(`${day}T12:00:00`);
   return (
     <section className="app-today" aria-label={title}>
       <div className="app-today-head">
         <h2 className="app-today-title">{title}</h2>
-        <span className="app-today-date">{formatTodayDate(now)}</span>
+        <label className="app-today-date">
+          <ActionIcon name="calendar" size={16} />
+          <span>{formatTodayDate(shown)}</span>
+          <input className="app-today-date-input" type="date" aria-label="Выбрать дату" value={day ?? dayKey(now)} onChange={(change) => onDay?.(change.target.value)} />
+        </label>
       </div>
       <div className="app-today-stats">
         {summary === null ? (
@@ -138,21 +150,21 @@ export function TodaySummaryBlock({ state, now, distanceFrom = "you" }: { state:
           ))
         ) : (
           <>
-            <span className="app-today-stat">
+            <button type="button" className="app-today-stat" onClick={onOpenNearby}>
               <span className="app-today-stat-value">{summary.nearbyCount}</span>
               <span className="app-today-stat-label">{nearbyStatLabel(summary.nearbyCount, distanceFrom)}</span>
-            </span>
+            </button>
             {summary.suitableCount > 0 && (
-              <span className="app-today-stat">
+              <button type="button" className="app-today-stat" onClick={onOpenSuitable}>
                 <span className="app-today-stat-value">{summary.suitableCount}</span>
                 <span className="app-today-stat-label">{pluralRu(summary.suitableCount, "подходит", "подходят", "подходят")} тебе</span>
-              </span>
+              </button>
             )}
             {summary.withFriendsCount > 0 && (
-              <span className="app-today-stat app-today-stat--friends">
+              <button type="button" className="app-today-stat app-today-stat--friends" onClick={onOpenFriends}>
                 <span className="app-today-stat-value">{summary.withFriendsCount}</span>
                 <span className="app-today-stat-label">с друзьями</span>
-              </span>
+              </button>
             )}
           </>
         )}
@@ -160,10 +172,6 @@ export function TodaySummaryBlock({ state, now, distanceFrom = "you" }: { state:
       {summary !== null && summary.suitableCount === 0 && summary.withFriendsCount === 0 && <p className="app-today-quiet">Под интересы и с друзьями пока ничего. Интересы правятся в профиле.</p>}
     </section>
   );
-}
-
-function pickLikeCount(card: TodayCard, liked: boolean): number {
-  return (card.event.friendsGoing?.length ?? 0) + (liked ? 1 : 0);
 }
 
 function PickCard({ card, hero, onOpen, distanceFrom }: { card: TodayCard; hero: boolean; onOpen: (eventId: string) => void; distanceFrom: DistanceVoice }) {
@@ -177,7 +185,6 @@ function PickCard({ card, hero, onOpen, distanceFrom }: { card: TodayCard; hero:
       <span className="app-pick-glow app-pick-glow--cool" aria-hidden="true" />
       <button type="button" className="app-pick-save" aria-label="Нравится" aria-pressed={liked} onClick={() => toggleEventLike(card.event.id)}>
         <ActionIcon filled={liked} name="heart" size={hero ? 18 : 15} />
-        <span className="app-pick-likes">{pickLikeCount(card, liked)}</span>
       </button>
       <button type="button" className="app-pick-open" aria-label={card.event.title} onClick={() => onOpen(card.event.id)}>
         <span className="app-pick-kind">{CATEGORY_LABELS[card.event.category]}</span>
@@ -229,12 +236,12 @@ function PickCard({ card, hero, onOpen, distanceFrom }: { card: TodayCard; hero:
   );
 }
 
-export function TodayPicksBlock({ state, onOpen, onRetry, distanceFrom = "you" }: { state: TodayState; onOpen: (eventId: string) => void; onRetry: () => void; distanceFrom?: DistanceVoice }) {
+export function TodayPicksBlock({ state, onOpen, onRetry, distanceFrom = "you", showHeading = true }: { state: TodayState; onOpen: (eventId: string) => void; onRetry: () => void; distanceFrom?: DistanceVoice; showHeading?: boolean }) {
   const cards = state.status === "ready" ? todayPickCards(state.today) : [];
   const [hero, ...rest] = cards;
   return (
     <section className="app-picks" aria-label="Для вас">
-      <h2 className="app-screen-title">Для вас</h2>
+      {showHeading && <h2 className="app-screen-title">Для вас</h2>}
       {state.status === "loading" && <AppSkeleton variant="block" className="app-picks-skeleton" />}
       {state.status === "error" && (
         <AppState error action={{ label: "Повторить", onClick: onRetry }}>

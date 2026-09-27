@@ -28,12 +28,12 @@ export function afterMeSuggestions(response: AfterMeResponse | null): AfterMeSug
   return (response?.suggestions ?? []).filter((suggestion) => suggestion.events.length > 0);
 }
 
-export function AfterMeView({ response, onOpen = () => {}, title = "После меня" }: { response: AfterMeResponse | null; onOpen?: (eventId: string) => void; title?: string }) {
+export function AfterMeView({ response, onOpen = () => {}, title = "После меня", showTitle = true, placeholder }: { response: AfterMeResponse | null; onOpen?: (eventId: string) => void; title?: string; showTitle?: boolean; placeholder?: string }) {
   const suggestions = afterMeSuggestions(response);
   // Nothing to say: a visitor with no visits yet gets no block at all, not an empty one.
-  if (suggestions.length === 0) return null;
+  if (suggestions.length === 0) return placeholder === undefined ? null : <p className="app-today-quiet">{placeholder}</p>;
   return (
-    <AppSection title={title} className="app-cards-flat">
+    <AppSection title={showTitle ? title : undefined} ariaLabel={title} className="app-cards-flat">
       {suggestions.map((suggestion) => (
         <div key={`${suggestion.fromCategory}>${suggestion.toCategory}`}>
           <p className="app-today-summary">{suggestion.explanation}</p>
@@ -53,7 +53,7 @@ export function AfterMeView({ response, onOpen = () => {}, title = "После �
   );
 }
 
-export function AfterMeSection() {
+export function AfterMeSection({ showTitle = true, placeholder }: { showTitle?: boolean; placeholder?: string } = {}) {
   const { navigate } = useRoute();
   const [response, setResponse] = useState<AfterMeResponse | null>(null);
 
@@ -72,5 +72,5 @@ export function AfterMeSection() {
     };
   }, []);
 
-  return <AfterMeView response={response} onOpen={(id) => navigate({ name: "event", id })} />;
+  return <AfterMeView response={response} showTitle={showTitle} placeholder={placeholder} onOpen={(id) => navigate({ name: "event", id })} />;
 }

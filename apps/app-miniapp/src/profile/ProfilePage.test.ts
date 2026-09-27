@@ -110,16 +110,9 @@ function renderProfileView(overrides: Partial<Parameters<typeof ProfileView>[0]>
 }
 
 describe("profileAbout", () => {
-  it("joins the city and the interests into the one line under the name", () => {
-    expect(profileAbout(profile)).toBe("Москва · джаз, падел");
-  });
-
-  it("leaves the city alone when there are no interests yet", () => {
-    expect(profileAbout({ city: "Казань", interests: [], bio: "" })).toBe("Казань");
-  });
-
-  it("puts the bio on the next line when there is one", () => {
-    expect(profileAbout({ city: "Москва", interests: ["джаз"], bio: "Люблю падел" })).toBe("Москва · джаз\nЛюблю падел");
+  it("keeps the bio and drops the city and interests line above the name", () => {
+    expect(profileAbout(profile)).toBe("");
+    expect(profileAbout({ bio: "Люблю падел" })).toBe("Люблю падел");
   });
 
   it("keeps three interests and counts the rest", () => {
@@ -237,8 +230,9 @@ describe("ProfileView", () => {
     const html = renderProfileView();
 
     expect(html).toContain("Кирилл Соколов");
-    expect(html).toContain("Москва · джаз, падел");
-    expect(html).toContain(">112</span>");
+    expect(html).not.toContain("Москва · джаз, падел");
+    expect(html).not.toContain(">112</span>");
+    expect(html).not.toContain("компаний");
     expect(html).toContain("Посты · 2");
     expect(html).not.toContain("Подписаться");
     expect(html).not.toContain("Написать");
@@ -266,6 +260,13 @@ describe("ProfileView", () => {
     expect(html).not.toContain("Удалить");
   });
 
+  it("prints 0 when nobody follows the profile yet", () => {
+    const html = renderProfileView({ subscriptions: [], following: [], followers: [] });
+
+    expect(html).toContain(">0</span>");
+    expect(html).toContain("подписчиков");
+  });
+
   it("renders the avatar letter without a MAX photo and the photo with one", () => {
     expect(renderProfileView()).toContain(">К</span>");
     expect(renderProfileView({ user: { ...user, avatarUrl: "https://example.com/a.png" } })).toContain('src="https://example.com/a.png"');
@@ -290,7 +291,8 @@ describe("ProfileView", () => {
     expect(html).toContain("подписки");
     expect(html).toContain("подписчика");
     expect(html.match(/app-me-metric app-me-metric--link/g)).toHaveLength(2);
-    expect(html.match(/app-me-metrics-row/g)).toHaveLength(2);
+    expect(html.match(/app-me-metrics-row/g)).toHaveLength(1);
+    expect(html).not.toContain("событий");
     expect(html).not.toMatch(/app-me-row-title">Подписки/);
   });
 

@@ -43,8 +43,16 @@ function detectCompany(text: string): AssistCompany {
 }
 
 function detectGenre(text: string): AssistGenre {
+  if (text.includes("волонт") || text.includes("волонтер") || text.includes("субботник")) return "volunteering";
   if (text.includes("музык") || text.includes("джаз") || text.includes("концерт")) return "music";
   if (text.includes("спорт") || text.includes("футбол") || text.includes("зал")) return "sport";
   if (text.includes("парк") || text.includes("прогул") || text.includes("природ") || text.includes("шашлык") || text.includes("мангал") || text.includes("барбекю") || text.includes("беседы") || text.includes("беседок") || text.includes("беседк")) return "outdoors";
   return "any";
+}
+
+/** A model that leaves genre unset still follows a word the keyword parser already knows. */
+export function applyKeywordGenre(query: string, criteria: AssistCriteria): AssistCriteria {
+  const hinted = detectGenre(query.toLowerCase());
+  if (hinted === "any" || criteria.genre !== "any") return criteria;
+  return { ...criteria, genre: hinted };
 }

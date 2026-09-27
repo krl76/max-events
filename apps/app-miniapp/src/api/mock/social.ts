@@ -31,6 +31,8 @@
 // - joinMockMicroEvent - join with the counter, idempotent (mock POST /join)
 // - leaveMockMicroEvent - leave with the counter, idempotent (mock DELETE /join)
 // - friendActivityByFriend - friend participations grouped by friend (feed payload)
+// - setMockCloseAuthor - record that an author marked the demo viewer as a close friend (test isolation)
+// - resetMockCloseAuthors - clear those marks (test isolation)
 // - friendPlaceLayer - mock GET /discovery/friend-places: places friends checked in at, grouped, privacy-gated
 // - discoverySummary - per-friend unseen places minus the demo user's check-ins, privacy-gated, with the hidden-history rows экран 27 draws (mock GET /discovery, backend DiscoveryService.summary parity)
 // - friendRoute - chronological unseen places of one friend with the clock and the note of экран 28; own/not-friend/hidden map to 403/404/403 (mock GET /discovery/friends/:userId/route, backend parity)
@@ -45,6 +47,25 @@ import { mockParticipations } from "./catalog";
 import { HOUR_MS, MOCK_NOW, PLACE_STAMP, haversineKm, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockPlaces } from "./fixtures";
 import { mockBudgetFromExpenses } from "./plans";
 import { profileFor } from "./profile";
+
+/** Authors who put the demo viewer on their close-friends list. `routes: "close"` is visible only to them. */
+const mockCloseAuthorsOfViewer = new Set<string>();
+
+export function setMockCloseAuthor(authorId: string, close: boolean): void {
+  if (close) mockCloseAuthorsOfViewer.add(authorId);
+  else mockCloseAuthorsOfViewer.delete(authorId);
+}
+
+export function resetMockCloseAuthors(): void {
+  mockCloseAuthorsOfViewer.clear();
+}
+
+function routesOpenForViewer(authorId: string): boolean {
+  const mode = profileFor(authorId).privacy.routes;
+  if (mode === "hidden") return false;
+  if (mode === "close") return mockCloseAuthorsOfViewer.has(authorId);
+  return true;
+}
 
 /** Mock availability per friend (by mockFriends index); the backend P1-6-b does not exist yet. */
 const MOCK_AVAILABILITY: FriendAvailability["availability"][] = ["free", "busy", "unknown", "free", "free", "busy", "unknown"];
@@ -483,7 +504,7 @@ export function friendPlaceLayer(): FriendPlaceVisit[] {
     const place = mockPlaces[placeIndex];
     // Backend parity: either privacy switch takes the friend out, an unpublished place is not served.
     if (!friend || !place || place.published === false) return;
-    if (visitHistoryHidden(friend.id) || profileFor(friend.id).privacy.routes === "hidden") return;
+    if (visitHistoryHidden(friend.id) || !routesOpenForViewer(friend.id)) return;
     const visitedAt = new Date(MOCK_NOW.getTime() - (MOCK_DISCOVERY_VISIT_SEED.length - order) * 86_400_000).toISOString();
     const entry = byPlace.get(place.id) ?? { place, friends: [], lastVisitAt: visitedAt };
     if (!entry.friends.some((row) => row.id === friend.id)) entry.friends.push(friend);
@@ -521,7 +542,7 @@ export function discoverySummary(): DiscoveryScreen {
     const unseen = unseenFriendPlaces(index, myPlaceIds);
     for (const place of unseen) unique.add(place.id);
     if (unseen.length === 0) continue;
-    byFriend.push({ friend, newPlacesCount: unseen.length, places: profileFor(friend.id).privacy.routes === "hidden" ? [] : unseen, visitHistoryHidden: false });
+    byFriend.push({ friend, newPlacesCount: unseen.length, places: routesOpenForViewer(friend.id) ? unseen : [], visitHistoryHidden: false });
   }
   byFriend.sort((a, b) => b.newPlacesCount - a.newPlacesCount || a.friend.name.localeCompare(b.friend.name));
   hidden.sort((a, b) => a.friend.name.localeCompare(b.friend.name));
@@ -550,7 +571,7 @@ export function friendRoute(userId: string): { friend: Friend; places: Place[]; 
   if (userId === mockDemoUser.id) return "own";
   const index = mockFriendIds.indexOf(userId);
   if (index === -1) return "not_friend";
-  if (profileFor(userId).privacy.routes === "hidden" || visitHistoryHidden(userId)) return "hidden";
+  if (!routesOpenForViewer(userId) || visitHistoryHidden(userId)) return "hidden";
   const places = unseenFriendPlaces(index, myVisitedPlaceIds());
   const day = routeDay(index);
   return { friend: mockFriends[index], places, stops: places.map((place, order) => ({ place, visitedAt: `${day}T${stopClock(order)}:00+03:00`, note: MOCK_STOP_NOTE[place.category] })) };

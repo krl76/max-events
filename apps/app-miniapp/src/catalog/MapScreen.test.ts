@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockEvents, mockFriends, mockPlaces } from "../api/mock";
 import { basemapById, STANDARD_BASEMAP } from "./basemaps";
 import { buildMapMarkers, type MapMarker } from "./mapMarkers";
-import { escapeHtml, formatMapChange, formatMapHour, formatMapTemperature, formatTravelOption, initEventMap, mapFriendsLine, mapHourGlyph, mapHourlyWindow, MAP_HOURLY_COLUMNS, mapNotice, mapRainHint, mapWeatherChipText, type MapCallbacks, type MapNoticeInput, type MapView } from "./MapScreen";
+import { escapeHtml, filterMapEvents, formatMapChange, formatMapHour, formatMapTemperature, formatTravelOption, initEventMap, mapFriendsLine, mapHourGlyph, mapHourlyWindow, MAP_HOURLY_COLUMNS, mapNotice, mapRainHint, mapWeatherChipText, type MapCallbacks, type MapNoticeInput, type MapView } from "./MapScreen";
 
 const leaflet = vi.hoisted(() => ({
   map: vi.fn(),
@@ -338,6 +338,18 @@ describe("initEventMap", () => {
 
 const NOTICE: MapNoticeInput = { mapFailed: false, tilesFailed: false, vectorFallback: false, loading: false, placesFailed: false, eventsFailed: false, markerCount: 4, query: "", anyLayerOn: true, geoDenied: false, locateOn: false };
 
+describe("filterMapEvents", () => {
+  it("keeps one category and still matches the map search", () => {
+    const sport = mockEvents.filter((item) => item.category === "sport");
+    expect(sport.length).toBeGreaterThan(0);
+    expect(filterMapEvents(mockEvents, "sport", "").every((item) => item.category === "sport")).toBe(true);
+    expect(filterMapEvents(mockEvents, undefined, "").length).toBe(mockEvents.length);
+    const titled = sport[0];
+    expect(filterMapEvents(mockEvents, "sport", titled.title.slice(0, 4)).every((item) => item.category === "sport" && item.title.toLowerCase().includes(titled.title.slice(0, 4).toLowerCase()))).toBe(true);
+    expect(filterMapEvents(mockEvents, "volunteering", "этот запрос ничему не равен")).toEqual([]);
+  });
+});
+
 describe("mapNotice", () => {
   it("says nothing when the map has objects and everything loaded", () => {
     expect(mapNotice(NOTICE)).toBeNull();
@@ -348,6 +360,7 @@ describe("mapNotice", () => {
     expect(mapNotice({ ...NOTICE, markerCount: 0, loading: true })).toBe("Ищем объекты рядом…");
     expect(mapNotice({ ...NOTICE, markerCount: 0, anyLayerOn: false })).toContain("слои выключены");
     expect(mapNotice({ ...NOTICE, markerCount: 0, query: "  джаз " })).toBe("По запросу «джаз» на карте ничего нет.");
+    expect(mapNotice({ ...NOTICE, markerCount: 0, categoryLabel: "Спорт" })).toBe("В категории «Спорт» на карте ничего нет.");
   });
 
   it("names the broken source rather than blaming the map", () => {

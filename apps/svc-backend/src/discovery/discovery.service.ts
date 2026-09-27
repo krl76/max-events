@@ -51,7 +51,7 @@ export class DiscoveryService {
       byFriend.push({
         friend: toFriendDto(friend),
         newPlacesCount: unseen.length,
-        places: privacy.routes === "hidden" ? [] : unseen.map(toPlaceDto),
+        places: routesVisible(privacy.routes, friendId, ctx.closeAuthors) ? unseen.map(toPlaceDto) : [],
         visitHistoryHidden: false,
       });
     }
@@ -66,7 +66,7 @@ export class DiscoveryService {
     const friend = ctx.userById.get(friendId);
     if (!friend) throw new NotFoundException("Friend not found");
     const privacy = readPrivacy(ctx.profileById.get(friendId));
-    if (privacy.routes === "hidden" || privacy.visitHistory === "hidden") throw new ForbiddenException("Friend hid their route");
+    if (!routesVisible(privacy.routes, friendId, ctx.closeAuthors) || privacy.visitHistory === "hidden") throw new ForbiddenException("Friend hid their route");
     const unseen = unseenPlaces(ctx.visitsByUser.get(friendId) ?? [], ctx.myPlaceIds, ctx.placeById, ctx.eventById);
     const visits = ctx.visitsByUser.get(friendId) ?? [];
     const lastVisit = (placeId: string) => {
@@ -93,7 +93,7 @@ export class DiscoveryService {
     const byPlace = new Map<string, { place: PlaceEntity; friends: Map<string, UserEntity>; lastVisitAt: Date }>();
     for (const friendId of ctx.friendIds) {
       const privacy = readPrivacy(ctx.profileById.get(friendId));
-      if (privacy.visitHistory === "hidden" || privacy.routes === "hidden") continue;
+      if (privacy.visitHistory === "hidden" || !routesVisible(privacy.routes, friendId, ctx.closeAuthors)) continue;
       const friend = ctx.userById.get(friendId);
       if (!friend) continue;
       for (const row of ctx.visitsByUser.get(friendId) ?? []) {
@@ -110,7 +110,7 @@ export class DiscoveryService {
   }
 
   private async loadContext(viewerId: string) {
-    const friendIds = await this.friends.friendIds(viewerId);
+    const [friendIds, closeAuthors] = await Promise.all([this.friends.friendIds(viewerId), this.friends.authorsWhoMarkedClose(viewerId)]);
     const userIds = [viewerId, ...friendIds];
     const checkIns = userIds.length === 0 ? [] : await this.checkIns.find({ where: { userId: In(userIds) } });
     const eventIds = [...new Set(checkIns.map((row) => row.eventId).filter((id): id is string => id !== null))];
@@ -138,6 +138,7 @@ export class DiscoveryService {
     const myPlaceIds = new Set(placeIdsOf(visitsByUser.get(viewerId) ?? [], eventById));
     return {
       friendIds,
+      closeAuthors,
       eventById,
       placeById,
       userById: new Map(users.map((row) => [row.id, row])),
@@ -146,6 +147,12 @@ export class DiscoveryService {
       myPlaceIds,
     };
   }
+}
+
+function routesVisible(routes: ReturnType<typeof readPrivacy>["routes"], friendId: string, closeAuthors: Set<string>): boolean {
+  if (routes === "hidden") return false;
+  if (routes === "close") return closeAuthors.has(friendId);
+  return true;
 }
 
 function placeIdsOf(rows: CheckInEntity[], eventById: Map<string, EventEntity>): string[] {

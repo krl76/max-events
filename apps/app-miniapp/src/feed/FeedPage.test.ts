@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { feedDraftReady, feedEventPicked, feedWallEmptyCopy, FeedCreateView, FeedPostCard, type FeedDraft } from "./FeedPage";
+import { commentThreads, commentsEntryLabel, feedDraftReady, feedEventPicked, feedWallEmptyCopy, repliesLabel, CommentSheet, FeedCreateView, FeedPostCard, type FeedDraft } from "./FeedPage";
 import type { FeedPost } from "../api/client";
 import { mockEvents } from "../api/mock";
 
@@ -35,15 +35,44 @@ describe("FeedPostCard", () => {
     expect(html).toContain("Анна Соколова");
     expect(html).toContain(mockEvents[0].title);
     expect(html).toContain("Было здорово");
-    expect(html).toContain("Дима Кузнецов");
-    expect(html).toContain("Класс!");
+    expect(html).toContain(commentsEntryLabel(1));
+    expect(html).not.toContain("Класс!");
   });
 
-  it("turns the author icon, name and comment author into profile controls", () => {
+  it("turns the author icon and name into profile controls", () => {
     const html = renderToStaticMarkup(createElement(FeedPostCard, { post, eventTitle: mockEvents[0].title, userId: DEMO_USER_ID, onToggleLike: noop, onAddComment: noop, onOpenAuthor: noop }));
 
     expect(html).toContain('aria-label="Профиль Анна Соколова"');
+  });
+
+  it("keeps the comment thread in the sheet, with the author and the composer", () => {
+    const html = renderToStaticMarkup(createElement(CommentSheet, { comments: post.comments, parents: {}, liked: {}, replyTo: null, draft: "", onDraft: noop, onClose: noop, onLike: noop, onReply: noop, onCancelReply: noop, onSubmit: noop, onOpenAuthor: noop, inputRef: { current: null } }));
+
+    expect(html).toContain("Дима Кузнецов");
+    expect(html).toContain("Класс!");
+    expect(html).toContain("Добавить комментарий…");
     expect(html).toContain('aria-label="Профиль Дима Кузнецов"');
+  });
+
+  it("keeps a reply to a reply under the top comment and hides the chain until it is opened", () => {
+    const root = post.comments[0];
+    const reply = { ...root, id: "31000000-0000-4000-8000-000000000002", text: "Согласен" };
+    const nested = { ...root, id: "31000000-0000-4000-8000-000000000003", text: "И я" };
+    const parents = { [reply.id]: root.id, [nested.id]: reply.id };
+
+    expect(commentThreads([root, reply, nested], parents)).toEqual([{ root, replies: [reply, nested] }]);
+    expect(commentThreads([root, { ...nested, id: "31000000-0000-4000-8000-000000000009", text: "Сам по себе" }], { "31000000-0000-4000-8000-000000000009": "00000000-0000-4000-8000-000000000099" }).map((thread) => thread.root.text)).toEqual(["Класс!", "Сам по себе"]);
+
+    const sheet = (reveal: { rootId: string; token: number } | null) => renderToStaticMarkup(createElement(CommentSheet, { comments: [root, reply, nested], parents, liked: {}, replyTo: null, reveal, draft: "", onDraft: noop, onClose: noop, onLike: noop, onReply: noop, onCancelReply: noop, onSubmit: noop, inputRef: { current: null } }));
+    const closed = sheet(null);
+    expect(closed).toContain(repliesLabel(2));
+    expect(closed).toContain("Класс!");
+    expect(closed).not.toContain("Согласен");
+    expect(closed).not.toContain("И я");
+    const open = sheet({ rootId: root.id, token: 1 });
+    expect(open).toContain("Согласен");
+    expect(open).toContain("И я");
+    expect(open).toContain("Скрыть ответы");
   });
 
   it("shows the post photo in the 4:5 frame, and the category placeholder only without one", () => {
@@ -69,13 +98,16 @@ describe("FeedPostCard", () => {
     expect(card()).not.toContain("app-plan-event");
   });
 
-  it("renders the comment add form with a disabled submit until text is typed", () => {
-    expect(card()).toContain("Добавить комментарий…");
-    expect(card()).toContain("disabled");
+  it("keeps the composer in the comments sheet, disabled until there is text", () => {
+    const html = renderToStaticMarkup(createElement(CommentSheet, { comments: post.comments, parents: {}, liked: {}, replyTo: null, draft: "", onDraft: noop, onClose: noop, onLike: noop, onReply: noop, onCancelReply: noop, onSubmit: noop, inputRef: { current: null } }));
+
+    expect(html).toContain("Добавить комментарий…");
+    expect(html).toContain("disabled");
   });
 
-  it("renders the report button for the post", () => {
-    expect(card()).toContain("Пожаловаться");
+  it("puts the report control in the post header", () => {
+    expect(card()).toContain('aria-label="Пожаловаться"');
+    expect(card()).toContain("app-post-more");
   });
 
   it("uses the author photo and a story ring when the author has a live story", () => {
