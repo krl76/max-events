@@ -26,8 +26,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { EventSalesReport } from "@max-events/api-contracts";
 import { apiClient, type OrganizerEvent, type OrganizerSummary, type OrganizerTrafficSource, type StatsPeriodQuery } from "../api/client";
 import { pluralRu } from "../catalog/format";
-import { pictured } from "../ui/photos";
-import { AppButton, AppChip, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
+import { EventPoster } from "../search/EventPoster";
+import { AppButton, AppChip, AppSkeletonList, AppState } from "../ui/primitives";
 
 export type OrganizerPromoIntent = "boost" | "target_collection" | "promocode" | "referral" | "early_access";
 
@@ -116,18 +116,13 @@ export function needsPromotion(fill: OrganizerEventFill | undefined, capacity: n
 }
 
 function EventFillRow({ item, fill, onOpen }: { item: OrganizerEvent; fill: OrganizerEventFill | undefined; onOpen: () => void }) {
+  const booked = fill?.booked ?? item.bookedCount;
   return (
-    <button type="button" className="app-card app-card--link" onClick={onOpen}>
-      <AppMedia category={item.category} src={pictured(item.id, item.coverUrl)} />
-      <span className="app-card-body">
-        <span className="app-card-title">{item.title}</span>
-        <span className="app-card-subtitle">
-          {new Date(item.startsAt).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" })} · {eventFillNote(fill, item.capacity)}
-        </span>
-        {item.draft && <span className="app-micro-badge">Черновик</span>}
-        {!item.draft && needsPromotion(fill, item.capacity) && <span className="app-today-chip">Мало записей</span>}
-      </span>
-    </button>
+    <EventPoster
+      card={{ event: { ...item, bookedCount: booked }, distanceKm: null, rating: null, placeTitle: null }}
+      reason={item.draft ? "Черновик" : needsPromotion(fill, item.capacity) ? "Мало записей" : null}
+      onOpen={() => onOpen()}
+    />
   );
 }
 

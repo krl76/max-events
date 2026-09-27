@@ -32,7 +32,9 @@
 import { useEffect, useState } from "react";
 import { EventCategorySchema, PlaceCategorySchema, type CreateEvent, type CreatePlace, type EventCategory, type PlaceCategory, type UpdateOrganizerEventOptions } from "@max-events/api-contracts";
 import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganizerEvent } from "../api/client";
-import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { CATEGORY_LABELS } from "../catalog/CatalogPage";
+import { posterHighlight } from "../search/EventPoster";
+import { pictured } from "../ui/photos";
 import { MyOrganizerRatingCard, OrganizerPromoteShortcuts } from "./OrganizerAddons";
 import type { OrganizerPromoIntent } from "./OrganizerDashboard";
 import { weeklySeriesUntil } from "./OrganizerEventForm";
@@ -222,21 +224,23 @@ export function OrganizerListStatus<T>({ state, emptyText }: { state: OrganizerL
   return null;
 }
 
-export function OrganizerEventCard({ item, publishing, failed, onPublish, onEdit }: { item: OrganizerEvent; publishing: boolean; failed: boolean; onPublish: () => void; onEdit: () => void }) {
+export function OrganizerEventCard({ item, placeTitle = null, publishing, failed, onPublish, onEdit }: { item: OrganizerEvent; placeTitle?: string | null; publishing: boolean; failed: boolean; onPublish: () => void; onEdit: () => void }) {
+  const when = new Date(item.startsAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const highlight = posterHighlight({ event: item, distanceKm: null, rating: null, placeTitle });
+  const where = placeTitle !== null && placeTitle !== "" ? placeTitle : item.city;
   return (
-    <article className="app-card app-card--row">
-      <AppMedia category={item.category} src={item.coverUrl} />
-      <div className="app-card-body">
-        <span className="app-card-title">{item.title}</span>
-        <span className="app-card-subtitle">
-          {formatStartsAt(item.startsAt)} · {CATEGORY_LABELS[item.category]}
+    <article className="app-poster">
+      <span className="app-poster-photo">
+        <img alt="" src={pictured(item.id, item.coverUrl)} />
+      </span>
+      <span className="app-poster-copy">
+        {item.draft ? <span className="app-poster-host">Черновик</span> : item.organizerName ? <span className="app-poster-host">{item.organizerName}</span> : null}
+        <span className="app-poster-title">{item.title}</span>
+        <span className="app-poster-meta">
+          {when}
+          {where !== "" ? ` · ${where}` : ""}
         </span>
-        <span className="app-card-subtitle">
-          {item.city} · {item.isPaid && item.priceRub !== null ? `${item.priceRub} ₽` : "Бесплатно"}
-          {item.capacity !== null ? ` · до ${item.capacity} мест` : ""}
-        </span>
-        {item.description !== "" && <span className="app-card-subtitle">{item.description}</span>}
-        {item.draft && <span className="app-micro-badge">Черновик</span>}
+        {highlight !== null && <span className="app-poster-highlight">{highlight}</span>}
         {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
         <span className="app-org-card-actions">
           {item.draft && (
@@ -248,7 +252,7 @@ export function OrganizerEventCard({ item, publishing, failed, onPublish, onEdit
             Изменить
           </AppButton>
         </span>
-      </div>
+      </span>
     </article>
   );
 }
@@ -638,6 +642,7 @@ export function OrganizerPanel({ organizationId, createOnMount = false, onPromot
                 <div key={item.id}>
                   <OrganizerEventCard
                     item={item}
+                    placeTitle={places.status === "ready" ? (places.items.find((place) => place.id === item.placeId)?.title ?? null) : null}
                     publishing={publishingId === item.id}
                     failed={publishErrorId === item.id}
                     onPublish={() => publishEvent(item.id)}
