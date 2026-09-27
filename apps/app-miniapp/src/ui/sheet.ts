@@ -3,10 +3,12 @@ import { useRef, useState, type CSSProperties, type PointerEvent as ReactPointer
 /** Drag a bottom sheet down. Past a short pull it closes; a tap on the scrim is the caller's job. */
 export function useSheetSwipe(onClose: () => void): {
   style: CSSProperties;
-  onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
-  onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void;
-  onPointerUp: () => void;
-  onPointerCancel: () => void;
+  grab: {
+    onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
+    onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void;
+    onPointerUp: () => void;
+    onPointerCancel: () => void;
+  };
 } {
   const [y, setY] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -34,11 +36,9 @@ export function useSheetSwipe(onClose: () => void): {
     setY(0);
   };
 
+  const grab = { onPointerDown, onPointerMove, onPointerUp: finish, onPointerCancel: finish };
   return {
     style: { transform: `translateY(${y}px)`, transition: dragging ? "none" : "transform 220ms ease" },
-    onPointerDown,
-    onPointerMove,
-    onPointerUp: finish,
-    onPointerCancel: finish,
+    grab,
   };
 }

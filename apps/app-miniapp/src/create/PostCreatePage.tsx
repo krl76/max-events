@@ -106,7 +106,7 @@ interface PostCreateViewProps {
   onClose: () => void;
 }
 
-export function PostCreateView({ draft, authorName, events, places, friends, state, photoRejected, draftSaved, onDraft, onPickPhoto, onPublish, onClose }: PostCreateViewProps) {
+export function PostCreateView({ draft, authorName, events, places, friends, state, photoRejected, draftSaved, onDraft, onPickPhoto, onPublish }: PostCreateViewProps) {
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const [taggingOpen, setTaggingOpen] = useState(false);
   const [pickingPin, setPickingPin] = useState(false);
@@ -120,10 +120,6 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
   return (
     <section className="app-post-compose" aria-label="Публикация поста">
       <header className="app-post-compose-head">
-        <button type="button" className="app-post-compose-back" onClick={onClose}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <span className="app-post-compose-title">Новый пост</span>
         <button type="button" className="app-post-compose-publish" disabled={state === "publishing"} onClick={() => {
           if (missing.length === 0) onPublish();

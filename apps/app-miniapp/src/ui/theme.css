@@ -354,8 +354,10 @@ html[data-theme="dark"] #root {
 }
 
 .app-header-title {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1536,6 +1538,7 @@ html[data-theme="dark"] #root {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-m);
+  padding-top: var(--app-space-l);
 }
 
 .app-gathering-hint {
@@ -4454,6 +4457,33 @@ html[data-theme="dark"] #root {
   gap: var(--app-space-s);
 }
 
+.app-line-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  margin: 12px 0 0;
+  width: 100%;
+}
+
+.app-line-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  min-height: 44px;
+  min-width: 0;
+  padding: 8px 2px;
+}
+
+.app-line-tab--on {
+  border-bottom-color: var(--app-text);
+  color: var(--app-text);
+}
+
 .app-search-chips {
   display: flex;
   gap: var(--app-space-s);
@@ -5561,58 +5591,47 @@ html[data-theme="dark"] #root {
 }
 
 .app-swipe-head {
-  align-items: flex-end;
-  display: flex;
-  gap: var(--app-space-m);
-  justify-content: space-between;
+  align-items: center;
+  display: grid;
+  gap: var(--app-space-s);
+  grid-template-columns: 44px 1fr 44px;
 }
 
-.app-swipe-back {
+.app-swipe-head .app-screen-title {
+  margin: 0;
+  text-align: center;
+}
+
+.app-swipe-head-side {
+  width: 44px;
+}
+
+.app-swipe-hint {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin: 4px 0 0;
+  text-align: center;
+}
+
+.app-swipe-filter {
   align-items: center;
   background: var(--app-surface);
   border: none;
-  border-radius: 50%;
+  border-radius: var(--app-radius-media);
   color: var(--app-text);
   cursor: pointer;
   display: flex;
   flex: none;
   height: 44px;
   justify-content: center;
+  justify-self: end;
   padding: 0;
   width: 44px;
 }
 
-/* Шеврон нарисован вправо; кнопка назад разворачивает его */
-.app-swipe-back svg {
-  transform: rotate(180deg);
-}
-
-.app-swipe-head-text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.app-swipe-hint {
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-description);
-  margin-top: 2px;
-}
-
-.app-swipe-filter {
-  align-items: center;
+.app-swipe-filter[aria-pressed="true"] {
   background: var(--app-confirm);
-  border: none;
-  border-radius: var(--app-radius-media);
   color: var(--app-confirm-contrast);
-  cursor: pointer;
-  display: flex;
-  flex: none;
-  height: 40px;
-  justify-content: center;
-  padding: 0;
-  width: 40px;
 }
 
 .app-swipe-chips-row {
@@ -5626,9 +5645,14 @@ html[data-theme="dark"] #root {
 }
 
 .app-swipe-deck {
-  margin-top: 20px;
-  min-height: 460px;
+  flex: 1;
+  margin-top: 12px;
+  min-height: 0;
   position: relative;
+}
+
+.app-swipe {
+  min-height: calc(100dvh - 56px - env(safe-area-inset-bottom, 0px));
 }
 
 .app-swipe-skeleton {
@@ -6111,25 +6135,8 @@ html[data-theme="dark"] #root {
   gap: var(--app-space-s);
 }
 
-.app-story-back {
-  align-items: center;
-  background: rgba(6, 7, 8, 0.55);
-  border: none;
-  border-radius: var(--app-radius-pill);
-  color: var(--brand-white);
-  cursor: pointer;
-  display: flex;
-  flex: none;
-  font: inherit;
-  font-size: var(--app-font-size-description);
-  font-weight: 800;
-  gap: 2px;
-  height: 44px;
-  padding: 0 14px 0 8px;
-}
-
-.app-story-back svg {
-  transform: rotate(180deg);
+.app-story-bar {
+  justify-content: flex-end;
 }
 
 .app-story-round {
@@ -6344,19 +6351,6 @@ html[data-theme="dark"] #root {
   font-weight: 800;
   letter-spacing: -0.02em;
   margin: 0;
-}
-
-.app-picker-done {
-  background: var(--app-surface);
-  border: none;
-  border-radius: var(--app-radius-pill);
-  color: var(--app-text);
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--app-font-size-description);
-  font-weight: 800;
-  height: 44px;
-  padding: 0 16px;
 }
 
 .app-picker-search {
@@ -6714,39 +6708,24 @@ html[data-theme="dark"] #root {
 .app-post-compose-head {
   align-items: center;
   border-bottom: var(--app-hairline);
-  display: flex;
+  display: grid;
   flex: none;
-  gap: var(--app-space-m);
+  grid-template-columns: 1fr auto 1fr;
   padding: 8px var(--app-space-screen) 10px;
 }
 
-.app-post-compose-back {
-  align-items: center;
-  background: var(--app-surface);
-  border: none;
-  border-radius: var(--app-radius-pill);
-  color: var(--app-text);
-  cursor: pointer;
-  display: flex;
-  flex: none;
-  font: inherit;
-  font-size: var(--app-font-size-description);
-  font-weight: 800;
-  gap: 2px;
-  height: 44px;
-  padding: 0 14px 0 8px;
-}
-
-.app-post-compose-back svg {
-  transform: rotate(180deg);
-}
-
 .app-post-compose-title {
-  flex: 1;
   font-size: var(--app-font-size-title);
   font-weight: 800;
+  grid-column: 2;
   letter-spacing: -0.01em;
-  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.app-post-compose-head .app-post-compose-publish {
+  grid-column: 3;
+  justify-self: end;
 }
 
 .app-post-compose-publish {
@@ -17170,21 +17149,7 @@ button.app-cal-peer-chip {
   letter-spacing: -0.02em;
   margin: 0;
   min-width: 0;
-}
-
-.app-notify-close {
-  align-items: center;
-  background: var(--app-surface);
-  border: none;
-  border-radius: 50%;
-  color: var(--app-text);
-  cursor: pointer;
-  display: flex;
-  flex: none;
-  height: 36px;
-  justify-content: center;
-  padding: 0;
-  width: 36px;
+  text-align: center;
 }
 
 .app-notify-body {
@@ -19285,28 +19250,29 @@ button.app-cal-peer-chip {
 
 /* Каталог объектов: то, что макет показывал готовой историей, здесь добавляется по кнопке */
 .app-story-catalog {
-  display: flex;
-  gap: var(--app-space-s);
-  overflow-x: auto;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   padding-bottom: var(--app-space-s);
-  scrollbar-width: none;
 }
 
 .app-story-catalog-chip {
   align-items: center;
   background: rgba(6, 7, 8, 0.45);
   border: none;
-  border-radius: var(--app-radius-pill);
+  border-radius: 14px;
   color: var(--brand-white);
   cursor: pointer;
   display: flex;
-  flex: none;
+  flex-direction: column;
   font: inherit;
-  font-size: var(--app-font-size-description);
+  font-size: 11px;
   font-weight: 700;
-  gap: 6px;
-  height: 36px;
-  padding: 0 14px;
+  gap: 4px;
+  justify-content: center;
+  min-height: 52px;
+  min-width: 0;
+  padding: 6px 2px;
 }
 
 .app-story-catalog-chip--on {
@@ -20664,7 +20630,6 @@ button.app-story-viewer-author {
 }
 
 /* Все собственные «Назад» — плашка со словом, не круг 40px. Поздние свойства перекрывают круги выше. */
-.app-swipe-back,
 .app-list-bar-round--back,
 .app-we-round--back,
 .app-micro-back,
@@ -20676,7 +20641,6 @@ button.app-story-viewer-author {
 .app-wt-back,
 .app-wt-bar-back,
 .app-onboarding-back,
-.app-notify-close,
 .app-assist-hero-close,
 .app-after-close,
 .app-cal-close,
@@ -20750,10 +20714,10 @@ button.app-story-viewer-author {
 
 @keyframes app-sheet-in {
   from {
-    transform: translateY(24px);
+    opacity: 0.6;
   }
   to {
-    transform: translateY(0);
+    opacity: 1;
   }
 }
 
@@ -20783,21 +20747,52 @@ button.app-story-viewer-author {
 
 .app-feed-city-grid {
   display: grid;
-  gap: 8px;
-  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  grid-template-columns: 1fr;
 }
 
 .app-feed-city-card {
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 16 / 10;
   background: var(--app-surface);
   border: none;
-  border-radius: 16px;
+  border-radius: 18px;
   color: white;
   cursor: pointer;
   overflow: hidden;
   padding: 0;
   position: relative;
   text-align: left;
+  width: 100%;
+}
+
+.app-feed-city-date {
+  align-items: center;
+  background: var(--app-card);
+  border-radius: 12px;
+  color: var(--app-text);
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  font-weight: 800;
+  left: 10px;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  min-width: 44px;
+  padding: 6px 8px;
+  position: absolute;
+  top: 10px;
+}
+
+.app-feed-city-date b {
+  font-size: 18px;
+}
+
+.app-feed-city-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+  text-transform: uppercase;
 }
 
 .app-feed-city-card img {

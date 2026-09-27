@@ -29,7 +29,7 @@ import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
 import { useSwipeDrag, type SwipeGestureProps } from "../ui/gestures";
 import { ActionIcon } from "../ui/icons";
-import { AppChip, AppSkeleton, AppState } from "../ui/primitives";
+import { AppSkeleton, AppState } from "../ui/primitives";
 
 export type SwipeState = { status: "loading" } | { status: "error" } | { status: "ready"; candidates: SwipeCandidate[] };
 
@@ -214,32 +214,26 @@ interface SwipeViewProps {
 }
 
 export function SwipeView(props: SwipeViewProps) {
-  const [filters, setFilters] = useState(true);
+  const [filters, setFilters] = useState(false);
   const deck = props.state.status === "ready" ? props.state.candidates.slice(props.index) : [];
   const [top] = deck;
   const leaving = props.leaving ?? null;
   return (
     <div className="app-swipe">
       <header className="app-swipe-head">
-        <button type="button" className="app-swipe-back" aria-label="Назад" onClick={props.onBack}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
-        <span className="app-swipe-head-text">
-          <h1 className="app-screen-title">Подбор мест</h1>
-          <span className="app-swipe-hint">Свайпай: вправо — в избранное, влево — мимо</span>
-        </span>
-        {/* Фильтр этого экрана — чипы под шапкой; кнопка сворачивает и разворачивает их, второго набора нет */}
-        <button type="button" className="app-swipe-filter" aria-label="Фильтр" aria-expanded={filters} onClick={() => setFilters((open) => !open)}>
+        <span className="app-swipe-head-side" />
+        <h1 className="app-screen-title">Подбор мест</h1>
+        <button type="button" className="app-swipe-filter" aria-label="Фильтр" aria-pressed={filters} onClick={() => setFilters((open) => !open)}>
           <ActionIcon name="filter" size={20} />
         </button>
       </header>
+      <p className="app-swipe-hint">Свайпай: вправо — в избранное, влево — мимо</p>
       {filters && (
-        <div className="app-swipe-chips-row" role="group" aria-label="Категория мест">
+        <div className="app-line-tabs" role="tablist" aria-label="Категория мест">
           {SWIPE_CATEGORIES.map((category) => (
-            <AppChip key={category} pressed={props.category === category} className="app-search-chip" onClick={() => props.onCategory(category)}>
+            <button key={category} type="button" role="tab" aria-selected={props.category === category} className={props.category === category ? "app-line-tab app-line-tab--on" : "app-line-tab"} onClick={() => props.onCategory(category)}>
               {SWIPE_CATEGORY_LABELS[category]}
-            </AppChip>
+            </button>
           ))}
         </div>
       )}

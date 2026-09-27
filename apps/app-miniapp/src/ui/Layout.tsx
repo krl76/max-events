@@ -268,12 +268,6 @@ export function Layout({ children }: { children: ReactNode }) {
             <FeedHeader onSearch={() => navigate({ name: "search" })} onNotifications={() => navigate({ name: "notifications" })} />
           ) : (
             <>
-              {routeHasBack(route) && (
-                <button type="button" className="app-header-back" aria-label="Назад" onClick={back}>
-                  <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-                  Назад
-                </button>
-              )}
               <span className="app-header-title">{titleOverride ?? routeTitle(route)}</span>
             </>
           )}

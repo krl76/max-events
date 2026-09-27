@@ -50,12 +50,9 @@ export function EventPicker<T extends PickableEvent>({ title, events, selectedId
     <div className="app-picker" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={onClose} />
       <div className="app-picker-sheet app-sheet" style={swipe.style}>
-        <div className="app-sheet-grab" aria-hidden="true" {...swipe} />
-        <div className="app-picker-head" {...swipe}>
+        <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
+        <div className="app-picker-head">
           <h2 className="app-picker-title">{title}</h2>
-          <button type="button" className="app-picker-done" onClick={onClose}>
-            Закрыть
-          </button>
         </div>
         <input className="app-picker-search" aria-label="Найти событие" placeholder="Название или город" value={query} onChange={(change) => setQuery(change.target.value)} />
         {shown.length === 0 ? (

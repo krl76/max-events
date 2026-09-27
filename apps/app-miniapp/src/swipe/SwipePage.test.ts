@@ -142,7 +142,8 @@ describe("SwipeView", () => {
 
     expect(html).toContain("Подбор мест");
     expect(html).toContain("Свайпай: вправо — в избранное, влево — мимо");
-    for (const label of ["Все", "Еда", "На природе", "Спорт"]) expect(html).toContain(label);
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).not.toContain("На природе");
   });
 
   it("stacks two shadow cards under the top one, so the deck reads as a deck", () => {

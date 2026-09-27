@@ -553,6 +553,11 @@ export function FeedSkeletonScreen({ posts = 2, stories = 5 }: { posts?: number;
 
 export type FeedScreenState = { status: "loading" } | { status: "error" } | { status: "ready"; cards: FeedCard[] };
 
+function feedDateBadge(startsAt: string): { month: string; day: string } {
+  const date = new Date(startsAt);
+  return { month: date.toLocaleDateString("ru-RU", { month: "short" }).replace(".", "").slice(0, 3).toUpperCase(), day: date.toLocaleDateString("ru-RU", { day: "numeric" }) };
+}
+
 /** The social feed can be empty. The city still has events, and they should look like photographs. */
 function FeedCityPhotos({ onOpen, onCreate }: { onOpen: (id: string) => void; onCreate: () => void }) {
   const [events, setEvents] = useState<Event[] | null>(null);
@@ -575,21 +580,26 @@ function FeedCityPhotos({ onOpen, onCreate }: { onOpen: (id: string) => void; on
   return (
     <div className="app-feed-city">
       <div className="app-feed-city-head">
-        <h2 className="app-screen-title">Сейчас в городе</h2>
-        <button type="button" className="app-feed-city-new" onClick={onCreate}>
-          Свой пост
-        </button>
+        <h2 className="app-screen-title">События</h2>
       </div>
       <div className="app-feed-city-grid">
-        {events.map((event) => (
-          <button key={event.id} type="button" className="app-feed-city-card" onClick={() => onOpen(event.id)}>
-            <img alt="" src={pictured(event.id, event.coverUrl)} />
-            <span className="app-feed-city-veil">
-              <span className="app-feed-city-title">{event.title}</span>
-              <span className="app-feed-city-meta">{event.city}</span>
-            </span>
-          </button>
-        ))}
+        {events.map((event) => {
+          const badge = feedDateBadge(event.startsAt);
+          return (
+            <button key={event.id} type="button" className="app-feed-city-card" onClick={() => onOpen(event.id)}>
+              <img alt="" src={pictured(event.id, event.coverUrl)} />
+              <span className="app-feed-city-date">
+                <span>{badge.month}</span>
+                <b>{badge.day}</b>
+              </span>
+              <span className="app-feed-city-veil">
+                <span className="app-feed-city-kicker">Событие</span>
+                <span className="app-feed-city-title">{event.title}</span>
+                <span className="app-feed-city-meta">{event.city}</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

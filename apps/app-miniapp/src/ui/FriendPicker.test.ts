@@ -65,12 +65,13 @@ describe("FriendPicker", () => {
     expect(html).toContain("Добавить");
   });
 
-  it("offers three ways out: the cross, the scrim and the cancel button", () => {
+  it("closes from the scrim or the cancel button", () => {
     const html = render();
 
-    expect(html.match(/aria-label="Закрыть"/g)).toHaveLength(2);
+    expect(html.match(/aria-label="Закрыть"/g)).toHaveLength(1);
     expect(html).toContain("app-fpick-scrim");
     expect(html).toContain("Отмена");
+    expect(html).not.toContain("app-fpick-close");
   });
 
   it("keeps the confirmation locked until somebody is picked", () => {

@@ -295,11 +295,11 @@ export function SearchView(props: SearchViewProps) {
     <div className="app-search">
       <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} initial={props.initial} searchOpen={searchOpen} onToggleSearch={() => setSearchOpen((open) => !open)} onOpenProfile={props.onOpenProfile} />
       {searchOpen && <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} recents={props.recents} />}
-      <div className="app-search-chips" role="group" aria-label="Категория">
+      <div className="app-line-tabs" role="tablist" aria-label="Категория">
         {SEARCH_CATEGORIES.map((category) => (
-          <AppChip key={category ?? "all"} pressed={props.category === category} className="app-search-chip" onClick={() => props.onCategory(category)}>
+          <button key={category ?? "all"} type="button" role="tab" aria-selected={props.category === category} className={props.category === category ? "app-line-tab app-line-tab--on" : "app-line-tab"} onClick={() => props.onCategory(category)}>
             {category === undefined ? "Все" : CATEGORY_LABELS[category]}
-          </AppChip>
+          </button>
         ))}
       </div>
       <SearchEntryTiles onSwipe={props.onSwipe} onMap={props.onMap} />

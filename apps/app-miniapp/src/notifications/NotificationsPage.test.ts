@@ -18,11 +18,11 @@ describe("NotificationsView", () => {
     resetMockNotifications();
   });
 
-  it("draws its own topbar with the bell, the title and a close button", () => {
+  it("draws the bell and the title, and leaves closing to the native back button", () => {
     const html = view(ready());
 
-    expect(html).toContain("Умные уведомления");
-    expect(html).toContain('aria-label="Закрыть"');
+    expect(html).toContain("Уведомления");
+    expect(html).not.toContain('aria-label="Закрыть"');
     expect(html).toContain("app-notify-top-icon");
   });
 

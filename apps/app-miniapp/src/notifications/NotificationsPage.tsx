@@ -129,7 +129,7 @@ interface NotificationsViewProps {
   onToggleQuietHours: () => void;
 }
 
-export function NotificationsView({ state, quietHours, now = new Date(), busy = false, onClose, onRetry, onAct, onOpen, onToggleQuietHours }: NotificationsViewProps) {
+export function NotificationsView({ state, quietHours, now = new Date(), busy = false, onRetry, onAct, onOpen, onToggleQuietHours }: NotificationsViewProps) {
   const groups = state.status === "ready" ? groupNotifications(state.notifications, now) : null;
   const empty = groups !== null && groups.pending.length === 0 && groups.earlier.length === 0;
 
@@ -139,11 +139,7 @@ export function NotificationsView({ state, quietHours, now = new Date(), busy = 
         <span className="app-notify-top-icon" aria-hidden="true">
           <ActionIcon name="bell" size={26} strokeWidth={2} />
         </span>
-        <h1 className="app-notify-top-title">Умные уведомления</h1>
-        <button type="button" className="app-notify-close" aria-label="Закрыть" onClick={onClose}>
-          <ActionIcon name="close" size={16} strokeWidth={2.6} />
-          Закрыть
-        </button>
+        <h1 className="app-notify-top-title">Уведомления</h1>
       </header>
       <div className="app-notify-body">
         {state.status === "loading" && <AppSkeletonList rows={3} />}

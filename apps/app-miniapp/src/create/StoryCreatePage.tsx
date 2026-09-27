@@ -388,7 +388,7 @@ interface StoryCreateViewProps {
   onClose: () => void;
 }
 
-export function StoryCreateView({ draft, sticker, poll, events, friends = [], state, onDraft, onPickPhoto, onPublish, onClose }: StoryCreateViewProps) {
+export function StoryCreateView({ draft, sticker, poll, events, friends = [], state, onDraft, onPickPhoto, onPublish }: StoryCreateViewProps) {
   const captionRef = useRef<HTMLTextAreaElement | null>(null);
   const frameRef = useRef<HTMLElement | null>(null);
   const cropDrag = useRef<{ x: number; y: number; cropX: number; cropY: number } | null>(null);
@@ -426,7 +426,16 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
     setEditing((current) => (current === key ? null : current));
   };
 
-  const toggleObject = (kind: StoryObjectKind) => (hasStoryObject(draft.objects, kind) ? dropObject(kind) : putObject(kind));
+  const toggleObject = (kind: StoryObjectKind) => {
+    if (!hasStoryObject(draft.objects, kind)) {
+      putObject(kind);
+      return;
+    }
+    onDraft({ ...draft, objects: draft.objects.filter((object) => object.kind !== kind), ...(kind === "poll" ? { poll: null } : {}) });
+    setTouched(null);
+    setShaking(null);
+    setEditing(null);
+  };
 
   /** Drag the block itself. A long press makes it shake so the red cross can delete it; a drag into the bottom tray deletes it too. Two fingers pinch the size. */
   const startDrag = (object: StoryCanvasObject, event: ReactPointerEvent<HTMLElement>) => {
@@ -621,12 +630,8 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
       <span className="app-story-orb app-story-orb--status" aria-hidden="true" />
 
       <div className="app-story-bar">
-        <button type="button" className="app-story-back" onClick={onClose}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <div className="app-story-bar-actions">
-          <button type="button" className="app-story-add-text" onClick={() => putObject("text")}>
+          <button type="button" className="app-story-add-text" onClick={() => toggleObject("text")}>
             <ActionIcon name="text" size={18} strokeWidth={2} />
             Текст
           </button>
@@ -661,7 +666,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
               startDrag(object, event);
             }}
           >
-            {shaking === key && (
+            {(selected || shaking === key) && (
               <button type="button" className="app-story-object-delete" aria-label={`Удалить: ${label}`} onPointerDown={(press) => press.stopPropagation()} onClick={() => dropObject(key)}>
                 <ActionIcon name="close" size={12} strokeWidth={2.6} />
               </button>
@@ -762,7 +767,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
             return (
               // Лежащий на холсте объект снимается всегда: у события без мест счётчик не рисуется, и
               // погашенная кнопка запирала бы его в черновике — снять его было бы уже нечем.
-              <button key={kind} type="button" className={on ? "app-story-catalog-chip app-story-catalog-chip--on" : "app-story-catalog-chip"} aria-pressed={on} disabled={!on && !storyObjectEnabled(kind, sticker, asked)} onClick={() => (kind === "text" ? putObject("text") : toggleObject(kind))}>
+              <button key={kind} type="button" className={on ? "app-story-catalog-chip app-story-catalog-chip--on" : "app-story-catalog-chip"} aria-pressed={on} disabled={!on && !storyObjectEnabled(kind, sticker, asked)} onClick={() => toggleObject(kind)}>
                 <ActionIcon name={STORY_OBJECTS[kind].icon} size={16} strokeWidth={2.2} />
                 {STORY_OBJECTS[kind].label}
               </button>

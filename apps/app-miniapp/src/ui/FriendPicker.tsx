@@ -106,13 +106,9 @@ export function FriendPicker({ friends, title = "Выбери друга", hint 
       {/* tabIndex=-1: закрыть фоном — мышиный жест, у клавиатуры для этого есть крестик и Escape */}
       <button type="button" className="app-fpick-scrim" tabIndex={-1} aria-label="Закрыть" onClick={onClose} />
       <div className="app-fpick-sheet app-sheet" ref={sheet} style={swipe.style}>
-        <div className="app-sheet-grab" aria-hidden="true" {...swipe} />
-        <div className="app-fpick-head" {...swipe}>
+        <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
+        <div className="app-fpick-head">
           <h2 className="app-fpick-title">{title}</h2>
-          <button type="button" className="app-fpick-close" aria-label="Закрыть" onClick={onClose}>
-            <ActionIcon name="close" size={16} strokeWidth={2.6} />
-            Закрыть
-          </button>
         </div>
         {hint !== null && <p className="app-fpick-hint">{hint}</p>}
         <input ref={search} className="app-fpick-search" type="text" value={query} aria-label="Поиск по имени" placeholder="Имя друга" onChange={(change) => setQuery(change.target.value)} />
