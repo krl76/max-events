@@ -39,6 +39,13 @@ describe("FeedPostCard", () => {
     expect(html).toContain("Класс!");
   });
 
+  it("turns the author icon, name and comment author into profile controls", () => {
+    const html = renderToStaticMarkup(createElement(FeedPostCard, { post, eventTitle: mockEvents[0].title, userId: DEMO_USER_ID, onToggleLike: noop, onAddComment: noop, onOpenAuthor: noop }));
+
+    expect(html).toContain('aria-label="Профиль Анна Соколова"');
+    expect(html).toContain('aria-label="Профиль Дима Кузнецов"');
+  });
+
   it("shows the post photo in the 4:5 frame, and the category placeholder only without one", () => {
     const withPhoto = card({ photoUrl: "https://cdn.example.com/post.jpg" });
 

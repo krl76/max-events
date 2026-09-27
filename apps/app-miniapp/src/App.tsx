@@ -16,8 +16,9 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { IonApp } from "@ionic/react";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { EntryPage, type EntryMode } from "./auth/EntryPage";
+import { apiClient } from "./api/client";
 import { getWebApp } from "./max/bridge";
-import { isOnboardingDone } from "./onboarding/onboarding";
+import { isOnboardingDone, markOnboardingDone, profileSkipsOnboarding } from "./onboarding/onboarding";
 import { OrganizerSpace } from "./organizer/OrganizerSpace";
 import { readStoredSession } from "./organizer/OrganizerAuthContext";
 import { RoutedPages } from "./pages/pages";
@@ -85,10 +86,32 @@ export function UserShell({ children, onExit }: { children: ReactNode; onExit: (
   return children;
 }
 
-/** Read once into state: the flag is written at the end of the flow, and re-reading storage on every render would fight it. */
+/** Read once into state: the flag is written at the end of the flow, and re-reading storage on every render would fight it. A new MAX tab does not see that flag, so an account that already picked interests skips the flow. */
 export function OnboardingGate({ children }: { children: ReactNode }) {
   const [done, setDone] = useState(isOnboardingDone);
+  const [checking, setChecking] = useState(() => !isOnboardingDone());
+  useEffect(() => {
+    if (done) return;
+    let alive = true;
+    apiClient.getProfile().then(
+      (profile) => {
+        if (!alive) return;
+        if (profileSkipsOnboarding(profile.interests)) {
+          markOnboardingDone();
+          setDone(true);
+        }
+        setChecking(false);
+      },
+      () => {
+        if (alive) setChecking(false);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [done]);
   if (done) return children;
+  if (checking) return <AppState>Загрузка…</AppState>;
   return (
     <Suspense fallback={<AppState>Загрузка…</AppState>}>
       <OnboardingFlow onDone={() => setDone(true)} />

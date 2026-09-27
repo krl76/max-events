@@ -192,6 +192,11 @@ export function interestsCtaLabel(count: number): string {
   return `Дальше · выбрано ${count}`;
 }
 
+/** A profile that already chose interests finished this flow on another tab or device. The local flag is not shared across a fresh MAX window. */
+export function profileSkipsOnboarding(interests: readonly string[]): boolean {
+  return interests.length >= MIN_INTERESTS;
+}
+
 export function isOnboardingDone(): boolean {
   if (typeof window === "undefined") return false;
   try {

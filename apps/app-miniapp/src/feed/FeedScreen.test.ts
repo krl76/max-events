@@ -70,6 +70,7 @@ describe("FeedFriendPost", () => {
     const html = post();
 
     expect(html).toContain("Анна Соколова");
+    expect(html).toContain('aria-label="Профиль Анна Соколова"');
     expect(html).toContain("Клуб «Эссе» · 1,2 км");
     expect(html).toContain("Джаз-квартет в «Эссе»");
     expect(html).toContain("Сегодня · 20:00 · бесплатно");

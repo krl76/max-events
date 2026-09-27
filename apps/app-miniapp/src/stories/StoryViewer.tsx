@@ -145,7 +145,9 @@ export function StoryViewer({ groups, startGroup = 0, onView, onClose }: { group
           ))}
         </div>
         <div className="app-story-viewer-head">
-          <span className="app-story-viewer-author">{current.authorName}</span>
+          <button type="button" className="app-story-viewer-author" aria-label={`Профиль ${current.authorName}`} onClick={() => navigate({ name: "user", id: current.story.userId })}>
+            {current.authorName}
+          </button>
           <button type="button" className="app-story-viewer-close" aria-label="Закрыть" onClick={onClose}>
             Закрыть
           </button>

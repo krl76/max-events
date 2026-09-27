@@ -47,6 +47,8 @@ interface FeedPostCardProps {
   onAddComment: (text: string) => void;
   onOpenEvent?: (eventId: string) => void;
   onOpenMap?: () => void;
+  /** Avatar, name, caption and each comment author open this person's profile. */
+  onOpenAuthor?: (userId: string) => void;
   hasStory?: boolean;
 }
 
@@ -61,7 +63,7 @@ export function PostAuthorAvatar({ friend, hasStory = false, size = 36 }: { frie
   return <span className="app-story-ring app-story-ring--active">{avatar}</span>;
 }
 
-export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenEvent, onOpenMap, hasStory = false }: FeedPostCardProps) {
+export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenEvent, onOpenMap, onOpenAuthor, hasStory = false }: FeedPostCardProps) {
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
   const commentRef = useRef<HTMLInputElement | null>(null);
@@ -76,9 +78,21 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
   return (
     <article className="app-card app-card--post">
       <header className="app-post-head">
-        <PostAuthorAvatar friend={post.author} hasStory={hasStory} />
+        {onOpenAuthor ? (
+          <button type="button" className="app-feed-author-open" aria-label={`Профиль ${post.author.name}`} onClick={() => onOpenAuthor(post.author.id)}>
+            <PostAuthorAvatar friend={post.author} hasStory={hasStory} />
+          </button>
+        ) : (
+          <PostAuthorAvatar friend={post.author} hasStory={hasStory} />
+        )}
         <span className="app-post-id">
-          <span className="app-post-author">{post.author.name}</span>
+          {onOpenAuthor ? (
+            <button type="button" className="app-feed-author-open" aria-label={`Профиль ${post.author.name}`} onClick={() => onOpenAuthor(post.author.id)}>
+              <span className="app-post-author">{post.author.name}</span>
+            </button>
+          ) : (
+            <span className="app-post-author">{post.author.name}</span>
+          )}
           {eventTitle !== "" && <span className="app-post-place">{eventLink}</span>}
         </span>
       </header>
@@ -116,7 +130,14 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         {post.likesCount} {pluralRu(post.likesCount, "отметка", "отметки", "отметок")} «нравится»
       </p>
       <p className="app-post-caption">
-        <span className="app-post-caption-author">{post.author.name}</span> {post.text}
+        {onOpenAuthor ? (
+          <button type="button" className="app-post-caption-author" aria-label={`Профиль ${post.author.name}`} onClick={() => onOpenAuthor(post.author.id)}>
+            {post.author.name}
+          </button>
+        ) : (
+          <span className="app-post-caption-author">{post.author.name}</span>
+        )}{" "}
+        {post.text}
       </p>
       {onOpenMap && (parsePinLabel(post.locationLabel ?? "") !== null || post.placeId !== null) && (
         <button type="button" className="app-feed-post-where app-post-map-mark" onClick={onOpenMap}>
@@ -127,7 +148,14 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
       <ul className="app-feed-comments">
         {post.comments.map((item) => (
           <li key={item.id} className="app-feed-comment">
-            <span className="app-feed-comment-author">{item.author.name}</span> {item.text}
+            {onOpenAuthor ? (
+              <button type="button" className="app-feed-comment-author" aria-label={`Профиль ${item.author.name}`} onClick={() => onOpenAuthor(item.author.id)}>
+                {item.author.name}
+              </button>
+            ) : (
+              <span className="app-feed-comment-author">{item.author.name}</span>
+            )}{" "}
+            {item.text}
           </li>
         ))}
       </ul>
@@ -213,6 +241,7 @@ export function FeedPostPage({ id }: { id: string }) {
         else if (post.placeId) navigate({ name: "map", placeId: post.placeId });
       }}
       hasStory={storyAuthors.has(post.author.id)}
+      onOpenAuthor={(authorId) => navigate({ name: "user", id: authorId })}
     />
   );
 }
@@ -324,6 +353,7 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
             onToggleLike={() => toggleLike(post.id)}
             onAddComment={(text) => addComment(post.id, text)}
             onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined}
+            onOpenAuthor={(authorId) => navigate({ name: "user", id: authorId })}
             onOpenMap={() => {
               const pin = parsePinLabel(post.locationLabel ?? "");
               if (pin) navigate({ name: "map", pin });
@@ -451,15 +481,21 @@ export function StoriesRow() {
         <button type="button" className="app-story-plus" aria-label="Добавить историю" onClick={openEditor}>
           <ActionIcon name="plus" size={14} strokeWidth={3} />
         </button>
-        <span className="app-story-name">Твоя история</span>
+        <button type="button" className="app-story-name" onClick={() => navigate({ name: "profile" })}>
+          Твоя история
+        </button>
       </div>
       {rail.tiles.map((tile) => (
-        <button key={tile.friendId} type="button" className="app-story" onClick={() => setViewer({ groups: rail.groups, start: tile.group })}>
-          <span className={storyRingClass(tile.unseen)}>
-            <img className="app-story-thumb" src={tile.coverUrl} alt="" />
-          </span>
-          <span className="app-story-name">{tile.name}</span>
-        </button>
+        <div key={tile.friendId} className="app-story">
+          <button type="button" className="app-story-open" aria-label={`История ${tile.name}`} onClick={() => setViewer({ groups: rail.groups, start: tile.group })}>
+            <span className={storyRingClass(tile.unseen)}>
+              <img className="app-story-thumb" src={tile.coverUrl} alt="" />
+            </span>
+          </button>
+          <button type="button" className="app-story-name" aria-label={`Профиль ${tile.name}`} onClick={() => navigate({ name: "user", id: tile.friendId })}>
+            {tile.name}
+          </button>
+        </div>
       ))}
       {viewer !== null && <StoryViewer groups={viewer.groups} startGroup={viewer.start} onView={rememberSeen} onClose={() => setViewer(null)} />}
     </div>

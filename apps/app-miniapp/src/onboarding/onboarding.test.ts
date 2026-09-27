@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, ONBOARDING_STEPS, ONBOARDING_STORAGE_KEY, bioCtaLabel, cityDetectionHint, cityForwardBlock, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, isOnboardingDone, markOnboardingDone, matchedOnboardingCity, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep } from "./onboarding";
+import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, ONBOARDING_STEPS, ONBOARDING_STORAGE_KEY, bioCtaLabel, cityDetectionHint, cityForwardBlock, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, isOnboardingDone, markOnboardingDone, matchedOnboardingCity, profileSkipsOnboarding, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep } from "./onboarding";
 
 describe("onboarding step order", () => {
   it("walks вступление → город → друзья → интересы → о себе and then hands over to the feed", () => {
@@ -119,6 +119,12 @@ describe("run-once flag", () => {
   it("reads as unfinished and stays inert without a DOM instead of throwing", () => {
     expect(isOnboardingDone()).toBe(false);
     expect(() => markOnboardingDone()).not.toThrow();
+  });
+
+  it("skips the flow once the account already chose enough interests", () => {
+    expect(profileSkipsOnboarding([])).toBe(false);
+    expect(profileSkipsOnboarding(["Концерты", "Спорт"])).toBe(false);
+    expect(profileSkipsOnboarding(["Концерты", "Спорт", "Театр"])).toBe(true);
   });
 });
 

@@ -231,11 +231,11 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
       <header className="app-feed-post-head">
         {canMark ? (
           <div className="app-feed-author-btn">
-            <button type="button" className="app-feed-author-open" onClick={onOpenAuthor}>
+            <button type="button" className="app-feed-author-open" aria-label={`Профиль ${card.author.name}`} onClick={onOpenAuthor}>
               <PostAuthorAvatar friend={card.author} hasStory={hasStory} />
             </button>
             <span className="app-feed-post-id">
-              <button type="button" className="app-feed-author-open" onClick={onOpenAuthor}>
+              <button type="button" className="app-feed-author-open" aria-label={`Профиль ${card.author.name}`} onClick={onOpenAuthor}>
                 <span className="app-feed-post-author">{card.author.name}</span>
               </button>
               <button type="button" className="app-feed-post-where" onClick={onOpenMark}>
@@ -245,7 +245,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
             </span>
           </div>
         ) : (
-          <button type="button" className="app-feed-author-btn" onClick={onOpenAuthor}>
+          <button type="button" className="app-feed-author-btn" aria-label={`Профиль ${card.author.name}`} onClick={onOpenAuthor}>
             <PostAuthorAvatar friend={card.author} hasStory={hasStory} />
             <span className="app-feed-post-id">
               <span className="app-feed-post-author">{card.author.name}</span>
@@ -304,7 +304,10 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
       {saving && userId !== null && <SaveToList feedPostId={card.id} userId={userId} open onClose={() => setSaving(false)} />}
       {counts !== null && <p className="app-feed-counts">{counts}</p>}
       <p className="app-feed-caption">
-        <span className="app-feed-caption-author">{card.author.name}</span> {card.text}
+        <button type="button" className="app-feed-caption-author" aria-label={`Профиль ${card.author.name}`} onClick={onOpenAuthor}>
+          {card.author.name}
+        </button>{" "}
+        {card.text}
       </p>
       {comments !== null && (
         <button type="button" className="app-feed-comments" onClick={onOpenComments}>
@@ -325,13 +328,15 @@ interface FeedPlacePostProps {
   onStatus: (status: ParticipationStatus) => void;
   onSlots: () => void;
   onGather: () => void;
+  onOpenUser?: (userId: string) => void;
 }
 
-export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onShowOnMap, onStatus, onSlots, onGather }: FeedPlacePostProps & { onShowOnMap?: () => void }) {
+export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onShowOnMap, onStatus, onSlots, onGather, onOpenUser }: FeedPlacePostProps & { onShowOnMap?: () => void }) {
   const travel = formatFeedTravel(card.travelMinutes, card.distanceKm);
   const rating = formatFeedRating(card.rating);
   const price = formatPricePerHour(card.pricePerHourRub);
   const friends = feedGoingFriendsLine(card.goingFriends);
+  const quote = card.quote;
   return (
     <article className="app-feed-post app-feed-post--place">
       <header className="app-feed-post-head">
@@ -370,34 +375,48 @@ export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onShowOnMap,
           </span>
         )}
       </header>
-      <button type="button" className="app-feed-hero app-feed-hero--place" onClick={onOpenPost}>
-        <span className="app-feed-hero-glow" aria-hidden="true" />
-        <span className="app-feed-hero-glow app-feed-hero-glow--cool" aria-hidden="true" />
-        <span className="app-feed-hero-chips">
-          {card.offerLabel !== null && <span className="app-feed-chip">{card.offerLabel}</span>}
-          {card.slotLabel !== null && (
-            <span className="app-feed-chip app-feed-chip--slot">
-              <ActionIcon name="clock" size={14} />
-              {card.slotLabel}
-            </span>
-          )}
-        </span>
-        <span className="app-feed-hero-foot">
-          {friends !== null && (
-            <span className="app-feed-hero-pill">
-              <span className="app-feed-faces" aria-hidden="true">
-                {card.goingFriends.slice(0, 2).map((friend) => (
-                  <span key={friend.id} className="app-feed-face">
-                    {friend.name.charAt(0)}
-                  </span>
-                ))}
+      <div className="app-feed-hero app-feed-hero--place">
+        <button type="button" className="app-feed-hero-hit" aria-label={card.title} onClick={onOpenPost}>
+          <span className="app-feed-hero-glow" aria-hidden="true" />
+          <span className="app-feed-hero-glow app-feed-hero-glow--cool" aria-hidden="true" />
+          <span className="app-feed-hero-chips">
+            {card.offerLabel !== null && <span className="app-feed-chip">{card.offerLabel}</span>}
+            {card.slotLabel !== null && (
+              <span className="app-feed-chip app-feed-chip--slot">
+                <ActionIcon name="clock" size={14} />
+                {card.slotLabel}
               </span>
-              {friends}
-            </span>
-          )}
+            )}
+          </span>
+        </button>
+        <span className="app-feed-hero-foot">
+          {friends !== null &&
+            (onOpenUser ? (
+              <button type="button" className="app-feed-hero-pill" aria-label={`Профиль ${card.goingFriends[0].name}`} onClick={() => onOpenUser(card.goingFriends[0].id)}>
+                <span className="app-feed-faces" aria-hidden="true">
+                  {card.goingFriends.slice(0, 2).map((friend) => (
+                    <span key={friend.id} className="app-feed-face">
+                      {friend.name.charAt(0)}
+                    </span>
+                  ))}
+                </span>
+                {friends}
+              </button>
+            ) : (
+              <span className="app-feed-hero-pill">
+                <span className="app-feed-faces" aria-hidden="true">
+                  {card.goingFriends.slice(0, 2).map((friend) => (
+                    <span key={friend.id} className="app-feed-face">
+                      {friend.name.charAt(0)}
+                    </span>
+                  ))}
+                </span>
+                {friends}
+              </span>
+            ))}
           {price !== null && <span className="app-feed-hero-pill app-feed-hero-pill--price">{price}</span>}
         </span>
-      </button>
+      </div>
       {/* Counters without controls: a venue post is not a feed post, so there is nothing to like or comment on yet (#492). */}
       <div className="app-feed-actions">
         <span className="app-feed-count">
@@ -411,9 +430,16 @@ export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onShowOnMap,
       </div>
       <h3 className="app-feed-place-title">{card.title}</h3>
       <p className="app-feed-place-text">{card.text}</p>
-      {card.quote !== null && (
+      {quote !== null && (
         <blockquote className="app-feed-quote">
-          <span className="app-feed-quote-author">{firstName(card.quote.author.name)}:</span> <span className="app-feed-quote-text">«{card.quote.text}»</span>
+          {onOpenUser ? (
+            <button type="button" className="app-feed-quote-author" aria-label={`Профиль ${quote.author.name}`} onClick={() => onOpenUser(quote.author.id)}>
+              {firstName(quote.author.name)}:
+            </button>
+          ) : (
+            <span className="app-feed-quote-author">{firstName(quote.author.name)}:</span>
+          )}{" "}
+          <span className="app-feed-quote-text">«{quote.text}»</span>
         </blockquote>
       )}
       <p className="app-feed-status-label">Твой статус на этой площадке</p>
@@ -478,7 +504,7 @@ export function FeedCardList({ cards, now, handlers, storyAuthors }: { cards: Fe
             hasStory={storyAuthors?.has(card.author.id) === true}
           />
         ) : (
-          <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onShowOnMap={handlers.onOpenPlaceMap ? () => handlers.onOpenPlaceMap?.(card) : undefined} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} />
+          <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onShowOnMap={handlers.onOpenPlaceMap ? () => handlers.onOpenPlaceMap?.(card) : undefined} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} onOpenUser={handlers.onOpenAuthor} />
         ),
       )}
     </div>
