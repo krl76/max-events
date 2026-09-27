@@ -21747,6 +21747,79 @@ button.app-story-viewer-author {
   width: auto;
 }
 
+.app-org-event-card .app-card-media {
+  aspect-ratio: 16 / 7;
+}
+
+.app-org-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.app-org-textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.app-org-addons {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.app-org-addon {
+  align-items: center;
+  background: var(--app-card);
+  border: 1px solid rgba(13, 0, 26, 0.08);
+  border-radius: 16px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-weight: 700;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-org-addon--on {
+  border-color: transparent;
+  box-shadow: inset 0 0 0 2px var(--app-accent);
+}
+
+.app-org-addon-icon {
+  align-items: center;
+  background: linear-gradient(160deg, var(--brand-blue), var(--brand-purple));
+  border-radius: 12px;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.app-org-pinmap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-org-pinmap-canvas {
+  border-radius: 16px;
+  height: 220px;
+  overflow: hidden;
+}
+
+.app-org-pinmap-note {
+  color: rgba(13, 0, 26, 0.62);
+  font-size: var(--app-font-size-caption);
+  margin: 0;
+}
+
 .app-org-choice {
   display: flex;
   flex-wrap: wrap;

@@ -34,7 +34,8 @@ import { EventCategorySchema, PlaceCategorySchema, type CreateEvent, type Create
 import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganizerEvent } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { MyOrganizerRatingCard, OrganizerEventAddons } from "./OrganizerAddons";
-import { AppButton, AppChip, AppState } from "../ui/primitives";
+import { AppButton, AppChip, AppMedia, AppState } from "../ui/primitives";
+import { VenuePinMap } from "./VenuePinMap";
 
 export const PLACE_CATEGORY_LABELS: Record<PlaceCategory, string> = {
   park: "Парк",
@@ -46,6 +47,7 @@ export const PLACE_CATEGORY_LABELS: Record<PlaceCategory, string> = {
 
 export interface EventDraft {
   title: string;
+  description: string;
   category: EventCategory;
   city: string;
   startsAt: string;
@@ -53,6 +55,13 @@ export interface EventDraft {
   price: string;
   paymentUrl: string;
   capacity: string;
+  /** Free-text venue line. Empty together with `pinned` means the event has no place. */
+  address: string;
+  latitude: string;
+  longitude: string;
+  /** True after the organizer taps the map. A typed address alone does not move the pin. */
+  pinned: boolean;
+  placeId: string;
 }
 
 export interface PlaceDraft {
@@ -64,7 +73,24 @@ export interface PlaceDraft {
   longitude: string;
 }
 
-export const EMPTY_EVENT_DRAFT: EventDraft = { title: "", category: "afisha", city: "", startsAt: "", endsAt: "", price: "", paymentUrl: "", capacity: "" };
+export const EMPTY_EVENT_DRAFT: EventDraft = { title: "", description: "", category: "afisha", city: "", startsAt: "", endsAt: "", price: "", paymentUrl: "", capacity: "", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "" };
+
+const PLACE_FOR_EVENT: Record<EventCategory, PlaceCategory> = { afisha: "other", volunteering: "other", tourism: "park", sport: "sport" };
+
+/** A venue to create or update when the organizer typed an address or dropped a pin. Null when they left both empty. */
+export function venueFromEventDraft(draft: EventDraft): CreatePlace | null {
+  if (draft.address.trim() === "" && !draft.pinned) return null;
+  const latitude = Number(draft.latitude);
+  const longitude = Number(draft.longitude);
+  return {
+    title: draft.title.trim() || "Площадка",
+    address: draft.address.trim() || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+    city: draft.city.trim(),
+    category: PLACE_FOR_EVENT[draft.category],
+    latitude,
+    longitude,
+  };
+}
 
 /** Place coordinates are optional in the UI and default to the Moscow center (the demo city of the fixtures). */
 export const EMPTY_PLACE_DRAFT: PlaceDraft = { title: "", address: "", city: "", category: "other", latitude: "55.7558", longitude: "37.6173" };
@@ -110,10 +136,10 @@ export function toCreateEvent(draft: EventDraft): CreateEvent {
   const paid = price !== null && price > 0;
   return {
     title: draft.title.trim(),
-    description: "",
+    description: draft.description.trim(),
     category: draft.category,
     city: draft.city.trim(),
-    placeId: null,
+    placeId: draft.placeId === "" ? null : draft.placeId,
     startsAt: new Date(draft.startsAt).toISOString(),
     endsAt: draft.endsAt === "" ? null : new Date(draft.endsAt).toISOString(),
     isPaid: paid,
@@ -130,12 +156,13 @@ export function toCreatePlace(draft: PlaceDraft): CreatePlace {
 
 export function toEventPatch(draft: EventDraft): UpdateOrganizerEvent {
   const created = toCreateEvent(draft);
-  return { title: created.title, startsAt: created.startsAt, endsAt: created.endsAt, isPaid: created.isPaid, priceRub: created.priceRub, paymentUrl: created.paymentUrl, capacity: created.capacity };
+  return { title: created.title, description: created.description, category: created.category, city: created.city, placeId: created.placeId, startsAt: created.startsAt, endsAt: created.endsAt, isPaid: created.isPaid, priceRub: created.priceRub, paymentUrl: created.paymentUrl, capacity: created.capacity };
 }
 
-export function eventDraftFrom(item: OrganizerEvent): EventDraft {
+export function eventDraftFrom(item: OrganizerEvent, place?: OrganizerPlace): EventDraft {
   return {
     title: item.title,
+    description: item.description,
     category: item.category,
     city: item.city,
     startsAt: toLocalInput(item.startsAt),
@@ -143,6 +170,11 @@ export function eventDraftFrom(item: OrganizerEvent): EventDraft {
     price: item.priceRub === null ? "" : String(item.priceRub),
     paymentUrl: item.paymentUrl ?? "",
     capacity: item.capacity === null ? "" : String(item.capacity),
+    address: place?.address ?? "",
+    latitude: place === undefined ? "55.7558" : String(place.latitude),
+    longitude: place === undefined ? "37.6173" : String(place.longitude),
+    pinned: place !== undefined,
+    placeId: item.placeId ?? "",
   };
 }
 
@@ -161,25 +193,26 @@ export function OrganizerListStatus<T>({ state, emptyText }: { state: OrganizerL
 
 export function OrganizerEventCard({ item, publishing, failed, onPublish, onEdit }: { item: OrganizerEvent; publishing: boolean; failed: boolean; onPublish: () => void; onEdit: () => void }) {
   return (
-    <article className="app-card">
+    <article className="app-card app-org-event-card">
+      <AppMedia category={item.category} src={item.coverUrl} />
       <div className="app-card-body">
-        <span className="app-card-title">
-          {item.draft && <span className="app-micro-badge">Черновик</span>} {item.title}
+        <span className="app-card-title">{item.title}</span>
+        <span className="app-card-subtitle">
+          {formatStartsAt(item.startsAt)} · {CATEGORY_LABELS[item.category]}
         </span>
         <span className="app-card-subtitle">
-          {formatStartsAt(item.startsAt)} · {item.city}
-        </span>
-        <span className="app-card-subtitle">
-          {item.isPaid && item.priceRub !== null ? `${item.priceRub} ₽` : "Бесплатно"}
+          {item.city} · {item.isPaid && item.priceRub !== null ? `${item.priceRub} ₽` : "Бесплатно"}
           {item.capacity !== null ? ` · до ${item.capacity} мест` : ""}
         </span>
+        {item.description !== "" && <span className="app-card-subtitle">{item.description}</span>}
+        {item.draft && <span className="app-micro-badge">Черновик</span>}
         {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
-        <span className="app-card-subtitle">
+        <span className="app-org-card-actions">
           {item.draft && (
             <AppButton size="small" disabled={publishing} onClick={onPublish}>
               {publishing ? "Публикация…" : "Опубликовать"}
             </AppButton>
-          )}{" "}
+          )}
           <AppButton size="small" tone="secondary" onClick={onEdit}>
             Изменить
           </AppButton>
@@ -191,22 +224,22 @@ export function OrganizerEventCard({ item, publishing, failed, onPublish, onEdit
 
 export function OrganizerPlaceCard({ item, publishing, failed, onPublish, onEdit }: { item: OrganizerPlace; publishing: boolean; failed: boolean; onPublish: () => void; onEdit: () => void }) {
   return (
-    <article className="app-card">
+    <article className="app-card app-org-event-card">
+      <AppMedia category={item.category === "sport" ? "sport" : item.category === "park" ? "tourism" : "afisha"} />
       <div className="app-card-body">
-        <span className="app-card-title">
-          {item.draft && <span className="app-micro-badge">Черновик</span>} {item.title}
-        </span>
+        <span className="app-card-title">{item.title}</span>
         <span className="app-card-subtitle">
           {item.address} · {item.city}
         </span>
         <span className="app-card-subtitle">{PLACE_CATEGORY_LABELS[item.category]}</span>
+        {item.draft && <span className="app-micro-badge">Черновик</span>}
         {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
-        <span className="app-card-subtitle">
+        <span className="app-org-card-actions">
           {item.draft && (
             <AppButton size="small" disabled={publishing} onClick={onPublish}>
               {publishing ? "Публикация…" : "Опубликовать"}
             </AppButton>
-          )}{" "}
+          )}
           <AppButton size="small" tone="secondary" onClick={onEdit}>
             Изменить
           </AppButton>
@@ -222,7 +255,7 @@ interface EventDraftFormProps {
   submitting: boolean;
   failed: boolean;
   submitLabel: string;
-  onChange: (field: keyof EventDraft, value: string) => void;
+  onChange: (field: keyof EventDraft, value: string | boolean) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }
@@ -236,7 +269,14 @@ export function EventDraftForm({ draft, errors, submitting, failed, submitLabel,
         onSubmit();
       }}
     >
-      <input className="app-profile-input" type="text" aria-label="Название" placeholder="Название события" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
+      <label className="app-org-field">
+        <span className="app-org-field-label">Название</span>
+        <input className="app-profile-input" type="text" aria-label="Название события" placeholder="Название события" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
+      </label>
+      <label className="app-org-field">
+        <span className="app-org-field-label">Описание</span>
+        <textarea className="app-profile-input app-org-textarea" aria-label="Описание" placeholder="Что будет на событии" rows={4} value={draft.description} onChange={(change) => onChange("description", change.target.value)} />
+      </label>
       <div className="app-org-choice" role="group" aria-label="Категория">
         {EventCategorySchema.options.map((category) => (
           <AppChip key={category} pressed={draft.category === category} onClick={() => onChange("category", category)}>
@@ -244,12 +284,45 @@ export function EventDraftForm({ draft, errors, submitting, failed, submitLabel,
           </AppChip>
         ))}
       </div>
-      <input className="app-profile-input" type="text" aria-label="Город" placeholder="Город" value={draft.city} onChange={(change) => onChange("city", change.target.value)} />
-      <input className="app-profile-input" type="datetime-local" aria-label="Начало" value={draft.startsAt} onChange={(change) => onChange("startsAt", change.target.value)} />
-      <input className="app-profile-input" type="datetime-local" aria-label="Окончание (необязательно)" value={draft.endsAt} onChange={(change) => onChange("endsAt", change.target.value)} />
-      <input className="app-profile-input" type="number" min={0} aria-label="Цена, ₽ (пусто — бесплатно)" placeholder="Цена, ₽ (пусто — бесплатно)" value={draft.price} onChange={(change) => onChange("price", change.target.value)} />
-      {Number(draft.price) > 0 && <input className="app-profile-input" type="url" aria-label="Ссылка на оплату" placeholder="Ссылка на оплату" value={draft.paymentUrl} onChange={(change) => onChange("paymentUrl", change.target.value)} />}
-      <input className="app-profile-input" type="number" min={1} aria-label="Вместимость (необязательно)" placeholder="Вместимость (необязательно)" value={draft.capacity} onChange={(change) => onChange("capacity", change.target.value)} />
+      <label className="app-org-field">
+        <span className="app-org-field-label">Город</span>
+        <input className="app-profile-input" type="text" aria-label="Город" placeholder="Город" value={draft.city} onChange={(change) => onChange("city", change.target.value)} />
+      </label>
+      <label className="app-org-field">
+        <span className="app-org-field-label">Адрес</span>
+        <input className="app-profile-input" type="text" aria-label="Адрес" placeholder="Улица, дом — или точка на карте" value={draft.address} onChange={(change) => onChange("address", change.target.value)} />
+      </label>
+      <VenuePinMap
+        latitude={Number(draft.latitude)}
+        longitude={Number(draft.longitude)}
+        onPick={(latitude, longitude) => {
+          onChange("latitude", latitude.toFixed(6));
+          onChange("longitude", longitude.toFixed(6));
+          onChange("pinned", true);
+        }}
+      />
+      <label className="app-org-field">
+        <span className="app-org-field-label">Начало</span>
+        <input className="app-profile-input" type="datetime-local" aria-label="Начало" value={draft.startsAt} onChange={(change) => onChange("startsAt", change.target.value)} />
+      </label>
+      <label className="app-org-field">
+        <span className="app-org-field-label">Окончание</span>
+        <input className="app-profile-input" type="datetime-local" aria-label="Окончание (необязательно)" value={draft.endsAt} onChange={(change) => onChange("endsAt", change.target.value)} />
+      </label>
+      <label className="app-org-field">
+        <span className="app-org-field-label">Цена, ₽</span>
+        <input className="app-profile-input" type="number" min={0} aria-label="Цена, ₽ (пусто — бесплатно)" placeholder="Пусто — бесплатно" value={draft.price} onChange={(change) => onChange("price", change.target.value)} />
+      </label>
+      {Number(draft.price) > 0 && (
+        <label className="app-org-field">
+          <span className="app-org-field-label">Ссылка на оплату</span>
+          <input className="app-profile-input" type="url" aria-label="Ссылка на оплату" placeholder="Ссылка на оплату" value={draft.paymentUrl} onChange={(change) => onChange("paymentUrl", change.target.value)} />
+        </label>
+      )}
+      <label className="app-org-field">
+        <span className="app-org-field-label">Вместимость</span>
+        <input className="app-profile-input" type="number" min={1} aria-label="Вместимость (необязательно)" placeholder="Необязательно" value={draft.capacity} onChange={(change) => onChange("capacity", change.target.value)} />
+      </label>
       {errors.map((error) => (
         <p key={error} className="app-state app-state--error">
           {error}
@@ -286,9 +359,18 @@ export function PlaceDraftForm({ draft, errors, submitting, failed, submitLabel,
         onSubmit();
       }}
     >
-      <input className="app-profile-input" type="text" aria-label="Название" placeholder="Название места" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
-      <input className="app-profile-input" type="text" aria-label="Адрес" placeholder="Адрес" value={draft.address} onChange={(change) => onChange("address", change.target.value)} />
-      <input className="app-profile-input" type="text" aria-label="Город" placeholder="Город" value={draft.city} onChange={(change) => onChange("city", change.target.value)} />
+      <label className="app-org-field">
+        <span className="app-org-field-label">Название</span>
+        <input className="app-profile-input" type="text" aria-label="Название" placeholder="Название места" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
+      </label>
+      <label className="app-org-field">
+        <span className="app-org-field-label">Адрес</span>
+        <input className="app-profile-input" type="text" aria-label="Адрес" placeholder="Улица и дом, или точка на карте" value={draft.address} onChange={(change) => onChange("address", change.target.value)} />
+      </label>
+      <label className="app-org-field">
+        <span className="app-org-field-label">Город</span>
+        <input className="app-profile-input" type="text" aria-label="Город" placeholder="Город" value={draft.city} onChange={(change) => onChange("city", change.target.value)} />
+      </label>
       <div className="app-org-choice" role="group" aria-label="Категория">
         {PlaceCategorySchema.options.map((category) => (
           <AppChip key={category} pressed={draft.category === category} onClick={() => onChange("category", category)}>
@@ -296,8 +378,14 @@ export function PlaceDraftForm({ draft, errors, submitting, failed, submitLabel,
           </AppChip>
         ))}
       </div>
-      <input className="app-profile-input" type="text" inputMode="decimal" aria-label="Широта" placeholder="Широта" value={draft.latitude} onChange={(change) => onChange("latitude", change.target.value)} />
-      <input className="app-profile-input" type="text" inputMode="decimal" aria-label="Долгота" placeholder="Долгота" value={draft.longitude} onChange={(change) => onChange("longitude", change.target.value)} />
+      <VenuePinMap
+        latitude={Number(draft.latitude)}
+        longitude={Number(draft.longitude)}
+        onPick={(latitude, longitude) => {
+          onChange("latitude", latitude.toFixed(6));
+          onChange("longitude", longitude.toFixed(6));
+        }}
+      />
       {errors.map((error) => (
         <p key={error} className="app-state app-state--error">
           {error}
@@ -386,7 +474,21 @@ export function OrganizerPanel({ organizationId, createOnMount = false }: { orga
     if (nextErrors.length > 0) return;
     setSubmitting(true);
     setFailed(false);
-    const request = eventForm.mode === "create" ? apiClient.createOrganizerEvent(toCreateEvent(eventForm.draft)) : apiClient.updateOrganizerEvent(eventForm.id, toEventPatch(eventForm.draft));
+    const draft = eventForm.draft;
+    const venue = venueFromEventDraft(draft);
+    const placeReady =
+      venue === null
+        ? Promise.resolve(draft.placeId)
+        : draft.placeId !== ""
+          ? apiClient.updateOrganizerPlace(draft.placeId, venue).then(() => draft.placeId)
+          : apiClient.createOrganizerPlace(venue).then((place) => {
+              setPlaces((current) => (current.status === "ready" ? { status: "ready", items: sortPlaces(upsert(current.items, place)) } : current));
+              return place.id;
+            });
+    const request = placeReady.then((placeId) => {
+      const withPlace = { ...draft, placeId };
+      return eventForm.mode === "create" ? apiClient.createOrganizerEvent(toCreateEvent(withPlace)) : apiClient.updateOrganizerEvent(eventForm.id, toEventPatch(withPlace));
+    });
     request.then(
       (item) => {
         setEvents((current) => (current.status === "ready" ? { status: "ready", items: sortEvents(upsert(current.items, item)) } : current));
@@ -424,7 +526,9 @@ export function OrganizerPanel({ organizationId, createOnMount = false }: { orga
   const publishEvent = (id: string) => {
     setPublishingId(id);
     setPublishErrorId(null);
-    apiClient.publishOrganizerEvent(id).then(
+    const event = events.status === "ready" ? events.items.find((item) => item.id === id) : undefined;
+    const placeReady = event?.placeId ? apiClient.publishOrganizerPlace(event.placeId).then((item) => setPlaces((current) => (current.status === "ready" ? { status: "ready", items: sortPlaces(upsert(current.items, item)) } : current))) : Promise.resolve();
+    placeReady.then(() => apiClient.publishOrganizerEvent(id)).then(
       (item) => {
         setEvents((current) => (current.status === "ready" ? { status: "ready", items: upsert(current.items, item) } : current));
         setPublishingId(null);
@@ -470,7 +574,7 @@ export function OrganizerPanel({ organizationId, createOnMount = false }: { orga
             events.items.map((item) =>
               eventForm?.mode === "edit" && eventForm.id === item.id ? null : (
                 <div key={item.id}>
-                  <OrganizerEventCard item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishEvent(item.id)} onEdit={() => openEventForm({ mode: "edit", id: item.id, draft: eventDraftFrom(item) })} />
+                  <OrganizerEventCard item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishEvent(item.id)} onEdit={() => openEventForm({ mode: "edit", id: item.id, draft: eventDraftFrom(item, places.status === "ready" ? places.items.find((place) => place.id === item.placeId) : undefined) })} />
                   <OrganizerEventAddons eventId={item.id} bookingOpensAt={item.bookingOpensAt} />
                 </div>
               ),

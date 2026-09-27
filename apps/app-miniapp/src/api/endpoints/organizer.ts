@@ -47,8 +47,8 @@ import type { ApiMixin, ZodSchema } from "./transport";
 export type OrganizerEvent = Event & { draft: boolean };
 export type OrganizerPlace = Place & { draft: boolean };
 
-/** Minimal editable event fields (backend PATCH /events/:id whitelist via pickEventFields). */
-export type UpdateOrganizerEvent = Partial<Pick<CreateEvent, "title" | "startsAt" | "endsAt" | "isPaid" | "priceRub" | "paymentUrl" | "capacity">>;
+/** Editable event fields. The backend PATCH whitelist also accepts description, category, city and placeId. */
+export type UpdateOrganizerEvent = Partial<Pick<CreateEvent, "title" | "description" | "category" | "city" | "placeId" | "startsAt" | "endsAt" | "isPaid" | "priceRub" | "paymentUrl" | "capacity">>;
 
 /** Editable place fields (backend PATCH /places/:id validates CreatePlaceSchema.partial()). */
 export type UpdateOrganizerPlace = Partial<CreatePlace>;
