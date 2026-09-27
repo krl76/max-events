@@ -2450,7 +2450,7 @@ html[data-theme="dark"] #root {
   gap: 6px;
   justify-content: flex-end;
   margin: var(--app-space-s) var(--app-space-screen) 0;
-  min-height: 148px;
+  min-height: 104px;
   overflow: hidden;
   padding: var(--app-space-m);
   position: relative;
