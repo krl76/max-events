@@ -15118,12 +15118,17 @@ button.app-cal-peer-chip {
 .app-org-hero-avatar {
   align-items: center;
   background: rgba(255, 255, 255, 0.18);
+  border: 0;
   border-radius: 50%;
+  color: inherit;
+  cursor: pointer;
   display: flex;
+  font: inherit;
   font-size: var(--app-font-size-description);
   font-weight: 800;
   height: 36px;
   justify-content: center;
+  padding: 0;
   width: 36px;
 }
 

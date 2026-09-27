@@ -49,6 +49,26 @@ import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { pluralRu } from "../catalog/format";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { AppButton, AppTitle, AppState } from "../ui/primitives";
+import type { OrganizerPromoIntent } from "./OrganizerDashboard";
+
+export const ORGANIZER_PROMOTE_SHORTCUTS: Array<{ intent: OrganizerPromoIntent; icon: ActionIconName; label: string }> = [
+  { intent: "early_access", icon: "clock", label: "Ранний доступ" },
+  { intent: "promocode", icon: "ticket", label: "Промокод" },
+  { intent: "referral", icon: "spark", label: "Акция" },
+  { intent: "boost", icon: "pin", label: "Продвижение" },
+  { intent: "target_collection", icon: "megaphone", label: "Рассылка" },
+];
+
+/** The event card opens the promotion section with this event already chosen. The forms live there, not under the card. */
+export function OrganizerPromoteShortcuts({ onOpen }: { onOpen: (intent: OrganizerPromoIntent) => void }) {
+  return (
+    <div className="app-org-addons">
+      {ORGANIZER_PROMOTE_SHORTCUTS.map((item) => (
+        <AddonButton key={item.intent} icon={item.icon} label={item.label} open={false} onClick={() => onOpen(item.intent)} />
+      ))}
+    </div>
+  );
+}
 
 function AddonButton({ icon, label, open, onClick }: { icon: ActionIconName; label: string; open: boolean; onClick: () => void }) {
   return (

@@ -1,13 +1,16 @@
 // START_MODULE_CONTRACT
-// PURPOSE: «Панель организатора» (макет, экран 45): the period hero, the weekly fill and traffic tiles, the organizer's own events with their fill, and the four promo tools.
-// SCOPE: Pure helpers plus OrganizerDashboardView (presentational) and OrganizerDashboard (container). Per-event fill comes from the event day, the totals and the traffic split from the organizer summary; the four tools hand their intent to экран 48, which owns the forms.
+// PURPOSE: Organizer overview: period, bookings, attendance, weekday bars, traffic sources, rating and the events that are filling slowly. Promotion actions live on the promotion section.
+// SCOPE: Pure helpers plus OrganizerDashboardView (presentational) and OrganizerDashboard (container). Per-event fill comes from the event day, the totals and the traffic split from the organizer summary.
 // DEPENDS: react, ../api/client.js (apiClient, OrganizerAttendance, OrganizerEvent, OrganizerSummary, OrganizerTrafficSource), ../catalog/format.js (pluralRu), ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - OrganizerPromoIntent - which of the four tools экран 48 should open on: boost | target_collection | promocode | report
-// - ORGANIZER_PROMO_TOOLS - the four tiles in design order, with their glyph, title and second line
+// - OrganizerPromoIntent - which promotion action to open: boost | target_collection | promocode | referral | early_access
+// - PROMO_PERIODS - 7 / 30 / 90 day windows, 30 is the default
+// - periodQueryFor - a window of N days back from now
+// - formatDelta - «+18% к прошлому периоду»
+// - salesCsv - month report built from sales rows, because the backend has no export of its own
 // - TRAFFIC_SOURCE_LABELS - ru label per traffic source
 // - formatCount - «1 284»: thin-space groups, the way the hero prints its numbers
 // - barHeights - the weekday histogram as 0..100 heights, with the two tallest days marked as the accent bars
@@ -19,21 +22,51 @@
 // - OrganizerDashboard - container: the summary, the events and the per-event fill
 // END_MODULE_MAP
 
-import { useEffect, useState } from "react";
-import { apiClient, type OrganizerEvent, type OrganizerSummary, type OrganizerTrafficSource } from "../api/client";
+import { useCallback, useEffect, useState } from "react";
+import type { EventSalesReport } from "@max-events/api-contracts";
+import { apiClient, type OrganizerEvent, type OrganizerSummary, type OrganizerTrafficSource, type StatsPeriodQuery } from "../api/client";
 import { pluralRu } from "../catalog/format";
-import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { pictured } from "../ui/photos";
-import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
+import { AppButton, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 
-export type OrganizerPromoIntent = "boost" | "target_collection" | "promocode" | "report";
+export type OrganizerPromoIntent = "boost" | "target_collection" | "promocode" | "referral" | "early_access";
 
-export const ORGANIZER_PROMO_TOOLS: Array<{ intent: OrganizerPromoIntent; icon: ActionIconName; title: string; note: string }> = [
-  { intent: "target_collection", icon: "megaphone", title: "Рассылка в чаты", note: "Тем, кто был раньше" },
-  { intent: "boost", icon: "trend", title: "Поднять в ленте", note: "На 24 часа в районе" },
-  { intent: "promocode", icon: "tag", title: "Промокод", note: "Скидка для компаний" },
-  { intent: "report", icon: "upload", title: "Отчёт", note: "Экспорт за месяц" },
+export const PROMO_PERIODS: Array<{ days: number; label: string }> = [
+  { days: 7, label: "7 дней" },
+  { days: 30, label: "30 дней" },
+  { days: 90, label: "90 дней" },
 ];
+
+export const WEEKDAY_LABELS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"] as const;
+
+export function periodQueryFor(days: number, now: Date = new Date()): StatsPeriodQuery {
+  return { from: new Date(now.getTime() - days * 86_400_000).toISOString(), to: now.toISOString() };
+}
+
+export function formatDelta(percent: number | null): string {
+  if (percent === null) return "—";
+  return `${percent > 0 ? "+" : ""}${percent}% к прошлому периоду`;
+}
+
+/** Excel reads Cyrillic CSV only with a BOM. The backend has sales rows and no file export. */
+const CSV_BOM = "\uFEFF";
+
+export function salesCsv(reports: Array<{ title: string; report: EventSalesReport }>): string {
+  const lines = ["событие;платёж;бронь;сумма, ₽;комиссия, ₽;нетто, ₽;контур;дата"];
+  let gross = 0;
+  let commission = 0;
+  let net = 0;
+  for (const { title, report } of reports) {
+    for (const row of report.rows) {
+      lines.push([title, row.paymentId, row.bookingId, row.grossRub, row.commissionRub, row.netRub, report.provider, row.commissionFixedAt].join(";"));
+    }
+    gross += report.grossRub;
+    commission += report.commissionRub;
+    net += report.netRub;
+  }
+  lines.push(["ИТОГО", "", "", gross, commission, net, "", ""].join(";"));
+  return lines.join("\n");
+}
 
 export const TRAFFIC_SOURCE_LABELS: Record<OrganizerTrafficSource, string> = { chats: "Чаты MAX", feed: "Лента", search: "Поиск" };
 
@@ -82,6 +115,25 @@ export function needsPromotion(fill: OrganizerEventFill | undefined, capacity: n
   return fill.waitlist === 0 && fill.booked / capacity < 0.4;
 }
 
+function EventFillRow({ item, fill, onOpen }: { item: OrganizerEvent; fill: OrganizerEventFill | undefined; onOpen: () => void }) {
+  return (
+    <button type="button" className="app-org-event" onClick={onOpen}>
+      <AppMedia category={item.category} src={pictured(item.id, item.coverUrl)} className="app-org-event-media" />
+      <span className="app-org-event-body">
+        <span className="app-org-event-title">{item.title}</span>
+        <span className="app-org-event-meta">
+          {new Date(item.startsAt).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" })} · {eventFillNote(fill, item.capacity)}
+        </span>
+        <span className="app-org-progress" aria-hidden="true">
+          <span className="app-org-progress-fill" style={{ width: `${item.capacity === null || fill === undefined ? 0 : Math.min(Math.round((fill.booked / item.capacity) * 100), 100)}%` }} />
+        </span>
+      </span>
+      {item.draft && <span className="app-micro-badge">Черновик</span>}
+      {!item.draft && needsPromotion(fill, item.capacity) && <span className="app-org-event-badge">МАЛО ЗАПИСЕЙ</span>}
+    </button>
+  );
+}
+
 interface OrganizerDashboardViewProps {
   organizationName: string;
   summary: OrganizerSummary | null;
@@ -89,17 +141,26 @@ interface OrganizerDashboardViewProps {
   fills: Record<string, OrganizerEventFill>;
   rating: number | null;
   failed: boolean;
+  days: number;
+  reportBusy: boolean;
+  reportNotice: string | null;
+  onDays: (days: number) => void;
   onOpenEvent: (event: OrganizerEvent) => void;
   onAllEvents: () => void;
-  onTool: (intent: OrganizerPromoIntent) => void;
+  onCreateEvent: () => void;
+  onOpenOrganization: () => void;
+  onReport: () => void;
 }
 
-export function OrganizerDashboardView({ organizationName, summary, events, fills, rating, failed, onOpenEvent, onAllEvents, onTool }: OrganizerDashboardViewProps) {
+export function OrganizerDashboardView({ organizationName, summary, events, fills, rating, failed, days, reportBusy, reportNotice, onDays, onOpenEvent, onAllEvents, onCreateEvent, onOpenOrganization, onReport }: OrganizerDashboardViewProps) {
   const month = new Date().toLocaleDateString("ru-RU", { month: "long" });
-  const traffic = trafficLead(summary?.sources ?? []);
+  const sources = summary?.sources ?? [];
+  const traffic = trafficLead(sources.some((row) => row.percent > 0) ? sources : []);
   const live = events.filter((item) => !item.draft);
+  const quiet = events.filter((item) => needsPromotion(fills[item.id], item.capacity));
+  const loaded = summary !== null || failed;
   return (
-    <section className="app-org-screen" aria-label="Панель организатора">
+    <section className="app-org-screen" aria-label="Обзор организатора">
       <div className="app-org-hero">
         <span className="app-org-hero-blob" aria-hidden="true" />
         <div className="app-org-hero-top">
@@ -109,96 +170,131 @@ export function OrganizerDashboardView({ organizationName, summary, events, fill
             </span>
             Режим организатора
           </span>
-          <span className="app-org-hero-avatar" aria-hidden="true">
+          <button type="button" className="app-org-hero-avatar" aria-label="Организация" onClick={onOpenOrganization}>
             {organizationName.trim().slice(0, 1).toUpperCase()}
-          </span>
+          </button>
         </div>
         <p className="app-org-hero-caption">
           {organizationName} · {month}
         </p>
         <p className="app-org-hero-value">{summary === null ? "—" : `${formatCount(summary.bookings)} ${pluralRu(summary.bookings, "запись", "записи", "записей")}`}</p>
+        <p className="app-org-hero-caption">{formatDelta(summary?.bookingsDeltaPercent ?? null)}</p>
         <div className="app-org-hero-stats">
           <span className="app-org-hero-stat">
             <b>{live.length}</b> {pluralRu(live.length, "активное", "активных", "активных")}
           </span>
           <span className="app-org-hero-stat">
-            <b>{summary?.attendedPercent === null || summary === null ? "—" : `${summary.attendedPercent}%`}</b> пришли
+            <b>{summary?.attendedPercent == null ? "—" : `${summary.attendedPercent}%`}</b> пришли
+          </span>
+          <span className="app-org-hero-stat">
+            <b>{summary?.cancelledPercent == null ? "—" : `${summary.cancelledPercent}%`}</b> отмены
           </span>
           <span className="app-org-hero-stat">
             <b>{rating === null ? "—" : rating.toFixed(1)}</b> оценка
           </span>
         </div>
       </div>
-      {failed && <AppState error>Не удалось загрузить панель.</AppState>}
-      <div className="app-org-tiles">
-        <div className="app-org-tile">
-          <span className="app-org-tile-label">Заполнение за неделю</span>
-          <span className="app-org-bars" aria-hidden="true">
-            {barHeights(summary?.byWeekday ?? [0, 0, 0, 0, 0, 0, 0]).map((bar, index) => (
-              <span key={index} className={bar.accent ? "app-org-bar app-org-bar--on" : "app-org-bar"} style={{ height: `${bar.height}%` }} />
+      {failed && <AppState error>Не удалось загрузить обзор.</AppState>}
+      <div className="app-org-topbar">
+        <span className="app-org-chart-title">За период</span>
+        <label className="app-org-period">
+          <span className="app-org-period-label">Период</span>
+          <select className="app-org-period-select" aria-label="Период отчёта" value={days} onChange={(change) => onDays(Number(change.target.value))}>
+            {PROMO_PERIODS.map((period) => (
+              <option key={period.days} value={period.days}>
+                {period.label}
+              </option>
             ))}
+          </select>
+        </label>
+      </div>
+      <div className="app-org-chart">
+        <span className="app-org-chart-title">Записи по дням</span>
+        <span className="app-org-chart-bars" aria-hidden="true">
+          {barHeights(summary?.byWeekday ?? [0, 0, 0, 0, 0, 0, 0]).map((bar, index) => (
+            <span key={index} className={bar.accent ? "app-org-bar app-org-bar--on" : "app-org-bar"} style={{ height: `${bar.height}%` }} />
+          ))}
+        </span>
+        <span className="app-org-chart-days" aria-hidden="true">
+          {WEEKDAY_LABELS.map((label) => (
+            <span key={label}>{label}</span>
+          ))}
+        </span>
+      </div>
+      {summary !== null && summary.bookings === 0 && <p className="app-org-tile-note">Записей за этот период пока нет. График появится после первых регистраций.</p>}
+      <div className="app-org-sources">
+        <span className="app-org-chart-title">Откуда приходят</span>
+        <span className="app-org-tile-value">{traffic.lead}</span>
+        {traffic.rest !== "" && <span className="app-org-tile-note">{traffic.rest}</span>}
+        {sources.map((row) => (
+          <span key={row.source} className="app-org-source">
+            <span className="app-org-source-label">{TRAFFIC_SOURCE_LABELS[row.source]}</span>
+            <span className="app-org-source-track" aria-hidden="true">
+              <span className={`app-org-source-fill app-org-source-fill--${row.source}`} style={{ width: `${row.percent}%` }} />
+            </span>
+            <span className="app-org-source-value">{row.percent}%</span>
           </span>
-        </div>
-        <div className="app-org-tile">
-          <span className="app-org-tile-label">Откуда приходят</span>
-          <span className="app-org-tile-value">{traffic.lead}</span>
-          <span className="app-org-tile-note">{traffic.rest}</span>
-        </div>
-      </div>
-      <div className="app-org-head">
-        <h2 className="app-org-head-title">Мои события</h2>
-        <button type="button" className="app-org-head-link" onClick={onAllEvents}>
-          Все {events.length}
-        </button>
-      </div>
-      {events.length === 0 && <AppSkeletonList rows={2} />}
-      <div className="app-org-events">
-        {events.slice(0, 4).map((item) => {
-          const fill = fills[item.id];
-          return (
-            <button key={item.id} type="button" className="app-org-event" onClick={() => onOpenEvent(item)}>
-              <AppMedia category={item.category} src={pictured(item.id, item.coverUrl)} className="app-org-event-media" />
-              <span className="app-org-event-body">
-                <span className="app-org-event-title">{item.title}</span>
-                <span className="app-org-event-meta">
-                  {new Date(item.startsAt).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" })} · {eventFillNote(fill, item.capacity)}
-                </span>
-                <span className="app-org-progress" aria-hidden="true">
-                  <span className="app-org-progress-fill" style={{ width: `${item.capacity === null || fill === undefined ? 0 : Math.min(Math.round((fill.booked / item.capacity) * 100), 100)}%` }} />
-                </span>
-              </span>
-              {item.draft && <span className="app-micro-badge">Черновик</span>}
-              {!item.draft && needsPromotion(fill, item.capacity) && <span className="app-org-event-badge">ПРОДВИНУТЬ</span>}
-            </button>
-          );
-        })}
-      </div>
-      <div className="app-org-head">
-        <h2 className="app-org-head-title">Промо-инструменты</h2>
-      </div>
-      <div className="app-org-tools">
-        {ORGANIZER_PROMO_TOOLS.map((tool) => (
-          <button key={tool.intent} type="button" className="app-org-tool" onClick={() => onTool(tool.intent)}>
-            <ActionIcon name={tool.icon} size={24} strokeWidth={2} />
-            <span className="app-org-tool-title">{tool.title}</span>
-            <span className="app-org-tool-note">{tool.note}</span>
-          </button>
         ))}
+      </div>
+      {events.length === 0 && !loaded && <AppSkeletonList rows={2} />}
+      {events.length === 0 && loaded && (
+        <div className="app-org-form">
+          <p className="app-org-empty">Событий ещё нет. Создайте первое — здесь появятся записи, явка и источники.</p>
+          <AppButton stretched onClick={onCreateEvent}>
+            Создать событие
+          </AppButton>
+        </div>
+      )}
+      {quiet.length > 0 && (
+        <>
+          <div className="app-org-head">
+            <h2 className="app-org-head-title">Мало записей</h2>
+          </div>
+          <div className="app-org-events">
+            {quiet.slice(0, 3).map((item) => (
+              <EventFillRow key={item.id} item={item} fill={fills[item.id]} onOpen={() => onOpenEvent(item)} />
+            ))}
+          </div>
+        </>
+      )}
+      {events.length > 0 && (
+        <>
+          <div className="app-org-head">
+            <h2 className="app-org-head-title">Ближайшие</h2>
+            <button type="button" className="app-org-head-link" onClick={onAllEvents}>
+              Все {events.length}
+            </button>
+          </div>
+          <div className="app-org-events">
+            {events.slice(0, 4).map((item) => (
+              <EventFillRow key={item.id} item={item} fill={fills[item.id]} onOpen={() => onOpenEvent(item)} />
+            ))}
+          </div>
+        </>
+      )}
+      {reportNotice !== null && <p className="app-org-notice">{reportNotice}</p>}
+      <div className="app-org-actions">
+        <AppButton tone="secondary" stretched disabled={reportBusy || events.length === 0} onClick={onReport}>
+          {reportBusy ? "Собираем отчёт…" : "Отчёт за период"}
+        </AppButton>
       </div>
     </section>
   );
 }
 
-export function OrganizerDashboard({ organizationId, organizationName, onOpenEvent, onAllEvents, onTool }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onAllEvents: () => void; onTool: (intent: OrganizerPromoIntent) => void }) {
+export function OrganizerDashboard({ organizationId, organizationName, onOpenEvent, onAllEvents, onCreateEvent, onOpenOrganization }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onAllEvents: () => void; onCreateEvent: () => void; onOpenOrganization: () => void }) {
   const [summary, setSummary] = useState<OrganizerSummary | null>(null);
   const [events, setEvents] = useState<OrganizerEvent[]>([]);
   const [fills, setFills] = useState<Record<string, OrganizerEventFill>>({});
   const [rating, setRating] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
+  const [days, setDays] = useState(30);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportNotice, setReportNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
-    apiClient.getOrganizerSummary().then(
+    apiClient.getOrganizerSummary(periodQueryFor(days)).then(
       (payload) => {
         if (alive) setSummary(payload);
       },
@@ -206,6 +302,13 @@ export function OrganizerDashboard({ organizationId, organizationName, onOpenEve
         if (alive) setFailed(true);
       },
     );
+    return () => {
+      alive = false;
+    };
+  }, [days]);
+
+  useEffect(() => {
+    let alive = true;
     apiClient.getOrganizerRating(organizationId).then(
       (payload) => {
         if (alive) setRating(payload.rating?.averageStars ?? null);
@@ -217,9 +320,8 @@ export function OrganizerDashboard({ organizationId, organizationName, onOpenEve
         if (!alive) return;
         const sorted = [...items].sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
         setEvents(sorted);
-        // Заполнение берётся из дня события: там уже есть и записи, и лист ожидания, и это один запрос на карточку.
         Promise.all(
-          sorted.slice(0, 4).map((item) =>
+          sorted.slice(0, 8).map((item) =>
             apiClient
               .getOrganizerAttendance(item.id)
               .then((day) => [item.id, { booked: day.bookedCount, waitlist: day.waitlistCount }] as const)
@@ -238,5 +340,33 @@ export function OrganizerDashboard({ organizationId, organizationName, onOpenEve
     };
   }, [organizationId]);
 
-  return <OrganizerDashboardView organizationName={organizationName} summary={summary} events={events} fills={fills} rating={rating} failed={failed} onOpenEvent={onOpenEvent} onAllEvents={onAllEvents} onTool={onTool} />;
+  const onReport = useCallback(() => {
+    setReportBusy(true);
+    setReportNotice(null);
+    Promise.all(
+      events.map((item) =>
+        apiClient
+          .getEventSales(item.id, periodQueryFor(days))
+          .then((sales) => ({ title: item.title, report: sales }))
+          .catch(() => null),
+      ),
+    )
+      .then((reports) => {
+        const csv = salesCsv(reports.filter((row): row is { title: string; report: EventSalesReport } => row !== null));
+        const url = URL.createObjectURL(new Blob([CSV_BOM, csv], { type: "text/csv;charset=utf-8" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `otchet-${days}-dney.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+        setReportBusy(false);
+        setReportNotice("Отчёт выгружен файлом");
+      })
+      .catch(() => {
+        setReportBusy(false);
+        setReportNotice("Не удалось собрать отчёт.");
+      });
+  }, [days, events]);
+
+  return <OrganizerDashboardView organizationName={organizationName} summary={summary} events={events} fills={fills} rating={rating} failed={failed} days={days} reportBusy={reportBusy} reportNotice={reportNotice} onDays={setDays} onOpenEvent={onOpenEvent} onAllEvents={onAllEvents} onCreateEvent={onCreateEvent} onOpenOrganization={onOpenOrganization} onReport={onReport} />;
 }

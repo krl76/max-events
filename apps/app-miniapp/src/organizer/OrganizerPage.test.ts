@@ -43,7 +43,7 @@ const publishedPlace: OrganizerPlace = {
   logoUrl: null,
 };
 
-const readyDraft: EventDraft = { title: "Встреча книжного клуба", description: "", category: "afisha", city: "Москва", startsAt: "2026-10-20T19:00", endsAt: "", price: "", paymentUrl: "", capacity: "12", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "" };
+const readyDraft: EventDraft = { title: "Встреча книжного клуба", description: "", category: "afisha", city: "Москва", startsAt: "2026-10-20T19:00", endsAt: "", price: "", paymentUrl: "", capacity: "12", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "", waitlistEnabled: false, registrationInApp: true, externalUrl: "", repeatWeekly: false };
 
 describe("eventDraftErrors", () => {
   it("accepts a ready draft and reports every missing required field", () => {
@@ -60,6 +60,12 @@ describe("eventDraftErrors", () => {
   it("rejects an endsAt that is before startsAt", () => {
     expect(eventDraftErrors({ ...readyDraft, startsAt: "2026-10-20T19:00", endsAt: "2026-10-20T09:00" })).toContain("Окончание не может быть раньше начала");
     expect(eventDraftErrors({ ...readyDraft, startsAt: "2026-10-20T19:00", endsAt: "2026-10-20T21:00" })).toEqual([]);
+  });
+
+  it("asks for a capacity when the waitlist is on and for a registration link when signup leaves the app", () => {
+    expect(eventDraftErrors({ ...readyDraft, capacity: "", waitlistEnabled: true })).toContain("Лист ожидания нужен только там, где есть предел мест");
+    expect(eventDraftErrors({ ...readyDraft, registrationInApp: false, externalUrl: "" })).toContain("Укажите ссылку на регистрацию на вашем сайте");
+    expect(eventDraftErrors({ ...readyDraft, registrationInApp: false, externalUrl: "https://tickets.example.com" })).toEqual([]);
   });
 });
 
@@ -181,6 +187,8 @@ describe("EventDraftForm", () => {
     expect(html).toContain('type="datetime-local"');
     expect(html).toContain("Афиша");
     expect(html).toContain("Создать черновик");
+    expect(html).toContain("Лист ожидания");
+    expect(html).toContain("Повторять каждую неделю");
   });
 
   it("shows inline errors and the failure state instead of alerting", () => {

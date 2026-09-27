@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ORGANIZER_PROMO_TOOLS, barHeights, eventFillNote, formatCount, needsPromotion, trafficLead } from "./OrganizerDashboard";
+import { PROMO_PERIODS, barHeights, eventFillNote, formatCount, formatDelta, needsPromotion, periodQueryFor, trafficLead } from "./OrganizerDashboard";
 
 describe("barHeights", () => {
   it("scales to the busiest day and marks the two peaks", () => {
@@ -62,9 +62,24 @@ describe("formatCount", () => {
   });
 });
 
-describe("ORGANIZER_PROMO_TOOLS", () => {
-  it("carries the four tiles of the design, each with its own intent", () => {
-    expect(ORGANIZER_PROMO_TOOLS.map((tool) => tool.intent)).toEqual(["target_collection", "boost", "promocode", "report"]);
-    expect(ORGANIZER_PROMO_TOOLS.every((tool) => tool.title !== "" && tool.note !== "")).toBe(true);
+describe("periodQueryFor", () => {
+  it("looks N days back from now and closes the window at now", () => {
+    const now = new Date("2026-09-19T12:00:00+03:00");
+    const period = periodQueryFor(30, now);
+
+    expect(period.to).toBe(now.toISOString());
+    expect(new Date(period.from!).toISOString()).toBe(new Date("2026-08-20T12:00:00+03:00").toISOString());
+  });
+
+  it("offers the three windows of the period pill", () => {
+    expect(PROMO_PERIODS.map((period) => period.days)).toEqual([7, 30, 90]);
+  });
+});
+
+describe("formatDelta", () => {
+  it("signs a rise and says nothing to compare with when there is nothing", () => {
+    expect(formatDelta(18)).toBe("+18% к прошлому периоду");
+    expect(formatDelta(-4)).toBe("-4% к прошлому периоду");
+    expect(formatDelta(null)).toBe("—");
   });
 });

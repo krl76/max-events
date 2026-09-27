@@ -30,10 +30,12 @@
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import { EventCategorySchema, PlaceCategorySchema, type CreateEvent, type CreatePlace, type EventCategory, type PlaceCategory } from "@max-events/api-contracts";
+import { EventCategorySchema, PlaceCategorySchema, type CreateEvent, type CreatePlace, type EventCategory, type PlaceCategory, type UpdateOrganizerEventOptions } from "@max-events/api-contracts";
 import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganizerEvent } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
-import { MyOrganizerRatingCard, OrganizerEventAddons } from "./OrganizerAddons";
+import { MyOrganizerRatingCard, OrganizerPromoteShortcuts } from "./OrganizerAddons";
+import type { OrganizerPromoIntent } from "./OrganizerDashboard";
+import { weeklySeriesUntil } from "./OrganizerEventForm";
 import { AppButton, AppChip, AppMedia, AppState } from "../ui/primitives";
 import { VenuePinMap } from "./VenuePinMap";
 
@@ -62,6 +64,10 @@ export interface EventDraft {
   /** True after the organizer taps the map. A typed address alone does not move the pin. */
   pinned: boolean;
   placeId: string;
+  waitlistEnabled: boolean;
+  registrationInApp: boolean;
+  externalUrl: string;
+  repeatWeekly: boolean;
 }
 
 export interface PlaceDraft {
@@ -73,7 +79,7 @@ export interface PlaceDraft {
   longitude: string;
 }
 
-export const EMPTY_EVENT_DRAFT: EventDraft = { title: "", description: "", category: "afisha", city: "", startsAt: "", endsAt: "", price: "", paymentUrl: "", capacity: "", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "" };
+export const EMPTY_EVENT_DRAFT: EventDraft = { title: "", description: "", category: "afisha", city: "", startsAt: "", endsAt: "", price: "", paymentUrl: "", capacity: "", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "", waitlistEnabled: false, registrationInApp: true, externalUrl: "", repeatWeekly: false };
 
 const PLACE_FOR_EVENT: Record<EventCategory, PlaceCategory> = { afisha: "other", volunteering: "other", tourism: "park", sport: "sport" };
 
@@ -116,7 +122,27 @@ export function eventDraftErrors(draft: EventDraft): string[] {
   if (price !== null && (!Number.isInteger(price) || price < 0)) errors.push("Цена — целое число от 0");
   if (price !== null && price > 0 && draft.paymentUrl.trim() === "") errors.push("Для платного события нужна ссылка на оплату");
   if (draft.capacity.trim() !== "" && (!Number.isInteger(Number(draft.capacity)) || Number(draft.capacity) < 1)) errors.push("Вместимость — целое число от 1");
+  if (draft.waitlistEnabled && draft.capacity.trim() === "") errors.push("Лист ожидания нужен только там, где есть предел мест");
+  if (!draft.registrationInApp && draft.externalUrl.trim() === "") errors.push("Укажите ссылку на регистрацию на вашем сайте");
+  if (!draft.registrationInApp && draft.externalUrl.trim() !== "") {
+    try {
+      new URL(draft.externalUrl.trim());
+    } catch {
+      errors.push("Ссылка на регистрацию должна начинаться с https://");
+    }
+  }
   return errors;
+}
+
+export function toEventOptions(draft: EventDraft): UpdateOrganizerEventOptions {
+  const date = draft.startsAt.slice(0, 10);
+  const until = draft.repeatWeekly && date !== "" ? weeklySeriesUntil(date) : "";
+  return {
+    waitlistEnabled: draft.waitlistEnabled,
+    registrationInApp: draft.registrationInApp,
+    externalUrl: draft.registrationInApp ? null : draft.externalUrl.trim(),
+    recurrence: until === "" ? null : { rule: "weekly", until: new Date(`${until}T23:59:00`).toISOString() },
+  };
 }
 
 export function placeDraftErrors(draft: PlaceDraft): string[] {
@@ -175,6 +201,10 @@ export function eventDraftFrom(item: OrganizerEvent, place?: OrganizerPlace): Ev
     longitude: place === undefined ? "37.6173" : String(place.longitude),
     pinned: place !== undefined,
     placeId: item.placeId ?? "",
+    waitlistEnabled: item.capacity !== null,
+    registrationInApp: true,
+    externalUrl: "",
+    repeatWeekly: false,
   };
 }
 
@@ -323,6 +353,21 @@ export function EventDraftForm({ draft, errors, submitting, failed, submitLabel,
         <span className="app-org-field-label">Вместимость</span>
         <input className="app-profile-input" type="number" min={1} aria-label="Вместимость (необязательно)" placeholder="Необязательно" value={draft.capacity} onChange={(change) => onChange("capacity", change.target.value)} />
       </label>
+      <label className="app-org-field">
+        <input type="checkbox" checked={draft.waitlistEnabled} onChange={(change) => onChange("waitlistEnabled", change.target.checked)} /> Лист ожидания
+      </label>
+      <label className="app-org-field">
+        <input type="checkbox" checked={draft.registrationInApp} onChange={(change) => onChange("registrationInApp", change.target.checked)} /> Запись в приложении
+      </label>
+      {!draft.registrationInApp && (
+        <label className="app-org-field">
+          <span className="app-org-field-label">Ссылка на регистрацию</span>
+          <input className="app-profile-input" type="url" aria-label="Ссылка на регистрацию" placeholder="https://" value={draft.externalUrl} onChange={(change) => onChange("externalUrl", change.target.value)} />
+        </label>
+      )}
+      <label className="app-org-field">
+        <input type="checkbox" checked={draft.repeatWeekly} onChange={(change) => onChange("repeatWeekly", change.target.checked)} /> Повторять каждую неделю
+      </label>
       {errors.map((error) => (
         <p key={error} className="app-state app-state--error">
           {error}
@@ -418,7 +463,7 @@ function upsert<T extends { id: string }>(items: T[], item: T): T[] {
 }
 
 /** createOnMount: the «Создать» tab of the organizer bar (макет, экран 46) lands straight on the empty event draft. */
-export function OrganizerPanel({ organizationId, createOnMount = false }: { organizationId: string; createOnMount?: boolean }) {
+export function OrganizerPanel({ organizationId, createOnMount = false, onPromote }: { organizationId: string; createOnMount?: boolean; onPromote?: (eventId: string, intent: OrganizerPromoIntent) => void }) {
   const [tab, setTab] = useState<"events" | "places">("events");
   const [events, setEvents] = useState<OrganizerListState<OrganizerEvent>>({ status: "loading" });
   const [places, setPlaces] = useState<OrganizerListState<OrganizerPlace>>({ status: "loading" });
@@ -487,7 +532,8 @@ export function OrganizerPanel({ organizationId, createOnMount = false }: { orga
             });
     const request = placeReady.then((placeId) => {
       const withPlace = { ...draft, placeId };
-      return eventForm.mode === "create" ? apiClient.createOrganizerEvent(toCreateEvent(withPlace)) : apiClient.updateOrganizerEvent(eventForm.id, toEventPatch(withPlace));
+      const saved = eventForm.mode === "create" ? apiClient.createOrganizerEvent(toCreateEvent(withPlace)) : apiClient.updateOrganizerEvent(eventForm.id, toEventPatch(withPlace));
+      return saved.then((item) => apiClient.updateOrganizerEventOptions(item.id, toEventOptions(withPlace)).then(() => item));
     });
     request.then(
       (item) => {
@@ -574,14 +620,30 @@ export function OrganizerPanel({ organizationId, createOnMount = false }: { orga
             events.items.map((item) =>
               eventForm?.mode === "edit" && eventForm.id === item.id ? null : (
                 <div key={item.id}>
-                  <OrganizerEventCard item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishEvent(item.id)} onEdit={() => openEventForm({ mode: "edit", id: item.id, draft: eventDraftFrom(item, places.status === "ready" ? places.items.find((place) => place.id === item.placeId) : undefined) })} />
-                  <OrganizerEventAddons eventId={item.id} bookingOpensAt={item.bookingOpensAt} />
+                  <OrganizerEventCard
+                    item={item}
+                    publishing={publishingId === item.id}
+                    failed={publishErrorId === item.id}
+                    onPublish={() => publishEvent(item.id)}
+                    onEdit={() => {
+                      const id = item.id;
+                      openEventForm({ mode: "edit", id, draft: eventDraftFrom(item, places.status === "ready" ? places.items.find((place) => place.id === item.placeId) : undefined) });
+                      apiClient.getOrganizerEventOptions(id).then((options) => {
+                        setEventForm((current) =>
+                          current !== null && current.mode === "edit" && current.id === id
+                            ? { ...current, draft: { ...current.draft, waitlistEnabled: options.waitlistEnabled, registrationInApp: options.registrationInApp, externalUrl: options.externalUrl ?? "", repeatWeekly: options.recurrence?.rule === "weekly" } }
+                            : current,
+                        );
+                      }, () => {});
+                    }}
+                  />
+                  {onPromote !== undefined && <OrganizerPromoteShortcuts onOpen={(intent) => onPromote(item.id, intent)} />}
                 </div>
               ),
             )}
           {eventForm === null ? (
             <AppButton tone="secondary" stretched onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
-              Новое событие
+              Создать событие
             </AppButton>
           ) : (
             <EventDraftForm draft={eventForm.draft} errors={errors} submitting={submitting} failed={failed} submitLabel={eventForm.mode === "create" ? "Создать черновик" : "Сохранить"} onChange={(field, value) => setEventForm((current) => (current === null ? current : { ...current, draft: { ...current.draft, [field]: value } }))} onSubmit={submitEvent} onCancel={() => openEventForm(null)} />

@@ -847,19 +847,21 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
   const promoEventId = events[2]?.isPaid === true ? events[2].id : null;
   const bookings: BookingEntity[] = [];
   const bookingPairs = new Set<string>();
+  const organizerFuture = futureEvents.filter((item) => item.organizerUserId !== null);
   for (let attempt = 0; bookings.length < c.bookings && attempt < c.bookings * 50; attempt += 1) {
     const user = pick(users);
-    const event = pick(futureEvents);
+    const event = organizerFuture.length > 0 && attempt % 3 !== 2 ? organizerFuture[attempt % organizerFuture.length]! : pick(futureEvents);
     const key = `${user.id}:${event.id}`;
     if (bookingPairs.has(key)) continue;
     bookingPairs.add(key);
-    const createdAt = shiftDays(now, -int(1, 5), int(10, 20));
+    const createdAt = shiftDays(now, -((bookings.length * 3) % 21), 8 + (bookings.length % 12));
     bookings.push({
       id: uuid(),
       userId: user.id,
       eventId: event.id,
       status: (bookings.length < c.bookings - 5 ? "active" : "cancelled") as BookingStatus,
       promoCode: promoEventId !== null && event.id === promoEventId && chance(0.4) ? "DEMO20" : null,
+      source: (["chats", "feed", "search"] as const)[bookings.length % 3],
       createdAt,
       updatedAt: createdAt,
       reminderSentAt: null,
