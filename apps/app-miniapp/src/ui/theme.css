@@ -1919,6 +1919,11 @@ html[data-theme="dark"] #root {
   width: 100%;
 }
 
+.app-stories::-webkit-scrollbar {
+  display: none;
+  height: 0;
+}
+
 .app-story {
   align-items: center;
   animation: app-rise-in 240ms ease both;
@@ -23322,7 +23327,15 @@ html:not([data-theme="dark"]) .app-when-sheet {
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
+  scrollbar-width: none;
+  touch-action: pan-x;
   width: 100%;
+}
+
+.app-stories-scroll::-webkit-scrollbar {
+  display: none;
+  height: 0;
+  width: 0;
 }
 
 .app-stories-scroll > .app-stories {
