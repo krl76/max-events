@@ -22435,6 +22435,18 @@ button.app-story-viewer-author {
   margin-top: 12px;
 }
 
+.app-poster-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.app-poster-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .app-poster {
   background: var(--app-card);
   border: none;

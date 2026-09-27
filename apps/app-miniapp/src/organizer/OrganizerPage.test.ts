@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { EMPTY_EVENT_DRAFT, EMPTY_PLACE_DRAFT, EventDraftForm, eventDraftErrors, eventDraftFrom, OrganizerEventCard, OrganizerListStatus, OrganizerPlaceCard, placeDraftErrors, toCreateEvent, toEventPatch, toLocalInput, type EventDraft, type OrganizerListState } from "./OrganizerPage";
+import { EMPTY_EVENT_DRAFT, EMPTY_PLACE_DRAFT, EventDraftForm, eventDraftErrors, eventDraftFrom, OrganizerEventCard, OrganizerListStatus, OrganizerPlaceCard, placeDraftErrors, splitOrganizerEvents, toCreateEvent, toEventPatch, toLocalInput, type EventDraft, type OrganizerListState } from "./OrganizerPage";
 import type { OrganizerEvent, OrganizerPlace } from "../api/client";
 
 const noop = () => {};
@@ -137,6 +137,18 @@ describe("toLocalInput", () => {
 
   it("returns an empty string for an invalid date", () => {
     expect(toLocalInput("not-a-date")).toBe("");
+  });
+});
+
+describe("splitOrganizerEvents", () => {
+  it("keeps drafts apart from upcoming and past published events", () => {
+    const past = { ...draftEvent, id: "f1000000-0000-4000-8000-000000000002", draft: false, startsAt: "2026-01-01T19:00:00+03:00", endsAt: null };
+    const upcoming = { ...draftEvent, id: "f1000000-0000-4000-8000-000000000003", draft: false, startsAt: "2026-12-01T19:00:00+03:00", endsAt: null };
+    const groups = splitOrganizerEvents([draftEvent, past, upcoming], new Date("2026-09-26T12:00:00+03:00").getTime());
+
+    expect(groups.drafts.map((item) => item.id)).toEqual([draftEvent.id]);
+    expect(groups.past.map((item) => item.id)).toEqual([past.id]);
+    expect(groups.upcoming.map((item) => item.id)).toEqual([upcoming.id]);
   });
 });
 

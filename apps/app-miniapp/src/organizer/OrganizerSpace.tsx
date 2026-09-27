@@ -113,12 +113,12 @@ interface OrganizerSectionContentProps {
   onManage: (event: OrganizerEvent) => void;
   onCreateEvent: () => void;
   onOpenOrganization: () => void;
-  onPromote: (eventId: string, intent: OrganizerPromoIntent) => void;
+  onOpenEvent: (event: OrganizerEvent) => void;
   onComposer?: (title: string | null) => void;
   closeComposerTick?: number;
 }
 
-export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onPromote, onComposer, closeComposerTick }: OrganizerSectionContentProps) {
+export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onOpenEvent, onComposer, closeComposerTick }: OrganizerSectionContentProps) {
   if (section === "dashboard")
     return (
       <OrganizerDashboard
@@ -131,7 +131,7 @@ export function OrganizerSectionContent({ section, organizationId, organizationN
       />
     );
   if (section === "promo") return <OrganizerPromo organizationName={organizationName} intent={promoIntent} eventId={promoEventId} onOpenEvent={() => onSection("events")} />;
-  return <OrganizerPanel organizationId={organizationId} createOnMount={createEvent} onPromote={onPromote} onComposer={onComposer} closeComposerTick={closeComposerTick} />;
+  return <OrganizerPanel organizationId={organizationId} createOnMount={createEvent} onOpenEvent={onOpenEvent} onComposer={onComposer} closeComposerTick={closeComposerTick} />;
 }
 
 /**
@@ -252,7 +252,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
               setSection("events");
             }}
             onOpenOrganization={() => setOrganizationOpen(true)}
-            onPromote={openPromotion}
+            onOpenEvent={setManage}
             onComposer={onComposer}
             closeComposerTick={closeComposerTick}
           />
