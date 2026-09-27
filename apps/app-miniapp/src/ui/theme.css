@@ -939,10 +939,9 @@ html[data-theme="dark"] #root {
 
 .app-filters-chips {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: visible;
 }
 
 .app-filters-chips::-webkit-scrollbar {
@@ -2683,8 +2682,8 @@ html[data-theme="dark"] #root {
 .app-feed-actions {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
+  flex-wrap: nowrap;
+  gap: 0 2px;
   padding: var(--app-space-m) var(--app-space-screen) 0;
 }
 
@@ -2710,7 +2709,7 @@ html[data-theme="dark"] #root {
   font-weight: 700;
   height: 44px;
   margin-left: auto;
-  padding: 0 var(--app-space-xl);
+  padding: 0 14px;
   transition:
     background-color var(--app-duration-fast) var(--app-ease-out),
     color var(--app-duration-fast) var(--app-ease-out),
@@ -4539,13 +4538,12 @@ html[data-theme="dark"] #root {
 
 .app-line-tabs {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 8px;
-  margin: 12px calc(-1 * var(--app-space-screen)) 0;
-  overflow-x: auto;
-  padding: 0 var(--app-space-screen) 2px;
-  scrollbar-width: none;
-  width: auto;
+  margin: 12px 0 0;
+  overflow: visible;
+  padding: 0;
+  width: 100%;
 }
 
 .app-line-tabs::-webkit-scrollbar {
@@ -6251,6 +6249,7 @@ html[data-theme="dark"] #root {
   display: flex;
   justify-content: flex-end;
   left: 12px;
+  pointer-events: none;
   position: absolute;
   right: 12px;
   top: 12px;
@@ -6262,6 +6261,7 @@ html[data-theme="dark"] #root {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  pointer-events: auto;
 }
 
 .app-story-round {
@@ -18421,17 +18421,15 @@ button.app-cal-peer-chip {
  * Планы: один ряд фильтров и окно выбора друга (feat-ui-plans)
  * ========================================================================== */
 
-/* Ряд разделов списка — одна форма на всё приложение: пилюли с обводкой, активная залита тёмным.
- * Ряд не переносится, а прокручивается: пилюли уходят под край экрана, и это видно по обрезу —
- * отрицательные поля возвращают строке ширину экрана, а не колодца контента. */
+/* Ряд разделов списка: слово остаётся в одну строку, а сам ряд переносится, чтобы подпись не обрезалась краем. */
 .app-tab-row {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: var(--app-space-s);
-  margin: var(--app-space-m) calc(-1 * var(--app-space-screen)) 0;
-  overflow-x: auto;
-  padding: 0 var(--app-space-screen);
-  scrollbar-width: none;
+  margin: var(--app-space-m) 0 0;
+  overflow: visible;
+  padding: 0;
+  width: 100%;
 }
 
 .app-tab-row::-webkit-scrollbar {
@@ -21084,34 +21082,45 @@ button.app-story-viewer-author {
 }
 
 .app-story-handle {
-  background: white;
-  border: 2px solid rgba(6, 7, 8, 0.8);
-  border-radius: 50%;
-  height: 16px;
+  align-items: center;
+  background: transparent;
+  border: none;
+  display: flex;
+  height: 44px;
+  justify-content: center;
   padding: 0;
   position: absolute;
-  width: 16px;
+  width: 44px;
   z-index: 2;
 }
 
+.app-story-handle::after {
+  background: white;
+  border: 2px solid rgba(6, 7, 8, 0.8);
+  border-radius: 50%;
+  content: "";
+  height: 16px;
+  width: 16px;
+}
+
 .app-story-handle--nw {
-  left: -8px;
-  top: -8px;
+  left: -22px;
+  top: -22px;
 }
 
 .app-story-handle--ne {
-  right: -8px;
-  top: -8px;
+  right: -22px;
+  top: -22px;
 }
 
 .app-story-handle--sw {
-  bottom: -8px;
-  left: -8px;
+  bottom: -22px;
+  left: -22px;
 }
 
 .app-story-handle--se {
-  bottom: -8px;
-  right: -8px;
+  bottom: -22px;
+  right: -22px;
 }
 
 .app-story-actions {

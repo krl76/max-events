@@ -456,7 +456,8 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
   /** Drag the block itself. A long press makes it shake so the red cross can delete it; a drag into the bottom tray deletes it too. Two fingers pinch the size. */
   const startDrag = (object: StoryCanvasObject, event: ReactPointerEvent<HTMLElement>) => {
     const target = event.target;
-    if (target instanceof Element && target.closest("input, textarea, select, a, .app-story-object-delete, .app-story-handle, .app-story-pick")) return;
+    const onField = target instanceof Element && target.closest("input, textarea, select") !== null;
+    if (target instanceof Element && target.closest("a, .app-story-object-delete, .app-story-handle, .app-story-pick")) return;
     const key = storyObjectKey(object);
     const frame = frameRef.current;
     if (frame === null) return;
@@ -465,12 +466,14 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
     const fromY = event.clientY;
     let moved = false;
     let held = false;
-    let hold: ReturnType<typeof setTimeout> | undefined = setTimeout(() => {
-      if (!moved) {
-        held = true;
-        setShaking(key);
-      }
-    }, 450);
+    let hold: ReturnType<typeof setTimeout> | undefined = onField
+      ? undefined
+      : setTimeout(() => {
+          if (!moved) {
+            held = true;
+            setShaking(key);
+          }
+        }, 450);
     const pointers = new Map<number, { x: number; y: number }>([[event.pointerId, { x: event.clientX, y: event.clientY }]]);
     let pinching = false;
     let pinchDistance = 0;
@@ -496,10 +499,12 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
         return;
       }
       if (Math.hypot(movedEvent.clientX - fromX, movedEvent.clientY - fromY) > 8) {
+        if (!moved && onField && document.activeElement instanceof HTMLElement) document.activeElement.blur();
         moved = true;
         if (hold) clearTimeout(hold);
         hold = undefined;
         setShaking(null);
+        movedEvent.preventDefault();
       }
       if (!moved && pointers.size < 2) return;
       const y = object.y + ((movedEvent.clientY - fromY) / box.height) * 100;
