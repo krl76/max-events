@@ -52,7 +52,7 @@ describe("FeedPostCard", () => {
 
     expect(html).toContain("Дима Кузнецов");
     expect(html).toContain("Класс!");
-    expect(html).toContain("Добавить комментарий…");
+    expect(html).toContain("Комментарий");
     expect(html).toContain('aria-label="Профиль Дима Кузнецов"');
   });
 
@@ -103,7 +103,7 @@ describe("FeedPostCard", () => {
   it("keeps the composer in the comments sheet, disabled until there is text", () => {
     const html = renderToStaticMarkup(createElement(CommentSheet, { comments: post.comments, parents: {}, liked: {}, replyTo: null, draft: "", onDraft: noop, onClose: noop, onLike: noop, onReply: noop, onCancelReply: noop, onSubmit: noop, inputRef: { current: null } }));
 
-    expect(html).toContain("Добавить комментарий…");
+    expect(html).toContain("Комментарий");
     expect(html).toContain("disabled");
   });
 

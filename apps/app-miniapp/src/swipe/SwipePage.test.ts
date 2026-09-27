@@ -85,8 +85,8 @@ describe("SwipeCard", () => {
 
   it("stamps the verdict only once the card has travelled past the threshold", () => {
     expect(card(0)).not.toContain("app-swipe-stamp");
-    expect(card(SWIPE_COMMIT_PX)).toContain("В ИЗБРАННОЕ");
-    expect(card(-SWIPE_COMMIT_PX)).toContain("МИМО");
+    expect(card(SWIPE_COMMIT_PX)).toContain("В избранное");
+    expect(card(-SWIPE_COMMIT_PX)).toContain("Мимо");
   });
 
   it("follows the finger, and takes the return transition only after a released half-swipe", () => {
@@ -106,12 +106,12 @@ describe("SwipeCard", () => {
     const like = renderToStaticMarkup(createElement(SwipeCard, { candidate: DECK[0], dx: 0, leaving: "like", onOpen: noop }));
     expect(like).toContain("app-swipe-card--fly-like");
     expect(like).not.toContain("app-swipe-card--fly-skip");
-    expect(like).toContain("В ИЗБРАННОЕ");
+    expect(like).toContain("В избранное");
     expect(like).toContain("--app-swipe-progress:1");
 
     const skip = renderToStaticMarkup(createElement(SwipeCard, { candidate: DECK[0], dx: 12, leaving: "skip", onOpen: noop }));
     expect(skip).toContain("app-swipe-card--fly-skip");
-    expect(skip).toContain("МИМО");
+    expect(skip).toContain("Мимо");
     expect(skip).toContain("--app-swipe-progress:-1");
     // It flies from where it was released, not from the centre
     expect(skip).toContain("translateX(12px)");

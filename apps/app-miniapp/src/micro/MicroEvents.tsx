@@ -288,7 +288,7 @@ interface MicroEventCreateViewProps {
 export function MicroEventCreateView({ draft, places: _places, friends = [], inviteeIds = [], submitting, failed, onChange, onInvite, onInviteMax, onSubmit }: MicroEventCreateViewProps) {
   const [pickingPin, setPickingPin] = useState(false);
   const [pickingFriends, setPickingFriends] = useState(false);
-  const nextGap = draft.title.trim() === "" ? "Напишите, что делаем" : draft.when === "" ? "Укажите, когда" : draft.where.trim() === "" ? "Поставьте точку, где" : Number(draft.limit) >= 1 ? "" : "Укажите лимит";
+  const ready = microDraftReady(draft);
   const limit = Math.max(1, Number(draft.limit) || 1);
   return (
     <section className="app-micro-build" aria-label="Своя встреча">
@@ -310,18 +310,18 @@ export function MicroEventCreateView({ draft, places: _places, friends = [], inv
           <ActionIcon name="pin" size={20} />
         </button>
       </div>
-      <div className="app-micro-limit">
+      <label className="app-micro-limit">
         <span className="app-plan-kicker">Лимит участников</span>
-        <div className="app-micro-stepper">
+        <span className="app-micro-stepper">
           <button type="button" aria-label="Меньше людей" onClick={() => onChange("limit", String(Math.max(1, limit - 1)))}>
-            <ActionIcon name="minus" size={18} />
+            −
           </button>
-          <span>{limit}</span>
+          <input aria-label="Лимит участников" inputMode="numeric" value={draft.limit} onChange={(change) => onChange("limit", change.target.value.replace(/\D/g, "").slice(0, 3))} />
           <button type="button" aria-label="Больше людей" onClick={() => onChange("limit", String(limit + 1))}>
-            <ActionIcon name="plus" size={18} />
+            +
           </button>
-        </div>
-      </div>
+        </span>
+      </label>
       <div className="app-gathering-invite">
         <button type="button" className="app-gathering-row" onClick={() => setPickingFriends(true)}>
           <ActionIcon name="friends" size={18} />
@@ -334,14 +334,8 @@ export function MicroEventCreateView({ draft, places: _places, friends = [], inv
           </button>
         )}
       </div>
-      <AppButton
-        disabled={submitting}
-        onClick={() => {
-          if (microDraftReady(draft)) onSubmit();
-        }}
-        stretched
-      >
-        {submitting ? "Публикуем…" : nextGap !== "" ? nextGap : "Позвать своих"}
+      <AppButton disabled={submitting || !ready} onClick={onSubmit} stretched>
+        {submitting ? "Публикуем…" : "Создать микрособытие"}
       </AppButton>
       {failed && <AppState error>Не удалось опубликовать микро-событие.</AppState>}
       {pickingPin && (

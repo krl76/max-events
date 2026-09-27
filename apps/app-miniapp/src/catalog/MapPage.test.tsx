@@ -31,7 +31,8 @@ describe("MapPageView", () => {
 
     expect(html).toContain('aria-label="Карта событий и мест"');
     expect(html).toContain("Карта");
-    expect(html).toContain("Спросить");
+    expect(html).toContain("Поиск");
+    expect(html).not.toContain("Спросить");
     expect(html).not.toContain(">Поиск<");
   });
 });

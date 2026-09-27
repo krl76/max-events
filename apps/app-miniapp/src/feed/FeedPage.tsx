@@ -36,7 +36,7 @@ import { markStoriesSeen, readSeenStories, storyRail } from "../stories/rail";
 import { StoryRing } from "../stories/StoryRing";
 import { PhotoGallery } from "./gallery";
 import { pictured } from "../ui/photos";
-import { AppAvatar, AppButton, AppChip, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
+import { AppAvatar, AppButton, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { parsePinLabel } from "../ui/pin-label";
 import { useSheetSwipe } from "../ui/sheet";
@@ -250,9 +250,6 @@ export function CommentSheet({
 }) {
   const swipe = useSheetSwipe(onClose);
   useEffect(() => {
-    inputRef.current?.focus();
-  }, [inputRef]);
-  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
@@ -264,15 +261,13 @@ export function CommentSheet({
     onSubmit();
   };
   return (
-    <div className="app-picker" role="dialog" aria-modal="true" aria-label="Комментарии">
+    <div className="app-picker app-comments-layer" role="dialog" aria-modal="true" aria-label="Комментарии">
       <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={onClose} />
-      <div className="app-picker-sheet app-sheet" style={swipe.style}>
+      <div className="app-comments-sheet app-sheet" style={swipe.style}>
         <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
-        <div className="app-picker-head">
-          <h2 className="app-picker-title">Комментарии</h2>
-        </div>
+        <p className="app-comments-count">{comments.length === 0 ? "Комментарии" : `${comments.length}`}</p>
         {comments.length === 0 ? (
-          <p className="app-picker-empty">Пока никто не написал. Будьте первым.</p>
+          <p className="app-picker-empty">Пока никто не написал.</p>
         ) : (
           <ul className="app-comments-list">
             {commentThreads(comments, parents).map((thread) => (
@@ -280,19 +275,16 @@ export function CommentSheet({
             ))}
           </ul>
         )}
-        {replyTo !== null && (
-          <p className="app-feed-replying">
-            Ответ для {replyTo.author.name}
-            <button type="button" className="app-feed-comment-reply" onClick={onCancelReply}>
-              Отмена
+        <form className="app-comments-compose" onSubmit={submit}>
+          {replyTo !== null && (
+            <button type="button" className="app-comments-reply" onClick={onCancelReply}>
+              Ответ для {replyTo.author.name}
             </button>
-          </p>
-        )}
-        <form className="app-feed-comment-form" onSubmit={submit}>
-          <input ref={inputRef} className="app-filters-input" placeholder={replyTo === null ? "Добавить комментарий…" : `Ответ для ${replyTo.author.name}`} value={draft} onChange={(change) => onDraft(change.target.value)} />
-          <AppChip disabled={draft.trim() === ""} type="submit">
-            Отправить
-          </AppChip>
+          )}
+          <input ref={inputRef} aria-label="Комментарий" placeholder={replyTo === null ? "Комментарий" : `Ответ для ${replyTo.author.name}`} value={draft} onChange={(change) => onDraft(change.target.value)} />
+          <button type="submit" className="app-comments-send" aria-label="Отправить" disabled={draft.trim() === ""}>
+            <ActionIcon name="arrow" size={18} />
+          </button>
         </form>
       </div>
     </div>

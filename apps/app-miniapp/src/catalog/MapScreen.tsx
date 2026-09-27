@@ -581,7 +581,6 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   const [friendsAsked, setFriendsAsked] = useState(false);
   const [layers, setLayers] = useState<Record<MapLayer, boolean>>({ friends: false, events: true, places: true });
   const [query, setQuery] = useState("");
-  const [assistNote, setAssistNote] = useState<string | null>(null);
   const [selected, setSelected] = useState<MapMarker | null>(null);
   const [routeOn, setRouteOn] = useState(drawRoute);
   const [routePlace, setRoutePlace] = useState<Place | null>(null);
@@ -657,7 +656,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   const readyPlaces = places.status === "ready" ? places.places : [];
   const needle = query.trim().toLowerCase();
   const shownEvents = useMemo(() => (layers.events ? filterMapEvents(events, undefined, needle) : []), [events, layers.events, needle]);
-  const shownPlaces = useMemo(() => (layers.places ? readyPlaces.filter((item) => needle === "" || item.title.toLowerCase().includes(needle)) : []), [readyPlaces, layers.places, needle]);
+  const shownPlaces = useMemo(() => (layers.places ? readyPlaces.filter((item) => needle === "" || `${item.title} ${item.address}`.toLowerCase().includes(needle)) : []), [readyPlaces, layers.places, needle]);
   // A fresh [] on every render would land in the map's dependency list and rebuild Leaflet each time.
   const visits = useMemo(() => (layers.friends ? friendVisits : EMPTY_VISITS), [layers.friends, friendVisits]);
   const markers = useMemo(() => buildMapMarkers(shownEvents, shownPlaces, visits, { placeCatalog: readyPlaces }), [shownEvents, shownPlaces, visits, readyPlaces]);
@@ -798,23 +797,6 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     locateOn: centered,
   });
 
-  function askMap(): void {
-    const text = query.trim();
-    if (text === "") return;
-    apiClient.assistQuery(text).then(
-      (result) => {
-        setAssistNote(result.summary);
-        const first = result.items[0]?.event;
-        if (first === undefined) return;
-        const place = first.placeId === null ? undefined : readyPlaces.find((item) => item.id === first.placeId);
-        if (place !== undefined) handleRef.current?.focus([place.latitude, place.longitude], MAP_CLUSTER_MAX_ZOOM + 2);
-        const marker = markers.find((item) => item.eventId === first.id);
-        if (marker) setSelected(marker);
-      },
-      () => setAssistNote("Ассистент не ответил. На карте осталось то, что совпало по словам."),
-    );
-  }
-
   function pickBasemap(next: MapBasemap): void {
     setBasemap(next);
     writeBasemapPreference(next.id);
@@ -911,13 +893,9 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
             })}
           </div>
         )}
-        {assistNote !== null && <p className="app-map16-assist">{assistNote}</p>}
-        <form className="app-map16-search" role="search" onSubmit={(event) => { event.preventDefault(); askMap(); }}>
+        <form className="app-map16-search" role="search" onSubmit={(event) => event.preventDefault()}>
           <ActionIcon name="search" size={18} />
-          <input className="app-map16-search-input" type="search" aria-label="Искать на карте" placeholder={`${city} · спросить ассистента`} value={query} onChange={(typed) => { setQuery(typed.target.value); setAssistNote(null); }} />
-          <button type="submit" className="app-map16-ask-btn" aria-label="Спросить">
-            Спросить
-          </button>
+          <input className="app-map16-search-input" type="search" aria-label="Поиск" placeholder="Поиск" value={query} onChange={(typed) => setQuery(typed.target.value)} />
           <button type="button" className={basemapsOpen ? "app-map16-locate app-map16-locate--on" : "app-map16-locate"} aria-expanded={basemapsOpen} aria-pressed={basemapsOpen} aria-label="Карта" onClick={() => { setBasemapsOpen((open) => !open); setWeatherOpen(false); }}>
             <ActionIcon name="layers" size={18} />
           </button>
