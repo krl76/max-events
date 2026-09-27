@@ -364,10 +364,14 @@ export function PostCreatePage({ eventId }: { eventId: string | null }) {
   const publish = () => {
     if (userId === null || !postDraftReady(draft)) return;
     setState("publishing");
-    apiClient.createFeedPost(postPayload(draft, userId, draft.eventId)).then(
-      () => navigate({ name: "home" }),
-      () => setState("error"),
-    );
+    // The draft keeps a sharp preview. The post stores the short upload URL, so the feed does not
+    // have to ship a crushed data URL on every open.
+    void Promise.all(draft.photoUrls.map((photo) => apiClient.storeImage(photo, "feed")))
+      .then((photoUrls) => apiClient.createFeedPost(postPayload({ ...draft, photoUrls }, userId, draft.eventId)))
+      .then(
+        () => navigate({ name: "home" }),
+        () => setState("error"),
+      );
   };
 
   return (

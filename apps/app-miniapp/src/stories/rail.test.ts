@@ -90,12 +90,12 @@ describe("storyRail", () => {
   it("holds no own group at all until the author has a story, so the own tile only opens the editor", () => {
     const rail = storyRail([ANNA], [ANNA_OLD], MY_ID, []);
 
-    expect(rail.own).toEqual({ coverUrl: null, unseen: false, group: null });
+    expect(rail.own).toEqual({ coverUrl: null, storyCount: 0, unseenCount: 0, unseen: false, group: null });
     expect(rail.groups[0].authorName).toBe("Анна Соколова");
   });
 
   it("dims the own ring once the author watched their own story back", () => {
-    expect(storyRail([], stories, MY_ID, []).own).toEqual({ coverUrl: MY_ONE.imageUrl, unseen: true, group: 0 });
+    expect(storyRail([], stories, MY_ID, []).own).toEqual({ coverUrl: MY_ONE.imageUrl, storyCount: 1, unseenCount: 1, unseen: true, group: 0 });
     expect(storyRail([], stories, MY_ID, [MY_ONE.id]).own.unseen).toBe(false);
   });
 

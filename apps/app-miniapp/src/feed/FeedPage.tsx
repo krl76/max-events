@@ -33,6 +33,7 @@ import { SaveToList } from "../event/SaveToList";
 import { StoryViewer, type StoryGroup } from "../stories/StoryViewer";
 import { OPEN_OWN_STORY } from "../create/StoryCreatePage";
 import { markStoriesSeen, readSeenStories, storyRail } from "../stories/rail";
+import { StoryRing } from "../stories/StoryRing";
 import { pictured } from "../ui/photos";
 import { AppAvatar, AppButton, AppChip, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
@@ -108,24 +109,42 @@ function threadedComments(comments: FeedComment[], parents: Record<string, strin
 
 function CommentRow({ item, liked, onLike, onReply, onOpenAuthor }: { item: { comment: FeedComment; reply: boolean }; liked: boolean; onLike: () => void; onReply: () => void; onOpenAuthor?: (userId: string) => void }) {
   const { comment, reply } = item;
+  const open = onOpenAuthor ? () => onOpenAuthor(comment.author.id) : undefined;
   return (
     <li className={reply ? "app-feed-comment app-feed-comment--reply" : "app-feed-comment"}>
-      <div className="app-feed-comment-line">
-        {onOpenAuthor ? (
-          <button type="button" className="app-feed-comment-author" aria-label={`Профиль ${comment.author.name}`} onClick={() => onOpenAuthor(comment.author.id)}>
-            {comment.author.name}
+      {open ? (
+        <button type="button" className="app-feed-comment-avatar" aria-label={`Профиль ${comment.author.name}`} onClick={open}>
+          <AppAvatar size={reply ? 28 : 36} src={comment.author.avatarUrl}>
+            {comment.author.name[0]}
+          </AppAvatar>
+        </button>
+      ) : (
+        <span className="app-feed-comment-avatar">
+          <AppAvatar size={reply ? 28 : 36} src={comment.author.avatarUrl}>
+            {comment.author.name[0]}
+          </AppAvatar>
+        </span>
+      )}
+      <div className="app-feed-comment-body">
+        <div className="app-feed-comment-line">
+          {open ? (
+            <button type="button" className="app-feed-comment-author" aria-label={`Профиль ${comment.author.name}`} onClick={open}>
+              {comment.author.name}
+            </button>
+          ) : (
+            <span className="app-feed-comment-author">{comment.author.name}</span>
+          )}
+        </div>
+        <p className="app-feed-comment-text">{comment.text}</p>
+        <div className="app-feed-comment-actions">
+          <button type="button" className="app-feed-comment-like" aria-pressed={liked} aria-label="Нравится" onClick={onLike}>
+            <ActionIcon filled={liked} name="heart" size={16} />
+            {liked ? 1 : 0}
           </button>
-        ) : (
-          <span className="app-feed-comment-author">{comment.author.name}</span>
-        )}
-        <span>{comment.text}</span>
-        <button type="button" className="app-feed-comment-like" aria-pressed={liked} aria-label="Нравится" onClick={onLike}>
-          <ActionIcon filled={liked} name="heart" size={16} />
-          {liked ? 1 : 0}
-        </button>
-        <button type="button" className="app-feed-comment-reply" onClick={onReply}>
-          Ответить
-        </button>
+          <button type="button" className="app-feed-comment-reply" onClick={onReply}>
+            Ответить
+          </button>
+        </div>
       </div>
     </li>
   );
@@ -137,7 +156,9 @@ interface FeedPostCardProps {
   eventCategory?: Event["category"];
   userId: string;
   onToggleLike: () => void;
-  onAddComment: (text: string) => void | Promise<FeedPost | void>;
+  onAddComment: (text: string, parentId?: string | null) => void | Promise<FeedPost | void>;
+  /** When set, the comment button opens the comments screen instead of the field on this card. */
+  onOpenComments?: () => void;
   onOpenEvent?: (eventId: string) => void;
   onOpenMap?: () => void;
   /** Avatar, name, caption and each comment author open this person's profile. */
@@ -153,10 +174,14 @@ export function PostAuthorAvatar({ friend, hasStory = false, size = 36 }: { frie
     </AppAvatar>
   );
   if (!hasStory) return avatar;
-  return <span className="app-story-ring app-story-ring--active">{avatar}</span>;
+  return (
+    <StoryRing total={1} unseen={1} label="Есть история">
+      {avatar}
+    </StoryRing>
+  );
 }
 
-export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenEvent, onOpenMap, onOpenAuthor, hasStory = false }: FeedPostCardProps) {
+export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenComments, onOpenEvent, onOpenMap, onOpenAuthor, hasStory = false }: FeedPostCardProps) {
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
   const [replyTo, setReplyTo] = useState<FeedComment | null>(null);
@@ -198,7 +223,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
           <ActionIcon filled={post.likedByMe} name="heart" />
           <span>{post.likesCount}</span>
         </button>
-        <button type="button" className="app-post-action" aria-label="Комментировать" onClick={() => commentRef.current?.focus()}>
+        <button type="button" className="app-post-action" aria-label="Комментировать" onClick={() => (onOpenComments ? onOpenComments() : commentRef.current?.focus())}>
           <ActionIcon name="comment" />
           <span>{post.comments.length}</span>
         </button>
@@ -244,13 +269,17 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         </button>
       )}
       <ul className="app-feed-comments">
-        {threadedComments(post.comments, commentParents).map((item) => (
+        {threadedComments(post.comments, { ...commentParents, ...Object.fromEntries(post.comments.flatMap((item) => (item.parentId ? [[item.id, item.parentId]] : []))) }).map((item) => (
           <CommentRow
             key={item.comment.id}
             item={item}
             liked={likedComments[item.comment.id] === true}
             onLike={() => setLikedComments(toggleCommentLike(item.comment.id))}
             onReply={() => {
+              if (onOpenComments) {
+                onOpenComments();
+                return;
+              }
               setReplyTo(item.comment);
               commentRef.current?.focus();
             }}
@@ -266,6 +295,11 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
           </button>
         </p>
       )}
+      {onOpenComments ? (
+        <button type="button" className="app-feed-open-comments" onClick={onOpenComments}>
+          Написать комментарий
+        </button>
+      ) : (
       <form
         className="app-feed-comment-form"
         onSubmit={(event) => {
@@ -274,7 +308,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
           if (text === "") return;
           const before = new Set(post.comments.map((item) => item.id));
           const parent = replyTo;
-          const result = onAddComment(text);
+          const result = onAddComment(text, parent?.id ?? null);
           setComment("");
           setReplyTo(null);
           if (parent !== null && result instanceof Promise) {
@@ -292,6 +326,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
           Отправить
         </AppChip>
       </form>
+      )}
       {userId !== "" && <ReportButton target={{ feedPostId: post.id }} userId={userId} />}
     </article>
   );
@@ -349,9 +384,9 @@ export function FeedPostPage({ id }: { id: string }) {
         if (userId === "") return;
         apiClient.toggleFeedLike(post.id, userId).then(setPost);
       }}
-      onAddComment={(text) => {
+      onAddComment={(text, parentId) => {
         if (userId === "") return;
-        return apiClient.addFeedComment(post.id, { userId, text }).then((next) => {
+        return apiClient.addFeedComment(post.id, { userId, text, parentId: parentId ?? null }).then((next) => {
           setPost(next);
           return next;
         });
@@ -433,9 +468,9 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
   );
 
   const addComment = useCallback(
-    (postId: string, text: string) => {
+    (postId: string, text: string, parentId?: string | null) => {
       if (userId === null) return;
-      return apiClient.addFeedComment(postId, { userId, text }).then((next) => {
+      return apiClient.addFeedComment(postId, { userId, text, parentId: parentId ?? null }).then((next) => {
         update(next);
         return next;
       });
@@ -476,7 +511,8 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
             eventCategory={events.find((item) => item.id === post.eventId)?.category}
             userId={userId ?? ""}
             onToggleLike={() => toggleLike(post.id)}
-            onAddComment={(text) => addComment(post.id, text)}
+            onAddComment={(text, parentId) => addComment(post.id, text, parentId)}
+            onOpenComments={() => navigate({ name: "post", id: post.id })}
             onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined}
             onOpenAuthor={(authorId) => navigate({ name: "user", id: authorId })}
             onOpenMap={() => {
@@ -592,16 +628,20 @@ export function StoriesRow() {
       {/* Как в инстаграме: рельс открывается своим кружком с плюсом в углу — плюс ведёт в редактор истории, кольцо со своей историей открывает её просмотр. */}
       <div className="app-story app-story--own">
         {/* Подписи кружка и плюса разные: две кнопки с одним именем неразличимы и для скринридера, и для теста. */}
-        <button type="button" className="app-story-open" aria-label={rail.own.group === null ? "Твоя история: добавить" : "Твоя история: смотреть"} onClick={() => (rail.own.group === null ? openEditor() : setViewer({ groups: rail.groups, start: rail.own.group }))}>
-          <span className={storyRingClass(rail.own.unseen)}>
-            {rail.own.coverUrl === null ? (
+        <button type="button" className="app-story-open" aria-label={rail.own.group === null ? "Твоя история: добавить" : `Твоя история: ${rail.own.storyCount}`} onClick={() => (rail.own.group === null ? openEditor() : setViewer({ groups: rail.groups, start: rail.own.group }))}>
+          {rail.own.storyCount > 0 ? (
+            <StoryRing total={rail.own.storyCount} unseen={rail.own.unseenCount} label={rail.own.unseenCount > 0 ? `Твои истории, новых ${rail.own.unseenCount} из ${rail.own.storyCount}` : `Твои истории, ${rail.own.storyCount}, уже смотрел`}>
               <AppAvatar size={58} src={me?.avatarUrl}>
                 {me?.firstName[0] ?? "Я"}
               </AppAvatar>
-            ) : (
-              <img className="app-story-thumb" src={rail.own.coverUrl} alt="" />
-            )}
-          </span>
+            </StoryRing>
+          ) : (
+            <span className={storyRingClass(false)}>
+              <AppAvatar size={58} src={me?.avatarUrl}>
+                {me?.firstName[0] ?? "Я"}
+              </AppAvatar>
+            </span>
+          )}
         </button>
         <button type="button" className="app-story-plus" aria-label="Добавить историю" onClick={openEditor}>
           <ActionIcon name="plus" size={14} strokeWidth={3} />
@@ -612,10 +652,12 @@ export function StoriesRow() {
       </div>
       {rail.tiles.map((tile) => (
         <div key={tile.friendId} className="app-story">
-          <button type="button" className="app-story-open" aria-label={`История ${tile.name}`} onClick={() => setViewer({ groups: rail.groups, start: tile.group })}>
-            <span className={storyRingClass(tile.unseen)}>
-              <img className="app-story-thumb" src={tile.coverUrl} alt="" />
-            </span>
+          <button type="button" className="app-story-open" aria-label={`История ${tile.name}, ${tile.storyCount}`} onClick={() => setViewer({ groups: rail.groups, start: tile.group })}>
+            <StoryRing total={tile.storyCount} unseen={tile.unseenCount} label={tile.unseenCount > 0 ? `${tile.name}: новых историй ${tile.unseenCount} из ${tile.storyCount}` : `${tile.name}: истории ${tile.storyCount}, уже смотрел`}>
+              <AppAvatar size={58} src={tile.avatarUrl}>
+                {tile.initial}
+              </AppAvatar>
+            </StoryRing>
           </button>
           <button type="button" className="app-story-name" aria-label={`Профиль ${tile.name}`} onClick={() => navigate({ name: "user", id: tile.friendId })}>
             {tile.name}

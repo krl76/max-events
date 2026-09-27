@@ -159,7 +159,7 @@ describe("объекты холста", () => {
   });
 
   it("везёт место и размер одной трансформацией, иначе крупный объект уезжает от пальца", () => {
-    expect(storyObjectStyle({ kind: "text", x: 30, y: 12 })).toEqual({ left: "30%", top: "12%", transform: "translate(-50%, -50%) scale(1)" });
+    expect(storyObjectStyle({ kind: "text", x: 30, y: 12 })).toEqual({ left: "30%", top: "12%", transform: "translate(-50%, -50%) scale(1)", "--story-scale": "1" });
     expect(storyObjectStyle({ kind: "text", x: 30, y: 12, scale: 1.25 }).transform).toBe("translate(-50%, -50%) scale(1.25)");
   });
 
@@ -284,7 +284,6 @@ describe("StoryCreateView", () => {
 
     expect(html).not.toContain("Пустой холст");
     expect(html).toContain("Мангальная зона");
-    expect(html).toContain("осталось мест");
     expect(html).toContain("Во сколько удобнее?");
   });
 
@@ -339,12 +338,16 @@ describe("StoryCreateView", () => {
     expect(html).not.toContain('value="14:00"');
   });
 
-  it("говорит на счётчике мест, откуда взялось число, и даёт сменить только событие", () => {
-    const html = view({ draft: filledDraft() });
+  it("пишет свободные места на плашке будущего события и открывает выбор по всей плашке", () => {
+    const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const sticker = { ...storySticker(detailsOf()), startsAt: future, seatsLeft: 4 };
+    const html = view({ draft: filledDraft(), sticker });
 
-    expect(html).toContain("из карточки события");
-    expect(html).toContain("Событие счётчика мест");
+    expect(html).toContain("4 места свободно");
     expect(html).toContain("Событие истории");
+    expect(html).toContain("app-story-sticker-cover");
+    expect(html).not.toContain("Сменить событие");
+    expect(html).not.toContain(">Места<");
   });
 
   it("держит каталог объектов целиком: макет их показывал, экран даёт их добавить", () => {
@@ -358,8 +361,8 @@ describe("StoryCreateView", () => {
     const empty = view({ sticker: null, poll: null });
     const filled = view({ draft: filledDraft() });
 
-    // Текст доступен всегда, остальные три без карточки события пусты.
-    expect((empty.match(/disabled=""/g) ?? []).length).toBe(3);
+    // Текст доступен всегда, событие и опрос без карточки пусты.
+    expect((empty.match(/disabled=""/g) ?? []).length).toBe(2);
     expect((filled.match(/aria-pressed="true"/g) ?? []).length).toBeGreaterThanOrEqual(STORY_OBJECT_ORDER.length);
   });
 

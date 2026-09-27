@@ -37,6 +37,10 @@ export const StoryPlaceStickerSchema = z.object({
   title: z.string().min(1).max(200),
   subtitle: z.string().min(1).max(300),
   seatsLeft: z.number().int().min(0).nullable(),
+  /** Cover of the event. Absent on stories published before the sticker carried a photo. */
+  coverUrl: z.string().min(1).max(2000).nullable().optional(),
+  /** Start of the event, so a published story can hide the seat count once it is over. */
+  startsAt: z.string().min(1).max(40).optional(),
 });
 export type StoryPlaceSticker = z.infer<typeof StoryPlaceStickerSchema>;
 

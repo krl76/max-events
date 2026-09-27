@@ -84,6 +84,10 @@ export interface StoryPlaceSticker {
   subtitle: string;
   /** Free seats of the event; null when it has no capacity to count against. */
   seatsLeft: number | null;
+  /** Event cover. Absent on stories published before the sticker carried a photo. */
+  coverUrl?: string | null;
+  /** Event start, so the seat count can hide once the event is over. */
+  startsAt?: string;
 }
 
 /** The poll drawn on a story (макет, экран 05). Votes on a story are not a domain at all (#502). */
@@ -212,6 +216,12 @@ export interface FeedFriendCard {
   publishedAt: string | null;
   /** Attached impression photo; null when the post has none. */
   photoUrl: string | null;
+  /** Friends who marked «Я иду» on this post. Null when the viewer should not see that number. */
+  friendsGoing?: number | null;
+  /** This viewer's mark on this post. Absent on a card built before the mark existed. */
+  goingByMe?: boolean;
+  /** The original post, when this card is a repost. */
+  repostOf?: { postId: string; author: Friend; text: string; photoUrl: string | null } | null;
 }
 
 /** Venue post of the home feed (макет, экран 03): a place posting its own offer, with the viewer status block. */
@@ -297,7 +307,22 @@ function parseFriendCard(raw: Record<string, unknown>): FeedFriendCard | null {
   const locationLabel = raw.locationLabel === undefined ? null : raw.locationLabel;
   if (!isNullableString(locationLabel)) return null;
   const event = parsedEvent === null ? null : parsedEvent.data;
-  return { kind: "friend", id: raw.id, author: author.data, placeTitle: raw.placeTitle, locationLabel, distanceKm: raw.distanceKm, event, photoUrls, live: raw.live, hit: raw.hit, counts, myStatus: myStatus.value, text: raw.text, likesCount: raw.likesCount, likedByMe: raw.likedByMe, comments: comments.data, commentsCount: raw.commentsCount, publishedAt: raw.publishedAt, photoUrl: photoUrls[0] ?? photoUrl };
+  const friendsGoing = raw.friendsGoing === null || typeof raw.friendsGoing === "number" ? raw.friendsGoing : undefined;
+  const goingByMe = typeof raw.goingByMe === "boolean" ? raw.goingByMe : undefined;
+  const repostOf = parseRepost(raw.repostOf);
+  if (repostOf === "bad") return null;
+  return { kind: "friend", id: raw.id, author: author.data, placeTitle: raw.placeTitle, locationLabel, distanceKm: raw.distanceKm, event, photoUrls, live: raw.live, hit: raw.hit, counts, myStatus: myStatus.value, text: raw.text, likesCount: raw.likesCount, likedByMe: raw.likedByMe, comments: comments.data, commentsCount: raw.commentsCount, publishedAt: raw.publishedAt, photoUrl: photoUrls[0] ?? photoUrl, friendsGoing, goingByMe, repostOf };
+}
+
+function parseRepost(raw: unknown): FeedFriendCard["repostOf"] | "bad" {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "object") return "bad";
+  const repost = raw as Record<string, unknown>;
+  const author = FriendSchema.safeParse(repost.author);
+  if (!author.success || typeof repost.postId !== "string" || typeof repost.text !== "string") return "bad";
+  const photoUrl = repost.photoUrl === null ? null : repost.photoUrl;
+  if (typeof photoUrl !== "string" && photoUrl !== null) return "bad";
+  return { postId: repost.postId, author: author.data, text: repost.text, photoUrl };
 }
 
 function parseQuote(raw: unknown): { ok: true; value: FeedPlaceCard["quote"] } | { ok: false } {
@@ -478,8 +503,23 @@ export function withFeed<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/feed/${postId}/like?userId=${encodeURIComponent(userId)}`, FeedPostSchema, { method: "POST" });
     }
 
-    addFeedComment(postId: string, payload: { userId: string; text: string }): Promise<FeedPost> {
+    addFeedComment(postId: string, payload: { userId: string; text: string; parentId?: string | null }): Promise<FeedPost> {
       return this.request(`/feed/${postId}/comments`, FeedPostSchema, { body: payload });
+    }
+
+    /** Repost one post. The server refuses an own post and a second repost of the same post. */
+    repostFeedPost(postId: string, userId = ""): Promise<FeedPost> {
+      return this.request(`/feed/${postId}/repost?userId=${encodeURIComponent(userId)}`, FeedPostSchema, { method: "POST" });
+    }
+
+    /** Share an event into the feed once. */
+    repostFeedEvent(eventId: string, userId = ""): Promise<FeedPost> {
+      return this.request(`/feed/events/${eventId}/repost?userId=${encodeURIComponent(userId)}`, FeedPostSchema, { method: "POST" });
+    }
+
+    /** Toggle «Я иду» on this post. The screen re-reads the cards for the friends-only count. */
+    toggleFeedGoing(postId: string, userId = ""): Promise<FeedPost> {
+      return this.request(`/feed/${postId}/going?userId=${encodeURIComponent(userId)}`, FeedPostSchema, { method: "POST" });
     }
   };
 }

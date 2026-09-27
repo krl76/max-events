@@ -10,7 +10,7 @@
 // END_MODULE_MAP
 
 import { type CreateFeedPost, type PostDraft, type StoryComposition } from "../client";
-import { addMockFeedComment, createMockFeedPost, createMockStory, feedPosts, listMockStories, mockFeedCards, saveMockPostDraft, toggleMockFeedLike } from "./feed";
+import { addMockFeedComment, createMockFeedPost, createMockStory, feedPosts, listMockStories, mockFeedCards, repostMockFeedEvent, repostMockFeedPost, saveMockPostDraft, toggleMockFeedGoing, toggleMockFeedLike } from "./feed";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
 import { userPostsFor } from "./profile";
 
@@ -102,11 +102,35 @@ export function feedRoutes(url: URL, init: RequestInit | undefined): Response | 
     const post = toggleMockFeedLike(feedLike[1], userId);
     return post ? Response.json(post) : new Response(null, { status: 404 });
   }
+  const feedEventRepost = /^\/api\/feed\/events\/([^/]+)\/repost$/.exec(url.pathname);
+  if (feedEventRepost && init?.method === "POST") {
+    const userId = url.searchParams.get("userId") ?? "";
+    if (userId === "") return new Response(null, { status: 400 });
+    const post = repostMockFeedEvent(userId, feedEventRepost[1]);
+    if (post === "dup") return new Response(null, { status: 409 });
+    return post ? Response.json(post) : new Response(null, { status: 404 });
+  }
+  const feedRepost = /^\/api\/feed\/([^/]+)\/repost$/.exec(url.pathname);
+  if (feedRepost && init?.method === "POST") {
+    const userId = url.searchParams.get("userId") ?? "";
+    if (userId === "") return new Response(null, { status: 400 });
+    const post = repostMockFeedPost(userId, feedRepost[1]);
+    if (post === "own") return new Response(null, { status: 400 });
+    if (post === "dup") return new Response(null, { status: 409 });
+    return post ? Response.json(post) : new Response(null, { status: 404 });
+  }
+  const feedGoing = /^\/api\/feed\/([^/]+)\/going$/.exec(url.pathname);
+  if (feedGoing && init?.method === "POST") {
+    const userId = url.searchParams.get("userId") ?? "";
+    if (userId === "") return new Response(null, { status: 400 });
+    const post = toggleMockFeedGoing(userId, feedGoing[1]);
+    return post ? Response.json(post) : new Response(null, { status: 404 });
+  }
   const feedComment = /^\/api\/feed\/([^/]+)\/comments$/.exec(url.pathname);
   if (feedComment && init?.method === "POST") {
-    const payload = parseBookingBody(init) as { userId?: string; text?: string } | undefined;
+    const payload = parseBookingBody(init) as { userId?: string; text?: string; parentId?: string | null } | undefined;
     if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || payload.userId === "" || typeof payload.text !== "string" || payload.text.trim() === "") return new Response(null, { status: 400 });
-    const post = addMockFeedComment(feedComment[1], { userId: payload.userId, text: payload.text });
+    const post = addMockFeedComment(feedComment[1], { userId: payload.userId, text: payload.text, parentId: payload.parentId });
     return post ? Response.json(post) : new Response(null, { status: 404 });
   }
   return null;

@@ -9,6 +9,7 @@
 // - FeedPostEntity - feed_posts table row
 // - FeedLikeEntity - feed_likes table row
 // - FeedCommentEntity - feed_comments table row
+// - FeedPostGoingEntity - one viewer marking «Я иду» on one post
 // END_MODULE_MAP
 
 import "reflect-metadata";
@@ -53,6 +54,14 @@ export class FeedPostEntity {
   @Column({ type: "boolean", default: true })
   published!: boolean;
 
+  /** The post this one reposts. Null when the author wrote it. */
+  @Column({ type: "uuid", nullable: true })
+  repostOfPostId?: string | null;
+
+  /** The event shared from the city rail. Null on an ordinary post and on a repost of a post. */
+  @Column({ type: "uuid", nullable: true })
+  repostOfEventId?: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 }
@@ -83,6 +92,22 @@ export class FeedCommentEntity {
   @Column({ type: "varchar", length: 2000 })
   text!: string;
 
+  /** Root comment this answers. Null on a top-level comment. */
+  @Column({ type: "uuid", nullable: true })
+  parentId?: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
+}
+
+@Entity("feed_post_going")
+export class FeedPostGoingEntity {
+  @PrimaryGeneratedColumn("uuid")
+  id!: string;
+
+  @Column({ type: "uuid" })
+  postId!: string;
+
+  @Column({ type: "uuid" })
+  userId!: string;
 }

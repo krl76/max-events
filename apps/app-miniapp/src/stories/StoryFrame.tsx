@@ -8,6 +8,7 @@
 import type { CSSProperties } from "react";
 import type { Friend, Story, StoryCanvasObject } from "@max-events/api-contracts";
 import { friendHandle } from "../ui/friend-handle";
+import { pictured } from "../ui/photos";
 import { StoryMentionText, type StoryMentionLink } from "./story-text";
 
 function objectStyle(object: StoryCanvasObject): CSSProperties {
@@ -22,6 +23,13 @@ function mentionsFor(object: StoryCanvasObject, friends: readonly Friend[]): Sto
   if (object.mentions && object.mentions.length > 0) return object.mentions;
   const ids = new Set(object.mentionIds ?? []);
   return friends.filter((friend) => ids.has(friend.id)).map((friend) => ({ id: friend.id, handle: friendHandle(friend) }));
+}
+
+function seatsLabel(seatsLeft: number): string {
+  const mod100 = seatsLeft % 100;
+  const mod10 = seatsLeft % 10;
+  const word = mod100 > 10 && mod100 < 20 ? "мест" : mod10 === 1 ? "место" : mod10 >= 2 && mod10 <= 4 ? "места" : "мест";
+  return `${seatsLeft} ${word} свободно`;
 }
 
 function votesWord(total: number): string {
@@ -51,10 +59,11 @@ export function StoryFrame({ story, friends = [], onOpenEvent, onOpenUser, onVot
             )}
             {object.kind === "event" && story.sticker !== null && (
               <button type="button" className="app-story-sticker" onClick={() => onOpenEvent?.(story.sticker?.eventId ?? "")}>
-                <span className="app-story-sticker-dot" aria-hidden="true" />
+                {story.sticker.coverUrl ? <img className="app-story-sticker-cover" src={pictured(story.sticker.eventId, story.sticker.coverUrl)} alt="" /> : <span className="app-story-sticker-dot" aria-hidden="true" />}
                 <span className="app-story-sticker-text">
                   <span className="app-story-sticker-title">{story.sticker.title}</span>
                   <span className="app-story-sticker-subtitle">{story.sticker.subtitle}</span>
+                  {story.sticker.seatsLeft !== null && story.sticker.startsAt !== undefined && Date.parse(story.sticker.startsAt) > Date.now() && <span className="app-story-sticker-seats">{seatsLabel(story.sticker.seatsLeft)}</span>}
                 </span>
               </button>
             )}

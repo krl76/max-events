@@ -93,9 +93,9 @@ describe("FeedFriendPost", () => {
   });
 
   it("turns «Пойду» into the pressed «Иду» once the viewer is going", () => {
-    expect(post()).toContain("Пойду");
+    expect(post()).toContain("Я пойду");
     const going = post({ myStatus: "going" });
-    expect(going).toContain("Иду");
+    expect(going).toContain("Я иду");
     expect(going).toContain('aria-pressed="true"');
     expect(going).toContain("app-feed-going--on");
   });

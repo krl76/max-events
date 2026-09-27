@@ -59,17 +59,28 @@ export const FeedCommentSchema = z.object({
   id: IdSchema,
   author: FriendSchema,
   text: z.string().min(1).max(2000),
+  /** The root comment this one answers. Null on a top-level comment. A reply to a reply points at that root. */
+  parentId: IdSchema.nullable().optional(),
 });
 export type FeedComment = z.infer<typeof FeedCommentSchema>;
 
 export const PostAudienceSchema = z.enum(["friends", "city", "company"]);
 export type PostAudience = z.infer<typeof PostAudienceSchema>;
 
+export const FeedRepostSchema = z.object({
+  postId: IdSchema,
+  author: FriendSchema,
+  text: z.string(),
+  photoUrl: photoUrlSchema.nullable(),
+});
+export type FeedRepost = z.infer<typeof FeedRepostSchema>;
+
 export const FeedPostSchema = z.object({
   id: IdSchema,
   author: FriendSchema,
   eventId: IdSchema.nullable(),
-  text: z.string().min(1).max(5000),
+  /** Empty when the post is a repost: the original caption lives on repostOf, still attributed to its author. */
+  text: z.string().max(5000),
   photoUrl: photoUrlSchema.nullable().default(null),
   photoUrls: z.array(photoUrlSchema).max(3).optional(),
   placeId: IdSchema.nullable().default(null),
@@ -80,6 +91,8 @@ export const FeedPostSchema = z.object({
   likesCount: z.number().int().min(0),
   likedByMe: z.boolean(),
   comments: z.array(FeedCommentSchema).default([]),
+  /** The original post, when this one is a repost. Absent on a post the author wrote themselves. */
+  repostOf: FeedRepostSchema.nullable().optional(),
 });
 export type FeedPost = z.infer<typeof FeedPostSchema>;
 
@@ -98,6 +111,7 @@ export type CreateFeedPostWrite = z.infer<typeof CreateFeedPostWriteSchema>;
 
 export const AddFeedCommentWriteSchema = z.object({
   text: z.string().min(1).max(2000),
+  parentId: IdSchema.nullable().optional(),
 });
 export type AddFeedCommentWrite = z.infer<typeof AddFeedCommentWriteSchema>;
 
@@ -146,6 +160,11 @@ export const FeedFriendCardSchema = z.object({
   commentsCount: z.number().int().min(0),
   publishedAt: TimestampSchema.nullable(),
   photoUrl: photoUrlSchema.nullable().default(null),
+  /** Friends of the author who marked «Я иду» on this post, including the viewer. Null when the viewer is not a friend of the author. */
+  friendsGoing: z.number().int().min(0).nullable().optional(),
+  /** This viewer's mark on this post, not on the event. */
+  goingByMe: z.boolean().optional(),
+  repostOf: FeedRepostSchema.nullable().optional(),
 });
 export type FeedFriendCard = z.infer<typeof FeedFriendCardSchema>;
 

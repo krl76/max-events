@@ -71,10 +71,25 @@ export class FeedController {
     return this.feed.toggleLike(user.id, id);
   }
 
+  @Post("events/:eventId/repost")
+  repostEvent(@CurrentUser() user: UserEntity, @Param("eventId", ParseUUIDPipe) eventId: string): Promise<FeedPost> {
+    return this.feed.repostEvent(user.id, eventId);
+  }
+
+  @Post(":id/going")
+  toggleGoing(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<FeedPost> {
+    return this.feed.toggleGoing(user.id, id);
+  }
+
+  @Post(":id/repost")
+  repost(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<FeedPost> {
+    return this.feed.repostPost(user.id, id);
+  }
+
   @Post(":id/comments")
   async addComment(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<FeedPost> {
     const parsed = AddFeedCommentWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid comment payload");
-    return this.feed.addComment(user.id, id, parsed.data.text);
+    return this.feed.addComment(user.id, id, parsed.data.text, parsed.data.parentId ?? null);
   }
 }

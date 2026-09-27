@@ -46,6 +46,7 @@ import { STORY_TEXT_COLORS, STORY_TEXT_FONTS, type Event, type Friend } from "@m
 import { apiClient, STORY_AUDIENCES, type EventDetails, type StoryAudience, type StoryCanvasObject, type StoryComposition, type StoryObjectKind, type StoryPlaceSticker, type StoryPoll } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { useRoute } from "../routing/router";
+import { pictured } from "../ui/photos";
 import { EventPicker } from "../ui/EventPicker";
 import { friendHandle } from "../ui/friend-handle";
 import { StoryMentionText } from "../stories/story-text";
@@ -59,7 +60,7 @@ export type StoryCanvas = "gradient-1" | "gradient-2" | "gradient-3" | "photo";
 export const STORY_CANVASES: readonly StoryCanvas[] = ["gradient-1", "gradient-2", "gradient-3"];
 
 /** Порядок кнопок каталога: сперва подпись, потом то, что тянет данные из события. */
-export const STORY_OBJECT_ORDER: readonly StoryObjectKind[] = ["text", "event", "poll", "seats"];
+export const STORY_OBJECT_ORDER: readonly StoryObjectKind[] = ["text", "event", "poll"];
 
 /**
  * Каталог объектов холста: всё, что макет показывал готовой историей, здесь — кнопка добавления, а
@@ -120,7 +121,17 @@ export function storySticker(details: EventDetails): StoryPlaceSticker {
     title: details.event.title,
     subtitle: details.place === null ? time : `${details.place.title} · ${time}`,
     seatsLeft: details.remainingSeats,
+    coverUrl: details.event.coverUrl ?? null,
+    startsAt: details.event.startsAt,
   };
+}
+
+/** «4 места свободно». Only for an event that has not started. */
+export function storySeatsLabel(seatsLeft: number): string {
+  const mod100 = seatsLeft % 100;
+  const mod10 = seatsLeft % 10;
+  const word = mod100 > 10 && mod100 < 20 ? "мест" : mod10 === 1 ? "место" : mod10 >= 2 && mod10 <= 4 ? "места" : "мест";
+  return `${seatsLeft} ${word} свободно`;
 }
 
 const POLL_SECOND_OPTION_HOURS = 3;
@@ -285,7 +296,8 @@ export function storyObjectClass(kind: StoryObjectKind, front: StoryObjectKind |
  * ехать вместе, иначе крупный объект уезжает от пальца на половину прибавки.
  */
 export function storyObjectStyle(object: StoryCanvasObject): CSSProperties {
-  return { left: `${object.x}%`, top: `${object.y}%`, transform: `translate(-50%, -50%) scale(${object.scale ?? 1})` };
+  const scale = object.scale ?? 1;
+  return { left: `${object.x}%`, top: `${object.y}%`, transform: `translate(-50%, -50%) scale(${scale})`, ["--story-scale" as string]: String(scale) };
 }
 
 export function rotateStoryPhoto(degrees: number): number {
@@ -405,6 +417,24 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
   const onPhotoCanvas = draft.canvas === "photo" && draft.photoUrl !== null;
   // Опрос на холсте — правленый, а не выведенный: заготовка из события служит ему только началом.
   const asked = storyDraftPoll(draft, poll);
+  const [keyboardInset, setKeyboardInset] = useState(0);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const sync = () => setKeyboardInset(Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop));
+    viewport.addEventListener("resize", sync);
+    viewport.addEventListener("scroll", sync);
+    sync();
+    return () => {
+      viewport.removeEventListener("resize", sync);
+      viewport.removeEventListener("scroll", sync);
+    };
+  }, []);
+  const typing = editing !== null;
+  const pickedEvent = events.find((item) => item.id === (sticker?.eventId ?? draft.eventId)) ?? null;
+  const eventStartsAt = sticker?.startsAt ?? pickedEvent?.startsAt ?? null;
+  const eventUpcoming = eventStartsAt !== null && Date.parse(eventStartsAt) > Date.now();
+  const eventCover = sticker?.coverUrl ? pictured(sticker.eventId, sticker.coverUrl) : pickedEvent ? pictured(pickedEvent.id, pickedEvent.coverUrl) : null;
 
   /** Добавленный объект сразу становится выбранным: ручки живут на выбранном, и искать их не приходится. */
   const putObject = (kind: StoryObjectKind) => {
@@ -520,22 +550,12 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
       const y = object.y + ((ended.clientY - fromY) / box.height) * 100;
       if (moved && storyDeleteZone(y)) dropObject(key);
       else if (!moved && !pinching && !held && object.kind === "text") setEditing(key);
+      else if (!moved && !pinching && !held && (object.kind === "event" || object.kind === "seats")) setPickingEvent(true);
       setDeleteTray(false);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", stop);
   };
-
-  /**
-   * Выбор события — единственное, что правится у стикера и счётчика мест: заголовок, площадка, время
-   * и остаток мест принадлежат карточке события, а не истории, и сочинять их поверх неё нельзя.
-   * Список событий открывается своей панелью: системный select на телефоне уезжал за край экрана.
-   */
-  const eventPick = (label: string): ReactNode => (
-    <button type="button" className="app-story-pick" aria-label={label} onPointerDown={(pick) => pick.stopPropagation()} onClick={() => setPickingEvent(true)}>
-      <ActionIcon name="chevron" size={14} strokeWidth={2.6} />
-    </button>
-  );
 
   const objectBody = (object: StoryCanvasObject): ReactNode => {
     const kind = object.kind;
@@ -568,13 +588,13 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
     }
     if (kind === "event" && sticker !== null)
       return (
-        <div className="app-story-sticker">
-          <span className="app-story-sticker-dot" aria-hidden="true" />
+        <div className="app-story-sticker" aria-label="Событие истории">
+          {eventCover ? <img className="app-story-sticker-cover" src={eventCover} alt="" /> : <span className="app-story-sticker-dot" aria-hidden="true" />}
           <span className="app-story-sticker-text">
             <span className="app-story-sticker-title">{sticker.title}</span>
             <span className="app-story-sticker-subtitle">{sticker.subtitle}</span>
+            {eventUpcoming && sticker.seatsLeft !== null && <span className="app-story-sticker-seats">{storySeatsLabel(sticker.seatsLeft)}</span>}
           </span>
-          {eventPick("Событие истории")}
         </div>
       );
     if (kind === "seats" && sticker !== null && sticker.seatsLeft !== null)
@@ -584,7 +604,6 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
           <span className="app-story-seats-count">{sticker.seatsLeft}</span>
           {/* Число не правится руками намеренно: свободные места считает бронирование, и подписанное автором «осталось 2» было бы враньём на витрине. */}
           <span className="app-story-seats-source">из карточки события</span>
-          {eventPick("Событие счётчика мест")}
         </div>
       );
     if (kind === "poll" && asked !== null)
@@ -613,7 +632,8 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
   return (
     <section
       ref={frameRef}
-      className={onPhotoCanvas ? `app-story-compose app-story-compose--photo${draft.cropping ? " app-story-compose--cropping" : ""}` : `app-story-compose app-story-compose--${draft.canvas}`}
+      className={`${onPhotoCanvas ? `app-story-compose app-story-compose--photo${draft.cropping ? " app-story-compose--cropping" : ""}` : `app-story-compose app-story-compose--${draft.canvas}`}${typing ? " app-story-compose--typing" : ""}`}
+      style={typing ? { ["--app-keyboard-inset" as string]: `${keyboardInset}px` } : undefined}
       aria-label="Публикация истории"
       onPointerDown={(event) => {
         const node = event.target;
@@ -662,7 +682,17 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
               <ActionIcon name="sparkle" size={20} strokeWidth={2} />
             </button>
           )}
-          <div className="app-story-catalog">
+          {front !== null && (
+            <button
+              type="button"
+              className="app-story-object-delete"
+              aria-label={`Удалить: ${STORY_OBJECTS[draft.objects.find((object) => storyObjectKey(object) === front)?.kind ?? "text"].label}`}
+              onClick={() => dropObject(front)}
+            >
+              Удалить
+            </button>
+          )}
+          <div className={typing ? "app-story-catalog app-story-catalog--hidden" : "app-story-catalog"}>
             {STORY_OBJECT_ORDER.map((kind) => {
               const on = hasStoryObject(draft.objects, kind);
               return (
@@ -676,7 +706,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
         </div>
       </div>
 
-      {drawn.length === 0 && <p className="app-story-empty">Пустой холст. Справа сверху — текст, событие, опрос и места. Снизу правится то, что выбрано.</p>}
+      {drawn.length === 0 && <p className="app-story-empty">Пустой холст. Справа сверху — текст, событие и опрос. Снизу правится то, что выбрано.</p>}
 
       {drawn.map(({ object, body }) => {
         const label = STORY_OBJECTS[object.kind].label;
@@ -694,20 +724,6 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
               startDrag(object, event);
             }}
           >
-            {(selected || shaking === key) && (
-              <button
-                type="button"
-                className="app-story-object-delete"
-                aria-label={`Удалить: ${label}`}
-                onPointerDown={(press) => press.stopPropagation()}
-                onClick={(press) => {
-                  press.stopPropagation();
-                  dropObject(key);
-                }}
-              >
-                <ActionIcon name="close" size={12} strokeWidth={2.6} />
-              </button>
-            )}
             {selected &&
               (["nw", "ne", "sw", "se"] as const).map((corner) => (
                 <button
@@ -803,14 +819,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
             </button>
           </div>
         )}
-        {front !== null && (draft.objects.find((object) => storyObjectKey(object) === front)?.kind === "event" || draft.objects.find((object) => storyObjectKey(object) === front)?.kind === "seats") && (
-          <div className="app-story-style">
-            <button type="button" className="app-story-style-chip" onClick={() => setPickingEvent(true)}>
-              Сменить событие
-            </button>
-          </div>
-        )}
-        {front !== null && draft.objects.find((object) => storyObjectKey(object) === front)?.kind === "poll" && <p className="app-story-editor-note">Вопрос и варианты правятся прямо на опросе.</p>}
+        {front !== null && draft.objects.find((object) => storyObjectKey(object) === front)?.kind === "poll" && !typing && <p className="app-story-editor-note">Вопрос и варианты правятся прямо на опросе.</p>}
         <div className="app-story-rail">
           {STORY_CANVASES.map((canvas, index) => (
             <button key={canvas} type="button" className={draft.canvas === canvas ? `app-story-tile app-story-tile--${canvas} app-story-tile--on` : `app-story-tile app-story-tile--${canvas}`} aria-pressed={draft.canvas === canvas} aria-label={`Фон ${index + 1}`} onClick={() => onDraft({ ...draft, canvas })} />
