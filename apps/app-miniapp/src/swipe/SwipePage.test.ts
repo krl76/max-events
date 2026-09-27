@@ -41,6 +41,7 @@ describe("swipeProgress", () => {
 describe("swipe card formatting", () => {
   it("prints the distance, the rating with its review count and the hourly price", () => {
     expect(formatSwipeDistance(2.4)).toBe("2,4 км");
+    expect(formatSwipeDistance(888.1)).toBe("далеко");
     expect(formatSwipeDistance(null)).toBeNull();
     expect(formatSwipeRating(4.9, 143)).toBe("4.9 · 143 отзыва");
     expect(formatSwipeRating(4.9, 1)).toBe("4.9 · 1 отзыв");

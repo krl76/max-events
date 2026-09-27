@@ -22,10 +22,10 @@
 // - SwipePage - container: deck fetch per category, the drag, decisions, the leaving card until its fly-out ends, undo and navigation
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useRef, useState, type AnimationEvent as ReactAnimationEvent, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type AnimationEvent as ReactAnimationEvent, type CSSProperties } from "react";
 import { apiClient, SWIPE_CATEGORIES, type SwipeCandidate, type SwipeCategory, type SwipeDecision } from "../api/client";
 import { pluralRu } from "../catalog/format";
-import { useViewerOrigin } from "../geo/viewer-origin";
+import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
 import { useSwipeDrag, type SwipeGestureProps } from "../ui/gestures";
 import { ActionIcon } from "../ui/icons";
@@ -64,7 +64,9 @@ export interface SwipeLeaving {
 
 /** «2,4 км» — ru decimal comma, one digit; null while the list DTO carries no distance (#496). */
 export function formatSwipeDistance(distanceKm: number | null): string | null {
-  return distanceKm === null ? null : `${distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км`;
+  if (distanceKm === null) return null;
+  if (distanceKm > 80) return "далеко";
+  return `${distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км`;
 }
 
 /** «4.9 · 143 отзыва», or the stars alone when the count is missing; null until the venue is rated (#496). */
@@ -282,6 +284,7 @@ export function SwipeView(props: SwipeViewProps) {
 export function SwipePage() {
   const { navigate, back } = useRoute();
   const origin = useViewerOrigin();
+  const [homeCity, setHomeCity] = useState<string | null>(null);
   const [category, setCategory] = useState<SwipeCategory>("all");
   const [state, setState] = useState<SwipeState>({ status: "loading" });
   const [index, setIndex] = useState(0);
@@ -291,13 +294,27 @@ export function SwipePage() {
   // начаться там, где карточку отпустили.
   const lastOffset = useRef(0);
   const top = state.status === "ready" ? state.candidates[index] : undefined;
+  const point = useMemo(() => (homeCity === null ? origin : browsedCityOrigin(origin, homeCity)), [origin, homeCity]);
+
+  useEffect(() => {
+    let alive = true;
+    apiClient.getProfile().then(
+      (profile) => {
+        if (alive) setHomeCity(profile.city);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
     setIndex(0);
     setLeaving(null);
-    apiClient.listSwipeCandidates(category, { latitude: origin.latitude, longitude: origin.longitude }).then(
+    apiClient.listSwipeCandidates(category, { latitude: point.latitude, longitude: point.longitude }).then(
       (candidates) => {
         if (alive) setState({ status: "ready", candidates });
       },
@@ -308,7 +325,7 @@ export function SwipePage() {
     return () => {
       alive = false;
     };
-  }, [category, origin.latitude, origin.longitude, attempt]);
+  }, [category, point.latitude, point.longitude, attempt]);
 
   const decide = useCallback(
     (decision: SwipeDecision, dx = 0) => {
