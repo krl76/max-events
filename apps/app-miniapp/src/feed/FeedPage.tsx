@@ -199,7 +199,7 @@ export function CommentSheet({
   return (
     <div className="app-picker" role="dialog" aria-modal="true" aria-label="Комментарии">
       <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={onClose} />
-      <div className="app-picker-sheet app-picker-sheet--above-tabs app-sheet" style={swipe.style}>
+      <div className="app-picker-sheet app-sheet" style={swipe.style}>
         <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
         <div className="app-picker-head">
           <h2 className="app-picker-title">Комментарии</h2>

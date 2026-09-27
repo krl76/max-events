@@ -6521,7 +6521,7 @@ html[data-theme="dark"] #root {
   position: fixed;
   right: 0;
   top: 0;
-  z-index: 40;
+  z-index: 80;
 }
 
 .app-picker-scrim {
@@ -6552,8 +6552,15 @@ html[data-theme="dark"] #root {
   right: 0;
 }
 
-.app-picker-sheet--above-tabs {
-  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+.app-comments-list .app-feed-comment {
+  background: var(--app-surface);
+  border-radius: 16px;
+  color: var(--app-text);
+  padding: 10px 12px;
+}
+
+.app-comments-list .app-feed-comment-author {
+  color: var(--app-accent-text);
 }
 
 .app-picker-head {
@@ -12351,9 +12358,20 @@ button.app-poll-result {
   align-items: center;
   display: flex;
   flex: none;
-  gap: 12px;
+  gap: 4px;
   margin: 0;
   padding-top: max(var(--app-space-s), env(safe-area-inset-top, 0px));
+}
+
+.app-cal-back {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  padding: 8px;
+  transform: rotate(180deg);
 }
 
 .app-cal-close {
@@ -17355,10 +17373,10 @@ button.app-cal-peer-chip {
 .app-notify-top {
   align-items: center;
   border-bottom: var(--app-hairline);
-  display: flex;
+  display: grid;
   flex: none;
-  gap: var(--app-space-m);
-  padding: 60px var(--app-space-screen) 14px;
+  grid-template-columns: 44px 1fr 44px;
+  padding: max(12px, env(safe-area-inset-top, 0px)) var(--app-space-screen) 12px;
 }
 
 /* Колокольчик в шапке — акцентный: он же и есть предмет экрана */

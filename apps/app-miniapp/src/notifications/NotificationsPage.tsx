@@ -140,6 +140,7 @@ export function NotificationsView({ state, quietHours, now = new Date(), busy = 
           <ActionIcon name="bell" size={26} strokeWidth={2} />
         </span>
         <h1 className="app-notify-top-title">Уведомления</h1>
+        <span aria-hidden="true" />
       </header>
       <div className="app-notify-body">
         {state.status === "loading" && <AppSkeletonList rows={3} />}

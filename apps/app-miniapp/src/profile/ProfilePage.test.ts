@@ -231,7 +231,8 @@ describe("ProfileView", () => {
 
     expect(html).toContain("Кирилл Соколов");
     expect(html).not.toContain("Москва · джаз, падел");
-    expect(html).toContain(">112</span>");
+    expect(html).not.toContain(">112</span>");
+    expect(html).not.toContain("компаний");
     expect(html).toContain("Посты · 2");
     expect(html).not.toContain("Подписаться");
     expect(html).not.toContain("Написать");
@@ -290,7 +291,8 @@ describe("ProfileView", () => {
     expect(html).toContain("подписки");
     expect(html).toContain("подписчика");
     expect(html.match(/app-me-metric app-me-metric--link/g)).toHaveLength(2);
-    expect(html.match(/app-me-metrics-row/g)).toHaveLength(2);
+    expect(html.match(/app-me-metrics-row/g)).toHaveLength(1);
+    expect(html).not.toContain("событий");
     expect(html).not.toMatch(/app-me-row-title">Подписки/);
   });
 

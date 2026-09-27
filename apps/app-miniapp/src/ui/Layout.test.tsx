@@ -114,7 +114,7 @@ describe("routeHasHeader", () => {
     // Экран 17 несёт кнопку назад и «поделиться» в градиентном hero, экран 23 — название события в своей шапке.
     expect(routeHasHeader({ name: "event", id: "e1" })).toBe(false);
     expect(routeHasHeader({ name: "companions", eventId: "e1" })).toBe(false);
-    // Календарь рисует свой заголовок и «Закрыть», общая шапка была бы второй.
+    // Календарь рисует свой заголовок, общая шапка была бы второй. Таббара у него нет.
     expect(routeHasHeader({ name: "calendar" })).toBe(false);
   });
 
@@ -136,7 +136,7 @@ describe("routeIsFullscreen", () => {
   it("gives the whole viewport to the story and post composers, whose own bottom rail the tabbar would cover", () => {
     expect(routeIsFullscreen({ name: "story-new" })).toBe(true);
     expect(routeIsFullscreen({ name: "feed-new", eventId: null })).toBe(true);
-    expect(routeIsFullscreen({ name: "calendar" })).toBe(false);
+    expect(routeIsFullscreen({ name: "calendar" })).toBe(true);
     expect(routeIsFullscreen({ name: "assist", ask: null })).toBe(true);
     expect(routeIsFullscreen({ name: "day-route" })).toBe(true);
   });

@@ -247,9 +247,8 @@ export function SharedCalendarView({ shared, entries, month, selected, now, onSe
     <section className={chrome ? "app-cal app-cal--screen" : "app-cal"} aria-label="Календарь планов">
       {chrome && (
         <div className="app-cal-top">
-          <button type="button" className="app-cal-close" aria-label="Закрыть" onClick={onClose}>
-            <ActionIcon name="close" size={16} strokeWidth={2.6} />
-            Закрыть
+          <button type="button" className="app-cal-back" aria-label="Назад" onClick={onClose}>
+            <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
           </button>
           <h1 className="app-cal-top-title">{viewingPeer ? viewingPeer.friend.name.split(" ")[0] : "Календарь"}</h1>
         </div>

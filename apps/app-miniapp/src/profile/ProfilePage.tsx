@@ -321,7 +321,6 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
     return () => window.clearTimeout(id);
   }, [clickShield]);
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
-  const numbers = profileMetrics(counters);
   const social = socialMetrics({ posts: posts === null ? null : posts.length, subscriptions, following, followers });
   const openList = { posts: () => entries.onTab("posts"), subscriptions: entries.onSubscriptions, followers: entries.onFollowers };
   const about = profileAbout(profile);
@@ -403,30 +402,18 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
       {clickShield && <div className="app-me-pop-shield" aria-hidden="true" />}
       <h1 className="app-me-name">{name}</h1>
       {about !== "" && <p className="app-me-about">{about}</p>}
-      {(numbers.length > 0 || social.some((metric) => metric.id !== "posts")) && (
+      {social.some((metric) => metric.id !== "posts") && (
         <div className="app-me-metrics">
-          {numbers.length > 0 && (
-            <div className="app-me-metrics-row">
-              {numbers.map((metric) => (
-                <span key={metric.label} className="app-me-metric">
+          <div className="app-me-metrics-row">
+            {social
+              .filter((metric) => metric.id !== "posts")
+              .map((metric) => (
+                <button key={metric.id} type="button" className="app-me-metric app-me-metric--link" onClick={openList[metric.id]}>
                   <span className="app-me-metric-value">{metric.value}</span>
                   <span className="app-me-metric-label">{metric.label}</span>
-                </span>
+                </button>
               ))}
-            </div>
-          )}
-          {social.some((metric) => metric.id !== "posts") && (
-            <div className="app-me-metrics-row">
-              {social
-                .filter((metric) => metric.id !== "posts")
-                .map((metric) => (
-                  <button key={metric.id} type="button" className="app-me-metric app-me-metric--link" onClick={openList[metric.id]}>
-                    <span className="app-me-metric-value">{metric.value}</span>
-                    <span className="app-me-metric-label">{metric.label}</span>
-                  </button>
-                ))}
-            </div>
-          )}
+          </div>
         </div>
       )}
       {!own && (
