@@ -22199,8 +22199,17 @@ button.app-story-viewer-author {
 .app-bill-head {
   align-items: center;
   display: flex;
-  gap: 6px;
+  gap: 10px;
   justify-content: flex-start;
+}
+
+.app-bill-head .app-today-date-wrap {
+  flex: none;
+  margin-left: 4px;
+}
+
+.app-bill:not(.app-bill--open) {
+  opacity: 0.62;
 }
 
 .app-bill > .app-bill-title {
@@ -22367,11 +22376,16 @@ button.app-story-viewer-author {
   min-width: 0;
 }
 
-.app-poster-host,
-.app-poster-highlight {
+.app-poster-host {
   color: #007aff;
   font-size: 12px;
   font-weight: 800;
+}
+
+.app-poster-highlight {
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .app-poster-title {
@@ -22934,9 +22948,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
   .app-evc-invite,
   .app-wt-bar-cta,
   .app-nb-plan,
-  .app-follower-act,
-  .app-today-cal-day--on,
-  .app-today-cal-today
+  .app-follower-act
 ) {
   background: var(--app-gradient-dark);
   color: #ffffff;
@@ -22965,6 +22977,14 @@ html:not([data-theme="dark"]) .app-when-sheet {
   letter-spacing: 0.03em;
   min-height: 28px;
   padding: 0 8px 0 10px;
+  white-space: nowrap;
+}
+
+.app-search-feed-kicker {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+  margin: 14px 0 8px;
 }
 
 .app-today-cal-layer {
@@ -22979,6 +22999,9 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-today-cal-layer .app-today-cal {
+  background: var(--app-card, #ffffff);
+  box-shadow: 0 16px 40px rgba(6, 7, 8, 0.28);
+  color: var(--app-ink, #060708);
   left: auto;
   max-height: calc(100dvh - 160px);
   overflow: auto;
@@ -22986,6 +23009,22 @@ html:not([data-theme="dark"]) .app-when-sheet {
   right: auto;
   top: auto;
   width: min(340px, 100%);
+}
+
+.app-today-cal-layer .app-today-cal-day,
+.app-today-cal-layer .app-today-cal-nav,
+.app-today-cal-layer .app-today-cal-today {
+  background: transparent;
+  color: inherit;
+}
+
+.app-today-cal-layer .app-today-cal-day--on {
+  background: var(--app-ink, #060708);
+  color: var(--app-card, #ffffff);
+}
+
+.app-today-cal-layer .app-today-cal-nav {
+  background: var(--app-surface, #f4f4f5);
 }
 
 /* Кольцо истории — только дуги SVG. Заливка и тень аватарки раньше закрывали разрывы между историями. */

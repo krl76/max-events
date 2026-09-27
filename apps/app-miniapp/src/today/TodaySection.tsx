@@ -204,7 +204,7 @@ export function SearchDayButton({ day, now, onDay, chip = false }: { day: string
           <div ref={layerRef} className="app-today-cal-layer" onPointerDown={() => setOpen(false)}>
             <div onPointerDown={(event) => event.stopPropagation()}>{calendar}</div>
           </div>,
-          document.body,
+          document.querySelector(".app-root") ?? document.body,
         )}
     </div>
   );

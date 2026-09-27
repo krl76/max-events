@@ -34,7 +34,7 @@ import { HeaderSlot } from "../ui/Layout";
 import { countsForCards } from "./BrowsePage";
 import { toggleEventLike, useEventLiked } from "../ui/event-likes";
 import { eventFillLabel, pictured } from "../ui/photos";
-import { dayKey, formatPickDistance, formatPickPrice, SearchDayButton, type DistanceVoice, type TodayState } from "../today/TodaySection";
+import { afishaDayChip, dayKey, formatPickDistance, formatPickPrice, SearchDayButton, type DistanceVoice, type TodayState } from "../today/TodaySection";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppSkeleton, AppState } from "../ui/primitives";
 
@@ -489,12 +489,9 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
         <section className={fold === "today" ? "app-bill app-bill--open" : "app-bill"}>
           <div className="app-bill-head">
             <button type="button" className="app-bill-title" aria-expanded={fold === "today"} onClick={() => openFold("today")}>
-              <span>Афиша</span>
+              Афиша
             </button>
             <SearchDayButton day={props.day} now={props.now} onDay={props.onDay} chip />
-            <button type="button" className="app-bill-chevron" aria-label="Открыть афишу" onClick={() => openFold("today")}>
-              <ActionIcon name="chevron" size={16} />
-            </button>
           </div>
           <button type="button" className="app-bill-open" aria-label="Открыть афишу на выбранный день" onClick={() => openFold("today")}>
             <BillStack photos={billPhotos(todayCards)} count={todayCards.length} />
@@ -502,6 +499,7 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
         </section>
       </div>
       <div className="app-search-feed" aria-label={fold === "today" ? "Афиша" : "Популярное"}>
+          <p className="app-search-feed-kicker">{fold === "today" ? `Афиша · ${afishaDayChip(new Date(`${props.day}T12:00:00`))}` : "Популярное"}</p>
           {shown.length === 0 ? <p className="app-today-quiet">По этим фильтрам событий нет</p> : shown.map((card) => <EventPoster key={card.event.id} card={card} onOpen={props.onOpenEvent} />)}
         </div>
     </div>
