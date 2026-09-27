@@ -36,6 +36,7 @@ import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { MyOrganizerRatingCard, OrganizerPromoteShortcuts } from "./OrganizerAddons";
 import type { OrganizerPromoIntent } from "./OrganizerDashboard";
 import { weeklySeriesUntil } from "./OrganizerEventForm";
+import { SettingsSwitchRow } from "../profile/SettingsPage";
 import { AppButton, AppChip, AppMedia, AppState } from "../ui/primitives";
 import { VenuePinMap } from "./VenuePinMap";
 
@@ -223,7 +224,7 @@ export function OrganizerListStatus<T>({ state, emptyText }: { state: OrganizerL
 
 export function OrganizerEventCard({ item, publishing, failed, onPublish, onEdit }: { item: OrganizerEvent; publishing: boolean; failed: boolean; onPublish: () => void; onEdit: () => void }) {
   return (
-    <article className="app-card app-org-event-card">
+    <article className="app-card app-card--row">
       <AppMedia category={item.category} src={item.coverUrl} />
       <div className="app-card-body">
         <span className="app-card-title">{item.title}</span>
@@ -254,7 +255,7 @@ export function OrganizerEventCard({ item, publishing, failed, onPublish, onEdit
 
 export function OrganizerPlaceCard({ item, publishing, failed, onPublish, onEdit }: { item: OrganizerPlace; publishing: boolean; failed: boolean; onPublish: () => void; onEdit: () => void }) {
   return (
-    <article className="app-card app-org-event-card">
+    <article className="app-card app-card--row">
       <AppMedia category={item.category === "sport" ? "sport" : item.category === "park" ? "tourism" : "afisha"} />
       <div className="app-card-body">
         <span className="app-card-title">{item.title}</span>
@@ -353,21 +354,18 @@ export function EventDraftForm({ draft, errors, submitting, failed, submitLabel,
         <span className="app-org-field-label">Вместимость</span>
         <input className="app-profile-input" type="number" min={1} aria-label="Вместимость (необязательно)" placeholder="Необязательно" value={draft.capacity} onChange={(change) => onChange("capacity", change.target.value)} />
       </label>
-      <label className="app-org-field">
-        <input type="checkbox" checked={draft.waitlistEnabled} onChange={(change) => onChange("waitlistEnabled", change.target.checked)} /> Лист ожидания
-      </label>
-      <label className="app-org-field">
-        <input type="checkbox" checked={draft.registrationInApp} onChange={(change) => onChange("registrationInApp", change.target.checked)} /> Запись в приложении
-      </label>
+      <div className="app-set-group">
+        <SettingsSwitchRow title="Лист ожидания" hint="Когда места закончатся" checked={draft.waitlistEnabled} onChange={(waitlistEnabled) => onChange("waitlistEnabled", waitlistEnabled)} />
+        <SettingsSwitchRow title="Запись в приложении" hint="Иначе гость уйдёт по вашей ссылке" checked={draft.registrationInApp} onChange={(registrationInApp) => onChange("registrationInApp", registrationInApp)} />
+        <SettingsSwitchRow title="Повторять каждую неделю" hint="Серия до конца следующего месяца" checked={draft.repeatWeekly} onChange={(repeatWeekly) => onChange("repeatWeekly", repeatWeekly)} />
+      </div>
       {!draft.registrationInApp && (
         <label className="app-org-field">
           <span className="app-org-field-label">Ссылка на регистрацию</span>
           <input className="app-profile-input" type="url" aria-label="Ссылка на регистрацию" placeholder="https://" value={draft.externalUrl} onChange={(change) => onChange("externalUrl", change.target.value)} />
         </label>
       )}
-      <label className="app-org-field">
-        <input type="checkbox" checked={draft.repeatWeekly} onChange={(change) => onChange("repeatWeekly", change.target.checked)} /> Повторять каждую неделю
-      </label>
+
       {errors.map((error) => (
         <p key={error} className="app-state app-state--error">
           {error}

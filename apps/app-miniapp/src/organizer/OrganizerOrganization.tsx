@@ -16,7 +16,7 @@ import { AppButton, AppState } from "../ui/primitives";
 import { MyOrganizerRatingCard } from "./OrganizerAddons";
 import { ORGANIZER_ACTIVITY_OPTIONS } from "./organizer-onboarding";
 
-export function OrganizerOrganization({ organizationId, organizationName, onBack, onLogout }: { organizationId: string; organizationName: string; onBack: () => void; onLogout: () => void }) {
+export function OrganizerOrganization({ organizationId, organizationName, onLogout }: { organizationId: string; organizationName: string; onLogout: () => void }) {
   const [setup, setSetup] = useState<OrganizerSetup | null>(null);
   const [failed, setFailed] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -50,9 +50,6 @@ export function OrganizerOrganization({ organizationId, organizationName, onBack
 
   return (
     <section className="app-gathering" aria-label="Организация">
-      <button type="button" className="app-org-head-link" onClick={onBack}>
-        Назад к обзору
-      </button>
       <h1 className="app-section-title">{organizationName}</h1>
       {failed && <AppState error>Не удалось загрузить организацию.</AppState>}
       {setup === null && !failed && <AppState>Загрузка…</AppState>}

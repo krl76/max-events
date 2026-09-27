@@ -27,7 +27,7 @@ import type { EventSalesReport } from "@max-events/api-contracts";
 import { apiClient, type OrganizerEvent, type OrganizerSummary, type OrganizerTrafficSource, type StatsPeriodQuery } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { pictured } from "../ui/photos";
-import { AppButton, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
+import { AppButton, AppChip, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 
 export type OrganizerPromoIntent = "boost" | "target_collection" | "promocode" | "referral" | "early_access";
 
@@ -117,19 +117,16 @@ export function needsPromotion(fill: OrganizerEventFill | undefined, capacity: n
 
 function EventFillRow({ item, fill, onOpen }: { item: OrganizerEvent; fill: OrganizerEventFill | undefined; onOpen: () => void }) {
   return (
-    <button type="button" className="app-org-event" onClick={onOpen}>
-      <AppMedia category={item.category} src={pictured(item.id, item.coverUrl)} className="app-org-event-media" />
-      <span className="app-org-event-body">
-        <span className="app-org-event-title">{item.title}</span>
-        <span className="app-org-event-meta">
+    <button type="button" className="app-card app-card--link" onClick={onOpen}>
+      <AppMedia category={item.category} src={pictured(item.id, item.coverUrl)} />
+      <span className="app-card-body">
+        <span className="app-card-title">{item.title}</span>
+        <span className="app-card-subtitle">
           {new Date(item.startsAt).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" })} · {eventFillNote(fill, item.capacity)}
         </span>
-        <span className="app-org-progress" aria-hidden="true">
-          <span className="app-org-progress-fill" style={{ width: `${item.capacity === null || fill === undefined ? 0 : Math.min(Math.round((fill.booked / item.capacity) * 100), 100)}%` }} />
-        </span>
+        {item.draft && <span className="app-micro-badge">Черновик</span>}
+        {!item.draft && needsPromotion(fill, item.capacity) && <span className="app-today-chip">Мало записей</span>}
       </span>
-      {item.draft && <span className="app-micro-badge">Черновик</span>}
-      {!item.draft && needsPromotion(fill, item.capacity) && <span className="app-org-event-badge">МАЛО ЗАПИСЕЙ</span>}
     </button>
   );
 }
@@ -160,53 +157,44 @@ export function OrganizerDashboardView({ organizationName, summary, events, fill
   const quiet = events.filter((item) => needsPromotion(fills[item.id], item.capacity));
   const loaded = summary !== null || failed;
   return (
-    <section className="app-org-screen" aria-label="Обзор организатора">
-      <div className="app-org-hero">
-        <span className="app-org-hero-blob" aria-hidden="true" />
-        <div className="app-org-hero-top">
-          <span className="app-org-mode">
-            <span className="app-org-mode-switch" aria-hidden="true">
-              <span className="app-org-mode-knob" />
-            </span>
-            Режим организатора
-          </span>
-          <button type="button" className="app-org-hero-avatar" aria-label="Организация" onClick={onOpenOrganization}>
-            {organizationName.trim().slice(0, 1).toUpperCase()}
-          </button>
-        </div>
-        <p className="app-org-hero-caption">
-          {organizationName} · {month}
+    <section className="app-gathering" aria-label="Обзор организатора">
+      <div className="app-me-metrics">
+        <p className="app-gathering-hint">
+          {organizationName} · {month} · {formatDelta(summary?.bookingsDeltaPercent ?? null)}
         </p>
-        <p className="app-org-hero-value">{summary === null ? "—" : `${formatCount(summary.bookings)} ${pluralRu(summary.bookings, "запись", "записи", "записей")}`}</p>
-        <p className="app-org-hero-caption">{formatDelta(summary?.bookingsDeltaPercent ?? null)}</p>
-        <div className="app-org-hero-stats">
-          <span className="app-org-hero-stat">
-            <b>{live.length}</b> {pluralRu(live.length, "активное", "активных", "активных")}
+        <div className="app-me-metrics-row">
+          <span className="app-me-metric">
+            <span className="app-me-metric-value">{summary === null ? "—" : formatCount(summary.bookings)}</span>
+            <span className="app-me-metric-label">{pluralRu(summary?.bookings ?? 0, "запись", "записи", "записей")}</span>
           </span>
-          <span className="app-org-hero-stat">
-            <b>{summary?.attendedPercent == null ? "—" : `${summary.attendedPercent}%`}</b> пришли
+          <span className="app-me-metric">
+            <span className="app-me-metric-value">{live.length}</span>
+            <span className="app-me-metric-label">{pluralRu(live.length, "активное", "активных", "активных")}</span>
           </span>
-          <span className="app-org-hero-stat">
-            <b>{summary?.cancelledPercent == null ? "—" : `${summary.cancelledPercent}%`}</b> отмены
+          <span className="app-me-metric">
+            <span className="app-me-metric-value">{summary?.attendedPercent == null ? "—" : `${summary.attendedPercent}%`}</span>
+            <span className="app-me-metric-label">пришли</span>
           </span>
-          <span className="app-org-hero-stat">
-            <b>{rating === null ? "—" : rating.toFixed(1)}</b> оценка
+          <span className="app-me-metric">
+            <span className="app-me-metric-value">{summary?.cancelledPercent == null ? "—" : `${summary.cancelledPercent}%`}</span>
+            <span className="app-me-metric-label">отмены</span>
+          </span>
+          <span className="app-me-metric">
+            <span className="app-me-metric-value">{rating === null ? "—" : rating.toFixed(1)}</span>
+            <span className="app-me-metric-label">оценка</span>
           </span>
         </div>
+        <AppButton tone="secondary" onClick={onOpenOrganization}>
+          Организация
+        </AppButton>
       </div>
       {failed && <AppState error>Не удалось загрузить обзор.</AppState>}
-      <div className="app-org-topbar">
-        <span className="app-org-chart-title">За период</span>
-        <label className="app-org-period">
-          <span className="app-org-period-label">Период</span>
-          <select className="app-org-period-select" aria-label="Период отчёта" value={days} onChange={(change) => onDays(Number(change.target.value))}>
-            {PROMO_PERIODS.map((period) => (
-              <option key={period.days} value={period.days}>
-                {period.label}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="app-filters-chips" role="group" aria-label="Период отчёта">
+        {PROMO_PERIODS.map((period) => (
+          <AppChip key={period.days} pressed={days === period.days} onClick={() => onDays(period.days)}>
+            {period.label}
+          </AppChip>
+        ))}
       </div>
       <div className="app-org-chart">
         <span className="app-org-chart-title">Записи по дням</span>
@@ -238,8 +226,8 @@ export function OrganizerDashboardView({ organizationName, summary, events, fill
       </div>
       {events.length === 0 && !loaded && <AppSkeletonList rows={2} />}
       {events.length === 0 && loaded && (
-        <div className="app-org-form">
-          <p className="app-org-empty">Событий ещё нет. Создайте первое — здесь появятся записи, явка и источники.</p>
+        <div>
+          <p className="app-gathering-hint">Событий ещё нет. Создайте первое — здесь появятся записи, явка и источники.</p>
           <AppButton stretched onClick={onCreateEvent}>
             Создать событие
           </AppButton>
@@ -247,10 +235,8 @@ export function OrganizerDashboardView({ organizationName, summary, events, fill
       )}
       {quiet.length > 0 && (
         <>
-          <div className="app-org-head">
-            <h2 className="app-org-head-title">Мало записей</h2>
-          </div>
-          <div className="app-org-events">
+          <h2 className="app-section-title">Мало записей</h2>
+          <div>
             {quiet.slice(0, 3).map((item) => (
               <EventFillRow key={item.id} item={item} fill={fills[item.id]} onOpen={() => onOpenEvent(item)} />
             ))}
@@ -260,12 +246,12 @@ export function OrganizerDashboardView({ organizationName, summary, events, fill
       {events.length > 0 && (
         <>
           <div className="app-org-head">
-            <h2 className="app-org-head-title">Ближайшие</h2>
+            <h2 className="app-section-title">Ближайшие</h2>
             <button type="button" className="app-org-head-link" onClick={onAllEvents}>
               Все {events.length}
             </button>
           </div>
-          <div className="app-org-events">
+          <div>
             {events.slice(0, 4).map((item) => (
               <EventFillRow key={item.id} item={item} fill={fills[item.id]} onOpen={() => onOpenEvent(item)} />
             ))}

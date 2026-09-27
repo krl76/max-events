@@ -22,7 +22,8 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { apiClient, organizerEntryCode, type OrganizerAttendance, type OrganizerEvent, type OrganizerParticipant, type OrganizerSlot, type OrganizerWaitlistEntry } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { ActionIcon } from "../ui/icons";
-import { AppButton, AppSkeletonList, AppState } from "../ui/primitives";
+import { pictured } from "../ui/photos";
+import { AppButton, AppChip, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 
 export type ManageTab = "participants" | "waitlist" | "chat";
 
@@ -105,35 +106,35 @@ export function OrganizerEventManageView({ event, attendance, tab, scanning, cod
   const waitlist: OrganizerWaitlistEntry[] = attendance?.waitlist ?? [];
   const when = `${new Date(event.startsAt).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" })} · ${hhmm(event.startsAt)}`;
   return (
-    <section className="app-org-screen" aria-label="Управление событием">
-      <div className="app-org-day-hero">
-        <span className="app-org-hero-blob" aria-hidden="true" />
-        <div className="app-org-day-head">
-          <span className="app-org-day-text">
-            <span className="app-org-day-when">{when}</span>
-            <span className="app-org-day-title">{event.title}</span>
-          </span>
-          <button type="button" className="app-org-round app-org-round--on-media" aria-label="Промо и отчёты" onClick={onPromo}>
-            <ActionIcon name="trend" size={18} strokeWidth={2.4} />
-          </button>
+    <section className="app-gathering" aria-label="Управление событием">
+      <article className="app-card app-card--row">
+        <AppMedia category={event.category} src={pictured(event.id, event.coverUrl)} />
+        <div className="app-card-body">
+          <span className="app-card-title">{event.title}</span>
+          <span className="app-card-subtitle">{when}</span>
+          <span className="app-card-subtitle">{event.capacity === null ? `${attendance?.bookedCount ?? 0} записались` : `${attendance?.bookedCount ?? 0} из ${event.capacity}`}</span>
         </div>
-        <div className="app-org-hero-stats">
-          <span className="app-org-hero-stat">
-            <b>{attendance?.bookedCount ?? 0}</b>
-            {event.capacity === null ? " записались" : `/${event.capacity} записались`}
+      </article>
+      <div className="app-me-metrics">
+        <div className="app-me-metrics-row">
+          <span className="app-me-metric">
+            <span className="app-me-metric-value">{attendance?.bookedCount ?? 0}</span>
+            <span className="app-me-metric-label">записались</span>
           </span>
-          <span className="app-org-hero-stat">
-            <b>{attendance?.waitlistCount ?? 0}</b> в листе
+          <span className="app-me-metric">
+            <span className="app-me-metric-value">{attendance?.waitlistCount ?? 0}</span>
+            <span className="app-me-metric-label">в листе</span>
           </span>
-          <span className="app-org-hero-stat">
-            <b>{attendance?.checkedInCount ?? 0}</b> отметились
+          <span className="app-me-metric">
+            <span className="app-me-metric-value">{attendance?.checkedInCount ?? 0}</span>
+            <span className="app-me-metric-label">отметились</span>
           </span>
         </div>
-        <span className="app-org-day-bar" aria-hidden="true">
-          <span className="app-org-day-bar-fill" style={{ width: `${fillPercent(attendance?.bookedCount ?? 0, event.capacity)}%` }} />
-        </span>
       </div>
-      <div className="app-org-tabs" role="tablist" aria-label="Разделы события">
+      <AppButton tone="secondary" onClick={onPromo}>
+        Продвижение
+      </AppButton>
+      <div className="app-filters-chips" role="tablist" aria-label="Разделы события">
         {(
           [
             { id: "participants" as const, label: "Участники" },
@@ -141,9 +142,9 @@ export function OrganizerEventManageView({ event, attendance, tab, scanning, cod
             { id: "chat" as const, label: attendance?.chatMessages == null ? "Чат" : `Чат · ${attendance.chatMessages}` },
           ] satisfies Array<{ id: ManageTab; label: string }>
         ).map((item) => (
-          <button key={item.id} type="button" role="tab" aria-selected={tab === item.id} className={tab === item.id ? "app-org-tab app-org-tab--on" : "app-org-tab"} onClick={() => onTab(item.id)}>
+          <AppChip key={item.id} pressed={tab === item.id} onClick={() => onTab(item.id)}>
             {item.label}
-          </button>
+          </AppChip>
         ))}
       </div>
       <div className="app-org-day-body">

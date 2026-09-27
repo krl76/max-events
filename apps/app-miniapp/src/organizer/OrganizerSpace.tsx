@@ -99,8 +99,8 @@ export const ORGANIZER_SECTION_TITLES: Record<OrganizerSection, string> = {
   promo: "Продвижение",
 };
 
-/** Обзор и продвижение несут собственную шапку — общая стала бы второй. */
-export const ORGANIZER_BARE_SECTIONS: ReadonlySet<OrganizerSection> = new Set<OrganizerSection>(["dashboard", "promo"]);
+/** Кабинет использует ту же шапку, что и пользовательское приложение. Свой хром остаётся только у вступления и мастера настройки. */
+export const ORGANIZER_BARE_SECTIONS: ReadonlySet<OrganizerSection> = new Set<OrganizerSection>([]);
 
 interface OrganizerSectionContentProps {
   section: OrganizerSection;
@@ -183,7 +183,8 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   const [promoEventId, setPromoEventId] = useState<string | null>(null);
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
-  const bare = manage !== null || organizationOpen || ORGANIZER_BARE_SECTIONS.has(section);
+  const pushed = manage !== null || organizationOpen;
+  const title = manage !== null ? manage.title : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section];
   const openPromotion = (eventId: string, intent: OrganizerPromoIntent | null) => {
     setManage(null);
     setOrganizationOpen(false);
@@ -198,16 +199,28 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
         setSection("events");
       }}
     >
-      {!bare && (
-        <header className="app-header">
-          <span className="app-header-title">{ORGANIZER_SECTION_TITLES[section]}</span>
-        </header>
-      )}
-      <main className={bare ? "app-content app-content--flush" : "app-content"}>
+      <header className="app-header">
+        {pushed && (
+          <button
+            type="button"
+            className="app-header-back"
+            aria-label="Назад"
+            onClick={() => {
+              setManage(null);
+              setOrganizationOpen(false);
+            }}
+          >
+            <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+            Назад
+          </button>
+        )}
+        <span className="app-header-title">{title}</span>
+      </header>
+      <main className="app-content">
         {manage !== null ? (
           <OrganizerEventManage event={manage} onBack={() => setManage(null)} onPromo={() => openPromotion(manage.id, null)} />
         ) : organizationOpen ? (
-          <OrganizerOrganization organizationId={state.session.organization.id} organizationName={state.session.organization.name} onBack={() => setOrganizationOpen(false)} onLogout={logout} />
+          <OrganizerOrganization organizationId={state.session.organization.id} organizationName={state.session.organization.name} onLogout={logout} />
         ) : (
           <OrganizerSectionContent
             section={section}

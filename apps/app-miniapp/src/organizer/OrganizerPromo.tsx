@@ -113,17 +113,11 @@ interface OrganizerPromoViewProps {
 export function OrganizerPromoView({ organizationName, events, rows, loaded, draft, busy, notice, failed, onOpenDraft, onDraft, onCreate, onCancelDraft, onOpenEvent }: OrganizerPromoViewProps) {
   const month = new Date().toLocaleDateString("ru-RU", { month: "long" });
   return (
-    <section className="app-org-screen" aria-label="Продвижение">
-      <div className="app-org-topbar">
-        <span className="app-org-topbar-text">
-          <span className="app-org-topbar-title">Продвижение</span>
-          <span className="app-org-topbar-sub">
-            {organizationName} · {month}
-          </span>
-        </span>
-      </div>
-      <div className="app-org-form">
-        <p className="app-org-group-title">Запустить</p>
+    <section className="app-gathering" aria-label="Продвижение">
+      <p className="app-gathering-hint">
+        {organizationName} · {month}
+      </p>
+      <h2 className="app-section-title">Запустить</h2>
         <div className="app-org-addons">
           {PROMOTION_ACTIONS.map((action) => (
             <button key={action.intent} type="button" className="app-org-addon" disabled={events.length === 0} onClick={() => onOpenDraft(action.intent)}>
@@ -131,26 +125,22 @@ export function OrganizerPromoView({ organizationName, events, rows, loaded, dra
             </button>
           ))}
         </div>
-        <p className="app-org-group-title">Уже запущено</p>
+        <h2 className="app-section-title">Уже запущено</h2>
         {!loaded && <AppSkeletonList rows={2} />}
-        {loaded && rows.length === 0 && <p className="app-org-empty">Кампаний пока нет — запустите первую выше.</p>}
-        {rows.map((row) => (
-          <button key={row.id} type="button" className="app-org-campaign" onClick={() => onOpenEvent(row.eventId)}>
-            <span className={row.accent ? "app-org-campaign-icon app-org-campaign-icon--on" : "app-org-campaign-icon"} aria-hidden="true">
-              <ActionIcon name={row.icon} size={18} strokeWidth={2.2} />
-            </span>
-            <span className="app-org-campaign-body">
-              <span className="app-org-campaign-title">{row.title}</span>
-              <span className="app-org-campaign-note">{row.note}</span>
-              {row.progress !== null && (
-                <span className="app-org-progress" aria-hidden="true">
-                  <span className="app-org-progress-fill" style={{ width: `${row.progress}%` }} />
+        {loaded && rows.length === 0 && <p className="app-gathering-hint">Кампаний пока нет — запустите первую выше.</p>}
+        {rows.length > 0 && (
+          <div className="app-set-group">
+            {rows.map((row) => (
+              <button key={row.id} type="button" className="app-set-row" onClick={() => onOpenEvent(row.eventId)}>
+                <span className="app-set-row-text">
+                  <span className="app-set-row-title">{row.title}</span>
+                  <span className="app-set-row-hint">{row.note}</span>
                 </span>
-              )}
-            </span>
-            <span className="app-org-campaign-open">Открыть</span>
-          </button>
-        ))}
+                <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+              </button>
+            ))}
+          </div>
+        )}
         {notice !== null && <p className="app-org-notice">{notice}</p>}
         {failed !== null && <AppState error>{failed}</AppState>}
         {draft !== null && (
@@ -209,7 +199,6 @@ export function OrganizerPromoView({ organizationName, events, rows, loaded, dra
             </div>
           </form>
         )}
-      </div>
     </section>
   );
 }
