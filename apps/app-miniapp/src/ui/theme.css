@@ -23317,6 +23317,90 @@ html:not([data-theme="dark"]) .app-when-sheet {
   padding: 0 14px;
 }
 
+.app-stories-scroll {
+  margin: var(--app-space-s) calc(-1 * var(--app-space-screen)) var(--app-space-s);
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
+}
+
+.app-stories-scroll > .app-stories {
+  margin: 0;
+  max-width: none;
+  min-width: 100%;
+  overflow: visible;
+  width: max-content;
+}
+
+.app-tg-ring {
+  display: block;
+  flex: none;
+  height: 74px;
+  position: relative;
+  width: 74px;
+}
+
+.app-tg-ring-svg {
+  display: block;
+  height: 74px;
+  width: 74px;
+}
+
+.app-tg-ring-face {
+  border-radius: 50%;
+  height: 52px;
+  left: 11px;
+  overflow: hidden;
+  position: absolute;
+  top: 11px;
+  width: 52px;
+}
+
+.app-tg-ring-face .app-avatar,
+.app-tg-ring-face img,
+.app-tg-ring-face .app-avatar img {
+  height: 52px;
+  width: 52px;
+}
+
+.app-whereto-options {
+  animation: app-rise-in 320ms ease both;
+}
+
+.app-whereto-option {
+  animation: app-rise-in 360ms ease both;
+  transition: transform 160ms ease;
+}
+
+.app-whereto-option:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.app-whereto-option:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.app-whereto-option:nth-child(4) {
+  animation-delay: 210ms;
+}
+
+.app-whereto-option--on {
+  background: var(--app-gradient-dark);
+  color: #ffffff;
+}
+
+.app-wt-question {
+  animation: app-rise-in 280ms ease both;
+}
+
+.app-poster,
+.app-bill,
+.app-create-hero,
+.app-create-card {
+  animation: app-rise-in 280ms ease both;
+}
+
 .app-stories .app-story-plus {
   bottom: 22px;
   right: 2px;

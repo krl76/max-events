@@ -20,15 +20,15 @@ export function StoryRing({ total, unseen, label, children }: { total: number; u
   const sweep = (360 - gap * count) / count;
   const hot = unseen > 0;
   return (
-    <span className={hot ? "app-story-ring app-story-ring--active app-story-ring-wrap" : "app-story-ring app-story-ring--seen app-story-ring-wrap"} aria-label={label}>
-      <svg className="app-story-ring-svg" viewBox="0 0 100 100" aria-hidden="true">
+    <span className={hot ? "app-tg-ring app-tg-ring--new" : "app-tg-ring app-tg-ring--seen"} aria-label={label}>
+      <svg className="app-tg-ring-svg" viewBox="0 0 80 80" aria-hidden="true">
         {Array.from({ length: count }, (_, index) => {
           const start = -90 + index * (sweep + gap);
           const fresh = index >= count - unseenShown;
-          return <path key={start} d={arcPath(50, 50, 44, start, sweep)} className={fresh ? "app-story-arc app-story-arc--new" : "app-story-arc app-story-arc--seen"} />;
+          return <path key={start} d={arcPath(40, 40, 34, start, sweep)} fill="none" stroke={fresh ? "#007aff" : "#479fff"} strokeWidth="4.5" strokeLinecap="round" />;
         })}
       </svg>
-      <span className="app-story-ring-face">{children}</span>
+      <span className="app-tg-ring-face">{children}</span>
     </span>
   );
 }

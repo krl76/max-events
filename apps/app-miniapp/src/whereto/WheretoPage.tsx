@@ -179,8 +179,12 @@ function Progress({ at }: { at: number }) {
 function QuestionScreen({ at, answers, onPick, onStep, onNext }: { at: number; answers: WheretoAnswers } & Pick<WheretoViewProps, "onPick" | "onStep" | "onNext">) {
   const question = WHERETO_QUESTIONS[at];
   const next = WHERETO_QUESTIONS[at + 1];
-  const options = at === 0 ? COMPANY_ORDER.map((value) => ({ value, label: COMPANY_LABELS[value], hint: null, on: answers.company === value, pick: () => onPick({ ...answers, company: value }) })) : at === 1 ? MOOD_ORDER.map((value) => ({ value, label: MOOD_LABELS[value], hint: MOOD_HINTS[value], on: answers.mood === value, pick: () => onPick({ ...answers, mood: value }) })) : BUDGET_ORDER.map((value) => ({ value, label: BUDGET_LABELS[value], hint: null, on: answers.budget === value && answers.budgetRub === null, pick: () => onPick({ ...answers, budget: value, budgetRub: null }) }));
-  const chosen = options.some((option) => option.on);
+  const options = at === 0 ? COMPANY_ORDER.map((value) => ({ value, label: COMPANY_LABELS[value], hint: null, on: answers.company === value, pick: () => onPick({ ...answers, company: value }) })) : at === 1 ? MOOD_ORDER.map((value) => ({ value, label: MOOD_LABELS[value], hint: MOOD_HINTS[value], on: answers.mood === value, pick: () => onPick({ ...answers, mood: value }) })) : [
+    { value: "free", label: "Бесплатно", hint: null, on: answers.budget === "free" && answers.budgetRub === null, pick: () => onPick({ ...answers, budget: "free", budgetRub: null }) },
+    { value: "any", label: "Любой", hint: null, on: answers.budget === "any" && answers.budgetRub === null, pick: () => onPick({ ...answers, budget: "any", budgetRub: null }) },
+    { value: "own", label: "Своя сумма", hint: null, on: answers.budgetRub !== null, pick: () => onPick({ ...answers, budget: answers.budget ?? "under_3000", budgetRub: answers.budgetRub ?? 0 }) },
+  ];
+  const chosen = options.some((option) => option.on) && (at !== 2 || answers.budgetRub === null || answers.budgetRub > 0);
 
   return (
     <>
@@ -198,7 +202,7 @@ function QuestionScreen({ at, answers, onPick, onStep, onNext }: { at: number; a
         </div>
       ))}
       <h2 className="app-wt-question">{question.heading}</h2>
-      <div className="app-whereto-options" role="radiogroup" aria-label={question.summary}>
+      <div key={at} className="app-whereto-options" role="radiogroup" aria-label={question.summary}>
         {options.map((option) => (
           <button key={option.value} type="button" role="radio" aria-checked={option.on} className={option.on ? "app-whereto-option app-whereto-option--on" : "app-whereto-option"} onClick={option.pick}>
             <span className="app-wt-radio" aria-hidden="true">
@@ -217,17 +221,17 @@ function QuestionScreen({ at, answers, onPick, onStep, onNext }: { at: number; a
           <span className="app-wt-next-text">{next.topic} — следующий вопрос</span>
         </div>
       )}
-      {at === 2 && (
+      {at === 2 && answers.budgetRub !== null && (
         <label className="app-wt-budget">
-          <span>Своя сумма</span>
+          <span>Сумма, ₽</span>
           <input
             inputMode="numeric"
             aria-label="Свой бюджет"
             placeholder="Например 1500"
-            value={answers.budgetRub ?? ""}
+            value={answers.budgetRub === 0 ? "" : answers.budgetRub}
             onChange={(change) => {
               const parsed = budgetFromRub(change.target.value);
-              onPick(parsed === null ? { ...answers, budget: null, budgetRub: null } : { ...answers, budget: parsed.budget, budgetRub: parsed.rub });
+              onPick(parsed === null ? { ...answers, budget: "under_3000", budgetRub: 0 } : { ...answers, budget: parsed.budget, budgetRub: parsed.rub });
             }}
           />
         </label>

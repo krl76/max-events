@@ -763,6 +763,7 @@ export function StoriesRow() {
   }, []);
 
   return (
+    <div className="app-stories-scroll">
     <div className="app-stories" aria-label="Истории">
       {/* Как в инстаграме: рельс открывается своим кружком с плюсом в углу — плюс ведёт в редактор истории, кольцо со своей историей открывает её просмотр. */}
       <div className="app-story app-story--own">
@@ -770,7 +771,7 @@ export function StoriesRow() {
         <button type="button" className="app-story-open" aria-label={rail.own.group === null ? "Твоя история: добавить" : `Твоя история: ${rail.own.storyCount}`} onClick={() => (rail.own.group === null ? openEditor() : setViewer({ groups: rail.groups, start: rail.own.group }))}>
           {rail.own.storyCount > 0 ? (
             <StoryRing total={rail.own.storyCount} unseen={rail.own.unseenCount} label={rail.own.unseenCount > 0 ? `Твои истории, новых ${rail.own.unseenCount} из ${rail.own.storyCount}` : `Твои истории, ${rail.own.storyCount}, уже смотрел`}>
-              <AppAvatar size={58} src={me?.avatarUrl}>
+              <AppAvatar size={52} src={me?.avatarUrl}>
                 {me?.firstName[0] ?? "Я"}
               </AppAvatar>
             </StoryRing>
@@ -790,7 +791,7 @@ export function StoriesRow() {
         <div key={tile.friendId} className="app-story">
           <button type="button" className="app-story-open" aria-label={`История ${tile.name}, ${tile.storyCount}`} onClick={() => setViewer({ groups: rail.groups, start: tile.group })}>
             <StoryRing total={tile.storyCount} unseen={tile.unseenCount} label={tile.unseenCount > 0 ? `${tile.name}: новых историй ${tile.unseenCount} из ${tile.storyCount}` : `${tile.name}: истории ${tile.storyCount}, уже смотрел`}>
-              <AppAvatar size={58} src={tile.avatarUrl ?? friends.find((person) => person.id === tile.friendId)?.avatarUrl}>
+              <AppAvatar size={52} src={tile.avatarUrl ?? friends.find((person) => person.id === tile.friendId)?.avatarUrl}>
                 {tile.initial}
               </AppAvatar>
             </StoryRing>
@@ -805,6 +806,7 @@ export function StoriesRow() {
           <StoryViewer groups={viewer.groups} startGroup={viewer.start} onView={rememberSeen} onClose={() => setViewer(null)} />,
           document.querySelector(".app-root") ?? document.body,
         )}
+    </div>
     </div>
   );
 }

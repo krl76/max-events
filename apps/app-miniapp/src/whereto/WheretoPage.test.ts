@@ -128,11 +128,13 @@ describe("WheretoView: вопросы (экран 11)", () => {
     expect(html).toContain("Бюджет — следующий вопрос");
   });
 
-  it("не обещает персонализации", () => {
-    const html = viewHtml({ step: "ask", at: 1 }, { answers: answers({ company: "friends" }) });
+  it("на бюджете предлагает бесплатно, любой и свою сумму", () => {
+    const html = viewHtml({ step: "ask", at: 2 }, { answers: answers({ company: "alone", mood: "calm" }) });
 
-    expect(html).toContain("Подбор работает по правилам");
-    expect(html).toContain("Вкусы и история посещений не учитываются");
+    expect(html).toContain("Бесплатно");
+    expect(html).toContain("Любой");
+    expect(html).toContain("Своя сумма");
+    expect(html).not.toContain("До 3000 ₽");
   });
 
   it("держит «Дальше» выключенной, пока ответа нет", () => {
