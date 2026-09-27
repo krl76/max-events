@@ -120,10 +120,30 @@ export function walkingMinutes(from: GeoOrigin, latitude: number, longitude: num
   return Math.max(0, Math.round(meters / WALK_METERS_PER_MINUTE));
 }
 
+/** Onboarding chips are Russian words; the catalog category is an enum. Both have to count. */
+const INTEREST_CATEGORIES: Record<string, readonly EventEntity["category"][]> = {
+  концерты: ["afisha"],
+  театр: ["afisha"],
+  выставки: ["afisha"],
+  лекции: ["afisha"],
+  "ночная жизнь": ["afisha"],
+  настолки: ["afisha"],
+  "еда и рынки": ["afisha", "tourism"],
+  спорт: ["sport"],
+  йога: ["sport"],
+  "на природе": ["tourism"],
+  "с детьми": ["afisha", "tourism"],
+  "волонтёрство": ["volunteering"],
+};
+
 function matchesInterests(event: EventEntity, interests: string[]): boolean {
   if (interests.length === 0) return true;
   const haystack = `${event.category} ${event.title} ${event.description}`.toLowerCase();
-  return interests.some((interest) => haystack.includes(interest.toLowerCase()));
+  return interests.some((interest) => {
+    const needle = interest.toLowerCase();
+    if (haystack.includes(needle)) return true;
+    return INTEREST_CATEGORIES[needle]?.includes(event.category) === true;
+  });
 }
 
 function cardLabels(event: EventEntity, place: PlaceEntity | undefined, origin: GeoOrigin | null, friendName: string | undefined, afterMe?: AfterMeHint | null): TodayCardLabel[] {

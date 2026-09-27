@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - TodayState - union of today digest fetch states (loading / error / ready)
+// - formatWalkAway - minutes up to a short walk, then kilometers, then «далеко» past 80 km
 // - todayLabel - TodayCardLabel -> ru text («15 минут от тебя», «Идёт Анна», «Свободный вход», «Осталось 12 мест»; after_me gives its headline)
 // - formatTodayDate - «18 сентября» — the date next to the block title
 // - formatPickWhen - «19 сент. · 14:00» — the when line of a pick
@@ -29,8 +30,20 @@ import { AppSkeleton, AppState } from "../ui/primitives";
 
 export type TodayState = { status: "loading" } | { status: "error" } | { status: "ready"; today: TodayDigest };
 
+/** A walk a person would actually take. Past this, minutes become kilometers, and a cross-country figure is not a route. */
+const WALK_MINUTE_CAP = 90;
+const WALK_METERS_PER_MINUTE = 80;
+const FAR_KM = 80;
+
+export function formatWalkAway(minutes: number): string {
+  if (minutes <= WALK_MINUTE_CAP) return `${minutes} ${pluralRu(minutes, "минута", "минуты", "минут")} от тебя`;
+  const km = Math.max(1, Math.round((minutes * WALK_METERS_PER_MINUTE) / 1000));
+  if (km > FAR_KM) return "далеко от тебя";
+  return `${km.toLocaleString("ru-RU")} км от тебя`;
+}
+
 export function todayLabel(label: TodayCardLabel): string {
-  if (label.kind === "distance") return `${label.minutes} ${pluralRu(label.minutes, "минута", "минуты", "минут")} от тебя`;
+  if (label.kind === "distance") return formatWalkAway(label.minutes);
   if (label.kind === "friend_attending") return `Идёт ${label.friendName}`;
   if (label.kind === "free_entry") return "Свободный вход";
   if (label.kind === "after_me") return `После ${label.fromCategory} ты обычно идёшь дальше`;
@@ -100,18 +113,24 @@ export function TodaySummaryBlock({ state, now }: { state: TodayState; now: Date
               <span className="app-today-stat-value">{summary.nearbyCount}</span>
               <span className="app-today-stat-label">{pluralRu(summary.nearbyCount, "событие", "события", "событий")} рядом</span>
             </span>
-            <span className="app-today-stat">
-              <span className="app-today-stat-value">{summary.suitableCount}</span>
-              <span className="app-today-stat-label">{pluralRu(summary.suitableCount, "подходит", "подходят", "подходят")} тебе</span>
-            </span>
-            {/* Единственная голубая плитка блока: «живой» социальный счётчик, остальные две нейтральные */}
-            <span className="app-today-stat app-today-stat--friends">
-              <span className="app-today-stat-value">{summary.withFriendsCount}</span>
-              <span className="app-today-stat-label">с друзьями</span>
-            </span>
+            {summary.suitableCount > 0 && (
+              <span className="app-today-stat">
+                <span className="app-today-stat-value">{summary.suitableCount}</span>
+                <span className="app-today-stat-label">{pluralRu(summary.suitableCount, "подходит", "подходят", "подходят")} тебе</span>
+              </span>
+            )}
+            {summary.withFriendsCount > 0 && (
+              <span className="app-today-stat app-today-stat--friends">
+                <span className="app-today-stat-value">{summary.withFriendsCount}</span>
+                <span className="app-today-stat-label">с друзьями</span>
+              </span>
+            )}
           </>
         )}
       </div>
+      {summary !== null && summary.suitableCount === 0 && summary.withFriendsCount === 0 && (
+        <p className="app-today-quiet">Под интересы и с друзьями пока ничего. Интересы правятся в профиле.</p>
+      )}
     </section>
   );
 }

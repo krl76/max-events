@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { todayPicks } from "../api/mock";
-import { formatPickDistance, formatPickPrice, formatPickRating, formatTodayDate, pickWhere, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, todayLabel, todayPickCards, type TodayState } from "./TodaySection";
+import { formatPickDistance, formatPickPrice, formatPickRating, formatTodayDate, formatWalkAway, pickWhere, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, todayLabel, todayPickCards, type TodayState } from "./TodaySection";
 
 const noop = () => {};
 const digest = todayPicks();
@@ -13,6 +13,8 @@ describe("today formatting", () => {
   it("maps all five typed label kinds to their ru texts", () => {
     expect(todayLabel({ kind: "distance", minutes: 10 })).toBe("10 минут от тебя");
     expect(todayLabel({ kind: "distance", minutes: 1 })).toBe("1 минута от тебя");
+    expect(formatWalkAway(11109)).toBe("далеко от тебя");
+    expect(formatWalkAway(200)).toBe("16 км от тебя");
     expect(todayLabel({ kind: "friend_attending", friendName: "Анна" })).toBe("Идёт Анна");
     expect(todayLabel({ kind: "free_entry" })).toBe("Свободный вход");
     expect(todayLabel({ kind: "spots_left", count: 12 })).toBe("Осталось 12 мест");
@@ -62,6 +64,22 @@ describe("TodaySummaryBlock", () => {
     expect(html).toContain("рядом");
     expect(html).toContain("тебе");
     expect(html).toContain("с друзьями");
+  });
+
+  it("drops empty suitable and friends counters instead of printing zero", () => {
+    const html = renderToStaticMarkup(
+      createElement(TodaySummaryBlock, {
+        state: { status: "ready", today: { ...digest, summary: { nearbyCount: 2, suitableCount: 0, withFriendsCount: 0 } } },
+        now: NOW,
+      }),
+    );
+
+    expect(html).toContain(">2<");
+    expect(html).toContain("рядом");
+    expect(html).toContain("Под интересы и с друзьями пока ничего");
+    expect(html).not.toContain(">0<");
+    expect(html).not.toContain("app-today-stat--friends");
+    expect(html).not.toContain("подходит");
   });
 
   it("shows skeleton tiles rather than zeros while the digest loads", () => {

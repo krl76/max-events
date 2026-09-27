@@ -4563,6 +4563,13 @@ html[data-theme="dark"] #root {
   position: relative;
 }
 
+.app-today-quiet {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  line-height: 1.4;
+  margin: 10px 0 0;
+}
+
 .app-search-ways {
   display: flex;
   gap: 10px;

@@ -74,6 +74,12 @@ describe("buildTodayDigest", () => {
     expect(digest.cards.map((card) => card.event.title)).toEqual(["Джаз"]);
   });
 
+  it("counts a Russian interest chip against the catalog category", () => {
+    const volunteer = event({ id: "00000000-0000-4000-8000-0000000000e7", title: "Субботник", category: "volunteering" });
+    const digest = buildTodayDigest(input({ events: [volunteer], interests: ["Волонтёрство"], participations: [] }));
+    expect(digest.summary.suitableCount).toBe(1);
+  });
+
   it("boosts cards that match interests without dropping the rest", () => {
     const sport = event({ id: "00000000-0000-4000-8000-0000000000e8", title: "Забег", category: "sport", startsAt: new Date("2026-09-12T12:00:00Z") });
     const jazz = event({ id: "00000000-0000-4000-8000-0000000000e1", title: "Джаз вечером", startsAt: new Date("2026-09-12T18:00:00Z") });
