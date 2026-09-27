@@ -253,22 +253,24 @@ describe("initEventMap", () => {
     expect((leaflet.divIcon.mock.calls[0][0] as { html: string }).html).toContain(">3<");
   });
 
-  it("zooms into a tight venue cluster instead of spreading pins at city scale", async () => {
+  it("opens a tight venue cluster on the first tap, at the zoom the map already has", async () => {
     zoom = 11;
     clusterSpanMeters = 10;
     const stacked: MapMarker[] = [0, 1].map((index) => ({ key: `event-${index}`, eventId: `e${index}`, placeId: null, promoted: false, friends: false, glyph: "afisha", title: `Событие ${index}`, subtitle: "", lat: 55.75, lng: 37.61 }));
     await initEventMap(container, view(stacked), callbacks());
     const map = leaflet.map.mock.results[0]?.value as { flyTo: ReturnType<typeof vi.fn>; flyToBounds: ReturnType<typeof vi.fn> };
     const bubble = leaflet.marker.mock.results[0]?.value as { click: (() => void) | null };
+    const before = leaflet.marker.mock.calls.length;
 
     bubble.click?.();
 
-    expect(map.flyTo.mock.calls[0]?.[0]).toEqual([55.75, 37.61]);
-    expect(Number(map.flyTo.mock.calls[0]?.[1])).toBeGreaterThanOrEqual(16);
+    expect(leaflet.marker.mock.calls.length).toBe(before + stacked.length);
+    expect(leaflet.divIcon.mock.calls.some((call) => (call[0] as { className: string }).className === "app-map-pin")).toBe(true);
+    expect(map.flyTo.mock.calls.length).toBe(0);
     expect(map.flyToBounds.mock.calls.length).toBe(0);
   });
 
-  it("spreads stacked pins only after the map is already at street zoom", async () => {
+  it("does not draw a second ring when the same cluster bubble is tapped again", async () => {
     zoom = STREET_ZOOM;
     clusterSpanMeters = 10;
     const stacked: MapMarker[] = [0, 1].map((index) => ({ key: `event-${index}`, eventId: `e${index}`, placeId: null, promoted: false, friends: false, glyph: "afisha", title: `Событие ${index}`, subtitle: "", lat: 55.75, lng: 37.61 }));
@@ -277,6 +279,7 @@ describe("initEventMap", () => {
     const bubble = leaflet.marker.mock.results[0]?.value as { click: (() => void) | null };
     const before = leaflet.marker.mock.calls.length;
 
+    bubble.click?.();
     bubble.click?.();
 
     expect(leaflet.marker.mock.calls.length).toBe(before + stacked.length);

@@ -5953,6 +5953,68 @@ button.app-today-stat {
   width: 44px;
 }
 
+.app-map16-filter-slot {
+  flex: none;
+  position: relative;
+}
+
+.app-map16-filter {
+  align-items: center;
+  background: var(--app-card);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  box-shadow: var(--app-shadow-lift);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-weight: 800;
+  gap: 6px;
+  height: 44px;
+  justify-content: center;
+  min-width: 44px;
+  padding: 0;
+  width: 44px;
+}
+
+.app-map16-filter--on {
+  color: var(--app-accent-text);
+  padding: 0 14px;
+  width: auto;
+}
+
+.app-map16-filter-pop {
+  background: var(--app-card);
+  border-radius: 16px;
+  box-shadow: var(--app-shadow-lift);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  padding: 8px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 1002;
+}
+
+.app-map16-filter-opt {
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.app-map16-filter-opt--on {
+  background: var(--app-surface);
+  color: var(--app-accent-text);
+}
+
 .app-map16-card {
   background: var(--app-card);
   border-radius: 20px;
@@ -5969,19 +6031,18 @@ button.app-today-stat {
   align-items: center;
   background: var(--app-surface);
   border: none;
-  border-radius: var(--app-radius-pill);
+  border-radius: 50%;
   color: var(--app-text);
   cursor: pointer;
   display: flex;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  gap: 4px;
-  height: 44px;
-  margin-bottom: 8px;
-  margin-left: auto;
-  padding: 0 12px;
-  width: fit-content;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 32px;
+  z-index: 1;
 }
 
 .app-map16-card-head {
@@ -5993,7 +6054,7 @@ button.app-today-stat {
   display: flex;
   font: inherit;
   gap: var(--app-space-m);
-  padding: 0;
+  padding: 0 40px 0 0;
   text-align: left;
   width: 100%;
 }
@@ -6073,6 +6134,23 @@ button.app-today-stat {
 .app-map16-travel-note {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-caption);
+}
+
+.app-map16-metro {
+  color: var(--app-text);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--app-font-size-caption);
+  gap: 4px;
+  list-style: decimal;
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+.app-map16-metro-miss {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  margin: 10px 0 0;
 }
 
 .app-map16-rain {
@@ -18646,6 +18724,34 @@ button.app-cal-peer-chip {
   flex: none;
 }
 
+.app-nb-radius {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-s);
+  overflow-x: auto;
+}
+
+.app-nb-radius-opt {
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  height: 36px;
+  padding: 0 12px;
+}
+
+.app-nb-radius-opt--on {
+  background: var(--app-confirm);
+  border-color: var(--app-confirm);
+  color: var(--app-confirm-contrast);
+  font-weight: 800;
+}
+
 .app-nb-seg {
   margin-top: 22px;
 }
@@ -19810,6 +19916,8 @@ button.app-cal-peer-chip {
 .app-map16-top,
 .app-map16-top-right,
 .app-map16-weather,
+.app-map16-filter,
+.app-map16-filter-slot,
 .app-map16-dock,
 .app-map16-zoom,
 .app-map16-notice,

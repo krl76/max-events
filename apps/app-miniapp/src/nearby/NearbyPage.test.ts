@@ -15,7 +15,7 @@ const relax = leisureOptions(3, "relax", ...MOSCOW);
 
 const stop = (over: Partial<LeisureChainStop> = {}): LeisureChainStop => ({ kind: "place", placeId: "b1", eventId: null, title: "Парк Горького", startsAt: "2026-09-12T19:00:00+03:00", distanceKm: 0.4, priceRub: 400, free: false, ...over });
 
-function viewHtml(over: { mode?: NearbyMode; state?: NearbyState; leisure?: LeisureState; hours?: number; mood?: LeisureMood } = {}): string {
+function viewHtml(over: { mode?: NearbyMode; state?: NearbyState; leisure?: LeisureState; hours?: number; mood?: LeisureMood; radiusKm?: number } = {}): string {
   return renderToStaticMarkup(
     createElement(NearbyView, {
       mode: over.mode ?? "timeline",
@@ -32,6 +32,7 @@ function viewHtml(over: { mode?: NearbyMode; state?: NearbyState; leisure?: Leis
       onOpenPlan: noop,
       onOpenEvent: noop,
       onOpenPlace: noop,
+      radiusKm: over.radiusKm,
     }),
   );
 }
@@ -126,6 +127,19 @@ describe("NearbyView: таймлайн (экран 13)", () => {
     expect(html).toContain("Свободное время");
     expect(html).toContain(`Радиус ${NEARBY_RADIUS_KM} км`);
     expect(html).toContain("время московское");
+    expect(html).toContain('aria-label="Радиус поиска"');
+  });
+
+  it("отмечает выбранный радиус среди тех же значений, что и настройки", () => {
+    const html = viewHtml({ mode: "timeline", radiusKm: 5 });
+
+    expect(html).toContain('aria-checked="true"');
+    expect(html).toContain(">5 км<");
+    expect(html).toContain(">1 км<");
+    expect(html).toContain(">3 км<");
+    expect(html).toContain(">10 км<");
+    expect(html).toContain(">25 км<");
+    expect(html).toContain("Радиус 5 км");
   });
 
   it("показывает все непустые сегменты со счётчиком мест", () => {
