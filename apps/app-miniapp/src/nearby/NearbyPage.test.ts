@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { LeisureMoodSchema, NearbyBucketSchema } from "@max-events/api-contracts";
 import type { LeisureMood } from "@max-events/api-contracts";
-import { BUCKET_LABELS, LEISURE_MOOD_LABELS, NEARBY_RADIUS_KM, NearbyView, STOP_KIND_LABELS, bucketCountLabel, chainPlanDraft, chainStopMeta, chainTitle, chainWindow, formatDistanceKm, nearbyCardWhen, nearbyEmptyTitle, nearbyOriginCaption, type LeisureState, type NearbyMode, type NearbyState } from "./NearbyPage";
+import { BUCKET_LABELS, LEISURE_MOOD_LABELS, NEARBY_RADIUS_KM, NearbyView, STOP_KIND_LABELS, bucketCountLabel, chainPlanDraft, chainStopMeta, chainTitle, chainWindow, formatDistanceKm, nearbyCardWhen, nearbyEmptyTitle, nearbyErrorTitle, nearbyOriginCaption, nearbyScreenTitle, type LeisureState, type NearbyMode, type NearbyState } from "./NearbyPage";
 import { MOCK_NOW, leisureOptions, nearbyTimeline } from "../api/mock";
 import type { LeisureChain, LeisureChainStop } from "../api/client";
 
@@ -51,6 +51,8 @@ describe("форматирование строк таймлайна", () => {
     expect(nearbyOriginCaption(true, "fallback")).toBe("от центра города");
     expect(nearbyEmptyTitle(true)).toBe("Рядом пока ничего не начинается");
     expect(nearbyEmptyTitle(false)).toBe("В городе пока ничего не начинается");
+    expect(nearbyScreenTitle(false)).toBe("В городе");
+    expect(nearbyErrorTitle(false)).toBe("Не удалось загрузить события в городе.");
   });
 
   it("печатает один знак после запятой по-русски", () => {

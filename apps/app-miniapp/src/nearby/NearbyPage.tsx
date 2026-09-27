@@ -33,6 +33,7 @@ import { apiClient, type LeisureChain, type LeisureChainStop } from "../api/clie
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { useProfileCityPoint } from "../geo/profile-city";
+import { useHeaderTitle } from "../ui/Layout";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
@@ -157,6 +158,14 @@ export function nearbyEmptyTitle(inCity: boolean): string {
   return inCity ? "Рядом пока ничего не начинается" : "В городе пока ничего не начинается";
 }
 
+export function nearbyErrorTitle(inCity: boolean): string {
+  return inCity ? "Не удалось загрузить события рядом." : "Не удалось загрузить события в городе.";
+}
+
+export function nearbyScreenTitle(inCity: boolean): string {
+  return inCity ? "Рядом со мной" : "В городе";
+}
+
 function Timeline({ state, onRetryTimeline, onOpenEvent, radiusKm = NEARBY_RADIUS_KM, originSource = "fallback", inCity = true }: Pick<NearbyViewProps, "state" | "onRetryTimeline" | "onOpenEvent" | "radiusKm" | "originSource" | "inCity">) {
   const segments = state.status === "ready" ? NEARBY_BUCKETS.map((bucket) => ({ bucket, cards: state.timeline[bucket] })).filter((segment) => segment.cards.length > 0) : [];
 
@@ -169,7 +178,7 @@ function Timeline({ state, onRetryTimeline, onOpenEvent, radiusKm = NEARBY_RADIU
       {state.status === "loading" && <AppSkeletonList rows={3} />}
       {state.status === "error" && (
         <AppState error action={{ label: "Повторить", onClick: onRetryTimeline }}>
-          Не удалось загрузить события рядом.
+          {nearbyErrorTitle(inCity)}
         </AppState>
       )}
       {state.status === "ready" && segments.length === 0 && <AppState hint={`Мы смотрим только на ${radiusKm} км вокруг`}>{nearbyEmptyTitle(inCity)}</AppState>}
@@ -284,6 +293,8 @@ export function NearbyPage() {
   const { navigate } = useRoute();
   const auth = useAuth();
   const point = useProfileCityPoint();
+  const inCity = point.settled && point.fromViewer;
+  useHeaderTitle(nearbyScreenTitle(inCity));
   const [mode, setMode] = useState<NearbyMode>("timeline");
   const [state, setState] = useState<NearbyState>({ status: "loading" });
   const [hours, setHours] = useState<number>(3);
@@ -371,7 +382,7 @@ export function NearbyPage() {
       }}
       radiusKm={radiusKm}
       originSource={point.source}
-      inCity={point.settled && point.fromViewer}
+      inCity={inCity}
       onOpenEvent={(id) => navigate({ name: "event", id })}
       onOpenPlace={(id) => navigate({ name: "place", id })}
     />

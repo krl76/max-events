@@ -113,6 +113,10 @@ export function todaySummaryTitle(voice: DistanceVoice = "you"): string {
   return voice === "center" ? "Сегодня в городе" : "Сегодня для тебя";
 }
 
+export function afterMeGoLabel(voice: DistanceVoice = "you"): string {
+  return voice === "center" ? "Показать места в городе" : "Показать места рядом";
+}
+
 export function TodaySummaryBlock({ state, now, distanceFrom = "you" }: { state: TodayState; now: Date; distanceFrom?: DistanceVoice }) {
   const summary = state.status === "ready" ? state.today.summary : null;
   const title = todaySummaryTitle(distanceFrom);
@@ -269,7 +273,7 @@ export function TodayAfterMeCard({ card, onShow, onDismiss, distanceFrom = "you"
       )}
       <div className="app-afterme-actions">
         <button type="button" className="app-afterme-go" onClick={onShow}>
-          Показать места рядом
+          {afterMeGoLabel(distanceFrom)}
         </button>
         <button type="button" className="app-afterme-skip" onClick={onDismiss}>
           Не надо

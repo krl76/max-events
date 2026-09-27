@@ -159,6 +159,8 @@ export interface MapNoticeInput {
   anyLayerOn: boolean;
   geoDenied: boolean;
   locateOn: boolean;
+  /** False when the canvas is centered on the city, so «рядом» would name the wrong place. */
+  inCity?: boolean;
 }
 
 /**
@@ -172,13 +174,13 @@ export function mapNotice(input: MapNoticeInput): string | null {
   if (input.vectorFallback) return "Своя подложка здесь не открылась — показана стандартная.";
   if (input.locateOn && input.geoDenied) return "Где вы — браузер не сказал. Показываем центр города.";
   if (input.markerCount > 0) return input.placesFailed || input.eventsFailed ? "Часть объектов не загрузилась — на карте не всё." : null;
-  if (input.loading) return "Ищем объекты рядом…";
+  if (input.loading) return input.inCity === false ? "Ищем объекты в городе…" : "Ищем объекты рядом…";
   if (!input.anyLayerOn) return "Все слои выключены — включите хотя бы один.";
   // События без площадок остаются без координат, поэтому упавший listPlaces обнуляет карту целиком:
   // сказать «рядом ничего нет» было бы неправдой — искать было нечем.
   if (input.placesFailed || input.eventsFailed) return "Объекты не загрузились. Карта на месте, попробуйте позже.";
   if (input.query.trim() !== "") return `По запросу «${input.query.trim()}» на карте ничего нет.`;
-  return "Рядом ничего не нашлось.";
+  return input.inCity === false ? "В городе ничего не нашлось." : "Рядом ничего не нашлось.";
 }
 
 function popupNode(marker: MapMarker, onOpenEvent: (id: string) => void, onOpenPlace: (id: string) => void): HTMLElement {
@@ -739,6 +741,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
     query,
     anyLayerOn: MAP_LAYERS.some((layer) => layers[layer]),
     geoDenied: located.state === "denied",
+    inCity: located.settled && located.fromViewer,
     locateOn: centered,
   });
 

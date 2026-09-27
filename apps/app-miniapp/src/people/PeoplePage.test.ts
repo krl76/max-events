@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { lookingLabel, peopleDistance, peopleEmptyTitle, peopleNearLabel, personMetaLine, sentenceCase, PeopleView, type PeopleState } from "./PeoplePage";
+import { lookingLabel, peopleDistance, peopleEmptyTitle, peopleErrorTitle, peopleNearLabel, peopleScreenTitle, personMetaLine, sentenceCase, PeopleView, type PeopleState } from "./PeoplePage";
 import { peopleSuggest } from "../api/mock";
 
 const noop = () => {};
@@ -21,6 +21,8 @@ describe("peopleDistance", () => {
     expect(peopleNearLabel(1, true)).toBe("человек рядом");
     expect(peopleNearLabel(2, false)).toBe("человека в городе");
     expect(peopleEmptyTitle(false)).toBe("В городе пока никого с общими интересами.");
+    expect(peopleScreenTitle(false)).toBe("Люди в городе");
+    expect(peopleErrorTitle(false)).toBe("Не удалось найти людей в городе.");
   });
 });
 

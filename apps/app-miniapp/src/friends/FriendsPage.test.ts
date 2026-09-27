@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { FriendActivityByFriend } from "@max-events/api-contracts";
-import { activeFriends, friendNowLine, initials, syncLabel, FriendsView, type FriendsState } from "./FriendsPage";
+import { activeFriends, friendNowLine, friendsPeopleLabel, initials, syncLabel, FriendsView, type FriendsState } from "./FriendsPage";
 import { personGradient, personLetter } from "./avatar";
 import { friendActivityByFriend, mockEvents, mockFriends } from "../api/mock";
 
@@ -95,6 +95,7 @@ describe("FriendsView", () => {
 
     expect(html).toContain("Друзья открыли");
     expect(html).toContain("Люди рядом");
+    expect(friendsPeopleLabel(false)).toBe("Люди в городе");
   });
 
   it("names the active group with its count and lists everyone else below", () => {

@@ -67,7 +67,16 @@ export function formatFeedDistance(distanceKm: number | null): string | null {
 }
 
 /** «15 минут от тебя (2,4 км)»; without a walking estimate the distance alone, and null when neither is known. */
+const FEED_WALK_CAP_MIN = 90;
+const FEED_FAR_KM = 80;
+
 export function formatFeedTravel(travelMinutes: number | null, distanceKm: number | null): string | null {
+  if (distanceKm !== null && distanceKm > FEED_FAR_KM) return "далеко";
+  if (travelMinutes !== null && travelMinutes > FEED_WALK_CAP_MIN) {
+    const km = distanceKm ?? Math.max(1, Math.round((travelMinutes * 80) / 1000));
+    if (km > FEED_FAR_KM) return "далеко";
+    return distanceKm === null ? `${km.toLocaleString("ru-RU")} км` : formatFeedDistance(distanceKm);
+  }
   const distance = formatFeedDistance(distanceKm);
   if (travelMinutes === null) return distance;
   const walk = `${travelMinutes} ${pluralRu(travelMinutes, "минута", "минуты", "минут")} от тебя`;
@@ -102,10 +111,10 @@ export function feedEventMeta(event: Pick<Event, "startsAt" | "isPaid" | "priceR
  */
 export function feedCountsLine(counts: FeedCardCounts, live: boolean): string | null {
   const parts: string[] = [];
-  if (counts.wantsToGo !== null) parts.push(`${counts.wantsToGo} ${pluralRu(counts.wantsToGo, "хочет", "хотят", "хотят")} пойти`);
-  if (counts.going !== null) parts.push(live ? `${counts.going} уже там` : `${counts.going} ${pluralRu(counts.going, "идёт", "идут", "идут")}`);
-  if (counts.waitlist !== null) parts.push(`${counts.waitlist} в листе ожидания`);
-  if (counts.freeSeats !== null) parts.push(`${counts.freeSeats} ${pluralRu(counts.freeSeats, "место", "места", "мест")} свободно`);
+  if (counts.wantsToGo !== null && counts.wantsToGo > 0) parts.push(`${counts.wantsToGo} ${pluralRu(counts.wantsToGo, "хочет", "хотят", "хотят")} пойти`);
+  if (counts.going !== null && counts.going > 0) parts.push(live ? `${counts.going} уже там` : `${counts.going} ${pluralRu(counts.going, "идёт", "идут", "идут")}`);
+  if (counts.waitlist !== null && counts.waitlist > 0) parts.push(`${counts.waitlist} в листе ожидания`);
+  if (counts.freeSeats !== null && counts.freeSeats > 0) parts.push(`${counts.freeSeats} ${pluralRu(counts.freeSeats, "место", "места", "мест")} свободно`);
   return parts.length === 0 ? null : parts.join(" · ");
 }
 
@@ -254,20 +263,22 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
           </button>
         )
       )}
-      {card.event !== null && <button type="button" className={`app-feed-event app-media--${card.event.category}`} onClick={onOpenEvent}>
-        <span className="app-feed-event-chips">
-          <span className="app-feed-chip">{CATEGORY_LABELS[card.event.category]}</span>
-          {card.live && (
-            <span className="app-feed-chip app-feed-chip--live">
-              <span className="app-feed-live-dot" aria-hidden="true" />
-              Сейчас идёт
-            </span>
-          )}
-          {card.hit && <span className="app-feed-hit">ХИТ НЕДЕЛИ</span>}
-        </span>
-        <span className="app-feed-event-title">{card.event.title}</span>
-        <span className="app-feed-event-meta">{feedEventMeta(card.event, now)}</span>
-      </button>}
+      {card.event !== null && (
+        <button type="button" className={`app-feed-event app-media--${card.event.category}`} onClick={onOpenEvent}>
+          <span className="app-feed-event-chips">
+            <span className="app-feed-chip">{CATEGORY_LABELS[card.event.category]}</span>
+            {card.live && (
+              <span className="app-feed-chip app-feed-chip--live">
+                <span className="app-feed-live-dot" aria-hidden="true" />
+                Сейчас идёт
+              </span>
+            )}
+            {card.hit && <span className="app-feed-hit">ХИТ НЕДЕЛИ</span>}
+          </span>
+          <span className="app-feed-event-title">{card.event.title}</span>
+          <span className="app-feed-event-meta">{feedEventMeta(card.event, now)}</span>
+        </button>
+      )}
       <div className="app-feed-actions">
         <button type="button" className="app-post-action" aria-pressed={card.likedByMe} aria-label="Нравится" onClick={onToggleLike}>
           <ActionIcon filled={card.likedByMe} name="heart" size={26} />

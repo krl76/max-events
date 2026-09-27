@@ -22,7 +22,7 @@
 // - routeHasHeader - header hidden on «Куда пойдём?» (экраны 11 и 12), whose title changes with the wizard step — «Куда пойдём?» over the questions, the number found over the result
 // END_MODULE_MAP
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { apiClient } from "../api/client";
 import { getWebApp, SHARE_NOTICE, shareNoticeText, type ShareChannel } from "../max/bridge";
 import { isTabRoute, useRoute, type Route } from "../routing/router";
@@ -91,6 +91,17 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
 
 export function routeTitle(route: Route): string {
   return ROUTE_TITLES[route.name];
+}
+
+/** A screen whose title depends on the viewer (in the city or at its center) replaces the static route name. */
+const HeaderTitleContext = createContext<(title: string | null) => void>(() => {});
+
+export function useHeaderTitle(title: string | null): void {
+  const setTitle = useContext(HeaderTitleContext);
+  useEffect(() => {
+    setTitle(title);
+    return () => setTitle(null);
+  }, [setTitle, title]);
 }
 
 export function routeHasBack(route: Route): boolean {
@@ -203,6 +214,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const scroller = useRef<HTMLElement>(null);
   const acceptScroll = useRef(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [titleOverride, setTitleOverride] = useState<string | null>(null);
+  const setHeaderTitle = useCallback((title: string | null) => setTitleOverride(title), []);
   const key = scrollKey(route);
 
   useEffect(() => {
@@ -261,7 +274,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   Назад
                 </button>
               )}
-              <span className="app-header-title">{routeTitle(route)}</span>
+              <span className="app-header-title">{titleOverride ?? routeTitle(route)}</span>
             </>
           )}
         </header>
@@ -277,7 +290,7 @@ export function Layout({ children }: { children: ReactNode }) {
           freezeScroll(key, top);
         }}
       >
-        {children}
+        <HeaderTitleContext.Provider value={setHeaderTitle}>{children}</HeaderTitleContext.Provider>
       </main>
       {notice !== null && (
         <p className="app-share-notice" role="status">

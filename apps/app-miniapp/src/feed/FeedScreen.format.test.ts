@@ -38,6 +38,8 @@ describe("feed formatting", () => {
     expect(formatFeedTravel(1, 0.2)).toBe("1 минута от тебя (0,2 км)");
     expect(formatFeedTravel(null, 2.4)).toBe("2,4 км");
     expect(formatFeedTravel(null, null)).toBeNull();
+    expect(formatFeedTravel(11109, 888.1)).toBe("далеко");
+    expect(formatFeedTravel(200, null)).toBe("16 км");
   });
 
   it("says сегодня and завтра by name and dates the rest", () => {
@@ -70,7 +72,7 @@ describe("feedCountsLine", () => {
 
   it("says nothing rather than zero when the card counts nothing, since the counters are not in the DTO yet", () => {
     expect(feedCountsLine({ wantsToGo: null, going: null, waitlist: null, freeSeats: null }, false)).toBeNull();
-    expect(feedCountsLine({ wantsToGo: null, going: 0, waitlist: null, freeSeats: null }, false)).toBe("0 идут");
+    expect(feedCountsLine({ wantsToGo: null, going: 0, waitlist: 0, freeSeats: 0 }, false)).toBeNull();
   });
 });
 

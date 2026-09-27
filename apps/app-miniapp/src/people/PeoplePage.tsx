@@ -20,6 +20,7 @@ import type { PeopleCandidate, PeopleResponse } from "@max-events/api-contracts"
 import { apiClient } from "../api/client";
 import { PersonAvatar } from "../friends/avatar";
 import { useProfileCityPoint } from "../geo/profile-city";
+import { useHeaderTitle } from "../ui/Layout";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
@@ -46,6 +47,14 @@ export function peopleNearLabel(count: number, inCity: boolean): string {
 
 export function peopleEmptyTitle(inCity: boolean): string {
   return inCity ? "Рядом пока никого с общими интересами." : "В городе пока никого с общими интересами.";
+}
+
+export function peopleErrorTitle(inCity: boolean): string {
+  return inCity ? "Не удалось найти людей рядом." : "Не удалось найти людей в городе.";
+}
+
+export function peopleScreenTitle(inCity: boolean): string {
+  return inCity ? "Люди рядом" : "Люди в городе";
 }
 
 /** Explanations arrive as «общий интерес: джаз» — the card opens a sentence, so the first letter rises. */
@@ -110,7 +119,7 @@ export function PeopleView({ state, hidden, onInvite, onHide, onRetry, inCity = 
       {state.status === "loading" && <AppSkeletonList rows={3} />}
       {state.status === "error" && (
         <AppState error action={{ label: "Повторить", onClick: onRetry }}>
-          Не удалось найти людей рядом.
+          {peopleErrorTitle(inCity)}
         </AppState>
       )}
       {state.status === "ready" && (
@@ -139,6 +148,8 @@ export function PeopleView({ state, hidden, onInvite, onHide, onRetry, inCity = 
 export function PeoplePage() {
   const { navigate } = useRoute();
   const point = useProfileCityPoint();
+  const inCity = point.settled && point.fromViewer;
+  useHeaderTitle(peopleScreenTitle(inCity));
   const [state, setState] = useState<PeopleState>({ status: "loading" });
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
 
@@ -173,7 +184,7 @@ export function PeoplePage() {
         })
       }
       onRetry={load}
-      inCity={point.settled && point.fromViewer}
+      inCity={inCity}
     />
   );
 }

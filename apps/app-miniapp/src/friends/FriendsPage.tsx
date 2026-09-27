@@ -19,11 +19,17 @@ import { useCallback, useEffect, useState } from "react";
 import type { Friend, FriendActivityByFriend } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { useProfileCityPoint } from "../geo/profile-city";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppNavTiles, AppSkeletonList, AppState } from "../ui/primitives";
 import { PersonAvatar } from "./avatar";
 import { FRIENDS_GRAPH_EMPTY_TEXT } from "./friends-empty";
+
+/** The people screen is «рядом» only when the viewer is in the city the list is measured from. */
+export function friendsPeopleLabel(inCity: boolean): string {
+  return inCity ? "Люди рядом" : "Люди в городе";
+}
 
 /** Two letters for the places that still draw the old initials avatar (the gathering flow, the vote screen). */
 export function initials(name: string): string {
@@ -117,9 +123,11 @@ interface FriendsViewProps {
   onOpenDiscovery: () => void;
   onOpenPeople: () => void;
   onRetry: () => void;
+  /** False when «Люди» opens a list measured from the city center. */
+  peopleInCity?: boolean;
 }
 
-export function FriendsView({ state, syncing = false, now = new Date(), onSync, onOpenFriend, onOpenDiscovery, onOpenPeople, onRetry }: FriendsViewProps) {
+export function FriendsView({ state, syncing = false, now = new Date(), onSync, onOpenFriend, onOpenDiscovery, onOpenPeople, onRetry, peopleInCity = true }: FriendsViewProps) {
   const active = state.status === "ready" ? activeFriends(state.groups, now) : [];
   const activeIds = new Set(active.map((group) => group.friend.id));
   // Кто уже стоит в верхней группе, второй раз ниже не повторяется: макет показывает каждого один раз.
@@ -129,7 +137,7 @@ export function FriendsView({ state, syncing = false, now = new Date(), onSync, 
     <section className="app-friends-screen">
       <div className="app-friends-bar">
         <h1 className="app-friends-bar-title">Друзья</h1>
-        {state.status === "ready" && <span className="app-friends-bar-count">{state.friends.length}</span>}
+        {state.status === "ready" && state.friends.length > 0 && <span className="app-friends-bar-count">{state.friends.length}</span>}
       </div>
       <div className="app-friends-contacts">
         <span className="app-friends-contacts-mark" aria-hidden="true">
@@ -146,7 +154,7 @@ export function FriendsView({ state, syncing = false, now = new Date(), onSync, 
       <AppNavTiles
         items={[
           { icon: "pin", label: "Друзья открыли", onClick: onOpenDiscovery },
-          { icon: "users", label: "Люди рядом", onClick: onOpenPeople },
+          { icon: "users", label: friendsPeopleLabel(peopleInCity), onClick: onOpenPeople },
         ]}
       />
       {state.status === "loading" && <AppSkeletonList rows={4} />}
@@ -184,6 +192,7 @@ export function FriendsPage() {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
+  const point = useProfileCityPoint();
   const [state, setState] = useState<FriendsState>({ status: "loading" });
   const [syncing, setSyncing] = useState(false);
   const [reloads, setReloads] = useState(0);
@@ -221,5 +230,5 @@ export function FriendsPage() {
     );
   }, []);
 
-  return <FriendsView state={state} syncing={syncing} onSync={sync} onOpenFriend={(id) => navigate({ name: "user", id })} onOpenDiscovery={() => navigate({ name: "discovery" })} onOpenPeople={() => navigate({ name: "people" })} onRetry={() => setReloads((value) => value + 1)} />;
+  return <FriendsView state={state} syncing={syncing} peopleInCity={point.settled && point.fromViewer} onSync={sync} onOpenFriend={(id) => navigate({ name: "user", id })} onOpenDiscovery={() => navigate({ name: "discovery" })} onOpenPeople={() => navigate({ name: "people" })} onRetry={() => setReloads((value) => value + 1)} />;
 }
