@@ -9,16 +9,18 @@
 // - formatMeetingTime - «18:20» ru time formatting
 // - formatDistance - «850 м» / «1,2 км»
 // - planMeetingLabel - «Сбор <время> <место>» line shared by the card and the plan screen
+// - planCompanyLabel - «Пока только ты» or «Ты + N друзей»
+// - planDistanceLabel - «1,2 км от тебя»; past 80 km the line is «далеко», and «от центра» when the point is the city center
 // - PlansState - union of plans fetch states (loading / error / ready)
 // - PlansView - presentational: one card per plan per the README example
 // - PlansTab - разделы «Моё» одним рядом пилюль: plans | bookings | calendar | saved
 // - PlansPage - «Моё» route container: один ряд фильтров над планами, бронями, календарём и сохранённым; entries to the «Мы» groups and the day route builder
 // END_MODULE_MAP
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Plan, PlanCard } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
-import { useViewerOrigin } from "../geo/viewer-origin";
+import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { pluralRu } from "../catalog/format";
 import { CalendarPage } from "../calendar/CalendarPage";
 import { MyMicroEventsSection } from "../micro/MicroEvents";
@@ -40,9 +42,24 @@ export function planMeetingLabel(plan: Plan): string {
   return `Сбор ${formatMeetingTime(plan.meetingAt)} ${plan.meetingPoint}`;
 }
 
+/** Zero friends is not a company of zero. The host is already on the plan. */
+export function planCompanyLabel(friendCount: number): string {
+  if (friendCount <= 0) return "Пока только ты";
+  return `Ты + ${friendCount} ${pluralRu(friendCount, "друг", "друга", "друзей")}`;
+}
+
+const PLAN_FAR_METERS = 80_000;
+
+/** «850 м от тебя». A cross-country figure is not a route, and a city-center point must not say «от тебя». */
+export function planDistanceLabel(distanceMeters: number, fromViewer = true): string {
+  const who = fromViewer ? "от тебя" : "от центра";
+  if (distanceMeters > PLAN_FAR_METERS) return `далеко ${who}`;
+  return `${formatDistance(distanceMeters)} ${who}`;
+}
+
 export type PlansState = { status: "loading" } | { status: "error" } | { status: "ready"; cards: PlanCard[] };
 
-export function PlansView({ state, onOpen, onExplore, onCreate }: { state: PlansState; onOpen: (planId: string) => void; onExplore: () => void; onCreate?: () => void }) {
+export function PlansView({ state, onOpen, onExplore, onCreate, distancesFromViewer = true }: { state: PlansState; onOpen: (planId: string) => void; onExplore: () => void; onCreate?: () => void; distancesFromViewer?: boolean }) {
   // Above the early returns on purpose: with no plans yet this was the one screen where making one
   // by hand was unreachable — the empty state offered only «Найти событие».
   const create =
@@ -87,11 +104,9 @@ export function PlansView({ state, onOpen, onExplore, onCreate }: { state: Plans
           <AppMedia category={event.category} />
           <div className="app-card-body">
             <span className="app-card-title">{event.title}</span>
-            <span className="app-card-subtitle">
-              Ты + {plan.participants.length} {pluralRu(plan.participants.length, "друг", "друга", "друзей")}
-            </span>
+            <span className="app-card-subtitle">{planCompanyLabel(plan.participants.length)}</span>
             <span className="app-card-subtitle">{planMeetingLabel(plan)}</span>
-            <span className="app-card-subtitle">{formatDistance(distanceMeters)} от тебя</span>
+            <span className="app-card-subtitle">{planDistanceLabel(distanceMeters, distancesFromViewer)}</span>
           </div>
           <span className="app-row-chevron" aria-hidden="true">
             <ActionIcon name="chevron" size={16} strokeWidth={2} />
@@ -119,12 +134,26 @@ const PLANS_TABS: Array<{ id: PlansTab; label: string }> = [
 export function PlansPage({ tab = "plans", inviteToken }: { tab?: PlansTab; inviteToken?: string }) {
   const { navigate } = useRoute();
   const origin = useViewerOrigin();
+  const [homeCity, setHomeCity] = useState<string | null>(null);
   const [active, setActive] = useState<PlansTab>(tab);
   const [state, setState] = useState<PlansState>({ status: "loading" });
+  const point = useMemo(() => (homeCity === null ? { latitude: origin.latitude, longitude: origin.longitude, fromViewer: true } : browsedCityOrigin(origin, homeCity)), [origin, homeCity]);
+  useEffect(() => {
+    let alive = true;
+    apiClient.getProfile().then(
+      (profile) => {
+        if (alive) setHomeCity(profile.city);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
-    apiClient.listPlans({ latitude: origin.latitude, longitude: origin.longitude }).then(
+    apiClient.listPlans({ latitude: point.latitude, longitude: point.longitude }).then(
       (cards) => {
         if (alive) setState({ status: "ready", cards });
       },
@@ -135,16 +164,12 @@ export function PlansPage({ tab = "plans", inviteToken }: { tab?: PlansTab; invi
     return () => {
       alive = false;
     };
-  }, [origin.latitude, origin.longitude]);
+  }, [point.latitude, point.longitude]);
   return (
     <>
       <div className="app-tab-row" role="group" aria-label="Разделы «Моё»">
         {PLANS_TABS.map((item) => (
-          <AppChip
-            key={item.id}
-            pressed={active === item.id}
-            onClick={() => setActive(item.id)}
-          >
+          <AppChip key={item.id} pressed={active === item.id} onClick={() => setActive(item.id)}>
             {item.label}
           </AppChip>
         ))}
@@ -165,7 +190,7 @@ export function PlansPage({ tab = "plans", inviteToken }: { tab?: PlansTab; invi
               Спросить MAX
             </button>
           </div>
-          <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} onCreate={() => navigate({ name: "plan-new" })} />
+          <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} onCreate={() => navigate({ name: "plan-new" })} distancesFromViewer={point.fromViewer} />
           <MyMicroEventsSection />
         </div>
       )}

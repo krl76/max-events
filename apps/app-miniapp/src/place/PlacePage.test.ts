@@ -5,7 +5,7 @@ import type { PlacePage as PlacePageAggregate } from "@max-events/api-contracts"
 import type { PlaceBoard, PlaceUpcomingEvent } from "../api/client";
 import { mockPlaces } from "../api/mock";
 import { pluralRu } from "../catalog/format";
-import { friendVisitLabel, occupancyAxis, occupancyLabel, placeKindLabel, PlacePageView, slotPriceLine, upcomingLine, visitMonthLabel } from "./PlacePage";
+import { friendVisitLabel, occupancyAxis, occupancyLabel, placeKindLabel, placeRatingLabel, placeRatingValue, PlacePageView, slotPriceLine, upcomingLine, visitMonthLabel } from "./PlacePage";
 
 const park = mockPlaces[0];
 
@@ -180,6 +180,13 @@ describe("PlacePageView", () => {
     expect(html).toContain("Свободных окон сейчас нет.");
     expect(html).toContain("Пока здесь ничего не запланировано.");
     expect(html).toContain("оценок пока нет");
+  });
+
+  it("does not print 0,0 when a summary exists but nobody has reviewed the place", () => {
+    expect(placeRatingValue({ averageStars: 0, reviewsCount: 0 })).toBe("—");
+    expect(placeRatingLabel({ reviewsCount: 0 })).toBe("оценок пока нет");
+    expect(placeRatingValue({ averageStars: 4.8, reviewsCount: 1240 })).toBe("4,8");
+    expect(placeRatingLabel({ reviewsCount: 1240 }).replaceAll("\u00a0", " ")).toBe("1 240 оценок");
   });
 
   it("marks the day as spent once the viewer has checked in", () => {

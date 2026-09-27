@@ -13,6 +13,8 @@
 // - visitMonthLabel - «май» — the month of a visit cell
 // - slotPriceLine - «800 ₽/час · бесплатная отмена до 12:00» under the windows
 // - upcomingLine - «Анна, Дима и ещё 5 · ты записан» / «11 из 40 · бесплатно» under an upcoming event
+// - placeRatingValue - «4,8» or «—» when nobody has reviewed the place
+// - placeRatingLabel - «1 240 оценок» or «оценок пока нет»
 // - PlaceFollowRow - the follow control of the design: a wide toggle plus the entry to «Все подписки»
 // - PlacePageState - union of place screen fetch states (loading / error / ready)
 // - PlacePageView - presentational: the hero and the seven blocks of экран 34 with their empty states
@@ -192,6 +194,17 @@ function SlotRow({ slot, onOpen }: { slot: PlaceSlot; onOpen: () => void }) {
   );
 }
 
+/** A summary with zero reviews is not a score of 0,0 — there is nothing to average yet. */
+export function placeRatingValue(rating: { averageStars: number; reviewsCount: number } | null): string {
+  if (rating === null || rating.reviewsCount === 0) return "—";
+  return rating.averageStars.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+export function placeRatingLabel(rating: { reviewsCount: number } | null): string {
+  if (rating === null || rating.reviewsCount === 0) return "оценок пока нет";
+  return `${rating.reviewsCount.toLocaleString("ru-RU")} ${pluralRu(rating.reviewsCount, "оценка", "оценки", "оценок")}`;
+}
+
 export function PlacePageView({ place, page, board, checkedIn, onBack, onCheckIn, onOpenEvent, onOpenSlots, onOpenSubscriptions, onCreateHere, onSave }: PlacePageViewProps) {
   const alreadyHere = checkedIn || (board?.checkedInToday ?? false);
   const rating = page.rating?.summary ?? null;
@@ -232,8 +245,8 @@ export function PlacePageView({ place, page, board, checkedIn, onBack, onCheckIn
 
       <div className="app-place-stats">
         <div className="app-place-stat">
-          <span className="app-place-stat-value">{rating === null ? "—" : rating.averageStars.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
-          <span className="app-place-stat-label">{rating === null ? "оценок пока нет" : `${rating.reviewsCount.toLocaleString("ru-RU")} ${pluralRu(rating.reviewsCount, "оценка", "оценки", "оценок")}`}</span>
+          <span className="app-place-stat-value">{placeRatingValue(rating)}</span>
+          <span className="app-place-stat-label">{placeRatingLabel(rating)}</span>
         </div>
         <div className="app-place-stat">
           <span className="app-place-stat-value">{page.personalVisitsCount}</span>

@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DEFAULT_SMART_ALERTS, type Achievement, type Friend, type Profile, type Subscription, type User, type WeGroupScreen } from "@max-events/api-contracts";
 import type { ListSummary, ProfileCounters, ProfilePost, VisitedPlace } from "../api/client";
-import { ProfileMediaDialog, ProfileView, achievementsHint, followMetrics, friendsHint, isCustomProfileAvatar, listsHint, profileAbout, profileMetrics, profileTabLabel, socialMetrics, visitsLabel, weGroupsHint } from "./ProfilePage";
+import { ProfileMediaDialog, ProfileView, achievementsHint, followMetrics, friendsHint, isCustomProfileAvatar, listsHint, profileAbout, profileInterestLine, profileMetrics, profileTabLabel, socialEntryLabel, socialMetrics, visitsLabel, weGroupsHint } from "./ProfilePage";
 
 const user: User = {
   id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
@@ -121,6 +121,11 @@ describe("profileAbout", () => {
   it("puts the bio on the next line when there is one", () => {
     expect(profileAbout({ city: "Москва", interests: ["джаз"], bio: "Люблю падел" })).toBe("Москва · джаз\nЛюблю падел");
   });
+
+  it("keeps three interests and counts the rest", () => {
+    expect(profileInterestLine(["Концерты", "Спорт", "Театр", "Йога", "Лекции"])).toBe("Концерты, Спорт, Театр и ещё 2");
+    expect(socialEntryLabel("subscriptions")).toBe("Подписки");
+  });
 });
 
 describe("profileMetrics", () => {
@@ -139,6 +144,11 @@ describe("profileMetrics", () => {
 
   it("has nothing to show before the counters arrive", () => {
     expect(profileMetrics(null)).toEqual([]);
+  });
+
+  it("drops a visit counter that is still zero", () => {
+    expect(profileMetrics({ ...counters, eventsCount: 0, placesCount: 0, companiesCount: 0 })).toEqual([]);
+    expect(profileMetrics({ ...counters, eventsCount: 0, placesCount: 2, companiesCount: 0 })).toEqual([{ value: 2, label: "места" }]);
   });
 });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { formatDistance, planMeetingLabel, PlansPage, PlansView, type PlansState } from "./PlansPage";
+import { formatDistance, planCompanyLabel, planDistanceLabel, planMeetingLabel, PlansPage, PlansView, type PlansState } from "./PlansPage";
 import { pluralRu } from "../catalog/format";
 import { planCards } from "../api/mock";
 
@@ -15,6 +15,8 @@ describe("plan participants label", () => {
     expect(`Ты + 11 ${pluralRu(11, "друг", "друга", "друзей")}`).toBe("Ты + 11 друзей");
     expect(`Ты + 12 ${pluralRu(12, "друг", "друга", "друзей")}`).toBe("Ты + 12 друзей");
     expect(`Ты + 22 ${pluralRu(22, "друг", "друга", "друзей")}`).toBe("Ты + 22 друга");
+    expect(planCompanyLabel(0)).toBe("Пока только ты");
+    expect(planCompanyLabel(1)).toBe("Ты + 1 друг");
   });
 });
 
@@ -23,6 +25,8 @@ describe("formatDistance", () => {
     expect(formatDistance(850)).toBe("850 м");
     expect(formatDistance(1200)).toBe("1,2 км");
     expect(formatDistance(0)).toBe("0 м");
+    expect(planDistanceLabel(892_200)).toBe("далеко от тебя");
+    expect(planDistanceLabel(6_000, false)).toBe("6,0 км от центра");
   });
 });
 
@@ -41,9 +45,9 @@ describe("PlansView", () => {
 
     for (const card of CARDS) {
       expect(html).toContain(card.event.title);
-      expect(html).toContain(`Ты + ${card.plan.participants.length} ${pluralRu(card.plan.participants.length, "друг", "друга", "друзей")}`);
+      expect(html).toContain(planCompanyLabel(card.plan.participants.length));
       expect(html).toContain(planMeetingLabel(card.plan));
-      expect(html).toContain(`${formatDistance(card.distanceMeters)} от тебя`);
+      expect(html).toContain(planDistanceLabel(card.distanceMeters));
     }
   });
 

@@ -333,16 +333,19 @@ html[data-theme="dark"] #root {
   align-items: center;
   background: var(--app-surface);
   border: none;
-  border-radius: 14px;
+  border-radius: var(--app-radius-pill);
   color: var(--app-text);
   cursor: pointer;
   display: flex;
   flex: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 4px;
   height: 44px;
   justify-content: center;
   margin-left: calc(-1 * var(--app-space-xs));
-  padding: 0;
-  width: 44px;
+  padding: 0 12px;
 }
 
 /* Шеврон нарисован вправо; кнопка назад разворачивает его */

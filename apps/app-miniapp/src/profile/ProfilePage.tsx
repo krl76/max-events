@@ -6,8 +6,10 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
+// - profileInterestLine - up to three interests, then «и ещё N»
 // - profileAbout - «Москва · джаз, падел» — the city and the interests on one line, city alone when there are no interests
-// - profileMetrics - the three visit counters with their ru labels declined for the number; «компании» drops out when nothing counts it (#496)
+// - profileMetrics - the visit counters with their ru labels; a zero and an uncounted «компании» are left out (#496)
+// - socialEntryLabel - «Подписки» / «Посты» / «Подписчики» when that counter is still zero
 // - followMetrics - the two clickable counters of the header: everything the viewer follows and everyone following them; a direction that has not arrived is left out rather than printed as a zero
 // - socialMetrics - second header row: subscriptions, posts, followers
 // - ProfileTab - which grid the profile shows: the posts of the person or the places they have been
@@ -39,9 +41,18 @@ import { useRoute } from "../routing/router";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { AppMedia, AppSkeleton, AppState } from "../ui/primitives";
 
+const INTERESTS_ON_LINE = 3;
+
+/** Three interests fit the phone line. The rest stays a count, not a paragraph under the name. */
+export function profileInterestLine(interests: readonly string[]): string {
+  if (interests.length <= INTERESTS_ON_LINE) return interests.join(", ");
+  const rest = interests.length - INTERESTS_ON_LINE;
+  return `${interests.slice(0, INTERESTS_ON_LINE).join(", ")} и ещё ${rest}`;
+}
+
 /** The single line under the name: город and interests, separated the way the design separates them. */
 export function profileAbout(profile: Pick<Profile, "city" | "interests" | "bio">): string {
-  const line = profile.interests.length === 0 ? profile.city : `${profile.city} · ${profile.interests.join(", ")}`;
+  const line = profile.interests.length === 0 ? profile.city : `${profile.city} · ${profileInterestLine(profile.interests)}`;
   return profile.bio.trim() === "" ? line : `${line}\n${profile.bio.trim()}`;
 }
 
@@ -56,7 +67,8 @@ export function profileMetrics(counters: ProfileCounters | null): { value: numbe
     { value: counters.placesCount, label: pluralRu(counters.placesCount, "место", "места", "мест") },
   ];
   if (counters.companiesCount !== null) metrics.push({ value: counters.companiesCount, label: pluralRu(counters.companiesCount, "компания", "компании", "компаний") });
-  return metrics;
+  // A row of zeros is not a biography. The counter appears once the person has actually been somewhere.
+  return metrics.filter((metric) => metric.value > 0);
 }
 
 /**
@@ -79,6 +91,13 @@ export function followMetrics(input: { subscriptions: Subscription[] | null; fol
     metrics.push({ id: "followers", value, label: pluralRu(value, "подписчик", "подписчика", "подписчиков") });
   }
   return metrics;
+}
+
+/** A zero is an entry, not a score: the button keeps its name so the empty list can still be opened. */
+export function socialEntryLabel(id: "posts" | "subscriptions" | "followers"): string {
+  if (id === "posts") return "Посты";
+  if (id === "subscriptions") return "Подписки";
+  return "Подписчики";
 }
 
 /** Second header row: subscriptions, posts, followers — visits stay on the row above. */
@@ -387,8 +406,8 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
             <div className="app-me-metrics-row">
               {social.map((metric) => (
                 <button key={metric.id} type="button" className="app-me-metric app-me-metric--link" onClick={openList[metric.id]}>
-                  <span className="app-me-metric-value">{metric.value}</span>
-                  <span className="app-me-metric-label">{metric.label}</span>
+                  {metric.value > 0 && <span className="app-me-metric-value">{metric.value}</span>}
+                  <span className="app-me-metric-label">{metric.value > 0 ? metric.label : socialEntryLabel(metric.id)}</span>
                 </button>
               ))}
             </div>
@@ -679,7 +698,10 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         subscribePending={subscribePending}
         onTab={setTab}
         onSettings={() => navigate({ name: "settings" })}
-        onShare={() => { const payload = sharePayload(`${[shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ")} в Афише MAX`, `user-${shownUser.id}`); void shareResult(getWebApp(), payload.text, payload.link).then(announceShare); }}
+        onShare={() => {
+          const payload = sharePayload(`${[shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ")} в Афише MAX`, `user-${shownUser.id}`);
+          void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
+        }}
         onLists={() => navigate({ name: "plans" })}
         onSubscriptions={() => navigate({ name: "subscriptions" })}
         onFollowers={() => navigate({ name: "followers" })}

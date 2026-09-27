@@ -146,7 +146,6 @@ export function routeIsFlush(route: Route): boolean {
   return FLUSH_ROUTES.has(route.name);
 }
 
-
 export function routeHasHeader(route: Route): boolean {
   return !HEADERLESS_ROUTES.has(route.name) && !routeIsFullscreen(route);
 }
@@ -258,8 +257,8 @@ export function Layout({ children }: { children: ReactNode }) {
             <>
               {routeHasBack(route) && (
                 <button type="button" className="app-header-back" aria-label="Назад" onClick={back}>
-                  {/* 24px: навигационная иконка, как у таббара (20px — размер для списков) */}
-                  <ActionIcon name="chevron" size={24} strokeWidth={2} />
+                  <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+                  Назад
                 </button>
               )}
               <span className="app-header-title">{routeTitle(route)}</span>
