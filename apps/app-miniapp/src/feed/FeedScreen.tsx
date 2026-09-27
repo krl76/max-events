@@ -188,11 +188,12 @@ interface FeedFriendPostProps {
   onOpenAuthor: () => void;
   onOpenPerson?: (userId: string) => void;
   onOpenMark?: () => void;
+  onDelete?: () => void;
   userId: string | null;
   hasStory?: boolean;
 }
 
-export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenComments, onShare, onRepost = onShare, onOpenEvent, onOpenAuthor, onOpenPerson, onOpenMark, userId, hasStory = false }: FeedFriendPostProps) {
+export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenComments, onShare, onRepost = onShare, onOpenEvent, onOpenAuthor, onOpenPerson, onOpenMark, onDelete, userId, hasStory = false }: FeedFriendPostProps) {
   const [saving, setSaving] = useState(false);
   const where = [card.placeTitle, formatFeedDistance(card.distanceKm)].filter((part): part is string => part !== null && part !== "").join(" · ");
   const dropped = parsePinLabel(card.locationLabel ?? card.placeTitle ?? "");
@@ -281,6 +282,11 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
         {userId !== null && (
           <button type="button" className="app-post-action" aria-pressed={saving} aria-label="Сохранить" onClick={() => setSaving(true)}>
             <ActionIcon name="bookmark" size={26} />
+          </button>
+        )}
+        {mine && onDelete !== undefined && (
+          <button type="button" className="app-post-action app-post-action--danger" aria-label="Удалить пост" onClick={onDelete}>
+            <ActionIcon name="trash" size={26} />
           </button>
         )}
         {/* aria-pressed, not two labels alone: «Иду» is the same control in its on state, not another button. */}
@@ -475,6 +481,7 @@ export interface FeedCardHandlers {
   onPlaceStatus: (card: FeedPlaceCard, status: ParticipationStatus) => void;
   onSlots: (card: FeedPlaceCard) => void;
   onGather: (card: FeedPlaceCard) => void;
+  onDelete?: (card: FeedFriendCard) => void;
 }
 
 export function FeedCardList({ cards, now, handlers, storyAuthors }: { cards: FeedCard[]; now: Date; handlers: FeedCardHandlers; storyAuthors?: ReadonlySet<string> }) {
@@ -496,6 +503,7 @@ export function FeedCardList({ cards, now, handlers, storyAuthors }: { cards: Fe
               if (card.event) handlers.onOpenEvent(card.event.id);
             }}
             onOpenAuthor={() => handlers.onOpenAuthor(card.author.id)}
+            onDelete={handlers.onDelete ? () => handlers.onDelete?.(card) : undefined}
             onOpenMark={handlers.onOpenMark ? () => handlers.onOpenMark?.(card) : undefined}
             userId={handlers.userId}
             hasStory={storyAuthors?.has(card.author.id) === true}
@@ -755,6 +763,10 @@ export function FeedScreen() {
     // Экран 19 «слоты» is not built yet (#492), so the venue page is where picking a slot starts.
     onSlots: (card) => navigate({ name: "place", id: card.place.id }),
     onGather: () => navigate({ name: "plan-new" }),
+    onDelete: (card) => {
+      if (userId === null || card.author.id !== userId) return;
+      void settle(apiClient.deleteFeedPost(card.id));
+    },
   };
 
   if (state.status === "loading") return <FeedSkeletonScreen />;

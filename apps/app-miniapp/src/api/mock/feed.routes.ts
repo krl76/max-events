@@ -10,7 +10,7 @@
 // END_MODULE_MAP
 
 import { type CreateFeedPost, type PostDraft, type StoryComposition } from "../client";
-import { addMockFeedComment, createMockFeedPost, createMockStory, feedPosts, listMockStories, mockFeedCards, repostMockFeedEvent, repostMockFeedPost, saveMockPostDraft, toggleMockFeedGoing, toggleMockFeedLike } from "./feed";
+import { addMockFeedComment, createMockFeedPost, createMockStory, deleteMockFeedPost, feedPosts, listMockStories, mockFeedCards, repostMockFeedEvent, repostMockFeedPost, saveMockPostDraft, toggleMockFeedGoing, toggleMockFeedLike } from "./feed";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
 import { userPostsFor } from "./profile";
 
@@ -75,6 +75,10 @@ export function feedRoutes(url: URL, init: RequestInit | undefined): Response | 
     return Response.json(feedPosts(url.searchParams.get("eventId"), url.searchParams.get("placeId")));
   }
   const feedOne = /^\/api\/feed\/([^/]+)$/.exec(url.pathname);
+  if (feedOne && init?.method === "DELETE") {
+    const userId = url.searchParams.get("userId") ?? mockDemoUser.id;
+    return deleteMockFeedPost(feedOne[1]!, userId) ? new Response(null, { status: 204 }) : new Response(null, { status: 404 });
+  }
   if (feedOne && (init?.method === undefined || init.method === "GET")) {
     const fromWall = feedPosts(null).find((row) => row.id === feedOne[1]);
     if (fromWall) return Response.json(fromWall);

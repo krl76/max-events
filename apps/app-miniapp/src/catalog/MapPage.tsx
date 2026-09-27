@@ -49,8 +49,5 @@ export function MapPage() {
 
   const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
   const openPlace = useCallback((id: string) => navigate({ name: "place", id }), [navigate]);
-  // Обсуждение объекта начинается с плана: план несёт чат, отдельного чата у объекта на карте нет.
-  const discuss = useCallback(() => navigate({ name: "plan-new" }), [navigate]);
-
-  return <MapPageView state={state} onOpenEvent={openEvent} onOpenPlace={openPlace} onDiscuss={discuss} pin={pin} focusPlaceId={focusPlaceId} drawRoute={drawRoute} />;
+  return <MapPageView state={state} onOpenEvent={openEvent} onOpenPlace={openPlace} pin={pin} focusPlaceId={focusPlaceId} drawRoute={drawRoute} />;
 }

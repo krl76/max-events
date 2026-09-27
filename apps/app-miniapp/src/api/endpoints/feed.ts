@@ -485,6 +485,10 @@ export function withFeed<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/feed/${postId}`, FeedPostSchema);
     }
 
+    deleteFeedPost(postId: string): Promise<void> {
+      return this.requestVoid(`/feed/${postId}`, { method: "DELETE" });
+    }
+
     createFeedPost(payload: CreateFeedPost): Promise<FeedPost> {
       return this.request("/feed", FeedPostSchema, { body: payload });
     }

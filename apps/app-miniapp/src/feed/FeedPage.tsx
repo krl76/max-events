@@ -187,6 +187,7 @@ interface FeedPostCardProps {
   onOpenMap?: () => void;
   /** Avatar, name, caption and each comment author open this person's profile. */
   onOpenAuthor?: (userId: string) => void;
+  onDelete?: () => void;
   hasStory?: boolean;
 }
 
@@ -312,7 +313,7 @@ export function PostAuthorAvatar({ friend, hasStory = false, size = 36 }: { frie
   );
 }
 
-export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenEvent, onOpenMap, onOpenAuthor, hasStory = false }: FeedPostCardProps) {
+export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggleLike, onAddComment, onOpenEvent, onOpenMap, onOpenAuthor, onDelete, hasStory = false }: FeedPostCardProps) {
   const [comment, setComment] = useState("");
   const [commentsOpen, setCommentsOpen] = useState(() => typeof sessionStorage !== "undefined" && sessionStorage.getItem("max-events:open-comments") === post.id);
   const [saving, setSaving] = useState(false);
@@ -415,6 +416,11 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         ) : (
           <button type="button" className="app-post-action" aria-pressed={saving} aria-label="Сохранить" onClick={() => setSaving(true)}>
             <ActionIcon name="bookmark" />
+          </button>
+        )}
+        {userId !== "" && post.author.id === userId && onDelete !== undefined && (
+          <button type="button" className="app-post-action app-post-action--danger" aria-label="Удалить пост" onClick={onDelete}>
+            <ActionIcon name="trash" size={24} />
           </button>
         )}
       </div>
@@ -535,6 +541,10 @@ export function FeedPostPage({ id }: { id: string }) {
       }}
       hasStory={storyAuthors.has(post.author.id)}
       onOpenAuthor={(authorId) => navigate({ name: "user", id: authorId })}
+      onDelete={() => {
+        if (userId === "") return;
+        void apiClient.deleteFeedPost(post.id).then(() => navigate({ name: "home" }));
+      }}
     />
   );
 }

@@ -26,14 +26,14 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNo
 import { useSheetSwipe } from "../ui/sheet";
 import type { EventCategory } from "@max-events/api-contracts";
 import { apiClient, type CatalogCard, type EventFilters } from "../api/client";
-import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
+import { CATEGORY_LABELS } from "../catalog/format";
 import { EventPoster } from "./EventPoster";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute, type BrowseList } from "../routing/router";
 import { countsForCards } from "./BrowsePage";
 import { toggleEventLike, useEventLiked } from "../ui/event-likes";
 import { eventFillLabel, pictured } from "../ui/photos";
-import { dayKey, formatPickDistance, formatPickPrice, TodaySummaryBlock, todayPickCards, type DistanceVoice, type TodayState } from "../today/TodaySection";
+import { dayKey, formatPickDistance, formatPickPrice, SearchDayButton, type DistanceVoice, type TodayState } from "../today/TodaySection";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppSkeleton, AppState } from "../ui/primitives";
 
@@ -435,50 +435,65 @@ interface SearchViewProps {
   suitableState?: SearchState;
 }
 
-function foldFact(count: number, lead: string, sample: string | null): string {
-  if (count === 0) return "Пока пусто";
-  const noun = `${count} ${pluralRu(count, "событие", "события", "событий")}`;
-  const tail = sample === null ? "" : ` · ${sample}`;
-  return `${noun} ${lead}${tail}`;
+function billPhotos(cards: CatalogCard[]): string[] {
+  const seen = new Set<string>();
+  const photos: string[] = [];
+  for (const card of cards) {
+    const photo = pictured(card.event.id, card.event.coverUrl);
+    if (seen.has(photo)) continue;
+    seen.add(photo);
+    photos.push(photo);
+    if (photos.length === 4) break;
+  }
+  return photos;
 }
 
-export function SearchView(props: SearchViewProps) {
-  const [fold, setFold] = useState<null | "bill" | "you">(null);
-  const distanceFrom = props.distancesFromViewer === false ? "center" : "you";
+function BillMosaic({ photos }: { photos: string[] }) {
+  if (photos.length === 0) return <span className="app-bill-mosaic app-bill-mosaic--empty">Пока без фото</span>;
+  return (
+    <span className={`app-bill-mosaic app-bill-mosaic--${photos.length}`}>
+      {photos.map((photo) => (
+        <img key={photo} alt="" src={photo} />
+      ))}
+    </span>
+  );
+}
+
+export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] }) {
+  const [fold, setFold] = useState<null | "today" | "hot">(null);
   const inCity = props.distancesFromViewer !== false;
-  const catalog = props.state.status === "ready" ? props.state.cards : [];
-  const picks = props.today.status === "ready" ? todayPickCards(props.today.today) : [];
-  const suitable = props.suitableState?.status === "ready" ? props.suitableState.cards : [];
-  const forYou = suitable.length > 0 ? suitable : picks;
-  const nearbyPhotos = catalog.slice(0, 3).map((card) => pictured(card.event.id, card.event.coverUrl));
-  const suitablePhotos = forYou.slice(0, 3).map((card) => pictured(card.event.id, card.event.coverUrl));
-  const billPhoto = catalog[0] === undefined ? null : pictured(catalog[0].event.id, catalog[0].event.coverUrl);
-  const youPhoto = forYou[0] === undefined ? null : pictured(forYou[0].event.id, forYou[0].event.coverUrl);
-  const openFold = (next: "bill" | "you") => setFold((current) => (current === next ? null : next));
-  const shown = fold === "bill" ? catalog : fold === "you" ? forYou : [];
-  const squares = [
-    { key: "bill" as const, title: "Афиша", fact: foldFact(catalog.length, "в городе", catalog[0]?.event.title ?? null), photo: billPhoto },
-    { key: "you" as const, title: "Для вас", fact: foldFact(forYou.length, "под вас", forYou[0]?.event.title ?? null), photo: youPhoto },
-  ];
+  const todayCards = props.state.status === "ready" ? props.state.cards : [];
+  const hotCards = [...(props.popular ?? [])].sort((left, right) => (right.rating ?? 0) - (left.rating ?? 0) || (right.event.bookedCount ?? 0) - (left.event.bookedCount ?? 0)).slice(0, 12);
+  const openFold = (next: "today" | "hot") => setFold((current) => (current === next ? null : next));
+  const shown = fold === "today" ? todayCards : fold === "hot" ? hotCards : [];
   return (
     <div className="app-search">
       <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} trailing={<SearchFilters category={props.category} onCategory={props.onCategory} />} />
       <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} onPickRecent={props.onPickRecent} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
       <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
-      <TodaySummaryBlock state={props.today} now={props.now} day={props.day} onDay={props.onDay} distanceFrom={distanceFrom} onOpenNearby={() => openFold("bill")} onOpenSuitable={() => openFold("you")} onOpenFriends={() => props.onOpenList("friends")} nearbyPhotos={nearbyPhotos} suitablePhotos={suitablePhotos} />
-      <div className="app-search-squares">
-        {squares.map((square) => (
-          <button key={square.key} type="button" className={fold === square.key ? "app-search-square app-search-square--open" : "app-search-square"} aria-expanded={fold === square.key} style={square.photo ? { backgroundImage: `url("${square.photo}")` } : undefined} onClick={() => openFold(square.key)}>
-            {square.photo !== null && <img alt="" src={square.photo} />}
-            <span className="app-search-square-veil">
-              <span className="app-search-square-title">{square.title}</span>
-              <span className="app-search-square-fact">{square.fact}</span>
-            </span>
+      <div className="app-bills">
+        <section className={fold === "today" ? "app-bill app-bill--open" : "app-bill"}>
+          <div className="app-bill-head">
+            <button type="button" className="app-bill-title" aria-expanded={fold === "today"} onClick={() => openFold("today")}>
+              Афиша сегодня
+            </button>
+            <SearchDayButton day={props.day} now={props.now} onDay={props.onDay} />
+          </div>
+          <button type="button" className="app-bill-open" aria-label="Открыть афишу на выбранный день" onClick={() => openFold("today")}>
+            <BillMosaic photos={billPhotos(todayCards)} />
           </button>
-        ))}
+        </section>
+        <section className={fold === "hot" ? "app-bill app-bill--open" : "app-bill"}>
+          <button type="button" className="app-bill-title" aria-expanded={fold === "hot"} onClick={() => openFold("hot")}>
+            Афиша популярных событий
+          </button>
+          <button type="button" className="app-bill-open" aria-label="Открыть популярные события" onClick={() => openFold("hot")}>
+            <BillMosaic photos={billPhotos(hotCards)} />
+          </button>
+        </section>
       </div>
       {fold !== null && (
-        <div className="app-search-feed" aria-label={fold === "bill" ? "Афиша" : "Для вас"}>
+        <div className="app-search-feed" aria-label={fold === "today" ? "Афиша сегодня" : "Афиша популярных событий"}>
           {shown.length === 0 ? <p className="app-today-quiet">В этом разделе пока пусто.</p> : shown.map((card) => <EventPoster key={card.event.id} card={card} onOpen={props.onOpenEvent} />)}
         </div>
       )}
@@ -500,6 +515,7 @@ export function SearchPage() {
   const [hintDismissed, setHintDismissed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<SearchState>({ status: "loading" });
+  const [popular, setPopular] = useState<CatalogCard[]>([]);
   const [today, setToday] = useState<TodayState>({ status: "loading" });
   const now = new Date();
   const todayKey = dayKey(now);
@@ -509,7 +525,7 @@ export function SearchPage() {
   // A GPS fix outside the opened city would mark every card «далеко»; the city's own center is the point then.
   const catalogPoint = useMemo(() => browsedCityOrigin(origin, city), [origin, city]);
   const todayPoint = useMemo(() => browsedCityOrigin(origin, homeCity ?? city), [origin, homeCity, city]);
-  const filters = useMemo<EventFilters>(() => ({ category, city, sort: "near", ...(dayScoped ? { date: day } : {}) }), [category, city, day, dayScoped]);
+  const filters = useMemo<EventFilters>(() => ({ category, city, sort: "near", date: day }), [category, city, day]);
 
   useEffect(() => {
     let alive = true;
@@ -541,6 +557,21 @@ export function SearchPage() {
       alive = false;
     };
   }, [filters, catalogPoint.latitude, catalogPoint.longitude, attempt]);
+
+  useEffect(() => {
+    let alive = true;
+    apiClient.listEventCards({ city, sort: "rating", limit: 24 }, { latitude: catalogPoint.latitude, longitude: catalogPoint.longitude }).then(
+      (cards) => {
+        if (alive) setPopular(cards);
+      },
+      () => {
+        if (alive) setPopular([]);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [city, catalogPoint.latitude, catalogPoint.longitude, attempt]);
 
   useEffect(() => {
     let alive = true;
@@ -594,5 +625,5 @@ export function SearchPage() {
     [city, navigate],
   );
 
-  return <SearchView state={state} today={shownToday} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city, ...openDay })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} onExpand={() => navigate({ name: "browse", list: "nearby", city, ...openDay })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} day={day} onDay={(next) => { if (/^\d{4}-\d{2}-\d{2}$/.test(next)) setDay(next); }} dayScoped={dayScoped} suitableState={suitableState} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
+  return <SearchView state={state} popular={popular} today={shownToday} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city, ...openDay })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} onExpand={() => navigate({ name: "browse", list: "nearby", city, ...openDay })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} day={day} onDay={(next) => { if (/^\d{4}-\d{2}-\d{2}$/.test(next)) setDay(next); }} dayScoped={dayScoped} suitableState={suitableState} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
 }

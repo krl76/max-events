@@ -320,13 +320,16 @@ html[data-theme="dark"] #root {
   align-items: center;
   background: var(--app-card);
   border-bottom: var(--app-hairline);
+  box-sizing: border-box;
   display: flex;
   flex-shrink: 0;
   font-size: var(--app-type-screen-size);
   font-weight: var(--app-type-screen-weight);
   gap: var(--app-space-xs);
+  height: 56px;
   letter-spacing: -0.02em;
-  padding: var(--app-space-m) var(--app-space-screen);
+  min-height: 56px;
+  padding: 0 var(--app-space-screen);
 }
 
 .app-header-back {
@@ -684,6 +687,10 @@ html[data-theme="dark"] #root {
 /* Секционный ритм (AppSection): секции отделяются отступом, hairline — только между строками списков */
 .app-section {
   margin-top: var(--app-space-xl);
+}
+
+.app-create-section {
+  margin-top: 12px;
 }
 
 .app-section-head {
@@ -1907,7 +1914,7 @@ html[data-theme="dark"] #root {
 
 .app-story {
   align-items: center;
-  animation: app-rise-in var(--app-duration-slow) var(--app-ease-out) both;
+  animation: app-rise-in 240ms ease both;
   background: none;
   border: none;
   cursor: pointer;
@@ -2282,6 +2289,11 @@ html[data-theme="dark"] #root {
 .app-feed {
   display: flex;
   flex-direction: column;
+  padding-top: 12px;
+}
+
+.app-feed > .app-stories {
+  margin-top: 0;
 }
 
 /* «Куда пойдём?»: поверхность и единственная градиентная кнопка экрана */
@@ -3634,7 +3646,7 @@ html[data-theme="dark"] #root {
 }
 
 .app-create-card {
-  animation: app-create-in 460ms ease both;
+  animation: app-rise-in 240ms ease both;
   background: var(--app-card);
   border: none;
   border-radius: 22px;
@@ -3666,9 +3678,9 @@ html[data-theme="dark"] #root {
   border-radius: 16px;
   color: #ffffff;
   display: flex;
-  flex: 1;
+  flex: none;
+  height: 84px;
   justify-content: center;
-  min-height: 84px;
 }
 
 .app-create-card:nth-child(1) .app-create-card-art {
@@ -3693,9 +3705,14 @@ html[data-theme="dark"] #root {
 }
 
 .app-create-card-line {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   color: var(--app-text-secondary);
+  display: -webkit-box;
   font-size: 13px;
   line-height: 1.3;
+  min-height: 2.6em;
+  overflow: hidden;
 }
 
 @keyframes app-create-in {
@@ -4515,7 +4532,32 @@ html[data-theme="dark"] #root {
 .app-search {
   display: flex;
   flex-direction: column;
-  padding-top: 4px;
+  padding-top: 12px;
+}
+
+.app-feed > *,
+.app-search > *,
+.app-plans > *,
+.app-tab-row.app-segments {
+  animation: app-rise-in 240ms ease both;
+}
+
+.app-feed > *:nth-child(2),
+.app-search > *:nth-child(2),
+.app-plans > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.app-feed > *:nth-child(3),
+.app-search > *:nth-child(3),
+.app-plans > *:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.app-feed > *:nth-child(n + 4),
+.app-search > *:nth-child(n + 4),
+.app-plans > *:nth-child(n + 4) {
+  animation-delay: 120ms;
 }
 
 .app-search-folds {
@@ -5840,14 +5882,14 @@ button.app-today-stat {
 .app-map16-weather-sheet {
   background: var(--app-card);
   border-radius: var(--app-radius-card);
-  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   box-shadow: var(--app-shadow-lift);
   left: var(--app-space-screen);
   padding: var(--app-space-l);
   pointer-events: auto;
   position: absolute;
   right: var(--app-space-screen);
-  z-index: 1001;
+  z-index: 1004;
 }
 
 .app-map16-weather-now,
@@ -19856,7 +19898,8 @@ button.app-cal-peer-chip {
 }
 
 .app-story-object--poll {
-  width: calc(100% - 2 * var(--app-space-xl));
+  max-width: min(240px, calc(100% - 48px));
+  width: fit-content;
 }
 
 .app-story-object > .app-story-caption,
@@ -20036,24 +20079,33 @@ button.app-cal-peer-chip {
 }
 
 .app-story-bin {
-  border-radius: 18px;
-  bottom: 132px;
-  gap: 8px;
-  height: 52px;
+  border-radius: 50%;
+  height: 36px;
   justify-content: center;
-  left: 50%;
-  padding: 0 16px;
+  left: 12px;
   position: absolute;
-  transform: translateX(-50%);
+  top: 72px;
+  transform: scale(calc(1 + var(--bin-pull, 0) * 0.7));
+  transition: transform 140ms ease;
+  width: 36px;
+  z-index: 8;
 }
 
 .app-story-bin--hot {
-  border-radius: 18px 18px 0 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  transform: none;
-  width: 100%;
+  transform: scale(1.65);
+}
+
+.app-story-bin-hint {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  left: 56px;
+  pointer-events: none;
+  position: absolute;
+  text-shadow: 0 2px 8px rgba(6, 7, 8, 0.45);
+  top: 80px;
+  white-space: nowrap;
+  z-index: 8;
 }
 
 .app-story-bin-dot {
@@ -22091,63 +22143,129 @@ button.app-story-viewer-author {
   width: 44px;
 }
 
-.app-search-squares {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: 1fr 1fr;
+.app-bills {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   margin-top: 16px;
 }
 
-.app-search-square {
-  aspect-ratio: 1;
-  background: #17181c center / cover no-repeat;
-  border: none;
-  border-radius: 18px;
-  color: white;
-  cursor: pointer;
-  overflow: hidden;
-  padding: 0;
-  position: relative;
-  text-align: left;
-}
-
-.app-search-square img {
-  height: 100%;
-  inset: 0;
-  object-fit: cover;
-  position: absolute;
-  width: 100%;
-}
-
-.app-search-square-veil {
-  background: linear-gradient(transparent, rgba(6, 7, 8, 0.78));
-  bottom: 0;
+.app-bill {
+  background: var(--app-card);
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  justify-content: flex-end;
-  left: 0;
   padding: 12px;
-  position: absolute;
-  right: 0;
-  top: 0;
 }
 
-.app-search-square-title {
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.15;
-}
-
-.app-search-square-fact {
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.25;
-}
-
-.app-search-square--open {
+.app-bill--open {
   outline: 2px solid #007aff;
-  outline-offset: 2px;
+}
+
+.app-bill-head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.app-bill-title {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 800;
+  padding: 0;
+  text-align: left;
+}
+
+.app-bill-open {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  width: 100%;
+}
+
+.app-bill-mosaic {
+  display: grid;
+  gap: 6px;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  width: 100%;
+}
+
+.app-bill-mosaic img {
+  border-radius: 14px;
+  height: 112px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-bill-mosaic--1 {
+  grid-template-columns: 1fr;
+}
+
+.app-bill-mosaic--empty {
+  color: var(--app-text-secondary);
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.app-map16-basemap-shot {
+  border-radius: 8px;
+  height: 64px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-map16-basemap-shot--own {
+  background: linear-gradient(160deg, #25262d, #007aff 70%, #ffffff);
+  display: block;
+}
+
+.app-map16-routebar {
+  align-items: center;
+  background: var(--app-card);
+  border-radius: 16px;
+  bottom: 132px;
+  box-shadow: var(--app-shadow-lift);
+  display: flex;
+  font-size: 14px;
+  font-weight: 800;
+  gap: 8px;
+  justify-content: space-between;
+  left: 16px;
+  padding: 8px 8px 8px 14px;
+  position: absolute;
+  right: 16px;
+  z-index: 1002;
+}
+
+.app-map16-routebar button {
+  background: #007aff;
+  border: none;
+  border-radius: 12px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  height: 36px;
+  padding: 0 12px;
+}
+
+.app-post-action--danger {
+  color: #ff303c;
+}
+
+.app-map16-ask-btn--on {
+  background: #17181c;
 }
 
 .app-search-feed {
@@ -22444,4 +22562,43 @@ ion-button,
 ion-button.ion-focused {
   --box-shadow: none;
   --ripple-color: transparent;
+}
+
+/* Опрос на холсте обнимает свой текст: иначе оболочка растягивается на весь кадр, а ручки уезжают вправо. */
+.app-story-object--poll > .app-story-poll {
+  max-width: 100%;
+  width: max-content;
+}
+
+.app-story-object--poll .app-story-poll-options {
+  width: max-content;
+}
+
+.app-story-object--poll .app-story-poll-option {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.app-story-object--poll .app-story-poll-field {
+  field-sizing: content;
+  max-width: 8em;
+  min-width: 4.5em;
+  width: auto;
+}
+
+.app-story-object--poll .app-story-poll-question {
+  max-width: 12em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-feed > *,
+  .app-search > *,
+  .app-plans > *,
+  .app-tab-row.app-segments,
+  .app-create-card,
+  .app-story,
+  .app-story-bin {
+    animation: none;
+    transition: none;
+  }
 }

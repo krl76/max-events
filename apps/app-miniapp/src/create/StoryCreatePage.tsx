@@ -233,6 +233,32 @@ export function storyDeleteZone(yPercent: number): boolean {
   return yPercent >= 86;
 }
 
+/** The pointer is over the trash, with a little extra room so a near miss still counts. */
+export function pointerHitsBin(bin: HTMLElement | null, clientX: number, clientY: number): boolean {
+  if (bin === null) return false;
+  const box = bin.getBoundingClientRect();
+  const cx = box.left + box.width / 2;
+  const cy = box.top + box.height / 2;
+  return Math.hypot(clientX - cx, clientY - cy) < Math.max(48, box.width);
+}
+
+/** 1 when the finger is on the bin, 0 once it is a reach away. The bin grows with this. */
+export function binPull(bin: HTMLElement | null, clientX: number, clientY: number): number {
+  if (bin === null) return 0;
+  const box = bin.getBoundingClientRect();
+  const dist = Math.hypot(clientX - (box.left + box.width / 2), clientY - (box.top + box.height / 2));
+  return Math.max(0, Math.min(1, 1 - dist / 150));
+}
+
+/** The sticker itself crossed the bin, even if the finger is still on the sticker's far edge. */
+export function rectsMeetBin(node: HTMLElement | null, bin: HTMLElement | null): boolean {
+  if (node === null || bin === null) return false;
+  const sticker = node.getBoundingClientRect();
+  const target = bin.getBoundingClientRect();
+  const pad = 24;
+  return sticker.left < target.right + pad && sticker.right > target.left - pad && sticker.top < target.bottom + pad && sticker.bottom > target.top - pad;
+}
+
 export function storyCaptionClass(object: StoryCanvasObject): string {
   return `app-story-caption app-story-caption--${object.font ?? "plain"} app-story-caption--${object.color ?? "white"}`;
 }
@@ -411,10 +437,13 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
   const [editing, setEditing] = useState<string | null>(null);
   const [deleteTray, setDeleteTray] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const binRef = useRef<HTMLButtonElement | null>(null);
+  const frontKeyRef = useRef<string | null>(null);
   const [mentionFor, setMentionFor] = useState<string | null>(null);
   const [mentionDraft, setMentionDraft] = useState("");
   const lastKey = draft.objects.length === 0 ? null : storyObjectKey(draft.objects[draft.objects.length - 1]!);
   const front = toolsOpen ? (touched ?? lastKey) : null;
+  frontKeyRef.current = front;
   const onPhotoCanvas = draft.canvas === "photo" && draft.photoUrl !== null;
   // Опрос на холсте — правленый, а не выведенный: заготовка из события служит ему только началом.
   const asked = storyDraftPoll(draft, poll);
@@ -491,6 +520,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
     if (target instanceof Element && target.closest("a, .app-story-bin, .app-story-bin-dot, .app-story-handle, .app-story-pick")) return;
     const key = storyObjectKey(object);
     const frame = frameRef.current;
+    const node = event.currentTarget;
     if (frame === null) return;
     const box = frame.getBoundingClientRect();
     const fromX = event.clientX;
@@ -540,7 +570,9 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
       }
       if (!moved && pointers.size < 2) return;
       const y = object.y + ((movedEvent.clientY - fromY) / box.height) * 100;
-      setDeleteTray(storyDeleteZone(y));
+      const pull = binPull(binRef.current, movedEvent.clientX, movedEvent.clientY);
+      frame.style.setProperty("--bin-pull", pull.toFixed(3));
+      setDeleteTray(pull > 0.72 || pointerHitsBin(binRef.current, movedEvent.clientX, movedEvent.clientY) || rectsMeetBin(node, binRef.current) || storyDeleteZone(y));
       onDraft({ ...draft, objects: moveStoryObject(draft.objects, key, object.x + ((movedEvent.clientX - fromX) / box.width) * 100, y) });
     };
     const stop = (ended: PointerEvent) => {
@@ -549,8 +581,9 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
       if (hold) clearTimeout(hold);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", stop);
+      frame.style.setProperty("--bin-pull", "0");
       const y = object.y + ((ended.clientY - fromY) / box.height) * 100;
-      if (moved && storyDeleteZone(y)) dropObject(key);
+      if (moved && (pointerHitsBin(binRef.current, ended.clientX, ended.clientY) || rectsMeetBin(node, binRef.current) || storyDeleteZone(y))) dropObject(key);
       else if (!moved && !pinching && !held && object.kind === "text") setEditing(key);
       else if (!moved && !pinching && !held && (object.kind === "event" || object.kind === "seats")) setPickingEvent(true);
       setDeleteTray(false);
@@ -641,7 +674,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
       onPointerDown={(event) => {
         const node = event.target;
         if (!(node instanceof Element)) return;
-        if (node.closest(".app-story-object, .app-story-bar, .app-story-foot, .app-picker")) return;
+        if (node.closest(".app-story-object, .app-story-bar, .app-story-foot, .app-picker, .app-story-bin, .app-story-bin-dot")) return;
         setToolsOpen(false);
         setEditing(null);
       }}
@@ -754,11 +787,22 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
         );
       })}
       {(front !== null || dragging || deleteTray) && (
-        <button type="button" className={deleteTray ? "app-story-bin app-story-bin--hot" : "app-story-bin"} aria-label="Удалить элемент" onClick={() => front !== null && dropObject(front)}>
-          <ActionIcon name="trash" size={22} strokeWidth={2.2} />
-          <span>{deleteTray ? "Отпустите — удалится" : "В корзину"}</span>
+        <button
+          ref={binRef}
+          type="button"
+          className={deleteTray ? "app-story-bin app-story-bin--hot" : "app-story-bin"}
+          aria-label="Удалить элемент"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            const key = frontKeyRef.current;
+            if (key !== null) dropObject(key);
+          }}
+        >
+          <ActionIcon name="trash" size={16} strokeWidth={2.4} />
         </button>
       )}
+      {dragging && <span className="app-story-bin-hint">Сюда</span>}
 
       {mentionFor !== null && (
         <div className="app-story-mentions">

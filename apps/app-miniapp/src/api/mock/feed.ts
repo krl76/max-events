@@ -177,6 +177,15 @@ export function mockUserAsFriend(userId: string): FeedPost["author"] {
 }
 
 /** Impression posts newest first; with an eventId — only the posts of that event (the event wall). */
+/** Drops the author's own post. A stranger's id is refused so the mock matches the server. */
+export function deleteMockFeedPost(postId: string, userId: string): boolean {
+  const index = mockFeedPosts.findIndex((post) => post.id === postId);
+  if (index < 0) return false;
+  if (mockFeedPosts[index]?.author.id !== userId) return false;
+  mockFeedPosts.splice(index, 1);
+  return true;
+}
+
 export function feedPosts(eventId: string | null, placeId: string | null = null): FeedPost[] {
   const newestFirst = [...mockFeedPosts].reverse();
   if (eventId !== null) return newestFirst.filter((post) => post.eventId === eventId);

@@ -136,7 +136,7 @@ export function DayCalendar({ month, selected, today, onPick, onShift, onToday }
   );
 }
 
-function SearchDayButton({ day, now, onDay }: { day: string; now: Date; onDay: (day: string) => void }) {
+export function SearchDayButton({ day, now, onDay }: { day: string; now: Date; onDay: (day: string) => void }) {
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(() => new Date(`${day}T12:00:00`));
   const root = useRef<HTMLDivElement>(null);

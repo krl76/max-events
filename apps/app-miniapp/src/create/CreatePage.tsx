@@ -28,13 +28,13 @@ export interface CreateEntry {
 export const CREATE_ENTRIES: CreateEntry[] = [
   { icon: "clock", label: "История", description: "Сутки у друзей на экране", route: { name: "story-new" } },
   { icon: "comment", label: "Пост", description: "Фото и событие, к которому идут", route: { name: "feed-new", eventId: null } },
-  { icon: "bookmark", label: "План", description: "Вечер вокруг события из афиши", route: { name: "plan-new" } },
-  { icon: "user", label: "Микро-событие", description: "Своя встреча: пробежка, настолки, каток", route: { name: "micro-new" } },
+  { icon: "bookmark", label: "План", description: "Вечер вокруг афиши", route: { name: "plan-new" } },
+  { icon: "user", label: "Микро-событие", description: "Своя встреча на вечер", route: { name: "micro-new" } },
 ];
 
 export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
   return (
-    <AppSection ariaLabel="Создать">
+    <AppSection className="app-create-section" ariaLabel="Создать">
       <div className="app-create-board">
         {CREATE_ENTRIES.map((entry, index) => (
           <button key={entry.label} type="button" className={`app-create-card app-create-card--${index}`} onClick={() => onPick(entry.route)}>

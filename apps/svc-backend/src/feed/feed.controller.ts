@@ -10,7 +10,7 @@
 // - requireId - optional uuid query parameter or 400
 // END_MODULE_MAP
 
-import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
 import { AddFeedCommentWriteSchema, CreateFeedPostWriteSchema, FeedDraftWriteSchema, type BookingWithSeats, type FeedCard, type FeedDraftSaved, type FeedPost } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
@@ -45,6 +45,12 @@ export class FeedController {
   @Get(":id")
   get(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<FeedPost> {
     return this.feed.get(user.id, id);
+  }
+
+  @Delete(":id")
+  @HttpCode(204)
+  remove(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string): Promise<void> {
+    return this.feed.remove(user.id, id);
   }
 
   @Post()

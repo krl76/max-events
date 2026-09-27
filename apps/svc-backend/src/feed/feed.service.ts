@@ -10,7 +10,7 @@
 // - FeedService - list/get/create/saveDraft/join/toggleLike/addComment/listCards
 // END_MODULE_MAP
 
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { FindOperator, In, QueryFailedError, Repository } from "typeorm";
 import type { BookingWithSeats, CreateFeedPostWrite, FeedCard, FeedCardCounts, FeedDraftSaved, FeedDraftWrite, FeedPost, FeedRepost, ParticipationStatus, Place } from "@max-events/api-contracts";
@@ -98,6 +98,12 @@ export class FeedService {
       // Площадка события остаётся подписью места. Карточка площадки со слотами здесь прятала фото и писала текст дважды.
       return [toFriendCard(post, event ?? null, place ?? null, post.eventId ? counts.get(post.eventId) : undefined, post.eventId ? (waitlists.get(post.eventId) ?? 0) : 0, now, createdAt, friendsGoing, goingByMe)];
     });
+  }
+
+  async remove(userId: string, postId: string): Promise<void> {
+    const post = await this.requirePost(postId);
+    if (post.authorUserId !== userId) throw new ForbiddenException("Only the author can delete this post");
+    await this.posts.delete(post.id);
   }
 
   async create(userId: string, payload: CreateFeedPostWrite): Promise<FeedPost> {

@@ -105,8 +105,6 @@ describe("routeHasBack", () => {
 
 describe("routeHasHeader", () => {
   it("hides the header on the screens that draw their own chrome", () => {
-    expect(routeHasHeader({ name: "search" })).toBe(false);
-    expect(routeHasHeader({ name: "plans" })).toBe(false);
     expect(routeHasHeader({ name: "profile" })).toBe(false);
     // Карта показывает пилюлю «Поиск» поверх полотна, подбор свайпами — свою строку с кнопкой назад.
     expect(routeHasHeader({ name: "map" })).toBe(false);
@@ -120,6 +118,9 @@ describe("routeHasHeader", () => {
 
   it("keeps the header on the home tab and the detail routes", () => {
     expect(routeHasHeader({ name: "home" })).toBe(true);
+    expect(routeHasHeader({ name: "search" })).toBe(true);
+    expect(routeHasHeader({ name: "create" })).toBe(true);
+    expect(routeHasHeader({ name: "plans" })).toBe(true);
     expect(routeHasHeader({ name: "settings" })).toBe(true);
     // Карточка площадки (макет, экран 34) шапку потеряла: она несёт собственную кнопку назад поверх
     // полотна и собственную нижнюю панель, поэтому маршрут переехал в полноэкранные.

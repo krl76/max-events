@@ -191,6 +191,14 @@ export function mapNotice(input: MapNoticeInput): string | null {
 /** Categories the map offers, in the same order as the search filter. Undefined is «Все». */
 export const MAP_EVENT_CATEGORIES: readonly EventCategory[] = ["afisha", "tourism", "sport", "volunteering"];
 
+/** Three basemaps are enough on a phone. The pictures are real tiles, not painted swatches. */
+export const MAP_CHOICES = ["own", "osm", "opentopo"] as const;
+
+export function basemapShot(basemap: MapBasemap): string | null {
+  if (basemap.kind !== "raster") return null;
+  return basemap.url.replaceAll("{s}", "a").replace("{z}", "11").replace("{x}", "1238").replace("{y}", "639");
+}
+
 const MAP_SPORT = /спорт|футбол|йог|пробеж|воркаут|трениров|теннис|стритбол|кроссфит|плаван|офп/;
 const MAP_VOLUNTEER = /волонт|волонтер|субботник/;
 const MAP_BILL = /афиш|концерт|музык|джаз|кино|лекци/;
@@ -539,11 +547,6 @@ export function MapSelectionCard(props: MapSelectionCardProps) {
           <ActionIcon name="navigation" size={18} />
           Построить маршрут
         </button>
-        {props.onDiscuss !== undefined && (
-          <button type="button" className="app-map16-discuss" aria-label="Обсудить с друзьями" onClick={props.onDiscuss}>
-            <ActionIcon name="comment" size={20} />
-          </button>
-        )}
       </div>
     </section>
   );
@@ -567,7 +570,7 @@ interface MapScreenProps {
   drawRoute?: boolean;
 }
 
-export function MapScreen({ events, onOpenEvent, onOpenPlace, onDiscuss, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false }: MapScreenProps) {
+export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false }: MapScreenProps) {
   const located = useProfileCityPoint();
   const weatherCity = located.city ?? city;
   // Until the profile city is known the canvas stays on Moscow. A far GPS fix must not pan the map away from the catalog.
@@ -581,6 +584,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onDiscuss, city = 
   const [assistNote, setAssistNote] = useState<string | null>(null);
   const [selected, setSelected] = useState<MapMarker | null>(null);
   const [routeOn, setRouteOn] = useState(drawRoute);
+  const [routePlace, setRoutePlace] = useState<Place | null>(null);
   const [routePath, setRoutePath] = useState<[number, number][] | null>(null);
   const [weatherOpen, setWeatherOpen] = useState(false);
   const [centered, setCentered] = useState(false);
@@ -591,6 +595,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onDiscuss, city = 
   const [vectorFallback, setVectorFallback] = useState(false);
   // Подложка читается из хранилища один раз: выбор человека переживает перезаход, а не только сессию
   const [basemap, setBasemap] = useState<MapBasemap>(readBasemapPreference);
+  const [basemapsOpen, setBasemapsOpen] = useState(false);
   const basemapRef = useRef(basemap);
   basemapRef.current = basemap;
   // Своя векторная подложка красится под отрисованную схему, а не под предпочтение: карта показывает то же, что и остальной экран
@@ -682,11 +687,11 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onDiscuss, city = 
   }, [selectedPlaceId, originPoint]);
 
   useEffect(() => {
-    if (!routeOn || selectedPlace === undefined) {
+    if (!routeOn || routePlace === null) {
       setRoutePath(null);
       return;
     }
-    const dest: [number, number] = [selectedPlace.latitude, selectedPlace.longitude];
+    const dest: [number, number] = [routePlace.latitude, routePlace.longitude];
     setRoutePath([originPoint, dest]);
     let alive = true;
     walkingRoute(originPoint, dest).then(
@@ -698,10 +703,13 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onDiscuss, city = 
     return () => {
       alive = false;
     };
-  }, [routeOn, originPoint, selectedPlace]);
+  }, [routeOn, originPoint, routePlace]);
   const select = useCallback((marker: MapMarker) => {
     setSelected(marker);
+    setWeatherOpen(false);
+    setBasemapsOpen(false);
     setRouteOn(false);
+    setRoutePlace(null);
   }, []);
 
   // Обработчики живут в ref, а не в зависимостях карты: CatalogPage пересоздаёт их на каждый рендер,
@@ -729,7 +737,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onDiscuss, city = 
     [],
   );
   const dropped = pin === null ? null : ([pin.lat, pin.lng] as [number, number]);
-  const view = useMemo<MapView>(() => ({ markers, origin: originPoint, hereLabel, route: routePath, selectedKey: selected?.key ?? null, dropped, basemap, scheme }), [markers, originPoint, hereLabel, routePath, selected, dropped, basemap, scheme]);
+  const view = useMemo<MapView>(() => ({ markers, origin: originPoint, hereLabel, route: weatherOpen ? null : routePath, selectedKey: selected?.key ?? null, dropped, basemap, scheme }), [markers, originPoint, hereLabel, routePath, selected, dropped, basemap, scheme, weatherOpen]);
   const create = useCallback((container: HTMLElement, initial: MapView) => initEventMap(container, initial, callbacks), [callbacks]);
   const { containerRef, handleRef, status } = useLeafletMap<MapView, MapHandle>(create, view);
 
@@ -763,9 +771,14 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onDiscuss, city = 
     if (place === undefined) return;
     flown.current = focusPlaceId;
     handleRef.current?.focus([place.latitude, place.longitude], 16);
+    if (drawRoute) {
+      setRoutePlace(place);
+      setRouteOn(true);
+      return;
+    }
     const marker = markers.find((item) => item.placeId === focusPlaceId && item.eventId === null);
     if (marker) setSelected(marker);
-  }, [status, pin, focusPlaceId, places, markers, handleRef]);
+  }, [status, pin, focusPlaceId, places, markers, handleRef, drawRoute]);
 
   const weatherChange = weather === null ? null : formatMapChange(weather);
   const friendsLine = mapFriendsLine(friendVisits.find((visit) => visit.place.id === selectedPlaceId));
@@ -824,7 +837,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onDiscuss, city = 
       )}
       <div className="app-map16-top">
         <div className="app-map16-top-right">
-          <button type="button" className="app-map16-weather" aria-label="Погода" onClick={() => setWeatherOpen(true)}>
+          <button type="button" className="app-map16-weather" aria-label="Погода" onClick={() => { setWeatherOpen(true); setBasemapsOpen(false); setSelected(null); }}>
             <ActionIcon name="weather" size={20} />
             <span className="app-map16-weather-value">{weather === null ? "—" : `${formatMapTemperature(weather)} · ${weather.condition}`}</span>
           </button>
@@ -846,7 +859,15 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onDiscuss, city = 
       {/* Тайлы требуют указания источника; собственная строка вместо контрола leaflet — чтобы она жила по сетке экрана
           и менялась вместе с подложкой. На запасном полотне тайлов нет, и ссылаться там не на что: подпись снимается с подложкой. */}
       {status !== "error" && <span className="app-map16-credit">{basemapCredit(basemap)}</span>}
-      {selected !== null && <MapSelectionCard title={selected.title} subtitle={selected.subtitle} category={selectedCategory} photoId={selected.eventId ?? selected.placeId} friendsLine={friendsLine} travel={travel} rainHint={mapRainHint(weather, travel)} routeOn={routeOn} onRoute={() => setRouteOn((on) => !on)} onDiscuss={onDiscuss} onOpen={() => (selected.eventId !== null ? onOpenEvent(selected.eventId) : selected.placeId !== null ? onOpenPlace(selected.placeId) : undefined)} onClose={() => setSelected(null)} />}
+      {selected !== null && !weatherOpen && !routeOn && <MapSelectionCard title={selected.title} subtitle={selected.subtitle} category={selectedCategory} photoId={selected.eventId ?? selected.placeId} friendsLine={friendsLine} travel={travel} rainHint={mapRainHint(weather, travel)} routeOn={routeOn} onRoute={() => { if (selectedPlace === undefined) return; setRoutePlace(selectedPlace); setRouteOn(true); setSelected(null); setWeatherOpen(false); setBasemapsOpen(false); }} onOpen={() => (selected.eventId !== null ? onOpenEvent(selected.eventId) : selected.placeId !== null ? onOpenPlace(selected.placeId) : undefined)} onClose={() => setSelected(null)} />}
+      {routeOn && routePlace !== null && selected === null && !weatherOpen && (
+        <div className="app-map16-routebar">
+          <span>Маршрут до {routePlace.title}</span>
+          <button type="button" onClick={() => { setRouteOn(false); setRoutePlace(null); }}>
+            Скрыть
+          </button>
+        </div>
+      )}
       {weatherOpen && (
         <section className="app-map16-weather-sheet" role="dialog" aria-label="Прогноз погоды">
           <div className="app-map16-weather-head">
@@ -876,21 +897,29 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onDiscuss, city = 
           {hourly !== null && <p className="app-map16-weather-source">{hourly.source}</p>}
         </section>
       )}
-      <div className="app-map16-dock">
-        <div className="app-map16-basemap-strip" role="listbox" aria-label="Подложка карты">
-          {MAP_BASEMAPS.map((item) => (
-            <button key={item.id} type="button" role="option" aria-selected={basemap.id === item.id} className={basemap.id === item.id ? "app-map16-basemap-pick app-map16-basemap-pick--on" : "app-map16-basemap-pick"} onClick={() => pickBasemap(item)}>
-              <span className={`app-map16-basemap-swatch app-map16-basemap-swatch--${item.id}`} aria-hidden="true" />
-              <span className="app-map16-basemap-label">{item.label}</span>
-            </button>
-          ))}
-        </div>
+      {!weatherOpen && <div className="app-map16-dock">
+        {basemapsOpen && !weatherOpen && (
+          <div className="app-map16-basemap-strip" role="listbox" aria-label="Подложка карты">
+            {MAP_BASEMAPS.filter((item) => (MAP_CHOICES as readonly string[]).includes(item.id)).map((item) => {
+              const shot = basemapShot(item);
+              return (
+                <button key={item.id} type="button" role="option" aria-selected={basemap.id === item.id} className={basemap.id === item.id ? "app-map16-basemap-pick app-map16-basemap-pick--on" : "app-map16-basemap-pick"} onClick={() => { pickBasemap(item); setBasemapsOpen(false); }}>
+                  {shot !== null ? <img className="app-map16-basemap-shot" alt="" src={shot} /> : <span className="app-map16-basemap-shot app-map16-basemap-shot--own" aria-hidden="true" />}
+                  <span className="app-map16-basemap-label">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
         {assistNote !== null && <p className="app-map16-assist">{assistNote}</p>}
         <form className="app-map16-search" role="search" onSubmit={(event) => { event.preventDefault(); askMap(); }}>
           <ActionIcon name="search" size={18} />
           <input className="app-map16-search-input" type="search" aria-label="Искать на карте" placeholder={`${city} · спросить ассистента`} value={query} onChange={(typed) => { setQuery(typed.target.value); setAssistNote(null); }} />
           <button type="submit" className="app-map16-ask-btn" aria-label="Спросить">
             Спросить
+          </button>
+          <button type="button" className={basemapsOpen ? "app-map16-locate app-map16-locate--on" : "app-map16-locate"} aria-expanded={basemapsOpen} aria-pressed={basemapsOpen} aria-label="Карта" onClick={() => { setBasemapsOpen((open) => !open); setWeatherOpen(false); }}>
+            <ActionIcon name="layers" size={18} />
           </button>
           <button
             type="button"
@@ -908,7 +937,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onDiscuss, city = 
             <ActionIcon name="locate" size={18} />
           </button>
         </form>
-      </div>
+      </div>}
     </div>
   );
 }
