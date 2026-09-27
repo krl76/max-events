@@ -4586,11 +4586,12 @@ html[data-theme="dark"] #root {
   color: inherit;
   cursor: pointer;
   display: inline-flex;
+  flex: none;
   font: inherit;
   font-size: var(--app-font-size-callout);
   font-weight: 800;
   gap: 6px;
-  margin-top: 10px;
+  min-height: 40px;
   padding: 8px 14px;
 }
 
@@ -4926,8 +4927,17 @@ html[data-theme="dark"] #root {
 
 .app-today-date {
   color: var(--app-text-secondary);
+  cursor: pointer;
   font-size: var(--app-font-size-description);
   font-weight: 700;
+  position: relative;
+}
+
+.app-today-date-input {
+  cursor: pointer;
+  inset: -6px -4px;
+  opacity: 0;
+  position: absolute;
 }
 
 .app-today-stats {
@@ -5658,6 +5668,7 @@ button.app-today-stat {
 
 .app-map16-tool {
   align-items: center;
+  align-self: flex-start;
   background: var(--app-card);
   border: none;
   border-radius: var(--app-radius-pill);
@@ -5671,6 +5682,37 @@ button.app-today-stat {
   font-weight: 800;
   height: 44px;
   padding: 0 12px;
+}
+
+.app-map16-tool--on {
+  background: var(--app-text);
+  color: var(--app-card);
+}
+
+.app-map16-weather-head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.app-map16-weather-head .app-map16-card-title {
+  margin: 0;
+}
+
+.app-map16-weather-x {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 50%;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  width: 32px;
 }
 
 .app-map16-weather-sheet {

@@ -36,7 +36,7 @@ export type Route =
   | { name: "home" }
   | { name: "search"; focus?: boolean }
   // Отдельный список с поиска: рядом, под интересы, с друзьями или результаты запроса.
-  | { name: "browse"; list: BrowseList; query?: string; city?: string }
+  | { name: "browse"; list: BrowseList; query?: string; city?: string; date?: string }
   | { name: "swipe" }
   | { name: "create" }
   | { name: "map"; pin?: { lat: number; lng: number }; placeId?: string }
@@ -251,11 +251,12 @@ function toRoute(value: unknown): Route | null {
     case "notifications":
       return { name };
     case "browse": {
-      const { list, query, city } = value as { list?: unknown; query?: unknown; city?: unknown };
+      const { list, query, city, date } = value as { list?: unknown; query?: unknown; city?: unknown; date?: unknown };
       if (list !== "nearby" && list !== "suitable" && list !== "friends" && list !== "results") return null;
       const text = typeof query === "string" && query.trim() !== "" ? query : undefined;
       const place = typeof city === "string" && city.trim() !== "" ? city : undefined;
-      return { name, list, ...(text ? { query: text } : {}), ...(place ? { city: place } : {}) };
+      const day = typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined;
+      return { name, list, ...(text ? { query: text } : {}), ...(place ? { city: place } : {}), ...(day ? { date: day } : {}) };
     }
     // «Подписчики» параметров не несёт; отдельным case, а не строкой в общем блоке — чтобы правка не легла в чужую
     case "followers":

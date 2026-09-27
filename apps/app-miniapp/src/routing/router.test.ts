@@ -209,7 +209,8 @@ describe("routeFromHistoryState", () => {
 
   it("restores a search list and drops a list it does not know", () => {
     expect(routeFromHistoryState({ route: { name: "browse", list: "results", query: "джаз", city: "Москва" }, idx: 3 })).toEqual({ route: { name: "browse", list: "results", query: "джаз", city: "Москва" }, idx: 3 });
-    expect(routeFromHistoryState({ route: { name: "browse", list: "nearby" }, idx: 1 })).toEqual({ route: { name: "browse", list: "nearby" }, idx: 1 });
+    expect(routeFromHistoryState({ route: { name: "browse", list: "nearby", date: "2026-09-26" }, idx: 1 })).toEqual({ route: { name: "browse", list: "nearby", date: "2026-09-26" }, idx: 1 });
+    expect(routeFromHistoryState({ route: { name: "browse", list: "nearby", date: "завтра" }, idx: 1 })).toEqual({ route: { name: "browse", list: "nearby" }, idx: 1 });
     expect(routeFromHistoryState({ route: { name: "browse", list: "posters" }, idx: 1 })).toBeNull();
   });
 

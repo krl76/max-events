@@ -805,7 +805,6 @@ export function FeedScreen() {
   return (
     <section className="app-feed" aria-label="Лента">
       <StoriesRow />
-      <FeedWhereToCard onStart={() => navigate({ name: "whereto" })} />
       {state.status === "error" ? (
         <AppState error action={{ label: "Повторить", onClick: () => fetchCards(true) }}>
           Не удалось загрузить ленту.

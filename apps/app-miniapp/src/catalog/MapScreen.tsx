@@ -562,6 +562,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
   const [friendsAsked, setFriendsAsked] = useState(false);
   const [layers, setLayers] = useState<Record<MapLayer, boolean>>({ friends: false, events: true, places: true });
   const [layersOpen, setLayersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [category, setCategory] = useState<EventCategory | undefined>(undefined);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<MapMarker | null>(null);
@@ -812,16 +813,21 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
         </div>
       </div>
       <div className="app-map16-rows">
-        <div className="app-map16-layers" role="group" aria-label="Фильтр событий">
-          <AppChip pressed={category === undefined} className="app-map16-layer" onClick={() => setCategory(undefined)}>
-            Все
-          </AppChip>
-          {MAP_EVENT_CATEGORIES.map((item) => (
-            <AppChip key={item} pressed={category === item} className="app-map16-layer" onClick={() => setCategory(item)}>
-              {CATEGORY_LABELS[item]}
+        <button type="button" className={filtersOpen || category !== undefined ? "app-map16-tool app-map16-tool--on" : "app-map16-tool"} aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}>
+          {category === undefined ? "Фильтры" : CATEGORY_LABELS[category]}
+        </button>
+        {filtersOpen && (
+          <div className="app-map16-layers" role="group" aria-label="Фильтр событий">
+            <AppChip pressed={category === undefined} className="app-map16-layer" onClick={() => setCategory(undefined)}>
+              Все
             </AppChip>
-          ))}
-        </div>
+            {MAP_EVENT_CATEGORIES.map((item) => (
+              <AppChip key={item} pressed={category === item} className="app-map16-layer" onClick={() => setCategory(item)}>
+                {CATEGORY_LABELS[item]}
+              </AppChip>
+            ))}
+          </div>
+        )}
         {(layersOpen || basemapsOpen) && (
           <>
           {layersOpen && (
@@ -873,11 +879,12 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
       {selected !== null && <MapSelectionCard title={selected.title} subtitle={selected.subtitle} category={selectedCategory} photoId={selected.eventId ?? selected.placeId} friendsLine={friendsLine} travel={travel} rainHint={mapRainHint(weather, travel)} routeOn={routeOn} onRoute={() => setRouteOn((on) => !on)} onDiscuss={onDiscuss} onOpen={() => (selected.eventId !== null ? onOpenEvent(selected.eventId) : selected.placeId !== null ? onOpenPlace(selected.placeId) : undefined)} onClose={() => setSelected(null)} />}
       {weatherOpen && (
         <section className="app-map16-weather-sheet" role="dialog" aria-label="Прогноз погоды">
-          <button type="button" className="app-map16-card-close" aria-label="Закрыть" onClick={() => setWeatherOpen(false)}>
-            <ActionIcon name="close" size={16} strokeWidth={2.6} />
-            Закрыть
-          </button>
-          <h2 className="app-map16-card-title">Погода сейчас</h2>
+          <div className="app-map16-weather-head">
+            <h2 className="app-map16-card-title">Погода сейчас</h2>
+            <button type="button" className="app-map16-weather-x" aria-label="Закрыть" onClick={() => setWeatherOpen(false)}>
+              <ActionIcon name="close" size={16} strokeWidth={2.6} />
+            </button>
+          </div>
           {weather === null ? (
             <p className="app-map16-weather-now">Прогноз пока недоступен</p>
           ) : (

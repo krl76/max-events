@@ -84,8 +84,7 @@ const FeedPostPage = lazyNamed(() => import("../feed/FeedPage"), "FeedPostPage")
 export function HomePage() {
   return (
     <>
-      {/* Макет, экран 03: сторис, «Куда пойдём?» и посты. MAX, микро-события и «После меня» — на поиске:
-          под лентой до них не долистывают. */}
+      {/* Макет, экран 03: сторис и посты. «Куда пойдём?», MAX, микро-события и «После меня» — на поиске. */}
       <FeedScreen />
       <PromotionSections />
     </>
@@ -126,7 +125,7 @@ function Routed() {
   if (route.name === "people") return <PeoplePage />;
   if (route.name === "calendar") return <CalendarPage inviteToken={route.inviteToken} />;
   if (route.name === "search") return <SearchPage />;
-  if (route.name === "browse") return <BrowsePage list={route.list} query={route.query} city={route.city} />;
+  if (route.name === "browse") return <BrowsePage list={route.list} query={route.query} city={route.city} date={route.date} />;
   if (route.name === "swipe") return <SwipePage />;
   if (route.name === "map") return <MapPage />;
   if (route.name === "create") return <CreatePage />;

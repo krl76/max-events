@@ -29,10 +29,12 @@ import { apiClient, type CatalogCard, type EventFilters } from "../api/client";
 import { CATEGORY_LABELS } from "../catalog/format";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute, type BrowseList } from "../routing/router";
+import { FeedWhereToCard } from "../feed/FeedScreen";
+import { countsForCards } from "./BrowsePage";
 import { AfterMeSection } from "../taste/AfterMeSection";
 import { toggleEventLike, useEventLiked } from "../ui/event-likes";
 import { eventFillLabel, pictured } from "../ui/photos";
-import { formatPickDistance, formatPickPrice, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, type DistanceVoice, type TodayState } from "../today/TodaySection";
+import { dayKey, formatPickDistance, formatPickPrice, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, type DistanceVoice, type TodayState } from "../today/TodaySection";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppSkeleton, AppState } from "../ui/primitives";
 
@@ -83,9 +85,10 @@ interface SearchTopBarProps {
   city: string;
   cities: string[];
   onCity: (city: string) => void;
+  trailing?: ReactNode;
 }
 
-export function SearchTopBar({ city, cities, onCity }: SearchTopBarProps) {
+export function SearchTopBar({ city, cities, onCity, trailing }: SearchTopBarProps) {
   const [menu, setMenu] = useState(false);
   return (
     <div className="app-search-top">
@@ -118,6 +121,7 @@ export function SearchTopBar({ city, cities, onCity }: SearchTopBarProps) {
           </div>
         )}
       </div>
+      {trailing}
     </div>
   );
 }
@@ -424,28 +428,34 @@ interface SearchViewProps {
   distancesFromViewer?: boolean;
   /** False when the rail is measured from the selected city's center. */
   catalogInCity?: boolean;
+  /** YYYY-MM-DD the summary date control is showing. */
+  day: string;
+  onDay: (day: string) => void;
+  /** True when the chosen day is not today, so the folds follow that day's cards. */
+  dayScoped?: boolean;
+  suitableState?: SearchState;
 }
 
 export function SearchView(props: SearchViewProps) {
   const hint = props.today.status === "ready" ? todayAfterMeCard(props.today.today) : null;
   const distanceFrom = props.distancesFromViewer === false ? "center" : "you";
   const inCity = props.distancesFromViewer !== false;
-  const nearbyTitle = props.catalogInCity === false ? "Сегодня в городе" : "Сегодня рядом";
+  const nearbyTitle = props.dayScoped ? "В этот день" : props.catalogInCity === false ? "Сегодня в городе" : "Сегодня рядом";
   const [fold, setFold] = useState<SearchFoldId | null>(null);
   const toggle = (id: SearchFoldId) => setFold((current) => (current === id ? null : id));
   return (
     <div className="app-search">
-      <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} />
+      <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} trailing={<SearchFilters category={props.category} onCategory={props.onCategory} />} />
       <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} onPickRecent={props.onPickRecent} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
-      <SearchFilters category={props.category} onCategory={props.onCategory} />
       <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
-      <TodaySummaryBlock state={props.today} now={props.now} distanceFrom={distanceFrom} onOpenNearby={() => props.onOpenList("nearby")} onOpenSuitable={() => props.onOpenList("suitable")} onOpenFriends={() => props.onOpenList("friends")} />
+      <FeedWhereToCard onStart={props.onWhereto} />
+      <TodaySummaryBlock state={props.today} now={props.now} day={props.day} onDay={props.onDay} distanceFrom={distanceFrom} onOpenNearby={() => props.onOpenList("nearby")} onOpenSuitable={() => props.onOpenList("suitable")} onOpenFriends={() => props.onOpenList("friends")} />
       <div className="app-search-folds">
         <SearchFold title={nearbyTitle} open={fold === "nearby"} onToggle={() => toggle("nearby")}>
           <SearchNearby state={props.state} inCity={props.catalogInCity !== false} showHeading={false} onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
         </SearchFold>
         <SearchFold title="Для вас" open={fold === "picks"} onToggle={() => toggle("picks")}>
-          <TodayPicksBlock state={props.today} showHeading={false} onOpen={props.onOpenEvent} onRetry={props.onRetry} distanceFrom={distanceFrom} />
+          {props.dayScoped ? <SearchNearby state={props.suitableState ?? { status: "loading" }} inCity={props.catalogInCity !== false} showHeading={false} showAll={false} layout="list" emptyCopy="В этот день под тебя ничего нет." onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} /> : <TodayPicksBlock state={props.today} showHeading={false} onOpen={props.onOpenEvent} onRetry={props.onRetry} distanceFrom={distanceFrom} />}
         </SearchFold>
         <SearchFold title="После меня" open={fold === "after"} onToggle={() => toggle("after")}>
           {hint !== null && (
@@ -471,6 +481,8 @@ export function SearchPage() {
   const [recents, setRecents] = useState<string[]>(readRecentSearches);
   const [category, setCategory] = useState<EventCategory | undefined>(undefined);
   const [city, setCity] = useState("Москва");
+  const [interests, setInterests] = useState<string[]>([]);
+  const [day, setDay] = useState(() => dayKey(new Date()));
   const [homeCity, setHomeCity] = useState<string | null>(null);
   const [cities, setCities] = useState<string[]>([]);
   const [hintDismissed, setHintDismissed] = useState(false);
@@ -478,18 +490,22 @@ export function SearchPage() {
   const [state, setState] = useState<SearchState>({ status: "loading" });
   const [today, setToday] = useState<TodayState>({ status: "loading" });
   const now = new Date();
+  const todayKey = dayKey(now);
+  const dayScoped = day !== todayKey;
 
   // «Сегодня рядом» is ordered by distance, so the sort travels with the request rather than being redone here (#497).
   // A GPS fix outside the opened city would mark every card «далеко»; the city's own center is the point then.
   const catalogPoint = useMemo(() => browsedCityOrigin(origin, city), [origin, city]);
   const todayPoint = useMemo(() => browsedCityOrigin(origin, homeCity ?? city), [origin, homeCity, city]);
-  const filters = useMemo<EventFilters>(() => ({ category, city, sort: "near" }), [category, city]);
+  const filters = useMemo<EventFilters>(() => ({ category, city, sort: "near", ...(dayScoped ? { date: day } : {}) }), [category, city, day, dayScoped]);
 
   useEffect(() => {
     let alive = true;
     apiClient.getProfile().then(
       (profile) => {
-        if (alive) setHomeCity(profile.city);
+        if (!alive) return;
+        setHomeCity(profile.city);
+        setInterests(profile.interests);
       },
       () => {},
     );
@@ -546,6 +562,11 @@ export function SearchPage() {
     };
   }, []);
 
+  const dayCounts = state.status === "ready" ? countsForCards(state.cards, interests) : null;
+  const shownToday: TodayState = !dayScoped ? today : state.status === "ready" && dayCounts !== null ? { status: "ready", today: { summary: { nearbyCount: dayCounts.nearbyCount, suitableCount: dayCounts.suitableCount, withFriendsCount: dayCounts.withFriendsCount }, cards: [] } } : { status: "loading" };
+  const suitableState: SearchState = state.status !== "ready" || dayCounts === null ? state : { status: "ready", cards: state.cards.filter((card) => dayCounts.suitableIds.includes(card.event.id)) };
+  const openDay = dayScoped ? { date: day } : {};
+
   const openResults = useCallback(
     (text: string) => {
       const normalized = text.trim();
@@ -561,5 +582,5 @@ export function SearchPage() {
     [city, navigate],
   );
 
-  return <SearchView state={state} today={today} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} onExpand={() => navigate({ name: "browse", list: "nearby", city })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
+  return <SearchView state={state} today={shownToday} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city, ...openDay })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} onExpand={() => navigate({ name: "browse", list: "nearby", city, ...openDay })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} day={day} onDay={(next) => { if (/^\d{4}-\d{2}-\d{2}$/.test(next)) setDay(next); }} dayScoped={dayScoped} suitableState={suitableState} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
 }

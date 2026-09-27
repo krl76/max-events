@@ -3,8 +3,7 @@ import { enterAsUser } from "./enter";
 
 test("home renders CTA pair and catalog cards", async ({ page }) => {
   await enterAsUser(page);
-  await expect(page.getByRole("button", { name: "Куда пойдём?" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Рядом со мной" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Куда пойдём?" })).toHaveCount(0);
   // The event also appears in the promo rail above the catalog; the catalog card
   // is the one whose accessible name carries the city line.
   await expect(page.getByText(/Вечер Рахманинова/).first()).toBeVisible();

@@ -31,6 +31,7 @@ describe("selectBrowseCards", () => {
 
   it("names each list and says a query missed", () => {
     expect(browseTitle("nearby")).toBe("Сегодня рядом");
+    expect(browseTitle("nearby", undefined, "2026-09-18")).toBe("18 сентября");
     expect(browseTitle("suitable")).toBe("Подходят тебе");
     expect(browseTitle("friends")).toBe("С друзьями");
     expect(browseTitle("results", "джаз")).toBe("джаз");

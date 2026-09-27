@@ -19,6 +19,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { AssistCriteria, Event } from "@max-events/api-contracts";
+import { formatTodayDate } from "../today/TodaySection";
 import { apiClient, type CatalogCard, type EventFilters, type TodayCard, type TodayDigest } from "../api/client";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute, type BrowseList } from "../routing/router";
@@ -92,13 +93,27 @@ export function selectSuitableCards(catalog: CatalogCard[], interests: string[],
   return catalog;
 }
 
-export function browseTitle(list: BrowseList, query?: string): string {
+export function countsForCards(cards: CatalogCard[], interests: string[]): { nearbyCount: number; suitableCount: number; withFriendsCount: number; nearbyIds: string[]; suitableIds: string[]; friendIds: string[] } {
+  const suitable = interests.length > 0 ? cards.filter((card) => eventFitsInterests(card.event, interests)) : cards;
+  const friends = selectFriendCards(cards, []);
+  return {
+    nearbyCount: cards.length,
+    suitableCount: suitable.length,
+    withFriendsCount: friends.length,
+    nearbyIds: cards.map((card) => card.event.id),
+    suitableIds: suitable.map((card) => card.event.id),
+    friendIds: friends.map((card) => card.event.id),
+  };
+}
+
+export function browseTitle(list: BrowseList, query?: string, date?: string): string {
   if (list === "results") {
     const text = query?.trim() ?? "";
     return text === "" ? "Поиск" : text;
   }
   if (list === "suitable") return "Подходят тебе";
   if (list === "friends") return "С друзьями";
+  if (date) return formatTodayDate(new Date(`${date}T12:00:00`));
   return "Сегодня рядом";
 }
 
@@ -118,8 +133,8 @@ export function assistNarrowed(criteria: AssistCriteria): boolean {
 
 type BrowseStatus = { status: "loading" } | { status: "error" } | { status: "ready"; cards: CatalogCard[]; suggestions: BrowseSuggestion[]; suggesting: boolean };
 
-export function BrowseView({ list, query, state, inCity, onOpen, onBack, onRetry }: { list: BrowseList; query?: string; state: BrowseStatus; inCity: boolean; onOpen: (eventId: string) => void; onBack: () => void; onRetry: () => void }) {
-  const title = browseTitle(list, query);
+export function BrowseView({ list, query, date, state, inCity, onOpen, onBack, onRetry }: { list: BrowseList; query?: string; date?: string; state: BrowseStatus; inCity: boolean; onOpen: (eventId: string) => void; onBack: () => void; onRetry: () => void }) {
+  const title = browseTitle(list, query, date);
   const voice = inCity ? "you" : "center";
   const row = (card: CatalogCard, reason: string | null = null) => (
     <button key={card.event.id} type="button" className="app-browse-row" onClick={() => onOpen(card.event.id)}>
@@ -167,7 +182,7 @@ export function BrowseView({ list, query, state, inCity, onOpen, onBack, onRetry
   );
 }
 
-export function BrowsePage({ list, query, city }: { list: BrowseList; query?: string; city?: string }) {
+export function BrowsePage({ list, query, city, date }: { list: BrowseList; query?: string; city?: string; date?: string }) {
   const origin = useViewerOrigin();
   const [homeCity, setHomeCity] = useState<string | null>(null);
   const [cityReady, setCityReady] = useState(list === "results");
@@ -209,11 +224,11 @@ export function BrowsePage({ list, query, city }: { list: BrowseList; query?: st
       city: listCity,
       sort: list === "results" ? "near" : "soon",
       limit: 100,
-      ...(list === "results" ? {} : { dateFrom: new Date(Date.now() - 2 * 60 * 1000).toISOString() }),
+      ...(date ? { date } : list === "results" ? {} : { dateFrom: new Date(Date.now() - 2 * 60 * 1000).toISOString() }),
       ...(list === "results" && query ? { query } : {}),
     };
     const originPoint = { latitude: point.latitude, longitude: point.longitude };
-    const digestPromise = list === "results" ? Promise.resolve(null) : apiClient.getToday(originPoint).catch(() => null);
+    const digestPromise = date || list === "results" ? Promise.resolve(null) : apiClient.getToday(originPoint).catch(() => null);
     Promise.all([apiClient.listEventCards(filters, originPoint), digestPromise]).then(
       ([cards, digest]) => {
         const picked = selectBrowseCards(cards, list, interests ?? [], digest);
@@ -245,7 +260,7 @@ export function BrowsePage({ list, query, city }: { list: BrowseList; query?: st
     return () => {
       alive = false;
     };
-  }, [attempt, cityReady, homeCity, interests, list, point.latitude, point.longitude, query, routeCity]);
+  }, [attempt, cityReady, date, homeCity, interests, list, point.latitude, point.longitude, query, routeCity]);
 
-  return <BrowseView list={list} query={query} state={state} inCity={point.fromViewer} onOpen={(id) => navigate({ name: "event", id })} onBack={back} onRetry={() => setAttempt((count) => count + 1)} />;
+  return <BrowseView list={list} query={query} date={date} state={state} inCity={point.fromViewer} onOpen={(id) => navigate({ name: "event", id })} onBack={back} onRetry={() => setAttempt((count) => count + 1)} />;
 }

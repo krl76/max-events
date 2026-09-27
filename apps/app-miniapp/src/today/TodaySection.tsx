@@ -72,6 +72,13 @@ export function formatTodayDate(now: Date): string {
   return now.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
 
+/** Local calendar day as YYYY-MM-DD, the value a date input reads and writes. */
+export function dayKey(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 /** «19 сент. · 14:00» — short enough to sit next to the distance on a pick. */
 export function formatPickWhen(startsAt: string): string {
   const date = new Date(startsAt);
@@ -119,14 +126,18 @@ export function afterMeGoLabel(voice: DistanceVoice = "you"): string {
   return voice === "center" ? "Показать места в городе" : "Показать места рядом";
 }
 
-export function TodaySummaryBlock({ state, now, distanceFrom = "you", onOpenNearby, onOpenSuitable, onOpenFriends }: { state: TodayState; now: Date; distanceFrom?: DistanceVoice; onOpenNearby?: () => void; onOpenSuitable?: () => void; onOpenFriends?: () => void }) {
+export function TodaySummaryBlock({ state, now, day, onDay, distanceFrom = "you", onOpenNearby, onOpenSuitable, onOpenFriends }: { state: TodayState; now: Date; day?: string; onDay?: (day: string) => void; distanceFrom?: DistanceVoice; onOpenNearby?: () => void; onOpenSuitable?: () => void; onOpenFriends?: () => void }) {
   const summary = state.status === "ready" ? state.today.summary : null;
   const title = todaySummaryTitle(distanceFrom);
+  const shown = day === undefined ? now : new Date(`${day}T12:00:00`);
   return (
     <section className="app-today" aria-label={title}>
       <div className="app-today-head">
         <h2 className="app-today-title">{title}</h2>
-        <span className="app-today-date">{formatTodayDate(now)}</span>
+        <label className="app-today-date">
+          {formatTodayDate(shown)}
+          <input className="app-today-date-input" type="date" aria-label="Дата" value={day ?? dayKey(now)} onChange={(change) => onDay?.(change.target.value)} />
+        </label>
       </div>
       <div className="app-today-stats">
         {summary === null ? (

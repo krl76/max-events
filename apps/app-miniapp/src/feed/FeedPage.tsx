@@ -736,9 +736,6 @@ export function StoriesRow() {
         <button type="button" className="app-story-plus" aria-label="Добавить историю" onClick={openEditor}>
           <ActionIcon name="plus" size={14} strokeWidth={3} />
         </button>
-        <button type="button" className="app-story-name" onClick={() => navigate({ name: "profile" })}>
-          Твоя история
-        </button>
       </div>
       {rail.tiles.map((tile) => (
         <div key={tile.friendId} className="app-story">
