@@ -93,6 +93,8 @@ export function postDraftOf(draft: PostComposeDraft, userId: string): PostDraft 
 interface PostCreateViewProps {
   draft: PostComposeDraft;
   authorName: string;
+  /** Фото профиля. Без него остаётся буква имени. */
+  authorAvatar?: string | null;
   events: Event[];
   places: Place[];
   friends: Friend[];
@@ -106,7 +108,7 @@ interface PostCreateViewProps {
   onClose: () => void;
 }
 
-export function PostCreateView({ draft, authorName, events, places, friends, state, photoRejected, draftSaved, onDraft, onPickPhoto, onPublish }: PostCreateViewProps) {
+export function PostCreateView({ draft, authorName, authorAvatar = null, events, places, friends, state, photoRejected, draftSaved, onDraft, onPickPhoto, onPublish }: PostCreateViewProps) {
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const [taggingOpen, setTaggingOpen] = useState(false);
   const [pickingPin, setPickingPin] = useState(false);
@@ -117,22 +119,28 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
   const tagged = friends.filter((friend) => draft.taggedFriendIds.includes(friend.id));
   const addTile = draft.photoUrls.length < POST_PHOTO_LIMIT;
 
+  const publishLabel = state === "publishing" ? "Публикуем…" : "Опубликовать";
+
   return (
     <section className="app-post-compose" aria-label="Публикация поста">
       <header className="app-post-compose-head">
+        {/* Невидимая копия кнопки слева держит заголовок по центру шапки и не даёт ему прилипнуть к «Опубликовать». */}
+        <span className="app-post-compose-publish app-post-compose-publish--balance" aria-hidden="true">
+          {publishLabel}
+        </span>
         <span className="app-post-compose-title">Новый пост</span>
         <button type="button" className="app-post-compose-publish" disabled={state === "publishing"} onClick={() => {
           if (missing.length === 0) onPublish();
           else textRef.current?.focus();
         }}>
-          {state === "publishing" ? "Публикуем…" : "Опубликовать"}
+          {publishLabel}
         </button>
       </header>
 
       <div className="app-post-compose-body">
         <div className="app-post-compose-author">
           <span className="app-post-compose-avatar" aria-hidden="true">
-            {authorName.slice(0, 1)}
+            {authorAvatar ? <img alt="" src={authorAvatar} /> : authorName.slice(0, 1).toUpperCase()}
           </span>
           <div className="app-post-compose-id">
             <span className="app-post-compose-name">{authorName}</span>
@@ -303,6 +311,7 @@ export function PostCreatePage({ eventId }: { eventId: string | null }) {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const authorName = auth.status === "authenticated" ? `${auth.user.firstName}${auth.user.lastName === null ? "" : ` ${auth.user.lastName}`}` : "";
+  const authorAvatar = auth.status === "authenticated" ? auth.user.avatarUrl : null;
   const { navigate, back } = useRoute();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
@@ -374,7 +383,7 @@ export function PostCreatePage({ eventId }: { eventId: string | null }) {
           if (file) pickPhoto(file);
         }}
       />
-      <PostCreateView draft={draft} authorName={authorName} events={events} places={places} friends={friends} state={state} photoRejected={photoRejected} draftSaved={draftSaved} onDraft={setDraft} onPickPhoto={() => fileRef.current?.click()} onPublish={publish} onClose={back} />
+      <PostCreateView draft={draft} authorName={authorName} authorAvatar={authorAvatar} events={events} places={places} friends={friends} state={state} photoRejected={photoRejected} draftSaved={draftSaved} onDraft={setDraft} onPickPhoto={() => fileRef.current?.click()} onPublish={publish} onClose={back} />
     </>
   );
 }

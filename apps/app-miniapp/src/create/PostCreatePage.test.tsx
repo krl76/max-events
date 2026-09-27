@@ -115,6 +115,7 @@ describe("PostCreateView", () => {
 
     expect(html).toContain("Новый пост");
     expect(html).toContain("Опубликовать");
+    expect(html).toContain("app-post-compose-publish--balance");
     expect(html).toContain("Мангальная зона в парке Горького");
     expect(html).toContain("Сб, 19 сен · 14:00 · привязано к посту");
     for (const audience of POST_AUDIENCES) expect(html).toContain(audience.label);
@@ -145,6 +146,12 @@ describe("PostCreateView", () => {
   it("keeps «Черновик сохранён» out until a save actually happened", () => {
     expect(view({ draftSaved: false })).not.toContain("Черновик сохранён");
     expect(view()).toContain("Черновик сохранён");
+  });
+
+  it("shows the profile photo instead of the name initial", () => {
+    const html = view({ authorAvatar: "https://cdn.example.com/face.jpg" });
+
+    expect(html).toContain('src="https://cdn.example.com/face.jpg"');
   });
 
   it("says out loud that the publication failed instead of returning to an idle button", () => {

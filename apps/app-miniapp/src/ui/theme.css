@@ -6833,38 +6833,44 @@ html[data-theme="dark"] #root {
 .app-post-compose-head {
   align-items: center;
   border-bottom: var(--app-hairline);
-  display: grid;
+  display: flex;
   flex: none;
-  grid-template-columns: 1fr auto 1fr;
-  padding: 8px var(--app-space-screen) 10px;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 8px 12px 10px;
 }
 
 .app-post-compose-title {
-  font-size: var(--app-font-size-title);
+  flex: 1;
+  font-size: var(--app-font-size-body);
   font-weight: 800;
-  grid-column: 2;
   letter-spacing: -0.01em;
+  min-width: 0;
   text-align: center;
   white-space: nowrap;
 }
 
-.app-post-compose-head .app-post-compose-publish {
-  grid-column: 3;
-  justify-self: end;
-}
-
 .app-post-compose-publish {
+  align-items: center;
   background: var(--app-accent);
   border: none;
   border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
   color: var(--app-accent-contrast);
   cursor: pointer;
+  display: inline-flex;
   flex: none;
   font: inherit;
-  font-size: var(--app-font-size-callout);
+  font-size: 14px;
   font-weight: 800;
-  height: 40px;
-  padding: 0 18px;
+  height: 36px;
+  justify-content: center;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.app-post-compose-publish--balance {
+  visibility: hidden;
 }
 
 .app-post-compose-publish:active:not(:disabled) {
@@ -6900,7 +6906,15 @@ html[data-theme="dark"] #root {
   font-weight: 800;
   height: 40px;
   justify-content: center;
+  overflow: hidden;
   width: 40px;
+}
+
+.app-post-compose-avatar img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
 }
 
 .app-post-compose-id {
