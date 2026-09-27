@@ -9,7 +9,8 @@ describe("AppButton", () => {
   it("renders the default primary tone as a solid primary ion-button", () => {
     const html = renderToStaticMarkup(<AppButton>Текст</AppButton>);
 
-    expect(html).toContain('<ion-button color="primary"');
+    expect(html).toContain("<ion-button");
+    expect(html).not.toContain('color="primary"');
     expect(html).toContain("Текст");
   });
 

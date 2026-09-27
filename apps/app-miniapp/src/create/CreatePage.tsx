@@ -26,23 +26,28 @@ export interface CreateEntry {
 
 /** Макет, экран 03: «Создать» opens публикация — история (05), пост (06), план. The micro-event joins them: it is the fourth thing a viewer publishes. */
 export const CREATE_ENTRIES: CreateEntry[] = [
-  { icon: "clock", label: "История", description: "Сутки у друзей на экране", route: { name: "story-new" } },
-  { icon: "comment", label: "Пост", description: "Фото и событие, к которому идут", route: { name: "feed-new", eventId: null } },
-  { icon: "bookmark", label: "План", description: "Вечер вокруг афиши", route: { name: "plan-new" } },
-  { icon: "user", label: "Микро-событие", description: "Своя встреча на вечер", route: { name: "micro-new" } },
+  { icon: "clock", label: "История", description: "Сутки у друзей", route: { name: "story-new" } },
+  { icon: "comment", label: "Пост", description: "Фото и событие", route: { name: "feed-new", eventId: null } },
+  { icon: "bookmark", label: "План", description: "Вечер из афиши", route: { name: "plan-new" } },
+  { icon: "user", label: "Микро-событие", description: "Встреча со своими", route: { name: "micro-new" } },
 ];
 
 export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
   return (
     <AppSection className="app-create-section" ariaLabel="Создать">
       <div className="app-create-board">
-        {CREATE_ENTRIES.map((entry, index) => (
-          <button key={entry.label} type="button" className={`app-create-card app-create-card--${index}`} onClick={() => onPick(entry.route)}>
+        {CREATE_ENTRIES.map((entry) => (
+          <button key={entry.label} type="button" className="app-create-card" onClick={() => onPick(entry.route)}>
             <span className="app-create-card-art" aria-hidden="true">
-              <ActionIcon name={entry.icon} size={28} />
+              <ActionIcon name={entry.icon} size={22} />
             </span>
-            <span className="app-create-card-label">{entry.label}</span>
-            <span className="app-create-card-line">{entry.description}</span>
+            <span className="app-create-card-copy">
+              <span className="app-create-card-label">{entry.label}</span>
+              <span className="app-create-card-line">{entry.description}</span>
+            </span>
+            <span className="app-create-card-go" aria-hidden="true">
+              <ActionIcon name="chevron" size={18} />
+            </span>
           </button>
         ))}
       </div>

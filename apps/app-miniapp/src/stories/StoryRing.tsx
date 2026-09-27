@@ -15,7 +15,8 @@ function arcPath(cx: number, cy: number, radius: number, startDeg: number, sweep
 export function StoryRing({ total, unseen, label, children }: { total: number; unseen: number; label: string; children: ReactNode }) {
   const count = Math.max(1, Math.min(total, 16));
   const unseenShown = total <= 0 ? 0 : Math.min(count, Math.round((Math.min(Math.max(unseen, 0), total) / total) * count));
-  const gap = count === 1 ? 0 : 16;
+  // Одна история — замкнутое кольцо. Несколько делят круг на равные дуги с разрывом, как в Telegram.
+  const gap = count === 1 ? 0 : 32;
   const sweep = (360 - gap * count) / count;
   const hot = unseen > 0;
   return (
