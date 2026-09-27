@@ -31,6 +31,7 @@ import { friendHandle } from "../ui/friend-handle";
 import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
 import { PinPicker } from "../ui/PinPicker";
+import { pictured } from "../ui/photos";
 import { AppMedia } from "../ui/primitives";
 
 /** Сетка макета — крупная плитка плюс колонка из двух: три кадра и есть потолок. */
@@ -191,7 +192,7 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
               {boundEvent === null ? (
                 <span className="app-post-compose-row-media" aria-hidden="true" />
               ) : (
-                <AppMedia category={boundEvent.category} src={boundEvent.coverUrl} className="app-post-compose-thumb" />
+                <AppMedia category={boundEvent.category} src={pictured(boundEvent.id, boundEvent.coverUrl)} className="app-post-compose-thumb" />
               )}
               <span className="app-post-compose-row-text">
                 <span className="app-post-compose-row-title">{boundEvent === null ? "Привязать событие" : boundEvent.title}</span>

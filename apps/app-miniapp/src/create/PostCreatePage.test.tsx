@@ -117,6 +117,7 @@ describe("PostCreateView", () => {
     expect(html).toContain("Опубликовать");
     expect(html).toContain("app-post-compose-publish--balance");
     expect(html).toContain("Мангальная зона в парке Горького");
+    expect(html).toContain(`src="https://picsum.photos/seed/maxevents-${encodeURIComponent(mockEvents[0].id)}/800/1066"`);
     expect(html).toContain("Сб, 19 сен · 14:00 · привязано к посту");
     for (const audience of POST_AUDIENCES) expect(html).toContain(audience.label);
     expect(html).toContain("Разрешить запись через пост");
