@@ -198,25 +198,31 @@ describe("profileTabLabel", () => {
     expect(profileTabLabel("posts", 8)).toBe("Посты · 8");
     expect(profileTabLabel("places", 4)).toBe("Впечатления · 4");
     expect(profileTabLabel("posts", null)).toBe("Посты");
+    expect(profileTabLabel("posts", 0)).toBe("Посты");
+    expect(profileTabLabel("places", 0)).toBe("Впечатления");
   });
 });
 
 describe("row hints", () => {
   it("splits the lists into the preset shelves and the viewer's own", () => {
     expect(listsHint([list("1", "want_to_go"), list("2", "favorites"), list("3", null)])).toBe("2 готовые полки и 1 своя");
-    expect(listsHint([])).toBe("0 готовых полок и 0 своих");
+    expect(listsHint([list("1", "want_to_go")])).toBe("1 готовая полка");
+    expect(listsHint([])).toBeNull();
   });
 
   it("counts the collected achievements out of all four", () => {
     expect(achievementsHint([achievement("city_explorer", true), achievement("music_fan", false), achievement("weekend_city", false), achievement("volunteer", false)])).toBe("1 из 4 собрано");
+    expect(achievementsHint([achievement("music_fan", false)])).toBeNull();
   });
 
   it("counts only the groups still open as companies", () => {
     expect(weGroupsHint([weGroup("1", false), weGroup("2", false), weGroup("3", true)])).toBe("2 активные компании");
+    expect(weGroupsHint([weGroup("3", true)])).toBeNull();
   });
 
   it("says where the friends came from", () => {
     expect(friendsHint(24)).toBe("24 из чатов MAX");
+    expect(friendsHint(0)).toBeNull();
   });
 
   it("declines the visit counter of an impression cell", () => {
@@ -356,7 +362,8 @@ describe("ProfileView", () => {
   it("prints the counter hints once the counts are in", () => {
     const html = renderProfileView({ lists: [list("1", "want_to_go")], friendsCount: 24, achievements: [achievement("volunteer", true)] });
 
-    expect(html).toContain("1 готовая полка и 0 своих");
+    expect(html).toContain("1 готовая полка");
+    expect(html).not.toContain("0 своих");
     expect(html).toContain("24 из чатов MAX");
     expect(html).toContain("1 из 1 собрано");
   });

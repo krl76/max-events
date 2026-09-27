@@ -14,11 +14,11 @@
 // - socialMetrics - second header row: subscriptions, posts, followers
 // - ProfileTab - which grid the profile shows: the posts of the person or the places they have been
 // - PROFILE_TABS - the two grids in screen order, «Посты» first
-// - profileTabLabel - «Посты · 8» — the tab label with its count, bare until the count arrives
-// - listsHint - «6 готовых полок и 3 своих» from the lists of the viewer
-// - achievementsHint - «1 из 4 собрано»
-// - weGroupsHint - «3 активные компании» counting only the groups still open
-// - friendsHint - «24 из чатов MAX»
+// - profileTabLabel - «Посты · 8»; a zero or an unknown count leaves the bare name
+// - listsHint - «6 готовых полок и 3 своих»; a zero half and an empty list are omitted
+// - achievementsHint - «1 из 4 собрано»; nothing collected yet has no hint
+// - weGroupsHint - «3 активные компании»; none open has no hint
+// - friendsHint - «24 из чатов MAX»; zero friends has no hint
 // - visitsLabel - «12 визитов» under an impression cell
 // - ProfileRow - one entry row: icon tile, title, counter hint, chevron
 // - ProfilePostGrid - the post grid of the profile with its three states: the tiles, the invitation to publish, the loading placeholders
@@ -117,30 +117,42 @@ export const PROFILE_TABS: ReadonlyArray<{ id: ProfileTab; label: string }> = [
   { id: "places", label: "Впечатления" },
 ];
 
-/** «Посты · 8». The count is dropped rather than shown as 0 while the request is still on its way. */
+/** «Посты · 8». A zero is the same as an unknown count: the tab stays a name, not a score. */
 export function profileTabLabel(tab: ProfileTab, count: number | null): string {
   const label = PROFILE_TABS.find((candidate) => candidate.id === tab)!.label;
-  return count === null ? label : `${label} · ${count}`;
+  if (count === null || count === 0) return label;
+  return `${label} · ${count}`;
 }
 
-/** «6 готовых полок и 3 своих»: the preset shelves the product ships with, then what the viewer added. */
-export function listsHint(lists: ListSummary[]): string {
+/**
+ * «6 готовых полок и 3 своих». A zero half is left out, and an empty shelf list has no hint:
+ * the row title «Списки» is enough.
+ */
+export function listsHint(lists: ListSummary[]): string | null {
+  if (lists.length === 0) return null;
   const presets = lists.filter((row) => row.list.preset !== null).length;
   const own = lists.length - presets;
-  return `${presets} ${pluralRu(presets, "готовая полка", "готовые полки", "готовых полок")} и ${own} ${pluralRu(own, "своя", "свои", "своих")}`;
+  const presetLine = presets === 0 ? null : `${presets} ${pluralRu(presets, "готовая полка", "готовые полки", "готовых полок")}`;
+  const ownLine = own === 0 ? null : `${own} ${pluralRu(own, "своя", "свои", "своих")}`;
+  return [presetLine, ownLine].filter((part): part is string => part !== null).join(" и ");
 }
 
-export function achievementsHint(achievements: Achievement[]): string {
-  return `${achievements.filter((item) => item.grantedAt !== null).length} из ${achievements.length} собрано`;
+/** «1 из 4 собрано». Nothing collected yet is not a score of zero. */
+export function achievementsHint(achievements: Achievement[]): string | null {
+  const got = achievements.filter((item) => item.grantedAt !== null).length;
+  if (got === 0) return null;
+  return `${got} из ${achievements.length} собрано`;
 }
 
-/** «3 активные компании»: an archived group is a memory, not a company you are still in. */
-export function weGroupsHint(groups: WeGroupScreen[]): string {
+/** «3 активные компании»: an archived group is a memory, not a company you are still in. None open means no hint. */
+export function weGroupsHint(groups: WeGroupScreen[]): string | null {
   const active = groups.filter((row) => row.group.archivedAt === null).length;
+  if (active === 0) return null;
   return `${active} ${pluralRu(active, "активная компания", "активные компании", "активных компаний")}`;
 }
 
-export function friendsHint(friends: number): string {
+export function friendsHint(friends: number): string | null {
+  if (friends <= 0) return null;
   return `${friends} из чатов MAX`;
 }
 
