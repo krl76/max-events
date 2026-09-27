@@ -114,6 +114,7 @@ export function AfterEventView({ event, placeTitle, now, factTags, photos, parti
         <span className="app-after-blob" aria-hidden="true" />
         <button type="button" className="app-after-close" aria-label="Закрыть" onClick={onClose}>
           <ActionIcon name="close" size={18} strokeWidth={2.5} />
+          Закрыть
         </button>
         <span className="app-after-hero-veil">
           <span className="app-after-when">{afterEventWhen(event.startsAt, placeTitle, now)}</span>

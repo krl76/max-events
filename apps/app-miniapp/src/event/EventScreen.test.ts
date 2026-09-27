@@ -127,6 +127,13 @@ describe("EventMoodTags, EventNearbyList and EventWhoGoesRow", () => {
     expect(html).not.toContain("Дима");
   });
 
+  it("omits a zero going count and says nobody is going yet", () => {
+    const html = renderToStaticMarkup(createElement(EventWhoGoesRow, { companions: { ...companions, counts: { ...companions.counts, going: 0 }, companions: [] }, onOpen: noop }));
+    expect(html).toContain("Кто идёт");
+    expect(html).toContain("Пока никого");
+    expect(html).not.toContain(">0<");
+  });
+
   it("renders every tag with its counter", () => {
     const tags: EventMoodTag[] = [
       { code: "calm", label: "Спокойно", count: 12 },

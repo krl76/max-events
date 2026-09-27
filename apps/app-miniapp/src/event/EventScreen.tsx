@@ -89,12 +89,13 @@ const TRAVEL_MODE_LABELS: Record<TravelOption["mode"], string> = { walk: "пеш
 const WALK_MINUTE_CAP = 90;
 const FAR_KM = 80;
 
-/** «2,1 км · 18 мин пешком». A multi-hour walk is not a route: past 80 km the line is just «далеко». */
-export function formatTravel(option: TravelOption): string {
-  if (option.distanceKm !== null && option.distanceKm > FAR_KM) return "далеко";
+/** «2,1 км · 18 мин пешком». Past 80 km the line is «далеко». From the city center the kilometers say so. */
+export function formatTravel(option: TravelOption, fromCenter = false): string {
+  const tail = fromCenter ? " от центра" : "";
+  if (option.distanceKm !== null && option.distanceKm > FAR_KM) return fromCenter ? "далеко от центра" : "далеко";
   const walkTooLong = option.mode === "walk" && option.minutes > WALK_MINUTE_CAP;
   const time = walkTooLong ? null : `${option.minutes} мин ${TRAVEL_MODE_LABELS[option.mode]}`;
-  const distance = option.distanceKm === null ? null : `${option.distanceKm.toFixed(1).replace(".", ",")} км`;
+  const distance = option.distanceKm === null ? null : `${option.distanceKm.toFixed(1).replace(".", ",")} км${tail}`;
   return [distance, time].filter((part): part is string => part !== null).join(" · ");
 }
 
@@ -253,10 +254,12 @@ interface EventRouteCardProps {
   address: string;
   hint: string | null;
   travel: TravelOption | null;
+  /** Kilometers were measured from the city center, not from the viewer. */
+  fromCenter?: boolean;
   onRoute: () => void;
 }
 
-export function EventRouteCard({ address, hint, travel, onRoute }: EventRouteCardProps) {
+export function EventRouteCard({ address, hint, travel, fromCenter = false, onRoute }: EventRouteCardProps) {
   return (
     <section className="app-ev-route" aria-label="Как добраться">
       {/* Схема перекрёстка, а не карта: тайлов у мини-аппа нет, а пустой серый прямоугольник читается как ошибка загрузки */}
@@ -270,7 +273,7 @@ export function EventRouteCard({ address, hint, travel, onRoute }: EventRouteCar
           {address}
           {hint !== null && ` · ${hint}`}
         </p>
-        {travel !== null && <p className="app-ev-route-travel">{formatTravel(travel)}</p>}
+        {travel !== null && <p className="app-ev-route-travel">{formatTravel(travel, fromCenter)}</p>}
         <button type="button" className="app-ev-route-go" onClick={onRoute}>
           <ActionIcon name="navigation" size={16} />
           Проложить маршрут
@@ -353,17 +356,27 @@ export function EventWhoGoesRow({ companions, onOpen }: { companions: EventCompa
   return (
     <button type="button" className="app-ev-who" onClick={onOpen}>
       <span className="app-ev-who-label">
-        Кто идёт <b>{companions.counts.going}</b>
+        Кто идёт
+        {companions.counts.going > 0 && (
+          <>
+            {" "}
+            <b>{companions.counts.going}</b>
+          </>
+        )}
       </span>
       <span className="app-ev-who-right">
-        <span className="app-ev-faces" role="img" aria-label={faces.length === 0 ? "Пока никого" : faces.map((companion) => companion.friend.name).join(", ")}>
-          {faces.map((companion) => (
-            <span key={companion.friend.id} className="app-ev-face">
-              {companion.friend.name.charAt(0)}
-            </span>
-          ))}
-          {rest > 0 && <span className="app-ev-face app-ev-face--rest">+{rest}</span>}
-        </span>
+        {faces.length === 0 ? (
+          <span>Пока никого</span>
+        ) : (
+          <span className="app-ev-faces" role="img" aria-label={faces.map((companion) => companion.friend.name).join(", ")}>
+            {faces.map((companion) => (
+              <span key={companion.friend.id} className="app-ev-face">
+                {companion.friend.name.charAt(0)}
+              </span>
+            ))}
+            {rest > 0 && <span className="app-ev-face app-ev-face--rest">+{rest}</span>}
+          </span>
+        )}
         <ActionIcon name="chevron" size={18} />
       </span>
     </button>

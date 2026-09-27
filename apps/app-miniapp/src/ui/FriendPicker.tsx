@@ -107,7 +107,8 @@ export function FriendPicker({ friends, title = "Выбери друга", hint 
         <div className="app-fpick-head">
           <h2 className="app-fpick-title">{title}</h2>
           <button type="button" className="app-fpick-close" aria-label="Закрыть" onClick={onClose}>
-            <ActionIcon name="close" size={18} strokeWidth={2.2} />
+            <ActionIcon name="close" size={16} strokeWidth={2.6} />
+            Закрыть
           </button>
         </div>
         {hint !== null && <p className="app-fpick-hint">{hint}</p>}

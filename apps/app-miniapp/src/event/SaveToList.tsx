@@ -26,7 +26,7 @@ export function SaveToListView({ state, onToggle, onDone, creating = false, newT
         <header className="app-save-sheet-head">
           <h2 className="app-save-sheet-title">Сохранить</h2>
           <button type="button" className="app-save-sheet-close" aria-label="Закрыть окно" onClick={onDone}>
-            ×
+            Закрыть
           </button>
         </header>
         <div className="app-save-sheet-scroll">
@@ -105,7 +105,7 @@ export function SaveToList({ eventId, feedPostId, userId, open, onClose }: { eve
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") (controlled ? onClose?.() : setSelfOpen(false));
+      if (event.key === "Escape") controlled ? onClose?.() : setSelfOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -117,11 +117,7 @@ export function SaveToList({ eventId, feedPostId, userId, open, onClose }: { eve
       const payload = eventId !== undefined ? { userId, eventId } : { userId, feedPostId: feedPostId! };
       const adding = summary.savedItemId === null;
       setPending((current) => new Set(current).add(summary.list.id));
-      setState((current) =>
-        current.status === "ready"
-          ? { status: "ready", summaries: current.summaries.map((row) => (row.list.id === summary.list.id ? { ...row, savedItemId: adding ? row.list.id : null, itemsCount: adding ? row.itemsCount + 1 : Math.max(0, row.itemsCount - 1) } : row)) }
-          : current,
-      );
+      setState((current) => (current.status === "ready" ? { status: "ready", summaries: current.summaries.map((row) => (row.list.id === summary.list.id ? { ...row, savedItemId: adding ? row.list.id : null, itemsCount: adding ? row.itemsCount + 1 : Math.max(0, row.itemsCount - 1) } : row)) } : current));
       const call = adding ? apiClient.addListItem(summary.list.id, payload) : apiClient.removeListItem(summary.list.id, summary.savedItemId!);
       call.then(
         () => {

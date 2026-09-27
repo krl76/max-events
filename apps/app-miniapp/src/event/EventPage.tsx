@@ -198,7 +198,7 @@ export function EventPage({ id }: { id: string }) {
   const placeId = state.status === "ready" ? state.details.place?.id : undefined;
   const eventCity = state.status === "ready" ? state.details.event.city : "";
   // The route is inside the event's city. A GPS fix in another region is not the start of that walk.
-  const travelPoint = useMemo(() => (eventCity === "" ? origin : browsedCityOrigin(origin, eventCity)), [origin, eventCity]);
+  const travelPoint = useMemo(() => (eventCity === "" ? { latitude: origin.latitude, longitude: origin.longitude, fromViewer: true } : browsedCityOrigin(origin, eventCity)), [origin, eventCity]);
   useEffect(() => {
     if (placeId === undefined) return;
     let alive = true;
@@ -331,7 +331,7 @@ export function EventPage({ id }: { id: string }) {
       <SaveToList eventId={id} userId={userId} open={saveOpen} onClose={() => setSaveOpen(false)} />
       <EventWhenRow event={event} />
       {forecast !== null && <EventForecastCard forecast={forecast} />}
-      {place !== null && <EventRouteCard address={place.address} hint={place.title} travel={travel} onRoute={() => navigate({ name: "place", id: place.id })} />}
+      {place !== null && <EventRouteCard address={place.address} hint={place.title} travel={travel} fromCenter={!travelPoint.fromViewer} onRoute={() => navigate({ name: "place", id: place.id })} />}
       <EventOrganizerCard name={organizerName} eventsCount={details.organizerEventsCount ?? null} rating={rating} subscribe={details.organizer === null ? null : <SubscribeToggle target={{ type: "organizer", organizerUserId: details.organizer.id }} subscribeLabel="Подписаться" unsubscribeLabel="Отписаться" />} />
       {companions !== null && <EventWhoGoesRow companions={companions} onOpen={() => navigate({ name: "companions", eventId: id })} />}
       {event.description !== "" && (

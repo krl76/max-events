@@ -54,7 +54,7 @@ export function splitCalendarEntries(entries: CalendarEntry[], now: Date): { upc
   };
 }
 
-function BookingCard({ entry, onCancel }: { entry: CalendarEntry; onCancel: (() => void) | null }) {
+function BookingCard({ entry, onCancel, onOpen, onRate, onRepeat }: { entry: CalendarEntry; onCancel: (() => void) | null; onOpen: (() => void) | null; onRate: (() => void) | null; onRepeat: (() => void) | null }) {
   const { event, place } = entry;
   return (
     <article className="app-card app-card--row">
@@ -67,6 +67,21 @@ function BookingCard({ entry, onCancel }: { entry: CalendarEntry; onCancel: (() 
         <span className="app-card-subtitle">
           {CATEGORY_LABELS[event.category]} · {event.priceRub === null ? "Бесплатно" : `${event.priceRub} ₽`}
         </span>
+        {onOpen !== null && (
+          <AppButton tone="secondary" onClick={onOpen}>
+            Открыть событие
+          </AppButton>
+        )}
+        {onRate !== null && (
+          <AppButton tone="secondary" onClick={onRate}>
+            Оценить
+          </AppButton>
+        )}
+        {onRepeat !== null && (
+          <AppButton tone="secondary" onClick={onRepeat}>
+            Повторить
+          </AppButton>
+        )}
         {onCancel !== null && (
           <AppButton className="app-calendar-cancel" size="small" tone="danger" onClick={onCancel}>
             Отменить запись
@@ -84,9 +99,15 @@ interface CalendarViewProps {
   onExplore: () => void;
   /** Hands the bookings over to the phone's own calendar as an .ics file; without a handler the button is not drawn. */
   onExport?: () => void;
+  /** Upcoming card: open the event. Absent, the card stays a summary. */
+  onOpen?: (eventId: string) => void;
+  /** Past card: the after-event screen. */
+  onRate?: (eventId: string) => void;
+  /** Past card: the event page, to go again. */
+  onRepeat?: (eventId: string) => void;
 }
 
-export function CalendarView({ state, now, onCancel, onExplore, onExport }: CalendarViewProps) {
+export function CalendarView({ state, now, onCancel, onExplore, onExport, onOpen, onRate, onRepeat }: CalendarViewProps) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "error") return <AppState error>Не удалось загрузить календарь.</AppState>;
 
@@ -94,7 +115,7 @@ export function CalendarView({ state, now, onCancel, onExplore, onExport }: Cale
   return (
     <>
       <AppSection title="Запланированные" className="app-cards-flat">
-        {upcoming.length === 0 ? <AppState action={{ label: "Найти событие", onClick: onExplore }}>Нет запланированных событий.</AppState> : upcoming.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={() => onCancel(entry.booking.id)} />)}
+        {upcoming.length === 0 ? <AppState action={{ label: "Найти событие", onClick: onExplore }}>Нет запланированных событий.</AppState> : upcoming.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={() => onCancel(entry.booking.id)} onOpen={onOpen === undefined ? null : () => onOpen(entry.event.id)} onRate={null} onRepeat={null} />)}
         {onExport !== undefined && upcoming.length > 0 && (
           <AppButton tone="secondary" onClick={onExport} stretched>
             Экспорт в календарь
@@ -102,7 +123,7 @@ export function CalendarView({ state, now, onCancel, onExplore, onExport }: Cale
         )}
       </AppSection>
       <AppSection title="Прошедшие" className="app-cards-flat">
-        {past.length === 0 ? <AppState>Нет прошедших событий.</AppState> : past.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={null} />)}
+        {past.length === 0 ? <AppState>Нет прошедших событий.</AppState> : past.map((entry) => <BookingCard key={entry.booking.id} entry={entry} onCancel={null} onOpen={null} onRate={onRate === undefined ? null : () => onRate(entry.event.id)} onRepeat={onRepeat === undefined ? null : () => onRepeat(entry.event.id)} />)}
       </AppSection>
     </>
   );
@@ -213,24 +234,7 @@ interface SharedCalendarViewProps {
   onRemovePeer?: (userId: string) => void;
 }
 
-export function SharedCalendarView({
-  shared,
-  entries,
-  month,
-  selected,
-  now,
-  onSelect,
-  onOpen,
-  onGoing,
-  onShare,
-  onAddFriend,
-  notice = null,
-  chrome = false,
-  onClose,
-  scope = "own",
-  onSelectScope,
-  onRemovePeer,
-}: SharedCalendarViewProps) {
+export function SharedCalendarView({ shared, entries, month, selected, now, onSelect, onOpen, onGoing, onShare, onAddFriend, notice = null, chrome = false, onClose, scope = "own", onSelectScope, onRemovePeer }: SharedCalendarViewProps) {
   const dayEntries = entriesOn(entries, selected);
   const warnings = overlapWarnings(dayEntries);
   const reminder = calendarReminder(entries, now);
@@ -242,80 +246,81 @@ export function SharedCalendarView({
       {chrome && (
         <div className="app-cal-top">
           <button type="button" className="app-cal-close" aria-label="Закрыть" onClick={onClose}>
-            <ActionIcon name="close" size={20} strokeWidth={2.2} />
+            <ActionIcon name="close" size={16} strokeWidth={2.6} />
+            Закрыть
           </button>
           <h1 className="app-cal-top-title">{viewingPeer ? viewingPeer.friend.name.split(" ")[0] : "Календарь"}</h1>
         </div>
       )}
       <div className="app-cal-scroll">
-      <div className="app-cal-head">
-        <h2 className="app-cal-month">{monthTitle(month)}</h2>
-        <button type="button" className="app-cal-share" onClick={onShare}>
-          <ActionIcon name="share" size={16} />
-          Поделиться
-        </button>
-      </div>
+        <div className="app-cal-head">
+          <h2 className="app-cal-month">{monthTitle(month)}</h2>
+          <button type="button" className="app-cal-share" onClick={onShare}>
+            <ActionIcon name="share" size={16} />
+            Поделиться
+          </button>
+        </div>
 
-      {shared.status === "error" && <AppState error>Не удалось загрузить общий календарь.</AppState>}
-      {shared.status === "ready" && (shared.shared.peers.length > 0 || onSelectScope !== undefined) && (
-        <div className="app-cal-peers">
-          <div className="app-cal-peer-chips" role="group" aria-label="Чей календарь">
-            <button type="button" className={viewingOwn ? "app-cal-peer-chip app-cal-peer-chip--on" : "app-cal-peer-chip"} aria-pressed={viewingOwn} onClick={() => onSelectScope?.("own")}>
-              Мой календарь
-            </button>
-            {shared.shared.peers.map((peer) => (
-              <span key={peer.friend.id} className={scope === peer.friend.id ? "app-cal-peer-chip app-cal-peer-chip--on" : "app-cal-peer-chip"}>
-                <button type="button" className="app-cal-peer-chip-name" aria-pressed={scope === peer.friend.id} onClick={() => onSelectScope?.(peer.friend.id)}>
-                  {peer.friend.name.split(" ")[0]}
-                </button>
-                {onRemovePeer !== undefined && (
-                  <button type="button" className="app-cal-peer-drop" aria-label={`Убрать ${peer.friend.name.split(" ")[0]} из календаря`} onClick={() => onRemovePeer(peer.friend.id)}>
-                    <ActionIcon name="close" size={12} strokeWidth={2.4} />
+        {shared.status === "error" && <AppState error>Не удалось загрузить общий календарь.</AppState>}
+        {shared.status === "ready" && (shared.shared.peers.length > 0 || onSelectScope !== undefined) && (
+          <div className="app-cal-peers">
+            <div className="app-cal-peer-chips" role="group" aria-label="Чей календарь">
+              <button type="button" className={viewingOwn ? "app-cal-peer-chip app-cal-peer-chip--on" : "app-cal-peer-chip"} aria-pressed={viewingOwn} onClick={() => onSelectScope?.("own")}>
+                Мой календарь
+              </button>
+              {shared.shared.peers.map((peer) => (
+                <span key={peer.friend.id} className={scope === peer.friend.id ? "app-cal-peer-chip app-cal-peer-chip--on" : "app-cal-peer-chip"}>
+                  <button type="button" className="app-cal-peer-chip-name" aria-pressed={scope === peer.friend.id} onClick={() => onSelectScope?.(peer.friend.id)}>
+                    {peer.friend.name.split(" ")[0]}
                   </button>
-                )}
+                  {onRemovePeer !== undefined && (
+                    <button type="button" className="app-cal-peer-drop" aria-label={`Убрать ${peer.friend.name.split(" ")[0]} из календаря`} onClick={() => onRemovePeer(peer.friend.id)}>
+                      <ActionIcon name="close" size={12} strokeWidth={2.4} />
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+            {peers !== null && viewingOwn && <span className="app-cal-peers-label">{peers}</span>}
+          </div>
+        )}
+
+        <MonthGrid month={month} selected={selected} entries={entries} onSelect={onSelect} />
+
+        <div className="app-cal-legend">
+          <span className="app-cal-legend-item">
+            <span className="app-cal-dot app-cal-dot--own" aria-hidden="true" />
+            ваши планы
+          </span>
+          {shared.status === "ready" &&
+            shared.shared.peers.map((peer) => (
+              <span key={peer.friend.id} className="app-cal-legend-item app-cal-legend-item--peer">
+                <span className="app-cal-dot app-cal-dot--peer" aria-hidden="true" />
+                {peer.friend.name.split(" ")[0]}
               </span>
             ))}
-          </div>
-          {peers !== null && viewingOwn && <span className="app-cal-peers-label">{peers}</span>}
         </div>
-      )}
 
-      <MonthGrid month={month} selected={selected} entries={entries} onSelect={onSelect} />
+        {reminder !== null && <p className="app-cal-reminder">{reminder}</p>}
 
-      <div className="app-cal-legend">
-        <span className="app-cal-legend-item">
-          <span className="app-cal-dot app-cal-dot--own" aria-hidden="true" />
-          ваши
-        </span>
-        {shared.status === "ready" &&
-          shared.shared.peers.map((peer) => (
-            <span key={peer.friend.id} className="app-cal-legend-item app-cal-legend-item--peer">
-              <span className="app-cal-dot app-cal-dot--peer" aria-hidden="true" />
-              {peer.friend.name.split(" ")[0]}
-            </span>
-          ))}
-      </div>
+        <h3 className="app-cal-day-title">{dayTitle(selected)}</h3>
+        {warnings.map((warning) => (
+          <p key={warning} className="app-cal-warning">
+            <ActionIcon name="alert" size={16} />
+            {warning}
+          </p>
+        ))}
+        {dayEntries.length === 0 ? (
+          <AppState>В этот день ничего не запланировано.</AppState>
+        ) : (
+          <ul className="app-cal-rows">
+            {dayEntries.map((entry) => (
+              <DayRow key={entry.id} entry={entry} onOpen={() => onOpen(entry)} onGoing={() => entry.sharedId !== null && onGoing(entry.sharedId)} />
+            ))}
+          </ul>
+        )}
 
-      {reminder !== null && <p className="app-cal-reminder">{reminder}</p>}
-
-      <h3 className="app-cal-day-title">{dayTitle(selected)}</h3>
-      {warnings.map((warning) => (
-        <p key={warning} className="app-cal-warning">
-          <ActionIcon name="alert" size={16} />
-          {warning}
-        </p>
-      ))}
-      {dayEntries.length === 0 ? (
-        <AppState>В этот день ничего не запланировано.</AppState>
-      ) : (
-        <ul className="app-cal-rows">
-          {dayEntries.map((entry) => (
-            <DayRow key={entry.id} entry={entry} onOpen={() => onOpen(entry)} onGoing={() => entry.sharedId !== null && onGoing(entry.sharedId)} />
-          ))}
-        </ul>
-      )}
-
-      {notice !== null && <p className="app-cal-reminder">{notice}</p>}
+        {notice !== null && <p className="app-cal-reminder">{notice}</p>}
       </div>
 
       <div className="app-cal-cta">
@@ -491,7 +496,7 @@ export function CalendarPage({ tab = "month", inviteToken, embedded = false }: {
         />
       ) : (
         <>
-          <CalendarView state={state} now={new Date()} onCancel={cancel} onExplore={() => navigate({ name: "home" })} onExport={state.status === "ready" ? () => exportCalendarIcs(state.entries) : undefined} />
+          <CalendarView state={state} now={new Date()} onCancel={cancel} onExplore={() => navigate({ name: "home" })} onExport={state.status === "ready" ? () => exportCalendarIcs(state.entries) : undefined} onOpen={(eventId) => navigate({ name: "event", id: eventId })} onRate={(eventId) => navigate({ name: "after-event", eventId })} onRepeat={(eventId) => navigate({ name: "event", id: eventId })} />
         </>
       )}
       {picking && <FriendPicker friends={invitable} title="Кого позвать в календарь" hint="Он увидит твои планы, ты — его." confirmLabel="Открыть календарь" emptyText="Все друзья уже в этом календаре." multiple busy={inviting} onConfirm={invite} onClose={() => setPicking(false)} />}

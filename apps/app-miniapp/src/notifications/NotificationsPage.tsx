@@ -142,6 +142,7 @@ export function NotificationsView({ state, quietHours, now = new Date(), busy = 
         <h1 className="app-notify-top-title">Умные уведомления</h1>
         <button type="button" className="app-notify-close" aria-label="Закрыть" onClick={onClose}>
           <ActionIcon name="close" size={16} strokeWidth={2.6} />
+          Закрыть
         </button>
       </header>
       <div className="app-notify-body">

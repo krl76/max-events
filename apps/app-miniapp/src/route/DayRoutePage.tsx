@@ -102,7 +102,8 @@ export function DayRouteView({ options, selected, query, onQuery, onToggle, onBu
     <section className="app-dayroute" aria-label="Маршрут на день">
       <header className="app-dayroute-top">
         <button type="button" className="app-dayroute-close" aria-label="Закрыть" onClick={onClose}>
-          <ActionIcon name="close" size={20} strokeWidth={2.2} />
+          <ActionIcon name="close" size={16} strokeWidth={2.6} />
+          Закрыть
         </button>
         <div className="app-dayroute-heading">
           <h1 className="app-dayroute-title">Маршрут на день</h1>

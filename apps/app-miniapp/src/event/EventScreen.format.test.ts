@@ -64,6 +64,8 @@ describe("distance and travel formatting", () => {
     expect(formatTravel({ mode: "walk", minutes: 18, distanceKm: 2.1, transfers: null })).toBe("2,1 км · 18 мин пешком");
     expect(formatTravel({ mode: "metro", minutes: 9, distanceKm: null, transfers: 1 })).toBe("9 мин на метро");
     expect(formatTravel({ mode: "walk", minutes: 11109, distanceKm: 888.7, transfers: null })).toBe("далеко");
+    expect(formatTravel({ mode: "walk", minutes: 20, distanceKm: 1.6, transfers: null }, true)).toBe("1,6 км от центра · 20 мин пешком");
+    expect(formatTravel({ mode: "walk", minutes: 11109, distanceKm: 888.7, transfers: null }, true)).toBe("далеко от центра");
   });
 });
 

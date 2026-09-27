@@ -96,6 +96,14 @@ describe("CalendarView", () => {
     expect(html.match(/Отменить запись/g)).toHaveLength(1);
   });
 
+  it("opens an upcoming event and rates or repeats a past one", () => {
+    const html = renderToStaticMarkup(createElement(CalendarView, { state: { status: "ready", entries: [entry(2, "b1"), entry(3, "b2")] }, now: NOW, onCancel: () => {}, onExplore: () => {}, onOpen: () => {}, onRate: () => {}, onRepeat: () => {} }));
+
+    expect(html.match(/Открыть событие/g)).toHaveLength(1);
+    expect(html.match(/Оценить/g)).toHaveLength(1);
+    expect(html.match(/Повторить/g)).toHaveLength(1);
+  });
+
   it("renders the card facts from the booking aggregate", () => {
     const upcomingEntry = entry(3, "b1");
     const html = renderToStaticMarkup(createElement(CalendarView, { state: { status: "ready", entries: [upcomingEntry] }, now: NOW, onCancel: () => {}, onExplore: () => {} }));

@@ -11,7 +11,7 @@
 // - addRecentSearch - prepend a trimmed query, dedupe case-insensitively, cap at the limit; identity on a blank query
 // - SEARCH_CATEGORIES - the category chips in design order, «Все» first
 // - searchCities - the cities the loaded cards name, in first-seen order: there is no city directory endpoint to ask
-// - railMeta - «2,1 км · Бесплатно» — the second line of a rail card
+// - railMeta - «2,1 км · Бесплатно»; «от центра», когда точка — центр города
 // - SearchTopBar - the city switcher with its menu, the viewer avatar and the search toggle
 // - SearchQueryForm - the search field with its recent queries; full-text search is client-visible only as this filter (#497)
 // - SearchEntryTiles - «Подбор свайпами» and «На карте»
@@ -29,7 +29,7 @@ import { CatalogPage } from "../catalog/CatalogPage";
 import { CATEGORY_LABELS } from "../catalog/format";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
-import { formatPickDistance, formatPickPrice, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, type TodayState } from "../today/TodaySection";
+import { formatPickDistance, formatPickPrice, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, type DistanceVoice, type TodayState } from "../today/TodaySection";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppSkeleton, AppState } from "../ui/primitives";
 
@@ -69,9 +69,11 @@ export function searchCities(cards: CatalogCard[]): string[] {
   return [...new Set(cards.map((card) => card.event.city))];
 }
 
-/** «2,1 км · Бесплатно» — distance when the card measured one, otherwise where it is. */
-export function railMeta(card: CatalogCard): string {
-  return [formatPickDistance(card.distanceKm) ?? card.placeTitle ?? card.event.city, formatPickPrice(card.event)].join(" · ");
+/** «2,1 км · Бесплатно». Outside the city the kilometers are from its center, so the line says so. */
+export function railMeta(card: CatalogCard, voice: DistanceVoice = "you"): string {
+  const distance = formatPickDistance(card.distanceKm);
+  const measured = distance === null ? null : distance === "далеко" ? (voice === "center" ? "далеко от центра" : "далеко") : voice === "center" ? `${distance} от центра` : distance;
+  return [measured ?? card.placeTitle ?? card.event.city, formatPickPrice(card.event)].join(" · ");
 }
 
 interface SearchTopBarProps {
@@ -244,7 +246,7 @@ export function SearchNearby({ state, query, expanded, inCity = true, onExpand, 
               <span className="app-rail-kind">{CATEGORY_LABELS[card.event.category]}</span>
               <span className="app-rail-veil">
                 <span className="app-rail-title">{card.event.title}</span>
-                <span className="app-rail-meta">{railMeta(card)}</span>
+                <span className="app-rail-meta">{railMeta(card, inCity ? "you" : "center")}</span>
               </span>
             </button>
           ))}

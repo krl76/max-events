@@ -3376,13 +3376,18 @@ html[data-theme="dark"] #root {
 }
 
 .app-story-viewer-close {
-  background: none;
+  align-items: center;
+  background: rgba(6, 7, 8, 0.45);
   border: none;
+  border-radius: var(--app-radius-pill);
   color: var(--brand-white);
   cursor: pointer;
-  font-size: var(--app-font-size-headline);
-  line-height: 1;
-  padding: 0 var(--app-space-xs);
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  height: 44px;
+  padding: 0 12px;
 }
 
 .app-story-viewer-tap {
@@ -5090,7 +5095,7 @@ html[data-theme="dark"] #root {
   font-size: var(--app-font-size-callout);
   font-weight: 800;
   gap: 6px;
-  height: 40px;
+  height: 44px;
   padding: 0 14px 0 10px;
 }
 
@@ -5120,7 +5125,7 @@ html[data-theme="dark"] #root {
   flex-shrink: 0;
   font: inherit;
   gap: 6px;
-  height: 40px;
+  height: 44px;
   padding: 0 var(--app-space-m);
 }
 
@@ -5137,7 +5142,7 @@ html[data-theme="dark"] #root {
   font: inherit;
   font-size: var(--app-font-size-caption);
   font-weight: 800;
-  height: 40px;
+  height: 44px;
   padding: 0 12px;
 }
 
@@ -5274,14 +5279,22 @@ html[data-theme="dark"] #root {
 }
 
 .app-map16-card-close {
-  background: none;
+  align-items: center;
+  background: var(--app-surface);
   border: none;
-  color: var(--app-text-tertiary);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
   cursor: pointer;
-  padding: var(--app-space-xs);
-  position: absolute;
-  right: var(--app-space-s);
-  top: var(--app-space-s);
+  display: flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 4px;
+  height: 44px;
+  margin-bottom: 8px;
+  margin-left: auto;
+  padding: 0 12px;
+  width: fit-content;
 }
 
 .app-map16-card-head {
@@ -12178,7 +12191,7 @@ button.app-poll-result {
   font-size: var(--app-font-size-callout);
   font-weight: 700;
   gap: 2px;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 4px 0 12px;
 }
 
@@ -12209,10 +12222,10 @@ button.app-cal-peer-chip {
   color: inherit;
   cursor: pointer;
   display: flex;
-  height: 28px;
+  height: 44px;
   justify-content: center;
   opacity: 0.72;
-  width: 28px;
+  width: 44px;
 }
 
 .app-cal-head {
@@ -12244,7 +12257,7 @@ button.app-cal-peer-chip {
   font-size: var(--app-font-size-description);
   font-weight: 800;
   gap: var(--app-space-s);
-  height: 40px;
+  height: 44px;
   padding: 0 var(--app-space-l);
 }
 
@@ -13961,9 +13974,9 @@ button.app-cal-peer-chip {
   cursor: pointer;
   display: flex;
   flex: none;
-  height: 40px;
+  height: 44px;
   justify-content: center;
-  width: 40px;
+  width: 44px;
 }
 
 .app-book-search-field {
@@ -14024,6 +14037,7 @@ button.app-cal-peer-chip {
   /* Четыре фильтра макета должны умещаться в 390 px без прокрутки: на callout «Прошедшие» срезается */
   font-size: var(--app-font-size-description);
   font-weight: 700;
+  min-height: 44px;
   padding: 10px var(--app-space-m);
   white-space: nowrap;
 }
@@ -14327,7 +14341,8 @@ button.app-cal-peer-chip {
   font: inherit;
   font-size: var(--app-font-size-description);
   font-weight: 800;
-  padding: 0;
+  min-height: 44px;
+  padding: 0 8px;
 }
 
 .app-book-past-repeat {
@@ -14339,7 +14354,8 @@ button.app-cal-peer-chip {
   font: inherit;
   font-size: var(--app-font-size-description);
   font-weight: 700;
-  padding: 0;
+  min-height: 44px;
+  padding: 0 8px;
 }
 
 /* ===== Волна 9: организатор и модерация (экраны 42, 43, 44, 45, 46, 47) ===== */
@@ -16312,14 +16328,18 @@ button.app-cal-peer-chip {
 }
 
 .app-save-sheet-close {
-  background: transparent;
+  align-items: center;
+  background: var(--app-surface);
   border: none;
+  border-radius: var(--app-radius-pill);
   color: inherit;
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
-  font-size: 28px;
-  line-height: 1;
-  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  height: 44px;
+  padding: 0 12px;
 }
 
 .app-save-sheet-scroll {
@@ -20554,7 +20574,13 @@ button.app-feed-place-where,
 .app-evc-back,
 .app-wt-back,
 .app-wt-bar-back,
-.app-onboarding-back {
+.app-onboarding-back,
+.app-notify-close,
+.app-assist-hero-close,
+.app-after-close,
+.app-cal-close,
+.app-dayroute-close,
+.app-fpick-close {
   border-radius: var(--app-radius-pill);
   font: inherit;
   font-size: 13px;

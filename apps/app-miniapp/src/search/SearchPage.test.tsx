@@ -37,6 +37,8 @@ describe("search helpers", () => {
   it("puts the distance first on a rail card and falls back to the venue without one", () => {
     const card = CARDS.find((item) => item.distanceKm !== null)!;
     expect(railMeta(card)).toMatch(/ км · /);
+    expect(railMeta(card, "center")).toContain("от центра");
+    expect(railMeta({ ...card, distanceKm: 120 }, "center")).toContain("далеко от центра");
     expect(railMeta({ ...card, distanceKm: null, placeTitle: "Парк Горького" })).toContain("Парк Горького · ");
     expect(railMeta({ ...card, distanceKm: null, placeTitle: null })).toContain(card.event.city);
   });

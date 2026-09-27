@@ -465,7 +465,8 @@ export function MapSelectionCard(props: MapSelectionCardProps) {
   return (
     <section className="app-map16-card" aria-label="Выбранный объект">
       <button type="button" className="app-map16-card-close" aria-label="Закрыть карточку" onClick={props.onClose}>
-        <ActionIcon name="close" size={16} strokeWidth={2} />
+        <ActionIcon name="close" size={16} strokeWidth={2.6} />
+        Закрыть
       </button>
       <button type="button" className="app-map16-card-head" onClick={props.onOpen}>
         <span className={props.category === null ? "app-map16-card-media" : `app-map16-card-media app-media--${props.category}`} aria-hidden="true" />
@@ -839,7 +840,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
       {weatherOpen && (
         <section className="app-map16-weather-sheet" role="dialog" aria-label="Прогноз погоды">
           <button type="button" className="app-map16-card-close" aria-label="Закрыть" onClick={() => setWeatherOpen(false)}>
-            <ActionIcon name="close" size={16} strokeWidth={2} />
+            <ActionIcon name="close" size={16} strokeWidth={2.6} />
+            Закрыть
           </button>
           <h2 className="app-map16-card-title">Погода сейчас</h2>
           {weather === null ? (

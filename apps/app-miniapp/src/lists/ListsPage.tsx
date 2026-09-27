@@ -15,7 +15,7 @@
 // - listAuthorLabel - «добавила: Ты» / «добавил: Анна»; null when the item carries no author
 // - ListFaces - overlapping participant avatars (initials); labelled for assistive tech
 // - ListsState - union of the lists fetch states (loading / error / ready)
-// - ListsView - экран 37 presentational: «Создать» topbar, the preset shelves and the own-list tiles with the dashed «Новый список»
+// - ListsView - экран 37 presentational: «Создать» topbar, the preset shelves, and the own-list tiles with one dashed «Новый список»
 // - ListsPage - экран 37 container (also the «Сохранённое» tab, which embeds the grid without the topbar)
 // - ListState - union of the list items fetch states (loading / error / ready)
 // - ListView - экран 39 presentational: saved event and place cards with their meta, author line and the «убрать» control
@@ -177,10 +177,6 @@ export function ListsView({ state, onOpen, topbar = false, creating = false, new
             {presets.map((summary) => (
               <ListTile key={summary.list.id} summary={summary} onOpen={onOpen} />
             ))}
-            <button type="button" className="app-lists-new" onClick={onCreateStart} disabled={busy}>
-              <ActionIcon name="plus" size={20} strokeWidth={2.8} />
-              <span>Новый список</span>
-            </button>
           </div>
           <div className="app-lists-head">
             <span className="app-lists-head-label">МОИ СПИСКИ</span>

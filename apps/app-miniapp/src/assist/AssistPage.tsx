@@ -179,6 +179,7 @@ export function AssistPageView({ thread, draft, state, lastQuestion, onDraft, on
         </span>
         <button type="button" className="app-assist-hero-close" aria-label="Закрыть ассистента" onClick={onClose}>
           <ActionIcon name="close" size={18} strokeWidth={2} />
+          Закрыть
         </button>
       </header>
 

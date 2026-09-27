@@ -237,7 +237,8 @@ export function CloseFriendsDialog({ closeFriends, followers, loading = false, o
         <div className="app-fpick-head">
           <h2 className="app-fpick-title">Близкие друзья</h2>
           <button type="button" className="app-fpick-close" aria-label="Закрыть" onClick={onClose}>
-            <ActionIcon name="close" size={18} strokeWidth={2.2} />
+            <ActionIcon name="close" size={16} strokeWidth={2.6} />
+            Закрыть
           </button>
         </div>
         <p className="app-fpick-hint">Только из тех, кто на вас подписан</p>
