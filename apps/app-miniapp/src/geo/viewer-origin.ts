@@ -10,10 +10,12 @@
 // - ViewerOrigin - lat/lng plus whether it came from geolocation and at what stage the request is
 // - viewerOriginFrom - pure: coordinates -> origin, null -> the Moscow fallback marked as refused
 // - useViewerOrigin - live origin; starts at Moscow, upgrades when getCurrentPosition succeeds
+// - browsedCityOrigin - GPS when the viewer is in the city they opened, otherwise that city's center
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
 import { MOSCOW_CENTER } from "../catalog/MapScreen";
+import { ONBOARDING_CITIES } from "../onboarding/onboarding";
 
 export type ViewerOriginState = "pending" | "granted" | "denied";
 
@@ -40,6 +42,38 @@ function cityFallback(state: ViewerOriginState): ViewerOrigin {
 export function viewerOriginFrom(coords: { latitude: number; longitude: number } | null): ViewerOrigin {
   if (coords === null || !Number.isFinite(coords.latitude) || !Number.isFinite(coords.longitude)) return cityFallback("denied");
   return { latitude: coords.latitude, longitude: coords.longitude, source: "geo", state: "granted" };
+}
+
+/** Past this the viewer is not in the city they opened, so a walk from their GPS is not a route inside it. */
+const BROWSED_CITY_FAR_KM = 80;
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+export interface BrowsedCityOrigin {
+  latitude: number;
+  longitude: number;
+  /** False when the point is the city center because the viewer is outside that city. */
+  fromViewer: boolean;
+}
+
+/**
+ * A catalog of one city measured from a GPS fix hundreds of kilometres away is a list of «далеко».
+ * Inside the city the fix stays; outside it, distances start at the city center the viewer picked.
+ * A city the product does not know keeps the fix — there is no center to substitute.
+ */
+export function browsedCityOrigin(origin: { latitude: number; longitude: number }, cityName: string): BrowsedCityOrigin {
+  const city = ONBOARDING_CITIES.find((item) => item.name === cityName);
+  if (city === undefined) return { latitude: origin.latitude, longitude: origin.longitude, fromViewer: true };
+  if (haversineKm(origin.latitude, origin.longitude, city.latitude, city.longitude) <= BROWSED_CITY_FAR_KM) {
+    return { latitude: origin.latitude, longitude: origin.longitude, fromViewer: true };
+  }
+  return { latitude: city.latitude, longitude: city.longitude, fromViewer: false };
 }
 
 export function useViewerOrigin(): ViewerOrigin {

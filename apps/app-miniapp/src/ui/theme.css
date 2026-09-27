@@ -12596,17 +12596,20 @@ button.app-cal-peer-chip {
   align-items: center;
   background: rgba(6, 7, 8, 0.45);
   border: none;
-  border-radius: 50%;
+  border-radius: var(--app-radius-pill);
   color: var(--brand-white);
   cursor: pointer;
   display: flex;
-  height: 40px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 4px;
+  height: 44px;
   justify-content: center;
   left: var(--app-space-l);
-  padding: 0;
+  padding: 0 12px;
   position: absolute;
   top: var(--app-space-l);
-  width: 40px;
   z-index: 1;
 }
 
@@ -12688,16 +12691,19 @@ button.app-cal-peer-chip {
   align-items: center;
   background: rgba(6, 7, 8, 0.45);
   border: none;
-  border-radius: 50%;
+  border-radius: var(--app-radius-pill);
   color: var(--brand-white);
   cursor: pointer;
   display: flex;
   flex: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 4px;
   height: 44px;
   justify-content: center;
   margin-left: auto;
-  padding: 0;
-  width: 44px;
+  padding: 0 12px;
 }
 
 .app-place-hero-hint {

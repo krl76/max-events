@@ -17,11 +17,11 @@
 // - EventPage - route container: resolves the user id from the auth context, loads every block of экран 17, keeps the booking sheet of экран 18 and wires booking, payment, waitlist, check-in and sharing; records the page view fire-and-forget once auth resolved (#196)
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiError, apiClient, trackPageView, type BookingOffer, type EventCompanions, type EventDetails, type EventForecast, type EventMoodTag, type EventNearbySpot, type TravelOption } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import type { OrganizerRating, ParticipationStatus, Payment } from "@max-events/api-contracts";
-import { useViewerOrigin } from "../geo/viewer-origin";
+import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { openChatLink, openExternalLink, shareResult, getWebApp } from "../max/bridge";
 import { sharePayload } from "../max/links";
 import { SubscribeToggle } from "../subscriptions/SubscribeToggle";
@@ -196,10 +196,13 @@ export function EventPage({ id }: { id: string }) {
   }, [id, userId]);
 
   const placeId = state.status === "ready" ? state.details.place?.id : undefined;
+  const eventCity = state.status === "ready" ? state.details.event.city : "";
+  // The route is inside the event's city. A GPS fix in another region is not the start of that walk.
+  const travelPoint = useMemo(() => (eventCity === "" ? origin : browsedCityOrigin(origin, eventCity)), [origin, eventCity]);
   useEffect(() => {
     if (placeId === undefined) return;
     let alive = true;
-    apiClient.getTravelOptions(placeId, { latitude: origin.latitude, longitude: origin.longitude }).then(
+    apiClient.getTravelOptions(placeId, { latitude: travelPoint.latitude, longitude: travelPoint.longitude }).then(
       (options) => {
         if (alive) setTravel(walkingOption(options));
       },
@@ -208,7 +211,7 @@ export function EventPage({ id }: { id: string }) {
     return () => {
       alive = false;
     };
-  }, [placeId, origin.latitude, origin.longitude]);
+  }, [placeId, travelPoint.latitude, travelPoint.longitude]);
 
   const [promoCode, setPromoCode] = useState("");
   const [referralCode, setReferralCode] = useState("");

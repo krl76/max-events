@@ -27,7 +27,7 @@ import { apiClient, type CatalogCard, type EventFilters } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CatalogPage } from "../catalog/CatalogPage";
 import { CATEGORY_LABELS } from "../catalog/format";
-import { useViewerOrigin } from "../geo/viewer-origin";
+import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
 import { formatPickDistance, formatPickPrice, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, type TodayState } from "../today/TodaySection";
 import { ActionIcon } from "../ui/icons";
@@ -196,18 +196,21 @@ interface SearchNearbyProps {
   state: SearchState;
   query: string;
   expanded: boolean;
+  /** The rail lists one city. When the viewer is outside it, the title must not say the events are nearby. */
+  inCity?: boolean;
   onExpand: () => void;
   onOpenEvent: (eventId: string) => void;
   onRetry: () => void;
 }
 
-export function SearchNearby({ state, query, expanded, onExpand, onOpenEvent, onRetry }: SearchNearbyProps) {
+export function SearchNearby({ state, query, expanded, inCity = true, onExpand, onOpenEvent, onRetry }: SearchNearbyProps) {
   const searching = query.trim() !== "";
   const cards = state.status === "ready" ? state.cards : [];
+  const idleTitle = inCity ? "Сегодня рядом" : "Сегодня в городе";
   return (
-    <section className="app-rail" aria-label={searching ? "Результаты поиска" : "Сегодня рядом"}>
+    <section className="app-rail" aria-label={searching ? "Результаты поиска" : idleTitle}>
       <div className="app-rail-head">
-        <h2 className="app-screen-title">{searching ? "Результаты поиска" : "Сегодня рядом"}</h2>
+        <h2 className="app-screen-title">{searching ? "Результаты поиска" : idleTitle}</h2>
         {!searching && !expanded && (
           <button type="button" className="app-rail-all" onClick={onExpand}>
             Смотреть все
@@ -227,7 +230,7 @@ export function SearchNearby({ state, query, expanded, onExpand, onOpenEvent, on
           Не удалось загрузить события.
         </AppState>
       )}
-      {state.status === "ready" && cards.length === 0 && <AppState>{searching ? "Ничего не найдено. Попробуйте другой запрос." : "Рядом сегодня пусто. Загляните позже!"}</AppState>}
+      {state.status === "ready" && cards.length === 0 && <AppState>{searching ? "Ничего не найдено. Попробуйте другой запрос." : inCity ? "Рядом сегодня пусто. Загляните позже!" : "В городе сегодня пусто. Загляните позже!"}</AppState>}
       {state.status === "ready" && cards.length > 0 && (
         // Горизонтальная лента — витрина; найденное читают списком, а не прокруткой вбок.
         <div className={searching ? "app-rail-list" : "app-rail-strip"}>
@@ -271,11 +274,16 @@ interface SearchViewProps {
   onNearby: () => void;
   onOpenProfile: () => void;
   onRetry: () => void;
+  /** False when the digest is measured from the profile city's center, not from the viewer. */
+  distancesFromViewer?: boolean;
+  /** False when the rail is measured from the selected city's center. */
+  catalogInCity?: boolean;
 }
 
 export function SearchView(props: SearchViewProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const hint = props.today.status === "ready" ? todayAfterMeCard(props.today.today) : null;
+  const distanceFrom = props.distancesFromViewer === false ? "center" : "you";
   return (
     <div className="app-search">
       <SearchTopBar city={props.city} cities={props.cities.length === 0 ? [props.city] : props.cities} onCity={props.onCity} initial={props.initial} searchOpen={searchOpen} onToggleSearch={() => setSearchOpen((open) => !open)} onOpenProfile={props.onOpenProfile} />
@@ -288,11 +296,11 @@ export function SearchView(props: SearchViewProps) {
         ))}
       </div>
       <SearchEntryTiles onSwipe={props.onSwipe} onMap={props.onMap} />
-      <TodaySummaryBlock state={props.today} now={props.now} />
+      <TodaySummaryBlock state={props.today} now={props.now} distanceFrom={distanceFrom} />
       <SearchWayTiles onWhereto={props.onWhereto} onNearby={props.onNearby} />
-      <TodayPicksBlock state={props.today} onOpen={props.onOpenEvent} onRetry={props.onRetry} />
-      {hint !== null && !props.hintDismissed && <TodayAfterMeCard card={hint} onShow={props.onNearby} onDismiss={props.onDismissHint} />}
-      <SearchNearby state={props.state} query={props.query} expanded={props.expanded} onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
+      <TodayPicksBlock state={props.today} onOpen={props.onOpenEvent} onRetry={props.onRetry} distanceFrom={distanceFrom} />
+      {hint !== null && !props.hintDismissed && <TodayAfterMeCard card={hint} onShow={props.onNearby} onDismiss={props.onDismissHint} distanceFrom={distanceFrom} />}
+      <SearchNearby state={props.state} query={props.query} expanded={props.expanded} inCity={props.catalogInCity !== false} onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />
       {/* Полный каталог с его фильтрами по дате, городу и рейтингу: витрина выше показывает ближайшее, вход в каталог живёт здесь */}
       {props.expanded && <CatalogPage />}
     </div>
@@ -307,6 +315,7 @@ export function SearchPage() {
   const [recents, setRecents] = useState<string[]>(readRecentSearches);
   const [category, setCategory] = useState<EventCategory | undefined>(undefined);
   const [city, setCity] = useState("Москва");
+  const [homeCity, setHomeCity] = useState<string | null>(null);
   const [cities, setCities] = useState<string[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [hintDismissed, setHintDismissed] = useState(false);
@@ -316,12 +325,28 @@ export function SearchPage() {
   const now = new Date();
 
   // «Сегодня рядом» is ordered by distance, so the sort travels with the request rather than being redone here (#497).
+  // A GPS fix outside the opened city would mark every card «далеко»; the city's own center is the point then.
+  const catalogPoint = useMemo(() => browsedCityOrigin(origin, city), [origin, city]);
+  const todayPoint = useMemo(() => browsedCityOrigin(origin, homeCity ?? city), [origin, homeCity, city]);
   const filters = useMemo<EventFilters>(() => ({ category, city, query: query.trim() || undefined, sort: "near" }), [category, city, query]);
 
   useEffect(() => {
     let alive = true;
+    apiClient.getProfile().then(
+      (profile) => {
+        if (alive) setHomeCity(profile.city);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
     setState({ status: "loading" });
-    apiClient.listEventCards(filters, { latitude: origin.latitude, longitude: origin.longitude }).then(
+    apiClient.listEventCards(filters, { latitude: catalogPoint.latitude, longitude: catalogPoint.longitude }).then(
       (cards) => {
         if (alive) setState({ status: "ready", cards });
       },
@@ -332,12 +357,12 @@ export function SearchPage() {
     return () => {
       alive = false;
     };
-  }, [filters, origin.latitude, origin.longitude, attempt]);
+  }, [filters, catalogPoint.latitude, catalogPoint.longitude, attempt]);
 
   useEffect(() => {
     let alive = true;
     setToday({ status: "loading" });
-    apiClient.getToday({ latitude: origin.latitude, longitude: origin.longitude }).then(
+    apiClient.getToday({ latitude: todayPoint.latitude, longitude: todayPoint.longitude }).then(
       (digest) => {
         if (alive) setToday({ status: "ready", today: digest });
       },
@@ -348,7 +373,7 @@ export function SearchPage() {
     return () => {
       alive = false;
     };
-  }, [origin.latitude, origin.longitude, attempt]);
+  }, [todayPoint.latitude, todayPoint.longitude, attempt]);
 
   // Список городов читается один раз и из нефильтрованного каталога: отфильтруй его по городу — и в
   // переключателе останется ровно тот город, который уже выбран. Справочника городов в бэкенде нет.
@@ -374,5 +399,5 @@ export function SearchPage() {
     });
   }, [query]);
 
-  return <SearchView state={state} today={today} query={query} onQuery={setQuery} onSubmit={submit} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} initial={auth.status === "authenticated" ? auth.user.firstName.charAt(0) : "?"} expanded={expanded} onExpand={() => setExpanded(true)} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onOpenProfile={() => navigate({ name: "profile" })} onRetry={() => setAttempt((count) => count + 1)} />;
+  return <SearchView state={state} today={today} query={query} onQuery={setQuery} onSubmit={submit} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} initial={auth.status === "authenticated" ? auth.user.firstName.charAt(0) : "?"} expanded={expanded} onExpand={() => setExpanded(true)} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onOpenProfile={() => navigate({ name: "profile" })} onRetry={() => setAttempt((count) => count + 1)} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />;
 }

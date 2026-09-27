@@ -203,7 +203,8 @@ export function PlacePageView({ place, page, board, checkedIn, onBack, onCheckIn
         <span className="app-place-blob" aria-hidden="true" />
         <span className="app-place-blob app-place-blob--cyan" aria-hidden="true" />
         <button type="button" className="app-place-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2.5} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <div className="app-place-hero-veil">
           <span className="app-place-kind">{placeKindLabel(place, board?.openUntil ?? null)}</span>
@@ -219,7 +220,8 @@ export function PlacePageView({ place, page, board, checkedIn, onBack, onCheckIn
               </span>
             )}
             <button type="button" className="app-place-create" aria-label="Создать событие здесь" onClick={onCreateHere}>
-              <ActionIcon name="plus" size={20} strokeWidth={2.4} />
+              <ActionIcon name="plus" size={18} strokeWidth={2.4} />
+              Создать
             </button>
           </div>
           <p className="app-place-hero-hint">Место можно отмечать раз в сутки, событие — один раз</p>

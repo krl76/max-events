@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { todayPicks } from "../api/mock";
-import { formatPickDistance, formatPickPrice, formatPickRating, formatTodayDate, formatWalkAway, pickWhere, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, todayLabel, todayPickCards, type TodayState } from "./TodaySection";
+import { formatPickDistance, formatPickPrice, formatPickRating, formatTodayDate, formatWalkAway, nearbyStatLabel, pickWhere, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, todayLabel, todayPickCards, type TodayState } from "./TodaySection";
 
 const noop = () => {};
 const digest = todayPicks();
@@ -15,6 +15,9 @@ describe("today formatting", () => {
     expect(todayLabel({ kind: "distance", minutes: 1 })).toBe("1 минута от тебя");
     expect(formatWalkAway(11109)).toBe("далеко от тебя");
     expect(formatWalkAway(200)).toBe("16 км от тебя");
+    expect(formatWalkAway(20, "center")).toBe("20 минут от центра");
+    expect(nearbyStatLabel(2)).toBe("события рядом");
+    expect(nearbyStatLabel(2, "center")).toBe("события в городе");
     expect(todayLabel({ kind: "friend_attending", friendName: "Анна" })).toBe("Идёт Анна");
     expect(todayLabel({ kind: "free_entry" })).toBe("Свободный вход");
     expect(todayLabel({ kind: "spots_left", count: 12 })).toBe("Осталось 12 мест");

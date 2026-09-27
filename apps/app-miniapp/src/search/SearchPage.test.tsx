@@ -89,7 +89,7 @@ describe("search entries", () => {
 });
 
 describe("SearchNearby", () => {
-  const rail = (over: { state?: SearchState; query?: string; expanded?: boolean } = {}) => renderToStaticMarkup(createElement(SearchNearby, { state: over.state ?? READY, query: over.query ?? "", expanded: over.expanded ?? false, onExpand: noop, onOpenEvent: noop, onRetry: noop }));
+  const rail = (over: { state?: SearchState; query?: string; expanded?: boolean; inCity?: boolean } = {}) => renderToStaticMarkup(createElement(SearchNearby, { state: over.state ?? READY, query: over.query ?? "", expanded: over.expanded ?? false, inCity: over.inCity, onExpand: noop, onOpenEvent: noop, onRetry: noop }));
 
   it("shows the horizontal rail with «Смотреть все» while nothing is being searched", () => {
     const html = rail();
@@ -118,6 +118,8 @@ describe("SearchNearby", () => {
 
     expect(rail({ state: empty, query: "несуществующий-запрос" })).toContain("Ничего не найдено");
     expect(rail({ state: empty })).toContain("Рядом сегодня пусто");
+    expect(rail({ state: empty, inCity: false })).toContain("Сегодня в городе");
+    expect(rail({ state: empty, inCity: false })).toContain("В городе сегодня пусто");
   });
 
   it("renders the loading and error states of the rail", () => {

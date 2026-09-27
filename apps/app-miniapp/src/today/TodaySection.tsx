@@ -7,7 +7,9 @@
 //
 // START_MODULE_MAP
 // - TodayState - union of today digest fetch states (loading / error / ready)
+// - DistanceVoice - «от тебя» when the viewer is in the city, «от центра» when the point is the city center
 // - formatWalkAway - minutes up to a short walk, then kilometers, then «далеко» past 80 km
+// - nearbyStatLabel - «2 события рядом» or «2 события в городе»
 // - todayLabel - TodayCardLabel -> ru text («15 минут от тебя», «Идёт Анна», «Свободный вход», «Осталось 12 мест»; after_me gives its headline)
 // - formatTodayDate - «18 сентября» — the date next to the block title
 // - formatPickWhen - «19 сент. · 14:00» — the when line of a pick
@@ -35,15 +37,28 @@ const WALK_MINUTE_CAP = 90;
 const WALK_METERS_PER_MINUTE = 80;
 const FAR_KM = 80;
 
-export function formatWalkAway(minutes: number): string {
-  if (minutes <= WALK_MINUTE_CAP) return `${minutes} ${pluralRu(minutes, "минута", "минуты", "минут")} от тебя`;
-  const km = Math.max(1, Math.round((minutes * WALK_METERS_PER_MINUTE) / 1000));
-  if (km > FAR_KM) return "далеко от тебя";
-  return `${km.toLocaleString("ru-RU")} км от тебя`;
+export type DistanceVoice = "you" | "center";
+
+function awayFrom(voice: DistanceVoice): string {
+  return voice === "center" ? "от центра" : "от тебя";
 }
 
-export function todayLabel(label: TodayCardLabel): string {
-  if (label.kind === "distance") return formatWalkAway(label.minutes);
+export function formatWalkAway(minutes: number, voice: DistanceVoice = "you"): string {
+  const who = awayFrom(voice);
+  if (minutes <= WALK_MINUTE_CAP) return `${minutes} ${pluralRu(minutes, "минута", "минуты", "минут")} ${who}`;
+  const km = Math.max(1, Math.round((minutes * WALK_METERS_PER_MINUTE) / 1000));
+  if (km > FAR_KM) return `далеко ${who}`;
+  return `${km.toLocaleString("ru-RU")} км ${who}`;
+}
+
+/** The digest count is the city's upcoming events. «рядом» is only true when the viewer is in that city. */
+export function nearbyStatLabel(count: number, voice: DistanceVoice = "you"): string {
+  const noun = pluralRu(count, "событие", "события", "событий");
+  return voice === "center" ? `${noun} в городе` : `${noun} рядом`;
+}
+
+export function todayLabel(label: TodayCardLabel, voice: DistanceVoice = "you"): string {
+  if (label.kind === "distance") return formatWalkAway(label.minutes, voice);
   if (label.kind === "friend_attending") return `Идёт ${label.friendName}`;
   if (label.kind === "free_entry") return "Свободный вход";
   if (label.kind === "after_me") return `После ${label.fromCategory} ты обычно идёшь дальше`;
@@ -93,7 +108,7 @@ export function todayPickCards(today: TodayDigest): TodayCard[] {
   return today.cards.filter((card) => !card.labels.some((label) => label.kind === "after_me"));
 }
 
-export function TodaySummaryBlock({ state, now }: { state: TodayState; now: Date }) {
+export function TodaySummaryBlock({ state, now, distanceFrom = "you" }: { state: TodayState; now: Date; distanceFrom?: DistanceVoice }) {
   const summary = state.status === "ready" ? state.today.summary : null;
   return (
     <section className="app-today" aria-label="Сегодня для тебя">
@@ -113,7 +128,7 @@ export function TodaySummaryBlock({ state, now }: { state: TodayState; now: Date
           <>
             <span className="app-today-stat">
               <span className="app-today-stat-value">{summary.nearbyCount}</span>
-              <span className="app-today-stat-label">{pluralRu(summary.nearbyCount, "событие", "события", "событий")} рядом</span>
+              <span className="app-today-stat-label">{nearbyStatLabel(summary.nearbyCount, distanceFrom)}</span>
             </span>
             {summary.suitableCount > 0 && (
               <span className="app-today-stat">
@@ -130,14 +145,12 @@ export function TodaySummaryBlock({ state, now }: { state: TodayState; now: Date
           </>
         )}
       </div>
-      {summary !== null && summary.suitableCount === 0 && summary.withFriendsCount === 0 && (
-        <p className="app-today-quiet">Под интересы и с друзьями пока ничего. Интересы правятся в профиле.</p>
-      )}
+      {summary !== null && summary.suitableCount === 0 && summary.withFriendsCount === 0 && <p className="app-today-quiet">Под интересы и с друзьями пока ничего. Интересы правятся в профиле.</p>}
     </section>
   );
 }
 
-function PickCard({ card, hero, onOpen }: { card: TodayCard; hero: boolean; onOpen: (eventId: string) => void }) {
+function PickCard({ card, hero, onOpen, distanceFrom }: { card: TodayCard; hero: boolean; onOpen: (eventId: string) => void; distanceFrom: DistanceVoice }) {
   const rating = formatPickRating(card.rating);
   const distance = formatPickDistance(card.distanceKm);
   return (
@@ -168,7 +181,7 @@ function PickCard({ card, hero, onOpen }: { card: TodayCard; hero: boolean; onOp
             <span className="app-pick-labels">
               {card.labels.map((label, index) => (
                 <span key={index} className="app-pick-label">
-                  {todayLabel(label)}
+                  {todayLabel(label, distanceFrom)}
                 </span>
               ))}
             </span>
@@ -195,7 +208,7 @@ function PickCard({ card, hero, onOpen }: { card: TodayCard; hero: boolean; onOp
   );
 }
 
-export function TodayPicksBlock({ state, onOpen, onRetry }: { state: TodayState; onOpen: (eventId: string) => void; onRetry: () => void }) {
+export function TodayPicksBlock({ state, onOpen, onRetry, distanceFrom = "you" }: { state: TodayState; onOpen: (eventId: string) => void; onRetry: () => void; distanceFrom?: DistanceVoice }) {
   const cards = state.status === "ready" ? todayPickCards(state.today) : [];
   const [hero, ...rest] = cards;
   return (
@@ -208,11 +221,11 @@ export function TodayPicksBlock({ state, onOpen, onRetry }: { state: TodayState;
         </AppState>
       )}
       {state.status === "ready" && hero === undefined && <AppState>На сегодня пока ничего нет. Загляните позже!</AppState>}
-      {hero !== undefined && <PickCard card={hero} hero onOpen={onOpen} />}
+      {hero !== undefined && <PickCard card={hero} hero onOpen={onOpen} distanceFrom={distanceFrom} />}
       {rest.length > 0 && (
         <div className="app-picks-grid">
           {rest.map((card) => (
-            <PickCard key={card.event.id} card={card} hero={false} onOpen={onOpen} />
+            <PickCard key={card.event.id} card={card} hero={false} onOpen={onOpen} distanceFrom={distanceFrom} />
           ))}
         </div>
       )}
@@ -225,7 +238,7 @@ export function TodayPicksBlock({ state, onOpen, onRetry }: { state: TodayState;
  * so its chips are the other labels of that same card. It can be turned down: a suggestion that
  * cannot be refused is an instruction.
  */
-export function TodayAfterMeCard({ card, onShow, onDismiss }: { card: TodayCard; onShow: () => void; onDismiss: () => void }) {
+export function TodayAfterMeCard({ card, onShow, onDismiss, distanceFrom = "you" }: { card: TodayCard; onShow: () => void; onDismiss: () => void; distanceFrom?: DistanceVoice }) {
   const hint = card.labels.find((label) => label.kind === "after_me");
   if (hint === undefined || hint.kind !== "after_me") return null;
   const chips = card.labels.filter((label) => label.kind !== "after_me");
@@ -243,7 +256,7 @@ export function TodayAfterMeCard({ card, onShow, onDismiss }: { card: TodayCard;
           {chips.map((label, index) => (
             <span key={index} className="app-afterme-chip">
               <ActionIcon name={label.kind === "distance" ? "pin" : label.kind === "spots_left" ? "seat" : label.kind === "friend_attending" ? "user" : "ticket"} size={13} />
-              {todayLabel(label)}
+              {todayLabel(label, distanceFrom)}
             </span>
           ))}
         </div>
