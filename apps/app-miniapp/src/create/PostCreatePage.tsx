@@ -26,10 +26,12 @@ import { apiClient, POST_AUDIENCES, type CreateFeedPost, type PostAudience, type
 import { useAuth } from "../auth/AuthContext";
 import { readFeedPhoto } from "../feed/photo";
 import { useRoute } from "../routing/router";
+import { EventPicker } from "../ui/EventPicker";
 import { friendHandle } from "../ui/friend-handle";
 import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
 import { PinPicker } from "../ui/PinPicker";
+import { AppMedia } from "../ui/primitives";
 
 /** Сетка макета — крупная плитка плюс колонка из двух: три кадра и есть потолок. */
 export const POST_PHOTO_LIMIT = 3;
@@ -106,9 +108,9 @@ interface PostCreateViewProps {
 
 export function PostCreateView({ draft, authorName, events, places, friends, state, photoRejected, draftSaved, onDraft, onPickPhoto, onPublish, onClose }: PostCreateViewProps) {
   const textRef = useRef<HTMLTextAreaElement | null>(null);
-  const eventRef = useRef<HTMLSelectElement | null>(null);
   const [taggingOpen, setTaggingOpen] = useState(false);
   const [pickingPin, setPickingPin] = useState(false);
+  const [pickingEvent, setPickingEvent] = useState(false);
   const missing = missingPostFields(draft);
   const boundEvent = events.find((event) => event.id === draft.eventId) ?? null;
   const boundPlace = places.find((place) => place.id === draft.placeId) ?? null;
@@ -118,8 +120,9 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
   return (
     <section className="app-post-compose" aria-label="Публикация поста">
       <header className="app-post-compose-head">
-        <button type="button" className="app-post-compose-close" aria-label="Закрыть" onClick={onClose}>
-          <ActionIcon name="close" size={18} strokeWidth={2.6} />
+        <button type="button" className="app-post-compose-back" onClick={onClose}>
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <span className="app-post-compose-title">Новый пост</span>
         <button type="button" className="app-post-compose-publish" disabled={state === "publishing"} onClick={() => {
@@ -180,33 +183,40 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
 
         <div className="app-post-compose-rows">
           <div className="app-post-compose-row app-post-compose-row--event">
-            <span className="app-post-compose-row-media" aria-hidden="true" />
-            <span className="app-post-compose-row-text">
-              <span className="app-post-compose-row-title">{boundEvent === null ? "Привязать событие" : boundEvent.title}</span>
-              <span className="app-post-compose-row-note">{boundEvent === null ? "Можно опубликовать и без события" : postEventLine(boundEvent.startsAt)}</span>
-            </span>
-            {boundEvent === null ? (
-              <span className="app-post-compose-row-chevron" aria-hidden="true">
-                <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+            <button type="button" className="app-post-compose-row-hit" onClick={() => setPickingEvent(true)}>
+              {boundEvent === null ? (
+                <span className="app-post-compose-row-media" aria-hidden="true" />
+              ) : (
+                <AppMedia category={boundEvent.category} src={boundEvent.coverUrl} className="app-post-compose-thumb" />
+              )}
+              <span className="app-post-compose-row-text">
+                <span className="app-post-compose-row-title">{boundEvent === null ? "Привязать событие" : boundEvent.title}</span>
+                <span className="app-post-compose-row-note">{boundEvent === null ? "Фото, дата и место — в окне выбора" : postEventLine(boundEvent.startsAt)}</span>
               </span>
-            ) : (
+              {boundEvent === null && (
+                <span className="app-post-compose-row-chevron" aria-hidden="true">
+                  <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+                </span>
+              )}
+            </button>
+            {boundEvent !== null && (
               <button type="button" className="app-post-compose-row-drop" aria-label="Отвязать событие" onClick={() => onDraft({ ...draft, eventId: null, allowJoin: false, placeId: null })}>
                 <ActionIcon name="close" size={18} strokeWidth={2.6} />
               </button>
             )}
-            {boundEvent === null && (
-              <select ref={eventRef} className="app-post-compose-row-pick" aria-label="Событие поста" value="" onChange={(change) => onDraft({ ...draft, eventId: change.target.value })}>
-                <option value="" disabled>
-                  Выберите событие
-                </option>
-                {events.map((event) => (
-                  <option key={event.id} value={event.id}>
-                    {event.title}
-                  </option>
-                ))}
-              </select>
-            )}
           </div>
+          {pickingEvent && (
+            <EventPicker
+              title="Событие поста"
+              events={events}
+              selectedId={draft.eventId}
+              onPick={(event) => {
+                onDraft({ ...draft, eventId: event.id });
+                setPickingEvent(false);
+              }}
+              onClose={() => setPickingEvent(false)}
+            />
+          )}
 
           <button type="button" className="app-post-compose-row app-post-compose-row--button" onClick={() => setPickingPin(true)}>
             <ActionIcon name="pin" size={20} strokeWidth={2} />
@@ -274,8 +284,7 @@ export function PostCreateView({ draft, authorName, events, places, friends, sta
         <button type="button" className="app-post-compose-attach" aria-label="Добавить фото" disabled={!addTile} onClick={onPickPhoto}>
           <ActionIcon name="camera" size={24} strokeWidth={2} />
         </button>
-        {/* Выключена, пока событие уже привязано: списка на экране в этот момент нет, и кнопка вела бы в никуда */}
-        <button type="button" className="app-post-compose-attach" aria-label="Привязать событие" disabled={boundEvent !== null} onClick={() => eventRef.current?.focus()}>
+        <button type="button" className="app-post-compose-attach" aria-label="Привязать событие" onClick={() => setPickingEvent(true)}>
           <ActionIcon name="calendar" size={24} strokeWidth={2} />
         </button>
         <button type="button" className="app-post-compose-attach" aria-label="Добавить место" onClick={() => setPickingPin(true)}>

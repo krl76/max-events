@@ -22,6 +22,7 @@ import { toEventDto } from "../events/events.service";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
 import { PlaceEntity } from "../places/place.entity";
 import { toPlaceDto } from "../places/places.service";
+import { miniappLink } from "../time/human-when";
 import { UserEntity } from "../users/user.entity";
 import { CalendarGoingEntity } from "./calendar-going.entity";
 import { CalendarInviteEntity } from "./calendar-invite.entity";
@@ -78,7 +79,7 @@ export class CalendarService {
     };
   }
 
-  async shared(userId: string, range: CalendarRange = { from: null, to: null }, host: string | null = null): Promise<SharedCalendar> {
+  async shared(userId: string, range: CalendarRange = { from: null, to: null }, _host: string | null = null): Promise<SharedCalendar> {
     const granted = await this.shares.find({ where: { ownerUserId: userId } });
     const incoming = await this.shares.find({ where: { peerUserId: userId } });
     const peerIds = [...new Set(granted.map((row) => row.peerUserId))];
@@ -117,7 +118,7 @@ export class CalendarService {
       ];
     });
     entries.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-    return { peers, entries, inviteUrl: await this.inviteUrlFor(userId, host) };
+    return { peers, entries, inviteUrl: await this.inviteUrlFor(userId) };
   }
 
   async addPeer(userId: string, peerId: string, canEdit = true, host: string | null = null): Promise<SharedCalendar> {
@@ -172,13 +173,13 @@ export class CalendarService {
     await this.shares.save(this.shares.create({ ownerUserId, peerUserId, canEdit }));
   }
 
-  private async inviteUrlFor(userId: string, host: string | null): Promise<string> {
+  private async inviteUrlFor(userId: string): Promise<string> {
     let invite = await this.invites.findOneBy({ userId });
     if (!invite) {
       invite = await this.invites.save(this.invites.create({ userId, token: randomUUID() }));
     }
-    const path = `/calendar/invite/${invite.token}`;
-    return host ? `https://${host}${path}` : path;
+    // The website path opened a browser tab. startapp=calendar-<token> opens the bot on that invite.
+    return miniappLink(`calendar-${invite.token}`) ?? `calendar-${invite.token}`;
   }
 }
 

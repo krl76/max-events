@@ -26,6 +26,7 @@ import { apiClient, ApiError, whenEndpointMissing, type CalendarEntry, type Chec
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { shareResult, webApp } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { companyLabel, formatBookingDate, formatRub, formatSlotWindow, formatTime } from "../place/slots";
 import { CodeBlock } from "./BookingTicketPage";
 import { useRoute } from "../routing/router";
@@ -405,7 +406,9 @@ export function MyBookingsPage() {
   };
   const share = (card: BookingCard) => {
     setMenuId(null);
-    void shareResult(webApp, `${card.title} · ${card.venue}, ${card.meta}`);
+    const start = card.kind === "slot" ? `booking-${card.id}` : card.eventId !== null ? `event-${card.eventId}` : card.placeId !== null ? `place-${card.placeId}` : null;
+    const payload = sharePayload(`${card.title} · ${card.venue}, ${card.meta}`, start);
+    void shareResult(webApp, payload.text, payload.link);
   };
   const openReschedule = (card: BookingCard) => {
     setPicker({ card, events: [], error: null, busy: true });

@@ -24,6 +24,7 @@ import type { Event, Friend, Story } from "@max-events/api-contracts";
 import { apiClient, type FeedPost } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { shareResult, webApp } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { readFeedPhoto } from "./photo";
 import { useRoute } from "../routing/router";
 import { ReportButton } from "../event/ReportButton";
@@ -87,7 +88,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         <button type="button" className="app-post-action" aria-label="Комментировать" onClick={() => commentRef.current?.focus()}>
           <ActionIcon name="comment" />
         </button>
-        <button type="button" className="app-post-action" aria-label="Поделиться" onClick={() => void shareResult(webApp, `${post.author.name} — ${eventTitle}: ${post.text}`)}>
+        <button type="button" className="app-post-action" aria-label="Поделиться" onClick={() => { const payload = sharePayload(`${post.author.name} — ${eventTitle}: ${post.text}`, post.eventId ? `event-${post.eventId}` : `post-${post.id}`); void shareResult(webApp, payload.text, payload.link); }}>
           <ActionIcon name="share" />
         </button>
         {userId === "" ? (

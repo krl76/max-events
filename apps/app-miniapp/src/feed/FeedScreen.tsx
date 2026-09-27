@@ -35,6 +35,7 @@ import { apiClient, type FeedCard, type FeedCardCounts, type FeedComment, type F
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
 import { announceShare, getWebApp, shareResult } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { replayScroll } from "../ui/scroll-memory";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
@@ -584,7 +585,11 @@ export function FeedScreen() {
       void settle(card.myStatus === "going" ? apiClient.deleteParticipation(card.event.id, userId) : apiClient.setParticipationStatus(card.event.id, userId, "going"));
     },
     onOpenComments: (card) => navigate({ name: "post", id: card.id }),
-    onShare: (card) => void shareResult(getWebApp(), card.event ? `${card.author.name} — ${card.event.title}: ${card.text}` : `${card.author.name}: ${card.text}`).then(announceShare),
+    onShare: (card) => {
+      const sentence = card.event ? `${card.author.name} — ${card.event.title}: ${card.text}` : `${card.author.name}: ${card.text}`;
+      const payload = sharePayload(sentence, card.event ? `event-${card.event.id}` : `post-${card.id}`);
+      void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
+    },
     onPlaceStatus: (card, status) => {
       if (userId === null) return;
       void settle(apiClient.setPlaceParticipationStatus(card.place.id, userId, card.myStatus === status ? null : status));

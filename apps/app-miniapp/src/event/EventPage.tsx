@@ -23,6 +23,7 @@ import { useAuth } from "../auth/AuthContext";
 import type { OrganizerRating, ParticipationStatus, Payment } from "@max-events/api-contracts";
 import { useViewerOrigin } from "../geo/viewer-origin";
 import { openChatLink, openExternalLink, shareResult, getWebApp } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { SubscribeToggle } from "../subscriptions/SubscribeToggle";
 import { useRoute } from "../routing/router";
 import { AppState } from "../ui/primitives";
@@ -297,7 +298,8 @@ export function EventPage({ id }: { id: string }) {
 
   const share = useCallback(() => {
     if (state.status !== "ready") return;
-    void shareResult(getWebApp(), eventShareText(state.details.event));
+    const payload = sharePayload(eventShareText(state.details.event), `event-${state.details.event.id}`);
+    void shareResult(getWebApp(), payload.text, payload.link);
   }, [state]);
 
   if (state.status === "loading" || userId === null) return <AppState>Загрузка…</AppState>;

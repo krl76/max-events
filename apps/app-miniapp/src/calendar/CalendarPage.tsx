@@ -25,6 +25,7 @@ import { apiClient, isEndpointMissing, type CalendarEntry, type SharedCalendar }
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { shareResult, webApp } from "../max/bridge";
+import { sharePayload, startParamFromSharedUrl } from "../max/links";
 import { useRoute } from "../routing/router";
 import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
@@ -149,10 +150,19 @@ export function filterCalendarScope(entries: CalendarDayEntry[], scope: "own" | 
   return entries.filter((entry) => entry.ownerId === scope || (entry.sources.includes("own") && peerDays.has(dayKey(entry.startsAt))));
 }
 
-export function calendarShareText(shared: SharedCalendar): string {
+export function calendarShare(shared: SharedCalendar): { text: string; link?: string } {
   const names = shared.peers.map((peer) => peer.friend.name).join(", ");
   const head = names === "" ? "Мой календарь планов в MAX Афише" : `Общий календарь планов: ${names}`;
-  return shared.inviteUrl === null ? head : `${head} — ${shared.inviteUrl}`;
+  const param = shared.inviteUrl === null ? null : startParamFromSharedUrl(shared.inviteUrl);
+  if (param !== null) return sharePayload(head, param);
+  if (shared.inviteUrl !== null && /^https:\/\/([a-z0-9-]+\.)*max\.ru(\/|$)/i.test(shared.inviteUrl)) {
+    return { text: `${head}\n${shared.inviteUrl}`, link: shared.inviteUrl };
+  }
+  return { text: head };
+}
+
+export function calendarShareText(shared: SharedCalendar): string {
+  return calendarShare(shared).text;
 }
 
 function DayRow({ entry, onOpen, onGoing }: { entry: CalendarDayEntry; onOpen: () => void; onGoing: () => void }) {
@@ -323,7 +333,7 @@ export function SharedCalendarView({
   );
 }
 
-export function CalendarPage({ tab = "month" }: { tab?: CalendarTab } = {}) {
+export function CalendarPage({ tab = "month", inviteToken, embedded = false }: { tab?: CalendarTab; inviteToken?: string; embedded?: boolean } = {}) {
   const auth = useAuth();
   const { navigate } = useRoute();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
@@ -364,16 +374,22 @@ export function CalendarPage({ tab = "month" }: { tab?: CalendarTab } = {}) {
   useEffect(() => {
     let alive = true;
     setShared({ status: "loading" });
-    apiClient.getSharedCalendar().then(
-      (loaded) => {
-        if (alive) setShared({ status: "ready", shared: loaded });
-      },
-      // Общего календаря на бэкенде нет вовсе — тогда блока просто нет; «не удалось» приберегаем
-      // для запроса, который мог бы пройти.
-      (error: unknown) => {
-        if (alive) setShared({ status: isEndpointMissing(error) ? "absent" : "error" });
-      },
-    );
+    const apply = (loaded: SharedCalendar) => {
+      if (alive) setShared({ status: "ready", shared: loaded });
+    };
+    // Общего календаря на бэкенде нет вовсе — тогда блока просто нет; «не удалось» приберегаем
+    // для запроса, который мог бы пройти.
+    const fail = (error: unknown) => {
+      if (alive) setShared({ status: isEndpointMissing(error) ? "absent" : "error" });
+    };
+    if (inviteToken) {
+      apiClient.acceptSharedCalendarInvite(inviteToken).then(apply, () => {
+        if (alive) setNotice("Приглашение не открылось. Показан твой календарь.");
+        apiClient.getSharedCalendar().then(apply, fail);
+      });
+    } else {
+      apiClient.getSharedCalendar().then(apply, fail);
+    }
     apiClient.listFriends().then(
       (loaded) => {
         if (alive) setFriends(loaded);
@@ -383,7 +399,7 @@ export function CalendarPage({ tab = "month" }: { tab?: CalendarTab } = {}) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [inviteToken]);
 
   const cancel = useCallback((bookingId: string) => {
     apiClient.cancelBooking(bookingId).then(
@@ -431,7 +447,8 @@ export function CalendarPage({ tab = "month" }: { tab?: CalendarTab } = {}) {
 
   const share = () => {
     if (shared.status !== "ready") return;
-    void shareResult(webApp, calendarShareText(shared.shared)).then(
+    const payload = calendarShare(shared.shared);
+    void shareResult(webApp, payload.text, payload.link).then(
       (channel) => setNotice(channel === "clipboard" ? "Ссылка скопирована — вставь её в чат MAX." : "Ссылка отправлена в чат MAX."),
       () => setNotice("Не удалось отправить ссылку."),
     );
@@ -466,7 +483,7 @@ export function CalendarPage({ tab = "month" }: { tab?: CalendarTab } = {}) {
           onShare={share}
           onAddFriend={() => setPicking(true)}
           notice={notice}
-          chrome
+          chrome={!embedded}
           onClose={() => navigate({ name: "plans" })}
           scope={scope}
           onSelectScope={setScope}

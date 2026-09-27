@@ -534,7 +534,7 @@ const MOCK_SHARED_ENTRY_SEED: SharedCalendarEntry[] = [sharedEntry("97000000-000
 
 const MOCK_SHARED_PEER_SEED: SharedCalendarPeer[] = [{ friend: mockFriends[0], canEdit: true }];
 
-const MOCK_SHARED_INVITE_URL = "https://max.ru/calendar/mock-shared";
+const MOCK_SHARED_INVITE_URL = "https://max.ru/se14352055_bot?startapp=calendar-018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93";
 
 const mockSharedEntries: SharedCalendarEntry[] = MOCK_SHARED_ENTRY_SEED.map((row) => ({ ...row }));
 

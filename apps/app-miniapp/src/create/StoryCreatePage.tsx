@@ -46,6 +46,7 @@ import { STORY_TEXT_COLORS, STORY_TEXT_FONTS, type Event, type Friend } from "@m
 import { apiClient, STORY_AUDIENCES, type EventDetails, type StoryAudience, type StoryCanvasObject, type StoryComposition, type StoryObjectKind, type StoryPlaceSticker, type StoryPoll } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { useRoute } from "../routing/router";
+import { EventPicker } from "../ui/EventPicker";
 import { friendHandle } from "../ui/friend-handle";
 import { StoryMentionText } from "../stories/story-text";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
@@ -582,7 +583,7 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
       onPointerDown={(event) => {
         const node = event.target;
         if (!(node instanceof Element)) return;
-        if (node.closest(".app-story-object, .app-story-bar, .app-story-foot, .app-story-event-sheet")) return;
+        if (node.closest(".app-story-object, .app-story-bar, .app-story-foot, .app-picker")) return;
         setToolsOpen(false);
         setEditing(null);
       }}
@@ -615,8 +616,9 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
       <span className="app-story-orb app-story-orb--status" aria-hidden="true" />
 
       <div className="app-story-bar">
-        <button type="button" className="app-story-round" aria-label="Закрыть" onClick={onClose}>
-          <ActionIcon name="close" size={18} strokeWidth={2.6} />
+        <button type="button" className="app-story-back" onClick={onClose}>
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <div className="app-story-bar-actions">
           <button type="button" className="app-story-add-text" onClick={() => putObject("text")}>
@@ -680,23 +682,16 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
         </ul>
       )}
       {pickingEvent && (
-        <div className="app-story-event-sheet" role="dialog" aria-label="Событие истории">
-          <div className="app-story-event-sheet-card">
-            <p className="app-story-event-sheet-title">Событие</p>
-            <ul className="app-story-event-sheet-list">
-              {events.map((event) => (
-                <li key={event.id}>
-                  <button type="button" aria-pressed={event.id === draft.eventId} onClick={() => { onDraft({ ...draft, eventId: event.id }); setPickingEvent(false); }}>
-                    {event.title}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <button type="button" className="app-story-event-sheet-close" onClick={() => setPickingEvent(false)}>
-              Закрыть
-            </button>
-          </div>
-        </div>
+        <EventPicker
+          title="Событие истории"
+          events={events}
+          selectedId={draft.eventId}
+          onPick={(event) => {
+            onDraft({ ...draft, eventId: event.id });
+            setPickingEvent(false);
+          }}
+          onClose={() => setPickingEvent(false)}
+        />
       )}
 
       <div className="app-story-foot">

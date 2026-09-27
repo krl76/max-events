@@ -134,7 +134,8 @@ describe("theme.css colour schemes", () => {
     const block = dark.slice(0, dark.indexOf("}"));
 
     expect(block).toContain("--app-scheme-neutral: 255, 255, 255;");
-    expect(block).toContain("--app-canvas: var(--brand-graphite);");
+    expect(block).toContain("--app-canvas: var(--brand-graphite-deep);");
+    expect(block).toContain("--app-card: var(--brand-graphite-card);");
     expect(block).toContain("--app-alpha-surface: 0.06;");
     expect(block).toContain("--app-alpha-border: 0.12;");
     expect(block).toContain("--app-alpha-text-secondary: 0.6;");

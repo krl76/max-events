@@ -75,6 +75,8 @@ describe("peersLabel", () => {
 describe("calendarShareText", () => {
   it("carries the invite link when one was issued", () => {
     expect(calendarShareText(sharedWith(["Анна Соколова"], "https://max.ru/c/1"))).toContain("https://max.ru/c/1");
+    expect(calendarShareText(sharedWith([], "https://events.versacegus.cc/calendar/invite/018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93"))).toContain("https://max.ru/se14352055_bot?startapp=calendar-018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93");
+    expect(calendarShareText(sharedWith([], "https://events.versacegus.cc/calendar/invite/018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93"))).not.toContain("events.versacegus.cc");
   });
 
   it("stays a sentence without peers and without a link", () => {

@@ -98,8 +98,11 @@ export const envSchema = z.object({
   // Optional JSON MAX user for AUTH_ALLOW_BROWSER. Unset = tools/max-dev-accounts.json owner.
   AUTH_BROWSER_USER: z.string().min(1).optional(),
   STORAGE_DIR: z.string().min(1).optional(),
-  // Origin of this miniapp, no path. Bot messages append ?startapp=plan-<id>. Blank or unset means no URL in the text.
+  // Kept so an older deploy env still parses. Chat links do not use it: they are max.ru/?startapp=.
   PUBLIC_APP_URL: z.preprocess((value) => (typeof value === "string" && value.trim() === "" ? undefined : value), z.string().url().optional()),
+  // https://max.ru/<bot>, no query. Bot messages and calendar invites append ?startapp=.
+  // Unset uses the built-in bot URL in miniappLink.
+  MAX_APP_URL: z.preprocess((value) => (typeof value === "string" && value.trim() === "" ? undefined : value), z.string().url().optional()),
 });
 
 export type Env = z.infer<typeof envSchema>;

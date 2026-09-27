@@ -131,7 +131,7 @@ function Routed() {
   if (route.name === "friends") return <FriendsPage />;
   if (route.name === "discovery") return <DiscoveryPage />;
   if (route.name === "people") return <PeoplePage />;
-  if (route.name === "calendar") return <CalendarPage />;
+  if (route.name === "calendar") return <PlansPage tab="calendar" inviteToken={route.inviteToken} />;
   if (route.name === "search") return <SearchPage />;
   if (route.name === "swipe") return <SwipePage />;
   if (route.name === "map") return <MapPage />;

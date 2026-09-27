@@ -22,6 +22,7 @@ import type { Friend, PlanBudget, PlanCancelScope, PlanCard, PlanParticipantStat
 import { ApiError, apiClient, isEndpointMissing, type PlanTimeline } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { openChatLink, shareResult, webApp } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppSkeleton, AppState } from "../ui/primitives";
@@ -106,8 +107,9 @@ export function PlanView({ state, timeline, budget, onBack = () => {}, onOpenEve
   return (
     <section className="app-plan">
       <header className="app-plan-top">
-        <button type="button" className="app-plan-back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2} />
+        <button type="button" className="app-plan-back" onClick={onBack}>
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <span className="app-plan-top-text">
           <span className="app-plan-top-line">
@@ -308,7 +310,8 @@ export function PlanPage({ id }: { id: string }) {
 
   const share = () => {
     if (card === null) return;
-    void shareResult(webApp, planShareText(card, timeline.status === "ready" ? timeline.timeline : null)).then(
+    const payload = sharePayload(planShareText(card, timeline.status === "ready" ? timeline.timeline : null), `plan-${card.plan.id}`);
+    void shareResult(webApp, payload.text, payload.link).then(
       (channel) => setNotice(channel === "clipboard" ? "План скопирован — вставь его в чат MAX." : "План отправлен в чат MAX."),
       () => setNotice("Не удалось отправить план в чат."),
     );

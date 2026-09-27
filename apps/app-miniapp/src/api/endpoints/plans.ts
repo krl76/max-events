@@ -231,5 +231,10 @@ export function withPlans<TBase extends ApiMixin>(Base: TBase) {
     removeSharedCalendarPeer(userId: string): Promise<SharedCalendar> {
       return this.request(`/calendar/shared/peers/${userId}`, SharedCalendarSchema, { method: "DELETE" });
     }
+
+    /** Open a calendar invite that arrived as startapp=calendar-<token>. */
+    acceptSharedCalendarInvite(token: string): Promise<SharedCalendar> {
+      return this.request("/calendar/shared/accept", SharedCalendarSchema, { method: "POST", body: { token } });
+    }
   };
 }

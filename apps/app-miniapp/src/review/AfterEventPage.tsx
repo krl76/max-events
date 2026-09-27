@@ -24,6 +24,7 @@ import { apiClient, type CreateReview, type FeedPost, type ReviewFactTag } from 
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
 import { shareResult, webApp } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppState } from "../ui/primitives";
@@ -277,7 +278,8 @@ export function AfterEventPage({ eventId }: { eventId: string }) {
         setSaveFailed(false);
         apiClient.createReview(verdictReview(userId, eventId, verdict, pickedTags)).then(
           async () => {
-            await shareResult(webApp, `${event.title} — ${verdict.label}`);
+            const payload = sharePayload(`${event.title} — ${verdict.label}`, `after-${eventId}`);
+            await shareResult(webApp, payload.text, payload.link);
             setSaving(false);
             // Выход с экрана — профиль: там и лежит то, что этот экран только что уточнил.
             navigate({ name: "profile" });

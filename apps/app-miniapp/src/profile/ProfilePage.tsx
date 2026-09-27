@@ -34,6 +34,7 @@ import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { readFeedPhoto } from "../feed/photo";
 import { announceShare, getWebApp, shareResult } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { useRoute } from "../routing/router";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { AppMedia, AppSkeleton, AppState } from "../ui/primitives";
@@ -678,7 +679,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         subscribePending={subscribePending}
         onTab={setTab}
         onSettings={() => navigate({ name: "settings" })}
-        onShare={() => void shareResult(getWebApp(), `${[shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ")} в Афише MAX`).then(announceShare)}
+        onShare={() => { const payload = sharePayload(`${[shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ")} в Афише MAX`, `user-${shownUser.id}`); void shareResult(getWebApp(), payload.text, payload.link).then(announceShare); }}
         onLists={() => navigate({ name: "plans" })}
         onSubscriptions={() => navigate({ name: "subscriptions" })}
         onFollowers={() => navigate({ name: "followers" })}
@@ -688,7 +689,8 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         onSubscribe={toggleFollow}
         onWrite={() => {
           const name = [shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ");
-          void shareResult(getWebApp(), `Привет, ${name}! Пишу из Афиши MAX.`).then(announceShare);
+          const payload = sharePayload(`Привет, ${name}! Пишу из Афиши MAX.`, `user-${shownUser.id}`);
+          void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
         }}
         closeFriend={closeFriend}
         onToggleClose={

@@ -89,12 +89,12 @@ describe("RoutedPages", () => {
     expect(html).toContain("Сохранённое");
   });
 
-  it("maps the calendar route to the fullscreen calendar, without the «Моё» pills", async () => {
+  it("maps the calendar route into the plans shell, so the section pills and the way back stay", async () => {
     const html = await routedHtml({ name: "calendar" }, "Ссылка на календарь");
 
     expect(html).toContain("Добавить друга");
-    expect(html).toContain("Закрыть");
-    expect(html).not.toContain("Сохранённое");
+    expect(html).toContain("Сохранённое");
+    expect(html).toContain("Планы");
   });
 
   it("maps the search route to экран 08 with its tiles and blocks", async () => {

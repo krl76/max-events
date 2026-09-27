@@ -24,7 +24,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { apiClient } from "../api/client";
-import { SHARE_NOTICE, shareNoticeText, type ShareChannel } from "../max/bridge";
+import { getWebApp, SHARE_NOTICE, shareNoticeText, type ShareChannel } from "../max/bridge";
 import { isTabRoute, useRoute, type Route } from "../routing/router";
 import { ActionIcon, TabIconGlyph, type TabIcon } from "./icons";
 import { consumeFrozenScroll, freezeScroll, noteAppliedScroll, rememberScroll, routeScrollKey } from "./scroll-memory";
@@ -125,8 +125,6 @@ const FULLSCREEN_ROUTES: ReadonlySet<Route["name"]> = new Set([
   // Экран 07 несёт свою шапку с колокольчиком и крестом, а таббара под ним в макете нет вовсе:
   // уведомления открываются поверх ленты и закрываются обратно в неё, а не листаются вкладками.
   "notifications",
-  // Календарь планов: своя шапка с выходом и нижняя панель «Ссылка / Добавить друга» вместо таббара.
-  "calendar",
   // Экран 10 рисует свою градиентную шапку и приклеенный композер: таббар накрывал бы строку ввода.
   "assist",
   // Маршрут на день: своя шапка и нижнее «Готово», иначе длинный список прячет действие под таббаром.
@@ -207,6 +205,19 @@ export function Layout({ children }: { children: ReactNode }) {
   const acceptScroll = useRef(false);
   const [notice, setNotice] = useState<string | null>(null);
   const key = scrollKey(route);
+
+  useEffect(() => {
+    const button = getWebApp()?.BackButton;
+    if (!button) return;
+    const onNativeBack = () => back();
+    button.onClick(onNativeBack);
+    if (isTabRoute(route.name)) button.hide();
+    else button.show();
+    return () => {
+      button.offClick(onNativeBack);
+      button.hide();
+    };
+  }, [route.name, back]);
 
   useLayoutEffect(() => {
     const el = scroller.current;

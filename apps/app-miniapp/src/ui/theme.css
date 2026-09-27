@@ -96,26 +96,64 @@
   color-scheme: light;
 }
 
-body {
+html,
+body,
+#root {
   background: var(--brand-white);
+}
+
+body {
   margin: 0;
 }
 
-html[data-theme="dark"] {
-  color-scheme: dark;
+/* Светлая схема внутри MAX: клиент тёмный, и без явного color-scheme плюс фона Ionic
+ * холст сереет графитом окна. Эти переменные держат светлой и оболочку ion-app. */
+html[data-theme="light"] {
+  color-scheme: light;
+  background: var(--brand-white);
+  --ion-background-color: var(--brand-white);
+  --ion-text-color: var(--brand-ink);
+  --ion-item-background: var(--brand-white);
+  --ion-toolbar-background: var(--brand-white);
+  --ion-card-background: var(--brand-white);
 }
 
-html[data-theme="dark"] body {
-  background: var(--brand-graphite);
+html[data-theme="light"] body,
+html[data-theme="light"] #root {
+  background: var(--brand-white);
+}
+
+/* Тёмная схема — наша, не заливка окна MAX. Холст глубже графита клиента,
+ * карточки светлее холста, фон ion-app непрозрачный, чтобы серый вебвью не просвечивал. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  background: var(--brand-graphite-deep);
+  --ion-background-color: var(--brand-graphite-deep);
+  --ion-text-color: var(--brand-white);
+  --ion-item-background: var(--brand-graphite-card);
+  --ion-toolbar-background: var(--brand-graphite-card);
+  --ion-card-background: var(--brand-graphite-card);
+}
+
+html[data-theme="dark"] body,
+html[data-theme="dark"] #root {
+  background: var(--brand-graphite-deep);
 }
 
 @media (prefers-color-scheme: dark) {
   html:not([data-theme]) {
     color-scheme: dark;
+    background: var(--brand-graphite-deep);
+    --ion-background-color: var(--brand-graphite-deep);
+    --ion-text-color: var(--brand-white);
+    --ion-item-background: var(--brand-graphite-card);
+    --ion-toolbar-background: var(--brand-graphite-card);
+    --ion-card-background: var(--brand-graphite-card);
   }
 
-  html:not([data-theme]) body {
-    background: var(--brand-graphite);
+  html:not([data-theme]) body,
+  html:not([data-theme]) #root {
+    background: var(--brand-graphite-deep);
   }
 }
 
@@ -240,7 +278,8 @@ html[data-theme="dark"] body {
 .app-root[data-theme="dark"],
 [data-theme="dark"] .app-root:not([data-theme="light"]) {
   --app-scheme-neutral: 255, 255, 255; /* каналы brand-white */
-  --app-canvas: var(--brand-graphite);
+  --app-canvas: var(--brand-graphite-deep);
+  --app-card: var(--brand-graphite-card);
   --app-ink: var(--brand-white);
   --app-alpha-surface: 0.06;
   --app-alpha-border: 0.12;
@@ -261,7 +300,8 @@ html[data-theme="dark"] body {
 @media (prefers-color-scheme: dark) {
   html:not([data-theme]) .app-root:not([data-theme]) {
     --app-scheme-neutral: 255, 255, 255;
-    --app-canvas: var(--brand-graphite);
+    --app-canvas: var(--brand-graphite-deep);
+    --app-card: var(--brand-graphite-card);
     --app-ink: var(--brand-white);
     --app-alpha-surface: 0.06;
     --app-alpha-border: 0.12;
@@ -290,13 +330,19 @@ html[data-theme="dark"] body {
 }
 
 .app-header-back {
-  background: none;
+  align-items: center;
+  background: var(--app-surface);
   border: none;
+  border-radius: 14px;
   color: var(--app-text);
   cursor: pointer;
   display: flex;
+  flex: none;
+  height: 44px;
+  justify-content: center;
   margin-left: calc(-1 * var(--app-space-xs));
-  padding: var(--app-space-xs);
+  padding: 0;
+  width: 44px;
 }
 
 /* Шеврон нарисован вправо; кнопка назад разворачивает его */
@@ -3386,25 +3432,27 @@ html[data-theme="dark"] body {
 .app-create-entries {
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
 
 .app-create-entry {
   align-items: center;
-  background: none;
-  border: none;
-  border-top: var(--app-hairline);
+  background: var(--app-card);
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
   color: var(--app-text);
   cursor: pointer;
   display: flex;
   font: inherit;
   gap: var(--app-space-m);
-  padding: var(--app-space-m) 0;
+  min-height: 76px;
+  padding: 14px;
   text-align: left;
   width: 100%;
 }
 
 .app-create-entry:first-child {
-  border-top: none;
+  border-top: var(--app-hairline);
 }
 
 .app-create-entry-icon {
@@ -5483,10 +5531,10 @@ html[data-theme="dark"] body {
   cursor: pointer;
   display: flex;
   flex: none;
-  height: 40px;
+  height: 44px;
   justify-content: center;
   padding: 0;
-  width: 40px;
+  width: 44px;
 }
 
 /* Шеврон нарисован вправо; кнопка назад разворачивает его */
@@ -6018,6 +6066,27 @@ html[data-theme="dark"] body {
   gap: var(--app-space-s);
 }
 
+.app-story-back {
+  align-items: center;
+  background: rgba(6, 7, 8, 0.55);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: 2px;
+  height: 44px;
+  padding: 0 14px 0 8px;
+}
+
+.app-story-back svg {
+  transform: rotate(180deg);
+}
+
 .app-story-round {
   align-items: center;
   background: rgba(6, 7, 8, 0.45);
@@ -6178,6 +6247,167 @@ html[data-theme="dark"] body {
   font-weight: 700;
   margin-top: 8px;
   padding: 12px;
+}
+
+/* Лист выбора события: обложка, название, время. Поверх любого экрана, не системный select. */
+.app-picker {
+  bottom: 0;
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 40;
+}
+
+.app-picker-scrim {
+  background: rgba(6, 7, 8, 0.45);
+  border: none;
+  bottom: 0;
+  cursor: pointer;
+  left: 0;
+  padding: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.app-picker-sheet {
+  background: var(--app-card);
+  border-radius: 24px 24px 0 0;
+  bottom: 0;
+  box-sizing: border-box;
+  color: var(--app-text);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+  left: 0;
+  max-height: 86dvh;
+  padding: var(--app-space-l) var(--app-space-screen) calc(var(--app-space-l) + env(safe-area-inset-bottom, 0px));
+  position: absolute;
+  right: 0;
+}
+
+.app-picker-head {
+  align-items: center;
+  display: flex;
+  gap: var(--app-space-m);
+  justify-content: space-between;
+}
+
+.app-picker-title {
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.app-picker-done {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  height: 44px;
+  padding: 0 16px;
+}
+
+.app-picker-search {
+  background: var(--app-surface);
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  color: var(--app-text);
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  min-height: 44px;
+  padding: 0 var(--app-space-l);
+}
+
+.app-picker-empty {
+  color: var(--app-text-secondary);
+  margin: 0;
+}
+
+.app-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.app-picker-event {
+  align-items: center;
+  background: var(--app-surface);
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--app-space-m);
+  padding: 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-picker-event--on {
+  border-color: var(--app-accent);
+}
+
+.app-picker-media.app-card-media {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  flex: none;
+  height: 72px;
+  width: 72px;
+}
+
+.app-picker-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-picker-name {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-picker-meta {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+}
+
+.app-post-compose-row-hit {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  gap: var(--app-space-m);
+  min-height: 56px;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.app-post-compose-thumb.app-card-media {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  flex: none;
+  height: 56px;
+  width: 56px;
 }
 
 .app-share-notice {
@@ -6445,19 +6675,25 @@ html[data-theme="dark"] body {
   padding: 60px var(--app-space-screen) 14px;
 }
 
-.app-post-compose-close {
+.app-post-compose-back {
   align-items: center;
   background: var(--app-surface);
   border: none;
-  border-radius: 50%;
+  border-radius: var(--app-radius-pill);
   color: var(--app-text);
   cursor: pointer;
   display: flex;
   flex: none;
-  height: 40px;
-  justify-content: center;
-  padding: 0;
-  width: 40px;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: 2px;
+  height: 44px;
+  padding: 0 14px 0 8px;
+}
+
+.app-post-compose-back svg {
+  transform: rotate(180deg);
 }
 
 .app-post-compose-title {
@@ -8329,10 +8565,10 @@ button.app-set-row {
   cursor: pointer;
   display: flex;
   flex: none;
-  height: 40px;
+  height: 44px;
   justify-content: center;
   padding: 0;
-  width: 40px;
+  width: 44px;
 }
 
 .app-list-bar-round:disabled {
@@ -8715,10 +8951,10 @@ button.app-set-row {
   cursor: pointer;
   display: flex;
   flex: none;
-  height: 40px;
+  height: 44px;
   justify-content: center;
   padding: 0;
-  width: 40px;
+  width: 44px;
 }
 
 /* Шеврон нарисован вправо; кнопка назад разворачивает его */
@@ -11441,15 +11677,17 @@ button.app-poll-result {
   align-items: center;
   background: var(--app-surface);
   border: none;
-  border-radius: 50%;
+  border-radius: var(--app-radius-pill);
   color: var(--app-text);
   cursor: pointer;
   display: flex;
   flex: none;
-  height: 40px;
-  justify-content: center;
-  padding: 0;
-  width: 40px;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  gap: 2px;
+  height: 44px;
+  padding: 0 14px 0 8px;
 }
 
 /* Шеврон реестра смотрит вправо; кнопка назад разворачивает его, как в шапке оболочки */
@@ -11861,9 +12099,9 @@ button.app-poll-result {
   cursor: pointer;
   display: flex;
   flex: none;
-  height: 40px;
+  height: 44px;
   justify-content: center;
-  width: 40px;
+  width: 44px;
 }
 
 .app-cal-top-title {
@@ -18034,6 +18272,7 @@ button.app-cal-peer-chip {
   align-self: stretch;
   flex: none;
   font-weight: 700;
+  min-height: 44px;
   padding: 9px 14px;
 }
 

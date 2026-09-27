@@ -50,6 +50,14 @@ describe("routeFromStartParam", () => {
     expect(startParamFromSearch("")).toBeNull();
   });
 
+  it("opens a post, a profile and a calendar invite from their deep links", () => {
+    expect(routeFromStartParam("post-p1")).toEqual({ name: "post", id: "p1" });
+    expect(routeFromStartParam("user-u1")).toEqual({ name: "user", id: "u1" });
+    expect(routeFromStartParam("calendar")).toEqual({ name: "calendar" });
+    expect(routeFromStartParam("calendar-tok")).toEqual({ name: "calendar", inviteToken: "tok" });
+    expect(routeFromStartParam("calendar-")).toEqual({ name: "home" });
+  });
+
   it("opens the vote route from a vote-* deep link", () => {
     expect(routeFromStartParam("vote-d7000000-0000-4000-8000-000000000001")).toEqual({ name: "vote", id: "d7000000-0000-4000-8000-000000000001" });
   });

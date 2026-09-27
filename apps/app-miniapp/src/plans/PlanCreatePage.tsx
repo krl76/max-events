@@ -22,6 +22,7 @@ import type { Event, Friend, PlanRecurringRule } from "@max-events/api-contracts
 import { moscowIsoWeekday } from "@max-events/api-contracts";
 import { ApiError, apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
+import { EventPicker } from "../ui/EventPicker";
 import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
 import { PinPicker } from "../ui/PinPicker";
@@ -119,9 +120,7 @@ export function PlanCreateView({ draft, events, friends, submitting = false, fai
   const [pickingFriends, setPickingFriends] = useState(false);
   const [pickingPin, setPickingPin] = useState(false);
   const [pickingEvent, setPickingEvent] = useState(false);
-  const [eventQuery, setEventQuery] = useState("");
   const [attention, setAttention] = useState(false);
-  const eventChoices = events.filter((event) => event.title.toLowerCase().includes(eventQuery.trim().toLowerCase())).slice(0, 40);
   return (
     <section className="app-gathering">
       <AppTitle asChild>
@@ -172,32 +171,16 @@ export function PlanCreateView({ draft, events, friends, submitting = false, fai
         />
       )}
       {pickingEvent && (
-        <div className="app-story-event-sheet" role="dialog" aria-label="Событие плана">
-          <div className="app-story-event-sheet-card">
-            <p className="app-story-event-sheet-title">Событие</p>
-            <input className="app-gathering-time-input" aria-label="Найти событие" placeholder="Найти по названию" value={eventQuery} onChange={(change) => setEventQuery(change.target.value)} />
-            <ul className="app-story-event-sheet-list">
-              {eventChoices.map((event) => (
-                <li key={event.id}>
-                  <button
-                    type="button"
-                    aria-pressed={event.id === draft.eventId}
-                    onClick={() => {
-                      onDraft({ event: event.title, eventId: event.id, ...(draft.meetingAt === "" ? { meetingAt: whenValue(new Date(event.startsAt)) } : {}) });
-                      setPickingEvent(false);
-                    }}
-                  >
-                    {event.title}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {eventChoices.length === 0 && <p className="app-gathering-hint">{events.length === 0 ? "В афише пока нет событий." : "Ничего не нашлось."}</p>}
-            <button type="button" className="app-story-event-sheet-close" onClick={() => setPickingEvent(false)}>
-              Закрыть
-            </button>
-          </div>
-        </div>
+        <EventPicker
+          title="Событие плана"
+          events={events}
+          selectedId={draft.eventId ?? null}
+          onPick={(event) => {
+            onDraft({ event: event.title, eventId: event.id, ...(draft.meetingAt === "" ? { meetingAt: whenValue(new Date(event.startsAt)) } : {}) });
+            setPickingEvent(false);
+          }}
+          onClose={() => setPickingEvent(false)}
+        />
       )}
       {pickingPin && (
         <PinPicker

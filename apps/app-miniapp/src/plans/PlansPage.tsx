@@ -116,7 +116,7 @@ const PLANS_TABS: Array<{ id: PlansTab; label: string }> = [
   { id: "saved", label: "Сохранённое" },
 ];
 
-export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
+export function PlansPage({ tab = "plans", inviteToken }: { tab?: PlansTab; inviteToken?: string }) {
   const { navigate } = useRoute();
   const origin = useViewerOrigin();
   const [active, setActive] = useState<PlansTab>(tab);
@@ -143,10 +143,7 @@ export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
           <AppChip
             key={item.id}
             pressed={active === item.id}
-            onClick={() => {
-              if (item.id === "calendar") navigate({ name: "calendar" });
-              else setActive(item.id);
-            }}
+            onClick={() => setActive(item.id)}
           >
             {item.label}
           </AppChip>
@@ -161,7 +158,7 @@ export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
             </button>
             <button type="button" onClick={() => navigate({ name: "day-route" })}>
               <ActionIcon name="pin" size={20} />
-              Маршрут
+              Маршрут на день
             </button>
             <button type="button" onClick={() => navigate({ name: "assist", ask: null })}>
               <ActionIcon name="spark" size={20} />
@@ -174,7 +171,7 @@ export function PlansPage({ tab = "plans" }: { tab?: PlansTab }) {
       )}
       {/* Одно и то же место в дереве на оба раздела календаря: переключение брони ↔ месяц не размонтирует
           контейнер и не перезапрашивает обе половины календаря заново. */}
-      {active === "bookings" && <CalendarPage tab="bookings" />}
+      {(active === "bookings" || active === "calendar") && <CalendarPage tab={active === "calendar" ? "month" : "bookings"} inviteToken={active === "calendar" ? inviteToken : undefined} embedded />}
       {active === "saved" && <ListsPage />}
     </>
   );

@@ -22,6 +22,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Friend } from "@max-events/api-contracts";
 import { apiClient, type SlotBookingScreen } from "../api/client";
 import { shareResult, webApp } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { codeMatrix, formatRub, formatSlotWindow, formatTime, type CodeCell } from "../place/slots";
 import { useRoute } from "../routing/router";
 import { pluralRu } from "../catalog/format";
@@ -253,7 +254,8 @@ export function BookingTicketPage({ id }: { id: string }) {
   if (state.status === "loading") return <AppSkeletonList rows={3} />;
   if (state.status === "error") return <AppState error>Не удалось загрузить бронь.</AppState>;
   const share = () => {
-    void shareResult(webApp, ticketShareText(state.screen)).then((channel) => setShared(channel === "bridge" ? "Отправили в чат" : channel === "clipboard" ? "Скопировали приглашение" : "Поделиться не получилось"));
+    const payload = sharePayload(ticketShareText(state.screen), `booking-${id}`);
+    void shareResult(webApp, payload.text, payload.link).then((channel) => setShared(channel === "bridge" ? "Отправили в чат" : channel === "clipboard" ? "Скопировали приглашение" : "Поделиться не получилось"));
   };
   return <BookingTicketView screen={state.screen} confirming={confirming} busy={busy} failed={failed} shared={shared} onBack={back} onRoute={() => navigate({ name: "map" })} onCalendar={() => navigate({ name: "calendar" })} onShare={share} onCancel={cancel} />;
 }

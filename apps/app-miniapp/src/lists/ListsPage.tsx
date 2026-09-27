@@ -29,6 +29,7 @@ import { ApiError, apiClient, type ListItemCard, type ListScreen, type ListSumma
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { AppButton, AppState } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { useRoute } from "../routing/router";
@@ -443,7 +444,8 @@ export function ListPage({ id }: { id: string }) {
           aria-label="Отправить в чат"
           disabled={screen.items.length === 0}
           onClick={() => {
-            shareResult(webApp, listShareText(screen.list, screen.items, shared)).then(setChannel);
+            const payload = sharePayload(listShareText(screen.list, screen.items, shared), `list-${screen.list.id}`);
+            shareResult(webApp, payload.text, payload.link).then(setChannel);
           }}
         >
           <ActionIcon name="share" size={18} strokeWidth={2.2} />

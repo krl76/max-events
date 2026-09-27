@@ -16,7 +16,7 @@
 // - openExternalLink - open link via MAX or browser fallback
 // - openChatLink - openMaxLink for max.ru chat links, else openLink
 // - ShareChannel - where the shared text went (bridge / clipboard / unavailable)
-// - shareResult - share text into a MAX chat via documented shareMaxContent, clipboard fallback
+// - shareResult - share text (and an optional max.ru link) into a MAX chat via shareMaxContent, clipboard fallback
 // END_MODULE_MAP
 
 export interface MaxWebAppUser {
@@ -51,6 +51,13 @@ export interface MaxWebApp {
   /** Документированный шеринг внутри MAX (диалоги/групповые чаты); https://dev.max.ru/docs/webapps/bridge#Шеринг%20контента */
   shareMaxContent?(params: MaxWebAppShareParams): void;
   close(): void;
+  /** Шапочная «Назад» клиента MAX. Нет в браузере вне мессенджера. */
+  BackButton?: {
+    show(): void;
+    hide(): void;
+    onClick(callback: () => void): void;
+    offClick(callback: () => void): void;
+  };
 }
 
 declare global {
@@ -104,17 +111,18 @@ export function announceShare(channel: ShareChannel): void {
 }
 
 /**
- * Share text into a MAX chat. Platform way: WebApp.shareMaxContent({ text }) opens the
- * MAX share screen (dialogs/group chats) — documented at dev.max.ru/docs/webapps/bridge.
- * Outside MAX (dev browser) falls back to the clipboard.
+ * Share into a MAX chat. `link` is the max.ru deep link (startapp), separate from the sentence,
+ * so the client opens the bot window instead of the website the mini-app is hosted on.
+ * Outside MAX the same pair is copied.
  */
-export async function shareResult(app: Pick<MaxWebApp, "shareMaxContent"> | null, text: string): Promise<ShareChannel> {
+export async function shareResult(app: Pick<MaxWebApp, "shareMaxContent"> | null, text: string, link?: string): Promise<ShareChannel> {
+  const body = link && !text.includes(link) ? `${text}\n${link}` : text;
   if (typeof app?.shareMaxContent === "function") {
-    app.shareMaxContent({ text });
+    app.shareMaxContent(link ? { text: body, link } : { text: body });
     return "bridge";
   }
   if (typeof navigator !== "undefined" && navigator.clipboard) {
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(body);
     return "clipboard";
   }
   return "unavailable";

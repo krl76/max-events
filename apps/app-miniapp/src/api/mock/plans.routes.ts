@@ -82,6 +82,11 @@ export function plansRoutes(url: URL, init: RequestInit | undefined): Response |
   if (url.pathname === "/api/calendar/shared" && init?.method !== "POST") {
     return Response.json(mockSharedCalendar());
   }
+  if (url.pathname === "/api/calendar/shared/accept" && init?.method === "POST") {
+    const token = parseBookingBody(init)?.token;
+    if (!IdSchema.safeParse(token).success) return new Response(null, { status: 400 });
+    return Response.json(mockSharedCalendar());
+  }
   if (url.pathname === "/api/calendar/shared/peers" && init?.method === "POST") {
     const userId = IdSchema.safeParse(parseBookingBody(init)?.userId);
     if (!userId.success) return new Response(null, { status: 400 });

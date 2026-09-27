@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Clock time a person can read, plus an optional miniapp link, for bot messages.
-// SCOPE: humanWhen / humanMeeting speak Moscow wall time («сегодня в 20:30»); miniappLink builds ?startapp= only when PUBLIC_APP_URL is set. ISO stays in stored timestamps, not in the sentence.
+// SCOPE: humanWhen / humanMeeting speak Moscow wall time («сегодня в 20:30»); miniappLink builds https://max.ru/<bot>?startapp=. ISO stays in stored timestamps, not in the sentence.
 // DEPENDS: ./moscow-date
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -8,7 +8,8 @@
 // START_MODULE_MAP
 // - humanWhen - «сегодня в 20:30», «завтра в 20:30», or «12 сентября в 20:30»
 // - humanMeeting - humanWhen plus a place, comma-separated
-// - miniappLink - absolute ?startapp= URL, or null when no public origin is configured
+// - DEFAULT_MAX_APP_URL - https://max.ru/<bot> used when MAX_APP_URL is unset
+// - miniappLink - https://max.ru/<bot>?startapp=, or null when the payload or override URL is unusable
 // - withAppLink - append that URL to a sentence when it exists
 // END_MODULE_MAP
 
@@ -41,11 +42,14 @@ export function humanMeeting(at: Date, place: string, now = new Date()): string 
   return where ? `${when}, ${where}` : when;
 }
 
+/** Public bot window. Override with MAX_APP_URL when the bot username changes. */
+export const DEFAULT_MAX_APP_URL = "https://max.ru/se14352055_bot";
+
 /**
- * A link the miniapp can open. Unset PUBLIC_APP_URL means the sentence stays without a URL:
- * a guessed host would point at the wrong stand.
+ * A link that opens the mini-app inside MAX on a given screen.
+ * The website origin is the wrong host: it opens a browser tab, not the bot window.
  */
-export function miniappLink(payload: string, base: string | undefined = process.env.PUBLIC_APP_URL): string | null {
+export function miniappLink(payload: string, base: string | undefined = process.env.MAX_APP_URL || DEFAULT_MAX_APP_URL): string | null {
   const origin = base?.trim();
   if (!origin || payload.trim().length === 0) return null;
   try {

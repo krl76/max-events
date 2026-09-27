@@ -39,7 +39,7 @@ export type Route =
   | { name: "event"; id: string }
   | { name: "place"; id: string }
   | { name: "friends" }
-  | { name: "calendar" }
+  | { name: "calendar"; inviteToken?: string }
   | { name: "profile" }
   | { name: "user"; id: string }
   | { name: "settings" }
@@ -97,6 +97,8 @@ const START_PARAM_PREFIXES = [
   ["micro-", "micro-event"],
   // Пуш после брони ведёт на экран 20 с кодом входа
   ["booking-", "slot-ticket"],
+  ["post-", "post"],
+  ["user-", "user"],
 ] as const satisfies ReadonlyArray<readonly [string, Route["name"]]>;
 
 /** Browser stand: ?startapp= or ?start= carries the same payload MAX puts in start_param. */
@@ -112,6 +114,12 @@ export function routeFromStartParam(startParam: string | null): Route {
   if (startParam?.startsWith("after-") === true) {
     const eventId = startParam.slice("after-".length);
     if (eventId) return { name: "after-event", eventId };
+  }
+  // Calendar invite is a token, not an entity id, and the bare word opens the calendar itself.
+  if (startParam === "calendar") return { name: "calendar" };
+  if (startParam?.startsWith("calendar-") === true) {
+    const inviteToken = startParam.slice("calendar-".length);
+    if (inviteToken) return { name: "calendar", inviteToken };
   }
   for (const [prefix, name] of START_PARAM_PREFIXES) {
     if (startParam?.startsWith(prefix)) {
@@ -162,7 +170,6 @@ function toRoute(value: unknown): Route | null {
       return { name, ...(dropped ? { pin: dropped } : {}), ...(placeId ? { placeId } : {}) };
     }
     case "friends":
-    case "calendar":
     case "profile":
     case "settings":
     case "subscriptions":
@@ -182,6 +189,11 @@ function toRoute(value: unknown): Route | null {
     case "moderation":
     case "bookings":
       return { name };
+    case "calendar": {
+      const { inviteToken } = value as { inviteToken?: unknown };
+      if (typeof inviteToken === "string" && inviteToken !== "") return { name: "calendar", inviteToken };
+      return { name: "calendar" };
+    }
     case "slot-booking": {
       const { placeId } = value as { placeId?: unknown };
       return typeof placeId === "string" ? { name, placeId } : null;
