@@ -86,11 +86,16 @@ export function formatDistance(distanceM: number): string {
 }
 
 const TRAVEL_MODE_LABELS: Record<TravelOption["mode"], string> = { walk: "пешком", metro: "на метро" };
+const WALK_MINUTE_CAP = 90;
+const FAR_KM = 80;
 
-/** «2,1 км · 18 мин пешком»; without a measured distance the line is the time alone. */
+/** «2,1 км · 18 мин пешком». A multi-hour walk is not a route: past 80 km the line is just «далеко». */
 export function formatTravel(option: TravelOption): string {
-  const time = `${option.minutes} ${pluralRu(option.minutes, "мин", "мин", "мин")} ${TRAVEL_MODE_LABELS[option.mode]}`;
-  return option.distanceKm === null ? time : `${option.distanceKm.toFixed(1).replace(".", ",")} км · ${time}`;
+  if (option.distanceKm !== null && option.distanceKm > FAR_KM) return "далеко";
+  const walkTooLong = option.mode === "walk" && option.minutes > WALK_MINUTE_CAP;
+  const time = walkTooLong ? null : `${option.minutes} мин ${TRAVEL_MODE_LABELS[option.mode]}`;
+  const distance = option.distanceKm === null ? null : `${option.distanceKm.toFixed(1).replace(".", ",")} км`;
+  return [distance, time].filter((part): part is string => part !== null).join(" · ");
 }
 
 /**
@@ -153,14 +158,17 @@ export function EventHero({ details, saveOpen, onBack, onShare, onSave }: EventH
       <span className="app-ev-hero-blob app-ev-hero-blob--cool" aria-hidden="true" />
       <div className="app-ev-hero-bar">
         <button type="button" className="app-ev-hero-btn app-ev-hero-btn--back" aria-label="Назад" onClick={onBack}>
-          <ActionIcon name="chevron" size={20} strokeWidth={2} />
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
         </button>
         <span className="app-ev-hero-bar-right">
           <button type="button" className="app-ev-hero-btn" aria-label="Поделиться" onClick={onShare}>
-            <ActionIcon name="share" size={18} />
+            <ActionIcon name="share" size={16} />
+            Поделиться
           </button>
           <button type="button" className="app-ev-hero-btn" aria-pressed={saveOpen} aria-label="Сохранить в список" onClick={onSave}>
-            <ActionIcon name="bookmark" size={18} filled={saveOpen} />
+            <ActionIcon name="bookmark" size={16} filled={saveOpen} />
+            В список
           </button>
         </span>
       </div>

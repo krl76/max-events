@@ -24,6 +24,7 @@ describe("today formatting", () => {
 
   it("prints the distance, the price and the rating, and stays silent where the backend has nothing", () => {
     expect(formatPickDistance(2.1)).toBe("2,1 км");
+    expect(formatPickDistance(888.7)).toBe("далеко");
     expect(formatPickDistance(null)).toBeNull();
     expect(formatPickPrice({ isPaid: false, priceRub: null })).toBe("Бесплатно");
     expect(formatPickPrice({ isPaid: true, priceRub: 1500 })).toMatch(/^от 1.500 ₽$/);

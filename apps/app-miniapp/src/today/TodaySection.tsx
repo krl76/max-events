@@ -63,7 +63,9 @@ export function formatPickWhen(startsAt: string): string {
 
 /** «2,1 км» — ru decimal comma, one digit; null while the list DTO carries no distance (#496). */
 export function formatPickDistance(distanceKm: number | null): string | null {
-  return distanceKm === null ? null : `${distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км`;
+  if (distanceKm === null) return null;
+  if (distanceKm > 80) return "далеко";
+  return `${distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км`;
 }
 
 /** «Бесплатно» or «от 1 500 ₽»: the price pill of a pick always says something. */
