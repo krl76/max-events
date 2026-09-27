@@ -14,7 +14,7 @@
 // - OrganizerSpace - auth gate + MaxUI chrome: loading/anonymous/error -> login form, authenticated -> onboarding gate -> header + section (or the pushed экран 44) + tab bar
 // END_MODULE_MAP
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { OrganizerEvent } from "../api/client";
 import { apiClient } from "../api/client";
 import { AfishaWordmark } from "../auth/EntryPage";
@@ -114,9 +114,11 @@ interface OrganizerSectionContentProps {
   onCreateEvent: () => void;
   onOpenOrganization: () => void;
   onPromote: (eventId: string, intent: OrganizerPromoIntent) => void;
+  onComposer?: (title: string | null) => void;
+  closeComposerTick?: number;
 }
 
-export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onPromote }: OrganizerSectionContentProps) {
+export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onPromote, onComposer, closeComposerTick }: OrganizerSectionContentProps) {
   if (section === "dashboard")
     return (
       <OrganizerDashboard
@@ -129,7 +131,7 @@ export function OrganizerSectionContent({ section, organizationId, organizationN
       />
     );
   if (section === "promo") return <OrganizerPromo organizationName={organizationName} intent={promoIntent} eventId={promoEventId} onOpenEvent={() => onSection("events")} />;
-  return <OrganizerPanel organizationId={organizationId} createOnMount={createEvent} onPromote={onPromote} />;
+  return <OrganizerPanel organizationId={organizationId} createOnMount={createEvent} onPromote={onPromote} onComposer={onComposer} closeComposerTick={closeComposerTick} />;
 }
 
 /**
@@ -181,10 +183,13 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   const [createEvent, setCreateEvent] = useState(false);
   const [promoIntent, setPromoIntent] = useState<OrganizerPromoIntent | null>(null);
   const [promoEventId, setPromoEventId] = useState<string | null>(null);
+  const [composerTitle, setComposerTitle] = useState<string | null>(null);
+  const [closeComposerTick, setCloseComposerTick] = useState(0);
+  const onComposer = useCallback((title: string | null) => setComposerTitle(title), []);
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
-  const pushed = manage !== null || organizationOpen;
-  const title = manage !== null ? manage.title : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section];
+  const pushed = manage !== null || organizationOpen || composerTitle !== null;
+  const title = composerTitle ?? (manage !== null ? manage.title : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section]);
   const openPromotion = (eventId: string, intent: OrganizerPromoIntent | null) => {
     setManage(null);
     setOrganizationOpen(false);
@@ -206,6 +211,10 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
             className="app-header-back"
             aria-label="Назад"
             onClick={() => {
+              if (composerTitle !== null) {
+                setCloseComposerTick((tick) => tick + 1);
+                return;
+              }
               setManage(null);
               setOrganizationOpen(false);
             }}
@@ -216,7 +225,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
         )}
         <span className="app-header-title">{title}</span>
       </header>
-      <main className="app-content">
+      <main className={composerTitle !== null ? "app-content app-content--full" : "app-content"}>
         {manage !== null ? (
           <OrganizerEventManage event={manage} onBack={() => setManage(null)} onPromo={() => openPromotion(manage.id, null)} />
         ) : organizationOpen ? (
@@ -244,9 +253,12 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
             }}
             onOpenOrganization={() => setOrganizationOpen(true)}
             onPromote={openPromotion}
+            onComposer={onComposer}
+            closeComposerTick={closeComposerTick}
           />
         )}
       </main>
+      {composerTitle === null && (
       <OrganizerTabBar
         section={section}
         onSection={(next) => {
@@ -260,6 +272,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
           setSection(next);
         }}
       />
+      )}
     </OrganizerOnboardingGate>
   );
 }

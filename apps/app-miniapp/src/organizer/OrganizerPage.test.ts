@@ -148,7 +148,7 @@ describe("OrganizerEventCard", () => {
     expect(html).toContain("Черновик");
     expect(html).toContain("Опубликовать");
     expect(html).toContain(draftEvent.title);
-    expect(html).toContain("Бесплатно");
+    expect(html).toContain("0 из 40 · свободно 40 мест");
   });
 
   it("shows the inline publish failure message without dropping the card", () => {
