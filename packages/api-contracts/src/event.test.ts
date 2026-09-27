@@ -10,6 +10,12 @@ const validEvent = {
 };
 
 describe("EventSchema", () => {
+  it("accepts a site path or an absolute URL as the cover", () => {
+    expect(EventSchema.parse({ ...validEvent, coverUrl: "/covers/jazz.jpg" }).coverUrl).toBe("/covers/jazz.jpg");
+    expect(EventSchema.parse({ ...validEvent, coverUrl: "https://cdn.example.com/jazz.jpg" }).coverUrl).toBe("https://cdn.example.com/jazz.jpg");
+    expect(EventSchema.safeParse({ ...validEvent, coverUrl: "jazz.jpg" }).success).toBe(false);
+  });
+
   it("accepts a minimal valid event and applies defaults", () => {
     const parsed = EventSchema.parse(validEvent);
     expect(parsed.isPaid).toBe(false);

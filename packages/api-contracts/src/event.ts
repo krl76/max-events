@@ -32,6 +32,12 @@ export const EventWeatherSchema = z.object({
 });
 export type EventWeather = z.infer<typeof EventWeatherSchema>;
 
+/** A stored cover: an absolute URL, or a same-site path such as /covers/jazz.jpg. */
+const CoverUrlSchema = z
+  .string()
+  .max(2000)
+  .refine((value) => (value.startsWith("/") && !value.startsWith("//")) || z.string().url().safeParse(value).success, "cover must be an absolute URL or a site path");
+
 const EventObjectSchema = z.object({
   id: IdSchema,
   title: z.string().min(1).max(200),
@@ -50,7 +56,7 @@ const EventObjectSchema = z.object({
   published: z.boolean().default(true),
   bookingOpensAt: TimestampSchema.nullable().default(null),
   weather: EventWeatherSchema.nullable().default(null),
-  coverUrl: z.string().url().nullable().default(null),
+  coverUrl: CoverUrlSchema.nullable().default(null),
   bookedCount: z.number().int().nonnegative().optional(),
   remainingSeats: z.number().int().nonnegative().nullable().optional(),
   hitOfTheWeek: z.boolean().optional(),
