@@ -196,10 +196,10 @@ describe("followMetrics", () => {
 describe("profileTabLabel", () => {
   it("carries the count of the grid behind the tab, and drops it while the count is unknown", () => {
     expect(profileTabLabel("posts", 8)).toBe("Посты · 8");
-    expect(profileTabLabel("places", 4)).toBe("Впечатления · 4");
+    expect(profileTabLabel("places", 4)).toBe("Места · 4");
     expect(profileTabLabel("posts", null)).toBe("Посты");
     expect(profileTabLabel("posts", 0)).toBe("Посты");
-    expect(profileTabLabel("places", 0)).toBe("Впечатления");
+    expect(profileTabLabel("places", 0)).toBe("Места");
   });
 });
 
@@ -372,7 +372,7 @@ describe("ProfileView", () => {
     const html = renderProfileView();
 
     expect(html).toContain("Посты · 2");
-    expect(html).toContain("Впечатления · 2");
+    expect(html).toContain("Места · 2");
     expect(html).toContain("app-me-posts");
     expect(html).not.toContain("app-me-grid");
   });

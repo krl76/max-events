@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 36 «Профиль»: gradient hero with the share/menu actions, the ring avatar, name and the city · interests line, the counters — visit numbers plus the two clickable follow counters — the three social actions, the entry rows with their counter hints and the two grids behind the «Посты» / «Впечатления» switch.
+// PURPOSE: Экран 36 «Профиль»: gradient hero with the share/menu actions, the ring avatar, name and the city · interests line, the counters — visit numbers plus the two clickable follow counters — the three social actions, the entry rows with their counter hints and the two grids behind the «Посты» / «Места» switch.
 // SCOPE: The profile screen only — data via apiClient.getProfile/getProfileCounters/listUserPosts/listVisitedPlaces/listLists/listSubscriptions/listFollowing/listFollowers/getAchievements/listWeGroups/listFriends; secondary blocks stay silent when their request fails. Editing lives on the settings route (./SettingsPage.tsx), the follow lists on ../subscriptions/.
 // DEPENDS: ../api/client.js (apiClient, ProfileCounters, ProfilePost, VisitedPlace, ListSummary), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../max/bridge.js (shareResult, webApp), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, @max-events/api-contracts (Achievement, Friend, Profile, Subscription, User, WeGroupScreen), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
@@ -114,7 +114,7 @@ export type ProfileTab = "posts" | "places";
 /** Screen order: what the person published comes before where they have been, as on any social profile. */
 export const PROFILE_TABS: ReadonlyArray<{ id: ProfileTab; label: string }> = [
   { id: "posts", label: "Посты" },
-  { id: "places", label: "Впечатления" },
+  { id: "places", label: "Места" },
 ];
 
 /** «Посты · 8». A zero is the same as an unknown count: the tab stays a name, not a score. */
