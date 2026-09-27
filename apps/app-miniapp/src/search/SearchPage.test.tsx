@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { catalogCards } from "../api/mock";
-import { addRecentSearch, RECENT_SEARCHES_LIMIT, railMeta, searchCities, SearchEntryTiles, SearchNearby, SearchQueryForm, SearchTopBar, SearchWayTiles, type SearchState } from "./SearchPage";
+import { addRecentSearch, nearbyEntryTitle, RECENT_SEARCHES_LIMIT, railMeta, searchCities, SearchEntryTiles, SearchNearby, SearchQueryForm, SearchTopBar, SearchWayTiles, type SearchState } from "./SearchPage";
 
 const noop = () => {};
 const CARDS = catalogCards({ sort: "near" }, { latitude: 55.7522, longitude: 37.6156 });
@@ -83,6 +83,8 @@ describe("search entries", () => {
     expect(html).toContain("Куда пойдём?");
     expect(html).toContain("Три вопроса — пять вариантов");
     expect(html).toContain("Рядом со мной");
+    expect(nearbyEntryTitle(false)).toBe("В городе");
+    expect(renderToStaticMarkup(createElement(SearchWayTiles, { onWhereto: noop, onNearby: noop, inCity: false }))).toContain("В городе");
     expect(html).toContain("Сейчас, через час, вечером");
     expect((html.match(/app-search-way--dark/g) ?? []).length).toBe(1);
   });

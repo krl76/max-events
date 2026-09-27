@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: «Куда пойдём?» (макет, экраны 11 и 12): three closed questions with a progress header, then at most five suggestions — the first as a hero card, the rest as a numbered list.
 // SCOPE: Suggestion via apiClient.getWhereto at useViewerOrigin (loading/error/empty states), local wizard state and the ru copy of the closed answer sets; navigation to the event route only. Никакой персонализации экран не обещает: подбор идёт по правилам.
-// DEPENDS: @max-events/api-contracts (Whereto*), ../api/client.js (apiClient, WheretoPick), ../catalog/format.js (pluralRu), ../geo/viewer-origin.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
+// DEPENDS: @max-events/api-contracts (Whereto*), ../api/client.js (apiClient, WheretoPick), ../catalog/format.js (pluralRu), ../geo/profile-city.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -29,7 +29,7 @@ import { useEffect, useState } from "react";
 import type { WheretoBudget, WheretoCompany, WheretoMood, WheretoQuery } from "@max-events/api-contracts";
 import { apiClient, type WheretoPick } from "../api/client";
 import { pluralRu } from "../catalog/format";
-import { useViewerOrigin } from "../geo/viewer-origin";
+import { useProfileCityPoint } from "../geo/profile-city";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppEmptyState, AppMedia, AppSkeleton, AppSkeletonList, AppState } from "../ui/primitives";
@@ -297,7 +297,7 @@ const NO_ANSWERS: WheretoAnswers = { company: null, mood: null, budget: null };
 
 export function WheretoPage() {
   const { navigate, back } = useRoute();
-  const origin = useViewerOrigin();
+  const point = useProfileCityPoint();
   const [state, setState] = useState<WheretoState>({ step: "ask", at: 0 });
   const [answers, setAnswers] = useState<WheretoAnswers>(NO_ANSWERS);
   const [result, setResult] = useState<WheretoResult>({ status: "loading" });
@@ -305,10 +305,10 @@ export function WheretoPage() {
   const query = state.step === "result" ? state.query : null;
 
   useEffect(() => {
-    if (query === null) return;
+    if (query === null || !point.settled) return;
     let alive = true;
     setResult({ status: "loading" });
-    apiClient.getWhereto(query, { latitude: origin.latitude, longitude: origin.longitude }).then(
+    apiClient.getWhereto(query, { latitude: point.latitude, longitude: point.longitude }).then(
       (response) => {
         if (alive) setResult({ status: "ready", items: response.items });
       },
@@ -320,7 +320,7 @@ export function WheretoPage() {
       alive = false;
     };
     // attempt re-runs the same query after a failure; the origin may sharpen while the screen is open
-  }, [query, origin.latitude, origin.longitude, attempt]);
+  }, [query, point.settled, point.latitude, point.longitude, attempt]);
 
   const at = wizardStepIndex(state);
   // Один вход во все переходы: шаг за пределами последнего вопроса означает выдачу, но только когда

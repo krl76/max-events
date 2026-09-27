@@ -15,7 +15,7 @@
 import { useState } from "react";
 import type { AutoPlanProposal } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
-import { useViewerOrigin } from "../geo/viewer-origin";
+import { useProfileCityPoint } from "../geo/profile-city";
 import { useRoute } from "../routing/router";
 import { AppButton, AppTitle, AppState } from "../ui/primitives";
 
@@ -73,12 +73,12 @@ export function AutoPlanView({ state, onBuild, onOpenPlan }: { state: AutoPlanSt
 
 export function AutoPlanSection({ eventId }: { eventId: string }) {
   const { navigate } = useRoute();
-  const origin = useViewerOrigin();
+  const point = useProfileCityPoint();
   const [state, setState] = useState<AutoPlanState>({ status: "idle" });
 
   const build = () => {
     setState({ status: "loading" });
-    apiClient.createAutoPlan(eventId, origin.latitude, origin.longitude).then(
+    apiClient.createAutoPlan(eventId, point.latitude, point.longitude).then(
       (proposal) => setState({ status: "ready", proposal }),
       () => setState({ status: "error" }),
     );

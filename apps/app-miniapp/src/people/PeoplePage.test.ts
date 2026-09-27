@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { lookingLabel, peopleDistance, personMetaLine, sentenceCase, PeopleView, type PeopleState } from "./PeoplePage";
+import { lookingLabel, peopleDistance, peopleEmptyTitle, peopleNearLabel, personMetaLine, sentenceCase, PeopleView, type PeopleState } from "./PeoplePage";
 import { peopleSuggest } from "../api/mock";
 
 const noop = () => {};
@@ -15,6 +15,12 @@ describe("peopleDistance", () => {
   it("writes the distance with a russian decimal comma", () => {
     expect(peopleDistance(1.2)).toBe("1,2 км");
     expect(peopleDistance(4)).toBe("4,0 км");
+  });
+
+  it("говорит «рядом» только когда точка — сам зритель", () => {
+    expect(peopleNearLabel(1, true)).toBe("человек рядом");
+    expect(peopleNearLabel(2, false)).toBe("человека в городе");
+    expect(peopleEmptyTitle(false)).toBe("В городе пока никого с общими интересами.");
   });
 });
 

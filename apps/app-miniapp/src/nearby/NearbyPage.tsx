@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: «Рядом со мной» (макет, экраны 13 и 14): two modes behind the app-wide row of filter pills — the four-segment timeline inside 15 km, and the free-window builder that turns hours plus a mood into a chain of stops.
 // SCOPE: Data via apiClient.getNearbyTimeline/getLeisureOptions at useViewerOrigin; mode/hours/mood local state; «Открыть как план» creates a plan via apiClient.createPlan and pushes экран 15; loading/error/empty states for both modes.
-// DEPENDS: ../api/client.js (apiClient, LeisureChain, LeisureChainStop), @max-events/api-contracts (LeisureMood, NearbyBucket, NearbyCard, NearbyTimeline), ../catalog/format.js (pluralRu), ../geo/viewer-origin.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, LeisureChain, LeisureChainStop), @max-events/api-contracts (LeisureMood, NearbyBucket, NearbyCard, NearbyTimeline), ../catalog/format.js (pluralRu), ../geo/profile-city.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -32,7 +32,7 @@ import { DEFAULT_APP_SETTINGS } from "@max-events/api-contracts";
 import { apiClient, type LeisureChain, type LeisureChainStop } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
-import { useViewerOrigin } from "../geo/viewer-origin";
+import { useProfileCityPoint } from "../geo/profile-city";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
@@ -126,6 +126,8 @@ interface NearbyViewProps {
   onOpenPlace: (id: string) => void;
   radiusKm?: number;
   originSource?: "geo" | "fallback";
+  /** False when the radius is drawn around the profile city's center, not around the viewer. */
+  inCity?: boolean;
 }
 
 function TimelineCard({ card, onOpenEvent }: { card: NearbyCard; onOpenEvent: (id: string) => void }) {
@@ -146,14 +148,23 @@ function TimelineCard({ card, onOpenEvent }: { card: NearbyCard; onOpenEvent: (i
   );
 }
 
-function Timeline({ state, onRetryTimeline, onOpenEvent, radiusKm = NEARBY_RADIUS_KM, originSource = "fallback" }: Pick<NearbyViewProps, "state" | "onRetryTimeline" | "onOpenEvent" | "radiusKm" | "originSource">) {
+/** «от вас» only when the radius really starts at the viewer. A substituted city center must not say that. */
+export function nearbyOriginCaption(inCity: boolean, source: "geo" | "fallback"): string {
+  return inCity && source === "geo" ? "от вас" : "от центра города";
+}
+
+export function nearbyEmptyTitle(inCity: boolean): string {
+  return inCity ? "Рядом пока ничего не начинается" : "В городе пока ничего не начинается";
+}
+
+function Timeline({ state, onRetryTimeline, onOpenEvent, radiusKm = NEARBY_RADIUS_KM, originSource = "fallback", inCity = true }: Pick<NearbyViewProps, "state" | "onRetryTimeline" | "onOpenEvent" | "radiusKm" | "originSource" | "inCity">) {
   const segments = state.status === "ready" ? NEARBY_BUCKETS.map((bucket) => ({ bucket, cards: state.timeline[bucket] })).filter((segment) => segment.cards.length > 0) : [];
 
   return (
     <>
       <p className="app-nb-meta">
         <ActionIcon name="pin" size={14} strokeWidth={2.2} />
-        Радиус {radiusKm} км · {originSource === "geo" ? "от вас" : "от центра Москвы"} · время московское
+        Радиус {radiusKm} км · {nearbyOriginCaption(inCity, originSource)} · время московское
       </p>
       {state.status === "loading" && <AppSkeletonList rows={3} />}
       {state.status === "error" && (
@@ -161,7 +172,7 @@ function Timeline({ state, onRetryTimeline, onOpenEvent, radiusKm = NEARBY_RADIU
           Не удалось загрузить события рядом.
         </AppState>
       )}
-      {state.status === "ready" && segments.length === 0 && <AppState hint={`Мы смотрим только на ${radiusKm} км вокруг`}>Рядом пока ничего не начинается</AppState>}
+      {state.status === "ready" && segments.length === 0 && <AppState hint={`Мы смотрим только на ${radiusKm} км вокруг`}>{nearbyEmptyTitle(inCity)}</AppState>}
       {segments.map((segment) => (
         <section key={segment.bucket} className="app-nb-seg" aria-label={BUCKET_LABELS[segment.bucket]}>
           <div className="app-nb-seg-head">
@@ -253,7 +264,7 @@ function FreeWindow({ leisure, hours, mood, now, planning, onHours, onMood, onRe
 
 const MODE_LABELS: Record<NearbyMode, string> = { timeline: "Таймлайн", free: "Свободное время" };
 
-export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = new Date(), planning, onHours, onMood, onRefresh, onRetryTimeline, onOpenPlan, onOpenEvent, onOpenPlace, radiusKm = NEARBY_RADIUS_KM, originSource = "fallback" }: NearbyViewProps) {
+export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = new Date(), planning, onHours, onMood, onRefresh, onRetryTimeline, onOpenPlan, onOpenEvent, onOpenPlace, radiusKm = NEARBY_RADIUS_KM, originSource = "fallback", inCity = true }: NearbyViewProps) {
   return (
     <section className="app-nb">
       {/* Тот же ряд пилюль, что и на вкладке «Планы»: переключение раздела списка в приложении выглядит одинаково */}
@@ -264,7 +275,7 @@ export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = ne
           </AppChip>
         ))}
       </div>
-      {mode === "timeline" ? <Timeline state={state} onRetryTimeline={onRetryTimeline} onOpenEvent={onOpenEvent} radiusKm={radiusKm} originSource={originSource} /> : <FreeWindow leisure={leisure} hours={hours} mood={mood} now={now} planning={planning} onHours={onHours} onMood={onMood} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />}
+      {mode === "timeline" ? <Timeline state={state} onRetryTimeline={onRetryTimeline} onOpenEvent={onOpenEvent} radiusKm={radiusKm} originSource={originSource} inCity={inCity} /> : <FreeWindow leisure={leisure} hours={hours} mood={mood} now={now} planning={planning} onHours={onHours} onMood={onMood} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />}
     </section>
   );
 }
@@ -272,7 +283,7 @@ export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = ne
 export function NearbyPage() {
   const { navigate } = useRoute();
   const auth = useAuth();
-  const origin = useViewerOrigin();
+  const point = useProfileCityPoint();
   const [mode, setMode] = useState<NearbyMode>("timeline");
   const [state, setState] = useState<NearbyState>({ status: "loading" });
   const [hours, setHours] = useState<number>(3);
@@ -299,9 +310,10 @@ export function NearbyPage() {
   }, [userId]);
 
   useEffect(() => {
+    if (!point.settled) return;
     let alive = true;
     setState({ status: "loading" });
-    apiClient.getNearbyTimeline(origin.latitude, origin.longitude, radiusKm).then(
+    apiClient.getNearbyTimeline(point.latitude, point.longitude, radiusKm).then(
       (timeline) => {
         if (alive) setState({ status: "ready", timeline });
       },
@@ -312,14 +324,14 @@ export function NearbyPage() {
     return () => {
       alive = false;
     };
-  }, [origin.latitude, origin.longitude, timelineAttempt, radiusKm]);
+  }, [point.settled, point.latitude, point.longitude, timelineAttempt, radiusKm]);
 
   // Кнопки «подобрать» в макете нет: цепочка пересобирается сама на смену часов или настроения.
   useEffect(() => {
-    if (mode !== "free") return;
+    if (mode !== "free" || !point.settled) return;
     let alive = true;
     setLeisure({ status: "loading" });
-    apiClient.getLeisureOptions({ hours, mood, latitude: origin.latitude, longitude: origin.longitude, radiusKm }).then(
+    apiClient.getLeisureOptions({ hours, mood, latitude: point.latitude, longitude: point.longitude, radiusKm }).then(
       (chains) => {
         if (alive) setLeisure({ status: "ready", chains });
       },
@@ -330,7 +342,7 @@ export function NearbyPage() {
     return () => {
       alive = false;
     };
-  }, [mode, hours, mood, origin.latitude, origin.longitude, leisureAttempt, radiusKm]);
+  }, [mode, hours, mood, point.settled, point.latitude, point.longitude, leisureAttempt, radiusKm]);
 
   return (
     <NearbyView
@@ -358,7 +370,8 @@ export function NearbyPage() {
         );
       }}
       radiusKm={radiusKm}
-      originSource={origin.source}
+      originSource={point.source}
+      inCity={point.settled && point.fromViewer}
       onOpenEvent={(id) => navigate({ name: "event", id })}
       onOpenPlace={(id) => navigate({ name: "place", id })}
     />

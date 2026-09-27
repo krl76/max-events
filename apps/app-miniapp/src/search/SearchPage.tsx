@@ -174,7 +174,12 @@ export function SearchEntryTiles({ onSwipe, onMap }: { onSwipe: () => void; onMa
   );
 }
 
-export function SearchWayTiles({ onWhereto, onNearby }: { onWhereto: () => void; onNearby: () => void }) {
+/** «Рядом со мной» is a lie when the opened city is measured from its center. */
+export function nearbyEntryTitle(inCity: boolean): string {
+  return inCity ? "Рядом со мной" : "В городе";
+}
+
+export function SearchWayTiles({ onWhereto, onNearby, inCity = true }: { onWhereto: () => void; onNearby: () => void; inCity?: boolean }) {
   return (
     <div className="app-search-ways">
       {/* Тёмная плитка — одна главная точка внимания блока, вторая держится рамкой */}
@@ -185,7 +190,7 @@ export function SearchWayTiles({ onWhereto, onNearby }: { onWhereto: () => void;
       </button>
       <button type="button" className="app-search-way" onClick={onNearby}>
         <ActionIcon name="clock" size={20} />
-        <span className="app-search-way-title">Рядом со мной</span>
+        <span className="app-search-way-title">{nearbyEntryTitle(inCity)}</span>
         <span className="app-search-way-hint">Сейчас, через час, вечером</span>
       </button>
     </div>
@@ -297,7 +302,7 @@ export function SearchView(props: SearchViewProps) {
       </div>
       <SearchEntryTiles onSwipe={props.onSwipe} onMap={props.onMap} />
       <TodaySummaryBlock state={props.today} now={props.now} distanceFrom={distanceFrom} />
-      <SearchWayTiles onWhereto={props.onWhereto} onNearby={props.onNearby} />
+      <SearchWayTiles onWhereto={props.onWhereto} onNearby={props.onNearby} inCity={props.distancesFromViewer !== false} />
       <TodayPicksBlock state={props.today} onOpen={props.onOpenEvent} onRetry={props.onRetry} distanceFrom={distanceFrom} />
       {hint !== null && !props.hintDismissed && <TodayAfterMeCard card={hint} onShow={props.onNearby} onDismiss={props.onDismissHint} distanceFrom={distanceFrom} />}
       <SearchNearby state={props.state} query={props.query} expanded={props.expanded} inCity={props.catalogInCity !== false} onExpand={props.onExpand} onOpenEvent={props.onOpenEvent} onRetry={props.onRetry} />

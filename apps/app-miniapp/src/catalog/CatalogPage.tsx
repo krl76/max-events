@@ -20,13 +20,14 @@
 // - CATALOG_MAP_LIMIT - map view window: every pin at once, capped at what the backend allows per request
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Event, EventCategory } from "@max-events/api-contracts";
 import { EventCategorySchema } from "@max-events/api-contracts";
 import { apiClient, parseEventFilters, serializeEventFilters, type EventFilters } from "../api/client";
 import { useRoute } from "../routing/router";
 import { AppChip, AppState, AppMedia } from "../ui/primitives";
-import { useViewerOrigin } from "../geo/viewer-origin";
+import { useProfileCityPoint } from "../geo/profile-city";
+import { browsedCityOrigin } from "../geo/viewer-origin";
 import { CATEGORY_LABELS, formatEventWeather, formatStartsAt } from "./format";
 import { MapScreen } from "./MapScreen";
 
@@ -48,7 +49,7 @@ export type CatalogViewName = "list" | "map";
 export const CATALOG_PAGE_SIZE = 20;
 export const CATALOG_MAP_LIMIT = 100;
 
-function useCatalog(filters: EventFilters, offset: number, view: CatalogViewName, attempt: number, origin: { latitude: number; longitude: number }): CatalogState & { hasMore: boolean; loadingMore: boolean; loadFailed: boolean } {
+function useCatalog(filters: EventFilters, offset: number, view: CatalogViewName, attempt: number, origin: { latitude: number; longitude: number }, ready: boolean): CatalogState & { hasMore: boolean; loadingMore: boolean; loadFailed: boolean } {
   const [state, setState] = useState<CatalogState>({ status: "loading" });
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -63,6 +64,7 @@ function useCatalog(filters: EventFilters, offset: number, view: CatalogViewName
   }, [filters, view, origin.latitude, origin.longitude]);
 
   useEffect(() => {
+    if (!ready) return;
     const generation = generationRef.current;
     if (offset === 0) setState({ status: "loading" });
     else setLoadingMore(true);
@@ -86,7 +88,7 @@ function useCatalog(filters: EventFilters, offset: number, view: CatalogViewName
         }
       },
     );
-  }, [filters, offset, view, pageSize, attempt, origin.latitude, origin.longitude]);
+  }, [filters, offset, view, pageSize, attempt, origin.latitude, origin.longitude, ready]);
 
   return { ...state, hasMore, loadingMore, loadFailed };
 }
@@ -260,8 +262,14 @@ export function CatalogPage({ view = "list", onView }: { view?: CatalogViewName;
   const [filters, setFilters] = useState<EventFilters>(() => parseEventFilters(window.location.search));
   const [offset, setOffset] = useState(0);
   const [attempt, setAttempt] = useState(0);
-  const origin = useViewerOrigin();
-  const catalog = useCatalog(filters, offset, view, attempt, origin);
+  const located = useProfileCityPoint();
+  const cityName = filters.city ?? located.city;
+  const measured = useMemo(() => {
+    if (!located.settled) return { latitude: located.viewerLatitude, longitude: located.viewerLongitude, ready: false };
+    if (cityName === null) return { latitude: located.viewerLatitude, longitude: located.viewerLongitude, ready: true };
+    return { ...browsedCityOrigin({ latitude: located.viewerLatitude, longitude: located.viewerLongitude }, cityName), ready: true };
+  }, [located.settled, located.viewerLatitude, located.viewerLongitude, cityName]);
+  const catalog = useCatalog(filters, offset, view, attempt, measured, measured.ready);
   const { navigate } = useRoute();
   const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
   const openPlace = useCallback((id: string) => navigate({ name: "place", id }), [navigate]);

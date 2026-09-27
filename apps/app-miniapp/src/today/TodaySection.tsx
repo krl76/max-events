@@ -108,12 +108,18 @@ export function todayPickCards(today: TodayDigest): TodayCard[] {
   return today.cards.filter((card) => !card.labels.some((label) => label.kind === "after_me"));
 }
 
+/** The block is personal when the viewer is in the city. From the city center it is the city's day, not a walk from the viewer. */
+export function todaySummaryTitle(voice: DistanceVoice = "you"): string {
+  return voice === "center" ? "Сегодня в городе" : "Сегодня для тебя";
+}
+
 export function TodaySummaryBlock({ state, now, distanceFrom = "you" }: { state: TodayState; now: Date; distanceFrom?: DistanceVoice }) {
   const summary = state.status === "ready" ? state.today.summary : null;
+  const title = todaySummaryTitle(distanceFrom);
   return (
-    <section className="app-today" aria-label="Сегодня для тебя">
+    <section className="app-today" aria-label={title}>
       <div className="app-today-head">
-        <h2 className="app-today-title">Сегодня для тебя</h2>
+        <h2 className="app-today-title">{title}</h2>
         <span className="app-today-date">{formatTodayDate(now)}</span>
       </div>
       <div className="app-today-stats">

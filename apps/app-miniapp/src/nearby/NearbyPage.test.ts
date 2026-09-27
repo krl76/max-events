@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { LeisureMoodSchema, NearbyBucketSchema } from "@max-events/api-contracts";
 import type { LeisureMood } from "@max-events/api-contracts";
-import { BUCKET_LABELS, LEISURE_MOOD_LABELS, NEARBY_RADIUS_KM, NearbyView, STOP_KIND_LABELS, bucketCountLabel, chainPlanDraft, chainStopMeta, chainTitle, chainWindow, formatDistanceKm, nearbyCardWhen, type LeisureState, type NearbyMode, type NearbyState } from "./NearbyPage";
+import { BUCKET_LABELS, LEISURE_MOOD_LABELS, NEARBY_RADIUS_KM, NearbyView, STOP_KIND_LABELS, bucketCountLabel, chainPlanDraft, chainStopMeta, chainTitle, chainWindow, formatDistanceKm, nearbyCardWhen, nearbyEmptyTitle, nearbyOriginCaption, type LeisureState, type NearbyMode, type NearbyState } from "./NearbyPage";
 import { MOCK_NOW, leisureOptions, nearbyTimeline } from "../api/mock";
 import type { LeisureChain, LeisureChainStop } from "../api/client";
 
@@ -45,6 +45,14 @@ describe("закрытые наборы", () => {
 });
 
 describe("форматирование строк таймлайна", () => {
+  it("говорит «от вас» только когда радиус начинается у зрителя", () => {
+    expect(nearbyOriginCaption(true, "geo")).toBe("от вас");
+    expect(nearbyOriginCaption(false, "geo")).toBe("от центра города");
+    expect(nearbyOriginCaption(true, "fallback")).toBe("от центра города");
+    expect(nearbyEmptyTitle(true)).toBe("Рядом пока ничего не начинается");
+    expect(nearbyEmptyTitle(false)).toBe("В городе пока ничего не начинается");
+  });
+
   it("печатает один знак после запятой по-русски", () => {
     expect(formatDistanceKm(1.2)).toBe("1,2 км");
     expect(formatDistanceKm(3)).toBe("3,0 км");

@@ -24,7 +24,7 @@ import { useEffect, useState } from "react";
 import type { DayRoute, OptimizeRoute, RouteLeg, RouteStopWrite } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/CatalogPage";
-import { useViewerOrigin } from "../geo/viewer-origin";
+import { useProfileCityPoint } from "../geo/profile-city";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppState } from "../ui/primitives";
@@ -206,7 +206,7 @@ export function DayRouteView({ options, selected, query, onQuery, onToggle, onBu
 }
 
 export function DayRoutePage() {
-  const origin = useViewerOrigin();
+  const point = useProfileCityPoint();
   const { back } = useRoute();
   const [options, setOptions] = useState<RouteOptionsState>({ status: "loading" });
   const [selected, setSelected] = useState<string[]>([]);
@@ -252,7 +252,7 @@ export function DayRoutePage() {
     if (selected.length < MIN_ROUTE_STOPS) return;
     setBuilt({ status: "loading" });
     setOptimize({ status: "idle" });
-    apiClient.createDayRoute(selectedStops(), origin.latitude, origin.longitude).then(
+    apiClient.createDayRoute(selectedStops(), point.latitude, point.longitude).then(
       (route) => setBuilt({ status: "ready", route }),
       () => setBuilt({ status: "error" }),
     );
@@ -260,7 +260,7 @@ export function DayRoutePage() {
 
   const runOptimize = () => {
     setOptimize({ status: "loading" });
-    apiClient.optimizeDayRoute(selectedStops(), origin.latitude, origin.longitude).then(
+    apiClient.optimizeDayRoute(selectedStops(), point.latitude, point.longitude).then(
       (result) => setOptimize({ status: "ready", result }),
       () => setOptimize({ status: "error" }),
     );

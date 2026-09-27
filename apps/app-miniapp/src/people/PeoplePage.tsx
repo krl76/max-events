@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 29 «Люди рядом»: two counters, the privacy line and cards that say what the overlap is — «вам по пути», not «знакомства».
 // SCOPE: Data via apiClient.getPeople at the viewer origin (mock or live); the match context and the shared interests come from the API as they are, only the first letter is raised to sentence case; «Позвать на событие» opens the gathering flow on a shared event and the search when the overlap is an interest; the × hides a card for this session only. No messaging, no profiles, no likes.
-// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (PeopleCandidate, PeopleResponse), ../friends/avatar.js, ../geo/viewer-origin.js, ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (PeopleCandidate, PeopleResponse), ../friends/avatar.js, ../geo/profile-city.js, ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -19,7 +19,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { PeopleCandidate, PeopleResponse } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { PersonAvatar } from "../friends/avatar";
-import { useViewerOrigin } from "../geo/viewer-origin";
+import { useProfileCityPoint } from "../geo/profile-city";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
@@ -36,6 +36,16 @@ export function personMetaLine(candidate: PeopleCandidate): string {
 
 export function lookingLabel(count: number): string {
   return `сегодня ${pluralRu(count, "ищет", "ищут", "ищут")} компанию`;
+}
+
+/** «3 человека рядом» while the viewer is in the city, «3 человека в городе» when the point is its center. */
+export function peopleNearLabel(count: number, inCity: boolean): string {
+  const noun = pluralRu(count, "человек", "человека", "человек");
+  return inCity ? `${noun} рядом` : `${noun} в городе`;
+}
+
+export function peopleEmptyTitle(inCity: boolean): string {
+  return inCity ? "Рядом пока никого с общими интересами." : "В городе пока никого с общими интересами.";
 }
 
 /** Explanations arrive as «общий интерес: джаз» — the card opens a sentence, so the first letter rises. */
@@ -89,9 +99,11 @@ interface PeopleViewProps {
   onInvite: (candidate: PeopleCandidate) => void;
   onHide: (userId: string) => void;
   onRetry: () => void;
+  /** False when distances are measured from the profile city's center. */
+  inCity?: boolean;
 }
 
-export function PeopleView({ state, hidden, onInvite, onHide, onRetry }: PeopleViewProps) {
+export function PeopleView({ state, hidden, onInvite, onHide, onRetry, inCity = true }: PeopleViewProps) {
   const people = state.status === "ready" ? state.data.people.filter((candidate) => !hidden.has(candidate.person.id)) : [];
   return (
     <section className="app-people">
@@ -106,7 +118,7 @@ export function PeopleView({ state, hidden, onInvite, onHide, onRetry }: PeopleV
           <div className="app-people-stats">
             <div className="app-people-stat">
               <span className="app-people-stat-count">{state.data.nearbyCount}</span>
-              <span className="app-people-stat-label">{pluralRu(state.data.nearbyCount, "человек", "человека", "человек")} рядом</span>
+              <span className="app-people-stat-label">{peopleNearLabel(state.data.nearbyCount, inCity)}</span>
             </div>
             <div className="app-people-stat app-people-stat--live">
               <span className="app-people-stat-count">{state.data.lookingForCompanyTodayCount}</span>
@@ -114,7 +126,7 @@ export function PeopleView({ state, hidden, onInvite, onHide, onRetry }: PeopleV
             </div>
           </div>
           <p className="app-people-note">Показываем только тех, кто сам согласился быть видимым. Точное местоположение не передаётся — только расстояние.</p>
-          {people.length === 0 && <AppState>Рядом пока никого с общими интересами.</AppState>}
+          {people.length === 0 && <AppState>{peopleEmptyTitle(inCity)}</AppState>}
           {people.map((candidate) => (
             <PersonCard key={candidate.person.id} candidate={candidate} onInvite={() => onInvite(candidate)} onHide={() => onHide(candidate.person.id)} />
           ))}
@@ -126,17 +138,18 @@ export function PeopleView({ state, hidden, onInvite, onHide, onRetry }: PeopleV
 
 export function PeoplePage() {
   const { navigate } = useRoute();
-  const origin = useViewerOrigin();
+  const point = useProfileCityPoint();
   const [state, setState] = useState<PeopleState>({ status: "loading" });
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
 
   const load = useCallback(() => {
+    if (!point.settled) return;
     setState({ status: "loading" });
-    apiClient.getPeople({ latitude: origin.latitude, longitude: origin.longitude }).then(
+    apiClient.getPeople({ latitude: point.latitude, longitude: point.longitude }).then(
       (data) => setState({ status: "ready", data }),
       () => setState({ status: "error" }),
     );
-  }, [origin.latitude, origin.longitude]);
+  }, [point.settled, point.latitude, point.longitude]);
   useEffect(() => {
     load();
   }, [load]);
@@ -160,6 +173,7 @@ export function PeoplePage() {
         })
       }
       onRetry={load}
+      inCity={point.settled && point.fromViewer}
     />
   );
 }

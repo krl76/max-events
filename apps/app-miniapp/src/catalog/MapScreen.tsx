@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 16 «Карта»: the Leaflet map with OSM-based tiles (the project's own vector basemap by default plus seven raster ones, the choice remembered on the device), event/place/friend pins, the «Вы здесь» marker, the weather chip, the layer and basemap chips, the card of the selected object with its travel times and the route it draws.
 // SCOPE: The canvas is unconditional — every data source of this screen (places, friends, weather, travel, and the events handed in by the page) may fail or come back empty, and the map still opens with «Вы здесь» and a line saying what is missing. Places fetched via apiClient.listPlaces and the friend layer via apiClient.listFriendPlaces; the weather and the travel estimates come from apiClient.getMapWeather / getTravelOptions, both mock-backed (#495, #504). Leaflet is loaded lazily (dynamic import) so it stays out of the main bundle; the map instance is created once and fed updates, so a filter or a layer toggle no longer resets pan and zoom. The vector basemap mounts asynchronously through ./vectorBasemap.ts (MapLibre lazy too) and follows the rendered colour scheme; when it cannot mount the screen falls back to the standard raster tiles and says so.
-// DEPENDS: leaflet (dynamic import + css), ../api/client.js (apiClient, MapWeather, TravelOption), ./basemaps.js (MAP_BASEMAPS, STANDARD_BASEMAP, MapBasemap, basemapCredit, read/writeBasemapPreference), ./vectorBasemap.js (mountVectorBasemap, VectorBasemapLayer), ../ui/theme.js (useAppliedScheme, ThemeScheme), ./mapMarkers.js (buildMapMarkers, clusterMapMarkers, MapMarker, MapPinGlyph, MAP_CLUSTER_MAX_ZOOM), ./useLeafletMap.js, ../geo/viewer-origin.js, ../ui/icons.js, ../ui/primitives.js
+// DEPENDS: leaflet (dynamic import + css), ../api/client.js (apiClient, MapWeather, TravelOption), ./basemaps.js (MAP_BASEMAPS, STANDARD_BASEMAP, MapBasemap, basemapCredit, read/writeBasemapPreference), ./vectorBasemap.js (mountVectorBasemap, VectorBasemapLayer), ../ui/theme.js (useAppliedScheme, ThemeScheme), ./mapMarkers.js (buildMapMarkers, clusterMapMarkers, MapMarker, MapPinGlyph, MAP_CLUSTER_MAX_ZOOM), ./useLeafletMap.js, ../geo/profile-city.js, ../ui/icons.js, ../ui/primitives.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -38,7 +38,7 @@ import type { Event, FriendPlaceVisit, Place } from "@max-events/api-contracts";
 import "leaflet/dist/leaflet.css";
 import { apiClient, type EventForecast, type EventWeatherHour, type MapWeather, type TravelOption } from "../api/client";
 import { pluralRu } from "./format";
-import { useViewerOrigin } from "../geo/viewer-origin";
+import { useProfileCityPoint } from "../geo/profile-city";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { AppChip } from "../ui/primitives";
 import { useAppliedScheme, type ThemeScheme } from "../ui/theme";
@@ -257,8 +257,9 @@ function clusterSize(count: number): number {
 
 export interface MapView {
   markers: MapMarker[];
-  /** Where the viewer stands: draws the «Вы здесь» marker and anchors the route. */
+  /** Where the viewer stands: draws the «Вы здесь» marker and anchors the route. A city-center point uses another label. */
   origin: [number, number] | null;
+  hereLabel?: string;
   /** Walking geometry from the origin to the selected object. */
   route: [number, number][] | null;
   /** Ключ выбранного маркера: его пин приподнят, чтобы карточка внизу и точка на карте читались как одно. */
@@ -396,7 +397,8 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
     overlay.clearLayers();
     if (view.dropped) L.marker(view.dropped, { icon: L.divIcon({ className: "app-pin-marker", iconSize: [28, 36], iconAnchor: [14, 34], html: '<span class="app-pin-marker-drop"></span>' }), zIndexOffset: 900 }).addTo(overlay);
     if (view.origin === null) return;
-    L.marker(view.origin, { icon: L.divIcon({ className: "app-map-pin app-map-pin--me", iconSize: [22, 22], iconAnchor: [11, 11], html: '<span class="app-map-me-dot"></span><span class="app-map-me-label">Вы здесь</span>' }) }).addTo(overlay);
+    const hereLabel = view.hereLabel ?? "Вы здесь";
+    L.marker(view.origin, { icon: L.divIcon({ className: "app-map-pin app-map-pin--me", iconSize: [22, 22], iconAnchor: [11, 11], html: `<span class="app-map-me-dot"></span><span class="app-map-me-label">${hereLabel}</span>` }) }).addTo(overlay);
     if (view.route !== null && view.route.length >= 2) L.polyline(view.route, { className: "app-map-route", weight: 4, lineCap: "round" }).addTo(overlay);
   }
 
@@ -531,7 +533,11 @@ interface MapScreenProps {
 }
 
 export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null }: MapScreenProps) {
-  const origin = useViewerOrigin();
+  const located = useProfileCityPoint();
+  const weatherCity = located.city ?? city;
+  // Until the profile city is known the canvas stays on Moscow. A far GPS fix must not pan the map away from the catalog.
+  const originPoint = useMemo<[number, number]>(() => (located.settled ? [located.latitude, located.longitude] : [MOSCOW_CENTER[0], MOSCOW_CENTER[1]]), [located.settled, located.latitude, located.longitude]);
+  const hereLabel = located.settled && located.fromViewer ? "Вы здесь" : "Центр города";
   const [places, setPlaces] = useState<PlacesState>({ status: "loading" });
   const [friendVisits, setFriendVisits] = useState<FriendPlaceVisit[]>([]);
   const [friendsAsked, setFriendsAsked] = useState(false);
@@ -585,8 +591,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
 
   useEffect(() => {
     let alive = true;
-    const point = { latitude: origin.latitude, longitude: origin.longitude };
-    apiClient.getMapWeather(city, point).then(
+    const point = { latitude: originPoint[0], longitude: originPoint[1] };
+    apiClient.getMapWeather(weatherCity, point).then(
       (loaded) => {
         if (alive) setWeather(loaded);
       },
@@ -605,7 +611,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
     return () => {
       alive = false;
     };
-  }, [city, origin.latitude, origin.longitude]);
+  }, [weatherCity, originPoint]);
 
   const readyPlaces = places.status === "ready" ? places.places : [];
   const needle = query.trim().toLowerCase();
@@ -625,7 +631,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
       return;
     }
     let alive = true;
-    apiClient.getTravelOptions(selectedPlaceId, { latitude: origin.latitude, longitude: origin.longitude }).then(
+    apiClient.getTravelOptions(selectedPlaceId, { latitude: originPoint[0], longitude: originPoint[1] }).then(
       (options) => {
         if (alive) setTravel(options);
       },
@@ -637,9 +643,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
     return () => {
       alive = false;
     };
-  }, [selectedPlaceId, origin.latitude, origin.longitude]);
+  }, [selectedPlaceId, originPoint]);
 
-  const originPoint = useMemo<[number, number]>(() => [origin.latitude, origin.longitude], [origin.latitude, origin.longitude]);
   useEffect(() => {
     if (!routeOn || selectedPlace === undefined) {
       setRoutePath(null);
@@ -683,7 +688,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
     [],
   );
   const dropped = pin === null ? null : ([pin.lat, pin.lng] as [number, number]);
-  const view = useMemo<MapView>(() => ({ markers, origin: originPoint, route: routePath, selectedKey: selected?.key ?? null, dropped, basemap, scheme }), [markers, originPoint, routePath, selected, dropped, basemap, scheme]);
+  const view = useMemo<MapView>(() => ({ markers, origin: originPoint, hereLabel, route: routePath, selectedKey: selected?.key ?? null, dropped, basemap, scheme }), [markers, originPoint, hereLabel, routePath, selected, dropped, basemap, scheme]);
   const create = useCallback((container: HTMLElement, initial: MapView) => initEventMap(container, initial, callbacks), [callbacks]);
   const { containerRef, handleRef, status } = useLeafletMap<MapView, MapHandle>(create, view);
 
@@ -692,6 +697,14 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
     if (!centered || status !== "ready") return;
     handleRef.current?.focus(originPoint);
   }, [centered, status, originPoint, handleRef]);
+
+  const placedCity = useRef(false);
+  useEffect(() => {
+    if (!located.settled || status !== "ready" || placedCity.current) return;
+    if (pin !== null || focusPlaceId !== null) return;
+    placedCity.current = true;
+    handleRef.current?.focus(originPoint);
+  }, [located.settled, status, originPoint, pin, focusPlaceId, handleRef]);
 
   const flown = useRef("");
   useEffect(() => {
@@ -725,7 +738,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
     markerCount: markers.length,
     query,
     anyLayerOn: MAP_LAYERS.some((layer) => layers[layer]),
-    geoDenied: origin.state === "denied",
+    geoDenied: located.state === "denied",
     locateOn: centered,
   });
 
@@ -746,7 +759,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, onBack, onDiscuss,
       <div ref={containerRef} className={`app-map${status === "error" ? " app-map--blank" : ""}`} aria-label="Карта событий и мест" />
       {status === "loading" && (
         <span className="app-map-skeleton" aria-live="polite">
-          <span className="app-map-here-chip">Вы здесь</span>
+          <span className="app-map-here-chip">{hereLabel}</span>
         </span>
       )}
       <div className="app-map16-top">
