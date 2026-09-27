@@ -25,6 +25,7 @@ import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 import { voteOptionMeta } from "./format";
 
@@ -112,7 +113,7 @@ export function VoteCreateView({ events, friends, title, selectedEvents, selecte
             <span className="app-poll-check" aria-hidden="true">
               {picked && <ActionIcon name="check" size={12} strokeWidth={3.4} />}
             </span>
-            <AppMedia category={event.category} className="app-poll-option-media" />
+            <AppMedia category={event.category} src={pictured(event.id, event.coverUrl)} className="app-poll-option-media" />
             <span className="app-poll-option-text">
               <span className="app-poll-option-title">{event.title}</span>
               <span className="app-poll-option-meta">{voteOptionMeta(event)}</span>

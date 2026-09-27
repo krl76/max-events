@@ -32,6 +32,7 @@ import { pluralRu } from "../catalog/format";
 import { useProfileCityPoint } from "../geo/profile-city";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { eventFillLabel, pictured } from "../ui/photos";
 import { AppEmptyState, AppMedia, AppSkeleton, AppSkeletonList, AppState } from "../ui/primitives";
 
 export const COMPANY_LABELS: Record<WheretoCompany, string> = { alone: "Я один", friends: "С друзьями", partner: "С парой", kids: "С детьми" };
@@ -162,7 +163,7 @@ function Progress({ at }: { at: number }) {
   );
 }
 
-function QuestionScreen({ at, answers, onPick, onStep, onNext }: { at: number; answers: WheretoAnswers } & Pick<WheretoViewProps, "onPick" | "onStep" | "onNext" | "onBack">) {
+function QuestionScreen({ at, answers, onPick, onStep, onNext }: { at: number; answers: WheretoAnswers } & Pick<WheretoViewProps, "onPick" | "onStep" | "onNext">) {
   const question = WHERETO_QUESTIONS[at];
   const next = WHERETO_QUESTIONS[at + 1];
   const options = at === 0 ? COMPANY_ORDER.map((value) => ({ value, label: COMPANY_LABELS[value], hint: null, on: answers.company === value, pick: () => onPick({ ...answers, company: value }) })) : at === 1 ? MOOD_ORDER.map((value) => ({ value, label: MOOD_LABELS[value], hint: MOOD_HINTS[value], on: answers.mood === value, pick: () => onPick({ ...answers, mood: value }) })) : BUDGET_ORDER.map((value) => ({ value, label: BUDGET_LABELS[value], hint: null, on: answers.budget === value, pick: () => onPick({ ...answers, budget: value }) }));
@@ -242,7 +243,7 @@ function ResultScreen({ query, result, now, onStep, onRestart, onRetry, onOpenEv
       {result.status === "ready" && items.length === 0 && <AppEmptyState kind="empty-match" onAction={() => onStep(2)} onSecondaryAction={onRestart} />}
       {hero !== undefined && (
         <button type="button" className="app-wt-hero" onClick={() => onOpenEvent(hero.id)}>
-          <AppMedia category={hero.category} />
+          <AppMedia category={hero.category} src={pictured(hero.id, hero.coverUrl)} />
           <span className="app-wt-hero-blob" aria-hidden="true" />
           <span className="app-wt-hero-veil">
             <span className="app-wt-hero-title">{hero.title}</span>
@@ -257,7 +258,7 @@ function ResultScreen({ query, result, now, onStep, onRestart, onRetry, onOpenEv
             {rest.map((pick, index) => (
               <button key={pick.id} type="button" className="app-wt-row" onClick={() => onOpenEvent(pick.id)}>
                 <span className="app-wt-row-index">{index + 2}</span>
-                <AppMedia category={pick.category} />
+                <AppMedia category={pick.category} src={pictured(pick.id, pick.coverUrl)} />
                 <span className="app-wt-row-text">
                   <span className="app-wt-row-title">{pick.title}</span>
                   <span className="app-wt-row-meta">{metaLine(pick, now, false)}</span>

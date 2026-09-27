@@ -29,6 +29,8 @@ import { CatalogPage } from "../catalog/CatalogPage";
 import { CATEGORY_LABELS } from "../catalog/format";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
+import { toggleEventLike, useEventLiked } from "../ui/event-likes";
+import { eventFillLabel, pictured } from "../ui/photos";
 import { formatPickDistance, formatPickPrice, TodayAfterMeCard, TodayPicksBlock, TodaySummaryBlock, todayAfterMeCard, type DistanceVoice, type TodayState } from "../today/TodaySection";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppSkeleton, AppState } from "../ui/primitives";
@@ -210,6 +212,27 @@ interface SearchNearbyProps {
   onRetry: () => void;
 }
 
+function RailCard({ card, inCity, onOpen }: { card: CatalogCard; inCity: boolean; onOpen: () => void }) {
+  const liked = useEventLiked(card.event.id);
+  const fill = eventFillLabel(card.event);
+  return (
+    <article className={`app-rail-card app-media--${card.event.category}`}>
+      <img className="app-rail-photo" alt="" src={pictured(card.event.id, card.event.coverUrl)} />
+      <button type="button" className="app-pick-open" aria-label={card.event.title} onClick={onOpen}>
+        <span className="app-rail-kind">{CATEGORY_LABELS[card.event.category]}</span>
+        <span className="app-rail-veil">
+          <span className="app-rail-title">{card.event.title}</span>
+          <span className="app-rail-meta">{[railMeta(card, inCity ? "you" : "center"), fill].filter((part) => part !== null && part !== "").join(" · ")}</span>
+        </span>
+      </button>
+      <button type="button" className="app-pick-save" aria-label="Нравится" aria-pressed={liked} onClick={() => toggleEventLike(card.event.id)}>
+        <ActionIcon filled={liked} name="heart" size={16} />
+        <span className="app-pick-likes">{(card.event.friendsGoing?.length ?? 0) + (liked ? 1 : 0)}</span>
+      </button>
+    </article>
+  );
+}
+
 export function SearchNearby({ state, query, expanded, inCity = true, onExpand, onOpenEvent, onRetry }: SearchNearbyProps) {
   const searching = query.trim() !== "";
   const cards = state.status === "ready" ? state.cards : [];
@@ -242,13 +265,7 @@ export function SearchNearby({ state, query, expanded, inCity = true, onExpand, 
         // Горизонтальная лента — витрина; найденное читают списком, а не прокруткой вбок.
         <div className={searching ? "app-rail-list" : "app-rail-strip"}>
           {cards.map((card) => (
-            <button key={card.event.id} type="button" className={`app-rail-card app-media--${card.event.category}`} onClick={() => onOpenEvent(card.event.id)}>
-              <span className="app-rail-kind">{CATEGORY_LABELS[card.event.category]}</span>
-              <span className="app-rail-veil">
-                <span className="app-rail-title">{card.event.title}</span>
-                <span className="app-rail-meta">{railMeta(card, inCity ? "you" : "center")}</span>
-              </span>
-            </button>
+            <RailCard key={card.event.id} card={card} inCity={inCity} onOpen={() => onOpenEvent(card.event.id)} />
           ))}
         </div>
       )}

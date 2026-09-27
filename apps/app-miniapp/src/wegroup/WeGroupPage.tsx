@@ -30,6 +30,7 @@ import { useAuth } from "../auth/AuthContext";
 import { openExternalLink } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 import { WeGroupFaces, formatRub, weGroupMembersLabel } from "./WeGroupsPage";
 
@@ -274,7 +275,7 @@ export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, 
         {card.events.length === 0 && picker !== "event" && <p className="app-we-empty">Ещё ничего не запланировано.</p>}
         {card.events.map((event) => (
           <button key={event.id} type="button" className="app-we-row" onClick={() => onOpenEvent(event.id)}>
-            <AppMedia category={event.category} className="app-we-row-media" />
+            <AppMedia category={event.category} src={pictured(event.id, event.coverUrl)} className="app-we-row-media" />
             <span className="app-we-row-text">
               <span className="app-we-row-title">{event.title}</span>
               <span className="app-we-row-meta">

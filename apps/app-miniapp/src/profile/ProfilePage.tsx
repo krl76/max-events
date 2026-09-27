@@ -39,6 +39,7 @@ import { announceShare, getWebApp, shareResult } from "../max/bridge";
 import { sharePayload } from "../max/links";
 import { useRoute } from "../routing/router";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppMedia, AppSkeleton, AppState } from "../ui/primitives";
 
 const INTERESTS_ON_LINE = 3;
@@ -204,7 +205,7 @@ export function ProfilePostGrid({ posts, failed, onOpenPost, onNewPost, canPubli
     <div className="app-me-posts">
       {posts.map((post) => (
         <button key={post.postId} type="button" className="app-me-post" aria-label={post.eventId === null ? `Пост «${post.eventTitle}»` : `Пост о событии «${post.eventTitle}»`} onClick={() => onOpenPost(post)}>
-          {post.photoUrl === null ? <AppMedia category={post.category} className="app-me-post-media" /> : <img className="app-me-post-photo" alt="" src={post.photoUrl} />}
+          {post.photoUrl === null ? <AppMedia category={post.category} src={pictured(post.eventId ?? post.postId)} className="app-me-post-media" /> : <img className="app-me-post-photo" alt="" src={post.photoUrl} />}
           <span className="app-me-post-stats" aria-hidden="true">
             <span className="app-me-post-stat">
               <ActionIcon name="heart" size={14} strokeWidth={2.4} />

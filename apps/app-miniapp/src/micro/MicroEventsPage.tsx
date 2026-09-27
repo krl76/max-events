@@ -29,6 +29,7 @@ import { PersonAvatar } from "../friends/avatar";
 import { microWhere } from "./MicroEvents";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppSkeletonList, AppState } from "../ui/primitives";
 
 export function microTime(startsAt: string): string {
@@ -120,6 +121,7 @@ export function MicroRow({ item, places, people, joined, onOpen }: MicroRowProps
   const faces = item.participantIds.map((id) => people.find((person) => person.id === id)).filter((person): person is Friend => person !== undefined);
   return (
     <button type="button" className="app-micro-row" onClick={onOpen}>
+      <img className="app-micro-row-photo" alt="" src={pictured(item.id)} />
       <span className="app-micro-head">
         <span className="app-micro-title">{item.title}</span>
         <span className="app-micro-clock">{microTime(item.startsAt)}</span>

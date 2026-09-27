@@ -32,6 +32,7 @@ import { shareResult, webApp, type ShareChannel } from "../max/bridge";
 import { sharePayload } from "../max/links";
 import { AppButton, AppState } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { useRoute } from "../routing/router";
 
 /** Mirrors MAX_CUSTOM_LISTS on the backend: the number the 409 is about and the number «3 из 20» counts up to. */
@@ -299,13 +300,14 @@ export function ListView({ state, onOpenEvent, onOpenPlace, onOpenPost, showAuth
           else if (place !== null) onOpenPlace?.(place.id);
           else if (post !== null) onOpenPost?.(post.id);
         };
-        const mediaClass = event !== null ? `app-list-item-media app-media--${event.category}` : post?.photoUrl ? "app-list-item-media" : "app-list-item-media";
+        const mediaClass = event !== null ? `app-list-item-media app-media--${event.category}` : "app-list-item-media";
+        const photo = post?.photoUrl ?? (event !== null ? pictured(event.id, event.coverUrl) : place !== null ? pictured(place.id) : null);
         const meta = event !== null ? listEventMeta(event) : (place?.address ?? (post !== null ? [post.author.name, post.eventTitle].filter((part) => part !== "").join(" · ") : ""));
         return (
           // The remove control sits beside the card, not inside it: a button inside a button is invalid.
           <div key={item.id} className="app-list-item">
             <button type="button" className="app-list-item-open" onClick={open}>
-              {post?.photoUrl ? <img className="app-list-item-media" src={post.photoUrl} alt="" /> : <span className={mediaClass} aria-hidden="true" />}
+              {photo !== null ? <img className={mediaClass} src={photo} alt="" /> : <span className={mediaClass} aria-hidden="true" />}
               <span className="app-list-item-body">
                 <span className="app-list-item-title">{title}</span>
                 <span className="app-list-item-meta">{meta}</span>

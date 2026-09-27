@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import type { EventCategory } from "@max-events/api-contracts";
 import { formatStartsAt } from "../catalog/format";
 import { ActionIcon } from "./icons";
+import { pictured } from "./photos";
 import { AppMedia } from "./primitives";
 import { useSheetSwipe } from "./sheet";
 
@@ -66,7 +67,7 @@ export function EventPicker<T extends PickableEvent>({ title, events, selectedId
               return (
                 <li key={event.id}>
                   <button type="button" className={selected ? "app-picker-event app-picker-event--on" : "app-picker-event"} aria-pressed={selected} onClick={() => onPick(event)}>
-                    <AppMedia category={event.category} src={event.coverUrl} className="app-picker-media" />
+                    <AppMedia category={event.category} src={pictured(event.id, event.coverUrl)} className="app-picker-media" />
                     <span className="app-picker-copy">
                       <span className="app-picker-name">{event.title}</span>
                       <span className="app-picker-meta">{meta}</span>

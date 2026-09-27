@@ -27,6 +27,7 @@ import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 import { PARTICIPATION_STATUS_LABELS } from "./EventPage";
 
@@ -163,7 +164,7 @@ export function CompanionsView({ event, companions, failed, tab, pickerOpen, onT
           <span className="app-evc-bar-label">С кем пойти</span>
           <span className="app-evc-bar-title">{event?.title ?? "Событие"}</span>
         </span>
-        {event !== null && <AppMedia category={event.category} className="app-evc-bar-media" />}
+        {event !== null && <AppMedia category={event.category} src={pictured(event.id, event.coverUrl)} className="app-evc-bar-media" />}
       </header>
       <div className="app-evc-lead">
         <button type="button" className="app-evc-gather" onClick={onGather}>

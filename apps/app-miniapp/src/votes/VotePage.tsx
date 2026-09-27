@@ -26,6 +26,7 @@ import { pluralRu } from "../catalog/format";
 import { openExternalLink } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 import { voteOptionMeta } from "./format";
 
@@ -169,7 +170,7 @@ export function VoteView({ state, ownId, myChoice, voting, closing, revoting, fa
             <>
               <span className="app-poll-result-fill" style={{ width: `${percent}%` }} aria-hidden="true" />
               <span className="app-poll-result-body">
-                <AppMedia category={option.event.category} className="app-poll-result-media" />
+                <AppMedia category={option.event.category} src={pictured(option.event.id, option.event.coverUrl)} className="app-poll-result-media" />
                 <span className="app-poll-result-text">
                   <span className="app-poll-result-title">
                     {option.event.title}

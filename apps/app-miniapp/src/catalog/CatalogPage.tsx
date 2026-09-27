@@ -28,6 +28,7 @@ import { useRoute } from "../routing/router";
 import { AppChip, AppState, AppMedia } from "../ui/primitives";
 import { useProfileCityPoint } from "../geo/profile-city";
 import { browsedCityOrigin } from "../geo/viewer-origin";
+import { eventFillLabel, pictured } from "../ui/photos";
 import { CATEGORY_LABELS, formatEventWeather, formatStartsAt } from "./format";
 import { MapScreen } from "./MapScreen";
 
@@ -109,7 +110,7 @@ function ViewToggle({ view, onView }: { view: CatalogViewName; onView: (view: Ca
 export function EventCard({ event, onOpen }: { event: Event; onOpen?: (id: string) => void }) {
   return (
     <button type="button" className="app-card app-card--link" onClick={() => onOpen?.(event.id)}>
-      <AppMedia category={event.category} src={event.coverUrl} />
+      <AppMedia category={event.category} src={pictured(event.id, event.coverUrl)} />
       <div className="app-card-body">
         <span className="app-card-title">{event.title}</span>
         <span className="app-card-subtitle">
@@ -119,7 +120,7 @@ export function EventCard({ event, onOpen }: { event: Event; onOpen?: (id: strin
           {event.city} · {event.priceRub === null ? "Бесплатно" : `${event.priceRub} ₽`}
           {event.organizerName ? ` · ${event.organizerName}` : ""}
           {event.distanceKm !== undefined && event.distanceKm !== null ? ` · ${event.distanceKm.toFixed(1)} км` : ""}
-          {event.remainingSeats !== undefined && event.remainingSeats !== null ? ` · осталось ${event.remainingSeats}` : event.bookedCount !== undefined ? ` · ${event.bookedCount} идут` : ""}
+          {eventFillLabel(event) !== null ? ` · ${eventFillLabel(event)}` : ""}
           {event.ratingAverage !== undefined && event.ratingAverage !== null ? ` · ${event.ratingAverage.toFixed(1)}` : ""}
           {event.waitlistCount ? ` · ${event.waitlistCount} в листе` : ""}
         </span>

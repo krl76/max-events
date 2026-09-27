@@ -29,6 +29,7 @@ import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
 import { useSwipeDrag, type SwipeGestureProps } from "../ui/gestures";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppSkeleton, AppState } from "../ui/primitives";
 
 export type SwipeState = { status: "loading" } | { status: "error" } | { status: "ready"; candidates: SwipeCandidate[] };
@@ -132,7 +133,7 @@ export function SwipeCard({ candidate, dx, settling = false, leaving = null, ges
 
   return (
     <div className={cardClass} {...gesture} style={style} onAnimationEnd={leaving === null ? undefined : onAnimationEnd}>
-      {candidate.previewUrl !== null && <img className="app-swipe-photo" src={candidate.previewUrl} alt="" />}
+      <img className="app-swipe-photo" src={pictured(candidate.place.id, candidate.previewUrl)} alt="" />
       <span className="app-swipe-glow" aria-hidden="true" />
       <span className="app-swipe-glow app-swipe-glow--cool" aria-hidden="true" />
       <span className="app-swipe-tint app-swipe-tint--like" aria-hidden="true" />

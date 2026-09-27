@@ -31,6 +31,7 @@ import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { planStepTime } from "../plans/PlanTimeline";
 import { useRoute, type Route } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppButton, AppMedia, AppState } from "../ui/primitives";
 import { assistErrorMessage } from "./AssistSection";
 
@@ -112,7 +113,7 @@ export type AssistPageState = { status: "idle" } | { status: "loading" } | { sta
 function PickCard({ pick, onOpen }: { pick: AssistPick; onOpen: () => void }) {
   return (
     <button type="button" className="app-assist-pick" onClick={onOpen}>
-      <AppMedia category={pick.event.category} className="app-assist-pick-media" />
+      <AppMedia category={pick.event.category} src={pictured(pick.event.id, pick.event.coverUrl)} className="app-assist-pick-media" />
       <span className="app-assist-pick-body">
         <span className="app-assist-pick-title">{pick.event.title}</span>
         <span className="app-assist-pick-meta">{assistPickMeta(pick.event)}</span>

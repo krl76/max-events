@@ -33,6 +33,7 @@ import { SaveToList } from "../event/SaveToList";
 import { StoryViewer, type StoryGroup } from "../stories/StoryViewer";
 import { OPEN_OWN_STORY } from "../create/StoryCreatePage";
 import { markStoriesSeen, readSeenStories, storyRail } from "../stories/rail";
+import { pictured } from "../ui/photos";
 import { AppAvatar, AppButton, AppChip, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { parsePinLabel } from "../ui/pin-label";
@@ -96,13 +97,15 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
           {eventTitle !== "" && <span className="app-post-place">{eventLink}</span>}
         </span>
       </header>
-      {post.photoUrl === null ? <AppMedia category={eventCategory} /> : <img className="app-card-media app-post-photo" src={post.photoUrl} alt="" />}
+      {post.photoUrl === null ? <AppMedia category={eventCategory} src={pictured(post.eventId ?? post.id)} /> : <img className="app-card-media app-post-photo" src={post.photoUrl} alt="" />}
       <div className="app-post-actions">
         <button type="button" className="app-post-action" aria-pressed={post.likedByMe} aria-label="Нравится" onClick={onToggleLike}>
           <ActionIcon filled={post.likedByMe} name="heart" />
+          <span>{post.likesCount}</span>
         </button>
         <button type="button" className="app-post-action" aria-label="Комментировать" onClick={() => commentRef.current?.focus()}>
           <ActionIcon name="comment" />
+          <span>{post.comments.length}</span>
         </button>
         <button
           type="button"

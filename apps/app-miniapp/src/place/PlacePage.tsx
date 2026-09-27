@@ -30,6 +30,7 @@ import { PLACE_CATEGORY_LABELS } from "../organizer/OrganizerPage";
 import { matchesSubscriptionTarget } from "../subscriptions/SubscribeToggle";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 import { formatRub, formatSlotWindow, formatTime, formatUpcomingWhen, slotStatusLabel } from "./slots";
 
@@ -368,7 +369,7 @@ export function PlacePageView({ place, page, board, checkedIn, onCheckIn, onOpen
             <div className="app-place-upcoming">
               {board.upcoming.map((card) => (
                 <button key={card.event.id} type="button" className="app-place-event" onClick={() => onOpenEvent(card.event.id)}>
-                  <AppMedia category={card.event.category} className="app-place-event-media" />
+                  <AppMedia category={card.event.category} src={pictured(card.event.id, card.event.coverUrl)} className="app-place-event-media" />
                   <span className="app-place-event-body">
                     <span className="app-place-event-when">{formatUpcomingWhen(card.event.startsAt)}</span>
                     <span className="app-place-event-title">{card.event.title}</span>

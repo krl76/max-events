@@ -23,6 +23,7 @@ import { useEffect, useState } from "react";
 import { apiClient, type OrganizerEvent, type OrganizerSummary, type OrganizerTrafficSource } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 
 export type OrganizerPromoIntent = "boost" | "target_collection" | "promocode" | "report";
@@ -156,7 +157,7 @@ export function OrganizerDashboardView({ organizationName, summary, events, fill
           const fill = fills[item.id];
           return (
             <button key={item.id} type="button" className="app-org-event" onClick={() => onOpenEvent(item)}>
-              <AppMedia category={item.category} className="app-org-event-media" />
+              <AppMedia category={item.category} src={pictured(item.id, item.coverUrl)} className="app-org-event-media" />
               <span className="app-org-event-body">
                 <span className="app-org-event-title">{item.title}</span>
                 <span className="app-org-event-meta">

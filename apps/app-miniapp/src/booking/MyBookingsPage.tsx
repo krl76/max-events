@@ -31,6 +31,7 @@ import { companyLabel, formatBookingDate, formatRub, formatSlotWindow, formatTim
 import { CodeBlock } from "./BookingTicketPage";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 
 export const BOOKING_TABS = [
@@ -212,7 +213,7 @@ function BookingCardView({ card, menuOpen, onOpenTicket, onLeaveWaitlist, onMenu
         <span className="app-book-group-title">{card.venue}</span>
       </div>
       <button type="button" className="app-book-hero" onClick={onOpenTicket}>
-        <AppMedia category={card.category ?? undefined} className="app-book-hero-media" />
+        <AppMedia category={card.category ?? undefined} src={pictured(card.eventId ?? card.title)} className="app-book-hero-media" />
         <span className={card.kind === "waitlist" ? "app-book-badge app-book-badge--waiting" : card.kind === "slot" ? "app-book-badge app-book-badge--slot" : "app-book-badge"}>{card.badge}</span>
         <span className="app-book-hero-veil">
           <span className="app-book-hero-title">{card.title}</span>
@@ -335,7 +336,7 @@ export function MyBookingsView({ board, tab, query, searching, menuId, onTab, on
           <div className="app-place-label">Прошедшие</div>
           {board.past.map((card) => (
             <div key={card.eventId} className="app-book-past-card">
-              <AppMedia category={card.category} className="app-book-past-media" />
+              <AppMedia category={card.category} src={pictured(card.eventId)} className="app-book-past-media" />
               <span className="app-book-past-body">
                 <span className="app-book-past-title">{card.title}</span>
                 <span className="app-book-past-meta">{card.meta}</span>

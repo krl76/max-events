@@ -16,6 +16,7 @@ import type { AfterMeResponse, AfterMeSuggestion } from "@max-events/api-contrac
 import { apiClient } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
+import { pictured } from "../ui/photos";
 import { AppMedia, AppSection } from "../ui/primitives";
 
 /**
@@ -38,7 +39,7 @@ export function AfterMeView({ response, onOpen = () => {}, title = "После �
           <p className="app-today-summary">{suggestion.explanation}</p>
           {suggestion.events.map((event) => (
             <button key={event.id} type="button" className="app-card app-card--link" onClick={() => onOpen(event.id)}>
-              <AppMedia category={event.category} />
+              <AppMedia category={event.category} src={pictured(event.id, event.coverUrl)} />
               <div className="app-card-body">
                 <span className="app-card-title">{event.title}</span>
                 <span className="app-card-subtitle">{formatStartsAt(event.startsAt)}</span>

@@ -36,6 +36,7 @@ import type { OrganizerRating } from "@max-events/api-contracts";
 import type { EventCompanions, EventDetails, EventForecast, EventMoodTag, EventNearbySpot, EventWeatherHour, TravelOption } from "../api/client";
 import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppMedia } from "../ui/primitives";
 
 /** «СЕН» / «19». Intl gives «сент.» for the short month, and the tile wants three letters in caps. */
@@ -174,7 +175,7 @@ export function EventHero({ details, saveOpen, onShare, onSave }: EventHeroProps
         </span>
       </div>
       <div className="app-ev-hero-id">
-        <AppMedia category={event.category} className="app-ev-hero-media" src={event.coverUrl} />
+        <AppMedia category={event.category} className="app-ev-hero-media" src={pictured(event.id, event.coverUrl)} />
         <div className="app-ev-hero-text">
           <h1 className="app-ev-title">{event.title}</h1>
           <p className="app-ev-hero-meta">
