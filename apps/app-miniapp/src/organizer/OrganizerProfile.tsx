@@ -19,7 +19,7 @@ import { pluralRu } from "../catalog/format";
 import { readFeedPhoto } from "../feed/photo";
 import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
-import { AppButton, AppMedia, AppState } from "../ui/primitives";
+import { AppMedia, AppState } from "../ui/primitives";
 import { ORGANIZER_ACTIVITY_OPTIONS } from "./organizer-onboarding";
 
 export type OrganizerProfileTab = "events" | "places";
@@ -62,11 +62,8 @@ export function OrganizerProfileView({
   onList,
   onOpenEvent,
   onSettings,
-  onLogout,
   onPickAvatar,
   onPickCover,
-  surface,
-  onSurface,
 }: {
   name: string;
   about: string;
@@ -83,78 +80,13 @@ export function OrganizerProfileView({
   onList: (list: OrganizerProfileList) => void;
   onOpenEvent: (event: OrganizerEvent) => void;
   onSettings: () => void;
-  onLogout: () => void;
   onPickAvatar: () => void;
   onPickCover: () => void;
-  surface: "cabinet" | "public";
-  onSurface: (surface: "cabinet" | "public") => void;
 }) {
-  const [confirmExit, setConfirmExit] = useState(false);
-  if (surface === "cabinet") {
-    return (
-      <section className="app-gathering" aria-label="Профиль организации">
-        <button type="button" className="app-me-avatar-ring" aria-label="Сменить аватар" onClick={onPickAvatar}>
-          <span className="app-me-avatar">{avatarUrl === null ? name.trim().slice(0, 1).toUpperCase() || "О" : <img alt="" src={avatarUrl} />}</span>
-        </button>
-        <h1 className="app-section-title">{name}</h1>
-        {about !== "" && <p className="app-gathering-hint">{about}</p>}
-        {failed && <AppState error>Не удалось загрузить профиль организации.</AppState>}
-        <button type="button" className="app-set-row" onClick={() => onSurface("public")}>
-          <span className="app-set-row-text">
-            <span className="app-set-row-title">Публичная страница</span>
-            <span className="app-set-row-hint">Обложка, события и места — как их видит страница организации</span>
-          </span>
-        </button>
-        <div className="app-set-group">
-          <button type="button" className="app-set-row" onClick={onSettings}>
-            <span className="app-set-row-text">
-              <span className="app-set-row-title">Данные организации</span>
-              <span className="app-set-row-hint">Название площадки и направления</span>
-            </span>
-          </button>
-          <button type="button" className="app-set-row" onClick={onPickCover}>
-            <span className="app-set-row-text">
-              <span className="app-set-row-title">Оформление страницы</span>
-              <span className="app-set-row-hint">Шапка и аватар хранятся только на этом устройстве</span>
-            </span>
-          </button>
-          <button type="button" className="app-set-row" onClick={onPickAvatar}>
-            <span className="app-set-row-text">
-              <span className="app-set-row-title">Сменить аватар</span>
-              <span className="app-set-row-hint">Фото не уходит на сервер организации</span>
-            </span>
-          </button>
-          <button type="button" className="app-set-row" onClick={onSettings}>
-            <span className="app-set-row-text">
-              <span className="app-set-row-title">Контакты</span>
-              <span className="app-set-row-hint">Контакт для гостя и ссылка на внешнюю оплату</span>
-            </span>
-          </button>
-          <button type="button" className="app-set-row" onClick={() => setConfirmExit(true)}>
-            <span className="app-set-row-title">Выйти из кабинета</span>
-          </button>
-        </div>
-        {confirmExit && (
-          <>
-            <p className="app-gathering-hint">Выйти из кабинета и вернуться к выбору входа?</p>
-            <AppButton tone="danger" stretched onClick={onLogout}>
-              Выйти
-            </AppButton>
-            <AppButton tone="secondary" stretched onClick={() => setConfirmExit(false)}>
-              Остаться
-            </AppButton>
-          </>
-        )}
-      </section>
-    );
-  }
   const published = events.filter((item) => !item.draft);
   const initial = name.trim().slice(0, 1).toUpperCase() || "О";
   return (
-    <section className="app-me" aria-label="Публичная страница организации">
-      <button type="button" className="app-org-head-link" onClick={() => onSurface("cabinet")}>
-        К кабинету
-      </button>
+    <section className="app-me" aria-label="Профиль организации">
       <div className="app-me-hero">
         {coverUrl !== null ? <img className="app-me-hero-cover" src={coverUrl} alt="" /> : null}
         <span className="app-me-blob app-me-blob--light" aria-hidden="true" />
@@ -256,7 +188,7 @@ export function OrganizerProfileView({
   );
 }
 
-export function OrganizerProfile({ organizationId, organizationName, onOpenEvent, onSettings, onLogout }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onSettings: () => void; onLogout: () => void }) {
+export function OrganizerProfile({ organizationId, organizationName, onOpenEvent, onSettings }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onSettings: () => void }) {
   const [events, setEvents] = useState<OrganizerEvent[]>([]);
   const [places, setPlaces] = useState<OrganizerPlace[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[] | null>(null);
@@ -264,7 +196,6 @@ export function OrganizerProfile({ organizationId, organizationName, onOpenEvent
   const [about, setAbout] = useState("");
   const [failed, setFailed] = useState(false);
   const [media, setMedia] = useState<OrgMedia>({ avatarUrl: null, coverUrl: null });
-  const [surface, setSurface] = useState<"cabinet" | "public">("cabinet");
   const [tab, setTab] = useState<OrganizerProfileTab>("events");
   const [list, setList] = useState<OrganizerProfileList>(null);
   const avatarRef = useRef<HTMLInputElement | null>(null);
@@ -363,9 +294,6 @@ export function OrganizerProfile({ organizationId, organizationName, onOpenEvent
         onList={setList}
         onOpenEvent={onOpenEvent}
         onSettings={onSettings}
-        onLogout={onLogout}
-        surface={surface}
-        onSurface={setSurface}
         onPickAvatar={() => avatarRef.current?.click()}
         onPickCover={() => coverRef.current?.click()}
       />

@@ -124,7 +124,6 @@ interface OrganizerSectionContentProps {
   onCheckIn: (event: OrganizerEvent) => void;
   onShowDrafts: () => void;
   onOpenPlaces: () => void;
-  onLogout: () => void;
   onOpenEvent: (event: OrganizerEvent) => void;
   editRequestId: string | null;
   onEditHandled: () => void;
@@ -134,7 +133,7 @@ interface OrganizerSectionContentProps {
   closeComposerTick?: number;
 }
 
-export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onOpenSettings, onOpenStats, onCheckIn, onShowDrafts, onOpenPlaces, onLogout, onOpenEvent, onComposer, closeComposerTick, editRequestId, onEditHandled, placesTick, draftsTick }: OrganizerSectionContentProps) {
+export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onOpenSettings, onOpenStats, onCheckIn, onShowDrafts, onOpenPlaces, onOpenEvent, onComposer, closeComposerTick, editRequestId, onEditHandled, placesTick, draftsTick }: OrganizerSectionContentProps) {
   if (section === "dashboard")
     return (
       <OrganizerDashboard
@@ -151,7 +150,7 @@ export function OrganizerSectionContent({ section, organizationId, organizationN
     );
   if (section === "finance") return <OrganizerFinance />;
   if (section === "promo") return <OrganizerPromo organizationName={organizationName} intent={promoIntent} eventId={promoEventId} onOpenEvent={() => onSection("events")} />;
-  if (section === "profile") return <OrganizerProfile organizationId={organizationId} organizationName={organizationName} onOpenEvent={onOpenEvent} onSettings={onOpenSettings} onLogout={onLogout} />;
+  if (section === "profile") return <OrganizerProfile organizationId={organizationId} organizationName={organizationName} onOpenEvent={onOpenEvent} onSettings={onOpenSettings} />;
   return <OrganizerPanel organizationId={organizationId} createOnMount={createEvent} onOpenEvent={onOpenEvent} onComposer={onComposer} closeComposerTick={closeComposerTick} editRequestId={editRequestId} onEditHandled={onEditHandled} placesTick={placesTick} draftsTick={draftsTick} />;
 }
 
@@ -316,10 +315,6 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
             onOpenPlaces={() => {
               setPlacesTick((tick) => tick + 1);
               setSection("events");
-            }}
-            onLogout={() => {
-              logout();
-              onExit();
             }}
             onOpenEvent={(event) => openManage(event, "hub")}
             onComposer={onComposer}
