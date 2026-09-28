@@ -47,7 +47,12 @@ describe("intro step", () => {
     expect(html).toContain(INTRO_SLIDES[0].title);
     expect(html).toContain(INTRO_SLIDES[0].description);
     expect(html).toContain("Пропустить");
-    expect(html.indexOf("Дальше")).toBeLessThan(html.indexOf("Начать"));
+    expect(html).toContain("Дальше");
+    expect(html).not.toContain("Начать");
+    expect(html.match(/app-onboarding-bitset--on/g)).toHaveLength(1);
+    expect(html).toContain("Анна");
+    expect(html).toContain("Ассистент");
+    expect(html).toContain("соберёмся?");
   });
 
   it("turns the last slide CTA into «Начать» and marks its dot", () => {
@@ -56,7 +61,8 @@ describe("intro step", () => {
     expect(html).toContain(INTRO_SLIDES[2].title);
     expect(html).toContain("Начать");
     expect(html).toContain("app-onboarding-dot--on");
-    expect(html).toContain("app-onboarding-scene");
+    expect(html).toContain("app-onboarding-film");
+    expect(html).toContain("/covers/kolomenskoe.jpg");
   });
 
   it("renders the intro even before the profile and the contacts arrive", () => {
@@ -66,13 +72,14 @@ describe("intro step", () => {
     expect(html).not.toContain("Загрузка");
   });
 
-  it("keeps the same moving phone on every slide, on the base canvas", () => {
+  it("keeps one city photograph and the same places while the bits around them change", () => {
     const html = viewHtml({ step: "intro", intro: 1 });
 
-    expect(html).toContain("app-onboarding-scene");
-    expect(html).toContain("app-onboarding-card--1");
-    expect(html).toContain("app-onboarding-card--6");
-    expect(html).toContain("Вечер джаза");
+    expect(html).toContain("app-onboarding-film");
+    expect(html).toContain("/onboarding/gorky.jpg");
+    expect(html).toContain("/onboarding/kazan.jpg");
+    expect(html).toContain("Парк Горького");
+    expect(html).toContain("Кул-Шариф");
     expect(html).not.toContain("app-onboarding-hero--");
   });
 

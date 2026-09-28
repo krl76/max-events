@@ -158,6 +158,7 @@ describe("routeIsFlush", () => {
     expect(routeIsFlush({ name: "feed-new", eventId: null })).toBe(true);
     expect(routeIsFlush({ name: "place", id: "p1" })).toBe(true);
     expect(routeIsFlush({ name: "notifications" })).toBe(true);
+    expect(routeIsFlush({ name: "onboarding" })).toBe(true);
   });
 
   it("keeps the 20px phone gutter on calendar, MAX AI and the day route", () => {

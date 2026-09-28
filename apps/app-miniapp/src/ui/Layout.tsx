@@ -39,24 +39,7 @@ export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string)
     icon: "profile",
     label: "Профиль",
     route: "profile",
-    active: (name) =>
-      name === "profile" ||
-      name === "user" ||
-      name === "friends" ||
-      name === "subscriptions" ||
-      name === "followers" ||
-      name === "discovery" ||
-      name === "people" ||
-      name === "friend-route" ||
-      name === "plans" ||
-      name === "plan" ||
-      name === "day-route" ||
-      name === "calendar" ||
-      name === "lists" ||
-      name === "list" ||
-      name === "bookings" ||
-      name === "slot-ticket" ||
-      name === "micro",
+    active: (name) => name === "profile" || name === "user" || name === "friends" || name === "subscriptions" || name === "followers" || name === "discovery" || name === "people" || name === "friend-route" || name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "lists" || name === "list" || name === "bookings" || name === "slot-ticket" || name === "micro",
   },
 ];
 
@@ -180,7 +163,7 @@ export function routeIsFullscreen(route: Route): boolean {
  * ставят 20px — иначе полноэкранный маршрут с полями дал бы 40px. Календарь, MAX AI
  * и маршрут на день полями оболочки пользуются: их вёрстка писалась под .app-content.
  */
-const FLUSH_ROUTES: ReadonlySet<Route["name"]> = new Set(["map", "story-new", "feed-new", "place", "slot-booking", "slot-ticket", "notifications"]);
+const FLUSH_ROUTES: ReadonlySet<Route["name"]> = new Set(["map", "story-new", "feed-new", "place", "slot-booking", "slot-ticket", "notifications", "onboarding"]);
 
 export function routeIsFlush(route: Route): boolean {
   return FLUSH_ROUTES.has(route.name);
