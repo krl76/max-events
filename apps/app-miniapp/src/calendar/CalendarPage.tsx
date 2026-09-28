@@ -236,7 +236,7 @@ interface SharedCalendarViewProps {
   onRemovePeer?: (userId: string) => void;
 }
 
-export function SharedCalendarView({ shared, entries, month, selected, now, onSelect, onOpen, onGoing, onShare, onAddFriend, notice = null, chrome = false, onClose, scope = "own", onSelectScope, onRemovePeer }: SharedCalendarViewProps) {
+export function SharedCalendarView({ shared, entries, month, selected, now, onSelect, onOpen, onGoing, onShare, onAddFriend, notice = null, chrome = false, scope = "own", onSelectScope, onRemovePeer }: SharedCalendarViewProps) {
   const dayEntries = entriesOn(entries, selected);
   const warnings = overlapWarnings(dayEntries);
   const reminder = calendarReminder(entries, now);
@@ -247,9 +247,6 @@ export function SharedCalendarView({ shared, entries, month, selected, now, onSe
     <section className={chrome ? "app-cal app-cal--screen" : "app-cal"} aria-label="Календарь планов">
       {chrome && (
         <div className="app-cal-top">
-          <button type="button" className="app-cal-back" aria-label="Назад" onClick={onClose}>
-            <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
-          </button>
           <h1 className="app-cal-top-title">{viewingPeer ? viewingPeer.friend.name.split(" ")[0] : "Календарь"}</h1>
         </div>
       )}

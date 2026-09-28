@@ -179,7 +179,6 @@ interface MyBookingsViewProps {
   onTab: (tab: BookingTab) => void;
   onQuery: (query: string) => void;
   onToggleSearch: () => void;
-  onCalendar: () => void;
   onOpenTicket: (card: BookingCard) => void;
   onLeaveWaitlist: (entryId: string) => void;
   onMenu: (id: string | null) => void;
@@ -272,7 +271,7 @@ function BookingCardView({ card, menuOpen, onOpenTicket, onLeaveWaitlist, onMenu
   );
 }
 
-export function MyBookingsView({ board, tab, query, searching, menuId, onTab, onQuery, onToggleSearch, onCalendar, onOpenTicket, onLeaveWaitlist, onMenu, onShare, onRate, onRepeat, onReschedule, picker, onPickReschedule, onClosePicker }: MyBookingsViewProps) {
+export function MyBookingsView({ board, tab, query, searching, menuId, onTab, onQuery, onToggleSearch, onOpenTicket, onLeaveWaitlist, onMenu, onShare, onRate, onRepeat, onReschedule, picker, onPickReschedule, onClosePicker }: MyBookingsViewProps) {
   const cards = filterBookingCards(board.active, tab, query);
   const showActive = tab !== "past";
   const showPast = tab === "active" || tab === "past";
@@ -291,13 +290,6 @@ export function MyBookingsView({ board, tab, query, searching, menuId, onTab, on
       </div>
 
       {searching && <input className="app-book-search-field" value={query} placeholder="Площадка или событие" aria-label="Поиск по броням" onChange={(change) => onQuery(change.target.value)} />}
-
-      <div className="app-book-segments">
-        <span className="app-book-segment app-book-segment--on">Мои брони</span>
-        <button type="button" className="app-book-segment" onClick={onCalendar}>
-          Календарь
-        </button>
-      </div>
 
       <div className="app-book-filters">
         {BOOKING_TABS.map((item) => (
@@ -437,5 +429,5 @@ export function MyBookingsPage() {
       (error: unknown) => setPicker({ ...picker, busy: false, error: rescheduleErrorMessage(error) }),
     );
   };
-  return <MyBookingsView board={state.board} tab={tab} query={query} searching={searching} menuId={menuId} onTab={setTab} onQuery={setQuery} onToggleSearch={() => setSearching((current) => !current)} onCalendar={() => navigate({ name: "calendar" })} onOpenTicket={open} onLeaveWaitlist={leave} onMenu={setMenuId} onShare={share} onRate={(eventId) => navigate({ name: "after-event", eventId })} onRepeat={(eventId) => navigate({ name: "event", id: eventId })} onReschedule={openReschedule} picker={picker} onPickReschedule={pickReschedule} onClosePicker={() => setPicker(null)} />;
+  return <MyBookingsView board={state.board} tab={tab} query={query} searching={searching} menuId={menuId} onTab={setTab} onQuery={setQuery} onToggleSearch={() => setSearching((current) => !current)} onOpenTicket={open} onLeaveWaitlist={leave} onMenu={setMenuId} onShare={share} onRate={(eventId) => navigate({ name: "after-event", eventId })} onRepeat={(eventId) => navigate({ name: "event", id: eventId })} onReschedule={openReschedule} picker={picker} onPickReschedule={pickReschedule} onClosePicker={() => setPicker(null)} />;
 }

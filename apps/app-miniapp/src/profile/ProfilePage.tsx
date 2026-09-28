@@ -230,8 +230,6 @@ export interface ProfileEntries {
   onPlans: () => void;
   onBookings: () => void;
   onCalendar: () => void;
-  onDayRoute: () => void;
-  onMicro: () => void;
   onSubscriptions: () => void;
   onFollowers: () => void;
   onAchievements: () => void;
@@ -474,8 +472,6 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
           <ProfileRow icon="bookmark" title="Планы" hint={null} onClick={entries.onPlans} />
           <ProfileRow icon="ticket" title="Мои брони" hint={null} onClick={entries.onBookings} />
           <ProfileRow icon="calendar" title="Календарь" hint={null} onClick={entries.onCalendar} />
-          <ProfileRow icon="pin" title="Маршрут на день" hint={null} onClick={entries.onDayRoute} />
-          <ProfileRow icon="spark" title="Микрособытия" hint={null} onClick={entries.onMicro} />
           <ProfileRow icon="medal" title="Достижения" hint={achievements === null ? null : achievementsHint(achievements)} onClick={entries.onAchievements} />
           <ProfileRow icon="group" title="Мы · группы" hint={weGroups === null ? null : weGroupsHint(weGroups)} onClick={entries.onWeGroups} />
           <ProfileRow icon="user" title="Друзья" hint={friendsCount === null ? null : friendsHint(friendsCount)} onClick={entries.onFriends} />
@@ -724,8 +720,6 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         onPlans={() => navigate({ name: "plans" })}
         onBookings={() => navigate({ name: "bookings" })}
         onCalendar={() => navigate({ name: "calendar" })}
-        onDayRoute={() => navigate({ name: "day-route" })}
-        onMicro={() => navigate({ name: "micro" })}
         onSubscriptions={() => navigate({ name: "subscriptions" })}
         onFollowers={() => navigate({ name: "followers" })}
         onAchievements={() => navigate({ name: "achievements" })}

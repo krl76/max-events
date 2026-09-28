@@ -95,8 +95,6 @@ function renderProfileView(overrides: Partial<Parameters<typeof ProfileView>[0]>
       onPlans: noop,
       onBookings: noop,
       onCalendar: noop,
-      onDayRoute: noop,
-      onMicro: noop,
       onSubscriptions: noop,
       onFollowers: noop,
       onAchievements: noop,
@@ -280,12 +278,12 @@ describe("ProfileView", () => {
   it("carries the profile sections and leaves a row without its counter until the count arrives", () => {
     const html = renderProfileView();
 
-    expect(html.match(/class="app-me-row"/g)).toHaveLength(8);
+    expect(html.match(/class="app-me-row"/g)).toHaveLength(6);
     expect(html).toContain("Планы");
     expect(html).toContain("Мои брони");
     expect(html).toContain("Календарь");
-    expect(html).toContain("Маршрут на день");
-    expect(html).toContain("Микрособытия");
+    expect(html).not.toContain("Маршрут на день");
+    expect(html).not.toContain("Микрособытия");
     expect(html).toContain("Достижения");
     expect(html).toContain("Мы · группы");
     expect(html).toContain("Друзья");

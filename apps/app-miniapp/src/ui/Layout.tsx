@@ -33,8 +33,8 @@ import { consumeFrozenScroll, freezeScroll, noteAppliedScroll, rememberScroll, r
 export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string) => boolean; route: "home" | "search" | "create" | "map" | "profile" }> = [
   { icon: "feed", label: "Лента", route: "home", active: (name) => name === "home" || name === "micro" || name === "micro-event" },
   { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" || name === "browse" || name === "swipe" || name === "assist" },
-  { icon: "create", label: "Создать", route: "create", active: (name) => name === "create" || name === "story-new" || name === "feed-new" || name === "micro-new" || name === "plan-new" },
   { icon: "map", label: "Карта", route: "map", active: (name) => name === "map" },
+  { icon: "create", label: "Создать", route: "create", active: (name) => name === "create" || name === "story-new" || name === "feed-new" || name === "micro-new" || name === "plan-new" },
   {
     icon: "profile",
     label: "Профиль",
@@ -160,9 +160,7 @@ const FULLSCREEN_ROUTES: ReadonlySet<Route["name"]> = new Set([
   // Экран 07 несёт свою шапку с колокольчиком и крестом, а таббара под ним в макете нет вовсе:
   // уведомления открываются поверх ленты и закрываются обратно в неё, а не листаются вкладками.
   "notifications",
-  // Календарь — свой экран: без таббара и без плашки «Закрыть». Назад — шеврон в его шапке.
-  "calendar",
-  // Экран 10 рисует свою градиентную шапку и приклеенный композер: таббар накрывал бы строку ввода.
+  // Календарь рисует свою шапку без шеврона: выход — таббар, профиль подсвечен.
   "assist",
   // Маршрут на день: своя шапка и нижнее «Готово», иначе длинный список прячет действие под таббаром.
   "day-route",

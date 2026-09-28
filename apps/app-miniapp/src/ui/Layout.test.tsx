@@ -60,11 +60,11 @@ describe("Layout tabbar active predicates", () => {
   });
 
   it("defines exactly the five tabbar tabs in order", () => {
-    expect(TABS.map((tab) => tab.route)).toEqual(["home", "search", "create", "map", "profile"]);
+    expect(TABS.map((tab) => tab.route)).toEqual(["home", "search", "map", "create", "profile"]);
   });
 
   it("labels the tabs as the design does", () => {
-    expect(TABS.map((tab) => tab.label)).toEqual(["Лента", "Поиск", "Создать", "Карта", "Профиль"]);
+    expect(TABS.map((tab) => tab.label)).toEqual(["Лента", "Поиск", "Карта", "Создать", "Профиль"]);
   });
 });
 
@@ -137,7 +137,6 @@ describe("routeIsFullscreen", () => {
   it("gives the whole viewport to the story and post composers, whose own bottom rail the tabbar would cover", () => {
     expect(routeIsFullscreen({ name: "story-new" })).toBe(true);
     expect(routeIsFullscreen({ name: "feed-new", eventId: null })).toBe(true);
-    expect(routeIsFullscreen({ name: "calendar" })).toBe(true);
     expect(routeIsFullscreen({ name: "assist", ask: null })).toBe(true);
     expect(routeIsFullscreen({ name: "day-route" })).toBe(true);
   });
@@ -146,6 +145,7 @@ describe("routeIsFullscreen", () => {
     expect(routeIsFullscreen({ name: "create" })).toBe(false);
     expect(routeIsFullscreen({ name: "micro-new" })).toBe(false);
     expect(routeIsFullscreen({ name: "home" })).toBe(false);
+    expect(routeIsFullscreen({ name: "calendar" })).toBe(false);
     expect(routeIsFullscreen({ name: "event", id: "e1" })).toBe(false);
   });
 });

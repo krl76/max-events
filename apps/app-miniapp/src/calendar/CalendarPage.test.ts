@@ -159,10 +159,10 @@ describe("SharedCalendarView", () => {
     expect(html).not.toContain("Мои брони");
   });
 
-  it("pins a back chevron and a way back to the own calendar, and can drop a friend", () => {
+  it("draws the calendar title without a back chevron, and can drop a friend", () => {
     const html = renderToStaticMarkup(createElement(SharedCalendarView, props));
 
-    expect(html).toContain('aria-label="Назад"');
+    expect(html).not.toContain('aria-label="Назад"');
     expect(html).not.toContain("Закрыть");
     expect(html).toContain("Мой календарь");
     expect(html).toContain("Убрать Анна из календаря");

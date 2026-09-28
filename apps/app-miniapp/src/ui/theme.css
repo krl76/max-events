@@ -19436,7 +19436,7 @@ button.app-cal-peer-chip {
   display: flex;
   gap: var(--app-space-xs);
   margin-top: var(--app-space-xl);
-  padding: 4px;
+  padding: 6px;
 }
 
 .app-me-tab {
@@ -19449,8 +19449,8 @@ button.app-cal-peer-chip {
   font: inherit;
   font-size: var(--app-font-size-callout);
   font-weight: 800;
-  height: 36px;
-  padding: 0;
+  height: 44px;
+  padding: 0 16px;
 }
 
 .app-me-tab--active {
@@ -22053,9 +22053,12 @@ button.app-story-viewer-author {
   text-align: left;
   width: 100%;
 }
-.app-plans-hero .app-media {
+.app-plans-hero .app-card-media {
+  aspect-ratio: auto;
+  height: 100%;
   inset: 0;
   position: absolute;
+  width: 100%;
 }
 .app-plans-hero-copy {
   background: linear-gradient(180deg, transparent 20%, rgb(0 0 0 / 72%));
@@ -22144,11 +22147,18 @@ button.app-story-viewer-author {
   text-align: left;
   width: 100%;
 }
-.app-plans-row .app-media {
+.app-plans-row .app-card-media {
+  aspect-ratio: 1;
   border-radius: 14px;
   flex: none;
   height: 56px;
   width: 56px;
+}
+.app-plans-row-title,
+.app-plans-row-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .app-plans-row-copy {
   display: flex;

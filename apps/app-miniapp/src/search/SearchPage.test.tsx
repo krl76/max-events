@@ -72,7 +72,7 @@ describe("SearchQueryForm", () => {
 
 describe("search entries", () => {
   it("keeps every search door as an icon, with the full name on the button", () => {
-    const html = renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop }));
+    const html = renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop, onDayRoute: noop }));
 
     expect(html).toContain('aria-label="Спросить MAX"');
     expect(html).toContain('aria-label="Подбор свайпами"');
@@ -80,8 +80,9 @@ describe("search entries", () => {
     expect(html).toContain('aria-label="Куда пойдём?"');
     expect(html).toContain('aria-label="Рядом со мной"');
     expect(html).toContain('aria-label="Микро-события"');
+    expect(html).toContain('aria-label="Маршрут на день"');
     expect(nearbyEntryTitle(false)).toBe("В городе");
-    expect(renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop, nearbyLabel: "Город", nearbyAria: "В городе" }))).toContain('aria-label="В городе"');
+    expect(renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop, onDayRoute: noop, nearbyLabel: "Город", nearbyAria: "В городе" }))).toContain('aria-label="В городе"');
   });
 });
 

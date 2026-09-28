@@ -165,7 +165,7 @@ export function PlansView({ state, onOpen, onExplore, onCreate, distancesFromVie
 }
 
 export function PlansPage() {
-  const { navigate, back } = useRoute();
+  const { navigate } = useRoute();
   const origin = useViewerOrigin();
   const [homeCity, setHomeCity] = useState<string | null>(null);
   const [state, setState] = useState<PlansState>({ status: "loading" });
@@ -200,9 +200,6 @@ export function PlansPage() {
   return (
     <section className="app-plans-screen" aria-label="Планы">
       <div className="app-plans-bar">
-        <button type="button" className="app-plans-back" aria-label="Назад" onClick={back}>
-          <ActionIcon name="chevron" size={22} />
-        </button>
         <h1>Планы</h1>
         <button type="button" className="app-plans-add" aria-label="Новый план" onClick={() => navigate({ name: "plan-new" })}>
           <ActionIcon name="plus" size={20} strokeWidth={2.4} />

@@ -69,7 +69,6 @@ function viewHtml(overrides: Partial<Parameters<typeof MyBookingsView>[0]> = {})
         onTab: () => {},
         onQuery: () => {},
         onToggleSearch: () => {},
-        onCalendar: () => {},
         onOpenTicket: () => {},
         onLeaveWaitlist: () => {},
         onMenu: () => {},
@@ -150,7 +149,7 @@ describe("MyBookingsView", () => {
 
     expect(html).toContain("Мои брони");
     expect(html).toContain("3 активные · 1 прошедшая");
-    expect(html).toContain("Календарь");
+    expect(html).not.toContain("Календарь");
     expect(html).toContain("Активные");
     expect(html).toContain("Билеты");
     expect(html).toContain("Слоты");
