@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - OnboardingViewProps - everything the presentational screen needs: current step, the four selections, load/save status, the refused-forward wording, the side the intro copy enters from and one handler per action
-// - OnboardingView - the presentational onboarding screen by step (intro slides with their hero gradients crossfading as layers, then city picker, people grid and interest chips inside one shell whose rail outlives the steps while the step body is keyed and slides in) under one horizontal swipe
+// - OnboardingView - the presentational onboarding screen by step (intro is one full-bleed city photograph; a swipe morphs the bits around the places, then city picker, people grid and interest chips inside one shell whose rail outlives the steps while the step body is keyed and slides in) under one horizontal swipe
 // - OnboardingFlow - route container: step state, the intro slide direction, profile and suggestion fetch, the follow and profile writes, the done flag
 // END_MODULE_MAP
 
@@ -20,39 +20,80 @@ import { useSwipe } from "../ui/gestures";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppChip, AppState } from "../ui/primitives";
 import { useViewerOrigin, requestViewerOrigin } from "../geo/viewer-origin";
-import { pictured } from "../ui/photos";
 import { useRoute } from "../routing/router";
 import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, cityCardMeta, cityDetectionHint, cityForwardBlock, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, markOnboardingDone, matchedOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type CityDetectState, type IntroDirection, type OnboardingStep } from "./onboarding";
 
 const RAIL_LABELS = ["Город", "Друзья", "Интересы"] as const;
 
-/** Floating cards. Slots cover the corners so the scene has no empty frame. */
-const INTRO_SCENE = [
-  { id: "onboarding-jazz", title: "Вечер джаза", meta: "сегодня · 19:00", slot: 1 },
-  { id: "onboarding-park", title: "Парк Горького", meta: "завтра · 12:00", slot: 2 },
-  { id: "onboarding-court", title: "Корт у реки", meta: "сб · 11:00", slot: 3 },
-  { id: "onboarding-night", title: "Ночная афиша", meta: "пт · 21:00", slot: 4 },
-  { id: "onboarding-walk", title: "Прогулка", meta: "в городе", slot: 5 },
-  { id: "onboarding-hall", title: "Камерный зал", meta: "вс · 18:00", slot: 6 },
+/** Real places. Gorky Park gate and Kul Sharif stay on the scene; the background photo does not swipe. */
+const INTRO_PLACES = [
+  { src: "/onboarding/gorky.jpg", title: "Парк Горького", meta: "Москва", slot: 1 },
+  { src: "/onboarding/kazan.jpg", title: "Кул-Шариф", meta: "Казань", slot: 2 },
+  { src: "/covers/kolomenskoe.jpg", title: "Коломенское", meta: "Москва", slot: 3 },
 ] as const;
 
-function IntroScene({ scene }: { scene: number }) {
+const INTRO_FRIENDS = ["Анна", "Дима", "Катя", "Лёша"] as const;
+
+/** Lines drawn on the photograph. They occupy the same band as the pills and crossfade with them. */
+function IntroDraw({ kind }: { kind: 1 | 2 | 3 }) {
   return (
-    <div className={`app-onboarding-scene app-onboarding-scene--${scene}`} aria-hidden="true">
-      <span className="app-onboarding-glow app-onboarding-glow--a" />
-      <span className="app-onboarding-glow app-onboarding-glow--b" />
-      {INTRO_SCENE.map((card) => (
-        <article key={card.id} className={`app-onboarding-card app-onboarding-card--${card.slot}`}>
-          <div className="app-onboarding-card-tilt">
-            <img className="app-onboarding-card-photo" alt="" src={pictured(card.id)} />
-            <span className="app-onboarding-card-shade" />
-            <span className="app-onboarding-card-copy">
-              <span className="app-onboarding-card-title">{card.title}</span>
-              <span className="app-onboarding-card-meta">{card.meta}</span>
-            </span>
-          </div>
-        </article>
-      ))}
+    <svg className="app-onboarding-drawings" viewBox="0 0 390 420" aria-hidden="true">
+      <g className={kind === 1 ? "app-onboarding-draw app-onboarding-draw--on" : "app-onboarding-draw"}>
+        <path d="M72 86 C 150 28, 250 28, 324 92" />
+        <path d="M46 214 C 120 150, 210 250, 268 188" />
+        <path d="M312 196 C 352 250, 230 286, 148 236" />
+      </g>
+      <g className={kind === 2 ? "app-onboarding-draw app-onboarding-draw--on" : "app-onboarding-draw"}>
+        <rect x="188" y="46" width="158" height="74" rx="22" />
+        <path d="M230 120 L214 148 L258 120" />
+        <circle className="app-onboarding-ink" cx="74" cy="82" r="5" />
+        <circle className="app-onboarding-ink" cx="48" cy="210" r="3.5" />
+        <circle className="app-onboarding-ink" cx="324" cy="206" r="4.5" />
+        <circle className="app-onboarding-ink" cx="236" cy="248" r="3" />
+      </g>
+      <g className={kind === 3 ? "app-onboarding-draw app-onboarding-draw--on" : "app-onboarding-draw"}>
+        <path d="M32 246 C 96 186, 150 300, 214 220 S 310 142, 348 186" />
+        <circle cx="348" cy="186" r="9" />
+        <circle className="app-onboarding-ink" cx="348" cy="186" r="3.5" />
+      </g>
+    </svg>
+  );
+}
+
+function IntroBits({ kind }: { kind: 1 | 2 | 3 }) {
+  return (
+    <div className="app-onboarding-bits" aria-hidden="true">
+      <div className={kind === 1 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
+        {INTRO_FRIENDS.map((name) => (
+          <span key={name} className="app-onboarding-friend">
+            {name.slice(0, 1)}
+            <span>{name}</span>
+          </span>
+        ))}
+      </div>
+      <div className={kind === 2 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
+        <span className="app-onboarding-ask">
+          <ActionIcon name="spark" size={16} />
+          Ассистент
+        </span>
+        <span className="app-onboarding-chip-float">джаз вечером</span>
+        <span className="app-onboarding-chip-float">парк</span>
+        <span className="app-onboarding-chip-float">Казань</span>
+      </div>
+      <div className={kind === 3 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
+        <span className="app-onboarding-meet">
+          <ActionIcon name="pin" size={14} />у входа
+        </span>
+        <span className="app-onboarding-meet">
+          <ActionIcon name="comment" size={14} />
+          соберёмся?
+        </span>
+        <span className="app-onboarding-meet">
+          <ActionIcon name="clock" size={14} />
+          напомним
+        </span>
+        <span className="app-onboarding-meet">4 в компании</span>
+      </div>
     </div>
   );
 }
@@ -106,16 +147,49 @@ function StepRail({ step, onBack }: { step: OnboardingStep; onBack: () => void }
   );
 }
 
-function IntroPage({ index, direction, onIntro, onNext }: { index: number; direction?: IntroDirection; onIntro: (index: number) => void; onNext: () => void }) {
-  const slide = INTRO_SLIDES[index];
+function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle = false, onBack, onSkip, onIntro, onNext }: { index: number; direction?: IntroDirection; showBack: boolean; shift?: number; settle?: boolean; onBack: () => void; onSkip: () => void; onIntro: (index: number) => void; onNext: () => void }) {
+  const slide = INTRO_SLIDES[index] ?? INTRO_SLIDES[0];
   const last = index === INTRO_SLIDES.length - 1;
+  const lean = Math.max(-32, Math.min(32, shift * 0.16));
   return (
-    <section className="app-onboarding-page">
-      <IntroScene scene={slide.hero} />
-      <div className={direction === undefined ? "app-onboarding-caption" : `app-onboarding-caption app-onboarding-copy app-onboarding-copy--${direction}`}>
-        <p className="app-onboarding-kicker">{slide.label}</p>
+    <div className="app-onboarding-film">
+      <img className="app-onboarding-film-photo" alt="" src="/onboarding/gorky.jpg" />
+      <p className="app-onboarding-credit">Парк Горького: общественное достояние. Кул-Шариф: Yulesha, CC BY-SA 3.0.</p>
+      <div className="app-onboarding-chrome">
+        {showBack ? (
+          <button type="button" className="app-onboarding-back" aria-label="Назад" onClick={onBack}>
+            <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+            Назад
+          </button>
+        ) : (
+          <span />
+        )}
+        <AfishaWordmark />
+        <button type="button" className="app-onboarding-skip" onClick={onSkip}>
+          Пропустить
+        </button>
+      </div>
+      <div className={settle ? "app-onboarding-stage app-onboarding-stage--settle" : "app-onboarding-stage"} style={{ transform: `translate3d(${lean}px, 0, 0)` }}>
+        <div className="app-onboarding-places">
+          {INTRO_PLACES.map((place) => (
+            <article key={place.title} className={`app-onboarding-place app-onboarding-place--${place.slot}`}>
+              <img alt="" src={place.src} />
+              <span>
+                <strong>{place.title}</strong>
+                {place.meta}
+              </span>
+            </article>
+          ))}
+        </div>
+        <IntroDraw kind={slide.hero} />
+        <IntroBits kind={slide.hero} />
+      </div>
+      <div key={slide.title} className={`app-onboarding-line app-onboarding-copy app-onboarding-copy--${direction}`}>
+        <p className={`app-onboarding-kicker app-onboarding-copy app-onboarding-copy--${direction}`}>{slide.label}</p>
         <h1 className="app-onboarding-intro-title">{slide.title}</h1>
         <p className="app-onboarding-intro-text">{slide.description}</p>
+      </div>
+      <div className="app-onboarding-film-foot">
         <div className="app-onboarding-dots">
           {INTRO_SLIDES.map((item, position) => (
             <button key={item.title} type="button" aria-label={`Слайд ${position + 1}`} aria-current={position === index ? "true" : undefined} className={position === index ? "app-onboarding-dot app-onboarding-dot--on" : "app-onboarding-dot"} onClick={() => onIntro(position)} />
@@ -125,7 +199,7 @@ function IntroPage({ index, direction, onIntro, onNext }: { index: number; direc
           {last ? "Начать" : "Дальше"}
         </AppButton>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -266,7 +340,7 @@ function StepShell({ step, onBack, children }: { step: OnboardingStep; onBack: (
 }
 
 /** The page follows the finger, then finishes the slide. A 40px lean read as a cut, not a swipe. */
-function usePageTurn(allow: (direction: "left" | "right") => boolean, commit: (direction: "left" | "right") => void, frameWidth: { current: number }) {
+function usePageTurn(allow: (direction: "left" | "right") => boolean, commit: (direction: "left" | "right") => void, frameWidth: { current: number }, morph: { current: boolean }) {
   const allowRef = useRef(allow);
   const commitRef = useRef(commit);
   allowRef.current = allow;
@@ -283,6 +357,11 @@ function usePageTurn(allow: (direction: "left" | "right") => boolean, commit: (d
     onSwipe: (direction) => {
       if (busy.current || (direction !== "left" && direction !== "right")) return;
       if (!allowRef.current(direction)) {
+        setMotion({ offset: 0, animate: true });
+        return;
+      }
+      // Вступление не листает фотографию: жест только сменяет детали вокруг мест.
+      if (morph.current) {
         commitRef.current(direction);
         setMotion({ offset: 0, animate: true });
         return;
@@ -303,6 +382,8 @@ function usePageTurn(allow: (direction: "left" | "right") => boolean, commit: (d
 export function OnboardingView(props: OnboardingViewProps) {
   const frame = useRef<HTMLDivElement>(null);
   const frameWidth = useRef(0);
+  const morph = useRef(props.step === "intro");
+  morph.current = props.step === "intro";
   const turn = usePageTurn(
     (direction) => {
       if (direction === "right") return props.step !== "intro" || props.intro > 0 || props.onLeave !== undefined;
@@ -312,6 +393,7 @@ export function OnboardingView(props: OnboardingViewProps) {
     },
     (direction) => (direction === "right" ? props.onBack() : props.onNext()),
     frameWidth,
+    morph,
   );
   const trackClass = !turn.animate && turn.offset !== 0 ? "app-onboarding-track" : "app-onboarding-track app-onboarding-track--move";
   const trackStyle = { transform: props.step === "intro" ? `translate3d(calc(${-props.intro * 100}% + ${turn.offset}px), 0, 0)` : `translate3d(${turn.offset}px, 0, 0)` };
@@ -330,37 +412,11 @@ export function OnboardingView(props: OnboardingViewProps) {
       {...turn.gesture}
     >
       {props.step === "intro" ? (
-        <>
-          <div className="app-onboarding-chrome">
-            {showBack ? (
-              <button type="button" className="app-onboarding-back" aria-label="Назад" onClick={props.onBack}>
-                <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-                Назад
-              </button>
-            ) : (
-              <span />
-            )}
-            <AfishaWordmark />
-            <button type="button" className="app-onboarding-skip" onClick={props.onSkipIntro}>
-              Пропустить
-            </button>
-          </div>
-          <div className={`app-onboarding-deck ${trackClass} app-onboarding-copy app-onboarding-copy--${props.introDirection ?? "forward"}`} style={trackStyle}>
-            {INTRO_SLIDES.map((slide, index) => (
-              <IntroPage key={slide.title} index={index} direction={index === props.intro ? (props.introDirection ?? "forward") : undefined} onIntro={props.onIntro} onNext={props.onNext} />
-            ))}
-          </div>
-        </>
+        <IntroFilm index={props.intro} direction={props.introDirection ?? "forward"} showBack={showBack} shift={turn.offset} settle={turn.animate} onBack={props.onBack} onSkip={props.onSkipIntro} onIntro={props.onIntro} onNext={props.onNext} />
       ) : (
         <div className={trackClass} style={trackStyle}>
           <StepShell step={props.step} onBack={props.onBack}>
-            {props.step === "city" ? (
-              <CityStep city={props.city} cityDetect={props.cityDetect} cityPicked={props.cityPicked} onCity={props.onCity} onLocate={props.onLocate} onNext={props.onNext} />
-            ) : props.step === "friends" ? (
-              <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} />
-            ) : (
-              <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} />
-            )}
+            {props.step === "city" ? <CityStep city={props.city} cityDetect={props.cityDetect} cityPicked={props.cityPicked} onCity={props.onCity} onLocate={props.onLocate} onNext={props.onNext} /> : props.step === "friends" ? <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} /> : <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} />}
           </StepShell>
         </div>
       )}
