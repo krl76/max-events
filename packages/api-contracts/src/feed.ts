@@ -90,6 +90,8 @@ export const FeedPostSchema = z.object({
   allowJoin: z.boolean().default(false),
   likesCount: z.number().int().min(0),
   likedByMe: z.boolean(),
+  /** Friends who liked the post. The viewer is not in this list. Older responses omit it. */
+  likedByFriends: z.array(FriendSchema).optional(),
   comments: z.array(FeedCommentSchema).default([]),
   /** The original post, when this one is a repost. Absent on a post the author wrote themselves. */
   repostOf: FeedRepostSchema.nullable().optional(),

@@ -59,6 +59,10 @@ export class AssistService {
       const fromPartner = savedIds.has(event.id);
       return { event, explanation: explainPick(fromHistory, fromPartner) };
     });
+    if (items.length === 0 && catalog.length > 0) {
+      const bill = [...catalog].sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id)).slice(0, 4);
+      return { summary: "Точного совпадения нет. Вот что есть в афише.", criteria, items: bill.map((event) => ({ event, explanation: "Из афиши" })) };
+    }
     const historyCount = items.filter((row) => historyIds.has(row.event.id) || historyCategories.has(row.event.category)).length;
     const savedCount = items.filter((row) => savedIds.has(row.event.id)).length;
     return { summary: formatAssistSummary(items.length, historyCount, savedCount), criteria, items };
@@ -132,7 +136,8 @@ export class AssistService {
       items.push(pick);
     }
     const openEventId = openId && items.some((pick) => pick.event.id === openId) ? openId : undefined;
-    return { silence: false, fallback: false, reply: clampAssistReply(draft.reply), ...(items.length > 0 ? { items } : {}), ...(openEventId ? { openEventId } : {}), ...(guides.length > 0 ? { guides } : {}) };
+    const offered = items.length > 0 || guides.length > 0 ? items : future.slice(0, 4).map((event) => ({ event, explanation: "Из афиши" }));
+    return { silence: false, fallback: false, reply: clampAssistReply(draft.reply), ...(offered.length > 0 ? { items: offered } : {}), ...(openEventId ? { openEventId } : {}), ...(guides.length > 0 ? { guides } : {}) };
   }
 
   private async assembleSaturday(userId: string, criteria: AssistCriteria, save: boolean, now: Date): Promise<AssistDayResponse> {
@@ -192,13 +197,15 @@ export class AssistService {
         guides: ["search", "plans"],
       };
     }
-    const reply = clampAssistReply(recognized ? "Не получилось сформировать ответ. Подобрал по словам запроса." : "Не получилось сформировать ответ. Вот что есть в афише.");
+    const matched = recognized ? matchAssistEvents(future, criteria) : [];
+    const fromBill = recognized && matched.length === 0 && !isPlanRequest(cleaned);
+    const reply = clampAssistReply(fromBill ? "Точного совпадения нет. Вот что есть в афише." : recognized ? "Не получилось сформировать ответ. Подобрал по словам запроса." : "Не получилось сформировать ответ. Вот что есть в афише.");
     if (isPlanRequest(cleaned)) {
       const day = await this.assembleSaturday(userId, criteria, save, now);
       return { silence: false, fallback: true, reply, day };
     }
-    const picked = (recognized ? matchAssistEvents(future, criteria) : future).slice(0, 4);
-    const items = picked.map((event) => ({ event, explanation: "Подходит по запросу" }));
+    const picked = (matched.length > 0 ? matched : future).slice(0, 4);
+    const items = picked.map((event) => ({ event, explanation: matched.length > 0 ? "Подходит по запросу" : "Из афиши" }));
     return { silence: false, fallback: true, reply, ...(items.length > 0 ? { items } : {}) };
   }
 

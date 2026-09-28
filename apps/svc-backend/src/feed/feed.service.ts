@@ -294,14 +294,22 @@ export class FeedService {
     if (posts.length === 0) return [];
     const postIds = posts.map((row) => row.id);
     const userIds = [...new Set(posts.flatMap((row) => [row.authorUserId]))];
-    const [authors, likeRows, commentRows] = await Promise.all([this.users.find({ where: { id: In(userIds) } }), this.likes.find({ where: { postId: In(postIds) } }), this.comments.find({ where: { postId: In(postIds) } })]);
+    const [authors, likeRows, commentRows, friendRows] = await Promise.all([this.users.find({ where: { id: In(userIds) } }), this.likes.find({ where: { postId: In(postIds) } }), this.comments.find({ where: { postId: In(postIds) } }), this.friendships.find({ where: { userId: viewerId } })]);
     const commentAuthorIds = [...new Set(commentRows.map((row) => row.authorUserId))];
-    const commentAuthors = commentAuthorIds.length === 0 ? [] : await this.users.find({ where: { id: In(commentAuthorIds) } });
+    const friendIds = new Set(friendRows.map((row) => row.friendUserId));
+    const likerIds = [...new Set(likeRows.map((row) => row.userId))].filter((id) => id !== viewerId && friendIds.has(id));
+    const [commentAuthors, likers] = await Promise.all([commentAuthorIds.length === 0 ? Promise.resolve([]) : this.users.find({ where: { id: In(commentAuthorIds) } }), likerIds.length === 0 ? Promise.resolve([]) : this.users.find({ where: { id: In(likerIds) } })]);
     const userById = new Map([...authors, ...commentAuthors].map((row) => [row.id, row]));
+    const likerById = new Map(likers.map((row) => [row.id, row]));
     const built = posts.flatMap((post) => {
       const author = userById.get(post.authorUserId);
       if (!author) return [];
       const likes = likeRows.filter((row) => row.postId === post.id);
+      const likedByFriends = likes.flatMap((row) => {
+        if (row.userId === viewerId || !friendIds.has(row.userId)) return [];
+        const user = likerById.get(row.userId);
+        return user ? [toFriendDto(user)] : [];
+      });
       const comments = commentRows
         .filter((row) => row.postId === post.id)
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
@@ -310,7 +318,7 @@ export class FeedService {
           return commentAuthor ? [{ id: row.id, author: toFriendDto(commentAuthor), text: row.text, parentId: row.parentId ?? null }] : [];
         });
       const photoUrls = post.photoUrls && post.photoUrls.length > 0 ? post.photoUrls : post.photoUrl ? [post.photoUrl] : [];
-      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId ?? null, text: post.text, photoUrl: photoUrls[0] ?? null, photoUrls, placeId: post.placeId ?? null, locationLabel: post.locationLabel ?? null, taggedFriendIds: post.taggedFriendIds ?? [], audience: post.audience ?? "friends", allowJoin: post.allowJoin ?? false, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), comments, repostOf: null as FeedRepost | null, repostOfPostId: post.repostOfPostId ?? null }];
+      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId ?? null, text: post.text, photoUrl: photoUrls[0] ?? null, photoUrls, placeId: post.placeId ?? null, locationLabel: post.locationLabel ?? null, taggedFriendIds: post.taggedFriendIds ?? [], audience: post.audience ?? "friends", allowJoin: post.allowJoin ?? false, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), likedByFriends, comments, repostOf: null as FeedRepost | null, repostOfPostId: post.repostOfPostId ?? null }];
     });
     return this.withReposts(built);
   }

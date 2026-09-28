@@ -5,9 +5,9 @@ test("feed like increments the counter and publishing an impression shows the po
   await enterAsUser(page);
 
   const firstPost = page.locator(".app-card--post").first();
-  const likes = firstPost.locator(".app-post-likes");
+  const likes = firstPost.getByRole("button", { name: "Нравится", exact: true });
   const before = await likes.textContent();
-  await firstPost.getByRole("button", { name: "Нравится" }).click();
+  await likes.click();
   await expect(likes).not.toHaveText(before ?? "");
 
   await page.getByRole("button", { name: "Поделиться впечатлением" }).click();

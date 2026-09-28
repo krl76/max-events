@@ -99,7 +99,8 @@ describe("AssistService.chat", () => {
     const { service } = createService();
     const result = await service.chat(userId, { message: "как дела?", transcript: [], offeredEventIds: [] }, now);
     expect(result.reply).toBe("Могу подобрать событие на вечер.");
-    expect(result.items).toBeUndefined();
+    expect(result.items?.length).toBeGreaterThan(0);
+    expect(result.items?.every((pick) => pick.explanation === "Из афиши")).toBe(true);
     expect(result.fallback).toBe(false);
   });
 

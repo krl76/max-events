@@ -186,7 +186,7 @@ export function AssistPageView({ thread, draft, state, lastQuestion, onDraft, on
 
       <div className="app-assist-thread">
         {thread.map((bubble) => (
-          <div key={bubble.id} className={bubble.role === "me" ? "app-assist-turn app-assist-turn--me" : "app-assist-turn"}>
+          <div key={bubble.id} className={`${bubble.role === "me" ? "app-assist-turn app-assist-turn--me" : "app-assist-turn"}${bubble.role === "max" && thread.length > 1 && bubble.id === thread[thread.length - 1]?.id ? " app-assist-turn--arrive" : ""}`}>
             <p className={bubble.role === "me" ? "app-assist-bubble app-assist-bubble--me" : "app-assist-bubble"}>{bubble.text}</p>
             {bubble.picks.length > 0 && (
               <div className="app-assist-picks">

@@ -35,6 +35,9 @@ describe("FeedPostCard", () => {
     expect(html).toContain("Анна Соколова");
     expect(html).toContain(mockEvents[0].title);
     expect(html).toContain("Было здорово");
+    expect(html).not.toContain("app-post-caption-author");
+    expect(html).not.toContain("отметки");
+    expect(html).not.toContain("Раскрыть");
     expect(html).not.toContain(commentsEntryLabel(1));
     expect(html).not.toContain("Класс!");
     expect(html).not.toContain('aria-label="Профиль Дима Кузнецов"');
@@ -125,6 +128,16 @@ describe("FeedPostCard", () => {
 
   it("turns the bookmark into a save control", () => {
     expect(card()).toContain('aria-label="Сохранить"');
+  });
+
+  it("folds a long caption behind Раскрыть and keeps the author out of the text", () => {
+    const text = "Собираем компанию на выходные и идём в лес, если погода не разгонится. Возьмите тёплые вещи, воду и что-нибудь к чаю — место уже отмечено.";
+    const html = card({ text });
+
+    expect(html).toContain(text);
+    expect(html).toContain("Раскрыть");
+    expect(html).toContain("app-post-fold-text");
+    expect(html).not.toContain("app-post-caption-author");
   });
 });
 

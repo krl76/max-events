@@ -30,7 +30,6 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import type { Event, Friend, ParticipationStatus } from "@max-events/api-contracts";
 import { apiClient, type FeedCard, type FeedCardCounts, type FeedComment, type FeedFriendCard, type FeedPlaceCard } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -40,7 +39,8 @@ import { sharePayload } from "../max/links";
 import { replayScroll } from "../ui/scroll-memory";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { pictured, showPhoto } from "../ui/photos";
+import { pictured } from "../ui/photos";
+import { LikeFaces, PostText } from "./post-body";
 import { parsePinLabel, placePinTitle } from "../ui/pin-label";
 import { SaveToList } from "../event/SaveToList";
 import { AppChip, AppEmptyState, AppSkeleton, AppState } from "../ui/primitives";
@@ -160,68 +160,6 @@ export function formatPricePerHour(pricePerHourRub: number | null): string | nul
 /** «4.9» — one digit, as the rating pill prints it; null until the card carries a rating (#496). */
 export function formatFeedRating(rating: number | null): string | null {
   return rating === null ? null : rating.toFixed(1);
-}
-
-/** People we can show as faces, without repeating one person. */
-export function likeFaces(people: readonly Friend[]): Friend[] {
-  const seen = new Set<string>();
-  const unique: Friend[] = [];
-  for (const person of people) {
-    if (seen.has(person.id)) continue;
-    seen.add(person.id);
-    unique.push(person);
-  }
-  return unique;
-}
-
-const LIKE_FACES = 3;
-
-/** Friend faces under a post. The viewer is already excluded. Faces that do not fit the row are «+N»; the sheet names every friend. */
-export function LikeFaces({ people }: { people: readonly Friend[] }) {
-  const [open, setOpen] = useState(false);
-  const friends = likeFaces(people);
-  if (friends.length === 0) return null;
-  const shown = friends.slice(0, LIKE_FACES);
-  const rest = friends.slice(LIKE_FACES);
-  return (
-    <>
-      <button type="button" className="app-feed-likes" aria-label={`Нравится друзьям: ${friends.map((person) => person.name).join(", ")}`} onClick={() => setOpen(true)}>
-        <span>Нравится</span>
-        <span className="app-feed-like-faces" aria-hidden="true">
-          {shown.map((person) => {
-            const face = showPhoto(person.avatarUrl);
-            return (
-              <span key={person.id} className="app-feed-like-face">
-                {face ? <img alt="" src={face} /> : person.name.slice(0, 1)}
-              </span>
-            );
-          })}
-        </span>
-        {rest.length > 0 && <span className="app-feed-like-more">+{rest.length}</span>}
-      </button>
-      {open &&
-        createPortal(
-          <div className="app-picker app-like-layer" role="dialog" aria-modal="true" aria-label="Друзья, которым нравится">
-            <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={() => setOpen(false)} />
-            <div className="app-like-sheet">
-              <p className="app-place-title">Друзья</p>
-              <ul className="app-like-people">
-                {friends.map((person) => {
-                  const face = showPhoto(person.avatarUrl);
-                  return (
-                    <li key={person.id}>
-                      <span className="app-feed-like-face">{face ? <img alt="" src={face} /> : person.name.slice(0, 1)}</span>
-                      <span>{person.name}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </div>,
-          document.querySelector(".app-root") ?? document.body,
-        )}
-    </>
-  );
 }
 
 export function FeedWhereToCard({ onStart }: { onStart: () => void }) {
@@ -352,7 +290,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
       </div>
       {saving && userId !== null && <SaveToList feedPostId={card.id} userId={userId} open onClose={() => setSaving(false)} />}
       <LikeFaces people={(card.likedByFriends ?? []).filter((person) => person.id !== userId)} />
-      {card.text.trim() !== "" && <p className="app-feed-caption">{card.text}</p>}
+      {card.text.trim() !== "" && <PostText text={card.text} className="app-feed-caption" />}
       {/* No line at all rather than «только что» about a post whose card carries no publication time. */}
       {card.publishedAt !== null && <p className="app-feed-time">{formatFeedAgo(card.publishedAt, now)}</p>}
     </article>

@@ -800,10 +800,10 @@ html[data-theme="dark"] #root {
 }
 
 .app-root .app-btn--primary {
-  --background: var(--app-gradient-dark);
-  --background-activated: var(--app-gradient-dark);
-  --background-focused: var(--app-gradient-dark);
-  --background-hover: var(--app-gradient-dark);
+  --background: var(--app-accent);
+  --background-activated: var(--app-accent);
+  --background-focused: var(--app-accent);
+  --background-hover: var(--app-accent);
   --color: #ffffff;
 }
 
@@ -843,10 +843,10 @@ html[data-theme="dark"] #root {
 
 /* Круглые icon-кнопки (AppIconButton) */
 .app-root .app-icon-btn {
-  --background: var(--app-gradient-dark);
-  --background-activated: var(--app-gradient-dark);
-  --background-focused: var(--app-gradient-dark);
-  --background-hover: var(--app-gradient-dark);
+  --background: var(--app-accent);
+  --background-activated: var(--app-accent);
+  --background-focused: var(--app-accent);
+  --background-hover: var(--app-accent);
   --color: #ffffff;
   --border-radius: 50%;
   --padding-bottom: 0;
@@ -2111,14 +2111,6 @@ html[data-theme="dark"] #root {
   margin-left: auto;
 }
 
-.app-post-likes {
-  font-size: var(--app-font-size-callout);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--app-font-weight-title);
-  margin: 0;
-  padding: var(--app-space-xs) var(--app-space-screen) 0;
-}
-
 .app-post-caption {
   font-size: var(--app-font-size-callout);
   margin: 0;
@@ -2126,8 +2118,29 @@ html[data-theme="dark"] #root {
   padding: 2px var(--app-space-screen) 0;
 }
 
-.app-post-caption-author {
-  font-weight: var(--app-font-weight-title);
+.app-post-fold {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-post-fold-text {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  display: -webkit-box;
+  overflow: hidden;
+}
+
+.app-post-fold-btn {
+  background: none;
+  border: none;
+  color: var(--app-accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  min-height: 32px;
+  padding: 0 var(--app-space-screen) 4px;
 }
 
 .app-feed-comments {
@@ -2194,9 +2207,9 @@ html[data-theme="dark"] #root {
   font: inherit;
   font-size: 13px;
   font-weight: 700;
-  margin: 0 0 4px 28px;
-  min-height: 44px;
-  padding: 0;
+  margin: 0 0 2px 28px;
+  min-height: 0;
+  padding: 2px 0 0;
   text-align: left;
 }
 
@@ -2212,8 +2225,13 @@ html[data-theme="dark"] #root {
   font-size: 13px;
   font-weight: 700;
   gap: 4px;
-  min-height: 44px;
+  min-height: 32px;
   padding: 0 8px;
+}
+
+.app-feed-comment-reply {
+  min-height: 0;
+  padding: 2px 0 0;
 }
 
 .app-feed-comment-like[aria-pressed="true"] {
@@ -2314,7 +2332,7 @@ html[data-theme="dark"] #root {
 
 .app-feed-whereto-start {
   align-items: center;
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   border: none;
   border-radius: var(--app-radius-pill);
   color: var(--brand-white);
@@ -2836,10 +2854,6 @@ html[data-theme="dark"] #root {
   margin: 0;
   max-width: var(--app-measure);
   padding: var(--app-space-xs) var(--app-space-screen) 0;
-}
-
-.app-feed-caption-author {
-  font-weight: 700;
 }
 
 .app-feed-comments {
@@ -4467,7 +4481,7 @@ html[data-theme="dark"] #root {
  * Форма отличает её от синей pill-кнопки, которой ведут вступление и город. */
 .app-onboarding-cta {
   align-items: center;
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   border: none;
   border-radius: var(--app-radius-card);
   color: var(--brand-white);
@@ -4680,7 +4694,7 @@ html[data-theme="dark"] #root {
 }
 
 .app-search-filter--on {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   color: #ffffff;
 }
 
@@ -4718,7 +4732,7 @@ html[data-theme="dark"] #root {
 
 .app-search-tool-bubble,
 .app-search-tool-bubble--dark {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   color: #ffffff;
 }
 
@@ -4836,7 +4850,7 @@ html[data-theme="dark"] #root {
 
 .app-search-go {
   align-items: center;
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   border: none;
   border-radius: 50%;
   color: #ffffff;
@@ -6498,7 +6512,7 @@ button.app-today-stat {
 }
 
 .app-swipe-tint--like {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   opacity: calc(max(var(--app-swipe-progress, 0), 0) * 0.72);
 }
 
@@ -11370,7 +11384,7 @@ button.app-poll-result {
 
 .app-micro-act--go:hover:not(:disabled),
 .app-micro-act--go:active:not(:disabled) {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   color: #ffffff;
 }
 
@@ -12083,6 +12097,39 @@ button.app-poll-result {
   gap: 10px;
 }
 
+.app-assist-turn--arrive {
+  animation: app-assist-arrive 520ms var(--app-ease-out) both;
+}
+
+.app-assist-turn--arrive .app-assist-pick,
+.app-assist-turn--arrive .app-assist-day {
+  animation: app-assist-arrive 560ms var(--app-ease-out) both;
+}
+
+.app-assist-turn--arrive .app-assist-pick:nth-child(2) {
+  animation-delay: 80ms;
+}
+
+.app-assist-turn--arrive .app-assist-pick:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.app-assist-turn--arrive .app-assist-pick:nth-child(4) {
+  animation-delay: 200ms;
+}
+
+@keyframes app-assist-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .app-assist-turn--me {
   align-items: flex-end;
 }
@@ -12456,7 +12503,7 @@ button.app-poll-result {
 
 .app-assist-send {
   align-items: center;
-  background: var(--app-media-gradient-5);
+  background: var(--app-accent);
   border: none;
   border-radius: 50%;
   color: var(--brand-white);
@@ -21146,7 +21193,7 @@ button.app-cal-peer-chip {
 
 /* Кнопка шага у макета — градиентная плашка, а не сплошная пилюля: она ведёт дальше по рельсу */
 .app-org-setup-cta::part(native) {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   border-radius: var(--app-radius-card);
   height: 56px;
 }
@@ -21371,8 +21418,6 @@ button.app-feed-place-where > span {
   text-align: left;
 }
 
-button.app-post-caption-author,
-button.app-feed-caption-author,
 button.app-feed-comment-author,
 button.app-feed-quote-author {
   background: none;
@@ -22608,9 +22653,14 @@ button.app-story-viewer-author {
   margin-left: 4px;
 }
 
+.app-bill:not(.app-bill--open) {
+  border-color: var(--app-divider);
+}
+
 .app-bill:not(.app-bill--open) .app-bill-title,
-.app-bill:not(.app-bill--open) .app-bill-open {
-  opacity: 0.62;
+.app-bill:not(.app-bill--open) .app-bill-chevron {
+  color: var(--app-text);
+  opacity: 1;
 }
 
 .app-bill > .app-bill-title {
@@ -22853,7 +22903,7 @@ button.app-story-viewer-author {
 }
 
 .app-map16-basemap-pick--on {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   outline: none;
 }
 
@@ -23195,14 +23245,14 @@ ion-button.ion-focused {
 }
 
 .app-micro-cta--join {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   border: none;
   color: #ffffff;
   cursor: pointer;
 }
 
 .app-micro-act--go {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   color: #ffffff;
 }
 
@@ -23270,7 +23320,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-comments-send {
   align-items: center;
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   border: none;
   border-radius: 50%;
   color: #ffffff;
@@ -23319,7 +23369,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-swipe-fly--like {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
 }
 
 .app-swipe-fly--skip {
@@ -23327,10 +23377,10 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-root .app-btn--primary {
-  --background: var(--app-gradient-dark);
-  --background-activated: var(--app-gradient-dark);
-  --background-focused: var(--app-gradient-dark);
-  --background-hover: var(--app-gradient-dark);
+  --background: var(--app-accent);
+  --background-activated: var(--app-accent);
+  --background-focused: var(--app-accent);
+  --background-hover: var(--app-accent);
   --color: #ffffff;
 }
 
@@ -23377,7 +23427,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
   .app-nb-plan,
   .app-follower-act
 ) {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   color: #ffffff;
 }
 
@@ -23391,8 +23441,14 @@ html:not([data-theme="dark"]) .app-when-sheet {
   .app-ach-next-cta:active,
   .app-notify-act--confirm:active
 ) {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   color: #ffffff;
+}
+
+.app-feed-going.app-feed-going--on,
+.app-feed-going.app-feed-going--on:active {
+  background: var(--app-confirm);
+  color: var(--app-confirm-contrast);
 }
 
 .app-today-date--chip {
@@ -23747,7 +23803,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-whereto-option--on {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   color: #ffffff;
 }
 
@@ -23789,7 +23845,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-create-hero-ring {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   border-radius: 50%;
   flex: none;
   height: 72px;
@@ -23801,7 +23857,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
   align-items: center;
   background: var(--app-page);
   border-radius: 50%;
-  color: #6813ff;
+  color: var(--app-accent);
   display: flex;
   height: 100%;
   justify-content: center;
@@ -23954,22 +24010,21 @@ html:not([data-theme="dark"]) .app-when-sheet {
 .app-post-action[aria-pressed="true"],
 .app-feed-comment-like[aria-pressed="true"],
 .app-tabbar button[aria-current="page"] {
-  color: #6813ff;
+  color: var(--app-accent);
 }
 
 .app-post-action[aria-pressed="true"] span,
 .app-tabbar button[aria-current="page"] span {
-  background: var(--app-gradient-dark);
-  background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
+  background: none;
+  color: var(--app-accent);
+  -webkit-text-fill-color: var(--app-accent);
 }
 
 .app-post-action[aria-pressed="true"] svg *,
 .app-feed-comment-like[aria-pressed="true"] svg *,
 .app-create-hero-face svg * {
-  fill: url(#app-brand-fill);
-  stroke: url(#app-brand-fill);
+  fill: var(--app-accent);
+  stroke: var(--app-accent);
 }
 
 .app-tabbar button[aria-current="page"] svg,
@@ -23979,13 +24034,13 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-tabbar button[aria-current="page"]::after {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
 }
 
 .app-map-popup-open,
 .app-map-popup-open:active,
 .app-map16-ask-btn {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   color: #ffffff;
 }
 
@@ -24022,8 +24077,8 @@ html:not([data-theme="dark"]) .app-when-sheet {
   color: var(--app-text-secondary);
   font-size: 13px;
   font-weight: 700;
-  min-height: 44px;
-  padding: 0;
+  min-height: 0;
+  padding: 2px 0 0;
 }
 
 .app-comments-list .app-feed-comment-like {
@@ -24086,7 +24141,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-post-who-seg button[aria-checked="true"] {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   color: #ffffff;
 }
 
@@ -24156,7 +24211,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-place-map {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   border: none;
   border-radius: 14px;
   color: #ffffff;
@@ -24281,11 +24336,29 @@ html:not([data-theme="dark"]) .app-when-sheet {
   width: calc(100% + max(var(--app-space-screen), env(safe-area-inset-left, 0px)) + max(var(--app-space-screen), env(safe-area-inset-right, 0px)));
 }
 
-.app-feed .app-stories,
 .app-feed .app-stories-scroll {
   margin-left: 0;
   margin-right: 0;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-y;
   width: 100%;
+}
+
+.app-feed .app-stories-scroll > .app-stories {
+  margin-left: 0;
+  margin-right: 0;
+  max-width: none;
+  min-width: max-content;
+  overflow: visible;
+  width: max-content;
+}
+
+.app-stories-scroll,
+.app-stories-scroll * {
+  touch-action: pan-y;
 }
 
 .app-feed .app-feed-post,
@@ -24301,12 +24374,14 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-bill .app-today-date--chip {
   background: var(--app-surface);
-  color: var(--app-text-secondary);
-  opacity: 0.72;
+  border: 1px solid var(--app-divider);
+  color: var(--app-text);
+  opacity: 1;
 }
 
 .app-bill .app-today-date--chip.app-today-date--live {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
+  border-color: transparent;
   color: #ffffff;
   opacity: 1;
 }
@@ -24410,7 +24485,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-map16-basemap-pick--on {
-  background: var(--app-gradient-dark);
+  background: var(--app-accent);
   outline: none;
 }
 

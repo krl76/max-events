@@ -6,7 +6,7 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - FeedPostCard - presentational Instagram-style post: author header, the post photo in the 4:5 frame (category placeholder without one), icon actions (like/comment/share), likes line, caption, comments, add form and a «Пожаловаться» report control
+// - FeedPostCard - presentational Instagram-style post: author header, the post photo in the 4:5 frame (category placeholder without one), icon actions (like/comment/share), friend likes, caption, comments and a «Пожаловаться» report control
 // - FeedPostPage - one post by id: the card of the wall, opened from the profile grid and the feed
 // - StoriesRow - stories rail over the home feed, Instagram-style: the own tile carries a «+» corner that opens the story editor, unseen rings burn with the brand gradient and go neutral once watched (seen state from ../stories/rail.js)
 // - FeedState - union of the feed fetch states (loading / error / ready)
@@ -42,6 +42,7 @@ import { ActionIcon } from "../ui/icons";
 import { parsePinLabel, placePinTitle } from "../ui/pin-label";
 import { useSheetSwipe } from "../ui/sheet";
 import { pluralRu } from "../catalog/format";
+import { LikeFaces, PostText } from "./post-body";
 
 type FeedComment = FeedPost["comments"][number];
 const COMMENT_LIKES = "max-events:comment-likes";
@@ -388,55 +389,42 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
       {photos.length > 0 ? <PhotoGallery photos={photos} /> : <AppMedia category={eventCategory} src={pictured(post.eventId ?? post.id)} />}
       <div className="app-post-actions">
         <button type="button" className="app-post-action" aria-pressed={post.likedByMe} aria-label="Нравится" onClick={onToggleLike}>
-          <ActionIcon filled={post.likedByMe} name="heart" />
+          <ActionIcon filled={post.likedByMe} name="heart" size={26} />
           <span>{post.likesCount}</span>
         </button>
-        <button type="button" className="app-post-action" aria-label="Комментировать" onClick={() => setCommentsOpen(true)}>
-          <ActionIcon name="comment" />
+        <button type="button" className="app-post-action" aria-label="Комментарии" onClick={() => setCommentsOpen(true)}>
+          <ActionIcon name="comment" size={26} />
           <span>{post.comments.length}</span>
         </button>
         <button
           type="button"
           className="app-post-action"
-          aria-label="Поделиться"
+          aria-label="Отправить друзьям в MAX"
           onClick={() => {
             const payload = sharePayload(`${post.author.name} — ${eventTitle}: ${post.text}`, post.eventId ? `event-${post.eventId}` : `post-${post.id}`);
             void shareResult(webApp, payload.text, payload.link);
           }}
         >
-          <ActionIcon name="share" />
+          <ActionIcon name="share" size={26} />
         </button>
         {userId === "" ? (
           <span className="app-post-action app-post-action--muted" aria-hidden="true">
-            <ActionIcon name="bookmark" />
+            <ActionIcon name="bookmark" size={26} />
           </span>
         ) : (
           <button type="button" className="app-post-action" aria-pressed={saving} aria-label="Сохранить" onClick={() => setSaving(true)}>
-            <ActionIcon name="bookmark" />
+            <ActionIcon name="bookmark" size={26} />
           </button>
         )}
         {userId !== "" && post.author.id === userId && onDelete !== undefined && (
           <button type="button" className="app-post-action app-post-action--danger" aria-label="Удалить пост" onClick={onDelete}>
-            <ActionIcon name="trash" size={24} />
+            <ActionIcon name="trash" size={26} />
           </button>
         )}
       </div>
       {saving && userId !== "" && <SaveToList feedPostId={post.id} userId={userId} open onClose={() => setSaving(false)} />}
-      <p className="app-post-likes">
-        {post.likesCount} {pluralRu(post.likesCount, "отметка", "отметки", "отметок")} «нравится»
-      </p>
-      {post.text.trim() !== "" && (
-        <p className="app-post-caption">
-          {onOpenAuthor ? (
-            <button type="button" className="app-post-caption-author" aria-label={`Профиль ${post.author.name}`} onClick={() => onOpenAuthor(post.author.id)}>
-              {post.author.name}
-            </button>
-          ) : (
-            <span className="app-post-caption-author">{post.author.name}</span>
-          )}{" "}
-          {post.text}
-        </p>
-      )}
+      <LikeFaces people={(post.likedByFriends ?? []).filter((person) => person.id !== userId)} />
+      {post.text.trim() !== "" && <PostText text={post.text} className="app-post-caption" />}
       {commentsOpen && (
         <CommentSheet
           comments={post.comments}
@@ -667,6 +655,64 @@ function storyRingClass(unseen: boolean): string {
   return unseen ? "app-story-ring app-story-ring--active" : "app-story-ring app-story-ring--seen";
 }
 
+/** Horizontal press-and-drag. A touch that starts on an avatar button does not move a native scroller in the MAX webview. */
+function useStoryPan(ref: RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    let pointer = -1;
+    let startX = 0;
+    let startY = 0;
+    let startLeft = 0;
+    let dragged = false;
+    const down = (event: PointerEvent) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      pointer = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      startLeft = node.scrollLeft;
+      dragged = false;
+    };
+    const move = (event: PointerEvent) => {
+      if (event.pointerId !== pointer) return;
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      if (!dragged) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (Math.abs(dy) > Math.abs(dx)) {
+          pointer = -1;
+          return;
+        }
+        dragged = true;
+        node.setPointerCapture(event.pointerId);
+      }
+      node.scrollLeft = startLeft - dx;
+    };
+    const up = (event: PointerEvent) => {
+      if (event.pointerId !== pointer && !dragged) return;
+      pointer = -1;
+      if (!dragged) return;
+      const stopClick = (click: globalThis.Event) => {
+        click.preventDefault();
+        click.stopPropagation();
+        node.removeEventListener("click", stopClick, true);
+      };
+      node.addEventListener("click", stopClick, true);
+      dragged = false;
+    };
+    node.addEventListener("pointerdown", down);
+    node.addEventListener("pointermove", move);
+    node.addEventListener("pointerup", up);
+    node.addEventListener("pointercancel", up);
+    return () => {
+      node.removeEventListener("pointerdown", down);
+      node.removeEventListener("pointermove", move);
+      node.removeEventListener("pointerup", up);
+      node.removeEventListener("pointercancel", up);
+    };
+  }, [ref]);
+}
+
 export function StoriesRow() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
@@ -742,6 +788,8 @@ export function StoriesRow() {
   }, [friends, stories, myId]);
 
   const rail = storyRail(friends, stories, myId, seen);
+  const scroller = useRef<HTMLDivElement>(null);
+  useStoryPan(scroller);
   const openEditor = () => navigate({ name: "story-new" });
 
   useEffect(() => {
@@ -758,7 +806,7 @@ export function StoriesRow() {
   }, []);
 
   return (
-    <div className="app-stories-scroll">
+    <div className="app-stories-scroll" ref={scroller}>
     <div className="app-stories" aria-label="Истории">
       {/* Как в инстаграме: рельс открывается своим кружком с плюсом в углу — плюс ведёт в редактор истории, кольцо со своей историей открывает её просмотр. */}
       <div className="app-story app-story--own">
