@@ -71,6 +71,18 @@ export class ModelApiLlmProvider implements LlmProvider {
     throw lastError;
   }
 
+  async rankCandidateIds(candidates: readonly { id: string; title: string }[]): Promise<string[]> {
+    const input = candidates.map((item) => item.id);
+    const model = this.models[0];
+    if (model === undefined) return input;
+    try {
+      const content = await this.complete(model, "Reply with a JSON array of the given ids only, best first. No other text.", JSON.stringify(candidates));
+      return mergeKnownIds(readIdArray(content), input);
+    } catch {
+      return input;
+    }
+  }
+
   private async complete(model: string, system: string, user: string): Promise<string> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -142,4 +154,35 @@ function extractJson(content: string): unknown {
   } catch {
     return null;
   }
+}
+
+function readIdArray(content: string): string[] {
+  const start = content.indexOf("[");
+  const end = content.lastIndexOf("]");
+  if (start < 0 || end <= start) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content.slice(start, end + 1));
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  const ids: string[] = [];
+  for (const item of parsed) {
+    if (typeof item === "string") ids.push(item);
+  }
+  return ids;
+ }
+
+function mergeKnownIds(ranked: readonly string[], input: readonly string[]): string[] {
+  const known = new Set(input);
+  const out: string[] = [];
+  for (const id of ranked) {
+    if (!known.has(id) || out.includes(id)) continue;
+    out.push(id);
+  }
+  for (const id of input) {
+    if (!out.includes(id)) out.push(id);
+  }
+  return out;
 }

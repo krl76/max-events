@@ -45,5 +45,6 @@ export function createLlmProvider(apiKey: string | undefined, baseUrl: string, m
     AssistRateLimiter,
     AssistService,
   ],
+  exports: [LLM_PROVIDER],
 })
 export class AssistModule {}
