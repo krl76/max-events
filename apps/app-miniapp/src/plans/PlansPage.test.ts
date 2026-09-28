@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { formatDistance, featuredAfterSwipe, planCompanyLabel, planDistanceLabel, planMeetingLabel, planPartyLabel, planWhenPlace, PlansPage, PlansView, type PlansState } from "./PlansPage";
+import { formatDistance, featuredAfterSwipe, heroSlide, planCompanyLabel, planDistanceLabel, planMeetingLabel, planPartyLabel, planWhenPlace, PlansPage, PlansView, type PlansState } from "./PlansPage";
 import { pluralRu } from "../catalog/format";
 import { planCards } from "../api/mock";
 
@@ -79,5 +79,8 @@ describe("featuredAfterSwipe", () => {
     expect(featuredAfterSwipe(0, 3, -20)).toBe(0);
     expect(featuredAfterSwipe(0, 1, -80)).toBe(0);
     expect(featuredAfterSwipe(2, 3, -80)).toBe(2);
+    expect(heroSlide(0, 1)).toBe("next");
+    expect(heroSlide(2, 1)).toBe("prev");
+    expect(heroSlide(1, 1)).toBe("still");
   });
 });

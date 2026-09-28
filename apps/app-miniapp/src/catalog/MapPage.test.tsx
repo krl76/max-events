@@ -3,7 +3,6 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { mockEvents } from "../api/mock";
 import { MapPageView } from "./MapPage";
-import { mapAttractionAsk } from "./MapScreen";
 
 const noop = () => {};
 
@@ -16,7 +15,7 @@ describe("MapPageView", () => {
     const html = render({ status: "loading" });
 
     expect(html).toContain('aria-label="Карта событий и мест"');
-    expect(html).toContain("Искать на карте");
+    expect(html).toContain('aria-label="Поиск"');
   });
 
   it("рисует полотно карты и когда события не загрузились — вместо экрана ошибки", () => {
@@ -38,10 +37,3 @@ describe("MapPageView", () => {
   });
 });
 
-describe("mapAttractionAsk", () => {
-  it("asks about the city's sights when the field is empty, and about the typed place otherwise", () => {
-    expect(mapAttractionAsk("Казань", "  ")).toContain("достопримечательности");
-    expect(mapAttractionAsk("Казань", "  ")).toContain("Казань");
-    expect(mapAttractionAsk("Казань", "Кремль")).toContain("Кремль");
-  });
-});

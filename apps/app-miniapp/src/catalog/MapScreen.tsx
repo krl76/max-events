@@ -50,6 +50,7 @@ import { buildMapMarkers, clusterMapMarkers, MAP_CLUSTER_MAX_ZOOM, type MapMarke
 import { walkingRoute } from "./walkingRoute";
 import { useLeafletMap } from "./useLeafletMap";
 import { mountVectorBasemap, paintableBasemap, type VectorBasemapLayer } from "./vectorBasemap";
+import { useMapAssistIds } from "./useMapAssistIds";
 
 /** Fixtures and P0 scope are Moscow-only, so the map opens on the city center; also the anchor point of the nearby screen. */
 export const MOSCOW_CENTER: [number, number] = [55.7522, 37.6156];
@@ -211,19 +212,21 @@ const MAP_VOLUNTEER = /волонт|волонтер|субботник/;
 const MAP_BILL = /афиш|концерт|музык|джаз|кино|лекци/;
 const MAP_TRIP = /туризм|экскурс|поход|прогул/;
 
-/** Event pins only. A category word matches that category in the catalog, not only a title substring. */
-export function filterMapEvents(events: Event[], category: EventCategory | undefined, needle: string): Event[] {
+/** Event pins only. A category word, including a colloquial stem, matches that category. AI picks replace the local guess once they arrive. */
+export function filterMapEvents(events: readonly Event[], category: EventCategory | undefined, needle: string, aiIds?: ReadonlySet<string> | null): Event[] {
   const query = needle.trim().toLowerCase();
+  const named = query.replaceAll("ё", "е");
+  const picked = aiIds != null && aiIds.size > 0 ? aiIds : null;
   return events.filter((item) => {
     if (category !== undefined && item.category !== category) return false;
     if (query === "") return true;
+    if (picked !== null) return picked.has(item.id);
     const blob = `${item.title} ${item.description}`.toLowerCase();
     if (blob.includes(query)) return true;
-    const named = query.replaceAll("ё", "е");
-    if (/^(спорт|спортивное|спортивные|футбол|йога)$/.test(named) && (item.category === "sport" || MAP_SPORT.test(blob))) return true;
-    if (/^(волонтерство|субботник)$/.test(named) && (item.category === "volunteering" || MAP_VOLUNTEER.test(blob))) return true;
-    if (named === "афиша" && (item.category === "afisha" || MAP_BILL.test(blob))) return true;
-    if (/^(туризм|экскурсия|поход)$/.test(named) && (item.category === "tourism" || MAP_TRIP.test(blob))) return true;
+    if (MAP_SPORT.test(named) && (item.category === "sport" || MAP_SPORT.test(blob))) return true;
+    if (MAP_VOLUNTEER.test(named) && (item.category === "volunteering" || MAP_VOLUNTEER.test(blob))) return true;
+    if (MAP_BILL.test(named) && (item.category === "afisha" || MAP_BILL.test(blob))) return true;
+    if (MAP_TRIP.test(named) && (item.category === "tourism" || MAP_TRIP.test(blob))) return true;
     return false;
   });
 }
@@ -595,18 +598,10 @@ interface MapScreenProps {
   focusPlaceId?: string | null;
   /** Открыть карту уже с построенным маршрутом до выбранной площадки. */
   drawRoute?: boolean;
-  /** Поиск достопримечательностей уходит в MAX AI, а не фильтрует пины локально. */
-  onAskAi?: (ask: string) => void;
-};
-
-/** What the map search asks MAX: the typed place, or the city's sights when the field is empty. */
-export function mapAttractionAsk(city: string, query: string): string {
-  const trimmed = query.trim();
-  if (trimmed === "") return `Найди достопримечательности в городе ${city} и коротко скажи, куда сходить.`;
-  return `Найди в городе ${city}: ${trimmed}. Если это место или достопримечательность — где оно и чем интересно.`;
 }
 
-export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false, onAskAi }: MapScreenProps) {
+
+export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false }: MapScreenProps) {
   const located = useProfileCityPoint();
   const weatherCity = located.city ?? city;
   // Until the profile city is known the canvas stays on Moscow. A far GPS fix must not pan the map away from the catalog.
@@ -693,7 +688,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
 
   const readyPlaces = places.status === "ready" ? places.places : [];
   const needle = query.trim().toLowerCase();
-  const shownEvents = useMemo(() => (layers.events ? filterMapEvents(events, category, needle) : []), [events, layers.events, needle, category]);
+  const aiIds = useMapAssistIds(query);
+  const shownEvents = useMemo(() => (layers.events ? filterMapEvents(events, category, needle, aiIds) : []), [events, layers.events, needle, category, aiIds]);
   const shownPlaces = useMemo(() => (layers.places ? readyPlaces.filter((item) => needle === "" || `${item.title} ${item.address}`.toLowerCase().includes(needle)) : []), [readyPlaces, layers.places, needle]);
   // A fresh [] on every render would land in the map's dependency list and rebuild Leaflet each time.
   const visits = useMemo(() => (layers.friends ? friendVisits : EMPTY_VISITS), [layers.friends, friendVisits]);
@@ -956,11 +952,6 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
         <form className="app-map16-search" role="search" onSubmit={(event) => event.preventDefault()}>
           <ActionIcon name="search" size={18} />
           <input className="app-map16-search-input" type="search" aria-label="Поиск" placeholder="Поиск" value={query} onChange={(typed) => setQuery(typed.target.value)} />
-          {onAskAi !== undefined && (
-            <button type="button" className="app-map16-locate" aria-label="Спросить MAX" onClick={() => onAskAi(mapAttractionAsk(weatherCity, query))}>
-              <ActionIcon name="spark" size={18} />
-            </button>
-          )}
           <button type="button" className={basemapsOpen ? "app-map16-locate app-map16-locate--on" : "app-map16-locate"} aria-expanded={basemapsOpen} aria-pressed={basemapsOpen} aria-label="Карта" onClick={() => { setBasemapsOpen((open) => !open); setWeatherOpen(false); setFiltersOpen(false); }}>
             <ActionIcon name="layers" size={18} />
           </button>

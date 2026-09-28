@@ -85,6 +85,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   plan: "План",
   "plan-new": "Свой план",
   "day-route": "Маршрут на день",
+  walk: "Прогулка",
   lists: "Списки",
   list: "Список",
   achievements: "Достижения",
@@ -143,7 +144,7 @@ export function routeHasBack(route: Route): boolean {
 // «Куда пойдём?» (11 и 12) меняет заголовок вместе с шагом: у вопросов это «Куда пойдём?», у выдачи —
 // «Пять вариантов», то есть число найденного. Таблица ROUTE_TITLES даёт один заголовок на маршрут,
 // поэтому шапку рисует сам экран.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["browse", "swipe", "map", "profile", "user", "after-event", "lists", "list", "bookings", "moderation", "event", "companions", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "plans", "assist", "whereto", "calendar"]);
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["browse", "swipe", "map", "profile", "user", "after-event", "lists", "list", "bookings", "moderation", "event", "companions", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "plans", "assist", "whereto", "calendar", "walk"]);
 
 /**
  * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и
@@ -165,6 +166,7 @@ const FULLSCREEN_ROUTES: ReadonlySet<Route["name"]> = new Set([
   "assist",
   // Маршрут на день: своя шапка и нижнее «Готово», иначе длинный список прячет действие под таббаром.
   "day-route",
+  "walk",
 ]);
 
 export function routeIsFullscreen(route: Route): boolean {

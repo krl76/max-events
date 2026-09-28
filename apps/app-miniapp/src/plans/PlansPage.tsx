@@ -70,10 +70,15 @@ export function planPartyLabel(friendCount: number): string {
 }
 
 /** Horizontal swipe on the hero. A short drag is a tap, not a page change. */
-  export function featuredAfterSwipe(index: number, count: number, deltaX: number): number {
+export function featuredAfterSwipe(index: number, count: number, deltaX: number): number {
   if (count <= 1 || Math.abs(deltaX) < 48) return index;
   if (deltaX < 0) return Math.min(count - 1, index + 1);
   return Math.max(0, index - 1);
+}
+
+export function heroSlide(from: number, to: number): "next" | "prev" | "still" {
+  if (to === from) return "still";
+  return to > from ? "next" : "prev";
 }
 
 export type PlansState = { status: "loading" } | { status: "error" } | { status: "ready"; cards: PlanCard[] };
@@ -95,6 +100,7 @@ function PlanCreate({ onCreate }: { onCreate?: () => void }) {
 
 export function PlansView({ state, onOpen, onExplore, onCreate, distancesFromViewer = true }: { state: PlansState; onOpen: (planId: string) => void; onExplore: () => void; onCreate?: () => void; distancesFromViewer?: boolean }) {
   const [featured, setFeatured] = useState(0);
+  const [slide, setSlide] = useState<"next" | "prev" | "still">("still");
   const swipeStart = useRef<number | null>(null);
   const swiped = useRef(false);
   if (state.status === "loading")
@@ -126,7 +132,8 @@ export function PlansView({ state, onOpen, onExplore, onCreate, distancesFromVie
       <p className="app-plans-kicker">Ближайший план</p>
       <button
         type="button"
-        className="app-plans-hero"
+        className={slide === "still" ? "app-plans-hero" : `app-plans-hero app-plans-hero--${slide}`}
+        key={`${hero.plan.id}-${slide}`}
         style={{ touchAction: "pan-y" }}
         onPointerDown={(event) => {
           swipeStart.current = event.clientX;
@@ -139,6 +146,7 @@ export function PlansView({ state, onOpen, onExplore, onCreate, distancesFromVie
           swipeStart.current = null;
           if (next === index) return;
           swiped.current = true;
+          setSlide(heroSlide(index, next));
           setFeatured(next);
         }}
         onClick={() => {

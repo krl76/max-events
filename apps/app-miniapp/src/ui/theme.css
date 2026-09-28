@@ -12886,6 +12886,7 @@ button.app-poll-result {
 
 .app-cal--screen {
   min-height: 100%;
+  padding-top: max(16px, env(safe-area-inset-top));
 }
 
 .app-cal-scroll {
@@ -12895,6 +12896,7 @@ button.app-poll-result {
   gap: var(--app-space-m);
   min-height: 0;
   padding-bottom: var(--app-space-l);
+  padding-top: var(--app-space-s);
 }
 
 .app-cal-top {
@@ -19414,6 +19416,7 @@ button.app-cal-peer-chip {
   padding: 6px;
 }
 
+.app-me-tab {
   align-items: center;
   background: none;
   border: none;
@@ -19430,6 +19433,7 @@ button.app-cal-peer-chip {
   line-height: 1;
   padding: 0 6px;
   white-space: nowrap;
+}
 
 .app-me-tab--active {
   background: var(--app-canvas);
@@ -21916,6 +21920,116 @@ button.app-story-viewer-author {
   position: relative;
   text-align: left;
   width: 100%;
+}
+.app-plans-hero--next {
+  animation: app-plans-slide-next 280ms ease;
+}
+.app-plans-hero--prev {
+  animation: app-plans-slide-prev 280ms ease;
+}
+@keyframes app-plans-slide-next {
+  from {
+    opacity: 0.55;
+    transform: translateX(16%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes app-plans-slide-prev {
+  from {
+    opacity: 0.55;
+    transform: translateX(-16%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.app-walk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-m);
+  padding-bottom: var(--app-space-xl);
+}
+.app-walk-back {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+}
+.app-walk-title {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.app-walk-stats {
+  display: grid;
+  gap: var(--app-space-s);
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+  padding: 0;
+}
+.app-walk-stat {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-m);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--app-space-s);
+}
+.app-walk-stat strong {
+  font-size: 13px;
+}
+.app-walk-stat span {
+  color: var(--app-text-secondary);
+  font-size: 11px;
+}
+.app-walk-stops {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.app-walk-stop {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-m);
+  display: grid;
+  gap: 4px 10px;
+  grid-template-columns: 28px 1fr;
+  padding: var(--app-space-m);
+}
+.app-walk-num {
+  align-items: center;
+  background: var(--app-canvas);
+  border-radius: 50%;
+  display: flex;
+  font-size: 13px;
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+.app-walk-stop h3 {
+  font-size: 16px;
+  margin: 0;
+}
+.app-walk-meta,
+.app-walk-note {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  margin: 0;
+}
+.app-walk-another {
+  margin-top: var(--app-space-s);
 }
 .app-plans-hero .app-card-media {
   aspect-ratio: auto;

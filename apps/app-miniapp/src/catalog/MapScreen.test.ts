@@ -350,6 +350,10 @@ describe("filterMapEvents", () => {
     const titled = sport[0];
     expect(filterMapEvents(mockEvents, "sport", titled.title.slice(0, 4)).every((item) => item.category === "sport" && item.title.toLowerCase().includes(titled.title.slice(0, 4).toLowerCase()))).toBe(true);
     expect(filterMapEvents(mockEvents, "volunteering", "этот запрос ничему не равен")).toEqual([]);
+    expect(filterMapEvents(mockEvents, undefined, "спортик").every((item) => item.category === "sport")).toBe(true);
+    expect(filterMapEvents(mockEvents, undefined, "спортик").length).toBe(sport.length);
+    const picked = sport[0];
+    expect(filterMapEvents(mockEvents, undefined, "что угодно", new Set([picked.id])).map((item) => item.id)).toEqual([picked.id]);
   });
 });
 

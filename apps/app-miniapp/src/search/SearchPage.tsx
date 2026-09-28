@@ -216,10 +216,7 @@ const SEARCH_TOOLS: Array<{ id: string; label: string; aria: string; icon: "spar
   { id: "walk", label: "Прогулка", aria: "Маршрут по городу", icon: "navigation" },
 ];
 
-/** MAX AI walking route through the selected city's sights, not the personal day planner. */
-export function cityWalkAsk(city: string): string {
-  return `Собери пеший маршрут по достопримечательностям города ${city}: 4–6 остановок по порядку, время между точками и где поесть рядом.`;
-}
+export { cityWalkAsk } from "./WalkPage";
 
 /** Seven doors, three columns. The day route and the city walk share the last row. */
 export function SearchTools({ onAsk, onSwipe, onMap, onWhereto, onNearby, onMicro, onDayRoute, onCityWalk, nearbyLabel = "Рядом", nearbyAria = "Рядом со мной" }: { onAsk: () => void; onSwipe: () => void; onMap: () => void; onWhereto: () => void; onNearby: () => void; onMicro: () => void; onDayRoute: () => void; onCityWalk: () => void; nearbyLabel?: string; nearbyAria?: string }) {
@@ -653,7 +650,7 @@ export function SearchPage() {
       <HeaderSlot>
         <SearchTopBar city={city} cities={cities.length === 0 ? [city] : cities} onCity={setCity} trailing={<SearchFilters category={category} onCategory={setCategory} />} />
       </HeaderSlot>
-      <SearchView state={state} popular={popular} today={shownToday} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city, ...openDay })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} onExpand={() => navigate({ name: "browse", list: "nearby", city, ...openDay })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} day={day} onDay={(next) => { if (/^\d{4}-\d{2}-\d{2}$/.test(next)) setDay(next); }} dayScoped={dayScoped} suitableState={suitableState} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onDayRoute={() => navigate({ name: "day-route" })} onCityWalk={() => navigate({ name: "assist", ask: cityWalkAsk(city) })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />
+      <SearchView state={state} popular={popular} today={shownToday} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city, ...openDay })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} onExpand={() => navigate({ name: "browse", list: "nearby", city, ...openDay })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} day={day} onDay={(next) => { if (/^\d{4}-\d{2}-\d{2}$/.test(next)) setDay(next); }} dayScoped={dayScoped} suitableState={suitableState} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onDayRoute={() => navigate({ name: "day-route" })} onCityWalk={() => navigate({ name: "walk", city })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />
     </>
   );
 }
