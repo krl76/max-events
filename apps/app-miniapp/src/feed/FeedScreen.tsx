@@ -183,7 +183,6 @@ interface FeedFriendPostProps {
   onToggleGoing: () => void;
   onOpenComments: () => void;
   onShare: () => void;
-  onRepost?: () => void;
   onOpenEvent: () => void;
   onOpenAuthor: () => void;
   onOpenPerson?: (userId: string) => void;
@@ -193,7 +192,7 @@ interface FeedFriendPostProps {
   hasStory?: boolean;
 }
 
-export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenComments, onShare, onRepost = onShare, onOpenEvent, onOpenAuthor, onOpenPerson, onOpenMark, onDelete, userId, hasStory = false }: FeedFriendPostProps) {
+export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenComments, onShare, onOpenEvent, onOpenAuthor, onOpenPerson, onOpenMark, onDelete, userId, hasStory = false }: FeedFriendPostProps) {
   const [saving, setSaving] = useState(false);
   const where = [card.placeTitle, formatFeedDistance(card.distanceKm)].filter((part): part is string => part !== null && part !== "").join(" · ");
   const dropped = parsePinLabel(card.locationLabel ?? card.placeTitle ?? "");
@@ -267,12 +266,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
           <ActionIcon name="comment" size={26} />
           <span>{card.commentsCount}</span>
         </button>
-        {!mine && (
-          <button type="button" className="app-post-action" aria-label="Репост" onClick={onRepost}>
-            <ActionIcon name="repost" size={26} />
-          </button>
-        )}
-        <button type="button" className="app-post-action" aria-label="Поделиться" onClick={onShare}>
+        <button type="button" className="app-post-action" aria-label="Отправить друзьям в MAX" onClick={onShare}>
           <ActionIcon name="share" size={26} />
         </button>
         <span className="app-feed-actions-end">
@@ -316,14 +310,13 @@ interface FeedPlacePostProps {
   onOpenPlace: (placeId: string) => void;
   onOpenPost: () => void;
   onToggleLike?: () => void;
-  onRepost?: () => void;
   onStatus: (status: ParticipationStatus) => void;
   onSlots: () => void;
   onGather: () => void;
   onOpenUser?: (userId: string) => void;
 }
 
-export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onToggleLike, onRepost, onShowOnMap, onStatus, onSlots, onGather, onOpenUser }: FeedPlacePostProps & { onShowOnMap?: () => void }) {
+export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onToggleLike, onShowOnMap, onStatus, onSlots, onGather, onOpenUser }: FeedPlacePostProps & { onShowOnMap?: () => void }) {
   const travel = formatFeedTravel(card.travelMinutes, card.distanceKm);
   const rating = formatFeedRating(card.rating);
   const price = formatPricePerHour(card.pricePerHourRub);
@@ -418,8 +411,16 @@ export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onToggleLike
           <ActionIcon name="comment" size={26} />
           <span>{card.commentsCount}</span>
         </button>
-        <button type="button" className="app-post-action" aria-label="Репост" onClick={onRepost ?? onOpenPost}>
-          <ActionIcon name="repost" size={26} />
+        <button
+          type="button"
+          className="app-post-action"
+          aria-label="Отправить друзьям в MAX"
+          onClick={() => {
+            const payload = sharePayload(card.place.title, `place-${card.place.id}`);
+            void shareResult(getWebApp(), payload.text, payload.link);
+          }}
+        >
+          <ActionIcon name="share" size={26} />
         </button>
       </div>
       <h3 className="app-feed-place-title">{card.title}</h3>
@@ -471,9 +472,7 @@ export interface FeedCardHandlers {
   onToggleGoing: (card: FeedFriendCard) => void;
   onOpenComments: (card: FeedFriendCard) => void;
   onShare: (card: FeedFriendCard) => void;
-  onRepost: (card: FeedFriendCard) => void;
   onPlaceLike: (card: FeedPlaceCard) => void;
-  onPlaceRepost: (card: FeedPlaceCard) => void;
   onPlaceStatus: (card: FeedPlaceCard, status: ParticipationStatus) => void;
   onSlots: (card: FeedPlaceCard) => void;
   onGather: (card: FeedPlaceCard) => void;
@@ -494,7 +493,6 @@ export function FeedCardList({ cards, now, handlers, storyAuthors }: { cards: Fe
             onOpenComments={() => handlers.onOpenComments(card)}
             onShare={() => handlers.onShare(card)}
             onOpenPerson={handlers.onOpenAuthor}
-            onRepost={() => handlers.onRepost(card)}
             onOpenEvent={() => {
               if (card.event) handlers.onOpenEvent(card.event.id);
             }}
@@ -505,7 +503,7 @@ export function FeedCardList({ cards, now, handlers, storyAuthors }: { cards: Fe
             hasStory={storyAuthors?.has(card.author.id) === true}
           />
         ) : (
-          <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onToggleLike={() => handlers.onPlaceLike(card)} onRepost={() => handlers.onPlaceRepost(card)} onShowOnMap={handlers.onOpenPlaceMap ? () => handlers.onOpenPlaceMap?.(card) : undefined} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} onOpenUser={handlers.onOpenAuthor} />
+          <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onToggleLike={() => handlers.onPlaceLike(card)} onShowOnMap={handlers.onOpenPlaceMap ? () => handlers.onOpenPlaceMap?.(card) : undefined} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} onOpenUser={handlers.onOpenAuthor} />
         ),
       )}
     </div>
@@ -567,10 +565,9 @@ function eventFill(event: Event): string | null {
 }
 
 /** The social feed can be empty. The city still has events, and they should look like photographs. */
-function FeedCityPhotos({ userId, onOpen, onCreate, onChanged }: { userId: string | null; onOpen: (id: string) => void; onCreate: () => void; onChanged: () => void }) {
+function FeedCityPhotos({ onOpen, onCreate }: { onOpen: (id: string) => void; onCreate: () => void }) {
   const [events, setEvents] = useState<Event[] | null>(null);
   const [likes, setLikes] = useState<Record<string, true>>({});
-  const [note, setNote] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
     apiClient.listEvents().then(
@@ -638,26 +635,20 @@ function FeedCityPhotos({ userId, onOpen, onCreate, onChanged }: { userId: strin
                 <button
                   type="button"
                   className="app-post-action"
-                  aria-label="Репост"
+                  aria-label="Отправить друзьям в MAX"
                   onClick={() => {
-                    if (userId === null) return;
-                    void apiClient.repostFeedEvent(event.id, userId).then(
-                      () => {
-                        setNote("Событие у вас в ленте");
-                        onChanged();
-                      },
-                      () => setNote("Это событие уже есть в вашей ленте"),
-                    );
+                    const payload = sharePayload(event.title, `event-${event.id}`);
+                    void shareResult(getWebApp(), payload.text, payload.link);
                   }}
                 >
-                  <ActionIcon name="repost" size={22} />
+                  <ActionIcon name="share" size={22} />
                 </button>
               </div>
             </article>
           );
         })}
       </div>
-      {note !== null && <p className="app-feed-city-meta">{note}</p>}
+
     </div>
   );
 }
@@ -740,17 +731,9 @@ export function FeedScreen() {
       const payload = sharePayload(sentence, card.event ? `event-${card.event.id}` : `post-${card.id}`);
       void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
     },
-    onRepost: (card) => {
-      if (userId === null || card.author.id === userId) return;
-      void settle(apiClient.repostFeedPost(card.id, userId));
-    },
     onPlaceLike: (card) => {
       if (userId === null) return;
       void settle(apiClient.toggleFeedLike(card.id, userId));
-    },
-    onPlaceRepost: (card) => {
-      if (userId === null) return;
-      void settle(apiClient.createFeedPost({ userId, eventId: null, placeId: card.place.id, text: card.title }));
     },
     onPlaceStatus: (card, status) => {
       if (userId === null) return;
@@ -776,7 +759,7 @@ export function FeedScreen() {
           Не удалось загрузить ленту.
         </AppState>
       ) : state.cards.length === 0 ? (
-        <FeedCityPhotos userId={userId} onOpen={(id) => navigate({ name: "event", id })} onCreate={() => navigate({ name: "create" })} onChanged={() => fetchCards(false)} />
+        <FeedCityPhotos onOpen={(id) => navigate({ name: "event", id })} onCreate={() => navigate({ name: "create" })} />
       ) : (
         <FeedCardList cards={state.cards} now={now} handlers={handlers} storyAuthors={storyAuthors} />
       )}

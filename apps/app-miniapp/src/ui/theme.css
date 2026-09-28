@@ -21902,7 +21902,7 @@ button.app-story-viewer-author {
   background: none;
   border: none;
   border-radius: 22px;
-  color: #fff;
+  color: #ffffff;
   cursor: pointer;
   display: block;
   font: inherit;
@@ -22490,7 +22490,8 @@ button.app-story-viewer-author {
   margin-left: 4px;
 }
 
-.app-bill:not(.app-bill--open) {
+.app-bill:not(.app-bill--open) .app-bill-title,
+.app-bill:not(.app-bill--open) .app-bill-open {
   opacity: 0.62;
 }
 
@@ -24142,4 +24143,36 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-make .app-micro-stepper {
   margin-left: auto;
+}
+
+/* Лента выходит из полей экрана целиком: overflow на .app-feed обрезал отрицательный отступ поста, и по бокам оставалась белая полоса. */
+.app-feed {
+  margin-left: calc(-1 * max(var(--app-space-screen), env(safe-area-inset-left, 0px)));
+  margin-right: calc(-1 * max(var(--app-space-screen), env(safe-area-inset-right, 0px)));
+  overflow-x: hidden;
+  width: calc(100% + max(var(--app-space-screen), env(safe-area-inset-left, 0px)) + max(var(--app-space-screen), env(safe-area-inset-right, 0px)));
+}
+
+.app-feed .app-stories,
+.app-feed .app-stories-scroll {
+  margin-left: 0;
+  margin-right: 0;
+  width: 100%;
+}
+
+.app-feed .app-feed-post,
+.app-feed .app-feed-post:first-child {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.app-feed .app-feed-whereto {
+  margin-left: var(--app-space-screen);
+  margin-right: var(--app-space-screen);
+}
+
+.app-bill .app-today-date--chip {
+  background: var(--app-gradient-dark);
+  color: #ffffff;
+  opacity: 1;
 }
