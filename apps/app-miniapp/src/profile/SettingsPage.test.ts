@@ -194,6 +194,11 @@ describe("CloseFriendsDialog", () => {
 });
 
 describe("SettingsView", () => {
+  it("offers Выйти only when the screen can return to the entry chooser", () => {
+    expect(renderSettings()).not.toContain("Выйти");
+    expect(renderSettings({ onLeave: () => {} })).toContain("Выйти");
+  });
+
   it("renders the groups of a regular profile in order", () => {
     const html = renderSettings();
 

@@ -8540,6 +8540,27 @@ button.app-set-row {
 }
 
 /* Отключение — необратимое действие: обводка на прозрачном, пурпур только в подписи */
+.app-set-leave {
+  align-items: center;
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 52px;
+  justify-content: center;
+  margin-top: var(--app-space-screen);
+  width: 100%;
+}
+
+.app-set-leave:active {
+  background: var(--app-surface);
+}
+
 .app-set-disable {
   align-items: center;
   background: none;

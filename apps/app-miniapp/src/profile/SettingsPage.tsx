@@ -45,6 +45,7 @@ import { getWebApp } from "../max/bridge";
 import { friendHandle } from "../ui/friend-handle";
 import { requestViewerOrigin } from "../geo/viewer-origin";
 import { matchedOnboardingCity, ONBOARDING_CITIES, ONBOARDING_INTERESTS } from "../onboarding/onboarding";
+import { useLeaveEntry } from "../auth/leave-entry";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppSkeleton, AppState } from "../ui/primitives";
@@ -301,6 +302,7 @@ export interface SettingsViewProps {
   onClearCache: () => void;
   onOrganizer: () => void;
   onDisable: () => void;
+  onLeave?: () => void;
   onPickCover?: () => void;
   onResetCover?: () => void;
   onResetAvatar?: () => void;
@@ -309,7 +311,7 @@ export interface SettingsViewProps {
   onToggleClose?: (userId: string, close: boolean) => void;
 }
 
-export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable, onPickCover, onResetCover, onResetAvatar, closeFriends, followers, onToggleClose }: SettingsViewProps) {
+export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable, onLeave, onPickCover, onResetCover, onResetAvatar, closeFriends, followers, onToggleClose }: SettingsViewProps) {
   const [picker, setPicker] = useState<PickerName>(null);
   const [closeOpen, setCloseOpen] = useState(false);
   const [locateNote, setLocateNote] = useState<string | null>(null);
@@ -433,6 +435,11 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
       </SettingsGroup>
       {picker === "about" && <p className="app-set-note">MAX Афиша — афиша событий и совместного досуга внутри MAX. Версия {APP_VERSION}.</p>}
 
+      {onLeave !== undefined && (
+        <button type="button" className="app-set-leave" onClick={onLeave}>
+          Выйти
+        </button>
+      )}
       <button type="button" className="app-set-disable" aria-expanded={picker === "disable"} onClick={() => (picker === "disable" ? onDisable() : open("disable"))}>
         {picker === "disable" ? "Точно отключить?" : "Отключить мини-приложение"}
       </button>
@@ -443,6 +450,7 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
 
 function AuthenticatedSettings({ user }: { user: User }) {
   const { navigate } = useRoute();
+  const leaveEntry = useLeaveEntry();
   const { updateUser } = useAuth();
   const theme = useAppTheme();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -610,6 +618,7 @@ function AuthenticatedSettings({ user }: { user: User }) {
         // MAX Bridge has no "disable" call (https://dev.max.ru/docs/webapps/bridge): closing is all a
         // mini-app may do about itself, the removal happens in MAX.
         onDisable={() => getWebApp()?.close()}
+        onLeave={leaveEntry ?? undefined}
         closeFriends={closeFriends ?? undefined}
         followers={followers ?? undefined}
         onToggleClose={(userId, close) => {

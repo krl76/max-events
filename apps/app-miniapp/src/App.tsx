@@ -16,6 +16,7 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { IonApp } from "@ionic/react";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { EntryPage, type EntryMode } from "./auth/EntryPage";
+import { LeaveEntryProvider } from "./auth/leave-entry";
 import { apiClient } from "./api/client";
 import { getWebApp } from "./max/bridge";
 import { isOnboardingDone, markOnboardingDone, profileSkipsOnboarding } from "./onboarding/onboarding";
@@ -56,17 +57,19 @@ export function App() {
       ) : mode === "organizer" ? (
         <OrganizerSpace onExit={() => setMode(null)} />
       ) : (
-        <AuthProvider>
-          <UserShell onExit={() => setMode(null)}>
-            <OnboardingGate>
-              <RouteProvider>
-                <Layout>
-                  <RoutedPages />
-                </Layout>
-              </RouteProvider>
-            </OnboardingGate>
-          </UserShell>
-        </AuthProvider>
+        <LeaveEntryProvider onLeave={() => setMode(null)}>
+          <AuthProvider>
+            <UserShell onExit={() => setMode(null)}>
+              <OnboardingGate>
+                <RouteProvider>
+                  <Layout>
+                    <RoutedPages />
+                  </Layout>
+                </RouteProvider>
+              </OnboardingGate>
+            </UserShell>
+          </AuthProvider>
+        </LeaveEntryProvider>
       )}
     </IonApp>
   );
