@@ -30,6 +30,7 @@ describe("CreateView", () => {
     expect(html.match(/<button/g)).toHaveLength(CREATE_ENTRIES.length);
     for (const entry of CREATE_ENTRIES) {
       expect(html).toContain(entry.label);
+      expect(html).toContain(entry.description);
     }
   });
 });

@@ -12,6 +12,12 @@
 // - CreatePage - container: routes the picked entry
 // END_MODULE_MAP
 
+import { useEffect, useState } from "react";
+import type { MicroEvent, PlanCard } from "@max-events/api-contracts";
+import { apiClient } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
+import { planWhenPlace } from "../plans/PlansPage";
+import { pictured } from "../ui/photos";
 import type { Route } from "../routing/router";
 import { useRoute } from "../routing/router";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
@@ -41,7 +47,10 @@ export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
             <span className="app-create-card-art" aria-hidden="true">
               <ActionIcon name={entry.icon} size={index === 0 ? 28 : 22} />
             </span>
-            <span className="app-create-card-label">{entry.label}</span>
+            <span className="app-create-card-copy">
+              <span className="app-create-card-label">{entry.label}</span>
+              <span className="app-create-card-line">{entry.description}</span>
+            </span>
           </button>
         ))}
       </div>
@@ -49,7 +58,76 @@ export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
   );
 }
 
+export function CreateContinue({ plans, micros, onOpenPlan, onOpenMicro }: { plans: PlanCard[]; micros: MicroEvent[]; onOpenPlan: (id: string) => void; onOpenMicro: (id: string) => void }) {
+  if (plans.length === 0 && micros.length === 0) return null;
+  return (
+    <div className="app-create-live">
+      {plans.length > 0 && (
+        <>
+          <p className="app-create-live-title">Ближайшие планы</p>
+          {plans.slice(0, 3).map((card) => (
+            <button key={card.plan.id} type="button" className="app-create-live-row" onClick={() => onOpenPlan(card.plan.id)}>
+              <img alt="" src={pictured(card.event.id, card.event.coverUrl)} />
+              <span className="app-create-live-copy">
+                <strong>{card.event.title}</strong>
+                <span>{planWhenPlace(card.plan)}</span>
+              </span>
+              <ActionIcon name="chevron" size={16} />
+            </button>
+          ))}
+        </>
+      )}
+      {micros.length > 0 && (
+        <>
+          <p className="app-create-live-title">Открытые сборы</p>
+          {micros.slice(0, 3).map((item) => (
+            <button key={item.id} type="button" className="app-create-live-row" onClick={() => onOpenMicro(item.id)}>
+              <span className="app-create-live-copy">
+                <strong>{item.title}</strong>
+                <span>
+                  {item.participantsCount}/{item.participantsLimit} · присоединиться
+                </span>
+              </span>
+              <ActionIcon name="chevron" size={16} />
+            </button>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function CreatePage() {
   const { navigate } = useRoute();
-  return <CreateView onPick={navigate} />;
+  const auth = useAuth();
+  const [plans, setPlans] = useState<PlanCard[]>([]);
+  const [micros, setMicros] = useState<MicroEvent[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    apiClient.listPlans().then(
+      (list) => {
+        if (alive) setPlans(list.filter((card) => Date.parse(card.plan.meetingAt) >= Date.now()).slice(0, 3));
+      },
+      () => {},
+    );
+    apiClient.listMicroEvents().then(
+      (list) => {
+        if (!alive) return;
+        const userId = auth.status === "authenticated" ? auth.user.id : null;
+        setMicros(list.filter((item) => item.status === "open" && (userId === null || !item.participantIds.includes(userId))).slice(0, 3));
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [auth]);
+
+  return (
+    <>
+      <CreateView onPick={navigate} />
+      <CreateContinue plans={plans} micros={micros} onOpenPlan={(id) => navigate({ name: "plan", id })} onOpenMicro={(id) => navigate({ name: "micro-event", id })} />
+    </>
+  );
 }

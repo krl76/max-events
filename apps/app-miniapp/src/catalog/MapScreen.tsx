@@ -191,12 +191,6 @@ export function mapNotice(input: MapNoticeInput): string | null {
 /** Categories the map filter popup offers. Undefined is «Все». */
 export const MAP_EVENT_CATEGORIES: readonly EventCategory[] = ["afisha", "tourism", "sport", "volunteering"];
 
-/** Градусы, на которых кольцо пинов расходится примерно на 48px: тап показывает объекты и на городском зуме. */
-function spiderDegrees(zoom: number): number {
-  const metersPerPixel = (156543.03 * Math.cos((55.75 * Math.PI) / 180)) / 2 ** Math.max(zoom, 1);
-  return (metersPerPixel * 48) / 111320;
-}
-
 /** Three basemaps are enough on a phone. The pictures are real tiles, not painted swatches. */
 export const MAP_CHOICES = ["own", "osm", "opentopo"] as const;
 
@@ -391,8 +385,6 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
   const pins = L.layerGroup().addTo(map);
   const overlay = L.layerGroup().addTo(map);
   let drawn = "";
-  /** Ключ кластера, который человек уже раскрыл тапом. Повторный тап по тому же обработчику ничего не добавляет. */
-  let revealed = "";
 
   function placePin(marker: MapMarker, lat: number, lng: number): void {
     const selected = marker.key === view.selectedKey ? " app-map-pin--active" : "";
@@ -406,38 +398,18 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
   function drawPins(): void {
     const zoom = map.getZoom();
     const clusters = clusterMapMarkers(view.markers, zoom);
-    // Пересборка закрывает попап, поэтому зум внутри одной клетки её не вызывает. Раскрытый кластер
-    // — исключение: кольцо пинов одной двери должно оставаться читаемым, когда масштаб меняется.
-    const signature = `${view.selectedKey ?? ""}|${revealed}|${revealed === "" ? "" : zoom}|${clusters.map((cluster) => `${cluster.key}:${cluster.markers.length}`).join(",")}`;
+    const signature = `${view.selectedKey ?? ""}|${zoom.toFixed(2)}|${clusters.map((cluster) => `${cluster.key}:${cluster.markers.length}`).join(",")}`;
     if (signature === drawn) return;
     drawn = signature;
     pins.clearLayers();
-    const ring = spiderDegrees(zoom);
     for (const cluster of clusters) {
-      if (cluster.markers.length > 1 && cluster.key === revealed) {
-        cluster.markers.forEach((marker, index) => {
-          const angle = (2 * Math.PI * index) / cluster.markers.length;
-          placePin(marker, cluster.lat + ring * Math.cos(angle), cluster.lng + ring * Math.sin(angle));
-        });
-        continue;
-      }
       if (cluster.markers.length > 1) {
         const size = clusterSize(cluster.markers.length);
-        const icon = L.divIcon({ className: "app-map-pin app-map-pin--cluster", iconSize: [size, size], html: `<span class="app-map-cluster" aria-label="${cluster.markers.length} точек"><span class="app-map-cluster-count">${cluster.markers.length}</span></span>` });
+        const icon = L.divIcon({ className: "app-map-pin app-map-pin--cluster", iconSize: [size, size], iconAnchor: [size / 2, size / 2], html: `<span class="app-map-cluster" aria-label="${cluster.markers.length} точек"><span class="app-map-cluster-count">${cluster.markers.length}</span></span>` });
         const bubble = L.marker([cluster.lat, cluster.lng], { icon }).addTo(pins);
         bubble.on("click", () => {
           const bounds = L.latLngBounds(cluster.markers.map((marker) => [marker.lat, marker.lng] as [number, number]));
-          const span = map.distance(bounds.getNorthEast(), bounds.getSouthWest());
-          const streetZoom = Math.min(MAP_CLUSTER_MAX_ZOOM + 3, map.getMaxZoom());
-          // Объекты в одной точке не разъедутся от зума: первый тап сразу ставит пины, второй по тому же пузырю — нет.
-          if (span < 80) {
-            if (revealed === cluster.key) return;
-            revealed = cluster.key;
-            drawn = "";
-            drawPins();
-            return;
-          }
-          map.flyToBounds(bounds, { padding: [56, 56], maxZoom: streetZoom, duration: 0.45 });
+          map.flyToBounds(bounds.pad(0.4), { padding: [64, 64], maxZoom: map.getMaxZoom(), duration: 0.45 });
         });
         continue;
       }
@@ -446,11 +418,7 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
     }
   }
 
-  function onZoomEnd(): void {
-    if (revealed !== "") {
-      const clusters = clusterMapMarkers(view.markers, map.getZoom());
-      if (!clusters.some((cluster) => cluster.key === revealed && cluster.markers.length > 1)) revealed = "";
-    }
+  function onZoom(): void {
     drawPins();
   }
 
@@ -463,7 +431,8 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
     if (view.route !== null && view.route.length >= 2) L.polyline(view.route, { className: "app-map-route", weight: 4, lineCap: "round" }).addTo(overlay);
   }
 
-  map.on("zoomend", onZoomEnd);
+  map.on("zoom", onZoom);
+  map.on("zoomend", onZoom);
   drawPins();
   drawOverlay();
 
@@ -484,7 +453,8 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
       map.flyTo(point, zoom ?? Math.max(map.getZoom(), 14), { duration: 0.6 });
     },
     dispose() {
-      map.off("zoomend", onZoomEnd);
+      map.off("zoom", onZoom);
+      map.off("zoomend", onZoom);
       map.remove();
     },
   };
