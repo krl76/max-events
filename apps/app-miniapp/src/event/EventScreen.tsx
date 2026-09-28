@@ -38,7 +38,6 @@ import type { EventCompanions, EventDetails, EventForecast, EventMoodTag, EventN
 import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { pictured } from "../ui/photos";
-import { AppMedia } from "../ui/primitives";
 
 /** «СЕН» / «19». Intl gives «сент.» for the short month, and the tile wants three letters in caps. */
 export function formatDateBadge(startsAt: string): { month: string; day: string } {
@@ -161,32 +160,25 @@ export function EventHero({ details, saveOpen, onShare, onSave }: EventHeroProps
   const seats = seatOccupancy(details);
   const cover = pictured(event.id, event.coverUrl);
   return (
-    <header className="app-ev-hero" style={{ backgroundImage: `linear-gradient(180deg, rgba(6, 7, 8, 0.25), rgba(6, 7, 8, 0.82)), url("${cover}")` }}>
-      {/* Абстрактные пятна вместо фотографии: фото людей бриф запрещает */}
-      <span className="app-ev-hero-blob app-ev-hero-blob--light" aria-hidden="true" />
-      <span className="app-ev-hero-blob app-ev-hero-blob--cool" aria-hidden="true" />
+    <header className="app-ev-hero" style={{ backgroundImage: `linear-gradient(180deg, rgba(6, 7, 8, 0.05), rgba(6, 7, 8, 0.78)), url("${cover}")` }}>
       <div className="app-ev-hero-bar">
         <span className="app-ev-hero-bar-right">
           <button type="button" className="app-ev-hero-btn" aria-label="Позвать друзей" onClick={onShare}>
-            <ActionIcon name="users" size={16} />
-            Позвать
+            <ActionIcon name="share" size={20} />
           </button>
           <button type="button" className="app-ev-hero-btn" aria-pressed={saveOpen} aria-label="Сохранить в список" onClick={onSave}>
-            <ActionIcon name="bookmark" size={16} filled={saveOpen} />В список
+            <ActionIcon name="bookmark" size={20} filled={saveOpen} />
           </button>
         </span>
       </div>
-      <div className="app-ev-hero-id">
-        <AppMedia category={event.category} className="app-ev-hero-media" src={pictured(event.id, event.coverUrl)} />
-        <div className="app-ev-hero-text">
-          <h1 className="app-ev-title">{event.title}</h1>
-          <p className="app-ev-hero-meta">
-            {CATEGORY_LABELS[event.category]}
-            {place !== null && ` · ${place.title}`}
-            {event.promoted && " · Промо"}
-          </p>
-          {seats !== null && <p className="app-ev-hero-seats">{formatSeatLine(seats.taken, seats.capacity)}</p>}
-        </div>
+      <div className="app-ev-hero-copy">
+        <h1 className="app-ev-title">{event.title}</h1>
+        <p className="app-ev-hero-meta">
+          {CATEGORY_LABELS[event.category]}
+          {place !== null && ` · ${place.title}`}
+          {event.promoted && " · Промо"}
+        </p>
+        {seats !== null && <p className="app-ev-hero-seats">{formatSeatLine(seats.taken, seats.capacity)}</p>}
       </div>
     </header>
   );
@@ -261,12 +253,6 @@ interface EventRouteCardProps {
 export function EventRouteCard({ address, hint, travel, fromCenter = false, onRoute }: EventRouteCardProps) {
   return (
     <section className="app-ev-route" aria-label="Как добраться">
-      {/* Схема перекрёстка, а не карта: тайлов у мини-аппа нет, а пустой серый прямоугольник читается как ошибка загрузки */}
-      <span className="app-ev-route-map" aria-hidden="true">
-        <span className="app-ev-route-road" />
-        <span className="app-ev-route-street" />
-        <span className="app-ev-route-pin" />
-      </span>
       <div className="app-ev-route-text">
         <p className="app-ev-route-address">
           {address}
@@ -295,7 +281,7 @@ interface EventOrganizerCardProps {
  * события» is a count here and a percentage in the mock, because OrganizerRating carries visitsCount
  * and no denominator to divide it by.
  */
-export function EventOrganizerCard({ name, eventsCount, rating, subscribe }: EventOrganizerCardProps) {
+export function EventOrganizerCard({ name, eventsCount, rating, subscribe, brief = false }: EventOrganizerCardProps & { brief?: boolean }) {
   return (
     <section className="app-ev-org" aria-label="Организатор">
       <div className="app-ev-org-head">
@@ -308,7 +294,13 @@ export function EventOrganizerCard({ name, eventsCount, rating, subscribe }: Eve
         </span>
         <span className="app-ev-org-action">{subscribe}</span>
       </div>
-      {rating === null ? (
+      {brief ? (
+        rating !== null && (
+          <p className="app-ev-org-brief">
+            {rating.averageStars.toFixed(1).replace(".", ",")} · {Math.round(rating.recommendPercent)}% рекомендуют
+          </p>
+        )
+      ) : rating === null ? (
         <div className="app-ev-org-new">
           <ActionIcon name="alert" size={20} />
           <span>

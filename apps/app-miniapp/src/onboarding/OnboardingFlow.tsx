@@ -15,13 +15,14 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { FriendSuggestion } from "../api/client";
 import { apiClient } from "../api/client";
 import { AfishaWordmark } from "../auth/EntryPage";
-import { getWebApp } from "../max/bridge";
+import { getWebApp, shareResult } from "../max/bridge";
+import { maxAppLink } from "../max/links";
 import { useSwipe } from "../ui/gestures";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppState } from "../ui/primitives";
 import { useViewerOrigin, requestViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
-import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, cityCardMeta, cityDetectionHint, cityForwardBlock, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, markOnboardingDone, matchedOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type CityDetectState, type IntroDirection, type OnboardingStep } from "./onboarding";
+import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, cityCardMeta, cityForwardBlock, interestsCtaLabel, introDirection, markOnboardingDone, matchedOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type CityDetectState, type IntroDirection, type OnboardingStep } from "./onboarding";
 
 const RAIL_LABELS = ["Город", "Друзья", "Интересы"] as const;
 
@@ -137,6 +138,7 @@ export interface OnboardingViewProps {
   onBack: () => void;
   /** Leave the whole flow. The second part keeps the same «Пропустить» as the intro. */
   onSkip?: () => void;
+  onShareApp?: () => void;
   /** Set when this visit was opened on purpose. The first slide can leave instead of doing nothing. */
   onLeave?: () => void;
 }
@@ -189,7 +191,6 @@ function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle =
       </ol>
       <div key={slide.title} className={`app-onboarding-line app-onboarding-copy app-onboarding-copy--${direction}`}>
         <h1 className="app-onboarding-intro-title">{slide.title}</h1>
-        <p className="app-onboarding-intro-text">{slide.description}</p>
       </div>
       <div className={settle ? "app-onboarding-cast app-onboarding-cast--settle" : "app-onboarding-cast"} style={{ transform: `translate3d(${travel}px, 0, 0)`, filter: haze > 0.4 ? `blur(${haze}px)` : "none" }}>
         <div className="app-onboarding-places">
@@ -222,7 +223,6 @@ function CityStep({ city, cityDetect, cityPicked, onCity, onNext }: Pick<Onboard
     <>
       <header className="app-onboarding-head">
         <h1 className="app-onboarding-title">Где ищем события?</h1>
-        <p className="app-onboarding-lead">{cityDetectionHint(cityDetect)}</p>
       </header>
       <div className="app-onboarding-body">
         <div className="app-onboarding-city-deck">
@@ -248,42 +248,22 @@ function CityStep({ city, cityDetect, cityPicked, onCity, onNext }: Pick<Onboard
   );
 }
 
-function FriendsStep({ suggestions, followed, saveFailed, onToggleFriend, onNext }: Pick<OnboardingViewProps, "suggestions" | "followed" | "saveFailed" | "onToggleFriend" | "onNext">) {
+function FriendsStep({ saveFailed, onShare, onNext }: { saveFailed: boolean; onShare: () => void; onNext: () => void }) {
   return (
     <>
       <header className="app-onboarding-head app-onboarding-head--center">
-        <h1 className="app-onboarding-title app-onboarding-title--headline">
-          Твои люди <span className="app-onboarding-accent">уже здесь</span>
-        </h1>
-        <p className="app-onboarding-lead">{contactsLine(suggestions.length)}</p>
+        <h1 className="app-onboarding-title">Твои люди уже здесь</h1>
+        <p className="app-onboarding-lead">Находи друзей по интересам и приглашай своих</p>
       </header>
-      <div className="app-onboarding-body">
-        <ul className="app-onboarding-people">
-          {suggestions.map((suggestion, position) => {
-            const on = followed.includes(suggestion.friend.id);
-            return (
-              <li key={suggestion.friend.id}>
-                <button type="button" aria-pressed={on} className="app-onboarding-person" onClick={() => onToggleFriend(suggestion.friend.id)}>
-                  <span className={on ? "app-onboarding-person-avatar app-onboarding-person-avatar--on" : "app-onboarding-person-avatar"}>
-                    <span className={`app-onboarding-person-face app-onboarding-person-face--${(position % 5) + 1}`}>{suggestion.friend.avatarUrl === null ? <PersonFace variant={position} /> : <img alt="" src={suggestion.friend.avatarUrl} />}</span>
-                    <span className="app-onboarding-person-mark" aria-hidden="true">
-                      <ActionIcon name={on ? "check" : "plus"} size={12} strokeWidth={3.5} />
-                    </span>
-                  </span>
-                  <span className="app-onboarding-person-text">
-                    <span className="app-onboarding-person-name">{suggestion.friend.name}</span>
-                    {suggestion.hint !== null && <span className="app-onboarding-person-hint">{suggestion.hint}</span>}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+      <div className="app-onboarding-body app-onboarding-body--share">
+        <button type="button" className="app-onboarding-share" aria-label="Поделиться приложением" onClick={onShare}>
+          <ActionIcon name="share" size={28} />
+        </button>
       </div>
-      <div className="app-onboarding-footer app-onboarding-footer--divided">
+      <div className="app-onboarding-footer">
         {saveFailed && <p className="app-onboarding-error">Не удалось сохранить подписки. Попробуй ещё раз.</p>}
         <button type="button" className="app-onboarding-cta" onClick={onNext}>
-          {followCtaLabel(followed.length)}
+          Дальше
         </button>
       </div>
     </>
@@ -419,7 +399,7 @@ export function OnboardingView(props: OnboardingViewProps) {
       ) : (
         <div className={trackClass} style={trackStyle}>
           <StepShell step={props.step} onBack={props.onBack} onSkip={props.onSkip ?? props.onNext}>
-            {props.step === "city" ? <CityStep city={props.city} cityDetect={props.cityDetect} cityPicked={props.cityPicked} onCity={props.onCity} onNext={props.onNext} /> : props.step === "friends" ? <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} /> : <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} />}
+            {props.step === "city" ? <CityStep city={props.city} cityDetect={props.cityDetect} cityPicked={props.cityPicked} onCity={props.onCity} onNext={props.onNext} /> : props.step === "friends" ? <FriendsStep saveFailed={props.saveFailed} onShare={props.onShareApp ?? props.onNext} onNext={props.onNext} /> : <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} />}
           </StepShell>
         </div>
       )}
@@ -604,6 +584,9 @@ export function OnboardingFlow({ onDone, onLeave }: { onDone: () => void; onLeav
       onSkip={() => {
         markOnboardingDone();
         onDone();
+      }}
+      onShareApp={() => {
+        void shareResult(getWebApp(), "Афиша MAX — находи друзей по интересам и зови своих", maxAppLink(""));
       }}
       onLeave={onLeave}
     />

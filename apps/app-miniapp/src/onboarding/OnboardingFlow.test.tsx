@@ -44,7 +44,7 @@ describe("intro step", () => {
 
     expect(html).toContain(INTRO_SLIDES[0].label);
     expect(html).toContain(INTRO_SLIDES[0].title);
-    expect(html).toContain(INTRO_SLIDES[0].description);
+    expect(html).not.toContain(INTRO_SLIDES[0].description);
     expect(html).toContain("Пропустить");
     expect(html).toContain("Дальше");
     expect(html).not.toContain("Начать");
@@ -103,7 +103,7 @@ describe("city step", () => {
     const html = viewHtml({ step: "city", city: "Казань" });
 
     expect(html).toContain("Где ищем события?");
-    expect(html).toContain("Определили по геолокации");
+    expect(html).not.toContain("Определили по геолокации");
     expect(html).toContain("Санкт-Петербург");
     expect(html).toContain("Новосибирск");
     expect(html).toContain("<span>Казань</span>");
@@ -119,7 +119,7 @@ describe("city step", () => {
   it("drops the detection claim when geolocation was refused and does not pretend Moscow was found", () => {
     const html = viewHtml({ step: "city", city: null, cityDetect: "denied" });
 
-    expect(html).toContain("Геолокация недоступна");
+    expect(html).not.toContain("Геолокация недоступна");
     expect(html).toContain('aria-pressed="true"');
     expect(html).not.toContain("Выбери из списка");
     expect(html).not.toContain("Не выбран");
@@ -130,27 +130,27 @@ describe("city step", () => {
   it("asks for a choice when the fix is outside every listed city", () => {
     const html = viewHtml({ step: "city", city: null, cityDetect: "outside" });
 
-    expect(html).toContain("не рядом ни с одним городом");
+    expect(html).not.toContain("не рядом ни с одним городом");
     expect(html).not.toContain("Определить по геолокации");
     expect(html).not.toContain("Рядом с тобой");
   });
 });
 
 describe("friends step", () => {
-  it("counts the contacts, renders their hints and the follow CTA", () => {
+  it("invites people to share the app instead of listing contacts", () => {
     const html = viewHtml({ step: "friends" });
 
-    expect(html).toContain("Твои люди");
-    expect(html).toContain("3 контакта из чатов MAX");
-    expect(html).toContain("Анна Соколова");
-    expect(html).toContain("12 общих планов");
-    expect(html).toContain("Добавить 1 и продолжить");
+    expect(html).toContain("Твои люди уже здесь");
+    expect(html).toContain("Находи друзей по интересам и приглашай своих");
+    expect(html).toContain('aria-label="Поделиться приложением"');
+    expect(html).toContain("Дальше");
+    expect(html).not.toContain("Анна Соколова");
+    expect(html).not.toContain("контакта");
   });
 
-  it("marks only the followed avatars and reports a failed write", () => {
-    const html = viewHtml({ step: "friends", followed: ["a1", "a2"], saveFailed: true });
+  it("reports a failed write", () => {
+    const html = viewHtml({ step: "friends", saveFailed: true });
 
-    expect(html.match(/app-onboarding-person-avatar--on/g)).toHaveLength(2);
     expect(html).toContain("Не удалось сохранить подписки");
   });
 

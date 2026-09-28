@@ -22,6 +22,7 @@ import type { Friend } from "@max-events/api-contracts";
 import type { BookingOffer, EventDetails } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { ActionIcon } from "../ui/icons";
+import { useSheetSwipe } from "../ui/sheet";
 import { AppState } from "../ui/primitives";
 import { formatPrice, seatOccupancy } from "./EventScreen";
 import type { PromoCodeState } from "./EventPage";
@@ -100,6 +101,7 @@ export interface BookingSheetProps {
 }
 
 export function BookingSheet({ details, offer, organizerName, promo, waitlist, onClose, onBook, onCancel }: BookingSheetProps) {
+  const swipe = useSheetSwipe(onClose);
   const booked = details.activeBookingId !== null;
   const soldOut = details.remainingSeats === 0;
   const friends = offer?.friendsWithTickets ?? [];
@@ -110,60 +112,62 @@ export function BookingSheet({ details, offer, organizerName, promo, waitlist, o
   return (
     <div className="app-evb" role="dialog" aria-modal="true" aria-label="Запись на событие">
       <button type="button" className="app-evb-scrim" aria-label="Закрыть" onClick={onClose} />
-      <div className="app-evb-sheet">
-        <span className="app-evb-grabber" aria-hidden="true" />
-        <div className="app-evb-head">
-          <h2 className="app-evb-title">{sheetHeadline(details)}</h2>
-          {occupancy !== null && (
-            <span className="app-evb-count">
-              {occupancy.taken} из {occupancy.capacity}
-            </span>
+      <div className="app-evb-sheet app-sheet" style={swipe.style}>
+        <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
+        <div className="app-evb-body">
+          <div className="app-evb-head">
+            <h2 className="app-evb-title">{sheetHeadline(details)}</h2>
+            {occupancy !== null && (
+              <span className="app-evb-count">
+                {occupancy.taken} из {occupancy.capacity}
+              </span>
+            )}
+          </div>
+          <div className="app-evb-bar" aria-hidden="true">
+            <span className="app-evb-bar-fill" style={{ width: `${seatsFillPercent(details)}%` }} />
+          </div>
+          <p className="app-evb-summary">{bookingSummary(details, organizerName)}</p>
+          {friendsLine !== null && (
+            <div className="app-evb-friends">
+              <span className="app-evb-faces" role="img" aria-label={friendsLine}>
+                {friends.slice(0, 3).map((friend) => (
+                  <span key={friend.id} className="app-evb-face">
+                    {friend.name.charAt(0)}
+                  </span>
+                ))}
+              </span>
+              <p className="app-evb-friends-text">
+                {friendsLine}. <b>Позвать в общий план</b> после оплаты.
+              </p>
+            </div>
+          )}
+          {!booked && !soldOut && (
+            <div className="app-evb-promo">
+              {earlyAccess && <p className="app-evb-early">Запись пока открыта по промокоду раннего доступа.</p>}
+              <input className="app-evb-input" type="text" value={promo.code} aria-label="Промокод" placeholder="Промокод (если есть)" onChange={(change) => promo.onCode(change.target.value)} />
+              <input className="app-evb-input" type="text" value={promo.referral} aria-label="Код акции или друга" placeholder="Код акции или друга (если есть)" onChange={(change) => promo.onReferral(change.target.value)} />
+            </div>
+          )}
+          {promo.error !== null && <AppState error>{promo.error}</AppState>}
+          {booked ? (
+            <button type="button" className="app-evb-cta app-evb-cta--booked" onClick={onCancel}>
+              Отменить запись
+            </button>
+          ) : (
+            <button type="button" className="app-evb-cta" disabled={soldOut} onClick={onBook}>
+              {primaryCtaLabel(details)}
+              {details.event.isPaid && <ActionIcon name="arrow" size={18} />}
+            </button>
+          )}
+          {waitlist !== null && (
+            <>
+              <button type="button" className="app-evb-waitlist" disabled={waitlist.joined} onClick={waitlist.onJoin}>
+                {waitlist.joined ? "Вы в листе ожидания" : waitlistCtaLabel(waitlist.ahead)}
+              </button>
+              <p className="app-evb-note">Уведомим, если освободится место</p>
+            </>
           )}
         </div>
-        <div className="app-evb-bar" aria-hidden="true">
-          <span className="app-evb-bar-fill" style={{ width: `${seatsFillPercent(details)}%` }} />
-        </div>
-        <p className="app-evb-summary">{bookingSummary(details, organizerName)}</p>
-        {friendsLine !== null && (
-          <div className="app-evb-friends">
-            <span className="app-evb-faces" role="img" aria-label={friendsLine}>
-              {friends.slice(0, 3).map((friend) => (
-                <span key={friend.id} className="app-evb-face">
-                  {friend.name.charAt(0)}
-                </span>
-              ))}
-            </span>
-            <p className="app-evb-friends-text">
-              {friendsLine}. <b>Позвать в общий план</b> после оплаты.
-            </p>
-          </div>
-        )}
-        {!booked && !soldOut && (
-          <div className="app-evb-promo">
-            {earlyAccess && <p className="app-evb-early">Запись пока открыта по промокоду раннего доступа.</p>}
-            <input className="app-evb-input" type="text" value={promo.code} aria-label="Промокод" placeholder="Промокод (если есть)" onChange={(change) => promo.onCode(change.target.value)} />
-            <input className="app-evb-input" type="text" value={promo.referral} aria-label="Код акции или друга" placeholder="Код акции или друга (если есть)" onChange={(change) => promo.onReferral(change.target.value)} />
-          </div>
-        )}
-        {promo.error !== null && <AppState error>{promo.error}</AppState>}
-        {booked ? (
-          <button type="button" className="app-evb-cta app-evb-cta--booked" onClick={onCancel}>
-            Отменить запись
-          </button>
-        ) : (
-          <button type="button" className="app-evb-cta" disabled={soldOut} onClick={onBook}>
-            {primaryCtaLabel(details)}
-            {details.event.isPaid && <ActionIcon name="arrow" size={18} />}
-          </button>
-        )}
-        {waitlist !== null && (
-          <>
-            <button type="button" className="app-evb-waitlist" disabled={waitlist.joined} onClick={waitlist.onJoin}>
-              {waitlist.joined ? "Вы в листе ожидания" : waitlistCtaLabel(waitlist.ahead)}
-            </button>
-            <p className="app-evb-note">Уведомим, если освободится место</p>
-          </>
-        )}
       </div>
     </div>
   );

@@ -4612,6 +4612,25 @@ html[data-theme="dark"] #root {
   border-color: #007aff;
 }
 
+.app-onboarding-body--share {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+
+.app-onboarding-share {
+  align-items: center;
+  background: #007aff;
+  border: none;
+  border-radius: 50%;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  height: 64px;
+  justify-content: center;
+  width: 64px;
+}
+
 .app-onboarding--film .app-onboarding-body {
   scrollbar-width: none;
 }
@@ -4752,6 +4771,10 @@ html[data-theme="dark"] #root {
   background: var(--app-accent);
   transition: width var(--app-duration-slow) var(--app-ease-out);
   width: 0;
+}
+
+.app-onboarding-rail--0::after {
+  width: calc(32px + 28px - 40px);
 }
 
 .app-onboarding-rail--1::after {
@@ -17190,41 +17213,22 @@ button.app-cal-peer-chip {
 }
 
 .app-ev-hero {
-  background: var(--app-gradient-dark);
+  background: var(--app-gradient-dark) center / cover no-repeat;
   color: var(--brand-white);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   margin: 0 calc(-1 * var(--app-space-screen));
+  min-height: 320px;
   overflow: hidden;
-  padding: var(--app-space-l) var(--app-space-screen) var(--app-space-xl);
+  padding: 12px var(--app-space-screen) 20px;
   position: relative;
-}
-
-/* Абстрактные пятна вместо фотографии: фото людей бриф запрещает */
-.app-ev-hero-blob {
-  border-radius: 50%;
-  position: absolute;
-}
-
-.app-ev-hero-blob--light {
-  background: rgba(255, 255, 255, 0.1);
-  height: 240px;
-  right: -80px;
-  top: -70px;
-  width: 240px;
-}
-
-.app-ev-hero-blob--cool {
-  background: var(--app-status);
-  bottom: -90px;
-  height: 220px;
-  left: -70px;
-  opacity: 0.24;
-  width: 220px;
 }
 
 .app-ev-hero-bar {
   align-items: center;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   position: relative;
 }
 
@@ -17235,23 +17239,22 @@ button.app-cal-peer-chip {
 
 .app-ev-hero-btn {
   align-items: center;
-  background: rgba(255, 255, 255, 0.22);
+  background: #ffffff;
   border: none;
-  border-radius: var(--app-radius-pill);
-  color: var(--brand-white);
+  border-radius: 50%;
+  color: #060708;
   cursor: pointer;
   display: flex;
   font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  gap: 4px;
   height: 44px;
   justify-content: center;
-  padding: 0 12px;
+  padding: 0;
+  width: 44px;
 }
 
 .app-ev-hero-btn[aria-pressed="true"] {
-  background: rgba(255, 255, 255, 0.34);
+  background: #007aff;
+  color: #ffffff;
 }
 
 /* Шеврон нарисован вправо; кнопка назад разворачивает его */
@@ -17259,28 +17262,8 @@ button.app-cal-peer-chip {
   transform: rotate(180deg);
 }
 
-.app-ev-hero-id {
-  align-items: center;
-  display: flex;
-  gap: 14px;
-  margin-top: var(--app-space-l);
+.app-ev-hero-copy {
   position: relative;
-}
-
-/* Квадрат 84px вместо карточного 4:5: это метка категории, а не медиа-блок */
-.app-ev-hero-media {
-  aspect-ratio: 1;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-radius: 20px;
-  box-sizing: border-box;
-  flex: none;
-  height: 84px;
-  width: 84px;
-}
-
-.app-ev-hero-text {
-  flex: 1;
-  min-width: 0;
 }
 
 .app-ev-title {
@@ -17473,48 +17456,6 @@ button.app-cal-peer-chip {
   gap: var(--app-space-m);
   margin-top: var(--app-space-l);
   padding: var(--app-space-m);
-}
-
-/* Схема перекрёстка, а не карта: тайлов нет, а пустой прямоугольник читается как ошибка загрузки */
-.app-ev-route-map {
-  background: var(--app-surface);
-  border-radius: var(--app-radius-media);
-  flex: none;
-  height: 72px;
-  overflow: hidden;
-  position: relative;
-  width: 84px;
-}
-
-.app-ev-route-road {
-  background: rgba(var(--app-scheme-neutral), 0.08);
-  height: 8px;
-  left: -10px;
-  position: absolute;
-  right: -10px;
-  top: 26px;
-  transform: rotate(-10deg);
-}
-
-.app-ev-route-street {
-  background: rgba(var(--app-scheme-neutral), 0.08);
-  bottom: -10px;
-  left: 46px;
-  position: absolute;
-  top: -10px;
-  transform: rotate(14deg);
-  width: 7px;
-}
-
-.app-ev-route-pin {
-  background: linear-gradient(135deg, var(--brand-blue), var(--brand-purple));
-  border-radius: 50% 50% 50% 0;
-  height: 18px;
-  left: 34px;
-  position: absolute;
-  top: 26px;
-  transform: rotate(-45deg);
-  width: 18px;
 }
 
 .app-ev-route-text {
@@ -17902,10 +17843,35 @@ button.app-cal-peer-chip {
 
 /* Разделы, которых в макете нет, но функции за ними живые: оплата, автоплан, лист ожидания,
  * стена события, отзыв, отметка «я здесь» и жалоба */
+.app-ev-more {
+  border-top: var(--app-hairline);
+  margin-top: var(--app-space-m);
+}
+
+.app-ev-more summary {
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 800;
+  list-style: none;
+  padding: 16px 0;
+}
+
+.app-ev-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.app-ev-org-brief {
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  margin: 8px 0 0;
+}
+
 .app-ev-extras {
   display: flex;
   flex-direction: column;
-  padding-top: var(--app-space-xl);
+  padding-top: var(--app-space-m);
 }
 
 .app-ev-secondary {
@@ -18013,22 +17979,20 @@ button.app-cal-peer-chip {
   border-radius: 24px 24px 0 0;
   bottom: 0;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   left: 0;
   max-height: 88dvh;
-  overflow-y: auto;
-  padding: var(--app-space-m) var(--app-space-screen) calc(var(--app-space-xl) + env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
+  padding: 0 0 calc(var(--app-space-xl) + env(safe-area-inset-bottom, 0px));
   position: absolute;
   right: 0;
-  scrollbar-width: none;
 }
 
-.app-evb-grabber {
-  background: rgba(var(--app-scheme-neutral), 0.15);
-  border-radius: 2px;
-  display: block;
-  height: 4px;
-  margin: 0 auto var(--app-space-l);
-  width: 40px;
+.app-evb-body {
+  overflow-y: auto;
+  padding: 0 var(--app-space-screen);
+  scrollbar-width: none;
 }
 
 .app-evb-head {

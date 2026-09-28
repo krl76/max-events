@@ -330,23 +330,22 @@ export function EventPage({ id }: { id: string }) {
       <EventHero details={details} saveOpen={saveOpen} onBack={back} onShare={() => setInviteOpen(true)} onSave={() => setSaveOpen((open) => !open)} />
       <SaveToList eventId={id} userId={userId} open={saveOpen} onClose={() => setSaveOpen(false)} />
       <EventWhenRow event={event} />
-      {forecast !== null && <EventForecastCard forecast={forecast} />}
-      {place !== null && <EventRouteCard address={place.address} hint={place.title} travel={travel} fromCenter={!travelPoint.fromViewer} onRoute={() => navigate({ name: "map", placeId: place.id, drawRoute: true })} />}
-      <EventOrganizerCard name={organizerName} eventsCount={details.organizerEventsCount ?? null} rating={rating} subscribe={details.organizer === null ? null : <SubscribeToggle target={{ type: "organizer", organizerUserId: details.organizer.id }} subscribeLabel="Подписаться" unsubscribeLabel="Отписаться" />} />
-      {companions !== null && <EventWhoGoesRow companions={companions} onOpen={() => navigate({ name: "companions", eventId: id })} />}
-      <button type="button" className="app-invite-open" onClick={() => setInviteOpen(true)}>
-        Позвать друзей
-      </button>
       {event.description !== "" && (
         <section className="app-ev-section" aria-label="О событии">
-          <h2 className="app-ev-section-title">О событии</h2>
           <p className="app-ev-about">{event.description}</p>
         </section>
       )}
-      <AutoPlanSection eventId={id} />
-      <EventMoodTags tags={moods} />
-      <EventNearbyList spots={nearby} onOpen={(spotId) => navigate({ name: "place", id: spotId })} />
-      <EventExtras details={details} eventId={id} userId={userId} payment={currentPayment} paymentBusy={paymentBusy} paymentFailed={paymentError !== null && paymentError === details.activeBookingId} onPay={pay} onCheckIn={checkIn} onChanged={refetch} onCreatePost={() => navigate({ name: "feed-new", eventId: id })} />
+      {place !== null && <EventRouteCard address={place.address} hint={place.title} travel={travel} fromCenter={!travelPoint.fromViewer} onRoute={() => navigate({ name: "map", placeId: place.id, drawRoute: true })} />}
+      {companions !== null && <EventWhoGoesRow companions={companions} onOpen={() => navigate({ name: "companions", eventId: id })} />}
+      <EventOrganizerCard name={organizerName} eventsCount={details.organizerEventsCount ?? null} rating={rating} subscribe={details.organizer === null ? null : <SubscribeToggle target={{ type: "organizer", organizerUserId: details.organizer.id }} subscribeLabel="Подписаться" unsubscribeLabel="Отписаться" />} brief />
+      <details className="app-ev-more">
+        <summary>Ещё о событии</summary>
+        {forecast !== null && <EventForecastCard forecast={forecast} />}
+        <AutoPlanSection eventId={id} />
+        <EventMoodTags tags={moods} />
+        <EventNearbyList spots={nearby} onOpen={(spotId) => navigate({ name: "place", id: spotId })} />
+        <EventExtras details={details} eventId={id} userId={userId} payment={currentPayment} paymentBusy={paymentBusy} paymentFailed={paymentError !== null && paymentError === details.activeBookingId} onPay={pay} onCheckIn={checkIn} onChanged={refetch} onCreatePost={() => navigate({ name: "feed-new", eventId: id })} />
+      </details>
       <EventBookingBar details={details} chatLink={event.chatLink} onChat={() => event.chatLink !== null && openChatLink(event.chatLink)} onBook={() => setSheetOpen(true)} />
       {sheetOpen && <BookingSheet details={details} offer={offer} organizerName={organizerName} promo={promo} waitlist={details.remainingSeats === 0 && details.activeBookingId === null ? { ahead: offer?.waitlistAhead ?? 0, joined: queued, onJoin: joinWaitlist } : null} onClose={() => setSheetOpen(false)} onBook={book} onCancel={cancel} />}
       {inviteOpen && (

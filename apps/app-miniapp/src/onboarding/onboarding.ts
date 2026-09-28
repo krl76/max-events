@@ -81,7 +81,7 @@ export interface IntroSlide {
 
 export const INTRO_SLIDES: readonly IntroSlide[] = [
   { label: "Друзья", title: "С друзьями на событие", description: "Кто из чатов уже идёт", hero: 1 },
-  { label: "Ассистент", title: "Не знаешь, что выбрать?", description: "Ассистент найдёт событие", hero: 2 },
+  { label: "Ассистент", title: "Ассистент найдёт событие", description: "Ассистент найдёт событие", hero: 2 },
   { label: "План", title: "Событие становится планом", description: "Время, место и чат", hero: 3 },
 ];
 
