@@ -25,6 +25,16 @@ export const ORGANIZER_TABS: Array<{ section: OrganizerSection; icon: TabIcon; l
 export function OrganizerTabBar({ section, onSection }: { section: OrganizerSection; onSection: (section: OrganizerSection) => void }) {
   return (
     <nav className="app-tabbar" aria-label="Организатор">
+      <svg className="app-brand-defs" aria-hidden="true">
+        <defs>
+          <linearGradient id="app-brand-fill" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0%" stopColor="#0d001a" />
+            <stop offset="50%" stopColor="#471aff" />
+            <stop offset="80%" stopColor="#9500ff" />
+            <stop offset="100%" stopColor="#00bfff" />
+          </linearGradient>
+        </defs>
+      </svg>
       {ORGANIZER_TABS.map((tab) => (
         <button key={tab.section} type="button" aria-current={tab.section === section ? "page" : undefined} onClick={() => onSection(tab.section)}>
           <TabIconGlyph name={tab.icon} size={24} filled={tab.section === section} />

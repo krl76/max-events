@@ -493,7 +493,16 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
             <button type="button" className="app-bill-title" aria-expanded={fold === "today"} onClick={() => openFold("today")}>
               Афиша
             </button>
-            <SearchDayButton day={props.day} now={props.now} onDay={props.onDay} chip />
+            <SearchDayButton
+              day={props.day}
+              now={props.now}
+              chip
+              emphasized={fold === "today" || props.day !== dayKey(props.now)}
+              onDay={(next) => {
+                props.onDay(next);
+                setFold("today");
+              }}
+            />
           </div>
           <button type="button" className="app-bill-open" aria-label="Открыть афишу на выбранный день" onClick={() => openFold("today")}>
             <BillStack photos={billPhotos(todayCards)} count={todayCards.length} />

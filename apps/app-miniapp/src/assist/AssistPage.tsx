@@ -40,7 +40,7 @@ export const ASSIST_GREETING = "Привет! Могу собрать план �
 
 export const ASSIST_PROMPTS: readonly string[] = ["Что-то бесплатное рядом", "План на субботу: шашлык", "Куда с детьми"];
 
-export const ASSIST_PLACEHOLDER = "Спроси MAX: куда сходить, беседки, корты…";
+export const ASSIST_PLACEHOLDER = "Спроси: куда сходить, беседки, корты…";
 
 export function isSaturdayPlanPrompt(text: string): boolean {
   const lower = text.toLowerCase();
@@ -166,7 +166,7 @@ interface AssistPageViewProps {
   onClose: () => void;
 }
 
-export function AssistPageView({ thread, draft, state, lastQuestion, onDraft, onSubmit, onPlanEvening, onMoreOptions, onPrompt, onOpenEvent, onOpenPlan, onOpenGuide, onClose }: AssistPageViewProps) {
+export function AssistPageView({ thread, draft, state, lastQuestion, onDraft, onSubmit, onPlanEvening, onMoreOptions, onOpenEvent, onOpenPlan, onOpenGuide, onClose }: AssistPageViewProps) {
   const answered = thread.some((bubble) => bubble.role === "max" && bubble.picks.length > 0);
   return (
     <section className="app-assist" aria-label="MAX AI ассистент">
@@ -223,14 +223,6 @@ export function AssistPageView({ thread, draft, state, lastQuestion, onDraft, on
             </AppButton>
           </div>
         )}
-      </div>
-
-      <div className="app-assist-prompts" role="group" aria-label="Подсказки">
-        {ASSIST_PROMPTS.map((prompt) => (
-          <button key={prompt} type="button" className="app-assist-prompt" onClick={() => onPrompt(prompt)}>
-            {prompt}
-          </button>
-        ))}
       </div>
 
       <form

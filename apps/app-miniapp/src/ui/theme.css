@@ -4680,8 +4680,8 @@ html[data-theme="dark"] #root {
 }
 
 .app-search-filter--on {
-  background: var(--app-text);
-  color: var(--app-card);
+  background: var(--app-gradient-dark);
+  color: #ffffff;
 }
 
 .app-search-tools {
@@ -4716,9 +4716,10 @@ html[data-theme="dark"] #root {
   width: 48px;
 }
 
+.app-search-tool-bubble,
 .app-search-tool-bubble--dark {
-  background: var(--app-text);
-  color: var(--app-card);
+  background: var(--app-gradient-dark);
+  color: #ffffff;
 }
 
 .app-search-city-wrap {
@@ -4835,10 +4836,10 @@ html[data-theme="dark"] #root {
 
 .app-search-go {
   align-items: center;
-  background: var(--app-text);
+  background: var(--app-gradient-dark);
   border: none;
   border-radius: 50%;
-  color: var(--app-card);
+  color: #ffffff;
   cursor: pointer;
   display: flex;
   flex: none;
@@ -4850,7 +4851,7 @@ html[data-theme="dark"] #root {
 
 .app-search-go:disabled {
   cursor: default;
-  opacity: 0.35;
+  opacity: 0.4;
 }
 
 .app-search-input {
@@ -19711,7 +19712,7 @@ button.app-cal-peer-chip {
 
 .app-map-mark {
   align-items: center;
-  background: var(--app-accent);
+  background: var(--app-gradient-dark);
   border: 2px solid var(--app-card);
   border-radius: 50% 50% 50% 0;
   box-sizing: border-box;
@@ -19740,7 +19741,7 @@ button.app-cal-peer-chip {
 
 .app-map-pin--active .app-map-mark {
   border-color: var(--app-accent-contrast);
-  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.25);
+  box-shadow: 0 0 0 4px rgba(6, 7, 8, 0.18);
   transform: rotate(-45deg) scale(1.14);
 }
 
@@ -19751,10 +19752,10 @@ button.app-cal-peer-chip {
 /* Скопление: пузырь с числом вместо десятка налезающих капель */
 .app-map-cluster {
   align-items: center;
-  background: var(--app-accent);
+  background: var(--app-gradient-dark);
   border: 3px solid var(--app-card);
   border-radius: 50%;
-  box-shadow: 0 0 0 6px rgba(0, 122, 255, 0.18);
+  box-shadow: 0 0 0 6px rgba(6, 7, 8, 0.12);
   box-sizing: border-box;
   color: var(--app-accent-contrast);
   display: flex;
@@ -19778,7 +19779,7 @@ button.app-cal-peer-chip {
 }
 
 .app-map-me-dot {
-  background: var(--app-accent);
+  background: var(--app-gradient-dark);
   border: 3px solid var(--app-accent-contrast);
   border-radius: 50%;
   box-shadow: 0 2px 8px rgba(6, 7, 8, 0.3);
@@ -21902,7 +21903,7 @@ button.app-story-viewer-author {
   background: none;
   border: none;
   border-radius: 22px;
-  color: #fff;
+  color: #ffffff;
   cursor: pointer;
   display: block;
   font: inherit;
@@ -22490,7 +22491,8 @@ button.app-story-viewer-author {
   margin-left: 4px;
 }
 
-.app-bill:not(.app-bill--open) {
+.app-bill:not(.app-bill--open) .app-bill-title,
+.app-bill:not(.app-bill--open) .app-bill-open {
   opacity: 0.62;
 }
 
@@ -22571,7 +22573,7 @@ button.app-story-viewer-author {
 }
 
 .app-map16-basemap-shot--own {
-  background: linear-gradient(160deg, var(--brand-void), #007aff 70%, #ffffff);
+  background: var(--app-gradient-dark);
   display: block;
 }
 
@@ -22734,7 +22736,8 @@ button.app-story-viewer-author {
 }
 
 .app-map16-basemap-pick--on {
-  outline: 2px solid #007aff;
+  background: var(--app-gradient-dark);
+  outline: none;
 }
 
 .app-map16-basemap-swatch {
@@ -23843,10 +23846,15 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-post-action[aria-pressed="true"] svg *,
 .app-feed-comment-like[aria-pressed="true"] svg *,
-.app-tabbar button[aria-current="page"] svg *,
 .app-create-hero-face svg * {
   fill: url(#app-brand-fill);
   stroke: url(#app-brand-fill);
+}
+
+.app-tabbar button[aria-current="page"] svg,
+.app-tabbar button[aria-current="page"] svg * {
+  fill: none;
+  stroke: currentColor;
 }
 
 .app-tabbar button[aria-current="page"]::after {
@@ -24142,4 +24150,115 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-make .app-micro-stepper {
   margin-left: auto;
+}
+
+/* Лента выходит из полей экрана целиком: overflow на .app-feed обрезал отрицательный отступ поста, и по бокам оставалась белая полоса. */
+.app-feed {
+  margin-left: calc(-1 * max(var(--app-space-screen), env(safe-area-inset-left, 0px)));
+  margin-right: calc(-1 * max(var(--app-space-screen), env(safe-area-inset-right, 0px)));
+  overflow-x: hidden;
+  width: calc(100% + max(var(--app-space-screen), env(safe-area-inset-left, 0px)) + max(var(--app-space-screen), env(safe-area-inset-right, 0px)));
+}
+
+.app-feed .app-stories,
+.app-feed .app-stories-scroll {
+  margin-left: 0;
+  margin-right: 0;
+  width: 100%;
+}
+
+.app-feed .app-feed-post,
+.app-feed .app-feed-post:first-child {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.app-feed .app-feed-whereto {
+  margin-left: var(--app-space-screen);
+  margin-right: var(--app-space-screen);
+}
+
+.app-bill .app-today-date--chip {
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  opacity: 0.72;
+}
+
+.app-bill .app-today-date--chip.app-today-date--live {
+  background: var(--app-gradient-dark);
+  color: #ffffff;
+  opacity: 1;
+}
+
+.app-feed-likes {
+  align-items: center;
+  display: flex;
+  font-size: 14px;
+  font-weight: 800;
+  gap: 8px;
+  margin: 0;
+  padding: 2px var(--app-space-screen) 0;
+}
+
+.app-feed-like-faces {
+  display: flex;
+}
+
+.app-feed-like-face {
+  align-items: center;
+  background: var(--app-surface);
+  border: 2px solid var(--app-page);
+  border-radius: 50%;
+  display: flex;
+  font-size: 11px;
+  font-weight: 800;
+  height: 22px;
+  justify-content: center;
+  margin-left: -8px;
+  overflow: hidden;
+  width: 22px;
+}
+
+.app-feed-like-face:first-child {
+  margin-left: 0;
+}
+
+.app-feed-like-face img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-feed-like-more {
+  color: var(--app-text-secondary);
+}
+
+.app-map16-basemap-strip {
+  padding: 4px 2px 6px;
+}
+
+.app-map16-basemap-pick {
+  background: var(--app-card);
+  border-radius: 12px;
+  box-sizing: border-box;
+  outline: none;
+  overflow: hidden;
+  padding: 2px;
+}
+
+.app-map16-basemap-pick--on {
+  background: var(--app-gradient-dark);
+  outline: none;
+}
+
+.app-map16-basemap-pick--on .app-map16-basemap-label {
+  color: #ffffff;
+}
+
+.app-map16-basemap-shot {
+  border-radius: 10px;
+  display: block;
+  height: 48px;
+  object-fit: cover;
+  width: 100%;
 }
