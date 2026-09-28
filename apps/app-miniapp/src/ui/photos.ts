@@ -1,7 +1,21 @@
+const PICSUM = /https?:\/\/(?:i\.|images\.)?picsum\.photos\/seed\/([^/?#]+)(?:\/(\d+)\/(\d+))?/i;
+
+/**
+ * Picsum is blocked inside the MAX phone webview. The same bytes are served from our origin,
+ * so a stored picsum URL and a generated fallback both paint.
+ */
+export function showPhoto(url: string | null | undefined): string | null {
+  if (url == null || url.trim() === "") return null;
+  const match = PICSUM.exec(url.trim());
+  if (!match) return url;
+  const width = match[2] ?? "800";
+  const height = match[3] ?? "1066";
+  return `/api/media/seed/${encodeURIComponent(decodeURIComponent(match[1]))}?w=${width}&h=${height}`;
+}
+
 /** A real photograph for a card. A stored cover wins; otherwise a stable photo for this id, not a flat color. */
 export function pictured(id: string, coverUrl?: string | null): string {
-  if (coverUrl) return coverUrl;
-  return `https://picsum.photos/seed/maxevents-${encodeURIComponent(id)}/800/1066`;
+  return showPhoto(coverUrl) ?? showPhoto(`https://picsum.photos/seed/maxevents-${encodeURIComponent(id)}/800/1066`)!;
 }
 
 /** «занято 12 из 30». Absent when the event has no capacity, so an unlimited event does not invent a fill. */

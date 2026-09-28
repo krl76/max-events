@@ -40,7 +40,7 @@ import { sharePayload } from "../max/links";
 import { useRoute } from "../routing/router";
 import { ListsPage } from "../lists/ListsPage";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
-import { pictured } from "../ui/photos";
+import { pictured, showPhoto } from "../ui/photos";
 import { AppMedia, AppSkeleton, AppState } from "../ui/primitives";
 
 const INTERESTS_ON_LINE = 3;
@@ -206,7 +206,7 @@ export function ProfilePostGrid({ posts, failed, onOpenPost, onNewPost, canPubli
     <div className="app-me-posts">
       {posts.map((post) => (
         <button key={post.postId} type="button" className="app-me-post" aria-label={post.eventId === null ? `Пост «${post.eventTitle}»` : `Пост о событии «${post.eventTitle}»`} onClick={() => onOpenPost(post)}>
-          {post.photoUrl === null ? <AppMedia category={post.category} src={pictured(post.eventId ?? post.postId)} className="app-me-post-media" /> : <img className="app-me-post-photo" alt="" src={post.photoUrl} />}
+          {post.photoUrl === null ? <AppMedia category={post.category} src={pictured(post.eventId ?? post.postId)} className="app-me-post-media" /> : <img className="app-me-post-photo" alt="" src={showPhoto(post.photoUrl) ?? post.photoUrl} />}
           <span className="app-me-post-stats" aria-hidden="true">
             <span className="app-me-post-stat">
               <ActionIcon name="heart" size={14} strokeWidth={2.4} />
@@ -336,7 +336,7 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
   return (
     <section className="app-me">
       <div className="app-me-hero">
-        {profile.coverUrl !== null ? <img className="app-me-hero-cover" src={profile.coverUrl} alt="" /> : null}
+        {profile.coverUrl !== null ? <img className="app-me-hero-cover" src={showPhoto(profile.coverUrl) ?? profile.coverUrl} alt="" /> : null}
         <span className="app-me-blob app-me-blob--light" aria-hidden="true" />
         <span className="app-me-blob app-me-blob--cool" aria-hidden="true" />
         {own && entries.onPickCover !== undefined && (
@@ -361,11 +361,11 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
       </div>
       {own && entries.onPickAvatar !== undefined ? (
         <button type="button" className="app-me-avatar-ring" aria-label="Сменить аватар" aria-haspopup="dialog" aria-expanded={mediaMenu === "avatar"} onClick={() => setMediaMenu("avatar")}>
-          <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={user.avatarUrl} />}</span>
+          <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={showPhoto(user.avatarUrl) ?? user.avatarUrl} />}</span>
         </button>
       ) : (
         <div className="app-me-avatar-ring">
-          <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={user.avatarUrl} />}</span>
+          <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={showPhoto(user.avatarUrl) ?? user.avatarUrl} />}</span>
         </div>
       )}
       {mediaMenu === "avatar" && entries.onPickAvatar !== undefined && (

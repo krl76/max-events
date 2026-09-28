@@ -30,6 +30,7 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Event, Friend, ParticipationStatus } from "@max-events/api-contracts";
 import { apiClient, type FeedCard, type FeedCardCounts, type FeedComment, type FeedFriendCard, type FeedPlaceCard } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -39,7 +40,7 @@ import { sharePayload } from "../max/links";
 import { replayScroll } from "../ui/scroll-memory";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { pictured } from "../ui/photos";
+import { pictured, showPhoto } from "../ui/photos";
 import { parsePinLabel, placePinTitle } from "../ui/pin-label";
 import { SaveToList } from "../event/SaveToList";
 import { AppChip, AppEmptyState, AppSkeleton, AppState } from "../ui/primitives";
@@ -175,25 +176,51 @@ export function likeFaces(people: readonly Friend[]): Friend[] {
 
 const LIKE_FACES = 3;
 
-/** «Нравится» plus up to three overlapping faces, then «+N» for everyone who does not fit. */
-export function LikeFaces({ people, total }: { people: readonly Friend[]; total: number }) {
-  if (total <= 0) return null;
-  const shown = people.slice(0, Math.min(LIKE_FACES, total));
-  const extra = total - shown.length;
+/** Friend faces under a post. The viewer is already excluded. Faces that do not fit the row are «+N»; the sheet names every friend. */
+export function LikeFaces({ people }: { people: readonly Friend[] }) {
+  const [open, setOpen] = useState(false);
+  const friends = likeFaces(people);
+  if (friends.length === 0) return null;
+  const shown = friends.slice(0, LIKE_FACES);
+  const rest = friends.slice(LIKE_FACES);
   return (
-    <p className="app-feed-likes">
-      <span>Нравится</span>
-      {shown.length > 0 && (
+    <>
+      <button type="button" className="app-feed-likes" aria-label={`Нравится друзьям: ${friends.map((person) => person.name).join(", ")}`} onClick={() => setOpen(true)}>
+        <span>Нравится</span>
         <span className="app-feed-like-faces" aria-hidden="true">
-          {shown.map((person) => (
-            <span key={person.id} className="app-feed-like-face">
-              {person.avatarUrl ? <img alt="" src={person.avatarUrl} /> : person.name.slice(0, 1)}
-            </span>
-          ))}
+          {shown.map((person) => {
+            const face = showPhoto(person.avatarUrl);
+            return (
+              <span key={person.id} className="app-feed-like-face">
+                {face ? <img alt="" src={face} /> : person.name.slice(0, 1)}
+              </span>
+            );
+          })}
         </span>
-      )}
-      {extra > 0 && <span className="app-feed-like-more">+{extra}</span>}
-    </p>
+        {rest.length > 0 && <span className="app-feed-like-more">+{rest.length}</span>}
+      </button>
+      {open &&
+        createPortal(
+          <div className="app-picker app-like-layer" role="dialog" aria-modal="true" aria-label="Друзья, которым нравится">
+            <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={() => setOpen(false)} />
+            <div className="app-like-sheet">
+              <p className="app-place-title">Друзья</p>
+              <ul className="app-like-people">
+                {friends.map((person) => {
+                  const face = showPhoto(person.avatarUrl);
+                  return (
+                    <li key={person.id}>
+                      <span className="app-feed-like-face">{face ? <img alt="" src={face} /> : person.name.slice(0, 1)}</span>
+                      <span>{person.name}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>,
+          document.querySelector(".app-root") ?? document.body,
+        )}
+    </>
   );
 }
 
@@ -324,7 +351,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
         </span>
       </div>
       {saving && userId !== null && <SaveToList feedPostId={card.id} userId={userId} open onClose={() => setSaving(false)} />}
-      <LikeFaces people={likeFaces(card.comments.map((item) => item.author))} total={card.likesCount} />
+      <LikeFaces people={(card.likedByFriends ?? []).filter((person) => person.id !== userId)} />
       {card.text.trim() !== "" && <p className="app-feed-caption">{card.text}</p>}
       {/* No line at all rather than «только что» about a post whose card carries no publication time. */}
       {card.publishedAt !== null && <p className="app-feed-time">{formatFeedAgo(card.publishedAt, now)}</p>}

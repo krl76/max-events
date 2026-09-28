@@ -86,7 +86,7 @@ describe("FeedPostCard", () => {
     expect(withPhoto).toContain('class="app-feed-photo"');
     expect(withPhoto).toContain("Открыть фото 1 из 1");
     expect(withPhoto).not.toContain("app-card-media");
-    expect(card({ photoUrl: null })).toContain("picsum.photos");
+    expect(card({ photoUrl: null })).toContain("/api/media/seed/");
     expect(card({ photoUrl: null })).toContain("app-card-media");
   });
 

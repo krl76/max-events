@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ActionIcon } from "../ui/icons";
+import { showPhoto } from "../ui/photos";
 
 /** Swipeable photos. A tap opens them full screen, outside the post. */
 export function PhotoGallery({ photos }: { photos: string[] }) {
@@ -18,7 +20,7 @@ export function PhotoGallery({ photos }: { photos: string[] }) {
         <div ref={scroller} className="app-feed-carousel-track" onScroll={onScroll}>
           {photos.map((photo, position) => (
             <button key={`${position}-${photo.slice(-12)}`} type="button" className="app-feed-carousel-slide" onClick={() => { setIndex(position); setOpen(true); }} aria-label={`Открыть фото ${position + 1} из ${photos.length}`}>
-              <img className="app-feed-photo" src={photo} alt="" />
+              <img className="app-feed-photo" src={showPhoto(photo) ?? photo} alt="" />
             </button>
           ))}
         </div>
@@ -35,7 +37,11 @@ export function PhotoGallery({ photos }: { photos: string[] }) {
           </>
         )}
       </div>
-      {open && <PhotoLightbox photos={photos} index={index} onClose={() => setOpen(false)} />}
+      {open &&
+        createPortal(
+          <PhotoLightbox photos={photos} index={index} onClose={() => setOpen(false)} />,
+          document.querySelector(".app-root") ?? document.body,
+        )}
     </>
   );
 }
@@ -63,7 +69,7 @@ function PhotoLightbox({ photos, index, onClose }: { photos: string[]; index: nu
       >
         {photos.map((photo, position) => (
           <div key={`${position}-${photo.slice(-12)}`} className="app-photo-lightbox-slide">
-            <img src={photo} alt="" />
+            <img src={showPhoto(photo) ?? photo} alt="" />
           </div>
         ))}
       </div>

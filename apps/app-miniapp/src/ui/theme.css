@@ -22867,7 +22867,7 @@ button.app-story-viewer-author {
   background: #060708;
   inset: 0;
   position: fixed;
-  z-index: 40;
+  z-index: 220;
 }
 
 .app-photo-lightbox-track {
@@ -23815,7 +23815,11 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-feed-photo {
+  aspect-ratio: 4 / 5;
   border-radius: 0;
+  display: block;
+  object-fit: cover;
+  width: 100%;
 }
 
 .app-feed-caption,
@@ -24195,12 +24199,54 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-feed-likes {
   align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
   display: flex;
+  font: inherit;
   font-size: 14px;
   font-weight: 800;
   gap: 8px;
   margin: 0;
+  min-height: 44px;
   padding: 2px var(--app-space-screen) 0;
+  text-align: left;
+  width: 100%;
+}
+
+.app-like-layer {
+  z-index: 90;
+}
+
+.app-like-sheet {
+  background: var(--app-card);
+  border-radius: 18px 18px 0 0;
+  bottom: 0;
+  left: 0;
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  position: absolute;
+  right: 0;
+}
+
+.app-like-people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-like-people li {
+  align-items: center;
+  display: flex;
+  font-weight: 800;
+  gap: 10px;
+  min-height: 44px;
+}
+
+.app-like-empty {
+  color: var(--app-text-secondary);
+  font-weight: 700;
+  margin: 8px 0 0;
 }
 
 .app-feed-like-faces {
