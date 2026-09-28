@@ -147,7 +147,7 @@ function StepRail({ step, onBack }: { step: OnboardingStep; onBack: () => void }
 function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle = false, onBack, onSkip, onIntro, onNext }: { index: number; direction?: IntroDirection; showBack: boolean; shift?: number; settle?: boolean; onBack: () => void; onSkip: () => void; onIntro: (index: number) => void; onNext: () => void }) {
   const slide = INTRO_SLIDES[index] ?? INTRO_SLIDES[0];
   const last = index === INTRO_SLIDES.length - 1;
-  const travel = Math.max(-140, Math.min(140, shift * 0.62));
+  const travel = Math.max(-56, Math.min(56, shift * 0.28));
   const haze = Math.min(Math.abs(shift) / 22, 9);
   return (
     <div className="app-onboarding-film">
@@ -216,16 +216,16 @@ function CityStep({ city, cityDetect, cityPicked, onCity, onNext }: Pick<Onboard
             return (
               <button key={option.name} type="button" className={on ? "app-onboarding-city-tile app-onboarding-city-tile--on" : "app-onboarding-city-tile"} aria-pressed={on} onClick={() => onCity(option.name)}>
                 <span>{option.name}</span>
-                <small>{on ? cityCardMeta(cityDetect, cityPicked) : "Город афиши"}</small>
+                {on && <small>{cityCardMeta(cityDetect, cityPicked)}</small>}
               </button>
             );
           })}
         </div>
       </div>
       <div className="app-onboarding-footer">
-        <AppButton stretched onClick={onNext}>
+        <button type="button" className="app-onboarding-cta" onClick={onNext}>
           Дальше
-        </AppButton>
+        </button>
       </div>
     </>
   );
@@ -347,20 +347,8 @@ function usePageTurn(allow: (direction: "left" | "right") => boolean, commit: (d
         return;
       }
       // Вступление не листает фотографию: жест только сменяет детали вокруг мест.
-      if (morph.current) {
-        commitRef.current(direction);
-        setMotion({ offset: direction === "left" ? 120 : -120, animate: false });
-        window.requestAnimationFrame(() => setMotion({ offset: 0, animate: true }));
-        return;
-      }
-      const width = frameWidth.current || (typeof window === "undefined" ? 390 : window.innerWidth);
-      busy.current = true;
-      setMotion({ offset: direction === "left" ? -width : width, animate: true });
-      window.setTimeout(() => {
-        commitRef.current(direction);
-        setMotion({ offset: 0, animate: false });
-        busy.current = false;
-      }, 440);
+      commitRef.current(direction);
+      setMotion({ offset: 0, animate: false });
     },
   });
   return { offset: motion.offset, animate: motion.animate, gesture };
@@ -383,10 +371,7 @@ export function OnboardingView(props: OnboardingViewProps) {
     morph,
   );
   const trackClass = !turn.animate && turn.offset !== 0 ? "app-onboarding-track" : "app-onboarding-track app-onboarding-track--move";
-  const trackStyle = {
-    filter: Math.abs(turn.offset) > 8 ? `blur(${Math.min(Math.abs(turn.offset) / 36, 7)}px)` : undefined,
-    transform: `translate3d(${turn.offset}px, 0, 0)`,
-  };
+  const trackStyle = { transform: turn.offset === 0 ? undefined : `translate3d(${Math.max(-28, Math.min(28, turn.offset * 0.15))}px, 0, 0)` };
   const showBack = props.step !== "intro" || props.intro > 0 || props.onLeave !== undefined;
 
   if (props.step !== "intro" && props.status === "loading") return <AppState>Загрузка…</AppState>;
