@@ -28,6 +28,7 @@ import { OrganizerEventManage } from "./OrganizerEventManage";
 import { OrganizerIntro } from "./OrganizerIntro";
 import { isOrganizerIntroDone } from "./organizer-onboarding";
 import { OrganizerPanel } from "./OrganizerPage";
+import { OrganizerProfile } from "./OrganizerProfile";
 import { OrganizerPromo } from "./OrganizerPromo";
 import { OrganizerSetup } from "./OrganizerSetup";
 import { OrganizerTabBar, type OrganizerSection } from "./OrganizerTabs";
@@ -98,6 +99,7 @@ export const ORGANIZER_SECTION_TITLES: Record<OrganizerSection, string> = {
   dashboard: "Обзор",
   events: "События",
   promo: "Продвижение",
+  profile: "Профиль",
 };
 
 /** Кабинет использует ту же шапку, что и пользовательское приложение. Свой хром остаётся только у вступления и мастера настройки. */
@@ -132,6 +134,7 @@ export function OrganizerSectionContent({ section, organizationId, organizationN
       />
     );
   if (section === "promo") return <OrganizerPromo organizationName={organizationName} intent={promoIntent} eventId={promoEventId} onOpenEvent={() => onSection("events")} />;
+  if (section === "profile") return <OrganizerProfile organizationId={organizationId} organizationName={organizationName} onOpenEvent={onOpenEvent} onSettings={onOpenOrganization} />;
   return <OrganizerPanel organizationId={organizationId} createOnMount={createEvent} onOpenEvent={onOpenEvent} onComposer={onComposer} closeComposerTick={closeComposerTick} />;
 }
 
@@ -201,6 +204,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
   const pushed = manage !== null || organizationOpen || composerTitle !== null;
+  const profileChrome = section === "profile" && !pushed;
   const title = composerTitle ?? (manage !== null ? manage.title : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section]);
   const openPromotion = (eventId: string, intent: OrganizerPromoIntent | null) => {
     setManage(null);
@@ -216,6 +220,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
         setSection("events");
       }}
     >
+      {!profileChrome && (
       <header className="app-header">
         {pushed && (
           <button
@@ -237,7 +242,8 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
         )}
         <span className="app-header-title">{title}</span>
       </header>
-      <main className={composerTitle !== null ? "app-content app-content--full" : "app-content"}>
+      )}
+      <main className={composerTitle !== null || profileChrome ? "app-content app-content--flush" : "app-content"}>
         {manage !== null ? (
           <OrganizerEventManage event={manage} onBack={() => setManage(null)} onPromo={() => openPromotion(manage.id, null)} />
         ) : organizationOpen ? (
@@ -263,7 +269,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
               setCreateEvent(true);
               setSection("events");
             }}
-            onOpenOrganization={() => setOrganizationOpen(true)}
+            onOpenOrganization={() => setSection("profile")}
             onOpenEvent={setManage}
             onComposer={onComposer}
             closeComposerTick={closeComposerTick}
