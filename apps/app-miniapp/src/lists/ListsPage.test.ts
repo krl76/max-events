@@ -186,7 +186,7 @@ describe("ListView", () => {
 describe("SaveToListView", () => {
   const props = { onToggle: () => {}, onDone: () => {} };
 
-  it("renders the six preset lists with the saved state per list", () => {
+  it("offers Хочу сходить and Избранное, and hides the other presets", () => {
     const html = renderToStaticMarkup(
       createElement(SaveToListView, {
         state: { status: "ready", summaries: [summary({ savedItemId: item.id }), ...ListPresetSchema.options.slice(1).map((preset, index) => summary({ list: { ...list, id: `70000000-0000-4000-8000-00000000000${index + 2}`, preset, title: `Список ${preset}` } }))] },
@@ -195,9 +195,13 @@ describe("SaveToListView", () => {
     );
 
     expect(html).toContain("В списке");
+    expect(html).toContain("Хочу сходить");
+    expect(html).toContain("Список favorites");
+    expect(html).not.toContain("Список weekend");
     expect((html.match(/aria-pressed="true"/g) ?? []).length).toBe(1);
-    expect((html.match(/Добавить/g) ?? []).length).toBe(5);
-    expect(html).toContain("Готово");
+    expect((html.match(/Добавить/g) ?? []).length).toBe(1);
+    expect(html).toContain("Новый список");
+    expect(html).not.toContain("Готово");
   });
 
   it("renders the loading and error states", () => {

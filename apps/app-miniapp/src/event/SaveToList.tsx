@@ -19,8 +19,15 @@ import { AppButton, AppState } from "../ui/primitives";
 
 export type SaveToListState = { status: "loading" } | { status: "error" } | { status: "ready"; summaries: ListSummary[] };
 
+/** The bookmark sheet offers the two shelves people actually use, plus lists they made themselves. */
+export function savePickerLists(summaries: readonly ListSummary[]): ListSummary[] {
+  const rank = (summary: ListSummary) => (summary.list.preset === "want_to_go" ? 0 : summary.list.preset === "favorites" ? 1 : 2);
+  return summaries.filter((summary) => summary.list.preset === null || summary.list.preset === "want_to_go" || summary.list.preset === "favorites").sort((a, b) => rank(a) - rank(b) || a.list.title.localeCompare(b.list.title, "ru"));
+}
+
 export function SaveToListView({ state, onToggle, onDone, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, createError = null }: { state: SaveToListState; onToggle: (summary: ListSummary) => void; onDone: () => void; creating?: boolean; newTitle?: string; onNewTitle?: (value: string) => void; onCreateStart?: () => void; onCreateSubmit?: () => void; createError?: string | null }) {
   const swipe = useSheetSwipe(onDone);
+  const summaries = state.status === "ready" ? savePickerLists(state.summaries) : [];
   return (
     <div className="app-save-sheet" role="dialog" aria-modal="true" aria-label="Сохранить в список">
       <button type="button" className="app-save-sheet-backdrop" aria-label="Закрыть" onClick={onDone} />
@@ -32,7 +39,7 @@ export function SaveToListView({ state, onToggle, onDone, creating = false, newT
           {state.status === "error" && <AppState error>Не удалось загрузить списки.</AppState>}
           {state.status === "ready" && (
             <ul className="app-lists-picker">
-              {state.summaries.map((summary) => (
+              {summaries.map((summary) => (
                 <li key={summary.list.id}>
                   <button type="button" className="app-lists-row" aria-pressed={summary.savedItemId !== null} onClick={() => onToggle(summary)}>
                     <span className="app-lists-row-title">{summary.list.title}</span>
@@ -42,24 +49,24 @@ export function SaveToListView({ state, onToggle, onDone, creating = false, newT
               ))}
             </ul>
           )}
-          {state.status === "ready" && !creating && (
-            <button type="button" className="app-lists-new app-lists-new--sheet" onClick={onCreateStart}>
-              Новый список
-            </button>
-          )}
-          {creating && (
-            <div className="app-lists-form">
-              <label className="app-lists-form-label" htmlFor="save-new-title">
-                Название списка
-              </label>
-              <input id="save-new-title" className="app-lists-form-input" value={newTitle} placeholder="Например, «С друзьями»" onChange={(change) => onNewTitle(change.target.value)} />
-              {createError !== null && <AppState error>{createError}</AppState>}
-              <AppButton disabled={newTitle.trim() === ""} onClick={onCreateSubmit}>
-                Создать список
-              </AppButton>
-            </div>
-          )}
         </div>
+        {state.status === "ready" && !creating && (
+          <button type="button" className="app-lists-new app-lists-new--sheet" onClick={onCreateStart}>
+            Новый список
+          </button>
+        )}
+        {creating && (
+          <div className="app-lists-form app-lists-form--sheet">
+            <label className="app-lists-form-label" htmlFor="save-new-title">
+              Название списка
+            </label>
+            <input id="save-new-title" className="app-lists-form-input" value={newTitle} placeholder="Например, «С друзьями»" onChange={(change) => onNewTitle(change.target.value)} />
+            {createError !== null && <AppState error>{createError}</AppState>}
+            <AppButton disabled={newTitle.trim() === ""} onClick={onCreateSubmit}>
+              Создать список
+            </AppButton>
+          </div>
+        )}
       </section>
     </div>
   );

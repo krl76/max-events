@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { List } from "@max-events/api-contracts";
 import type { ListSummary } from "../api/client";
-import { SaveToList, SaveToListState, SaveToListView } from "./SaveToList";
+import { SaveToList, SaveToListState, SaveToListView, savePickerLists } from "./SaveToList";
 
 const USER_ID = "a0000000-0000-4000-8000-000000000001";
 
@@ -48,6 +48,20 @@ describe("SaveToListView", () => {
     expect(html).not.toContain("Закрыть окно");
     expect(html).not.toContain("Готово");
     expect(html).toContain("app-save-sheet");
+    expect(html).toContain("Новый список");
+  });
+
+  it("keeps the two shelves and a list the viewer made, and drops the other presets", () => {
+    const weekend = summary("b0000000-0000-4000-8000-000000000003", "Выходные", null);
+    weekend.list.preset = "weekend";
+    const own = summary("b0000000-0000-4000-8000-000000000004", "Мой маршрут", null);
+    const html = renderToStaticMarkup(createElement(SaveToListView, { state: { status: "ready", summaries: [...READY.summaries, weekend, own] }, onToggle: noop, onDone: noop }));
+
+    expect(savePickerLists([weekend, own]).map((row) => row.list.title)).toEqual(["Мой маршрут"]);
+    expect(html).toContain("Хочу сходить");
+    expect(html).toContain("Избранное");
+    expect(html).toContain("Мой маршрут");
+    expect(html).not.toContain("Выходные");
   });
 });
 

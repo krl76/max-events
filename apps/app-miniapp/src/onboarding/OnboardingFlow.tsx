@@ -135,19 +135,16 @@ export interface OnboardingViewProps {
   onToggleInterest: (interest: string) => void;
   onNext: () => void;
   onBack: () => void;
+  /** Leave the whole flow. The second part keeps the same «Пропустить» as the intro. */
+  onSkip?: () => void;
   /** Set when this visit was opened on purpose. The first slide can leave instead of doing nothing. */
   onLeave?: () => void;
 }
 
-function StepRail({ step, onBack }: { step: OnboardingStep; onBack: () => void }) {
+function StepRail({ step }: { step: OnboardingStep }) {
   const index = onboardingRailIndex(step);
   return (
     <div className="app-onboarding-nav">
-      {/* Назад по шагам даёт смахивание вправо — и ровно то же обязано быть доступно тапом */}
-      <button type="button" className="app-onboarding-back" aria-label="Назад" onClick={onBack}>
-        <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-        Назад
-      </button>
       <ol className={`app-onboarding-rail app-onboarding-rail--${index}`} aria-label="Шаги онбординга">
         {RAIL_LABELS.map((label, position) => (
           <li key={label} className={position <= index ? "app-onboarding-rail-step app-onboarding-rail-step--on" : "app-onboarding-rail-step"} aria-current={position === index ? "step" : undefined}>
@@ -191,7 +188,6 @@ function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle =
         ))}
       </ol>
       <div key={slide.title} className={`app-onboarding-line app-onboarding-copy app-onboarding-copy--${direction}`}>
-        <p className={`app-onboarding-kicker app-onboarding-copy app-onboarding-copy--${direction}`}>{slide.label}</p>
         <h1 className="app-onboarding-intro-title">{slide.title}</h1>
         <p className="app-onboarding-intro-text">{slide.description}</p>
       </div>
@@ -335,10 +331,20 @@ function InterestsStep({ interests, saveFailed, blocked, onToggleInterest, onNex
  * Рамка трёх шагов профиля. Полоса шагов — один элемент на все три: так её заливка и точки едут
  * переходом от шага к шагу, а не появляются готовыми. Сам шаг пересобирается по key и въезжает.
  */
-function StepShell({ step, onBack, children }: { step: OnboardingStep; onBack: () => void; children: ReactNode }) {
+function StepShell({ step, onBack, onSkip, children }: { step: OnboardingStep; onBack: () => void; onSkip: () => void; children: ReactNode }) {
   return (
     <section className="app-onboarding app-onboarding--film">
-      <StepRail step={step} onBack={onBack} />
+      <div className="app-onboarding-chrome">
+        <button type="button" className="app-onboarding-back" aria-label="Назад" onClick={onBack}>
+          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+          Назад
+        </button>
+        <AfishaWordmark className="app-wordmark--on-media" />
+        <button type="button" className="app-onboarding-skip" onClick={onSkip}>
+          Пропустить
+        </button>
+      </div>
+      <StepRail step={step} />
       <div key={step} className="app-onboarding-step">
         {children}
       </div>
@@ -412,7 +418,7 @@ export function OnboardingView(props: OnboardingViewProps) {
         <IntroFilm index={props.intro} direction={props.introDirection ?? "forward"} showBack={showBack} shift={turn.offset} settle={turn.animate} onBack={props.onBack} onSkip={props.onSkipIntro} onIntro={props.onIntro} onNext={props.onNext} />
       ) : (
         <div className={trackClass} style={trackStyle}>
-          <StepShell step={props.step} onBack={props.onBack}>
+          <StepShell step={props.step} onBack={props.onBack} onSkip={props.onSkip ?? props.onNext}>
             {props.step === "city" ? <CityStep city={props.city} cityDetect={props.cityDetect} cityPicked={props.cityPicked} onCity={props.onCity} onNext={props.onNext} /> : props.step === "friends" ? <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} /> : <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} />}
           </StepShell>
         </div>
@@ -595,6 +601,10 @@ export function OnboardingFlow({ onDone, onLeave }: { onDone: () => void; onLeav
       onToggleInterest={onToggleInterest}
       onNext={onNext}
       onBack={onBack}
+      onSkip={() => {
+        markOnboardingDone();
+        onDone();
+      }}
       onLeave={onLeave}
     />
   );

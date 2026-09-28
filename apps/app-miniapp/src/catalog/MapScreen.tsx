@@ -77,8 +77,6 @@ export function mapWrapClass(basemap: MapBasemap): string {
   return "app-map-wrap app-map16";
 }
 
-
-
 /** «+19°» — the chip always carries the sign, so a zero reads as measured rather than missing. */
 export function formatMapTemperature(weather: MapWeather): string {
   const rounded = Math.round(weather.temperatureC);
@@ -399,20 +397,26 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
   function placePin(marker: MapMarker, lat: number, lng: number): void {
     const selected = marker.key === view.selectedKey ? " app-map-pin--active" : "";
     const icon = marker.friends ? L.divIcon({ className: `app-map-pin app-map-pin--friends${selected}`, iconSize: [78, 78], iconAnchor: [39, 39], popupAnchor: [0, -40], html: friendPinHtml(marker) }) : L.divIcon({ className: `app-map-pin${marker.promoted ? " app-map-pin--promo" : ""}${selected}`, iconSize: [34, 42], iconAnchor: [17, 42], popupAnchor: [0, -38], html: pinHtml(marker) });
-    L.marker([lat, lng], { icon, riseOnHover: true }).addTo(pins).bindPopup(popupNode(marker, callbacks.onOpenEvent, callbacks.onOpenPlace)).on("click", () => callbacks.onSelect(marker));
+    L.marker([lat, lng], { icon, riseOnHover: true })
+      .addTo(pins)
+      .bindPopup(popupNode(marker, callbacks.onOpenEvent, callbacks.onOpenPlace))
+      .on("click", () => callbacks.onSelect(marker));
   }
 
   function drawPins(): void {
-    const clusters = clusterMapMarkers(view.markers, map.getZoom());
-    // Пересборка закрывает попап, поэтому зум внутри одной клетки её не вызывает. Раскрытый кластер —
-    // исключение: кольцо пинов должно оставаться читаемым, когда масштаб меняется.
-    const signature = `${view.selectedKey ?? ""}|${revealed}|${revealed === "" ? "" : map.getZoom()}|${clusters.map((cluster) => `${cluster.key}:${cluster.markers.length}`).join(",")}`;
+    const zoom = map.getZoom();
+    const clusters = clusterMapMarkers(view.markers, zoom);
+    // На улице цифра сама расходится на события. Ниже этого зума пузырь ждёт тапа.
+    const spread = zoom >= MAP_CLUSTER_MAX_ZOOM;
+    // Пересборка закрывает попап, поэтому зум внутри одной клетки её не вызывает. Раскрытый кластер
+    // и распад по зуму — исключение: кольцо пинов должно оставаться читаемым, когда масштаб меняется.
+    const signature = `${view.selectedKey ?? ""}|${spread ? "spread" : revealed}|${spread || revealed !== "" ? zoom : ""}|${clusters.map((cluster) => `${cluster.key}:${cluster.markers.length}`).join(",")}`;
     if (signature === drawn) return;
     drawn = signature;
     pins.clearLayers();
-    const ring = spiderDegrees(map.getZoom());
+    const ring = spiderDegrees(zoom);
     for (const cluster of clusters) {
-      if (cluster.markers.length > 1 && cluster.key === revealed) {
+      if (cluster.markers.length > 1 && (spread || cluster.key === revealed)) {
         cluster.markers.forEach((marker, index) => {
           const angle = (2 * Math.PI * index) / cluster.markers.length;
           placePin(marker, cluster.lat + ring * Math.cos(angle), cluster.lng + ring * Math.sin(angle));
@@ -599,7 +603,6 @@ interface MapScreenProps {
   /** Открыть карту уже с построенным маршрутом до выбранной площадки. */
   drawRoute?: boolean;
 }
-
 
 export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false }: MapScreenProps) {
   const located = useProfileCityPoint();
@@ -857,23 +860,59 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
       )}
       <div className="app-map16-top">
         <div className="app-map16-top-right">
-          <button type="button" className="app-map16-weather" aria-label="Погода" onClick={() => { setWeatherOpen(true); setBasemapsOpen(false); setFiltersOpen(false); setSelected(null); }}>
+          <button
+            type="button"
+            className="app-map16-weather"
+            aria-label="Погода"
+            onClick={() => {
+              setWeatherOpen(true);
+              setBasemapsOpen(false);
+              setFiltersOpen(false);
+              setSelected(null);
+            }}
+          >
             <ActionIcon name="weather" size={20} />
             <span className="app-map16-weather-value">{weather === null ? "—" : `${formatMapTemperature(weather)} · ${weather.condition}`}</span>
           </button>
         </div>
         <div className="app-map16-filter-slot">
-          <button type="button" className={category === undefined ? "app-map16-filter" : "app-map16-filter app-map16-filter--on"} aria-label="Фильтры" aria-haspopup="dialog" aria-expanded={filtersOpen} onClick={() => { setFiltersOpen((open) => !open); setWeatherOpen(false); setBasemapsOpen(false); }}>
+          <button
+            type="button"
+            className={category === undefined ? "app-map16-filter" : "app-map16-filter app-map16-filter--on"}
+            aria-label="Фильтры"
+            aria-haspopup="dialog"
+            aria-expanded={filtersOpen}
+            onClick={() => {
+              setFiltersOpen((open) => !open);
+              setWeatherOpen(false);
+              setBasemapsOpen(false);
+            }}
+          >
             <ActionIcon name="filter" size={18} />
             {category !== undefined && <span>{CATEGORY_LABELS[category]}</span>}
           </button>
           {filtersOpen && (
             <div className="app-map16-filter-pop" role="dialog" aria-label="Фильтры карты">
-              <button type="button" className={category === undefined ? "app-map16-filter-opt app-map16-filter-opt--on" : "app-map16-filter-opt"} onClick={() => { setCategory(undefined); setFiltersOpen(false); }}>
+              <button
+                type="button"
+                className={category === undefined ? "app-map16-filter-opt app-map16-filter-opt--on" : "app-map16-filter-opt"}
+                onClick={() => {
+                  setCategory(undefined);
+                  setFiltersOpen(false);
+                }}
+              >
                 Все
               </button>
               {MAP_EVENT_CATEGORIES.map((value) => (
-                <button key={value} type="button" className={category === value ? "app-map16-filter-opt app-map16-filter-opt--on" : "app-map16-filter-opt"} onClick={() => { setCategory(value); setFiltersOpen(false); }}>
+                <button
+                  key={value}
+                  type="button"
+                  className={category === value ? "app-map16-filter-opt app-map16-filter-opt--on" : "app-map16-filter-opt"}
+                  onClick={() => {
+                    setCategory(value);
+                    setFiltersOpen(false);
+                  }}
+                >
                   {CATEGORY_LABELS[value]}
                 </button>
               ))}
@@ -897,11 +936,41 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
       {/* Тайлы требуют указания источника; собственная строка вместо контрола leaflet — чтобы она жила по сетке экрана
           и менялась вместе с подложкой. На запасном полотне тайлов нет, и ссылаться там не на что: подпись снимается с подложкой. */}
       {status !== "error" && <span className="app-map16-credit">{basemapCredit(basemap)}</span>}
-      {selected !== null && !weatherOpen && !routeOn && <MapSelectionCard title={selected.title} subtitle={selected.subtitle} category={selectedCategory} photoId={selected.eventId ?? selected.placeId} friendsLine={friendsLine} travel={shownTravel} metroSteps={metroPlan?.steps ?? null} metroFar={selectedPlace !== undefined && metroAsked && metroPlan === null} rainHint={mapRainHint(weather, shownTravel)} routeOn={routeOn} onRoute={() => { if (selectedPlace === undefined) return; setRoutePlace(selectedPlace); setRouteOn(true); setSelected(null); setWeatherOpen(false); setBasemapsOpen(false); setFiltersOpen(false); }} onOpen={() => (selected.eventId !== null ? onOpenEvent(selected.eventId) : selected.placeId !== null ? onOpenPlace(selected.placeId) : undefined)} onClose={() => setSelected(null)} />}
+      {selected !== null && !weatherOpen && !routeOn && (
+        <MapSelectionCard
+          title={selected.title}
+          subtitle={selected.subtitle}
+          category={selectedCategory}
+          photoId={selected.eventId ?? selected.placeId}
+          friendsLine={friendsLine}
+          travel={shownTravel}
+          metroSteps={metroPlan?.steps ?? null}
+          metroFar={selectedPlace !== undefined && metroAsked && metroPlan === null}
+          rainHint={mapRainHint(weather, shownTravel)}
+          routeOn={routeOn}
+          onRoute={() => {
+            if (selectedPlace === undefined) return;
+            setRoutePlace(selectedPlace);
+            setRouteOn(true);
+            setSelected(null);
+            setWeatherOpen(false);
+            setBasemapsOpen(false);
+            setFiltersOpen(false);
+          }}
+          onOpen={() => (selected.eventId !== null ? onOpenEvent(selected.eventId) : selected.placeId !== null ? onOpenPlace(selected.placeId) : undefined)}
+          onClose={() => setSelected(null)}
+        />
+      )}
       {routeOn && routePlace !== null && selected === null && !weatherOpen && (
         <div className="app-map16-routebar">
           <span>Маршрут до {routePlace.title}</span>
-          <button type="button" onClick={() => { setRouteOn(false); setRoutePlace(null); }}>
+          <button
+            type="button"
+            onClick={() => {
+              setRouteOn(false);
+              setRoutePlace(null);
+            }}
+          >
             Скрыть
           </button>
         </div>
@@ -935,43 +1004,66 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
           {hourly !== null && <p className="app-map16-weather-source">{hourly.source}</p>}
         </section>
       )}
-      {!weatherOpen && <div className="app-map16-dock">
-        {basemapsOpen && !weatherOpen && (
-          <div className="app-map16-basemap-strip" role="listbox" aria-label="Подложка карты">
-            {MAP_BASEMAPS.filter((item) => (MAP_CHOICES as readonly string[]).includes(item.id)).map((item) => {
-              const shot = basemapShot(item);
-              return (
-                <button key={item.id} type="button" role="option" aria-selected={basemap.id === item.id} className={basemap.id === item.id ? "app-map16-basemap-pick app-map16-basemap-pick--on" : "app-map16-basemap-pick"} onClick={() => { pickBasemap(item); setBasemapsOpen(false); }}>
-                  {shot !== null ? <img className="app-map16-basemap-shot" alt="" src={shot} /> : <span className="app-map16-basemap-shot app-map16-basemap-shot--own" aria-hidden="true" />}
-                  <span className="app-map16-basemap-label">{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-        <form className="app-map16-search" role="search" onSubmit={(event) => event.preventDefault()}>
-          <ActionIcon name="search" size={18} />
-          <input className="app-map16-search-input" type="search" aria-label="Поиск" placeholder="Поиск" value={query} onChange={(typed) => setQuery(typed.target.value)} />
-          <button type="button" className={basemapsOpen ? "app-map16-locate app-map16-locate--on" : "app-map16-locate"} aria-expanded={basemapsOpen} aria-pressed={basemapsOpen} aria-label="Карта" onClick={() => { setBasemapsOpen((open) => !open); setWeatherOpen(false); setFiltersOpen(false); }}>
-            <ActionIcon name="layers" size={18} />
-          </button>
-          <button
-            type="button"
-            className={layers.friends ? "app-map16-locate app-map16-locate--on" : "app-map16-locate"}
-            aria-label="Друзья на карте"
-            aria-pressed={layers.friends}
-            onClick={() => {
-              if (!layers.friends) setFriendsAsked(true);
-              setLayers((current) => ({ ...current, friends: !current.friends }));
-            }}
-          >
-            <ActionIcon name="users" size={18} />
-          </button>
-          <button type="button" className="app-map16-locate" aria-label="Показать, где я" aria-pressed={centered} onClick={() => setCentered((on) => !on)}>
-            <ActionIcon name="locate" size={18} />
-          </button>
-        </form>
-      </div>}
+      {!weatherOpen && (
+        <div className="app-map16-dock">
+          {basemapsOpen && !weatherOpen && (
+            <div className="app-map16-basemap-strip" role="listbox" aria-label="Подложка карты">
+              {MAP_BASEMAPS.filter((item) => (MAP_CHOICES as readonly string[]).includes(item.id)).map((item) => {
+                const shot = basemapShot(item);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="option"
+                    aria-selected={basemap.id === item.id}
+                    className={basemap.id === item.id ? "app-map16-basemap-pick app-map16-basemap-pick--on" : "app-map16-basemap-pick"}
+                    onClick={() => {
+                      pickBasemap(item);
+                      setBasemapsOpen(false);
+                    }}
+                  >
+                    {shot !== null ? <img className="app-map16-basemap-shot" alt="" src={shot} /> : <span className="app-map16-basemap-shot app-map16-basemap-shot--own" aria-hidden="true" />}
+                    <span className="app-map16-basemap-label">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <form className="app-map16-search" role="search" onSubmit={(event) => event.preventDefault()}>
+            <ActionIcon name="search" size={18} />
+            <input className="app-map16-search-input" type="search" aria-label="Поиск" placeholder="Поиск" value={query} onChange={(typed) => setQuery(typed.target.value)} />
+            <button
+              type="button"
+              className={basemapsOpen ? "app-map16-locate app-map16-locate--on" : "app-map16-locate"}
+              aria-expanded={basemapsOpen}
+              aria-pressed={basemapsOpen}
+              aria-label="Карта"
+              onClick={() => {
+                setBasemapsOpen((open) => !open);
+                setWeatherOpen(false);
+                setFiltersOpen(false);
+              }}
+            >
+              <ActionIcon name="layers" size={18} />
+            </button>
+            <button
+              type="button"
+              className={layers.friends ? "app-map16-locate app-map16-locate--on" : "app-map16-locate"}
+              aria-label="Друзья на карте"
+              aria-pressed={layers.friends}
+              onClick={() => {
+                if (!layers.friends) setFriendsAsked(true);
+                setLayers((current) => ({ ...current, friends: !current.friends }));
+              }}
+            >
+              <ActionIcon name="users" size={18} />
+            </button>
+            <button type="button" className="app-map16-locate" aria-label="Показать, где я" aria-pressed={centered} onClick={() => setCentered((on) => !on)}>
+              <ActionIcon name="locate" size={18} />
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

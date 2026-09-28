@@ -4136,7 +4136,7 @@ html[data-theme="dark"] #root {
 .app-onboarding-cast {
   animation: app-onboarding-float 8s ease-in-out infinite;
   flex: 1 1 auto;
-  margin-top: 28px;
+  margin-top: 4px;
   min-height: 0;
   pointer-events: none;
   position: relative;
@@ -4199,7 +4199,7 @@ html[data-theme="dark"] #root {
 
 .app-onboarding-place--1 {
   left: 6%;
-  top: 2%;
+  top: 0;
   width: 46%;
   z-index: 2;
 }
@@ -4211,7 +4211,7 @@ html[data-theme="dark"] #root {
 .app-onboarding-place--2 {
   animation-delay: -2.6s;
   right: 4%;
-  top: 16%;
+  top: 8%;
   width: 42%;
   z-index: 3;
 }
@@ -4223,7 +4223,7 @@ html[data-theme="dark"] #root {
 .app-onboarding-place--3 {
   animation-delay: -4.2s;
   left: 22%;
-  top: 44%;
+  top: 32%;
   width: 40%;
   z-index: 1;
 }
@@ -4552,8 +4552,12 @@ html[data-theme="dark"] #root {
   padding: 52px 32px 0;
 }
 
+.app-onboarding--film .app-onboarding-nav {
+  min-height: 0;
+}
+
 .app-onboarding--film .app-onboarding-rail {
-  padding: 8px 32px 0;
+  padding: 52px 32px 0;
 }
 
 .app-onboarding-film .app-onboarding-rail-dot {
@@ -4582,7 +4586,7 @@ html[data-theme="dark"] #root {
 
 .app-onboarding--film .app-onboarding-rail::before,
 .app-onboarding--film .app-onboarding-rail::after {
-  top: 14px;
+  top: 58px;
 }
 
 .app-onboarding-film .app-onboarding-rail-label,
@@ -4596,10 +4600,16 @@ html[data-theme="dark"] #root {
 
 .app-onboarding-film .app-onboarding-rail-dot,
 .app-onboarding--film .app-onboarding-rail-dot {
-  background: transparent;
+  background: #060708;
   border-color: rgba(255, 255, 255, 0.72);
   height: 14px;
   width: 14px;
+}
+
+.app-onboarding-film .app-onboarding-rail-step--on .app-onboarding-rail-dot,
+.app-onboarding--film .app-onboarding-rail-step--on .app-onboarding-rail-dot {
+  background: #007aff;
+  border-color: #007aff;
 }
 
 .app-onboarding--film .app-onboarding-body {
@@ -4698,6 +4708,13 @@ html[data-theme="dark"] #root {
 
 .app-onboarding-footer {
   padding: 0 var(--app-space-screen) 40px;
+}
+
+.app-onboarding--film .app-onboarding-footer,
+.app-onboarding--film .app-onboarding-footer--divided {
+  border-top: none;
+  margin-top: auto;
+  padding: 8px 20px calc(14px + env(safe-area-inset-bottom, 0px));
 }
 
 .app-onboarding-footer--divided {
@@ -7940,11 +7957,6 @@ button.app-today-stat {
   z-index: 40;
 }
 
-.app-lists-new--sheet {
-  margin: 8px 0 12px;
-  width: 100%;
-}
-
 .app-story-seats {
   background: var(--brand-void);
   border-radius: var(--app-radius-card);
@@ -10051,7 +10063,20 @@ button.app-set-row {
   opacity: 0.45;
 }
 
+.app-lists-new.app-lists-new--sheet {
+  flex: none;
+  flex-direction: row;
+  margin: 4px 16px 16px;
+  min-height: 48px;
+  width: auto;
+}
+
 /* Название нового списка вводится строкой: в макете формы нет, а имя списку нужно */
+.app-lists-form--sheet {
+  flex: none;
+  margin: 0 16px 16px;
+}
+
 .app-lists-form {
   border: 1px solid var(--app-divider);
   border-radius: var(--app-radius-card);
@@ -17855,7 +17880,7 @@ button.app-cal-peer-chip {
 }
 
 .app-save-sheet-scroll {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   overflow: auto;
   padding: 0 16px;

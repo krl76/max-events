@@ -94,8 +94,7 @@ describe("intro step", () => {
     const back = viewHtml({ step: "intro", intro: 0, introDirection: "back" });
     expect(back).toContain("app-onboarding-copy--back");
     expect(back).not.toContain("app-onboarding-copy--forward");
-    // Both the hero label and the body copy travel together
-    expect(back.match(/app-onboarding-copy--back/g)).toHaveLength(2);
+    expect(back.match(/app-onboarding-copy--back/g)).toHaveLength(1);
   });
 });
 

@@ -80,9 +80,9 @@ export interface IntroSlide {
 }
 
 export const INTRO_SLIDES: readonly IntroSlide[] = [
-  { label: "Друзья", title: "С друзьями на событие", description: "В ленте видно, кто из чатов уже идёт. Присоединяйся к их плану.", hero: 1 },
-  { label: "Ассистент", title: "Не знаешь, что выбрать?", description: "Спроси ассистента — он найдёт событие под настроение и компанию.", hero: 2 },
-  { label: "План", title: "Событие становится планом", description: "Время, место и чат остаются вместе: понятно, куда и когда приходить.", hero: 3 },
+  { label: "Друзья", title: "С друзьями на событие", description: "Кто из чатов уже идёт", hero: 1 },
+  { label: "Ассистент", title: "Не знаешь, что выбрать?", description: "Ассистент найдёт событие", hero: 2 },
+  { label: "План", title: "Событие становится планом", description: "Время, место и чат", hero: 3 },
 ];
 
 export type IntroDirection = "forward" | "back";
