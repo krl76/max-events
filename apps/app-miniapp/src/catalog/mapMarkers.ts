@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Pure mapping of events and places to map marker data for the catalog map screen, plus the grid clustering the pins are drawn through.
+// PURPOSE: Pure mapping of events and places to map marker data for the catalog map screen. Clustering only hides markers closer than one pin on screen; a drawn pin always keeps the marker's own coordinates.
 // SCOPE: Events get coordinates through their place; events without a resolvable place are skipped; places always get their own marker. Objects whose coordinates are missing or out of range are dropped here rather than handed to Leaflet, which throws on an invalid LatLng and would take the whole map down with one bad row. The optional friends layer replaces the plain place marker where friends have been, so one place never carries two pins. Clustering is a pure grid over the marker list: the screen re-runs it on every zoom change.
 // DEPENDS: ./format.js (formatStartsAt), @max-events/api-contracts (Event, Place, FriendPlaceVisit)
 // LINKS: M-APP-MINIAPP
@@ -11,7 +11,7 @@
 // - MapCluster - one drawn point: a single marker or a group of them collapsed into one bubble
 // - MAP_CLUSTER_BASE_ZOOM - zoom the cell size is quoted at (the initial city zoom of the map)
 // - MAP_CLUSTER_CELL_DEGREES - cell side at the base zoom, ~2.2 km of latitude
-// - MAP_CLUSTER_MAX_ZOOM - from this zoom each pin sits on its own coordinates
+// - MAP_CLUSTER_MAX_ZOOM - legacy grid cutoff; pin placement does not use it
 // - hasMapPoint - whether a lat/lng pair is usable as a Leaflet coordinate
 // - eventPinGlyph - event category -> pin glyph
 // - placePinGlyph - place category -> pin glyph
@@ -76,7 +76,7 @@ export interface MapCluster {
 export const MAP_CLUSTER_BASE_ZOOM = 11;
 /** Сторона клетки на стартовом зуме: 0,02° широты — примерно 2,2 км, четверть экрана города. */
 export const MAP_CLUSTER_CELL_DEGREES = 0.02;
-/** С этого зума каждая точка стоит на своих координатах. 300 м уже не одна цифра. */
+/** Старый порог сетки. Раскладка его не читает: цифра живёт, только пока соседи ближе зазора на экране. */
 export const MAP_CLUSTER_MAX_ZOOM = 12;
 
 /**
@@ -118,9 +118,12 @@ function stackColocated(clusters: MapCluster[], reach: number): MapCluster[] {
   while (leftover.length > 0) {
     const seed = leftover.shift()!;
     const group = [seed];
+    const cos = Math.cos((seed.lat * Math.PI) / 180);
     for (let index = leftover.length - 1; index >= 0; index -= 1) {
       const other = leftover[index]!;
-      if (Math.hypot(other.lat - seed.lat, other.lng - seed.lng) >= reach) continue;
+      const dLat = other.lat - seed.lat;
+      const dLng = (other.lng - seed.lng) * cos;
+      if (Math.hypot(dLat, dLng) >= reach) continue;
       group.push(other);
       leftover.splice(index, 1);
     }

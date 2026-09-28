@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mockEvents, mockFriends, mockPlaces } from "../api/mock";
-import { buildMapMarkers, clusterCellDegrees, clusterMapMarkers, eventPinGlyph, friendsWereHereSubtitle, hasMapPoint, MAP_CLUSTER_BASE_ZOOM, MAP_CLUSTER_CELL_DEGREES, MAP_CLUSTER_MAX_ZOOM, placePinGlyph, type MapMarker } from "./mapMarkers";
+import { buildMapMarkers, clusterCellDegrees, clusterMapMarkers, eventPinGlyph, friendsWereHereSubtitle, hasMapPoint, MAP_CLUSTER_BASE_ZOOM, MAP_CLUSTER_CELL_DEGREES, placePinGlyph, type MapMarker } from "./mapMarkers";
 
 const placedEvent = { ...mockEvents[0], placeId: mockPlaces[0].id, startsAt: "2026-09-19T19:00:00+03:00", priceRub: 1800 };
 const freeEvent = { ...mockEvents[0], id: "c0000002-0000-4000-8000-000000000002", placeId: mockPlaces[1].id, priceRub: null };

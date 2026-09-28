@@ -100,10 +100,14 @@ beforeEach(() => {
     return api;
   });
   leaflet.polyline.mockImplementation(() => ({ addTo: vi.fn() }));
-  leaflet.latLngBounds.mockImplementation((points: [number, number][]) => ({
-    getNorthEast: () => points[0],
-    getSouthWest: () => points[points.length - 1] ?? points[0],
-  }));
+  leaflet.latLngBounds.mockImplementation((points: [number, number][]) => {
+    const bounds = {
+      getNorthEast: () => points[0],
+      getSouthWest: () => points[points.length - 1] ?? points[0],
+      pad: () => bounds,
+    };
+    return bounds;
+  });
   leaflet.divIcon.mockImplementation((options: unknown) => options);
 });
 
@@ -253,42 +257,50 @@ describe("initEventMap", () => {
     expect((leaflet.divIcon.mock.calls[0][0] as { html: string }).html).toContain(">3<");
   });
 
-  it("opens a tight venue cluster on the first tap, at the zoom the map already has", async () => {
+  it("leaves events that share a coordinate on that point when the number is tapped", async () => {
     zoom = 11;
-    clusterSpanMeters = 10;
     const stacked: MapMarker[] = [0, 1].map((index) => ({ key: `event-${index}`, eventId: `e${index}`, placeId: null, promoted: false, friends: false, glyph: "afisha", title: `Событие ${index}`, subtitle: "", lat: 55.75, lng: 37.61 }));
     await initEventMap(container, view(stacked), callbacks());
     const map = leaflet.map.mock.results[0]?.value as { flyTo: ReturnType<typeof vi.fn>; flyToBounds: ReturnType<typeof vi.fn> };
     const bubble = leaflet.marker.mock.results[0]?.value as { click: (() => void) | null };
-    const before = leaflet.marker.mock.calls.length;
 
     bubble.click?.();
+    bubble.click?.();
 
-    expect(leaflet.marker.mock.calls.length).toBe(before + stacked.length);
-    expect(leaflet.divIcon.mock.calls.some((call) => (call[0] as { className: string }).className === "app-map-pin")).toBe(true);
+    expect(leaflet.marker.mock.calls.map((call) => call[0])).toEqual([[55.75, 37.61]]);
     expect(map.flyTo.mock.calls.length).toBe(0);
-    expect(map.flyToBounds.mock.calls.length).toBe(0);
+    expect(map.flyToBounds.mock.calls.length).toBe(2);
   });
 
-  it("does not draw a second ring when the same cluster bubble is tapped again", async () => {
-    zoom = STREET_ZOOM;
-    clusterSpanMeters = 10;
-    const stacked: MapMarker[] = [0, 1].map((index) => ({ key: `event-${index}`, eventId: `e${index}`, placeId: null, promoted: false, friends: false, glyph: "afisha", title: `Событие ${index}`, subtitle: "", lat: 55.75, lng: 37.61 }));
-    await initEventMap(container, view(stacked), callbacks());
-    const map = leaflet.map.mock.results[0]?.value as { flyTo: ReturnType<typeof vi.fn>; flyToBounds: ReturnType<typeof vi.fn> };
-    const bubble = leaflet.marker.mock.results[0]?.value as { click: (() => void) | null };
-    const before = leaflet.marker.mock.calls.length;
+  it("draws each separated event on its own coordinates once zoom opens a pin of space", async () => {
+    zoom = 11;
+    const houses: MapMarker[] = [0, 1].map((index) => ({ key: `place-${index}`, eventId: null, placeId: `p${index}`, promoted: false, friends: false, glyph: "place", title: `Место ${index}`, subtitle: "", lat: 55.75 + index * 0.003, lng: 37.61 }));
+    await initEventMap(container, view(houses), callbacks());
+    const map = leaflet.map.mock.results[0]?.value as { on: { mock: { calls: [string, () => void][] } } };
+    expect(leaflet.marker).toHaveBeenCalledTimes(1);
 
-    bubble.click?.();
-    bubble.click?.();
+    zoom = 16;
+    map.on.mock.calls.find((call) => call[0] === "zoom")?.[1]?.();
 
-    expect(leaflet.marker.mock.calls.length).toBe(before + stacked.length);
-    expect(map.flyTo.mock.calls.length).toBe(0);
-    expect(map.flyToBounds.mock.calls.length).toBe(0);
+    expect(leaflet.marker.mock.calls.slice(-2).map((call) => call[0])).toEqual([
+      [55.75, 37.61],
+      [55.753, 37.61],
+    ]);
   });
 
   it("marks where the viewer stands and draws the walking geometry", async () => {
-    await initEventMap(container, view([], { origin: [55.75, 37.61], route: [[55.75, 37.61], [55.753, 37.615], [55.76, 37.62]] }), callbacks());
+    await initEventMap(
+      container,
+      view([], {
+        origin: [55.75, 37.61],
+        route: [
+          [55.75, 37.61],
+          [55.753, 37.615],
+          [55.76, 37.62],
+        ],
+      }),
+      callbacks(),
+    );
 
     expect(leaflet.divIcon).toHaveBeenCalledWith(expect.objectContaining({ className: "app-map-pin app-map-pin--me" }));
     expect((leaflet.divIcon.mock.calls[0][0] as { html: string }).html).toContain("Вы здесь");

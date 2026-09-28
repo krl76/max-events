@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 16 «Карта»: the Leaflet map with OSM-based tiles (the project's own vector basemap by default plus seven raster ones, the choice remembered on the device), event/place/friend pins, the «Вы здесь» marker, the weather chip, the layer and basemap chips, the card of the selected object with its travel times and the route it draws.
 // SCOPE: The canvas is unconditional — every data source of this screen (places, friends, weather, travel, and the events handed in by the page) may fail or come back empty, and the map still opens with «Вы здесь» and a line saying what is missing. Places fetched via apiClient.listPlaces and the friend layer via apiClient.listFriendPlaces; the weather and the travel estimates come from apiClient.getMapWeather / getTravelOptions, both mock-backed (#495, #504). Leaflet is loaded lazily (dynamic import) so it stays out of the main bundle; the map instance is created once and fed updates, so a filter or a layer toggle no longer resets pan and zoom. The vector basemap mounts asynchronously through ./vectorBasemap.ts (MapLibre lazy too) and follows the rendered colour scheme; when it cannot mount the screen falls back to the standard raster tiles and says so.
-// DEPENDS: leaflet (dynamic import + css), ../api/client.js (apiClient, MapWeather, TravelOption), ./basemaps.js (MAP_BASEMAPS, STANDARD_BASEMAP, MapBasemap, basemapCredit, read/writeBasemapPreference), ./vectorBasemap.js (mountVectorBasemap, VectorBasemapLayer), ../ui/theme.js (useAppliedScheme, ThemeScheme), ./mapMarkers.js (buildMapMarkers, clusterMapMarkers, MapMarker, MapPinGlyph, MAP_CLUSTER_MAX_ZOOM), ./useLeafletMap.js, ../geo/profile-city.js, ../ui/icons.js, ../ui/primitives.js
+// DEPENDS: leaflet (dynamic import + css), ../api/client.js (apiClient, MapWeather, TravelOption), ./basemaps.js (MAP_BASEMAPS, STANDARD_BASEMAP, MapBasemap, basemapCredit, read/writeBasemapPreference), ./vectorBasemap.js (mountVectorBasemap, VectorBasemapLayer), ../ui/theme.js (useAppliedScheme, ThemeScheme), ./mapMarkers.js (buildMapMarkers, clusterMapMarkers, MapMarker, MapPinGlyph), ./useLeafletMap.js, ../geo/profile-city.js, ../ui/icons.js, ../ui/primitives.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -29,7 +29,7 @@
 // - MapView - the data the map is drawn from: markers, viewer origin, route, selected key, the basemap the tiles come from and the rendered colour scheme
 // - MapCallbacks - what the map calls back into React: open event, open place, select a pin, report dead tiles, fall back from a vector basemap that could not mount
 // - MapHandle - the live map: take a new view, zoom by a step, fly to a point, dispose
-// - initEventMap - create Leaflet map + the basemap layer of the view (raster L.tileLayer or the vector MapLibre layer via ./vectorBasemap.ts; swapped in place when the view brings another, the dead-tiles report re-armed with it, a late-arriving vector layer dropped if the user moved on, a scheme change restyling the vector one) + the pin layer (clustered; a tight cluster opens its pins on the first tap and a second tap on the same bubble adds nothing, promoted events highlighted #205, the friends layer keeping its tile pin #472), the «Вы здесь» marker and the dotted route; returns the handle
+// - initEventMap - create Leaflet map + the basemap layer of the view (raster L.tileLayer or the vector MapLibre layer via ./vectorBasemap.ts; swapped in place when the view brings another, the dead-tiles report re-armed with it, a late-arriving vector layer dropped if the user moved on, a scheme change restyling the vector one) + the pin layer (clustered by a screen gap; a zoom that opens that gap draws each pin at its own lat/lng, a tap on a number only flies the camera there, promoted events highlighted #205, the friends layer keeping its tile pin #472), the «Вы здесь» marker and the dotted route; returns the handle
 // - MapSelectionCard - the card of the selected object: friends, title, the two travel tiles, the metro steps, the rain hint, an icon close and «Построить маршрут»
 // - MapScreen - экран 16: pins, layers, the basemap picker (chips under the layers, the choice persisted through ./basemaps.js, the credit line following it), weather, selection, route and the map search over the Leaflet lifecycle via useLeafletMap
 // - mapHourlyWindow - the eight-hour window the map weather chip asks the backend for
@@ -46,7 +46,7 @@ import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { pictured } from "../ui/photos";
 import { useAppliedScheme, type ThemeScheme } from "../ui/theme";
 import { basemapCredit, MAP_BASEMAPS, readBasemapPreference, STANDARD_BASEMAP, writeBasemapPreference, type MapBasemap } from "./basemaps";
-import { buildMapMarkers, clusterMapMarkers, MAP_CLUSTER_MAX_ZOOM, type MapMarker, type MapPinGlyph } from "./mapMarkers";
+import { buildMapMarkers, clusterMapMarkers, type MapMarker, type MapPinGlyph } from "./mapMarkers";
 import { walkingRoute } from "./walkingRoute";
 import { useLeafletMap } from "./useLeafletMap";
 import { mountVectorBasemap, paintableBasemap, type VectorBasemapLayer } from "./vectorBasemap";
@@ -398,7 +398,7 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
   function drawPins(): void {
     const zoom = map.getZoom();
     const clusters = clusterMapMarkers(view.markers, zoom);
-    const signature = `${view.selectedKey ?? ""}|${zoom.toFixed(2)}|${clusters.map((cluster) => `${cluster.key}:${cluster.markers.length}`).join(",")}`;
+    const signature = `${view.selectedKey ?? ""}|${clusters.map((cluster) => `${cluster.lat.toFixed(5)},${cluster.lng.toFixed(5)}:${cluster.markers.map((marker) => marker.key).join("+")}`).join(";")}`;
     if (signature === drawn) return;
     drawn = signature;
     pins.clearLayers();
