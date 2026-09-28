@@ -124,6 +124,19 @@ export class WalksService {
     if (row === null) throw new NotFoundException();
     return row.payload;
   }
+
+  async setDone(userId: string, id: string, order: number, done: boolean): Promise<CityWalk> {
+    const row = await this.walks.findOne({ where: { id, userId } });
+    if (row === null) throw new NotFoundException();
+    if (!row.payload.stops.some((stop) => stop.order === order)) throw new NotFoundException();
+    const walk = CityWalkSchema.parse({
+      ...row.payload,
+      stops: row.payload.stops.map((stop) => (stop.order === order ? { ...stop, done } : stop)),
+    });
+    row.payload = walk;
+    await this.walks.save(row);
+    return walk;
+  }
 }
 
 function noSights(): HttpException {

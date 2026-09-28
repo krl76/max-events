@@ -27,7 +27,9 @@ class MemoryStore implements WalkStore {
   readonly rows: CityWalkEntity[] = [];
 
   async save(row: CityWalkEntity): Promise<CityWalkEntity> {
-    this.rows.push(row);
+    const index = this.rows.findIndex((item) => item.id === row.id);
+    if (index >= 0) this.rows[index] = row;
+    else this.rows.push(row);
     return row;
   }
 
@@ -88,6 +90,22 @@ describe("WalksService", () => {
     await expect(walks.get(userB, saved.id)).rejects.toBeInstanceOf(NotFoundException);
     expect(await walks.list(userB)).toEqual([]);
     expect(await walks.list(userA)).toEqual([saved]);
+  });
+
+  it("marks one stop done without a check-in", async () => {
+    const store = new MemoryStore();
+    const lookup: WikidataLookup = async () => [];
+    const walks = service(store, [place(parkA, "Парк Горького"), place(parkB, "Нескучный сад")], { rankCandidateIds: async (items) => items.map((item) => item.id) }, lookup);
+    const saved = await walks.compose(userA, write);
+    const marked = await walks.setDone(userA, saved.id, 1, true);
+    expect(marked.stops.find((stop) => stop.order === 1)?.done).toBe(true);
+    expect(marked.stops.find((stop) => stop.order === 2)?.done).toBe(false);
+    await expect(walks.setDone(userB, saved.id, 1, true)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(walks.setDone(userA, saved.id, 9, true)).rejects.toBeInstanceOf(NotFoundException);
+    const source = readFileSync(new URL("./walks.controller.ts", import.meta.url), "utf8");
+    expect(source).toContain("setDone");
+    expect(source).not.toContain("check-in");
+    expect(source).not.toContain("checkins");
   });
 
   it("does not import check-in", () => {
