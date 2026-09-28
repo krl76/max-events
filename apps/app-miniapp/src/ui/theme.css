@@ -3705,9 +3705,9 @@ html[data-theme="dark"] #root {
 
 .app-create-board {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   grid-template-columns: 1fr 1fr;
-  max-width: 268px;
+  width: 100%;
 }
 
 .app-create-card {
@@ -3766,10 +3766,28 @@ html[data-theme="dark"] #root {
   width: 36px;
 }
 
+.app-create-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
 .app-create-card-label {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.15;
+}
+
+.app-create-card-line {
+  color: var(--app-text-secondary);
+  display: -webkit-box;
+  font-size: 13px;
+  font-weight: 600;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-height: 1.25;
+  overflow: hidden;
 }
 
 .app-create-card-go {
