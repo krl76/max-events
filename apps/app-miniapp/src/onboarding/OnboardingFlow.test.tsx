@@ -76,6 +76,8 @@ describe("intro step", () => {
     const html = viewHtml({ step: "intro", intro: 1 });
 
     expect(html).toContain("app-onboarding-film");
+    expect(html).toContain("app-onboarding-field");
+    expect(html).not.toContain("app-onboarding-film-photo");
     expect(html).toContain("/onboarding/gorky.jpg");
     expect(html).toContain("/onboarding/kazan.jpg");
     expect(html).toContain("Парк Горького");

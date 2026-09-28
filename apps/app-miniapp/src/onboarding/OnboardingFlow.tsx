@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - OnboardingViewProps - everything the presentational screen needs: current step, the four selections, load/save status, the refused-forward wording, the side the intro copy enters from and one handler per action
-// - OnboardingView - the presentational onboarding screen by step (intro is one full-bleed city photograph; a swipe morphs the bits around the places, then city picker, people grid and interest chips inside one shell whose rail outlives the steps while the step body is keyed and slides in) under one horizontal swipe
+// - OnboardingView - the presentational onboarding screen by step (intro is an animated brand field; a swipe morphs the bits around the places, then city picker, people grid and interest chips inside one shell whose rail outlives the steps while the step body is keyed and slides in) under one horizontal swipe
 // - OnboardingFlow - route container: step state, the intro slide direction, profile and suggestion fetch, the follow and profile writes, the done flag
 // END_MODULE_MAP
 
@@ -25,7 +25,7 @@ import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, c
 
 const RAIL_LABELS = ["Город", "Друзья", "Интересы"] as const;
 
-/** Real places. Gorky Park gate and Kul Sharif stay on the scene; the background photo does not swipe. */
+/** Real places stay on the cards. The field behind them is abstract and does not swipe. */
 const INTRO_PLACES = [
   { src: "/onboarding/gorky.jpg", title: "Парк Горького", meta: "Москва", slot: 1 },
   { src: "/onboarding/kazan.jpg", title: "Кул-Шариф", meta: "Казань", slot: 2 },
@@ -34,27 +34,32 @@ const INTRO_PLACES = [
 
 const INTRO_FRIENDS = ["Анна", "Дима", "Катя", "Лёша"] as const;
 
-/** Lines drawn on the photograph. They occupy the same band as the pills and crossfade with them. */
+function Orbit({ slot, children }: { slot: number; children: ReactNode }) {
+  return (
+    <span className={`app-onboarding-orbit app-onboarding-orbit--${slot}`}>
+      <span className="app-onboarding-orbit-spin">{children}</span>
+    </span>
+  );
+}
+
+/** Rings behind the cards. Each swipe fades in another ring, the places stay. */
 function IntroDraw({ kind }: { kind: 1 | 2 | 3 }) {
   return (
-    <svg className="app-onboarding-drawings" viewBox="0 0 390 420" aria-hidden="true">
+    <svg className="app-onboarding-drawings" viewBox="0 0 390 520" aria-hidden="true">
       <g className={kind === 1 ? "app-onboarding-draw app-onboarding-draw--on" : "app-onboarding-draw"}>
-        <path d="M72 86 C 150 28, 250 28, 324 92" />
-        <path d="M46 214 C 120 150, 210 250, 268 188" />
-        <path d="M312 196 C 352 250, 230 286, 148 236" />
+        <circle cx="195" cy="280" r="138" />
+        <circle cx="195" cy="280" r="92" />
       </g>
       <g className={kind === 2 ? "app-onboarding-draw app-onboarding-draw--on" : "app-onboarding-draw"}>
-        <rect x="188" y="46" width="158" height="74" rx="22" />
-        <path d="M230 120 L214 148 L258 120" />
-        <circle className="app-onboarding-ink" cx="74" cy="82" r="5" />
-        <circle className="app-onboarding-ink" cx="48" cy="210" r="3.5" />
-        <circle className="app-onboarding-ink" cx="324" cy="206" r="4.5" />
-        <circle className="app-onboarding-ink" cx="236" cy="248" r="3" />
+        <circle cx="195" cy="280" r="112" />
+        <circle className="app-onboarding-ink" cx="195" cy="160" r="5" />
+        <circle className="app-onboarding-ink" cx="308" cy="320" r="4" />
+        <circle className="app-onboarding-ink" cx="84" cy="300" r="3.5" />
       </g>
       <g className={kind === 3 ? "app-onboarding-draw app-onboarding-draw--on" : "app-onboarding-draw"}>
-        <path d="M32 246 C 96 186, 150 300, 214 220 S 310 142, 348 186" />
-        <circle cx="348" cy="186" r="9" />
-        <circle className="app-onboarding-ink" cx="348" cy="186" r="3.5" />
+        <path d="M64 310 C 120 200, 270 200, 326 310" />
+        <circle cx="326" cy="310" r="9" />
+        <circle className="app-onboarding-ink" cx="326" cy="310" r="3.5" />
       </g>
     </svg>
   );
@@ -64,35 +69,56 @@ function IntroBits({ kind }: { kind: 1 | 2 | 3 }) {
   return (
     <div className="app-onboarding-bits" aria-hidden="true">
       <div className={kind === 1 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
-        {INTRO_FRIENDS.map((name) => (
-          <span key={name} className="app-onboarding-friend">
-            {name.slice(0, 1)}
-            <span>{name}</span>
-          </span>
+        {INTRO_FRIENDS.map((name, index) => (
+          <Orbit key={name} slot={index + 1}>
+            <span className="app-onboarding-friend">
+              {name.slice(0, 1)}
+              <span>{name}</span>
+            </span>
+          </Orbit>
         ))}
       </div>
       <div className={kind === 2 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
-        <span className="app-onboarding-ask">
-          <ActionIcon name="spark" size={16} />
-          Ассистент
+        <span className="app-onboarding-blob">
+          <ActionIcon name="spark" size={22} />
         </span>
-        <span className="app-onboarding-chip-float">джаз вечером</span>
-        <span className="app-onboarding-chip-float">парк</span>
-        <span className="app-onboarding-chip-float">Казань</span>
+        <Orbit slot={1}>
+          <span className="app-onboarding-ask">
+            <ActionIcon name="spark" size={16} />
+            Ассистент
+          </span>
+        </Orbit>
+        <Orbit slot={2}>
+          <span className="app-onboarding-chip-float">джаз вечером</span>
+        </Orbit>
+        <Orbit slot={3}>
+          <span className="app-onboarding-chip-float">парк</span>
+        </Orbit>
+        <Orbit slot={4}>
+          <span className="app-onboarding-chip-float">Казань</span>
+        </Orbit>
       </div>
       <div className={kind === 3 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
-        <span className="app-onboarding-meet">
-          <ActionIcon name="pin" size={14} />у входа
-        </span>
-        <span className="app-onboarding-meet">
-          <ActionIcon name="comment" size={14} />
-          соберёмся?
-        </span>
-        <span className="app-onboarding-meet">
-          <ActionIcon name="clock" size={14} />
-          напомним
-        </span>
-        <span className="app-onboarding-meet">4 в компании</span>
+        <Orbit slot={1}>
+          <span className="app-onboarding-meet">
+            <ActionIcon name="pin" size={14} />у входа
+          </span>
+        </Orbit>
+        <Orbit slot={2}>
+          <span className="app-onboarding-meet">
+            <ActionIcon name="comment" size={14} />
+            соберёмся?
+          </span>
+        </Orbit>
+        <Orbit slot={3}>
+          <span className="app-onboarding-meet">
+            <ActionIcon name="clock" size={14} />
+            напомним
+          </span>
+        </Orbit>
+        <Orbit slot={4}>
+          <span className="app-onboarding-meet">4 в компании</span>
+        </Orbit>
       </div>
     </div>
   );
@@ -153,7 +179,13 @@ function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle =
   const lean = Math.max(-32, Math.min(32, shift * 0.16));
   return (
     <div className="app-onboarding-film">
-      <img className="app-onboarding-film-photo" alt="" src="/onboarding/gorky.jpg" />
+      <div className="app-onboarding-field" aria-hidden="true">
+        <span className="app-onboarding-orb app-onboarding-orb--a" />
+        <span className="app-onboarding-orb app-onboarding-orb--b" />
+        <span className="app-onboarding-orb app-onboarding-orb--c" />
+        <span className="app-onboarding-orb app-onboarding-orb--d" />
+        <span className="app-onboarding-sheen" />
+      </div>
       <p className="app-onboarding-credit">Парк Горького: общественное достояние. Кул-Шариф: Yulesha, CC BY-SA 3.0.</p>
       <div className="app-onboarding-chrome">
         {showBack ? (
@@ -164,7 +196,7 @@ function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle =
         ) : (
           <span />
         )}
-        <AfishaWordmark />
+        <AfishaWordmark className="app-wordmark--on-media" />
         <button type="button" className="app-onboarding-skip" onClick={onSkip}>
           Пропустить
         </button>
@@ -173,11 +205,13 @@ function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle =
         <div className="app-onboarding-places">
           {INTRO_PLACES.map((place) => (
             <article key={place.title} className={`app-onboarding-place app-onboarding-place--${place.slot}`}>
-              <img alt="" src={place.src} />
-              <span>
-                <strong>{place.title}</strong>
-                {place.meta}
-              </span>
+              <div className="app-onboarding-place-tilt">
+                <img alt="" src={place.src} />
+                <span>
+                  <strong>{place.title}</strong>
+                  {place.meta}
+                </span>
+              </div>
             </article>
           ))}
         </div>

@@ -37,7 +37,7 @@ describe("onboarding content", () => {
   it("carries the three intro slides, each on its own hero gradient", () => {
     expect(INTRO_SLIDES).toHaveLength(3);
     expect(INTRO_SLIDES.map((slide) => slide.hero)).toEqual([1, 2, 3]);
-    expect(INTRO_SLIDES[1].title).toBe("Найди событие");
+    expect(INTRO_SLIDES[1].title).toBe("Не знаешь, что выбрать?");
     for (const slide of INTRO_SLIDES) {
       expect(slide.label.length).toBeGreaterThan(0);
       expect(slide.description.length).toBeGreaterThan(0);

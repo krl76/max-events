@@ -3955,8 +3955,8 @@ html[data-theme="dark"] #root {
   margin: 0;
 }
 
-/* Вступление: одно фото на весь экран. Свайп не двигает снимок — он сменяет
- * детали вокруг мест, а текст стоит в кадре без плашки и без затемнения. */
+/* Вступление: абстрактное поле брендбука на весь экран. Свайп не листает фон —
+ * он сменяет орбиту деталей вокруг тех же мест. Текст сидит в поле, без плашки. */
 .app-onboarding-pager {
   background: var(--app-page);
   height: 100dvh;
@@ -3973,6 +3973,15 @@ html[data-theme="dark"] #root {
   z-index: 30;
 }
 
+.app-onboarding-film::after {
+  background: radial-gradient(120% 78% at 50% 42%, rgba(6, 7, 8, 0), rgba(6, 7, 8, 0.55));
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+}
+
 .app-onboarding-credit {
   height: 1px;
   margin: -1px;
@@ -3982,53 +3991,125 @@ html[data-theme="dark"] #root {
   width: 1px;
 }
 
-.app-onboarding-film-photo {
-  animation: app-onboarding-ken 22s ease-in-out infinite alternate;
-  height: 100%;
+.app-onboarding-field {
   inset: 0;
-  object-fit: cover;
-  object-position: 82% center;
+  overflow: hidden;
+  pointer-events: none;
   position: absolute;
-  transform-origin: 82% center;
-  width: 100%;
 }
 
-@keyframes app-onboarding-ken {
+.app-onboarding-orb {
+  border-radius: 50%;
+  position: absolute;
+}
+
+.app-onboarding-orb--a {
+  animation: app-onboarding-orb-a 18s ease-in-out infinite alternate;
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.72), rgba(0, 122, 255, 0) 68%);
+  height: 340px;
+  left: -120px;
+  top: -40px;
+  width: 340px;
+}
+
+.app-onboarding-orb--b {
+  animation: app-onboarding-orb-b 22s ease-in-out infinite alternate;
+  background: radial-gradient(circle, #c9b6ff, rgba(255, 255, 255, 0) 70%);
+  height: 280px;
+  right: -90px;
+  top: 18%;
+  width: 280px;
+}
+
+.app-onboarding-orb--c {
+  animation: app-onboarding-orb-c 26s ease-in-out infinite alternate;
+  background: radial-gradient(circle, #00bfff, rgba(0, 122, 255, 0) 72%);
+  bottom: 8%;
+  height: 300px;
+  left: 10%;
+  width: 300px;
+}
+
+.app-onboarding-orb--d {
+  animation: app-onboarding-orb-a 20s ease-in-out infinite alternate-reverse;
+  background: radial-gradient(circle, #9500ff, rgba(6, 7, 8, 0) 70%);
+  height: 220px;
+  right: -40px;
+  top: 58%;
+  width: 220px;
+}
+
+.app-onboarding-sheen {
+  animation: app-onboarding-sheen 16s ease-in-out infinite;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
+  height: 160%;
+  left: -30%;
+  position: absolute;
+  top: -30%;
+  width: 38%;
+}
+
+@keyframes app-onboarding-orb-a {
   from {
-    transform: scale(1.04);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 
   to {
-    transform: scale(1.1);
+    transform: translate3d(36px, 48px, 0) scale(1.12);
+  }
+}
+
+@keyframes app-onboarding-orb-b {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(-42px, 30px, 0) scale(1.16);
+  }
+}
+
+@keyframes app-onboarding-orb-c {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(28px, -36px, 0) scale(1.08);
+  }
+}
+
+@keyframes app-onboarding-sheen {
+  from {
+    transform: translateX(-10%) rotate(12deg);
+  }
+
+  to {
+    transform: translateX(320%) rotate(12deg);
   }
 }
 
 .app-onboarding-chrome {
   align-items: center;
-  color: #060708;
+  color: #ffffff;
   display: flex;
   justify-content: space-between;
   left: 0;
   padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 0;
   position: absolute;
   right: 0;
-  text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95),
-    0 8px 16px rgba(255, 255, 255, 0.7);
+  text-shadow: 0 1px 10px rgba(6, 7, 8, 0.45);
   top: 0;
   z-index: 6;
 }
 
 .app-onboarding-chrome .app-onboarding-skip {
-  color: #060708;
+  color: #ffffff;
   opacity: 1;
-  text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95),
-    0 8px 16px rgba(255, 255, 255, 0.7);
 }
 
 .app-onboarding-chrome .app-onboarding-back {
-  color: #060708;
+  color: #ffffff;
   left: auto;
   position: relative;
   top: auto;
@@ -4043,25 +4124,28 @@ html[data-theme="dark"] #root {
 }
 
 .app-onboarding-stage--settle {
-  transition: transform 440ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .app-onboarding-places {
   inset: 0;
-  perspective: 1200px;
+  perspective: 1100px;
   position: absolute;
 }
 
 .app-onboarding-place {
-  animation: app-onboarding-float 7s ease-in-out infinite;
-  border-radius: 22px;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.55) inset,
-    0 1px 1px rgba(6, 7, 8, 0.06),
-    0 16px 28px rgba(6, 7, 8, 0.18),
-    0 36px 60px rgba(6, 7, 8, 0.22);
-  overflow: hidden;
+  animation: app-onboarding-float 7.4s ease-in-out infinite;
   position: absolute;
+}
+
+.app-onboarding-place-tilt {
+  border-radius: 26px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.28),
+    0 18px 40px rgba(0, 122, 255, 0.32),
+    0 30px 54px rgba(6, 7, 8, 0.45);
+  overflow: hidden;
+  transform-style: preserve-3d;
 }
 
 .app-onboarding-place img {
@@ -4073,7 +4157,7 @@ html[data-theme="dark"] #root {
 }
 
 .app-onboarding-place span {
-  background: linear-gradient(180deg, rgba(6, 7, 8, 0), rgba(6, 7, 8, 0.55));
+  background: linear-gradient(180deg, rgba(6, 7, 8, 0), rgba(6, 7, 8, 0.62));
   bottom: 0;
   color: #ffffff;
   display: flex;
@@ -4084,7 +4168,6 @@ html[data-theme="dark"] #root {
   padding: 28px 12px 10px;
   position: absolute;
   right: 0;
-  text-shadow: 0 1px 2px rgba(6, 7, 8, 0.45);
 }
 
 .app-onboarding-place strong {
@@ -4093,29 +4176,38 @@ html[data-theme="dark"] #root {
 }
 
 .app-onboarding-place--1 {
-  left: 3%;
-  top: 40%;
-  transform: rotateY(18deg) rotateX(6deg) rotateZ(-6deg);
-  width: 40%;
-  z-index: 1;
-}
-
-.app-onboarding-place--2 {
-  animation-delay: -2.2s;
-  right: 2%;
-  top: 42%;
-  transform: rotateY(-18deg) rotateX(6deg) rotateZ(5deg);
-  width: 36%;
+  left: 4%;
+  top: 36%;
+  width: 44%;
   z-index: 2;
 }
 
-.app-onboarding-place--3 {
-  animation-delay: -4s;
-  left: 36%;
-  top: 62%;
-  transform: rotateX(10deg) rotateZ(-3deg);
-  width: 28%;
+.app-onboarding-place--1 .app-onboarding-place-tilt {
+  animation: app-onboarding-yaw-1 8s ease-in-out infinite;
+}
+
+.app-onboarding-place--2 {
+  animation-delay: -2.6s;
+  right: 2%;
+  top: 42%;
+  width: 40%;
   z-index: 3;
+}
+
+.app-onboarding-place--2 .app-onboarding-place-tilt {
+  animation: app-onboarding-yaw-2 9s ease-in-out infinite;
+}
+
+.app-onboarding-place--3 {
+  animation-delay: -4.2s;
+  left: 28%;
+  top: 56%;
+  width: 34%;
+  z-index: 1;
+}
+
+.app-onboarding-place--3 .app-onboarding-place-tilt {
+  animation: app-onboarding-yaw-3 7.2s ease-in-out infinite;
 }
 
 @keyframes app-onboarding-float {
@@ -4125,27 +4217,66 @@ html[data-theme="dark"] #root {
   }
 
   50% {
-    translate: 0 -12px;
+    translate: 0 -16px;
+  }
+}
+
+@keyframes app-onboarding-yaw-1 {
+  0%,
+  100% {
+    transform: rotateY(16deg) rotateX(8deg) rotateZ(-8deg);
+  }
+
+  50% {
+    transform: rotateY(28deg) rotateX(2deg) rotateZ(-3deg);
+  }
+}
+
+@keyframes app-onboarding-yaw-2 {
+  0%,
+  100% {
+    transform: rotateY(-18deg) rotateX(6deg) rotateZ(7deg);
+  }
+
+  50% {
+    transform: rotateY(-30deg) rotateX(12deg) rotateZ(3deg);
+  }
+}
+
+@keyframes app-onboarding-yaw-3 {
+  0%,
+  100% {
+    transform: rotateX(12deg) rotateZ(-4deg);
+  }
+
+  50% {
+    transform: rotateX(4deg) rotateY(10deg) rotateZ(2deg);
   }
 }
 
 .app-onboarding-drawings {
-  color: #007aff;
-  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.9)) drop-shadow(0 8px 12px rgba(6, 7, 8, 0.16));
-  height: 50%;
+  animation: app-onboarding-spin 42s linear infinite;
+  color: #479fff;
+  height: 72%;
   left: 0;
+  opacity: 0.55;
+  pointer-events: none;
   position: absolute;
-  top: 34%;
+  top: 20%;
   width: 100%;
 }
 
 .app-onboarding-draw {
   opacity: 0;
-  transition: opacity 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    opacity 720ms cubic-bezier(0.22, 1, 0.36, 1),
+    scale 720ms cubic-bezier(0.22, 1, 0.36, 1);
+  scale: 0.86;
 }
 
 .app-onboarding-draw--on {
   opacity: 1;
+  scale: 1;
 }
 
 .app-onboarding-draw path,
@@ -4155,11 +4286,7 @@ html[data-theme="dark"] #root {
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2.5;
-}
-
-.app-onboarding-draw:first-child path {
-  stroke-dasharray: 1.5 10;
+  stroke-width: 1.4;
 }
 
 .app-onboarding-draw .app-onboarding-ink {
@@ -4175,48 +4302,112 @@ html[data-theme="dark"] #root {
 }
 
 .app-onboarding-bitset {
+  filter: blur(12px);
   inset: 0;
-  position: absolute;
-}
-
-.app-onboarding-bitset > * {
   opacity: 0;
-  scale: 0.72;
+  position: absolute;
+  scale: 0.88;
   transition:
-    opacity 480ms cubic-bezier(0.22, 1, 0.36, 1),
-    scale 480ms cubic-bezier(0.22, 1, 0.36, 1);
+    filter 680ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 680ms cubic-bezier(0.22, 1, 0.36, 1),
+    scale 680ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.app-onboarding-bitset--on > * {
-  animation: app-onboarding-bob 5.6s ease-in-out infinite;
+.app-onboarding-bitset--on {
+  filter: blur(0);
   opacity: 1;
   scale: 1;
 }
 
-.app-onboarding-bitset--on > :nth-child(2) {
-  animation-delay: -1.4s;
-  transition-delay: 70ms;
+.app-onboarding-orbit {
+  animation: app-onboarding-spin 24s linear infinite;
+  height: 0;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  width: 0;
 }
 
-.app-onboarding-bitset--on > :nth-child(3) {
-  animation-delay: -2.6s;
-  transition-delay: 140ms;
+.app-onboarding-orbit-spin {
+  animation: app-onboarding-spin 24s linear infinite reverse;
+  animation-delay: inherit;
+  height: 0;
+  position: absolute;
+  width: 0;
 }
 
-.app-onboarding-bitset--on > :nth-child(4) {
-  animation-delay: -3.8s;
-  transition-delay: 210ms;
+.app-onboarding-orbit--1 {
+  animation-delay: 0s;
 }
 
-@keyframes app-onboarding-bob {
+.app-onboarding-orbit--1 .app-onboarding-orbit-spin {
+  translate: 0 -112px;
+}
+
+.app-onboarding-orbit--2 {
+  animation-delay: -6s;
+}
+
+.app-onboarding-orbit--2 .app-onboarding-orbit-spin {
+  translate: 0 -136px;
+}
+
+.app-onboarding-orbit--3 {
+  animation-delay: -12s;
+}
+
+.app-onboarding-orbit--3 .app-onboarding-orbit-spin {
+  translate: 0 -90px;
+}
+
+.app-onboarding-orbit--4 {
+  animation-delay: -18s;
+}
+
+.app-onboarding-orbit--4 .app-onboarding-orbit-spin {
+  translate: 0 -124px;
+}
+
+@keyframes app-onboarding-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.app-onboarding-blob {
+  align-items: center;
+  animation: app-onboarding-blob 3.4s ease-in-out infinite;
+  background: radial-gradient(circle at 32% 28%, #ffffff, #479fff 26%, #007aff 58%, #471aff 100%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 8px rgba(0, 122, 255, 0.16),
+    0 16px 36px rgba(0, 122, 255, 0.45);
+  color: #ffffff;
+  display: flex;
+  height: 74px;
+  justify-content: center;
+  left: 50%;
+  position: absolute;
+  top: 48%;
+  width: 74px;
+}
+
+@keyframes app-onboarding-blob {
   0%,
   100% {
-    translate: 0 0;
+    transform: translate(-50%, -50%) scale(1);
   }
 
   50% {
-    translate: 0 -8px;
+    transform: translate(-50%, -50%) scale(1.08);
   }
+}
+
+.app-onboarding-orbit-spin > * {
+  left: 0;
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -50%);
 }
 
 .app-onboarding-friend,
@@ -4224,135 +4415,112 @@ html[data-theme="dark"] #root {
 .app-onboarding-chip-float,
 .app-onboarding-meet {
   align-items: center;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.94);
   border-radius: 999px;
   box-shadow:
-    0 1px 1px rgba(6, 7, 8, 0.06),
-    0 10px 22px rgba(6, 7, 8, 0.16);
+    0 0 0 1px rgba(255, 255, 255, 0.4),
+    0 10px 24px rgba(6, 7, 8, 0.28),
+    0 0 22px rgba(0, 122, 255, 0.28);
   color: #060708;
   display: inline-flex;
   font-size: 13px;
   font-weight: 800;
   gap: 6px;
   padding: 8px 12px;
-  position: absolute;
   white-space: nowrap;
 }
 
 .app-onboarding-friend {
   border-radius: 50%;
+  color: #007aff;
   font-size: 15px;
-  height: 40px;
+  height: 42px;
   justify-content: center;
   padding: 0;
-  width: 40px;
+  width: 42px;
 }
 
 .app-onboarding-friend span {
   display: none;
 }
 
-.app-onboarding-bitset > :nth-child(1) {
-  left: 6%;
-  top: 36%;
-}
-
-.app-onboarding-bitset > :nth-child(2) {
-  right: 5%;
-  top: 37%;
-}
-
-.app-onboarding-bitset > :nth-child(3) {
-  left: 2%;
-  top: 70%;
-}
-
-.app-onboarding-bitset > :nth-child(4) {
-  right: 1%;
-  top: 68%;
-}
-
 .app-onboarding-line {
-  left: 22px;
+  filter: drop-shadow(0 12px 20px rgba(6, 7, 8, 0.4));
+  left: 24px;
   pointer-events: none;
   position: absolute;
-  right: 22px;
+  right: 24px;
   text-align: center;
-  top: 68px;
-  transform: perspective(700px) rotateX(12deg);
+  top: calc(68px + env(safe-area-inset-top, 0px));
+  transform: perspective(800px) rotateX(8deg);
   transform-origin: center top;
   z-index: 4;
 }
 
 .app-onboarding-line.app-onboarding-copy--forward {
-  animation-duration: 640ms;
+  animation-duration: 780ms;
   animation-fill-mode: both;
   animation-name: app-onboarding-line-in;
 }
 
 .app-onboarding-line.app-onboarding-copy--back {
-  animation-duration: 640ms;
+  animation-duration: 780ms;
   animation-fill-mode: both;
   animation-name: app-onboarding-line-in-back;
 }
 
 .app-onboarding-line .app-onboarding-kicker {
   animation: none;
-  color: #060708;
-  letter-spacing: 0.08em;
-  margin: 0 0 6px;
-  text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95),
-    0 8px 18px rgba(255, 255, 255, 0.7);
+  color: #479fff;
+  letter-spacing: 0.18em;
+  margin: 0 0 8px;
   text-transform: uppercase;
 }
 
 .app-onboarding-line .app-onboarding-intro-title {
-  color: #060708;
-  font-size: 32px;
-  letter-spacing: -0.03em;
+  background: linear-gradient(102deg, #ffffff 8%, #c9b6ff 62%, #00bfff);
+  background-clip: text;
+  color: transparent;
+  font-size: 34px;
+  letter-spacing: -0.035em;
   line-height: 0.98;
-  text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.98),
-    0 2px 0 rgba(255, 255, 255, 0.75),
-    1px 4px 0 rgba(6, 7, 8, 0.12),
-    2px 8px 0 rgba(6, 7, 8, 0.1),
-    4px 18px 22px rgba(6, 7, 8, 0.2);
+  -webkit-background-clip: text;
 }
 
 .app-onboarding-line .app-onboarding-intro-text {
-  color: #060708;
-  font-size: 15px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.35;
-  margin: 10px auto 0;
-  max-width: 320px;
-  text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95),
-    0 8px 16px rgba(255, 255, 255, 0.72);
+  margin: 12px auto 0;
+  max-width: 300px;
 }
 
 @keyframes app-onboarding-line-in {
   from {
+    filter: blur(14px);
     opacity: 0;
-    transform: perspective(700px) rotateX(26deg) translateY(18px);
+    transform: perspective(800px) rotateX(26deg) translateY(22px);
   }
 
   to {
+    filter: drop-shadow(0 12px 20px rgba(6, 7, 8, 0.4));
     opacity: 1;
-    transform: perspective(700px) rotateX(12deg) translateY(0);
+    transform: perspective(800px) rotateX(8deg) translateY(0);
   }
 }
 
 @keyframes app-onboarding-line-in-back {
   from {
+    filter: blur(14px);
     opacity: 0;
-    transform: perspective(700px) rotateX(26deg) rotateY(-8deg) translateY(14px);
+    transform: perspective(800px) rotateX(22deg) rotateY(8deg) translateY(16px);
   }
 
   to {
+    filter: drop-shadow(0 12px 20px rgba(6, 7, 8, 0.4));
     opacity: 1;
-    transform: perspective(700px) rotateX(12deg) translateY(0);
+    transform: perspective(800px) rotateX(8deg) translateY(0);
   }
 }
 
@@ -4374,13 +4542,13 @@ html[data-theme="dark"] #root {
 }
 
 .app-onboarding-film-foot .app-onboarding-dot {
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: 0 0 0 1px rgba(6, 7, 8, 0.35);
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: none;
 }
 
 .app-onboarding-film-foot .app-onboarding-dot--on {
   background: #007aff;
-  box-shadow: none;
+  box-shadow: 0 0 12px rgba(0, 122, 255, 0.65);
 }
 
 .app-onboarding-track {
@@ -4393,15 +4561,20 @@ html[data-theme="dark"] #root {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .app-onboarding-film-photo,
+  .app-onboarding-orb,
+  .app-onboarding-sheen,
   .app-onboarding-place,
-  .app-onboarding-bitset--on > *,
+  .app-onboarding-place-tilt,
+  .app-onboarding-drawings,
+  .app-onboarding-orbit,
+  .app-onboarding-orbit-spin,
+  .app-onboarding-blob,
   .app-onboarding-line {
     animation: none;
   }
 
   .app-onboarding-draw,
-  .app-onboarding-bitset > *,
+  .app-onboarding-bitset,
   .app-onboarding-stage--settle {
     transition: none;
   }
