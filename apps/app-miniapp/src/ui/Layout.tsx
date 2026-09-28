@@ -296,6 +296,16 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <HeaderExtrasContext.Provider value={headerSlot}>
+      <svg className="app-brand-defs" aria-hidden="true">
+        <defs>
+          <linearGradient id="app-brand-fill" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0%" stopColor="#0d001a" />
+            <stop offset="50%" stopColor="#471aff" />
+            <stop offset="80%" stopColor="#9500ff" />
+            <stop offset="100%" stopColor="#00bfff" />
+          </linearGradient>
+        </defs>
+      </svg>
       {routeHasHeader(route) && (
         <header className="app-header">
           {route.name === "home" ? (

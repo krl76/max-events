@@ -193,6 +193,7 @@ export function OrganizerDashboardView({ organizationName, summary, events, fill
       </div>
       <div className="app-org-chart">
         <span className="app-org-chart-title">Записи по дням</span>
+        <span className="app-org-tile-note">Регистрации за выбранный период, разложенные по дню недели. Просмотры страницы сюда не входят.</span>
         <span className="app-org-chart-bars" aria-hidden="true">
           {barHeights(summary?.byWeekday ?? [0, 0, 0, 0, 0, 0, 0]).map((bar, index) => (
             <span key={index} className={bar.accent ? "app-org-bar app-org-bar--on" : "app-org-bar"} style={{ height: `${bar.height}%` }} />
@@ -207,6 +208,7 @@ export function OrganizerDashboardView({ organizationName, summary, events, fill
       {summary !== null && summary.bookings === 0 && <p className="app-org-tile-note">Записей за этот период пока нет. График появится после первых регистраций.</p>}
       <div className="app-org-sources">
         <span className="app-org-chart-title">Откуда приходят</span>
+        <span className="app-org-tile-note">Доля записей, у которых известен источник: чаты, лента или поиск. Запись без источника в эти доли не входит.</span>
         <span className="app-org-tile-value">{traffic.lead}</span>
         {traffic.rest !== "" && <span className="app-org-tile-note">{traffic.rest}</span>}
         {sources.map((row) => (

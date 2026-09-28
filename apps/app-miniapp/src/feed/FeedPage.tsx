@@ -39,7 +39,7 @@ import { PhotoGallery } from "./gallery";
 import { pictured } from "../ui/photos";
 import { AppAvatar, AppButton, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
-import { parsePinLabel } from "../ui/pin-label";
+import { parsePinLabel, placePinTitle } from "../ui/pin-label";
 import { useSheetSwipe } from "../ui/sheet";
 import { pluralRu } from "../catalog/format";
 
@@ -161,16 +161,14 @@ function CommentRow({ item, liked, onLike, onReply, onOpenAuthor }: { item: { co
           )}
         </div>
         <p className="app-feed-comment-text">{comment.text}</p>
-        <div className="app-feed-comment-actions">
-          <button type="button" className="app-feed-comment-like" aria-pressed={liked} aria-label="Нравится" onClick={onLike}>
-            <ActionIcon filled={liked} name="heart" size={16} />
-            {liked ? 1 : 0}
-          </button>
-          <button type="button" className="app-feed-comment-reply" onClick={onReply}>
-            Ответить
-          </button>
-        </div>
+        <button type="button" className="app-feed-comment-reply" onClick={onReply}>
+          Ответить
+        </button>
       </div>
+      <button type="button" className="app-feed-comment-like" aria-pressed={liked} aria-label="Нравится" onClick={onLike}>
+        <ActionIcon filled={liked} name="heart" size={16} />
+        {liked ? <span>1</span> : null}
+      </button>
     </li>
   );
 }
@@ -266,7 +264,7 @@ export function CommentSheet({
       <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={onClose} />
       <div className="app-comments-sheet app-sheet" style={swipe.style}>
         <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
-        <p className="app-comments-count">{comments.length === 0 ? "Комментарии" : `${comments.length}`}</p>
+        <p className="app-comments-count">Комментарии</p>
         {comments.length === 0 ? (
           <p className="app-picker-empty">Пока никто не написал.</p>
         ) : (
@@ -276,6 +274,13 @@ export function CommentSheet({
             ))}
           </ul>
         )}
+        <div className="app-comments-react">
+          {["❤️", "🙌", "🔥", "👏", "😭", "😍", "😮", "😂"].map((emoji) => (
+            <button key={emoji} type="button" className="app-comments-react-btn" aria-label={emoji} onClick={() => onDraft(`${draft}${emoji}`)}>
+              {emoji}
+            </button>
+          ))}
+        </div>
         <form className="app-comments-compose" onSubmit={submit}>
           {replyTo !== null && (
             <button type="button" className="app-comments-reply" onClick={onCancelReply}>
@@ -327,7 +332,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
     );
   const pin = parsePinLabel(post.locationLabel ?? "");
   const showMark = onOpenMap !== undefined && (pin !== null || post.placeId !== null);
-  const markLabel = pin !== null ? "Точка на карте" : "Показать на карте";
+  const markLabel = pin !== null ? placePinTitle(post.locationLabel ?? "") : "Показать на карте";
   useEffect(() => {
     if (typeof sessionStorage === "undefined") return;
     if (sessionStorage.getItem("max-events:open-comments") === post.id) sessionStorage.removeItem("max-events:open-comments");
@@ -381,7 +386,6 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         {userId !== "" && <ReportButton mode="dialog" target={{ feedPostId: post.id }} userId={userId} />}
       </header>
       {photos.length > 0 ? <PhotoGallery photos={photos} /> : <AppMedia category={eventCategory} src={pictured(post.eventId ?? post.id)} />}
-      {post.text.trim() !== "" && <p className="app-post-caption">{post.text}</p>}
       <div className="app-post-actions">
         <button type="button" className="app-post-action" aria-pressed={post.likedByMe} aria-label="Нравится" onClick={onToggleLike}>
           <ActionIcon filled={post.likedByMe} name="heart" />
@@ -421,26 +425,17 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
       <p className="app-post-likes">
         {post.likesCount} {pluralRu(post.likesCount, "отметка", "отметки", "отметок")} «нравится»
       </p>
-      {post.comments.length > 0 && (
-        <ul className="app-post-comment-list">
-          {post.comments.slice(0, 2).map((comment) => (
-            <li key={comment.id} className="app-feed-comment">
-              <button type="button" className="app-feed-comment-avatar" aria-label={`Профиль ${comment.author.name}`} onClick={() => onOpenAuthor?.(comment.author.id)}>
-                <AppAvatar size={36} src={comment.author.avatarUrl}>
-                  {comment.author.name.slice(0, 1)}
-                </AppAvatar>
-              </button>
-              <p className="app-feed-comment-text">
-                <span className="app-feed-comment-author">{comment.author.name}</span> {comment.text}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-      {post.comments.length > 0 && (
-        <button type="button" className="app-comments-entry" onClick={() => setCommentsOpen(true)}>
-          {commentsEntryLabel(post.comments.length)}
-        </button>
+      {post.text.trim() !== "" && (
+        <p className="app-post-caption">
+          {onOpenAuthor ? (
+            <button type="button" className="app-post-caption-author" aria-label={`Профиль ${post.author.name}`} onClick={() => onOpenAuthor(post.author.id)}>
+              {post.author.name}
+            </button>
+          ) : (
+            <span className="app-post-caption-author">{post.author.name}</span>
+          )}{" "}
+          {post.text}
+        </p>
       )}
       {commentsOpen && (
         <CommentSheet

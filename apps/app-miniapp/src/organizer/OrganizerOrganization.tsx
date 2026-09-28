@@ -126,7 +126,7 @@ export function OrganizerOrganization({ organizationId, organizationName, onLogo
       )}
       <MyOrganizerRatingCard organizationId={organizationId} />
       <AppButton stretched onClick={onLogout}>
-        Выйти
+        Выйти из кабинета
       </AppButton>
     </section>
   );

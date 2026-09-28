@@ -35,10 +35,10 @@ describe("FeedPostCard", () => {
     expect(html).toContain("Анна Соколова");
     expect(html).toContain(mockEvents[0].title);
     expect(html).toContain("Было здорово");
-    expect(html).toContain(commentsEntryLabel(1));
-    expect(html).toContain("Класс!");
-    expect(html).toContain('aria-label="Профиль Дима Кузнецов"');
-    expect(html.indexOf("Было здорово")).toBeLessThan(html.indexOf("app-post-actions"));
+    expect(html).not.toContain(commentsEntryLabel(1));
+    expect(html).not.toContain("Класс!");
+    expect(html).not.toContain('aria-label="Профиль Дима Кузнецов"');
+    expect(html.indexOf("app-post-actions")).toBeLessThan(html.indexOf("Было здорово"));
   });
 
   it("turns the author icon and name into profile controls", () => {
@@ -53,6 +53,8 @@ describe("FeedPostCard", () => {
     expect(html).toContain("Дима Кузнецов");
     expect(html).toContain("Класс!");
     expect(html).toContain("Комментарий");
+    expect(html).toContain('class="app-comments-count">Комментарии');
+    expect(html).toContain("Ответить");
     expect(html).toContain('aria-label="Профиль Дима Кузнецов"');
   });
 
@@ -115,9 +117,9 @@ describe("FeedPostCard", () => {
   it("uses the author photo and a story ring when the author has a live story", () => {
     const withPhoto = card({ author: { ...post.author, avatarUrl: "https://cdn.example.com/anna.jpg" } });
     expect(withPhoto).toContain('src="https://cdn.example.com/anna.jpg"');
-    expect(withPhoto).not.toContain("app-story-ring--active");
+    expect(withPhoto).not.toContain("app-tg-ring");
     const withStory = renderToStaticMarkup(createElement(FeedPostCard, { post: { ...post, author: { ...post.author, avatarUrl: "https://cdn.example.com/anna.jpg" } }, eventTitle: mockEvents[0].title, userId: DEMO_USER_ID, onToggleLike: noop, onAddComment: noop, hasStory: true }));
-    expect(withStory).toContain("app-story-ring--active");
+    expect(withStory).toContain("app-tg-ring--new");
     expect(withStory).toContain('src="https://cdn.example.com/anna.jpg"');
   });
 

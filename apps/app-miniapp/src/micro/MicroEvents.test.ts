@@ -67,7 +67,7 @@ describe("MicroEventCreateView", () => {
     expect(html).toContain("Когда");
     expect(html).toContain("Где");
     expect(html).toContain("Лимит участников");
-    expect(html).toContain("Точка на карте");
+    expect(html).toContain("Адрес или карта");
     expect(html).toContain("Пригласить друзей");
     expect(html).not.toContain('type="datetime-local"');
   });

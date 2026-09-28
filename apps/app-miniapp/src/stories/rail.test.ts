@@ -53,18 +53,18 @@ describe("storyRail", () => {
     expect(watched.tiles.find((tile) => tile.friendId === DIMA.id)?.unseen).toBe(true);
   });
 
-  it("keeps friend order after a story is watched, so the rail can be scrolled instead of reshuffled", () => {
+  it("moves a fully watched author to the right and leaves an unseen author on the left", () => {
     const rail = storyRail([ANNA, DIMA], stories, MY_ID, [ANNA_OLD.id, ANNA_NEW.id]);
 
-    expect(rail.tiles.map((tile) => tile.friendId)).toEqual([ANNA.id, DIMA.id]);
+    expect(rail.tiles.map((tile) => tile.friendId)).toEqual([DIMA.id, ANNA.id]);
   });
 
   it("keeps the groups of the viewer in the order of the tiles, own stories first", () => {
     const rail = storyRail([ANNA, DIMA], stories, MY_ID, [ANNA_OLD.id, ANNA_NEW.id]);
 
-    expect(rail.groups.map((group) => group.authorName)).toEqual(["Вы", "Анна Соколова", "Дима Кузнецов"]);
+    expect(rail.groups.map((group) => group.authorName)).toEqual(["Вы", "Дима Кузнецов", "Анна Соколова"]);
     expect(rail.own.group).toBe(0);
-    expect(rail.tiles.map((tile) => rail.groups[tile.group].authorName)).toEqual(["Анна Соколова", "Дима Кузнецов"]);
+    expect(rail.tiles.map((tile) => rail.groups[tile.group].authorName)).toEqual(["Дима Кузнецов", "Анна Соколова"]);
   });
 
   it("covers a tile with the newest story and plays a group from the oldest", () => {
@@ -147,6 +147,6 @@ describe("кольцо истории в theme.css", () => {
   });
 
   it("расширяет плитку под подросшее кольцо, иначе рельс режет обводку", () => {
-    expect(rule(".app-stories .app-story")).toContain("width: 72px");
+    expect(rule(".app-stories .app-story")).toContain("width: 76px");
   });
 });

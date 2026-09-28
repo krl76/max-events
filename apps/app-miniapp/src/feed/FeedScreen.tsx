@@ -20,7 +20,7 @@
 // - formatPricePerHour - «800 ₽/час»; null until the slot domain answers a price (#492)
 // - formatFeedRating - «4.9»; null until the card carries a rating (#496)
 // - FeedWhereToCard - «Куда пойдём?» block with the single gradient CTA of the screen
-// - FeedFriendPost - friend post: author, attached photo, event block, «Пойду», save, counters, caption, comments, time
+// - FeedFriendPost - friend post in the Instagram order: author and pinned event, full-bleed photo, actions, counters, caption, time. Comments open only from the comment control
 // - FeedPlacePost - venue post: place header with rating and travel time, slot offer hero, friend quote, «Твой статус на этой площадке», «Выбрать слот» / «Собрать»
 // - FeedCardHandlers - what the card list needs from its container (open, like, going, venue status, share)
 // - FeedCardList - presentational list of cards, each rendered by its kind
@@ -40,9 +40,9 @@ import { replayScroll } from "../ui/scroll-memory";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
-import { parsePinLabel } from "../ui/pin-label";
+import { parsePinLabel, placePinTitle } from "../ui/pin-label";
 import { SaveToList } from "../event/SaveToList";
-import { AppAvatar, AppChip, AppEmptyState, AppSkeleton, AppState } from "../ui/primitives";
+import { AppChip, AppEmptyState, AppSkeleton, AppState } from "../ui/primitives";
 import { PhotoGallery } from "./gallery";
 import { PostAuthorAvatar, StoriesRow } from "./FeedPage";
 
@@ -197,55 +197,41 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
   const [saving, setSaving] = useState(false);
   const where = [card.placeTitle, formatFeedDistance(card.distanceKm)].filter((part): part is string => part !== null && part !== "").join(" · ");
   const dropped = parsePinLabel(card.locationLabel ?? card.placeTitle ?? "");
-  const markLabel = dropped ? "Точка на карте" : where;
+  const markLabel = dropped ? placePinTitle(card.locationLabel ?? card.placeTitle ?? "") : where;
   const canMark = onOpenMark !== undefined && markLabel !== "" && (dropped !== null || (card.event !== null && card.event.placeId !== null));
   const photos = card.photoUrls && card.photoUrls.length > 0 ? card.photoUrls : card.photoUrl ? [card.photoUrl] : [];
   const counts = feedCountsLine(card.counts, card.live, card.friendsGoing);
-  const comments = feedCommentsLine(card.comments, card.commentsCount);
   const going = card.goingByMe !== undefined ? card.goingByMe : card.myStatus === "going";
   const mine = userId !== null && card.author.id === userId;
   const eventCover = card.event ? pictured(card.event.id, card.event.coverUrl) : null;
+  const showEventMedia = card.event !== null && photos.length === 0;
   return (
     <article className="app-feed-post">
       <header className="app-feed-post-head">
-        {canMark ? (
-          <div className="app-feed-author-btn">
-            <button type="button" className="app-feed-author-open" aria-label={`Профиль ${card.author.name}`} onClick={onOpenAuthor}>
-              <PostAuthorAvatar friend={card.author} hasStory={hasStory} />
-            </button>
-            <span className="app-feed-post-id">
-              <button type="button" className="app-feed-author-open" aria-label={`Профиль ${card.author.name}`} onClick={onOpenAuthor}>
-                <span className="app-feed-post-author">{card.author.name}</span>
-              </button>
-              <button type="button" className="app-feed-post-where" onClick={onOpenMark}>
-                <ActionIcon name="pin" size={12} />
-                <span>{markLabel}</span>
-              </button>
-            </span>
-          </div>
-        ) : (
-          <button type="button" className="app-feed-author-btn" aria-label={`Профиль ${card.author.name}`} onClick={onOpenAuthor}>
-            <PostAuthorAvatar friend={card.author} hasStory={hasStory} />
-            <span className="app-feed-post-id">
-              <span className="app-feed-post-author">{card.author.name}</span>
-              {where !== "" && <span className="app-feed-post-where">{where}</span>}
-            </span>
+        <button type="button" className="app-feed-author-open" aria-label={`Профиль ${card.author.name}`} onClick={onOpenAuthor}>
+          <PostAuthorAvatar friend={card.author} hasStory={hasStory} />
+        </button>
+        <span className="app-feed-post-id">
+          <button type="button" className="app-feed-author-open" aria-label={`Профиль ${card.author.name}`} onClick={onOpenAuthor}>
+            <span className="app-feed-post-author">{card.author.name}</span>
           </button>
-        )}
+          {card.event !== null && (
+            <button type="button" className="app-feed-post-where" onClick={onOpenEvent}>
+              {card.event.title}
+            </button>
+          )}
+          {canMark ? (
+            <button type="button" className="app-feed-post-where" onClick={onOpenMark}>
+              <ActionIcon name="pin" size={12} />
+              <span>{markLabel}</span>
+            </button>
+          ) : (
+            where !== "" && <span className="app-feed-post-where">{where}</span>
+          )}
+        </span>
       </header>
       {photos.length > 0 && <PhotoGallery photos={photos} />}
-      {card.text.trim() !== "" && <p className="app-feed-caption">{card.text}</p>}
-      {card.repostOf && (
-        <div className="app-feed-embed">
-          <button type="button" className="app-feed-embed-author" aria-label={`Профиль ${card.repostOf.author.name}`} onClick={() => (onOpenPerson ? onOpenPerson(card.repostOf!.author.id) : onOpenAuthor())}>
-            <PostAuthorAvatar friend={card.repostOf.author} size={28} />
-            <span>{card.repostOf.author.name}</span>
-          </button>
-          {card.repostOf.photoUrl && <img className="app-feed-embed-photo" src={card.repostOf.photoUrl} alt="" />}
-          {card.repostOf.text !== "" && <p className="app-feed-embed-text">{card.repostOf.text}</p>}
-        </div>
-      )}
-      {card.event !== null && (
+      {showEventMedia && card.event !== null && (
         <button type="button" className={`app-feed-event app-media--${card.event.category}`} style={eventCover ? { backgroundImage: `url("${eventCover}")` } : undefined} onClick={onOpenEvent}>
           <img className="app-feed-event-photo" alt="" src={eventCover ?? ""} />
           <span className="app-feed-event-chips">
@@ -261,6 +247,16 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
           <span className="app-feed-event-title">{card.event.title}</span>
           <span className="app-feed-event-meta">{feedEventMeta(card.event, now)}</span>
         </button>
+      )}
+      {card.repostOf && (
+        <div className="app-feed-embed">
+          <button type="button" className="app-feed-embed-author" aria-label={`Профиль ${card.repostOf.author.name}`} onClick={() => (onOpenPerson ? onOpenPerson(card.repostOf!.author.id) : onOpenAuthor())}>
+            <PostAuthorAvatar friend={card.repostOf.author} size={28} />
+            <span>{card.repostOf.author.name}</span>
+          </button>
+          {card.repostOf.photoUrl && <img className="app-feed-embed-photo" src={card.repostOf.photoUrl} alt="" />}
+          {card.repostOf.text !== "" && <p className="app-feed-embed-text">{card.repostOf.text}</p>}
+        </div>
       )}
       <div className="app-feed-actions">
         <button type="button" className="app-post-action" aria-pressed={card.likedByMe} aria-label="Нравится" onClick={onToggleLike}>
@@ -279,34 +275,34 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
         <button type="button" className="app-post-action" aria-label="Поделиться" onClick={onShare}>
           <ActionIcon name="share" size={26} />
         </button>
-        {userId !== null && (
-          <button type="button" className="app-post-action" aria-pressed={saving} aria-label="Сохранить" onClick={() => setSaving(true)}>
-            <ActionIcon name="bookmark" size={26} />
-          </button>
-        )}
-        {mine && onDelete !== undefined && (
-          <button type="button" className="app-post-action app-post-action--danger" aria-label="Удалить пост" onClick={onDelete}>
-            <ActionIcon name="trash" size={26} />
-          </button>
-        )}
-        {/* aria-pressed, not two labels alone: «Иду» is the same control in its on state, not another button. */}
-        {card.event !== null && (
-          <button type="button" className={going ? "app-feed-going app-feed-going--on" : "app-feed-going"} aria-pressed={going} onClick={onToggleGoing}>
-            {going ? "Я иду" : "Я пойду"}
-          </button>
-        )}
+        <span className="app-feed-actions-end">
+          {userId !== null && (
+            <button type="button" className="app-post-action" aria-pressed={saving} aria-label="Сохранить" onClick={() => setSaving(true)}>
+              <ActionIcon name="bookmark" size={26} />
+            </button>
+          )}
+          {mine && onDelete !== undefined && (
+            <button type="button" className="app-post-action app-post-action--danger" aria-label="Удалить пост" onClick={onDelete}>
+              <ActionIcon name="trash" size={26} />
+            </button>
+          )}
+          {/* aria-pressed, not two labels alone: «Иду» is the same control in its on state, not another button. */}
+          {card.event !== null && (
+            <button type="button" className={going ? "app-feed-going app-feed-going--on" : "app-feed-going"} aria-pressed={going} onClick={onToggleGoing}>
+              {going ? "Я иду" : "Я пойду"}
+            </button>
+          )}
+        </span>
       </div>
       {saving && userId !== null && <SaveToList feedPostId={card.id} userId={userId} open onClose={() => setSaving(false)} />}
       {counts !== null && <p className="app-feed-counts">{counts}</p>}
-      {comments !== null && card.comments[0] !== undefined && (
-        <button type="button" className="app-feed-comment-preview" onClick={onOpenComments}>
-          <span className="app-feed-comment-avatar">
-            <AppAvatar size={32} src={card.comments[0].author.avatarUrl}>
-              {card.comments[0].author.name.slice(0, 1)}
-            </AppAvatar>
-          </span>
-          <span className="app-feed-comment-preview-text">{comments}</span>
-        </button>
+      {card.text.trim() !== "" && (
+        <p className="app-feed-caption">
+          <button type="button" className="app-feed-caption-author" aria-label={`Профиль ${card.author.name}`} onClick={onOpenAuthor}>
+            {card.author.name}
+          </button>{" "}
+          {card.text}
+        </p>
       )}
       {/* No line at all rather than «только что» about a post whose card carries no publication time. */}
       {card.publishedAt !== null && <p className="app-feed-time">{formatFeedAgo(card.publishedAt, now)}</p>}

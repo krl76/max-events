@@ -19,6 +19,7 @@ import type { OrganizerEvent } from "../api/client";
 import { apiClient } from "../api/client";
 import { AfishaWordmark } from "../auth/EntryPage";
 import { ActionIcon } from "../ui/icons";
+import { THEME_STORAGE_KEY, applyScheme, type ThemePreference } from "../ui/theme";
 import { AppButton, AppState } from "../ui/primitives";
 import { OrganizerAuthProvider, useOrganizerAuth } from "./OrganizerAuthContext";
 import { OrganizerDashboard, type OrganizerPromoIntent } from "./OrganizerDashboard";
@@ -27,6 +28,7 @@ import { OrganizerEventManage } from "./OrganizerEventManage";
 import { OrganizerIntro } from "./OrganizerIntro";
 import { isOrganizerIntroDone } from "./organizer-onboarding";
 import { OrganizerPanel } from "./OrganizerPage";
+import { OrganizerProfile } from "./OrganizerProfile";
 import { OrganizerPromo } from "./OrganizerPromo";
 import { OrganizerSetup } from "./OrganizerSetup";
 import { OrganizerTabBar, type OrganizerSection } from "./OrganizerTabs";
@@ -97,6 +99,7 @@ export const ORGANIZER_SECTION_TITLES: Record<OrganizerSection, string> = {
   dashboard: "Обзор",
   events: "События",
   promo: "Продвижение",
+  profile: "Профиль",
 };
 
 /** Кабинет использует ту же шапку, что и пользовательское приложение. Свой хром остаётся только у вступления и мастера настройки. */
@@ -113,12 +116,13 @@ interface OrganizerSectionContentProps {
   onManage: (event: OrganizerEvent) => void;
   onCreateEvent: () => void;
   onOpenOrganization: () => void;
+  onOpenSettings: () => void;
   onOpenEvent: (event: OrganizerEvent) => void;
   onComposer?: (title: string | null) => void;
   closeComposerTick?: number;
 }
 
-export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onOpenEvent, onComposer, closeComposerTick }: OrganizerSectionContentProps) {
+export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onOpenSettings, onOpenEvent, onComposer, closeComposerTick }: OrganizerSectionContentProps) {
   if (section === "dashboard")
     return (
       <OrganizerDashboard
@@ -131,6 +135,7 @@ export function OrganizerSectionContent({ section, organizationId, organizationN
       />
     );
   if (section === "promo") return <OrganizerPromo organizationName={organizationName} intent={promoIntent} eventId={promoEventId} onOpenEvent={() => onSection("events")} />;
+  if (section === "profile") return <OrganizerProfile organizationId={organizationId} organizationName={organizationName} onOpenEvent={onOpenEvent} onSettings={onOpenSettings} />;
   return <OrganizerPanel organizationId={organizationId} createOnMount={createEvent} onOpenEvent={onOpenEvent} onComposer={onComposer} closeComposerTick={closeComposerTick} />;
 }
 
@@ -175,8 +180,19 @@ export function OrganizerOnboardingGate({ onCreateEvent, children }: { onCreateE
   );
 }
 
+function storedScheme(): "light" | "dark" {
+  const stored = typeof localStorage === "undefined" ? null : localStorage.getItem(THEME_STORAGE_KEY);
+  const preference: ThemePreference = stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+  if (preference === "light" || preference === "dark") return preference;
+  return typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   const { state, logout } = useOrganizerAuth();
+  useEffect(() => {
+    applyScheme("light");
+    return () => applyScheme(storedScheme());
+  }, []);
   const [section, setSection] = useState<OrganizerSection>("dashboard");
   const [manage, setManage] = useState<OrganizerEvent | null>(null);
   const [organizationOpen, setOrganizationOpen] = useState(false);
@@ -189,6 +205,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
   const pushed = manage !== null || organizationOpen || composerTitle !== null;
+  const profileChrome = section === "profile" && !pushed;
   const title = composerTitle ?? (manage !== null ? manage.title : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section]);
   const openPromotion = (eventId: string, intent: OrganizerPromoIntent | null) => {
     setManage(null);
@@ -204,6 +221,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
         setSection("events");
       }}
     >
+      {!profileChrome && (
       <header className="app-header">
         {pushed && (
           <button
@@ -225,11 +243,19 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
         )}
         <span className="app-header-title">{title}</span>
       </header>
-      <main className={composerTitle !== null ? "app-content app-content--full" : "app-content"}>
+      )}
+      <main className={composerTitle !== null || profileChrome ? "app-content app-content--flush" : "app-content"}>
         {manage !== null ? (
           <OrganizerEventManage event={manage} onBack={() => setManage(null)} onPromo={() => openPromotion(manage.id, null)} />
         ) : organizationOpen ? (
-          <OrganizerOrganization organizationId={state.session.organization.id} organizationName={state.session.organization.name} onLogout={logout} />
+          <OrganizerOrganization
+            organizationId={state.session.organization.id}
+            organizationName={state.session.organization.name}
+            onLogout={() => {
+              logout();
+              onExit();
+            }}
+          />
         ) : (
           <OrganizerSectionContent
             section={section}
@@ -251,7 +277,8 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
               setCreateEvent(true);
               setSection("events");
             }}
-            onOpenOrganization={() => setOrganizationOpen(true)}
+            onOpenOrganization={() => setSection("profile")}
+            onOpenSettings={() => setOrganizationOpen(true)}
             onOpenEvent={setManage}
             onComposer={onComposer}
             closeComposerTick={closeComposerTick}

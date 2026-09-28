@@ -101,7 +101,6 @@ describe("PostCreateView", () => {
         friends: mockFriends,
         state: "idle" as const,
         photoRejected: false,
-        draftSaved: true,
         onDraft: noop,
         onPickPhoto: noop,
         onPublish: noop,
@@ -144,9 +143,12 @@ describe("PostCreateView", () => {
     expect(html).not.toContain("привязано к посту");
   });
 
-  it("keeps «Черновик сохранён» out until a save actually happened", () => {
-    expect(view({ draftSaved: false })).not.toContain("Черновик сохранён");
-    expect(view()).toContain("Черновик сохранён");
+  it("keeps the duplicate bottom bar and the draft line off the composer", () => {
+    const html = view();
+
+    expect(html).not.toContain("Черновик сохранён");
+    expect(html).not.toContain("app-post-compose-foot");
+    expect(html).toContain("Кто увидит");
   });
 
   it("shows the profile photo instead of the name initial", () => {
