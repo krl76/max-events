@@ -19664,6 +19664,7 @@ button.app-cal-peer-chip {
 .app-nb {
   display: flex;
   flex-direction: column;
+  min-height: 100%;
 }
 
 .app-nb-meta {
@@ -19730,30 +19731,57 @@ button.app-cal-peer-chip {
   font-weight: 700;
 }
 
-/* Рельс карточек уходит под край экрана: поля возвращаются внутренним отступом */
-.app-nb-rail {
-  display: flex;
+/* Сетка карточек: тень отделяет их от фона, радиус сидит внизу экрана */
+.app-nb-grid {
+  display: grid;
   gap: var(--app-space-m);
-  margin: var(--app-space-m) calc(-1 * var(--app-space-screen)) 0;
-  overflow-x: auto;
-  padding: 0 var(--app-space-screen);
-  scrollbar-width: none;
+  grid-template-columns: 1fr 1fr;
+  margin-top: var(--app-space-m);
 }
 
 .app-nb-card {
   background: var(--app-card);
-  border: var(--app-hairline);
+  border: none;
   border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow-lift);
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+}
+
+.app-nb-card-open,
+.app-nb-card-loc {
+  background: none;
+  border: none;
   color: inherit;
   cursor: pointer;
-  display: flex;
-  flex: none;
-  flex-direction: column;
   font: inherit;
-  overflow: hidden;
   padding: 0;
   text-align: left;
-  width: 170px;
+  width: 100%;
+}
+
+.app-nb-card-open {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-nb-card-loc {
+  align-items: flex-start;
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: var(--app-font-size-description);
+  gap: 4px;
+  margin-top: 2px;
+  padding: 0 var(--app-space-m);
+}
+
+.app-nb-card-loc svg {
+  flex: none;
+  margin-top: 2px;
 }
 
 .app-nb-card-media {
@@ -19762,8 +19790,8 @@ button.app-cal-peer-chip {
 }
 
 .app-nb-card-media .app-card-media {
-  aspect-ratio: auto;
-  height: 112px;
+  aspect-ratio: 4 / 3;
+  height: auto;
 }
 
 .app-nb-card-media .app-card-media-img {
@@ -19795,18 +19823,50 @@ button.app-cal-peer-chip {
   font-size: var(--app-font-size-callout);
   font-weight: 800;
   line-height: 1.2;
-}
-
-.app-nb-card-sub {
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-description);
-  margin-top: 2px;
+  padding: 10px var(--app-space-m) 0;
 }
 
 .app-nb-card-km {
   font-size: var(--app-font-size-description);
-  font-weight: 700;
+  font-weight: 800;
   margin-top: 6px;
+  padding: 0 var(--app-space-m) var(--app-space-m);
+}
+
+.app-nb-dock {
+  background: var(--app-card);
+  border-top: var(--app-hairline);
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  margin: var(--app-space-l) calc(-1 * var(--app-space-screen)) 0;
+  padding: var(--app-space-m) var(--app-space-screen);
+  position: sticky;
+  z-index: 2;
+}
+
+.app-nb-dock-label {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  margin: 0;
+}
+
+.app-nb-dock .app-nb-radius {
+  margin-top: 0;
+}
+
+.app-nb-ask {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 50%;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
 }
 
 .app-nb-label {
@@ -24091,6 +24151,22 @@ ion-button.ion-focused {
 .app-header:has(.app-header-extras:not(:empty)) .app-header-title {
   flex: none;
   text-align: left;
+}
+
+.app-header:has(.app-header-extras:not(:empty) .app-nb-ask) .app-header-title {
+  flex: 1;
+  text-align: center;
+}
+
+.app-header:has(.app-nb-ask) .app-header-extras {
+  margin-left: 0;
+  position: absolute;
+  right: var(--app-space-screen);
+}
+
+.app-header:has(.app-nb-ask) {
+  position: relative;
+  justify-content: center;
 }
 
 .app-header-extras:empty {

@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { LeisureMoodSchema, NearbyBucketSchema } from "@max-events/api-contracts";
 import type { LeisureMood } from "@max-events/api-contracts";
-import { BUCKET_LABELS, LEISURE_MOOD_LABELS, NEARBY_RADIUS_KM, NearbyView, STOP_KIND_LABELS, bucketCountLabel, chainPlanDraft, chainStopMeta, chainTitle, chainWindow, formatDistanceKm, nearbyCardWhen, nearbyEmptyTitle, nearbyErrorTitle, nearbyOriginCaption, nearbyScreenTitle, type LeisureState, type NearbyMode, type NearbyState } from "./NearbyPage";
+import { BUCKET_LABELS, LEISURE_MOOD_LABELS, NEARBY_RADIUS_KM, NearbyView, STOP_KIND_LABELS, bucketCountLabel, chainPlanDraft, chainStopMeta, chainTitle, chainWindow, formatDistanceKm, nearbyCardWhen, nearbyEmptyTitle, nearbyErrorTitle, nearbyLocationRoute, nearbyOriginCaption, nearbyScreenTitle, type LeisureState, type NearbyMode, type NearbyState } from "./NearbyPage";
 import { MOCK_NOW, leisureOptions, nearbyTimeline } from "../api/mock";
 import type { LeisureChain, LeisureChainStop } from "../api/client";
 
@@ -31,6 +31,7 @@ function viewHtml(over: { mode?: NearbyMode; state?: NearbyState; leisure?: Leis
       onRetryTimeline: noop,
       onOpenPlan: noop,
       onOpenEvent: noop,
+      onOpenLocation: noop,
       onOpenPlace: noop,
       radiusKm: over.radiusKm,
     }),
@@ -216,5 +217,27 @@ describe("NearbyView: свободное время (экран 14)", () => {
     const error = viewHtml({ mode: "free", leisure: { status: "error" } });
     expect(error).toContain("app-state--error");
     expect(error).toContain("Не удалось собрать цепочку");
+  });
+});
+
+describe("точка на карте", () => {
+  it("открывает площадку уже с маршрутом", () => {
+    const card = nearbyTimeline(...MOSCOW).evening[0];
+    expect(card).toBeDefined();
+    if (card === undefined) return;
+    expect(nearbyLocationRoute(card.place)).toEqual({
+      name: "map",
+      pin: { lat: card.place.latitude, lng: card.place.longitude },
+      placeId: card.place.id,
+      drawRoute: true,
+    });
+  });
+
+  it("даёт отдельную кнопку маршрута на локации карточки", () => {
+    const html = viewHtml({ mode: "timeline" });
+    expect(html).toContain("app-nb-grid");
+    expect(html).toContain("app-nb-dock");
+    expect(html).toContain("Расстояние");
+    expect(html).toContain('aria-label="Маршрут до');
   });
 });

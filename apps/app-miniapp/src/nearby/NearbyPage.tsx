@@ -22,7 +22,8 @@
 // - chainWindow - «19:00 – 22:00»: the window the chain occupies, from its first stop or from now
 // - chainStopMeta - «19:00 · 0,4 км · 400 ₽» under a stop title
 // - chainPlanDraft - the chain as a plan payload; null when it has no event to hang a plan on
-// - NearbyView - presentational: the row of mode pills, the search-radius chips, plus whichever mode is open
+// - nearbyLocationRoute - map pin plus a route the viewer can follow to that place
+// - NearbyView - presentational: mode pills, the open mode, and the radius dock at the bottom
 // - NearbyPage - route container: loads the timeline and the chain, creates the plan, wires navigation
 // END_MODULE_MAP
 
@@ -35,7 +36,7 @@ import { pluralRu } from "../catalog/format";
 import { useProfileCityPoint } from "../geo/profile-city";
 import { SEARCH_RADIUS_OPTIONS, radiusLabel } from "../profile/SettingsPage";
 import { pictured } from "../ui/photos";
-import { useHeaderTitle } from "../ui/Layout";
+import { HeaderSlot, useHeaderTitle } from "../ui/Layout";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
@@ -126,6 +127,7 @@ interface NearbyViewProps {
   onRetryTimeline: () => void;
   onOpenPlan: (chain: LeisureChain) => void;
   onOpenEvent: (id: string) => void;
+  onOpenLocation: (card: NearbyCard) => void;
   onOpenPlace: (id: string) => void;
   radiusKm?: number;
   onRadius?: (km: number) => void;
@@ -134,21 +136,28 @@ interface NearbyViewProps {
   inCity?: boolean;
 }
 
-function TimelineCard({ card, onOpenEvent }: { card: NearbyCard; onOpenEvent: (id: string) => void }) {
+export function nearbyLocationRoute(place: Pick<NearbyCard["place"], "id" | "latitude" | "longitude">): { name: "map"; pin: { lat: number; lng: number }; placeId: string; drawRoute: true } {
+  return { name: "map", pin: { lat: place.latitude, lng: place.longitude }, placeId: place.id, drawRoute: true };
+}
+
+function TimelineCard({ card, onOpenEvent, onOpenLocation }: { card: NearbyCard; onOpenEvent: (id: string) => void; onOpenLocation: (card: NearbyCard) => void }) {
   return (
-    <button type="button" className="app-nb-card" onClick={() => onOpenEvent(card.event.id)}>
-      <span className="app-nb-card-media">
-        <AppMedia category={card.event.category} src={pictured(card.event.id, card.event.coverUrl)} />
-        {card.promoted && <span className="app-nb-card-promo">Промо</span>}
-      </span>
-      <span className="app-nb-card-body">
+    <article className="app-nb-card">
+      <button type="button" className="app-nb-card-open" onClick={() => onOpenEvent(card.event.id)}>
+        <span className="app-nb-card-media">
+          <AppMedia category={card.event.category} src={pictured(card.event.id, card.event.coverUrl)} />
+          {card.promoted && <span className="app-nb-card-promo">Промо</span>}
+        </span>
         <span className="app-nb-card-title">{card.event.title}</span>
-        <span className="app-nb-card-sub">
+      </button>
+      <button type="button" className="app-nb-card-loc" aria-label={`Маршрут до ${card.place.title}`} onClick={() => onOpenLocation(card)}>
+        <ActionIcon name="pin" size={14} strokeWidth={2.2} />
+        <span>
           {card.place.title} · {nearbyCardWhen(card)}
         </span>
-        <span className="app-nb-card-km">{formatDistanceKm(card.distanceKm)}</span>
-      </span>
-    </button>
+      </button>
+      <span className="app-nb-card-km">{formatDistanceKm(card.distanceKm)}</span>
+    </article>
   );
 }
 
@@ -169,7 +178,7 @@ export function nearbyScreenTitle(inCity: boolean): string {
   return inCity ? "Рядом со мной" : "В городе";
 }
 
-function Timeline({ state, onRetryTimeline, onOpenEvent, radiusKm = NEARBY_RADIUS_KM, originSource = "fallback", inCity = true }: Pick<NearbyViewProps, "state" | "onRetryTimeline" | "onOpenEvent" | "radiusKm" | "originSource" | "inCity">) {
+function Timeline({ state, onRetryTimeline, onOpenEvent, onOpenLocation, radiusKm = NEARBY_RADIUS_KM, originSource = "fallback", inCity = true }: Pick<NearbyViewProps, "state" | "onRetryTimeline" | "onOpenEvent" | "onOpenLocation" | "radiusKm" | "originSource" | "inCity">) {
   const segments = state.status === "ready" ? NEARBY_BUCKETS.map((bucket) => ({ bucket, cards: state.timeline[bucket] })).filter((segment) => segment.cards.length > 0) : [];
 
   return (
@@ -191,9 +200,9 @@ function Timeline({ state, onRetryTimeline, onOpenEvent, radiusKm = NEARBY_RADIU
             <h2 className="app-nb-seg-title">{BUCKET_LABELS[segment.bucket]}</h2>
             <span className="app-nb-seg-count">{bucketCountLabel(segment.cards.length)}</span>
           </div>
-          <div className="app-nb-rail">
+          <div className="app-nb-grid">
             {segment.cards.map((card) => (
-              <TimelineCard key={card.event.id} card={card} onOpenEvent={onOpenEvent} />
+              <TimelineCard key={card.event.id} card={card} onOpenEvent={onOpenEvent} onOpenLocation={onOpenLocation} />
             ))}
           </div>
         </section>
@@ -276,7 +285,7 @@ function FreeWindow({ leisure, hours, mood, now, planning, onHours, onMood, onRe
 
 const MODE_LABELS: Record<NearbyMode, string> = { timeline: "Таймлайн", free: "Свободное время" };
 
-export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = new Date(), planning, onHours, onMood, onRefresh, onRetryTimeline, onOpenPlan, onOpenEvent, onOpenPlace, radiusKm = NEARBY_RADIUS_KM, onRadius, originSource = "fallback", inCity = true }: NearbyViewProps) {
+export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = new Date(), planning, onHours, onMood, onRefresh, onRetryTimeline, onOpenPlan, onOpenEvent, onOpenLocation, onOpenPlace, radiusKm = NEARBY_RADIUS_KM, onRadius, originSource = "fallback", inCity = true }: NearbyViewProps) {
   return (
     <section className="app-nb">
       {/* Тот же ряд пилюль, что и на вкладке «Планы»: переключение раздела списка в приложении выглядит одинаково */}
@@ -287,14 +296,17 @@ export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = ne
           </AppChip>
         ))}
       </div>
-      <div className="app-nb-radius" role="radiogroup" aria-label="Радиус поиска">
-        {SEARCH_RADIUS_OPTIONS.map((km) => (
-          <button key={km} type="button" role="radio" aria-checked={radiusKm === km} className={radiusKm === km ? "app-nb-radius-opt app-nb-radius-opt--on" : "app-nb-radius-opt"} onClick={() => onRadius?.(km)}>
-            {radiusLabel(km)}
-          </button>
-        ))}
+      {mode === "timeline" ? <Timeline state={state} onRetryTimeline={onRetryTimeline} onOpenEvent={onOpenEvent} onOpenLocation={onOpenLocation} radiusKm={radiusKm} originSource={originSource} inCity={inCity} /> : <FreeWindow leisure={leisure} hours={hours} mood={mood} now={now} planning={planning} onHours={onHours} onMood={onMood} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />}
+      <div className="app-nb-dock">
+        <p className="app-nb-dock-label">Расстояние</p>
+        <div className="app-nb-radius" role="radiogroup" aria-label="Радиус поиска">
+          {SEARCH_RADIUS_OPTIONS.map((km) => (
+            <button key={km} type="button" role="radio" aria-checked={radiusKm === km} className={radiusKm === km ? "app-nb-radius-opt app-nb-radius-opt--on" : "app-nb-radius-opt"} onClick={() => onRadius?.(km)}>
+              {radiusLabel(km)}
+            </button>
+          ))}
+        </div>
       </div>
-      {mode === "timeline" ? <Timeline state={state} onRetryTimeline={onRetryTimeline} onOpenEvent={onOpenEvent} radiusKm={radiusKm} originSource={originSource} inCity={inCity} /> : <FreeWindow leisure={leisure} hours={hours} mood={mood} now={now} planning={planning} onHours={onHours} onMood={onMood} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />}
     </section>
   );
 }
@@ -366,43 +378,51 @@ export function NearbyPage() {
   }, [mode, hours, mood, point.settled, point.latitude, point.longitude, leisureAttempt, radiusKm]);
 
   return (
-    <NearbyView
-      mode={mode}
-      onMode={setMode}
-      state={state}
-      leisure={leisure}
-      hours={hours}
-      mood={mood}
-      planning={planning}
-      onHours={setHours}
-      onMood={setMood}
-      onRefresh={() => setLeisureAttempt((value) => value + 1)}
-      onRetryTimeline={() => setTimelineAttempt((value) => value + 1)}
-      onOpenPlan={(chain) => {
-        const draft = chainPlanDraft(chain);
-        if (draft === null || planning) return;
-        setPlanning(true);
-        apiClient.createPlan(draft).then(
-          (card) => {
-            setPlanning(false);
-            navigate({ name: "plan", id: card.plan.id });
-          },
-          () => setPlanning(false),
-        );
-      }}
-      radiusKm={radiusKm}
-      onRadius={(km) => {
-        setRadiusKm(km);
-        if (userId === null) return;
-        apiClient.updateAppSettings(userId, { searchRadiusKm: km }).then(
-          () => {},
-          () => {},
-        );
-      }}
-      originSource={point.source}
-      inCity={inCity}
-      onOpenEvent={(id) => navigate({ name: "event", id })}
-      onOpenPlace={(id) => navigate({ name: "place", id })}
-    />
+    <>
+      <HeaderSlot>
+        <button type="button" className="app-nb-ask" aria-label="Спросить MAX" onClick={() => navigate({ name: "assist", ask: "Что рядом со мной" })}>
+          <ActionIcon name="search" size={20} strokeWidth={2.2} />
+        </button>
+      </HeaderSlot>
+      <NearbyView
+        mode={mode}
+        onMode={setMode}
+        state={state}
+        leisure={leisure}
+        hours={hours}
+        mood={mood}
+        planning={planning}
+        onHours={setHours}
+        onMood={setMood}
+        onRefresh={() => setLeisureAttempt((value) => value + 1)}
+        onRetryTimeline={() => setTimelineAttempt((value) => value + 1)}
+        onOpenPlan={(chain) => {
+          const draft = chainPlanDraft(chain);
+          if (draft === null || planning) return;
+          setPlanning(true);
+          apiClient.createPlan(draft).then(
+            (card) => {
+              setPlanning(false);
+              navigate({ name: "plan", id: card.plan.id });
+            },
+            () => setPlanning(false),
+          );
+        }}
+        radiusKm={radiusKm}
+        onRadius={(km) => {
+          setRadiusKm(km);
+          if (userId === null) return;
+          apiClient.updateAppSettings(userId, { searchRadiusKm: km }).then(
+            () => {},
+            () => {},
+          );
+        }}
+        originSource={point.source}
+        inCity={inCity}
+        onOpenEvent={(id) => navigate({ name: "event", id })}
+        onOpenLocation={(card) => navigate(nearbyLocationRoute(card.place))}
+        onOpenPlace={(id) => navigate({ name: "place", id })}
+      />
+    </>
   );
 }
