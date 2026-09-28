@@ -12,7 +12,7 @@ describe("ORGANIZER_TABS", () => {
   });
 
   it("labels them as the design does", () => {
-    expect(ORGANIZER_TABS.map((tab) => tab.label)).toEqual(["Обзор", "События", "Продвижение", "Финансы", "Профиль"]);
+    expect(ORGANIZER_TABS.map((tab) => tab.label)).toEqual(["Статистика", "События", "Продвижение", "Финансы", "Профиль"]);
   });
 
   it("titles every section", () => {
