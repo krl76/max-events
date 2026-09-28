@@ -99,6 +99,7 @@ export function AppChip({ pressed = false, className, ...props }: ComponentProps
 export interface AppNavTileItem {
   icon: ActionIconName;
   label: string;
+  hint?: string;
   onClick: () => void;
 }
 
@@ -108,7 +109,10 @@ export function AppNavTiles({ items }: { items: AppNavTileItem[] }) {
       {items.map((item) => (
         <button key={item.label} type="button" className="app-nav-tile" onClick={item.onClick}>
           <ActionIcon name={item.icon} size={20} />
-          <span>{item.label}</span>
+          <span className="app-nav-tile-copy">
+            <span>{item.label}</span>
+            {item.hint !== undefined && <span className="app-nav-tile-hint">{item.hint}</span>}
+          </span>
         </button>
       ))}
     </div>

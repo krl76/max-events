@@ -190,6 +190,11 @@ function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle =
           </li>
         ))}
       </ol>
+      <div key={slide.title} className={`app-onboarding-line app-onboarding-copy app-onboarding-copy--${direction}`}>
+        <p className={`app-onboarding-kicker app-onboarding-copy app-onboarding-copy--${direction}`}>{slide.label}</p>
+        <h1 className="app-onboarding-intro-title">{slide.title}</h1>
+        <p className="app-onboarding-intro-text">{slide.description}</p>
+      </div>
       <div className={settle ? "app-onboarding-cast app-onboarding-cast--settle" : "app-onboarding-cast"} style={{ transform: `translate3d(${travel}px, 0, 0)`, filter: haze > 0.4 ? `blur(${haze}px)` : "none" }}>
         <div className="app-onboarding-places">
           {INTRO_PLACES.map((place) => (
@@ -205,11 +210,6 @@ function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle =
           ))}
         </div>
         <IntroBits kind={slide.hero} />
-      </div>
-      <div key={slide.title} className={`app-onboarding-line app-onboarding-copy app-onboarding-copy--${direction}`}>
-        <p className={`app-onboarding-kicker app-onboarding-copy app-onboarding-copy--${direction}`}>{slide.label}</p>
-        <h1 className="app-onboarding-intro-title">{slide.title}</h1>
-        <p className="app-onboarding-intro-text">{slide.description}</p>
       </div>
       <div className="app-onboarding-film-foot">
         <button type="button" className="app-onboarding-cta" onClick={onNext}>
@@ -232,10 +232,12 @@ function CityStep({ city, cityDetect, cityPicked, onCity, onNext }: Pick<Onboard
         <div className="app-onboarding-city-deck">
           {ONBOARDING_CITIES.map((option) => {
             const on = option.name === shown;
+            const meta = cityCardMeta(cityDetect, cityPicked);
+            const metaVisible = on && (meta === "Твой выбор" || meta === "Рядом с тобой");
             return (
               <button key={option.name} type="button" className={on ? "app-onboarding-city-tile app-onboarding-city-tile--on" : "app-onboarding-city-tile"} aria-pressed={on} onClick={() => onCity(option.name)}>
                 <span>{option.name}</span>
-                {on && <small>{cityCardMeta(cityDetect, cityPicked)}</small>}
+                {metaVisible && <small>{meta}</small>}
               </button>
             );
           })}

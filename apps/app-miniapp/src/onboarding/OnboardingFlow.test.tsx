@@ -122,6 +122,7 @@ describe("city step", () => {
 
     expect(html).toContain("Геолокация недоступна");
     expect(html).toContain('aria-pressed="true"');
+    expect(html).not.toContain("Выбери из списка");
     expect(html).not.toContain("Не выбран");
     expect(html).not.toContain("Определили по геолокации");
     expect(html).not.toContain("Рядом с тобой");

@@ -217,37 +217,7 @@ function CommentThread({ thread, revealToken, liked, onLike, onReply, onOpenAuth
 }
 
 /** Аватар автора поста: фото, если оно есть, и градиентное кольцо только при живой истории. */
-export function CommentSheet({
-  comments,
-  parents,
-  liked,
-  replyTo,
-  reveal,
-  draft,
-  onDraft,
-  onClose,
-  onLike,
-  onReply,
-  onCancelReply,
-  onSubmit,
-  onOpenAuthor,
-  inputRef,
-}: {
-  comments: FeedComment[];
-  parents: Record<string, string>;
-  liked: Record<string, true>;
-  replyTo: FeedComment | null;
-  reveal?: { rootId: string; token: number } | null;
-  draft: string;
-  onDraft: (value: string) => void;
-  onClose: () => void;
-  onLike: (id: string) => void;
-  onReply: (comment: FeedComment) => void;
-  onCancelReply: () => void;
-  onSubmit: () => void;
-  onOpenAuthor?: (userId: string) => void;
-  inputRef: RefObject<HTMLInputElement | null>;
-}) {
+export function CommentSheet({ comments, parents, liked, replyTo, reveal, draft, onDraft, onClose, onLike, onReply, onCancelReply, onSubmit, onOpenAuthor, inputRef }: { comments: FeedComment[]; parents: Record<string, string>; liked: Record<string, true>; replyTo: FeedComment | null; reveal?: { rootId: string; token: number } | null; draft: string; onDraft: (value: string) => void; onClose: () => void; onLike: (id: string) => void; onReply: (comment: FeedComment) => void; onCancelReply: () => void; onSubmit: () => void; onOpenAuthor?: (userId: string) => void; inputRef: RefObject<HTMLInputElement | null> }) {
   const swipe = useSheetSwipe(onClose);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -423,7 +393,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
         )}
       </div>
       {saving && userId !== "" && <SaveToList feedPostId={post.id} userId={userId} open onClose={() => setSaving(false)} />}
-      <LikeFaces people={(post.likedByFriends ?? []).filter((person) => person.id !== userId)} />
+      <LikeFaces people={(post.likedByFriends ?? []).filter((person) => person.id !== userId)} onOpen={onOpenAuthor} />
       {post.text.trim() !== "" && <PostText text={post.text} className="app-post-caption" />}
       {commentsOpen && (
         <CommentSheet
@@ -634,7 +604,7 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
             userId={userId ?? ""}
             onToggleLike={() => toggleLike(post.id)}
             onAddComment={(text, parentId) => addComment(post.id, text, parentId)}
-            onOpenComments={() => navigate({ name: "post", id: post.id })}
+            onOpenComments={() => {}}
             onOpenEvent={eventId === undefined ? (id) => navigate({ name: "event", id }) : undefined}
             onOpenAuthor={(authorId) => navigate({ name: "user", id: authorId })}
             onOpenMap={() => {
@@ -807,49 +777,45 @@ export function StoriesRow() {
 
   return (
     <div className="app-stories-scroll" ref={scroller}>
-    <div className="app-stories" aria-label="Истории">
-      {/* Как в инстаграме: рельс открывается своим кружком с плюсом в углу — плюс ведёт в редактор истории, кольцо со своей историей открывает её просмотр. */}
-      <div className="app-story app-story--own">
-        {/* Подписи кружка и плюса разные: две кнопки с одним именем неразличимы и для скринридера, и для теста. */}
-        <button type="button" className="app-story-open" aria-label={rail.own.group === null ? "Твоя история: добавить" : `Твоя история: ${rail.own.storyCount}`} onClick={() => (rail.own.group === null ? openEditor() : setViewer({ groups: rail.groups, start: rail.own.group }))}>
-          {rail.own.storyCount > 0 ? (
-            <StoryRing total={rail.own.storyCount} unseen={rail.own.unseenCount} label={rail.own.unseenCount > 0 ? `Твои истории, новых ${rail.own.unseenCount} из ${rail.own.storyCount}` : `Твои истории, ${rail.own.storyCount}, уже смотрел`}>
-              <AppAvatar size={52} src={me?.avatarUrl}>
-                {me?.firstName[0] ?? "Я"}
-              </AppAvatar>
-            </StoryRing>
-          ) : (
-            <span className={storyRingClass(false)}>
-              <AppAvatar size={58} src={me?.avatarUrl}>
-                {me?.firstName[0] ?? "Я"}
-              </AppAvatar>
-            </span>
-          )}
-        </button>
-        <button type="button" className="app-story-plus" aria-label="Добавить историю" onClick={openEditor}>
-          <ActionIcon name="plus" size={14} strokeWidth={3} />
-        </button>
-      </div>
-      {rail.tiles.map((tile) => (
-        <div key={tile.friendId} className="app-story">
-          <button type="button" className="app-story-open" aria-label={`История ${tile.name}, ${tile.storyCount}`} onClick={() => setViewer({ groups: rail.groups, start: tile.group })}>
-            <StoryRing total={tile.storyCount} unseen={tile.unseenCount} label={tile.unseenCount > 0 ? `${tile.name}: новых историй ${tile.unseenCount} из ${tile.storyCount}` : `${tile.name}: истории ${tile.storyCount}, уже смотрел`}>
-              <AppAvatar size={52} src={tile.avatarUrl ?? friends.find((person) => person.id === tile.friendId)?.avatarUrl}>
-                {tile.initial}
-              </AppAvatar>
-            </StoryRing>
+      <div className="app-stories" aria-label="Истории">
+        {/* Как в инстаграме: рельс открывается своим кружком с плюсом в углу — плюс ведёт в редактор истории, кольцо со своей историей открывает её просмотр. */}
+        <div className="app-story app-story--own">
+          {/* Подписи кружка и плюса разные: две кнопки с одним именем неразличимы и для скринридера, и для теста. */}
+          <button type="button" className="app-story-open" aria-label={rail.own.group === null ? "Твоя история: добавить" : `Твоя история: ${rail.own.storyCount}`} onClick={() => (rail.own.group === null ? openEditor() : setViewer({ groups: rail.groups, start: rail.own.group }))}>
+            {rail.own.storyCount > 0 ? (
+              <StoryRing total={rail.own.storyCount} unseen={rail.own.unseenCount} label={rail.own.unseenCount > 0 ? `Твои истории, новых ${rail.own.unseenCount} из ${rail.own.storyCount}` : `Твои истории, ${rail.own.storyCount}, уже смотрел`}>
+                <AppAvatar size={52} src={me?.avatarUrl}>
+                  {me?.firstName[0] ?? "Я"}
+                </AppAvatar>
+              </StoryRing>
+            ) : (
+              <span className={storyRingClass(false)}>
+                <AppAvatar size={58} src={me?.avatarUrl}>
+                  {me?.firstName[0] ?? "Я"}
+                </AppAvatar>
+              </span>
+            )}
           </button>
-          <button type="button" className="app-story-name" aria-label={`Профиль ${tile.name}`} onClick={() => navigate({ name: "user", id: tile.friendId })}>
-            {tile.name}
+          <button type="button" className="app-story-plus" aria-label="Добавить историю" onClick={openEditor}>
+            <ActionIcon name="plus" size={14} strokeWidth={3} />
           </button>
         </div>
-      ))}
-      {viewer !== null &&
-        createPortal(
-          <StoryViewer groups={viewer.groups} startGroup={viewer.start} onView={rememberSeen} onClose={() => setViewer(null)} />,
-          document.querySelector(".app-root") ?? document.body,
-        )}
-    </div>
+        {rail.tiles.map((tile) => (
+          <div key={tile.friendId} className="app-story">
+            <button type="button" className="app-story-open" aria-label={`История ${tile.name}, ${tile.storyCount}`} onClick={() => setViewer({ groups: rail.groups, start: tile.group })}>
+              <StoryRing total={tile.storyCount} unseen={tile.unseenCount} label={tile.unseenCount > 0 ? `${tile.name}: новых историй ${tile.unseenCount} из ${tile.storyCount}` : `${tile.name}: истории ${tile.storyCount}, уже смотрел`}>
+                <AppAvatar size={52} src={tile.avatarUrl ?? friends.find((person) => person.id === tile.friendId)?.avatarUrl}>
+                  {tile.initial}
+                </AppAvatar>
+              </StoryRing>
+            </button>
+            <button type="button" className="app-story-name" aria-label={`Профиль ${tile.name}`} onClick={() => navigate({ name: "user", id: tile.friendId })}>
+              {tile.name}
+            </button>
+          </div>
+        ))}
+        {viewer !== null && createPortal(<StoryViewer groups={viewer.groups} startGroup={viewer.start} onView={rememberSeen} onClose={() => setViewer(null)} />, document.querySelector(".app-root") ?? document.body)}
+      </div>
     </div>
   );
 }

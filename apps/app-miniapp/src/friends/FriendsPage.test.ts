@@ -80,14 +80,13 @@ describe("activeFriends", () => {
 describe("FriendsView", () => {
   const view = (value: FriendsState) => renderToStaticMarkup(createElement(FriendsView, { state: value, now: NOW, onSync: noop, onOpenFriend: noop, onOpenDiscovery: noop, onOpenPeople: noop, onRetry: noop }));
 
-  it("renders the counter topbar, the MAX contacts row and its explicit sync action", () => {
+  it("renders the counter topbar without a contacts sync row", () => {
     const html = view(state());
 
     expect(html).toContain("Друзья");
     expect(html).toContain(`>${mockFriends.length}<`);
-    expect(html).toContain("Контакты MAX");
-    expect(html).toContain("Синхронизировано 2 часа назад");
-    expect(html).toContain("Обновить");
+    expect(html).not.toContain("Контакты MAX");
+    expect(html).toContain("Места, где друзья уже были");
   });
 
   it("carries the entries to «Друзья открыли» and «Люди рядом» itself", () => {
@@ -121,11 +120,13 @@ describe("FriendsView", () => {
     expect(html).toContain("Все друзья");
   });
 
-  it("explains an empty graph and keeps the sync within reach", () => {
+  it("explains an empty graph without a contact sync row", () => {
     const html = view(state({ friends: [], groups: [] }));
 
-    expect(html).toContain("Обновить");
-    expect(html).not.toContain("Обновить контакты");
+    expect(html).toContain("Друзей пока нет");
+    expect(html).toContain("Друзья открыли");
+    expect(html).not.toContain("Обновить");
+    expect(html).not.toContain("Контакты MAX");
     expect(html).not.toContain("Все друзья");
   });
 

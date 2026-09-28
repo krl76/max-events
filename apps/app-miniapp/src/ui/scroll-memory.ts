@@ -40,3 +40,8 @@ export function replayScroll(key: string): void {
   const el = document.querySelector(".app-content");
   if (el instanceof HTMLElement) el.scrollTop = top;
 }
+
+/** The position to restore: frozen on the way out, otherwise the last one this screen applied. */
+export function savedScroll(key: string): number | undefined {
+  return frozen.get(key) ?? applied.get(key) ?? positions.get(key);
+}

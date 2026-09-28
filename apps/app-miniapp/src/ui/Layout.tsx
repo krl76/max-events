@@ -315,6 +315,7 @@ export function Layout({ children }: { children: ReactNode }) {
         onScroll={(event) => {
           if (!event.isTrusted || !acceptScroll.current) return;
           const top = event.currentTarget.scrollTop;
+          if (top === 0 && event.currentTarget.scrollHeight <= event.currentTarget.clientHeight + 24) return;
           rememberScroll(key, top);
           freezeScroll(key, top);
         }}

@@ -22,7 +22,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useProfileCityPoint } from "../geo/profile-city";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { AppNavTiles, AppSkeletonList, AppState } from "../ui/primitives";
+import { AppSkeletonList, AppState } from "../ui/primitives";
 import { PersonAvatar } from "./avatar";
 import { FRIENDS_GRAPH_EMPTY_TEXT } from "./friends-empty";
 
@@ -127,7 +127,7 @@ interface FriendsViewProps {
   peopleInCity?: boolean;
 }
 
-export function FriendsView({ state, syncing = false, now = new Date(), onSync, onOpenFriend, onOpenDiscovery, onOpenPeople, onRetry, peopleInCity = true }: FriendsViewProps) {
+export function FriendsView({ state, now = new Date(), onOpenFriend, onOpenDiscovery, onOpenPeople, onRetry, peopleInCity = true }: FriendsViewProps) {
   const active = state.status === "ready" ? activeFriends(state.groups, now) : [];
   const activeIds = new Set(active.map((group) => group.friend.id));
   // Кто уже стоит в верхней группе, второй раз ниже не повторяется: макет показывает каждого один раз.
@@ -139,24 +139,28 @@ export function FriendsView({ state, syncing = false, now = new Date(), onSync, 
         <h1 className="app-friends-bar-title">Друзья</h1>
         {state.status === "ready" && state.friends.length > 0 && <span className="app-friends-bar-count">{state.friends.length}</span>}
       </div>
-      <div className="app-friends-contacts">
-        <span className="app-friends-contacts-mark" aria-hidden="true">
-          M
-        </span>
-        <span className="app-friends-contacts-body">
-          <span className="app-friends-contacts-title">Контакты MAX</span>
-          <span className="app-friends-contacts-line">{state.status === "ready" ? syncLabel(state.syncedAt, now) : "Синхронизируем…"}</span>
-        </span>
-        <button type="button" className="app-friends-resync" disabled={syncing} onClick={onSync}>
-          {syncing ? "Обновляем…" : "Обновить"}
+      <div className="app-friends-entries">
+        <button type="button" className="app-friends-entry" onClick={onOpenDiscovery}>
+          <span className="app-friends-entry-mark" aria-hidden="true">
+            <ActionIcon name="pin" size={22} />
+          </span>
+          <span className="app-friends-entry-copy">
+            <span className="app-friends-entry-title">Друзья открыли</span>
+            <span className="app-friends-entry-hint">Места, где друзья уже были, а ты ещё нет</span>
+          </span>
+          <ActionIcon name="chevron" size={18} />
+        </button>
+        <button type="button" className="app-friends-entry" onClick={onOpenPeople}>
+          <span className="app-friends-entry-mark" aria-hidden="true">
+            <ActionIcon name="users" size={22} />
+          </span>
+          <span className="app-friends-entry-copy">
+            <span className="app-friends-entry-title">{friendsPeopleLabel(peopleInCity)}</span>
+            <span className="app-friends-entry-hint">Кто из Афиши есть в твоём городе</span>
+          </span>
+          <ActionIcon name="chevron" size={18} />
         </button>
       </div>
-      <AppNavTiles
-        items={[
-          { icon: "pin", label: "Друзья открыли", onClick: onOpenDiscovery },
-          { icon: "users", label: friendsPeopleLabel(peopleInCity), onClick: onOpenPeople },
-        ]}
-      />
       {state.status === "loading" && <AppSkeletonList rows={4} />}
       {state.status === "error" && (
         <AppState error action={{ label: "Повторить", onClick: onRetry }}>

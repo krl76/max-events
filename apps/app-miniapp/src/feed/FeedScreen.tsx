@@ -29,18 +29,20 @@
 // - FeedScreen - экран 03 container: stories rail, «Куда пойдём?», cards with their writes
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Event, Friend, ParticipationStatus } from "@max-events/api-contracts";
 import { apiClient, type FeedCard, type FeedCardCounts, type FeedComment, type FeedFriendCard, type FeedPlaceCard } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
 import { announceShare, getWebApp, shareResult } from "../max/bridge";
 import { sharePayload } from "../max/links";
-import { replayScroll } from "../ui/scroll-memory";
+import { freezeScroll, savedScroll } from "../ui/scroll-memory";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
 import { LikeFaces, PostText } from "./post-body";
+import { CommentSheet } from "./FeedPage";
 import { parsePinLabel, placePinTitle } from "../ui/pin-label";
 import { SaveToList } from "../event/SaveToList";
 import { AppChip, AppEmptyState, AppSkeleton, AppState } from "../ui/primitives";
@@ -193,8 +195,13 @@ interface FeedFriendPostProps {
   hasStory?: boolean;
 }
 
-export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenComments, onShare, onOpenEvent, onOpenAuthor, onOpenPerson, onOpenMark, onDelete, userId, hasStory = false }: FeedFriendPostProps) {
+export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onShare, onOpenEvent, onOpenAuthor, onOpenPerson, onOpenMark, onDelete, userId, hasStory = false }: FeedFriendPostProps) {
   const [saving, setSaving] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [comments, setComments] = useState(card.comments);
+  const [draft, setDraft] = useState("");
+  const [replyTo, setReplyTo] = useState<FeedComment | null>(null);
+  const commentRef = useRef<HTMLInputElement | null>(null);
   const where = [card.placeTitle, formatFeedDistance(card.distanceKm)].filter((part): part is string => part !== null && part !== "").join(" · ");
   const dropped = parsePinLabel(card.locationLabel ?? card.placeTitle ?? "");
   const markLabel = dropped ? placePinTitle(card.locationLabel ?? card.placeTitle ?? "") : where;
@@ -262,7 +269,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
           <ActionIcon filled={card.likedByMe} name="heart" size={26} />
           <span>{card.likesCount}</span>
         </button>
-        <button type="button" className="app-post-action" aria-label="Комментарии" onClick={onOpenComments}>
+        <button type="button" className="app-post-action" aria-label="Комментарии" onClick={() => setCommentsOpen(true)}>
           <ActionIcon name="comment" size={26} />
           <span>{card.commentsCount}</span>
         </button>
@@ -289,10 +296,37 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
         </span>
       </div>
       {saving && userId !== null && <SaveToList feedPostId={card.id} userId={userId} open onClose={() => setSaving(false)} />}
-      <LikeFaces people={(card.likedByFriends ?? []).filter((person) => person.id !== userId)} />
+      <LikeFaces people={(card.likedByFriends ?? []).filter((person) => person.id !== userId)} onOpen={onOpenPerson ?? onOpenAuthor} />
       {card.text.trim() !== "" && <PostText text={card.text} className="app-feed-caption" />}
       {/* No line at all rather than «только что» about a post whose card carries no publication time. */}
       {card.publishedAt !== null && <p className="app-feed-time">{formatFeedAgo(card.publishedAt, now)}</p>}
+      {commentsOpen &&
+        createPortal(
+          <CommentSheet
+            comments={comments}
+            parents={{}}
+            liked={{}}
+            replyTo={replyTo}
+            draft={draft}
+            onDraft={setDraft}
+            onClose={() => setCommentsOpen(false)}
+            onLike={() => {}}
+            onReply={setReplyTo}
+            onCancelReply={() => setReplyTo(null)}
+            onSubmit={() => {
+              const text = draft.trim();
+              if (text === "" || userId === null) return;
+              void apiClient.addFeedComment(card.id, { userId, text, parentId: replyTo?.id ?? null }).then((next) => {
+                setComments(next.comments);
+                setDraft("");
+                setReplyTo(null);
+              });
+            }}
+            onOpenAuthor={onOpenPerson ?? onOpenAuthor}
+            inputRef={commentRef}
+          />,
+          document.querySelector(".app-root") ?? document.body,
+        )}
     </article>
   );
 }
@@ -307,9 +341,58 @@ interface FeedPlacePostProps {
   onSlots: () => void;
   onGather: () => void;
   onOpenUser?: (userId: string) => void;
+  userId?: string | null;
 }
 
-export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onToggleLike, onShowOnMap, onStatus, onSlots, onGather, onOpenUser }: FeedPlacePostProps & { onShowOnMap?: () => void }) {
+function PlaceComments({ postId, userId, onClose, onOpenAuthor }: { postId: string; userId: string | null; onClose: () => void; onOpenAuthor?: (userId: string) => void }) {
+  const [comments, setComments] = useState<FeedComment[]>([]);
+  const [draft, setDraft] = useState("");
+  const [replyTo, setReplyTo] = useState<FeedComment | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    let alive = true;
+    apiClient.getFeedPost(postId).then(
+      (post) => {
+        if (alive) setComments(post.comments);
+      },
+      () => {
+        if (alive) setComments([]);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [postId]);
+  return createPortal(
+    <CommentSheet
+      comments={comments}
+      parents={{}}
+      liked={{}}
+      replyTo={replyTo}
+      draft={draft}
+      onDraft={setDraft}
+      onClose={onClose}
+      onLike={() => {}}
+      onReply={setReplyTo}
+      onCancelReply={() => setReplyTo(null)}
+      onSubmit={() => {
+        const text = draft.trim();
+        if (text === "" || userId === null) return;
+        void apiClient.addFeedComment(postId, { userId, text, parentId: replyTo?.id ?? null }).then((next) => {
+          setComments(next.comments);
+          setDraft("");
+          setReplyTo(null);
+        });
+      }}
+      onOpenAuthor={onOpenAuthor}
+      inputRef={inputRef}
+    />,
+    document.querySelector(".app-root") ?? document.body,
+  );
+}
+
+export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onToggleLike, onShowOnMap, onStatus, onSlots, onGather, onOpenUser, userId = null }: FeedPlacePostProps & { onShowOnMap?: () => void }) {
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const travel = formatFeedTravel(card.travelMinutes, card.distanceKm);
   const rating = formatFeedRating(card.rating);
   const price = formatPricePerHour(card.pricePerHourRub);
@@ -400,7 +483,7 @@ export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onToggleLike
           <ActionIcon filled={card.likedByMe} name="heart" size={26} />
           <span>{card.likesCount}</span>
         </button>
-        <button type="button" className="app-post-action" aria-label="Комментарии" onClick={onOpenPost}>
+        <button type="button" className="app-post-action" aria-label="Комментарии" onClick={() => setCommentsOpen(true)}>
           <ActionIcon name="comment" size={26} />
           <span>{card.commentsCount}</span>
         </button>
@@ -449,6 +532,7 @@ export function FeedPlacePost({ card, now, onOpenPlace, onOpenPost, onToggleLike
         </button>
       </div>
       <p className="app-feed-time">Пост площадки · {formatFeedAgo(card.publishedAt, now)}</p>
+      {commentsOpen && <PlaceComments postId={card.id} userId={userId} onClose={() => setCommentsOpen(false)} onOpenAuthor={onOpenUser} />}
     </article>
   );
 }
@@ -496,7 +580,7 @@ export function FeedCardList({ cards, now, handlers, storyAuthors }: { cards: Fe
             hasStory={storyAuthors?.has(card.author.id) === true}
           />
         ) : (
-          <FeedPlacePost key={card.id} card={card} now={now} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onToggleLike={() => handlers.onPlaceLike(card)} onShowOnMap={handlers.onOpenPlaceMap ? () => handlers.onOpenPlaceMap?.(card) : undefined} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} onOpenUser={handlers.onOpenAuthor} />
+          <FeedPlacePost key={card.id} card={card} now={now} userId={handlers.userId} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onToggleLike={() => handlers.onPlaceLike(card)} onShowOnMap={handlers.onOpenPlaceMap ? () => handlers.onOpenPlaceMap?.(card) : undefined} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} onOpenUser={handlers.onOpenAuthor} />
         ),
       )}
     </div>
@@ -641,26 +725,31 @@ function FeedCityPhotos({ onOpen, onCreate }: { onOpen: (id: string) => void; on
           );
         })}
       </div>
-
     </div>
   );
 }
+
+/** Cards from the last visit, so coming back from a post does not collapse the feed to a skeleton and lose the scroll. */
+let feedMemory: FeedCard[] | null = null;
 
 export function FeedScreen() {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
-  const [state, setState] = useState<FeedScreenState>({ status: "loading" });
+  const [state, setState] = useState<FeedScreenState>(() => (feedMemory === null ? { status: "loading" } : { status: "ready", cards: feedMemory }));
   const [storyAuthors, setStoryAuthors] = useState<Set<string>>(new Set());
   const now = new Date();
 
   const fetchCards = useCallback(
     (initial: boolean) => {
-      if (initial) setState({ status: "loading" });
+      if (initial && feedMemory === null) setState({ status: "loading" });
       apiClient.listFeedCards(userId ?? "").then(
-        (cards) => setState({ status: "ready", cards }),
+        (cards) => {
+          feedMemory = cards;
+          setState({ status: "ready", cards });
+        },
         // A failed refresh after a write must not blank a feed that is already on screen.
-        () => setState((current) => (initial ? { status: "error" } : current)),
+        () => setState((current) => (initial && feedMemory === null ? { status: "error" } : current)),
       );
     },
     [userId],
@@ -670,11 +759,34 @@ export function FeedScreen() {
     fetchCards(true);
   }, [fetchCards]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (state.status !== "ready") return;
-    replayScroll("home");
-    const frame = requestAnimationFrame(() => replayScroll("home"));
-    return () => cancelAnimationFrame(frame);
+    const top = savedScroll("home");
+    const el = document.querySelector(".app-content");
+    if (top === undefined || !(el instanceof HTMLElement)) return;
+    let stop = false;
+    const apply = () => {
+      if (stop) return;
+      const room = el.scrollHeight - el.clientHeight;
+      if (room + 8 < top) return;
+      el.scrollTop = top;
+      if (Math.abs(el.scrollTop - top) < 2) {
+        stop = true;
+        observer.disconnect();
+      }
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    const later = window.setTimeout(() => {
+      stop = true;
+      observer.disconnect();
+    }, 1500);
+    return () => {
+      stop = true;
+      observer.disconnect();
+      window.clearTimeout(later);
+    };
   }, [state.status]);
 
   useEffect(() => {
@@ -696,7 +808,11 @@ export function FeedScreen() {
 
   const handlers: FeedCardHandlers = {
     onOpenPlace: (placeId) => navigate({ name: "place", id: placeId }),
-    onOpenPost: (postId) => navigate({ name: "post", id: postId }),
+    onOpenPost: (postId) => {
+      const scroller = document.querySelector(".app-content");
+      if (scroller instanceof HTMLElement) freezeScroll("home", scroller.scrollTop);
+      navigate({ name: "post", id: postId });
+    },
     onOpenEvent: (eventId) => navigate({ name: "event", id: eventId }),
     onOpenAuthor: (id) => navigate({ name: "user", id }),
     onOpenMark: (card) => {
@@ -715,10 +831,7 @@ export function FeedScreen() {
       if (card.event === null) return;
       void settle(apiClient.toggleFeedGoing(card.id, userId));
     },
-    onOpenComments: (card) => {
-      sessionStorage.setItem("max-events:open-comments", card.id);
-      navigate({ name: "post", id: card.id });
-    },
+    onOpenComments: () => {},
     onShare: (card) => {
       const sentence = card.event ? `${card.author.name} — ${card.event.title}: ${card.text}` : `${card.author.name}: ${card.text}`;
       const payload = sharePayload(sentence, card.event ? `event-${card.event.id}` : `post-${card.id}`);

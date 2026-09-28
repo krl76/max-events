@@ -60,10 +60,11 @@ describe("RoutedPages", () => {
   });
 
   it("maps the friends route to экран 26, which carries the discovery/people entries itself", async () => {
-    const html = await routedHtml({ name: "friends" }, "Контакты MAX");
+    const html = await routedHtml({ name: "friends" }, "Друзья открыли");
 
     expect(html).toContain("Друзья открыли");
-    expect(html).toContain("Люди рядом");
+    expect(html).toContain("Кто из Афиши есть в твоём городе");
+    expect(html).not.toContain("Контакты MAX");
     expect(html).not.toContain("app-feed-skeleton");
   });
 

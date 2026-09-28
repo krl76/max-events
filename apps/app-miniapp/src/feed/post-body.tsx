@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useSheetSwipe } from "../ui/sheet";
 import { createPortal } from "react-dom";
 import type { Friend } from "@max-events/api-contracts";
+import { ActionIcon } from "../ui/icons";
 import { showPhoto } from "../ui/photos";
 
 /** A caption longer than this, or broken into more than three lines, folds behind «Раскрыть». */
@@ -21,8 +23,9 @@ export function likeFaces(people: readonly Friend[]): Friend[] {
 const LIKE_FACES = 3;
 
 /** Friend faces under a post. The viewer is already excluded. Faces that do not fit the row are «+N»; the sheet names every friend. */
-export function LikeFaces({ people }: { people: readonly Friend[] }) {
+export function LikeFaces({ people, onOpen }: { people: readonly Friend[]; onOpen?: (userId: string) => void }) {
   const [open, setOpen] = useState(false);
+  const swipe = useSheetSwipe(() => setOpen(false));
   const friends = likeFaces(people);
   if (friends.length === 0) return null;
   const shown = friends.slice(0, LIKE_FACES);
@@ -47,15 +50,28 @@ export function LikeFaces({ people }: { people: readonly Friend[] }) {
         createPortal(
           <div className="app-picker app-like-layer" role="dialog" aria-modal="true" aria-label="Друзья, которым нравится">
             <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={() => setOpen(false)} />
-            <div className="app-like-sheet">
+            <div className="app-like-sheet app-sheet" style={swipe.style}>
+              <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
               <p className="app-place-title">Друзья</p>
               <ul className="app-like-people">
                 {friends.map((person) => {
                   const face = showPhoto(person.avatarUrl);
                   return (
                     <li key={person.id}>
-                      <span className="app-feed-like-face">{face ? <img alt="" src={face} /> : person.name.slice(0, 1)}</span>
-                      <span>{person.name}</span>
+                      <button
+                        type="button"
+                        className="app-like-person"
+                        onClick={() => {
+                          setOpen(false);
+                          onOpen?.(person.id);
+                        }}
+                      >
+                        <span className="app-feed-like-face">{face ? <img alt="" src={face} /> : person.name.slice(0, 1)}</span>
+                        <span>{person.name}</span>
+                        <span className="app-like-person-go" aria-hidden="true">
+                          <ActionIcon name="chevron" size={18} />
+                        </span>
+                      </button>
                     </li>
                   );
                 })}
