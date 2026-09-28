@@ -161,6 +161,42 @@ export function formatFeedRating(rating: number | null): string | null {
   return rating === null ? null : rating.toFixed(1);
 }
 
+/** People we can show as faces, without repeating one person. */
+export function likeFaces(people: readonly Friend[]): Friend[] {
+  const seen = new Set<string>();
+  const unique: Friend[] = [];
+  for (const person of people) {
+    if (seen.has(person.id)) continue;
+    seen.add(person.id);
+    unique.push(person);
+  }
+  return unique;
+}
+
+const LIKE_FACES = 3;
+
+/** «Нравится» plus up to three overlapping faces, then «+N» for everyone who does not fit. */
+export function LikeFaces({ people, total }: { people: readonly Friend[]; total: number }) {
+  if (total <= 0) return null;
+  const shown = people.slice(0, Math.min(LIKE_FACES, total));
+  const extra = total - shown.length;
+  return (
+    <p className="app-feed-likes">
+      <span>Нравится</span>
+      {shown.length > 0 && (
+        <span className="app-feed-like-faces" aria-hidden="true">
+          {shown.map((person) => (
+            <span key={person.id} className="app-feed-like-face">
+              {person.avatarUrl ? <img alt="" src={person.avatarUrl} /> : person.name.slice(0, 1)}
+            </span>
+          ))}
+        </span>
+      )}
+      {extra > 0 && <span className="app-feed-like-more">+{extra}</span>}
+    </p>
+  );
+}
+
 export function FeedWhereToCard({ onStart }: { onStart: () => void }) {
   return (
     <section className="app-feed-whereto" aria-label="Куда пойдём?">
@@ -199,7 +235,6 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
   const markLabel = dropped ? placePinTitle(card.locationLabel ?? card.placeTitle ?? "") : where;
   const canMark = onOpenMark !== undefined && markLabel !== "" && (dropped !== null || (card.event !== null && card.event.placeId !== null));
   const photos = card.photoUrls && card.photoUrls.length > 0 ? card.photoUrls : card.photoUrl ? [card.photoUrl] : [];
-  const counts = feedCountsLine(card.counts, card.live, card.friendsGoing);
   const going = card.goingByMe !== undefined ? card.goingByMe : card.myStatus === "going";
   const mine = userId !== null && card.author.id === userId;
   const eventCover = card.event ? pictured(card.event.id, card.event.coverUrl) : null;
@@ -289,15 +324,8 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
         </span>
       </div>
       {saving && userId !== null && <SaveToList feedPostId={card.id} userId={userId} open onClose={() => setSaving(false)} />}
-      {counts !== null && <p className="app-feed-counts">{counts}</p>}
-      {card.text.trim() !== "" && (
-        <p className="app-feed-caption">
-          <button type="button" className="app-feed-caption-author" aria-label={`Профиль ${card.author.name}`} onClick={onOpenAuthor}>
-            {card.author.name}
-          </button>{" "}
-          {card.text}
-        </p>
-      )}
+      <LikeFaces people={likeFaces(card.comments.map((item) => item.author))} total={card.likesCount} />
+      {card.text.trim() !== "" && <p className="app-feed-caption">{card.text}</p>}
       {/* No line at all rather than «только что» about a post whose card carries no publication time. */}
       {card.publishedAt !== null && <p className="app-feed-time">{formatFeedAgo(card.publishedAt, now)}</p>}
     </article>

@@ -143,7 +143,7 @@ export function DayCalendar({ month, selected, today, onPick, onShift, onToday }
   );
 }
 
-export function SearchDayButton({ day, now, onDay, chip = false }: { day: string; now: Date; onDay: (day: string) => void; chip?: boolean }) {
+export function SearchDayButton({ day, now, onDay, chip = false, emphasized = false }: { day: string; now: Date; onDay: (day: string) => void; chip?: boolean; emphasized?: boolean }) {
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(() => new Date(`${day}T12:00:00`));
   const root = useRef<HTMLDivElement>(null);
@@ -186,7 +186,7 @@ export function SearchDayButton({ day, now, onDay, chip = false }: { day: string
     <div className="app-today-date-wrap" ref={root}>
       <button
         type="button"
-        className={chip ? "app-today-date app-today-date--chip" : "app-today-date"}
+        className={chip ? `app-today-date app-today-date--chip${emphasized ? " app-today-date--live" : ""}` : "app-today-date"}
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label={`Дата афиши: ${formatTodayDate(shown)}`}

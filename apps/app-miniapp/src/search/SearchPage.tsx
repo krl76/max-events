@@ -497,6 +497,7 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
               day={props.day}
               now={props.now}
               chip
+              emphasized={fold === "today" || props.day !== dayKey(props.now)}
               onDay={(next) => {
                 props.onDay(next);
                 setFold("today");

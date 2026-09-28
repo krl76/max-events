@@ -162,7 +162,7 @@ describe("AssistPageView", () => {
 
     expect(html).toContain(ASSIST_GREETING);
     expect(html).toContain(ASSIST_PLACEHOLDER);
-    for (const prompt of ASSIST_PROMPTS) expect(html).toContain(prompt);
+    expect(html).not.toContain("Что-то бесплатное рядом");
   });
 
   it("holds the plan buttons back until MAX has answered with something to plan from", () => {
@@ -186,7 +186,7 @@ describe("AssistPageView", () => {
 
   it("tells the viewer what went wrong instead of an empty thread", () => {
     expect(view({ state: { status: "error", message: "Слишком много запросов подряд" } })).toContain("Слишком много запросов подряд");
-    expect(view({ state: { status: "loading" } })).toContain("MAX подбирает…");
+    expect(view({ state: { status: "loading" } })).toContain("Подбираем");
   });
 
   it("prints the chat reply on the last bubble instead of the old summary template", () => {

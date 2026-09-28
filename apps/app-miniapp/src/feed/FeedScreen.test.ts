@@ -104,8 +104,11 @@ describe("FeedFriendPost", () => {
   it("prints the counters, the caption and the publish time, and keeps the comment text off the card", () => {
     const html = post();
 
-    expect(html).toContain("12 хотят пойти · 4 уже там");
+    expect(html).toContain("Нравится");
+    expect(html).toContain("+8");
+    expect(html).not.toContain("12 хотят пойти");
     expect(html).toContain("взяла столик у сцены");
+    expect(html.indexOf("app-feed-likes")).toBeLessThan(html.indexOf("взяла столик"));
     expect(html).not.toContain("Дима: буду к девяти");
     expect(html).toContain("25 минут назад");
     expect(html).toContain(">3<");
