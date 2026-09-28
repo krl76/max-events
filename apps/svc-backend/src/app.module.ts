@@ -57,6 +57,7 @@ import { AssistModule } from "./assist/assist.module";
 import { StoriesModule } from "./stories/stories.module";
 import { SwipeModule } from "./swipe/swipe.module";
 import { SlotsModule } from "./slots/slots.module";
+import { WalksModule } from "./walks/walks.module";
 import { UploadsModule } from "./uploads/uploads.module";
 
 @Module({
@@ -116,6 +117,6 @@ import { UploadsModule } from "./uploads/uploads.module";
     PaymentsModule,
     AssistModule,
     StoriesModule,
-  ],
+    WalksModule,
 })
 export class AppModule {}
