@@ -63,11 +63,15 @@ export function WalkWizard({
   choice,
   onChange,
   onBack,
+  onCompose,
+  notice,
 }: {
   readonly city: string;
   readonly choice: WalkChoice;
   readonly onChange: (choice: WalkChoice) => void;
   readonly onBack: () => void;
+  readonly onCompose?: () => void;
+  readonly notice?: string | null;
 }) {
   const step = walkStep(choice);
   return (
@@ -79,7 +83,8 @@ export function WalkWizard({
       {step === "time" ? <TimeStep choice={choice} onChange={onChange} /> : null}
       {step === "budget" ? <BudgetStep choice={choice} onChange={onChange} /> : null}
       {step === "interests" ? <InterestStep choice={choice} onChange={onChange} /> : null}
-      <button type="button" className="app-walk-compose" disabled={!walkComposeReady(choice)}>
+      {notice != null && notice !== "" ? <p className="app-walk-note">{notice}</p> : null}
+      <button type="button" className="app-walk-compose" disabled={!walkComposeReady(choice)} onClick={onCompose}>
         Собрать прогулку
       </button>
     </section>

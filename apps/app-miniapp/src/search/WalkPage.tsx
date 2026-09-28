@@ -1,9 +1,11 @@
-import { useState } from "react";
-import type { AssistDayResponse } from "@max-events/api-contracts";
+import { useEffect, useRef, useState } from "react";
+import type { AssistDayResponse, CityWalk, ComposeCityWalkWrite } from "@max-events/api-contracts";
+import { apiClient } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { AppButton, AppState } from "../ui/primitives";
-import { EMPTY_WALK_CHOICE, WalkWizard } from "./WalkWizard";
+import { EMPTY_WALK_CHOICE, walkComposeReady, WalkWizard, type WalkChoice } from "./WalkWizard";
+import { WalkResult, walkErrorText, walkStopKeys, walkWaitLine } from "./WalkResult";
 
 export function cityWalkAsk(city: string): string {
   return `Собери пеший маршрут по достопримечательностям города ${city}: 4–6 остановок по порядку, время между точками и где поесть рядом.`;
@@ -103,8 +105,112 @@ function WalkDraft({ day, onAnother }: { readonly day: AssistDayResponse; readon
   );
 }
 
-export function WalkPage({ city }: { readonly city: string }) {
-  const { back } = useRoute();
-  const [choice, setChoice] = useState(EMPTY_WALK_CHOICE);
-  return <WalkWizard city={city} choice={choice} onChange={setChoice} onBack={back} />;
+export function WalkPage({
+  city,
+  compose = (body) => apiClient.composeCityWalk(body),
+  initialChoice = EMPTY_WALK_CHOICE,
+}: {
+  readonly city: string;
+  readonly compose?: (body: ComposeCityWalkWrite) => Promise<CityWalk>;
+  readonly initialChoice?: WalkChoice;
+}) {
+  const { back, navigate } = useRoute();
+  const [choice, setChoice] = useState(initialChoice);
+  const [excludeKeys, setExcludeKeys] = useState<readonly string[]>([]);
+  const [phase, setPhase] = useState<"form" | "wait" | "ready">("form");
+  const [waitStep, setWaitStep] = useState<0 | 1 | 2>(0);
+  const [walk, setWalk] = useState<CityWalk | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(0);
+  const live = useRef(true);
+  const timers = useRef<number[]>([]);
+
+  useEffect(() => {
+    live.current = true;
+    return () => {
+      live.current = false;
+      for (const id of timers.current) window.clearTimeout(id);
+      timers.current = [];
+    };
+  }, []);
+
+  function clearTimers(): void {
+    for (const id of timers.current) window.clearTimeout(id);
+    timers.current = [];
+  }
+
+  async function onCompose(): Promise<void> {
+    if (choice.durationMinutes === null || choice.budgetMode === null || !walkComposeReady(choice)) return;
+    const durationMinutes = choice.durationMinutes;
+    const budgetMode = choice.budgetMode;
+    clearTimers();
+    setError(null);
+    setWaitStep(0);
+    setPhase("wait");
+    timers.current = [
+      window.setTimeout(() => {
+        if (live.current) setWaitStep(1);
+      }, 1200),
+      window.setTimeout(() => {
+        if (live.current) setWaitStep(2);
+      }, 2400),
+    ];
+    try {
+      const result = await compose({
+        city,
+        durationMinutes,
+        budgetMode,
+        budgetRub: budgetMode === "custom" ? choice.budgetRub : null,
+        interests: [...choice.interests],
+        excludeKeys: [...excludeKeys],
+      });
+      if (!live.current) return;
+      setWalk(result);
+      setNow(Date.now());
+      setPhase("ready");
+    } catch (caught) {
+      if (!live.current) return;
+      setError(walkErrorText(caught));
+      setPhase("form");
+    } finally {
+      clearTimers();
+    }
+  }
+
+  function onAnother(): void {
+    if (walk !== null) setExcludeKeys((keys) => [...keys, ...walkStopKeys(walk)]);
+    setChoice(EMPTY_WALK_CHOICE);
+    setWalk(null);
+    setError(null);
+    setPhase("form");
+  }
+
+  if (phase === "wait") {
+    return (
+      <section className="app-walk">
+        <button type="button" className="app-walk-back" onClick={back}>
+          Назад
+        </button>
+        <h1 className="app-walk-title">Прогулка: {city}</h1>
+        <p className="app-walk-note">{walkWaitLine(city, waitStep)}</p>
+      </section>
+    );
+  }
+
+  if (phase === "ready" && walk !== null) {
+    return <WalkResult city={city} walk={walk} now={now} onBack={back} onAnother={onAnother} onPlace={(id) => navigate({ name: "place", id })} />;
+  }
+
+  return (
+    <WalkWizard
+      city={city}
+      choice={choice}
+      onChange={setChoice}
+      onBack={back}
+      notice={error}
+      onCompose={() => {
+        void onCompose();
+      }}
+    />
+  );
 }
