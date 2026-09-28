@@ -24,13 +24,13 @@ describe("CREATE_ENTRIES", () => {
 });
 
 describe("CreateView", () => {
-  it("renders a row per entry with its label and description", () => {
+  it("renders four equal tiles, one label each", () => {
     const html = renderToStaticMarkup(createElement(CreateView, { onPick: () => {} }));
 
     expect(html.match(/<button/g)).toHaveLength(CREATE_ENTRIES.length);
     for (const entry of CREATE_ENTRIES) {
       expect(html).toContain(entry.label);
-      expect(html).toContain(entry.description);
+      expect(html).not.toContain(entry.description);
     }
   });
 });

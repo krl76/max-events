@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - CreateEntry - one publication entry: icon, label, one line of what it is for, target route
 // - CREATE_ENTRIES - the four publication entries in design order
-// - CreateView - presentational: entry rows, icon + label + description
+// - CreateView - presentational: four equal tiles, icon and label
 // - CreatePage - container: routes the picked entry
 // END_MODULE_MAP
 
@@ -45,12 +45,9 @@ export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
         {CREATE_ENTRIES.map((entry, index) => (
           <button key={entry.label} type="button" className={`app-create-card app-create-card--${index}`} onClick={() => onPick(entry.route)}>
             <span className="app-create-card-art" aria-hidden="true">
-              <ActionIcon name={entry.icon} size={index === 0 ? 28 : 22} />
+              <ActionIcon name={entry.icon} size={22} />
             </span>
-            <span className="app-create-card-copy">
-              <span className="app-create-card-label">{entry.label}</span>
-              <span className="app-create-card-line">{entry.description}</span>
-            </span>
+            <span className="app-create-card-label">{entry.label}</span>
           </button>
         ))}
       </div>

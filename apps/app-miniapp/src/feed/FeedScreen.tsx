@@ -745,6 +745,13 @@ export function FeedScreen() {
       if (auth.status === "loading") return;
       if (initial && feedMemory === null) setState({ status: "loading" });
       let alive = true;
+      const timer = window.setTimeout(() => {
+        if (!alive) return;
+        setState((current) => {
+          if (current.status !== "loading") return current;
+          return feedMemory === null ? { status: "error" } : { status: "ready", cards: feedMemory };
+        });
+      }, 8000);
       apiClient.listFeedCards(userId ?? "").then(
         (cards) => {
           if (!alive) return;
@@ -759,6 +766,7 @@ export function FeedScreen() {
       );
       return () => {
         alive = false;
+        window.clearTimeout(timer);
       };
     },
     [userId, auth.status],

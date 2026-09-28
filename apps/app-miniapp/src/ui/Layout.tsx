@@ -255,6 +255,21 @@ export function Layout({ children }: { children: ReactNode }) {
     };
   }, [route.name, back]);
 
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const reveal = (event?: Event) => {
+      if (event instanceof AnimationEvent && event.target !== el) return;
+      el.classList.add("app-screen--shown");
+    };
+    el.addEventListener("animationend", reveal);
+    const timer = window.setTimeout(reveal, 420);
+    return () => {
+      el.removeEventListener("animationend", reveal);
+      window.clearTimeout(timer);
+    };
+  }, [navSeq]);
+
   useLayoutEffect(() => {
     const el = scroller.current;
     const top = consumeFrozenScroll(key);
