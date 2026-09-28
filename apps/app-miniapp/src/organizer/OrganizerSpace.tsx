@@ -116,12 +116,13 @@ interface OrganizerSectionContentProps {
   onManage: (event: OrganizerEvent) => void;
   onCreateEvent: () => void;
   onOpenOrganization: () => void;
+  onOpenSettings: () => void;
   onOpenEvent: (event: OrganizerEvent) => void;
   onComposer?: (title: string | null) => void;
   closeComposerTick?: number;
 }
 
-export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onOpenEvent, onComposer, closeComposerTick }: OrganizerSectionContentProps) {
+export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onOpenSettings, onOpenEvent, onComposer, closeComposerTick }: OrganizerSectionContentProps) {
   if (section === "dashboard")
     return (
       <OrganizerDashboard
@@ -134,7 +135,7 @@ export function OrganizerSectionContent({ section, organizationId, organizationN
       />
     );
   if (section === "promo") return <OrganizerPromo organizationName={organizationName} intent={promoIntent} eventId={promoEventId} onOpenEvent={() => onSection("events")} />;
-  if (section === "profile") return <OrganizerProfile organizationId={organizationId} organizationName={organizationName} onOpenEvent={onOpenEvent} onSettings={onOpenOrganization} />;
+  if (section === "profile") return <OrganizerProfile organizationId={organizationId} organizationName={organizationName} onOpenEvent={onOpenEvent} onSettings={onOpenSettings} />;
   return <OrganizerPanel organizationId={organizationId} createOnMount={createEvent} onOpenEvent={onOpenEvent} onComposer={onComposer} closeComposerTick={closeComposerTick} />;
 }
 
@@ -247,7 +248,14 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
         {manage !== null ? (
           <OrganizerEventManage event={manage} onBack={() => setManage(null)} onPromo={() => openPromotion(manage.id, null)} />
         ) : organizationOpen ? (
-          <OrganizerOrganization organizationId={state.session.organization.id} organizationName={state.session.organization.name} onLogout={logout} />
+          <OrganizerOrganization
+            organizationId={state.session.organization.id}
+            organizationName={state.session.organization.name}
+            onLogout={() => {
+              logout();
+              onExit();
+            }}
+          />
         ) : (
           <OrganizerSectionContent
             section={section}
@@ -270,6 +278,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
               setSection("events");
             }}
             onOpenOrganization={() => setSection("profile")}
+            onOpenSettings={() => setOrganizationOpen(true)}
             onOpenEvent={setManage}
             onComposer={onComposer}
             closeComposerTick={closeComposerTick}
