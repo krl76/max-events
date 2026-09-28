@@ -14,8 +14,8 @@ describe("OrganizerLoginForm (макет, экран 42)", () => {
   it("titles itself «Панель организатора» and says who the door is for", () => {
     const html = draw();
 
-    expect(html).toContain("Панель организатора");
-    expect(html).toContain("Отдельный вход для площадок и организаторов.");
+    expect(html).toContain("Кабинет организатора");
+    expect(html).toContain("Управляйте событиями, билетами и продвижением");
   });
 
   it("wears the афиша·MAX wordmark макета, not a bare glyph", () => {

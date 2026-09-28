@@ -22,7 +22,7 @@ import { formatStartsAt, pluralRu } from "../catalog/format";
 import { EventPicker } from "../ui/EventPicker";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { pictured } from "../ui/photos";
-import { AppButton, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
+import { AppButton, AppChip, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 import { type OrganizerPromoIntent } from "./OrganizerDashboard";
 
 export { PROMO_PERIODS, formatDelta, periodQueryFor, salesCsv } from "./OrganizerDashboard";
@@ -46,6 +46,8 @@ export function promotionTimeLeft(endsAt: string, now: Date = new Date()): strin
 
 export const PROMOTION_TYPE_LABELS: Record<PromotionType, string> = { boost: "Поднятие в ленте", banner: "Баннер", pin: "Закрепление", target_collection: "Рассылка в чаты" };
 
+export type CampaignPhase = "active" | "scheduled" | "done";
+
 export interface CampaignRow {
   id: string;
   eventId: string;
@@ -53,6 +55,8 @@ export interface CampaignRow {
   accent: boolean;
   title: string;
   note: string;
+  phase: CampaignPhase;
+  result: string;
   /** 0..100 of the campaign's own window; null for a promo code, which has no clock. */
   progress: number | null;
 }
@@ -67,6 +71,7 @@ export function campaignRows(promotions: PromotionCampaign[], campaigns: PromoCa
   for (const promotion of promotions) {
     const span = new Date(promotion.endsAt).getTime() - new Date(promotion.startsAt).getTime();
     const gone = now.getTime() - new Date(promotion.startsAt).getTime();
+    const phase: CampaignPhase = promotion.status === "completed" || new Date(promotion.endsAt).getTime() <= now.getTime() ? "done" : new Date(promotion.startsAt).getTime() > now.getTime() ? "scheduled" : "active";
     rows.push({
       id: promotion.id,
       eventId: promotion.eventId,
@@ -74,14 +79,37 @@ export function campaignRows(promotions: PromotionCampaign[], campaigns: PromoCa
       accent: true,
       title: `${PROMOTION_TYPE_LABELS[promotion.type]} · ${titleOf(promotion.eventId)}`,
       note: `${promotionTimeLeft(promotion.endsAt, now)} · ${promotion.priceRub === 0 ? "без оплаты" : `${promotion.priceRub} ₽`}`,
+      phase,
+      result: promotion.type === "target_collection" ? "Это подборка для тех, кто уже был на событиях, а не сообщение в чат MAX. Доставку и открытия кабинет не считает." : promotion.paidAt === null ? "Показы и переходы не считаются. Запись без оплаты в ленту не попадает." : "Кампания отмечена оплаченной. Отдельных показов и переходов кабинет не хранит.",
       progress: span <= 0 ? 100 : Math.min(Math.max(Math.round((gone / span) * 100), 0), 100),
     });
   }
   for (const campaign of campaigns) {
-    rows.push({ id: campaign.id, eventId: campaign.eventId, icon: "friends", accent: true, title: `${campaign.title} · ${titleOf(campaign.eventId)}`, note: `Код ${campaign.code} · сработал ${campaign.fulfillmentCount} ${pluralRu(campaign.fulfillmentCount, "раз", "раза", "раз")}`, progress: null });
+    rows.push({
+      id: campaign.id,
+      eventId: campaign.eventId,
+      icon: "friends",
+      accent: true,
+      title: `${campaign.title} · ${titleOf(campaign.eventId)}`,
+      note: `Код ${campaign.code} · сработал ${campaign.fulfillmentCount} ${pluralRu(campaign.fulfillmentCount, "раз", "раза", "раз")}`,
+      phase: campaign.status === "completed" ? "done" : "active",
+      result: `Первый визит нового аккаунта засчитан ${campaign.fulfillmentCount} ${pluralRu(campaign.fulfillmentCount, "раз", "раза", "раз")}. Скидки в рублях нет.`,
+      progress: null,
+    });
   }
   for (const code of codes) {
-    rows.push({ id: code.id, eventId: code.eventId, icon: "tag", accent: false, title: `Промокод ${code.code}`, note: `Использован ${code.redeemedCount} ${pluralRu(code.redeemedCount, "раз", "раза", "раз")}${code.maxRedemptions === null ? "" : ` из ${code.maxRedemptions}`}`, progress: null });
+    const expired = code.expiresAt !== null && new Date(code.expiresAt).getTime() <= now.getTime();
+    rows.push({
+      id: code.id,
+      eventId: code.eventId,
+      icon: "tag",
+      accent: false,
+      title: `Промокод ${code.code}`,
+      note: `Использован ${code.redeemedCount} ${pluralRu(code.redeemedCount, "раз", "раза", "раз")}${code.maxRedemptions === null ? "" : ` из ${code.maxRedemptions}`}`,
+      phase: expired ? "done" : "active",
+      result: `Использований: ${code.redeemedCount}. Цену билета код не снижает.`,
+      progress: null,
+    });
   }
   return rows;
 }
@@ -114,6 +142,8 @@ interface OrganizerPromoViewProps {
 
 export function OrganizerPromoView({ organizationName, events, rows, loaded, draft, busy, notice, failed, onOpenDraft, onDraft, onCreate, onCancelDraft, onOpenEvent }: OrganizerPromoViewProps) {
   const month = new Date().toLocaleDateString("ru-RU", { month: "long" });
+  const [phase, setPhase] = useState<CampaignPhase>("active");
+  const [openId, setOpenId] = useState<string | null>(null);
   const [pickingEvent, setPickingEvent] = useState(false);
   const bound = draft === null ? null : (events.find((item) => item.id === draft.eventId) ?? null);
   return (
@@ -121,36 +151,66 @@ export function OrganizerPromoView({ organizationName, events, rows, loaded, dra
       <p className="app-gathering-hint">
         {organizationName} · {month}
       </p>
-      <p className="app-gathering-hint">Пять способов привести гостей. Сначала выберите способ, потом событие.</p>
-        <div className="app-search-tools">
+      <p className="app-gathering-hint">Как привлечь аудиторию. Оплата билетов идёт на вашем сайте, поэтому промокод не снижает цену сам — он только отмечается у записи.</p>
+        <div className="app-set-group">
           {PROMOTION_ACTIONS.map((action) => {
             const on = draft?.kind === action.intent;
             return (
-              <button key={action.intent} type="button" className="app-search-tool" aria-label={action.aria} aria-pressed={on} disabled={events.length === 0} onClick={() => onOpenDraft(action.intent)}>
-                <span className={on ? "app-search-tool-bubble app-search-tool-bubble--dark" : "app-search-tool-bubble"}>
-                  <ActionIcon name={action.icon} size={20} />
+              <button key={action.intent} type="button" className="app-set-row" aria-pressed={on} disabled={events.length === 0} onClick={() => onOpenDraft(action.intent)}>
+                <span className="app-set-row-text">
+                  <span className="app-set-row-title">{action.aria}</span>
+                  <span className="app-set-row-hint">{action.intent === "boost" ? "Запись о показе в ленте на 24 часа. В ленту попадает только отмеченная оплаченной кампания." : action.intent === "target_collection" ? "Подборка для тех, кто уже был на событиях. Это не сообщение в чат MAX." : action.intent === "promocode" ? "Код, который гость вводит при записи. Автоматической скидки нет." : action.intent === "referral" ? "Код «приведи друга»: считается первый визит нового аккаунта." : "До этой даты запись закрыта для всех, у кого нет промокода."}</span>
                 </span>
-                {action.label}
+                <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
               </button>
             );
           })}
         </div>
-        <h2 className="app-section-title">Уже запущено</h2>
+        <h2 className="app-section-title">Мои кампании</h2>
+        <div className="app-filters-chips" role="group" aria-label="Статус кампаний">
+          {(
+            [
+              ["active", "Активные"],
+              ["scheduled", "Запланированные"],
+              ["done", "Завершённые"],
+            ] as const
+          ).map(([id, label]) => (
+            <AppChip key={id} pressed={phase === id} onClick={() => setPhase(id)}>
+              {label}
+            </AppChip>
+          ))}
+        </div>
         {!loaded && <AppSkeletonList rows={2} />}
         {loaded && rows.length === 0 && <p className="app-gathering-hint">Кампаний пока нет — запустите первую выше.</p>}
-        {rows.length > 0 && (
+        {loaded && rows.length > 0 && rows.every((row) => row.phase !== phase) && <p className="app-gathering-hint">В этой вкладке кампаний нет.</p>}
+        {rows.some((row) => row.phase === phase) && (
           <div className="app-set-group">
-            {rows.map((row) => (
-              <button key={row.id} type="button" className="app-set-row" onClick={() => onOpenEvent(row.eventId)}>
-                <span className="app-set-row-text">
-                  <span className="app-set-row-title">{row.title}</span>
-                  <span className="app-set-row-hint">{row.note}</span>
-                </span>
-                <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
-              </button>
-            ))}
+            {rows
+              .filter((row) => row.phase === phase)
+              .map((row) => (
+                <button key={row.id} type="button" className="app-set-row" onClick={() => setOpenId(row.id)}>
+                  <span className="app-set-row-text">
+                    <span className="app-set-row-title">{row.title}</span>
+                    <span className="app-set-row-hint">{row.note}</span>
+                  </span>
+                  <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+                </button>
+              ))}
           </div>
         )}
+        {rows
+          .filter((row) => row.id === openId)
+          .map((row) => (
+            <article key={row.id} className="app-set-group" aria-label="Результаты кампании">
+              <p className="app-set-row-title">{row.title}</p>
+              <p className="app-set-row-hint">{row.note}</p>
+              <p className="app-gathering-hint">{row.result}</p>
+              <p className="app-gathering-hint">Остановить или повторить кампанию из кабинета нельзя. Новую можно создать сверху.</p>
+              <button type="button" className="app-org-head-link" onClick={() => onOpenEvent(row.eventId)}>
+                К событию
+              </button>
+            </article>
+          ))}
         {notice !== null && <p className="app-org-notice">{notice}</p>}
         {failed !== null && <AppState error>{failed}</AppState>}
         {draft !== null && (

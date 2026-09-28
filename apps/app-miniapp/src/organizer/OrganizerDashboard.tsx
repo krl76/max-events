@@ -22,12 +22,13 @@
 // - OrganizerDashboard - container: the summary, the events and the per-event fill
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { EventSalesReport } from "@max-events/api-contracts";
 import { apiClient, type OrganizerEvent, type OrganizerSummary, type OrganizerTrafficSource, type StatsPeriodQuery } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { EventPoster } from "../search/EventPoster";
-import { AppButton, AppChip, AppSkeletonList, AppState } from "../ui/primitives";
+import { ActionIcon } from "../ui/icons";
+import { AppButton, AppSkeletonList, AppState } from "../ui/primitives";
 
 export type OrganizerPromoIntent = "boost" | "target_collection" | "promocode" | "referral" | "early_access";
 
@@ -115,15 +116,18 @@ export function needsPromotion(fill: OrganizerEventFill | undefined, capacity: n
   return fill.waitlist === 0 && fill.booked / capacity < 0.4;
 }
 
+export function nearestEventReason(item: OrganizerEvent, fill: OrganizerEventFill | undefined, now = new Date()): string {
+  if (item.draft) return "Черновик";
+  const days = Math.ceil((new Date(item.startsAt).getTime() - now.getTime()) / 86_400_000);
+  const when = days <= 0 ? "Сегодня" : `До начала ${days} ${pluralRu(days, "день", "дня", "дней")}`;
+  const booked = fill?.booked ?? item.bookedCount ?? 0;
+  const seats = item.capacity === null ? `${booked}` : `${booked} из ${item.capacity}`;
+  return `${when} · зарегистрировано ${seats}`;
+}
+
 function EventFillRow({ item, fill, onOpen }: { item: OrganizerEvent; fill: OrganizerEventFill | undefined; onOpen: () => void }) {
   const booked = fill?.booked ?? item.bookedCount;
-  return (
-    <EventPoster
-      card={{ event: { ...item, bookedCount: booked }, distanceKm: null, rating: null, placeTitle: null }}
-      reason={item.draft ? "Черновик" : needsPromotion(fill, item.capacity) ? "Мало записей" : null}
-      onOpen={() => onOpen()}
-    />
-  );
+  return <EventPoster card={{ event: { ...item, bookedCount: booked }, distanceKm: null, rating: null, placeTitle: null }} reason={nearestEventReason(item, fill)} onOpen={() => onOpen()} />;
 }
 
 interface OrganizerDashboardViewProps {
@@ -131,155 +135,146 @@ interface OrganizerDashboardViewProps {
   summary: OrganizerSummary | null;
   events: OrganizerEvent[];
   fills: Record<string, OrganizerEventFill>;
-  rating: number | null;
   failed: boolean;
-  days: number;
-  reportBusy: boolean;
-  reportNotice: string | null;
-  onDays: (days: number) => void;
+  weekBookings: number | null;
+  weekAttended: number | null;
   onOpenEvent: (event: OrganizerEvent) => void;
-  onAllEvents: () => void;
   onCreateEvent: () => void;
   onOpenOrganization: () => void;
-  onReport: () => void;
+  onStats: () => void;
+  onPlaces: () => void;
+  onCheckIn: (event: OrganizerEvent) => void;
+  onShowDrafts: () => void;
 }
 
-export function OrganizerDashboardView({ organizationName, summary, events, fills, rating, failed, days, reportBusy, reportNotice, onDays, onOpenEvent, onAllEvents, onCreateEvent, onOpenOrganization, onReport }: OrganizerDashboardViewProps) {
-  const month = new Date().toLocaleDateString("ru-RU", { month: "long" });
-  const sources = summary?.sources ?? [];
-  const traffic = trafficLead(sources.some((row) => row.percent > 0) ? sources : []);
-  const live = events.filter((item) => !item.draft);
-  const quiet = events.filter((item) => needsPromotion(fills[item.id], item.capacity));
+function isSameDay(iso: string, now: Date): boolean {
+  const date = new Date(iso);
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+}
+
+export function OrganizerDashboardView({ organizationName, summary, events, fills, failed, weekBookings, weekAttended, onOpenEvent, onCreateEvent, onOpenOrganization, onStats, onPlaces, onCheckIn, onShowDrafts }: OrganizerDashboardViewProps) {
   const loaded = summary !== null || failed;
+  const drafts = events.filter((item) => item.draft);
+  const today = events.filter((item) => !item.draft && isSameDay(item.startsAt, new Date()));
+  const upcoming = events.filter((item) => !item.draft && new Date(item.startsAt).getTime() >= Date.now()).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const next = upcoming[0];
   return (
     <section className="app-gathering" aria-label="Обзор организатора">
-      <div className="app-me-metrics">
-        <p className="app-gathering-hint">
-          {organizationName} · {month} · {formatDelta(summary?.bookingsDeltaPercent ?? null)}
-        </p>
-        <div className="app-me-metrics-row">
-          <span className="app-me-metric">
-            <span className="app-me-metric-value">{summary === null ? "—" : formatCount(summary.bookings)}</span>
-            <span className="app-me-metric-label">{pluralRu(summary?.bookings ?? 0, "запись", "записи", "записей")}</span>
-          </span>
-          <span className="app-me-metric">
-            <span className="app-me-metric-value">{live.length}</span>
-            <span className="app-me-metric-label">{pluralRu(live.length, "активное", "активных", "активных")}</span>
-          </span>
-          <span className="app-me-metric">
-            <span className="app-me-metric-value">{summary?.attendedPercent == null ? "—" : `${summary.attendedPercent}%`}</span>
-            <span className="app-me-metric-label">пришли</span>
-          </span>
-          <span className="app-me-metric">
-            <span className="app-me-metric-value">{summary?.cancelledPercent == null ? "—" : `${summary.cancelledPercent}%`}</span>
-            <span className="app-me-metric-label">отмены</span>
-          </span>
-          <span className="app-me-metric">
-            <span className="app-me-metric-value">{rating === null ? "—" : rating.toFixed(1)}</span>
-            <span className="app-me-metric-label">оценка</span>
-          </span>
-        </div>
-        <AppButton stretched onClick={onOpenOrganization}>
-          Организация
-        </AppButton>
-      </div>
-      {failed && <AppState error>Не удалось загрузить обзор.</AppState>}
-      <div className="app-filters-chips" role="group" aria-label="Период отчёта">
-        {PROMO_PERIODS.map((period) => (
-          <AppChip key={period.days} pressed={days === period.days} onClick={() => onDays(period.days)}>
-            {period.label}
-          </AppChip>
-        ))}
-      </div>
-      <div className="app-org-chart">
-        <span className="app-org-chart-title">Записи по дням</span>
-        <span className="app-org-tile-note">Регистрации за выбранный период, разложенные по дню недели. Просмотры страницы сюда не входят.</span>
-        <span className="app-org-chart-bars" aria-hidden="true">
-          {barHeights(summary?.byWeekday ?? [0, 0, 0, 0, 0, 0, 0]).map((bar, index) => (
-            <span key={index} className={bar.accent ? "app-org-bar app-org-bar--on" : "app-org-bar"} style={{ height: `${bar.height}%` }} />
-          ))}
-        </span>
-        <span className="app-org-chart-days" aria-hidden="true">
-          {WEEKDAY_LABELS.map((label) => (
-            <span key={label}>{label}</span>
-          ))}
-        </span>
-      </div>
-      {summary !== null && summary.bookings === 0 && <p className="app-org-tile-note">Записей за этот период пока нет. График появится после первых регистраций.</p>}
-      <div className="app-org-sources">
-        <span className="app-org-chart-title">Откуда приходят</span>
-        <span className="app-org-tile-note">Доля записей, у которых известен источник: чаты, лента или поиск. Запись без источника в эти доли не входит.</span>
-        <span className="app-org-tile-value">{traffic.lead}</span>
-        {traffic.rest !== "" && <span className="app-org-tile-note">{traffic.rest}</span>}
-        {sources.map((row) => (
-          <span key={row.source} className="app-org-source">
-            <span className="app-org-source-label">{TRAFFIC_SOURCE_LABELS[row.source]}</span>
-            <span className="app-org-source-track" aria-hidden="true">
-              <span className={`app-org-source-fill app-org-source-fill--${row.source}`} style={{ width: `${row.percent}%` }} />
-            </span>
-            <span className="app-org-source-value">{row.percent}%</span>
-          </span>
-        ))}
-      </div>
-      {events.length === 0 && !loaded && <AppSkeletonList rows={2} />}
-      {events.length === 0 && loaded && (
-        <div>
-          <p className="app-gathering-hint">Событий ещё нет. Создайте первое — здесь появятся записи, явка и источники.</p>
+      <header className="app-org-overview-head">
+        <h1 className="app-section-title">{organizationName}</h1>
+        <p className="app-gathering-hint">Кабинет организатора</p>
+      </header>
+      {failed && (
+        <AppState error action={{ label: "Повторить", onClick: () => window.location.reload() }}>
+          Не удалось загрузить обзор.
+        </AppState>
+      )}
+      {loaded && events.length === 0 && (
+        <>
+          <p className="app-gathering-hint">Создайте первое событие — после публикации здесь появятся задачи и результаты.</p>
           <AppButton stretched onClick={onCreateEvent}>
             Создать событие
           </AppButton>
+        </>
+      )}
+      {drafts.length > 0 && (
+        <>
+          <h2 className="app-section-title">Требует внимания</h2>
+          <button type="button" className="app-set-row" onClick={() => (drafts.length === 1 ? onOpenEvent(drafts[0]) : onShowDrafts())}>
+            <span className="app-set-row-text">
+              <span className="app-set-row-title">Черновик не опубликован</span>
+              <span className="app-set-row-hint">{drafts.length === 1 ? drafts[0].title : `${drafts.length} ${pluralRu(drafts.length, "черновик ждёт", "черновика ждут", "черновиков ждут")} публикации`}</span>
+            </span>
+            <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+          </button>
+        </>
+      )}
+      {today.length > 0 && (
+        <>
+          <h2 className="app-section-title">Сегодня</h2>
+          {today.slice(0, 2).map((item) => (
+            <article key={item.id} className="app-set-group">
+              <p className="app-set-row-title">{item.title}</p>
+              <p className="app-set-row-hint">Начало {new Date(item.startsAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}</p>
+              <p className="app-set-row-hint">{eventFillNote(fills[item.id], item.capacity)}</p>
+              <AppButton stretched onClick={() => onCheckIn(item)}>
+                Контроль входа
+              </AppButton>
+            </article>
+          ))}
+        </>
+      )}
+      {events.length > 0 && <h2 className="app-section-title">За последние 7 дней</h2>}
+      {events.length > 0 && (
+        <div className="app-org-tiles">
+          <button type="button" className="app-org-tile" onClick={onStats}>
+            <span className="app-org-tile-label">Новые регистрации</span>
+            <span className="app-org-tile-big">{weekBookings === null ? "Нет данных" : formatCount(weekBookings)}</span>
+          </button>
+          <button type="button" className="app-org-tile" onClick={onStats}>
+            <span className="app-org-tile-label">Доля пришедших</span>
+            <span className="app-org-tile-big">{weekAttended === null ? "Нет данных" : `${weekAttended}%`}</span>
+          </button>
         </div>
       )}
-      {quiet.length > 0 && (
+      {events.length > 0 && <p className="app-gathering-hint">Оплаченные билеты здесь не считаются: оплата проходит на сайте организатора, и сумма заказа в кабинет не приходит.</p>}
+      {events.length > 0 && (
+        <AppButton stretched onClick={onCreateEvent}>
+          + Создать событие
+        </AppButton>
+      )}
+      {next !== undefined && (
         <>
-          <h2 className="app-section-title">Мало записей</h2>
-          <div>
-            {quiet.slice(0, 3).map((item) => (
-              <EventFillRow key={item.id} item={item} fill={fills[item.id]} onOpen={() => onOpenEvent(item)} />
-            ))}
-          </div>
+          <h2 className="app-section-title">Ближайшее событие</h2>
+          <EventFillRow item={next} fill={fills[next.id]} onOpen={() => onOpenEvent(next)} />
         </>
       )}
       {events.length > 0 && (
-        <>
-          <div className="app-org-head">
-            <h2 className="app-section-title">Ближайшие</h2>
-            <button type="button" className="app-org-head-link" onClick={onAllEvents}>
-              Все {events.length}
-            </button>
-          </div>
-          <div>
-            {events.slice(0, 4).map((item) => (
-              <EventFillRow key={item.id} item={item} fill={fills[item.id]} onOpen={() => onOpenEvent(item)} />
-            ))}
-          </div>
-        </>
-      )}
-      {reportNotice !== null && <p className="app-org-notice">{reportNotice}</p>}
-      <div className="app-org-actions">
-        <AppButton stretched disabled={reportBusy || events.length === 0} onClick={onReport}>
-          {reportBusy ? "Собираем отчёт…" : "Отчёт за период"}
-        </AppButton>
+      <div className="app-set-group">
+        <button type="button" className="app-set-row" onClick={onPlaces}>
+          <span className="app-set-row-text">
+            <span className="app-set-row-title">Мои места</span>
+            <span className="app-set-row-hint">Площадки, к которым привязаны события</span>
+          </span>
+          <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+        </button>
+        <button type="button" className="app-set-row" onClick={onStats}>
+          <span className="app-set-row-text">
+            <span className="app-set-row-title">Статистика</span>
+            <span className="app-set-row-hint">Регистрации и источники за период</span>
+          </span>
+          <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+        </button>
+        <button type="button" className="app-set-row" onClick={onOpenOrganization}>
+          <span className="app-set-row-text">
+            <span className="app-set-row-title">Публичная страница</span>
+            <span className="app-set-row-hint">Как организацию видят в профиле кабинета</span>
+          </span>
+          <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+        </button>
       </div>
+      )}
+      {!loaded && events.length === 0 && <AppSkeletonList rows={2} />}
     </section>
   );
 }
 
-export function OrganizerDashboard({ organizationId, organizationName, onOpenEvent, onAllEvents, onCreateEvent, onOpenOrganization }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onAllEvents: () => void; onCreateEvent: () => void; onOpenOrganization: () => void }) {
+export function OrganizerDashboard({ organizationId, organizationName, onOpenEvent, onCreateEvent, onOpenOrganization, onStats, onPlaces, onCheckIn, onShowDrafts }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onCreateEvent: () => void; onOpenOrganization: () => void; onStats: () => void; onPlaces: () => void; onCheckIn: (event: OrganizerEvent) => void; onShowDrafts: () => void }) {
   const [summary, setSummary] = useState<OrganizerSummary | null>(null);
   const [events, setEvents] = useState<OrganizerEvent[]>([]);
   const [fills, setFills] = useState<Record<string, OrganizerEventFill>>({});
-  const [rating, setRating] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
-  const [days, setDays] = useState(30);
-  const [reportBusy, setReportBusy] = useState(false);
-  const [reportNotice, setReportNotice] = useState<string | null>(null);
+  const [weekBookings, setWeekBookings] = useState<number | null>(null);
+  const [weekAttended, setWeekAttended] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
-    apiClient.getOrganizerSummary(periodQueryFor(days)).then(
+    apiClient.getOrganizerSummary(periodQueryFor(7)).then(
       (payload) => {
-        if (alive) setSummary(payload);
+        if (!alive) return;
+        setSummary(payload);
+        setWeekBookings(payload.bookings);
+        setWeekAttended(payload.attendedPercent);
       },
       () => {
         if (alive) setFailed(true);
@@ -288,16 +283,10 @@ export function OrganizerDashboard({ organizationId, organizationName, onOpenEve
     return () => {
       alive = false;
     };
-  }, [days]);
+  }, []);
 
   useEffect(() => {
     let alive = true;
-    apiClient.getOrganizerRating(organizationId).then(
-      (payload) => {
-        if (alive) setRating(payload.rating?.averageStars ?? null);
-      },
-      () => {},
-    );
     apiClient.listOrganizerEvents().then(
       (items) => {
         if (!alive) return;
@@ -323,33 +312,5 @@ export function OrganizerDashboard({ organizationId, organizationName, onOpenEve
     };
   }, [organizationId]);
 
-  const onReport = useCallback(() => {
-    setReportBusy(true);
-    setReportNotice(null);
-    Promise.all(
-      events.map((item) =>
-        apiClient
-          .getEventSales(item.id, periodQueryFor(days))
-          .then((sales) => ({ title: item.title, report: sales }))
-          .catch(() => null),
-      ),
-    )
-      .then((reports) => {
-        const csv = salesCsv(reports.filter((row): row is { title: string; report: EventSalesReport } => row !== null));
-        const url = URL.createObjectURL(new Blob([CSV_BOM, csv], { type: "text/csv;charset=utf-8" }));
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `otchet-${days}-dney.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
-        setReportBusy(false);
-        setReportNotice("Отчёт выгружен файлом");
-      })
-      .catch(() => {
-        setReportBusy(false);
-        setReportNotice("Не удалось собрать отчёт.");
-      });
-  }, [days, events]);
-
-  return <OrganizerDashboardView organizationName={organizationName} summary={summary} events={events} fills={fills} rating={rating} failed={failed} days={days} reportBusy={reportBusy} reportNotice={reportNotice} onDays={setDays} onOpenEvent={onOpenEvent} onAllEvents={onAllEvents} onCreateEvent={onCreateEvent} onOpenOrganization={onOpenOrganization} onReport={onReport} />;
+  return <OrganizerDashboardView organizationName={organizationName} summary={summary} events={events} fills={fills} failed={failed} weekBookings={weekBookings} weekAttended={weekAttended} onOpenEvent={onOpenEvent} onCreateEvent={onCreateEvent} onOpenOrganization={onOpenOrganization} onStats={onStats} onPlaces={onPlaces} onCheckIn={onCheckIn} onShowDrafts={onShowDrafts} />;
 }
