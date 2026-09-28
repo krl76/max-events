@@ -342,7 +342,7 @@ export function Layout({ children }: { children: ReactNode }) {
           {notice}
         </p>
       )}
-      {!routeIsFullscreen(route) && (
+      {!routeIsFullscreen(route) && route.name !== "nearby" && (
         <nav className="app-tabbar">
           {TABS.map((tab) => (
             <button key={tab.route} type="button" aria-current={tab.active(route.name) ? "page" : undefined} onClick={() => navigate({ name: tab.route })}>

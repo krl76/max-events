@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { LeisureMoodSchema, NearbyBucketSchema } from "@max-events/api-contracts";
 import type { LeisureMood } from "@max-events/api-contracts";
 import { BUCKET_LABELS, LEISURE_MOOD_LABELS, NEARBY_RADIUS_KM, NearbyView, STOP_KIND_LABELS, bucketCountLabel, chainPlanDraft, chainStopMeta, chainTitle, chainWindow, formatDistanceKm, nearbyCardWhen, nearbyEmptyTitle, nearbyErrorTitle, nearbyOriginCaption, nearbyScreenTitle, type LeisureState, type NearbyMode, type NearbyState } from "./NearbyPage";
+import { cardMatchesQuery, cardOnDay, moscowDayKey, nearbyDayOptions } from "./nearby-filters";
 import { MOCK_NOW, leisureOptions, nearbyTimeline } from "../api/mock";
 import type { LeisureChain, LeisureChainStop } from "../api/client";
 
@@ -15,7 +16,7 @@ const relax = leisureOptions(3, "relax", ...MOSCOW);
 
 const stop = (over: Partial<LeisureChainStop> = {}): LeisureChainStop => ({ kind: "place", placeId: "b1", eventId: null, title: "Парк Горького", startsAt: "2026-09-12T19:00:00+03:00", distanceKm: 0.4, priceRub: 400, free: false, ...over });
 
-function viewHtml(over: { mode?: NearbyMode; state?: NearbyState; leisure?: LeisureState; hours?: number; mood?: LeisureMood; radiusKm?: number } = {}): string {
+function viewHtml(over: { mode?: NearbyMode; state?: NearbyState; leisure?: LeisureState; hours?: number; mood?: LeisureMood; radiusKm?: number; searchOpen?: boolean; query?: string } = {}): string {
   return renderToStaticMarkup(
     createElement(NearbyView, {
       mode: over.mode ?? "timeline",
@@ -33,6 +34,8 @@ function viewHtml(over: { mode?: NearbyMode; state?: NearbyState; leisure?: Leis
       onOpenEvent: noop,
       onOpenPlace: noop,
       radiusKm: over.radiusKm,
+      searchOpen: over.searchOpen,
+      query: over.query,
     }),
   );
 }
@@ -120,14 +123,17 @@ describe("chainPlanDraft", () => {
 });
 
 describe("NearbyView: таймлайн (экран 13)", () => {
-  it("рисует переключатель режимов и радиус", () => {
+  it("рисует переключатель режимов, дату и радиус внизу", () => {
     const html = viewHtml({ mode: "timeline" });
 
-    expect(html).toContain("Таймлайн");
-    expect(html).toContain("Свободное время");
-    expect(html).toContain(`Радиус ${NEARBY_RADIUS_KM} км`);
-    expect(html).toContain("время московское");
+    expect(html).toContain("События");
+    expect(html).toContain("На часы");
+    expect(html).not.toContain("время московское");
+    expect(html).not.toContain("Таймлайн");
+    expect(html).toContain('aria-label="Дата"');
+    expect(html).toContain("Сегодня");
     expect(html).toContain('aria-label="Радиус поиска"');
+    expect(html).toContain('class="app-nb-dock"');
   });
 
   it("отмечает выбранный радиус среди тех же значений, что и настройки", () => {
@@ -139,7 +145,7 @@ describe("NearbyView: таймлайн (экран 13)", () => {
     expect(html).toContain(">3 км<");
     expect(html).toContain(">10 км<");
     expect(html).toContain(">25 км<");
-    expect(html).toContain("Радиус 5 км");
+    expect(html).not.toContain("Радиус 5 км");
   });
 
   it("показывает все непустые сегменты со счётчиком мест", () => {
@@ -216,5 +222,36 @@ describe("NearbyView: свободное время (экран 14)", () => {
     const error = viewHtml({ mode: "free", leisure: { status: "error" } });
     expect(error).toContain("app-state--error");
     expect(error).toContain("Не удалось собрать цепочку");
+  });
+});
+
+describe("фильтр даты и поиска", () => {
+  const card = {
+    bucket: "evening" as const,
+    event: { id: "c1", title: "Летний концерт", startsAt: "2026-09-12T19:00:00+03:00" },
+    place: { title: "Пушкинская набережная" },
+  };
+
+  it("сегодняшний ключ совпадает с MOCK_NOW", () => {
+    expect(moscowDayKey(MOCK_NOW)).toBe("2026-09-12");
+    expect(nearbyDayOptions(MOCK_NOW)[0]).toEqual({ key: "2026-09-12", label: "Сегодня" });
+    expect(nearbyDayOptions(MOCK_NOW)[1]?.label).toBe("Завтра");
+  });
+
+  it("карточку дня оставляет, чужой день — нет", () => {
+    expect(cardOnDay(card, "2026-09-12", "2026-09-12")).toBe(true);
+    expect(cardOnDay(card, "2026-09-13", "2026-09-12")).toBe(false);
+  });
+
+  it("форму слова ловит стеблем и id из assist", () => {
+    expect(cardMatchesQuery(card, "концерты", null)).toBe(true);
+    expect(cardMatchesQuery(card, "выставка", null)).toBe(false);
+    expect(cardMatchesQuery(card, "выставка", new Set(["c1"]))).toBe(true);
+  });
+
+  it("открытый поиск рисует поле, а не переход в ассистента", () => {
+    const html = viewHtml({ searchOpen: true, query: "парк" });
+    expect(html).toContain('aria-label="Поиск рядом"');
+    expect(html).not.toContain("MAX AI");
   });
 });

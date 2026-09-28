@@ -19707,6 +19707,100 @@ button.app-cal-peer-chip {
   font-weight: 800;
 }
 
+.app-nb-bar {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.app-nb-modes {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-pill);
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+}
+
+.app-nb-mode {
+  background: none;
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  height: 32px;
+  padding: 0 10px;
+}
+
+.app-nb-mode--on {
+  background: var(--app-text);
+  color: var(--app-card);
+}
+
+.app-nb-days {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.app-nb-day {
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  height: 32px;
+  padding: 0 10px;
+}
+
+.app-nb-day--on {
+  background: var(--app-confirm);
+  border-color: var(--app-confirm);
+  color: var(--app-confirm-contrast);
+}
+
+.app-nb-search {
+  background: var(--app-card);
+  border: var(--app-hairline);
+  border-radius: 12px;
+  box-sizing: border-box;
+  font: inherit;
+  height: 44px;
+  margin-top: 12px;
+  padding: 0 14px;
+  width: 100%;
+}
+
+.app-nb-dock {
+  align-items: center;
+  background: var(--app-card);
+  border-top: var(--app-hairline);
+  bottom: 0;
+  box-sizing: border-box;
+  display: flex;
+  height: calc(56px + env(safe-area-inset-bottom, 0px));
+  left: 0;
+  padding: 0 16px env(safe-area-inset-bottom, 0px);
+  position: fixed;
+  right: 0;
+  z-index: 20;
+}
+
+.app-nb-dock .app-nb-radius {
+  flex: 1;
+  margin: 0;
+}
+
 .app-nb-seg {
   margin-top: 22px;
 }
@@ -24088,6 +24182,11 @@ ion-button.ion-focused {
 .app-header:has(.app-header-extras:not(:empty)) .app-header-title {
   flex: none;
   text-align: left;
+}
+
+.app-header:has(.app-header-extras:not(:empty) .app-nb-ask) .app-header-title {
+  flex: 1;
+  text-align: center;
 }
 
 .app-header-extras:empty {
