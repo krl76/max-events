@@ -43,15 +43,16 @@ export class SeedOrganizerShowcasePlaces20260926210000 implements MigrationInter
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     for (const [title, address, category, latitude, longitude] of PLACES) {
+      // $1/$2 are used both as insert values and in varchar comparisons. Without one cast on every use, Postgres deduces text and varchar for the same parameter (42P08).
       await queryRunner.query(
         `
         INSERT INTO "places" ("title", "address", "city", "category", "latitude", "longitude", "organizerUserId", "organizerOrganizationId", "published")
-        SELECT $1, $2, 'Москва', $3, $4, $5, o."organizerUserId", o.id, true
+        SELECT $1::varchar, $2::varchar, 'Москва', $3::varchar, $4::float8, $5::float8, o."organizerUserId", o.id, true
         FROM "organizations" o
         WHERE o."organizerUserId" IS NOT NULL
           AND NOT EXISTS (
             SELECT 1 FROM "places" p
-            WHERE p."title" = $1 AND p."address" = $2 AND p."city" = 'Москва'
+            WHERE p."title" = $1::varchar AND p."address" = $2::varchar AND p."city" = 'Москва'
           )
         `,
         [title, address, category, latitude, longitude],
@@ -63,13 +64,13 @@ export class SeedOrganizerShowcasePlaces20260926210000 implements MigrationInter
         UPDATE "events" e
         SET "placeId" = p.id
         FROM "places" p
-        WHERE e."title" = $1
-          AND p."title" = $2
+        WHERE e."title" = $1::varchar
+          AND p."title" = $2::varchar
           AND p."city" = 'Москва'
           AND e."placeId" IS NULL
           AND p.id = (
             SELECT p2.id FROM "places" p2
-            WHERE p2."title" = $2 AND p2."city" = 'Москва'
+            WHERE p2."title" = $2::varchar AND p2."city" = 'Москва'
             ORDER BY CASE WHEN p2."organizerOrganizationId" = e."organizerOrganizationId" THEN 0 ELSE 1 END, p2."createdAt"
             LIMIT 1
           )
