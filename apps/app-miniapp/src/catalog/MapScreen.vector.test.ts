@@ -18,8 +18,9 @@ vi.mock("leaflet", () => leaflet);
 
 /** MapLibre is heavy and WebGL-bound: the map only asks this module to mount, restyle and remove a layer. */
 const vectorBasemap = vi.hoisted(() => ({
-  mountVectorBasemap: vi.fn(),
+mountVectorBasemap: vi.fn(),
   webglAvailable: vi.fn(() => true),
+  paintableBasemap: (preferred: { kind: string }, fallback: unknown, glReady = true) => (preferred.kind === "vector" && !glReady ? fallback : preferred),
 }));
 
 vi.mock("./vectorBasemap", () => vectorBasemap);

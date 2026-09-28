@@ -49,7 +49,7 @@ import { basemapCredit, MAP_BASEMAPS, readBasemapPreference, STANDARD_BASEMAP, w
 import { buildMapMarkers, clusterMapMarkers, MAP_CLUSTER_MAX_ZOOM, type MapMarker, type MapPinGlyph } from "./mapMarkers";
 import { walkingRoute } from "./walkingRoute";
 import { useLeafletMap } from "./useLeafletMap";
-import { mountVectorBasemap, type VectorBasemapLayer } from "./vectorBasemap";
+import { mountVectorBasemap, paintableBasemap, type VectorBasemapLayer } from "./vectorBasemap";
 
 /** Fixtures and P0 scope are Moscow-only, so the map opens on the city center; also the anchor point of the nearby screen. */
 export const MOSCOW_CENTER: [number, number] = [55.7522, 37.6156];
@@ -621,8 +621,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   const [travel, setTravel] = useState<TravelOption[]>([]);
   const [tilesFailed, setTilesFailed] = useState(false);
   const [vectorFallback, setVectorFallback] = useState(false);
-  // Подложка читается из хранилища один раз: выбор человека переживает перезаход, а не только сессию
-  const [basemap, setBasemap] = useState<MapBasemap>(readBasemapPreference);
+  // Подложка читается из хранилища один раз. Без живого WebGL2 вектор не открываем: телефон сразу получает растр.
+  const [basemap, setBasemap] = useState<MapBasemap>(() => paintableBasemap(readBasemapPreference(), STANDARD_BASEMAP));
   const [basemapsOpen, setBasemapsOpen] = useState(false);
   const basemapRef = useRef(basemap);
   basemapRef.current = basemap;
