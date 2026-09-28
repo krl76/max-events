@@ -28,7 +28,7 @@ import { type OrganizerPromoIntent } from "./OrganizerDashboard";
 export { PROMO_PERIODS, formatDelta, periodQueryFor, salesCsv } from "./OrganizerDashboard";
 
 export const PROMOTION_ACTIONS: Array<{ intent: OrganizerPromoIntent; label: string; aria: string; icon: ActionIconName; dark?: boolean }> = [
-  { intent: "boost", label: "Лента", aria: "Поднять в ленте", icon: "trend", dark: true },
+  { intent: "boost", label: "Лента", aria: "Поднять в ленте", icon: "trend" },
   { intent: "target_collection", label: "Рассылка", aria: "Рассылка в чаты", icon: "megaphone" },
   { intent: "promocode", label: "Промокод", aria: "Промокод", icon: "ticket" },
   { intent: "referral", label: "Друг", aria: "Приведи друга", icon: "users" },
@@ -121,16 +121,19 @@ export function OrganizerPromoView({ organizationName, events, rows, loaded, dra
       <p className="app-gathering-hint">
         {organizationName} · {month}
       </p>
-      <h2 className="app-section-title">Запустить</h2>
+      <p className="app-gathering-hint">Пять способов привести гостей. Сначала выберите способ, потом событие.</p>
         <div className="app-search-tools">
-          {PROMOTION_ACTIONS.map((action) => (
-            <button key={action.intent} type="button" className="app-search-tool" aria-label={action.aria} disabled={events.length === 0} onClick={() => onOpenDraft(action.intent)}>
-              <span className={action.dark ? "app-search-tool-bubble app-search-tool-bubble--dark" : "app-search-tool-bubble"}>
-                <ActionIcon name={action.icon} size={20} />
-              </span>
-              {action.label}
-            </button>
-          ))}
+          {PROMOTION_ACTIONS.map((action) => {
+            const on = draft?.kind === action.intent;
+            return (
+              <button key={action.intent} type="button" className="app-search-tool" aria-label={action.aria} aria-pressed={on} disabled={events.length === 0} onClick={() => onOpenDraft(action.intent)}>
+                <span className={on ? "app-search-tool-bubble app-search-tool-bubble--dark" : "app-search-tool-bubble"}>
+                  <ActionIcon name={action.icon} size={20} />
+                </span>
+                {action.label}
+              </button>
+            );
+          })}
         </div>
         <h2 className="app-section-title">Уже запущено</h2>
         {!loaded && <AppSkeletonList rows={2} />}

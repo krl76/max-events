@@ -19,6 +19,7 @@ import type { OrganizerEvent } from "../api/client";
 import { apiClient } from "../api/client";
 import { AfishaWordmark } from "../auth/EntryPage";
 import { ActionIcon } from "../ui/icons";
+import { THEME_STORAGE_KEY, applyScheme, type ThemePreference } from "../ui/theme";
 import { AppButton, AppState } from "../ui/primitives";
 import { OrganizerAuthProvider, useOrganizerAuth } from "./OrganizerAuthContext";
 import { OrganizerDashboard, type OrganizerPromoIntent } from "./OrganizerDashboard";
@@ -175,8 +176,19 @@ export function OrganizerOnboardingGate({ onCreateEvent, children }: { onCreateE
   );
 }
 
+function storedScheme(): "light" | "dark" {
+  const stored = typeof localStorage === "undefined" ? null : localStorage.getItem(THEME_STORAGE_KEY);
+  const preference: ThemePreference = stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+  if (preference === "light" || preference === "dark") return preference;
+  return typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   const { state, logout } = useOrganizerAuth();
+  useEffect(() => {
+    applyScheme("light");
+    return () => applyScheme(storedScheme());
+  }, []);
   const [section, setSection] = useState<OrganizerSection>("dashboard");
   const [manage, setManage] = useState<OrganizerEvent | null>(null);
   const [organizationOpen, setOrganizationOpen] = useState(false);

@@ -22441,13 +22441,27 @@ button.app-story-viewer-author {
   gap: 16px;
 }
 
-.app-poster-block {
+.app-poster-main {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex: 1 1 auto;
+  font: inherit;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.app-poster .app-org-card-actions {
+  flex: 1 0 100%;
 }
 
 .app-poster {
+  flex-wrap: wrap;
   background: var(--app-card);
   border: none;
   border-radius: 16px;

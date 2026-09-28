@@ -238,7 +238,7 @@ export function OrganizerEventCard({ item, placeTitle = null, publishing, failed
   const when = new Date(item.startsAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const highlight = posterHighlight({ event: item, distanceKm: null, rating: null, placeTitle });
   const where = placeTitle !== null && placeTitle !== "" ? placeTitle : item.city;
-  const poster = (
+  const face = (
     <>
       <span className="app-poster-photo">
         <img alt="" src={pictured(item.id, item.coverUrl)} />
@@ -255,13 +255,13 @@ export function OrganizerEventCard({ item, placeTitle = null, publishing, failed
     </>
   );
   return (
-    <div className="app-poster-block">
+    <article className="app-poster">
       {onOpen !== undefined ? (
-        <button type="button" className="app-poster" onClick={onOpen}>
-          {poster}
+        <button type="button" className="app-poster-main" onClick={onOpen}>
+          {face}
         </button>
       ) : (
-        <article className="app-poster">{poster}</article>
+        face
       )}
       {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
       <span className="app-org-card-actions">
@@ -274,7 +274,7 @@ export function OrganizerEventCard({ item, placeTitle = null, publishing, failed
           Изменить
         </AppButton>
       </span>
-    </div>
+    </article>
   );
 }
 
