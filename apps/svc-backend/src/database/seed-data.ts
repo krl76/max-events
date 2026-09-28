@@ -24,7 +24,7 @@ export const SEED_CITY = "Москва";
  */
 export const SEED_ORGANIZER = {
   login: "max-events",
-  name: "MAX Events",
+  name: "Московское бюро событий",
   contacts: null,
 } as const;
 

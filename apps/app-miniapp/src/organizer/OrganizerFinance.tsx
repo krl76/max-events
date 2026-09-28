@@ -16,6 +16,7 @@
 
 import { useState } from "react";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
+import { CABINET_EVENTS, cabinetStats } from "./cabinet-catalog";
 
 export type FinanceScope = "all" | "events" | "promocodes";
 export type FinancePeriod = 7 | 30 | 90;
@@ -326,6 +327,15 @@ export function OrganizerFinance() {
   const [block, setBlock] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const view = financeView(scope, period, withdrawals);
+  const anchor = new Date("2026-09-26T23:59:59+03:00");
+  const earned = cabinetStats(CABINET_EVENTS, new Date(anchor.getTime() - period * 86_400_000), anchor);
+  const shownIncome = scope === "promocodes" ? earned.promoUses * 100 : earned.incomeRub;
+  const tileAmount = (id: string, fallback: number): number => {
+    if (scope !== "all") return fallback;
+    if (id === "events") return earned.incomeRub;
+    if (id === "promos") return earned.promoUses * 100;
+    return 0;
+  };
   const preview = view.operations.slice(0, PREVIEW);
 
   const submitWithdrawal = () => {
@@ -400,8 +410,8 @@ export function OrganizerFinance() {
         <div className="app-fin-hero-copy">
           <p className="app-fin-hero-label">{scope === "all" ? "Общий доход" : scope === "events" ? "Доход с событий" : "Доход с промокодов"}</p>
           <p className="app-fin-hero-value">
-            {formatRub(view.totalRub)}
-            <span className={view.deltaPercent >= 0 ? "app-fin-delta" : "app-fin-delta app-fin-delta--down"}>{formatDelta(view.deltaPercent)}</span>
+            {formatRub(shownIncome)}
+            <span className={earned.delta >= 0 ? "app-fin-delta" : "app-fin-delta app-fin-delta--down"}>{formatDelta(earned.delta)}</span>
           </p>
           <p className="app-fin-hero-note">за последние {period} дней</p>
         </div>
@@ -416,7 +426,7 @@ export function OrganizerFinance() {
               <ActionIcon name={TONE_ICON[tile.tone]} size={16} strokeWidth={2.2} />
             </span>
             <span className="app-fin-tile-label">{tile.label}</span>
-            <span className="app-fin-tile-amount">{formatRub(tile.amountRub)}</span>
+            <span className="app-fin-tile-amount">{formatRub(tileAmount(tile.id, tile.amountRub))}</span>
             <span className="app-fin-tile-share">{tile.percent}%</span>
           </article>
         ))}
