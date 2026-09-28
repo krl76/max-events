@@ -98,7 +98,7 @@ export function OrganizerLoginForm({ onExit }: { onExit: () => void }) {
 }
 
 export const ORGANIZER_SECTION_TITLES: Record<OrganizerSection, string> = {
-  dashboard: "Обзор",
+  dashboard: "Статистика",
   events: "События",
   promo: "Продвижение",
   profile: "Профиль",
@@ -232,7 +232,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
   const pushed = manage !== null || organizationOpen || statsOpen || composerTitle !== null;
-  const ownChrome = (section === "profile" || section === "finance") && !pushed;
+  const ownChrome = (section === "profile" || section === "finance" || section === "dashboard" || section === "promo") && !pushed;
   const manageTitle = manageScreen === "checkin" ? "Контроль входа" : manageScreen === "participants" ? "Участники" : manageScreen === "tickets" ? "Билеты и регистрация" : manageScreen === "stats" ? "Статистика" : "Управление событием";
   const title = composerTitle ?? (statsOpen ? "Статистика" : manage !== null ? manageTitle : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section]);
   const hideTabs = composerTitle !== null || (manage !== null && manageScreen === "checkin");
