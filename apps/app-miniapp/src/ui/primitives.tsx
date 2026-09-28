@@ -62,7 +62,7 @@ export function AppButton({ tone = "primary", stretched = false, className, ...p
 export function AppIconButton({ className, children, ...props }: ComponentProps<typeof IonButton>) {
   const buttonClass = `app-icon-btn${className ? ` ${className}` : ""}`;
   return (
-    <IonButton className={buttonClass} color="primary" shape="round" {...props}>
+    <IonButton className={buttonClass} shape="round" {...props}>
       {children}
     </IonButton>
   );

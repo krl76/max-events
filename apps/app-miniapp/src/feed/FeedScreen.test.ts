@@ -79,10 +79,11 @@ describe("FeedFriendPost", () => {
     expect(html).not.toContain("app-feed-photo");
   });
 
-  it("shows the attached photo above the event block", () => {
+  it("uses the attached photo as the full-bleed frame and keeps the event title as the location line", () => {
     const html = post({ photoUrl: "https://cdn.example.com/p.jpg" });
     expect(html).toContain('src="https://cdn.example.com/p.jpg"');
-    expect(html.indexOf("cdn.example.com/p.jpg")).toBeLessThan(html.indexOf("Джаз-квартет"));
+    expect(html.indexOf("Джаз-квартет")).toBeLessThan(html.indexOf('class="app-feed-photo"'));
+    expect(html).not.toContain("app-feed-event");
   });
 
   it("shows the live chip only while the event runs and the week badge only on a hit", () => {
@@ -100,13 +101,14 @@ describe("FeedFriendPost", () => {
     expect(going).toContain("app-feed-going--on");
   });
 
-  it("prints the counters, the caption, the comments line and the publish time", () => {
+  it("prints the counters, the caption and the publish time, and keeps the comment text off the card", () => {
     const html = post();
 
     expect(html).toContain("12 хотят пойти · 4 уже там");
     expect(html).toContain("взяла столик у сцены");
-    expect(html).toContain("Дима: буду к девяти · ещё 2 комментария");
+    expect(html).not.toContain("Дима: буду к девяти");
     expect(html).toContain("25 минут назад");
+    expect(html).toContain(">3<");
   });
 
   it("drops the counters line instead of printing zeros the backend never measured", () => {
@@ -117,10 +119,10 @@ describe("FeedFriendPost", () => {
 
   it("shows the author photo and a story ring only when they have a story", () => {
     expect(post()).toContain(`src="${mockFriends[0].avatarUrl}"`);
-    expect(post()).not.toContain("app-story-ring--active");
+    expect(post()).not.toContain("app-tg-ring");
     expect(post()).not.toContain("app-feed-ring-inner");
     const withStory = renderToStaticMarkup(createElement(FeedFriendPost, { card: friendCard, now: NOW, onToggleLike: noop, onToggleGoing: noop, onOpenComments: noop, onShare: noop, onOpenEvent: noop, onOpenAuthor: noop, userId: "u1", hasStory: true }));
-    expect(withStory).toContain("app-story-ring--active");
+    expect(withStory).toContain("app-tg-ring--new");
   });
 
   it("pages several photos instead of tiling them", () => {
