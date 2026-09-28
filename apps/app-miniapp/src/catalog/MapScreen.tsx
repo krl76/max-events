@@ -48,6 +48,8 @@ import { useAppliedScheme, type ThemeScheme } from "../ui/theme";
 import { basemapCredit, MAP_BASEMAPS, readBasemapPreference, STANDARD_BASEMAP, writeBasemapPreference, type MapBasemap } from "./basemaps";
 import { buildMapMarkers, clusterMapMarkers, type MapMarker, type MapPinGlyph } from "./mapMarkers";
 import { walkingRoute } from "./walkingRoute";
+import { droppedPinCardVisible, droppedPinKey, droppedPinStop, DROPPED_PIN_TITLE, placeRouteStop, routeBarLabel, type MapRouteStop } from "./droppedPinRoute";
+import { pinLabel } from "../ui/pin-label";
 import { useLeafletMap } from "./useLeafletMap";
 import { mountVectorBasemap, paintableBasemap, type VectorBasemapLayer } from "./vectorBasemap";
 import { useMapAssistIds } from "./useMapAssistIds";
@@ -319,6 +321,8 @@ export interface MapCallbacks {
   onOpenPlace: (id: string) => void;
   /** Selecting a pin raises the card of экран 16; without a handler the popup is the whole interaction. */
   onSelect: (marker: MapMarker) => void;
+  /** Тап по пину с поста снова открывает карточку маршрута, если её закрыли. */
+  onSelectDropped?: () => void;
   /** Тайлы не пришли: экран объясняет пустую подложку вместо того, чтобы притворяться загруженным. */
   onTileTrouble: () => void;
   /** Векторная подложка не поднялась (нет WebGL, MapLibre не догрузился): экран возвращает стандартную растровую. */
@@ -424,7 +428,11 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
 
   function drawOverlay(): void {
     overlay.clearLayers();
-    if (view.dropped) L.marker(view.dropped, { icon: L.divIcon({ className: "app-pin-marker", iconSize: [28, 36], iconAnchor: [14, 34], html: '<span class="app-pin-marker-drop"></span>' }), zIndexOffset: 900 }).addTo(overlay);
+    if (view.dropped) {
+      L.marker(view.dropped, { icon: L.divIcon({ className: "app-pin-marker", iconSize: [28, 36], iconAnchor: [14, 34], html: '<span class="app-pin-marker-drop"></span>' }), zIndexOffset: 900 })
+        .addTo(overlay)
+        .on("click", () => callbacks.onSelectDropped?.());
+    }
     if (view.origin === null) return;
     const hereLabel = view.hereLabel ?? "Вы здесь";
     L.marker(view.origin, { icon: L.divIcon({ className: "app-map-pin app-map-pin--me", iconSize: [22, 22], iconAnchor: [11, 11], html: `<span class="app-map-me-dot"></span><span class="app-map-me-label">${hereLabel}</span>` }) }).addTo(overlay);
@@ -495,7 +503,7 @@ interface MapSelectionCardProps {
   onRoute: () => void;
   /** Без обработчика кнопка не рисуется: мёртвая кнопка читается как сломанный экран. */
   onDiscuss?: () => void;
-  onOpen: () => void;
+  onOpen?: () => void;
   onClose: () => void;
 }
 
@@ -505,19 +513,30 @@ export function MapSelectionCard(props: MapSelectionCardProps) {
       <button type="button" className="app-map16-card-close" aria-label="Закрыть" onClick={props.onClose}>
         <ActionIcon name="close" size={16} strokeWidth={2.6} />
       </button>
-      <button type="button" className="app-map16-card-head" onClick={props.onOpen}>
-        {props.photoId ? <img className="app-map16-card-media" alt="" src={pictured(props.photoId)} /> : <span className={props.category === null ? "app-map16-card-media" : `app-map16-card-media app-media--${props.category}`} aria-hidden="true" />}
-        <span className="app-map16-card-id">
-          {props.friendsLine !== null && (
-            <span className="app-map16-card-friends">
-              <span className="app-map16-card-dot" aria-hidden="true" />
-              {props.friendsLine}
+      {(() => {
+        const head = (
+          <>
+            {props.photoId ? <img className="app-map16-card-media" alt="" src={pictured(props.photoId)} /> : <span className={props.category === null ? "app-map16-card-media" : `app-map16-card-media app-media--${props.category}`} aria-hidden="true" />}
+            <span className="app-map16-card-id">
+              {props.friendsLine !== null && (
+                <span className="app-map16-card-friends">
+                  <span className="app-map16-card-dot" aria-hidden="true" />
+                  {props.friendsLine}
+                </span>
+              )}
+              <span className="app-map16-card-title">{props.title}</span>
+              <span className="app-map16-card-meta">{props.subtitle}</span>
             </span>
-          )}
-          <span className="app-map16-card-title">{props.title}</span>
-          <span className="app-map16-card-meta">{props.subtitle}</span>
-        </span>
-      </button>
+          </>
+        );
+        return props.onOpen ? (
+          <button type="button" className="app-map16-card-head" onClick={props.onOpen}>
+            {head}
+          </button>
+        ) : (
+          <div className="app-map16-card-head">{head}</div>
+        );
+      })()}
       {props.travel.length > 0 && (
         <div className="app-map16-travel">
           {props.travel.map((option) => {
@@ -576,7 +595,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selected, setSelected] = useState<MapMarker | null>(null);
   const [routeOn, setRouteOn] = useState(drawRoute);
-  const [routePlace, setRoutePlace] = useState<Place | null>(null);
+  const [routePlace, setRoutePlace] = useState<MapRouteStop | null>(null);
+  const [dismissedPinKey, setDismissedPinKey] = useState<string | null>(null);
   const [routePath, setRoutePath] = useState<[number, number][] | null>(null);
   const [weatherOpen, setWeatherOpen] = useState(false);
   const [centered, setCentered] = useState(false);
@@ -706,16 +726,26 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     setRouteOn(false);
     setRoutePlace(null);
   }, []);
+  const reopenPin = useCallback(() => {
+    setSelected(null);
+    setDismissedPinKey(null);
+    setRouteOn(false);
+    setRoutePlace(null);
+    setWeatherOpen(false);
+    setBasemapsOpen(false);
+    setFiltersOpen(false);
+  }, []);
 
   // Обработчики живут в ref, а не в зависимостях карты: CatalogPage пересоздаёт их на каждый рендер,
   // и карта перерисовывалась бы вхолостую, теряя открытый попап.
-  const handlers = useRef({ onOpenEvent, onOpenPlace, select });
-  handlers.current = { onOpenEvent, onOpenPlace, select };
+  const handlers = useRef({ onOpenEvent, onOpenPlace, select, reopenPin });
+  handlers.current = { onOpenEvent, onOpenPlace, select, reopenPin };
   const callbacks = useMemo<MapCallbacks>(
     () => ({
       onOpenEvent: (id) => handlers.current.onOpenEvent(id),
       onOpenPlace: (id) => handlers.current.onOpenPlace(id),
       onSelect: (marker) => handlers.current.select(marker),
+      onSelectDropped: () => handlers.current.reopenPin(),
       onTileTrouble: () => {
         setTilesFailed(true);
         if (basemapRef.current.id === STANDARD_BASEMAP.id) return;
@@ -755,9 +785,17 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     if (status !== "ready") return;
     if (pin !== null) {
       const key = `${pin.lat.toFixed(5)},${pin.lng.toFixed(5)}`;
-      if (flown.current === key) return;
-      flown.current = key;
-      handleRef.current?.focus([pin.lat, pin.lng], 16);
+      if (!flown.current.startsWith(key)) {
+        flown.current = key;
+        handleRef.current?.focus([pin.lat, pin.lng], 16);
+      }
+      if (!drawRoute || focusPlaceId === null || places.status !== "ready") return;
+      if (flown.current === `${key}:route`) return;
+      const pinned = places.places.find((item) => item.id === focusPlaceId);
+      if (pinned === undefined) return;
+      flown.current = `${key}:route`;
+      setRoutePlace(placeRouteStop(pinned));
+      setRouteOn(true);
       return;
     }
     if (focusPlaceId === null || places.status !== "ready") return;
@@ -767,7 +805,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     flown.current = focusPlaceId;
     handleRef.current?.focus([place.latitude, place.longitude], 16);
     if (drawRoute) {
-      setRoutePlace(place);
+      setRoutePlace(placeRouteStop(place));
       setRouteOn(true);
       return;
     }
@@ -777,6 +815,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
 
   const weatherChange = weather === null ? null : formatMapChange(weather);
   const friendsLine = mapFriendsLine(friendVisits.find((visit) => visit.place.id === selectedPlaceId));
+  const customPin = pin !== null && droppedPinCardVisible({ pin, placeId: focusPlaceId, dismissedKey: dismissedPinKey }) ? pin : null;
   const metroAsked = travel.some((option) => option.mode === "metro");
   const metroPlan = selectedPlace === undefined || !metroAsked ? null : planMetroRide({ lat: originPoint[0], lng: originPoint[1] }, { lat: selectedPlace.latitude, lng: selectedPlace.longitude });
   const shownTravel = travel.map((option) => (option.mode === "metro" && metroPlan !== null ? { ...option, transfers: metroPlan.transfers } : option));
@@ -908,7 +947,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
           routeOn={routeOn}
           onRoute={() => {
             if (selectedPlace === undefined) return;
-            setRoutePlace(selectedPlace);
+            setRoutePlace(placeRouteStop(selectedPlace));
             setRouteOn(true);
             setSelected(null);
             setWeatherOpen(false);
@@ -919,9 +958,32 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
           onClose={() => setSelected(null)}
         />
       )}
+      {customPin !== null && selected === null && !weatherOpen && !routeOn && (
+        <MapSelectionCard
+          title={DROPPED_PIN_TITLE}
+          subtitle={pinLabel(customPin.lat, customPin.lng)}
+          category={null}
+          friendsLine={null}
+          travel={[]}
+          metroSteps={null}
+          metroFar={false}
+          rainHint={null}
+          routeOn={false}
+          onRoute={() => {
+            setRoutePlace(droppedPinStop(customPin));
+            setRouteOn(true);
+            setDismissedPinKey(droppedPinKey(customPin));
+            setSelected(null);
+            setWeatherOpen(false);
+            setBasemapsOpen(false);
+            setFiltersOpen(false);
+          }}
+          onClose={() => setDismissedPinKey(droppedPinKey(customPin))}
+        />
+      )}
       {routeOn && routePlace !== null && selected === null && !weatherOpen && (
         <div className="app-map16-routebar">
-          <span>Маршрут до {routePlace.title}</span>
+          <span>{routeBarLabel(routePlace)}</span>
           <button
             type="button"
             onClick={() => {

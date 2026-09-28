@@ -314,6 +314,16 @@ describe("initEventMap", () => {
     );
   });
 
+  it("asks the screen to reopen the route card when the dropped pin is tapped", async () => {
+    const onSelectDropped = vi.fn();
+    await initEventMap(container, view([], { dropped: [55.7522, 37.6156] }), callbacks({ onSelectDropped }));
+    const dropped = leaflet.marker.mock.results.at(-1)?.value as { click: (() => void) | null };
+
+    dropped.click?.();
+
+    expect(onSelectDropped).toHaveBeenCalledTimes(1);
+  });
+
   it("redraws new data into the map it already built instead of building a second one", async () => {
     const handle = await initEventMap(container, view([]), callbacks());
     leaflet.marker.mockClear();

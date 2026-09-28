@@ -37,3 +37,32 @@ describe("MapPageView", () => {
   });
 });
 
+describe("custom pin from a post", () => {
+  it("offers to build a route when the map opens on a dropped pin", () => {
+    const html = renderToStaticMarkup(
+      createElement(MapPageView, {
+        state: { status: "ready", events: [] },
+        onOpenEvent: noop,
+        onOpenPlace: noop,
+        pin: { lat: 55.7522, lng: 37.6156 },
+      }),
+    );
+
+    expect(html).toContain("Точка на карте");
+    expect(html).toContain("Построить маршрут");
+  });
+
+  it("does not treat a catalog place focus as a custom pin", () => {
+    const html = renderToStaticMarkup(
+      createElement(MapPageView, {
+        state: { status: "ready", events: [] },
+        onOpenEvent: noop,
+        onOpenPlace: noop,
+        pin: { lat: 55.7522, lng: 37.6156 },
+        focusPlaceId: "b0000000-0000-4000-8000-000000000001",
+      }),
+    );
+
+    expect(html).not.toContain("Построить маршрут");
+  });
+});
