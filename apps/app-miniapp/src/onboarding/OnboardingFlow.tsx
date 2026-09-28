@@ -18,7 +18,7 @@ import { AfishaWordmark } from "../auth/EntryPage";
 import { getWebApp } from "../max/bridge";
 import { useSwipe } from "../ui/gestures";
 import { ActionIcon } from "../ui/icons";
-import { AppButton, AppChip, AppState } from "../ui/primitives";
+import { AppChip, AppState } from "../ui/primitives";
 import { useViewerOrigin, requestViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
 import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, cityCardMeta, cityDetectionHint, cityForwardBlock, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, markOnboardingDone, matchedOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type CityDetectState, type IntroDirection, type OnboardingStep } from "./onboarding";
@@ -63,8 +63,28 @@ function OnboardingField() {
   );
 }
 
-const INTRO_ASK = ["джаз вечером", "парк", "Казань"] as const;
-const INTRO_PLAN = ["сегодня 19:00", "чат события", "как дойти"] as const;
+function AssistBot() {
+  return (
+    <svg className="app-onboarding-bot" viewBox="0 0 80 80" aria-hidden="true">
+      <circle cx="40" cy="44" r="28" fill="#007aff" />
+      <circle cx="40" cy="42" r="18" fill="#ffffff" />
+      <circle cx="33" cy="40" r="3" fill="#007aff" />
+      <circle cx="47" cy="40" r="3" fill="#007aff" />
+      <path d="M34 48h12" stroke="#007aff" strokeWidth="2" strokeLinecap="round" />
+      <path d="M40 8v10" stroke="#479fff" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="40" cy="8" r="3.5" fill="#ff9315" />
+      <path d="M18 36h8M54 36h8" stroke="#479fff" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IntroMark({ name, slot }: { name: "spark" | "clock" | "comment" | "pin"; slot: number }) {
+  return (
+    <span className={`app-onboarding-mark app-onboarding-mark--${slot}`}>
+      <ActionIcon name={name} size={18} />
+    </span>
+  );
+}
 
 function IntroBits({ kind }: { kind: 1 | 2 | 3 }) {
   return (
@@ -78,19 +98,15 @@ function IntroBits({ kind }: { kind: 1 | 2 | 3 }) {
         ))}
       </div>
       <div className={kind === 2 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
-        <span className="app-onboarding-assist" />
-        {INTRO_ASK.map((note, index) => (
-          <span key={note} className={`app-onboarding-badge app-onboarding-badge--${index + 1}`}>
-            {note}
-          </span>
-        ))}
+        <AssistBot />
+        <IntroMark name="spark" slot={1} />
+        <IntroMark name="spark" slot={2} />
+        <IntroMark name="spark" slot={4} />
       </div>
       <div className={kind === 3 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
-        {INTRO_PLAN.map((note, index) => (
-          <span key={note} className={`app-onboarding-badge app-onboarding-badge--${index + 1}`}>
-            {note}
-          </span>
-        ))}
+        <IntroMark name="clock" slot={1} />
+        <IntroMark name="comment" slot={2} />
+        <IntroMark name="pin" slot={3} />
       </div>
     </div>
   );
@@ -166,6 +182,14 @@ function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle =
           Пропустить
         </button>
       </div>
+      <ol className={`app-onboarding-rail app-onboarding-rail--${index}`} aria-label="Шаги онбординга">
+        {INTRO_SLIDES.map((item, position) => (
+          <li key={item.title} className={position <= index ? "app-onboarding-rail-step app-onboarding-rail-step--on" : "app-onboarding-rail-step"} aria-current={position === index ? "step" : undefined}>
+            <button type="button" className="app-onboarding-rail-dot" aria-label={`Слайд ${position + 1}`} onClick={() => onIntro(position)} />
+            <span className="app-onboarding-rail-label">{item.label}</span>
+          </li>
+        ))}
+      </ol>
       <div className={settle ? "app-onboarding-cast app-onboarding-cast--settle" : "app-onboarding-cast"} style={{ transform: `translate3d(${travel}px, 0, 0)`, filter: haze > 0.4 ? `blur(${haze}px)` : "none" }}>
         <div className="app-onboarding-places">
           {INTRO_PLACES.map((place) => (
@@ -188,31 +212,26 @@ function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle =
         <p className="app-onboarding-intro-text">{slide.description}</p>
       </div>
       <div className="app-onboarding-film-foot">
-        <div className="app-onboarding-dots">
-          {INTRO_SLIDES.map((item, position) => (
-            <button key={item.title} type="button" aria-label={`Слайд ${position + 1}`} aria-current={position === index ? "true" : undefined} className={position === index ? "app-onboarding-dot app-onboarding-dot--on" : "app-onboarding-dot"} onClick={() => onIntro(position)} />
-          ))}
-        </div>
-        <AppButton stretched onClick={onNext}>
+        <button type="button" className="app-onboarding-cta" onClick={onNext}>
           {last ? "Начать" : "Дальше"}
-        </AppButton>
+        </button>
       </div>
     </div>
   );
 }
 
 function CityStep({ city, cityDetect, cityPicked, onCity, onNext }: Pick<OnboardingViewProps, "city" | "cityDetect" | "cityPicked" | "onCity" | "onNext">) {
+  const shown = city ?? "Москва";
   return (
     <>
       <header className="app-onboarding-head">
         <h1 className="app-onboarding-title">Где ищем события?</h1>
         <p className="app-onboarding-lead">{cityDetectionHint(cityDetect)}</p>
-        {city === null && <p className="app-onboarding-lead">Не выбран</p>}
       </header>
       <div className="app-onboarding-body">
         <div className="app-onboarding-city-deck">
           {ONBOARDING_CITIES.map((option) => {
-            const on = option.name === city;
+            const on = option.name === shown;
             return (
               <button key={option.name} type="button" className={on ? "app-onboarding-city-tile app-onboarding-city-tile--on" : "app-onboarding-city-tile"} aria-pressed={on} onClick={() => onCity(option.name)}>
                 <span>{option.name}</span>
@@ -442,7 +461,7 @@ export function OnboardingFlow({ onDone, onLeave }: { onDone: () => void; onLeav
   // Геопозиция выбирает город, только если точка реально рядом с ним, а не «ближайший из пяти» за тысячу километров.
   const cityDetect: CityDetectState = origin.state === "pending" ? "pending" : origin.source !== "geo" ? "denied" : matchedOnboardingCity(origin.latitude, origin.longitude) === null ? "outside" : "matched";
   const detected = useMemo(() => (origin.source === "geo" ? (matchedOnboardingCity(origin.latitude, origin.longitude)?.name ?? null) : null), [origin]);
-  const city = picked ?? detected;
+  const city = picked ?? detected ?? "Москва";
   // Обновления идут функционально: пока выбор не тронут, его база — загруженные данные, и два
   // быстрых тапа подряд не должны считаться от одного и того же снимка.
   const seededFollows = loaded?.suggestions.filter((item) => item.followed).map((item) => item.friend.id) ?? [];

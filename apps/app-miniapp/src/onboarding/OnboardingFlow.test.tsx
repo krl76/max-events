@@ -59,7 +59,9 @@ describe("intro step", () => {
 
     expect(html).toContain(INTRO_SLIDES[2].title);
     expect(html).toContain("Начать");
-    expect(html).toContain("app-onboarding-dot--on");
+    expect(html).toContain("app-onboarding-rail--2");
+    expect(html).not.toContain("сегодня 19:00");
+    expect(html).not.toContain("чат события");
     expect(html).toContain("app-onboarding-film");
     expect(html).toContain("/covers/kolomenskoe.jpg");
   });
@@ -119,7 +121,8 @@ describe("city step", () => {
     const html = viewHtml({ step: "city", city: null, cityDetect: "denied" });
 
     expect(html).toContain("Геолокация недоступна");
-    expect(html).toContain("Не выбран");
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).not.toContain("Не выбран");
     expect(html).not.toContain("Определили по геолокации");
     expect(html).not.toContain("Рядом с тобой");
   });

@@ -4178,7 +4178,7 @@ html[data-theme="dark"] #root {
 
 .app-onboarding-place--1 {
   left: 12%;
-  top: 46%;
+  top: 42%;
   width: 40%;
   z-index: 2;
 }
@@ -4190,7 +4190,7 @@ html[data-theme="dark"] #root {
 .app-onboarding-place--2 {
   animation-delay: -2.6s;
   right: 8%;
-  top: 50%;
+  top: 46%;
   width: 36%;
   z-index: 3;
 }
@@ -4202,7 +4202,7 @@ html[data-theme="dark"] #root {
 .app-onboarding-place--3 {
   animation-delay: -4.2s;
   left: 30%;
-  top: 64%;
+  top: 56%;
   width: 32%;
   z-index: 1;
 }
@@ -4275,15 +4275,22 @@ html[data-theme="dark"] #root {
   visibility: visible;
 }
 
-.app-onboarding-face {
+.app-onboarding-face,
+.app-onboarding-mark {
+  align-items: center;
   border-radius: 50%;
-  box-shadow:
-    0 0 0 2px rgba(255, 255, 255, 0.9),
-    0 10px 22px rgba(6, 7, 8, 0.35);
-  height: 52px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+  display: flex;
+  height: 40px;
+  justify-content: center;
   overflow: hidden;
   position: absolute;
-  width: 52px;
+  width: 40px;
+}
+
+.app-onboarding-mark {
+  background: rgba(0, 122, 255, 0.28);
 }
 
 .app-onboarding-face .app-onboarding-person-art,
@@ -4293,25 +4300,14 @@ html[data-theme="dark"] #root {
   width: 100%;
 }
 
-.app-onboarding-assist {
-  background: radial-gradient(circle, rgba(0, 122, 255, 0.55), rgba(0, 122, 255, 0) 70%);
-  border-radius: 50%;
-  height: 72px;
+.app-onboarding-bot {
+  filter: drop-shadow(0 8px 16px rgba(0, 122, 255, 0.4));
+  height: 76px;
   left: 50%;
   position: absolute;
-  top: 30%;
+  top: 42%;
   transform: translate(-50%, -50%);
-  width: 72px;
-}
-
-.app-onboarding-badge {
-  background: rgba(6, 7, 8, 0.55);
-  border-radius: 999px;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 800;
-  padding: 6px 10px;
-  position: absolute;
+  width: 76px;
 }
 
 .app-onboarding-face span {
@@ -4319,26 +4315,27 @@ html[data-theme="dark"] #root {
 }
 
 .app-onboarding-face--1,
-.app-onboarding-badge--1 {
-  left: 0;
-  top: 38%;
+.app-onboarding-mark--1 {
+  left: 14px;
+  top: 36%;
 }
 
 .app-onboarding-face--2,
-.app-onboarding-badge--2 {
-  right: 0;
-  top: 40%;
+.app-onboarding-mark--2 {
+  right: 14px;
+  top: 38%;
 }
 
 .app-onboarding-face--3,
-.app-onboarding-badge--3 {
-  left: 0;
-  top: 72%;
+.app-onboarding-mark--3 {
+  left: 18px;
+  top: 60%;
 }
 
-.app-onboarding-face--4 {
-  right: 0;
-  top: 74%;
+.app-onboarding-face--4,
+.app-onboarding-mark--4 {
+  right: 18px;
+  top: 62%;
 }
 
 .app-onboarding-line {
@@ -4347,7 +4344,7 @@ html[data-theme="dark"] #root {
   position: absolute;
   right: 24px;
   text-align: center;
-  top: calc(46px + env(safe-area-inset-top, 0px));
+  top: calc(118px + env(safe-area-inset-top, 0px));
   z-index: 4;
 }
 
@@ -4519,11 +4516,51 @@ html[data-theme="dark"] #root {
   color: #060708;
 }
 
-.app-onboarding--film .app-onboarding-head {
-  background: rgba(6, 7, 8, 0.78);
-  border-radius: 16px;
-  margin: 0 12px 8px;
-  padding: 4px 12px 10px;
+.app-onboarding-film .app-onboarding-rail,
+.app-onboarding--film .app-onboarding-rail {
+  position: relative;
+  z-index: 5;
+}
+
+.app-onboarding-film .app-onboarding-rail {
+  padding: 52px 32px 0;
+}
+
+.app-onboarding--film .app-onboarding-rail {
+  padding: 8px 32px 0;
+}
+
+.app-onboarding-film .app-onboarding-rail-dot {
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  padding: 0;
+}
+
+.app-onboarding-film .app-onboarding-rail::before,
+.app-onboarding-film .app-onboarding-rail::after {
+  top: 58px;
+}
+
+.app-onboarding--film .app-onboarding-rail::before,
+.app-onboarding--film .app-onboarding-rail::after {
+  top: 14px;
+}
+
+.app-onboarding-film .app-onboarding-rail-label,
+.app-onboarding--film .app-onboarding-rail-label,
+.app-onboarding-film .app-onboarding-rail-step[aria-current] .app-onboarding-rail-label,
+.app-onboarding--film .app-onboarding-rail-step[aria-current] .app-onboarding-rail-label {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.app-onboarding-film .app-onboarding-rail-dot,
+.app-onboarding--film .app-onboarding-rail-dot {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.72);
+  height: 14px;
+  width: 14px;
 }
 
 .app-onboarding--film .app-onboarding-body {
