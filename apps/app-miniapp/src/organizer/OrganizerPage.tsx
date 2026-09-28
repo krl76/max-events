@@ -73,6 +73,11 @@ export interface EventDraft {
   repeatWeekly: boolean;
   /** Price is collected on the organizer's site. Empty price must not silently mean this mode. */
   sellOutside: boolean;
+  summary: string;
+  age: string;
+  duration: string;
+  /** False until the category menu is used, so the field can show its placeholder. */
+  categorySet: boolean;
 }
 
 export interface PlaceDraft {
@@ -84,7 +89,7 @@ export interface PlaceDraft {
   longitude: string;
 }
 
-export const EMPTY_EVENT_DRAFT: EventDraft = { title: "", description: "", category: "afisha", city: "", startsAt: "", endsAt: "", price: "", paymentUrl: "", capacity: "", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "", waitlistEnabled: false, registrationInApp: true, externalUrl: "", repeatWeekly: false, sellOutside: false };
+export const EMPTY_EVENT_DRAFT: EventDraft = { title: "", description: "", category: "afisha", city: "", startsAt: "", endsAt: "", price: "", paymentUrl: "", capacity: "", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "", waitlistEnabled: false, registrationInApp: true, externalUrl: "", repeatWeekly: false, sellOutside: false, summary: "", age: "", duration: "", categorySet: false };
 
 const PLACE_FOR_EVENT: Record<EventCategory, PlaceCategory> = { afisha: "other", volunteering: "other", tourism: "park", sport: "sport" };
 
@@ -239,6 +244,10 @@ export function eventDraftFrom(item: OrganizerEvent, place?: OrganizerPlace): Ev
     externalUrl: "",
     repeatWeekly: false,
     sellOutside: item.isPaid || (item.priceRub !== null && item.priceRub > 0),
+    summary: "",
+    age: "0+",
+    duration: "",
+    categorySet: true,
   };
 }
 
@@ -341,12 +350,34 @@ interface EventDraftFormProps {
   onPublish: () => void;
 }
 
+const AGE_OPTIONS = ["0+", "6+", "12+", "16+", "18+"] as const;
+const DURATION_OPTIONS = [
+  ["1", "1 час"],
+  ["2", "2 часа"],
+  ["3", "3 часа"],
+  ["4", "4 часа"],
+] as const;
+
+function endsAfter(startsAt: string, hours: string): string {
+  if (startsAt === "" || hours === "") return "";
+  const start = new Date(startsAt);
+  if (Number.isNaN(start.getTime())) return "";
+  return toLocalInput(new Date(start.getTime() + Number(hours) * 3_600_000).toISOString());
+}
+
+function formatDraftWhen(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Выберите дату и время";
+  return date.toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+}
+
 export function EventDraftForm({ draft, step, errors, submitting, failed, mode, offerPublish = false, onChange, onNext, onBack, onJump, onSaveDraft, onPublish }: EventDraftFormProps) {
   const canPublish = mode === "create" || offerPublish;
   const participation = draft.sellOutside ? "Покупка на другом сайте" : "Бесплатно по регистрации";
+  const stepTitle = ["Основная информация", "Локация", "Билеты", "Продвижение", "Публикация"][step - 1];
   return (
     <form
-      className="app-profile-form"
+      className="app-make"
       onSubmit={(submit) => {
         submit.preventDefault();
         if (step < 5) onNext();
@@ -354,62 +385,88 @@ export function EventDraftForm({ draft, step, errors, submitting, failed, mode, 
         else onSaveDraft();
       }}
     >
-      <p className="app-wiz-kicker">Шаг {step} из 5 · {eventWizardTitle(step)}</p>
-      <ol className="app-wiz-steps">
+      <ol className="app-make-steps">
         {WIZARD_STEP_TITLES.map((label, index) => (
-          <li key={label} className={index + 1 === step ? "app-wiz-step app-wiz-step--on" : index + 1 < step ? "app-wiz-step app-wiz-step--done" : "app-wiz-step"}>
-            <span>{index + 1}</span>
-            {label}
+          <li key={label}>
+            <button type="button" className={index + 1 === step ? "app-make-step app-make-step--on" : "app-make-step"} onClick={() => onJump((index + 1) as EventWizardStep)}>
+              <span>{index + 1}</span>
+              {label}
+            </button>
           </li>
         ))}
       </ol>
-      {step === 1 && <h2 className="app-cab-card-title">Основная информация</h2>}
-      {step === 1 && (
-        <button type="button" className="app-wiz-cover">
-          <span className="app-wiz-cover-icon" aria-hidden="true">
-            +
-          </span>
-          <span>Добавить обложку и фото (до 10)</span>
-        </button>
-      )}
+      <h2 className="app-make-title">{stepTitle}</h2>
       {step === 1 && (
         <>
-          <p className="app-gathering-hint">Своя обложка с телефона в кабинете не сохраняется. Карточка возьмёт уже заданное фото или картинку раздела.</p>
-          <label className="app-org-field">
-            <span className="app-org-field-label">Название</span>
-            <input className="app-profile-input" type="text" aria-label="Название события" placeholder="Например, «Вечер джаза на Патриарших»" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
+          <button type="button" className="app-make-cover">
+            <span className="app-make-camera" aria-hidden="true">
+              <ActionIcon name="camera" size={22} strokeWidth={1.8} />
+            </span>
+            <span>Добавить обложку и фото (до 10)</span>
+          </button>
+          <label className="app-make-field">
+            <span>Название события <i>*</i></span>
+            <input type="text" aria-label="Название события" placeholder="Например: Вечер джаза на Патриарших" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
           </label>
-          <div className="app-org-choice" role="group" aria-label="Раздел размещения">
-            {EventCategorySchema.options.map((category) => (
-              <AppChip key={category} pressed={draft.category === category} onClick={() => onChange("category", category)}>
-                {CATEGORY_LABELS[category]}
-              </AppChip>
-            ))}
-          </div>
-          <p className="app-gathering-hint">Раздел определяет, где событие окажется в афише: события, волонтёрство, туризм или спорт.</p>
-          <label className="app-org-field">
-            <span className="app-org-field-label">Краткое описание</span>
-            <textarea className="app-profile-input app-org-textarea" aria-label="Краткое описание" placeholder="Коротко о событии, 1–2 предложения" rows={2} value={draft.description} onChange={(change) => onChange("description", change.target.value)} />
+          <label className="app-make-field">
+            <span>Краткое описание <i>*</i></span>
+            <input type="text" aria-label="Краткое описание" placeholder="Коротко о событии, 1–2 предложения" value={draft.summary} onChange={(change) => onChange("summary", change.target.value)} />
           </label>
-          <label className="app-org-field">
-            <span className="app-org-field-label">Дата и время</span>
-            <input className="app-profile-input" type="datetime-local" aria-label="Начало" value={draft.startsAt} onChange={(change) => onChange("startsAt", change.target.value)} />
+          <label className="app-make-field">
+            <span>Полное описание <i>*</i></span>
+            <span className="app-make-count">{draft.description.length}/2000</span>
+            <textarea aria-label="Полное описание" maxLength={2000} rows={4} placeholder="Расскажите подробнее о событии, артистах, программе, преимуществах и т.д." value={draft.description} onChange={(change) => onChange("description", change.target.value)} />
           </label>
-          <label className="app-org-field">
-            <span className="app-org-field-label">Длительность, окончание</span>
-            <input className="app-profile-input" type="datetime-local" aria-label="Окончание" value={draft.endsAt} onChange={(change) => onChange("endsAt", change.target.value)} />
+          <label className="app-make-field">
+            <span>Категория <i>*</i></span>
+            <select aria-label="Категория" value={draft.categorySet ? draft.category : ""} onChange={(change) => { onChange("category", change.target.value); onChange("categorySet", true); }}>
+              <option value="">Выберите категорию</option>
+              {EventCategorySchema.options.map((category) => (
+                <option key={category} value={category}>{CATEGORY_LABELS[category]}</option>
+              ))}
+            </select>
+          </label>
+          <label className="app-make-field">
+            <span>Возрастное ограничение <i>*</i></span>
+            <select aria-label="Возрастное ограничение" value={draft.age} onChange={(change) => onChange("age", change.target.value)}>
+              <option value="">Выберите возраст</option>
+              {AGE_OPTIONS.map((age) => (
+                <option key={age} value={age}>{age}</option>
+              ))}
+            </select>
+          </label>
+          <label className="app-make-field">
+            <span>Дата и время <i>*</i></span>
+            <span className="app-make-fake">
+              <ActionIcon name="calendar" size={18} strokeWidth={2} />
+              {draft.startsAt === "" ? "Выберите дату и время" : formatDraftWhen(draft.startsAt)}
+              <input type="datetime-local" aria-label="Начало" value={draft.startsAt} onChange={(change) => onChange("startsAt", change.target.value)} />
+            </span>
+          </label>
+          <label className="app-make-field">
+            <span>Длительность</span>
+            <span className="app-make-fake">
+              <ActionIcon name="clock" size={18} strokeWidth={2} />
+              {DURATION_OPTIONS.find((item) => item[0] === draft.duration)?.[1] ?? "Укажите длительность"}
+              <select aria-label="Длительность" value={draft.duration} onChange={(change) => { onChange("duration", change.target.value); onChange("endsAt", endsAfter(draft.startsAt, change.target.value)); }}>
+                <option value="">Укажите длительность</option>
+                {DURATION_OPTIONS.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </span>
           </label>
         </>
       )}
       {step === 2 && (
         <>
-          <label className="app-org-field">
-            <span className="app-org-field-label">Город</span>
-            <input className="app-profile-input" type="text" aria-label="Город" placeholder="Город" value={draft.city} onChange={(change) => onChange("city", change.target.value)} />
+          <label className="app-make-field">
+            <span>Город <i>*</i></span>
+            <input type="text" aria-label="Город" placeholder="Москва" value={draft.city} onChange={(change) => onChange("city", change.target.value)} />
           </label>
-          <label className="app-org-field">
-            <span className="app-org-field-label">Адрес</span>
-            <input className="app-profile-input" type="text" aria-label="Адрес" placeholder="Улица и дом, или точка на карте" value={draft.address} onChange={(change) => onChange("address", change.target.value)} />
+          <label className="app-make-field">
+            <span>Адрес</span>
+            <input type="text" aria-label="Адрес" placeholder="Улица и дом" value={draft.address} onChange={(change) => onChange("address", change.target.value)} />
           </label>
           <VenuePinMap
             latitude={Number(draft.latitude)}
@@ -420,7 +477,6 @@ export function EventDraftForm({ draft, step, errors, submitting, failed, mode, 
               onChange("pinned", true);
             }}
           />
-          <p className="app-gathering-hint">Можно выбрать уже сохранённое место на шаге проверки, оставив его привязанным, или указать разовый адрес. Часовой пояс — местный, отдельного переключателя нет.</p>
         </>
       )}
       {step === 3 && (
@@ -512,25 +568,19 @@ export function EventDraftForm({ draft, step, errors, submitting, failed, mode, 
         </p>
       ))}
       {failed && <AppState error>Не удалось сохранить. Попробуйте ещё раз.</AppState>}
-      {step < 5 ? (
-        <AppButton disabled={submitting} type="submit" stretched>
-          Далее
-        </AppButton>
-      ) : (
-        <>
-          <AppButton disabled={submitting} type="submit" stretched>
-            {submitting ? "Сохранение…" : canPublish ? "Опубликовать" : "Сохранить"}
-          </AppButton>
-          {canPublish && (
-            <AppButton tone="secondary" disabled={submitting} type="button" stretched onClick={onSaveDraft}>
-              Сохранить черновик
-            </AppButton>
-          )}
-        </>
+      <button type="submit" className="app-make-next" disabled={submitting}>
+        {step < 5 ? "Далее →" : submitting ? "Сохранение…" : canPublish ? "Опубликовать" : "Сохранить"}
+      </button>
+      {step === 5 && canPublish && (
+        <button type="button" className="app-make-draft" disabled={submitting} onClick={onSaveDraft}>
+          Сохранить черновик
+        </button>
       )}
-      <AppButton tone="secondary" type="button" stretched onClick={onBack}>
-        {step === 1 ? "Отмена" : "Назад"}
-      </AppButton>
+      {step > 1 && (
+        <button type="button" className="app-make-back" onClick={onBack}>
+          Назад
+        </button>
+      )}
     </form>
   );
 }

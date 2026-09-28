@@ -43,7 +43,7 @@ const publishedPlace: OrganizerPlace = {
   logoUrl: null,
 };
 
-const readyDraft: EventDraft = { title: "Встреча книжного клуба", description: "", category: "afisha", city: "Москва", startsAt: "2026-10-20T19:00", endsAt: "", price: "", paymentUrl: "", capacity: "12", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "", waitlistEnabled: false, registrationInApp: true, externalUrl: "", repeatWeekly: false, sellOutside: false };
+const readyDraft: EventDraft = { title: "Встреча книжного клуба", description: "", category: "afisha", city: "Москва", startsAt: "2026-10-20T19:00", endsAt: "", price: "", paymentUrl: "", capacity: "12", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "", waitlistEnabled: false, registrationInApp: true, externalUrl: "", repeatWeekly: false, sellOutside: false, summary: "", age: "", duration: "", categorySet: true };
 
 describe("eventDraftErrors", () => {
   it("accepts a ready draft and reports every missing required field", () => {
@@ -212,16 +212,22 @@ describe("EventDraftForm", () => {
 
   it("starts on the description step and keeps the later steps on their own screens", () => {
     const first = form();
-    expect(first).toContain("Шаг 1 из 5");
-    expect(first).toContain("Например, «Вечер джаза на Патриарших»");
-    expect(first).toContain("Афиша");
+    expect(first).toContain("Основная информация");
+    expect(first).toContain("Название события");
+    expect(first).toContain("Например: Вечер джаза на Патриарших");
+    expect(first).toContain("Краткое описание");
+    expect(first).toContain("Полное описание");
+    expect(first).toContain("Выберите категорию");
+    expect(first).toContain("Выберите возраст");
+    expect(first).toContain("Выберите дату и время");
+    expect(first).toContain("Укажите длительность");
     expect(first).toContain("Далее");
     expect(first).toContain('type="datetime-local"');
     expect(first).toContain("Основное");
 
     const when = form({ step: 2 });
     expect(when).toContain("Адрес");
-    expect(when).toContain("Шаг 2 из 5");
+    expect(when).toContain("Локация");
 
     const join = form({ step: 3 });
     expect(join).toContain("Бесплатно по регистрации");

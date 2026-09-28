@@ -26197,6 +26197,212 @@ html:not([data-theme="dark"]) .app-when-sheet {
   gap: 8px;
 }
 
+.app-make {
+  background: #fff;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 8px 16px 28px;
+}
+
+.app-make-steps {
+  display: flex;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-make-steps li {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-make-step {
+  align-items: center;
+  background: none;
+  border: none;
+  color: #b0b6c3;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 6px;
+  padding: 0;
+  width: 100%;
+}
+
+.app-make-step span {
+  align-items: center;
+  background: #eef1f6;
+  border-radius: 50%;
+  color: #9aa3b2;
+  display: flex;
+  font-size: 13px;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.app-make-step--on {
+  color: var(--brand-blue);
+}
+
+.app-make-step--on span {
+  background: var(--brand-blue);
+  color: #fff;
+}
+
+.app-make-title {
+  color: #16181d;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 4px 0 0;
+}
+
+.app-make-cover {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e6e9f0;
+  border-radius: 16px;
+  color: #3a4154;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  gap: 14px;
+  padding: 16px;
+  text-align: left;
+}
+
+.app-make-camera {
+  align-items: center;
+  background: #f3f0ff;
+  border-radius: 12px;
+  color: #7c5cfc;
+  display: flex;
+  flex: none;
+  height: 52px;
+  justify-content: center;
+  width: 52px;
+}
+
+.app-make-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.app-make-field > span:first-child {
+  color: #8b93a7;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-make-field i {
+  color: #ff4d4f;
+  font-style: normal;
+}
+
+.app-make-field input,
+.app-make-field textarea,
+.app-make-field select {
+  appearance: none;
+  background: #f4f6f8;
+  border: none;
+  border-radius: 14px;
+  box-sizing: border-box;
+  color: #16181d;
+  font: inherit;
+  font-size: 15px;
+  padding: 14px 16px;
+  width: 100%;
+}
+
+.app-make-field textarea {
+  min-height: 108px;
+  padding-bottom: 28px;
+  resize: none;
+}
+
+.app-make-field select {
+  background-image: linear-gradient(45deg, transparent 50%, #8b93a7 50%), linear-gradient(135deg, #8b93a7 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%;
+  background-repeat: no-repeat;
+  background-size: 6px 6px, 6px 6px;
+}
+
+.app-make-count {
+  bottom: 10px;
+  color: #b0b6c3;
+  font-size: 12px;
+  font-weight: 600;
+  position: absolute;
+  right: 14px;
+}
+
+.app-make-fake {
+  align-items: center;
+  background: #f4f6f8;
+  border-radius: 14px;
+  color: #b0b6c3;
+  display: flex;
+  font-size: 15px;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 16px;
+  position: relative;
+}
+
+.app-make-fake svg {
+  color: #9aa3b2;
+  flex: none;
+}
+
+.app-make-fake input,
+.app-make-fake select {
+  cursor: pointer;
+  height: 100%;
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.app-make-next {
+  background: linear-gradient(90deg, #4d7cff, #7a5cff);
+  border: none;
+  border-radius: 16px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  margin-top: 8px;
+  min-height: 52px;
+}
+
+.app-make-next:disabled {
+  opacity: 0.6;
+}
+
+.app-make-draft,
+.app-make-back {
+  background: none;
+  border: none;
+  color: #8b93a7;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 8px;
+}
+
 .app-wiz-kicker {
   color: var(--app-text-secondary, #5c6578);
   font-size: 13px;
