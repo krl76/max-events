@@ -28,7 +28,8 @@ import { formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
 import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
-import { PinPicker } from "../ui/PinPicker";
+import { PlaceSheet } from "../ui/PlaceSheet";
+import { placePinTitle } from "../ui/pin-label";
 import { pictured } from "../ui/photos";
 import { AppIconButton, AppButton, AppMedia, AppState, AppSkeleton, AppSection } from "../ui/primitives";
 import { WhenField } from "../ui/WhenField";
@@ -285,33 +286,28 @@ interface MicroEventCreateViewProps {
   onSubmit: () => void;
 }
 
-export function MicroEventCreateView({ draft, places: _places, friends = [], inviteeIds = [], submitting, failed, onChange, onInvite, onInviteMax, onSubmit }: MicroEventCreateViewProps) {
-  const [pickingPin, setPickingPin] = useState(false);
+export function MicroEventCreateView({ draft, places, friends = [], inviteeIds = [], submitting, failed, onChange, onInvite, onInviteMax, onSubmit }: MicroEventCreateViewProps) {
+  const [pickingPlace, setPickingPlace] = useState(false);
   const [pickingFriends, setPickingFriends] = useState(false);
   const ready = microDraftReady(draft);
   const limit = Math.max(1, Number(draft.limit) || 1);
   return (
-    <section className="app-micro-build" aria-label="Своя встреча">
-      <p className="app-micro-lead">Не из афиши. Вы придумываете встречу и зовёте своих.</p>
-      <label className="app-micro-title">
-        <span className="app-plan-kicker">Что делаем</span>
+    <section className="app-micro-build app-make" aria-label="Своя встреча">
+      <p className="app-make-lead">Своя встреча, не из афиши.</p>
+      <label className="app-make-row">
+        <span className="app-make-k">Что делаем</span>
         <input aria-label="Что делаем" placeholder="Баскетбол, настолки, каток" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
       </label>
-      <div className="app-micro-when">
-        <span className="app-plan-kicker">Когда</span>
-        <WhenField label="Когда" value={draft.when} onChange={(value) => onChange("when", value)} />
+      <div className="app-make-row">
+        <span className="app-make-k">Когда</span>
+        <WhenField label="Выбрать" value={draft.when} onChange={(value) => onChange("when", value)} />
       </div>
-      <div className="app-plan-meet">
-        <label className="app-plan-meet-field">
-          <span className="app-plan-kicker">Где</span>
-          <input className="app-plan-meet-input" aria-label="Где" placeholder="Парк, двор, каток" value={draft.where} onChange={(change) => onChange("where", change.target.value)} />
-        </label>
-        <button type="button" className="app-plan-pin" aria-label="Точка на карте" onClick={() => setPickingPin(true)}>
-          <ActionIcon name="pin" size={20} />
-        </button>
-      </div>
-      <label className="app-micro-limit">
-        <span className="app-plan-kicker">Лимит участников</span>
+      <button type="button" className="app-make-row" onClick={() => setPickingPlace(true)}>
+        <span className="app-make-k">Где</span>
+        <span className="app-make-v">{draft.where.trim() === "" ? "Адрес или карта" : placePinTitle(draft.where)}</span>
+      </button>
+      <label className="app-make-row">
+        <span className="app-make-k">Лимит участников</span>
         <span className="app-micro-stepper">
           <button type="button" aria-label="Меньше людей" onClick={() => onChange("limit", String(Math.max(1, limit - 1)))}>
             −
@@ -322,30 +318,28 @@ export function MicroEventCreateView({ draft, places: _places, friends = [], inv
           </button>
         </span>
       </label>
-      <div className="app-gathering-invite">
-        <button type="button" className="app-gathering-row" onClick={() => setPickingFriends(true)}>
-          <ActionIcon name="friends" size={18} />
-          <span>Пригласить друзей{inviteeIds.length > 0 ? ` · ${inviteeIds.length}` : ""}</span>
-          <ActionIcon name="chevron" size={16} />
+      <button type="button" className="app-make-row" onClick={() => setPickingFriends(true)}>
+        <span className="app-make-k">Кто</span>
+        <span className="app-make-v">Пригласить друзей{inviteeIds.length > 0 ? ` · ${inviteeIds.length}` : ""}</span>
+      </button>
+      {onInviteMax !== undefined && (
+        <button type="button" className="app-make-link" onClick={onInviteMax}>
+          Пригласить в MAX
         </button>
-        {onInviteMax !== undefined && (
-          <button type="button" className="app-gathering-max" onClick={onInviteMax}>
-            Пригласить в MAX
-          </button>
-        )}
-      </div>
+      )}
       <AppButton disabled={submitting || !ready} onClick={onSubmit} stretched>
         {submitting ? "Публикуем…" : "Создать микрособытие"}
       </AppButton>
       {failed && <AppState error>Не удалось опубликовать микро-событие.</AppState>}
-      {pickingPin && (
-        <PinPicker
+      {pickingPlace && (
+        <PlaceSheet
           title="Где встречаемся"
-          onConfirm={(label) => {
-            onChange("where", label);
-            setPickingPin(false);
+          places={places}
+          onConfirm={(choice) => {
+            onChange("where", choice.label);
+            setPickingPlace(false);
           }}
-          onClose={() => setPickingPin(false)}
+          onClose={() => setPickingPlace(false)}
         />
       )}
       {pickingFriends && (
@@ -399,7 +393,7 @@ export function MicroEventCreatePage() {
     if (!microDraftReady(draft) || userId === null) return;
     setSubmitting(true);
     setFailed(false);
-    const place = places.find((item) => item.title === draft.where.trim());
+    const place = places.find((item) => item.title === draft.where.trim() || item.address === draft.where.trim());
     apiClient
       .createMicroEvent({
         userId,

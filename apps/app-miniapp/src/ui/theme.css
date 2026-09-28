@@ -7581,7 +7581,7 @@ button.app-today-stat {
 }
 
 .app-post-compose-shot--lead {
-  height: 200px;
+  height: 120px;
 }
 
 .app-post-compose-shot-column {
@@ -7635,7 +7635,7 @@ button.app-today-stat {
 }
 
 .app-post-compose-add--lead {
-  height: 200px;
+  height: 88px;
 }
 
 .app-post-compose-rows {
@@ -7837,40 +7837,6 @@ button.app-today-stat {
   color: var(--app-danger-label);
   font-size: var(--app-font-size-description);
   margin: var(--app-space-m) 0 0;
-}
-
-.app-post-compose-foot {
-  align-items: center;
-  border-top: var(--app-hairline);
-  display: flex;
-  flex: none;
-  gap: 18px;
-  padding: var(--app-space-m) var(--app-space-screen) 40px;
-}
-
-.app-post-compose-attach {
-  align-items: center;
-  background: none;
-  border: none;
-  color: var(--app-text);
-  cursor: pointer;
-  display: flex;
-  padding: 0;
-}
-
-.app-post-compose-attach:disabled {
-  color: var(--app-text-tertiary);
-  cursor: default;
-}
-
-.app-post-compose-foot-gap {
-  flex: 1;
-}
-
-.app-post-compose-saved {
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-description);
-  font-weight: 700;
 }
 
 /* --- Экран 36 «Профиль»: градиентный hero, кольцо аватара, три метрики, три действия,
@@ -20370,10 +20336,6 @@ button.app-cal-peer-chip {
   padding-top: 8px;
 }
 
-.app-post-compose-foot {
-  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-}
-
 .app-post-compose-text {
   background: var(--app-surface);
   border: 1px solid rgba(6, 7, 8, 0.16);
@@ -21545,13 +21507,11 @@ button.app-story-viewer-author {
   width: 100%;
 }
 
-.app-plan-friend-stack,
-.app-post-compose-faces {
+.app-plan-friend-stack {
   display: flex;
 }
 
-.app-plan-friend-face,
-.app-post-compose-face {
+.app-plan-friend-face {
   align-items: center;
   background: var(--brand-void);
   border-radius: 50%;
@@ -21566,15 +21526,8 @@ button.app-story-viewer-author {
   width: 32px;
 }
 
-.app-plan-friend-face:first-child,
-.app-post-compose-face:first-child {
+.app-plan-friend-face:first-child {
   margin-left: 0;
-}
-
-.app-post-compose-face img {
-  height: 100%;
-  object-fit: cover;
-  width: 100%;
 }
 
 .app-plan-repeat {
@@ -21629,77 +21582,6 @@ button.app-story-viewer-author {
   outline: none;
   text-align: center;
   width: 48px;
-}
-
-.app-post-compose-pair {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: 1fr 1fr;
-}
-
-.app-post-compose-tile {
-  background: var(--app-card);
-  border: none;
-  border-radius: 18px;
-  color: inherit;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 132px;
-  padding: 12px;
-  text-align: left;
-}
-
-.app-post-compose-map {
-  align-items: center;
-  background: linear-gradient(145deg, #ffffff, #007aff 70%);
-  border-radius: 14px;
-  color: #060708;
-  display: flex;
-  height: 56px;
-  justify-content: center;
-}
-
-.app-post-compose-tile-title {
-  font-size: 15px;
-  font-weight: 800;
-}
-
-.app-post-compose-tile-note {
-  color: var(--app-text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.app-post-see {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: 1fr 1fr 1fr;
-  margin-top: 16px;
-}
-
-.app-post-see-card {
-  align-items: center;
-  background: var(--app-card);
-  border: none;
-  border-radius: 16px;
-  color: inherit;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 800;
-  gap: 6px;
-  justify-content: center;
-  min-height: 44px;
-  padding: 6px;
-}
-
-.app-post-see-card--on {
-  background: #007aff;
-  color: #ffffff;
 }
 
 .app-post-compose-shot {
@@ -23115,7 +22997,6 @@ html:not([data-theme="dark"]) .app-when-sheet {
   .app-map16-route,
   .app-map16-routebar button,
   .app-swipe-action--like,
-  .app-post-see-card--on,
   .app-plan-repeat-option--on,
   .app-when-day--on,
   .app-when-tick--on,
@@ -23810,4 +23691,226 @@ html:not([data-theme="dark"]) .app-when-sheet {
   height: 44px;
   line-height: 1;
   width: 44px;
+}
+
+.app-post-who {
+  margin-top: 16px;
+}
+
+.app-post-who-label {
+  color: var(--app-text-secondary);
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.app-post-who-seg {
+  background: var(--app-surface);
+  border-radius: 14px;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+.app-post-who-seg button {
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: inherit;
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 40px;
+  padding: 6px 4px;
+}
+
+.app-post-who-seg button[aria-checked="true"] {
+  background: var(--app-gradient-dark);
+  color: #ffffff;
+}
+
+.app-place-layer {
+  z-index: 90;
+}
+
+.app-place-sheet {
+  background: var(--app-card);
+  border-radius: 18px 18px 0 0;
+  bottom: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  max-height: 78dvh;
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  position: absolute;
+  right: 0;
+}
+
+.app-place-title {
+  font-size: 16px;
+  font-weight: 800;
+  margin: 4px 0 10px;
+  text-align: center;
+}
+
+.app-place-query,
+.app-pin-address {
+  background: var(--app-surface);
+  border: 1px solid var(--app-divider);
+  border-radius: 14px;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  height: 44px;
+  padding: 0 14px;
+  width: 100%;
+}
+
+.app-place-list {
+  list-style: none;
+  margin: 8px 0;
+  overflow: auto;
+  padding: 0;
+}
+
+.app-place-list button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 2px;
+  min-height: 44px;
+  padding: 8px 0;
+  text-align: left;
+  width: 100%;
+}
+
+.app-place-list small {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+}
+
+.app-place-map {
+  background: var(--app-gradient-dark);
+  border: none;
+  border-radius: 14px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  height: 44px;
+  margin-top: 8px;
+}
+
+.app-make {
+  gap: 8px;
+}
+
+.app-make-lead {
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  margin: 4px 0 8px;
+}
+
+.app-make-row {
+  align-items: center;
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: 16px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 56px;
+  padding: 10px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-make-row input {
+  background: none;
+  border: none;
+  color: inherit;
+  flex: 1;
+  font: inherit;
+  font-weight: 800;
+  min-width: 0;
+  outline: none;
+  text-align: right;
+}
+
+.app-make-k {
+  color: var(--app-text-secondary);
+  flex: none;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.app-make-v {
+  align-items: center;
+  display: flex;
+  font-weight: 800;
+  gap: 8px;
+  justify-content: flex-end;
+  min-width: 0;
+  text-align: right;
+}
+
+.app-make-v img {
+  border-radius: 8px;
+  height: 28px;
+  object-fit: cover;
+  width: 28px;
+}
+
+.app-make .app-when {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-make .app-when-open {
+  background: none;
+  border: none;
+  font-weight: 800;
+  padding: 0;
+  text-align: right;
+}
+
+.app-make .app-plan-repeat {
+  flex-direction: row;
+  gap: 4px;
+}
+
+.app-make .app-plan-repeat-option {
+  flex: 1;
+  font-size: 13px;
+  min-height: 44px;
+  padding: 8px 6px;
+  text-align: center;
+}
+
+.app-make-link {
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  min-height: 44px;
+  padding: 0;
+  text-align: left;
+}
+
+.app-make .app-micro-stepper {
+  margin-left: auto;
 }

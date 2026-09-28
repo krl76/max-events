@@ -39,7 +39,7 @@ import { PhotoGallery } from "./gallery";
 import { pictured } from "../ui/photos";
 import { AppAvatar, AppButton, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
-import { parsePinLabel } from "../ui/pin-label";
+import { parsePinLabel, placePinTitle } from "../ui/pin-label";
 import { useSheetSwipe } from "../ui/sheet";
 import { pluralRu } from "../catalog/format";
 
@@ -332,7 +332,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
     );
   const pin = parsePinLabel(post.locationLabel ?? "");
   const showMark = onOpenMap !== undefined && (pin !== null || post.placeId !== null);
-  const markLabel = pin !== null ? "Точка на карте" : "Показать на карте";
+  const markLabel = pin !== null ? placePinTitle(post.locationLabel ?? "") : "Показать на карте";
   useEffect(() => {
     if (typeof sessionStorage === "undefined") return;
     if (sessionStorage.getItem("max-events:open-comments") === post.id) sessionStorage.removeItem("max-events:open-comments");

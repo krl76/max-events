@@ -30,7 +30,8 @@ import { EventPicker } from "../ui/EventPicker";
 import { friendHandle } from "../ui/friend-handle";
 import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
-import { PinPicker } from "../ui/PinPicker";
+import { PlaceSheet } from "../ui/PlaceSheet";
+import { placePinLabel, placePinTitle } from "../ui/pin-label";
 import { pictured } from "../ui/photos";
 import { AppMedia } from "../ui/primitives";
 
@@ -101,23 +102,22 @@ interface PostCreateViewProps {
   friends: Friend[];
   state: PostSubmitState;
   photoRejected: boolean;
-  /** Строка «Черновик сохранён» появляется только после состоявшегося сохранения. */
-  draftSaved: boolean;
   onDraft: (next: PostComposeDraft) => void;
   onPickPhoto: () => void;
   onPublish: () => void;
   onClose: () => void;
 }
 
-export function PostCreateView({ draft, authorName, authorAvatar = null, events, places, friends, state, photoRejected, draftSaved, onDraft, onPickPhoto, onPublish }: PostCreateViewProps) {
+export function PostCreateView({ draft, authorName, authorAvatar = null, events, places, friends, state, photoRejected, onDraft, onPickPhoto, onPublish }: PostCreateViewProps) {
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const [taggingOpen, setTaggingOpen] = useState(false);
-  const [pickingPin, setPickingPin] = useState(false);
+  const [pickingPlace, setPickingPlace] = useState(false);
   const [pickingEvent, setPickingEvent] = useState(false);
   const missing = missingPostFields(draft);
   const boundEvent = events.find((event) => event.id === draft.eventId) ?? null;
   const boundPlace = places.find((place) => place.id === draft.placeId) ?? null;
   const tagged = friends.filter((friend) => draft.taggedFriendIds.includes(friend.id));
+  const whereLine = draft.pinLabel ? placePinTitle(draft.pinLabel) : boundPlace ? (boundPlace.address.trim() !== "" ? boundPlace.address : boundPlace.title) : "";
   const addTile = draft.photoUrls.length < POST_PHOTO_LIMIT;
 
   const publishLabel = state === "publishing" ? "Публикуем…" : "Опубликовать";
@@ -214,26 +214,18 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
             />
           )}
 
-          <div className="app-post-compose-pair">
-            <button type="button" className="app-post-compose-tile" onClick={() => setPickingPin(true)}>
-              <span className="app-post-compose-map" aria-hidden="true">
-                <ActionIcon name="pin" size={22} />
-              </span>
-              <span className="app-post-compose-tile-title">{draft.pinLabel ?? boundPlace?.title ?? "Место"}</span>
-              <span className="app-post-compose-tile-note">{draft.pinLabel || boundPlace ? "Точка на карте" : "Добавить точку"}</span>
-            </button>
-            <button type="button" className="app-post-compose-tile" aria-expanded={taggingOpen} onClick={() => setTaggingOpen(true)}>
-              <span className="app-post-compose-faces" aria-hidden="true">
-                {(tagged.length > 0 ? tagged : friends).slice(0, 3).map((friend) => (
-                  <span key={friend.id} className="app-post-compose-face">
-                    {friend.avatarUrl ? <img alt="" src={friend.avatarUrl} /> : friend.name.slice(0, 1)}
-                  </span>
-                ))}
-              </span>
-              <span className="app-post-compose-tile-title">{tagged.length === 0 ? "Друзья" : tagged.map((friend) => friend.name.split(" ")[0]).join(", ")}</span>
-              <span className="app-post-compose-tile-note">{tagged.length === 0 ? "Отметить в посте" : `@${friendHandle(tagged[0]!)}`}</span>
-            </button>
-          </div>
+          <button type="button" className="app-post-compose-row app-post-compose-row--button" onClick={() => setPickingPlace(true)}>
+            <span className="app-post-compose-row-text">
+              <span className="app-post-compose-row-title">{whereLine === "" ? "Место" : whereLine}</span>
+              <span className="app-post-compose-row-note">{whereLine === "" ? "Адрес, место из списка или карта" : "Адрес"}</span>
+            </span>
+          </button>
+          <button type="button" className="app-post-compose-row app-post-compose-row--button" aria-expanded={taggingOpen} onClick={() => setTaggingOpen(true)}>
+            <span className="app-post-compose-row-text">
+              <span className="app-post-compose-row-title">{tagged.length === 0 ? "Отметить друзей" : tagged.map((friend) => friend.name.split(" ")[0]).join(", ")}</span>
+              <span className="app-post-compose-row-note">{tagged.length === 0 ? "Их увидят в посте" : `@${friendHandle(tagged[0]!)}`}</span>
+            </span>
+          </button>
           {taggingOpen && (
             <FriendPicker
               friends={friends}
@@ -248,25 +240,29 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
               onClose={() => setTaggingOpen(false)}
             />
           )}
-          {pickingPin && (
-            <PinPicker
+          {pickingPlace && (
+            <PlaceSheet
               title="Место поста"
-              onConfirm={(label) => {
-                onDraft({ ...draft, pinLabel: label, placeId: null });
-                setPickingPin(false);
+              places={places}
+              onConfirm={(choice) => {
+                const pinLabel = choice.latitude !== undefined && choice.longitude !== undefined ? placePinLabel(choice.label, choice.latitude, choice.longitude) : choice.placeId === null ? choice.label : null;
+                onDraft({ ...draft, pinLabel, placeId: choice.placeId });
+                setPickingPlace(false);
               }}
-              onClose={() => setPickingPin(false)}
+              onClose={() => setPickingPlace(false)}
             />
           )}
         </div>
 
-        <div className="app-post-see" role="group" aria-label="Кто увидит">
-          {POST_AUDIENCES.map((audience) => (
-            <button key={audience.id} type="button" className={draft.audience === audience.id ? "app-post-see-card app-post-see-card--on" : "app-post-see-card"} aria-pressed={draft.audience === audience.id} onClick={() => onDraft({ ...draft, audience: audience.id })}>
-              <ActionIcon name={audience.id === "friends" ? "friends" : audience.id === "city" ? "pin" : "users"} size={18} />
-              <span>{audience.label}</span>
-            </button>
-          ))}
+        <div className="app-post-who">
+          <span className="app-post-who-label">Кто увидит</span>
+          <div className="app-post-who-seg" role="radiogroup" aria-label="Кто увидит">
+            {POST_AUDIENCES.map((audience) => (
+              <button key={audience.id} type="button" role="radio" aria-checked={draft.audience === audience.id} onClick={() => onDraft({ ...draft, audience: audience.id })}>
+                {audience.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {draft.eventId !== null && <div className="app-post-compose-join">
@@ -281,23 +277,6 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
         {state === "error" && <p className="app-post-compose-error">Не удалось опубликовать пост. Попробуйте ещё раз.</p>}
       </div>
 
-      <div className="app-post-compose-foot">
-        <button type="button" className="app-post-compose-attach" aria-label="Добавить фото" disabled={!addTile} onClick={onPickPhoto}>
-          <ActionIcon name="camera" size={24} strokeWidth={2} />
-        </button>
-        <button type="button" className="app-post-compose-attach" aria-label="Привязать событие" onClick={() => setPickingEvent(true)}>
-          <ActionIcon name="calendar" size={24} strokeWidth={2} />
-        </button>
-        <button type="button" className="app-post-compose-attach" aria-label="Добавить место" onClick={() => setPickingPin(true)}>
-          <ActionIcon name="pin" size={24} strokeWidth={2} />
-        </button>
-        {/* «К тексту», а не «Текст поста»: так подпись кнопки не совпадает с подписью самого поля */}
-        <button type="button" className="app-post-compose-attach" aria-label="К тексту поста" onClick={() => textRef.current?.focus()}>
-          <ActionIcon name="lines" size={24} strokeWidth={2} />
-        </button>
-        <span className="app-post-compose-foot-gap" />
-        {draftSaved && <span className="app-post-compose-saved">Черновик сохранён</span>}
-      </div>
     </section>
   );
 }
@@ -317,7 +296,6 @@ export function PostCreatePage({ eventId }: { eventId: string | null }) {
   const [draft, setDraft] = useState<PostComposeDraft>({ text: "", photoUrls: [], eventId, placeId: null, pinLabel: null, taggedFriendIds: [], audience: POST_AUDIENCES[0].id, allowJoin: false });
   const [state, setState] = useState<PostSubmitState>("idle");
   const [photoRejected, setPhotoRejected] = useState(false);
-  const [draftSaved, setDraftSaved] = useState(false);
   // Только последний выбор доезжает: тяжёлое фото, выбранное первым, иначе перезапишет лёгкое, выбранное вторым.
   const photoPick = useRef(0);
 
@@ -340,7 +318,7 @@ export function PostCreatePage({ eventId }: { eventId: string | null }) {
     if (draft.text.trim() === "" && draft.photoUrls.length === 0 && draft.eventId === null) return;
     const timer = setTimeout(() => {
       apiClient.savePostDraft(postDraftOf(draft, userId)).then(
-        () => setDraftSaved(true),
+        () => {},
         () => {},
       );
     }, DRAFT_AUTOSAVE_MS);
@@ -384,7 +362,7 @@ export function PostCreatePage({ eventId }: { eventId: string | null }) {
           if (file) pickPhoto(file);
         }}
       />
-      <PostCreateView draft={draft} authorName={authorName} authorAvatar={authorAvatar} events={events} places={places} friends={friends} state={state} photoRejected={photoRejected} draftSaved={draftSaved} onDraft={setDraft} onPickPhoto={() => fileRef.current?.click()} onPublish={publish} onClose={back} />
+      <PostCreateView draft={draft} authorName={authorName} authorAvatar={authorAvatar} events={events} places={places} friends={friends} state={state} photoRejected={photoRejected} onDraft={setDraft} onPickPhoto={() => fileRef.current?.click()} onPublish={publish} onClose={back} />
     </>
   );
 }

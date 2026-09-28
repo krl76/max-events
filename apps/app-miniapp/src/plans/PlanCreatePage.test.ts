@@ -7,7 +7,7 @@ import { mockEvents, mockFriends } from "../api/mock";
 
 const draft: PlanDraft = { event: mockEvents[0]!.title, meetingPoint: "у метро Смоленская", meetingAt: "2026-09-19T18:20", participantIds: [], repeat: "none", weekday: 4, nth: 1 };
 
-const view = (over: Partial<PlanDraft> = {}, props: { submitting?: boolean; failed?: boolean } = {}) => renderToStaticMarkup(createElement(PlanCreateView, { draft: { ...draft, ...over }, events: mockEvents, friends: mockFriends, ...props, onDraft: () => {}, onToggleFriend: () => {}, onSubmit: () => {} }));
+const view = (over: Partial<PlanDraft> = {}, props: { submitting?: boolean; failed?: boolean } = {}) => renderToStaticMarkup(createElement(PlanCreateView, { draft: { ...draft, ...over }, events: mockEvents, places: [], friends: mockFriends, ...props, onDraft: () => {}, onToggleFriend: () => {}, onSubmit: () => {} }));
 
 describe("planRecurringRule", () => {
   it("builds the rule the contract accepts, and nothing for a one-off", () => {
@@ -60,7 +60,7 @@ describe("PlanCreateView", () => {
     expect(html).toContain("Где встречаемся");
     expect(html).toContain("Когда встречаемся");
     expect(html).toContain("Пригласить друзей");
-    expect(html).toContain("Точка на карте");
+    expect(html).toContain("у метро Смоленская");
     expect(html).toContain("Создать план");
   });
 

@@ -40,7 +40,7 @@ import { replayScroll } from "../ui/scroll-memory";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
-import { parsePinLabel } from "../ui/pin-label";
+import { parsePinLabel, placePinTitle } from "../ui/pin-label";
 import { SaveToList } from "../event/SaveToList";
 import { AppChip, AppEmptyState, AppSkeleton, AppState } from "../ui/primitives";
 import { PhotoGallery } from "./gallery";
@@ -197,7 +197,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onOpenC
   const [saving, setSaving] = useState(false);
   const where = [card.placeTitle, formatFeedDistance(card.distanceKm)].filter((part): part is string => part !== null && part !== "").join(" · ");
   const dropped = parsePinLabel(card.locationLabel ?? card.placeTitle ?? "");
-  const markLabel = dropped ? "Точка на карте" : where;
+  const markLabel = dropped ? placePinTitle(card.locationLabel ?? card.placeTitle ?? "") : where;
   const canMark = onOpenMark !== undefined && markLabel !== "" && (dropped !== null || (card.event !== null && card.event.placeId !== null));
   const photos = card.photoUrls && card.photoUrls.length > 0 ? card.photoUrls : card.photoUrl ? [card.photoUrl] : [];
   const counts = feedCountsLine(card.counts, card.live, card.friendsGoing);
