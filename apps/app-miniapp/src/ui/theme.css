@@ -8593,6 +8593,27 @@ button.app-set-row {
 }
 
 /* Отключение — необратимое действие: обводка на прозрачном, пурпур только в подписи */
+.app-set-leave {
+  align-items: center;
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 52px;
+  justify-content: center;
+  margin-top: var(--app-space-screen);
+  width: 100%;
+}
+
+.app-set-leave:active {
+  background: var(--app-surface);
+}
+
 .app-set-disable {
   align-items: center;
   background: none;
@@ -22494,13 +22515,27 @@ button.app-story-viewer-author {
   gap: 16px;
 }
 
-.app-poster-block {
+.app-poster-main {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex: 1 1 auto;
+  font: inherit;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.app-poster .app-org-card-actions {
+  flex: 1 0 100%;
 }
 
 .app-poster {
+  flex-wrap: wrap;
   background: var(--app-card);
   border: none;
   border-radius: 16px;
