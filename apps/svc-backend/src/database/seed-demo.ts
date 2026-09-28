@@ -399,8 +399,8 @@ export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
   const cancelledBookingEvent = takeBookingEvent(nextFuture);
 
   // Списки (37, 39): шесть пресетов с содержимым и один собственный список.
-  const lists: ListEntity[] = ListPresetSchema.options.map((preset: ListPreset) => ({ id: uuid(), userId: viewerId, preset, title: LIST_PRESET_TITLES[preset], createdAt: shiftDays(now, -int(14, 40), 12), updatedAt: shiftDays(now, -int(1, 9), 12) }));
-  lists.push({ id: uuid(), userId: viewerId, preset: null, title: VIEWER_CUSTOM_LIST_TITLE, createdAt: shiftDays(now, -12, 12), updatedAt: shiftDays(now, -2, 12) });
+  const lists: ListEntity[] = ListPresetSchema.options.map((preset: ListPreset) => ({ id: uuid(), userId: viewerId, preset, title: LIST_PRESET_TITLES[preset], visibility: "private", createdAt: shiftDays(now, -int(14, 40), 12), updatedAt: shiftDays(now, -int(1, 9), 12) }));
+  lists.push({ id: uuid(), userId: viewerId, preset: null, title: VIEWER_CUSTOM_LIST_TITLE, visibility: "private", createdAt: shiftDays(now, -12, 12), updatedAt: shiftDays(now, -2, 12) });
   const listItems: ListItemEntity[] = [];
   const listTargets = new Set<string>();
   for (const list of lists) {

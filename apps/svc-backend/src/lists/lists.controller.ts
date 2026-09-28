@@ -10,7 +10,7 @@
 // END_MODULE_MAP
 
 import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
-import { AddListItemWriteSchema, CreateListWriteSchema, IdSchema, InviteListMemberWriteSchema, RenameListWriteSchema, type List, type ListItem, type ListItemCard, type ListScreen, type ListSummary } from "@max-events/api-contracts";
+import { AddListItemWriteSchema, CreateListWriteSchema, IdSchema, InviteListMemberWriteSchema, RenameListWriteSchema, SetListVisibilitySchema, type List, type ListItem, type ListItemCard, type ListScreen, type ListSummary } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { ListsService } from "./lists.service";
@@ -20,7 +20,7 @@ export class ListsController {
   constructor(@Inject(ListsService) private readonly lists: ListsService) {}
 
   @Get()
-  async list(@CurrentUser() user: UserEntity, @Query("eventId") eventId?: string, @Query("feedPostId") feedPostId?: string): Promise<ListSummary[]> {
+  async list(@CurrentUser() user: UserEntity, @Query("userId") requestedUserId?: string, @Query("eventId") eventId?: string, @Query("feedPostId") feedPostId?: string): Promise<ListSummary[]> {
     let savedEventId: string | null = null;
     let savedPostId: string | null = null;
     if (eventId !== undefined && eventId !== "") {
@@ -33,7 +33,13 @@ export class ListsController {
       if (!parsed.success) throw new BadRequestException("Invalid list query");
       savedPostId = parsed.data;
     }
-    return this.lists.list(user.id, savedEventId, savedPostId);
+    let subjectId: string | null = null;
+    if (requestedUserId !== undefined && requestedUserId !== "") {
+      const parsed = IdSchema.safeParse(requestedUserId);
+      if (!parsed.success) throw new BadRequestException("Invalid list query");
+      subjectId = parsed.data;
+    }
+    return this.lists.list(user.id, savedEventId, savedPostId, subjectId);
   }
 
   @Post()
@@ -48,6 +54,13 @@ export class ListsController {
     const parsed = RenameListWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid list payload");
     return this.lists.rename(user.id, id, parsed.data.title);
+  }
+
+  @Patch(":id/visibility")
+  async setVisibility(@CurrentUser() user: UserEntity, @Param("id", ParseUUIDPipe) id: string, @Body() body: unknown): Promise<List> {
+    const parsed = SetListVisibilitySchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid list payload");
+    return this.lists.setVisibility(user.id, id, parsed.data.visibility);
   }
 
   @Delete(":id")

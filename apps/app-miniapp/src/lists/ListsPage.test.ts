@@ -15,6 +15,7 @@ const list: List = {
   userId: DEMO_USER_ID,
   preset: "want_to_go",
   title: "Хочу сходить",
+  visibility: "private",
   createdAt: "2026-09-11T10:00:00+03:00",
   updatedAt: "2026-09-11T10:00:00+03:00",
 };

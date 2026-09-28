@@ -107,17 +107,17 @@ describe("routeFromStartParam", () => {
 
 describe("nextHistory", () => {
   it("replaces the entry when switching between tab routes", () => {
-    const result = nextHistory({ route: { name: "home" }, idx: 0 }, { name: "plans" });
+    const result = nextHistory({ route: { name: "home" }, idx: 0 }, { name: "map" });
 
     expect(result.method).toBe("replace");
-    expect(result.state).toEqual({ route: { name: "plans" }, idx: 0 });
+    expect(result.state).toEqual({ route: { name: "map" }, idx: 0 });
   });
 
-  it("pushes from search to the map, which stopped being a tab and became a view inside search", () => {
+  it("replaces from search to the map, which is a tab again", () => {
     const result = nextHistory({ route: { name: "search" }, idx: 0 }, { name: "map" });
 
-    expect(result.method).toBe("push");
-    expect(result.state).toEqual({ route: { name: "map" }, idx: 1 });
+    expect(result.method).toBe("replace");
+    expect(result.state).toEqual({ route: { name: "map" }, idx: 0 });
   });
 
   it("replaces between the search and create tabs", () => {
@@ -158,7 +158,7 @@ describe("nextHistory", () => {
 
 describe("isTabRoute", () => {
   it("marks only the five tabbar routes as tab routes", () => {
-    const tabNames = ["home", "search", "create", "plans", "profile"] as const;
+    const tabNames = ["home", "search", "create", "map", "profile"] as const;
     for (const name of tabNames) expect(isTabRoute(name)).toBe(true);
 
     expect(isTabRoute("friends")).toBe(false);
@@ -167,8 +167,9 @@ describe("isTabRoute", () => {
     expect(isTabRoute("whereto")).toBe(false);
   });
 
-  it("no longer counts the map as a tab route", () => {
-    expect(isTabRoute("map")).toBe(false);
+  it("no longer counts plans as a tab route", () => {
+    expect(isTabRoute("plans")).toBe(false);
+    expect(isTabRoute("map")).toBe(true);
   });
 });
 

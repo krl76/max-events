@@ -38,6 +38,7 @@ import { readFeedPhoto } from "../feed/photo";
 import { announceShare, getWebApp, shareResult } from "../max/bridge";
 import { sharePayload } from "../max/links";
 import { useRoute } from "../routing/router";
+import { ListsPage } from "../lists/ListsPage";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { pictured } from "../ui/photos";
 import { AppMedia, AppSkeleton, AppState } from "../ui/primitives";
@@ -109,12 +110,13 @@ export function socialMetrics(input: { posts: number | null; subscriptions: Subs
   return [...subscriptions, ...posts, ...followers];
 }
 
-export type ProfileTab = "posts" | "places";
+export type ProfileTab = "posts" | "places" | "saved";
 
-/** Screen order: what the person published comes before where they have been, as on any social profile. */
+/** Screen order: published posts, places, then the shelves the person saved. */
 export const PROFILE_TABS: ReadonlyArray<{ id: ProfileTab; label: string }> = [
   { id: "posts", label: "Посты" },
   { id: "places", label: "Места" },
+  { id: "saved", label: "Сохранённое" },
 ];
 
 /** «Посты · 8». A zero is the same as an unknown count: the tab stays a name, not a score. */
@@ -225,6 +227,11 @@ export interface ProfileEntries {
   onSettings: () => void;
   onShare: () => void;
   onLists: () => void;
+  onPlans: () => void;
+  onBookings: () => void;
+  onCalendar: () => void;
+  onDayRoute: () => void;
+  onMicro: () => void;
   onSubscriptions: () => void;
   onFollowers: () => void;
   onAchievements: () => void;
@@ -438,14 +445,15 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
       )}
       {!own && <p className="app-me-link-hint">Добавьте человека или позовите ссылкой в MAX. Друзья — когда добавление взаимное.</p>}
       <div className="app-me-tabs" role="tablist" aria-label="Что показывать">
-        {PROFILE_TABS.map((candidate) => (
+        {PROFILE_TABS.filter((candidate) => candidate.id !== "saved" || own || (lists ?? []).some((summary) => summary.list.visibility === "public")).map((candidate) => (
           <button key={candidate.id} type="button" role="tab" id={`app-me-tab-${candidate.id}`} aria-selected={tab === candidate.id} aria-controls="app-me-tabpanel" className={tab === candidate.id ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => entries.onTab(candidate.id)}>
-            {profileTabLabel(candidate.id, candidate.id === "posts" ? (posts?.length ?? null) : visitedPlaces.length)}
+            {profileTabLabel(candidate.id, candidate.id === "posts" ? (posts?.length ?? null) : candidate.id === "saved" ? (lists?.length ?? null) : visitedPlaces.length)}
           </button>
         ))}
       </div>
       <div id="app-me-tabpanel" role="tabpanel" aria-labelledby={`app-me-tab-${tab}`}>
         {tab === "posts" && <ProfilePostGrid posts={posts} failed={postsFailed} onOpenPost={entries.onOpenPost} onNewPost={entries.onNewPost} canPublish={own} />}
+        {tab === "saved" && <ListsPage userId={user.id} />}
         {tab === "places" && visitedPlaces.length === 0 && <AppState>Мест пока нет — отметьтесь где-нибудь, и они появятся здесь.</AppState>}
         {tab === "places" && visitedPlaces.length > 0 && (
           <div className="app-me-grid">
@@ -463,7 +471,11 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
       </div>
       {own && (
         <nav className="app-me-rows" aria-label="Разделы профиля">
-          <ProfileRow icon="bookmark" title="Списки" hint={lists === null ? null : listsHint(lists)} onClick={entries.onLists} />
+          <ProfileRow icon="bookmark" title="Планы" hint={null} onClick={entries.onPlans} />
+          <ProfileRow icon="ticket" title="Мои брони" hint={null} onClick={entries.onBookings} />
+          <ProfileRow icon="calendar" title="Календарь" hint={null} onClick={entries.onCalendar} />
+          <ProfileRow icon="pin" title="Маршрут на день" hint={null} onClick={entries.onDayRoute} />
+          <ProfileRow icon="spark" title="Микрособытия" hint={null} onClick={entries.onMicro} />
           <ProfileRow icon="medal" title="Достижения" hint={achievements === null ? null : achievementsHint(achievements)} onClick={entries.onAchievements} />
           <ProfileRow icon="group" title="Мы · группы" hint={weGroups === null ? null : weGroupsHint(weGroups)} onClick={entries.onWeGroups} />
           <ProfileRow icon="user" title="Друзья" hint={friendsCount === null ? null : friendsHint(friendsCount)} onClick={entries.onFriends} />
@@ -708,7 +720,12 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
           const payload = sharePayload(`${[shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ")} в Афише MAX`, `user-${shownUser.id}`);
           void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
         }}
-        onLists={() => navigate({ name: "plans" })}
+        onLists={() => navigate({ name: "lists" })}
+        onPlans={() => navigate({ name: "plans" })}
+        onBookings={() => navigate({ name: "bookings" })}
+        onCalendar={() => navigate({ name: "calendar" })}
+        onDayRoute={() => navigate({ name: "day-route" })}
+        onMicro={() => navigate({ name: "micro" })}
         onSubscriptions={() => navigate({ name: "subscriptions" })}
         onFollowers={() => navigate({ name: "followers" })}
         onAchievements={() => navigate({ name: "achievements" })}

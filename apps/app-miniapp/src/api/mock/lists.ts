@@ -188,14 +188,14 @@ export function listsFor(userId: string): List[] {
   if (lists) return lists;
   lists = ListPresetSchema.options.map((preset) => {
     mockListSeq += 1;
-    return { id: `70000000-0000-4000-8000-${String(mockListSeq).padStart(12, "0")}`, userId, preset, title: LIST_PRESET_TITLES[preset], createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
+    return { id: `70000000-0000-4000-8000-${String(mockListSeq).padStart(12, "0")}`, userId, preset, title: LIST_PRESET_TITLES[preset], visibility: "private", createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
   });
   for (const [preset, eventIndex] of MOCK_LIST_SEED) {
     const list = lists.find((candidate) => candidate.preset === preset);
     if (list) mockListItems.push(listItem(list.id, mockEvents[eventIndex].id));
   }
   if (userId === mockDemoUser.id || userId === mockFriendIds[0]) {
-    lists.push({ id: SHARED_LIST_ID, userId, preset: null, title: SHARED_COLLECTION_TITLE, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP });
+    lists.push({ id: SHARED_LIST_ID, userId, preset: null, title: SHARED_COLLECTION_TITLE, visibility: "private", createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP });
     if (!mockListItems.some((item) => item.listId === SHARED_LIST_ID)) {
       for (const [eventIndex, authorIndex] of MOCK_SHARED_LIST_SEED) {
         mockListItems.push(listItem(SHARED_LIST_ID, mockEvents[eventIndex].id, authorIndex === -1 ? SHARED_LIST_PARTICIPANTS()[0] : mockFriends[authorIndex]));
@@ -207,7 +207,7 @@ export function listsFor(userId: string): List[] {
   if (userId === mockDemoUser.id) {
     for (const [title, eventIndexes] of MOCK_OWN_LIST_SEED) {
       mockListSeq += 1;
-      const own: List = { id: `70000000-0000-4000-8000-${String(mockListSeq).padStart(12, "0")}`, userId, preset: null, title, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
+      const own: List = { id: `70000000-0000-4000-8000-${String(mockListSeq).padStart(12, "0")}`, userId, preset: null, title, visibility: "private", createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
       lists.push(own);
       for (const eventIndex of eventIndexes) mockListItems.push(listItem(own.id, mockEvents[eventIndex].id));
     }
@@ -226,7 +226,8 @@ function findList(listId: string): List | undefined {
 
 /** Preset lists of a user with item counters, shared-collection participants; savedItemId points at the item saving eventId or feedPostId (null when not saved). */
 export function listSummaries(userId: string, eventId: string | null, feedPostId: string | null = null): ListSummary[] {
-  return listsFor(userId).map((list) => {
+  const rows = listsFor(userId).filter((list) => userId === mockDemoUser.id || list.visibility === "public");
+  return rows.map((list) => {
     const items = mockListItems.filter((item) => item.listId === list.id);
     const saved = eventId ? items.find((item) => item.eventId === eventId) : feedPostId ? items.find((item) => item.feedPostId === feedPostId) : undefined;
     return { list, itemsCount: items.length, savedItemId: saved?.id ?? null, participants: list.id === SHARED_LIST_ID ? SHARED_LIST_PARTICIPANTS() : [] };
@@ -274,7 +275,7 @@ export function createMockList(userId: string, title: string): List | "too_many"
   if (lists.filter((row) => row.preset === null && row.id !== SHARED_LIST_ID).length >= MOCK_MAX_CUSTOM_LISTS) return "too_many";
   mockListSeq += 1;
   const now = new Date().toISOString();
-  const list: List = { id: `70000000-0000-4000-8000-${String(mockListSeq).padStart(12, "0")}`, userId, preset: null, title, createdAt: now, updatedAt: now };
+  const list: List = { id: `70000000-0000-4000-8000-${String(mockListSeq).padStart(12, "0")}`, userId, preset: null, title, visibility: "private", createdAt: now, updatedAt: now };
   lists.push(list);
   return list;
 }
@@ -291,6 +292,15 @@ export function renameMockList(listId: string, title: string): List | "no_list" 
   if (!list) return "no_list";
   if (list.preset !== null) return "preset";
   list.title = title;
+  list.updatedAt = new Date().toISOString();
+  return list;
+}
+
+export function setMockListVisibility(listId: string, visibility: "public" | "private"): List | "no_list" | "preset" {
+  const list = findList(listId);
+  if (!list) return "no_list";
+  if (list.preset !== null) return "preset";
+  list.visibility = visibility;
   list.updatedAt = new Date().toISOString();
   return list;
 }

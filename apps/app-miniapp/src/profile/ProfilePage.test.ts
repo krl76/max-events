@@ -35,7 +35,7 @@ const visitedPlaces: VisitedPlace[] = [
 ];
 
 function list(id: string, preset: string | null): ListSummary {
-  return { list: { id, userId: user.id, preset: preset as ListSummary["list"]["preset"], title: "Полка", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" }, itemsCount: 0, savedItemId: null, participants: [] };
+  return { list: { id, userId: user.id, preset: preset as ListSummary["list"]["preset"], title: "Полка", visibility: "private", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" }, itemsCount: 0, savedItemId: null, participants: [] };
 }
 
 function subscription(id: string, type: Subscription["type"]): Subscription {
@@ -92,6 +92,11 @@ function renderProfileView(overrides: Partial<Parameters<typeof ProfileView>[0]>
       onSettings: noop,
       onShare: noop,
       onLists: noop,
+      onPlans: noop,
+      onBookings: noop,
+      onCalendar: noop,
+      onDayRoute: noop,
+      onMicro: noop,
       onSubscriptions: noop,
       onFollowers: noop,
       onAchievements: noop,
@@ -254,7 +259,7 @@ describe("ProfileView", () => {
     expect(html).toContain("Написать");
     expect(html).toContain("Позвать");
     expect(html).not.toContain("Настройки");
-    expect(html).not.toContain("Списки");
+    expect(html).not.toContain("Планы");
     expect(html).not.toContain("Фото профиля");
     expect(html).not.toContain("Шапка профиля");
     expect(html).not.toContain("Удалить");
@@ -272,14 +277,19 @@ describe("ProfileView", () => {
     expect(renderProfileView({ user: { ...user, avatarUrl: "https://example.com/a.png" } })).toContain('src="https://example.com/a.png"');
   });
 
-  it("carries the four entry rows and leaves a row without its counter until the count arrives", () => {
+  it("carries the profile sections and leaves a row without its counter until the count arrives", () => {
     const html = renderProfileView();
 
-    expect(html.match(/class="app-me-row"/g)).toHaveLength(4);
-    expect(html).toContain("Списки");
+    expect(html.match(/class="app-me-row"/g)).toHaveLength(8);
+    expect(html).toContain("Планы");
+    expect(html).toContain("Мои брони");
+    expect(html).toContain("Календарь");
+    expect(html).toContain("Маршрут на день");
+    expect(html).toContain("Микрособытия");
     expect(html).toContain("Достижения");
     expect(html).toContain("Мы · группы");
     expect(html).toContain("Друзья");
+    expect(html).toContain("Сохранённое");
     expect(html).not.toContain("app-me-row-hint");
   });
 
@@ -366,8 +376,8 @@ describe("ProfileView", () => {
   it("prints the counter hints once the counts are in", () => {
     const html = renderProfileView({ lists: [list("1", "want_to_go")], friendsCount: 24, achievements: [achievement("volunteer", true)] });
 
-    expect(html).toContain("1 готовая полка");
-    expect(html).not.toContain("0 своих");
+    expect(html).toContain("Сохранённое · 1");
+    expect(html).not.toContain("Списки");
     expect(html).toContain("24 из чатов MAX");
     expect(html).toContain("1 из 1 собрано");
   });

@@ -8,6 +8,7 @@ const list = {
   title: "Хочу сходить",
   createdAt: "2026-09-11T10:00:00+03:00",
   updatedAt: "2026-09-11T10:00:00+03:00",
+  visibility: "private",
 } as const;
 
 const item = {

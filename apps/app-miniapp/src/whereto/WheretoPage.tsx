@@ -148,6 +148,19 @@ export function formatWheretoPrice(pick: { isPaid: boolean; priceRub: number | n
   if (pick.priceRub !== null) return `${pick.priceRub.toLocaleString("ru-RU")} ₽`;
   return pick.isPaid ? "платно" : "бесплатно";
 }
+/** A positive price is a charge even when isPaid was left false: the card would still print «2 900 ₽». */
+export function eventFitsBudget(event: { isPaid: boolean; priceRub: number | null }, budget: WheretoBudget): boolean {
+  const charged = event.isPaid || (event.priceRub !== null && event.priceRub > 0);
+  if (budget === "any") return true;
+  if (budget === "free") return !charged;
+  return !charged || (event.priceRub !== null && event.priceRub <= 3000);
+}
+
+/** The wish replaces the mood, not the budget the person already answered. */
+export function picksForBudget<T extends { isPaid: boolean; priceRub: number | null }>(items: readonly T[], budget: WheretoBudget): T[] {
+  return items.filter((item) => eventFitsBudget(item, budget)).slice(0, 5);
+}
+
 
 function formatKm(distanceKm: number | null): string | null {
   return distanceKm === null ? null : `${distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км`;
@@ -368,9 +381,10 @@ export function WheretoPage() {
       if (alive) setResult({ status: "error" });
     };
     if (wish === null) {
-      apiClient.getWhereto(query, { latitude: point.latitude, longitude: point.longitude }).then((response) => ready(response.items), failed);
+      apiClient.getWhereto(query, { latitude: point.latitude, longitude: point.longitude }).then((response) => ready(picksForBudget(response.items, query.budget)), failed);
     } else {
-      apiClient.assistQuery(wish).then((response) => ready(response.items.slice(0, 5).map((item) => ({ ...item.event, distanceKm: null }))), failed);
+      const capped = query.budget === "free" ? `${wish}. Только бесплатные.` : query.budget === "under_3000" ? `${wish}. Не дороже 3000 рублей.` : wish;
+      apiClient.assistQuery(capped).then((response) => ready(picksForBudget(response.items.map((item) => ({ ...item.event, distanceKm: null })), query.budget)), failed);
     }
     return () => {
       alive = false;

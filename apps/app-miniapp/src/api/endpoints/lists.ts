@@ -129,6 +129,10 @@ export function withLists<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/lists/${listId}`, ListSchema, { method: "PATCH", body: { title } });
     }
 
+    setListVisibility(listId: string, visibility: "public" | "private"): Promise<List> {
+      return this.request(`/lists/${listId}/visibility`, ListSchema, { method: "PATCH", body: { visibility } });
+    }
+
     deleteList(listId: string): Promise<List> {
       return this.request(`/lists/${listId}`, ListSchema, { method: "DELETE" });
     }

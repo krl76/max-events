@@ -51,9 +51,10 @@ function matchesInterest(event: Event, interests: string[]): boolean {
 }
 
 function matchesBudget(event: Event, budget: WheretoQuery["budget"]): boolean {
+  const charged = event.isPaid || (event.priceRub !== null && event.priceRub > 0);
   if (budget === "any") return true;
-  if (budget === "free") return !event.isPaid;
-  return !event.isPaid || (event.priceRub !== null && event.priceRub <= 3000);
+  if (budget === "free") return !charged;
+  return !charged || (event.priceRub !== null && event.priceRub <= 3000);
 }
 
 function matchesCompany(event: Event, company: WheretoQuery["company"]): boolean {

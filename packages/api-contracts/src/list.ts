@@ -39,6 +39,12 @@ import { IdSchema, TimestampSchema } from "./primitives.js";
 export const ListPresetSchema = z.enum(["want_to_go", "favorites", "weekend", "with_children", "with_friends", "try_later"]);
 export type ListPreset = z.infer<typeof ListPresetSchema>;
 
+export const ListVisibilitySchema = z.enum(["public", "private"]);
+export type ListVisibility = z.infer<typeof ListVisibilitySchema>;
+
+export const SetListVisibilitySchema = z.object({ visibility: ListVisibilitySchema });
+export type SetListVisibility = z.infer<typeof SetListVisibilitySchema>;
+
 export const ListSchema = z.object({
   id: IdSchema,
   userId: IdSchema,
@@ -46,6 +52,7 @@ export const ListSchema = z.object({
   title: z.string().min(1).max(200),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
+  visibility: ListVisibilitySchema.default("private"),
 });
 export type List = z.infer<typeof ListSchema>;
 

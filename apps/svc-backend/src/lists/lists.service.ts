@@ -53,7 +53,8 @@ export class ListsService {
     @Inject(FriendsService) private readonly friends: FriendsService,
   ) {}
 
-  async list(userId: string, eventId: string | null = null, feedPostId: string | null = null): Promise<ListSummary[]> {
+  async list(userId: string, eventId: string | null = null, feedPostId: string | null = null, subjectId: string | null = null): Promise<ListSummary[]> {
+    if (subjectId !== null && subjectId !== userId) return this.publicOf(subjectId);
     const presets = await this.ensurePresets(userId);
     // Presets first, then the lists the user made, newest last — the order the screen reads top down.
     const own = (await this.lists.find({ where: { userId } })).filter((row) => row.preset === null).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
@@ -71,6 +72,16 @@ export class ListsService {
       const listItems = items.filter((row) => row.listId === list.id);
       const saved = eventId ? listItems.find((row) => row.eventId === eventId) : feedPostId ? listItems.find((row) => row.feedPostId === feedPostId) : undefined;
       return { list: toListDto(list), itemsCount: listItems.length, savedItemId: saved?.id ?? null, participants: participantsByList.get(list.id) ?? [] };
+    });
+  }
+
+  private async publicOf(ownerId: string): Promise<ListSummary[]> {
+    const rows = (await this.lists.find({ where: { userId: ownerId } })).filter((row) => row.visibility === "public").sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
+    const items = await this.items.find();
+    const participantsByList = await this.participantsByListIds(rows.map((row) => row.id));
+    return rows.map((list) => {
+      const listItems = items.filter((row) => row.listId === list.id);
+      return { list: toListDto(list), itemsCount: listItems.length, savedItemId: null, participants: participantsByList.get(list.id) ?? [] };
     });
   }
 
@@ -164,12 +175,18 @@ export class ListsService {
     const own = (await this.lists.find({ where: { userId } })).filter((row) => row.preset === null);
     // A ceiling, because nothing else bounds this: the six presets are fixed, these are not.
     if (own.length >= MAX_CUSTOM_LISTS) throw new ConflictException(`A user may keep at most ${MAX_CUSTOM_LISTS} lists of their own`);
-    return toListDto(await this.lists.save(this.lists.create({ userId, preset: null, title })));
+    return toListDto(await this.lists.save(this.lists.create({ userId, preset: null, title, visibility: "private" })));
   }
 
   async rename(userId: string, listId: string, title: string): Promise<List> {
     const list = await this.requireOwnerList(userId, listId);
     list.title = title;
+    return toListDto(await this.lists.save(list));
+  }
+
+  async setVisibility(userId: string, listId: string, visibility: "public" | "private"): Promise<List> {
+    const list = await this.requireOwnerList(userId, listId);
+    list.visibility = visibility;
     return toListDto(await this.lists.save(list));
   }
 
@@ -230,7 +247,7 @@ export class ListsService {
         }
         continue;
       }
-      const saved = await this.lists.save(this.lists.create({ userId, preset, title: LIST_PRESET_TITLES[preset] }));
+      const saved = await this.lists.save(this.lists.create({ userId, preset, title: LIST_PRESET_TITLES[preset], visibility: "private" }));
       byPreset.set(preset, saved);
     }
     return ListPresetSchema.options.map((preset) => byPreset.get(preset)!);
@@ -315,6 +332,7 @@ export function toListDto(list: ListEntity): List {
     userId: list.userId,
     preset: list.preset,
     title: list.title,
+    visibility: list.visibility ?? "private",
     createdAt: list.createdAt.toISOString(),
     updatedAt: list.updatedAt.toISOString(),
   };

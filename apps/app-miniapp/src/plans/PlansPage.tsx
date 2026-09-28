@@ -22,9 +22,6 @@ import type { Plan, PlanCard } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { pluralRu } from "../catalog/format";
-import { CalendarPage } from "../calendar/CalendarPage";
-import { MyMicroEventsSection } from "../micro/MicroEvents";
-import { ListsPage } from "../lists/ListsPage";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
@@ -58,83 +55,119 @@ export function planDistanceLabel(distanceMeters: number, fromViewer = true): st
   return `${formatDistance(distanceMeters)} ${who}`;
 }
 
+/** «Сб, 20:34 · Парк культуры». The weekday is the day of the meeting, not a separate «сбор» line. */
+export function planWhenPlace(plan: Plan): string {
+  const when = new Date(plan.meetingAt);
+  const weekday = when.toLocaleDateString("ru-RU", { weekday: "short" }).replace(".", "");
+  const titled = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+  return `${titled}, ${formatMeetingTime(plan.meetingAt)} · ${plan.meetingPoint}`;
+}
+
+/** The host counts. «3 участника» is the company, not «ты + N друзей». */
+export function planPartyLabel(friendCount: number): string {
+  const total = Math.max(friendCount, 0) + 1;
+  return `${total} ${pluralRu(total, "участник", "участника", "участников")}`;
+}
+
 export type PlansState = { status: "loading" } | { status: "error" } | { status: "ready"; cards: PlanCard[] };
 
-export function PlansView({ state, onOpen, onExplore, onCreate, distancesFromViewer = true }: { state: PlansState; onOpen: (planId: string) => void; onExplore: () => void; onCreate?: () => void; distancesFromViewer?: boolean }) {
-  // Above the early returns on purpose: with no plans yet this was the one screen where making one
-  // by hand was unreachable — the empty state offered only «Найти событие».
-  const create =
-    onCreate === undefined ? null : (
-      <button type="button" className="app-plans-create" onClick={onCreate}>
-        <span className="app-plans-create-title">Свой план</span>
-        <span className="app-plans-create-note">Событие, место и время</span>
-      </button>
-    );
-  if (state.status === "loading")
-    return (
-      <>
-        {[0, 1].map((row) => (
-          <div key={row} className="app-card" aria-hidden="true">
-            <div className="app-card-body">
-              <AppSkeleton />
-              <AppSkeleton variant="line-short" />
-            </div>
-          </div>
-        ))}
-      </>
-    );
-  if (state.status === "error")
-    return (
-      <>
-        {create}
-        <AppState error>Не удалось загрузить планы.</AppState>
-      </>
-    );
-  if (state.cards.length === 0)
-    return (
-      <>
-        {create}
-        <AppState action={{ label: "Найти событие", onClick: onExplore }}>Пока нет планов. Выбери событие — и собери компанию.</AppState>
-      </>
-    );
+function PlanCreate({ onCreate }: { onCreate?: () => void }) {
+  if (onCreate === undefined) return null;
   return (
-    <>
-      {create}
-      {state.cards.map(({ plan, event, distanceMeters }) => (
-        <button key={plan.id} type="button" className="app-card app-card--link" onClick={() => onOpen(plan.id)}>
-          <AppMedia category={event.category} src={pictured(event.id, event.coverUrl)} />
-          <span className="app-plan-copy">
-            <span className="app-card-title">{event.title}</span>
-            <span className="app-plan-meta">
-              {planCompanyLabel(plan.participants.length)} · {planMeetingLabel(plan)}
-            </span>
-            <span className="app-plan-meta">{planDistanceLabel(distanceMeters, distancesFromViewer)}</span>
-          </span>
-        </button>
-      ))}
-    </>
+    <button type="button" className="app-plans-create" onClick={onCreate}>
+      <span className="app-plans-create-mark" aria-hidden="true">
+        <ActionIcon name="plus" size={18} strokeWidth={2.4} />
+      </span>
+      <span className="app-plans-create-copy">
+        <span className="app-plans-create-title">Создать новый план</span>
+        <span className="app-plans-create-note">Событие или маршрут на день</span>
+      </span>
+    </button>
   );
 }
 
-export type PlansTab = "plans" | "bookings" | "calendar" | "saved";
+export function PlansView({ state, onOpen, onExplore, onCreate, distancesFromViewer = true }: { state: PlansState; onOpen: (planId: string) => void; onExplore: () => void; onCreate?: () => void; distancesFromViewer?: boolean }) {
+  const [featured, setFeatured] = useState(0);
+  if (state.status === "loading")
+    return (
+      <div className="app-plans" aria-hidden="true">
+        <AppSkeleton />
+        <AppSkeleton variant="line-short" />
+      </div>
+    );
+  if (state.status === "error")
+    return (
+      <div className="app-plans">
+        <PlanCreate onCreate={onCreate} />
+        <AppState error>Не удалось загрузить планы.</AppState>
+      </div>
+    );
+  if (state.cards.length === 0)
+    return (
+      <div className="app-plans">
+        <PlanCreate onCreate={onCreate} />
+        <AppState action={{ label: "Найти событие", onClick: onExplore }}>Пока нет планов. Выбери событие — и собери компанию.</AppState>
+      </div>
+    );
+  const index = Math.min(featured, state.cards.length - 1);
+  const hero = state.cards[index]!;
+  const rest = state.cards.filter((card) => card.plan.id !== hero.plan.id);
+  return (
+    <div className="app-plans">
+      <p className="app-plans-kicker">Ближайший план</p>
+      <button type="button" className="app-plans-hero" onClick={() => onOpen(hero.plan.id)}>
+        <AppMedia category={hero.event.category} src={pictured(hero.event.id, hero.event.coverUrl)} />
+        <span className="app-plans-hero-copy">
+          <span className="app-plans-hero-title">{hero.event.title}</span>
+          <span className="app-plans-hero-when">{planWhenPlace(hero.plan)}</span>
+          <span className="app-plans-hero-facts">
+            <span>
+              <ActionIcon name="users" size={14} />
+              {planPartyLabel(hero.plan.participants.length)}
+            </span>
+            <span>
+              <ActionIcon name="pin" size={14} />
+              {formatDistance(hero.distanceMeters)}
+            </span>
+          </span>
+        </span>
+      </button>
+      {state.cards.length > 1 && (
+        <div className="app-plans-dots" role="tablist" aria-label="Ближайшие планы">
+          {state.cards.map((card, dot) => (
+            <button key={card.plan.id} type="button" className={dot === index ? "app-plans-dot app-plans-dot--on" : "app-plans-dot"} aria-label={card.event.title} aria-selected={dot === index} onClick={() => setFeatured(dot)} />
+          ))}
+        </div>
+      )}
+      <div className="app-plans-section">
+        <h2>Мои планы</h2>
+        <span>Все</span>
+      </div>
+      <ul className="app-plans-rows">
+        {rest.map(({ plan, event, distanceMeters }) => (
+          <li key={plan.id}>
+            <button type="button" className="app-plans-row" onClick={() => onOpen(plan.id)}>
+              <AppMedia category={event.category} src={pictured(event.id, event.coverUrl)} />
+              <span className="app-plans-row-copy">
+                <span className="app-plans-row-title">{event.title}</span>
+                <span className="app-plans-row-meta">
+                  {planWhenPlace(plan)} · {distancesFromViewer ? formatDistance(distanceMeters) : planDistanceLabel(distanceMeters, false)}
+                </span>
+              </span>
+              <ActionIcon name="chevron" size={18} />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <PlanCreate onCreate={onCreate} />
+    </div>
+  );
+}
 
-/**
- * Один ряд вместо двух шапок. «Мои брони» жили во втором переключателе под этим рядом — два разных
- * элемента управления, одинаковых по смыслу, друг под другом. Здесь это четыре равноправных раздела
- * одного экрана, и выбор раздела выглядит одинаково независимо от того, какой раздел открыт.
- */
-const PLANS_TABS: Array<{ id: PlansTab; label: string }> = [
-  { id: "plans", label: "Планы" },
-  { id: "bookings", label: "Мои брони" },
-  { id: "calendar", label: "Календарь" },
-  { id: "saved", label: "Сохранённое" },
-];
-
-export function PlansPage({ tab = "plans", inviteToken }: { tab?: PlansTab; inviteToken?: string }) {
-  const { navigate } = useRoute();
+export function PlansPage() {
+  const { navigate, back } = useRoute();
   const origin = useViewerOrigin();
   const [homeCity, setHomeCity] = useState<string | null>(null);
-  const [active, setActive] = useState<PlansTab>(tab);
   const [state, setState] = useState<PlansState>({ status: "loading" });
   const point = useMemo(() => (homeCity === null ? { latitude: origin.latitude, longitude: origin.longitude, fromViewer: true } : browsedCityOrigin(origin, homeCity)), [origin, homeCity]);
   useEffect(() => {
@@ -165,47 +198,17 @@ export function PlansPage({ tab = "plans", inviteToken }: { tab?: PlansTab; invi
     };
   }, [point.latitude, point.longitude]);
   return (
-    <>
-      <div className="app-tab-row app-segments" role="group" aria-label="Разделы «Моё»">
-        {PLANS_TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={active === item.id ? "app-chip app-chip--on" : "app-chip"}
-            aria-pressed={active === item.id}
-            onClick={() => {
-              // Календарь — отдельный экран, не третья колонка под теми же пилюлями.
-              if (item.id === "calendar") {
-                navigate({ name: "calendar" });
-                return;
-              }
-              setActive(item.id);
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
+    <section className="app-plans-screen" aria-label="Планы">
+      <div className="app-plans-bar">
+        <button type="button" className="app-plans-back" aria-label="Назад" onClick={back}>
+          <ActionIcon name="chevron" size={22} />
+        </button>
+        <h1>Планы</h1>
+        <button type="button" className="app-plans-add" aria-label="Новый план" onClick={() => navigate({ name: "plan-new" })}>
+          <ActionIcon name="plus" size={20} strokeWidth={2.4} />
+        </button>
       </div>
-      {active === "plans" && (
-        <div className="app-plans">
-          <div className="app-plans-quick">
-            <button type="button" onClick={() => navigate({ name: "we-groups" })}>
-              <ActionIcon name="user" size={20} />
-              Мы
-            </button>
-            <button type="button" onClick={() => navigate({ name: "day-route" })}>
-              <ActionIcon name="pin" size={20} />
-              Маршрут на день
-            </button>
-          </div>
-          <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "home" })} onCreate={() => navigate({ name: "plan-new" })} distancesFromViewer={point.fromViewer} />
-          <MyMicroEventsSection />
-        </div>
-      )}
-      {/* Одно и то же место в дереве на оба раздела календаря: переключение брони ↔ месяц не размонтирует
-          контейнер и не перезапрашивает обе половины календаря заново. */}
-      {(active === "bookings" || active === "calendar") && <CalendarPage tab={active === "calendar" ? "month" : "bookings"} inviteToken={active === "calendar" ? inviteToken : undefined} embedded />}
-      {active === "saved" && <ListsPage />}
-    </>
+      <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "search" })} onCreate={() => navigate({ name: "plan-new" })} distancesFromViewer={point.fromViewer} />
+    </section>
   );
 }

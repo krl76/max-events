@@ -9265,6 +9265,27 @@ button.app-set-row {
   margin-top: 2px;
 }
 
+.app-lists-tile-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.app-lists-tile-wrap .app-lists-tile {
+  width: 100%;
+}
+
+.app-lists-visibility {
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font-size: var(--app-font-size-description);
+  padding: 0;
+}
+
 /* Стек участников: кольцо каждой аватарки — цвет холста, поэтому он работает в обеих схемах */
 .app-lists-faces {
   display: flex;
@@ -21974,6 +21995,204 @@ button.app-story-viewer-author {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-m);
+}
+
+.app-plans-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0 24px;
+}
+.app-plans-bar {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+.app-plans-bar h1 {
+  flex: 1;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin: 0;
+}
+.app-plans-back,
+ .app-plans-add {
+  align-items: center;
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: 999px;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+.app-plans-back {
+  transform: rotate(180deg);
+}
+.app-plans-kicker {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+}
+.app-plans-hero {
+  background: none;
+  border: none;
+  border-radius: 22px;
+  color: #fff;
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  min-height: 220px;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  text-align: left;
+  width: 100%;
+}
+.app-plans-hero .app-media {
+  inset: 0;
+  position: absolute;
+}
+.app-plans-hero-copy {
+  background: linear-gradient(180deg, transparent 20%, rgb(0 0 0 / 72%));
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  left: 0;
+  padding: 48px 16px 16px;
+  position: absolute;
+  right: 0;
+}
+.app-plans-hero-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.app-plans-hero-when {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.92;
+}
+.app-plans-hero-facts {
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 14px;
+}
+.app-plans-hero-facts span {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+}
+.app-plans-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+.app-plans-dot {
+  background: var(--app-divider);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  height: 6px;
+  padding: 0;
+  width: 6px;
+}
+.app-plans-dot--on {
+  background: var(--app-text);
+  width: 16px;
+}
+.app-plans-section {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+}
+.app-plans-section h2 {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0;
+}
+.app-plans-section span {
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+}
+.app-plans-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.app-plans-row {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 12px;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+.app-plans-row .app-media {
+  border-radius: 14px;
+  flex: none;
+  height: 56px;
+  width: 56px;
+}
+.app-plans-row-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.app-plans-row-title {
+  font-size: 16px;
+  font-weight: 800;
+}
+.app-plans-row-meta {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.app-plans-create {
+  align-items: center;
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: 18px;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 12px;
+  padding: 12px;
+  text-align: left;
+  width: 100%;
+}
+.app-plans-create-mark {
+  align-items: center;
+  background: var(--app-canvas);
+  border-radius: 14px;
+  display: flex;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+.app-plans-create-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .app-when {

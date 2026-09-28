@@ -9,12 +9,21 @@
 // - listsRoutes - route table entry: null when the path belongs to another domain
 // END_MODULE_MAP
 
-import { CreateListWriteSchema, CreateSubscriptionSchema, IdSchema } from "@max-events/api-contracts";
+import { CreateListWriteSchema, CreateSubscriptionSchema, IdSchema, SetListVisibilitySchema } from "@max-events/api-contracts";
 import { type AddListItem } from "../client";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
-import { addMockListItem, createMockList, createMockSubscription, listItemCards, listMockSubscriptions, listScreen, listSummaries, removeMockList, removeMockListItem, removeMockSubscription, renameMockList } from "./lists";
+import { addMockListItem, createMockList, createMockSubscription, listItemCards, listMockSubscriptions, listScreen, listSummaries, removeMockList, removeMockListItem, removeMockSubscription, renameMockList, setMockListVisibility } from "./lists";
 
 export function listsRoutes(url: URL, init: RequestInit | undefined): Response | null {
+  const listVisibility = /^\/api\/lists\/([^/]+)\/visibility$/.exec(url.pathname);
+  if (listVisibility && init?.method === "PATCH") {
+    if (!IdSchema.safeParse(listVisibility[1]).success) return new Response(null, { status: 400 });
+    const parsed = SetListVisibilitySchema.safeParse(parseBookingBody(init));
+    if (!parsed.success) return new Response(null, { status: 400 });
+    const updated = setMockListVisibility(listVisibility[1], parsed.data.visibility);
+    return updated === "no_list" ? new Response(null, { status: 404 }) : updated === "preset" ? new Response(null, { status: 403 }) : Response.json(updated);
+  }
+
   const listById = /^\/api\/lists\/([^/]+)$/.exec(url.pathname);
   if (listById && init?.method === "PATCH") {
     // ParseUUIDPipe answers 400 on the backend, so a non-uuid must not read as "no such list".

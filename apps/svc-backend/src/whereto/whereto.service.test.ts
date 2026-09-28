@@ -78,6 +78,18 @@ describe("selectWheretoItems", () => {
     const kids = selectWheretoItems(catalog, query({ mood: "calm", company: "kids", budget: "any" }));
     expect(kids.map((item) => item.title)).not.toContain("Дорогой концерт");
   });
+
+  it("does not call a priced event free when isPaid was left false", () => {
+    const mislabeled = event({
+      id: "00000000-0000-4000-8000-0000000000ea",
+      title: "Ориентирование",
+      category: "sport",
+      isPaid: false,
+      priceRub: 2900,
+    });
+    const free = selectWheretoItems([...catalog, mislabeled], query({ mood: "active", budget: "free" }));
+    expect(free.map((item) => item.title)).not.toContain("Ориентирование");
+  });
 });
 
 describe("WheretoService", () => {

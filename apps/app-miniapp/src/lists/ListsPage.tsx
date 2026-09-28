@@ -24,7 +24,7 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
-import type { Event, Friend, List } from "@max-events/api-contracts";
+import type { Event, Friend, List, ListVisibility } from "@max-events/api-contracts";
 import { ApiError, apiClient, type ListItemCard, type ListScreen, type ListSummary } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
@@ -101,12 +101,10 @@ export function ListFaces({ participants, className }: { participants: Friend[];
 
 export type ListsState = { status: "loading" } | { status: "error" } | { status: "ready"; summaries: ListSummary[] };
 
-function ListTile({ summary, onOpen }: { summary: ListSummary; onOpen: (listId: string) => void }) {
+function ListTile({ summary, onOpen, onToggleVisibility }: { summary: ListSummary; onOpen: (listId: string) => void; onToggleVisibility?: (listId: string, visibility: ListVisibility) => void }) {
   const { list, itemsCount, participants } = summary;
-  // The mark tells the two groups apart without splitting them into two products: a preset wears the
-  // neutral surface, a list of one's own the MAX gradient. Everything else about the tile is the same.
   const markClass = list.preset === null ? "app-lists-tile-mark app-lists-tile-mark--own" : "app-lists-tile-mark";
-  return (
+  const open = (
     <button type="button" className="app-lists-tile" onClick={() => onOpen(list.id)}>
       <span className="app-lists-tile-top">
         <span className={markClass} aria-hidden="true">
@@ -117,6 +115,16 @@ function ListTile({ summary, onOpen }: { summary: ListSummary; onOpen: (listId: 
       <span className="app-lists-tile-title">{list.title}</span>
       <span className="app-lists-tile-count">{listCountLabel(itemsCount)}</span>
     </button>
+  );
+  if (onToggleVisibility === undefined || list.preset !== null) return open;
+  const next: ListVisibility = list.visibility === "public" ? "private" : "public";
+  return (
+    <div className="app-lists-tile-wrap">
+      {open}
+      <button type="button" className="app-lists-visibility" aria-pressed={list.visibility === "public"} onClick={() => onToggleVisibility(list.id, next)}>
+        {list.visibility === "public" ? "Открытый" : "Закрытый"}
+      </button>
+    </div>
   );
 }
 
@@ -134,9 +142,10 @@ interface ListsViewProps {
   onCreateCancel?: () => void;
   busy?: boolean;
   error?: string | null;
+  onToggleVisibility?: (listId: string, visibility: ListVisibility) => void;
 }
 
-export function ListsView({ state, onOpen, topbar = false, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, onCreateCancel = () => {}, busy = false, error = null }: ListsViewProps) {
+export function ListsView({ state, onOpen, topbar = false, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, onCreateCancel = () => {}, busy = false, error = null, onToggleVisibility }: ListsViewProps) {
   const presets = state.status === "ready" ? state.summaries.filter((summary) => summary.list.preset !== null) : [];
   const own = state.status === "ready" ? state.summaries.filter((summary) => summary.list.preset === null) : [];
   return (
@@ -185,7 +194,7 @@ export function ListsView({ state, onOpen, topbar = false, creating = false, new
           </div>
           <div className="app-lists-grid">
             {own.map((summary) => (
-              <ListTile key={summary.list.id} summary={summary} onOpen={onOpen} />
+              <ListTile key={summary.list.id} summary={summary} onOpen={onOpen} onToggleVisibility={onToggleVisibility} />
             ))}
             <button type="button" className="app-lists-new" onClick={onCreateStart} disabled={busy}>
               <ActionIcon name="plus" size={20} strokeWidth={2.8} />
@@ -198,9 +207,11 @@ export function ListsView({ state, onOpen, topbar = false, creating = false, new
   );
 }
 
-export function ListsPage({ topbar = false }: { topbar?: boolean } = {}) {
+export function ListsPage({ topbar = false, userId: subjectId }: { topbar?: boolean; userId?: string } = {}) {
   const auth = useAuth();
-  const userId = auth.status === "authenticated" ? auth.user.id : null;
+  const viewerId = auth.status === "authenticated" ? auth.user.id : null;
+  const userId = viewerId === null ? null : (subjectId ?? viewerId);
+  const editable = viewerId !== null && userId === viewerId;
   const { navigate } = useRoute();
   const [state, setState] = useState<ListsState>({ status: "loading" });
   const [creating, setCreating] = useState(false);
@@ -248,6 +259,25 @@ export function ListsPage({ topbar = false }: { topbar?: boolean } = {}) {
     );
   }, [newTitle]);
 
+  const toggleVisibility = useCallback(
+    (listId: string, visibility: ListVisibility) => {
+      if (!editable) return;
+      setBusy(true);
+      setError(null);
+      apiClient.setListVisibility(listId, visibility).then(
+        () => {
+          setBusy(false);
+          setReloads((value) => value + 1);
+        },
+        () => {
+          setError("Не удалось изменить видимость.");
+          setBusy(false);
+        },
+      );
+    },
+    [editable],
+  );
+
   return (
     <ListsView
       state={state}
@@ -267,6 +297,7 @@ export function ListsPage({ topbar = false }: { topbar?: boolean } = {}) {
       }}
       busy={busy}
       error={error}
+      onToggleVisibility={editable ? toggleVisibility : undefined}
     />
   );
 }

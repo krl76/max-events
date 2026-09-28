@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { WheretoBudgetSchema, WheretoCompanySchema, WheretoMoodSchema } from "@max-events/api-contracts";
-import { BUDGET_LABELS, COMPANY_LABELS, MOOD_HINTS, MOOD_LABELS, WHERETO_QUESTIONS, WheretoView, answeredRows, formatWheretoPrice, formatWheretoWhen, restLabel, resultTitle, wheretoQuery, wheretoWish, wizardStepIndex, type WheretoAnswers, type WheretoResult, type WheretoState } from "./WheretoPage";
+import { BUDGET_LABELS, COMPANY_LABELS, MOOD_HINTS, MOOD_LABELS, WHERETO_QUESTIONS, WheretoView, answeredRows, eventFitsBudget, formatWheretoPrice, formatWheretoWhen, picksForBudget, restLabel, resultTitle, wheretoQuery, wheretoWish, wizardStepIndex, type WheretoAnswers, type WheretoResult, type WheretoState } from "./WheretoPage";
 import { MOCK_NOW, wheretoSuggestions } from "../api/mock";
 
 const NOW = MOCK_NOW;
@@ -101,6 +101,24 @@ describe("форматирование карточки", () => {
 
   it("платное без цены не выдаёт за бесплатное", () => {
     expect(formatWheretoPrice({ isPaid: true, priceRub: null })).toBe("платно");
+  });
+});
+
+describe("бюджет подборки", () => {
+  it("не считает событие с ценой бесплатным, даже если isPaid забыли", () => {
+    expect(eventFitsBudget({ isPaid: false, priceRub: 2900 }, "free")).toBe(false);
+    expect(eventFitsBudget({ isPaid: false, priceRub: null }, "free")).toBe(true);
+    expect(eventFitsBudget({ isPaid: true, priceRub: 950 }, "free")).toBe(false);
+  });
+
+  it("оставляет в выдаче только то, что проходит выбранный бюджет", () => {
+    const items = [
+      { id: "free", isPaid: false, priceRub: null },
+      { id: "priced", isPaid: false, priceRub: 2450 },
+      { id: "paid", isPaid: true, priceRub: 950 },
+    ];
+    expect(picksForBudget(items, "free").map((item) => item.id)).toEqual(["free"]);
+    expect(picksForBudget(items, "under_3000").map((item) => item.id)).toEqual(["free", "priced", "paid"]);
   });
 });
 

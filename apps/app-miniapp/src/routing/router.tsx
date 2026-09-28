@@ -12,7 +12,7 @@
 // - Route - moderation | home | search | create | map | event(id) | place(id) | friends | calendar | profile | settings | subscriptions | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | plan-new | day-route | list(id) | achievements | after-event(eventId) | micro-new | story-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote-/after- prefixes) to a Route, home fallback
 // - Route - … | micro (макет, экран 24) | micro-event(id) (экран 25) | friend-route(id) (экран 28)
-// - isTabRoute - the five tabbar routes (home/search/create/plans/profile); tab-to-tab switches replace the history entry instead of pushing. The map is no longer a tab — it is a view pushed from Поиск (макет, экран 16)
+// - isTabRoute - the five tabbar routes (home/search/create/map/profile); tab-to-tab switches replace the history entry instead of pushing. Plans open from the profile and push.
 // - RouteHistoryState - history entry payload: route + sequential idx (idx drives back/forward detection)
 // - nextHistory - pure history decision: tab-to-tab -> replace (idx kept), anything else -> push (idx + 1)
 // - routeFromHistoryState - validate a popstate payload back into a RouteHistoryState, null when malformed
@@ -134,7 +134,7 @@ export function routeFromStartParam(startParam: string | null): Route {
   return { name: "home" };
 }
 
-const TAB_ROUTE_NAMES: ReadonlySet<Route["name"]> = new Set(["home", "search", "create", "plans", "profile"]);
+const TAB_ROUTE_NAMES: ReadonlySet<Route["name"]> = new Set(["home", "search", "create", "map", "profile"]);
 
 export function isTabRoute(name: Route["name"]): boolean {
   return TAB_ROUTE_NAMES.has(name);

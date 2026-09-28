@@ -115,6 +115,16 @@ describe("ListsService", () => {
     expect(summaries.at(-1)!.list.id).toBe(created.id);
   });
 
+  it("shows another user only public custom lists", async () => {
+    const { service } = createService();
+    const opened = await service.create(userId, "Открытое");
+    await service.setVisibility(userId, opened.id, "public");
+    await service.create(userId, "Закрытое");
+    const foreign = await service.list(otherUserId, null, null, userId);
+    expect(foreign.map((row) => row.list.title)).toEqual(["Открытое"]);
+    expect(foreign.every((row) => row.list.visibility === "public")).toBe(true);
+  });
+
   it("renames and deletes a list of one's own, with its items", async () => {
     const { service, items } = createService();
     const created = await service.create(userId, "Сводить маму");

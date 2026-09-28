@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { formatDistance, planCompanyLabel, planDistanceLabel, planMeetingLabel, PlansPage, PlansView, type PlansState } from "./PlansPage";
+import { formatDistance, planCompanyLabel, planDistanceLabel, planMeetingLabel, planPartyLabel, planWhenPlace, PlansPage, PlansView, type PlansState } from "./PlansPage";
 import { pluralRu } from "../catalog/format";
 import { planCards } from "../api/mock";
 
@@ -40,25 +40,20 @@ describe("planMeetingLabel", () => {
 });
 
 describe("PlansView", () => {
-  it("renders every card per the README example: event, participants, meeting, distance", () => {
-    const html = renderToStaticMarkup(createElement(PlansView, { state: { status: "ready", cards: CARDS }, onOpen: () => {}, onExplore: () => {} }));
+  it("renders the nearest plan as a hero and the rest as rows", () => {
+    const html = renderToStaticMarkup(createElement(PlansView, { state: { status: "ready", cards: CARDS }, onOpen: () => {}, onExplore: () => {}, onCreate: () => {} }));
 
-    for (const card of CARDS) {
-      expect(html).toContain(card.event.title);
-      expect(html).toContain(planCompanyLabel(card.plan.participants.length));
-      expect(html).toContain(planMeetingLabel(card.plan));
-      expect(html).toContain(planDistanceLabel(card.distanceMeters));
-    }
-  });
-
-  it("renders the first card as a link to the plan screen", () => {
-    const html = renderToStaticMarkup(createElement(PlansView, { state: { status: "ready", cards: [CARDS[0]] }, onOpen: () => {}, onExplore: () => {} }));
-
-    expect(html).toContain(`class="app-card app-card--link"`);
+    expect(html).toContain("Ближайший план");
+    expect(html).toContain(CARDS[0]!.event.title);
+    expect(html).toContain(planPartyLabel(CARDS[0]!.plan.participants.length));
+    expect(html).toContain(planWhenPlace(CARDS[0]!.plan));
+    expect(html).toContain("Мои планы");
+    expect(html).toContain("Создать новый план");
+    expect(html).toContain("маршрут на день");
   });
 
   it("renders loading, error and empty states", () => {
-    const render = (state: PlansState) => renderToStaticMarkup(createElement(PlansView, { state, onOpen: () => {}, onExplore: () => {} }));
+    const render = (state: PlansState) => renderToStaticMarkup(createElement(PlansView, { state, onOpen: () => {}, onExplore: () => {}, onCreate: () => {} }));
 
     expect(render({ status: "loading" })).toContain("app-skeleton-line");
     expect(render({ status: "error" })).toContain("app-state--error");
@@ -68,50 +63,11 @@ describe("PlansView", () => {
 });
 
 describe("PlansPage", () => {
-  it("offers the day route entry above the list", () => {
+  it("draws its own title and a way to start a plan", () => {
     const html = renderToStaticMarkup(createElement(PlansPage));
 
-    expect(html).toContain("Маршрут на день");
-  });
-
-  it("offers the «Мы» groups entry above the list", () => {
-    const html = renderToStaticMarkup(createElement(PlansPage));
-
-    expect(html).toContain("Мы");
-  });
-
-  it("opens the plans tab by default and offers every section in the same row of pills", () => {
-    const html = renderToStaticMarkup(createElement(PlansPage));
-
-    expect(html).toContain("app-tab-row");
-    expect(html).toContain("Мои брони");
-    expect(html).toContain("Календарь");
-    expect(html).toContain("Сохранённое");
-    expect(html).toMatch(/<button[^>]*app-chip--on[^>]*>Планы</);
-  });
-
-  it("carries exactly one row of section switches: the second header is gone", () => {
-    const html = renderToStaticMarkup(createElement(PlansPage, { tab: "calendar" }));
-
-    expect(html.match(/app-tab-row/g)).toHaveLength(1);
-    expect(html).not.toContain("app-cal-switch");
-  });
-
-  it("opens the bookings section as a pill of the same row", () => {
-    const html = renderToStaticMarkup(createElement(PlansPage, { tab: "bookings" }));
-
-    expect(html).toMatch(/<button[^>]*app-chip--on[^>]*>Мои брони</);
-  });
-
-  it("opens on the calendar tab when the calendar route asks for it", () => {
-    const html = renderToStaticMarkup(createElement(PlansPage, { tab: "calendar" }));
-
-    expect(html).toMatch(/<button[^>]*app-chip--on[^>]*>Календарь</);
-  });
-
-  it("opens on the saved tab when asked", () => {
-    const html = renderToStaticMarkup(createElement(PlansPage, { tab: "saved" }));
-
-    expect(html).toMatch(/<button[^>]*app-chip--on[^>]*>Сохранённое</);
+    expect(html).toContain("Планы");
+    expect(html).toContain("Новый план");
+    expect(html).not.toContain("app-tab-row");
   });
 });

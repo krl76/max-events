@@ -3,24 +3,24 @@ import type { Route } from "../routing/router";
 import { ROUTE_TITLES, routeHasBack, routeHasHeader, routeIsFlush, routeIsFullscreen, routeTitle, TABS } from "./Layout";
 
 describe("Layout tabbar active predicates", () => {
-  it("highlights only the Plans tab on the day-route screen", () => {
+  it("highlights only the Profile tab on the day-route screen", () => {
     const active = TABS.filter((tab) => tab.active("day-route"));
 
     expect(active).toHaveLength(1);
-    expect(active[0].route).toBe("plans");
+    expect(active[0].route).toBe("profile");
   });
 
-  it("highlights the Plans tab on the plans, plan and saved-list screens", () => {
-    expect(TABS.find((tab) => tab.route === "plans")?.active("plans")).toBe(true);
-    expect(TABS.find((tab) => tab.route === "plans")?.active("plan")).toBe(true);
-    expect(TABS.find((tab) => tab.route === "plans")?.active("list")).toBe(true);
+  it("highlights the Profile tab on the plans, plan and saved-list screens", () => {
+    expect(TABS.find((tab) => tab.route === "profile")?.active("plans")).toBe(true);
+    expect(TABS.find((tab) => tab.route === "profile")?.active("plan")).toBe(true);
+    expect(TABS.find((tab) => tab.route === "profile")?.active("list")).toBe(true);
   });
 
-  it("highlights the Plans tab on the calendar screen", () => {
+  it("highlights the Profile tab on the calendar screen", () => {
     const active = TABS.filter((tab) => tab.active("calendar"));
 
     expect(active).toHaveLength(1);
-    expect(active[0].route).toBe("plans");
+    expect(active[0].route).toBe("profile");
   });
 
   it("highlights the Profile tab on the friends screen", () => {
@@ -37,12 +37,12 @@ describe("Layout tabbar active predicates", () => {
     expect(active[0].route).toBe("profile");
   });
 
-  it("keeps the map and the swipe deck on the Search tab, because both are entered from search", () => {
+  it("keeps the swipe deck on Search and gives the map its own tab", () => {
     expect(TABS.filter((tab) => tab.active("swipe")).map((tab) => tab.route)).toEqual(["search"]);
     const active = TABS.filter((tab) => tab.active("map"));
 
     expect(active).toHaveLength(1);
-    expect(active[0].route).toBe("search");
+    expect(active[0].route).toBe("map");
   });
 
   it("highlights the Create tab on every publication screen", () => {
@@ -54,17 +54,17 @@ describe("Layout tabbar active predicates", () => {
     }
   });
 
-  it("keeps other screens off the Plans tab", () => {
-    expect(TABS.find((tab) => tab.route === "plans")?.active("home")).toBe(false);
-    expect(TABS.find((tab) => tab.route === "plans")?.active("search")).toBe(false);
+  it("keeps other screens off the Map tab", () => {
+    expect(TABS.find((tab) => tab.route === "map")?.active("home")).toBe(false);
+    expect(TABS.find((tab) => tab.route === "map")?.active("search")).toBe(false);
   });
 
   it("defines exactly the five tabbar tabs in order", () => {
-    expect(TABS.map((tab) => tab.route)).toEqual(["home", "search", "create", "plans", "profile"]);
+    expect(TABS.map((tab) => tab.route)).toEqual(["home", "search", "create", "map", "profile"]);
   });
 
   it("labels the tabs as the design does", () => {
-    expect(TABS.map((tab) => tab.label)).toEqual(["Лента", "Поиск", "Создать", "Планы", "Профиль"]);
+    expect(TABS.map((tab) => tab.label)).toEqual(["Лента", "Поиск", "Создать", "Карта", "Профиль"]);
   });
 });
 
@@ -98,8 +98,8 @@ describe("routeHasBack", () => {
     expect(routeHasBack({ name: "plan", id: "p1" })).toBe(true);
   });
 
-  it("shows the back button on the map, which is pushed from search rather than tabbed to", () => {
-    expect(routeHasBack({ name: "map" })).toBe(true);
+  it("hides the back button on the map, which is a tab", () => {
+    expect(routeHasBack({ name: "map" })).toBe(false);
   });
 });
 
@@ -120,7 +120,7 @@ describe("routeHasHeader", () => {
     expect(routeHasHeader({ name: "home" })).toBe(true);
     expect(routeHasHeader({ name: "search" })).toBe(true);
     expect(routeHasHeader({ name: "create" })).toBe(true);
-    expect(routeHasHeader({ name: "plans" })).toBe(true);
+    expect(routeHasHeader({ name: "plans" })).toBe(false);
     expect(routeHasHeader({ name: "settings" })).toBe(true);
     // Карточка площадки (макет, экран 34) шапку потеряла: она несёт собственную кнопку назад поверх
     // полотна и собственную нижнюю панель, поэтому маршрут переехал в полноэкранные.

@@ -27,6 +27,9 @@ export class ListEntity {
   @Column({ type: "varchar", length: 200 })
   title!: string;
 
+  @Column({ type: "varchar", length: 16, default: "private" })
+  visibility!: "public" | "private";
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

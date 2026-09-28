@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - FeedHeader - шапка ленты (макет, экран 03): словомарк «афиша MAX», поиск и колокольчик со счётчиком непрочитанных — кнопка, ведущая на экран 07 (домен уведомлений на моке, #494)
 // - Layout - header + routed children + tabbar (icon + label per tab)
-// - TABS - tabbar definitions with per-tab active predicate; the map (экран 16) and the swipe deck (экран 09) belong to the Поиск tab, because both are entered from search
+// - TABS - tabbar definitions with per-tab active predicate; the map is its own tab, and plans, saved lists, bookings and the calendar open from the profile
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
 // - routeTitle - header title for the current route
 // - routeHasBack - back button shown on every non-tab route, the map included
@@ -30,12 +30,34 @@ import { isTabRoute, useRoute, type Route } from "../routing/router";
 import { ActionIcon, TabIconGlyph, type TabIcon } from "./icons";
 import { consumeFrozenScroll, freezeScroll, noteAppliedScroll, rememberScroll, routeScrollKey } from "./scroll-memory";
 
-export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string) => boolean; route: "home" | "search" | "create" | "plans" | "profile" }> = [
+export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string) => boolean; route: "home" | "search" | "create" | "map" | "profile" }> = [
   { icon: "feed", label: "Лента", route: "home", active: (name) => name === "home" || name === "micro" || name === "micro-event" },
-  { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" || name === "browse" || name === "map" || name === "swipe" || name === "assist" },
+  { icon: "search", label: "Поиск", route: "search", active: (name) => name === "search" || name === "browse" || name === "swipe" || name === "assist" },
   { icon: "create", label: "Создать", route: "create", active: (name) => name === "create" || name === "story-new" || name === "feed-new" || name === "micro-new" || name === "plan-new" },
-  { icon: "plans", label: "Планы", route: "plans", active: (name) => name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "lists" || name === "list" || name === "bookings" || name === "slot-ticket" },
-  { icon: "profile", label: "Профиль", route: "profile", active: (name) => name === "profile" || name === "user" || name === "friends" || name === "subscriptions" || name === "followers" || name === "discovery" || name === "people" || name === "friend-route" },
+  { icon: "map", label: "Карта", route: "map", active: (name) => name === "map" },
+  {
+    icon: "profile",
+    label: "Профиль",
+    route: "profile",
+    active: (name) =>
+      name === "profile" ||
+      name === "user" ||
+      name === "friends" ||
+      name === "subscriptions" ||
+      name === "followers" ||
+      name === "discovery" ||
+      name === "people" ||
+      name === "friend-route" ||
+      name === "plans" ||
+      name === "plan" ||
+      name === "day-route" ||
+      name === "calendar" ||
+      name === "lists" ||
+      name === "list" ||
+      name === "bookings" ||
+      name === "slot-ticket" ||
+      name === "micro",
+  },
 ];
 
 export const ROUTE_TITLES: Record<Route["name"], string> = {
@@ -121,7 +143,7 @@ export function routeHasBack(route: Route): boolean {
 // «Куда пойдём?» (11 и 12) меняет заголовок вместе с шагом: у вопросов это «Куда пойдём?», у выдачи —
 // «Пять вариантов», то есть число найденного. Таблица ROUTE_TITLES даёт один заголовок на маршрут,
 // поэтому шапку рисует сам экран.
-const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["browse", "swipe", "map", "profile", "user", "after-event", "lists", "list", "bookings", "moderation", "event", "companions", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "assist", "whereto", "calendar"]);
+const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["browse", "swipe", "map", "profile", "user", "after-event", "lists", "list", "bookings", "moderation", "event", "companions", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "plans", "assist", "whereto", "calendar"]);
 
 /**
  * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и

@@ -8,7 +8,7 @@ import { SaveToList, SaveToListState, SaveToListView } from "./SaveToList";
 const USER_ID = "a0000000-0000-4000-8000-000000000001";
 
 function list(id: string, title: string): List {
-  return { id, userId: USER_ID, preset: null, title, createdAt: "2026-09-01T10:00:00Z", updatedAt: "2026-09-01T10:00:00Z" };
+  return { id, userId: USER_ID, preset: null, title, visibility: "private", createdAt: "2026-09-01T10:00:00Z", updatedAt: "2026-09-01T10:00:00Z" };
 }
 
 function summary(id: string, title: string, savedItemId: string | null): ListSummary {
