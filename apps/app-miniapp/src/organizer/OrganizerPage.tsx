@@ -38,6 +38,7 @@ import { pictured } from "../ui/photos";
 import { CABINET_EVENTS, mergeCabinetEvents } from "./cabinet-catalog";
 import { weeklySeriesUntil } from "./OrganizerEventForm";
 import { SettingsSwitchRow } from "../profile/SettingsPage";
+import { ActionIcon } from "../ui/icons";
 import { AppButton, AppChip, AppMedia, AppState } from "../ui/primitives";
 import { VenuePinMap } from "./VenuePinMap";
 
@@ -745,14 +746,15 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
   }, [editRequestId, events, places, onEditHandled]);
 
   useEffect(() => {
-    const title = eventForm !== null ? (eventForm.mode === "create" ? "Создать событие" : "Событие") : placeForm !== null ? (placeForm.mode === "create" ? "Новое место" : "Место") : null;
+    const title = eventForm !== null ? (eventForm.mode === "create" ? "Создать событие" : "Событие") : placeForm !== null ? (placeForm.mode === "create" ? "Новое место" : "Место") : detailId !== null ? "Событие" : null;
     onComposer?.(title);
-  }, [eventForm, placeForm, step, onComposer]);
+  }, [eventForm, placeForm, step, detailId, onComposer]);
 
   useEffect(() => {
     if (closeComposerTick === 0) return;
     setEventForm(null);
     setPlaceForm(null);
+    setDetailId(null);
     setStep(1);
     createdEventId.current = null;
     setErrors([]);
@@ -938,40 +940,56 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
     const sold = seatsSold(detail);
     const free = detail.capacity === null ? null : Math.max(detail.capacity - sold, 0);
     const past = new Date(detail.endsAt ?? detail.startsAt).getTime() < Date.now();
+    const start = new Date(detail.startsAt);
+    const end = detail.endsAt === null ? null : new Date(detail.endsAt);
+    const whenLine = `${start.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })} · ${start.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}${end ? ` — ${end.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}` : ""}`;
+    const whenShort = `${start.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}, ${start.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}${end ? ` – ${end.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}` : ""}`;
+    const placeLine = `${placeTitleFor(detail)}, ${detail.city}`;
+    const tags = known?.tags ?? [CATEGORY_LABELS[detail.category]];
+    const categoryLabel = tags[0] ?? CATEGORY_LABELS[detail.category];
+    const age = known?.age ?? "0+";
+    const about = known?.description ?? detail.description;
+    const promoCount = detail.isPaid && !detail.draft ? 2 : 0;
     return (
-      <section className="app-cab" aria-label="Событие">
-        <button type="button" className="app-cab-back" onClick={() => setDetailId(null)}>
-          Назад
-        </button>
+      <section className="app-evt-sheet" aria-label="Событие">
         <div className="app-evt-hero">
           <img alt="" src={pictured(detail.id, detail.coverUrl)} />
           <span className={detail.draft ? "app-evt-status app-evt-status--draft" : past ? "app-evt-status app-evt-status--archive" : "app-evt-status"}>{detail.draft ? "Черновик" : past ? "Архив" : "Опубликовано"}</span>
         </div>
-        <h1 className="app-cab-title">{detail.title}</h1>
-        <p className="app-evt-meta">
-          {new Date(detail.startsAt).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
-          {detail.endsAt ? ` – ${new Date(detail.endsAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}` : ""}
+        <h1 className="app-evt-name">{detail.title}</h1>
+        <p className="app-evt-line">
+          <ActionIcon name="calendar" size={18} strokeWidth={2} />
+          <span>{whenLine}</span>
         </p>
-        <p className="app-evt-meta">
-          {placeTitleFor(detail)}, {detail.city}
+        <p className="app-evt-line">
+          <ActionIcon name="pin" size={18} strokeWidth={2} />
+          <span>{placeLine}</span>
         </p>
-        <p className="app-evt-tags">{(known?.tags ?? [CATEGORY_LABELS[detail.category]]).join(" · ")}</p>
-        <p className="app-cab-lead">{known?.description ?? detail.description}</p>
-        <div className="app-cab-metrics">
-          <article className="app-cab-metric">
-            <span className="app-cab-metric-label">Всего мест</span>
+        <div className="app-evt-pills">
+          {tags.map((tag) => (
+            <span key={tag}>{tag}</span>
+          ))}
+        </div>
+        <p className="app-evt-about">{about}</p>
+        <div className="app-evt-counts">
+          <article>
+            <ActionIcon name="users" size={18} strokeWidth={2} />
             <b>{detail.capacity ?? "—"}</b>
+            <span>Всего мест</span>
           </article>
-          <article className="app-cab-metric">
-            <span className="app-cab-metric-label">Продано</span>
+          <article>
+            <ActionIcon name="ticket" size={18} strokeWidth={2} />
             <b>{sold}</b>
+            <span>Продано</span>
           </article>
-          <article className="app-cab-metric">
-            <span className="app-cab-metric-label">Свободно</span>
+          <article>
+            <ActionIcon name="layers" size={18} strokeWidth={2} />
             <b>{free ?? "—"}</b>
+            <span>Свободно</span>
           </article>
         </div>
-        <button type="button" className="app-fin-withdraw" onClick={() => openEventForm({ mode: "edit", id: detail.id, draft: eventDraftFrom(detail), offerPublish: detail.draft })}>
+        <button type="button" className="app-evt-edit" onClick={() => openEventForm({ mode: "edit", id: detail.id, draft: eventDraftFrom(detail), offerPublish: detail.draft })}>
+          <ActionIcon name="pen" size={18} strokeWidth={2.2} />
           Редактировать
         </button>
         <div className="app-evt-filters" role="tablist" aria-label="Карточка события">
@@ -988,13 +1006,67 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
           ))}
         </div>
         {detailTab === "info" && (
-          <article className="app-cab-card">
-            <h2 className="app-cab-card-title">Основная информация</h2>
-            <p className="app-evt-meta">Площадка · {placeTitleFor(detail)}</p>
-            <p className="app-evt-meta">Категория · {CATEGORY_LABELS[detail.category]}</p>
-            <p className="app-evt-meta">Возрастное ограничение · {known?.age ?? "0+"}</p>
-            <p className="app-cab-lead">{known?.summary ?? detail.description}</p>
-          </article>
+          <>
+            <h2 className="app-evt-block-title">Основная информация</h2>
+            <div className="app-evt-rows">
+              <div className="app-evt-row">
+                <ActionIcon name="pin" size={18} strokeWidth={2} />
+                <span>
+                  <b>Локация</b>
+                  <em>{placeLine}</em>
+                </span>
+                <ActionIcon name="chevron" size={16} strokeWidth={2.4} />
+              </div>
+              <div className="app-evt-row">
+                <ActionIcon name="calendar" size={18} strokeWidth={2} />
+                <span>
+                  <b>Дата и время</b>
+                  <em>{whenShort}</em>
+                </span>
+              </div>
+              <div className="app-evt-row">
+                <ActionIcon name="tag" size={18} strokeWidth={2} />
+                <span>
+                  <b>Категория</b>
+                  <em>{categoryLabel}</em>
+                </span>
+                <ActionIcon name="chevron" size={16} strokeWidth={2.4} />
+              </div>
+              <div className="app-evt-row">
+                <ActionIcon name="info" size={18} strokeWidth={2} />
+                <span>
+                  <b>Возрастное ограничение</b>
+                  <em>{age}</em>
+                </span>
+              </div>
+              <div className="app-evt-row">
+                <ActionIcon name="info" size={18} strokeWidth={2} />
+                <span>
+                  <b>Описание</b>
+                  <em>{known?.summary ?? about}</em>
+                </span>
+              </div>
+            </div>
+            <h2 className="app-evt-block-title">Дополнительно</h2>
+            <div className="app-evt-rows">
+              <div className="app-evt-row">
+                <ActionIcon name="ticket" size={18} strokeWidth={2} />
+                <span>
+                  <b>Промокоды</b>
+                  <em>Активных: {promoCount}</em>
+                </span>
+                <ActionIcon name="chevron" size={16} strokeWidth={2.4} />
+              </div>
+              <div className="app-evt-row">
+                <ActionIcon name="mail" size={18} strokeWidth={2} />
+                <span>
+                  <b>Рассылка</b>
+                  <em>Отправлено: 0</em>
+                </span>
+                <ActionIcon name="chevron" size={16} strokeWidth={2.4} />
+              </div>
+            </div>
+          </>
         )}
         {detailTab === "tickets" && (
           <article className="app-cab-card">
@@ -1031,20 +1103,12 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
       </div>
       {tab === "events" && (
         <>
-          <div className="app-cab-actions">
-            <button type="button" className="app-fin-withdraw" onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
-              <span className="app-fin-withdraw-plus" aria-hidden="true">
-                +
-              </span>
-              Создать событие
-            </button>
-            <button type="button" className="app-fin-withdraw" onClick={() => openPlaceForm({ mode: "create", draft: EMPTY_PLACE_DRAFT })}>
-              <span className="app-fin-withdraw-plus" aria-hidden="true">
-                +
-              </span>
-              Добавить место
-            </button>
-          </div>
+          <button type="button" className="app-fin-withdraw" onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
+            <span className="app-fin-withdraw-plus" aria-hidden="true">
+              +
+            </span>
+            Создать событие
+          </button>
           <div className="app-evt-tools">
             <input className="app-profile-input" aria-label="Поиск" placeholder="Поиск" value={eventQuery} onChange={(change) => setEventQuery(change.target.value)} />
           </div>
@@ -1100,9 +1164,12 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
       )}
       {tab === "places" && placeFocus === null && (
         <>
-          <AppButton stretched onClick={() => openPlaceForm({ mode: "create", draft: EMPTY_PLACE_DRAFT })}>
+          <button type="button" className="app-fin-withdraw" onClick={() => openPlaceForm({ mode: "create", draft: EMPTY_PLACE_DRAFT })}>
+            <span className="app-fin-withdraw-plus" aria-hidden="true">
+              +
+            </span>
             Добавить место
-          </AppButton>
+          </button>
           <input className="app-profile-input" aria-label="Поиск места" placeholder="Название места" value={placeQuery} onChange={(change) => setPlaceQuery(change.target.value)} />
           <p className="app-gathering-hint">Место можно завести отдельно от события. Нажмите карточку — откроется управление местом.</p>
           <OrganizerListStatus state={places} emptyText="Пока нет мест. Площадка нужна, чтобы гости видели адрес." />

@@ -25788,8 +25788,10 @@ html:not([data-theme="dark"]) .app-when-sheet {
 .app-cab-plot-wrap {
   display: grid;
   gap: 6px;
-  grid-template-columns: 42px 1fr;
+  grid-template-columns: 42px minmax(0, 1fr);
   height: 150px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .app-cab-axis {
@@ -25803,11 +25805,15 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-cab-plot {
   height: 100%;
+  min-width: 0;
+  overflow: hidden;
   position: relative;
 }
 
 .app-cab-plot svg {
+  display: block;
   height: 100%;
+  overflow: hidden;
   width: 100%;
 }
 
@@ -26170,13 +26176,19 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-cab-calendar {
   background: var(--brand-white);
-  border-radius: 16px;
-  box-shadow: 0 12px 32px rgba(6, 7, 8, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(6, 7, 8, 0.1);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 8px;
-  padding: 12px;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 8px;
+}
+
+.app-cab-calendar .app-fin-field-input {
+  font-size: 14px;
+  min-height: 36px;
+  padding: 6px 10px;
 }
 
 .app-cab-actions {
@@ -26368,9 +26380,155 @@ html:not([data-theme="dark"]) .app-when-sheet {
   color: #5c6578;
 }
 
+.app-evt-sheet {
+  background: #f7f8fb;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px 28px;
+}
+
+.app-evt-name {
+  color: #16181d;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin: 4px 0 0;
+}
+
+.app-evt-line {
+  align-items: center;
+  color: #3a4154;
+  display: flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 8px;
+  margin: 0;
+}
+
+.app-evt-line svg {
+  color: #8b93a7;
+  flex: none;
+}
+
+.app-evt-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-evt-pills span {
+  background: #eef0f6;
+  border-radius: 999px;
+  color: #3a4154;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 12px;
+}
+
+.app-evt-about {
+  color: #5c6578;
+  font-size: 15px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.app-evt-counts {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.app-evt-counts article {
+  align-items: center;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 6px 16px rgba(6, 7, 8, 0.04);
+  color: var(--brand-blue);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 6px;
+}
+
+.app-evt-counts b {
+  color: #16181d;
+  font-size: 20px;
+}
+
+.app-evt-counts span {
+  color: #8b93a7;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.app-evt-edit {
+  align-items: center;
+  background: linear-gradient(90deg, var(--brand-blue), var(--brand-purple));
+  border: none;
+  border-radius: 16px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  gap: 8px;
+  justify-content: center;
+  min-height: 52px;
+}
+
+.app-evt-block-title {
+  color: #16181d;
+  font-size: 18px;
+  font-weight: 800;
+  margin: 8px 0 0;
+}
+
+.app-evt-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-evt-row {
+  align-items: center;
+  border-bottom: 1px solid #eef0f4;
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.app-evt-row svg {
+  color: #8b93a7;
+  flex: none;
+}
+
+.app-evt-row span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-evt-row b {
+  color: #16181d;
+  font-size: 15px;
+}
+
+.app-evt-row em {
+  color: #8b93a7;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 600;
+}
+
 .app-evt-hero {
-  border-radius: 18px;
-  height: 180px;
+  border-radius: 0 0 20px 20px;
+  height: 220px;
+  margin: 0 -16px;
   overflow: hidden;
   position: relative;
 }
