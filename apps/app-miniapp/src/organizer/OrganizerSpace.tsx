@@ -232,7 +232,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
   const pushed = manage !== null || organizationOpen || statsOpen || composerTitle !== null;
-  const profileChrome = section === "profile" && !pushed;
+  const ownChrome = (section === "profile" || section === "finance") && !pushed;
   const manageTitle = manageScreen === "checkin" ? "Контроль входа" : manageScreen === "participants" ? "Участники" : manageScreen === "tickets" ? "Билеты и регистрация" : manageScreen === "stats" ? "Статистика" : "Управление событием";
   const title = composerTitle ?? (statsOpen ? "Статистика" : manage !== null ? manageTitle : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section]);
   const hideTabs = composerTitle !== null || (manage !== null && manageScreen === "checkin");
@@ -250,7 +250,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
         setSection("events");
       }}
     >
-      {!profileChrome && (
+      {!ownChrome && (
       <header className="app-header">
         {pushed && (
           <button
@@ -282,7 +282,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
         <span className="app-header-title">{title}</span>
       </header>
       )}
-      <main className={composerTitle !== null || profileChrome ? "app-content app-content--flush" : "app-content"}>
+      <main className={composerTitle !== null || ownChrome ? "app-content app-content--flush" : "app-content"}>
         <div hidden={manage !== null || organizationOpen || statsOpen}>
           <OrganizerSectionContent
             section={section}

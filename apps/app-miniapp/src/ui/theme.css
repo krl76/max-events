@@ -23917,6 +23917,512 @@ html:not([data-theme="dark"]) .app-when-sheet {
   padding: 4px 0 4px 12px;
 }
 
+/* Кабинет организатора, вкладка «Финансы»: светлый холст макета, свои карточки и градиент дохода. */
+.app-fin {
+  background: #f4f6fb;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 100%;
+  padding: 12px 16px 12px;
+}
+
+.app-fin-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-fin-title {
+  color: #16181d;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.app-fin-lead {
+  color: #8b93a7;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.app-fin-back {
+  align-items: center;
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  color: #3a4154;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  gap: 2px;
+  padding: 0;
+}
+
+.app-fin-back svg {
+  transform: rotate(180deg);
+}
+
+.app-fin-notice {
+  background: #e8f8ef;
+  border-radius: 14px;
+  color: #178a49;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+  padding: 12px 14px;
+}
+
+.app-fin-scopes {
+  display: flex;
+  gap: 8px;
+}
+
+.app-fin-chip,
+.app-fin-period {
+  background: #fff;
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(22, 24, 29, 0.04);
+  color: #8b93a7;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 16px;
+}
+
+.app-fin-chip--on {
+  background: #4d6bfe;
+  box-shadow: none;
+  color: #fff;
+}
+
+.app-fin-hero {
+  background: linear-gradient(135deg, #5a63f8 0%, #7a6cf6 48%, #9b7cf8 100%);
+  border-radius: 22px;
+  color: #fff;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 16px 16px 14px;
+  position: relative;
+}
+
+.app-fin-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.app-fin-hero-label {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  opacity: 0.92;
+}
+
+.app-fin-hero-value {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 30px;
+  font-weight: 800;
+  gap: 8px;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin: 0;
+}
+
+.app-fin-delta {
+  background: #2fce73;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
+  padding: 4px 8px;
+}
+
+.app-fin-delta--down {
+  background: #ff5a6a;
+}
+
+.app-fin-hero-note {
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0;
+  opacity: 0.85;
+}
+
+.app-fin-hero-wallet {
+  align-items: center;
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  display: flex;
+  flex: none;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.app-fin-tiles {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.app-fin-tile {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(28, 39, 79, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 10px 12px;
+}
+
+.app-fin-tile-icon {
+  align-items: center;
+  border-radius: 12px;
+  display: flex;
+  height: 32px;
+  justify-content: center;
+  margin-bottom: 4px;
+  width: 32px;
+}
+
+.app-fin-tile-icon--event {
+  background: #e7f8ee;
+  color: #1f9d55;
+}
+
+.app-fin-tile-icon--promo {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+.app-fin-tile-icon--partner {
+  background: #e7f0ff;
+  color: #3b6cff;
+}
+
+.app-fin-tile-label {
+  color: #8b93a7;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.app-fin-tile-amount {
+  color: #16181d;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.app-fin-tile-share {
+  color: #8b93a7;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.app-fin-card {
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(28, 39, 79, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px 14px;
+}
+
+.app-fin-card-title {
+  color: #16181d;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.app-fin-periods {
+  display: flex;
+  gap: 8px;
+}
+
+.app-fin-period {
+  background: #f2f4f8;
+  box-shadow: none;
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+.app-fin-period--on {
+  background: #1c2340;
+  color: #fff;
+}
+
+.app-fin-legend {
+  display: flex;
+  gap: 16px;
+  margin: 0;
+}
+
+.app-fin-legend-item {
+  align-items: center;
+  color: #5c6578;
+  display: flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 6px;
+}
+
+.app-fin-dot {
+  border-radius: 50%;
+  height: 8px;
+  width: 8px;
+}
+
+.app-fin-dot--income {
+  background: #3b6cff;
+}
+
+.app-fin-dot--payout {
+  background: #8b6cf8;
+}
+
+.app-fin-chart-body {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 46px 1fr;
+  height: 112px;
+}
+
+.app-fin-axis {
+  color: #a0a8b8;
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  font-weight: 600;
+  justify-content: space-between;
+  padding-bottom: 2px;
+}
+
+.app-fin-plot {
+  height: 100%;
+  width: 100%;
+}
+
+.app-fin-grid {
+  stroke: #eef1f6;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.app-fin-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.app-fin-line--income {
+  stroke: #3b6cff;
+}
+
+.app-fin-line--payout {
+  stroke: #8b6cf8;
+}
+
+.app-fin-dates {
+  color: #a0a8b8;
+  display: flex;
+  font-size: 11px;
+  font-weight: 600;
+  justify-content: space-between;
+  margin-left: 54px;
+}
+
+.app-fin-ops-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.app-fin-all {
+  background: none;
+  border: none;
+  color: #4d6bfe;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0;
+}
+
+.app-fin-ops {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-fin-op {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.app-fin-op-icon {
+  align-items: center;
+  border-radius: 50%;
+  display: flex;
+  flex: none;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.app-fin-op-icon--ticket {
+  background: #e7f8ee;
+  color: #1f9d55;
+}
+
+.app-fin-op-icon--fee {
+  background: #fde8ea;
+  color: #e5484d;
+}
+
+.app-fin-op-icon--promo {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+.app-fin-op-icon--payout {
+  background: #e7f0ff;
+  color: #3b6cff;
+}
+
+.app-fin-op-icon--partner {
+  background: #e7f0ff;
+  color: #3b6cff;
+}
+
+.app-fin-op-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-fin-op-title {
+  color: #16181d;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.app-fin-op-when {
+  color: #8b93a7;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.app-fin-op-amount {
+  color: #e5484d;
+  flex: none;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.app-fin-op-amount--in {
+  color: #1f9d55;
+}
+
+.app-fin-withdraw {
+  align-items: center;
+  background: linear-gradient(90deg, #6a5af9 0%, #7d6cf8 50%, #8a74f8 100%);
+  border: none;
+  border-radius: 18px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 4px;
+  min-height: 56px;
+  padding: 0 18px;
+}
+
+.app-fin-withdraw-plus {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+
+.app-fin-available {
+  color: #16181d;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  margin: 0;
+}
+
+.app-fin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-fin-field-label {
+  color: #8b93a7;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.app-fin-field-input {
+  background: #fff;
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(28, 39, 79, 0.05);
+  color: #16181d;
+  font: inherit;
+  font-size: 20px;
+  font-weight: 800;
+  padding: 16px;
+}
+
+.app-fin-block {
+  color: #e5484d;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.app-fin-empty {
+  color: #8b93a7;
+  font-size: 14px;
+  margin: 0;
+}
+
 .app-wt-path li:nth-child(2) {
   animation-delay: 240ms;
 }
