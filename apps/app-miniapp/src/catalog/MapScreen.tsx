@@ -30,7 +30,7 @@
 // - MapCallbacks - what the map calls back into React: open event, open place, select a pin, report dead tiles, fall back from a vector basemap that could not mount
 // - MapHandle - the live map: take a new view, zoom by a step, fly to a point, dispose
 // - initEventMap - create Leaflet map + the basemap layer of the view (raster L.tileLayer or the vector MapLibre layer via ./vectorBasemap.ts; swapped in place when the view brings another, the dead-tiles report re-armed with it, a late-arriving vector layer dropped if the user moved on, a scheme change restyling the vector one) + the pin layer (clustered by a screen gap; a zoom that opens that gap draws each pin at its own lat/lng, a tap on a number only flies the camera there, promoted events highlighted #205, the friends layer keeping its tile pin #472), the «Вы здесь» marker and the dotted route; returns the handle
-// - MapSelectionCard - the card of the selected object: friends, title, the two travel tiles, the metro steps, the rain hint, an icon close and «Построить маршрут»
+// - MapSelectionCard - the card of the selected object: photo, title, address, compact travel chips and «Построить маршрут»
 // - MapScreen - экран 16: pins, layers, the basemap picker (chips under the layers, the choice persisted through ./basemaps.js, the credit line following it), weather, selection, route and the map search over the Leaflet lifecycle via useLeafletMap
 // - mapHourlyWindow - the eight-hour window the map weather chip asks the backend for
 // END_MODULE_MAP
@@ -460,13 +460,17 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
   };
 }
 
-function MapHourColumn({ hour }: { hour: EventWeatherHour }) {
+function MapHourColumn({ hour, selected, onSelect }: { hour: EventWeatherHour; selected: boolean; onSelect: () => void }) {
   const rounded = Math.round(hour.temperatureC);
   return (
-    <li className="app-map16-weather-hour">
-      <span className="app-map16-weather-at">{formatMapHour(hour.at)}</span>
-      <ActionIcon name={mapHourGlyph(hour.conditionCode)} size={18} />
-      <span className="app-map16-weather-temp">{`${rounded > 0 ? "+" : ""}${rounded}°`}</span>
+    <li className={selected ? "app-map16-weather-hour app-map16-weather-hour--on" : "app-map16-weather-hour"}>
+      <button type="button" className="app-map16-weather-hour-btn" aria-pressed={selected} onClick={onSelect}>
+        <span className="app-map16-weather-hour-bubble" aria-hidden="true">
+          <ActionIcon name={mapHourGlyph(hour.conditionCode)} size={20} />
+        </span>
+        <span className="app-map16-weather-at">{formatMapHour(hour.at)}</span>
+        <span className="app-map16-weather-temp">{`${rounded > 0 ? "+" : ""}${rounded}°`}</span>
+      </button>
     </li>
   );
 }
@@ -517,32 +521,17 @@ export function MapSelectionCard(props: MapSelectionCardProps) {
       {props.travel.length > 0 && (
         <div className="app-map16-travel">
           {props.travel.map((option) => {
-            const { value, note } = formatTravelOption(option);
+            const extra = option.mode === "walk" && option.distanceKm !== null ? `${option.distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км` : option.mode === "walk" ? "пешком" : "метро";
             return (
               <span key={option.mode} className="app-map16-travel-item">
-                <ActionIcon name={option.mode === "walk" ? "navigation" : "metro"} size={18} />
-                <span className="app-map16-travel-text">
-                  <span className="app-map16-travel-value">{value}</span>
-                  <span className="app-map16-travel-note">{note}</span>
+                <ActionIcon name={option.mode === "walk" ? "navigation" : "metro"} size={16} />
+                <span className="app-map16-travel-line">
+                  {option.minutes} мин · {extra}
                 </span>
               </span>
             );
           })}
         </div>
-      )}
-      {props.metroSteps !== null && props.metroSteps.length > 0 && (
-        <ol className="app-map16-metro" aria-label="Как ехать на метро">
-          {props.metroSteps.map((step) => (
-            <li key={step}>{step}</li>
-          ))}
-        </ol>
-      )}
-      {props.metroFar && <p className="app-map16-metro-miss">Рядом нет станции метро — минуты по прямой</p>}
-      {props.rainHint !== null && (
-        <p className="app-map16-rain">
-          <ActionIcon name="rain" size={18} />
-          {props.rainHint}
-        </p>
       )}
       <div className="app-map16-card-actions">
         <button type="button" className="app-map16-route" aria-pressed={props.routeOn} onClick={props.onRoute}>
@@ -593,6 +582,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   const [centered, setCentered] = useState(false);
   const [weather, setWeather] = useState<MapWeather | null>(null);
   const [hourly, setHourly] = useState<EventForecast | null>(null);
+  const [weatherHourAt, setWeatherHourAt] = useState<string | null>(null);
   const [travel, setTravel] = useState<TravelOption[]>([]);
   const [tilesFailed, setTilesFailed] = useState(false);
   const [vectorFallback, setVectorFallback] = useState(false);
@@ -956,15 +946,20 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
           ) : (
             <>
               <p className="app-map16-weather-now">
-                {formatMapTemperature(weather)} · {weather.condition}
+                {(() => {
+                  const picked = hourly?.hours.find((hour) => hour.at === weatherHourAt) ?? hourly?.hours[0];
+                  if (picked === undefined) return `${formatMapTemperature(weather)} · ${weather.condition}`;
+                  const rounded = Math.round(picked.temperatureC);
+                  return `${rounded > 0 ? "+" : ""}${rounded}° · ${formatMapHour(picked.at)}`;
+                })()}
               </p>
-              {weatherChange !== null && <p className="app-map16-weather-next">Ожидается: {weatherChange}</p>}
+              {weatherChange !== null && weatherHourAt === null && <p className="app-map16-weather-next">Ожидается: {weatherChange}</p>}
             </>
           )}
           {hourly !== null && hourly.hours.length > 0 && (
             <ol className="app-map16-weather-strip" aria-label="Прогноз на ближайшие часы">
               {hourly.hours.map((hour) => (
-                <MapHourColumn key={hour.at} hour={hour} />
+                <MapHourColumn key={hour.at} hour={hour} selected={(weatherHourAt ?? hourly.hours[0]?.at) === hour.at} onSelect={() => setWeatherHourAt(hour.at)} />
               ))}
             </ol>
           )}

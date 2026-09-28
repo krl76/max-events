@@ -2363,7 +2363,6 @@ html[data-theme="dark"] #root {
 /* «Куда пойдём?»: поверхность и единственная градиентная кнопка экрана */
 .app-feed-whereto {
   align-items: center;
-  animation: app-rise-in var(--app-duration-slow) var(--app-ease-out) both;
   background: var(--app-surface);
   border-radius: var(--app-radius-card);
   display: flex;
@@ -2430,12 +2429,28 @@ html[data-theme="dark"] #root {
 
 /* Посты во всю ширину: поля экрана гасит отрицательный отступ, как у .app-card--post */
 .app-feed-post {
-  animation: app-rise-in var(--app-duration-slow) var(--app-ease-out) both;
   border-bottom: var(--app-hairline);
   display: flex;
   flex-direction: column;
   margin: 0 calc(-1 * var(--app-space-screen));
   padding-bottom: var(--app-space-m);
+}
+
+/* Лента появляется лесенкой сверху вниз; ниже пятого поста — уже за сгибом, там без задержки */
+.app-feed-post:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.app-feed-post:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.app-feed-post:nth-child(4) {
+  animation-delay: 210ms;
+}
+
+.app-feed-post:nth-child(5) {
+  animation-delay: 280ms;
 }
 
 .app-feed-post:first-child {
@@ -4757,28 +4772,21 @@ html[data-theme="dark"] #root {
   border-color: #007aff;
 }
 
-.app-onboarding-body--share {
-  align-items: center;
-  display: flex;
-  justify-content: center;
-}
-
 .app-onboarding-share {
   align-items: center;
-  background: #007aff;
+  background: none;
   border: none;
-  border-radius: var(--app-radius-card);
-  color: #ffffff;
+  color: var(--app-text-secondary);
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   font: inherit;
-  font-size: 17px;
-  font-weight: 800;
-  gap: 10px;
-  height: 56px;
+  font-size: 15px;
+  font-weight: 700;
+  gap: 6px;
   justify-content: center;
-  min-width: 220px;
-  padding: 0 22px;
+  margin-top: 14px;
+  min-height: 44px;
+  padding: 0;
 }
 
 .app-onboarding--film .app-onboarding-body {
@@ -6816,20 +6824,55 @@ button.app-today-stat {
 
 .app-map16-weather-strip {
   display: flex;
-  gap: var(--app-space-xs);
+  gap: 10px;
   list-style: none;
   margin: var(--app-space-m) 0 0;
   overflow-x: auto;
-  padding: 0;
+  overscroll-behavior-x: contain;
+  padding: 4px 2px 2px;
+  scroll-padding-inline: 4px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-map16-weather-strip::-webkit-scrollbar {
+  display: none;
 }
 
 .app-map16-weather-hour {
-  align-items: center;
-  display: flex;
   flex: none;
+  min-width: 56px;
+  scroll-snap-align: start;
+}
+
+.app-map16-weather-hour-btn {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
   flex-direction: column;
+  font: inherit;
   gap: 4px;
-  min-width: 44px;
+  padding: 0;
+  width: 56px;
+}
+
+.app-map16-weather-hour-bubble {
+  align-items: center;
+  border: 2px solid var(--app-divider);
+  border-radius: 50%;
+  display: flex;
+  height: 52px;
+  justify-content: center;
+  width: 52px;
+}
+
+.app-map16-weather-hour--on .app-map16-weather-hour-bubble {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 28%, transparent);
 }
 
 .app-map16-weather-at {
@@ -6930,10 +6973,10 @@ button.app-today-stat {
 .app-map16-card {
   background: var(--app-card);
   border-radius: 20px;
-  bottom: 168px;
+  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
   box-shadow: var(--app-shadow-lift);
   left: var(--app-space-l);
-  padding: 14px;
+  padding: 12px;
   position: absolute;
   right: var(--app-space-l);
   z-index: 2;
@@ -7006,30 +7049,44 @@ button.app-today-stat {
 .app-map16-card-title {
   font-size: var(--app-font-size-body);
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.25;
   margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-map16-card-meta {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-map16-travel {
   display: flex;
-  gap: var(--app-space-s);
-  margin-top: var(--app-space-m);
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .app-map16-travel-item {
   align-items: center;
   background: var(--app-surface);
-  border-radius: 14px;
+  border-radius: 12px;
   display: flex;
   flex: 1;
-  gap: var(--app-space-s);
+  gap: 6px;
   min-width: 0;
-  padding: 10px var(--app-space-m);
+  padding: 8px 10px;
+}
+
+.app-map16-travel-line {
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-map16-travel-text {
@@ -23629,7 +23686,7 @@ button.app-story-viewer-author {
   align-items: center;
   background: var(--app-card);
   border-radius: 16px;
-  bottom: 132px;
+  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
   box-shadow: var(--app-shadow-lift);
   display: flex;
   font-size: 14px;
@@ -24176,6 +24233,13 @@ html:not([data-theme="dark"]) .app-when-sheet {
   flex: 1;
   max-height: none;
   padding: 8px 16px 0;
+}
+
+.app-comments-empty {
+  color: var(--app-text-secondary);
+  flex: 1;
+  margin: 0;
+  padding: 8px 16px 16px;
 }
 
 .app-comments-compose {

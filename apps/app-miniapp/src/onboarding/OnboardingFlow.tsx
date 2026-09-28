@@ -254,13 +254,12 @@ function FriendsStep({ saveFailed, onShare, onNext }: { saveFailed: boolean; onS
       <header className="app-onboarding-head app-onboarding-head--center">
         <h1 className="app-onboarding-title">Твои люди уже здесь</h1>
         <p className="app-onboarding-lead">Находи друзей по интересам и приглашай своих</p>
-      </header>
-      <div className="app-onboarding-body app-onboarding-body--share">
         <button type="button" className="app-onboarding-share" aria-label="Позвать в MAX" onClick={onShare}>
-          <ActionIcon name="share" size={22} />
+          <ActionIcon name="share" size={18} />
           Позвать в MAX
         </button>
-      </div>
+      </header>
+      <div className="app-onboarding-body" />
       <div className="app-onboarding-footer">
         {saveFailed && <p className="app-onboarding-error">Не удалось сохранить подписки. Попробуй ещё раз.</p>}
         <button type="button" className="app-onboarding-cta" onClick={onNext}>

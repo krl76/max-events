@@ -237,7 +237,7 @@ export function CommentSheet({ comments, parents, liked, replyTo, reveal, draft,
         <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
         <p className="app-comments-count">Комментарии</p>
         {comments.length === 0 ? (
-          <p className="app-picker-empty">Пока никто не написал.</p>
+          <p className="app-comments-empty">Пока никто не написал.</p>
         ) : (
           <ul className="app-comments-list">
             {commentThreads(comments, parents).map((thread) => (
