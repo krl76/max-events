@@ -22,7 +22,7 @@
 // - SearchPage - container: digest and card fetches per filter, query/recents/city state, navigation to swipe, map, event and the two wizards
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useSheetSwipe } from "../ui/sheet";
 import type { EventCategory } from "@max-events/api-contracts";
 import { apiClient, type CatalogCard, type EventFilters } from "../api/client";
@@ -90,9 +90,27 @@ interface SearchTopBarProps {
 
 export function SearchTopBar({ city, cities, onCity, trailing }: SearchTopBarProps) {
   const [menu, setMenu] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const close = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && wrapRef.current?.contains(target)) return;
+      setMenu(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenu(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
   return (
     <div className="app-search-top">
-      <div className="app-search-city-wrap">
+      <div className="app-search-city-wrap" ref={wrapRef}>
         <button type="button" className="app-search-city" aria-expanded={menu} onClick={() => setMenu((open) => !open)}>
           <ActionIcon name="pin" size={16} />
           {city}
@@ -514,9 +532,9 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
         </section>
       </div>
       <div className="app-search-feed" aria-label={fold === "today" ? "Афиша" : "Популярное"}>
-          <p className="app-search-feed-kicker">{fold === "today" ? `Афиша · ${afishaDayChip(new Date(`${props.day}T12:00:00`))}` : "Популярное"}</p>
-          {shown.length === 0 ? <p className="app-today-quiet">По этим фильтрам событий нет</p> : shown.map((card) => <EventPoster key={card.event.id} card={card} onOpen={props.onOpenEvent} />)}
-        </div>
+        <p className="app-search-feed-kicker">{fold === "today" ? `Афиша · ${afishaDayChip(new Date(`${props.day}T12:00:00`))}` : "Популярное"}</p>
+        {shown.length === 0 ? <p className="app-today-quiet">По этим фильтрам событий нет</p> : shown.map((card) => <EventPoster key={card.event.id} card={card} onOpen={props.onOpenEvent} />)}
+      </div>
     </div>
   );
 }
@@ -650,7 +668,45 @@ export function SearchPage() {
       <HeaderSlot>
         <SearchTopBar city={city} cities={cities.length === 0 ? [city] : cities} onCity={setCity} trailing={<SearchFilters category={category} onCategory={setCategory} />} />
       </HeaderSlot>
-      <SearchView state={state} popular={popular} today={shownToday} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city, ...openDay })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} onExpand={() => navigate({ name: "browse", list: "nearby", city, ...openDay })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} day={day} onDay={(next) => { if (/^\d{4}-\d{2}-\d{2}$/.test(next)) setDay(next); }} dayScoped={dayScoped} suitableState={suitableState} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onDayRoute={() => navigate({ name: "day-route" })} onCityWalk={() => navigate({ name: "walk", city })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />
+      <SearchView
+        state={state}
+        popular={popular}
+        today={shownToday}
+        query={query}
+        onQuery={setQuery}
+        onSubmit={() => openResults(query)}
+        onPickRecent={openResults}
+        onOpenList={(list) => navigate({ name: "browse", list, city, ...openDay })}
+        recents={recents}
+        city={city}
+        cities={cities}
+        onCity={setCity}
+        category={category}
+        onCategory={setCategory}
+        onExpand={() => navigate({ name: "browse", list: "nearby", city, ...openDay })}
+        hintDismissed={hintDismissed}
+        onDismissHint={() => setHintDismissed(true)}
+        now={now}
+        day={day}
+        onDay={(next) => {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(next)) setDay(next);
+        }}
+        dayScoped={dayScoped}
+        suitableState={suitableState}
+        onOpenEvent={(id) => navigate({ name: "event", id })}
+        onSwipe={() => navigate({ name: "swipe" })}
+        onMap={() => navigate({ name: "map" })}
+        onWhereto={() => navigate({ name: "whereto" })}
+        onNearby={() => navigate({ name: "nearby" })}
+        onAsk={() => navigate({ name: "assist", ask: null })}
+        onOpenMicro={() => navigate({ name: "micro" })}
+        onDayRoute={() => navigate({ name: "day-route" })}
+        onCityWalk={() => navigate({ name: "walk", city })}
+        onRetry={() => setAttempt((count) => count + 1)}
+        searchFieldOpen={route.name === "search" && route.focus === true}
+        distancesFromViewer={todayPoint.fromViewer}
+        catalogInCity={catalogPoint.fromViewer}
+      />
     </>
   );
 }

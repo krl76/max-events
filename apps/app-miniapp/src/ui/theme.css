@@ -277,10 +277,8 @@ html[data-theme="dark"] #root {
  * либо на предка (<html>) — ./theme.ts проставляет оба, потому что .app-root живёт в App.tsx. */
 .app-root[data-theme="dark"],
 [data-theme="dark"] .app-root:not([data-theme="light"]) {
-  /* Брендбук, колонка DARK, тем же приёмом, что светлая: один холст, нейтрали — прозрачности
-   * противоположного цвета. Фон brand-void. Поверхность white 6%, граница white 12%,
-   * вторичный текст white 60%. Карточка не переопределяется и остаётся холстом.
-   * Акцент, статус, бейдж и опасность — те же токены, что в светлой. */
+  /* Брендбук, колонка DARK. Фон brand-void, карточка — нейтральный ink, чтобы панели
+   * читались на холсте. Нейтрали — прозрачности белого. Акцент тот же, что в светлой. */
   --app-scheme-neutral: 255, 255, 255; /* каналы brand-white */
   --app-canvas: var(--brand-void);
   --app-ink: var(--brand-white);
@@ -288,6 +286,7 @@ html[data-theme="dark"] #root {
   --app-alpha-border: 0.12;
   --app-alpha-text-secondary: 0.6;
   --app-alpha-text-tertiary: 0.45;
+  --app-card: #060708;
 }
 
 /* Та же тёмная база по системной настройке — но только пока выбора нет ни на одном уровне.
@@ -302,6 +301,7 @@ html[data-theme="dark"] #root {
     --app-alpha-border: 0.12;
     --app-alpha-text-secondary: 0.6;
     --app-alpha-text-tertiary: 0.45;
+    --app-card: #060708;
   }
 }
 
@@ -387,6 +387,11 @@ html[data-theme="dark"] #root {
     opacity: 0;
     transform: translateX(24px);
   }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @keyframes app-screen-pop {
@@ -394,11 +399,20 @@ html[data-theme="dark"] #root {
     opacity: 0;
     transform: translateX(-24px);
   }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @keyframes app-screen-tab {
   from {
     opacity: 0;
+  }
+
+  to {
+    opacity: 1;
   }
 }
 
@@ -422,6 +436,11 @@ html[data-theme="dark"] #root {
     opacity: 0;
     transform: translateY(12px);
   }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @keyframes app-pop-in {
@@ -443,6 +462,10 @@ html[data-theme="dark"] #root {
 @keyframes app-fade-in {
   from {
     opacity: 0;
+  }
+
+  to {
+    opacity: 1;
   }
 }
 
@@ -1155,6 +1178,21 @@ html[data-theme="dark"] #root {
   to {
     background-color: rgba(var(--app-scheme-neutral), 0.1);
   }
+}
+
+@keyframes app-skeleton-pulse-dark {
+  from {
+    background-color: rgba(255, 255, 255, 0.14);
+  }
+
+  to {
+    background-color: rgba(255, 255, 255, 0.28);
+  }
+}
+
+[data-theme="dark"] .app-skeleton-line,
+[data-theme="dark"] .app-skeleton-block {
+  animation-name: app-skeleton-pulse-dark;
 }
 
 .app-skeleton-line {
@@ -3654,13 +3692,13 @@ html[data-theme="dark"] #root {
 }
 
 .app-create-board {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
 }
 
 .app-create-card {
-  align-items: center;
+  align-items: flex-start;
   animation: app-rise-in 240ms ease both;
   background: var(--app-card);
   border: 1px solid var(--app-divider);
@@ -3668,9 +3706,11 @@ html[data-theme="dark"] #root {
   color: inherit;
   cursor: pointer;
   display: flex;
+  flex-direction: column;
   gap: 12px;
-  min-height: 76px;
-  padding: 12px 14px;
+  justify-content: space-between;
+  min-height: 168px;
+  padding: 16px;
   text-align: left;
   width: 100%;
 }
@@ -3733,6 +3773,11 @@ html[data-theme="dark"] #root {
   from {
     opacity: 0;
     transform: translateY(18px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -5474,14 +5519,20 @@ html[data-theme="dark"] #root {
 
 .app-search-tool-bubble {
   align-items: center;
-  background: #ffffff;
+  background: var(--app-card);
   border: 1px solid var(--app-divider);
   border-radius: 16px;
-  color: #060708;
+  color: var(--app-text);
   display: flex;
   height: 48px;
   justify-content: center;
   width: 48px;
+}
+
+[data-theme="dark"] .app-search-tool-bubble {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
 }
 
 .app-search-tool-bubble--dark {
@@ -24972,7 +25023,6 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-poster,
 .app-bill,
-.app-create-hero,
 .app-create-card {
   animation: app-rise-in 280ms ease both;
 }
@@ -24987,122 +25037,6 @@ html:not([data-theme="dark"]) .app-when-sheet {
   height: 100%;
   width: 100%;
   z-index: 200;
-}
-
-.app-create-hero {
-  align-items: center;
-  background: var(--app-card);
-  border: 1px solid var(--app-divider);
-  border-radius: 20px;
-  color: inherit;
-  cursor: pointer;
-  display: flex;
-  gap: 16px;
-  padding: 16px;
-  text-align: left;
-  width: 100%;
-}
-
-.app-create-hero-ring {
-  background: var(--app-accent);
-  border-radius: 50%;
-  flex: none;
-  height: 72px;
-  padding: 4px;
-  width: 72px;
-}
-
-.app-create-hero-face {
-  align-items: center;
-  background: var(--app-page);
-  border-radius: 50%;
-  color: var(--app-accent);
-  display: flex;
-  height: 100%;
-  justify-content: center;
-  width: 100%;
-}
-
-.app-create-trio {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: 12px;
-}
-
-.app-create-trio .app-create-card {
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-  padding: 12px;
-  width: auto;
-}
-
-.app-create-trio .app-create-card-label {
-  font-size: 14px;
-}
-
-.app-create-trio .app-create-card-line {
-  font-size: 12px;
-}
-
-.app-create-mark {
-  display: block;
-  height: 36px;
-  position: relative;
-  width: 44px;
-}
-
-.app-create-mark--feed-new::before,
-.app-create-mark--feed-new::after {
-  border-radius: 6px;
-  content: "";
-  height: 28px;
-  position: absolute;
-  width: 22px;
-}
-
-.app-create-mark--feed-new::before {
-  background: var(--app-gradient-dark);
-  left: 0;
-  top: 6px;
-  transform: rotate(-8deg);
-}
-
-.app-create-mark--feed-new::after {
-  background: #6813ff;
-  left: 16px;
-  top: 0;
-}
-
-.app-create-mark--plan-new {
-  background: var(--app-card);
-  border: 1px solid var(--app-divider);
-  border-radius: 8px;
-  box-shadow: inset 0 10px 0 #ff303c;
-  height: 36px;
-  width: 32px;
-}
-
-.app-create-mark--micro-new::before,
-.app-create-mark--micro-new::after {
-  background: var(--app-gradient-dark);
-  border: 2px solid var(--app-card);
-  border-radius: 50%;
-  content: "";
-  height: 22px;
-  position: absolute;
-  top: 8px;
-  width: 22px;
-}
-
-.app-create-mark--micro-new::before {
-  left: 0;
-}
-
-.app-create-mark--micro-new::after {
-  left: 14px;
 }
 
 .app-me-link-hint {
@@ -25234,8 +25168,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-post-action[aria-pressed="true"] svg *,
-.app-feed-comment-like[aria-pressed="true"] svg *,
-.app-create-hero-face svg * {
+.app-feed-comment-like[aria-pressed="true"] svg * {
   fill: var(--app-accent);
   stroke: var(--app-accent);
 }

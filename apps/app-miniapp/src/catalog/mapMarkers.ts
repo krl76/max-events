@@ -11,7 +11,7 @@
 // - MapCluster - one drawn point: a single marker or a group of them collapsed into one bubble
 // - MAP_CLUSTER_BASE_ZOOM - zoom the cell size is quoted at (the initial city zoom of the map)
 // - MAP_CLUSTER_CELL_DEGREES - cell side at the base zoom, ~2.2 km of latitude
-// - MAP_CLUSTER_MAX_ZOOM - from this zoom on nothing is collapsed: at street scale pins no longer overlap
+// - MAP_CLUSTER_MAX_ZOOM - from this zoom each pin sits on its own coordinates
 // - hasMapPoint - whether a lat/lng pair is usable as a Leaflet coordinate
 // - eventPinGlyph - event category -> pin glyph
 // - placePinGlyph - place category -> pin glyph
@@ -76,8 +76,8 @@ export interface MapCluster {
 export const MAP_CLUSTER_BASE_ZOOM = 11;
 /** Сторона клетки на стартовом зуме: 0,02° широты — примерно 2,2 км, четверть экрана города. */
 export const MAP_CLUSTER_CELL_DEGREES = 0.02;
-/** Ближе этого зума пины уже не налезают друг на друга, и склеивать их значит прятать данные. */
-export const MAP_CLUSTER_MAX_ZOOM = 14;
+/** С этого зума каждая точка стоит на своих координатах. 300 м уже не одна цифра. */
+export const MAP_CLUSTER_MAX_ZOOM = 12;
 
 /**
  * Клетка делится пополам на каждый шаг зума — так скопление распадается постепенно, а не рывком.

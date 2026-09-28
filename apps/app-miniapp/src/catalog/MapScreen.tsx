@@ -406,17 +406,15 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
   function drawPins(): void {
     const zoom = map.getZoom();
     const clusters = clusterMapMarkers(view.markers, zoom);
-    // На улице цифра сама расходится на события. Ниже этого зума пузырь ждёт тапа.
-    const spread = zoom >= MAP_CLUSTER_MAX_ZOOM;
     // Пересборка закрывает попап, поэтому зум внутри одной клетки её не вызывает. Раскрытый кластер
-    // и распад по зуму — исключение: кольцо пинов должно оставаться читаемым, когда масштаб меняется.
-    const signature = `${view.selectedKey ?? ""}|${spread ? "spread" : revealed}|${spread || revealed !== "" ? zoom : ""}|${clusters.map((cluster) => `${cluster.key}:${cluster.markers.length}`).join(",")}`;
+    // — исключение: кольцо пинов одной двери должно оставаться читаемым, когда масштаб меняется.
+    const signature = `${view.selectedKey ?? ""}|${revealed}|${revealed === "" ? "" : zoom}|${clusters.map((cluster) => `${cluster.key}:${cluster.markers.length}`).join(",")}`;
     if (signature === drawn) return;
     drawn = signature;
     pins.clearLayers();
     const ring = spiderDegrees(zoom);
     for (const cluster of clusters) {
-      if (cluster.markers.length > 1 && (spread || cluster.key === revealed)) {
+      if (cluster.markers.length > 1 && cluster.key === revealed) {
         cluster.markers.forEach((marker, index) => {
           const angle = (2 * Math.PI * index) / cluster.markers.length;
           placePin(marker, cluster.lat + ring * Math.cos(angle), cluster.lng + ring * Math.sin(angle));
