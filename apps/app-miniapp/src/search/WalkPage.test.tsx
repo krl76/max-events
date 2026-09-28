@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { mockEvents } from "../api/mock";
-import { cityWalkAsk, nextWalkAsk, walkBudgetLabel, walkBudgetRub, walkClock, walkSpanLabel, walkSpanMinutes, WalkView } from "./WalkPage";
+import { cityWalkAsk, nextWalkAsk, walkBudgetLabel, walkBudgetRub, walkClock, walkSpanLabel, walkSpanMinutes, WalkPage, WalkView } from "./WalkPage";
+import { EMPTY_WALK_CHOICE, selectWalkBudget, selectWalkTime, toggleWalkInterest, walkComposeReady, WalkWizard } from "./WalkWizard";
 
 describe("city walk query", () => {
   it("asks for sights in the selected city, and a later ask asks for a different route", () => {
@@ -55,3 +56,30 @@ describe("WalkView", () => {
     expect(html).toContain("Хочу новую прогулку");
   });
 });
+
+describe("walk wizard", () => {
+  it("shows time first and does not start a walk request", () => {
+    const html = renderToStaticMarkup(createElement(WalkPage, { city: "Тула" }));
+    expect(html).toContain("1 час");
+    expect(html).toContain("2 часа");
+    expect(html).toContain("Полдня");
+    expect(html).toContain("Своё");
+    expect(html).toContain("disabled");
+    expect(html).not.toContain("Собираем прогулку");
+    expect(html).not.toContain("Бесплатно");
+  });
+
+  it("enables compose only after time, budget, and one interest", () => {
+    const timed = selectWalkTime(EMPTY_WALK_CHOICE, 120);
+    const budgeted = selectWalkBudget(timed, "any");
+    const ready = toggleWalkInterest(budgeted, "cultural");
+    expect(walkComposeReady(EMPTY_WALK_CHOICE)).toBe(false);
+    expect(walkComposeReady(timed)).toBe(false);
+    expect(walkComposeReady(budgeted)).toBe(false);
+    expect(walkComposeReady(ready)).toBe(true);
+    const html = renderToStaticMarkup(createElement(WalkWizard, { city: "Тула", choice: ready, onChange: () => {}, onBack: () => {} }));
+    expect(html).toContain("Культурные");
+    expect(html).toContain("Собрать прогулку");
+    expect(html).not.toContain("disabled");
+  });
+ });

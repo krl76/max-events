@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { AssistDayResponse } from "@max-events/api-contracts";
-import { apiClient } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { AppButton, AppState } from "../ui/primitives";
+import { EMPTY_WALK_CHOICE, WalkWizard } from "./WalkWizard";
 
 export function cityWalkAsk(city: string): string {
   return `Собери пеший маршрут по достопримечательностям города ${city}: 4–6 остановок по порядку, время между точками и где поесть рядом.`;
@@ -105,24 +105,6 @@ function WalkDraft({ day, onAnother }: { readonly day: AssistDayResponse; readon
 
 export function WalkPage({ city }: { readonly city: string }) {
   const { back } = useRoute();
-  const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<WalkState>({ status: "loading" });
-
-  useEffect(() => {
-    let alive = true;
-    const query = attempt === 0 ? cityWalkAsk(city) : nextWalkAsk(city);
-    apiClient.assistDay(query).then(
-      (day) => {
-        if (alive) setState({ status: "ready", day });
-      },
-      () => {
-        if (alive) setState({ status: "error" });
-      },
-    );
-    return () => {
-      alive = false;
-    };
-  }, [attempt, city]);
-
-  return <WalkView city={city} state={state} onBack={back} onAnother={() => { setState({ status: "loading" }); setAttempt((count) => count + 1); }} />;
+  const [choice, setChoice] = useState(EMPTY_WALK_CHOICE);
+  return <WalkWizard city={city} choice={choice} onChange={setChoice} onBack={back} />;
 }
