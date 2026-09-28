@@ -3693,8 +3693,10 @@ html[data-theme="dark"] #root {
 
 .app-create-board {
   display: grid;
-  gap: 12px;
-  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  grid-template-columns: 1.15fr 1fr;
+  grid-template-rows: minmax(150px, 1fr) minmax(150px, 1fr) 92px;
+  min-height: calc(100dvh - 168px);
 }
 
 .app-create-card {
@@ -3702,17 +3704,37 @@ html[data-theme="dark"] #root {
   animation: app-rise-in 240ms ease both;
   background: var(--app-card);
   border: 1px solid var(--app-divider);
-  border-radius: 18px;
+  border-radius: 22px;
   color: inherit;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  justify-content: space-between;
-  min-height: 168px;
+  justify-content: flex-end;
+  min-height: 0;
   padding: 16px;
   text-align: left;
   width: 100%;
+}
+
+.app-create-card--0 {
+  background: var(--app-gradient-dark);
+  border-color: transparent;
+  color: #ffffff;
+  grid-row: 1 / 3;
+}
+
+.app-create-card--1 {
+  background: #007aff;
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.app-create-card--3 {
+  align-items: center;
+  flex-direction: row;
+  grid-column: 1 / -1;
+  justify-content: flex-start;
 }
 
 .app-create-card:nth-child(2) {
@@ -4667,13 +4689,18 @@ html[data-theme="dark"] #root {
   align-items: center;
   background: #007aff;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--app-radius-card);
   color: #ffffff;
   cursor: pointer;
   display: flex;
-  height: 64px;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  gap: 10px;
+  height: 56px;
   justify-content: center;
-  width: 64px;
+  min-width: 220px;
+  padding: 0 22px;
 }
 
 .app-onboarding--film .app-onboarding-body {
@@ -20212,9 +20239,23 @@ button.app-cal-peer-chip {
   background: var(--app-surface);
   border-radius: var(--app-radius-pill);
   display: flex;
-  gap: var(--app-space-xs);
   margin-top: var(--app-space-xl);
   padding: 6px;
+  position: relative;
+  touch-action: pan-x;
+}
+
+.app-me-tab-pill {
+  background: var(--app-canvas);
+  border-radius: var(--app-radius-pill);
+  bottom: 6px;
+  left: 6px;
+  pointer-events: none;
+  position: absolute;
+  top: 6px;
+  transform: translateX(calc(var(--me-tab, 0) * 100%));
+  transition: transform 220ms var(--app-ease-out);
+  width: calc((100% - 12px) / var(--me-tabs, 3));
 }
 
 .app-me-tab {
@@ -20237,7 +20278,7 @@ button.app-cal-peer-chip {
 }
 
 .app-me-tab--active {
-  background: var(--app-canvas);
+  background: none;
   color: var(--app-text);
 }
 
@@ -24893,11 +24934,43 @@ html:not([data-theme="dark"]) .app-when-sheet {
   margin: 8px 0 12px;
 }
 
+.app-wt-actions {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 14px;
+}
+
+.app-wt-actions .app-whereto-restart,
+.app-wt-ask {
+  align-items: center;
+  background: var(--app-card);
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  gap: 6px;
+  height: 44px;
+  justify-content: center;
+  padding: 0 12px;
+}
+
+.app-wt-ask {
+  background: #007aff;
+  border-color: transparent;
+  color: #ffffff;
+}
+
 .app-wt-budget {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 12px;
+  grid-column: 1 / -1;
+  margin-top: 4px;
 }
 
 .app-wt-budget span {
@@ -24993,6 +25066,9 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-whereto-options {
   animation: app-rise-in 320ms ease both;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
 }
 
 .app-whereto-option {
@@ -25165,6 +25241,33 @@ html:not([data-theme="dark"]) .app-when-sheet {
   background: none;
   color: var(--app-accent);
   -webkit-text-fill-color: var(--app-accent);
+}
+
+.app-post-delete-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.app-post-delete-keep,
+.app-post-delete-confirm {
+  border: none;
+  border-radius: var(--app-radius-card);
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  font-weight: 800;
+  height: 48px;
+}
+
+.app-post-delete-keep {
+  background: var(--app-surface);
+  color: var(--app-text);
+}
+
+.app-post-delete-confirm {
+  background: #ff303c;
+  color: #ffffff;
 }
 
 .app-post-action[aria-pressed="true"] svg *,
@@ -25489,7 +25592,8 @@ html:not([data-theme="dark"]) .app-when-sheet {
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
-  touch-action: pan-y;
+  touch-action: pan-x;
+  user-select: none;
   width: 100%;
 }
 
@@ -25504,7 +25608,14 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-stories-scroll,
 .app-stories-scroll * {
-  touch-action: pan-y;
+  -webkit-user-select: none;
+  touch-action: pan-x;
+  user-select: none;
+}
+
+.app-stories-scroll img {
+  -webkit-user-drag: none;
+  pointer-events: none;
 }
 
 .app-feed .app-feed-post,

@@ -27,6 +27,7 @@ function viewHtml(state: WheretoState, over: { answers?: WheretoAnswers; result?
       onRestart: noop,
       onRetry: noop,
       onOpenEvent: noop,
+      onAsk: noop,
     }),
   );
 }
@@ -119,6 +120,7 @@ describe("бюджет подборки", () => {
     ];
     expect(picksForBudget(items, "free").map((item) => item.id)).toEqual(["free"]);
     expect(picksForBudget(items, "under_3000").map((item) => item.id)).toEqual(["free", "priced", "paid"]);
+    expect(picksForBudget(items, "under_3000", 123).map((item) => item.id)).toEqual(["free"]);
   });
 });
 
@@ -131,21 +133,18 @@ describe("WheretoView: вопросы (экран 11)", () => {
     expect(html).toContain("С кем идёте?");
     for (const label of Object.values(COMPANY_LABELS)) expect(html).toContain(label);
     expect(html).not.toContain("Изменить");
-    expect(html).toContain("Вечер — следующий вопрос");
+    expect(html).not.toContain("следующий вопрос");
   });
 
   it("на втором вопросе показывает ответ первого и подсказки настроений", () => {
     const html = viewHtml({ step: "ask", at: 1 }, { answers: answers({ company: "friends" }) });
 
     expect(html).toContain("2 из 3");
-    expect(html).toContain("С кем идёте");
-    expect(html).toContain("С друзьями");
-    expect(html).toContain("Изменить");
     expect(html).toContain("Что в вечере?");
     for (const hint of Object.values(MOOD_HINTS)) expect(html).toContain(hint);
     expect(html).toContain("Своё событие");
     expect(html).toContain("напишите, MAX AI подберёт");
-    expect(html).toContain("Бюджет — следующий вопрос");
+    expect(html).not.toContain("следующий вопрос");
     expect(html).toContain("2 из 3");
   });
 
@@ -196,20 +195,21 @@ describe("WheretoView: выдача (экран 12)", () => {
     const html = viewHtml({ step: "result", query }, { result: ready });
 
     expect(picks).toHaveLength(5);
-    expect(html).toContain("Пять вариантов");
+    expect(html).toContain("Куда пойдём?");
+    expect(html).not.toContain("Пять вариантов");
     expect(html).toContain(picks[0].title);
     expect(html).toContain(restLabel(4));
     for (const pick of picks.slice(1)) expect(html).toContain(pick.title);
     expect(html).toContain("app-wt-hero");
   });
 
-  it("повторяет ответы чипами и даёт начать заново", () => {
+  it("даёт начать заново и спросить ассистента, не повторяя ответы чипами", () => {
     const html = viewHtml({ step: "result", query }, { result: ready });
 
-    expect(html).toContain("С друзьями");
-    expect(html).toContain("Прогулка");
-    expect(html).toContain("До 3000 ₽");
     expect(html).toContain("Ответить заново");
+    expect(html).toContain("Спросить AI");
+    expect(html).not.toContain("До 3000 ₽");
+    expect(html).not.toContain("app-wt-chip");
   });
 
   it("печатает на герое расстояние и цену", () => {
@@ -223,7 +223,7 @@ describe("WheretoView: выдача (экран 12)", () => {
   it("на пустой выдаче предлагает изменить бюджет или ответить заново", () => {
     const html = viewHtml({ step: "result", query }, { result: { status: "ready", items: [] } });
 
-    expect(html).toContain("Подборка пуста");
+    expect(html).toContain("Куда пойдём?");
     expect(html).toContain("Под такие ответы ничего нет");
     expect(html).toContain("Изменить бюджет");
     expect(html).not.toContain("app-wt-hero");
@@ -243,7 +243,6 @@ describe("WheretoView: выдача (экран 12)", () => {
     const html = viewHtml({ step: "result", query: { company: "alone", mood: "active", budget: "any" } }, { answers: answers({ company: "alone", mood: "active", budget: "any", wish: "джаз в центре" }), result: { status: "loading" } });
 
     expect(html).toContain("MAX AI подбирает");
-    expect(html).toContain("джаз в центре");
     expect(html).not.toContain("Собираем вечер");
     expect(answeredRows(answers({ company: "alone", mood: "active", wish: "джаз в центре" }), 2).map((row) => row.value)).toEqual(["Я один", "джаз в центре"]);
   });

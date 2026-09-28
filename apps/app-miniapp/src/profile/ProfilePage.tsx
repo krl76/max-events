@@ -442,7 +442,42 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
         </div>
       )}
       {!own && <p className="app-me-link-hint">Добавьте человека или позовите ссылкой в MAX. Друзья — когда добавление взаимное.</p>}
-      <div className="app-me-tabs" role="tablist" aria-label="Что показывать">
+      <div
+        className="app-me-tabs"
+        role="tablist"
+        aria-label="Что показывать"
+        style={{
+          ["--me-tabs" as string]: PROFILE_TABS.filter((candidate) => candidate.id !== "saved" || own || (lists ?? []).some((summary) => summary.list.visibility === "public")).length,
+          ["--me-tab" as string]: Math.max(
+            0,
+            PROFILE_TABS.filter((candidate) => candidate.id !== "saved" || own || (lists ?? []).some((summary) => summary.list.visibility === "public")).findIndex((candidate) => candidate.id === tab),
+          ),
+        }}
+        onPointerDown={(event) => {
+          const host = event.currentTarget;
+          const shown = PROFILE_TABS.filter((candidate) => candidate.id !== "saved" || own || (lists ?? []).some((summary) => summary.list.visibility === "public"));
+          const pick = (clientX: number) => {
+            const box = host.getBoundingClientRect();
+            const next = Math.min(shown.length - 1, Math.max(0, Math.floor(((clientX - box.left) / Math.max(box.width, 1)) * shown.length)));
+            const chosen = shown[next];
+            if (chosen !== undefined) entries.onTab(chosen.id);
+          };
+          host.setPointerCapture(event.pointerId);
+          pick(event.clientX);
+          const move = (pointer: PointerEvent) => {
+            if (pointer.pointerId !== event.pointerId) return;
+            pick(pointer.clientX);
+          };
+          const up = (pointer: PointerEvent) => {
+            if (pointer.pointerId !== event.pointerId) return;
+            host.removeEventListener("pointermove", move);
+            host.removeEventListener("pointerup", up);
+          };
+          host.addEventListener("pointermove", move);
+          host.addEventListener("pointerup", up);
+        }}
+      >
+        <span className="app-me-tab-pill" aria-hidden="true" />
         {PROFILE_TABS.filter((candidate) => candidate.id !== "saved" || own || (lists ?? []).some((summary) => summary.list.visibility === "public")).map((candidate) => (
           <button key={candidate.id} type="button" role="tab" id={`app-me-tab-${candidate.id}`} aria-selected={tab === candidate.id} aria-controls="app-me-tabpanel" className={tab === candidate.id ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => entries.onTab(candidate.id)}>
             {profileTabLabel(candidate.id, candidate.id === "posts" ? (posts?.length ?? null) : candidate.id === "saved" ? (lists?.length ?? null) : visitedPlaces.length)}

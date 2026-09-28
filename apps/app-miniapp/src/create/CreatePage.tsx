@@ -36,18 +36,12 @@ export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
   return (
     <AppSection className="app-create-section" ariaLabel="Создать">
       <div className="app-create-board">
-        {CREATE_ENTRIES.map((entry) => (
-          <button key={entry.label} type="button" className="app-create-card" onClick={() => onPick(entry.route)}>
+        {CREATE_ENTRIES.map((entry, index) => (
+          <button key={entry.label} type="button" className={`app-create-card app-create-card--${index}`} onClick={() => onPick(entry.route)}>
             <span className="app-create-card-art" aria-hidden="true">
-              <ActionIcon name={entry.icon} size={22} />
+              <ActionIcon name={entry.icon} size={index === 0 ? 28 : 22} />
             </span>
-            <span className="app-create-card-copy">
-              <span className="app-create-card-label">{entry.label}</span>
-              <span className="app-create-card-line">{entry.description}</span>
-            </span>
-            <span className="app-create-card-go" aria-hidden="true">
-              <ActionIcon name="chevron" size={18} />
-            </span>
+            <span className="app-create-card-label">{entry.label}</span>
           </button>
         ))}
       </div>

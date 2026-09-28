@@ -286,6 +286,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
   const [comment, setComment] = useState("");
   const [commentsOpen, setCommentsOpen] = useState(() => typeof sessionStorage !== "undefined" && sessionStorage.getItem("max-events:open-comments") === post.id);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [replyTo, setReplyTo] = useState<FeedComment | null>(null);
   const [likedComments, setLikedComments] = useState<Record<string, true>>(readCommentLikes);
   const [commentParents, setCommentParents] = useState<Record<string, string>>(readCommentParents);
@@ -387,12 +388,13 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
           </button>
         )}
         {userId !== "" && post.author.id === userId && onDelete !== undefined && (
-          <button type="button" className="app-post-action app-post-action--danger" aria-label="Удалить пост" onClick={onDelete}>
+          <button type="button" className="app-post-action app-post-action--danger" aria-label="Удалить пост" onClick={() => setConfirmDelete(true)}>
             <ActionIcon name="trash" size={26} />
           </button>
         )}
       </div>
       {saving && userId !== "" && <SaveToList feedPostId={post.id} userId={userId} open onClose={() => setSaving(false)} />}
+      {confirmDelete && onDelete !== undefined && <DeletePostSheet onClose={() => setConfirmDelete(false)} onConfirm={onDelete} />}
       <LikeFaces people={(post.likedByFriends ?? []).filter((person) => person.id !== userId)} onOpen={onOpenAuthor} />
       {post.text.trim() !== "" && <PostText text={post.text} className="app-post-caption" />}
       {commentsOpen && (
@@ -620,6 +622,27 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
   );
 }
 
+function DeletePostSheet({ onConfirm, onClose }: { onConfirm: () => void; onClose: () => void }) {
+  const swipe = useSheetSwipe(onClose);
+  return (
+    <div className="app-save-sheet" role="dialog" aria-modal="true" aria-label="Удалить пост">
+      <button type="button" className="app-save-sheet-backdrop" aria-label="Закрыть" onClick={onClose} />
+      <section className="app-save-sheet-card" style={swipe.style}>
+        <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
+        <h2 className="app-save-sheet-title">Удалить пост?</h2>
+        <div className="app-post-delete-actions">
+          <button type="button" className="app-post-delete-keep" onClick={onClose}>
+            Оставить
+          </button>
+          <button type="button" className="app-post-delete-confirm" onClick={onConfirm}>
+            Удалить
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 /** Непросмотренное кольцо — фирменный градиент, просмотренное — нейтральная тонкая обводка; другого отличия у историй нет. */
 function storyRingClass(unseen: boolean): string {
   return unseen ? "app-story-ring app-story-ring--active" : "app-story-ring app-story-ring--seen";
@@ -657,6 +680,7 @@ function useStoryPan(ref: RefObject<HTMLDivElement | null>) {
         node.setPointerCapture(event.pointerId);
       }
       node.scrollLeft = startLeft - dx;
+      event.preventDefault();
     };
     const up = (event: PointerEvent) => {
       if (event.pointerId !== pointer && !dragged) return;
@@ -671,7 +695,7 @@ function useStoryPan(ref: RefObject<HTMLDivElement | null>) {
       dragged = false;
     };
     node.addEventListener("pointerdown", down);
-    node.addEventListener("pointermove", move);
+    node.addEventListener("pointermove", move, { passive: false });
     node.addEventListener("pointerup", up);
     node.addEventListener("pointercancel", up);
     return () => {

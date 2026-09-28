@@ -142,7 +142,8 @@ describe("friends step", () => {
 
     expect(html).toContain("Твои люди уже здесь");
     expect(html).toContain("Находи друзей по интересам и приглашай своих");
-    expect(html).toContain('aria-label="Поделиться приложением"');
+    expect(html).toContain("Позвать в MAX");
+    expect(html).toContain("Сообщество");
     expect(html).toContain("Дальше");
     expect(html).not.toContain("Анна Соколова");
     expect(html).not.toContain("контакта");

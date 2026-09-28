@@ -26,7 +26,7 @@
 // - WheretoPage - route container: wizard state, the backend suggestion fetch and navigation to an event
 // END_MODULE_MAP
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { WheretoBudget, WheretoCompany, WheretoMood, WheretoQuery } from "@max-events/api-contracts";
 import { apiClient, type WheretoPick } from "../api/client";
 import { pluralRu } from "../catalog/format";
@@ -148,19 +148,19 @@ export function formatWheretoPrice(pick: { isPaid: boolean; priceRub: number | n
   if (pick.priceRub !== null) return `${pick.priceRub.toLocaleString("ru-RU")} ₽`;
   return pick.isPaid ? "платно" : "бесплатно";
 }
-/** A positive price is a charge even when isPaid was left false: the card would still print «2 900 ₽». */
-export function eventFitsBudget(event: { isPaid: boolean; priceRub: number | null }, budget: WheretoBudget): boolean {
+/** A positive price is a charge even when isPaid was left false: the card would still print «2 900 ₽». A typed sum caps the price at that sum, not at the 3000 band the enum falls into. */
+export function eventFitsBudget(event: { isPaid: boolean; priceRub: number | null }, budget: WheretoBudget, capRub: number | null = null): boolean {
   const charged = event.isPaid || (event.priceRub !== null && event.priceRub > 0);
+  if (capRub !== null && capRub > 0) return !charged || (event.priceRub !== null && event.priceRub <= capRub);
   if (budget === "any") return true;
   if (budget === "free") return !charged;
   return !charged || (event.priceRub !== null && event.priceRub <= 3000);
 }
 
 /** The wish replaces the mood, not the budget the person already answered. */
-export function picksForBudget<T extends { isPaid: boolean; priceRub: number | null }>(items: readonly T[], budget: WheretoBudget): T[] {
-  return items.filter((item) => eventFitsBudget(item, budget)).slice(0, 5);
+export function picksForBudget<T extends { isPaid: boolean; priceRub: number | null }>(items: readonly T[], budget: WheretoBudget, capRub: number | null = null): T[] {
+  return items.filter((item) => eventFitsBudget(item, budget, capRub)).slice(0, 5);
 }
-
 
 function formatKm(distanceKm: number | null): string | null {
   return distanceKm === null ? null : `${distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км`;
@@ -182,6 +182,7 @@ interface WheretoViewProps {
   onRestart: () => void;
   onRetry: () => void;
   onOpenEvent: (id: string) => void;
+  onAsk: () => void;
 }
 
 function Progress({ at }: { at: number }) {
@@ -199,76 +200,65 @@ function Progress({ at }: { at: number }) {
   );
 }
 
-function QuestionScreen({ at, answers, onPick, onStep, onNext }: { at: number; answers: WheretoAnswers } & Pick<WheretoViewProps, "onPick" | "onStep" | "onNext">) {
+function QuestionScreen({ at, answers, onPick, onNext }: { at: number; answers: WheretoAnswers } & Pick<WheretoViewProps, "onPick" | "onNext">) {
   const question = WHERETO_QUESTIONS[at];
   const next = WHERETO_QUESTIONS[at + 1];
+  const amountRef = useRef<HTMLInputElement>(null);
   const wishOpen = at === 1 && answers.wish !== null;
-  const options = at === 0 ? COMPANY_ORDER.map((value) => ({ value, label: COMPANY_LABELS[value], hint: null, on: answers.company === value, pick: () => onPick({ ...answers, company: value }) })) : at === 1 ? [
-    ...MOOD_ORDER.map((value) => ({ value, label: MOOD_LABELS[value], hint: MOOD_HINTS[value], on: answers.mood === value && answers.wish === null, pick: () => onPick({ ...answers, mood: value, wish: null }) })),
-    { value: "wish", label: "Своё событие", hint: "напишите, MAX AI подберёт", on: answers.wish !== null, pick: () => onPick({ ...answers, mood: "active", wish: answers.wish ?? "" }) },
-  ] : [
-    { value: "free", label: "Бесплатно", hint: null, on: answers.budget === "free" && answers.budgetRub === null, pick: () => onPick({ ...answers, budget: "free", budgetRub: null }) },
-    { value: "any", label: "Любой", hint: null, on: answers.budget === "any" && answers.budgetRub === null, pick: () => onPick({ ...answers, budget: "any", budgetRub: null }) },
-    { value: "own", label: "Своя сумма", hint: null, on: answers.budgetRub !== null, pick: () => onPick({ ...answers, budget: answers.budget ?? "under_3000", budgetRub: answers.budgetRub ?? 0 }) },
-  ];
+  const amountOpen = at === 2 && answers.budgetRub !== null;
+  useEffect(() => {
+    if (!amountOpen && !wishOpen) return;
+    amountRef.current?.focus();
+    amountRef.current?.scrollIntoView({ block: "nearest" });
+  }, [amountOpen, wishOpen]);
+  const options =
+    at === 0
+      ? COMPANY_ORDER.map((value) => ({ value, label: COMPANY_LABELS[value], hint: null, on: answers.company === value, pick: () => onPick({ ...answers, company: value }) }))
+      : at === 1
+        ? [...MOOD_ORDER.map((value) => ({ value, label: MOOD_LABELS[value], hint: MOOD_HINTS[value], on: answers.mood === value && answers.wish === null, pick: () => onPick({ ...answers, mood: value, wish: null }) })), { value: "wish", label: "Своё событие", hint: "напишите, MAX AI подберёт", on: answers.wish !== null, pick: () => onPick({ ...answers, mood: "active", wish: answers.wish ?? "" }) }]
+        : [
+            { value: "free", label: "Бесплатно", hint: null, on: answers.budget === "free" && answers.budgetRub === null, pick: () => onPick({ ...answers, budget: "free", budgetRub: null }) },
+            { value: "any", label: "Любой", hint: null, on: answers.budget === "any" && answers.budgetRub === null, pick: () => onPick({ ...answers, budget: "any", budgetRub: null }) },
+            { value: "own", label: "Своя сумма", hint: null, on: answers.budgetRub !== null, pick: () => onPick({ ...answers, budget: answers.budget ?? "under_3000", budgetRub: answers.budgetRub ?? 0 }) },
+          ];
   const chosen = wishOpen ? (answers.wish ?? "").trim().length >= 2 : options.some((option) => option.on) && (at !== 2 || answers.budgetRub === null || answers.budgetRub > 0);
 
   return (
     <>
       <Progress at={at} />
-      {answeredRows(answers, at).map((row) => (
-        <div key={row.at} className="app-wt-answer">
-          <ActionIcon name="check" size={18} strokeWidth={2.4} />
-          <span className="app-wt-answer-text">
-            <span className="app-wt-answer-label">{row.label}</span>
-            <span className="app-wt-answer-value">{row.value}</span>
-          </span>
-          <button type="button" className="app-wt-answer-edit" onClick={() => onStep(row.at)}>
-            Изменить
-          </button>
-        </div>
-      ))}
       <h2 className="app-wt-question">{question.heading}</h2>
       <div key={at} className="app-whereto-options" role="radiogroup" aria-label={question.summary}>
         {options.map((option) => (
           <button key={option.value} type="button" role="radio" aria-checked={option.on} className={option.on ? "app-whereto-option app-whereto-option--on" : "app-whereto-option"} onClick={option.pick}>
-            <span className="app-wt-radio" aria-hidden="true">
-              {option.on && <span className="app-wt-radio-dot" />}
-            </span>
             <span className="app-wt-option-text">
               <span className="app-wt-option-title">{option.label}</span>
               {option.hint !== null && <span className="app-wt-option-hint">{option.hint}</span>}
             </span>
           </button>
         ))}
+        {wishOpen && (
+          <label className="app-wt-budget">
+            <span>Своё событие</span>
+            <input ref={amountRef} aria-label="Своё событие" placeholder="Например джаз в центре" maxLength={200} value={answers.wish ?? ""} onChange={(change) => onPick({ ...answers, mood: "active", wish: change.target.value })} />
+          </label>
+        )}
+        {amountOpen && (
+          <label className="app-wt-budget">
+            <span>Не дороже, ₽</span>
+            <input
+              ref={amountRef}
+              inputMode="numeric"
+              aria-label="Свой бюджет"
+              placeholder="Например 1500"
+              value={answers.budgetRub === null || answers.budgetRub === 0 ? "" : answers.budgetRub}
+              onChange={(change) => {
+                const parsed = budgetFromRub(change.target.value);
+                onPick(parsed === null ? { ...answers, budget: "under_3000", budgetRub: 0 } : { ...answers, budget: parsed.budget, budgetRub: parsed.rub });
+              }}
+            />
+          </label>
+        )}
       </div>
-      {wishOpen && (
-        <label className="app-wt-budget">
-          <span>Своё событие</span>
-          <input aria-label="Своё событие" placeholder="Например джаз в центре" maxLength={200} value={answers.wish ?? ""} onChange={(change) => onPick({ ...answers, mood: "active", wish: change.target.value })} />
-        </label>
-      )}
-      {next !== undefined && (
-        <div className="app-wt-next" aria-hidden="true">
-          <span className="app-wt-radio" />
-          <span className="app-wt-next-text">{next.topic} — следующий вопрос</span>
-        </div>
-      )}
-      {at === 2 && answers.budgetRub !== null && (
-        <label className="app-wt-budget">
-          <span>Сумма, ₽</span>
-          <input
-            inputMode="numeric"
-            aria-label="Свой бюджет"
-            placeholder="Например 1500"
-            value={answers.budgetRub === 0 ? "" : answers.budgetRub}
-            onChange={(change) => {
-              const parsed = budgetFromRub(change.target.value);
-              onPick(parsed === null ? { ...answers, budget: "under_3000", budgetRub: 0 } : { ...answers, budget: parsed.budget, budgetRub: parsed.rub });
-            }}
-          />
-        </label>
-      )}
       <div className="app-wt-bar">
         <button type="button" className="app-wt-bar-cta" disabled={!chosen} onClick={onNext}>
           {next === undefined ? "Показать варианты" : "Дальше"}
@@ -279,19 +269,20 @@ function QuestionScreen({ at, answers, onPick, onStep, onNext }: { at: number; a
   );
 }
 
-function ResultScreen({ query, wish, result, now, onStep, onRestart, onRetry, onOpenEvent }: { query: WheretoQuery; wish: string | null; result: WheretoResult; now: Date } & Pick<WheretoViewProps, "onStep" | "onRestart" | "onRetry" | "onOpenEvent">) {
+function ResultScreen({ query, wish, result, now, onStep, onRestart, onRetry, onOpenEvent, onAsk }: { query: WheretoQuery; wish: string | null; result: WheretoResult; now: Date; onAsk: () => void } & Pick<WheretoViewProps, "onStep" | "onRestart" | "onRetry" | "onOpenEvent">) {
   const items = result.status === "ready" ? result.items : [];
   const [hero, ...rest] = items;
   const loadingLabel = wish === null ? "Собираем вечер" : "MAX AI подбирает";
 
   return (
     <>
-      <div className="app-whereto-chips">
-        <span className="app-wt-chip">{COMPANY_LABELS[query.company]}</span>
-        <span className="app-wt-chip">{wish ?? MOOD_LABELS[query.mood]}</span>
-        <span className="app-wt-chip">{BUDGET_LABELS[query.budget]}</span>
+      <div className="app-wt-actions">
         <button type="button" className="app-whereto-restart" onClick={onRestart}>
           Ответить заново
+        </button>
+        <button type="button" className="app-wt-ask" onClick={onAsk}>
+          <ActionIcon name="spark" size={18} />
+          Спросить AI
         </button>
       </div>
       {result.status === "loading" && (
@@ -345,15 +336,13 @@ function ResultScreen({ query, wish, result, now, onStep, onRestart, onRetry, on
   );
 }
 
-export function WheretoView({ state, answers, result, now = new Date(), onPick, onStep, onNext, onRestart, onRetry, onOpenEvent }: WheretoViewProps) {
-  const title = state.step === "ask" ? "Куда пойдём?" : resultTitle(result.status === "ready" ? result.items.length : 0);
-
+export function WheretoView({ state, answers, result, now = new Date(), onPick, onStep, onNext, onRestart, onRetry, onOpenEvent, onAsk }: WheretoViewProps) {
   return (
     <section className="app-wt">
       <div className="app-wt-topbar">
-        <h1 className="app-wt-title">{title}</h1>
+        <h1 className="app-wt-title">Куда пойдём?</h1>
       </div>
-      {state.step === "ask" ? <QuestionScreen at={state.at} answers={answers} onPick={onPick} onStep={onStep} onNext={onNext} /> : <ResultScreen query={state.query} wish={wheretoWish(answers)} result={result} now={now} onStep={onStep} onRestart={onRestart} onRetry={onRetry} onOpenEvent={onOpenEvent} />}
+      {state.step === "ask" ? <QuestionScreen at={state.at} answers={answers} onPick={onPick} onNext={onNext} /> : <ResultScreen query={state.query} wish={wheretoWish(answers)} result={result} now={now} onStep={onStep} onRestart={onRestart} onRetry={onRetry} onOpenEvent={onOpenEvent} onAsk={onAsk} />}
     </section>
   );
 }
@@ -381,16 +370,26 @@ export function WheretoPage() {
       if (alive) setResult({ status: "error" });
     };
     if (wish === null) {
-      apiClient.getWhereto(query, { latitude: point.latitude, longitude: point.longitude }).then((response) => ready(picksForBudget(response.items, query.budget)), failed);
+      apiClient.getWhereto(query, { latitude: point.latitude, longitude: point.longitude }).then((response) => ready(picksForBudget(response.items, query.budget, answers.budgetRub)), failed);
     } else {
-      const capped = query.budget === "free" ? `${wish}. Только бесплатные.` : query.budget === "under_3000" ? `${wish}. Не дороже 3000 рублей.` : wish;
-      apiClient.assistQuery(capped).then((response) => ready(picksForBudget(response.items.map((item) => ({ ...item.event, distanceKm: null })), query.budget)), failed);
+      const cap = answers.budgetRub !== null && answers.budgetRub > 0 ? `${wish}. Не дороже ${answers.budgetRub} рублей.` : query.budget === "free" ? `${wish}. Только бесплатные.` : query.budget === "under_3000" ? `${wish}. Не дороже 3000 рублей.` : wish;
+      apiClient.assistQuery(cap).then(
+        (response) =>
+          ready(
+            picksForBudget(
+              response.items.map((item) => ({ ...item.event, distanceKm: null })),
+              query.budget,
+              answers.budgetRub,
+            ),
+          ),
+        failed,
+      );
     }
     return () => {
       alive = false;
     };
     // attempt re-runs the same query after a failure; the origin may sharpen while the screen is open
-  }, [query, wish, point.settled, point.latitude, point.longitude, attempt]);
+  }, [query, wish, answers.budgetRub, point.settled, point.latitude, point.longitude, attempt]);
 
   const at = wizardStepIndex(state);
   // Один вход во все переходы: шаг за пределами последнего вопроса означает выдачу, но только когда
@@ -416,6 +415,7 @@ export function WheretoPage() {
       onRestart={() => show(NO_ANSWERS, 0)}
       onRetry={() => setAttempt((value) => value + 1)}
       onOpenEvent={(id) => navigate({ name: "event", id })}
+      onAsk={() => navigate({ name: "assist", ask: wheretoWish(answers) })}
     />
   );
 }

@@ -24,7 +24,7 @@ import { useViewerOrigin, requestViewerOrigin } from "../geo/viewer-origin";
 import { useRoute } from "../routing/router";
 import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, cityCardMeta, cityForwardBlock, interestsCtaLabel, introDirection, markOnboardingDone, matchedOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type CityDetectState, type IntroDirection, type OnboardingStep } from "./onboarding";
 
-const RAIL_LABELS = ["Город", "Друзья", "Интересы"] as const;
+const RAIL_LABELS = ["Город", "Сообщество", "Интересы"] as const;
 
 /** Real places stay on the cards. The field behind them is abstract and does not swipe. */
 const INTRO_PLACES = [
@@ -256,8 +256,9 @@ function FriendsStep({ saveFailed, onShare, onNext }: { saveFailed: boolean; onS
         <p className="app-onboarding-lead">Находи друзей по интересам и приглашай своих</p>
       </header>
       <div className="app-onboarding-body app-onboarding-body--share">
-        <button type="button" className="app-onboarding-share" aria-label="Поделиться приложением" onClick={onShare}>
-          <ActionIcon name="share" size={28} />
+        <button type="button" className="app-onboarding-share" aria-label="Позвать в MAX" onClick={onShare}>
+          <ActionIcon name="share" size={22} />
+          Позвать в MAX
         </button>
       </div>
       <div className="app-onboarding-footer">
