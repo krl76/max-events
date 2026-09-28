@@ -30,7 +30,6 @@ function viewHtml(over: Partial<OnboardingViewProps> = {}): string {
     onIntro: noop,
     onSkipIntro: noop,
     onCity: noop,
-    onLocate: noop,
     onToggleFriend: noop,
     onToggleInterest: noop,
     onNext: noop,
@@ -51,8 +50,8 @@ describe("intro step", () => {
     expect(html).not.toContain("Начать");
     expect(html.match(/app-onboarding-bitset--on/g)).toHaveLength(1);
     expect(html).toContain("Анна");
-    expect(html).toContain("Ассистент");
-    expect(html).toContain("соберёмся?");
+    expect(html).toContain("app-onboarding-face");
+    expect(html).not.toContain("app-onboarding-stack");
   });
 
   it("turns the last slide CTA into «Начать» and marks its dot", () => {
@@ -129,7 +128,7 @@ describe("city step", () => {
     const html = viewHtml({ step: "city", city: null, cityDetect: "outside" });
 
     expect(html).toContain("не рядом ни с одним городом");
-    expect(html).toContain("Определить по геолокации");
+    expect(html).not.toContain("Определить по геолокации");
     expect(html).not.toContain("Рядом с тобой");
   });
 });

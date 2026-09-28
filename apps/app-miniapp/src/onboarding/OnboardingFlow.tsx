@@ -32,13 +32,24 @@ const INTRO_PLACES = [
   { src: "/covers/kolomenskoe.jpg", title: "Коломенское", meta: "Москва", slot: 3 },
 ] as const;
 
-/** Same animal set MAX offers as a built-in avatar pack: the faces stay put and do not orbit the title. */
-const INTRO_FACES = [
-  { src: "/onboarding/avatars/fox.jpg", name: "Анна" },
-  { src: "/onboarding/avatars/cat.jpg", name: "Дима" },
-  { src: "/onboarding/avatars/bear.jpg", name: "Катя" },
-  { src: "/onboarding/avatars/rabbit.jpg", name: "Лёша" },
-] as const;
+const INTRO_FACES = ["Анна", "Дима", "Катя", "Лёша"] as const;
+
+/** Illustrated people, not letters and not a generated animal. Hair uses the brand palette so the face stays a product avatar. */
+function PersonFace({ variant }: { variant: number }) {
+  const hair = ["#060708", "#6813ff", "#007aff", "#ff9315"][variant % 4];
+  const bob = variant % 2 === 0;
+  return (
+    <svg className="app-onboarding-person-art" viewBox="0 0 64 64" aria-hidden="true">
+      <circle cx="32" cy="32" r="32" fill="#479fff" />
+      <path d={bob ? "M14 34c1-16 35-18 36 2 0 8-4 10-8 8-6-8-16-8-20 0-4 2-8 0-8-10z" : "M12 28c2-14 38-14 40 2v8H12z"} fill={hair} />
+      <circle cx="32" cy="38" r="14" fill="#ffffff" />
+      <circle cx="26" cy="38" r="1.8" fill="#060708" />
+      <circle cx="38" cy="38" r="1.8" fill="#060708" />
+      {variant % 4 === 2 && <path d="M20 37h10M34 37h10" stroke="#060708" strokeWidth="1.4" fill="none" />}
+      <path d="M22 58c4-8 16-8 20 0" fill={hair} />
+    </svg>
+  );
+}
 
 function OnboardingField() {
   return (
@@ -52,32 +63,34 @@ function OnboardingField() {
   );
 }
 
+const INTRO_ASK = ["джаз вечером", "парк", "Казань"] as const;
+const INTRO_PLAN = ["сегодня 19:00", "чат события", "как дойти"] as const;
+
 function IntroBits({ kind }: { kind: 1 | 2 | 3 }) {
   return (
     <div className="app-onboarding-bits" aria-hidden="true">
       <div className={kind === 1 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
-        {INTRO_FACES.map((face, index) => (
-          <span key={face.name} className={`app-onboarding-face app-onboarding-face--${index + 1}`}>
-            <img alt="" src={face.src} />
-            <span>{face.name}</span>
+        {INTRO_FACES.map((name, index) => (
+          <span key={name} className={`app-onboarding-face app-onboarding-face--${index + 1}`}>
+            <PersonFace variant={index} />
+            <span>{name}</span>
           </span>
         ))}
       </div>
       <div className={kind === 2 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
-        <div className="app-onboarding-stack">
-          <p className="app-onboarding-stack-kicker">Ассистент</p>
-          <p className="app-onboarding-stack-line">джаз вечером</p>
-          <p className="app-onboarding-stack-line">парк у реки</p>
-          <p className="app-onboarding-stack-line">Казань</p>
-        </div>
+        <span className="app-onboarding-assist" />
+        {INTRO_ASK.map((note, index) => (
+          <span key={note} className={`app-onboarding-badge app-onboarding-badge--${index + 1}`}>
+            {note}
+          </span>
+        ))}
       </div>
       <div className={kind === 3 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
-        <div className="app-onboarding-stack">
-          <p className="app-onboarding-stack-line">у входа</p>
-          <p className="app-onboarding-stack-line">соберёмся?</p>
-          <p className="app-onboarding-stack-line">напомним</p>
-          <p className="app-onboarding-stack-line">4 в компании</p>
-        </div>
+        {INTRO_PLAN.map((note, index) => (
+          <span key={note} className={`app-onboarding-badge app-onboarding-badge--${index + 1}`}>
+            {note}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -102,7 +115,6 @@ export interface OnboardingViewProps {
   onIntro: (index: number) => void;
   onSkipIntro: () => void;
   onCity: (city: string) => void;
-  onLocate: () => void;
   onToggleFriend: (userId: string) => void;
   onToggleInterest: (interest: string) => void;
   onNext: () => void;
@@ -189,38 +201,26 @@ function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle =
   );
 }
 
-function CityStep({ city, cityDetect, cityPicked, onCity, onLocate, onNext }: Pick<OnboardingViewProps, "city" | "cityDetect" | "cityPicked" | "onCity" | "onLocate" | "onNext">) {
-  const name = city ?? (cityDetect === "pending" ? "Определяем…" : "Не выбран");
+function CityStep({ city, cityDetect, cityPicked, onCity, onNext }: Pick<OnboardingViewProps, "city" | "cityDetect" | "cityPicked" | "onCity" | "onNext">) {
   return (
     <>
       <header className="app-onboarding-head">
         <h1 className="app-onboarding-title">Где ищем события?</h1>
         <p className="app-onboarding-lead">{cityDetectionHint(cityDetect)}</p>
+        {city === null && <p className="app-onboarding-lead">Не выбран</p>}
       </header>
       <div className="app-onboarding-body">
-        <div className="app-onboarding-city-card">
-          <span className="app-onboarding-city-icon" aria-hidden="true">
-            <ActionIcon name="pin" size={22} strokeWidth={2} />
-          </span>
-          <span className="app-onboarding-city-text">
-            <span className="app-onboarding-city-name">{name}</span>
-            <span className="app-onboarding-city-meta">{cityCardMeta(cityDetect, cityPicked)}</span>
-          </span>
-          <span className="app-onboarding-city-live" aria-hidden="true" />
-        </div>
-        <AppButton className="app-onboarding-locate" tone="secondary" stretched onClick={onLocate}>
-          Определить по геолокации
-        </AppButton>
-        <ul className="app-onboarding-city-list">
-          {ONBOARDING_CITIES.map((option) => (
-            <li key={option.name}>
-              <button type="button" className="app-onboarding-city-option" aria-pressed={option.name === city} onClick={() => onCity(option.name)}>
+        <div className="app-onboarding-city-deck">
+          {ONBOARDING_CITIES.map((option) => {
+            const on = option.name === city;
+            return (
+              <button key={option.name} type="button" className={on ? "app-onboarding-city-tile app-onboarding-city-tile--on" : "app-onboarding-city-tile"} aria-pressed={on} onClick={() => onCity(option.name)}>
                 <span>{option.name}</span>
-                {option.name === city && <ActionIcon name="check" size={20} strokeWidth={3} />}
+                <small>{on ? cityCardMeta(cityDetect, cityPicked) : "Город афиши"}</small>
               </button>
-            </li>
-          ))}
-        </ul>
+            );
+          })}
+        </div>
       </div>
       <div className="app-onboarding-footer">
         <AppButton stretched onClick={onNext}>
@@ -248,9 +248,7 @@ function FriendsStep({ suggestions, followed, saveFailed, onToggleFriend, onNext
               <li key={suggestion.friend.id}>
                 <button type="button" aria-pressed={on} className="app-onboarding-person" onClick={() => onToggleFriend(suggestion.friend.id)}>
                   <span className={on ? "app-onboarding-person-avatar app-onboarding-person-avatar--on" : "app-onboarding-person-avatar"}>
-                    <span className={`app-onboarding-person-face app-onboarding-person-face--${(position % 5) + 1}`}>
-                      <img alt="" src={suggestion.friend.avatarUrl ?? INTRO_FACES[position % INTRO_FACES.length].src} />
-                    </span>
+                    <span className={`app-onboarding-person-face app-onboarding-person-face--${(position % 5) + 1}`}>{suggestion.friend.avatarUrl === null ? <PersonFace variant={position} /> : <img alt="" src={suggestion.friend.avatarUrl} />}</span>
                     <span className="app-onboarding-person-mark" aria-hidden="true">
                       <ActionIcon name={on ? "check" : "plus"} size={12} strokeWidth={3.5} />
                     </span>
@@ -409,7 +407,7 @@ export function OnboardingView(props: OnboardingViewProps) {
       ) : (
         <div className={trackClass} style={trackStyle}>
           <StepShell step={props.step} onBack={props.onBack}>
-            {props.step === "city" ? <CityStep city={props.city} cityDetect={props.cityDetect} cityPicked={props.cityPicked} onCity={props.onCity} onLocate={props.onLocate} onNext={props.onNext} /> : props.step === "friends" ? <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} /> : <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} />}
+            {props.step === "city" ? <CityStep city={props.city} cityDetect={props.cityDetect} cityPicked={props.cityPicked} onCity={props.onCity} onNext={props.onNext} /> : props.step === "friends" ? <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} /> : <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} />}
           </StepShell>
         </div>
       )}
@@ -587,10 +585,6 @@ export function OnboardingFlow({ onDone, onLeave }: { onDone: () => void; onLeav
         setStep("city");
       }}
       onCity={setPicked}
-      onLocate={() => {
-        setPicked(null);
-        requestViewerOrigin();
-      }}
       onToggleFriend={(userId) => setFollowed((current) => toggle(current ?? seededFollows, userId))}
       onToggleInterest={onToggleInterest}
       onNext={onNext}

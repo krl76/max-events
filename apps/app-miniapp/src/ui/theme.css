@@ -4004,29 +4004,29 @@ html[data-theme="dark"] #root {
 
 .app-onboarding-orb--a {
   animation: app-onboarding-orb-a 18s ease-in-out infinite alternate;
-  background: radial-gradient(circle, rgba(0, 122, 255, 0.72), rgba(0, 122, 255, 0) 68%);
-  height: 340px;
-  left: -120px;
-  top: -40px;
-  width: 340px;
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.4), rgba(0, 122, 255, 0) 68%);
+  height: 260px;
+  left: -160px;
+  top: -80px;
+  width: 260px;
 }
 
 .app-onboarding-orb--b {
   animation: app-onboarding-orb-b 22s ease-in-out infinite alternate;
   background: radial-gradient(circle, #c9b6ff, rgba(255, 255, 255, 0) 70%);
-  height: 280px;
-  right: -90px;
-  top: 18%;
-  width: 280px;
+  height: 200px;
+  right: -140px;
+  top: -60px;
+  width: 200px;
 }
 
 .app-onboarding-orb--c {
   animation: app-onboarding-orb-c 26s ease-in-out infinite alternate;
   background: radial-gradient(circle, #00bfff, rgba(0, 122, 255, 0) 72%);
-  bottom: 8%;
-  height: 300px;
-  left: 10%;
-  width: 300px;
+  bottom: -120px;
+  height: 220px;
+  left: -80px;
+  width: 220px;
 }
 
 .app-onboarding-orb--d {
@@ -4040,7 +4040,7 @@ html[data-theme="dark"] #root {
 
 .app-onboarding-sheen {
   animation: app-onboarding-sheen 16s ease-in-out infinite;
-  background: linear-gradient(115deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
   height: 160%;
   left: -30%;
   position: absolute;
@@ -4266,11 +4266,47 @@ html[data-theme="dark"] #root {
   width: 52px;
 }
 
-.app-onboarding-face img {
+.app-onboarding-face .app-onboarding-person-art,
+.app-onboarding-person-face .app-onboarding-person-art {
   display: block;
   height: 100%;
-  object-fit: cover;
   width: 100%;
+}
+
+.app-onboarding-assist {
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.55), rgba(0, 122, 255, 0) 70%);
+  border-radius: 50%;
+  height: 120px;
+  left: 50%;
+  position: absolute;
+  top: 48%;
+  transform: translate(-50%, -50%);
+  width: 120px;
+}
+
+.app-onboarding-badge {
+  background: rgba(6, 7, 8, 0.55);
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 10px;
+  position: absolute;
+}
+
+.app-onboarding-badge--1 {
+  left: 8%;
+  top: 58%;
+}
+
+.app-onboarding-badge--2 {
+  right: 8%;
+  top: 64%;
+}
+
+.app-onboarding-badge--3 {
+  left: 34%;
+  top: 76%;
 }
 
 .app-onboarding-face span {
@@ -4295,36 +4331,6 @@ html[data-theme="dark"] #root {
 .app-onboarding-face--4 {
   right: 14%;
   top: 68%;
-}
-
-.app-onboarding-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  left: 50%;
-  position: absolute;
-  top: 60%;
-  transform: translateX(-50%);
-  width: min(220px, 72%);
-}
-
-.app-onboarding-stack-kicker,
-.app-onboarding-stack-line {
-  background: rgba(255, 255, 255, 0.94);
-  border-radius: 16px;
-  box-shadow: 0 12px 28px rgba(6, 7, 8, 0.28);
-  color: #060708;
-  font-size: 15px;
-  font-weight: 800;
-  margin: 0;
-  padding: 10px 14px;
-}
-
-.app-onboarding-stack-kicker {
-  color: #007aff;
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .app-onboarding-line {
@@ -4505,13 +4511,56 @@ html[data-theme="dark"] #root {
   color: #060708;
 }
 
-.app-onboarding--film .app-onboarding-locate {
-  --background: #ffffff;
-  --color: #060708;
+.app-onboarding--film .app-onboarding-body {
+  scrollbar-width: none;
+}
+
+.app-onboarding--film .app-onboarding-body::-webkit-scrollbar {
+  display: none;
+}
+
+.app-onboarding-city-deck {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.app-onboarding-city-tile {
+  background: rgba(255, 255, 255, 0.96);
+  border: 2px solid transparent;
+  border-radius: 18px;
+  color: #060708;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 72px;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.app-onboarding-city-tile span {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.app-onboarding-city-tile small {
+  color: rgba(6, 7, 8, 0.62);
+  font-size: 12px;
+}
+
+.app-onboarding-city-tile--on {
+  border-color: #007aff;
+  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.22);
+}
+
+.app-onboarding--film .app-onboarding-people {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
 }
 
 .app-onboarding--film .app-onboarding-chip {
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.96);
   color: #060708;
 }
 

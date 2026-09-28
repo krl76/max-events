@@ -106,16 +106,24 @@ export function requestViewerOrigin(): Promise<ViewerOrigin> {
       return;
     }
     if (readOrigin().state !== "pending") publishOrigin({ ...readOrigin(), state: "pending" });
-    try {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => finish(viewerOriginFrom(pos.coords)),
-        () => finish(viewerOriginFrom(null)),
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
-      );
-    } catch {
-      // Часть webview бросает синхронно вместо вызова колбэка ошибки; для экрана это тот же отказ.
-      finish(viewerOriginFrom(null));
-    }
+    const ask = (precise: boolean, retry: boolean) => {
+      try {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => finish(viewerOriginFrom(pos.coords)),
+          () => {
+            // В webview точный GPS часто молчит по таймауту, а сетевая точка уже есть. Второй запрос
+            // без high accuracy забирает её, и город определяется без отдельной кнопки.
+            if (retry) ask(false, false);
+            else finish(viewerOriginFrom(null));
+          },
+          { enableHighAccuracy: precise, maximumAge: precise ? 60_000 : 300_000, timeout: 8_000 },
+        );
+      } catch {
+        if (retry) ask(false, false);
+        else finish(viewerOriginFrom(null));
+      }
+    };
+    ask(true, true);
   });
 }
 
