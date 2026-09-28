@@ -64,6 +64,7 @@ export function WalkWizard({
   onChange,
   onBack,
   onCompose,
+  onSaved,
   notice,
 }: {
   readonly city: string;
@@ -71,6 +72,7 @@ export function WalkWizard({
   readonly onChange: (choice: WalkChoice) => void;
   readonly onBack: () => void;
   readonly onCompose?: () => void;
+  readonly onSaved?: () => void;
   readonly notice?: string | null;
 }) {
   const step = walkStep(choice);
@@ -87,6 +89,11 @@ export function WalkWizard({
       <button type="button" className="app-walk-compose" disabled={!walkComposeReady(choice)} onClick={onCompose}>
         Собрать прогулку
       </button>
+      {onSaved !== undefined ? (
+        <button type="button" className="app-walk-back" onClick={onSaved}>
+          Мои прогулки
+        </button>
+      ) : null}
     </section>
   );
 }

@@ -69,6 +69,7 @@ export function WalkResult({
   onBack,
   onAnother,
   onPlace,
+  onSaved,
 }: {
   readonly city: string;
   readonly walk: CityWalk;
@@ -76,6 +77,7 @@ export function WalkResult({
   readonly onBack: () => void;
   readonly onAnother: () => void;
   readonly onPlace: (id: string) => void;
+  readonly onSaved?: () => void;
 }) {
   const count = walk.stops.length;
   const travel = walk.legs.reduce((sum, leg) => sum + leg.travelMinutes, 0);
@@ -120,6 +122,11 @@ export function WalkResult({
       <AppButton className="app-walk-another" stretched onClick={onAnother}>
         Хочу новую прогулку
       </AppButton>
+      {onSaved !== undefined ? (
+        <button type="button" className="app-walk-back" onClick={onSaved}>
+          Мои прогулки
+        </button>
+      ) : null}
     </section>
   );
 }

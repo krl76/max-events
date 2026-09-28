@@ -198,7 +198,7 @@ export function WalkPage({
   }
 
   if (phase === "ready" && walk !== null) {
-    return <WalkResult city={city} walk={walk} now={now} onBack={back} onAnother={onAnother} onPlace={(id) => navigate({ name: "place", id })} />;
+    return <WalkResult city={city} walk={walk} now={now} onBack={back} onAnother={onAnother} onPlace={(id) => navigate({ name: "place", id })} onSaved={() => navigate({ name: "walks" })} />;
   }
 
   return (
@@ -208,6 +208,7 @@ export function WalkPage({
       onChange={setChoice}
       onBack={back}
       notice={error}
+      onSaved={() => navigate({ name: "walks" })}
       onCompose={() => {
         void onCompose();
       }}

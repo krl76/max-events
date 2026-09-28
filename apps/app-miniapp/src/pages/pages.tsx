@@ -69,6 +69,8 @@ const WeGroupsPage = lazyNamed(() => import("../wegroup/WeGroupsPage"), "WeGroup
 const WeGroupPage = lazyNamed(() => import("../wegroup/WeGroupPage"), "WeGroupPage");
 const DayRoutePage = lazyNamed(() => import("../route/DayRoutePage"), "DayRoutePage");
 const WalkPage = lazyNamed(() => import("../search/WalkPage"), "WalkPage");
+const WalkListPage = lazyNamed(() => import("../search/SavedWalks"), "WalkListPage");
+const SavedWalkPage = lazyNamed(() => import("../search/SavedWalks"), "SavedWalkPage");
 const VoteCreatePage = lazyNamed(() => import("../votes/VoteCreatePage"), "VoteCreatePage");
 const MicroEventsPage = lazyNamed(() => import("../micro/MicroEventsPage"), "MicroEventsPage");
 const MicroEventPage = lazyNamed(() => import("../micro/MicroEventPage"), "MicroEventPage");
@@ -167,6 +169,8 @@ function Routed() {
   if (route.name === "we-group") return <WeGroupPage id={route.id} />;
   if (route.name === "day-route") return <DayRoutePage />;
   if (route.name === "walk") return <WalkPage city={route.city} />;
+  if (route.name === "walks") return <WalkListPage />;
+  if (route.name === "walk-saved") return <SavedWalkPage id={route.id} />;
   if (route.name === "vote-new") return <VoteCreatePage groupId={route.groupId} />;
   if (route.name === "micro") return <MicroEventsPage />;
   if (route.name === "micro-event") return <MicroEventPage id={route.id} />;

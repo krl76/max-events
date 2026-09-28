@@ -59,6 +59,8 @@ export type Route =
   | { name: "plan-new" }
   | { name: "day-route" }
   | { name: "walk"; city: string }
+  | { name: "walks" }
+  | { name: "walk-saved"; id: string }
   | { name: "list"; id: string }
   | { name: "achievements" }
   | { name: "micro-new" }
@@ -205,6 +207,12 @@ function toRoute(value: unknown): Route | null {
     case "walk": {
       const city = "city" in value && typeof value.city === "string" ? value.city.trim() : "";
       return { name: "walk", city: city !== "" ? city : "Москва" };
+    }
+    case "walks":
+      return { name: "walks" };
+    case "walk-saved": {
+      const savedId = "id" in value && typeof value.id === "string" ? value.id.trim() : "";
+      return savedId !== "" ? { name: "walk-saved", id: savedId } : null;
     }
     case "calendar": {
       const { inviteToken } = value as { inviteToken?: unknown };
