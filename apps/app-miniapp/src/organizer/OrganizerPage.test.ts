@@ -216,10 +216,11 @@ describe("EventDraftForm", () => {
     expect(first).toContain("Например, «Вечер джаза на Патриарших»");
     expect(first).toContain("Афиша");
     expect(first).toContain("Далее");
-    expect(first).not.toContain('type="datetime-local"');
+    expect(first).toContain('type="datetime-local"');
+    expect(first).toContain("Основное");
 
     const when = form({ step: 2 });
-    expect(when).toContain('type="datetime-local"');
+    expect(when).toContain("Адрес");
     expect(when).toContain("Шаг 2 из 5");
 
     const join = form({ step: 3 });

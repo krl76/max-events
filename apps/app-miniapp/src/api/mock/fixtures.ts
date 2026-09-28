@@ -90,7 +90,7 @@ export const mockOrganizers: User[] = [{ id: "d0000001-0000-4000-8000-0000000000
 export const mockDemoUser: User = { id: "a0000000-0000-4000-8000-000000000001", maxUserId: "demo", firstName: "Демо", lastName: null, username: "demo", avatarUrl: null, createdAt: PLACE_STAMP, updatedAt: PLACE_STAMP };
 
 /** Demo organization and its login/password for the organizer space in mock mode. */
-export const mockOrganization: Organization = { id: "e0000000-0000-4000-8000-000000000001", name: "Городские события", contacts: "org@example.com", activities: ["events", "slots"] };
+export const mockOrganization: Organization = { id: "e0000000-0000-4000-8000-000000000001", name: "Московское бюро событий", contacts: "org@example.com", activities: ["events", "slots"] };
 
 export const MOCK_ORGANIZER_CREDENTIALS = { login: "demo", password: "demo" } as const;
 

@@ -24335,13 +24335,13 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-fin-chip--on {
-  background: #4d6bfe;
+  background: var(--brand-blue);
   box-shadow: none;
   color: #fff;
 }
 
 .app-fin-hero {
-  background: linear-gradient(135deg, #5a63f8 0%, #7a6cf6 48%, #9b7cf8 100%);
+  background: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-purple) 100%);
   border-radius: 22px;
   color: #fff;
   display: flex;
@@ -24502,7 +24502,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-fin-period--on {
-  background: #1c2340;
+  background: var(--brand-blue);
   color: #fff;
 }
 
@@ -24597,7 +24597,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 .app-fin-all {
   background: none;
   border: none;
-  color: #4d6bfe;
+  color: var(--brand-blue);
   cursor: pointer;
   font: inherit;
   font-size: 14px;
@@ -24688,7 +24688,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-fin-withdraw {
   align-items: center;
-  background: linear-gradient(90deg, #6a5af9 0%, #7d6cf8 50%, #8a74f8 100%);
+  background: var(--brand-blue);
   border: none;
   border-radius: 18px;
   color: #fff;
@@ -25631,7 +25631,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
   border: none;
   border-radius: 14px;
   box-shadow: 0 6px 16px rgba(28, 39, 79, 0.06);
-  color: #5b4dff;
+  color: var(--brand-blue);
   cursor: pointer;
   display: flex;
   flex: none;
@@ -25782,7 +25782,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-cab-line {
   fill: none;
-  stroke: #6d5efc;
+  stroke: var(--brand-blue);
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2.5;
@@ -25944,7 +25944,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-cab-mini-icon--mail {
   background: #efeaff;
-  color: #6d5efc;
+  color: var(--brand-purple);
 }
 
 .app-cab-notices {
@@ -25997,7 +25997,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-cab-pane--on {
-  background: linear-gradient(90deg, #5b4dff, #7a5cff);
+  background: var(--brand-blue);
   color: #fff;
 }
 
@@ -26047,7 +26047,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-cab-tool-action {
-  background: linear-gradient(90deg, #5b4dff, #7d6cf8);
+  background: var(--brand-blue);
   border: none;
   border-radius: 14px;
   color: #fff;
@@ -26121,4 +26121,236 @@ html:not([data-theme="dark"]) .app-when-sheet {
 .app-cab-area {
   min-height: 96px;
   resize: vertical;
+}
+
+.app-cab-period-wrap {
+  position: relative;
+}
+
+.app-cab-period {
+  width: 100%;
+}
+
+.app-cab-calendar {
+  background: var(--brand-white);
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(6, 7, 8, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 12px;
+}
+
+.app-cab-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-wiz-kicker {
+  color: var(--app-text-secondary, #5c6578);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.app-wiz-steps {
+  display: flex;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  overflow-x: auto;
+  padding: 0;
+}
+
+.app-wiz-step {
+  align-items: center;
+  color: #8b93a7;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 4px;
+  min-width: 56px;
+}
+
+.app-wiz-step span {
+  align-items: center;
+  background: #e7e9f2;
+  border-radius: 50%;
+  color: #5c6578;
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.app-wiz-step--on,
+.app-wiz-step--done {
+  color: var(--brand-blue);
+}
+
+.app-wiz-step--on span,
+.app-wiz-step--done span {
+  background: var(--brand-blue);
+  color: #fff;
+}
+
+.app-wiz-cover {
+  align-items: center;
+  background: var(--brand-white);
+  border: 1px dashed var(--brand-blue);
+  border-radius: 16px;
+  color: var(--brand-blue);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-weight: 700;
+  gap: 12px;
+  padding: 16px;
+  text-align: left;
+}
+
+.app-wiz-cover-icon {
+  align-items: center;
+  background: rgba(0, 122, 255, 0.12);
+  border-radius: 12px;
+  display: flex;
+  font-size: 22px;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.app-evt-tools {
+  display: flex;
+}
+
+.app-evt-filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.app-evt-filter {
+  background: #fff;
+  border: none;
+  border-radius: 999px;
+  color: #5c6578;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.app-evt-filter--on {
+  background: var(--brand-blue);
+  color: #fff;
+}
+
+.app-evt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.app-evt-card {
+  align-items: center;
+  background: #fff;
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 8px 20px rgba(6, 7, 8, 0.05);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 12px;
+  padding: 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-evt-photo {
+  border-radius: 12px;
+  flex: none;
+  height: 72px;
+  overflow: hidden;
+  width: 72px;
+}
+
+.app-evt-photo img,
+.app-evt-hero img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-evt-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-evt-title {
+  color: #16181d;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.app-evt-meta,
+.app-evt-tags {
+  color: #5c6578;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.app-evt-status {
+  align-self: flex-start;
+  background: rgba(43, 198, 68, 0.15);
+  border-radius: 999px;
+  color: #1abe43;
+  font-size: 11px;
+  font-weight: 800;
+  margin-top: 4px;
+  padding: 3px 8px;
+}
+
+.app-evt-status--draft {
+  background: rgba(0, 122, 255, 0.12);
+  color: var(--brand-blue);
+}
+
+.app-evt-status--archive {
+  background: #eef0f4;
+  color: #5c6578;
+}
+
+.app-evt-hero {
+  border-radius: 18px;
+  height: 180px;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-evt-hero .app-evt-status {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+}
+
+.app-evt-unpublish {
+  background: transparent;
+  border: 1px solid var(--brand-red);
+  border-radius: 16px;
+  color: var(--brand-red);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  min-height: 48px;
 }

@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { ActionIcon } from "../ui/icons";
+import { CABINET_EVENTS, cabinetStats, defaultStatsRange, type CabinetStats } from "./cabinet-catalog";
 import { formatRub } from "./OrganizerFinance";
 
 export type StatsWindow = 7 | 30 | 90;
@@ -226,11 +227,14 @@ function IncomeChart({ points }: { points: IncomePoint[] }) {
   );
 }
 
-export function OrganizerStatistics({ onCreateEvent }: { onCreateEvent: () => void }) {
-  const [window, setWindow] = useState<StatsWindow>(30);
+export function OrganizerStatistics(_props: { onCreateEvent?: () => void }) {
+  const initial = defaultStatsRange();
+  const [from, setFrom] = useState(initial.from);
+  const [to, setTo] = useState(initial.to);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [chartWindow, setChartWindow] = useState<StatsWindow>(7);
   const [notices, setNotices] = useState(false);
-  const snapshot = STATS_SNAPSHOTS[window];
+  const snapshot: CabinetStats = cabinetStats(CABINET_EVENTS, new Date(`${from}T00:00:00+03:00`), new Date(`${to}T23:59:59+03:00`));
   const points = INCOME_CHART[chartWindow];
 
   if (notices) {
@@ -264,24 +268,53 @@ export function OrganizerStatistics({ onCreateEvent }: { onCreateEvent: () => vo
           <ActionIcon name="bell" size={20} strokeWidth={2} />
         </button>
       </header>
-      <label className="app-cab-period">
-        <ActionIcon name="calendar" size={18} strokeWidth={2} />
-        <select aria-label="Период" value={window} onChange={(change) => setWindow(Number(change.target.value) as StatsWindow)}>
-          {STATS_WINDOWS.map((item) => (
-            <option key={item} value={item}>
-              {periodCaption(item)}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="app-cab-period-wrap">
+        <button type="button" className="app-cab-period" aria-label="Диапазон дат" aria-expanded={calendarOpen} onClick={() => setCalendarOpen((open) => !open)}>
+          <ActionIcon name="calendar" size={18} strokeWidth={2} />
+          <span>
+            {from.split("-").reverse().join(".")} — {to.split("-").reverse().join(".")}
+          </span>
+        </button>
+        {calendarOpen && (
+          <div className="app-cab-calendar" role="dialog" aria-label="Диапазон дат">
+            <label className="app-fin-field">
+              <span className="app-fin-field-label">С</span>
+              <input className="app-fin-field-input" type="date" aria-label="Начало диапазона" value={from} onChange={(change) => setFrom(change.target.value)} />
+            </label>
+            <label className="app-fin-field">
+              <span className="app-fin-field-label">По</span>
+              <input className="app-fin-field-input" type="date" aria-label="Конец диапазона" value={to} onChange={(change) => setTo(change.target.value)} />
+            </label>
+            <div className="app-fin-periods">
+              {STATS_WINDOWS.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className="app-fin-period"
+                  onClick={() => {
+                    const end = new Date(`${to}T12:00:00+03:00`);
+                    const start = new Date(end.getTime() - item * 86_400_000);
+                    setFrom(start.toISOString().slice(0, 10));
+                    setCalendarOpen(false);
+                  }}
+                >
+                  {item} дней
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
       <article className="app-fin-hero">
         <div className="app-fin-hero-copy">
           <p className="app-fin-hero-label">Общий доход</p>
           <p className="app-fin-hero-value">
             {formatRub(snapshot.incomeRub)}
-            <span className="app-fin-delta">+{snapshot.delta}%</span>
+            <span className={snapshot.delta >= 0 ? "app-fin-delta" : "app-fin-delta app-fin-delta--down"}>{snapshot.delta >= 0 ? `+${snapshot.delta}%` : `−${Math.abs(snapshot.delta)}%`}</span>
           </p>
-          <p className="app-fin-hero-note">за последние {window} дней</p>
+          <p className="app-fin-hero-note">
+            {from.split("-").reverse().join(".")} — {to.split("-").reverse().join(".")}
+          </p>
         </div>
         <span className="app-fin-hero-wallet" aria-hidden="true">
           <ActionIcon name="wallet" size={22} strokeWidth={2} />
@@ -369,12 +402,6 @@ export function OrganizerStatistics({ onCreateEvent }: { onCreateEvent: () => vo
           </span>
         </article>
       </div>
-      <button type="button" className="app-fin-withdraw" onClick={onCreateEvent}>
-        <span className="app-fin-withdraw-plus" aria-hidden="true">
-          <ActionIcon name="plus" size={16} strokeWidth={2.6} />
-        </span>
-        Создать событие
-      </button>
     </section>
   );
 }

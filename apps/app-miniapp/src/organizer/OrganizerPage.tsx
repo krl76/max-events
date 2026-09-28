@@ -35,6 +35,7 @@ import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganiz
 import { CATEGORY_LABELS } from "../catalog/CatalogPage";
 import { posterHighlight } from "../search/EventPoster";
 import { pictured } from "../ui/photos";
+import { CABINET_EVENTS, mergeCabinetEvents } from "./cabinet-catalog";
 import { weeklySeriesUntil } from "./OrganizerEventForm";
 import { SettingsSwitchRow } from "../profile/SettingsPage";
 import { AppButton, AppChip, AppMedia, AppState } from "../ui/primitives";
@@ -147,7 +148,7 @@ export function eventDraftErrors(draft: EventDraft): string[] {
 
 export type EventWizardStep = 1 | 2 | 3 | 4 | 5;
 
-const WIZARD_STEP_TITLES = ["О событии", "Когда и где", "Участие и билеты", "Настройки", "Проверка"] as const;
+const WIZARD_STEP_TITLES = ["Основное", "Локация", "Билеты", "Продвижение", "Публикация"] as const;
 
 export function eventWizardTitle(step: EventWizardStep): string {
   return WIZARD_STEP_TITLES[step - 1];
@@ -352,9 +353,24 @@ export function EventDraftForm({ draft, step, errors, submitting, failed, mode, 
         else onSaveDraft();
       }}
     >
-      <p className="app-gathering-hint">
-        Шаг {step} из 5 · {eventWizardTitle(step)}
-      </p>
+      <p className="app-wiz-kicker">Шаг {step} из 5 · {eventWizardTitle(step)}</p>
+      <ol className="app-wiz-steps">
+        {WIZARD_STEP_TITLES.map((label, index) => (
+          <li key={label} className={index + 1 === step ? "app-wiz-step app-wiz-step--on" : index + 1 < step ? "app-wiz-step app-wiz-step--done" : "app-wiz-step"}>
+            <span>{index + 1}</span>
+            {label}
+          </li>
+        ))}
+      </ol>
+      {step === 1 && <h2 className="app-cab-card-title">Основная информация</h2>}
+      {step === 1 && (
+        <button type="button" className="app-wiz-cover">
+          <span className="app-wiz-cover-icon" aria-hidden="true">
+            +
+          </span>
+          <span>Добавить обложку и фото (до 10)</span>
+        </button>
+      )}
       {step === 1 && (
         <>
           <p className="app-gathering-hint">Своя обложка с телефона в кабинете не сохраняется. Карточка возьмёт уже заданное фото или картинку раздела.</p>
@@ -371,21 +387,21 @@ export function EventDraftForm({ draft, step, errors, submitting, failed, mode, 
           </div>
           <p className="app-gathering-hint">Раздел определяет, где событие окажется в афише: события, волонтёрство, туризм или спорт.</p>
           <label className="app-org-field">
-            <span className="app-org-field-label">Описание</span>
-            <textarea className="app-profile-input app-org-textarea" aria-label="Описание" placeholder="Что произойдёт и кому будет интересно" rows={4} value={draft.description} onChange={(change) => onChange("description", change.target.value)} />
+            <span className="app-org-field-label">Краткое описание</span>
+            <textarea className="app-profile-input app-org-textarea" aria-label="Краткое описание" placeholder="Коротко о событии, 1–2 предложения" rows={2} value={draft.description} onChange={(change) => onChange("description", change.target.value)} />
+          </label>
+          <label className="app-org-field">
+            <span className="app-org-field-label">Дата и время</span>
+            <input className="app-profile-input" type="datetime-local" aria-label="Начало" value={draft.startsAt} onChange={(change) => onChange("startsAt", change.target.value)} />
+          </label>
+          <label className="app-org-field">
+            <span className="app-org-field-label">Длительность, окончание</span>
+            <input className="app-profile-input" type="datetime-local" aria-label="Окончание" value={draft.endsAt} onChange={(change) => onChange("endsAt", change.target.value)} />
           </label>
         </>
       )}
       {step === 2 && (
         <>
-          <label className="app-org-field">
-            <span className="app-org-field-label">Начало</span>
-            <input className="app-profile-input" type="datetime-local" aria-label="Начало" value={draft.startsAt} onChange={(change) => onChange("startsAt", change.target.value)} />
-          </label>
-          <label className="app-org-field">
-            <span className="app-org-field-label">Окончание</span>
-            <input className="app-profile-input" type="datetime-local" aria-label="Окончание" value={draft.endsAt} onChange={(change) => onChange("endsAt", change.target.value)} />
-          </label>
           <label className="app-org-field">
             <span className="app-org-field-label">Город</span>
             <input className="app-profile-input" type="text" aria-label="Город" placeholder="Город" value={draft.city} onChange={(change) => onChange("city", change.target.value)} />
@@ -637,10 +653,12 @@ function upsert<T extends { id: string }>(items: T[], item: T): T[] {
 }
 
 /** createOnMount: the «Создать» tab of the organizer bar lands straight on the empty event draft. */
-export function OrganizerPanel({ organizationId: _organizationId, createOnMount = false, onOpenEvent, onComposer, closeComposerTick = 0, editRequestId = null, onEditHandled, placesTick = 0, draftsTick = 0 }: { organizationId: string; createOnMount?: boolean; onOpenEvent?: (event: OrganizerEvent) => void; onComposer?: (title: string | null) => void; closeComposerTick?: number; editRequestId?: string | null; onEditHandled?: () => void; placesTick?: number; draftsTick?: number }) {
+export function OrganizerPanel({ organizationId: _organizationId, createOnMount = false, onOpenEvent: _onOpenEvent, onComposer, closeComposerTick = 0, editRequestId = null, onEditHandled, placesTick = 0, draftsTick = 0 }: { organizationId: string; createOnMount?: boolean; onOpenEvent?: (event: OrganizerEvent) => void; onComposer?: (title: string | null) => void; closeComposerTick?: number; editRequestId?: string | null; onEditHandled?: () => void; placesTick?: number; draftsTick?: number }) {
   const [tab, setTab] = useState<"events" | "places">("events");
   const [eventQuery, setEventQuery] = useState("");
-  const [eventFilter, setEventFilter] = useState<"upcoming" | "drafts" | "past">("upcoming");
+  const [eventFilter, setEventFilter] = useState<"all" | "published" | "drafts" | "archive">("all");
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState<"info" | "tickets" | "stats">("info");
   const [placeQuery, setPlaceQuery] = useState("");
   const [events, setEvents] = useState<OrganizerListState<OrganizerEvent>>({ status: "loading" });
   const [places, setPlaces] = useState<OrganizerListState<OrganizerPlace>>({ status: "loading" });
@@ -727,7 +745,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
   }, [editRequestId, events, places, onEditHandled]);
 
   useEffect(() => {
-    const title = eventForm !== null ? eventWizardTitle(step) : placeForm !== null ? (placeForm.mode === "create" ? "Новое место" : "Место") : null;
+    const title = eventForm !== null ? (eventForm.mode === "create" ? "Создать событие" : "Событие") : placeForm !== null ? (placeForm.mode === "create" ? "Новое место" : "Место") : null;
     onComposer?.(title);
   }, [eventForm, placeForm, step, onComposer]);
 
@@ -876,16 +894,130 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
     );
   }
 
-  const groups = events.status === "ready" ? splitOrganizerEvents(events.items) : null;
-  const placeTitleFor = (placeId: string | null) => (places.status === "ready" ? (places.items.find((place) => place.id === placeId)?.title ?? null) : null);
-  const visibleEvents = groups === null ? [] : (eventFilter === "drafts" ? groups.drafts : eventFilter === "past" ? groups.past : groups.upcoming).filter((item) => item.title.toLowerCase().includes(eventQuery.trim().toLowerCase()));
+  const merged = events.status === "ready" ? mergeCabinetEvents(events.items) : [];
+  const groups = events.status === "ready" ? splitOrganizerEvents(merged) : null;
+  const placeTitleFor = (item: OrganizerEvent) => CABINET_EVENTS.find((row) => row.id === item.id)?.place ?? (places.status === "ready" ? (places.items.find((place) => place.id === item.placeId)?.title ?? item.city) : item.city);
+  const seatsSold = (item: OrganizerEvent) => {
+    const known = CABINET_EVENTS.find((row) => row.id === item.id);
+    if (known) return known.draft ? 0 : known.sold;
+    if (item.draft || item.capacity === null) return 0;
+    return Math.min(item.capacity, Math.round(item.capacity * 0.6));
+  };
+  const matchesQuery = (item: OrganizerEvent) => item.title.toLowerCase().includes(eventQuery.trim().toLowerCase());
+  const visibleEvents = groups === null ? [] : (eventFilter === "drafts" ? groups.drafts : eventFilter === "archive" ? groups.past : eventFilter === "published" ? groups.upcoming : merged).filter(matchesQuery);
+  const detail = detailId === null ? null : merged.find((item) => item.id === detailId) ?? null;
   const renderEvents = (items: OrganizerEvent[]) => (
-    <div className="app-poster-stack">
-      {items.map((item) => (
-        <OrganizerEventCard key={item.id} item={item} placeTitle={placeTitleFor(item.placeId)} failed={publishErrorId === item.id} onOpen={onOpenEvent === undefined ? undefined : () => onOpenEvent(item)} />
-      ))}
+    <div className="app-evt-list">
+      {items.map((item) => {
+        const sold = seatsSold(item);
+        const when = new Date(item.startsAt);
+        const past = new Date(item.endsAt ?? item.startsAt).getTime() < Date.now();
+        const status = item.draft ? "Черновик" : past ? "Архив" : "Опубликовано";
+        return (
+          <button key={item.id} type="button" className="app-evt-card" onClick={() => { setDetailTab("info"); setDetailId(item.id); }}>
+            <span className="app-evt-photo">
+              <img alt="" src={pictured(item.id, item.coverUrl)} />
+            </span>
+            <span className="app-evt-copy">
+              <span className="app-evt-title">{item.title}</span>
+              <span className="app-evt-meta">
+                {when.toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · {item.city}
+              </span>
+              <span className="app-evt-meta">
+                {item.capacity === null ? "Без лимита" : `${item.capacity} мест`} · Продано: {sold}
+              </span>
+              <span className={item.draft ? "app-evt-status app-evt-status--draft" : past ? "app-evt-status app-evt-status--archive" : "app-evt-status"}>{status}</span>
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
+  if (detail !== null && eventForm === null && placeForm === null) {
+    const known = CABINET_EVENTS.find((row) => row.id === detail.id);
+    const sold = seatsSold(detail);
+    const free = detail.capacity === null ? null : Math.max(detail.capacity - sold, 0);
+    const past = new Date(detail.endsAt ?? detail.startsAt).getTime() < Date.now();
+    return (
+      <section className="app-cab" aria-label="Событие">
+        <button type="button" className="app-cab-back" onClick={() => setDetailId(null)}>
+          Назад
+        </button>
+        <div className="app-evt-hero">
+          <img alt="" src={pictured(detail.id, detail.coverUrl)} />
+          <span className={detail.draft ? "app-evt-status app-evt-status--draft" : past ? "app-evt-status app-evt-status--archive" : "app-evt-status"}>{detail.draft ? "Черновик" : past ? "Архив" : "Опубликовано"}</span>
+        </div>
+        <h1 className="app-cab-title">{detail.title}</h1>
+        <p className="app-evt-meta">
+          {new Date(detail.startsAt).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+          {detail.endsAt ? ` – ${new Date(detail.endsAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}` : ""}
+        </p>
+        <p className="app-evt-meta">
+          {placeTitleFor(detail)}, {detail.city}
+        </p>
+        <p className="app-evt-tags">{(known?.tags ?? [CATEGORY_LABELS[detail.category]]).join(" · ")}</p>
+        <p className="app-cab-lead">{known?.description ?? detail.description}</p>
+        <div className="app-cab-metrics">
+          <article className="app-cab-metric">
+            <span className="app-cab-metric-label">Всего мест</span>
+            <b>{detail.capacity ?? "—"}</b>
+          </article>
+          <article className="app-cab-metric">
+            <span className="app-cab-metric-label">Продано</span>
+            <b>{sold}</b>
+          </article>
+          <article className="app-cab-metric">
+            <span className="app-cab-metric-label">Свободно</span>
+            <b>{free ?? "—"}</b>
+          </article>
+        </div>
+        <button type="button" className="app-fin-withdraw" onClick={() => openEventForm({ mode: "edit", id: detail.id, draft: eventDraftFrom(detail), offerPublish: detail.draft })}>
+          Редактировать
+        </button>
+        <div className="app-evt-filters" role="tablist" aria-label="Карточка события">
+          {(
+            [
+              ["info", "Информация"],
+              ["tickets", "Билеты"],
+              ["stats", "Статистика"],
+            ] as const
+          ).map(([id, label]) => (
+            <button key={id} type="button" role="tab" aria-selected={detailTab === id} className={detailTab === id ? "app-evt-filter app-evt-filter--on" : "app-evt-filter"} onClick={() => setDetailTab(id)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {detailTab === "info" && (
+          <article className="app-cab-card">
+            <h2 className="app-cab-card-title">Основная информация</h2>
+            <p className="app-evt-meta">Площадка · {placeTitleFor(detail)}</p>
+            <p className="app-evt-meta">Категория · {CATEGORY_LABELS[detail.category]}</p>
+            <p className="app-evt-meta">Возрастное ограничение · {known?.age ?? "0+"}</p>
+            <p className="app-cab-lead">{known?.summary ?? detail.description}</p>
+          </article>
+        )}
+        {detailTab === "tickets" && (
+          <article className="app-cab-card">
+            <h2 className="app-cab-card-title">Билеты</h2>
+            <p className="app-evt-meta">{detail.isPaid && detail.priceRub !== null ? `${detail.priceRub} ₽` : "Бесплатно"}</p>
+            <p className="app-evt-meta">Продано {sold} из {detail.capacity ?? "без лимита"}</p>
+          </article>
+        )}
+        {detailTab === "stats" && (
+          <article className="app-cab-card">
+            <h2 className="app-cab-card-title">Статистика</h2>
+            <p className="app-evt-meta">Выручка {detail.isPaid && detail.priceRub !== null ? `${(detail.priceRub * sold).toLocaleString("ru-RU")} ₽` : "0 ₽"}</p>
+            <p className="app-evt-meta">Заполняемость {detail.capacity ? `${Math.round((sold / detail.capacity) * 100)}%` : "—"}</p>
+          </article>
+        )}
+        {!detail.draft && !past && (
+          <button type="button" className="app-evt-unpublish" onClick={() => setDetailId(null)}>
+            Снять с публикации
+          </button>
+        )}
+      </section>
+    );
+  }
 
   return (
     <section className="app-gathering">
@@ -899,24 +1031,38 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
       </div>
       {tab === "events" && (
         <>
-          <AppButton stretched onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
-            Создать событие
-          </AppButton>
-          <input className="app-profile-input" aria-label="Поиск события" placeholder="Название" value={eventQuery} onChange={(change) => setEventQuery(change.target.value)} />
-          <div className="app-filters-chips" role="group" aria-label="Состояние событий">
+          <div className="app-cab-actions">
+            <button type="button" className="app-fin-withdraw" onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
+              <span className="app-fin-withdraw-plus" aria-hidden="true">
+                +
+              </span>
+              Создать событие
+            </button>
+            <button type="button" className="app-fin-withdraw" onClick={() => openPlaceForm({ mode: "create", draft: EMPTY_PLACE_DRAFT })}>
+              <span className="app-fin-withdraw-plus" aria-hidden="true">
+                +
+              </span>
+              Добавить место
+            </button>
+          </div>
+          <div className="app-evt-tools">
+            <input className="app-profile-input" aria-label="Поиск" placeholder="Поиск" value={eventQuery} onChange={(change) => setEventQuery(change.target.value)} />
+          </div>
+          <p className="app-cab-lead">Ваши события и статистика</p>
+          <div className="app-evt-filters" role="tablist" aria-label="Состояние событий">
             {(
               [
-                ["upcoming", "Предстоящие"],
-                ["drafts", "Черновики"],
-                ["past", "Прошедшие"],
+                ["all", "Все", merged.length],
+                ["published", "Опубликованные", groups?.upcoming.length ?? 0],
+                ["drafts", "Черновики", groups?.drafts.length ?? 0],
+                ["archive", "Архив", groups?.past.length ?? 0],
               ] as const
-            ).map(([id, label]) => (
-              <AppChip key={id} pressed={eventFilter === id} onClick={() => setEventFilter(id)}>
-                {label}
-              </AppChip>
+            ).map(([id, label, count]) => (
+              <button key={id} type="button" role="tab" aria-selected={eventFilter === id} className={eventFilter === id ? "app-evt-filter app-evt-filter--on" : "app-evt-filter"} onClick={() => setEventFilter(id)}>
+                {label} {count}
+              </button>
             ))}
           </div>
-          <p className="app-gathering-hint">Нажмите карточку — откроется управление событием. Редактирование находится там, не под карточкой.</p>
           <OrganizerListStatus state={events} emptyText="Пока нет событий — создайте первое." />
           {events.status === "ready" && events.items.length > 0 && visibleEvents.length === 0 && (
             <>
@@ -926,7 +1072,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
                 stretched
                 onClick={() => {
                   setEventQuery("");
-                  setEventFilter("upcoming");
+                  setEventFilter("all");
                 }}
               >
                 Сбросить

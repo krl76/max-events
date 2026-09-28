@@ -1,51 +1,44 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { chartPeak, periodCaption, STATS_SNAPSHOTS, OrganizerStatistics } from "./OrganizerStatistics";
-import { formatRub } from "./OrganizerFinance";
+import { CABINET_EVENTS, cabinetStats, defaultStatsRange } from "./cabinet-catalog";
+import { chartPeak, periodCaption, OrganizerStatistics } from "./OrganizerStatistics";
 
 const noop = () => {};
 
-describe("STATS_SNAPSHOTS", () => {
-  it("opens on the 30-day mock: income, four counters and the five events", () => {
-    const snapshot = STATS_SNAPSHOTS[30];
+describe("cabinetStats", () => {
+  it("counts the Moscow bureau events inside the chosen dates", () => {
+    const range = defaultStatsRange();
+    const stats = cabinetStats(CABINET_EVENTS, new Date(`${range.from}T00:00:00+03:00`), new Date(`${range.to}T23:59:59+03:00`));
 
-    expect(snapshot.incomeRub).toBe(482_750);
-    expect(snapshot.delta).toBe(24);
-    expect(snapshot.events).toBe(12);
-    expect(snapshot.tickets).toBe(2_842);
-    expect(snapshot.averageRub).toBe(1_176);
-    expect(snapshot.conversion).toBe(82);
-    expect(snapshot.rows.map((row) => [row.title, row.percent])).toEqual([
-      ["Вечер джаза на Патриарших", 32],
-      ["Ночной забег по набережной", 24],
-      ["Экскурсия по Замоскворечью", 18],
-      ["Фестиваль уличной еды", 14],
-      ["Клуб «Ритм»", 12],
-    ]);
-    expect(snapshot.promos).toBe(5);
-    expect(snapshot.mailings).toBe(3);
+    expect(CABINET_EVENTS.length).toBeGreaterThanOrEqual(25);
+    expect(stats.events).toBeGreaterThan(0);
+    expect(stats.incomeRub).toBeGreaterThan(0);
+    expect(stats.tickets).toBeGreaterThan(0);
+    expect(stats.rows[0]?.title).toBe("Органный вечер в соборе");
   });
 
-  it("changes the income when the account period changes and marks the chart peak", () => {
-    expect(STATS_SNAPSHOTS[7].incomeRub).toBe(86_400);
-    expect(STATS_SNAPSHOTS[90].events).toBe(28);
+  it("changes the total when the range moves onto the October concerts", () => {
+    const october = cabinetStats(CABINET_EVENTS, new Date("2026-10-01T00:00:00+03:00"), new Date("2026-10-31T23:59:59+03:00"));
+    const september = cabinetStats(CABINET_EVENTS, new Date("2026-09-01T00:00:00+03:00"), new Date("2026-09-26T23:59:59+03:00"));
+
+    expect(october.incomeRub).not.toBe(september.incomeRub);
+    expect(october.rows.some((row) => row.title === "Концерт в зале «Зарядье»")).toBe(true);
     expect(chartPeak([{ label: "23.09", value: 8_000 }, { label: "27.09", value: 32_400 }])).toEqual({ label: "27.09", value: 32_400 });
     expect(periodCaption(30)).toBe("Последние 30 дней");
   });
 });
 
 describe("OrganizerStatistics", () => {
-  it("draws the statistics mock and the create-event button", () => {
+  it("draws a calendar range and does not offer to create an event", () => {
     const html = renderToStaticMarkup(createElement(OrganizerStatistics, { onCreateEvent: noop }));
 
     expect(html).toContain("Статистика");
     expect(html).toContain("Полная аналитика вашего аккаунта");
-    expect(html).toContain(formatRub(482_750));
-    expect(html).toContain("+24%");
+    expect(html).toContain("Диапазон дат");
+    expect(html).toContain("26.09.2026");
     expect(html).toContain("Динамика дохода");
-    expect(html).toContain("32\u00a0400");
-    expect(html).toContain("Создать событие");
+    expect(html).not.toContain("Создать событие");
     expect(html).toContain("Уведомления");
   });
 });
