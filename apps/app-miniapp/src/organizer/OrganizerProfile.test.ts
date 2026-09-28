@@ -24,49 +24,17 @@ describe("OrganizerProfileView", () => {
         onList: noop,
         onOpenEvent: noop,
         onSettings: noop,
-        onLogout: noop,
         onPickAvatar: noop,
         onPickCover: noop,
-        surface: "cabinet",
-        onSurface: noop,
       }),
     );
 
     expect(html).toContain("Парк Горького");
-    expect(html).toContain("Публичная страница");
-    expect(html).toContain("Данные организации");
-    expect(html).toContain("Выйти из кабинета");
-  });
-
-  it("keeps the public page as a cover, events and places", () => {
-    const html = renderToStaticMarkup(
-      createElement(OrganizerProfileView, {
-        name: "Парк Горького",
-        about: "Москва · События",
-        avatarUrl: null,
-        coverUrl: null,
-        events: [],
-        places: [],
-        subscriptions: [],
-        followers: [],
-        tab: "events",
-        list: null,
-        failed: false,
-        onTab: noop,
-        onList: noop,
-        onOpenEvent: noop,
-        onSettings: noop,
-        onLogout: noop,
-        onPickAvatar: noop,
-        onPickCover: noop,
-        surface: "public",
-        onSurface: noop,
-      }),
-    );
-
     expect(html).toContain("События");
     expect(html).toContain("Места");
     expect(html).toContain("подписок");
+    expect(html).toContain("подписчиков");
     expect(html).toContain("Шапка");
+    expect(html).toContain("Настройки");
   });
 });
