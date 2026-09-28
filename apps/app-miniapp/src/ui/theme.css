@@ -19414,19 +19414,22 @@ button.app-cal-peer-chip {
   padding: 6px;
 }
 
-.app-me-tab {
+  align-items: center;
   background: none;
   border: none;
   border-radius: var(--app-radius-pill);
   color: var(--app-text-secondary);
   cursor: pointer;
+  display: flex;
   flex: 1;
   font: inherit;
-  font-size: var(--app-font-size-callout);
+  font-size: 13px;
   font-weight: 800;
   height: 44px;
-  padding: 0 16px;
-}
+  justify-content: center;
+  line-height: 1;
+  padding: 0 6px;
+  white-space: nowrap;
 
 .app-me-tab--active {
   background: var(--app-canvas);

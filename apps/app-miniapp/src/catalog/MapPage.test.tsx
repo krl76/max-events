@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { mockEvents } from "../api/mock";
 import { MapPageView } from "./MapPage";
+import { mapAttractionAsk } from "./MapScreen";
 
 const noop = () => {};
 
@@ -34,5 +35,13 @@ describe("MapPageView", () => {
     expect(html).toContain("Поиск");
     expect(html).not.toContain("Спросить");
     expect(html).not.toContain(">Поиск<");
+  });
+});
+
+describe("mapAttractionAsk", () => {
+  it("asks about the city's sights when the field is empty, and about the typed place otherwise", () => {
+    expect(mapAttractionAsk("Казань", "  ")).toContain("достопримечательности");
+    expect(mapAttractionAsk("Казань", "  ")).toContain("Казань");
+    expect(mapAttractionAsk("Казань", "Кремль")).toContain("Кремль");
   });
 });

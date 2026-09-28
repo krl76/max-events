@@ -139,13 +139,14 @@ describe("routeIsFullscreen", () => {
     expect(routeIsFullscreen({ name: "feed-new", eventId: null })).toBe(true);
     expect(routeIsFullscreen({ name: "assist", ask: null })).toBe(true);
     expect(routeIsFullscreen({ name: "day-route" })).toBe(true);
+    expect(routeIsFullscreen({ name: "calendar" })).toBe(true);
   });
 
   it("leaves the shell in place everywhere else, the «Создать» hub included", () => {
     expect(routeIsFullscreen({ name: "create" })).toBe(false);
     expect(routeIsFullscreen({ name: "micro-new" })).toBe(false);
     expect(routeIsFullscreen({ name: "home" })).toBe(false);
-    expect(routeIsFullscreen({ name: "calendar" })).toBe(false);
+    expect(routeIsFullscreen({ name: "event", id: "e1" })).toBe(false);
     expect(routeIsFullscreen({ name: "event", id: "e1" })).toBe(false);
   });
 });

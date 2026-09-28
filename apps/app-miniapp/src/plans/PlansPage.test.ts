@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { formatDistance, planCompanyLabel, planDistanceLabel, planMeetingLabel, planPartyLabel, planWhenPlace, PlansPage, PlansView, type PlansState } from "./PlansPage";
+import { formatDistance, featuredAfterSwipe, planCompanyLabel, planDistanceLabel, planMeetingLabel, planPartyLabel, planWhenPlace, PlansPage, PlansView, type PlansState } from "./PlansPage";
 import { pluralRu } from "../catalog/format";
 import { planCards } from "../api/mock";
 
@@ -67,7 +67,17 @@ describe("PlansPage", () => {
     const html = renderToStaticMarkup(createElement(PlansPage));
 
     expect(html).toContain("Планы");
-    expect(html).toContain("Новый план");
+    expect(html).not.toContain("Новый план");
     expect(html).not.toContain("app-tab-row");
+  });
+});
+
+describe("featuredAfterSwipe", () => {
+  it("pages the hero only after a real horizontal swipe", () => {
+    expect(featuredAfterSwipe(0, 3, -80)).toBe(1);
+    expect(featuredAfterSwipe(2, 3, 80)).toBe(1);
+    expect(featuredAfterSwipe(0, 3, -20)).toBe(0);
+    expect(featuredAfterSwipe(0, 1, -80)).toBe(0);
+    expect(featuredAfterSwipe(2, 3, -80)).toBe(2);
   });
 });

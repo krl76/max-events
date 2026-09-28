@@ -245,9 +245,9 @@ export function SharedCalendarView({ shared, entries, month, selected, now, onSe
   const viewingPeer = shared.status === "ready" ? shared.shared.peers.find((peer) => peer.friend.id === scope) : undefined;
   return (
     <section className={chrome ? "app-cal app-cal--screen" : "app-cal"} aria-label="Календарь планов">
-      {chrome && (
+      {chrome && viewingPeer !== undefined && (
         <div className="app-cal-top">
-          <h1 className="app-cal-top-title">{viewingPeer ? viewingPeer.friend.name.split(" ")[0] : "Календарь"}</h1>
+          <h1 className="app-cal-top-title">{viewingPeer.friend.name.split(" ")[0]}</h1>
         </div>
       )}
       <div className="app-cal-scroll">

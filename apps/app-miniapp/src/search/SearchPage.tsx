@@ -213,11 +213,17 @@ const SEARCH_TOOLS: Array<{ id: string; label: string; aria: string; icon: "spar
   { id: "nearby", label: "Рядом", aria: "Рядом со мной", icon: "clock" },
   { id: "micro", label: "Сборы", aria: "Микро-события", icon: "users" },
   { id: "route", label: "Маршрут", aria: "Маршрут на день", icon: "navigation" },
+  { id: "walk", label: "Прогулка", aria: "Маршрут по городу", icon: "navigation" },
 ];
 
-/** Seven doors, three columns. The day route starts the third row; two more icons can join it later. */
-export function SearchTools({ onAsk, onSwipe, onMap, onWhereto, onNearby, onMicro, onDayRoute, nearbyLabel = "Рядом", nearbyAria = "Рядом со мной" }: { onAsk: () => void; onSwipe: () => void; onMap: () => void; onWhereto: () => void; onNearby: () => void; onMicro: () => void; onDayRoute: () => void; nearbyLabel?: string; nearbyAria?: string }) {
-  const go = { ask: onAsk, swipe: onSwipe, map: onMap, whereto: onWhereto, nearby: onNearby, micro: onMicro, route: onDayRoute };
+/** MAX AI walking route through the selected city's sights, not the personal day planner. */
+export function cityWalkAsk(city: string): string {
+  return `Собери пеший маршрут по достопримечательностям города ${city}: 4–6 остановок по порядку, время между точками и где поесть рядом.`;
+}
+
+/** Seven doors, three columns. The day route and the city walk share the last row. */
+export function SearchTools({ onAsk, onSwipe, onMap, onWhereto, onNearby, onMicro, onDayRoute, onCityWalk, nearbyLabel = "Рядом", nearbyAria = "Рядом со мной" }: { onAsk: () => void; onSwipe: () => void; onMap: () => void; onWhereto: () => void; onNearby: () => void; onMicro: () => void; onDayRoute: () => void; onCityWalk: () => void; nearbyLabel?: string; nearbyAria?: string }) {
+  const go = { ask: onAsk, swipe: onSwipe, map: onMap, whereto: onWhereto, nearby: onNearby, micro: onMicro, route: onDayRoute, walk: onCityWalk };
   return (
     <div className="app-search-tools">
       {SEARCH_TOOLS.map((tool) => (
@@ -423,6 +429,7 @@ interface SearchViewProps {
   onAsk: () => void;
   onOpenMicro: () => void;
   onDayRoute: () => void;
+  onCityWalk: () => void;
   onRetry: () => void;
   /** The feed search icon opens this screen with the field already open. */
   searchFieldOpen?: boolean;
@@ -475,7 +482,7 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
   return (
     <div className="app-search">
       <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} onPickRecent={props.onPickRecent} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
-      <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} onDayRoute={props.onDayRoute} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
+      <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} onDayRoute={props.onDayRoute} onCityWalk={props.onCityWalk} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
       <div className="app-bills">
         <section className={fold === "hot" ? "app-bill app-bill--open" : "app-bill"}>
           <button type="button" className="app-bill-title" aria-expanded={fold === "hot"} onClick={() => openFold("hot")}>
@@ -646,7 +653,7 @@ export function SearchPage() {
       <HeaderSlot>
         <SearchTopBar city={city} cities={cities.length === 0 ? [city] : cities} onCity={setCity} trailing={<SearchFilters category={category} onCategory={setCategory} />} />
       </HeaderSlot>
-      <SearchView state={state} popular={popular} today={shownToday} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city, ...openDay })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} onExpand={() => navigate({ name: "browse", list: "nearby", city, ...openDay })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} day={day} onDay={(next) => { if (/^\d{4}-\d{2}-\d{2}$/.test(next)) setDay(next); }} dayScoped={dayScoped} suitableState={suitableState} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onDayRoute={() => navigate({ name: "day-route" })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />
+      <SearchView state={state} popular={popular} today={shownToday} query={query} onQuery={setQuery} onSubmit={() => openResults(query)} onPickRecent={openResults} onOpenList={(list) => navigate({ name: "browse", list, city, ...openDay })} recents={recents} city={city} cities={cities} onCity={setCity} category={category} onCategory={setCategory} onExpand={() => navigate({ name: "browse", list: "nearby", city, ...openDay })} hintDismissed={hintDismissed} onDismissHint={() => setHintDismissed(true)} now={now} day={day} onDay={(next) => { if (/^\d{4}-\d{2}-\d{2}$/.test(next)) setDay(next); }} dayScoped={dayScoped} suitableState={suitableState} onOpenEvent={(id) => navigate({ name: "event", id })} onSwipe={() => navigate({ name: "swipe" })} onMap={() => navigate({ name: "map" })} onWhereto={() => navigate({ name: "whereto" })} onNearby={() => navigate({ name: "nearby" })} onAsk={() => navigate({ name: "assist", ask: null })} onOpenMicro={() => navigate({ name: "micro" })} onDayRoute={() => navigate({ name: "day-route" })} onCityWalk={() => navigate({ name: "assist", ask: cityWalkAsk(city) })} onRetry={() => setAttempt((count) => count + 1)} searchFieldOpen={route.name === "search" && route.focus === true} distancesFromViewer={todayPoint.fromViewer} catalogInCity={catalogPoint.fromViewer} />
     </>
   );
 }

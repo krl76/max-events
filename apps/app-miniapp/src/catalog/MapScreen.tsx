@@ -595,9 +595,18 @@ interface MapScreenProps {
   focusPlaceId?: string | null;
   /** Открыть карту уже с построенным маршрутом до выбранной площадки. */
   drawRoute?: boolean;
+  /** Поиск достопримечательностей уходит в MAX AI, а не фильтрует пины локально. */
+  onAskAi?: (ask: string) => void;
+};
+
+/** What the map search asks MAX: the typed place, or the city's sights when the field is empty. */
+export function mapAttractionAsk(city: string, query: string): string {
+  const trimmed = query.trim();
+  if (trimmed === "") return `Найди достопримечательности в городе ${city} и коротко скажи, куда сходить.`;
+  return `Найди в городе ${city}: ${trimmed}. Если это место или достопримечательность — где оно и чем интересно.`;
 }
 
-export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false }: MapScreenProps) {
+export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false, onAskAi }: MapScreenProps) {
   const located = useProfileCityPoint();
   const weatherCity = located.city ?? city;
   // Until the profile city is known the canvas stays on Moscow. A far GPS fix must not pan the map away from the catalog.
@@ -947,6 +956,11 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
         <form className="app-map16-search" role="search" onSubmit={(event) => event.preventDefault()}>
           <ActionIcon name="search" size={18} />
           <input className="app-map16-search-input" type="search" aria-label="Поиск" placeholder="Поиск" value={query} onChange={(typed) => setQuery(typed.target.value)} />
+          {onAskAi !== undefined && (
+            <button type="button" className="app-map16-locate" aria-label="Спросить MAX" onClick={() => onAskAi(mapAttractionAsk(weatherCity, query))}>
+              <ActionIcon name="spark" size={18} />
+            </button>
+          )}
           <button type="button" className={basemapsOpen ? "app-map16-locate app-map16-locate--on" : "app-map16-locate"} aria-expanded={basemapsOpen} aria-pressed={basemapsOpen} aria-label="Карта" onClick={() => { setBasemapsOpen((open) => !open); setWeatherOpen(false); setFiltersOpen(false); }}>
             <ActionIcon name="layers" size={18} />
           </button>

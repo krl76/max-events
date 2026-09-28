@@ -17,7 +17,7 @@
 // - PlansPage - «Моё» route container: один ряд фильтров над планами, бронями, календарём и сохранённым; entries to the «Мы» groups and the day route builder
 // END_MODULE_MAP
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Plan, PlanCard } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
@@ -69,6 +69,13 @@ export function planPartyLabel(friendCount: number): string {
   return `${total} ${pluralRu(total, "участник", "участника", "участников")}`;
 }
 
+/** Horizontal swipe on the hero. A short drag is a tap, not a page change. */
+  export function featuredAfterSwipe(index: number, count: number, deltaX: number): number {
+  if (count <= 1 || Math.abs(deltaX) < 48) return index;
+  if (deltaX < 0) return Math.min(count - 1, index + 1);
+  return Math.max(0, index - 1);
+}
+
 export type PlansState = { status: "loading" } | { status: "error" } | { status: "ready"; cards: PlanCard[] };
 
 function PlanCreate({ onCreate }: { onCreate?: () => void }) {
@@ -88,6 +95,8 @@ function PlanCreate({ onCreate }: { onCreate?: () => void }) {
 
 export function PlansView({ state, onOpen, onExplore, onCreate, distancesFromViewer = true }: { state: PlansState; onOpen: (planId: string) => void; onExplore: () => void; onCreate?: () => void; distancesFromViewer?: boolean }) {
   const [featured, setFeatured] = useState(0);
+  const swipeStart = useRef<number | null>(null);
+  const swiped = useRef(false);
   if (state.status === "loading")
     return (
       <div className="app-plans" aria-hidden="true">
@@ -115,7 +124,31 @@ export function PlansView({ state, onOpen, onExplore, onCreate, distancesFromVie
   return (
     <div className="app-plans">
       <p className="app-plans-kicker">Ближайший план</p>
-      <button type="button" className="app-plans-hero" onClick={() => onOpen(hero.plan.id)}>
+      <button
+        type="button"
+        className="app-plans-hero"
+        style={{ touchAction: "pan-y" }}
+        onPointerDown={(event) => {
+          swipeStart.current = event.clientX;
+          swiped.current = false;
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerUp={(event) => {
+          if (swipeStart.current === null) return;
+          const next = featuredAfterSwipe(index, state.cards.length, event.clientX - swipeStart.current);
+          swipeStart.current = null;
+          if (next === index) return;
+          swiped.current = true;
+          setFeatured(next);
+        }}
+        onClick={() => {
+          if (swiped.current) {
+            swiped.current = false;
+            return;
+          }
+          onOpen(hero.plan.id);
+        }}
+      >
         <AppMedia category={hero.event.category} src={pictured(hero.event.id, hero.event.coverUrl)} />
         <span className="app-plans-hero-copy">
           <span className="app-plans-hero-title">{hero.event.title}</span>
@@ -201,9 +234,6 @@ export function PlansPage() {
     <section className="app-plans-screen" aria-label="Планы">
       <div className="app-plans-bar">
         <h1>Планы</h1>
-        <button type="button" className="app-plans-add" aria-label="Новый план" onClick={() => navigate({ name: "plan-new" })}>
-          <ActionIcon name="plus" size={20} strokeWidth={2.4} />
-        </button>
       </div>
       <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "search" })} onCreate={() => navigate({ name: "plan-new" })} distancesFromViewer={point.fromViewer} />
     </section>
