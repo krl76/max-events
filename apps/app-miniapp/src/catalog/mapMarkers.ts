@@ -98,32 +98,18 @@ export const MAP_STACK_DEGREES = 0.0003;
 /** At street zoom only the same doorway stays one bubble. Two houses a few dozen metres apart split. */
 export const MAP_STACK_STREET_DEGREES = 0.00004;
 
+/** Пины ближе этого зазора на экране ещё одна цифра. Дальше каждый стоит на своей координате. */
+const CLUSTER_GAP_PX = 40;
+
+/** Сколько градусов широты занимает зазор пина на этом зуме. От зума зазор в метрах уменьшается, координаты маркеров не двигаются. */
+export function clusterReachDegrees(zoom: number, latitude = 55.75): number {
+  const level = Number.isFinite(zoom) ? Math.max(zoom, 0) : MAP_CLUSTER_BASE_ZOOM;
+  const metersPerPixel = (156543.03392 * Math.cos((latitude * Math.PI) / 180)) / 2 ** level;
+  return (CLUSTER_GAP_PX * metersPerPixel) / 111320;
+}
+
 export function clusterMapMarkers(markers: MapMarker[], zoom: number): MapCluster[] {
-  const base =
-    zoom >= MAP_CLUSTER_MAX_ZOOM
-      ? markers.map(loneCluster)
-      : (() => {
-          const cell = clusterCellDegrees(zoom);
-          const buckets = new Map<string, MapMarker[]>();
-          const order: string[] = [];
-          for (const marker of markers) {
-            const cellKey = `${Math.floor(marker.lat / cell)}:${Math.floor(marker.lng / cell)}`;
-            const bucket = buckets.get(cellKey);
-            if (bucket === undefined) {
-              buckets.set(cellKey, [marker]);
-              order.push(cellKey);
-            } else bucket.push(marker);
-          }
-          return order.map((cellKey) => {
-            const group = buckets.get(cellKey) ?? [];
-            if (group.length === 1) return loneCluster(group[0]);
-            const lat = group.reduce((sum, marker) => sum + marker.lat, 0) / group.length;
-            const lng = group.reduce((sum, marker) => sum + marker.lng, 0) / group.length;
-            return { key: `cluster-${group[0].key}`, lat, lng, markers: group };
-          });
-        })();
-  const stackReach = zoom >= MAP_CLUSTER_MAX_ZOOM ? MAP_STACK_STREET_DEGREES : MAP_STACK_DEGREES;
-  return stackColocated(base, stackReach);
+  return stackColocated(markers.map(loneCluster), clusterReachDegrees(zoom));
 }
 
 function stackColocated(clusters: MapCluster[], reach: number): MapCluster[] {

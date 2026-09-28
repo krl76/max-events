@@ -742,22 +742,32 @@ export function FeedScreen() {
 
   const fetchCards = useCallback(
     (initial: boolean) => {
+      if (auth.status === "loading") return;
       if (initial && feedMemory === null) setState({ status: "loading" });
+      let alive = true;
       apiClient.listFeedCards(userId ?? "").then(
         (cards) => {
+          if (!alive) return;
           feedMemory = cards;
           setState({ status: "ready", cards });
         },
         // A failed refresh after a write must not blank a feed that is already on screen.
-        () => setState((current) => (initial && feedMemory === null ? { status: "error" } : current)),
+        () => {
+          if (!alive) return;
+          setState((current) => (initial && feedMemory === null ? { status: "error" } : current));
+        },
       );
+      return () => {
+        alive = false;
+      };
     },
-    [userId],
+    [userId, auth.status],
   );
 
   useEffect(() => {
-    fetchCards(true);
-  }, [fetchCards]);
+    if (auth.status === "loading") return;
+    return fetchCards(true);
+  }, [fetchCards, auth.status]);
 
   useLayoutEffect(() => {
     if (state.status !== "ready") return;

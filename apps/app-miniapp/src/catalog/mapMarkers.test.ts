@@ -174,12 +174,12 @@ describe("clusterMapMarkers", () => {
     expect(clusters[1].markers.map((marker) => marker.key)).toEqual(["c"]);
   });
 
-  it("holds one doorway together at street zoom and splits two houses without a tap", () => {
+  it("holds one doorway together when the map is close and splits two houses once a pin of space appears", () => {
     const sameDoor = [point("a", 55.75, 37.61), point("b", 55.75, 37.61001)];
     const houses = [point("a", 55.75, 37.61), point("b", 55.75012, 37.61012)];
 
-    expect(clusterMapMarkers(sameDoor, MAP_CLUSTER_MAX_ZOOM)).toHaveLength(1);
-    expect(clusterMapMarkers(houses, MAP_CLUSTER_MAX_ZOOM)).toHaveLength(2);
+    expect(clusterMapMarkers(sameDoor, 18)).toHaveLength(1);
+    expect(clusterMapMarkers(houses, 18)).toHaveLength(2);
     expect(clusterMapMarkers(houses, MAP_CLUSTER_BASE_ZOOM).some((cluster) => cluster.markers.length > 1)).toBe(true);
   });
 

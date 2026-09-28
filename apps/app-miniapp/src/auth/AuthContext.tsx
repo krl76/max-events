@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch((error) => {
         console.error("Failed to load the auth source", error);
+        if (alive) setState({ status: "error", message: error instanceof Error ? error.message : "auth failed" });
       });
     return () => {
       alive = false;
