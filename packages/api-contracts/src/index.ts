@@ -44,3 +44,4 @@ export * from "./vote.js";
 export * from "./payment.js";
 export * from "./assist.js";
 export * from "./notification.js";
+export * from "./city-walk.js";
