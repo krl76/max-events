@@ -35,9 +35,9 @@ import { pluralRu } from "../catalog/format";
 
 export const ONBOARDING_STORAGE_KEY = "max-events:onboarding";
 
-export type OnboardingStep = "intro" | "city" | "friends" | "interests" | "bio";
+export type OnboardingStep = "intro" | "city" | "friends" | "interests";
 
-export const ONBOARDING_STEPS: readonly OnboardingStep[] = ["intro", "city", "friends", "interests", "bio"];
+export const ONBOARDING_STEPS: readonly OnboardingStep[] = ["intro", "city", "friends", "interests"];
 
 /** null means the flow is over — the caller hands the viewer to the feed. */
 export function nextOnboardingStep(step: OnboardingStep): OnboardingStep | null {
@@ -63,7 +63,7 @@ export function onboardingForwardBlock(step: OnboardingStep, interestsCount: num
   return `Выбери ещё ${left} ${pluralRu(left, "интерес", "интереса", "интересов")} — и пойдём дальше`;
 }
 
-/** The intro is not on the rail: it carries slide dots, the other steps carry the Город · Друзья · Интересы · О себе progress. */
+/** The intro is not on the rail: it carries slide dots, the other steps carry Город · Друзья · Интересы. */
 export function onboardingRailIndex(step: OnboardingStep): number {
   return step === "intro" ? -1 : ONBOARDING_STEPS.indexOf(step) - 1;
 }
@@ -189,6 +189,7 @@ export function followCtaLabel(count: number): string {
 }
 
 export function interestsCtaLabel(count: number): string {
+  if (count >= MIN_INTERESTS) return "Готово";
   return `Дальше · выбрано ${count}`;
 }
 

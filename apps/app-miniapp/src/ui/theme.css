@@ -3955,178 +3955,247 @@ html[data-theme="dark"] #root {
   margin: 0;
 }
 
-/* Вступление на базовом холсте: телефон медленно поворачивается, внутри лента событий едет без скачка, карточки рядом дышат. */
-.app-onboarding--stage {
+.app-onboarding-pager {
   background: var(--app-page);
+  height: 100dvh;
+  overflow: hidden;
+  position: relative;
 }
 
-.app-onboarding--stage .app-onboarding-hero-top {
+.app-onboarding-chrome {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  left: 0;
+  padding: 8px 12px 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 6;
+}
+
+.app-onboarding-chrome .app-onboarding-skip {
   color: var(--app-text);
-  flex: none;
-  padding: 12px var(--app-space-screen) 0;
-}
-
-.app-onboarding--stage .app-onboarding-skip {
-  color: var(--app-text-secondary);
   opacity: 1;
 }
 
-.app-onboarding--stage .app-onboarding-intro-body {
-  flex: none;
-  padding: 8px 28px 0;
+.app-onboarding-chrome .app-onboarding-back {
+  position: relative;
+  top: auto;
+  left: auto;
+  z-index: 6;
+}
+
+.app-onboarding-deck {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+.app-onboarding-page {
+  flex: 0 0 100%;
+  height: 100%;
+  min-width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-onboarding-track--move {
+  transition: transform 440ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.app-onboarding-scene {
+  inset: 0;
+  overflow: hidden;
+  perspective: 1100px;
+  position: absolute;
+}
+
+.app-onboarding-glow {
+  border-radius: 50%;
+  filter: blur(2px);
+  pointer-events: none;
+  position: absolute;
+}
+
+.app-onboarding-glow--a {
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.22), rgba(0, 122, 255, 0) 68%);
+  height: 280px;
+  left: -80px;
+  top: -40px;
+  width: 280px;
+}
+
+.app-onboarding-glow--b {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 70%);
+  bottom: 80px;
+  height: 240px;
+  right: -60px;
+  width: 240px;
+}
+
+.app-onboarding-card {
+  animation: app-onboarding-drift 7.5s ease-in-out infinite;
+  position: absolute;
+  width: 46%;
+}
+
+.app-onboarding-card-tilt {
+  background: var(--app-card);
+  border-radius: 22px;
+  box-shadow:
+    0 1px 1px rgba(6, 7, 8, 0.04),
+    0 18px 32px rgba(6, 7, 8, 0.1),
+    0 40px 70px rgba(6, 7, 8, 0.14);
+  overflow: hidden;
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.app-onboarding-card-photo {
+  aspect-ratio: 4 / 5;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-onboarding-card-shade {
+  background: linear-gradient(180deg, rgba(6, 7, 8, 0), rgba(6, 7, 8, 0.55));
+  inset: auto 0 0;
+  position: absolute;
+  height: 46%;
+}
+
+.app-onboarding-card-copy {
+  bottom: 10px;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  left: 12px;
+  position: absolute;
+  right: 12px;
+}
+
+.app-onboarding-card-title {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.app-onboarding-card-meta {
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.app-onboarding-card--1 {
+  left: -4%;
+  top: 4%;
+  width: 48%;
+}
+
+.app-onboarding-card--1 .app-onboarding-card-tilt {
+  transform: rotateY(22deg) rotateX(8deg) rotateZ(-8deg);
+}
+
+.app-onboarding-card--2 {
+  animation-delay: -1.4s;
+  right: -6%;
+  top: 0;
+  width: 44%;
+}
+
+.app-onboarding-card--2 .app-onboarding-card-tilt {
+  transform: rotateY(-26deg) rotateX(6deg) rotateZ(7deg);
+}
+
+.app-onboarding-card--3 {
+  animation-delay: -3s;
+  left: -8%;
+  top: 34%;
+  width: 40%;
+}
+
+.app-onboarding-card--3 .app-onboarding-card-tilt {
+  transform: rotateY(30deg) rotateZ(6deg) translateZ(12px);
+}
+
+.app-onboarding-card--4 {
+  animation-delay: -2.2s;
+  right: -8%;
+  top: 30%;
+  width: 42%;
+}
+
+.app-onboarding-card--4 .app-onboarding-card-tilt {
+  transform: rotateY(-18deg) rotateX(10deg) rotateZ(-6deg);
+}
+
+.app-onboarding-card--5 {
+  animation-delay: -4.5s;
+  left: 22%;
+  top: 52%;
+  width: 36%;
+}
+
+.app-onboarding-card--5 .app-onboarding-card-tilt {
+  transform: rotateX(14deg) rotateZ(-4deg) translateZ(24px);
+}
+
+.app-onboarding-card--6 {
+  animation-delay: -5.2s;
+  right: 4%;
+  top: 58%;
+  width: 38%;
+}
+
+.app-onboarding-card--6 .app-onboarding-card-tilt {
+  transform: rotateY(-20deg) rotateZ(5deg);
+}
+
+.app-onboarding-scene--2 .app-onboarding-card--1 {
+  left: 8%;
+}
+
+.app-onboarding-scene--3 .app-onboarding-card--2 {
+  top: 8%;
+}
+
+@keyframes app-onboarding-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -18px, 30px);
+  }
+}
+
+.app-onboarding-caption {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), var(--app-page) 38%);
+  bottom: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  padding: 88px 24px calc(16px + env(safe-area-inset-bottom, 0px));
+  position: absolute;
+  right: 0;
+  text-align: center;
+  z-index: 4;
+}
+
+.app-onboarding-caption .app-onboarding-kicker,
+.app-onboarding-caption .app-onboarding-intro-title,
+.app-onboarding-caption .app-onboarding-intro-text {
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .app-onboarding-kicker {
   color: var(--app-text-secondary);
   font-size: 13px;
   font-weight: 800;
-  margin: 8px var(--app-space-screen) 0;
-  text-align: center;
-}
-
-.app-onboarding-stage {
-  flex: 1 1 auto;
-  min-height: 250px;
-  overflow: hidden;
-  perspective: 900px;
-  position: relative;
-}
-
-.app-onboarding-phone {
-  background: #060708;
-  border-radius: 28px;
-  box-shadow: 18px 28px 0 rgba(6, 7, 8, 0.12);
-  height: 250px;
-  left: 50%;
-  margin-left: -68px;
-  padding: 8px;
-  position: absolute;
-  top: 18px;
-  transform-style: preserve-3d;
-  width: 136px;
-  animation: app-onboarding-phone 8s ease-in-out infinite;
-  z-index: 2;
-}
-
-@keyframes app-onboarding-phone {
-  0%,
-  100% {
-    transform: rotateY(-18deg) rotateX(8deg) translateY(0);
-  }
-
-  50% {
-    transform: rotateY(16deg) rotateX(4deg) translateY(-8px);
-  }
-}
-
-.app-onboarding-phone-screen {
-  background: #ffffff;
-  border-radius: 20px;
-  height: 100%;
-  overflow: hidden;
-}
-
-.app-onboarding-reel {
-  animation: app-onboarding-reel 14s linear infinite;
-}
-
-@keyframes app-onboarding-reel {
-  from {
-    transform: translateY(0);
-  }
-
-  to {
-    transform: translateY(-50%);
-  }
-}
-
-.app-onboarding-shot {
-  display: flex;
-  flex-direction: column;
-  height: 92px;
-  position: relative;
-}
-
-.app-onboarding-shot-photo,
-.app-onboarding-float-photo {
-  display: block;
-  height: 100%;
-  object-fit: cover;
-  width: 100%;
-}
-
-.app-onboarding-shot-copy {
-  background: linear-gradient(180deg, rgba(6, 7, 8, 0), rgba(6, 7, 8, 0.72));
-  bottom: 0;
-  color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  left: 0;
-  padding: 16px 8px 6px;
-  position: absolute;
-  right: 0;
-}
-
-.app-onboarding-shot-title,
-.app-onboarding-float-title {
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.app-onboarding-shot-meta {
-  font-size: 11px;
-  opacity: 0.9;
-}
-
-.app-onboarding-float {
-  animation: app-onboarding-float 6.5s ease-in-out infinite;
-  background: var(--app-card);
-  border-radius: 16px;
-  box-shadow: 0 16px 28px rgba(6, 7, 8, 0.18);
-  height: 92px;
-  overflow: hidden;
-  position: absolute;
-  width: 104px;
-  z-index: 3;
-}
-
-.app-onboarding-float-title {
-  background: var(--app-card);
-  color: var(--app-text);
-  display: block;
-  padding: 4px 8px 6px;
-}
-
-.app-onboarding-float-photo {
-  height: 62px;
-}
-
-.app-onboarding-float--1 {
-  left: 8px;
-  top: 28px;
-}
-
-.app-onboarding-float--2 {
-  animation-delay: -2.2s;
-  right: 6px;
-  top: 54px;
-}
-
-.app-onboarding-float--3 {
-  animation-delay: -4.1s;
-  bottom: 12px;
-  left: 18px;
-}
-
-@keyframes app-onboarding-float {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 24px) rotate(-8deg);
-  }
-
-  50% {
-    transform: translate3d(0, -14px, 56px) rotate(6deg);
-  }
+  margin: 0;
 }
 
 .app-onboarding-intro-text {
@@ -4202,11 +4271,11 @@ html[data-theme="dark"] #root {
 }
 
 .app-onboarding-rail--1::after {
-  width: calc((100% - 80px) / 3);
+  width: calc((100% - 80px) / 2);
 }
 
 .app-onboarding-rail--2::after {
-  width: calc((100% - 80px) * 2 / 3);
+  width: calc(100% - 80px);
 }
 
 .app-onboarding-rail--3::after {
@@ -20813,7 +20882,10 @@ button.app-cal-peer-chip {
  * полосе шагов места он занимать не должен: точки и подписи рассчитаны на всю
  * ширину, поэтому кнопка садится в свободное поле над первым шагом. */
 .app-onboarding-nav {
+  flex: none;
+  min-height: 52px;
   position: relative;
+  z-index: 5;
 }
 
 .app-onboarding-back {
@@ -20824,12 +20896,12 @@ button.app-cal-peer-chip {
   cursor: pointer;
   display: flex;
   height: 44px;
-  justify-content: center;
-  left: 2px;
+  justify-content: flex-start;
+  left: 8px;
   padding: 0;
-  position: absolute;
-  top: 20px;
-  width: 44px;
+  position: relative;
+  top: 8px;
+  z-index: 5;
 }
 
 /* Шеврон нарисован вправо; кнопка назад разворачивает его */

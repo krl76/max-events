@@ -24,7 +24,6 @@ function viewHtml(over: Partial<OnboardingViewProps> = {}): string {
     suggestions: over.suggestions ?? suggestions,
     followed: over.followed ?? ["a1"],
     interests: over.interests ?? [],
-    bio: over.bio ?? "",
     status: over.status ?? "ready",
     saveFailed: over.saveFailed ?? false,
     blocked: over.blocked ?? null,
@@ -34,7 +33,6 @@ function viewHtml(over: Partial<OnboardingViewProps> = {}): string {
     onLocate: noop,
     onToggleFriend: noop,
     onToggleInterest: noop,
-    onBio: noop,
     onNext: noop,
     onBack: noop,
   };
@@ -49,8 +47,7 @@ describe("intro step", () => {
     expect(html).toContain(INTRO_SLIDES[0].title);
     expect(html).toContain(INTRO_SLIDES[0].description);
     expect(html).toContain("Пропустить");
-    expect(html).toContain("Дальше");
-    expect(html).not.toContain("Начать");
+    expect(html.indexOf("Дальше")).toBeLessThan(html.indexOf("Начать"));
   });
 
   it("turns the last slide CTA into «Начать» and marks its dot", () => {
@@ -59,7 +56,7 @@ describe("intro step", () => {
     expect(html).toContain(INTRO_SLIDES[2].title);
     expect(html).toContain("Начать");
     expect(html).toContain("app-onboarding-dot--on");
-    expect(html).toContain("app-onboarding-stage");
+    expect(html).toContain("app-onboarding-scene");
   });
 
   it("renders the intro even before the profile and the contacts arrive", () => {
@@ -72,9 +69,9 @@ describe("intro step", () => {
   it("keeps the same moving phone on every slide, on the base canvas", () => {
     const html = viewHtml({ step: "intro", intro: 1 });
 
-    expect(html).toContain("app-onboarding--stage");
-    expect(html).toContain("app-onboarding-phone");
-    expect(html.match(/app-onboarding-shot-title/g)?.length).toBe(8);
+    expect(html).toContain("app-onboarding-scene");
+    expect(html).toContain("app-onboarding-card--1");
+    expect(html).toContain("app-onboarding-card--6");
     expect(html).toContain("Вечер джаза");
     expect(html).not.toContain("app-onboarding-hero--");
   });
@@ -176,23 +173,9 @@ describe("interests step", () => {
   it("opens the CTA once three interests are chosen", () => {
     const html = viewHtml({ step: "interests", interests: ["Концерты", "Спорт", "Театр"] });
 
-    expect(html).toContain("Дальше · выбрано 3");
+    expect(html).toContain("Готово");
     expect(html).not.toContain("disabled");
-  });
-});
-
-describe("bio step", () => {
-  it("offers a skippable description and a skip CTA when empty", () => {
-    const html = viewHtml({ step: "bio" });
-
-    expect(html).toContain("Пара слов о себе");
-    expect(html).toContain("Пропустить");
-    expect(html).toContain("textarea");
-    expect(html).not.toContain("Инстаграм");
-  });
-
-  it("turns the CTA into «Готово» once there is a bio", () => {
-    expect(viewHtml({ step: "bio", bio: "Люблю джаз" })).toContain("Готово");
+    expect(html).not.toContain("О себе");
   });
 });
 

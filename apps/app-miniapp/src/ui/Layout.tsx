@@ -260,6 +260,8 @@ export function Layout({ children }: { children: ReactNode }) {
   useEffect(() => {
     const button = getWebApp()?.BackButton;
     if (!button) return;
+    // Онбординг сам ведёт эту кнопку по своим шагам. Иначе «Назад» закрывает весь поток.
+    if (route.name === "onboarding") return;
     const onNativeBack = () => back();
     button.onClick(onNativeBack);
     if (isTabRoute(route.name)) button.hide();

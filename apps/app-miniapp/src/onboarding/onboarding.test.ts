@@ -2,17 +2,15 @@ import { describe, expect, it } from "vitest";
 import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, ONBOARDING_STEPS, ONBOARDING_STORAGE_KEY, bioCtaLabel, cityDetectionHint, cityForwardBlock, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, isOnboardingDone, markOnboardingDone, matchedOnboardingCity, profileSkipsOnboarding, nearestOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep } from "./onboarding";
 
 describe("onboarding step order", () => {
-  it("walks вступление → город → друзья → интересы → о себе and then hands over to the feed", () => {
-    expect(ONBOARDING_STEPS).toEqual(["intro", "city", "friends", "interests", "bio"]);
+  it("walks вступление → город → друзья → интересы and then hands over to the feed", () => {
+    expect(ONBOARDING_STEPS).toEqual(["intro", "city", "friends", "interests"]);
     expect(nextOnboardingStep("intro")).toBe("city");
     expect(nextOnboardingStep("city")).toBe("friends");
     expect(nextOnboardingStep("friends")).toBe("interests");
-    expect(nextOnboardingStep("interests")).toBe("bio");
-    expect(nextOnboardingStep("bio")).toBeNull();
+    expect(nextOnboardingStep("interests")).toBeNull();
   });
 
   it("walks back the same order and stops at the intro", () => {
-    expect(previousOnboardingStep("bio")).toBe("interests");
     expect(previousOnboardingStep("interests")).toBe("friends");
     expect(previousOnboardingStep("friends")).toBe("city");
     expect(previousOnboardingStep("city")).toBe("intro");
@@ -32,7 +30,6 @@ describe("onboarding step order", () => {
     expect(onboardingRailIndex("city")).toBe(0);
     expect(onboardingRailIndex("friends")).toBe(1);
     expect(onboardingRailIndex("interests")).toBe(2);
-    expect(onboardingRailIndex("bio")).toBe(3);
   });
 });
 
@@ -101,7 +98,8 @@ describe("onboarding labels", () => {
 
   it("shows the running interest counter on the last CTA", () => {
     expect(interestsCtaLabel(0)).toBe("Дальше · выбрано 0");
-    expect(interestsCtaLabel(5)).toBe("Дальше · выбрано 5");
+    expect(interestsCtaLabel(2)).toBe("Дальше · выбрано 2");
+    expect(interestsCtaLabel(MIN_INTERESTS)).toBe("Готово");
   });
 
   it("lets the bio step skip when empty and finish when filled", () => {

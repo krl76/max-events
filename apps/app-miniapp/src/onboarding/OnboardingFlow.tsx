@@ -11,64 +11,51 @@
 // - OnboardingFlow - route container: step state, the intro slide direction, profile and suggestion fetch, the follow and profile writes, the done flag
 // END_MODULE_MAP
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { FriendSuggestion } from "../api/client";
 import { apiClient } from "../api/client";
 import { AfishaWordmark } from "../auth/EntryPage";
-import { useSwipeDrag } from "../ui/gestures";
+import { getWebApp } from "../max/bridge";
+import { useSwipe } from "../ui/gestures";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppChip, AppState } from "../ui/primitives";
-import { PROFILE_BIO_MAX } from "@max-events/api-contracts";
 import { useViewerOrigin, requestViewerOrigin } from "../geo/viewer-origin";
 import { pictured } from "../ui/photos";
 import { useRoute } from "../routing/router";
-import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, bioCtaLabel, cityCardMeta, cityDetectionHint, cityForwardBlock, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, markOnboardingDone, matchedOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type CityDetectState, type IntroDirection, type OnboardingStep } from "./onboarding";
+import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, cityCardMeta, cityDetectionHint, cityForwardBlock, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, markOnboardingDone, matchedOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type CityDetectState, type IntroDirection, type OnboardingStep } from "./onboarding";
 
-const RAIL_LABELS = ["Город", "Друзья", "Интересы", "О себе"] as const;
+const RAIL_LABELS = ["Город", "Друзья", "Интересы"] as const;
 
-/** Cards that drift around the phone and scroll inside its screen. The reel repeats them so the loop has no jump. */
-const INTRO_STAGE = [
-  { id: "onboarding-jazz", title: "Вечер джаза", meta: "сегодня · 19:00" },
-  { id: "onboarding-park", title: "Парк Горького", meta: "завтра · 12:00" },
-  { id: "onboarding-court", title: "Корт у реки", meta: "сб · 11:00" },
-  { id: "onboarding-night", title: "Ночная афиша", meta: "пт · 21:00" },
+/** Floating cards. Slots cover the corners so the scene has no empty frame. */
+const INTRO_SCENE = [
+  { id: "onboarding-jazz", title: "Вечер джаза", meta: "сегодня · 19:00", slot: 1 },
+  { id: "onboarding-park", title: "Парк Горького", meta: "завтра · 12:00", slot: 2 },
+  { id: "onboarding-court", title: "Корт у реки", meta: "сб · 11:00", slot: 3 },
+  { id: "onboarding-night", title: "Ночная афиша", meta: "пт · 21:00", slot: 4 },
+  { id: "onboarding-walk", title: "Прогулка", meta: "в городе", slot: 5 },
+  { id: "onboarding-hall", title: "Камерный зал", meta: "вс · 18:00", slot: 6 },
 ] as const;
 
-function IntroStage() {
-  const reel = [...INTRO_STAGE, ...INTRO_STAGE];
+function IntroScene({ scene }: { scene: number }) {
   return (
-    <div className="app-onboarding-stage" aria-hidden="true">
-      {INTRO_STAGE.slice(0, 3).map((card, index) => (
-        <article key={card.id} className={`app-onboarding-float app-onboarding-float--${index + 1}`}>
-          <img className="app-onboarding-float-photo" alt="" src={pictured(card.id)} />
-          <span className="app-onboarding-float-title">{card.title}</span>
+    <div className={`app-onboarding-scene app-onboarding-scene--${scene}`} aria-hidden="true">
+      <span className="app-onboarding-glow app-onboarding-glow--a" />
+      <span className="app-onboarding-glow app-onboarding-glow--b" />
+      {INTRO_SCENE.map((card) => (
+        <article key={card.id} className={`app-onboarding-card app-onboarding-card--${card.slot}`}>
+          <div className="app-onboarding-card-tilt">
+            <img className="app-onboarding-card-photo" alt="" src={pictured(card.id)} />
+            <span className="app-onboarding-card-shade" />
+            <span className="app-onboarding-card-copy">
+              <span className="app-onboarding-card-title">{card.title}</span>
+              <span className="app-onboarding-card-meta">{card.meta}</span>
+            </span>
+          </div>
         </article>
       ))}
-      <div className="app-onboarding-phone">
-        <div className="app-onboarding-phone-screen">
-          <div className="app-onboarding-reel">
-            {reel.map((card, index) => (
-              <article key={`${card.id}-${index}`} className="app-onboarding-shot">
-                <img className="app-onboarding-shot-photo" alt="" src={pictured(card.id)} />
-                <span className="app-onboarding-shot-copy">
-                  <span className="app-onboarding-shot-title">{card.title}</span>
-                  <span className="app-onboarding-shot-meta">{card.meta}</span>
-                </span>
-              </article>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
-
-/**
- * Насколько экран поддаётся пальцу. Слайд под жестом ровно один — следующего под ним нет, — и
- * тянуть его за палец во всю ширину значило бы обещать то, чего за краем не лежит. Затухающие
- * сорок пикселей отвечают движением, но ничего не обещают.
- */
-const ONBOARDING_LEAN_PX = 40;
 
 export interface OnboardingViewProps {
   step: OnboardingStep;
@@ -82,7 +69,6 @@ export interface OnboardingViewProps {
   suggestions: FriendSuggestion[];
   followed: string[];
   interests: string[];
-  bio: string;
   status: "loading" | "error" | "ready";
   saveFailed: boolean;
   /** Почему шаг не выпустил вперёд, или null. Отказ на жесте обязан быть слышен — молчание читается как поломка. */
@@ -93,9 +79,10 @@ export interface OnboardingViewProps {
   onLocate: () => void;
   onToggleFriend: (userId: string) => void;
   onToggleInterest: (interest: string) => void;
-  onBio: (bio: string) => void;
   onNext: () => void;
   onBack: () => void;
+  /** Set when this visit was opened on purpose. The first slide can leave instead of doing nothing. */
+  onLeave?: () => void;
 }
 
 function StepRail({ step, onBack }: { step: OnboardingStep; onBack: () => void }) {
@@ -119,35 +106,21 @@ function StepRail({ step, onBack }: { step: OnboardingStep; onBack: () => void }
   );
 }
 
-function IntroStep({ intro, introDirection: direction = "forward", onIntro, onSkipIntro, onNext }: Pick<OnboardingViewProps, "intro" | "introDirection" | "onIntro" | "onSkipIntro" | "onNext">) {
-  const slide = INTRO_SLIDES[intro];
-  const last = intro === INTRO_SLIDES.length - 1;
-  // Подпись hero и текст слайда пересобираются по key слайда и въезжают с той стороны, куда листали
-  const copyClass = `app-onboarding-copy app-onboarding-copy--${direction}`;
+function IntroPage({ index, direction, onIntro, onNext }: { index: number; direction?: IntroDirection; onIntro: (index: number) => void; onNext: () => void }) {
+  const slide = INTRO_SLIDES[index];
+  const last = index === INTRO_SLIDES.length - 1;
   return (
-    <section className="app-onboarding app-onboarding--intro app-onboarding--stage">
-      <div className="app-onboarding-hero-top">
-        <AfishaWordmark />
-        <button type="button" className="app-onboarding-skip" onClick={onSkipIntro}>
-          Пропустить
-        </button>
-      </div>
-      <IntroStage />
-      <p key={`label-${intro}`} className={`app-onboarding-kicker ${copyClass}`}>
-        {slide.label}
-      </p>
-      <div className="app-onboarding-intro-body">
-        <div key={intro} className={`app-onboarding-copy-text ${copyClass}`}>
-          <h1 className="app-onboarding-intro-title">{slide.title}</h1>
-          <p className="app-onboarding-intro-text">{slide.description}</p>
-        </div>
+    <section className="app-onboarding-page">
+      <IntroScene scene={slide.hero} />
+      <div className={direction === undefined ? "app-onboarding-caption" : `app-onboarding-caption app-onboarding-copy app-onboarding-copy--${direction}`}>
+        <p className="app-onboarding-kicker">{slide.label}</p>
+        <h1 className="app-onboarding-intro-title">{slide.title}</h1>
+        <p className="app-onboarding-intro-text">{slide.description}</p>
         <div className="app-onboarding-dots">
           {INTRO_SLIDES.map((item, position) => (
-            <button key={item.title} type="button" aria-label={`Слайд ${position + 1}`} aria-current={position === intro ? "true" : undefined} className={position === intro ? "app-onboarding-dot app-onboarding-dot--on" : "app-onboarding-dot"} onClick={() => onIntro(position)} />
+            <button key={item.title} type="button" aria-label={`Слайд ${position + 1}`} aria-current={position === index ? "true" : undefined} className={position === index ? "app-onboarding-dot app-onboarding-dot--on" : "app-onboarding-dot"} onClick={() => onIntro(position)} />
           ))}
         </div>
-      </div>
-      <div className="app-onboarding-footer">
         <AppButton stretched onClick={onNext}>
           {last ? "Начать" : "Дальше"}
         </AppButton>
@@ -240,29 +213,6 @@ function FriendsStep({ suggestions, followed, saveFailed, onToggleFriend, onNext
   );
 }
 
-function BioStep({ bio, saveFailed, onBio, onNext }: Pick<OnboardingViewProps, "bio" | "saveFailed" | "onBio" | "onNext">) {
-  return (
-    <>
-      <header className="app-onboarding-head">
-        <h1 className="app-onboarding-title">Пара слов о себе</h1>
-        <p className="app-onboarding-lead">Коротко, по желанию. Потом можно поменять в настройках.</p>
-      </header>
-      <div className="app-onboarding-body">
-        <textarea className="app-review-text" maxLength={PROFILE_BIO_MAX} placeholder="Люблю концерты, падел и долгие ужины" value={bio} onChange={(change) => onBio(change.target.value)} />
-        <p className="app-onboarding-lead">
-          {bio.length}/{PROFILE_BIO_MAX}
-        </p>
-      </div>
-      <div className="app-onboarding-footer app-onboarding-footer--divided">
-        {saveFailed && <p className="app-onboarding-error">Не удалось сохранить описание. Попробуй ещё раз.</p>}
-        <button type="button" className="app-onboarding-cta" onClick={onNext}>
-          {bioCtaLabel(bio)}
-        </button>
-      </div>
-    </>
-  );
-}
-
 function InterestsStep({ interests, saveFailed, blocked, onToggleInterest, onNext }: Pick<OnboardingViewProps, "interests" | "saveFailed" | "blocked" | "onToggleInterest" | "onNext">) {
   return (
     <>
@@ -315,25 +265,106 @@ function StepShell({ step, onBack, children }: { step: OnboardingStep; onBack: (
   );
 }
 
-export function OnboardingView(props: OnboardingViewProps) {
-  // Жест один на весь онбординг: шаги расходятся только тем, куда ведут его концы. Влево — вперёд,
-  // вправо — назад; вертикальная прокрутка списка городов и людей остаётся за прокруткой, и спор за
-  // палец разбирает сам механизм.
-  const drag = useSwipeDrag({ axis: "x", dampPx: ONBOARDING_LEAN_PX, onSwipe: (direction) => (direction === "right" ? props.onBack() : props.onNext()) });
-  const stage = (content: ReactNode) => (
-    <div className={drag.settling ? "app-onboarding-slide app-onboarding-slide--settling" : "app-onboarding-slide"} {...drag.gesture} style={{ ...drag.gesture.style, transform: drag.offset === 0 ? undefined : `translateX(${drag.offset}px)` }}>
-      {content}
-    </div>
-  );
+/** The page follows the finger, then finishes the slide. A 40px lean read as a cut, not a swipe. */
+function usePageTurn(allow: (direction: "left" | "right") => boolean, commit: (direction: "left" | "right") => void, frameWidth: { current: number }) {
+  const allowRef = useRef(allow);
+  const commitRef = useRef(commit);
+  allowRef.current = allow;
+  commitRef.current = commit;
+  const busy = useRef(false);
+  const [motion, setMotion] = useState({ offset: 0, animate: false });
+  const gesture = useSwipe({
+    axis: "x",
+    onOffset: (value) => {
+      if (busy.current) return;
+      setMotion({ offset: value, animate: false });
+    },
+    onCancel: () => setMotion({ offset: 0, animate: true }),
+    onSwipe: (direction) => {
+      if (busy.current || (direction !== "left" && direction !== "right")) return;
+      if (!allowRef.current(direction)) {
+        commitRef.current(direction);
+        setMotion({ offset: 0, animate: true });
+        return;
+      }
+      const width = frameWidth.current || (typeof window === "undefined" ? 390 : window.innerWidth);
+      busy.current = true;
+      setMotion({ offset: direction === "left" ? -width : width, animate: true });
+      window.setTimeout(() => {
+        commitRef.current(direction);
+        setMotion({ offset: 0, animate: false });
+        busy.current = false;
+      }, 440);
+    },
+  });
+  return { offset: motion.offset, animate: motion.animate, gesture };
+}
 
-  if (props.step === "intro") return stage(<IntroStep intro={props.intro} introDirection={props.introDirection} onIntro={props.onIntro} onSkipIntro={props.onSkipIntro} onNext={props.onNext} />);
-  // Город, друзья и интересы пишутся в профиль, поэтому дальше вступления экран ждёт загрузку.
-  if (props.status === "loading") return <AppState>Загрузка…</AppState>;
-  if (props.status === "error") return <AppState error>Не удалось загрузить данные онбординга.</AppState>;
-  return stage(
-    <StepShell step={props.step} onBack={props.onBack}>
-      {props.step === "city" ? <CityStep city={props.city} cityDetect={props.cityDetect} cityPicked={props.cityPicked} onCity={props.onCity} onLocate={props.onLocate} onNext={props.onNext} /> : props.step === "friends" ? <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} /> : props.step === "interests" ? <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} /> : <BioStep bio={props.bio} saveFailed={props.saveFailed} onBio={props.onBio} onNext={props.onNext} />}
-    </StepShell>,
+export function OnboardingView(props: OnboardingViewProps) {
+  const frame = useRef<HTMLDivElement>(null);
+  const frameWidth = useRef(0);
+  const turn = usePageTurn(
+    (direction) => {
+      if (direction === "right") return props.step !== "intro" || props.intro > 0 || props.onLeave !== undefined;
+      if (props.step === "interests" && props.interests.length < MIN_INTERESTS) return false;
+      if (props.step === "city" && props.city === null) return false;
+      return true;
+    },
+    (direction) => (direction === "right" ? props.onBack() : props.onNext()),
+    frameWidth,
+  );
+  const trackClass = !turn.animate && turn.offset !== 0 ? "app-onboarding-track" : "app-onboarding-track app-onboarding-track--move";
+  const trackStyle = { transform: props.step === "intro" ? `translate3d(calc(${-props.intro * 100}% + ${turn.offset}px), 0, 0)` : `translate3d(${turn.offset}px, 0, 0)` };
+  const showBack = props.step !== "intro" || props.intro > 0 || props.onLeave !== undefined;
+
+  if (props.step !== "intro" && props.status === "loading") return <AppState>Загрузка…</AppState>;
+  if (props.step !== "intro" && props.status === "error") return <AppState error>Не удалось загрузить данные онбординга.</AppState>;
+
+  return (
+    <div
+      className="app-onboarding-pager"
+      ref={(node) => {
+        frame.current = node;
+        frameWidth.current = node?.clientWidth ?? 0;
+      }}
+      {...turn.gesture}
+    >
+      {props.step === "intro" ? (
+        <>
+          <div className="app-onboarding-chrome">
+            {showBack ? (
+              <button type="button" className="app-onboarding-back" aria-label="Назад" onClick={props.onBack}>
+                <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+                Назад
+              </button>
+            ) : (
+              <span />
+            )}
+            <AfishaWordmark />
+            <button type="button" className="app-onboarding-skip" onClick={props.onSkipIntro}>
+              Пропустить
+            </button>
+          </div>
+          <div className={`app-onboarding-deck ${trackClass} app-onboarding-copy app-onboarding-copy--${props.introDirection ?? "forward"}`} style={trackStyle}>
+            {INTRO_SLIDES.map((slide, index) => (
+              <IntroPage key={slide.title} index={index} direction={index === props.intro ? (props.introDirection ?? "forward") : undefined} onIntro={props.onIntro} onNext={props.onNext} />
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className={trackClass} style={trackStyle}>
+          <StepShell step={props.step} onBack={props.onBack}>
+            {props.step === "city" ? (
+              <CityStep city={props.city} cityDetect={props.cityDetect} cityPicked={props.cityPicked} onCity={props.onCity} onLocate={props.onLocate} onNext={props.onNext} />
+            ) : props.step === "friends" ? (
+              <FriendsStep suggestions={props.suggestions} followed={props.followed} saveFailed={props.saveFailed} onToggleFriend={props.onToggleFriend} onNext={props.onNext} />
+            ) : (
+              <InterestsStep interests={props.interests} saveFailed={props.saveFailed} blocked={props.blocked} onToggleInterest={props.onToggleInterest} onNext={props.onNext} />
+            )}
+          </StepShell>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -341,20 +372,19 @@ function toggle(values: string[], value: string): string[] {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }
 
-export function OnboardingFlow({ onDone }: { onDone: () => void }) {
+export function OnboardingFlow({ onDone, onLeave }: { onDone: () => void; onLeave?: () => void }) {
   const origin = useViewerOrigin();
   const [step, setStep] = useState<OnboardingStep>("intro");
   const [intro, setIntro] = useState(0);
   // Сторона входа текста считается по тому, откуда пришли: точки, свайп и «назад» листают и назад
   const [slideDirection, setSlideDirection] = useState<IntroDirection>("forward");
-  const [loaded, setLoaded] = useState<{ city: string; interests: string[]; suggestions: FriendSuggestion[]; bio: string } | null>(null);
+  const [loaded, setLoaded] = useState<{ city: string; interests: string[]; suggestions: FriendSuggestion[] } | null>(null);
   const [failed, setFailed] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const [blocked, setBlocked] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [followed, setFollowed] = useState<string[] | null>(null);
   const [interests, setInterests] = useState<string[] | null>(null);
-  const [bio, setBio] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -365,7 +395,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
     Promise.all([apiClient.getProfile(), apiClient.listFriendSuggestions().catch(() => [])]).then(
       ([profile, suggestions]) => {
         if (!alive) return;
-        setLoaded({ city: profile.city, interests: profile.interests.filter((item) => ONBOARDING_INTERESTS.includes(item)), suggestions, bio: profile.bio });
+        setLoaded({ city: profile.city, interests: profile.interests.filter((item) => ONBOARDING_INTERESTS.includes(item)), suggestions });
       },
       () => {
         if (alive) setFailed(true);
@@ -386,7 +416,6 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
   const seededFollows = loaded?.suggestions.filter((item) => item.followed).map((item) => item.friend.id) ?? [];
   const currentFollowed = followed ?? seededFollows;
   const currentInterests = interests ?? loaded?.interests ?? [];
-  const currentBio = bio ?? loaded?.bio ?? "";
 
   function advance(): void {
     const next = nextOnboardingStep(step);
@@ -412,7 +441,8 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
     setBlocked(null);
     // Во вступлении «назад» — это предыдущий слайд: сама карусель и есть шаг, точки дублируют жест.
     if (step === "intro") {
-      goIntro(Math.max(0, intro - 1));
+      if (intro === 0) onLeave?.();
+      else goIntro(intro - 1);
       return;
     }
     const previous = previousOnboardingStep(step);
@@ -457,14 +487,30 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
     }
     if (step === "interests") {
       save(apiClient.updateProfile(city === null ? { interests: currentInterests } : { city, interests: currentInterests }));
-      return;
     }
-    if (step === "bio") {
-      save(apiClient.updateProfile({ bio: currentBio.trim() }));
-      return;
-    }
-    advance();
   }
+
+  const backRef = useRef(onBack);
+  backRef.current = onBack;
+  useEffect(() => {
+    const handler = () => backRef.current();
+    let timer = 0;
+    const bind = () => {
+      const button = getWebApp()?.BackButton;
+      if (!button) return;
+      button.offClick(handler);
+      button.onClick(handler);
+      if (step === "intro" && intro === 0 && onLeave === undefined) button.hide();
+      else button.show();
+    };
+    bind();
+    // Оболочка маршрута прячет кнопку в своём эффекте уже после этого. Повтор через тик забирает её себе.
+    timer = window.setTimeout(bind, 0);
+    return () => {
+      window.clearTimeout(timer);
+      getWebApp()?.BackButton?.offClick(handler);
+    };
+  }, [step, intro, onLeave]);
 
   // Отказ живёт ровно до следующего выбора: человек услышал и сделал — напоминать больше не о чем.
   function onToggleInterest(interest: string): void {
@@ -483,7 +529,6 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
       suggestions={loaded?.suggestions ?? []}
       followed={currentFollowed}
       interests={currentInterests}
-      bio={currentBio}
       status={failed ? "error" : loaded === null ? "loading" : "ready"}
       saveFailed={saveFailed}
       blocked={blocked}
@@ -499,9 +544,9 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
       }}
       onToggleFriend={(userId) => setFollowed((current) => toggle(current ?? seededFollows, userId))}
       onToggleInterest={onToggleInterest}
-      onBio={setBio}
       onNext={onNext}
       onBack={onBack}
+      onLeave={onLeave}
     />
   );
 }
@@ -509,5 +554,5 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
 /** Replay from settings. Finishing returns to the previous screen and does not make the next launch wait on the gate. */
 export function OnboardingReplayPage() {
   const { back } = useRoute();
-  return <OnboardingFlow onDone={() => back()} />;
+  return <OnboardingFlow onDone={() => back()} onLeave={() => back()} />;
 }
