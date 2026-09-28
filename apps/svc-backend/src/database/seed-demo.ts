@@ -984,6 +984,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     userId: ownerUserId,
     preset,
     title: LIST_PRESET_TITLES[preset],
+    visibility: "private",
     createdAt: shiftDays(now, -int(5, 30), 12),
     updatedAt: shiftDays(now, -int(1, 10), 12),
   }));

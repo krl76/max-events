@@ -32,6 +32,7 @@ import { isValidElement, type ComponentProps, type ReactNode } from "react";
 import { IonAvatar, IonButton } from "@ionic/react";
 import type { EventCategory } from "@max-events/api-contracts";
 import { ActionIcon, type ActionIconName } from "./icons";
+import { showPhoto } from "./photos";
 
 export type AppButtonTone = "primary" | "secondary" | "danger" | "ghost" | "confirm";
 
@@ -82,9 +83,10 @@ export function AppText({ className, ...props }: ComponentProps<"p">) {
 }
 
 export function AppAvatar({ src, size = 44, children }: { src?: string | null; size?: number; children?: ReactNode }) {
+  const photo = showPhoto(src);
   return (
     <IonAvatar className="app-avatar" style={{ width: size, height: size }}>
-      {src ? <img alt="" src={src} /> : <span className="app-avatar-label">{children}</span>}
+      {photo ? <img alt="" src={photo} /> : <span className="app-avatar-label">{children}</span>}
     </IonAvatar>
   );
 }
