@@ -102,7 +102,7 @@ describe("city step", () => {
   it("lists the five cities, marks the detected one and claims the detection", () => {
     const html = viewHtml({ step: "city", city: "Казань" });
 
-    expect(html).toContain("Твой город");
+    expect(html).toContain("Где ищем события?");
     expect(html).toContain("Определили по геолокации");
     expect(html).toContain("Санкт-Петербург");
     expect(html).toContain("Новосибирск");

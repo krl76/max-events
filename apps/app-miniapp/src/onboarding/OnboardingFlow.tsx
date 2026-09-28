@@ -32,36 +32,23 @@ const INTRO_PLACES = [
   { src: "/covers/kolomenskoe.jpg", title: "Коломенское", meta: "Москва", slot: 3 },
 ] as const;
 
-const INTRO_FRIENDS = ["Анна", "Дима", "Катя", "Лёша"] as const;
+/** Same animal set MAX offers as a built-in avatar pack: the faces stay put and do not orbit the title. */
+const INTRO_FACES = [
+  { src: "/onboarding/avatars/fox.jpg", name: "Анна" },
+  { src: "/onboarding/avatars/cat.jpg", name: "Дима" },
+  { src: "/onboarding/avatars/bear.jpg", name: "Катя" },
+  { src: "/onboarding/avatars/rabbit.jpg", name: "Лёша" },
+] as const;
 
-function Orbit({ slot, children }: { slot: number; children: ReactNode }) {
+function OnboardingField() {
   return (
-    <span className={`app-onboarding-orbit app-onboarding-orbit--${slot}`}>
-      <span className="app-onboarding-orbit-spin">{children}</span>
-    </span>
-  );
-}
-
-/** Rings behind the cards. Each swipe fades in another ring, the places stay. */
-function IntroDraw({ kind }: { kind: 1 | 2 | 3 }) {
-  return (
-    <svg className="app-onboarding-drawings" viewBox="0 0 390 520" aria-hidden="true">
-      <g className={kind === 1 ? "app-onboarding-draw app-onboarding-draw--on" : "app-onboarding-draw"}>
-        <circle cx="195" cy="280" r="138" />
-        <circle cx="195" cy="280" r="92" />
-      </g>
-      <g className={kind === 2 ? "app-onboarding-draw app-onboarding-draw--on" : "app-onboarding-draw"}>
-        <circle cx="195" cy="280" r="112" />
-        <circle className="app-onboarding-ink" cx="195" cy="160" r="5" />
-        <circle className="app-onboarding-ink" cx="308" cy="320" r="4" />
-        <circle className="app-onboarding-ink" cx="84" cy="300" r="3.5" />
-      </g>
-      <g className={kind === 3 ? "app-onboarding-draw app-onboarding-draw--on" : "app-onboarding-draw"}>
-        <path d="M64 310 C 120 200, 270 200, 326 310" />
-        <circle cx="326" cy="310" r="9" />
-        <circle className="app-onboarding-ink" cx="326" cy="310" r="3.5" />
-      </g>
-    </svg>
+    <div className="app-onboarding-field" aria-hidden="true">
+      <span className="app-onboarding-orb app-onboarding-orb--a" />
+      <span className="app-onboarding-orb app-onboarding-orb--b" />
+      <span className="app-onboarding-orb app-onboarding-orb--c" />
+      <span className="app-onboarding-orb app-onboarding-orb--d" />
+      <span className="app-onboarding-sheen" />
+    </div>
   );
 }
 
@@ -69,56 +56,28 @@ function IntroBits({ kind }: { kind: 1 | 2 | 3 }) {
   return (
     <div className="app-onboarding-bits" aria-hidden="true">
       <div className={kind === 1 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
-        {INTRO_FRIENDS.map((name, index) => (
-          <Orbit key={name} slot={index + 1}>
-            <span className="app-onboarding-friend">
-              {name.slice(0, 1)}
-              <span>{name}</span>
-            </span>
-          </Orbit>
+        {INTRO_FACES.map((face, index) => (
+          <span key={face.name} className={`app-onboarding-face app-onboarding-face--${index + 1}`}>
+            <img alt="" src={face.src} />
+            <span>{face.name}</span>
+          </span>
         ))}
       </div>
       <div className={kind === 2 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
-        <span className="app-onboarding-blob">
-          <ActionIcon name="spark" size={22} />
-        </span>
-        <Orbit slot={1}>
-          <span className="app-onboarding-ask">
-            <ActionIcon name="spark" size={16} />
-            Ассистент
-          </span>
-        </Orbit>
-        <Orbit slot={2}>
-          <span className="app-onboarding-chip-float">джаз вечером</span>
-        </Orbit>
-        <Orbit slot={3}>
-          <span className="app-onboarding-chip-float">парк</span>
-        </Orbit>
-        <Orbit slot={4}>
-          <span className="app-onboarding-chip-float">Казань</span>
-        </Orbit>
+        <div className="app-onboarding-stack">
+          <p className="app-onboarding-stack-kicker">Ассистент</p>
+          <p className="app-onboarding-stack-line">джаз вечером</p>
+          <p className="app-onboarding-stack-line">парк у реки</p>
+          <p className="app-onboarding-stack-line">Казань</p>
+        </div>
       </div>
       <div className={kind === 3 ? "app-onboarding-bitset app-onboarding-bitset--on" : "app-onboarding-bitset"}>
-        <Orbit slot={1}>
-          <span className="app-onboarding-meet">
-            <ActionIcon name="pin" size={14} />у входа
-          </span>
-        </Orbit>
-        <Orbit slot={2}>
-          <span className="app-onboarding-meet">
-            <ActionIcon name="comment" size={14} />
-            соберёмся?
-          </span>
-        </Orbit>
-        <Orbit slot={3}>
-          <span className="app-onboarding-meet">
-            <ActionIcon name="clock" size={14} />
-            напомним
-          </span>
-        </Orbit>
-        <Orbit slot={4}>
-          <span className="app-onboarding-meet">4 в компании</span>
-        </Orbit>
+        <div className="app-onboarding-stack">
+          <p className="app-onboarding-stack-line">у входа</p>
+          <p className="app-onboarding-stack-line">соберёмся?</p>
+          <p className="app-onboarding-stack-line">напомним</p>
+          <p className="app-onboarding-stack-line">4 в компании</p>
+        </div>
       </div>
     </div>
   );
@@ -176,16 +135,10 @@ function StepRail({ step, onBack }: { step: OnboardingStep; onBack: () => void }
 function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle = false, onBack, onSkip, onIntro, onNext }: { index: number; direction?: IntroDirection; showBack: boolean; shift?: number; settle?: boolean; onBack: () => void; onSkip: () => void; onIntro: (index: number) => void; onNext: () => void }) {
   const slide = INTRO_SLIDES[index] ?? INTRO_SLIDES[0];
   const last = index === INTRO_SLIDES.length - 1;
-  const lean = Math.max(-32, Math.min(32, shift * 0.16));
+  const travel = Math.max(-140, Math.min(140, shift * 0.62));
+  const haze = Math.min(Math.abs(shift) / 22, 9);
   return (
     <div className="app-onboarding-film">
-      <div className="app-onboarding-field" aria-hidden="true">
-        <span className="app-onboarding-orb app-onboarding-orb--a" />
-        <span className="app-onboarding-orb app-onboarding-orb--b" />
-        <span className="app-onboarding-orb app-onboarding-orb--c" />
-        <span className="app-onboarding-orb app-onboarding-orb--d" />
-        <span className="app-onboarding-sheen" />
-      </div>
       <p className="app-onboarding-credit">Парк Горького: общественное достояние. Кул-Шариф: Yulesha, CC BY-SA 3.0.</p>
       <div className="app-onboarding-chrome">
         {showBack ? (
@@ -201,7 +154,7 @@ function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle =
           Пропустить
         </button>
       </div>
-      <div className={settle ? "app-onboarding-stage app-onboarding-stage--settle" : "app-onboarding-stage"} style={{ transform: `translate3d(${lean}px, 0, 0)` }}>
+      <div className={settle ? "app-onboarding-cast app-onboarding-cast--settle" : "app-onboarding-cast"} style={{ transform: `translate3d(${travel}px, 0, 0)`, filter: haze > 0.4 ? `blur(${haze}px)` : "none" }}>
         <div className="app-onboarding-places">
           {INTRO_PLACES.map((place) => (
             <article key={place.title} className={`app-onboarding-place app-onboarding-place--${place.slot}`}>
@@ -215,7 +168,6 @@ function IntroFilm({ index, direction = "forward", showBack, shift = 0, settle =
             </article>
           ))}
         </div>
-        <IntroDraw kind={slide.hero} />
         <IntroBits kind={slide.hero} />
       </div>
       <div key={slide.title} className={`app-onboarding-line app-onboarding-copy app-onboarding-copy--${direction}`}>
@@ -242,7 +194,7 @@ function CityStep({ city, cityDetect, cityPicked, onCity, onLocate, onNext }: Pi
   return (
     <>
       <header className="app-onboarding-head">
-        <h1 className="app-onboarding-title">Твой город</h1>
+        <h1 className="app-onboarding-title">Где ищем события?</h1>
         <p className="app-onboarding-lead">{cityDetectionHint(cityDetect)}</p>
       </header>
       <div className="app-onboarding-body">
@@ -296,7 +248,9 @@ function FriendsStep({ suggestions, followed, saveFailed, onToggleFriend, onNext
               <li key={suggestion.friend.id}>
                 <button type="button" aria-pressed={on} className="app-onboarding-person" onClick={() => onToggleFriend(suggestion.friend.id)}>
                   <span className={on ? "app-onboarding-person-avatar app-onboarding-person-avatar--on" : "app-onboarding-person-avatar"}>
-                    <span className={`app-onboarding-person-face app-onboarding-person-face--${(position % 5) + 1}`}>{suggestion.friend.avatarUrl === null ? <span aria-hidden="true">{suggestion.friend.name.slice(0, 1)}</span> : <img alt="" src={suggestion.friend.avatarUrl} />}</span>
+                    <span className={`app-onboarding-person-face app-onboarding-person-face--${(position % 5) + 1}`}>
+                      <img alt="" src={suggestion.friend.avatarUrl ?? INTRO_FACES[position % INTRO_FACES.length].src} />
+                    </span>
                     <span className="app-onboarding-person-mark" aria-hidden="true">
                       <ActionIcon name={on ? "check" : "plus"} size={12} strokeWidth={3.5} />
                     </span>
@@ -326,7 +280,7 @@ function InterestsStep({ interests, saveFailed, blocked, onToggleInterest, onNex
     <>
       <header className="app-onboarding-head">
         <h1 className="app-onboarding-title">Что тебе близко?</h1>
-        <p className="app-onboarding-lead">Выбери хотя бы три. Подборка и «Куда пойдём?» подстроятся.</p>
+        <p className="app-onboarding-lead">Отметь хотя бы три — и подборка подстроится под тебя.</p>
       </header>
       <div className="app-onboarding-body">
         <div className="app-onboarding-chips" role="group" aria-label="Интересы">
@@ -364,7 +318,7 @@ function InterestsStep({ interests, saveFailed, blocked, onToggleInterest, onNex
  */
 function StepShell({ step, onBack, children }: { step: OnboardingStep; onBack: () => void; children: ReactNode }) {
   return (
-    <section className="app-onboarding">
+    <section className="app-onboarding app-onboarding--film">
       <StepRail step={step} onBack={onBack} />
       <div key={step} className="app-onboarding-step">
         {children}
@@ -397,7 +351,8 @@ function usePageTurn(allow: (direction: "left" | "right") => boolean, commit: (d
       // Вступление не листает фотографию: жест только сменяет детали вокруг мест.
       if (morph.current) {
         commitRef.current(direction);
-        setMotion({ offset: 0, animate: true });
+        setMotion({ offset: direction === "left" ? 120 : -120, animate: false });
+        window.requestAnimationFrame(() => setMotion({ offset: 0, animate: true }));
         return;
       }
       const width = frameWidth.current || (typeof window === "undefined" ? 390 : window.innerWidth);
@@ -430,7 +385,10 @@ export function OnboardingView(props: OnboardingViewProps) {
     morph,
   );
   const trackClass = !turn.animate && turn.offset !== 0 ? "app-onboarding-track" : "app-onboarding-track app-onboarding-track--move";
-  const trackStyle = { transform: props.step === "intro" ? `translate3d(calc(${-props.intro * 100}% + ${turn.offset}px), 0, 0)` : `translate3d(${turn.offset}px, 0, 0)` };
+  const trackStyle = {
+    filter: Math.abs(turn.offset) > 8 ? `blur(${Math.min(Math.abs(turn.offset) / 36, 7)}px)` : undefined,
+    transform: `translate3d(${turn.offset}px, 0, 0)`,
+  };
   const showBack = props.step !== "intro" || props.intro > 0 || props.onLeave !== undefined;
 
   if (props.step !== "intro" && props.status === "loading") return <AppState>Загрузка…</AppState>;
@@ -445,6 +403,7 @@ export function OnboardingView(props: OnboardingViewProps) {
       }}
       {...turn.gesture}
     >
+      <OnboardingField />
       {props.step === "intro" ? (
         <IntroFilm index={props.intro} direction={props.introDirection ?? "forward"} showBack={showBack} shift={turn.offset} settle={turn.animate} onBack={props.onBack} onSkip={props.onSkipIntro} onIntro={props.onIntro} onNext={props.onNext} />
       ) : (
