@@ -13,7 +13,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { FindOperator, In, QueryFailedError, Repository } from "typeorm";
-import type { BookingWithSeats, CreateFeedPostWrite, FeedCard, FeedCardCounts, FeedDraftSaved, FeedDraftWrite, FeedPost, FeedRepost, ParticipationStatus, Place } from "@max-events/api-contracts";
+import type { BookingWithSeats, CreateFeedPostWrite, FeedCard, FeedCardCounts, FeedDraftSaved, FeedDraftWrite, FeedPost, FeedRepost, Friend, ParticipationStatus, Place } from "@max-events/api-contracts";
 import { BookingsService } from "../bookings/bookings.service";
 import { EventEntity } from "../events/event.entity";
 import { toEventDto } from "../events/event.mapper";
@@ -83,8 +83,11 @@ export class FeedService {
     const counts = countParticipations(parts, viewerId);
     const rowById = new Map(rows.map((row) => [row.id, row]));
     const postIds = posts.map((post) => post.id);
-    const [friendRows, goingRows] = await Promise.all([this.friendships.find({ where: { userId: viewerId } }), postIds.length === 0 ? Promise.resolve([]) : this.going.find({ where: { postId: In(postIds) } })]);
+    const [friendRows, goingRows, likeRows] = await Promise.all([this.friendships.find({ where: { userId: viewerId } }), postIds.length === 0 ? Promise.resolve([]) : this.going.find({ where: { postId: In(postIds) } }), postIds.length === 0 ? Promise.resolve([]) : this.likes.find({ where: { postId: In(postIds) } })]);
     const friendIds = new Set(friendRows.map((row) => row.friendUserId));
+    const likerIds = [...new Set(likeRows.map((row) => row.userId))].filter((id) => id !== viewerId && friendIds.has(id));
+    const likers = likerIds.length === 0 ? [] : await this.users.find({ where: { id: In(likerIds) } });
+    const likerById = new Map(likers.map((row) => [row.id, row]));
     return posts.flatMap((post) => {
       const event = post.eventId ? eventById.get(post.eventId) : undefined;
       if (post.eventId && !event) return [];
@@ -95,8 +98,13 @@ export class FeedService {
       // «N идёт» is a friends-only line. A stranger does not see who is going, even as a number.
       const visible = post.author.id === viewerId || friendIds.has(post.author.id);
       const friendsGoing = visible ? marks.filter((row) => row.userId === viewerId || friendIds.has(row.userId)).length : null;
+      const likedByFriends = likeRows.flatMap((row) => {
+        if (row.postId !== post.id || row.userId === viewerId || !friendIds.has(row.userId)) return [];
+        const user = likerById.get(row.userId);
+        return user ? [toFriendDto(user)] : [];
+      });
       // Площадка события остаётся подписью места. Карточка площадки со слотами здесь прятала фото и писала текст дважды.
-      return [toFriendCard(post, event ?? null, place ?? null, post.eventId ? counts.get(post.eventId) : undefined, post.eventId ? (waitlists.get(post.eventId) ?? 0) : 0, now, createdAt, friendsGoing, goingByMe)];
+      return [toFriendCard(post, event ?? null, place ?? null, post.eventId ? counts.get(post.eventId) : undefined, post.eventId ? (waitlists.get(post.eventId) ?? 0) : 0, now, createdAt, friendsGoing, goingByMe, likedByFriends)];
     });
   }
 
@@ -339,7 +347,7 @@ function countParticipations(rows: ParticipationEntity[], viewerId: string): Map
   return map;
 }
 
-function toFriendCard(post: FeedPost, event: EventEntity | null, place: Place | null, bucket: ParticipationBucket | undefined, waitlist: number, now: Date, createdAt: Date | undefined, friendsGoing: number | null, goingByMe: boolean): FeedCard {
+function toFriendCard(post: FeedPost, event: EventEntity | null, place: Place | null, bucket: ParticipationBucket | undefined, waitlist: number, now: Date, createdAt: Date | undefined, friendsGoing: number | null, goingByMe: boolean, likedByFriends: Friend[]): FeedCard {
   const counts: FeedCardCounts = event
     ? {
         wantsToGo: bucket?.wantsToGo ?? 0,
@@ -365,6 +373,7 @@ function toFriendCard(post: FeedPost, event: EventEntity | null, place: Place | 
     text: post.text,
     likesCount: post.likesCount,
     likedByMe: post.likedByMe,
+    likedByFriends,
     comments: post.comments,
     commentsCount: post.comments.length,
     publishedAt: createdAt ? createdAt.toISOString() : null,

@@ -209,6 +209,8 @@ export interface FeedFriendCard {
   text: string;
   likesCount: number;
   likedByMe: boolean;
+  /** Friends who liked this post. The viewer is never in the list. */
+  likedByFriends?: Friend[];
   /** The comments shown under the post; commentsCount is the full number. */
   comments: ContractFeedComment[];
   commentsCount: number;
@@ -309,9 +311,10 @@ function parseFriendCard(raw: Record<string, unknown>): FeedFriendCard | null {
   const event = parsedEvent === null ? null : parsedEvent.data;
   const friendsGoing = raw.friendsGoing === null || typeof raw.friendsGoing === "number" ? raw.friendsGoing : undefined;
   const goingByMe = typeof raw.goingByMe === "boolean" ? raw.goingByMe : undefined;
+  const likedByFriends = FriendSchema.array().safeParse(raw.likedByFriends);
   const repostOf = parseRepost(raw.repostOf);
   if (repostOf === "bad") return null;
-  return { kind: "friend", id: raw.id, author: author.data, placeTitle: raw.placeTitle, locationLabel, distanceKm: raw.distanceKm, event, photoUrls, live: raw.live, hit: raw.hit, counts, myStatus: myStatus.value, text: raw.text, likesCount: raw.likesCount, likedByMe: raw.likedByMe, comments: comments.data, commentsCount: raw.commentsCount, publishedAt: raw.publishedAt, photoUrl: photoUrls[0] ?? photoUrl, friendsGoing, goingByMe, repostOf };
+  return { kind: "friend", id: raw.id, author: author.data, placeTitle: raw.placeTitle, locationLabel, distanceKm: raw.distanceKm, event, photoUrls, live: raw.live, hit: raw.hit, counts, myStatus: myStatus.value, text: raw.text, likesCount: raw.likesCount, likedByMe: raw.likedByMe, comments: comments.data, commentsCount: raw.commentsCount, publishedAt: raw.publishedAt, photoUrl: photoUrls[0] ?? photoUrl, friendsGoing, goingByMe, likedByFriends: likedByFriends.success ? likedByFriends.data : [], repostOf };
 }
 
 function parseRepost(raw: unknown): FeedFriendCard["repostOf"] | "bad" {

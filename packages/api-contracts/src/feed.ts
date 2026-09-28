@@ -156,6 +156,8 @@ export const FeedFriendCardSchema = z.object({
   text: z.string(),
   likesCount: z.number().int().min(0),
   likedByMe: z.boolean(),
+  /** Friends who liked the post. The viewer is not in this list. */
+  likedByFriends: z.array(FriendSchema).default([]),
   comments: z.array(FeedCommentSchema),
   commentsCount: z.number().int().min(0),
   publishedAt: TimestampSchema.nullable(),
