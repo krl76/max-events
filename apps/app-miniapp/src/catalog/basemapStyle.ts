@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Стиль MapLibre для собственной векторной подложки (схема OpenMapTiles): один источник PMTiles рядом с приложением, слои заливок, дорог, границ и подписей в палитре брендбука, светлый и тёмный вариант с одинаковым набором слоёв.
-// SCOPE: Чистая функция от подложки, схемы и origin к объекту стиля; ни сети, ни DOM. Цвета здесь буквальные hex, потому что MapLibre рисует на WebGL и CSS-переменных не читает: светлая палитра построена от brand-white с фиолетовыми оттенками дорог, тёмная — от brand-void; акценты (метро) — brand-blue в светлой и brand-cyan в тёмной, как --app-accent-text в theme.css. Что рисуется и где лежит архив — ./basemaps.ts; кто поднимает слой — ./vectorBasemap.ts.
+// SCOPE: Чистая функция от подложки, схемы и origin к объекту стиля; ни сети, ни DOM. Цвета здесь буквальные hex, потому что MapLibre рисует на WebGL и CSS-переменных не читает: светлая палитра построена от brand-white с фиолетовыми оттенками дорог, тёмная — от brand-void; акцент метро — brand-blue в обеих схемах, как --app-accent-text в theme.css. Что рисуется и где лежит архив — ./basemaps.ts; кто поднимает слой — ./vectorBasemap.ts.
 // DEPENDS: maplibre-gl (только типы), ./basemaps.js (VectorBasemap), ../ui/theme.js (ThemeScheme)
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -10,7 +10,7 @@
 // - OMT_SOURCE_LAYERS - слои схемы OpenMapTiles, из которых стиль берёт геометрию (проверка тестом: другие в архиве не лежат)
 // - BASEMAP_FONTS - три начертания Noto Sans, которые лежат в /tiles/fonts (regular для улиц и мест, medium для городов и метро, italic для воды)
 // - BasemapPalette - все цвета одного варианта стиля по ролям: бумага, заливки земли, вода, здания, дороги по классам, границы, подписи, акцент
-// - basemapPalette - палитра варианта: светлая от brand-white, тёмная от brand-graphite; один объект на схему
+// - basemapPalette - палитра варианта: светлая от brand-white, тёмная от brand-void; один объект на схему
 // - buildOwnBasemapStyle - собрать StyleSpecification: источник pmtiles://<origin><tiles>, глифы <origin><glyphs>, стек слоёв от фона до номеров домов
 // END_MODULE_MAP
 
@@ -107,46 +107,46 @@ const LIGHT: BasemapPalette = {
   accentContrast: "#ffffff",
 };
 
-/** Тёмная: графит MAX как бумага, дороги светлеют к синему, акцент brand-blue-hover — как --app-accent-text. */
+/** Тёмная: бумага brand-void, земля чуть светлее той же материи, дороги синеют, акцент brand-blue — как в светлой. */
 const DARK: BasemapPalette = {
-  background: "#17181c",
-  grass: "#111a14",
-  wood: "#0f1912",
-  farmland: "#16181b",
-  sand: "#1d1c19",
-  residential: "#1b1e23",
-  commercial: "#1d2026",
-  industrial: "#191c21",
-  institution: "#1b1e24",
-  cemetery: "#101a14",
-  park: "#0f1c16",
-  pitch: "#0f1c18",
-  water: "#0e1a3d",
-  waterLine: "#16295a",
-  building: "#20242a",
-  buildingOutline: "#2a2f36",
-  aeroway: "#22262c",
-  motorway: "#3a6bc0",
-  motorwayCasing: "#2a4c8c",
-  major: "#33455e",
-  majorCasing: "#253346",
-  secondary: "#2c3542",
-  secondaryCasing: "#202832",
-  minor: "#262e39",
-  minorCasing: "#1b222b",
-  service: "#222932",
-  path: "#333b47",
-  rail: "#313843",
-  transit: "#479fff",
-  tunnel: "#22262c",
-  boundary: "#4d78b8",
-  text: "#e8eaee",
-  textHalo: "#17181c",
-  textWater: "#7fa3e6",
-  textRoad: "#c6ccd4",
-  textPoi: "#b4bac4",
-  accent: "#479fff",
-  accentContrast: "#17181c",
+  background: "#0d001a",
+  grass: "#070212",
+  wood: "#050110",
+  farmland: "#0c0019",
+  sand: "#130417",
+  residential: "#110621",
+  commercial: "#130824",
+  industrial: "#0f041f",
+  institution: "#110622",
+  cemetery: "#060212",
+  park: "#050414",
+  pitch: "#050416",
+  water: "#04023b",
+  waterLine: "#0c1158",
+  building: "#160c28",
+  buildingOutline: "#201734",
+  aeroway: "#180e2a",
+  motorway: "#3053be",
+  motorwayCasing: "#20348a",
+  major: "#292d5c",
+  majorCasing: "#1b1b44",
+  secondary: "#221d40",
+  secondaryCasing: "#161030",
+  minor: "#1c1637",
+  minorCasing: "#110a29",
+  service: "#181130",
+  path: "#292345",
+  rail: "#272041",
+  transit: "#007aff",
+  tunnel: "#180e2a",
+  boundary: "#4360b6",
+  text: "#ded2ec",
+  textHalo: "#0d001a",
+  textWater: "#758be4",
+  textRoad: "#bcb4d2",
+  textPoi: "#aaa2c2",
+  accent: "#007aff",
+  accentContrast: "#0d001a",
 };
 
 export function basemapPalette(scheme: ThemeScheme): BasemapPalette {

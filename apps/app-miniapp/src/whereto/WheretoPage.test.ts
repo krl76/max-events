@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { WheretoBudgetSchema, WheretoCompanySchema, WheretoMoodSchema } from "@max-events/api-contracts";
-import { BUDGET_LABELS, COMPANY_LABELS, MOOD_HINTS, MOOD_LABELS, WHERETO_QUESTIONS, WheretoView, answeredRows, formatWheretoPrice, formatWheretoWhen, restLabel, resultTitle, wheretoQuery, wizardStepIndex, type WheretoAnswers, type WheretoResult, type WheretoState } from "./WheretoPage";
+import { BUDGET_LABELS, COMPANY_LABELS, MOOD_HINTS, MOOD_LABELS, WHERETO_QUESTIONS, WheretoView, answeredRows, formatWheretoPrice, formatWheretoWhen, restLabel, resultTitle, wheretoQuery, wheretoWish, wizardStepIndex, type WheretoAnswers, type WheretoResult, type WheretoState } from "./WheretoPage";
 import { MOCK_NOW, wheretoSuggestions } from "../api/mock";
 
 const NOW = MOCK_NOW;
 
-const answers = (over: Partial<WheretoAnswers> = {}): WheretoAnswers => ({ company: null, mood: null, budget: null, budgetRub: null, ...over });
+const answers = (over: Partial<WheretoAnswers> = {}): WheretoAnswers => ({ company: null, mood: null, budget: null, budgetRub: null, wish: null, ...over });
 
 const picks = wheretoSuggestions({ company: "friends", mood: "calm", budget: "under_3000" }).items;
 
@@ -125,7 +125,22 @@ describe("WheretoView: вопросы (экран 11)", () => {
     expect(html).toContain("Изменить");
     expect(html).toContain("Что в вечере?");
     for (const hint of Object.values(MOOD_HINTS)) expect(html).toContain(hint);
+    expect(html).toContain("Своё событие");
+    expect(html).toContain("напишите, MAX AI подберёт");
     expect(html).toContain("Бюджет — следующий вопрос");
+    expect(html).toContain("2 из 3");
+  });
+
+  it("держит «Дальше» выключенной, пока своё событие короче двух букв", () => {
+    const empty = viewHtml({ step: "ask", at: 1 }, { answers: answers({ company: "alone", mood: "active", wish: "" }) });
+    const typed = viewHtml({ step: "ask", at: 1 }, { answers: answers({ company: "alone", mood: "active", wish: "джаз" }) });
+
+    expect(empty).toContain("disabled");
+    expect(empty).toContain('aria-label="Своё событие"');
+    expect(typed).not.toContain("disabled");
+    expect(typed).toContain("Например джаз в центре");
+    expect(wheretoWish(answers({ wish: " джаз " }))).toBe("джаз");
+    expect(wheretoWish(answers({ wish: "я" }))).toBeNull();
   });
 
   it("на бюджете предлагает бесплатно, любой и свою сумму", () => {
@@ -200,9 +215,18 @@ describe("WheretoView: выдача (экран 12)", () => {
     const loading = viewHtml({ step: "result", query }, { result: { status: "loading" } });
     const failed = viewHtml({ step: "result", query }, { result: { status: "error" } });
 
-    expect(loading).toContain("Загрузка");
+    expect(loading).toContain("Собираем вечер");
     expect(loading).not.toContain("app-wt-row");
     expect(failed).toContain("Не удалось собрать подборку");
     expect(failed).toContain("app-state--error");
+  });
+
+  it("свой текст показывает MAX AI, а не название закрытого настроения", () => {
+    const html = viewHtml({ step: "result", query: { company: "alone", mood: "active", budget: "any" } }, { answers: answers({ company: "alone", mood: "active", budget: "any", wish: "джаз в центре" }), result: { status: "loading" } });
+
+    expect(html).toContain("MAX AI подбирает");
+    expect(html).toContain("джаз в центре");
+    expect(html).not.toContain("Собираем вечер");
+    expect(answeredRows(answers({ company: "alone", mood: "active", wish: "джаз в центре" }), 2).map((row) => row.value)).toEqual(["Я один", "джаз в центре"]);
   });
 });

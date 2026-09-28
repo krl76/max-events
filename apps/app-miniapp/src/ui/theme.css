@@ -1,5 +1,6 @@
 /*
- * Дизайн-токены MAX Events. Палитра — брендбук MAX «Афиша»: шесть цветов, больше никаких.
+ * Дизайн-токены MAX Events. Светлая схема — палитра MAX UI на brand-white.
+ * Тёмная держит те же роли, а холст берёт brand-void брендбука.
  * Нейтралей как отдельных цветов нет: серые — это прозрачности brand-ink (светлая схема)
  * или brand-white (тёмная), поэтому схема переключается сменой одной базы, а не таблицей цветов.
  * Компонентный слой — Ionic React (mode: ios), его --ion-color-* переведены на brand-blue ниже.
@@ -48,8 +49,8 @@
 }
 
 /* Палитра мессенджера MAX (@maxhub/max-ui): синий акцент с hover/pressed, красный негатив,
- * зелёный позитив, пурпур только для промо, нейтральный графит тёмной схемы.
- * Ничего сверх этого списка в файле быть не должно. */
+ * зелёный позитив, пурпур только для промо. Холст тёмной схемы — brand-void брендбука,
+ * не отдельный графит: роли те же, что в светлой. */
 :root {
   --brand-blue: #007aff;
   --brand-blue-hover: #479fff;
@@ -61,10 +62,9 @@
   --brand-purple: #6813ff;
   --brand-purple-light: #a473ff;
   --brand-ink: #060708;
-  --brand-graphite: #17181c;
-  --brand-graphite-card: #25262d;
-  --brand-graphite-deep: #0f0f12;
   --brand-white: #ffffff;
+  /* Тёмная материя брендбука. Светлая схема её не берёт в роли: там холст — brand-white, текст — brand-ink. */
+  --brand-void: #0d001a;
 }
 
 /* Палитра MAX для Ionic: primary = brand-blue, нажатие (shade) = brand-blue-pressed,
@@ -123,37 +123,37 @@ html[data-theme="light"] #root {
   background: var(--brand-white);
 }
 
-/* Тёмная схема — наша, не заливка окна MAX. Холст глубже графита клиента,
- * карточки светлее холста, фон ion-app непрозрачный, чтобы серый вебвью не просвечивал. */
+/* Тёмная схема — наша, не заливка окна MAX. Холст — brand-void, как белый в светлой:
+ * одна заливка и на страницу, и на карточки Ionic. Фон ion-app непрозрачный. */
 html[data-theme="dark"] {
   color-scheme: dark;
-  background: var(--brand-graphite-deep);
-  --ion-background-color: var(--brand-graphite-deep);
+  background: var(--brand-void);
+  --ion-background-color: var(--brand-void);
   --ion-text-color: var(--brand-white);
-  --ion-item-background: var(--brand-graphite-card);
-  --ion-toolbar-background: var(--brand-graphite-card);
-  --ion-card-background: var(--brand-graphite-card);
+  --ion-item-background: var(--brand-void);
+  --ion-toolbar-background: var(--brand-void);
+  --ion-card-background: var(--brand-void);
 }
 
 html[data-theme="dark"] body,
 html[data-theme="dark"] #root {
-  background: var(--brand-graphite-deep);
+  background: var(--brand-void);
 }
 
 @media (prefers-color-scheme: dark) {
   html:not([data-theme]) {
     color-scheme: dark;
-    background: var(--brand-graphite-deep);
-    --ion-background-color: var(--brand-graphite-deep);
+    background: var(--brand-void);
+    --ion-background-color: var(--brand-void);
     --ion-text-color: var(--brand-white);
-    --ion-item-background: var(--brand-graphite-card);
-    --ion-toolbar-background: var(--brand-graphite-card);
-    --ion-card-background: var(--brand-graphite-card);
+    --ion-item-background: var(--brand-void);
+    --ion-toolbar-background: var(--brand-void);
+    --ion-card-background: var(--brand-void);
   }
 
   html:not([data-theme]) body,
   html:not([data-theme]) #root {
-    background: var(--brand-graphite-deep);
+    background: var(--brand-void);
   }
 }
 
@@ -167,8 +167,8 @@ html[data-theme="dark"] #root {
   --app-alpha-border: 0.1;
   --app-alpha-text-secondary: 0.55;
   --app-alpha-text-tertiary: 0.4;
-  /* Акцент-как-текст: brand-blue даёт 4.5:1 на белом. В тёмной он же на графите проседает,
-   * поэтому там роль забирает brand-blue-hover (6.9:1), разрешённый как текст-метка. */
+  /* Акцент-как-текст: brand-blue. На белом около 4.5:1, на brand-void 5:1, поэтому
+   * тёмная схема не подменяет роль более светлым hover. */
   --app-accent-text: var(--brand-blue);
 
   /* --- Семантика: выводится из базы, пишется один раз на обе схемы --- */
@@ -213,7 +213,7 @@ html[data-theme="dark"] #root {
 
   /* Медиа-заглушки: ротация по категориям сохранена, цвета собраны из палитры MAX */
   --app-media-gradient-1: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-hover));
-  --app-media-gradient-2: linear-gradient(135deg, var(--brand-graphite-deep), var(--brand-graphite-card));
+  --app-media-gradient-2: linear-gradient(135deg, var(--brand-void), rgba(255, 255, 255, 0.12));
   --app-media-gradient-3: linear-gradient(135deg, var(--brand-green), var(--brand-green-dark));
   --app-media-gradient-4: linear-gradient(135deg, var(--brand-purple), var(--brand-purple-light));
   --app-media-gradient-5: linear-gradient(135deg, var(--brand-red), var(--brand-red-dark));
@@ -277,21 +277,17 @@ html[data-theme="dark"] #root {
  * либо на предка (<html>) — ./theme.ts проставляет оба, потому что .app-root живёт в App.tsx. */
 .app-root[data-theme="dark"],
 [data-theme="dark"] .app-root:not([data-theme="light"]) {
+  /* Брендбук, колонка DARK, тем же приёмом, что светлая: один холст, нейтрали — прозрачности
+   * противоположного цвета. Фон brand-void. Поверхность white 6%, граница white 12%,
+   * вторичный текст white 60%. Карточка не переопределяется и остаётся холстом.
+   * Акцент, статус, бейдж и опасность — те же токены, что в светлой. */
   --app-scheme-neutral: 255, 255, 255; /* каналы brand-white */
-  --app-canvas: var(--brand-graphite-deep);
-  --app-card: var(--brand-graphite-card);
+  --app-canvas: var(--brand-void);
   --app-ink: var(--brand-white);
   --app-alpha-surface: 0.06;
   --app-alpha-border: 0.12;
   --app-alpha-text-secondary: 0.6;
   --app-alpha-text-tertiary: 0.45;
-  --app-accent-text: var(--brand-blue-hover);
-  --app-status: var(--brand-green-dark);
-  --app-badge: var(--brand-purple-light);
-  /* Красный читается и на графите, поэтому подпись остаётся в негативе, а не уходит в белый */
-  --app-danger-label: var(--brand-red-dark);
-  --app-danger-border: rgba(206, 66, 87, 0.55);
-  --app-danger-wash: rgba(206, 66, 87, 0.22);
 }
 
 /* Та же тёмная база по системной настройке — но только пока выбора нет ни на одном уровне.
@@ -300,19 +296,12 @@ html[data-theme="dark"] #root {
 @media (prefers-color-scheme: dark) {
   html:not([data-theme]) .app-root:not([data-theme]) {
     --app-scheme-neutral: 255, 255, 255;
-    --app-canvas: var(--brand-graphite-deep);
-    --app-card: var(--brand-graphite-card);
+    --app-canvas: var(--brand-void);
     --app-ink: var(--brand-white);
     --app-alpha-surface: 0.06;
     --app-alpha-border: 0.12;
     --app-alpha-text-secondary: 0.6;
     --app-alpha-text-tertiary: 0.45;
-    --app-accent-text: var(--brand-blue-hover);
-    --app-status: var(--brand-green-dark);
-    --app-badge: var(--brand-purple-light);
-    --app-danger-label: var(--brand-red-dark);
-    --app-danger-border: rgba(206, 66, 87, 0.55);
-    --app-danger-wash: rgba(206, 66, 87, 0.22);
   }
 }
 
@@ -579,8 +568,7 @@ html[data-theme="dark"] #root {
   color: var(--app-accent);
 }
 
-/* Иконка активного таба несёт brand-blue, подпись — accent-text: в тёмной схеме
- * подпись переходит на brand-blue-hover, который держит контраст на графите */
+/* Иконка и подпись активного таба — brand-blue. На void контраст держится, отдельный hover не нужен */
 .app-tabbar button[aria-current="page"] span {
   color: var(--app-accent-text);
   font-weight: 600;
@@ -2554,7 +2542,7 @@ html[data-theme="dark"] #root {
 
 .app-feed-event {
   aspect-ratio: 16 / 10;
-  background-color: #17181c;
+  background-color: var(--brand-void);
   background-position: center;
   background-size: cover;
   border: none;
@@ -3467,7 +3455,7 @@ html[data-theme="dark"] #root {
 
 .app-story-viewer {
   animation: app-fade-in var(--app-duration-base) var(--app-ease-out);
-  background: var(--brand-graphite-deep);
+  background: var(--brand-void);
   inset: 0;
   position: fixed;
   z-index: 100;
@@ -3815,7 +3803,7 @@ html[data-theme="dark"] #root {
 }
 
 .app-onboarding-hero--3 {
-  background: linear-gradient(200deg, var(--brand-graphite-deep), var(--brand-blue) 55%, var(--brand-blue-hover));
+  background: linear-gradient(200deg, var(--brand-void), var(--brand-blue) 55%, var(--brand-blue-hover));
 }
 
 /* Те же три градиента лежат слоями под содержимым и перетекают друг в друга по opacity при смене
@@ -3843,7 +3831,7 @@ html[data-theme="dark"] #root {
 }
 
 .app-onboarding-hero-bg--3 {
-  background: linear-gradient(200deg, var(--brand-graphite-deep), var(--brand-blue) 55%, var(--brand-blue-hover));
+  background: linear-gradient(200deg, var(--brand-void), var(--brand-blue) 55%, var(--brand-blue-hover));
 }
 
 /* «Планеты» медленно дрейфуют навстречу друг другу — hero живёт, пока человек читает */
@@ -5965,6 +5953,68 @@ button.app-today-stat {
   width: 44px;
 }
 
+.app-map16-filter-slot {
+  flex: none;
+  position: relative;
+}
+
+.app-map16-filter {
+  align-items: center;
+  background: var(--app-card);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  box-shadow: var(--app-shadow-lift);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-weight: 800;
+  gap: 6px;
+  height: 44px;
+  justify-content: center;
+  min-width: 44px;
+  padding: 0;
+  width: 44px;
+}
+
+.app-map16-filter--on {
+  color: var(--app-accent-text);
+  padding: 0 14px;
+  width: auto;
+}
+
+.app-map16-filter-pop {
+  background: var(--app-card);
+  border-radius: 16px;
+  box-shadow: var(--app-shadow-lift);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  padding: 8px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 1002;
+}
+
+.app-map16-filter-opt {
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.app-map16-filter-opt--on {
+  background: var(--app-surface);
+  color: var(--app-accent-text);
+}
+
 .app-map16-card {
   background: var(--app-card);
   border-radius: 20px;
@@ -5981,19 +6031,18 @@ button.app-today-stat {
   align-items: center;
   background: var(--app-surface);
   border: none;
-  border-radius: var(--app-radius-pill);
+  border-radius: 50%;
   color: var(--app-text);
   cursor: pointer;
   display: flex;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  gap: 4px;
-  height: 44px;
-  margin-bottom: 8px;
-  margin-left: auto;
-  padding: 0 12px;
-  width: fit-content;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 32px;
+  z-index: 1;
 }
 
 .app-map16-card-head {
@@ -6005,7 +6054,7 @@ button.app-today-stat {
   display: flex;
   font: inherit;
   gap: var(--app-space-m);
-  padding: 0;
+  padding: 0 40px 0 0;
   text-align: left;
   width: 100%;
 }
@@ -6085,6 +6134,23 @@ button.app-today-stat {
 .app-map16-travel-note {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-caption);
+}
+
+.app-map16-metro {
+  color: var(--app-text);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--app-font-size-caption);
+  gap: 4px;
+  list-style: decimal;
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+.app-map16-metro-miss {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  margin: 10px 0 0;
 }
 
 .app-map16-rain {
@@ -6449,7 +6515,7 @@ button.app-today-stat {
 }
 
 .app-swipe-tint--skip {
-  background: var(--brand-graphite-deep);
+  background: var(--brand-void);
   opacity: calc(max(-1 * var(--app-swipe-progress, 0), 0) * 0.45);
 }
 
@@ -6617,7 +6683,7 @@ button.app-today-stat {
 .app-swipe-face {
   align-items: center;
   background: linear-gradient(135deg, var(--brand-blue-pressed), var(--brand-blue-hover));
-  border: 2px solid var(--brand-graphite-deep);
+  border: 2px solid var(--brand-void);
   border-radius: 50%;
   display: flex;
   font-size: var(--app-font-size-caption);
@@ -6758,11 +6824,11 @@ button.app-today-stat {
 }
 
 .app-story-compose--gradient-3 {
-  background: linear-gradient(135deg, #0f0f12, #007aff);
+  background: linear-gradient(135deg, var(--brand-void), #007aff);
 }
 
 .app-story-compose--photo {
-  background: var(--brand-graphite-deep);
+  background: var(--brand-void);
 }
 
 .app-story-photo {
@@ -7143,7 +7209,7 @@ button.app-today-stat {
 }
 
 .app-share-notice {
-  background: var(--brand-graphite-deep);
+  background: var(--brand-void);
   border-radius: 14px;
   bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   color: var(--brand-white);
@@ -7164,7 +7230,7 @@ button.app-today-stat {
 }
 
 .app-story-seats {
-  background: var(--brand-graphite-deep);
+  background: var(--brand-void);
   border-radius: var(--app-radius-card);
   box-shadow: 0 6px 20px rgba(6, 7, 8, 0.25);
   color: var(--brand-white);
@@ -7328,7 +7394,7 @@ button.app-today-stat {
 }
 
 .app-story-tile--gradient-3 {
-  background-image: linear-gradient(135deg, #0f0f12, #007aff);
+  background-image: linear-gradient(135deg, var(--brand-void), #007aff);
   opacity: 0.92;
 }
 
@@ -8229,7 +8295,7 @@ button.app-me-avatar-ring {
 }
 
 .app-me-cell--2 {
-  background: linear-gradient(135deg, var(--brand-graphite-deep), var(--brand-blue-pressed) 55%, var(--brand-purple));
+  background: linear-gradient(135deg, var(--brand-void), var(--brand-blue-pressed) 55%, var(--brand-purple));
 }
 
 .app-me-cell--2 .app-me-cell-blob {
@@ -8241,7 +8307,7 @@ button.app-me-avatar-ring {
 
 /* Сплошная тёмная материя: в тёмной схеме плитка сливается с холстом, поэтому границу носит всегда */
 .app-me-cell--3 {
-  background: var(--brand-graphite-deep);
+  background: var(--brand-void);
   border: var(--app-hairline);
 }
 
@@ -16739,7 +16805,7 @@ button.app-cal-peer-chip {
 
 .app-ev-org-mark {
   align-items: center;
-  background: linear-gradient(135deg, var(--brand-graphite-deep), var(--brand-blue));
+  background: linear-gradient(135deg, var(--brand-void), var(--brand-blue));
   border-radius: var(--app-radius-media);
   color: var(--brand-white);
   display: flex;
@@ -17029,7 +17095,7 @@ button.app-cal-peer-chip {
   background: var(--app-card, var(--brand-white));
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -8px 32px rgba(6, 7, 8, 0.18);
-  color: var(--app-text, var(--brand-graphite-deep));
+  color: var(--app-text, var(--brand-void));
   bottom: 0;
   display: flex;
   flex-direction: column;
@@ -17829,7 +17895,7 @@ button.app-cal-peer-chip {
 }
 
 .app-evc-face:nth-child(2) {
-  background: linear-gradient(135deg, var(--brand-graphite-deep), var(--brand-blue));
+  background: linear-gradient(135deg, var(--brand-void), var(--brand-blue));
 }
 
 .app-evc-face--rest {
@@ -18677,6 +18743,34 @@ button.app-cal-peer-chip {
 
 .app-nb-meta svg {
   flex: none;
+}
+
+.app-nb-radius {
+  display: flex;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-s);
+  overflow-x: auto;
+}
+
+.app-nb-radius-opt {
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  height: 36px;
+  padding: 0 12px;
+}
+
+.app-nb-radius-opt--on {
+  background: var(--app-confirm);
+  border-color: var(--app-confirm);
+  color: var(--app-confirm-contrast);
+  font-weight: 800;
 }
 
 .app-nb-seg {
@@ -19590,7 +19684,7 @@ button.app-cal-peer-chip {
 }
 
 .app-map16--tiles-dark .app-map .leaflet-container {
-  background: var(--brand-graphite-deep);
+  background: var(--brand-void);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -19843,6 +19937,8 @@ button.app-cal-peer-chip {
 .app-map16-top,
 .app-map16-top-right,
 .app-map16-weather,
+.app-map16-filter,
+.app-map16-filter-slot,
 .app-map16-dock,
 .app-map16-zoom,
 .app-map16-notice,
@@ -20455,7 +20551,7 @@ button.app-cal-peer-chip {
 }
 
 .app-pin-confirm {
-  background: var(--brand-graphite-deep);
+  background: var(--brand-void);
   border: none;
   border-radius: 999px;
   color: white;
@@ -21354,7 +21450,7 @@ button.app-story-viewer-author {
 }
 
 .app-plan-event {
-  background: #17181c;
+  background: var(--brand-void);
   border: none;
   border-radius: 22px;
   color: #ffffff;
@@ -21470,7 +21566,7 @@ button.app-story-viewer-author {
 .app-plan-friend-face,
 .app-post-compose-face {
   align-items: center;
-  background: #17181c;
+  background: var(--brand-void);
   border-radius: 50%;
   color: #ffffff;
   display: flex;
@@ -21860,7 +21956,7 @@ button.app-story-viewer-author {
 }
 
 .app-org-pinmap-note {
-  color: rgba(13, 0, 26, 0.62);
+  color: var(--app-text-secondary);
   font-size: var(--app-font-size-caption);
   margin: 0;
 }
@@ -22197,7 +22293,7 @@ button.app-story-viewer-author {
 }
 
 .app-story-arc--seen {
-  stroke: #17181c;
+  stroke: var(--app-text-tertiary);
 }
 
 .app-story-sticker-cover {
@@ -22407,7 +22503,7 @@ button.app-story-viewer-author {
 }
 
 .app-map16-basemap-shot--own {
-  background: linear-gradient(160deg, #25262d, #007aff 70%, #ffffff);
+  background: linear-gradient(160deg, var(--brand-void), #007aff 70%, #ffffff);
   display: block;
 }
 
@@ -22446,7 +22542,7 @@ button.app-story-viewer-author {
 }
 
 .app-map16-ask-btn--on {
-  background: #17181c;
+  background: var(--brand-void);
 }
 
 .app-search-feed {
@@ -22580,7 +22676,7 @@ button.app-story-viewer-author {
 }
 
 .app-map16-basemap-swatch--own {
-  background: linear-gradient(145deg, #17181c, #007aff);
+  background: linear-gradient(145deg, var(--brand-void), #007aff);
 }
 
 .app-map16-basemap-swatch--osm {
@@ -23039,7 +23135,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-swipe-fly--skip {
-  background: #17181c;
+  background: var(--brand-void);
 }
 
 .app-root .app-btn--primary {
@@ -23168,7 +23264,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-today-cal-layer .app-today-cal-nav {
-  background: var(--app-surface, #f4f4f5);
+  background: var(--app-surface);
 }
 
 /* Кольцо истории — только дуги SVG. Заливка и тень аватарки раньше закрывали разрывы между историями. */
