@@ -206,7 +206,7 @@ export function SearchFilters({ category, onCategory }: { category: EventCategor
 }
 
 const SEARCH_TOOLS: Array<{ id: string; label: string; aria: string; icon: "spark" | "cards" | "pin" | "sparkle" | "clock" | "users" | "navigation"; dark?: boolean }> = [
-  { id: "ask", label: "Спросить", aria: "Спросить MAX", icon: "spark", dark: true },
+  { id: "ask", label: "Спросить", aria: "Спросить MAX", icon: "spark" },
   { id: "swipe", label: "Свайпы", aria: "Подбор свайпами", icon: "cards" },
   { id: "map", label: "Карта", aria: "На карте", icon: "pin" },
   { id: "whereto", label: "Куда", aria: "Куда пойдём?", icon: "sparkle" },

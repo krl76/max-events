@@ -309,9 +309,10 @@ export interface SettingsViewProps {
   closeFriends?: readonly Friend[];
   followers?: readonly Friend[];
   onToggleClose?: (userId: string, close: boolean) => void;
+  onShowOnboarding?: () => void;
 }
 
-export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable, onLeave, onPickCover, onResetCover, onResetAvatar, closeFriends, followers, onToggleClose }: SettingsViewProps) {
+export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable, onLeave, onPickCover, onResetCover, onResetAvatar, closeFriends, followers, onToggleClose, onShowOnboarding }: SettingsViewProps) {
   const [picker, setPicker] = useState<PickerName>(null);
   const [closeOpen, setCloseOpen] = useState(false);
   const [locateNote, setLocateNote] = useState<string | null>(null);
@@ -372,6 +373,7 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
           </>
         )}
         <SettingsValueRow title="Тема" hint="Светлая, тёмная или как в системе" value={themeLabel(theme.preference)} expanded={picker === "theme"} onOpen={() => open("theme")} />
+        {onShowOnboarding !== undefined && <SettingsValueRow title="Онбординг" hint="Посмотреть вступление ещё раз, не сбрасывая вход" value="Открыть" expanded={false} onOpen={onShowOnboarding} />}
         {picker === "theme" && <SettingsPicker options={THEME_OPTIONS.map((option) => ({ value: option.value, label: option.label }))} selected={[theme.preference]} onPick={(value) => theme.setPreference(value as ThemePreference)} />}
         <SettingsValueRow title="О себе" hint={profile.bio.trim() === "" ? "Коротко, по желанию" : profile.bio} value="Изменить" expanded={picker === "bio"} onOpen={() => open("bio")} />
         {picker === "bio" && <textarea className="app-review-text" maxLength={PROFILE_BIO_MAX} value={profile.bio} onChange={(change) => onProfile({ bio: change.target.value })} placeholder="Пара слов о себе" />}
@@ -615,6 +617,7 @@ function AuthenticatedSettings({ user }: { user: User }) {
           setCacheBytes(appCacheBytes(window.localStorage));
         }}
         onOrganizer={() => navigate({ name: "organizer" })}
+        onShowOnboarding={() => navigate({ name: "onboarding" })}
         // MAX Bridge has no "disable" call (https://dev.max.ru/docs/webapps/bridge): closing is all a
         // mini-app may do about itself, the removal happens in MAX.
         onDisable={() => getWebApp()?.close()}

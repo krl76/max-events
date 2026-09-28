@@ -20,9 +20,48 @@ import { ActionIcon } from "../ui/icons";
 import { AppButton, AppChip, AppState } from "../ui/primitives";
 import { PROFILE_BIO_MAX } from "@max-events/api-contracts";
 import { useViewerOrigin, requestViewerOrigin } from "../geo/viewer-origin";
+import { pictured } from "../ui/photos";
+import { useRoute } from "../routing/router";
 import { INTRO_SLIDES, MIN_INTERESTS, ONBOARDING_CITIES, ONBOARDING_INTERESTS, bioCtaLabel, cityCardMeta, cityDetectionHint, cityForwardBlock, contactsLine, followCtaLabel, interestsCtaLabel, introDirection, markOnboardingDone, matchedOnboardingCity, nextOnboardingStep, onboardingForwardBlock, onboardingRailIndex, previousOnboardingStep, type CityDetectState, type IntroDirection, type OnboardingStep } from "./onboarding";
 
 const RAIL_LABELS = ["Город", "Друзья", "Интересы", "О себе"] as const;
+
+/** Cards that drift around the phone and scroll inside its screen. The reel repeats them so the loop has no jump. */
+const INTRO_STAGE = [
+  { id: "onboarding-jazz", title: "Вечер джаза", meta: "сегодня · 19:00" },
+  { id: "onboarding-park", title: "Парк Горького", meta: "завтра · 12:00" },
+  { id: "onboarding-court", title: "Корт у реки", meta: "сб · 11:00" },
+  { id: "onboarding-night", title: "Ночная афиша", meta: "пт · 21:00" },
+] as const;
+
+function IntroStage() {
+  const reel = [...INTRO_STAGE, ...INTRO_STAGE];
+  return (
+    <div className="app-onboarding-stage" aria-hidden="true">
+      {INTRO_STAGE.slice(0, 3).map((card, index) => (
+        <article key={card.id} className={`app-onboarding-float app-onboarding-float--${index + 1}`}>
+          <img className="app-onboarding-float-photo" alt="" src={pictured(card.id)} />
+          <span className="app-onboarding-float-title">{card.title}</span>
+        </article>
+      ))}
+      <div className="app-onboarding-phone">
+        <div className="app-onboarding-phone-screen">
+          <div className="app-onboarding-reel">
+            {reel.map((card, index) => (
+              <article key={`${card.id}-${index}`} className="app-onboarding-shot">
+                <img className="app-onboarding-shot-photo" alt="" src={pictured(card.id)} />
+                <span className="app-onboarding-shot-copy">
+                  <span className="app-onboarding-shot-title">{card.title}</span>
+                  <span className="app-onboarding-shot-meta">{card.meta}</span>
+                </span>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Насколько экран поддаётся пальцу. Слайд под жестом ровно один — следующего под ним нет, — и
@@ -86,22 +125,17 @@ function IntroStep({ intro, introDirection: direction = "forward", onIntro, onSk
   // Подпись hero и текст слайда пересобираются по key слайда и въезжают с той стороны, куда листали
   const copyClass = `app-onboarding-copy app-onboarding-copy--${direction}`;
   return (
-    <section className="app-onboarding app-onboarding--intro">
-      <div className={`app-onboarding-hero app-onboarding-hero--${slide.hero}`}>
-        {/* Три градиента лежат слоями и перетекают по opacity: сам background между ними браузер не анимирует */}
-        {INTRO_SLIDES.map((item) => (
-          <span key={item.hero} aria-hidden="true" className={item.hero === slide.hero ? `app-onboarding-hero-bg app-onboarding-hero-bg--${item.hero} app-onboarding-hero-bg--on` : `app-onboarding-hero-bg app-onboarding-hero-bg--${item.hero}`} />
-        ))}
-        <div className="app-onboarding-hero-top">
-          <AfishaWordmark className="app-wordmark--on-media" />
-          <button type="button" className="app-onboarding-skip" onClick={onSkipIntro}>
-            Пропустить
-          </button>
-        </div>
-        <p key={intro} className={`app-onboarding-hero-label ${copyClass}`}>
-          {slide.label}
-        </p>
+    <section className="app-onboarding app-onboarding--intro app-onboarding--stage">
+      <div className="app-onboarding-hero-top">
+        <AfishaWordmark />
+        <button type="button" className="app-onboarding-skip" onClick={onSkipIntro}>
+          Пропустить
+        </button>
       </div>
+      <IntroStage />
+      <p key={`label-${intro}`} className={`app-onboarding-kicker ${copyClass}`}>
+        {slide.label}
+      </p>
       <div className="app-onboarding-intro-body">
         <div key={intro} className={`app-onboarding-copy-text ${copyClass}`}>
           <h1 className="app-onboarding-intro-title">{slide.title}</h1>
@@ -470,4 +504,10 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }) {
       onBack={onBack}
     />
   );
+}
+
+/** Replay from settings. Finishing returns to the previous screen and does not make the next launch wait on the gate. */
+export function OnboardingReplayPage() {
+  const { back } = useRoute();
+  return <OnboardingFlow onDone={() => back()} />;
 }

@@ -59,7 +59,7 @@ describe("intro step", () => {
     expect(html).toContain(INTRO_SLIDES[2].title);
     expect(html).toContain("Начать");
     expect(html).toContain("app-onboarding-dot--on");
-    expect(html).toContain("app-onboarding-hero--3");
+    expect(html).toContain("app-onboarding-stage");
   });
 
   it("renders the intro even before the profile and the contacts arrive", () => {
@@ -69,13 +69,14 @@ describe("intro step", () => {
     expect(html).not.toContain("Загрузка");
   });
 
-  it("stacks the three hero gradients as layers and lights only the current slide's", () => {
+  it("keeps the same moving phone on every slide, on the base canvas", () => {
     const html = viewHtml({ step: "intro", intro: 1 });
 
-    expect(html.match(/app-onboarding-hero-bg--\d/g)).toHaveLength(3);
-    expect(html.match(/app-onboarding-hero-bg--on/g)).toHaveLength(1);
-    expect(html).toContain("app-onboarding-hero-bg--2 app-onboarding-hero-bg--on");
-    expect(html).not.toContain("app-onboarding-hero-bg--1 app-onboarding-hero-bg--on");
+    expect(html).toContain("app-onboarding--stage");
+    expect(html).toContain("app-onboarding-phone");
+    expect(html.match(/app-onboarding-shot-title/g)?.length).toBe(8);
+    expect(html).toContain("Вечер джаза");
+    expect(html).not.toContain("app-onboarding-hero--");
   });
 
   it("slides the copy in from the side it was flipped towards, and forward when nobody says otherwise", () => {

@@ -77,6 +77,7 @@ const AssistPage = lazyNamed(() => import("../assist/AssistPage"), "AssistPage")
 const SlotBookingPage = lazyNamed(() => import("../place/SlotBookingPage"), "SlotBookingPage");
 const BookingTicketPage = lazyNamed(() => import("../booking/BookingTicketPage"), "BookingTicketPage");
 const MyBookingsPage = lazyNamed(() => import("../booking/MyBookingsPage"), "MyBookingsPage");
+const OnboardingReplayPage = lazyNamed(() => import("../onboarding/OnboardingFlow"), "OnboardingReplayPage");
 const CompanionsPage = lazyNamed(() => import("../event/CompanionsPage"), "CompanionsPage");
 const NotificationsPage = lazyNamed(() => import("../notifications/NotificationsPage"), "NotificationsPage");
 const FollowersPage = lazyNamed(() => import("../subscriptions/Followers"), "FollowersPage");
@@ -178,5 +179,6 @@ function Routed() {
   if (route.name === "notifications") return <NotificationsPage />;
   if (route.name === "followers") return <FollowersPage />;
   if (route.name === "post") return <FeedPostPage id={route.id} />;
+  if (route.name === "onboarding") return <OnboardingReplayPage />;
   return <HomePage />;
 }

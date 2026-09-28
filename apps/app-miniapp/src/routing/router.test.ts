@@ -53,6 +53,7 @@ describe("routeFromStartParam", () => {
   it("opens a post, a profile and a calendar invite from their deep links", () => {
     expect(routeFromStartParam("post-p1")).toEqual({ name: "post", id: "p1" });
     expect(routeFromStartParam("user-u1")).toEqual({ name: "user", id: "u1" });
+    expect(routeFromStartParam("onboarding")).toEqual({ name: "onboarding" });
     expect(routeFromStartParam("calendar")).toEqual({ name: "calendar" });
     expect(routeFromStartParam("calendar-tok")).toEqual({ name: "calendar", inviteToken: "tok" });
     expect(routeFromStartParam("calendar-")).toEqual({ name: "home" });

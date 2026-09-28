@@ -90,7 +90,9 @@ export type Route =
   | { name: "notifications" }
   // «Подписчики»: обратная сторона подписки, вход — счётчик в шапке профиля
   | { name: "followers" }
-  | { name: "post"; id: string };
+  | { name: "post"; id: string }
+  // Повтор онбординга из настроек. Первый запуск по-прежнему решает OnboardingGate, этот маршрут его не включает.
+  | { name: "onboarding" };
 
 const START_PARAM_PREFIXES = [
   ["event-", "event"],
@@ -122,6 +124,7 @@ export function routeFromStartParam(startParam: string | null): Route {
   }
   // Calendar invite is a token, not an entity id, and the bare word opens the calendar itself.
   if (startParam === "calendar") return { name: "calendar" };
+  if (startParam === "onboarding") return { name: "onboarding" };
   if (startParam?.startsWith("calendar-") === true) {
     const inviteToken = startParam.slice("calendar-".length);
     if (inviteToken) return { name: "calendar", inviteToken };
@@ -266,6 +269,8 @@ function toRoute(value: unknown): Route | null {
     }
     // «Подписчики» параметров не несёт; отдельным case, а не строкой в общем блоке — чтобы правка не легла в чужую
     case "followers":
+      return { name };
+    case "onboarding":
       return { name };
     // Экран 23 живёт при событии: свой case, потому что ключ — eventId
     case "companions": {
