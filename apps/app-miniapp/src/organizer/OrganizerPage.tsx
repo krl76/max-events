@@ -29,7 +29,7 @@
 // - OrganizerPage - legacy route stub: the panel lives in the organizer space (./OrganizerSpace.js) behind the organizer login
 // END_MODULE_MAP
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EventCategorySchema, PlaceCategorySchema, type CreateEvent, type CreatePlace, type EventCategory, type PlaceCategory, type UpdateOrganizerEventOptions } from "@max-events/api-contracts";
 import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganizerEvent } from "../api/client";
 import { CATEGORY_LABELS } from "../catalog/CatalogPage";
@@ -69,6 +69,8 @@ export interface EventDraft {
   registrationInApp: boolean;
   externalUrl: string;
   repeatWeekly: boolean;
+  /** Price is collected on the organizer's site. Empty price must not silently mean this mode. */
+  sellOutside: boolean;
 }
 
 export interface PlaceDraft {
@@ -80,7 +82,7 @@ export interface PlaceDraft {
   longitude: string;
 }
 
-export const EMPTY_EVENT_DRAFT: EventDraft = { title: "", description: "", category: "afisha", city: "", startsAt: "", endsAt: "", price: "", paymentUrl: "", capacity: "", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "", waitlistEnabled: false, registrationInApp: true, externalUrl: "", repeatWeekly: false };
+export const EMPTY_EVENT_DRAFT: EventDraft = { title: "", description: "", category: "afisha", city: "", startsAt: "", endsAt: "", price: "", paymentUrl: "", capacity: "", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "", waitlistEnabled: false, registrationInApp: true, externalUrl: "", repeatWeekly: false, sellOutside: false };
 
 const PLACE_FOR_EVENT: Record<EventCategory, PlaceCategory> = { afisha: "other", volunteering: "other", tourism: "park", sport: "sport" };
 
@@ -121,7 +123,15 @@ export function eventDraftErrors(draft: EventDraft): string[] {
   if (draft.startsAt !== "" && draft.endsAt !== "" && new Date(draft.endsAt) < new Date(draft.startsAt)) errors.push("Окончание не может быть раньше начала");
   const price = draft.price.trim() === "" ? null : Number(draft.price);
   if (price !== null && (!Number.isInteger(price) || price < 0)) errors.push("Цена — целое число от 0");
-  if (price !== null && price > 0 && draft.paymentUrl.trim() === "") errors.push("Для платного события нужна ссылка на оплату");
+  if (draft.sellOutside && (price === null || price <= 0)) errors.push("Укажите цену билета");
+  if ((draft.sellOutside || (price !== null && price > 0)) && draft.paymentUrl.trim() === "") errors.push("Добавьте ссылку на покупку");
+  if (price !== null && price > 0 && draft.paymentUrl.trim() !== "") {
+    try {
+      new URL(draft.paymentUrl.trim());
+    } catch {
+      errors.push("Ссылка на покупку должна начинаться с https://");
+    }
+  }
   if (draft.capacity.trim() !== "" && (!Number.isInteger(Number(draft.capacity)) || Number(draft.capacity) < 1)) errors.push("Вместимость — целое число от 1");
   if (draft.waitlistEnabled && draft.capacity.trim() === "") errors.push("Лист ожидания нужен только там, где есть предел мест");
   if (!draft.registrationInApp && draft.externalUrl.trim() === "") errors.push("Укажите ссылку на регистрацию на вашем сайте");
@@ -133,6 +143,26 @@ export function eventDraftErrors(draft: EventDraft): string[] {
     }
   }
   return errors;
+}
+
+export type EventWizardStep = 1 | 2 | 3 | 4 | 5;
+
+const WIZARD_STEP_TITLES = ["О событии", "Когда и где", "Участие и билеты", "Настройки", "Проверка"] as const;
+
+export function eventWizardTitle(step: EventWizardStep): string {
+  return WIZARD_STEP_TITLES[step - 1];
+}
+
+/** Errors that block leaving this step. The last step repeats the full list. */
+export function eventDraftStepErrors(draft: EventDraft, step: EventWizardStep): string[] {
+  const all = eventDraftErrors(draft);
+  if (step === 5) return all;
+  return all.filter((error) => {
+    if (step === 1) return error.startsWith("Укажите название");
+    if (step === 2) return error.includes("город") || error.includes("дату") || error.includes("Окончание");
+    if (step === 3) return error.includes("Цен") || error.includes("покуп") || error.includes("Вместимость") || error.includes("Лист") || error.includes("регистрац");
+    return false;
+  });
 }
 
 export function toEventOptions(draft: EventDraft): UpdateOrganizerEventOptions {
@@ -206,6 +236,7 @@ export function eventDraftFrom(item: OrganizerEvent, place?: OrganizerPlace): Ev
     registrationInApp: true,
     externalUrl: "",
     repeatWeekly: false,
+    sellOutside: item.isPaid || (item.priceRub !== null && item.priceRub > 0),
   };
 }
 
@@ -234,7 +265,7 @@ export function splitOrganizerEvents(items: OrganizerEvent[], now = Date.now()):
   return { drafts, upcoming, past };
 }
 
-export function OrganizerEventCard({ item, placeTitle = null, publishing, failed, onOpen, onPublish, onEdit }: { item: OrganizerEvent; placeTitle?: string | null; publishing: boolean; failed: boolean; onOpen?: () => void; onPublish: () => void; onEdit: () => void }) {
+export function OrganizerEventCard({ item, placeTitle = null, failed, onOpen }: { item: OrganizerEvent; placeTitle?: string | null; publishing?: boolean; failed: boolean; onOpen?: () => void; onPublish?: () => void; onEdit?: () => void }) {
   const when = new Date(item.startsAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const highlight = posterHighlight({ event: item, distanceKm: null, rating: null, placeTitle });
   const where = placeTitle !== null && placeTitle !== "" ? placeTitle : item.city;
@@ -264,144 +295,224 @@ export function OrganizerEventCard({ item, placeTitle = null, publishing, failed
         face
       )}
       {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
-      <span className="app-org-card-actions">
-        {item.draft && (
-          <AppButton stretched disabled={publishing} onClick={onPublish}>
-            {publishing ? "Публикация…" : "Опубликовать"}
-          </AppButton>
-        )}
-        <AppButton stretched onClick={onEdit}>
-          Изменить
-        </AppButton>
-      </span>
     </article>
   );
 }
 
-export function OrganizerPlaceCard({ item, publishing, failed, onPublish, onEdit }: { item: OrganizerPlace; publishing: boolean; failed: boolean; onPublish: () => void; onEdit: () => void }) {
+export function OrganizerPlaceCard({ item, publishing, failed, onPublish, onOpen }: { item: OrganizerPlace; publishing: boolean; failed: boolean; onPublish: () => void; onOpen: () => void }) {
   return (
     <article className="app-card app-card--row">
-      <AppMedia category={item.category === "sport" ? "sport" : item.category === "park" ? "tourism" : "afisha"} />
-      <div className="app-card-body">
-        <span className="app-card-title">{item.title}</span>
-        <span className="app-card-subtitle">
-          {item.address} · {item.city}
+      <button type="button" className="app-poster-main" onClick={onOpen}>
+        <AppMedia category={item.category === "sport" ? "sport" : item.category === "park" ? "tourism" : "afisha"} />
+        <span className="app-card-body">
+          <span className="app-card-title">{item.title}</span>
+          <span className="app-card-subtitle">
+            {item.address} · {item.city}
+          </span>
+          <span className="app-card-subtitle">{PLACE_CATEGORY_LABELS[item.category]}</span>
+          {item.draft && <span className="app-micro-badge">Черновик</span>}
         </span>
-        <span className="app-card-subtitle">{PLACE_CATEGORY_LABELS[item.category]}</span>
-        {item.draft && <span className="app-micro-badge">Черновик</span>}
-        {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
-        <span className="app-org-card-actions">
-          {item.draft && (
-            <AppButton stretched disabled={publishing} onClick={onPublish}>
-              {publishing ? "Публикация…" : "Опубликовать"}
-            </AppButton>
-          )}
-          <AppButton stretched onClick={onEdit}>
-            Изменить
-          </AppButton>
-        </span>
-      </div>
+      </button>
+      {failed && <AppState error>Не удалось опубликовать. Попробуйте ещё раз.</AppState>}
+      {item.draft && (
+        <AppButton stretched disabled={publishing} onClick={onPublish}>
+          {publishing ? "Публикация…" : "Опубликовать"}
+        </AppButton>
+      )}
     </article>
   );
 }
 
 interface EventDraftFormProps {
   draft: EventDraft;
+  step: EventWizardStep;
   errors: string[];
   submitting: boolean;
   failed: boolean;
-  submitLabel: string;
+  mode: "create" | "edit";
+  offerPublish?: boolean;
   onChange: (field: keyof EventDraft, value: string | boolean) => void;
-  onSubmit: () => void;
-  onCancel: () => void;
+  onNext: () => void;
+  onBack: () => void;
+  onJump: (step: EventWizardStep) => void;
+  onSaveDraft: () => void;
+  onPublish: () => void;
 }
 
-export function EventDraftForm({ draft, errors, submitting, failed, submitLabel, onChange, onSubmit, onCancel }: EventDraftFormProps) {
+export function EventDraftForm({ draft, step, errors, submitting, failed, mode, offerPublish = false, onChange, onNext, onBack, onJump, onSaveDraft, onPublish }: EventDraftFormProps) {
+  const canPublish = mode === "create" || offerPublish;
+  const participation = draft.sellOutside ? "Покупка на другом сайте" : "Бесплатно по регистрации";
   return (
     <form
       className="app-profile-form"
       onSubmit={(submit) => {
         submit.preventDefault();
-        onSubmit();
+        if (step < 5) onNext();
+        else if (canPublish) onPublish();
+        else onSaveDraft();
       }}
     >
-      <label className="app-org-field">
-        <span className="app-org-field-label">Название</span>
-        <input className="app-profile-input" type="text" aria-label="Название события" placeholder="Название события" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
-      </label>
-      <label className="app-org-field">
-        <span className="app-org-field-label">Описание</span>
-        <textarea className="app-profile-input app-org-textarea" aria-label="Описание" placeholder="Что будет на событии" rows={4} value={draft.description} onChange={(change) => onChange("description", change.target.value)} />
-      </label>
-      <div className="app-org-choice" role="group" aria-label="Категория">
-        {EventCategorySchema.options.map((category) => (
-          <AppChip key={category} pressed={draft.category === category} onClick={() => onChange("category", category)}>
-            {CATEGORY_LABELS[category]}
-          </AppChip>
-        ))}
-      </div>
-      <label className="app-org-field">
-        <span className="app-org-field-label">Город</span>
-        <input className="app-profile-input" type="text" aria-label="Город" placeholder="Город" value={draft.city} onChange={(change) => onChange("city", change.target.value)} />
-      </label>
-      <label className="app-org-field">
-        <span className="app-org-field-label">Адрес</span>
-        <input className="app-profile-input" type="text" aria-label="Адрес" placeholder="Улица, дом — или точка на карте" value={draft.address} onChange={(change) => onChange("address", change.target.value)} />
-      </label>
-      <VenuePinMap
-        latitude={Number(draft.latitude)}
-        longitude={Number(draft.longitude)}
-        onPick={(latitude, longitude) => {
-          onChange("latitude", latitude.toFixed(6));
-          onChange("longitude", longitude.toFixed(6));
-          onChange("pinned", true);
-        }}
-      />
-      <label className="app-org-field">
-        <span className="app-org-field-label">Начало</span>
-        <input className="app-profile-input" type="datetime-local" aria-label="Начало" value={draft.startsAt} onChange={(change) => onChange("startsAt", change.target.value)} />
-      </label>
-      <label className="app-org-field">
-        <span className="app-org-field-label">Окончание</span>
-        <input className="app-profile-input" type="datetime-local" aria-label="Окончание (необязательно)" value={draft.endsAt} onChange={(change) => onChange("endsAt", change.target.value)} />
-      </label>
-      <label className="app-org-field">
-        <span className="app-org-field-label">Цена, ₽</span>
-        <input className="app-profile-input" type="number" min={0} aria-label="Цена, ₽ (пусто — бесплатно)" placeholder="Пусто — бесплатно" value={draft.price} onChange={(change) => onChange("price", change.target.value)} />
-      </label>
-      {Number(draft.price) > 0 && (
-        <label className="app-org-field">
-          <span className="app-org-field-label">Ссылка на оплату</span>
-          <input className="app-profile-input" type="url" aria-label="Ссылка на оплату" placeholder="Ссылка на оплату" value={draft.paymentUrl} onChange={(change) => onChange("paymentUrl", change.target.value)} />
-        </label>
+      <p className="app-gathering-hint">
+        Шаг {step} из 5 · {eventWizardTitle(step)}
+      </p>
+      {step === 1 && (
+        <>
+          <p className="app-gathering-hint">Своя обложка с телефона в кабинете не сохраняется. Карточка возьмёт уже заданное фото или картинку раздела.</p>
+          <label className="app-org-field">
+            <span className="app-org-field-label">Название</span>
+            <input className="app-profile-input" type="text" aria-label="Название события" placeholder="Например, «Вечер джаза на Патриарших»" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
+          </label>
+          <div className="app-org-choice" role="group" aria-label="Раздел размещения">
+            {EventCategorySchema.options.map((category) => (
+              <AppChip key={category} pressed={draft.category === category} onClick={() => onChange("category", category)}>
+                {CATEGORY_LABELS[category]}
+              </AppChip>
+            ))}
+          </div>
+          <p className="app-gathering-hint">Раздел определяет, где событие окажется в афише: события, волонтёрство, туризм или спорт.</p>
+          <label className="app-org-field">
+            <span className="app-org-field-label">Описание</span>
+            <textarea className="app-profile-input app-org-textarea" aria-label="Описание" placeholder="Что произойдёт и кому будет интересно" rows={4} value={draft.description} onChange={(change) => onChange("description", change.target.value)} />
+          </label>
+        </>
       )}
-      <label className="app-org-field">
-        <span className="app-org-field-label">Вместимость</span>
-        <input className="app-profile-input" type="number" min={1} aria-label="Вместимость (необязательно)" placeholder="Необязательно" value={draft.capacity} onChange={(change) => onChange("capacity", change.target.value)} />
-      </label>
-      <div className="app-set-group">
-        <SettingsSwitchRow title="Лист ожидания" hint="Когда места закончатся" checked={draft.waitlistEnabled} onChange={(waitlistEnabled) => onChange("waitlistEnabled", waitlistEnabled)} />
-        <SettingsSwitchRow title="Запись в приложении" hint="Иначе гость уйдёт по вашей ссылке" checked={draft.registrationInApp} onChange={(registrationInApp) => onChange("registrationInApp", registrationInApp)} />
-        <SettingsSwitchRow title="Повторять каждую неделю" hint="Серия до конца следующего месяца" checked={draft.repeatWeekly} onChange={(repeatWeekly) => onChange("repeatWeekly", repeatWeekly)} />
-      </div>
-      {!draft.registrationInApp && (
-        <label className="app-org-field">
-          <span className="app-org-field-label">Ссылка на регистрацию</span>
-          <input className="app-profile-input" type="url" aria-label="Ссылка на регистрацию" placeholder="https://" value={draft.externalUrl} onChange={(change) => onChange("externalUrl", change.target.value)} />
-        </label>
+      {step === 2 && (
+        <>
+          <label className="app-org-field">
+            <span className="app-org-field-label">Начало</span>
+            <input className="app-profile-input" type="datetime-local" aria-label="Начало" value={draft.startsAt} onChange={(change) => onChange("startsAt", change.target.value)} />
+          </label>
+          <label className="app-org-field">
+            <span className="app-org-field-label">Окончание</span>
+            <input className="app-profile-input" type="datetime-local" aria-label="Окончание" value={draft.endsAt} onChange={(change) => onChange("endsAt", change.target.value)} />
+          </label>
+          <label className="app-org-field">
+            <span className="app-org-field-label">Город</span>
+            <input className="app-profile-input" type="text" aria-label="Город" placeholder="Город" value={draft.city} onChange={(change) => onChange("city", change.target.value)} />
+          </label>
+          <label className="app-org-field">
+            <span className="app-org-field-label">Адрес</span>
+            <input className="app-profile-input" type="text" aria-label="Адрес" placeholder="Улица и дом, или точка на карте" value={draft.address} onChange={(change) => onChange("address", change.target.value)} />
+          </label>
+          <VenuePinMap
+            latitude={Number(draft.latitude)}
+            longitude={Number(draft.longitude)}
+            onPick={(latitude, longitude) => {
+              onChange("latitude", latitude.toFixed(6));
+              onChange("longitude", longitude.toFixed(6));
+              onChange("pinned", true);
+            }}
+          />
+          <p className="app-gathering-hint">Можно выбрать уже сохранённое место на шаге проверки, оставив его привязанным, или указать разовый адрес. Часовой пояс — местный, отдельного переключателя нет.</p>
+        </>
       )}
-
+      {step === 3 && (
+        <>
+          <div className="app-set-group" role="radiogroup" aria-label="Способ участия">
+            <button
+              type="button"
+              className="app-set-row"
+              aria-pressed={!draft.sellOutside}
+              onClick={() => {
+                onChange("sellOutside", false);
+                onChange("price", "");
+                onChange("paymentUrl", "");
+                onChange("registrationInApp", true);
+              }}
+            >
+              <span className="app-set-row-text">
+                <span className="app-set-row-title">Бесплатно по регистрации</span>
+                <span className="app-set-row-hint">Гость записывается в приложении. Оплаты нет.</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className="app-set-row"
+              aria-pressed={draft.sellOutside}
+              onClick={() => {
+                onChange("sellOutside", true);
+                onChange("registrationInApp", true);
+              }}
+            >
+              <span className="app-set-row-text">
+                <span className="app-set-row-title">Покупка на другом сайте</span>
+                <span className="app-set-row-hint">Гость отмечает участие здесь и переходит на вашу ссылку. Сумма заказа в кабинет не приходит.</span>
+              </span>
+            </button>
+          </div>
+          <p className="app-gathering-hint">Продажа билетов внутри приложения и вход совсем без записи не подключены.</p>
+          {draft.sellOutside && (
+            <>
+              <label className="app-org-field">
+                <span className="app-org-field-label">Цена, ₽</span>
+                <input className="app-profile-input" type="number" min={1} aria-label="Цена билета" placeholder="1500" value={draft.price} onChange={(change) => onChange("price", change.target.value)} />
+              </label>
+              <label className="app-org-field">
+                <span className="app-org-field-label">Ссылка на покупку</span>
+                <input className="app-profile-input" type="url" aria-label="Ссылка на покупку" placeholder="https://" value={draft.paymentUrl} onChange={(change) => onChange("paymentUrl", change.target.value)} />
+              </label>
+            </>
+          )}
+          <label className="app-org-field">
+            <span className="app-org-field-label">Лимит участников</span>
+            <input className="app-profile-input" type="number" min={1} aria-label="Лимит участников" placeholder="Без предела" value={draft.capacity} onChange={(change) => onChange("capacity", change.target.value)} />
+          </label>
+          <SettingsSwitchRow title="Лист ожидания" hint="Только если задан лимит мест" checked={draft.waitlistEnabled} onChange={(waitlistEnabled) => onChange("waitlistEnabled", waitlistEnabled)} />
+        </>
+      )}
+      {step === 4 && (
+        <>
+          <SettingsSwitchRow title="Повторять каждую неделю" hint="В настройках сохранится пометка. Отдельные сеансы по датам сами не создаются." checked={draft.repeatWeekly} onChange={(repeatWeekly) => onChange("repeatWeekly", repeatWeekly)} />
+          <p className="app-gathering-hint">Контакт для гостей задаётся в профиле организации. Чат события появится, когда оно уйдёт в чаты MAX. Продвижение к созданию не привязано.</p>
+        </>
+      )}
+      {step === 5 && (
+        <>
+          <div className="app-set-group">
+            {(
+              [
+                [1, "О событии", draft.title.trim() === "" ? "Название не указано" : draft.title],
+                [2, "Дата и место", draft.startsAt === "" ? "Дата не указана" : `${draft.startsAt}${draft.city === "" ? "" : ` · ${draft.city}`}`],
+                [3, "Участие", participation],
+                [3, "Цена", draft.sellOutside ? (draft.price === "" ? "Цена не указана" : `${draft.price} ₽ · ${draft.paymentUrl || "ссылка не указана"}`) : "Бесплатно"],
+              ] as Array<[EventWizardStep, string, string]>
+            ).map(([target, title, value]) => (
+              <button key={title} type="button" className="app-set-row" onClick={() => onJump(target)}>
+                <span className="app-set-row-text">
+                  <span className="app-set-row-title">{title}</span>
+                  <span className="app-set-row-hint">{value}</span>
+                </span>
+                <span className="app-set-row-value">Изменить</span>
+              </button>
+            ))}
+          </div>
+          <p className="app-gathering-hint">Публикация сразу открывает событие в афише. Отдельной проверки модератором нет.</p>
+        </>
+      )}
       {errors.map((error) => (
         <p key={error} className="app-state app-state--error">
           {error}
         </p>
       ))}
       {failed && <AppState error>Не удалось сохранить. Попробуйте ещё раз.</AppState>}
-      <AppButton disabled={submitting} type="submit" stretched>
-        {submitting ? "Сохранение…" : submitLabel}
-      </AppButton>
-      <AppButton type="button" stretched onClick={onCancel}>
-        Отмена
+      {step < 5 ? (
+        <AppButton disabled={submitting} type="submit" stretched>
+          Далее
+        </AppButton>
+      ) : (
+        <>
+          <AppButton disabled={submitting} type="submit" stretched>
+            {submitting ? "Сохранение…" : canPublish ? "Опубликовать" : "Сохранить"}
+          </AppButton>
+          {canPublish && (
+            <AppButton tone="secondary" disabled={submitting} type="button" stretched onClick={onSaveDraft}>
+              Сохранить черновик
+            </AppButton>
+          )}
+        </>
+      )}
+      <AppButton tone="secondary" type="button" stretched onClick={onBack}>
+        {step === 1 ? "Отмена" : "Назад"}
       </AppButton>
     </form>
   );
@@ -427,10 +538,13 @@ export function PlaceDraftForm({ draft, errors, submitting, failed, submitLabel,
         onSubmit();
       }}
     >
+      <p className="app-gathering-hint">Фото, часы работы и описание места кабинет не хранит. Гости видят название и адрес.</p>
+      <p className="app-org-group-title">Название и категория</p>
       <label className="app-org-field">
         <span className="app-org-field-label">Название</span>
         <input className="app-profile-input" type="text" aria-label="Название" placeholder="Название места" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
       </label>
+      <p className="app-org-group-title">Адрес и точка</p>
       <label className="app-org-field">
         <span className="app-org-field-label">Адрес</span>
         <input className="app-profile-input" type="text" aria-label="Адрес" placeholder="Улица и дом, или точка на карте" value={draft.address} onChange={(change) => onChange("address", change.target.value)} />
@@ -470,7 +584,44 @@ export function PlaceDraftForm({ draft, errors, submitting, failed, submitLabel,
   );
 }
 
-type EventFormState = { mode: "create"; draft: EventDraft } | { mode: "edit"; id: string; draft: EventDraft } | null;
+function PlaceManage({ place, events, onBack, onEdit, onCreate }: { place: OrganizerPlace; events: OrganizerEvent[]; onBack: () => void; onEdit: () => void; onCreate: () => void }) {
+  const linked = events.filter((item) => item.placeId === place.id);
+  return (
+    <section className="app-gathering" aria-label="Управление местом">
+      <button type="button" className="app-org-head-link" onClick={onBack}>
+        Назад к списку
+      </button>
+      <article className="app-set-group">
+        <p className="app-set-row-title">{place.title}</p>
+        <p className="app-set-row-hint">
+          {place.address} · {place.city}
+        </p>
+        <p className="app-set-row-hint">
+          {place.draft ? "Черновик" : "Опубликовано"} · {PLACE_CATEGORY_LABELS[place.category]}
+        </p>
+      </article>
+      <p className="app-gathering-hint">Гости видят этот адрес на карточке события. Отдельной страницы места в афише кабинет не открывает.</p>
+      <button type="button" className="app-set-row" onClick={onEdit}>
+        <span className="app-set-row-text">
+          <span className="app-set-row-title">Редактировать</span>
+          <span className="app-set-row-hint">Название, категория, адрес и точка</span>
+        </span>
+      </button>
+      <h2 className="app-section-title">События здесь</h2>
+      {linked.length === 0 && <p className="app-gathering-hint">Событий на этой площадке пока нет. Место может существовать само по себе.</p>}
+      {linked.map((item) => (
+        <p key={item.id} className="app-set-row-hint">
+          {item.title}
+        </p>
+      ))}
+      <AppButton stretched onClick={onCreate}>
+        Создать событие здесь
+      </AppButton>
+    </section>
+  );
+}
+
+type EventFormState = { mode: "create"; draft: EventDraft } | { mode: "edit"; id: string; draft: EventDraft; offerPublish: boolean } | null;
 type PlaceFormState = { mode: "create"; draft: PlaceDraft } | { mode: "edit"; id: string; draft: PlaceDraft } | null;
 
 function sortEvents(items: OrganizerEvent[]): OrganizerEvent[] {
@@ -485,18 +636,25 @@ function upsert<T extends { id: string }>(items: T[], item: T): T[] {
   return items.some((existing) => existing.id === item.id) ? items.map((existing) => (existing.id === item.id ? item : existing)) : [...items, item];
 }
 
-/** createOnMount: the «Создать» tab of the organizer bar (макет, экран 46) lands straight on the empty event draft. */
-export function OrganizerPanel({ organizationId: _organizationId, createOnMount = false, onOpenEvent, onComposer, closeComposerTick = 0 }: { organizationId: string; createOnMount?: boolean; onOpenEvent?: (event: OrganizerEvent) => void; onComposer?: (title: string | null) => void; closeComposerTick?: number }) {
+/** createOnMount: the «Создать» tab of the organizer bar lands straight on the empty event draft. */
+export function OrganizerPanel({ organizationId: _organizationId, createOnMount = false, onOpenEvent, onComposer, closeComposerTick = 0, editRequestId = null, onEditHandled, placesTick = 0, draftsTick = 0 }: { organizationId: string; createOnMount?: boolean; onOpenEvent?: (event: OrganizerEvent) => void; onComposer?: (title: string | null) => void; closeComposerTick?: number; editRequestId?: string | null; onEditHandled?: () => void; placesTick?: number; draftsTick?: number }) {
   const [tab, setTab] = useState<"events" | "places">("events");
+  const [eventQuery, setEventQuery] = useState("");
+  const [eventFilter, setEventFilter] = useState<"upcoming" | "drafts" | "past">("upcoming");
+  const [placeQuery, setPlaceQuery] = useState("");
   const [events, setEvents] = useState<OrganizerListState<OrganizerEvent>>({ status: "loading" });
   const [places, setPlaces] = useState<OrganizerListState<OrganizerPlace>>({ status: "loading" });
   const [eventForm, setEventForm] = useState<EventFormState>(createOnMount ? { mode: "create", draft: EMPTY_EVENT_DRAFT } : null);
+  const [step, setStep] = useState<EventWizardStep>(1);
   const [placeForm, setPlaceForm] = useState<PlaceFormState>(null);
+  const [placeFocus, setPlaceFocus] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [publishErrorId, setPublishErrorId] = useState<string | null>(null);
+  const seenEdit = useRef<string | null>(null);
+  const createdEventId = useRef<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -525,16 +683,60 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
     setErrors([]);
     setFailed(false);
     setPlaceForm(null);
+    setStep(1);
+    createdEventId.current = next !== null && next.mode === "edit" ? next.id : null;
     setEventForm(next);
   };
 
   useEffect(() => {
-    onComposer?.(eventForm === null ? null : eventForm.mode === "create" ? "Новое событие" : "Событие");
-  }, [eventForm, onComposer]);
+    if (placesTick > 0) setTab("places");
+  }, [placesTick]);
+
+  useEffect(() => {
+    if (draftsTick > 0) {
+      setTab("events");
+      setEventFilter("drafts");
+    }
+  }, [draftsTick]);
+
+  useEffect(() => {
+    if (editRequestId === null) {
+      seenEdit.current = null;
+      return;
+    }
+    if (events.status !== "ready" || places.status === "loading" || seenEdit.current === editRequestId) return;
+    const item = events.items.find((event) => event.id === editRequestId);
+    if (item === undefined) return;
+    seenEdit.current = editRequestId;
+    const place = places.status === "ready" ? places.items.find((row) => row.id === item.placeId) : undefined;
+    setErrors([]);
+    setFailed(false);
+    setPlaceForm(null);
+    setPlaceFocus(null);
+    setTab("events");
+    setStep(1);
+    setEventForm({ mode: "edit", id: item.id, draft: eventDraftFrom(item, place), offerPublish: item.draft });
+    apiClient.getOrganizerEventOptions(item.id).then((options) => {
+      setEventForm((current) =>
+        current !== null && current.mode === "edit" && current.id === item.id
+          ? { ...current, draft: { ...current.draft, waitlistEnabled: options.waitlistEnabled, registrationInApp: options.registrationInApp, externalUrl: options.externalUrl ?? "", repeatWeekly: options.recurrence?.rule === "weekly" } }
+          : current,
+      );
+    }, () => {});
+    onEditHandled?.();
+  }, [editRequestId, events, places, onEditHandled]);
+
+  useEffect(() => {
+    const title = eventForm !== null ? eventWizardTitle(step) : placeForm !== null ? (placeForm.mode === "create" ? "Новое место" : "Место") : null;
+    onComposer?.(title);
+  }, [eventForm, placeForm, step, onComposer]);
 
   useEffect(() => {
     if (closeComposerTick === 0) return;
     setEventForm(null);
+    setPlaceForm(null);
+    setStep(1);
+    createdEventId.current = null;
     setErrors([]);
     setFailed(false);
   }, [closeComposerTick]);
@@ -546,11 +748,14 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
     setPlaceForm(next);
   };
 
-  const submitEvent = () => {
+  const submitEvent = (publish: boolean) => {
     if (eventForm === null) return;
     const nextErrors = eventDraftErrors(eventForm.draft);
     setErrors(nextErrors);
-    if (nextErrors.length > 0) return;
+    if (nextErrors.length > 0) {
+      setStep(5);
+      return;
+    }
     setSubmitting(true);
     setFailed(false);
     const draft = eventForm.draft;
@@ -566,20 +771,32 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
             });
     const request = placeReady.then((placeId) => {
       const withPlace = { ...draft, placeId };
-      const saved = eventForm.mode === "create" ? apiClient.createOrganizerEvent(toCreateEvent(withPlace)) : apiClient.updateOrganizerEvent(eventForm.id, toEventPatch(withPlace));
-      return saved.then((item) => apiClient.updateOrganizerEventOptions(item.id, toEventOptions(withPlace)).then(() => item));
+      const existingId = eventForm.mode === "edit" ? eventForm.id : createdEventId.current;
+      const saved = existingId === null ? apiClient.createOrganizerEvent(toCreateEvent(withPlace)) : apiClient.updateOrganizerEvent(existingId, toEventPatch(withPlace));
+      return saved.then((item) => {
+        createdEventId.current = item.id;
+        return apiClient.updateOrganizerEventOptions(item.id, toEventOptions(withPlace)).then(() => item);
+      });
     });
-    request.then(
-      (item) => {
+    request
+      .then((item) => {
         setEvents((current) => (current.status === "ready" ? { status: "ready", items: sortEvents(upsert(current.items, item)) } : current));
-        setSubmitting(false);
-        setEventForm(null);
-      },
-      () => {
-        setSubmitting(false);
-        setFailed(true);
-      },
-    );
+        if (!publish) return item;
+        const placePublished = item.placeId === null ? Promise.resolve() : apiClient.publishOrganizerPlace(item.placeId).then((place) => setPlaces((current) => (current.status === "ready" ? { status: "ready", items: sortPlaces(upsert(current.items, place)) } : current)));
+        return placePublished.then(() => apiClient.publishOrganizerEvent(item.id));
+      })
+      .then(
+        (item) => {
+          setEvents((current) => (current.status === "ready" ? { status: "ready", items: sortEvents(upsert(current.items, item)) } : current));
+          setSubmitting(false);
+          setEventForm(null);
+          setStep(1);
+        },
+        () => {
+          setSubmitting(false);
+          setFailed(true);
+        },
+      );
   };
 
   const submitPlace = () => {
@@ -603,23 +820,6 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
     );
   };
 
-  const publishEvent = (id: string) => {
-    setPublishingId(id);
-    setPublishErrorId(null);
-    const event = events.status === "ready" ? events.items.find((item) => item.id === id) : undefined;
-    const placeReady = event?.placeId ? apiClient.publishOrganizerPlace(event.placeId).then((item) => setPlaces((current) => (current.status === "ready" ? { status: "ready", items: sortPlaces(upsert(current.items, item)) } : current))) : Promise.resolve();
-    placeReady.then(() => apiClient.publishOrganizerEvent(id)).then(
-      (item) => {
-        setEvents((current) => (current.status === "ready" ? { status: "ready", items: upsert(current.items, item) } : current));
-        setPublishingId(null);
-      },
-      () => {
-        setPublishingId(null);
-        setPublishErrorId(id);
-      },
-    );
-  };
-
   const publishPlace = (id: string) => {
     setPublishingId(id);
     setPublishErrorId(null);
@@ -638,27 +838,51 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
   if (eventForm !== null) {
     return (
       <section className="app-gathering" aria-label={eventForm.mode === "create" ? "Новое событие" : "Событие"}>
-        <EventDraftForm draft={eventForm.draft} errors={errors} submitting={submitting} failed={failed} submitLabel={eventForm.mode === "create" ? "Создать черновик" : "Сохранить"} onChange={(field, value) => setEventForm((current) => (current === null ? current : { ...current, draft: { ...current.draft, [field]: value } }))} onSubmit={submitEvent} onCancel={() => openEventForm(null)} />
+        <EventDraftForm
+          draft={eventForm.draft}
+          step={step}
+          mode={eventForm.mode}
+          offerPublish={eventForm.mode === "edit" && eventForm.offerPublish}
+          errors={errors}
+          submitting={submitting}
+          failed={failed}
+          onChange={(field, value) => setEventForm((current) => (current === null ? current : { ...current, draft: { ...current.draft, [field]: value } }))}
+          onNext={() => {
+            const nextErrors = eventDraftStepErrors(eventForm.draft, step);
+            setErrors(nextErrors);
+            if (nextErrors.length === 0) setStep((current) => (current < 5 ? ((current + 1) as EventWizardStep) : current));
+          }}
+          onBack={() => {
+            setErrors([]);
+            if (step === 1) openEventForm(null);
+            else setStep((current) => (current - 1) as EventWizardStep);
+          }}
+          onJump={(target) => {
+            setErrors([]);
+            setStep(target);
+          }}
+          onSaveDraft={() => submitEvent(false)}
+          onPublish={() => submitEvent(true)}
+        />
+      </section>
+    );
+  }
+
+  if (placeForm !== null) {
+    return (
+      <section className="app-gathering" aria-label={placeForm.mode === "create" ? "Новое место" : "Место"}>
+        <PlaceDraftForm draft={placeForm.draft} errors={errors} submitting={submitting} failed={failed} submitLabel={placeForm.mode === "create" ? "Сохранить место" : "Сохранить"} onChange={(field, value) => setPlaceForm((current) => (current === null ? current : { ...current, draft: { ...current.draft, [field]: value } }))} onSubmit={submitPlace} onCancel={() => openPlaceForm(null)} />
       </section>
     );
   }
 
   const groups = events.status === "ready" ? splitOrganizerEvents(events.items) : null;
   const placeTitleFor = (placeId: string | null) => (places.status === "ready" ? (places.items.find((place) => place.id === placeId)?.title ?? null) : null);
-  const editEvent = (item: OrganizerEvent) => {
-    openEventForm({ mode: "edit", id: item.id, draft: eventDraftFrom(item, places.status === "ready" ? places.items.find((place) => place.id === item.placeId) : undefined) });
-    apiClient.getOrganizerEventOptions(item.id).then((options) => {
-      setEventForm((current) =>
-        current !== null && current.mode === "edit" && current.id === item.id
-          ? { ...current, draft: { ...current.draft, waitlistEnabled: options.waitlistEnabled, registrationInApp: options.registrationInApp, externalUrl: options.externalUrl ?? "", repeatWeekly: options.recurrence?.rule === "weekly" } }
-          : current,
-      );
-    }, () => {});
-  };
+  const visibleEvents = groups === null ? [] : (eventFilter === "drafts" ? groups.drafts : eventFilter === "past" ? groups.past : groups.upcoming).filter((item) => item.title.toLowerCase().includes(eventQuery.trim().toLowerCase()));
   const renderEvents = (items: OrganizerEvent[]) => (
     <div className="app-poster-stack">
       {items.map((item) => (
-        <OrganizerEventCard key={item.id} item={item} placeTitle={placeTitleFor(item.placeId)} publishing={publishingId === item.id} failed={publishErrorId === item.id} onOpen={onOpenEvent === undefined ? undefined : () => onOpenEvent(item)} onPublish={() => publishEvent(item.id)} onEdit={() => editEvent(item)} />
+        <OrganizerEventCard key={item.id} item={item} placeTitle={placeTitleFor(item.placeId)} failed={publishErrorId === item.id} onOpen={onOpenEvent === undefined ? undefined : () => onOpenEvent(item)} />
       ))}
     </div>
   );
@@ -678,40 +902,68 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
           <AppButton stretched onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
             Создать событие
           </AppButton>
-          <p className="app-gathering-hint">Нажмите карточку, чтобы открыть день события: участники, вход и продвижение. «Изменить» правит саму карточку.</p>
+          <input className="app-profile-input" aria-label="Поиск события" placeholder="Название" value={eventQuery} onChange={(change) => setEventQuery(change.target.value)} />
+          <div className="app-filters-chips" role="group" aria-label="Состояние событий">
+            {(
+              [
+                ["upcoming", "Предстоящие"],
+                ["drafts", "Черновики"],
+                ["past", "Прошедшие"],
+              ] as const
+            ).map(([id, label]) => (
+              <AppChip key={id} pressed={eventFilter === id} onClick={() => setEventFilter(id)}>
+                {label}
+              </AppChip>
+            ))}
+          </div>
+          <p className="app-gathering-hint">Нажмите карточку — откроется управление событием. Редактирование находится там, не под карточкой.</p>
           <OrganizerListStatus state={events} emptyText="Пока нет событий — создайте первое." />
-          {groups !== null && groups.drafts.length > 0 && (
+          {events.status === "ready" && events.items.length > 0 && visibleEvents.length === 0 && (
             <>
-              <h2 className="app-section-title">Черновики</h2>
-              {renderEvents(groups.drafts)}
+              <p className="app-gathering-hint">Ничего не найдено. Фильтр и поиск сохранены.</p>
+              <AppButton
+                tone="secondary"
+                stretched
+                onClick={() => {
+                  setEventQuery("");
+                  setEventFilter("upcoming");
+                }}
+              >
+                Сбросить
+              </AppButton>
             </>
           )}
-          {groups !== null && groups.upcoming.length > 0 && (
-            <>
-              <h2 className="app-section-title">В афише</h2>
-              {renderEvents(groups.upcoming)}
-            </>
-          )}
-          {groups !== null && groups.past.length > 0 && (
-            <>
-              <h2 className="app-section-title">Прошедшие</h2>
-              {renderEvents(groups.past)}
-            </>
-          )}
+          {renderEvents(visibleEvents)}
         </>
       )}
-      {tab === "places" && (
+      {tab === "places" && places.status === "ready" && placeFocus !== null && places.items.some((item) => item.id === placeFocus) && (
+        <PlaceManage
+          place={places.items.find((item) => item.id === placeFocus)!}
+          events={events.status === "ready" ? events.items : []}
+          onBack={() => setPlaceFocus(null)}
+          onEdit={() => {
+            const place = places.items.find((item) => item.id === placeFocus);
+            if (place) openPlaceForm({ mode: "edit", id: place.id, draft: placeDraftFrom(place) });
+          }}
+          onCreate={() => {
+            const place = places.items.find((item) => item.id === placeFocus);
+            if (!place) return;
+            openEventForm({ mode: "create", draft: { ...EMPTY_EVENT_DRAFT, placeId: place.id, city: place.city, address: place.address, latitude: String(place.latitude), longitude: String(place.longitude), pinned: true } });
+          }}
+        />
+      )}
+      {tab === "places" && placeFocus === null && (
         <>
-          {placeForm === null ? (
-            <AppButton stretched onClick={() => openPlaceForm({ mode: "create", draft: EMPTY_PLACE_DRAFT })}>
-              Новое место
-            </AppButton>
-          ) : (
-            <PlaceDraftForm draft={placeForm.draft} errors={errors} submitting={submitting} failed={failed} submitLabel={placeForm.mode === "create" ? "Создать черновик" : "Сохранить"} onChange={(field, value) => setPlaceForm((current) => (current === null ? current : { ...current, draft: { ...current.draft, [field]: value } }))} onSubmit={submitPlace} onCancel={() => openPlaceForm(null)} />
-          )}
-          <p className="app-gathering-hint">Место нужно, чтобы поставить адрес на карте. Событие можно создать и без него.</p>
-          <OrganizerListStatus state={places} emptyText="Пока нет мест — создайте первое." />
-          {places.status === "ready" && places.items.map((item) => (placeForm?.mode === "edit" && placeForm.id === item.id ? null : <OrganizerPlaceCard key={item.id} item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishPlace(item.id)} onEdit={() => openPlaceForm({ mode: "edit", id: item.id, draft: placeDraftFrom(item) })} />))}
+          <AppButton stretched onClick={() => openPlaceForm({ mode: "create", draft: EMPTY_PLACE_DRAFT })}>
+            Добавить место
+          </AppButton>
+          <input className="app-profile-input" aria-label="Поиск места" placeholder="Название места" value={placeQuery} onChange={(change) => setPlaceQuery(change.target.value)} />
+          <p className="app-gathering-hint">Место можно завести отдельно от события. Нажмите карточку — откроется управление местом.</p>
+          <OrganizerListStatus state={places} emptyText="Пока нет мест. Площадка нужна, чтобы гости видели адрес." />
+          {places.status === "ready" &&
+            places.items
+              .filter((item) => item.title.toLowerCase().includes(placeQuery.trim().toLowerCase()))
+              .map((item) => <OrganizerPlaceCard key={item.id} item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishPlace(item.id)} onOpen={() => setPlaceFocus(item.id)} />)}
         </>
       )}
     </section>

@@ -20,6 +20,7 @@ export function OrganizerOrganization({ organizationId, organizationName, onLogo
   const [setup, setSetup] = useState<OrganizerSetup | null>(null);
   const [failed, setFailed] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [confirmExit, setConfirmExit] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -69,47 +70,30 @@ export function OrganizerOrganization({ organizationId, organizationName, onLogo
               );
             })}
           </div>
-          <p className="app-org-group-title">Оплата</p>
-          <div className="app-org-setup-modes" role="group" aria-label="Приём оплаты">
-            <button
-              type="button"
-              aria-pressed={setup.payouts.mode === "external"}
-              className={setup.payouts.mode === "external" ? "app-org-setup-mode app-org-setup-mode--on" : "app-org-setup-mode"}
-              onClick={() => {
-                setSetup({ ...setup, payouts: { ...setup.payouts, mode: "external" } });
-                if (setup.payouts.paymentUrl) save({ payouts: { mode: "external", paymentUrl: setup.payouts.paymentUrl } });
+          <p className="app-org-group-title">Внешняя оплата</p>
+          <p className="app-gathering-hint">Бесплатные и платные события живут вместе. Ссылка нужна только если билет покупают на вашем сайте. Деньги в кабинет не приходят.</p>
+          <label className="app-org-field">
+            <span className="app-org-field-label">Ссылка на оплату</span>
+            <input
+              className="app-profile-input"
+              type="url"
+              placeholder="https://"
+              value={setup.payouts.paymentUrl ?? ""}
+              onChange={(change) => setSetup({ ...setup, payouts: { ...setup.payouts, paymentUrl: change.target.value } })}
+              onBlur={(change) => {
+                const value = change.target.value.trim();
+                if (value === "") {
+                  save({ payouts: { mode: "none", paymentUrl: null } });
+                  return;
+                }
+                try {
+                  save({ payouts: { mode: "external", paymentUrl: new URL(value).toString() } });
+                } catch {
+                  setSaveFailed(true);
+                }
               }}
-            >
-              Платные события
-            </button>
-            <button type="button" aria-pressed={setup.payouts.mode === "none"} className={setup.payouts.mode === "none" ? "app-org-setup-mode app-org-setup-mode--on" : "app-org-setup-mode"} onClick={() => save({ payouts: { mode: "none" } })}>
-              Пока только бесплатные
-            </button>
-          </div>
-          {setup.payouts.mode === "external" && (
-            <label className="app-org-field">
-              <span className="app-org-field-label">Ссылка на оплату</span>
-              <input
-                className="app-profile-input"
-                type="url"
-                placeholder="https://"
-                value={setup.payouts.paymentUrl ?? ""}
-                onChange={(change) => setSetup({ ...setup, payouts: { ...setup.payouts, paymentUrl: change.target.value } })}
-                onBlur={(change) => {
-                  const value = change.target.value.trim();
-                  if (value === "") {
-                    save({ payouts: { paymentUrl: null } });
-                    return;
-                  }
-                  try {
-                    save({ payouts: { paymentUrl: new URL(value).toString() } });
-                  } catch {
-                    setSaveFailed(true);
-                  }
-                }}
-              />
-            </label>
-          )}
+            />
+          </label>
           <label className="app-org-field">
             <span className="app-org-field-label">Контакт для покупателя</span>
             <input
@@ -125,9 +109,21 @@ export function OrganizerOrganization({ organizationId, organizationName, onLogo
         </>
       )}
       <MyOrganizerRatingCard organizationId={organizationId} />
-      <AppButton stretched onClick={onLogout}>
-        Выйти из кабинета
-      </AppButton>
+      {confirmExit ? (
+        <>
+          <p className="app-gathering-hint">Выйти из кабинета и вернуться к выбору входа?</p>
+          <AppButton tone="danger" stretched onClick={onLogout}>
+            Выйти
+          </AppButton>
+          <AppButton tone="secondary" stretched onClick={() => setConfirmExit(false)}>
+            Остаться
+          </AppButton>
+        </>
+      ) : (
+        <AppButton tone="secondary" stretched onClick={() => setConfirmExit(true)}>
+          Выйти из кабинета
+        </AppButton>
+      )}
     </section>
   );
 }

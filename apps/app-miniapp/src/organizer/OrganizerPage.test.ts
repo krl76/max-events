@@ -43,7 +43,7 @@ const publishedPlace: OrganizerPlace = {
   logoUrl: null,
 };
 
-const readyDraft: EventDraft = { title: "Встреча книжного клуба", description: "", category: "afisha", city: "Москва", startsAt: "2026-10-20T19:00", endsAt: "", price: "", paymentUrl: "", capacity: "12", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "", waitlistEnabled: false, registrationInApp: true, externalUrl: "", repeatWeekly: false };
+const readyDraft: EventDraft = { title: "Встреча книжного клуба", description: "", category: "afisha", city: "Москва", startsAt: "2026-10-20T19:00", endsAt: "", price: "", paymentUrl: "", capacity: "12", address: "", latitude: "55.7558", longitude: "37.6173", pinned: false, placeId: "", waitlistEnabled: false, registrationInApp: true, externalUrl: "", repeatWeekly: false, sellOutside: false };
 
 describe("eventDraftErrors", () => {
   it("accepts a ready draft and reports every missing required field", () => {
@@ -53,7 +53,8 @@ describe("eventDraftErrors", () => {
 
   it("rejects a negative price, a paid event without a payment link and a zero capacity", () => {
     expect(eventDraftErrors({ ...readyDraft, price: "-10" })).toContain("Цена — целое число от 0");
-    expect(eventDraftErrors({ ...readyDraft, price: "500" })).toContain("Для платного события нужна ссылка на оплату");
+    expect(eventDraftErrors({ ...readyDraft, price: "500" })).toContain("Добавьте ссылку на покупку");
+    expect(eventDraftErrors({ ...readyDraft, sellOutside: true, price: "" })).toContain("Укажите цену билета");
     expect(eventDraftErrors({ ...readyDraft, capacity: "0" })).toContain("Вместимость — целое число от 1");
   });
 
@@ -158,7 +159,7 @@ describe("OrganizerEventCard", () => {
   it("shows the draft badge and the publish button on a draft", () => {
     const html = card(draftEvent);
     expect(html).toContain("Черновик");
-    expect(html).toContain("Опубликовать");
+    expect(html).not.toContain("Изменить");
     expect(html).toContain(draftEvent.title);
     expect(html).toContain("0 из 40 · свободно 40 мест");
   });
@@ -173,34 +174,62 @@ describe("OrganizerEventCard", () => {
     const html = card({ ...draftEvent, draft: false });
     expect(html).not.toContain("Черновик");
     expect(html).not.toContain("Опубликовать");
-    expect(html).toContain("Изменить");
+    expect(html).not.toContain("Изменить");
   });
 });
 
 describe("OrganizerPlaceCard", () => {
   it("shows the publish button only on drafts", () => {
-    const published = renderToStaticMarkup(createElement(OrganizerPlaceCard, { item: publishedPlace, publishing: false, failed: false, onPublish: noop, onEdit: noop }));
+    const published = renderToStaticMarkup(createElement(OrganizerPlaceCard, { item: publishedPlace, publishing: false, failed: false, onPublish: noop, onOpen: noop }));
     expect(published).not.toContain("Черновик");
-    expect(published).not.toContain("Опубликовать");
+    expect(published).not.toContain("Изменить");
 
-    const draft = renderToStaticMarkup(createElement(OrganizerPlaceCard, { item: { ...publishedPlace, draft: true }, publishing: false, failed: false, onPublish: noop, onEdit: noop }));
+    const draft = renderToStaticMarkup(createElement(OrganizerPlaceCard, { item: { ...publishedPlace, draft: true }, publishing: false, failed: false, onPublish: noop, onOpen: noop }));
     expect(draft).toContain("Черновик");
-    expect(draft).toContain("Опубликовать");
+    expect(draft).not.toContain("Изменить");
     expect(draft).toContain(publishedPlace.address);
   });
 });
 
 describe("EventDraftForm", () => {
-  const form = (over: { draft?: EventDraft; errors?: string[]; submitting?: boolean; failed?: boolean } = {}) => renderToStaticMarkup(createElement(EventDraftForm, { draft: over.draft ?? EMPTY_EVENT_DRAFT, errors: over.errors ?? [], submitting: over.submitting ?? false, failed: over.failed ?? false, submitLabel: "Создать черновик", onChange: noop, onSubmit: noop, onCancel: noop }));
+  const form = (over: { draft?: EventDraft; step?: 1 | 2 | 3 | 4 | 5; errors?: string[]; submitting?: boolean; failed?: boolean } = {}) =>
+    renderToStaticMarkup(
+      createElement(EventDraftForm, {
+        draft: over.draft ?? EMPTY_EVENT_DRAFT,
+        step: over.step ?? 1,
+        mode: "create",
+        errors: over.errors ?? [],
+        submitting: over.submitting ?? false,
+        failed: over.failed ?? false,
+        onChange: noop,
+        onNext: noop,
+        onBack: noop,
+        onJump: noop,
+        onSaveDraft: noop,
+        onPublish: noop,
+      }),
+    );
 
-  it("renders the required fields with the category options", () => {
-    const html = form();
-    expect(html).toContain("Название события");
-    expect(html).toContain('type="datetime-local"');
-    expect(html).toContain("Афиша");
-    expect(html).toContain("Создать черновик");
-    expect(html).toContain("Лист ожидания");
-    expect(html).toContain("Повторять каждую неделю");
+  it("starts on the description step and keeps the later steps on their own screens", () => {
+    const first = form();
+    expect(first).toContain("Шаг 1 из 5");
+    expect(first).toContain("Например, «Вечер джаза на Патриарших»");
+    expect(first).toContain("Афиша");
+    expect(first).toContain("Далее");
+    expect(first).not.toContain('type="datetime-local"');
+
+    const when = form({ step: 2 });
+    expect(when).toContain('type="datetime-local"');
+    expect(when).toContain("Шаг 2 из 5");
+
+    const join = form({ step: 3 });
+    expect(join).toContain("Бесплатно по регистрации");
+    expect(join).toContain("Покупка на другом сайте");
+    expect(join).toContain("Лист ожидания");
+
+    expect(form({ step: 4 })).toContain("Повторять каждую неделю");
+    expect(form({ step: 5 })).toContain("Опубликовать");
+    expect(form({ step: 5 })).toContain("Сохранить черновик");
   });
 
   it("shows inline errors and the failure state instead of alerting", () => {
@@ -209,9 +238,9 @@ describe("EventDraftForm", () => {
     expect(html).toContain("Не удалось сохранить");
   });
 
-  it("reveals the payment link input only for a paid draft", () => {
-    expect(form({ draft: { ...readyDraft, price: "" } })).not.toContain("Ссылка на оплату");
-    expect(form({ draft: { ...readyDraft, price: "500" } })).toContain("Ссылка на оплату");
+  it("reveals the payment link only when the draft sells tickets outside the app", () => {
+    expect(form({ step: 3, draft: { ...readyDraft, sellOutside: false } })).not.toContain("Ссылка на покупку");
+    expect(form({ step: 3, draft: { ...readyDraft, sellOutside: true, price: "500" } })).toContain("Ссылка на покупку");
   });
 });
 

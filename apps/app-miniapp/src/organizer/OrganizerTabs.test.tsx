@@ -8,11 +8,11 @@ const noop = () => {};
 
 describe("ORGANIZER_TABS", () => {
   it("defines the five design sections in order", () => {
-    expect(ORGANIZER_TABS.map((tab) => tab.section)).toEqual(["dashboard", "events", "promo", "profile"]);
+    expect(ORGANIZER_TABS.map((tab) => tab.section)).toEqual(["dashboard", "events", "promo", "finance", "profile"]);
   });
 
   it("labels them as the design does", () => {
-    expect(ORGANIZER_TABS.map((tab) => tab.label)).toEqual(["Обзор", "События", "Продвижение", "Профиль"]);
+    expect(ORGANIZER_TABS.map((tab) => tab.label)).toEqual(["Обзор", "События", "Продвижение", "Финансы", "Профиль"]);
   });
 
   it("titles every section", () => {

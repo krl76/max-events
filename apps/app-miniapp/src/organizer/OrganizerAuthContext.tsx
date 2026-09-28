@@ -15,7 +15,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { OrganizerSessionSchema, type OrganizerSession } from "@max-events/api-contracts";
-import { apiClient } from "../api/client";
+import { ApiError, apiClient } from "../api/client";
 
 export const ORGANIZER_SESSION_KEY = "max-events.organizer-session";
 
@@ -61,7 +61,7 @@ export function OrganizerAuthProvider({ children }: { children: ReactNode }) {
       setState({ status: "authenticated", session });
       return true;
     } catch (error) {
-      setState({ status: "error", message: error instanceof Error ? error.message : "login failed" });
+      setState({ status: "error", message: error instanceof ApiError && error.status === 0 ? "network" : "credentials" });
       return false;
     }
   }, []);

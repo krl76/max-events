@@ -24,11 +24,13 @@ import { AppButton, AppState } from "../ui/primitives";
 import { OrganizerAuthProvider, useOrganizerAuth } from "./OrganizerAuthContext";
 import { OrganizerDashboard, type OrganizerPromoIntent } from "./OrganizerDashboard";
 import { OrganizerOrganization } from "./OrganizerOrganization";
-import { OrganizerEventManage } from "./OrganizerEventManage";
+import { OrganizerEventManage, type ManageScreen } from "./OrganizerEventManage";
 import { OrganizerIntro } from "./OrganizerIntro";
 import { isOrganizerIntroDone } from "./organizer-onboarding";
 import { OrganizerPanel } from "./OrganizerPage";
+import { OrganizerFinance } from "./OrganizerFinance";
 import { OrganizerProfile } from "./OrganizerProfile";
+import { OrganizerStats } from "./OrganizerStats";
 import { OrganizerPromo } from "./OrganizerPromo";
 import { OrganizerSetup } from "./OrganizerSetup";
 import { OrganizerTabBar, type OrganizerSection } from "./OrganizerTabs";
@@ -64,8 +66,8 @@ export function OrganizerLoginForm({ onExit }: { onExit: () => void }) {
         </span>
         <AfishaWordmark />
       </div>
-      <h1 className="app-organizer-login-title">Панель организатора</h1>
-      <p className="app-organizer-login-lead">Отдельный вход для площадок и организаторов.</p>
+      <h1 className="app-organizer-login-title">Кабинет организатора</h1>
+      <p className="app-organizer-login-lead">Управляйте событиями, билетами и продвижением.</p>
       {MOCK_MODE && <p className="app-organizer-login-hint">Демо-доступ: demo / demo</p>}
       <label className="app-organizer-login-field">
         <span className="app-organizer-login-label">Логин</span>
@@ -81,7 +83,7 @@ export function OrganizerLoginForm({ onExit }: { onExit: () => void }) {
           </button>
         </span>
       </label>
-      {state.status === "error" && <AppState error>Не удалось войти: проверьте логин и пароль.</AppState>}
+      {state.status === "error" && <AppState error>{state.message === "network" ? "Нет соединения. Проверьте сеть и повторите вход." : "Не удалось войти. Проверьте логин и пароль."}</AppState>}
       <AppButton stretched disabled={submitting || loginValue === "" || password === ""} type="submit">
         Войти
       </AppButton>
@@ -100,6 +102,7 @@ export const ORGANIZER_SECTION_TITLES: Record<OrganizerSection, string> = {
   events: "События",
   promo: "Продвижение",
   profile: "Профиль",
+  finance: "Финансы",
 };
 
 /** Кабинет использует ту же шапку, что и пользовательское приложение. Свой хром остаётся только у вступления и мастера настройки. */
@@ -117,26 +120,39 @@ interface OrganizerSectionContentProps {
   onCreateEvent: () => void;
   onOpenOrganization: () => void;
   onOpenSettings: () => void;
+  onOpenStats: () => void;
+  onCheckIn: (event: OrganizerEvent) => void;
+  onShowDrafts: () => void;
+  onOpenPlaces: () => void;
+  onLogout: () => void;
   onOpenEvent: (event: OrganizerEvent) => void;
+  editRequestId: string | null;
+  onEditHandled: () => void;
+  placesTick: number;
+  draftsTick: number;
   onComposer?: (title: string | null) => void;
   closeComposerTick?: number;
 }
 
-export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onOpenSettings, onOpenEvent, onComposer, closeComposerTick }: OrganizerSectionContentProps) {
+export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onOpenSettings, onOpenStats, onCheckIn, onShowDrafts, onOpenPlaces, onLogout, onOpenEvent, onComposer, closeComposerTick, editRequestId, onEditHandled, placesTick, draftsTick }: OrganizerSectionContentProps) {
   if (section === "dashboard")
     return (
       <OrganizerDashboard
         organizationId={organizationId}
         organizationName={organizationName}
         onOpenEvent={onManage}
-        onAllEvents={() => onSection("events")}
         onCreateEvent={onCreateEvent}
         onOpenOrganization={onOpenOrganization}
+        onStats={onOpenStats}
+        onPlaces={onOpenPlaces}
+        onCheckIn={onCheckIn}
+        onShowDrafts={onShowDrafts}
       />
     );
+  if (section === "finance") return <OrganizerFinance />;
   if (section === "promo") return <OrganizerPromo organizationName={organizationName} intent={promoIntent} eventId={promoEventId} onOpenEvent={() => onSection("events")} />;
-  if (section === "profile") return <OrganizerProfile organizationId={organizationId} organizationName={organizationName} onOpenEvent={onOpenEvent} onSettings={onOpenSettings} />;
-  return <OrganizerPanel organizationId={organizationId} createOnMount={createEvent} onOpenEvent={onOpenEvent} onComposer={onComposer} closeComposerTick={closeComposerTick} />;
+  if (section === "profile") return <OrganizerProfile organizationId={organizationId} organizationName={organizationName} onOpenEvent={onOpenEvent} onSettings={onOpenSettings} onLogout={onLogout} />;
+  return <OrganizerPanel organizationId={organizationId} createOnMount={createEvent} onOpenEvent={onOpenEvent} onComposer={onComposer} closeComposerTick={closeComposerTick} editRequestId={editRequestId} onEditHandled={onEditHandled} placesTick={placesTick} draftsTick={draftsTick} />;
 }
 
 /**
@@ -195,18 +211,32 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   }, []);
   const [section, setSection] = useState<OrganizerSection>("dashboard");
   const [manage, setManage] = useState<OrganizerEvent | null>(null);
+  const [manageScreen, setManageScreen] = useState<ManageScreen>("hub");
   const [organizationOpen, setOrganizationOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [createEvent, setCreateEvent] = useState(false);
+  const [editRequestId, setEditRequestId] = useState<string | null>(null);
+  const [placesTick, setPlacesTick] = useState(0);
+  const [draftsTick, setDraftsTick] = useState(0);
   const [promoIntent, setPromoIntent] = useState<OrganizerPromoIntent | null>(null);
   const [promoEventId, setPromoEventId] = useState<string | null>(null);
   const [composerTitle, setComposerTitle] = useState<string | null>(null);
   const [closeComposerTick, setCloseComposerTick] = useState(0);
   const onComposer = useCallback((title: string | null) => setComposerTitle(title), []);
+  const onEditHandled = useCallback(() => setEditRequestId(null), []);
+  const openManage = (event: OrganizerEvent, screen: ManageScreen) => {
+    setManageScreen(screen);
+    setManage(event);
+    setOrganizationOpen(false);
+    setStatsOpen(false);
+  };
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
-  const pushed = manage !== null || organizationOpen || composerTitle !== null;
+  const pushed = manage !== null || organizationOpen || statsOpen || composerTitle !== null;
   const profileChrome = section === "profile" && !pushed;
-  const title = composerTitle ?? (manage !== null ? manage.title : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section]);
+  const manageTitle = manageScreen === "checkin" ? "Контроль входа" : manageScreen === "participants" ? "Участники" : manageScreen === "tickets" ? "Билеты и регистрация" : manageScreen === "stats" ? "Статистика" : "Управление событием";
+  const title = composerTitle ?? (statsOpen ? "Статистика" : manage !== null ? manageTitle : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section]);
+  const hideTabs = composerTitle !== null || (manage !== null && manageScreen === "checkin");
   const openPromotion = (eventId: string, intent: OrganizerPromoIntent | null) => {
     setManage(null);
     setOrganizationOpen(false);
@@ -233,7 +263,16 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
                 setCloseComposerTick((tick) => tick + 1);
                 return;
               }
+              if (manage !== null && manageScreen !== "hub") {
+                setManageScreen("hub");
+                return;
+              }
+              if (statsOpen) {
+                setStatsOpen(false);
+                return;
+              }
               setManage(null);
+              setManageScreen("hub");
               setOrganizationOpen(false);
             }}
           >
@@ -245,18 +284,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
       </header>
       )}
       <main className={composerTitle !== null || profileChrome ? "app-content app-content--flush" : "app-content"}>
-        {manage !== null ? (
-          <OrganizerEventManage event={manage} onBack={() => setManage(null)} onPromo={() => openPromotion(manage.id, null)} />
-        ) : organizationOpen ? (
-          <OrganizerOrganization
-            organizationId={state.session.organization.id}
-            organizationName={state.session.organization.name}
-            onLogout={() => {
-              logout();
-              onExit();
-            }}
-          />
-        ) : (
+        <div hidden={manage !== null || organizationOpen || statsOpen}>
           <OrganizerSectionContent
             section={section}
             organizationId={state.session.organization.id}
@@ -272,25 +300,71 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
               if (next !== "events") setCreateEvent(false);
               setSection(next);
             }}
-            onManage={setManage}
+            onManage={(event) => openManage(event, "hub")}
             onCreateEvent={() => {
               setCreateEvent(true);
               setSection("events");
             }}
             onOpenOrganization={() => setSection("profile")}
             onOpenSettings={() => setOrganizationOpen(true)}
-            onOpenEvent={setManage}
+            onOpenStats={() => setStatsOpen(true)}
+            onCheckIn={(event) => openManage(event, "checkin")}
+            onShowDrafts={() => {
+              setDraftsTick((tick) => tick + 1);
+              setSection("events");
+            }}
+            onOpenPlaces={() => {
+              setPlacesTick((tick) => tick + 1);
+              setSection("events");
+            }}
+            onLogout={() => {
+              logout();
+              onExit();
+            }}
+            onOpenEvent={(event) => openManage(event, "hub")}
             onComposer={onComposer}
             closeComposerTick={closeComposerTick}
+            editRequestId={editRequestId}
+            onEditHandled={onEditHandled}
+            placesTick={placesTick}
+            draftsTick={draftsTick}
+          />
+        </div>
+        {statsOpen && <OrganizerStats />}
+        {manage !== null && (
+          <OrganizerEventManage
+            event={manage}
+            screen={manageScreen}
+            onScreen={setManageScreen}
+            onPromo={() => openPromotion(manage.id, null)}
+            onEdit={() => {
+              setEditRequestId(manage.id);
+              setManage(null);
+              setManageScreen("hub");
+              setSection("events");
+            }}
+            onPublished={setManage}
+          />
+        )}
+        {organizationOpen && (
+          <OrganizerOrganization
+            organizationId={state.session.organization.id}
+            organizationName={state.session.organization.name}
+            onLogout={() => {
+              logout();
+              onExit();
+            }}
           />
         )}
       </main>
-      {composerTitle === null && (
+      {!hideTabs && (
       <OrganizerTabBar
         section={section}
         onSection={(next) => {
           setManage(null);
+          setManageScreen("hub");
           setOrganizationOpen(false);
+          setStatsOpen(false);
           if (next !== "promo") {
             setPromoIntent(null);
             setPromoEventId(null);
