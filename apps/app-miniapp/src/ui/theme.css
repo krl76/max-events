@@ -22880,10 +22880,27 @@ button.app-story-viewer-author {
   font-weight: 700;
   margin: 0;
 }
+.app-plans-hero-frame {
+  border-radius: 22px;
+  isolation: isolate;
+  overflow: hidden;
+  position: relative;
+  touch-action: pan-y;
+}
+.app-plans-hero-track {
+  display: flex;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+.app-plans-hero img {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
 .app-plans-hero {
   background: none;
   border: none;
-  border-radius: 22px;
+  border-radius: 0;
   color: #ffffff;
   cursor: pointer;
   display: block;
@@ -22894,32 +22911,9 @@ button.app-story-viewer-author {
   position: relative;
   text-align: left;
   width: 100%;
-}
-.app-plans-hero--next {
-  animation: app-plans-slide-next 280ms ease;
-}
-.app-plans-hero--prev {
-  animation: app-plans-slide-prev 280ms ease;
-}
-@keyframes app-plans-slide-next {
-  from {
-    opacity: 0.55;
-    transform: translateX(16%);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-@keyframes app-plans-slide-prev {
-  from {
-    opacity: 0.55;
-    transform: translateX(-16%);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  flex: 0 0 100%;
+  min-width: 0;
+  touch-action: pan-y;
 }
 .app-walk {
   display: flex;
@@ -23058,10 +23052,19 @@ button.app-story-viewer-author {
   height: 6px;
   padding: 0;
   width: 6px;
+  transition:
+    width 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 320ms ease;
 }
 .app-plans-dot--on {
   background: var(--app-text);
   width: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-plans-dot {
+    transition: none;
+  }
 }
 .app-plans-section {
   align-items: baseline;

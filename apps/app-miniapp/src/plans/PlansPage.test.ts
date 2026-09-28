@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { formatDistance, featuredAfterSwipe, heroSlide, planCompanyLabel, planDistanceLabel, planMeetingLabel, planPartyLabel, planWhenPlace, PlansPage, PlansView, type PlansState } from "./PlansPage";
+import { formatDistance, heroDragPx, heroIndexAfterDirection, heroShiftPx, heroSlideMs, planCompanyLabel, planDistanceLabel, planMeetingLabel, planPartyLabel, planWhenPlace, PlansPage, PlansView, type PlansState } from "./PlansPage";
 import { pluralRu } from "../catalog/format";
 import { planCards } from "../api/mock";
+import { dampOffset } from "../ui/gestures";
 
 const CARDS = planCards();
 
@@ -44,6 +45,8 @@ describe("PlansView", () => {
     const html = renderToStaticMarkup(createElement(PlansView, { state: { status: "ready", cards: CARDS }, onOpen: () => {}, onExplore: () => {}, onCreate: () => {} }));
 
     expect(html).toContain("Ближайший план");
+    expect(html).toContain("app-plans-hero-track");
+    expect(html).not.toContain("app-plans-hero--next");
     expect(html).toContain(CARDS[0]!.event.title);
     expect(html).toContain(planPartyLabel(CARDS[0]!.plan.participants.length));
     expect(html).toContain(planWhenPlace(CARDS[0]!.plan));
@@ -72,15 +75,23 @@ describe("PlansPage", () => {
   });
 });
 
-describe("featuredAfterSwipe", () => {
-  it("pages the hero only after a real horizontal swipe", () => {
-    expect(featuredAfterSwipe(0, 3, -80)).toBe(1);
-    expect(featuredAfterSwipe(2, 3, 80)).toBe(1);
-    expect(featuredAfterSwipe(0, 3, -20)).toBe(0);
-    expect(featuredAfterSwipe(0, 1, -80)).toBe(0);
-    expect(featuredAfterSwipe(2, 3, -80)).toBe(2);
-    expect(heroSlide(0, 1)).toBe("next");
-    expect(heroSlide(2, 1)).toBe("prev");
-    expect(heroSlide(1, 1)).toBe("still");
+describe("nearest plan pager", () => {
+  it("follows the finger and eases into the next card without a cut", () => {
+    expect(heroDragPx(120, 1, 3, 300)).toBe(120);
+    expect(heroDragPx(-500, 1, 3, 300)).toBe(-300);
+    expect(heroDragPx(80, 0, 3, 300)).toBe(dampOffset(80, 72));
+    expect(heroDragPx(-40, 2, 3, 300)).toBe(dampOffset(-40, 72));
+    expect(heroDragPx(80, 0, 1, 300)).toBe(0);
+    expect(heroDragPx(80, 1, 3, 0)).toBe(0);
+    expect(heroIndexAfterDirection(0, 3, "left")).toBe(1);
+    expect(heroIndexAfterDirection(2, 3, "right")).toBe(1);
+    expect(heroIndexAfterDirection(0, 3, "right")).toBe(0);
+    expect(heroIndexAfterDirection(2, 3, "left")).toBe(2);
+    expect(heroIndexAfterDirection(0, 1, "left")).toBe(0);
+    expect(heroShiftPx(2, -24, 320)).toBe(-664);
+    expect(heroShiftPx(1, 0, 0)).toBe(0);
+    expect(heroSlideMs(0, 1)).toBe(460);
+    expect(heroSlideMs(0, 4)).toBe(670);
+    expect(heroSlideMs(0, 8)).toBe(680);
   });
 });
