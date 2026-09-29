@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { MicroEvent } from "@max-events/api-contracts";
-import { groupMicroEvents, microBucket, microCtaState, microTime, MicroEventsView, MicroRow, type MicroEventsState } from "./MicroEventsPage";
+import { DayStrip, groupMicroEvents, microBucket, microCtaState, microDays, microRelative, microSeatsLine, microTime, MicroEventsView, MicroRow, type MicroDay, type MicroEventsState } from "./MicroEventsPage";
 import { microEvents, mockFriends, mockPlaces } from "../api/mock";
 
 const noop = () => {};
@@ -69,17 +69,84 @@ describe("microCtaState", () => {
   });
 });
 
-describe("MicroRow", () => {
-  const row = (item: MicroEvent, joined = false) => renderToStaticMarkup(createElement(MicroRow, { item, places: mockPlaces, people: mockFriends, joined, onOpen: noop }));
+describe("microDays", () => {
+  it("lists the days with upcoming gatherings, today first, with a count each", () => {
+    const list = [event({ id: "20000000-0000-4000-8000-000000000201", startsAt: at(HOUR) }), event({ id: "20000000-0000-4000-8000-000000000202", startsAt: at(3 * HOUR) }), event({ id: "20000000-0000-4000-8000-000000000203", startsAt: at(26 * HOUR) }), event({ id: "20000000-0000-4000-8000-000000000204", startsAt: at(-HOUR) })];
 
-  it("renders the title, the clock, the venue and the «2 из 6» counter", () => {
+    const days: MicroDay[] = microDays(list, NOW);
+
+    expect(days).toHaveLength(2);
+    expect(days[0].key).toBe("2026-8-19");
+    expect(days[0].count).toBe(2);
+    expect(days[0].today).toBe(true);
+    expect(days[1].key).toBe("2026-8-20");
+    expect(days[1].count).toBe(1);
+    expect(days[1].today).toBe(false);
+  });
+
+  it("keeps today in the strip even when nothing is on today", () => {
+    const days = microDays([event({ startsAt: at(26 * HOUR) })], NOW);
+
+    expect(days[0].key).toBe("2026-8-19");
+    expect(days[0].count).toBe(0);
+    expect(days).toHaveLength(2);
+  });
+
+  it("returns an empty strip when there are no gatherings at all", () => {
+    expect(microDays([], NOW)).toEqual([]);
+  });
+});
+
+describe("microRelative", () => {
+  it("names minutes and hours until the start within the next hour", () => {
+    expect(microRelative(at(15 * 60 * 1000), NOW)).toBe("через 15 мин");
+    expect(microRelative(at(58 * 60 * 1000), NOW)).toBe("через 58 мин");
+  });
+
+  it("stays silent for anything an hour out or more", () => {
+    expect(microRelative(at(HOUR), NOW)).toBe("");
+    expect(microRelative(at(3 * HOUR), NOW)).toBe("");
+    expect(microRelative(at(-10 * 60 * 1000), NOW)).toBe("");
+  });
+});
+
+describe("microSeatsLine", () => {
+  it("says the free seats positively and picks the right Russian plural", () => {
+    expect(microSeatsLine(event({ participantsCount: 0, participantsLimit: 8 }))).toBe("8 мест свободно");
+    expect(microSeatsLine(event({ participantsCount: 2, participantsLimit: 6 }))).toBe("4 места свободно");
+    expect(microSeatsLine(event({ participantsCount: 5, participantsLimit: 6 }))).toBe("1 место свободно");
+  });
+});
+
+describe("DayStrip", () => {
+  it("renders a pill per day with its label and count, and marks today as selected", () => {
+    const days = microDays(microEvents(), NOW);
+    const html = renderToStaticMarkup(createElement(DayStrip, { days, selectedKey: days[0].key, onSelect: noop }));
+
+    expect(html).toContain("app-micro-daystrip");
+    expect(html).toContain("Сегодня");
+    expect(days.length === 0 ? "" : html).toContain(days[1].label);
+    expect(html).toContain(`app-micro-day${" app-micro-day--on"}`);
+    expect([...html.matchAll(/app-micro-daycount/g)]).toHaveLength(days.length);
+  });
+});
+
+describe("MicroRow", () => {
+  const row = (item: MicroEvent, joined = false) => renderToStaticMarkup(createElement(MicroRow, { item, places: mockPlaces, people: mockFriends, joined, now: NOW, onOpen: noop }));
+
+  it("renders the title, the clock column, the venue and the free-places line", () => {
     const html = row(event());
 
     expect(html).toContain("Настолки, нужны четверо");
     expect(html).toContain(microTime(event().startsAt));
     expect(html).toContain("Кофейня «Человек и пароход»");
-    expect(html).toContain("2 из 6");
+    expect(html).toContain("4 места свободно");
     expect(html).toContain("Иду");
+  });
+
+  it("says «через N мин» next to the clock for a gathering starting within the hour", () => {
+    expect(row(event({ startsAt: at(25 * 60 * 1000) }))).toContain("через 25 мин");
+    expect(row(event({ startsAt: at(3 * HOUR) }))).not.toContain("через");
   });
 
   it("names a picked venue by its title instead of leaving the line empty", () => {
@@ -87,7 +154,7 @@ describe("MicroRow", () => {
   });
 
   it("swaps the action for the state: ты в деле, мест нет, отменено", () => {
-    expect(row(event(), true)).toContain("Ты в деле");
+    expect(row(event(), true)).toContain("Ты идёшь");
     expect(row(event(), true)).not.toContain(">Иду<");
     expect(row(event({ participantsCount: 6, participantIds: mockFriends.slice(0, 6).map((friend) => friend.id) }))).toContain("Мест нет");
     expect(row(event({ status: "cancelled" }))).toContain("Отменено");
@@ -112,11 +179,13 @@ describe("MicroEventsView", () => {
     expect(html).toContain("Зовут соседи и такие же пользователи. Без билетов и организаторов — только время и место.");
   });
 
-  it("renders the seeded gatherings under their time sections", () => {
+  it("renders the seeded gatherings of the chosen day under the day strip", () => {
     const html = view({ status: "ready", events: microEvents() });
 
-    expect(html).toContain("app-micro-group-label");
+    expect(html).toContain("app-micro-daystrip");
+    expect(html).not.toContain("app-micro-group-label");
     expect(html).toContain(microEvents()[0].title);
+    expect(html).toContain("Сегодня");
   });
 
   it("carries the full gathering into the feed as «Мест нет» rather than hiding it", () => {

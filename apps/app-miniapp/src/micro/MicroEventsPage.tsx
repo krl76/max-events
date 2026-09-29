@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 24 «Микро-события»: neighbourly gatherings of other users, grouped by how soon they start, each card in one of the four states of the design (можно присоединиться / ты в деле / мест нет / отменено).
-// SCOPE: Data via apiClient.listMicroEvents + listPlaces (venue titles) + listFriends (the faces behind participantIds); the «Собрать» pill opens the creation form, a card opens экран 25; join/leave happen on the card screen, the feed only shows the state. The row and the bucket helpers are exported, because the home section and the calendar block draw the same card.
+// PURPOSE: Экран 24 «Микро-события» (вариант C): a horizontal day strip navigates the feed, compact rows carry the clock in a left column with «через N мин», each card in one of the four states of the design (можно присоединиться / ты идёшь / мест нет / отменено).
+// SCOPE: Data via apiClient.listMicroEvents + listPlaces (venue titles) + listFriends (the faces behind participantIds); the «Собрать» pill opens the creation form, a row opens экран 25; join/leave happen on the card screen, the feed only shows the state. The row, day-strip and bucket helpers are exported, because the home section and the calendar block draw the same card.
 // DEPENDS: ../api/client.js (apiClient), ../auth/AuthContext.js, ../friends/avatar.js, ./MicroEvents.js (microWhere), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -10,14 +10,19 @@
 // - MicroBucket - how soon a gathering is: soon / today / evening / tomorrow / later
 // - MICRO_BUCKET_LABELS - the ru section headers of the design, one per bucket
 // - microBucket - bucket of one start time against a given now
+// - MicroDay - one day of the strip: calendar key, «дд месяц» label, gathering count, is-today
+// - microDays - days of the day strip from today forward, today first even when empty
+// - microRelative - «через N мин» for a start within the next hour, empty otherwise
+// - microSeatsLine - free seats said positively («4 места свободно»), never a raw «0 из 8»
 // - MicroGroup - one bucket with its label and the gatherings inside it
 // - groupMicroEvents - upcoming open gatherings split into the buckets of the design, soonest first
 // - MicroCtaState - which of the four card states a gathering is in for this viewer
 // - microCtaState - state from the event, its counter and whether the viewer joined
 // - MicroFaces - overlapping participant faces of a card (up to three, as the design draws)
-// - MicroRow - the card itself: title, clock, venue, faces, «2 из 6» and the state CTA
+// - MicroRow - the compact row itself: clock column with relative minutes, title, venue, faces, free seats and the state CTA
+// - DayStrip - the horizontal day strip: a pill per day, the chosen one highlighted, count per day
 // - MicroEventsState - union of the feed fetch states (loading / error / ready)
-// - MicroEventsView - presentational экран 24: topbar with «Собрать», the lead-in line and the bucket sections
+// - MicroEventsView - presentational экран 24: topbar with «Собрать», the lead-in line, the day strip and the rows of the chosen day
 // - MicroEventsPage - route container: loads gatherings, venues and faces, wires the create and card navigation
 // END_MODULE_MAP
 
@@ -29,7 +34,6 @@ import { PersonAvatar } from "../friends/avatar";
 import { microWhere } from "./MicroEvents";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { pictured } from "../ui/photos";
 import { AppSkeletonList, AppState } from "../ui/primitives";
 
 export function microTime(startsAt: string): string {
@@ -68,6 +72,45 @@ export function microBucket(startsAt: string, now: Date): MicroBucket {
   if (startDay === dayKey(now)) return start.getHours() >= MICRO_EVENING_HOUR ? "evening" : "today";
   if (startDay === dayKey(new Date(now.getTime() + DAY_MS))) return "tomorrow";
   return "later";
+}
+
+/** One day of the strip: the calendar key, the «дд месяц» label, how many gatherings and whether it is today. */
+export interface MicroDay {
+  key: string;
+  label: string;
+  count: number;
+  today: boolean;
+}
+
+const MICRO_DAY_LABEL = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short" });
+
+/**
+ * Days of the strip from today forward. Today leads even when nothing is on it — the strip is the
+ * navigation, and a day without a pill would hide «nothing today» behind a scroll; past days are
+ * never listed, a gathering that already began is not reachable through the day strip.
+ */
+export function microDays(events: MicroEvent[], now: Date): MicroDay[] {
+  const upcoming = events.filter((item) => item.status === "open" && Date.parse(item.startsAt) >= now.getTime());
+  if (upcoming.length === 0) return [];
+  const counts = new Map<string, number>();
+  for (const item of upcoming) {
+    const key = dayKey(new Date(item.startsAt));
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const todayKey = dayKey(now);
+  counts.set(todayKey, counts.get(todayKey) ?? 0);
+  return [...counts.keys()].sort().map((key) => {
+    // «2026-9-19» parts back into a local date; the string key is sortable, the parts are the date.
+    const [year, month, day] = key.split("-").map(Number);
+    return { key, label: MICRO_DAY_LABEL.format(new Date(year, month - 1, day)), count: counts.get(key) ?? 0, today: key === todayKey };
+  });
+}
+
+/** «через N мин» under the time of a row; only the next hour is urgent enough to say it out loud. */
+export function microRelative(startsAt: string, now: Date): string {
+  const minutes = Math.round((Date.parse(startsAt) - now.getTime()) / (60 * 1000));
+  if (minutes <= 0 || minutes >= 60) return "";
+  return `через ${minutes} мин`;
 }
 
 export interface MicroGroup {
@@ -112,31 +155,39 @@ interface MicroRowProps {
   places: Place[];
   people: Friend[];
   joined: boolean;
+  now?: Date;
   onOpen: () => void;
   onJoin?: () => void;
 }
 
+/** Free seats said positively: an empty gathering reads as an invitation, not as a dead «0 из 8». */
+export function microSeatsLine(item: MicroEvent): string {
+  const free = item.participantsLimit - item.participantsCount;
+  if (free <= 0) return "мест нет";
+  const form = free === 1 ? "место" : free < 5 ? "места" : "мест";
+  return `${free} ${form} свободно`;
+}
+
 /** One gathering: what, when, where, who is already in and the single action its state allows. */
-export function MicroRow({ item, places, people, joined, onOpen, onJoin }: MicroRowProps) {
+export function MicroRow({ item, places, people, joined, now = new Date(), onOpen, onJoin }: MicroRowProps) {
   const state = microCtaState(item, joined);
   const faces = item.participantIds.map((id) => people.find((person) => person.id === id)).filter((person): person is Friend => person !== undefined);
+  const relative = microRelative(item.startsAt, now);
   return (
-    <div className="app-micro-row">
+    <div className="app-micro-row app-micro-row--compact">
+      <div className="app-micro-clock-col">
+        <span className="app-micro-clock">{microTime(item.startsAt)}</span>
+        {relative !== "" && <span className="app-micro-clock-rel">{relative}</span>}
+      </div>
       <button type="button" className="app-micro-row-open" onClick={onOpen}>
-        <img className="app-micro-row-photo" alt="" src={pictured(item.id)} />
-        <span className="app-micro-head">
-          <span className="app-micro-title">{item.title}</span>
-          <span className="app-micro-clock">{microTime(item.startsAt)}</span>
-        </span>
+        <span className="app-micro-title">{item.title}</span>
         <span className="app-micro-where">
           <ActionIcon name="pin" size={14} strokeWidth={2.2} />
           {microWhere(item, places)}
         </span>
         <span className="app-micro-foot">
           <MicroFaces people={faces} />
-          <span className="app-micro-count">
-            {item.participantsCount} из {item.participantsLimit}
-          </span>
+          <span className="app-micro-count">{microSeatsLine(item)}</span>
         </span>
       </button>
       {state === "join" && (
@@ -147,7 +198,7 @@ export function MicroRow({ item, places, people, joined, onOpen, onJoin }: Micro
       {state === "joined" && (
         <span className="app-micro-cta app-micro-cta--in">
           <ActionIcon name="check" size={14} strokeWidth={2.6} />
-          Ты в деле
+          Ты идёшь
         </span>
       )}
       {state === "full" && <span className="app-micro-cta app-micro-cta--full">Мест нет</span>}
@@ -157,6 +208,27 @@ export function MicroRow({ item, places, people, joined, onOpen, onJoin }: Micro
 }
 
 export type MicroEventsState = { status: "loading" } | { status: "error" } | { status: "ready"; events: MicroEvent[] };
+
+interface DayStripProps {
+  days: MicroDay[];
+  selectedKey: string;
+  onSelect: (key: string) => void;
+}
+
+/** The day strip of the design: one pill per day, the chosen one highlighted, each with its count. */
+export function DayStrip({ days, selectedKey, onSelect }: DayStripProps) {
+  if (days.length === 0) return null;
+  return (
+    <div className="app-micro-daystrip" role="tablist" aria-label="Дни с микро-событиями">
+      {days.map((day) => (
+        <button key={day.key} type="button" role="tab" aria-selected={day.key === selectedKey} className={`app-micro-day${day.key === selectedKey ? " app-micro-day--on" : ""}`} onClick={() => onSelect(day.key)}>
+          <span className="app-micro-day-label">{day.today ? "Сегодня" : day.label}</span>
+          <span className="app-micro-daycount">{day.count > 0 ? `${day.count}` : "—"}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 interface MicroEventsViewProps {
   state: MicroEventsState;
@@ -171,7 +243,11 @@ interface MicroEventsViewProps {
 }
 
 export function MicroEventsView({ state, places, people, viewerId, now = new Date(), onCreate, onOpen, onJoin, onRetry }: MicroEventsViewProps) {
-  const groups = state.status === "ready" ? groupMicroEvents(state.events, now) : [];
+  const events = state.status === "ready" ? state.events : [];
+  const days = microDays(events, now);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const activeKey = selectedKey !== null && days.some((day) => day.key === selectedKey) ? selectedKey : (days[0]?.key ?? null);
+  const active = activeKey === null ? [] : events.filter((item) => item.status === "open" && Date.parse(item.startsAt) >= now.getTime() && dayKey(new Date(item.startsAt)) === activeKey).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   return (
     <section className="app-micro-screen">
       <div className="app-micro-bar">
@@ -188,15 +264,13 @@ export function MicroEventsView({ state, places, people, viewerId, now = new Dat
           Не удалось загрузить микро-события.
         </AppState>
       )}
-      {state.status === "ready" && groups.length === 0 && <AppState hint="Время, место, лимит — и сбор в ленте.">Пока никто ничего не собирает.</AppState>}
-      {groups.map((group) => (
-        <section key={group.bucket} className="app-micro-group" aria-label={group.label}>
-          <h2 className="app-micro-group-label">{group.label}</h2>
-          {group.events.map((item) => (
-            <MicroRow key={item.id} item={item} places={places} people={people} joined={viewerId !== null && item.participantIds.includes(viewerId)} onOpen={() => onOpen(item.id)} onJoin={() => onJoin?.(item.id)} />
-          ))}
-        </section>
-      ))}
+      {state.status === "ready" && days.length === 0 && <AppState hint="Время, место, лимит — и сбор в ленте.">Пока никто ничего не собирает.</AppState>}
+      {state.status === "ready" && days.length > 0 && (
+        <>
+          <DayStrip days={days} selectedKey={activeKey ?? ""} onSelect={setSelectedKey} />
+          {active.length === 0 ? <AppState hint="Загляни в соседние дни или собери своё.">В этот день пока никто ничего не собирает.</AppState> : active.map((item) => <MicroRow key={item.id} item={item} places={places} people={people} joined={viewerId !== null && item.participantIds.includes(viewerId)} now={now} onOpen={() => onOpen(item.id)} onJoin={() => onJoin?.(item.id)} />)}
+        </>
+      )}
     </section>
   );
 }

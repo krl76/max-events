@@ -12000,28 +12000,6 @@ button.app-poll-result {
   padding: 0 var(--app-space-s);
 }
 
-.app-micro-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.app-micro-group-label {
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-description);
-  font-weight: 800;
-  margin: 0;
-  text-transform: uppercase;
-}
-
-.app-micro-row-photo {
-  border-radius: 12px;
-  height: 72px;
-  object-fit: cover;
-  width: 100%;
-}
-
 .app-micro-row {
   background: none;
   border: 1px solid var(--app-divider);
@@ -12042,12 +12020,6 @@ button.app-poll-result {
 .app-micro-row:hover,
 .app-micro-row:active {
   transform: translateY(-1px);
-}
-
-.app-micro-head {
-  align-items: baseline;
-  display: flex;
-  gap: 10px;
 }
 
 .app-micro-title {
@@ -12136,6 +12108,97 @@ button.app-poll-result {
   color: var(--app-text-secondary);
   font-weight: 700;
   padding: 0 14px;
+}
+
+/* --- Экран 24, вариант C: стрип дней + компактная строка --- */
+
+/* Стрип дней: горизонтальный скролл пилюль, выбранный день — заливка поверхности + обводка */
+.app-micro-daystrip {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 var(--app-space-l);
+  overflow-x: auto;
+  padding: 2px;
+  scrollbar-width: none;
+}
+
+.app-micro-daystrip::-webkit-scrollbar {
+  display: none;
+}
+
+.app-micro-day {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  box-sizing: border-box;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  font: inherit;
+  gap: 2px;
+  min-height: 44px;
+  min-width: 64px;
+  padding: 6px 10px;
+  text-align: center;
+}
+
+.app-micro-day--on {
+  background: var(--app-surface);
+  box-shadow: inset 0 0 0 1.5px var(--app-accent);
+  color: var(--app-text-primary);
+}
+
+.app-micro-day-label {
+  font-size: var(--app-font-size-description);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.app-micro-daycount {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Компактная строка: время фиксированной колонкой слева, остальное — в строке */
+.app-micro-row--compact {
+  flex-direction: row;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.app-micro-clock-col {
+  align-items: flex-end;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 44px;
+}
+
+.app-micro-clock-rel {
+  color: var(--app-accent);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Строка компактнее: кликабельная область между колонкой времени и кнопкой */
+.app-micro-row--compact .app-micro-row-open {
+  flex: 1;
+  min-height: 44px;
+  min-width: 0;
+  padding: 0;
+}
+
+/* В компактной строке кнопка действия прижата вправо и центрирована по вертикали */
+.app-micro-row--compact .app-micro-cta {
+  align-self: center;
+  margin: 0;
+  position: static;
 }
 
 /* --- Экран 25 «Микро-событие · карточка» --- */
@@ -19783,8 +19846,6 @@ button.app-cal-peer-chip {
   width: 100%;
 }
 
-
-
 .app-nb-seg {
   margin-top: 22px;
 }
@@ -22630,9 +22691,7 @@ button.app-story-viewer-author {
 }
 
 .app-plan-when,
-.app-micro-when,
-.app-micro-title,
-.app-micro-limit {
+.app-micro-title {
   background: var(--app-card);
   border-radius: 18px;
   padding: 12px 14px;
@@ -23275,6 +23334,70 @@ button.app-story-viewer-author {
   cursor: default;
   opacity: 0.4;
 }
+
+/* Шаг времени — карточки-настроения (C-WALK-WIZARD-REDESIGN): сетка 2×2, активная —
+ * инверсная заливка как у app-chip--on, чтобы не плодить третью форму выбора. */
+.app-walk-choices--tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.app-walk-tile {
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-m);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  gap: 3px;
+  justify-content: flex-end;
+  min-height: 76px;
+  padding: 12px;
+  position: relative;
+  text-align: left;
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease-out),
+    border-color var(--app-duration-fast) var(--app-ease-out),
+    color var(--app-duration-fast) var(--app-ease-out),
+    transform var(--app-duration-fast) var(--app-ease-out);
+}
+
+.app-walk-tile:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.app-walk-tile-glyph {
+  font-size: 16px;
+  left: 12px;
+  opacity: 0.8;
+  position: absolute;
+  top: 10px;
+}
+
+.app-walk-tile-label {
+  color: inherit;
+}
+
+.app-walk-tile-mood {
+  color: var(--app-text-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.app-walk-tile--on {
+  background: var(--app-text);
+  border-color: var(--app-text);
+  color: var(--app-canvas);
+}
+
+.app-walk-tile--on .app-walk-tile-mood {
+  color: inherit;
+  opacity: 0.6;
+}
 .app-walk-saved {
   align-items: center;
   background: var(--app-card);
@@ -23307,28 +23430,134 @@ button.app-story-viewer-author {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  list-style: none;
   margin: 0;
   padding: 0;
 }
-.app-walk-wait-line {
+
+/* Wait-экран (C-WALK-WIZARD-REDESIGN): тропа с бегущим пунктиром между
+ * покачивающимися пинами — метафора маршрута; скелетоны остановок пульсируют
+ * по кривой app-skeleton-pulse, в ритме карточек app-walk-stop. */
+.app-walk-trail {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  padding: var(--app-space-l) 0 4px;
+}
+
+.app-walk-trail svg {
+  overflow: visible;
+}
+
+.app-walk-trail-path {
+  animation: app-walk-trail 1.5s linear infinite;
+  stroke-dasharray: 5 9;
+}
+
+@keyframes app-walk-trail {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+
+.app-walk-trail-pin {
+  animation: app-walk-bob 2.4s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.app-walk-trail-pin:nth-of-type(2) {
+  animation-delay: 0.3s;
+}
+
+.app-walk-trail-pin:nth-of-type(3) {
+  animation-delay: 0.6s;
+}
+
+@keyframes app-walk-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.app-walk-wait-title {
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.app-walk-wait-skeletons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+}
+
+.app-walk-wait-sk {
+  animation: app-skeleton-pulse 1.2s ease-in-out infinite alternate;
   background: var(--app-card);
   border-radius: var(--app-radius-m);
-  color: var(--app-text-secondary);
-  padding: 14px 16px;
+  display: grid;
+  gap: 4px 10px;
+  grid-template-columns: 28px 1fr;
+  padding: var(--app-space-m);
 }
-.app-walk-wait-line--on {
-  animation: app-rise-in var(--app-duration-base) var(--app-ease-out);
-  color: var(--app-text);
-  font-weight: 800;
+
+.app-walk-wait-sk:nth-of-type(2) {
+  animation-delay: 0.2s;
+  opacity: 0.7;
 }
-.app-walk-wait-line--done {
-  color: var(--app-text);
+
+.app-walk-wait-sk:nth-of-type(3) {
+  animation-delay: 0.4s;
+  opacity: 0.4;
 }
+
+.app-walk-wait-sk:nth-of-type(4) {
+  animation-delay: 0.6s;
+  opacity: 0.2;
+}
+
+.app-walk-wait-sk-num,
+.app-walk-wait-sk-line {
+  animation: app-skeleton-pulse 1.2s ease-in-out infinite alternate;
+  border-radius: var(--app-radius-m);
+  display: block;
+}
+
+.app-walk-wait-sk-num {
+  border-radius: 50%;
+  height: 28px;
+  width: 28px;
+}
+
+.app-walk-wait-sk-line {
+  height: 12px;
+  width: 65%;
+}
+
+.app-walk-wait-sk-line--short {
+  width: 42%;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-walk-rise,
-  .app-walk-wait-line--on {
+  .app-walk-trail-path,
+  .app-walk-trail-pin,
+  .app-walk-wait-sk,
+  .app-walk-wait-sk-num,
+  .app-walk-wait-sk-line {
     animation: none;
+  }
+
+  /* Скелетоны остаются видимыми без пульсации */
+  .app-walk-wait-sk-num,
+  .app-walk-wait-sk-line {
+    background-color: rgba(var(--app-scheme-neutral), 0.08);
   }
 }
 .app-plans-hero .app-card-media {
@@ -24540,8 +24769,6 @@ ion-button.ion-focused {
 }
 
 html:not([data-theme="dark"]) .app-micro-title,
-html:not([data-theme="dark"]) .app-micro-when,
-html:not([data-theme="dark"]) .app-micro-limit,
 html:not([data-theme="dark"]) .app-plan-meet,
 html:not([data-theme="dark"]) .app-when-sheet {
   background: var(--app-surface);
