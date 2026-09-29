@@ -220,6 +220,7 @@ interface CatalogViewProps {
   hasMore?: boolean;
   onMore?: () => void;
   loadingMore?: boolean;
+  onRetry?: () => void;
 }
 
 function MoreButton({ hasMore, onMore, loadingMore }: { hasMore: boolean; onMore?: () => void; loadingMore: boolean }) {
@@ -231,7 +232,7 @@ function MoreButton({ hasMore, onMore, loadingMore }: { hasMore: boolean; onMore
   );
 }
 
-export function CatalogView({ state, filters, onFilters, view = "list", onView, onOpenEvent, onOpenPlace, hasMore = false, onMore, loadingMore = false, showCategories = true }: CatalogViewProps & { showCategories?: boolean }) {
+export function CatalogView({ state, filters, onFilters, view = "list", onView, onOpenEvent, onOpenPlace, hasMore = false, onMore, loadingMore = false, onRetry, showCategories = true }: CatalogViewProps & { showCategories?: boolean }) {
   return (
     <>
       <FilterBar filters={filters} onFilters={onFilters} showCategories={showCategories} />
@@ -250,7 +251,11 @@ export function CatalogView({ state, filters, onFilters, view = "list", onView, 
               <SkeletonCard />
             </>
           )}
-          {state.status === "error" && <AppState error>Не удалось загрузить события. Попробуйте изменить фильтры.</AppState>}
+          {state.status === "error" && (
+            <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+              Не удалось загрузить события. Проверьте соединение и попробуйте снова.
+            </AppState>
+          )}
           {state.status === "ready" && state.events.length === 0 && <AppState>Ничего не найдено. Попробуйте изменить фильтры.</AppState>}
           {state.status === "ready" && state.events.map((item) => <EventCard key={item.id} event={item} onOpen={onOpenEvent} />)}
           {state.status === "ready" && <MoreButton hasMore={hasMore} onMore={onMore} loadingMore={loadingMore} />}
@@ -316,6 +321,7 @@ export function CatalogPage({ view = "list", onView, showCategories = true, cate
       hasMore={catalog.hasMore}
       loadingMore={catalog.loadingMore}
       showCategories={showCategories}
+      onRetry={() => setAttempt((current) => current + 1)}
       onMore={() => {
         if (catalog.loadFailed) setAttempt((current) => current + 1);
         else setOffset((current) => current + pageSize);

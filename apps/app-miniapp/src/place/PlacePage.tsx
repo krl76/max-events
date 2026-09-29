@@ -30,6 +30,7 @@ import { PLACE_CATEGORY_LABELS } from "../organizer/OrganizerPage";
 import { matchesSubscriptionTarget } from "../subscriptions/SubscribeToggle";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { ConfirmSheet } from "../ui/ConfirmSheet";
 import { pictured } from "../ui/photos";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 import { formatRub, formatSlotWindow, formatTime, formatUpcomingWhen, slotStatusLabel } from "./slots";
@@ -402,6 +403,7 @@ export function PlacePage({ id }: { id: string }) {
   // The check-in answers with the CheckIn, not with a fresh board, so the button state is kept here
   // until the next load; board.checkedInToday is what survives a remount.
   const [checkedIn, setCheckedIn] = useState(false);
+  const [confirmingCheckIn, setConfirmingCheckIn] = useState(false);
 
   // Fire-and-forget page view (#196): a tracking failure must never break the page (trackPageView swallows rejections); skip until auth resolves so pre-login views are not recorded.
   useEffect(() => {
@@ -437,6 +439,12 @@ export function PlacePage({ id }: { id: string }) {
       () => setCheckedIn(true),
       () => {},
     );
+    setConfirmingCheckIn(false);
   };
-  return <PlacePageView place={state.place} page={state.page} board={state.board} checkedIn={checkedIn} onBack={back} onCheckIn={checkIn} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} onOpenSlots={() => navigate({ name: "slot-booking", placeId: id })} onOpenSubscriptions={() => navigate({ name: "subscriptions" })} onCreateHere={() => navigate({ name: "micro-new" })} onSave={() => navigate({ name: "lists" })} />;
+  return (
+    <>
+      <PlacePageView place={state.place} page={state.page} board={state.board} checkedIn={checkedIn} onBack={back} onCheckIn={() => setConfirmingCheckIn(true)} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} onOpenSlots={() => navigate({ name: "slot-booking", placeId: id })} onOpenSubscriptions={() => navigate({ name: "subscriptions" })} onCreateHere={() => navigate({ name: "micro-new" })} onSave={() => navigate({ name: "lists" })} />
+      {confirmingCheckIn && <ConfirmSheet title={`Отметиться в «${state.place.title}»?`} confirmLabel="Я здесь" onConfirm={checkIn} onClose={() => setConfirmingCheckIn(false)} />}
+    </>
+  );
 }

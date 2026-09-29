@@ -87,6 +87,7 @@ interface MicroEventViewProps {
   viewerId: string | null;
   busy?: boolean;
   now?: Date;
+  actionError?: string | null;
   onBack: () => void;
   onOpenPlace: (placeId: string) => void;
   onOpenPin: (pin: { lat: number; lng: number }) => void;
@@ -96,7 +97,7 @@ interface MicroEventViewProps {
   expenses?: ReactNode;
 }
 
-export function MicroEventView({ state, viewerId, busy = false, now = new Date(), onOpenPlace, onOpenPin, onJoin, onLeave, onRetry, expenses = null }: MicroEventViewProps) {
+export function MicroEventView({ state, viewerId, busy = false, now = new Date(), actionError = null, onOpenPlace, onOpenPin, onJoin, onLeave, onRetry, expenses = null }: MicroEventViewProps) {
   const card = state.status === "ready" ? state.card : null;
   const joined = card !== null && viewerId !== null && card.event.participantIds.includes(viewerId);
   const cta = card === null ? null : microCtaState(card.event, joined);
@@ -110,6 +111,11 @@ export function MicroEventView({ state, viewerId, busy = false, now = new Date()
       <div className="app-micro-topbar">
         <h1 className="app-micro-topbar-title">Микро-событие</h1>
       </div>
+      {actionError !== null && (
+        <p className="app-cal-reminder" role="alert">
+          {actionError}
+        </p>
+      )}
       {state.status === "loading" && <AppSkeletonList rows={3} />}
       {state.status === "error" && (
         <AppState error action={state.notFound ? undefined : { label: "Повторить", onClick: onRetry }}>
@@ -190,6 +196,7 @@ export function MicroEventPage({ id }: { id: string }) {
   const { navigate, back } = useRoute();
   const [state, setState] = useState<MicroEventState>({ status: "loading" });
   const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setState({ status: "loading" });
@@ -209,11 +216,12 @@ export function MicroEventPage({ id }: { id: string }) {
       run.then(
         () => {
           setBusy(false);
+          setActionError(null);
           load();
         },
         () => {
           setBusy(false);
-          load();
+          setActionError("Не получилось. Попробуйте ещё раз.");
         },
       );
     },
@@ -229,6 +237,7 @@ export function MicroEventPage({ id }: { id: string }) {
       state={state}
       viewerId={viewerId}
       busy={busy}
+      actionError={actionError}
       onBack={back}
       onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })}
       onOpenPin={(pin) => navigate({ name: "map", pin })}

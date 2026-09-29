@@ -7,8 +7,8 @@ import { NotificationsView, type NotificationsQuietHours, type NotificationsStat
 const noop = () => {};
 const QUIET: NotificationsQuietHours = { enabled: true, from: "23:00", to: "09:00" };
 
-function view(state: NotificationsState, quietHours: NotificationsQuietHours | null = QUIET): string {
-  return renderToStaticMarkup(createElement(NotificationsView, { state, quietHours, onClose: noop, onRetry: noop, onAct: noop, onOpen: noop, onToggleQuietHours: noop }));
+function view(state: NotificationsState, quietHours: NotificationsQuietHours | null = QUIET, actionError: string | null = null): string {
+  return renderToStaticMarkup(createElement(NotificationsView, { state, quietHours, actionError, onClose: noop, onRetry: noop, onAct: noop, onOpen: noop, onToggleQuietHours: noop }));
 }
 
 const ready = (): NotificationsState => ({ status: "ready", notifications: mockNotifications() });
@@ -85,6 +85,17 @@ describe("NotificationsView", () => {
 
     expect(html).not.toContain("Тихие часы");
     expect(html).toContain("Требует решения");
+  });
+
+  it("surfaces a failed answer instead of pretending it landed", () => {
+    const html = view(ready(), QUIET, "Не удалось ответить. Попробуйте ещё раз.");
+
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Не удалось ответить. Попробуйте ещё раз.");
+  });
+
+  it("shows no alert line while answers go through", () => {
+    expect(view(ready())).not.toContain('role="alert"');
   });
 
   it("renders the loading, error and empty states", () => {

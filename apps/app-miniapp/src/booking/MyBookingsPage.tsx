@@ -31,6 +31,7 @@ import { companyLabel, formatBookingDate, formatRub, formatSlotWindow, formatTim
 import { CodeBlock } from "./BookingTicketPage";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { ConfirmSheet } from "../ui/ConfirmSheet";
 import { pictured } from "../ui/photos";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 
@@ -360,6 +361,7 @@ export function MyBookingsPage() {
   const [searching, setSearching] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [picker, setPicker] = useState<ReschedulePicker | null>(null);
+  const [leavingId, setLeavingId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (userId === null) return () => {};
@@ -383,11 +385,19 @@ export function MyBookingsPage() {
   useEffect(load, [load]);
 
   if (state.status === "loading") return <AppSkeletonList rows={4} />;
-  if (state.status === "error") return <AppState error>Не удалось загрузить брони.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={{ label: "Повторить", onClick: load }}>
+        Не удалось загрузить брони.
+      </AppState>
+    );
   const leave = (entryId: string) => {
     apiClient.leaveSlotWaitlist(entryId).then(
-      () => load(),
-      () => {},
+      () => {
+        setLeavingId(null);
+        load();
+      },
+      () => setLeavingId(null),
     );
   };
   // Only a booked window has a screen of its own (экран 20). A ticket opens its event, where the
@@ -429,5 +439,10 @@ export function MyBookingsPage() {
       (error: unknown) => setPicker({ ...picker, busy: false, error: rescheduleErrorMessage(error) }),
     );
   };
-  return <MyBookingsView board={state.board} tab={tab} query={query} searching={searching} menuId={menuId} onTab={setTab} onQuery={setQuery} onToggleSearch={() => setSearching((current) => !current)} onOpenTicket={open} onLeaveWaitlist={leave} onMenu={setMenuId} onShare={share} onRate={(eventId) => navigate({ name: "after-event", eventId })} onRepeat={(eventId) => navigate({ name: "event", id: eventId })} onReschedule={openReschedule} picker={picker} onPickReschedule={pickReschedule} onClosePicker={() => setPicker(null)} />;
+  return (
+    <>
+      <MyBookingsView board={state.board} tab={tab} query={query} searching={searching} menuId={menuId} onTab={setTab} onQuery={setQuery} onToggleSearch={() => setSearching((current) => !current)} onOpenTicket={open} onLeaveWaitlist={setLeavingId} onMenu={setMenuId} onShare={share} onRate={(eventId) => navigate({ name: "after-event", eventId })} onRepeat={(eventId) => navigate({ name: "event", id: eventId })} onReschedule={openReschedule} picker={picker} onPickReschedule={pickReschedule} onClosePicker={() => setPicker(null)} />
+      {leavingId !== null && <ConfirmSheet title="Выйти из листа ожидания?" confirmLabel="Выйти" onConfirm={() => leave(leavingId)} onClose={() => setLeavingId(null)} />}
+    </>
+  );
 }

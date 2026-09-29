@@ -60,7 +60,7 @@ describe("microSeatsHint", () => {
 });
 
 describe("MicroEventView", () => {
-  const view = (state: MicroEventState, viewerId: string | null = null) => renderToStaticMarkup(createElement(MicroEventView, { state, viewerId, now: NOW, onBack: noop, onOpenPlace: noop, onOpenPin: noop, onJoin: noop, onLeave: noop, onRetry: noop }));
+  const view = (state: MicroEventState, viewerId: string | null = null, actionError: string | null = null) => renderToStaticMarkup(createElement(MicroEventView, { state, viewerId, now: NOW, actionError, onBack: noop, onOpenPlace: noop, onOpenPin: noop, onJoin: noop, onLeave: noop, onRetry: noop }));
 
   it("renders the title, the when/where rows and the named participants with the author marked", () => {
     const html = view({ status: "ready", card: seeded });
@@ -84,6 +84,14 @@ describe("MicroEventView", () => {
     expect(html).toContain("Иду");
     expect(html).toContain(microSeatsHint((seeded.event.participantsLimit ?? 0) - seeded.event.participantsCount)!);
     expect(html).not.toContain("Выйти");
+  });
+
+  it("names the failed join or leave instead of reloading in silence", () => {
+    const html = view({ status: "ready", card: seeded }, null, "Не получилось. Попробуйте ещё раз.");
+
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Не получилось. Попробуйте ещё раз.");
+    expect(view({ status: "ready", card: seeded })).not.toContain('role="alert"');
   });
 
   it("shows «Ты в деле» with the only action being «Выйти» once the viewer joined", () => {

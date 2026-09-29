@@ -6,8 +6,8 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - AuthContextValue - the auth state plus the way a screen writes the user back
-// - AuthProvider - resolves the auth state on mount and provides it via context; in mock mode (VITE_USE_MOCK=1) lazily imports the demo user so screens are reachable outside MAX
+// - AuthContextValue - the auth state plus the way a screen writes the user back and re-runs a failed login
+// - AuthProvider - resolves the auth state on mount (and on retry) and provides it via context; in mock mode (VITE_USE_MOCK=1) lazily imports the demo user so screens are reachable outside MAX
 // - useAuth - read the current AuthState
 // END_MODULE_MAP
 
@@ -17,15 +17,17 @@ import { apiClient } from "../api/client";
 import { getWebApp } from "../max/bridge";
 import { authenticate, type AuthState } from "./auth";
 
-export type AuthContextValue = AuthState & { updateUser: (user: User) => void };
+export type AuthContextValue = AuthState & { updateUser: (user: User) => void; retry: () => void };
 
-const AuthContext = createContext<AuthContextValue>({ status: "loading", updateUser: () => {} });
+const AuthContext = createContext<AuthContextValue>({ status: "loading", updateUser: () => {}, retry: () => {} });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: "loading" });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
+    setState({ status: "loading" });
     const demoUser = import.meta.env.VITE_USE_MOCK === "1" ? import("../api/mock").then((module) => module.mockDemoUser) : Promise.resolve(null);
     demoUser
       .then((mockUser) => authenticate(getWebApp(), (payload) => apiClient.login(payload), mockUser))
@@ -39,13 +41,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [attempt]);
 
   const updateUser = useCallback((user: User) => {
     setState((current) => (current.status === "authenticated" ? { ...current, user } : current));
   }, []);
 
-  const value = useMemo((): AuthContextValue => ({ ...state, updateUser }), [state, updateUser]);
+  const retry = useCallback(() => setAttempt((current) => current + 1), []);
+
+  const value = useMemo((): AuthContextValue => ({ ...state, updateUser, retry }), [state, updateUser, retry]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

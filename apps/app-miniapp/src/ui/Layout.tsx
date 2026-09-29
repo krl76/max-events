@@ -11,7 +11,7 @@
 // - TABS - tabbar definitions with per-tab active predicate; the map is its own tab, and plans, saved lists, bookings and the calendar open from the profile
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
 // - routeTitle - header title for the current route
-// - routeHasBack - back button shown on non-tab routes and on fullscreen screens whose back is the MAX client button (walk, walks, walk-saved, day-route, assist, story-new); other fullscreen screens draw their own close
+// - routeHasBack - back button shown on every non-tab route; fullscreen screens declare onBack/onClose props they never render, so the native button stays the only way out
 // - routeHasHeader - header hidden wherever the screen draws its own chrome: the search/plans/profile tabs (profile renders its own gradient hero), the map and the swipe deck, which draw over the content, «После события», whose hero carries a close button instead of a back arrow, the two list screens (экраны 37 и 39), the we-groups and the votes (экраны 30-33), the micro-event feed and card (экраны 24 и 25), the friends list with its counter (экран 26) and the friend route (экран 28), the plan with its date, party size and «MAX СОБРАЛ» badge (экран 15), the assistant with its gradient hero (экран 10), and the fullscreen composers
 // - routeIsFullscreen - composers/place/calendar/assist/day-route own the viewport: no shell header, no tabbar
 // - routeIsFlush - map canvas and screens that already set their own 20px fields (story, post, place, slots, notifications)
@@ -116,13 +116,9 @@ export function useHeaderTitle(title: string | null): void {
   }, [setTitle, title]);
 }
 
-/** Полноэкранные экраны, у которых «Назад» — кнопка клиента MAX и ведёт на предыдущий экран. */
-const NATIVE_BACK_FULLSCREEN: ReadonlySet<Route["name"]> = new Set(["walk", "walks", "walk-saved", "day-route", "assist", "story-new"]);
-
+/** Каждый не-табовый маршрут получает нативную кнопку «назад» MAX: своих крестов у полноэкранных экранов в вёрстке нет. */
 export function routeHasBack(route: Route): boolean {
-  if (NATIVE_BACK_FULLSCREEN.has(route.name)) return true;
-  // Полноэкранные экраны рисуют собственный крест/назад — нативная кнопка MAX стала бы второй.
-  return !isTabRoute(route.name) && !routeIsFullscreen(route);
+  return !isTabRoute(route.name);
 }
 
 // Экраны 08, 16 и 09 рисуют собственную шапку: карта — плавающую пилюлю «Поиск» поверх полотна,
@@ -139,10 +135,10 @@ export function routeHasBack(route: Route): boolean {
 const HEADERLESS_ROUTES: ReadonlySet<Route["name"]> = new Set(["browse", "swipe", "map", "profile", "user", "after-event", "lists", "list", "bookings", "moderation", "event", "companions", "we-groups", "we-group", "vote", "vote-new", "micro", "micro-event", "friends", "friend-route", "plan", "plans", "assist", "whereto", "calendar", "walk", "walks", "walk-saved", "onboarding"]);
 
 /**
- * Публикация истории и поста (макет, экраны 05 и 06). Обе рисуют собственную шапку с крестом и
- * собственный низ — рельс фонов с кнопками «Близкие друзья»/«В историю» у истории, панель вложений
- * со строкой «Черновик сохранён» у поста. Фиксированный таббар накрыл бы этот низ, а шапка оболочки
- * стала бы второй шапкой, поэтому на этих двух маршрутах экран забирает вьюпорт целиком.
+ * Публикация истории и поста (макет, экраны 05 и 06): собственный низ — рельс фонов с кнопками
+ * «Близкие друзья»/«В историю» у истории, панель вложений со строкой «Черновик сохранён» у поста.
+ * Фиксированный таббар накрыл бы этот низ, поэтому на этих маршрутах экран забирает вьюпорт целиком.
+ * Крест/назад в их вёрстке не реализован — выход даёт нативная кнопка MAX (routeHasBack).
  */
 const FULLSCREEN_ROUTES: ReadonlySet<Route["name"]> = new Set([
   "story-new",
@@ -150,8 +146,8 @@ const FULLSCREEN_ROUTES: ReadonlySet<Route["name"]> = new Set([
   "place",
   "slot-booking",
   "slot-ticket",
-  // Экран 07 несёт свою шапку с колокольчиком и крестом, а таббара под ним в макете нет вовсе:
-  // уведомления открываются поверх ленты и закрываются обратно в неё, а не листаются вкладками.
+  // Экран 07: таббара под ним в макете нет вовсе — уведомления открываются поверх ленты
+  // и закрываются обратно в неё нативной кнопкой назад, а не листаются вкладками.
   "notifications",
   // Календарь — отдельный экран: без таббара и без заголовка «Календарь».
   "calendar",
