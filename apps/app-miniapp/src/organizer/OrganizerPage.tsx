@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Organizer panel: own events/places with draft badges, draft creation forms, publish and minimal edit (event title/time/price/capacity, place title/address/city/coords).
 // SCOPE: Data via apiClient.listOrganizerEvents/createOrganizerEvent/updateOrganizerEvent/publishOrganizerEvent and the place twins; drafts flagged from the raw published field (returned by toEventDto/toPlaceDto; a missing flag reads as published); inline validation errors; mutations applied to local list state.
-// DEPENDS: ../api/client.js (apiClient, OrganizerEvent, OrganizerPlace, UpdateOrganizerEvent, UpdateOrganizerPlace), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./OrganizerAddons.js (MyOrganizerRatingCard, OrganizerEventAddons), ../ui/primitives.js, @max-events/api-contracts (CreateEvent, CreatePlace, EventCategory, EventCategorySchema, PlaceCategory, PlaceCategorySchema), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, OrganizerEvent, OrganizerPlace, UpdateOrganizerEvent, UpdateOrganizerPlace), ../catalog/CatalogPage.js (CATEGORY_LABELS, formatStartsAt), ./OrganizerAddons.js (MyOrganizerRatingCard, OrganizerEventAddons), ./organizer-native-back.js, ../ui/primitives.js, @max-events/api-contracts (CreateEvent, CreatePlace, EventCategory, EventCategorySchema, PlaceCategory, PlaceCategorySchema), ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -41,6 +41,7 @@ import { weeklySeriesUntil } from "./OrganizerEventForm";
 import { SettingsSwitchRow } from "../profile/SettingsPage";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppChip, AppMedia, AppState } from "../ui/primitives";
+import { useOrganizerNativeBack } from "./organizer-native-back";
 import { VenuePinMap } from "./VenuePinMap";
 
 export const PLACE_CATEGORY_LABELS: Record<PlaceCategory, string> = {
@@ -373,6 +374,7 @@ function formatDraftWhen(value: string): string {
 }
 
 export function EventDraftForm({ draft, step, errors, submitting, failed, mode, offerPublish = false, onChange, onNext, onBack, onJump, onSaveDraft, onPublish }: EventDraftFormProps) {
+  useOrganizerNativeBack(true, onBack);
   const canPublish = mode === "create" || offerPublish;
   const participation = draft.sellOutside ? "Покупка на другом сайте" : "Бесплатно по регистрации";
   const stepTitle = ["Основная информация", "Локация", "Билеты", "Продвижение", "Публикация"][step - 1];
@@ -611,11 +613,6 @@ export function EventDraftForm({ draft, step, errors, submitting, failed, mode, 
           Сохранить черновик
         </button>
       )}
-      {step > 1 && (
-        <button type="button" className="app-make-back" onClick={onBack}>
-          Назад
-        </button>
-      )}
     </form>
   );
 }
@@ -687,12 +684,10 @@ export function PlaceDraftForm({ draft, errors, submitting, failed, submitLabel,
 }
 
 function PlaceManage({ place, events, onBack, onEdit, onCreate }: { place: OrganizerPlace; events: OrganizerEvent[]; onBack: () => void; onEdit: () => void; onCreate: () => void }) {
+  useOrganizerNativeBack(true, onBack);
   const linked = events.filter((item) => item.placeId === place.id);
   return (
     <section className="app-gathering" aria-label="Управление местом">
-      <button type="button" className="app-org-head-link" onClick={onBack}>
-        Назад к списку
-      </button>
       <article className="app-set-group">
         <p className="app-set-row-title">{place.title}</p>
         <p className="app-set-row-hint">
@@ -1241,9 +1236,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
             </span>
             Создать событие
           </button>
-          <div className="app-evt-tools">
-            <input className="app-profile-input" aria-label="Поиск" placeholder="Поиск" value={eventQuery} onChange={(change) => setEventQuery(change.target.value)} />
-          </div>
+          <input className="app-profile-input" aria-label="Поиск" placeholder="Поиск" value={eventQuery} onChange={(change) => setEventQuery(change.target.value)} />
           <p className="app-cab-lead">Ваши события и статистика</p>
           <div className="app-evt-filters" role="tablist" aria-label="Состояние событий">
             {(
@@ -1302,7 +1295,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
             </span>
             Добавить место
           </button>
-          <input className="app-profile-input" aria-label="Поиск места" placeholder="Название места" value={placeQuery} onChange={(change) => setPlaceQuery(change.target.value)} />
+          <input className="app-profile-input" aria-label="Поиск" placeholder="Поиск" value={placeQuery} onChange={(change) => setPlaceQuery(change.target.value)} />
           <p className="app-gathering-hint">Место можно завести отдельно от события. Нажмите карточку — откроется управление местом.</p>
           <OrganizerListStatus state={places} emptyText="Пока нет мест. Площадка нужна, чтобы гости видели адрес." />
           {places.status === "ready" && places.items.filter((item) => item.title.toLowerCase().includes(placeQuery.trim().toLowerCase())).map((item) => <OrganizerPlaceCard key={item.id} item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishPlace(item.id)} onOpen={() => setPlaceFocus(item.id)} />)}

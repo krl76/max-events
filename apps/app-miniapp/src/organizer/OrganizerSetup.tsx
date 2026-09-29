@@ -18,6 +18,7 @@ import { apiClient } from "../api/client";
 import { useSwipeDrag } from "../ui/gestures";
 import { ActionIcon } from "../ui/icons";
 import { AppButton, AppState } from "../ui/primitives";
+import { useOrganizerNativeBack } from "./organizer-native-back";
 import { ORGANIZER_ACTIVITY_OPTIONS, ORGANIZER_NEXT_UP, ORGANIZER_SETUP_RAIL, nextOrganizerSetupStep, organizerSetupCtaLabel, organizerSetupRailIndex, organizerVenueInitials, previousOrganizerSetupStep } from "./organizer-onboarding";
 
 const ORGANIZER_SETUP_LEAN_PX = 40;
@@ -306,6 +307,7 @@ export function OrganizerSetup({ onCreateEvent, onDashboard }: { onCreateEvent: 
     if (previous !== null) setLoaded({ ...loaded, step: previous });
   }
 
+  useOrganizerNativeBack(loaded !== null && previousOrganizerSetupStep(loaded.step) !== null, onBack);
   const setup = loaded ?? EMPTY_SETUP;
   return <OrganizerSetupView setup={setup} step={setup.step} status={failed ? "error" : loaded === null ? "loading" : "ready"} saveFailed={saveFailed} blocked={blocked} onToggleActivity={(activity) => patch({ activities: setup.activities.includes(activity) ? setup.activities.filter((item) => item !== activity) : [...setup.activities, activity] })} onPayoutMode={(mode) => patch({ payouts: { ...setup.payouts, mode, paymentUrl: mode === "none" ? null : setup.payouts.paymentUrl } })} onPaymentUrl={(value) => patch({ payouts: { ...setup.payouts, paymentUrl: value } })} onContacts={(value) => patch({ payouts: { ...setup.payouts, contacts: value === "" ? null : value } })} onNext={onNext} onBack={onBack} onCreateEvent={() => finish(onCreateEvent)} onDashboard={() => finish(onDashboard)} />;
 }

@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Organizer space — a separate area of the miniapp with its own login/password auth (no MAX user context): login form, then the organizer screens behind their own tab bar.
 // SCOPE: OrganizerAuthProvider wiring, the login form of экран 42 with its inline error, the first-visit gate (вступление экрана 43, настройка экрана 44), the Дашборд · События · Создать · Промо · Профиль bar (макет, экраны 42–45) and the section-to-screen mapping. Экран 44 is not a bar section: it is the event opened from the dashboard, so it lives as a pushed view over whatever section is current, the way the design enters it. The space sits outside RouteProvider, so all of this is local state, not routes.
-// DEPENDS: react, ./OrganizerAuthContext.js, ./OrganizerDashboard.js, ./OrganizerEventForm.js, ./OrganizerEventManage.js, ./OrganizerIntro.js, ./OrganizerSetup.js, ./organizer-onboarding.js, ./OrganizerPromo.js, ./OrganizerPage.js, ./OrganizerAddons.js, ./OrganizerTabs.js, ../api/client.js (OrganizerEvent, apiClient.getOrganizerSetup), ../auth/EntryPage.js (AfishaWordmark), ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
+// DEPENDS: react, ./OrganizerAuthContext.js, ./OrganizerDashboard.js, ./OrganizerEventForm.js, ./OrganizerEventManage.js, ./OrganizerIntro.js, ./OrganizerSetup.js, ./organizer-onboarding.js, ./organizer-native-back.js, ./OrganizerPromo.js, ./OrganizerPage.js, ./OrganizerAddons.js, ./OrganizerTabs.js, ../api/client.js (OrganizerEvent, apiClient.getOrganizerSetup), ../auth/EntryPage.js (AfishaWordmark), ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -34,6 +34,7 @@ import { OrganizerStats } from "./OrganizerStats";
 import { OrganizerPromo } from "./OrganizerPromo";
 import { OrganizerSetup } from "./OrganizerSetup";
 import { OrganizerTabBar, type OrganizerSection } from "./OrganizerTabs";
+import { ORGANIZER_BACK_COVER, OrganizerNativeBackRoot, useOrganizerNativeBack } from "./organizer-native-back";
 
 const MOCK_MODE = import.meta.env.VITE_USE_MOCK === "1";
 
@@ -210,6 +211,35 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   const [closeComposerTick, setCloseComposerTick] = useState(0);
   const onComposer = useCallback((title: string | null) => setComposerTitle(title), []);
   const onEditHandled = useCallback(() => setEditRequestId(null), []);
+  const pushed = state.status === "authenticated" && (manage !== null || organizationOpen || statsOpen || composerTitle !== null);
+  const covered = manage !== null || organizationOpen || statsOpen;
+  // До входа в кабинет та же кнопка возвращает на выбор режима. Своя «Назад» на форме остаётся:
+  // в браузере вне MAX кнопки мессенджера нет, и без неё промах запирал бы приложение.
+  useOrganizerNativeBack(state.status !== "authenticated", onExit, 0);
+  useOrganizerNativeBack(
+    pushed,
+    () => {
+      if (manage !== null && manageScreen !== "hub") {
+        setManageScreen("hub");
+        return;
+      }
+      if (manage !== null) {
+        setManage(null);
+        setManageScreen("hub");
+        return;
+      }
+      if (organizationOpen) {
+        setOrganizationOpen(false);
+        return;
+      }
+      if (statsOpen) {
+        setStatsOpen(false);
+        return;
+      }
+      setCloseComposerTick((tick) => tick + 1);
+    },
+    covered ? ORGANIZER_BACK_COVER : 0,
+  );
   const openManage = (event: OrganizerEvent, screen: ManageScreen) => {
     setManageScreen(screen);
     setManage(event);
@@ -218,7 +248,6 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   };
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
-  const pushed = manage !== null || organizationOpen || statsOpen || composerTitle !== null;
   const ownChrome = (section === "profile" || section === "finance" || section === "dashboard" || section === "promo") && !pushed;
   const manageTitle = manageScreen === "checkin" ? "Контроль входа" : manageScreen === "participants" ? "Участники" : manageScreen === "tickets" ? "Билеты и регистрация" : manageScreen === "stats" ? "Статистика" : "Управление событием";
   const title = composerTitle ?? (statsOpen ? "Статистика" : manage !== null ? manageTitle : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section]);
@@ -239,33 +268,6 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
     >
       {!ownChrome && (
         <header className="app-header">
-          {pushed && (
-            <button
-              type="button"
-              className="app-header-back"
-              aria-label="Назад"
-              onClick={() => {
-                if (composerTitle !== null) {
-                  setCloseComposerTick((tick) => tick + 1);
-                  return;
-                }
-                if (manage !== null && manageScreen !== "hub") {
-                  setManageScreen("hub");
-                  return;
-                }
-                if (statsOpen) {
-                  setStatsOpen(false);
-                  return;
-                }
-                setManage(null);
-                setManageScreen("hub");
-                setOrganizationOpen(false);
-              }}
-            >
-              <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-              Назад
-            </button>
-          )}
           <span className="app-header-title">{title}</span>
         </header>
       )}
@@ -363,7 +365,9 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
 export function OrganizerSpace({ onExit }: { onExit: () => void }) {
   return (
     <OrganizerAuthProvider>
-      <OrganizerSpaceShell onExit={onExit} />
+      <OrganizerNativeBackRoot>
+        <OrganizerSpaceShell onExit={onExit} />
+      </OrganizerNativeBackRoot>
     </OrganizerAuthProvider>
   );
 }

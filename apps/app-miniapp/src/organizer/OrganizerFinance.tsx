@@ -16,6 +16,7 @@
 
 import { useState } from "react";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
+import { useOrganizerNativeBack } from "./organizer-native-back";
 import { CABINET_EVENTS, cabinetStats } from "./cabinet-catalog";
 
 export type FinanceScope = "all" | "events" | "promocodes";
@@ -349,6 +350,7 @@ export function OrganizerFinance() {
     return 0;
   };
   const preview = view.operations.slice(0, PREVIEW);
+  useOrganizerNativeBack(screen !== "home", () => setScreen("home"));
 
   const submitWithdrawal = () => {
     const reason = withdrawalBlock(amount, view.availableRub);
@@ -368,10 +370,6 @@ export function OrganizerFinance() {
   if (screen === "withdraw") {
     return (
       <section className="app-fin" aria-label="Вывести средства">
-        <button type="button" className="app-fin-back" onClick={() => setScreen("home")}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <h1 className="app-fin-title">Вывести средства</h1>
         <p className="app-fin-lead">Доступно к выводу</p>
         <p className="app-fin-available">{formatRub(view.availableRub)}</p>
@@ -402,10 +400,6 @@ export function OrganizerFinance() {
   if (screen === "operations") {
     return (
       <section className="app-fin" aria-label="Все операции">
-        <button type="button" className="app-fin-back" onClick={() => setScreen("home")}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <h1 className="app-fin-title">Все операции</h1>
         <p className="app-fin-lead">
           {FINANCE_SCOPES.find((item) => item.id === scope)?.label} · {period} дней

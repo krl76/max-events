@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { ActionIcon } from "../ui/icons";
+import { useOrganizerNativeBack } from "./organizer-native-back";
 import { CABINET_EVENTS, cabinetStats, defaultStatsRange, type CabinetStats } from "./cabinet-catalog";
 import { formatRub } from "./OrganizerFinance";
 
@@ -239,14 +240,11 @@ export function OrganizerStatistics(_props: { onCreateEvent?: () => void }) {
   const [notices, setNotices] = useState(false);
   const snapshot: CabinetStats = cabinetStats(CABINET_EVENTS, new Date(`${from}T00:00:00+03:00`), new Date(`${to}T23:59:59+03:00`));
   const points = INCOME_CHART[chartWindow];
+  useOrganizerNativeBack(notices, () => setNotices(false));
 
   if (notices) {
     return (
       <section className="app-cab" aria-label="Уведомления">
-        <button type="button" className="app-cab-back" onClick={() => setNotices(false)}>
-          <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-          Назад
-        </button>
         <h1 className="app-cab-title">Уведомления</h1>
         <ul className="app-cab-notices">
           {STATS_NOTICES.map((item) => (

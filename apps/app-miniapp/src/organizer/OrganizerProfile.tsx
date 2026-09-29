@@ -20,6 +20,7 @@ import { readFeedPhoto } from "../feed/photo";
 import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
 import { AppMedia, AppState } from "../ui/primitives";
+import { useOrganizerNativeBack } from "./organizer-native-back";
 import { ORGANIZER_ACTIVITY_OPTIONS } from "./organizer-onboarding";
 
 export type OrganizerProfileTab = "events" | "places";
@@ -47,6 +48,7 @@ function writeMedia(organizationId: string, media: OrgMedia) {
 }
 
 export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events, places, subscriptions, followers, tab, list, failed, onTab, onList, onOpenEvent, onSettings, onPickAvatar, onPickCover }: { name: string; about: string; avatarUrl: string | null; coverUrl: string | null; events: OrganizerEvent[]; places: OrganizerPlace[]; subscriptions: Subscription[] | null; followers: Friend[] | null; tab: OrganizerProfileTab; list: OrganizerProfileList; failed: boolean; onTab: (tab: OrganizerProfileTab) => void; onList: (list: OrganizerProfileList) => void; onOpenEvent: (event: OrganizerEvent) => void; onSettings: () => void; onPickAvatar: () => void; onPickCover: () => void }) {
+  useOrganizerNativeBack(list !== null, () => onList(null));
   const published = events.filter((item) => !item.draft);
   const initial = name.trim().slice(0, 1).toUpperCase() || "О";
   return (
@@ -95,9 +97,6 @@ export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events,
       </div>
       {list !== null && (
         <div className="app-me-rows" aria-label={list === "subscriptions" ? "Подписки" : "Подписчики"}>
-          <button type="button" className="app-me-hero-action" onClick={() => onList(null)}>
-            Назад к профилю
-          </button>
           {(list === "subscriptions" ? (subscriptions ?? []) : []).map((item) => (
             <p key={item.id} className="app-me-about">
               {item.title}
