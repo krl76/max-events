@@ -23,6 +23,7 @@ import { ActionIcon } from "../ui/icons";
 import { AppSection } from "../ui/primitives";
 
 export interface CreateEntry {
+  kind: "story" | "post" | "plan" | "micro";
   image: string;
   label: string;
   description: string;
@@ -31,10 +32,10 @@ export interface CreateEntry {
 
 /** Макет, экран 03: «Создать» opens публикация — история (05), пост (06), план. The micro-event joins them: it is the fourth thing a viewer publishes. */
 export const CREATE_ENTRIES: CreateEntry[] = [
-  { image: "/covers/visits/gorky-me.jpg", label: "История", description: "Кадр, который друзья увидят сутки", route: { name: "story-new" } },
-  { image: "/covers/visits/museum.jpg", label: "Пост", description: "Фото и мысль к событию", route: { name: "feed-new", eventId: null } },
-  { image: "/covers/concert.jpg", label: "План", description: "Собрать вечер из афиши", route: { name: "plan-new" } },
-  { image: "/covers/visits/cleanup.jpg", label: "Микро-событие", description: "Короткая встреча со своими", route: { name: "micro-new" } },
+  { kind: "story", image: "/covers/visits/gorky-me.jpg", label: "История", description: "Кадр, который друзья увидят сутки", route: { name: "story-new" } },
+  { kind: "post", image: "/covers/visits/museum.jpg", label: "Пост", description: "Фото и мысль к событию", route: { name: "feed-new", eventId: null } },
+  { kind: "plan", image: "/covers/concert.jpg", label: "План", description: "Собрать вечер из афиши", route: { name: "plan-new" } },
+  { kind: "micro", image: "/covers/visits/cleanup.jpg", label: "Микро-событие", description: "Короткая встреча со своими", route: { name: "micro-new" } },
 ];
 
 const FACE_CAP = 4;
@@ -52,7 +53,38 @@ export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
       <div className="app-create-board">
         {CREATE_ENTRIES.map((entry, index) => (
           <button key={entry.label} type="button" className={`app-create-card app-create-card--${index}`} onClick={() => onPick(entry.route)}>
-            <img className="app-create-card-photo" alt="" src={entry.image} />
+            <span className={`app-create-sketch app-create-sketch--${entry.kind}`} aria-hidden="true">
+              {entry.kind === "story" && (
+                <span className="app-create-story">
+                  <img alt="" src={entry.image} />
+                </span>
+              )}
+              {entry.kind === "post" && (
+                <span className="app-create-note">
+                  <img alt="" src={entry.image} />
+                  <span className="app-create-note-lines">
+                    <i />
+                    <i />
+                  </span>
+                </span>
+              )}
+              {entry.kind === "plan" && (
+                <span className="app-create-steps">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              )}
+              {entry.kind === "micro" && (
+                <span className="app-create-gather">
+                  <img alt="" src={entry.image} />
+                  <span />
+                </span>
+              )}
+              <span className="app-create-plus">
+                <ActionIcon name="plus" size={16} />
+              </span>
+            </span>
             <span className="app-create-card-copy">
               <span className="app-create-card-label">{entry.label}</span>
               <span className="app-create-card-line">{entry.description}</span>

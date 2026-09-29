@@ -98,6 +98,10 @@ describe("EventOrganizerCard", () => {
     expect(html).toContain("По 214 отзывам участников");
   });
 
+  it("hides the card when nobody is named and there is nothing else to say", () => {
+    expect(renderToStaticMarkup(createElement(EventOrganizerCard, { name: "Организатор не указан", eventsCount: null, rating: null, subscribe: null }))).toBe("");
+  });
+
   it("explains the missing rating instead of printing zeros", () => {
     const html = renderToStaticMarkup(createElement(EventOrganizerCard, { name: "Парк Горького", eventsCount: null, rating: null, subscribe: null }));
 

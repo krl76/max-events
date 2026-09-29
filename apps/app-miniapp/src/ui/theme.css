@@ -3754,12 +3754,118 @@ html[data-theme="dark"] #root {
   transform: scale(0.98);
 }
 
-.app-create-card-photo {
-  border-radius: 12px;
+.app-create-sketch {
+  align-items: center;
+  display: flex;
   flex: 1;
+  justify-content: center;
   min-height: 72px;
+  position: relative;
+  width: 100%;
+}
+
+.app-create-story {
+  aspect-ratio: 9 / 14;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 2px var(--app-card),
+    0 0 0 4px var(--app-accent);
+  height: 78%;
+  overflow: hidden;
+}
+
+.app-create-story img,
+.app-create-note img,
+.app-create-gather img {
+  display: block;
+  height: 100%;
   object-fit: cover;
   width: 100%;
+}
+
+.app-create-note {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 12px;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  width: 88%;
+}
+
+.app-create-note img {
+  border-radius: 8px;
+  flex: none;
+  height: 36px;
+  width: 36px;
+}
+
+.app-create-note-lines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-create-note-lines i {
+  background: var(--app-divider);
+  border-radius: 999px;
+  display: block;
+  height: 6px;
+}
+
+.app-create-note-lines i:first-child {
+  width: 100%;
+}
+
+.app-create-note-lines i:last-child {
+  width: 62%;
+}
+
+.app-create-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 72%;
+}
+
+.app-create-steps i {
+  background: radial-gradient(circle at 6px 50%, var(--app-text) 0 4px, transparent 4.5px);
+  border-bottom: 2px solid var(--app-divider);
+  display: block;
+  height: 10px;
+}
+
+.app-create-gather {
+  display: flex;
+  align-items: center;
+}
+
+.app-create-gather img,
+.app-create-gather span {
+  border: 2px solid var(--app-card);
+  border-radius: 999px;
+  height: 48px;
+  width: 48px;
+}
+
+.app-create-gather span {
+  background: var(--app-surface);
+  margin-left: -14px;
+}
+
+.app-create-plus {
+  align-items: center;
+  background: var(--app-accent);
+  border-radius: 999px;
+  bottom: 2px;
+  color: #ffffff;
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  position: absolute;
+  right: 6px;
+  width: 28px;
 }
 
 .app-create-faces {
@@ -17836,11 +17942,12 @@ button.app-cal-peer-chip {
 }
 
 .app-ev-org-name {
+  display: -webkit-box;
   font-size: var(--app-font-size-body);
   font-weight: 800;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .app-ev-org-meta {
@@ -18151,11 +18258,12 @@ button.app-cal-peer-chip {
 /* Разделы, которых в макете нет, но функции за ними живые: оплата, автоплан, лист ожидания,
  * стена события, отзыв, отметка «я здесь» и жалоба */
 .app-ev-plan {
+  align-items: flex-start;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 8px;
-  padding: 4px 0 8px;
+  margin-top: 18px;
+  padding: 0 0 8px;
 }
 
 .app-ev-plan-btn {
@@ -18277,6 +18385,14 @@ button.app-cal-peer-chip {
 .app-ev-bar-cta:hover,
 .app-ev-bar-cta:active {
   background: var(--app-accent-press);
+}
+
+.app-ev-bar-cta.app-ev-bar-cta--done,
+.app-ev-bar-cta.app-ev-bar-cta--done:hover,
+.app-ev-bar-cta.app-ev-bar-cta--done:active {
+  background: var(--app-surface);
+  border: 1px solid var(--app-divider);
+  color: var(--app-text);
 }
 
 /* --- Экран 18 «Запись и лист ожидания»: лист поверх карточки события ------------------------- */

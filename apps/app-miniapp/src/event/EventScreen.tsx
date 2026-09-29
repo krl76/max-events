@@ -282,6 +282,7 @@ interface EventOrganizerCardProps {
  * and no denominator to divide it by.
  */
 export function EventOrganizerCard({ name, eventsCount, rating, subscribe, brief = false }: EventOrganizerCardProps & { brief?: boolean }) {
+  if (name === "Организатор не указан" && rating === null && subscribe === null) return null;
   return (
     <section className="app-ev-org" aria-label="Организатор">
       <div className="app-ev-org-head">
@@ -292,7 +293,7 @@ export function EventOrganizerCard({ name, eventsCount, rating, subscribe, brief
           <span className="app-ev-org-name">{name}</span>
           <span className="app-ev-org-meta">{eventsCount === null ? "Организатор" : `Организатор · ${organizerEventsLabel(eventsCount)}`}</span>
         </span>
-        <span className="app-ev-org-action">{subscribe}</span>
+        {subscribe !== null && <span className="app-ev-org-action">{subscribe}</span>}
       </div>
       {brief ? (
         rating !== null && (
@@ -450,6 +451,7 @@ export function EventInviteSheet({ onPick, onMax, onClose }: { onPick: () => voi
 }
 
 export function EventBookingBar({ details, chatLink, onChat, onBook }: EventBookingBarProps) {
+  const booked = details.activeBookingId !== null;
   return (
     <div className="app-ev-bar">
       {chatLink !== null && chatLink !== "" && (
@@ -457,8 +459,8 @@ export function EventBookingBar({ details, chatLink, onChat, onBook }: EventBook
           <ActionIcon name="comment" size={22} />
         </button>
       )}
-      <button type="button" className="app-ev-bar-cta" onClick={onBook}>
-        <ActionIcon name="ticket" size={20} />
+      <button type="button" className={booked ? "app-ev-bar-cta app-ev-bar-cta--done" : "app-ev-bar-cta"} aria-pressed={booked} onClick={onBook}>
+        <ActionIcon name={booked ? "check" : "ticket"} size={20} />
         {bookingCtaLabel(details)}
       </button>
     </div>
