@@ -5581,25 +5581,29 @@ html[data-theme="dark"] #root {
 .app-feed > *,
 .app-search > *,
 .app-plans > *,
+.app-me > *,
 .app-tab-row.app-segments {
   animation: app-rise-in 240ms ease both;
 }
 
 .app-feed > *:nth-child(2),
 .app-search > *:nth-child(2),
-.app-plans > *:nth-child(2) {
+.app-plans > *:nth-child(2),
+.app-me > *:nth-child(2) {
   animation-delay: 40ms;
 }
 
 .app-feed > *:nth-child(3),
 .app-search > *:nth-child(3),
-.app-plans > *:nth-child(3) {
+.app-plans > *:nth-child(3),
+.app-me > *:nth-child(3) {
   animation-delay: 80ms;
 }
 
 .app-feed > *:nth-child(n + 4),
 .app-search > *:nth-child(n + 4),
-.app-plans > *:nth-child(n + 4) {
+.app-plans > *:nth-child(n + 4),
+.app-me > *:nth-child(n + 4) {
   animation-delay: 120ms;
 }
 
@@ -8962,6 +8966,15 @@ button.app-today-stat {
   flex-direction: column;
 }
 
+.app-me-head {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-me > .app-me-rows {
+  animation: none;
+}
+
 .app-me-hero {
   background: var(--app-gradient-dark);
   height: 220px;
@@ -9213,8 +9226,9 @@ button.app-me-avatar-ring {
 }
 
 .app-me-actions {
-  display: flex;
-  gap: var(--app-space-s);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
   padding-top: var(--app-space-screen);
 }
 
@@ -9222,17 +9236,19 @@ button.app-me-avatar-ring {
   align-items: center;
   background: none;
   border: var(--app-hairline);
-  border-radius: var(--app-radius-pill);
+  border-radius: 16px;
   color: var(--app-text);
   cursor: pointer;
   display: flex;
-  flex: 1;
   font: inherit;
-  font-size: var(--app-font-size-callout);
+  font-size: 15px;
   font-weight: 800;
-  height: 44px;
+  height: 48px;
   justify-content: center;
+  min-width: 0;
+  padding: 0 10px;
   transition: background-color 0.16s ease-out;
+  width: 100%;
 }
 
 .app-me-action:active {
@@ -9243,6 +9259,7 @@ button.app-me-avatar-ring {
   background: var(--app-accent);
   border-color: transparent;
   color: var(--app-accent-contrast);
+  grid-column: 1 / -1;
 }
 
 .app-me-action--primary:active {
@@ -9250,24 +9267,48 @@ button.app-me-avatar-ring {
 }
 
 .app-me-rows {
-  display: flex;
-  flex-direction: column;
-  padding-top: var(--app-space-xl);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  padding: 8px 0 var(--app-space-xl);
 }
 
 .app-me-row {
-  align-items: center;
-  background: none;
-  border: none;
-  border-bottom: var(--app-hairline);
+  align-items: flex-start;
+  animation: app-rise-in 240ms ease both;
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: 16px;
   color: var(--app-text);
   cursor: pointer;
   display: flex;
+  flex-direction: column;
   font: inherit;
-  gap: var(--app-space-m);
-  padding: 14px 0;
+  gap: 8px;
+  min-height: 92px;
+  padding: 12px;
   text-align: left;
   width: 100%;
+}
+
+.app-me-row:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.app-me-row:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.app-me-row:nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.app-me-row:nth-child(5) {
+  animation-delay: 160ms;
+}
+
+.app-me-row:nth-child(6) {
+  animation-delay: 200ms;
 }
 
 /* Скруглённый квадрат, а не кружок: бриф запрещает ставить все иконки в одинаковые круги */
@@ -20779,15 +20820,21 @@ button.app-cal-peer-chip {
   display: flex;
   flex: 1;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
-  height: 44px;
   justify-content: center;
-  line-height: 1;
-  padding: 0 6px;
+  line-height: 1.15;
+  min-height: 44px;
+  min-width: 0;
+  padding: 8px 4px;
   position: relative;
-  white-space: nowrap;
+  text-align: center;
+  white-space: normal;
   z-index: 1;
+}
+
+.app-me-panel {
+  min-width: 0;
 }
 
 .app-me-tab--active {
@@ -24810,6 +24857,8 @@ ion-button.ion-focused {
   .app-feed > *,
   .app-search > *,
   .app-plans > *,
+  .app-me > *,
+  .app-me-row,
   .app-tab-row.app-segments,
   .app-create-card,
   .app-story,

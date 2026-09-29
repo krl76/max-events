@@ -172,7 +172,6 @@ export function ProfileRow({ icon, title, hint, onClick }: { icon: ActionIconNam
         <span className="app-me-row-title">{title}</span>
         {hint !== null && <span className="app-me-row-hint">{hint}</span>}
       </span>
-      <ActionIcon name="chevron" size={20} strokeWidth={2.4} />
     </button>
   );
 }
@@ -335,94 +334,95 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
   const customCover = profile.coverUrl !== null;
   return (
     <section className="app-me">
-      <div className="app-me-hero">
-        {profile.coverUrl !== null ? <img className="app-me-hero-cover" src={showPhoto(profile.coverUrl) ?? profile.coverUrl} alt="" /> : null}
-        <span className="app-me-blob app-me-blob--light" aria-hidden="true" />
-        <span className="app-me-blob app-me-blob--cool" aria-hidden="true" />
-        {own && entries.onPickCover !== undefined && (
-          <div className="app-me-hero-edits">
-            <button type="button" className="app-me-hero-edit" aria-label="Сменить шапку" aria-haspopup="dialog" aria-expanded={mediaMenu === "cover"} onClick={() => setMediaMenu("cover")}>
-              <ActionIcon name="upload" size={16} strokeWidth={2} />
-              Шапка
+      <header className="app-me-head">
+        <div className="app-me-hero">
+          {profile.coverUrl !== null ? <img className="app-me-hero-cover" src={showPhoto(profile.coverUrl) ?? profile.coverUrl} alt="" /> : null}
+          <span className="app-me-blob app-me-blob--light" aria-hidden="true" />
+          <span className="app-me-blob app-me-blob--cool" aria-hidden="true" />
+          {own && entries.onPickCover !== undefined && (
+            <div className="app-me-hero-edits">
+              <button type="button" className="app-me-hero-edit" aria-label="Сменить шапку" aria-haspopup="dialog" aria-expanded={mediaMenu === "cover"} onClick={() => setMediaMenu("cover")}>
+                <ActionIcon name="upload" size={16} strokeWidth={2} />
+                Шапка
+              </button>
+            </div>
+          )}
+          <span className="app-me-hero-actions">
+            <button type="button" className="app-me-hero-action" aria-label="Поделиться профилем" onClick={entries.onShare}>
+              <ActionIcon name="upload" size={18} strokeWidth={2} />
             </button>
+            {own && (
+              <button type="button" className="app-me-hero-action" aria-label="Настройки" onClick={entries.onSettings}>
+                <ActionIcon name="dots" size={18} strokeWidth={2} />
+              </button>
+            )}
+          </span>
+        </div>
+        {own && entries.onPickAvatar !== undefined ? (
+          <button type="button" className="app-me-avatar-ring" aria-label="Сменить аватар" aria-haspopup="dialog" aria-expanded={mediaMenu === "avatar"} onClick={() => setMediaMenu("avatar")}>
+            <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={showPhoto(user.avatarUrl) ?? user.avatarUrl} />}</span>
+          </button>
+        ) : (
+          <div className="app-me-avatar-ring">
+            <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={showPhoto(user.avatarUrl) ?? user.avatarUrl} />}</span>
           </div>
         )}
-        <span className="app-me-hero-actions">
-          <button type="button" className="app-me-hero-action" aria-label="Поделиться профилем" onClick={entries.onShare}>
-            <ActionIcon name="upload" size={18} strokeWidth={2} />
-            Поделиться
-          </button>
-          {own && (
-            <button type="button" className="app-me-hero-action" aria-label="Настройки" onClick={entries.onSettings}>
-              <ActionIcon name="dots" size={18} strokeWidth={2} />
-            </button>
-          )}
-        </span>
-      </div>
-      {own && entries.onPickAvatar !== undefined ? (
-        <button type="button" className="app-me-avatar-ring" aria-label="Сменить аватар" aria-haspopup="dialog" aria-expanded={mediaMenu === "avatar"} onClick={() => setMediaMenu("avatar")}>
-          <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={showPhoto(user.avatarUrl) ?? user.avatarUrl} />}</span>
-        </button>
-      ) : (
-        <div className="app-me-avatar-ring">
-          <span className="app-me-avatar">{user.avatarUrl === null ? user.firstName.charAt(0).toUpperCase() : <img alt="" src={showPhoto(user.avatarUrl) ?? user.avatarUrl} />}</span>
-        </div>
-      )}
-      {mediaMenu === "avatar" && entries.onPickAvatar !== undefined && (
-        <ProfileMediaDialog
-          title="Фото профиля"
-          custom={customAvatar}
-          onPick={() => {
-            entries.onPickAvatar?.();
-            dismissMenu();
-          }}
-          onReset={
-            customAvatar && entries.onResetAvatar !== undefined
-              ? () => {
-                  entries.onResetAvatar?.();
-                  dismissMenu();
-                }
-              : undefined
-          }
-          onClose={dismissMenu}
-        />
-      )}
-      {mediaMenu === "cover" && entries.onPickCover !== undefined && (
-        <ProfileMediaDialog
-          title="Шапка профиля"
-          custom={customCover}
-          onPick={() => {
-            entries.onPickCover?.();
-            dismissMenu();
-          }}
-          onReset={
-            customCover && entries.onResetCover !== undefined
-              ? () => {
-                  entries.onResetCover?.();
-                  dismissMenu();
-                }
-              : undefined
-          }
-          onClose={dismissMenu}
-        />
-      )}
-      {clickShield && <div className="app-me-pop-shield" aria-hidden="true" />}
-      <h1 className="app-me-name">{name}</h1>
-      {about !== "" && <p className="app-me-about">{about}</p>}
-      {social.some((metric) => metric.id !== "posts") && (
-        <div className="app-me-metrics">
-          <div className="app-me-metrics-row">
-            {social
-              .filter((metric) => metric.id !== "posts")
-              .map((metric) => (
-                <button key={metric.id} type="button" className="app-me-metric app-me-metric--link" onClick={openList[metric.id]}>
-                  <span className="app-me-metric-value">{metric.value}</span>
-                  <span className="app-me-metric-label">{metric.label}</span>
-                </button>
-              ))}
+        {mediaMenu === "avatar" && entries.onPickAvatar !== undefined && (
+          <ProfileMediaDialog
+            title="Фото профиля"
+            custom={customAvatar}
+            onPick={() => {
+              entries.onPickAvatar?.();
+              dismissMenu();
+            }}
+            onReset={
+              customAvatar && entries.onResetAvatar !== undefined
+                ? () => {
+                    entries.onResetAvatar?.();
+                    dismissMenu();
+                  }
+                : undefined
+            }
+            onClose={dismissMenu}
+          />
+        )}
+        {mediaMenu === "cover" && entries.onPickCover !== undefined && (
+          <ProfileMediaDialog
+            title="Шапка профиля"
+            custom={customCover}
+            onPick={() => {
+              entries.onPickCover?.();
+              dismissMenu();
+            }}
+            onReset={
+              customCover && entries.onResetCover !== undefined
+                ? () => {
+                    entries.onResetCover?.();
+                    dismissMenu();
+                  }
+                : undefined
+            }
+            onClose={dismissMenu}
+          />
+        )}
+        {clickShield && <div className="app-me-pop-shield" aria-hidden="true" />}
+        <h1 className="app-me-name">{name}</h1>
+        {about !== "" && <p className="app-me-about">{about}</p>}
+        {social.some((metric) => metric.id !== "posts") && (
+          <div className="app-me-metrics">
+            <div className="app-me-metrics-row">
+              {social
+                .filter((metric) => metric.id !== "posts")
+                .map((metric) => (
+                  <button key={metric.id} type="button" className="app-me-metric app-me-metric--link" onClick={openList[metric.id]}>
+                    <span className="app-me-metric-value">{metric.value}</span>
+                    <span className="app-me-metric-label">{metric.label}</span>
+                  </button>
+                ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </header>
       {!own && (
         <div className="app-me-actions">
           <button type="button" className="app-me-action app-me-action--primary" disabled={subscribePending} onClick={entries.onSubscribe}>
@@ -484,7 +484,7 @@ export function ProfileView({ user, profile, counters, lists, subscriptions, fol
           </button>
         ))}
       </div>
-      <div id="app-me-tabpanel" role="tabpanel" aria-labelledby={`app-me-tab-${tab}`}>
+      <div key={tab} id="app-me-tabpanel" className="app-me-panel" role="tabpanel" aria-labelledby={`app-me-tab-${tab}`}>
         {tab === "posts" && <ProfilePostGrid posts={posts} failed={postsFailed} onOpenPost={entries.onOpenPost} onNewPost={entries.onNewPost} canPublish={own} />}
         {tab === "saved" && <ListsPage userId={user.id} />}
         {tab === "places" && visitedPlaces.length === 0 && <AppState>Мест пока нет — отметьтесь где-нибудь, и они появятся здесь.</AppState>}
