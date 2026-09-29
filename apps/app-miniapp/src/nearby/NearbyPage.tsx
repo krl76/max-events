@@ -41,7 +41,8 @@ import { useRoute } from "../routing/router";
 import { useMapAssistIds } from "../catalog/useMapAssistIds";
 import { ActionIcon } from "../ui/icons";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
-import { cardMatchesQuery, cardOnDay, moscowDayKey, nearbyDayOptions } from "./nearby-filters";
+import { cardMatchesQuery, cardOnDay, moscowDayKey } from "./nearby-filters";
+import { SearchDayButton } from "../today/TodaySection";
 
 /** Both the backend and the line under the header quote the same radius; one constant so they cannot drift. */
 export const NEARBY_RADIUS_KM = 15;
@@ -324,15 +325,7 @@ export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = ne
             </button>
           ))}
         </div>
-        {mode === "timeline" && (
-          <div className="app-nb-days" role="radiogroup" aria-label="Дата">
-            {nearbyDayOptions(now).map((day) => (
-              <button key={day.key} type="button" role="radio" aria-checked={selectedDay === day.key} className={selectedDay === day.key ? "app-nb-day app-nb-day--on" : "app-nb-day"} onClick={() => onDay(day.key)}>
-                {day.label}
-              </button>
-            ))}
-          </div>
-        )}
+        {mode === "timeline" && <SearchDayButton chip day={selectedDay} now={now} onDay={onDay} emphasized={selectedDay !== todayKey} />}
       </div>
       {searchOpen && <input className="app-nb-search" aria-label="Поиск рядом" value={query} placeholder="Событие или место" onChange={(event) => onQuery(event.target.value)} />}
       {mode === "timeline" ? <Timeline state={shown} onRetryTimeline={onRetryTimeline} onOpenEvent={onOpenEvent} onOpenLocation={onOpenLocation} radiusKm={radiusKm} inCity={inCity} searching={searching} /> : <FreeWindow leisure={leisure} hours={hours} mood={mood} now={now} planning={planning} onHours={onHours} onMood={onMood} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />}
@@ -436,9 +429,6 @@ export function NearbyPage() {
           }}
         >
           <ActionIcon name="search" size={22} />
-        </button>
-        <button type="button" className="app-nb-ask" aria-label="Спросить MAX" onClick={() => navigate({ name: "assist", ask: "Что рядом со мной" })}>
-          <ActionIcon name="search" size={20} strokeWidth={2.2} />
         </button>
       </HeaderSlot>
       <NearbyView

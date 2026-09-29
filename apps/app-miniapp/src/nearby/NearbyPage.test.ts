@@ -131,10 +131,10 @@ describe("NearbyView: таймлайн (экран 13)", () => {
     expect(html).toContain("На часы");
     expect(html).not.toContain("время московское");
     expect(html).not.toContain("Таймлайн");
-    expect(html).toContain('aria-label="Дата"');
-    expect(html).toContain("Сегодня");
+    expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('aria-label="Радиус поиска"');
     expect(html).toContain('class="app-nb-dock"');
+    expect(html).not.toContain("Спросить MAX");
   });
 
   it("отмечает выбранный радиус среди тех же значений, что и настройки", () => {
