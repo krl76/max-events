@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { formatPlanPollText, haversineMeters, settleBalances } from "./plans.service";
+import { miniappLink, withAppLink } from "../time/human-when";
 import { parseRoutePrefer } from "./plans.controller";
 import { createService, dimaId, eventId, hostId, katyaId, meetingAt, now } from "./plans.testHarness";
 
@@ -362,7 +363,7 @@ describe("PlansService", () => {
     messages.length = 0;
     const firstPoll = await service.pollRecurring(now);
     expect(firstPoll.sent).toBe(1);
-    expect(messages).toEqual([formatPlanPollText("The Weekend Tribute", "корт", first.meetingAt)]);
+    expect(messages).toEqual([withAppLink(formatPlanPollText("The Weekend Tribute", "корт", first.meetingAt), miniappLink(`plan-${first.id}`))]);
     expect(await service.pollRecurring(now)).toEqual({ sent: 0, failed: 0 });
     const answered = await service.respond(dimaId, first.id, "confirmed");
     expect(answered.plan.participants).toEqual([{ friend: { id: dimaId, name: "Дима", avatarUrl: null }, status: "confirmed" }]);

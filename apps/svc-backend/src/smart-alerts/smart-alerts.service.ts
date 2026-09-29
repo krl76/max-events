@@ -66,9 +66,6 @@ export class SmartAlertsService {
       const planIds = upcoming.map((row) => row.id);
       const [events, participantRows] = await Promise.all([this.events.find({ where: { id: In(eventIds) } }), this.participants.find({ where: { planId: In(planIds) } })]);
       const eventById = new Map(events.map((row) => [row.id, row]));
-      const venueIds = [...new Set(events.map((row) => row.placeId).filter((id): id is string => id !== null))];
-      const places = venueIds.length === 0 ? [] : await this.places.find({ where: { id: In(venueIds) } });
-      const placeById = new Map(places.map((row) => [row.id, row]));
       const userIds = [...new Set([...upcoming.map((row) => row.hostUserId), ...participantRows.map((row) => row.userId)])];
       const [userRows, checkIns] = await Promise.all([userIds.length === 0 ? Promise.resolve([] as UserEntity[]) : this.users.find({ where: { id: In(userIds) } }), userIds.length === 0 ? Promise.resolve([] as CheckInEntity[]) : this.checkIns.find({ where: { userId: In(userIds) } })]);
       const userById = new Map(userRows.map((row) => [row.id, row]));

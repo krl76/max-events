@@ -33,7 +33,7 @@ import { pluralRu } from "../catalog/format";
 import { useProfileCityPoint } from "../geo/profile-city";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { eventFillLabel, pictured } from "../ui/photos";
+import { pictured } from "../ui/photos";
 import { AppEmptyState, AppMedia, AppState } from "../ui/primitives";
 
 export const COMPANY_LABELS: Record<WheretoCompany, string> = { alone: "Я один", friends: "С друзьями", partner: "С парой", kids: "С детьми" };
@@ -54,7 +54,6 @@ export const WHERETO_QUESTIONS = [
 
 const COMPANY_ORDER: readonly WheretoCompany[] = ["alone", "friends", "partner", "kids"];
 const MOOD_ORDER: readonly WheretoMood[] = ["active", "calm", "unusual"];
-const BUDGET_ORDER: readonly WheretoBudget[] = ["free", "under_3000", "any"];
 
 /** What has been answered so far; null means the question is still open. */
 export interface WheretoAnswers {

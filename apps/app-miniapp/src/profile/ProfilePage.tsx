@@ -294,7 +294,6 @@ export function ProfileMediaDialog({ title, custom, onPick, onReset, onClose }: 
 interface ProfileViewProps extends ProfileEntries {
   user: User;
   profile: Profile;
-  counters: ProfileCounters | null;
   lists: ListSummary[] | null;
   subscriptions: Subscription[] | null;
   following: Friend[] | null;
@@ -314,7 +313,7 @@ interface ProfileViewProps extends ProfileEntries {
   subscribePending?: boolean;
 }
 
-export function ProfileView({ user, profile, counters, lists, subscriptions, following, followers, achievements, weGroups, friendsCount, posts, postsFailed, visitedPlaces, tab, own = true, followingThem = false, subscribePending = false, ...entries }: ProfileViewProps) {
+export function ProfileView({ user, profile, lists, subscriptions, following, followers, achievements, weGroups, friendsCount, posts, postsFailed, visitedPlaces, tab, own = true, followingThem = false, subscribePending = false, ...entries }: ProfileViewProps) {
   const [mediaMenu, setMediaMenu] = useState<"avatar" | "cover" | null>(null);
   const [clickShield, setClickShield] = useState(false);
   const dismissMenu = useCallback(() => {
@@ -729,7 +728,6 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
       <ProfileView
         user={shownUser}
         profile={localCover === undefined ? loadedProfile : { ...loadedProfile, coverUrl: localCover }}
-        counters={data.counters}
         lists={data.lists}
         subscriptions={data.subscriptions}
         following={data.following}

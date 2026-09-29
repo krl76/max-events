@@ -105,7 +105,9 @@ export function SaveToList({ eventId, feedPostId, userId, open, onClose }: { eve
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") controlled ? onClose?.() : setSelfOpen(false);
+      if (event.key !== "Escape") return;
+      if (controlled) onClose?.();
+      else setSelfOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

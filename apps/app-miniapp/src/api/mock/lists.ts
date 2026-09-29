@@ -226,7 +226,8 @@ function findList(listId: string): List | undefined {
 
 /** Preset lists of a user with item counters, shared-collection participants; savedItemId points at the item saving eventId or feedPostId (null when not saved). */
 export function listSummaries(userId: string, eventId: string | null, feedPostId: string | null = null): ListSummary[] {
-  const rows = listsFor(userId).filter((list) => userId === mockDemoUser.id || list.visibility === "public");
+  // The shared collection is visible to both participants regardless of the personal-list privacy filter.
+  const rows = listsFor(userId).filter((list) => userId === mockDemoUser.id || list.visibility === "public" || list.id === SHARED_LIST_ID);
   return rows.map((list) => {
     const items = mockListItems.filter((item) => item.listId === list.id);
     const saved = eventId ? items.find((item) => item.eventId === eventId) : feedPostId ? items.find((item) => item.feedPostId === feedPostId) : undefined;

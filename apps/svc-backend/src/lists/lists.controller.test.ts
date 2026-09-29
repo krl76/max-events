@@ -45,8 +45,8 @@ function createController() {
 describe("ListsController", () => {
   it("rejects an invalid eventId query and forwards a valid one", async () => {
     const { calls, controller } = createController();
-    await expect(controller.list(user, "not-a-uuid")).rejects.toBeInstanceOf(BadRequestException);
-    await expect(controller.list(user, eventId)).resolves.toEqual(summaries);
+    await expect(controller.list(user, undefined, "not-a-uuid")).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.list(user, undefined, eventId)).resolves.toEqual(summaries);
     expect(calls.list).toEqual({ userId: user.id, eventId });
   });
 

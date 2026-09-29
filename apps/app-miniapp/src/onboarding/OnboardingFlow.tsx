@@ -333,7 +333,7 @@ function StepShell({ step, onBack, onSkip, children }: { step: OnboardingStep; o
 }
 
 /** The page follows the finger, then finishes the slide. A 40px lean read as a cut, not a swipe. */
-function usePageTurn(allow: (direction: "left" | "right") => boolean, commit: (direction: "left" | "right") => void, frameWidth: { current: number }, morph: { current: boolean }) {
+function usePageTurn(allow: (direction: "left" | "right") => boolean, commit: (direction: "left" | "right") => void) {
   const allowRef = useRef(allow);
   const commitRef = useRef(commit);
   allowRef.current = allow;
@@ -363,9 +363,6 @@ function usePageTurn(allow: (direction: "left" | "right") => boolean, commit: (d
 
 export function OnboardingView(props: OnboardingViewProps) {
   const frame = useRef<HTMLDivElement>(null);
-  const frameWidth = useRef(0);
-  const morph = useRef(props.step === "intro");
-  morph.current = props.step === "intro";
   const turn = usePageTurn(
     (direction) => {
       if (direction === "right") return props.step !== "intro" || props.intro > 0 || props.onLeave !== undefined;
@@ -374,8 +371,6 @@ export function OnboardingView(props: OnboardingViewProps) {
       return true;
     },
     (direction) => (direction === "right" ? props.onBack() : props.onNext()),
-    frameWidth,
-    morph,
   );
   const trackClass = !turn.animate && turn.offset !== 0 ? "app-onboarding-track" : "app-onboarding-track app-onboarding-track--move";
   const trackStyle = { transform: turn.offset === 0 ? undefined : `translate3d(${Math.max(-28, Math.min(28, turn.offset * 0.15))}px, 0, 0)` };
@@ -389,7 +384,6 @@ export function OnboardingView(props: OnboardingViewProps) {
       className="app-onboarding-pager"
       ref={(node) => {
         frame.current = node;
-        frameWidth.current = node?.clientWidth ?? 0;
       }}
       {...turn.gesture}
     >

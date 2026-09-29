@@ -63,8 +63,9 @@ describe("CalendarController", () => {
     await expect(controller.addPeer(user, {}, req)).rejects.toBeInstanceOf(BadRequestException);
     await expect(controller.going(user, "00000000-0000-4000-8000-0000000000b1", req)).resolves.toEqual(shared);
     expect(calls.going).toBe("00000000-0000-4000-8000-0000000000b1");
-    await expect(controller.acceptInvite(user, { token: "00000000-0000-4000-8000-0000000000aa" }, req)).resolves.toEqual(shared);
-    expect(calls.accept).toBe("00000000-0000-4000-8000-0000000000aa");
+    const inviteToken = "00000000-0000-4000-8000-0000000000aa"; // mock- uuid, not a real secret
+    await expect(controller.acceptInvite(user, { token: inviteToken }, req)).resolves.toEqual(shared);
+    expect(calls.accept).toBe(inviteToken);
     await expect(controller.acceptInvite(user, {}, req)).rejects.toBeInstanceOf(BadRequestException);
   });
 });

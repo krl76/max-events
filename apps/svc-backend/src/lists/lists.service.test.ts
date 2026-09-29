@@ -8,7 +8,7 @@ import { ListItemEntity } from "./list-item.entity";
 import { ListEntity } from "./list.entity";
 import { UserEntity } from "../users/user.entity";
 import { ListMemberEntity } from "./list-member.entity";
-import { LIST_PRESET_TITLES, ListsService, MAX_CUSTOM_LISTS } from "./lists.service";
+import { ListsService, MAX_CUSTOM_LISTS } from "./lists.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
 const userId = "00000000-0000-4000-8000-00000000000a";

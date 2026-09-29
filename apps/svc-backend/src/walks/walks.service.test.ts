@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { HttpException, NotFoundException } from "@nestjs/common";
 import type { ComposeCityWalkWrite } from "@max-events/api-contracts";
 import { describe, expect, it } from "vitest";
@@ -102,14 +103,14 @@ describe("WalksService", () => {
     expect(marked.stops.find((stop) => stop.order === 2)?.done).toBe(false);
     await expect(walks.setDone(userB, saved.id, 1, true)).rejects.toBeInstanceOf(NotFoundException);
     await expect(walks.setDone(userA, saved.id, 9, true)).rejects.toBeInstanceOf(NotFoundException);
-    const source = readFileSync(new URL("./walks.controller.ts", import.meta.url), "utf8");
+    const source = readFileSync(join(__dirname, "walks.controller.ts"), "utf8");
     expect(source).toContain("setDone");
     expect(source).not.toContain("check-in");
     expect(source).not.toContain("checkins");
   });
 
   it("does not import check-in", () => {
-    const source = readFileSync(new URL("./walks.service.ts", import.meta.url), "utf8");
+    const source = readFileSync(join(__dirname, "walks.service.ts"), "utf8");
     expect(source).not.toContain("check-in");
     expect(source).not.toContain("checkins");
   });

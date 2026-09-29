@@ -56,9 +56,7 @@ export function MicroCard({ item, places, joined, onJoin, onLeave, onOpen }: Mic
       </span>
       <span className="app-card-subtitle">{formatStartsAt(item.startsAt)}</span>
       <span className="app-card-subtitle">{microWhere(item, places)}</span>
-      <span className="app-card-subtitle">
-        {item.participantsLimit === null ? `${item.participantsCount} · без лимита` : `${item.participantsCount}/${item.participantsLimit} участников`}
-      </span>
+      <span className="app-card-subtitle">{item.participantsLimit === null ? `${item.participantsCount} · без лимита` : `${item.participantsCount}/${item.participantsLimit} участников`}</span>
     </>
   );
   return (

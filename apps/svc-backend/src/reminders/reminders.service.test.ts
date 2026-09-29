@@ -5,6 +5,7 @@ import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
 import { UserEntity } from "../users/user.entity";
 import { DEFAULT_REMINDER_WINDOW_MS, formatReminderText, isInReminderWindow, RemindersService } from "./reminders.service";
+import { miniappLink, withAppLink } from "../time/human-when";
 
 const now = new Date("2026-09-12T16:00:00Z");
 const userId = "00000000-0000-4000-8000-00000000000a";
@@ -127,7 +128,7 @@ describe("RemindersService.tick", () => {
     const { bookings, sent, service } = createHarness({ bookings: [booking()], events: [eventAt(startsAt)] });
     const first = await service.tick(now);
     expect(first).toEqual({ sent: 1, failed: 0 });
-    expect(sent).toEqual([{ maxUserId: "67890", text: formatReminderText("Джаз в парке", startsAt) }]);
+    expect(sent).toEqual([{ maxUserId: "67890", text: withAppLink(formatReminderText("Джаз в парке", startsAt), miniappLink(`event-${eventId}`)) }]);
     expect(bookings[0]?.reminderSentAt).toEqual(now);
 
     const second = await service.tick(now);

@@ -29,6 +29,7 @@ const provider: LlmProvider = {
     throw new Error("unused");
   },
   chatTurn: defaultChatTurn,
+  rankCandidateIds: async (candidates) => candidates.map((candidate) => candidate.id),
 };
 
 function eventRow(id: string, title: string, startsAt: string, priceRub: number | null, category: EventEntity["category"] = "afisha"): EventEntity {
@@ -107,7 +108,8 @@ describe("AssistService.chat", () => {
   it("drops an event id the model invented", async () => {
     provider.chatTurn = async () => ({ refuse: false, reply: "Вот.", eventIds: ["00000000-0000-4000-8000-000000000099", jazzId], openEventId: null, plan: false, criteria: null });
     const { service } = createService();
-    const result = await service.chat(userId, { message: "вечером музыка", transcript: [], offeredEventIds: [] }, now);
+    // Жанровое слово в запросе подмешало бы каталог поверх ответа модели — здесь проверяем только фильтрацию её выдумок.
+    const result = await service.chat(userId, { message: "вечером куда-нибудь", transcript: [], offeredEventIds: [] }, now);
     expect(result.items?.map((pick) => pick.event.id)).toEqual([jazzId]);
     expect(result.items?.[0]?.explanation).toBe("Подходит по запросу");
   });

@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
-// PURPOSE: «Моё» screen: personal space behind one row of filter pills — plans (plan cards per the README example: event, «Ты + N друзей», «Сбор <время> <место>», «<расстояние> от тебя»), own bookings, the shared month calendar and saved lists.
-// SCOPE: Data via apiClient.listPlans (mock or live) at the fixed Moscow center origin; presentational rendering; navigation to the plan screen; the bookings, calendar and saved sections reuse the CalendarPage/ListsPage containers; no budget (P4-8) and no route (P3-2/3-3).
-// DEPENDS: ../api/client.js (apiClient), ../catalog/MapScreen.js (MOSCOW_CENTER), ../catalog/format.js (pluralRu), ../calendar/CalendarPage.js (CalendarPage), ../lists/ListsPage.js (ListsPage), ../routing/router.js, @max-events/api-contracts (PlanCard, Plan), ../ui/primitives.js, ../ui/gestures.js (useSwipe, dampOffset), ../ui/theme.css
+// PURPOSE: Экран «Планы»: лента карточек планов per the README example (event, «Ты + N друзей», «Сбор <время> <место>», «<расстояние> от тебя») с hero-свайпом ближайших.
+// SCOPE: Data via apiClient.listPlans (mock or live) at the viewer origin; presentational rendering; navigation to the plan screen and plan creation; no budget (P4-8) and no route (P3-2/3-3).
+// DEPENDS: ../api/client.js (apiClient), ../catalog/format.js (pluralRu), ../geo/profile-city.js, ../routing/router.js, @max-events/api-contracts (PlanCard, Plan), ../ui/primitives.js, ../ui/gestures.js (useSwipe, dampOffset), ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -13,8 +13,7 @@
 // - planDistanceLabel - «1,2 км от тебя»; past 80 km the line is «далеко», and «от центра» when the point is the city center
 // - PlansState - union of plans fetch states (loading / error / ready)
 // - PlansView - presentational: one card per plan per the README example
-// - PlansTab - разделы «Моё» одним рядом пилюль: plans | bookings | calendar | saved
-// - PlansPage - «Моё» route container: один ряд фильтров над планами, бронями, календарём и сохранённым; entries to the «Мы» groups and the day route builder
+// - PlansPage - route container: loads the plans at the viewer origin and wires navigation
 // - heroDragPx - смещение героя за пальцем; у края затухает и не уходит дальше соседней карточки
 // - heroIndexAfterDirection - страница после свайпа влево или вправо
 // - heroShiftPx - сдвиг ленты: страница плюс живой жест

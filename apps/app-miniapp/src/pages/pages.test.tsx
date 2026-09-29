@@ -82,12 +82,12 @@ describe("RoutedPages", () => {
     expect(html).not.toContain("app-feed-skeleton");
   });
 
-  it("maps the plans route to the «Моё» screen with the plans/calendar/saved tabs", async () => {
-    const html = await routedHtml({ name: "plans" }, "Сохранённое");
+  it("maps the plans route to the plans screen", async () => {
+    const html = await routedHtml({ name: "plans" }, "app-plans-screen");
 
     expect(html).toContain("Планы");
-    expect(html).toContain("Календарь");
-    expect(html).toContain("Сохранённое");
+    // Пилюли «Моё» (брони/календарь/сохранённое) уехали: «Сохранённое» теперь вкладка профиля.
+    expect(html).not.toContain("Сохранённое");
   });
 
   it("maps the calendar route to its own screen, without the plans pills", async () => {
@@ -100,13 +100,15 @@ describe("RoutedPages", () => {
   });
 
   it("maps the search route to экран 08 with its tiles and blocks", async () => {
-    const html = await routedHtml({ name: "search" }, "Сегодня для тебя");
+    // «Сегодня для тебя» — за загруженными данными, в первом paint её нет; опора — статичные плитки.
+    const html = await routedHtml({ name: "search" }, "Подбор свайпами");
 
     expect(html).toContain("Подбор свайпами");
     expect(html).toContain("На карте");
     expect(html).toContain("Куда пойдём?");
     expect(html).toContain("Спросить MAX");
     expect(html).toContain("Микро-события");
+    expect(html).toContain("Популярное");
     expect(html).not.toContain("app-feed-skeleton");
   });
 

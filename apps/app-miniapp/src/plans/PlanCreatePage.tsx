@@ -138,12 +138,7 @@ export function PlanCreateView({ draft, events, places, friends, submitting = fa
   return (
     <section className="app-plan-build" aria-label="Свой план">
       <p className="app-make-lead">Событие из афиши. Время и место встречи.</p>
-      <button
-        type="button"
-        className={chosen ? "app-choose app-choose--cover" : "app-choose"}
-        style={chosen ? { backgroundImage: `url("${pictured(chosen.id, chosen.coverUrl)}")` } : undefined}
-        onClick={() => setPickingEvent(true)}
-      >
+      <button type="button" className={chosen ? "app-choose app-choose--cover" : "app-choose"} style={chosen ? { backgroundImage: `url("${pictured(chosen.id, chosen.coverUrl)}")` } : undefined} onClick={() => setPickingEvent(true)}>
         {chosen ? (
           <span className="app-choose-veil">
             <span className="app-choose-k">Событие</span>

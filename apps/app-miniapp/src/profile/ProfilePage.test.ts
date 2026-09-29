@@ -77,7 +77,6 @@ function renderProfileView(overrides: Partial<Parameters<typeof ProfileView>[0]>
     createElement(ProfileView, {
       user,
       profile,
-      counters,
       lists: null,
       subscriptions: null,
       following: null,
