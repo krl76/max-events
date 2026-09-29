@@ -20,4 +20,8 @@ export class NoneLlmProvider implements LlmProvider {
   async chatTurn(): Promise<never> {
     throw new LlmProviderError("llm_disabled", "LLM request failed");
   }
+
+  async rankCandidateIds(candidates: readonly { id: string; title: string }[]): Promise<string[]> {
+    return candidates.map((item) => item.id);
+  }
 }

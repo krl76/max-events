@@ -158,6 +158,8 @@ export interface MapNoticeInput {
   loading: boolean;
   placesFailed: boolean;
   eventsFailed: boolean;
+  /** Прогулка не открылась: карта остаётся, строка — та же, что при упавшем списке объектов. */
+  walkFailed?: boolean;
   markerCount: number;
   query: string;
   /** Set when a category chip is hiding the other events. */
@@ -178,6 +180,7 @@ export function mapNotice(input: MapNoticeInput): string | null {
   if (input.mapFailed) return "Карта не загрузилась. Обновите экран — объекты и поиск на месте.";
   if (input.tilesFailed) return "Подложка карты не отвечает. Метки и маршрут работают.";
   if (input.vectorFallback) return "Своя подложка здесь не открылась — показана стандартная.";
+  if (input.walkFailed === true) return input.markerCount > 0 ? "Часть объектов не загрузилась — на карте не всё." : "Объекты не загрузились. Карта на месте, попробуйте позже.";
   if (input.locateOn && input.geoDenied) return "Где вы — браузер не сказал. Показываем центр города.";
   if (input.markerCount > 0) return input.placesFailed || input.eventsFailed ? "Часть объектов не загрузилась — на карте не всё." : null;
   if (input.loading) return input.inCity === false ? "Ищем объекты в городе…" : "Ищем объекты рядом…";
@@ -283,7 +286,8 @@ function glyphSvg(glyph: MapPinGlyph, size: number): string {
 
 /** Пин объекта: каплю рисует css, здесь — только глиф внутри неё. */
 function pinHtml(marker: MapMarker): string {
-  return `<span class="app-map-mark"><span class="app-map-mark-glyph">${glyphSvg(marker.glyph, 15)}</span></span>`;
+  const badge = marker.badge === undefined ? "" : `<span class="app-map-mark-num">${marker.badge}</span>`;
+  return `<span class="app-map-mark">${badge}<span class="app-map-mark-glyph">${glyphSvg(marker.glyph, 15)}</span></span>`;
 }
 
 /** The friend pin of the design is a tile with the friend initial and a short label, not a dot (макет, экран 16). */
@@ -484,6 +488,7 @@ function MapHourColumn({ hour, selected, onSelect }: { hour: EventWeatherHour; s
 }
 
 const EMPTY_VISITS: FriendPlaceVisit[] = [];
+const EMPTY_MARKERS: readonly MapMarker[] = [];
 
 type PlacesState = { status: "loading" } | { status: "error" } | { status: "ready"; places: Place[] };
 
@@ -578,9 +583,14 @@ interface MapScreenProps {
   focusPlaceId?: string | null;
   /** Открыть карту уже с построенным маршрутом до выбранной площадки. */
   drawRoute?: boolean;
+  /** Остановки сохранённой прогулки. Идут тем же путём, что и остальные метки. */
+  extraMarkers?: readonly MapMarker[];
+  /** Первая остановка прогулки. Не drawRoute: тот флаг смотрит только на одну площадку. */
+  focusPoint?: { lat: number; lng: number } | null;
+  walkFailed?: boolean;
 }
 
-export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false }: MapScreenProps) {
+export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false, extraMarkers = EMPTY_MARKERS, focusPoint = null, walkFailed = false }: MapScreenProps) {
   const located = useProfileCityPoint();
   const weatherCity = located.city ?? city;
   // Until the profile city is known the canvas stays on Moscow. A far GPS fix must not pan the map away from the catalog.
@@ -674,7 +684,10 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   const shownPlaces = useMemo(() => (layers.places ? readyPlaces.filter((item) => needle === "" || `${item.title} ${item.address}`.toLowerCase().includes(needle)) : []), [readyPlaces, layers.places, needle]);
   // A fresh [] on every render would land in the map's dependency list and rebuild Leaflet each time.
   const visits = useMemo(() => (layers.friends ? friendVisits : EMPTY_VISITS), [layers.friends, friendVisits]);
-  const markers = useMemo(() => buildMapMarkers(shownEvents, shownPlaces, visits, { placeCatalog: readyPlaces }), [shownEvents, shownPlaces, visits, readyPlaces]);
+  const markers = useMemo(() => {
+    const catalog = buildMapMarkers(shownEvents, shownPlaces, visits, { placeCatalog: readyPlaces });
+    return extraMarkers.length === 0 ? catalog : [...extraMarkers, ...catalog];
+  }, [shownEvents, shownPlaces, visits, readyPlaces, extraMarkers]);
 
   const selectedPlaceId = selected === null ? null : (selected.placeId ?? events.find((item) => item.id === selected.eventId)?.placeId ?? null);
   const selectedPlace = selectedPlaceId === null ? undefined : readyPlaces.find((item) => item.id === selectedPlaceId);
@@ -775,10 +788,10 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   const placedCity = useRef(false);
   useEffect(() => {
     if (!located.settled || status !== "ready" || placedCity.current) return;
-    if (pin !== null || focusPlaceId !== null) return;
+    if (pin !== null || focusPlaceId !== null || focusPoint !== null) return;
     placedCity.current = true;
     handleRef.current?.focus(originPoint);
-  }, [located.settled, status, originPoint, pin, focusPlaceId, handleRef]);
+  }, [located.settled, status, originPoint, pin, focusPlaceId, focusPoint, handleRef]);
 
   const flown = useRef("");
   useEffect(() => {
@@ -798,6 +811,13 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
       setRouteOn(true);
       return;
     }
+    if (focusPoint !== null) {
+      const key = `walk:${focusPoint.lat.toFixed(5)},${focusPoint.lng.toFixed(5)}`;
+      if (flown.current === key) return;
+      flown.current = key;
+      handleRef.current?.focus([focusPoint.lat, focusPoint.lng], 16);
+      return;
+    }
     if (focusPlaceId === null || places.status !== "ready") return;
     if (flown.current === focusPlaceId) return;
     const place = places.places.find((item) => item.id === focusPlaceId);
@@ -811,7 +831,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     }
     const marker = markers.find((item) => item.placeId === focusPlaceId && item.eventId === null);
     if (marker) setSelected(marker);
-  }, [status, pin, focusPlaceId, places, markers, handleRef, drawRoute]);
+  }, [status, pin, focusPoint, focusPlaceId, places, markers, handleRef, drawRoute]);
 
   const weatherChange = weather === null ? null : formatMapChange(weather);
   const friendsLine = mapFriendsLine(friendVisits.find((visit) => visit.place.id === selectedPlaceId));
@@ -826,6 +846,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     loading: places.status === "loading" || eventsLoading,
     placesFailed: places.status === "error",
     eventsFailed,
+    walkFailed,
     markerCount: markers.length,
     query,
     categoryLabel: category === undefined ? null : CATEGORY_LABELS[category],

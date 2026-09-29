@@ -38,8 +38,10 @@ import { SEARCH_RADIUS_OPTIONS, radiusLabel } from "../profile/SettingsPage";
 import { pictured } from "../ui/photos";
 import { HeaderSlot, useHeaderTitle } from "../ui/Layout";
 import { useRoute } from "../routing/router";
+import { useMapAssistIds } from "../catalog/useMapAssistIds";
 import { ActionIcon } from "../ui/icons";
-import { AppChip, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
+import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
+import { cardMatchesQuery, cardOnDay, moscowDayKey, nearbyDayOptions } from "./nearby-filters";
 
 /** Both the backend and the line under the header quote the same radius; one constant so they cannot drift. */
 export const NEARBY_RADIUS_KM = 15;
@@ -134,6 +136,12 @@ interface NearbyViewProps {
   originSource?: "geo" | "fallback";
   /** False when the radius is drawn around the profile city's center, not around the viewer. */
   inCity?: boolean;
+  query?: string;
+  onQuery?: (query: string) => void;
+  searchOpen?: boolean;
+  assistIds?: ReadonlySet<string> | null;
+  dayKey?: string;
+  onDay?: (key: string) => void;
 }
 
 export function nearbyLocationRoute(place: Pick<NearbyCard["place"], "id" | "latitude" | "longitude">): { name: "map"; pin: { lat: number; lng: number }; placeId: string; drawRoute: true } {
@@ -178,22 +186,22 @@ export function nearbyScreenTitle(inCity: boolean): string {
   return inCity ? "Рядом со мной" : "В городе";
 }
 
-function Timeline({ state, onRetryTimeline, onOpenEvent, onOpenLocation, radiusKm = NEARBY_RADIUS_KM, originSource = "fallback", inCity = true }: Pick<NearbyViewProps, "state" | "onRetryTimeline" | "onOpenEvent" | "onOpenLocation" | "radiusKm" | "originSource" | "inCity">) {
+function Timeline({ state, onRetryTimeline, onOpenEvent, onOpenLocation, radiusKm = NEARBY_RADIUS_KM, inCity = true, searching = false }: Pick<NearbyViewProps, "state" | "onRetryTimeline" | "onOpenEvent" | "onOpenLocation" | "radiusKm" | "inCity"> & { searching?: boolean }) {
   const segments = state.status === "ready" ? NEARBY_BUCKETS.map((bucket) => ({ bucket, cards: state.timeline[bucket] })).filter((segment) => segment.cards.length > 0) : [];
 
   return (
     <>
-      <p className="app-nb-meta">
-        <ActionIcon name="pin" size={14} strokeWidth={2.2} />
-        Радиус {radiusKm} км · {nearbyOriginCaption(inCity, originSource)} · время московское
-      </p>
       {state.status === "loading" && <AppSkeletonList rows={3} />}
       {state.status === "error" && (
         <AppState error action={{ label: "Повторить", onClick: onRetryTimeline }}>
           {nearbyErrorTitle(inCity)}
         </AppState>
       )}
-      {state.status === "ready" && segments.length === 0 && <AppState hint={`Мы смотрим только на ${radiusKm} км вокруг`}>{nearbyEmptyTitle(inCity)}</AppState>}
+      {state.status === "ready" && segments.length === 0 && (
+        <AppState hint={searching ? "Можно другими словами — формы подберёт поиск" : `Мы смотрим только на ${radiusKm} км вокруг`}>
+          {searching ? "Ничего не нашлось" : nearbyEmptyTitle(inCity)}
+        </AppState>
+      )}
       {segments.map((segment) => (
         <section key={segment.bucket} className="app-nb-seg" aria-label={BUCKET_LABELS[segment.bucket]}>
           <div className="app-nb-seg-head">
@@ -283,20 +291,51 @@ function FreeWindow({ leisure, hours, mood, now, planning, onHours, onMood, onRe
   );
 }
 
-const MODE_LABELS: Record<NearbyMode, string> = { timeline: "Таймлайн", free: "Свободное время" };
+const MODE_LABELS: Record<NearbyMode, string> = { timeline: "События", free: "На часы" };
+const NEARBY_MODES = ["timeline", "free"] as const satisfies readonly NearbyMode[];
 
-export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = new Date(), planning, onHours, onMood, onRefresh, onRetryTimeline, onOpenPlan, onOpenEvent, onOpenLocation, onOpenPlace, radiusKm = NEARBY_RADIUS_KM, onRadius, originSource = "fallback", inCity = true }: NearbyViewProps) {
+function shownTimeline(state: NearbyState, dayKey: string, todayKey: string, query: string, assistIds: ReadonlySet<string> | null): NearbyState {
+  if (state.status !== "ready") return state;
+  const keep = (card: NearbyCard) => cardOnDay(card, dayKey, todayKey) && cardMatchesQuery(card, query, assistIds);
+  return {
+    status: "ready",
+    timeline: {
+      now: state.timeline.now.filter(keep),
+      inAnHour: state.timeline.inAnHour.filter(keep),
+      evening: state.timeline.evening.filter(keep),
+      tomorrow: state.timeline.tomorrow.filter(keep),
+    },
+  };
+}
+
+export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = new Date(), planning, onHours, onMood, onRefresh, onRetryTimeline, onOpenPlan, onOpenEvent, onOpenLocation, onOpenPlace, radiusKm = NEARBY_RADIUS_KM, onRadius, inCity = true, query = "", onQuery = () => {}, searchOpen = false, assistIds = null, dayKey, onDay = () => {} }: NearbyViewProps) {
+  const todayKey = moscowDayKey(now);
+  const selectedDay = dayKey ?? todayKey;
+  const searching = query.trim() !== "";
+  const shown = shownTimeline(state, selectedDay, todayKey, query, assistIds);
+
   return (
     <section className="app-nb">
-      {/* Тот же ряд пилюль, что и на вкладке «Планы»: переключение раздела списка в приложении выглядит одинаково */}
-      <div className="app-tab-row" role="group" aria-label="Режим">
-        {(Object.keys(MODE_LABELS) as NearbyMode[]).map((value) => (
-          <AppChip key={value} pressed={mode === value} onClick={() => onMode(value)}>
-            {MODE_LABELS[value]}
-          </AppChip>
-        ))}
+      <div className="app-nb-bar">
+        <div className="app-nb-modes" role="group" aria-label="Режим">
+          {NEARBY_MODES.map((value) => (
+            <button key={value} type="button" aria-pressed={mode === value} className={mode === value ? "app-nb-mode app-nb-mode--on" : "app-nb-mode"} onClick={() => onMode(value)}>
+              {MODE_LABELS[value]}
+            </button>
+          ))}
+        </div>
+        {mode === "timeline" && (
+          <div className="app-nb-days" role="radiogroup" aria-label="Дата">
+            {nearbyDayOptions(now).map((day) => (
+              <button key={day.key} type="button" role="radio" aria-checked={selectedDay === day.key} className={selectedDay === day.key ? "app-nb-day app-nb-day--on" : "app-nb-day"} onClick={() => onDay(day.key)}>
+                {day.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      {mode === "timeline" ? <Timeline state={state} onRetryTimeline={onRetryTimeline} onOpenEvent={onOpenEvent} onOpenLocation={onOpenLocation} radiusKm={radiusKm} originSource={originSource} inCity={inCity} /> : <FreeWindow leisure={leisure} hours={hours} mood={mood} now={now} planning={planning} onHours={onHours} onMood={onMood} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />}
+      {searchOpen && <input className="app-nb-search" aria-label="Поиск рядом" value={query} placeholder="Событие или место" onChange={(event) => onQuery(event.target.value)} />}
+      {mode === "timeline" ? <Timeline state={shown} onRetryTimeline={onRetryTimeline} onOpenEvent={onOpenEvent} onOpenLocation={onOpenLocation} radiusKm={radiusKm} inCity={inCity} searching={searching} /> : <FreeWindow leisure={leisure} hours={hours} mood={mood} now={now} planning={planning} onHours={onHours} onMood={onMood} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />}
       <div className="app-nb-dock">
         <p className="app-nb-dock-label">Расстояние</p>
         <div className="app-nb-radius" role="radiogroup" aria-label="Радиус поиска">
@@ -326,6 +365,10 @@ export function NearbyPage() {
   const [leisureAttempt, setLeisureAttempt] = useState(0);
   const [planning, setPlanning] = useState(false);
   const [radiusKm, setRadiusKm] = useState(DEFAULT_APP_SETTINGS.searchRadiusKm);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [dayKey, setDayKey] = useState<string | null>(null);
+  const assistIds = useMapAssistIds(searchOpen ? query : "");
   const userId = auth.status === "authenticated" ? auth.user.id : null;
 
   useEffect(() => {
@@ -380,6 +423,20 @@ export function NearbyPage() {
   return (
     <>
       <HeaderSlot>
+        <button
+          type="button"
+          className="app-header-action app-nb-ask"
+          aria-label="Поиск"
+          aria-pressed={searchOpen}
+          onClick={() => {
+            setSearchOpen((open) => {
+              if (open) setQuery("");
+              return !open;
+            });
+          }}
+        >
+          <ActionIcon name="search" size={22} />
+        </button>
         <button type="button" className="app-nb-ask" aria-label="Спросить MAX" onClick={() => navigate({ name: "assist", ask: "Что рядом со мной" })}>
           <ActionIcon name="search" size={20} strokeWidth={2.2} />
         </button>
@@ -419,6 +476,12 @@ export function NearbyPage() {
         }}
         originSource={point.source}
         inCity={inCity}
+        query={query}
+        onQuery={setQuery}
+        searchOpen={searchOpen}
+        assistIds={assistIds}
+        dayKey={dayKey ?? undefined}
+        onDay={setDayKey}
         onOpenEvent={(id) => navigate({ name: "event", id })}
         onOpenLocation={(card) => navigate(nearbyLocationRoute(card.place))}
         onOpenPlace={(id) => navigate({ name: "place", id })}

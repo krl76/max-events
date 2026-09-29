@@ -177,6 +177,7 @@ import { withProfile } from "./endpoints/profile";
 import { withReviews } from "./endpoints/reviews";
 import { withSlots } from "./endpoints/slots";
 import { withSocial } from "./endpoints/social";
+import { withWalks } from "./endpoints/walks";
 import { ApiTransport } from "./endpoints/transport";
 
 export { REPORT_REASONS } from "./endpoints/moderation";
@@ -224,8 +225,9 @@ const WithOrganizer = withOrganizer(WithDiscover);
 const WithModeration = withModeration(WithOrganizer);
 const WithSlots = withSlots(WithModeration);
 const WithNotifications = withNotifications(WithSlots);
+const WithWalks = withWalks(WithNotifications);
 
-export class ApiClient extends WithNotifications {}
+export class ApiClient extends WithWalks {}
 
 export const apiClient = new ApiClient();
 

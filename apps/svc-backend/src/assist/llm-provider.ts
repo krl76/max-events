@@ -9,7 +9,7 @@
 // - LLM_PROVIDER - Nest injection token
 // - AssistChatDraft - refuse, reply, event ids, opened id, plan, criteria
 // - AssistCatalogCard - catalog row the model may cite
-// - LlmProvider - parseQuery and chatTurn
+// - LlmProvider - parseQuery, chatTurn, and rankCandidateIds
 // - LlmProviderError - typed provider failure
 // END_MODULE_MAP
 
@@ -39,8 +39,8 @@ export interface AssistCatalogCard {
 export interface LlmProvider {
   parseQuery(query: string): Promise<AssistCriteria>;
   chatTurn(message: string, transcript: { role: "user" | "assistant"; text: string }[], cards: AssistCatalogCard[]): Promise<AssistChatDraft>;
+  rankCandidateIds(candidates: readonly { id: string; title: string }[]): Promise<string[]>;
 }
-
 export class LlmProviderError extends Error {
   constructor(
     readonly code: string,

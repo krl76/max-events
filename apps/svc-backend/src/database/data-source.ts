@@ -54,12 +54,13 @@ import { CalendarInviteEntity } from "../calendar/calendar-invite.entity";
 import { CalendarShareEntity } from "../calendar/calendar-share.entity";
 import { WeGroupPhotoEntity } from "../wegroups/we-group.entity";
 import { PlaceSlotEntity, SlotBookingEntity } from "../slots/slot.entity";
+import { CityWalkEntity } from "../walks/city-walk.entity";
 
 const env = validateEnv();
 
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: env.DATABASE_URL,
-  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity, PlanExpenseEntity, ListEntity, ListItemEntity, ListMemberEntity, SubscriptionEntity, CheckInEntity, StoryEntity, UserAchievementEntity, ReviewEntity, WaitlistEntryEntity, FeedPostEntity, FeedLikeEntity, FeedCommentEntity, ReportEntity, MicroEventEntity, MicroEventParticipantEntity, ListDigestSendEntity, PageViewEntity, PromoCodeEntity, PromoCampaignEntity, PromoFulfillmentEntity, PromotionCampaignEntity, WeGroupEntity, WeGroupMemberEntity, WeGroupItemEntity, WeGroupPhotoEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity, VoteBallotEntity, PaymentEntity, PaymentWebhookEventEntity, OrganizationEntity, NotificationEntity, SwipeDecisionEntity, CalendarShareEntity, CalendarInviteEntity, CalendarGoingEntity, PlaceSlotEntity, SlotBookingEntity],
+  entities: [UserEntity, ProfileEntity, PlaceEntity, EventEntity, BookingEntity, ParticipationEntity, FriendshipEntity, GatheringEntity, GatheringInviteeEntity, PlanEntity, PlanParticipantEntity, PlanExpenseEntity, ListEntity, ListItemEntity, ListMemberEntity, SubscriptionEntity, CheckInEntity, StoryEntity, UserAchievementEntity, ReviewEntity, WaitlistEntryEntity, FeedPostEntity, FeedLikeEntity, FeedCommentEntity, ReportEntity, MicroEventEntity, MicroEventParticipantEntity, ListDigestSendEntity, PageViewEntity, PromoCodeEntity, PromoCampaignEntity, PromoFulfillmentEntity, PromotionCampaignEntity, WeGroupEntity, WeGroupMemberEntity, WeGroupItemEntity, WeGroupPhotoEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity, VoteBallotEntity, PaymentEntity, PaymentWebhookEventEntity, OrganizationEntity, NotificationEntity, SwipeDecisionEntity, CalendarShareEntity, CalendarInviteEntity, CalendarGoingEntity, PlaceSlotEntity, SlotBookingEntity, CityWalkEntity],
   migrations: ["src/database/migrations/*.ts"],
 });

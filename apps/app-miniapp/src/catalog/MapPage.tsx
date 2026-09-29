@@ -11,30 +11,44 @@
 // - MapPage - container: fetches events once, wires back to Поиск and navigates to event/place pages from the map
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState } from "react";
-import type { Event } from "@max-events/api-contracts";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { CityWalk, Event } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
+import { walkStopMarkers, type MapMarker } from "./mapMarkers";
 import { MapScreen } from "./MapScreen";
 
 export type MapEventsState = { status: "loading" } | { status: "error" } | { status: "ready"; events: Event[] };
 
 const NO_EVENTS: Event[] = [];
+const NO_WALK_MARKERS: MapMarker[] = [];
 
-export function MapPageView({ state, onOpenEvent, onOpenPlace, onDiscuss, pin = null, focusPlaceId = null, drawRoute = false }: { state: MapEventsState; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void; onDiscuss?: () => void; pin?: { lat: number; lng: number } | null; focusPlaceId?: string | null; drawRoute?: boolean }) {
-  return <MapScreen events={state.status === "ready" ? state.events : NO_EVENTS} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} onDiscuss={onDiscuss} eventsFailed={state.status === "error"} eventsLoading={state.status === "loading"} pin={pin} focusPlaceId={focusPlaceId} drawRoute={drawRoute} />;
+function defaultLoadEvents(): Promise<Event[]> {
+  return apiClient.listEvents({});
 }
 
-export function MapPage() {
+function defaultLoadWalk(id: string): Promise<CityWalk> {
+  return apiClient.getCityWalk(id);
+}
+
+export function MapPageView({ state, onOpenEvent, onOpenPlace, onDiscuss, pin = null, focusPlaceId = null, drawRoute = false, walkMarkers = NO_WALK_MARKERS, walkFailed = false, focusPoint = null }: { state: MapEventsState; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void; onDiscuss?: () => void; pin?: { lat: number; lng: number } | null; focusPlaceId?: string | null; drawRoute?: boolean; walkMarkers?: readonly MapMarker[]; walkFailed?: boolean; focusPoint?: { lat: number; lng: number } | null }) {
+  return <MapScreen events={state.status === "ready" ? state.events : NO_EVENTS} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} onDiscuss={onDiscuss} eventsFailed={state.status === "error"} eventsLoading={state.status === "loading"} pin={pin} focusPlaceId={focusPlaceId} drawRoute={drawRoute} extraMarkers={walkMarkers} walkFailed={walkFailed} focusPoint={focusPoint} />;
+}
+
+export function MapPage({ loadEvents = defaultLoadEvents, loadWalk = defaultLoadWalk, walkId: forcedWalkId }: { readonly loadEvents?: () => Promise<Event[]>; readonly loadWalk?: (id: string) => Promise<CityWalk>; readonly walkId?: string | null } = {}) {
   const { route, navigate } = useRoute();
   const pin = route.name === "map" ? (route.pin ?? null) : null;
   const focusPlaceId = route.name === "map" ? (route.placeId ?? null) : null;
   const drawRoute = route.name === "map" && route.drawRoute === true;
+  const routeWalkId = route.name === "map" ? (route.walkId ?? null) : null;
+  const walkId = forcedWalkId === undefined ? routeWalkId : forcedWalkId;
   const [state, setState] = useState<MapEventsState>({ status: "loading" });
+  const [walkMarkers, setWalkMarkers] = useState<readonly MapMarker[]>(NO_WALK_MARKERS);
+  const [walkFailed, setWalkFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    apiClient.listEvents({}).then(
+    loadEvents().then(
       (events) => {
         if (alive) setState({ status: "ready", events });
       },
@@ -45,9 +59,29 @@ export function MapPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [loadEvents]);
 
+  useEffect(() => {
+    if (walkId === null) return;
+    let alive = true;
+    loadWalk(walkId).then(
+      (walk) => {
+        if (alive) setWalkMarkers(walkStopMarkers(walk.stops));
+      },
+      () => {
+        if (alive) setWalkFailed(true);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [walkId, loadWalk]);
+
+  const focusPoint = useMemo(() => {
+    const first = walkMarkers[0];
+    return first === undefined ? null : { lat: first.lat, lng: first.lng };
+  }, [walkMarkers]);
   const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
   const openPlace = useCallback((id: string) => navigate({ name: "place", id }), [navigate]);
-  return <MapPageView state={state} onOpenEvent={openEvent} onOpenPlace={openPlace} pin={pin} focusPlaceId={focusPlaceId} drawRoute={drawRoute} />;
+  return <MapPageView state={state} onOpenEvent={openEvent} onOpenPlace={openPlace} pin={pin} focusPlaceId={focusPlaceId} drawRoute={drawRoute} walkMarkers={walkMarkers} walkFailed={walkFailed} focusPoint={focusPoint} />;
 }
