@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { EMPTY_EVENT_DRAFT, EMPTY_PLACE_DRAFT, EventDraftForm, eventDraftErrors, eventDraftFrom, OrganizerEventCard, OrganizerListStatus, OrganizerPlaceCard, placeDraftErrors, splitOrganizerEvents, toCreateEvent, toEventPatch, toLocalInput, type EventDraft, type OrganizerListState } from "./OrganizerPage";
+import { CabinetListSwitch, EMPTY_EVENT_DRAFT, EMPTY_PLACE_DRAFT, EventDraftForm, eventDraftErrors, eventDraftFrom, OrganizerEventCard, OrganizerListStatus, OrganizerPlaceCard, placeDraftErrors, splitOrganizerEvents, toCreateEvent, toEventPatch, toLocalInput, type EventDraft, type OrganizerListState } from "./OrganizerPage";
 import type { OrganizerEvent, OrganizerPlace } from "../api/client";
 
 const noop = () => {};
@@ -248,6 +248,20 @@ describe("EventDraftForm", () => {
   it("reveals the payment link only when the draft sells tickets outside the app", () => {
     expect(form({ step: 3, draft: { ...readyDraft, sellOutside: false } })).not.toContain("Ссылка на покупку");
     expect(form({ step: 3, draft: { ...readyDraft, sellOutside: true, price: "500" } })).toContain("Ссылка на покупку");
+  });
+});
+
+describe("CabinetListSwitch", () => {
+  it("uses the profile pill for events and places", () => {
+    const events = renderToStaticMarkup(createElement(CabinetListSwitch, { tab: "events", onTab: noop }));
+    expect(events).toContain("app-me-tabs");
+    expect(events).toContain("app-me-tab-pill");
+    expect(events).toContain("События");
+    expect(events).toContain("Места");
+    expect(events).toMatch(/app-me-tab--active[^>]*>События/);
+    expect(events).not.toContain("app-chip");
+    const places = renderToStaticMarkup(createElement(CabinetListSwitch, { tab: "places", onTab: noop }));
+    expect(places).toMatch(/app-me-tab--active[^>]*>Места/);
   });
 });
 

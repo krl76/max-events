@@ -25,6 +25,7 @@
 // - EventDraftForm - presentational event form with inline errors, create and edit modes
 // - PlaceDraftForm - presentational place twin
 // - OrganizerListStatus - presentational loading/error/empty line for a list state
+// - CabinetListSwitch - «События» / «Места» in the same sliding pill as the profile tabs
 // - OrganizerPanel - panel keyed by the organization id: events/places tabs, data loading, create/publish/edit mutations; renders the own-rating card and per-event stats/promotion addons from ./OrganizerAddons.js (#196/#199/#206)
 // - OrganizerPage - legacy route stub: the panel lives in the organizer space (./OrganizerSpace.js) behind the organizer login
 // END_MODULE_MAP
@@ -737,6 +738,51 @@ function upsert<T extends { id: string }>(items: T[], item: T): T[] {
   return items.some((existing) => existing.id === item.id) ? items.map((existing) => (existing.id === item.id ? item : existing)) : [...items, item];
 }
 
+export type CabinetListTab = "events" | "places";
+
+/** Same sliding pill as the profile «Посты / Места / Сохранённое» switch, with two labels. */
+export function CabinetListSwitch({ tab, onTab }: { tab: CabinetListTab; onTab: (tab: CabinetListTab) => void }) {
+  const tabs: CabinetListTab[] = ["events", "places"];
+  return (
+    <div
+      className="app-me-tabs"
+      role="tablist"
+      aria-label="События и места"
+      style={{ ["--me-tabs" as string]: 2, ["--me-tab" as string]: tab === "places" ? 1 : 0, marginTop: 0 }}
+      onPointerDown={(event) => {
+        const host = event.currentTarget;
+        const pick = (clientX: number) => {
+          const box = host.getBoundingClientRect();
+          const next = Math.min(tabs.length - 1, Math.max(0, Math.floor(((clientX - box.left) / Math.max(box.width, 1)) * tabs.length)));
+          const chosen = tabs[next];
+          if (chosen !== undefined) onTab(chosen);
+        };
+        host.setPointerCapture(event.pointerId);
+        pick(event.clientX);
+        const move = (pointer: PointerEvent) => {
+          if (pointer.pointerId !== event.pointerId) return;
+          pick(pointer.clientX);
+        };
+        const up = (pointer: PointerEvent) => {
+          if (pointer.pointerId !== event.pointerId) return;
+          host.removeEventListener("pointermove", move);
+          host.removeEventListener("pointerup", up);
+        };
+        host.addEventListener("pointermove", move);
+        host.addEventListener("pointerup", up);
+      }}
+    >
+      <span className="app-me-tab-pill" aria-hidden="true" />
+      <button type="button" role="tab" aria-selected={tab === "events"} className={tab === "events" ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => onTab("events")}>
+        События
+      </button>
+      <button type="button" role="tab" aria-selected={tab === "places"} className={tab === "places" ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => onTab("places")}>
+        Места
+      </button>
+    </div>
+  );
+}
+
 /** createOnMount: the «Создать» tab of the organizer bar lands straight on the empty event draft. */
 export function OrganizerPanel({ organizationId: _organizationId, createOnMount = false, onOpenEvent: _onOpenEvent, onComposer, closeComposerTick = 0, editRequestId = null, onEditHandled, placesTick = 0, draftsTick = 0 }: { organizationId: string; createOnMount?: boolean; onOpenEvent?: (event: OrganizerEvent) => void; onComposer?: (title: string | null) => void; closeComposerTick?: number; editRequestId?: string | null; onEditHandled?: () => void; placesTick?: number; draftsTick?: number }) {
   const [tab, setTab] = useState<"events" | "places">("events");
@@ -1186,14 +1232,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
 
   return (
     <section className="app-gathering">
-      <div className="app-filters-chips">
-        <AppChip pressed={tab === "events"} onClick={() => setTab("events")}>
-          События
-        </AppChip>
-        <AppChip pressed={tab === "places"} onClick={() => setTab("places")}>
-          Места
-        </AppChip>
-      </div>
+      <CabinetListSwitch tab={tab} onTab={setTab} />
       {tab === "events" && (
         <>
           <button type="button" className="app-fin-withdraw" onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
