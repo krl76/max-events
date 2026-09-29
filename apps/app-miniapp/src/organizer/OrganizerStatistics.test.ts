@@ -39,7 +39,7 @@ describe("OrganizerStatistics", () => {
     const html = renderToStaticMarkup(createElement(OrganizerStatistics, { onCreateEvent: noop }));
 
     expect(html).toContain("Статистика");
-    expect(html).toContain("Полная аналитика вашего аккаунта");
+    expect(html).not.toContain("Полная аналитика вашего аккаунта");
     expect(html).toContain("Диапазон дат");
     expect(html).toContain("26.09.2026");
     expect(html).toContain("Динамика дохода");

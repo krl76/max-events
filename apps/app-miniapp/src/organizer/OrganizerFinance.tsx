@@ -419,10 +419,7 @@ export function OrganizerFinance() {
 
   return (
     <section className="app-fin" aria-label="Финансы">
-      <header className="app-fin-head">
-        <h1 className="app-fin-title">Финансы</h1>
-        <p className="app-fin-lead">Доходы, выплаты и аналитика</p>
-      </header>
+      <h1 className="app-fin-title">Финансы</h1>
       {notice !== null && <p className="app-fin-notice">{notice}</p>}
       <div className="app-fin-scopes" role="tablist" aria-label="Что показать">
         {FINANCE_SCOPES.map((item) => (

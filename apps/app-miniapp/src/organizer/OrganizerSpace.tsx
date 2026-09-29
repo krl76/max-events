@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - OrganizerLoginForm - вход в панель организатора (макет, экран 42): wordmark, «Панель организатора», подписанные ЛОГИН/ПАРОЛЬ с показом пароля, «Войти» и строка справки
-// - ORGANIZER_SECTION_TITLES - header title per bar section (only the two sections that use the plain header still show it)
+// - ORGANIZER_SECTION_TITLES - header title per bar section (section roots draw it themselves; the shell header shows it on screens pushed over a section)
 // - ORGANIZER_BARE_SECTIONS - the sections that draw their own chrome, so the shell header steps aside
 // - OrganizerSectionContent - what each section renders: dashboard -> экран 45, events -> the panel, create -> экран 46, promo -> экран 48, profile -> organization and exit
 // - OrganizerOnboardingGate - первый заход: вступление (экран 43) по флагу аппарата, затем настройка (экран 44) по признаку учётной записи; отказ GET /organizer/setup не пропускает в панель
@@ -248,7 +248,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   };
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
-  const ownChrome = (section === "profile" || section === "finance" || section === "dashboard" || section === "promo") && !pushed;
+  const ownChrome = (section === "profile" || section === "finance" || section === "dashboard" || section === "promo" || section === "events") && !pushed;
   const manageTitle = manageScreen === "checkin" ? "Контроль входа" : manageScreen === "participants" ? "Участники" : manageScreen === "tickets" ? "Билеты и регистрация" : manageScreen === "stats" ? "Статистика" : "Управление событием";
   const title = composerTitle ?? (statsOpen ? "Статистика" : manage !== null ? manageTitle : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section]);
   const hideTabs = composerTitle !== null || (manage !== null && manageScreen === "checkin");

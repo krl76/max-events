@@ -24,7 +24,7 @@ describe("OrganizerPromotion", () => {
     const html = renderToStaticMarkup(createElement(OrganizerPromotion));
 
     expect(html).toContain("Продвижение");
-    expect(html).toContain("Продвигайте свои события и привлекайте больше гостей");
+    expect(html).not.toContain("Продвигайте свои события и привлекайте больше гостей");
     expect(html).toContain("Инструменты");
     expect(html).toContain("Аналитика");
     expect(PROMO_TOOL_CARDS.map((card) => card.action).every((action) => html.includes(action))).toBe(true);

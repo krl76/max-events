@@ -26146,12 +26146,6 @@ html:not([data-theme="dark"]) .app-when-sheet {
   padding: 12px 16px 12px;
 }
 
-.app-fin-head {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
 .app-fin-title {
   color: #16181d;
   font-size: 26px;
@@ -28476,6 +28470,14 @@ html:not([data-theme="dark"]) .app-when-sheet {
 .app-gathering > .app-profile-input {
   box-sizing: border-box;
   width: 100%;
+}
+
+/* Вкладка «События»: тот же холст и крупный заголовок, что у финансов, статистики и продвижения. */
+.app-evt-home {
+  background: #f4f6fb;
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 12px 16px 20px;
 }
 
 .app-evt-filters {
