@@ -7,12 +7,6 @@ import { WalkBack } from "./WalkWizard";
 
 const DWELL_MINUTES = 20;
 
-export function walkWaitLine(city: string, step: 0 | 1 | 2): string {
-  if (step === 0) return `Ищем места в ${city}`;
-  if (step === 1) return "Собираем порядок";
-  return "Считаем пешие ноги";
-}
-
 export function walkErrorText(error: unknown): string {
   if (error instanceof ApiError && error.status === 422) return "В этом городе пока нет двух мест для прогулки.";
   return "Не удалось собрать прогулку.";
@@ -64,25 +58,7 @@ function StopTitle({ stop, onPlace }: { readonly stop: CityWalkStop; readonly on
   );
 }
 
-export function WalkResult({
-  city,
-  walk,
-  now,
-  onBack,
-  onAnother,
-  onPlace,
-  onSaved,
-  onMap,
- }: {
-  readonly city: string;
-  readonly walk: CityWalk;
-  readonly now: number;
-  readonly onBack: () => void;
-  readonly onAnother: () => void;
-  readonly onPlace: (id: string) => void;
-  readonly onSaved?: () => void;
-  readonly onMap?: () => void;
-}) {
+export function WalkResult({ city, walk, now, onBack, onAnother, onPlace, onSaved, onMap }: { readonly city: string; readonly walk: CityWalk; readonly now: number; readonly onBack: () => void; readonly onAnother: () => void; readonly onPlace: (id: string) => void; readonly onSaved?: () => void; readonly onMap?: () => void }) {
   const count = walk.stops.length;
   const travel = walk.legs.reduce((sum, leg) => sum + leg.travelMinutes, 0);
   return (

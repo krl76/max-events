@@ -182,11 +182,7 @@ describe("CheckInsService", () => {
 
   it("lists entry codes of the viewer's active bookings only", async () => {
     const { service } = createService({
-      bookings: [
-        { id: bookingId, userId, eventId, status: "active", createdAt: now } as BookingEntity,
-        { id: "00000000-0000-4000-8000-0000000000b2", userId, eventId, status: "cancelled", createdAt: now } as BookingEntity,
-        { id: "00000000-0000-4000-8000-0000000000b3", userId: otherUser, eventId, status: "active", createdAt: now } as BookingEntity,
-      ],
+      bookings: [{ id: bookingId, userId, eventId, status: "active", createdAt: now } as BookingEntity, { id: "00000000-0000-4000-8000-0000000000b2", userId, eventId, status: "cancelled", createdAt: now } as BookingEntity, { id: "00000000-0000-4000-8000-0000000000b3", userId: otherUser, eventId, status: "active", createdAt: now } as BookingEntity],
     });
     await expect(service.listCodes(userId)).resolves.toEqual([{ bookingId, code: entryCodeFromBookingId(bookingId) }]);
   });
@@ -207,10 +203,7 @@ describe("CheckInsService", () => {
   it("refuses to check in when two active bookings share a code suffix", async () => {
     const twinId = "ffffffff-ffff-4fff-8fff-0000000000b1";
     const { service } = createService({
-      bookings: [
-        { id: bookingId, userId, eventId, status: "active", createdAt: now } as BookingEntity,
-        { id: twinId, userId: otherUser, eventId, status: "active", createdAt: now } as BookingEntity,
-      ],
+      bookings: [{ id: bookingId, userId, eventId, status: "active", createdAt: now } as BookingEntity, { id: twinId, userId: otherUser, eventId, status: "active", createdAt: now } as BookingEntity],
     });
     expect(entryCodeFromBookingId(bookingId)).toBe(entryCodeFromBookingId(twinId));
     await expect(service.checkInByCode(orgId, eventId, entryCodeFromBookingId(bookingId), now)).rejects.toBeInstanceOf(ConflictException);

@@ -82,10 +82,7 @@ export class SeedOrganizerShowcasePlaces20260926210000 implements MigrationInter
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     for (const [title, address] of PLACES) {
-      await queryRunner.query(
-        `UPDATE "events" SET "placeId" = NULL WHERE "placeId" IN (SELECT "id" FROM "places" WHERE "title" = $1 AND "address" = $2 AND "city" = 'Москва')`,
-        [title, address],
-      );
+      await queryRunner.query(`UPDATE "events" SET "placeId" = NULL WHERE "placeId" IN (SELECT "id" FROM "places" WHERE "title" = $1 AND "address" = $2 AND "city" = 'Москва')`, [title, address]);
       await queryRunner.query(`DELETE FROM "places" WHERE "title" = $1 AND "address" = $2 AND "city" = 'Москва'`, [title, address]);
     }
   }

@@ -195,7 +195,10 @@ function IncomeChart({ points }: { points: IncomePoint[] }) {
   const peak = chartPeak(points);
   const index = points.indexOf(peak);
   const left = Math.min(78, Math.max(22, points.length <= 1 ? 50 : (index / (points.length - 1)) * 100));
-  const line = smoothLine(points.map((point) => point.value), max);
+  const line = smoothLine(
+    points.map((point) => point.value),
+    max,
+  );
   const ticks = [max, Math.round((max * 3) / 4), Math.round(max / 2), Math.round(max / 4), 0];
   return (
     <div className="app-cab-plot-wrap">

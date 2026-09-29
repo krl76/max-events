@@ -387,13 +387,7 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
 
       <SettingsGroup title="Приватность">
         <SettingsValueRow title="Кто видит мои планы" hint="По умолчанию для новых записей" value={planVisibilityLabel(profile.privacy.routes)} expanded={picker === "plans"} onOpen={() => open("plans")} />
-        {picker === "plans" && (
-          <SettingsPicker
-            options={PLAN_VISIBILITY_OPTIONS}
-            selected={[profile.privacy.routes]}
-            onPick={(value) => onProfile({ privacy: { routes: value as Profile["privacy"]["routes"] } })}
-          />
-        )}
+        {picker === "plans" && <SettingsPicker options={PLAN_VISIBILITY_OPTIONS} selected={[profile.privacy.routes]} onPick={(value) => onProfile({ privacy: { routes: value as Profile["privacy"]["routes"] } })} />}
         <SettingsSwitchRow title="Показывать меня на карте" hint="Только когда я на событии" checked={settings?.showOnMap ?? false} onChange={(showOnMap) => onSettings({ showOnMap })} />
         <SettingsSwitchRow title="Статус «ищу компанию»" hint="Виден участникам события" checked={settings?.lookingForCompany ?? false} onChange={(lookingForCompany) => onSettings({ lookingForCompany })} />
         <SettingsSwitchRow title="История посещений" hint="Используется для подборок" checked={profile.privacy.visitHistory === "friends"} onChange={(on) => onProfile({ privacy: { visitHistory: on ? "friends" : "hidden" } })} />

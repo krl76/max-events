@@ -103,13 +103,7 @@ function createService(options: { startsInMin: number; dimaStatus?: PlanParticip
     },
   } as unknown as MaxBotClient;
   const quietAlerts = { leaveNow: true, weather: true, friendLeft: true, listDigest: true, quietHoursEnabled: true, quietHoursFrom: "23:00", quietHoursTo: "09:00" };
-  const profiles = createStoreRepo<ProfileEntity>(
-    options.quiet
-      ? [hostId, dimaId].map((userId) => ({ userId, city: "Москва", interests: [], smartAlerts: quietAlerts, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null, updatedAt: now }) as ProfileEntity)
-      : options.hostLeaveNow === false
-        ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: false, weather: true, friendLeft: true, listDigest: true, quietHoursEnabled: false, quietHoursFrom: "23:00", quietHoursTo: "09:00" }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null, updatedAt: now } as ProfileEntity]
-        : [],
-  );
+  const profiles = createStoreRepo<ProfileEntity>(options.quiet ? [hostId, dimaId].map((userId) => ({ userId, city: "Москва", interests: [], smartAlerts: quietAlerts, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null, updatedAt: now }) as ProfileEntity) : options.hostLeaveNow === false ? [{ userId: hostId, city: "Москва", interests: [], smartAlerts: { leaveNow: false, weather: true, friendLeft: true, listDigest: true, quietHoursEnabled: false, quietHoursFrom: "23:00", quietHoursTo: "09:00" }, privacy: { visitHistory: "friends", routes: "friends" }, recommendationsEnabled: true, bio: "", coverUrl: null, updatedAt: now } as ProfileEntity] : []);
   const weather =
     options.rain === undefined
       ? undefined

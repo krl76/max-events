@@ -405,38 +405,61 @@ export function EventDraftForm({ draft, step, errors, submitting, failed, mode, 
             <span>Добавить обложку и фото (до 10)</span>
           </button>
           <label className="app-make-field">
-            <span>Название события <i>*</i></span>
+            <span>
+              Название события <i>*</i>
+            </span>
             <input type="text" aria-label="Название события" placeholder="Например: Вечер джаза на Патриарших" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
           </label>
           <label className="app-make-field">
-            <span>Краткое описание <i>*</i></span>
+            <span>
+              Краткое описание <i>*</i>
+            </span>
             <input type="text" aria-label="Краткое описание" placeholder="Коротко о событии, 1–2 предложения" value={draft.summary} onChange={(change) => onChange("summary", change.target.value)} />
           </label>
           <label className="app-make-field">
-            <span>Полное описание <i>*</i></span>
+            <span>
+              Полное описание <i>*</i>
+            </span>
             <span className="app-make-count">{draft.description.length}/2000</span>
             <textarea aria-label="Полное описание" maxLength={2000} rows={4} placeholder="Расскажите подробнее о событии, артистах, программе, преимуществах и т.д." value={draft.description} onChange={(change) => onChange("description", change.target.value)} />
           </label>
           <label className="app-make-field">
-            <span>Категория <i>*</i></span>
-            <select aria-label="Категория" value={draft.categorySet ? draft.category : ""} onChange={(change) => { onChange("category", change.target.value); onChange("categorySet", true); }}>
+            <span>
+              Категория <i>*</i>
+            </span>
+            <select
+              aria-label="Категория"
+              value={draft.categorySet ? draft.category : ""}
+              onChange={(change) => {
+                onChange("category", change.target.value);
+                onChange("categorySet", true);
+              }}
+            >
               <option value="">Выберите категорию</option>
               {EventCategorySchema.options.map((category) => (
-                <option key={category} value={category}>{CATEGORY_LABELS[category]}</option>
+                <option key={category} value={category}>
+                  {CATEGORY_LABELS[category]}
+                </option>
               ))}
             </select>
           </label>
           <label className="app-make-field">
-            <span>Возрастное ограничение <i>*</i></span>
+            <span>
+              Возрастное ограничение <i>*</i>
+            </span>
             <select aria-label="Возрастное ограничение" value={draft.age} onChange={(change) => onChange("age", change.target.value)}>
               <option value="">Выберите возраст</option>
               {AGE_OPTIONS.map((age) => (
-                <option key={age} value={age}>{age}</option>
+                <option key={age} value={age}>
+                  {age}
+                </option>
               ))}
             </select>
           </label>
           <label className="app-make-field">
-            <span>Дата и время <i>*</i></span>
+            <span>
+              Дата и время <i>*</i>
+            </span>
             <span className="app-make-fake">
               <ActionIcon name="calendar" size={18} strokeWidth={2} />
               {draft.startsAt === "" ? "Выберите дату и время" : formatDraftWhen(draft.startsAt)}
@@ -448,10 +471,19 @@ export function EventDraftForm({ draft, step, errors, submitting, failed, mode, 
             <span className="app-make-fake">
               <ActionIcon name="clock" size={18} strokeWidth={2} />
               {DURATION_OPTIONS.find((item) => item[0] === draft.duration)?.[1] ?? "Укажите длительность"}
-              <select aria-label="Длительность" value={draft.duration} onChange={(change) => { onChange("duration", change.target.value); onChange("endsAt", endsAfter(draft.startsAt, change.target.value)); }}>
+              <select
+                aria-label="Длительность"
+                value={draft.duration}
+                onChange={(change) => {
+                  onChange("duration", change.target.value);
+                  onChange("endsAt", endsAfter(draft.startsAt, change.target.value));
+                }}
+              >
                 <option value="">Укажите длительность</option>
                 {DURATION_OPTIONS.map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
                 ))}
               </select>
             </span>
@@ -461,7 +493,9 @@ export function EventDraftForm({ draft, step, errors, submitting, failed, mode, 
       {step === 2 && (
         <>
           <label className="app-make-field">
-            <span>Город <i>*</i></span>
+            <span>
+              Город <i>*</i>
+            </span>
             <input type="text" aria-label="Город" placeholder="Москва" value={draft.city} onChange={(change) => onChange("city", change.target.value)} />
           </label>
           <label className="app-make-field">
@@ -785,13 +819,12 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
     setTab("events");
     setStep(1);
     setEventForm({ mode: "edit", id: item.id, draft: eventDraftFrom(item, place), offerPublish: item.draft });
-    apiClient.getOrganizerEventOptions(item.id).then((options) => {
-      setEventForm((current) =>
-        current !== null && current.mode === "edit" && current.id === item.id
-          ? { ...current, draft: { ...current.draft, waitlistEnabled: options.waitlistEnabled, registrationInApp: options.registrationInApp, externalUrl: options.externalUrl ?? "", repeatWeekly: options.recurrence?.rule === "weekly" } }
-          : current,
-      );
-    }, () => {});
+    apiClient.getOrganizerEventOptions(item.id).then(
+      (options) => {
+        setEventForm((current) => (current !== null && current.mode === "edit" && current.id === item.id ? { ...current, draft: { ...current.draft, waitlistEnabled: options.waitlistEnabled, registrationInApp: options.registrationInApp, externalUrl: options.externalUrl ?? "", repeatWeekly: options.recurrence?.rule === "weekly" } } : current));
+      },
+      () => {},
+    );
     onEditHandled?.();
   }, [editRequestId, events, places, onEditHandled]);
 
@@ -957,7 +990,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
   };
   const matchesQuery = (item: OrganizerEvent) => item.title.toLowerCase().includes(eventQuery.trim().toLowerCase());
   const visibleEvents = groups === null ? [] : (eventFilter === "drafts" ? groups.drafts : eventFilter === "archive" ? groups.past : eventFilter === "published" ? groups.upcoming : merged).filter(matchesQuery);
-  const detail = detailId === null ? null : merged.find((item) => item.id === detailId) ?? null;
+  const detail = detailId === null ? null : (merged.find((item) => item.id === detailId) ?? null);
   const renderEvents = (items: OrganizerEvent[]) => (
     <div className="app-evt-list">
       {items.map((item) => {
@@ -966,7 +999,15 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
         const past = new Date(item.endsAt ?? item.startsAt).getTime() < Date.now();
         const status = item.draft ? "Черновик" : past ? "Архив" : "Опубликовано";
         return (
-          <button key={item.id} type="button" className="app-evt-card" onClick={() => { setDetailTab("info"); setDetailId(item.id); }}>
+          <button
+            key={item.id}
+            type="button"
+            className="app-evt-card"
+            onClick={() => {
+              setDetailTab("info");
+              setDetailId(item.id);
+            }}
+          >
             <span className="app-evt-photo">
               <img alt="" src={pictured(item.id, item.coverUrl)} />
             </span>
@@ -1122,7 +1163,9 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
           <article className="app-cab-card">
             <h2 className="app-cab-card-title">Билеты</h2>
             <p className="app-evt-meta">{detail.isPaid && detail.priceRub !== null ? `${detail.priceRub} ₽` : "Бесплатно"}</p>
-            <p className="app-evt-meta">Продано {sold} из {detail.capacity ?? "без лимита"}</p>
+            <p className="app-evt-meta">
+              Продано {sold} из {detail.capacity ?? "без лимита"}
+            </p>
           </article>
         )}
         {detailTab === "stats" && (
@@ -1223,10 +1266,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
           <input className="app-profile-input" aria-label="Поиск места" placeholder="Название места" value={placeQuery} onChange={(change) => setPlaceQuery(change.target.value)} />
           <p className="app-gathering-hint">Место можно завести отдельно от события. Нажмите карточку — откроется управление местом.</p>
           <OrganizerListStatus state={places} emptyText="Пока нет мест. Площадка нужна, чтобы гости видели адрес." />
-          {places.status === "ready" &&
-            places.items
-              .filter((item) => item.title.toLowerCase().includes(placeQuery.trim().toLowerCase()))
-              .map((item) => <OrganizerPlaceCard key={item.id} item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishPlace(item.id)} onOpen={() => setPlaceFocus(item.id)} />)}
+          {places.status === "ready" && places.items.filter((item) => item.title.toLowerCase().includes(placeQuery.trim().toLowerCase())).map((item) => <OrganizerPlaceCard key={item.id} item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishPlace(item.id)} onOpen={() => setPlaceFocus(item.id)} />)}
         </>
       )}
     </section>

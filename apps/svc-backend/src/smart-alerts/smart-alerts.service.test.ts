@@ -10,7 +10,6 @@ import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 import { formatFriendLeftText, formatWeatherAlertText, SmartAlertsService } from "./smart-alerts.service";
 
-
 const now = new Date("2026-09-12T10:00:00Z");
 const hostId = "00000000-0000-4000-8000-00000000000a";
 const dimaId = "00000000-0000-4000-8000-0000000000b1";

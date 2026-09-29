@@ -10,11 +10,7 @@ const fakeUser = { id: "uuid-1", maxUserId: "67890", firstName: "Max" } as UserE
 const organizerUser = { id: "uuid-org", maxUserId: "organizer:demo", firstName: "demo" } as UserEntity;
 const organization = { id: "uuid-org-row", name: "Парк Горького", organizerUserId: organizerUser.id } as OrganizationEntity;
 
-function createGuard(
-  authenticate: (initData: string) => Promise<UserEntity | null>,
-  authenticateOrganizerToken: (token: string) => Promise<UserEntity | null> = async () => null,
-  authenticateOrganizerSession: (token: string) => Promise<{ user: UserEntity; organization: OrganizationEntity } | null> = async () => null,
-) {
+function createGuard(authenticate: (initData: string) => Promise<UserEntity | null>, authenticateOrganizerToken: (token: string) => Promise<UserEntity | null> = async () => null, authenticateOrganizerSession: (token: string) => Promise<{ user: UserEntity; organization: OrganizationEntity } | null> = async () => null) {
   return new AuthGuard({ authenticate, authenticateOrganizerToken, authenticateOrganizerSession } as unknown as AuthService, new Reflector());
 }
 

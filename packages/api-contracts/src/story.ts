@@ -81,7 +81,10 @@ export const StoryCanvasObjectSchema = z.object({
   color: StoryTextColorSchema.optional(),
   mentionIds: z.array(z.string().uuid()).max(12).optional(),
   /** @handle drawn in the caption, with the profile it opens. */
-  mentions: z.array(z.object({ id: z.string().uuid(), handle: z.string().min(1).max(40) })).max(12).optional(),
+  mentions: z
+    .array(z.object({ id: z.string().uuid(), handle: z.string().min(1).max(40) }))
+    .max(12)
+    .optional(),
 });
 export type StoryCanvasObject = z.infer<typeof StoryCanvasObjectSchema>;
 

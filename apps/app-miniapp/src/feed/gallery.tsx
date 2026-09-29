@@ -19,7 +19,16 @@ export function PhotoGallery({ photos }: { photos: string[] }) {
       <div className="app-feed-carousel">
         <div ref={scroller} className="app-feed-carousel-track" onScroll={onScroll}>
           {photos.map((photo, position) => (
-            <button key={`${position}-${photo.slice(-12)}`} type="button" className="app-feed-carousel-slide" onClick={() => { setIndex(position); setOpen(true); }} aria-label={`Открыть фото ${position + 1} из ${photos.length}`}>
+            <button
+              key={`${position}-${photo.slice(-12)}`}
+              type="button"
+              className="app-feed-carousel-slide"
+              onClick={() => {
+                setIndex(position);
+                setOpen(true);
+              }}
+              aria-label={`Открыть фото ${position + 1} из ${photos.length}`}
+            >
               <img className="app-feed-photo" src={showPhoto(photo) ?? photo} alt="" />
             </button>
           ))}
@@ -37,11 +46,7 @@ export function PhotoGallery({ photos }: { photos: string[] }) {
           </>
         )}
       </div>
-      {open &&
-        createPortal(
-          <PhotoLightbox photos={photos} index={index} onClose={() => setOpen(false)} />,
-          document.querySelector(".app-root") ?? document.body,
-        )}
+      {open && createPortal(<PhotoLightbox photos={photos} index={index} onClose={() => setOpen(false)} />, document.querySelector(".app-root") ?? document.body)}
     </>
   );
 }

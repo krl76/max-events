@@ -27,7 +27,6 @@ import { ProfileEntity } from "../users/profile.entity";
 import { readAlertPrefs } from "../users/profiles.service";
 import { UserEntity } from "../users/user.entity";
 
-
 export const WEATHER_WINDOW_MS = 3 * 60 * 60 * 1000;
 
 export type SmartAlertTickResult = { sent: number; failed: number };

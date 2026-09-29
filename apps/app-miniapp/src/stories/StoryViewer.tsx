@@ -181,8 +181,30 @@ export function StoryViewer({ groups, startGroup = 0, onView, onClose }: { group
           </button>
         </div>
       </div>
-      <button type="button" className="app-story-viewer-tap app-story-viewer-tap--left" aria-label="Предыдущая история" onClick={() => { if (held.current) { held.current = false; return; } goPrev(); }} />
-      <button type="button" className="app-story-viewer-tap app-story-viewer-tap--right" aria-label="Следующая история" onClick={() => { if (held.current) { held.current = false; return; } goNext(); }} />
+      <button
+        type="button"
+        className="app-story-viewer-tap app-story-viewer-tap--left"
+        aria-label="Предыдущая история"
+        onClick={() => {
+          if (held.current) {
+            held.current = false;
+            return;
+          }
+          goPrev();
+        }}
+      />
+      <button
+        type="button"
+        className="app-story-viewer-tap app-story-viewer-tap--right"
+        aria-label="Следующая история"
+        onClick={() => {
+          if (held.current) {
+            held.current = false;
+            return;
+          }
+          goNext();
+        }}
+      />
     </div>
   );
 }

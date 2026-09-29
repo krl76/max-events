@@ -134,20 +134,7 @@ interface OrganizerSectionContentProps {
 }
 
 export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onOpenSettings, onOpenStats, onCheckIn, onShowDrafts, onOpenPlaces, onOpenEvent, onComposer, closeComposerTick, editRequestId, onEditHandled, placesTick, draftsTick }: OrganizerSectionContentProps) {
-  if (section === "dashboard")
-    return (
-      <OrganizerDashboard
-        organizationId={organizationId}
-        organizationName={organizationName}
-        onOpenEvent={onManage}
-        onCreateEvent={onCreateEvent}
-        onOpenOrganization={onOpenOrganization}
-        onStats={onOpenStats}
-        onPlaces={onOpenPlaces}
-        onCheckIn={onCheckIn}
-        onShowDrafts={onShowDrafts}
-      />
-    );
+  if (section === "dashboard") return <OrganizerDashboard organizationId={organizationId} organizationName={organizationName} onOpenEvent={onManage} onCreateEvent={onCreateEvent} onOpenOrganization={onOpenOrganization} onStats={onOpenStats} onPlaces={onOpenPlaces} onCheckIn={onCheckIn} onShowDrafts={onShowDrafts} />;
   if (section === "finance") return <OrganizerFinance />;
   if (section === "promo") return <OrganizerPromo organizationName={organizationName} intent={promoIntent} eventId={promoEventId} onOpenEvent={() => onSection("events")} />;
   if (section === "profile") return <OrganizerProfile organizationId={organizationId} organizationName={organizationName} onOpenEvent={onOpenEvent} onSettings={onOpenSettings} />;
@@ -251,36 +238,36 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
       }}
     >
       {!ownChrome && (
-      <header className="app-header">
-        {pushed && (
-          <button
-            type="button"
-            className="app-header-back"
-            aria-label="Назад"
-            onClick={() => {
-              if (composerTitle !== null) {
-                setCloseComposerTick((tick) => tick + 1);
-                return;
-              }
-              if (manage !== null && manageScreen !== "hub") {
+        <header className="app-header">
+          {pushed && (
+            <button
+              type="button"
+              className="app-header-back"
+              aria-label="Назад"
+              onClick={() => {
+                if (composerTitle !== null) {
+                  setCloseComposerTick((tick) => tick + 1);
+                  return;
+                }
+                if (manage !== null && manageScreen !== "hub") {
+                  setManageScreen("hub");
+                  return;
+                }
+                if (statsOpen) {
+                  setStatsOpen(false);
+                  return;
+                }
+                setManage(null);
                 setManageScreen("hub");
-                return;
-              }
-              if (statsOpen) {
-                setStatsOpen(false);
-                return;
-              }
-              setManage(null);
-              setManageScreen("hub");
-              setOrganizationOpen(false);
-            }}
-          >
-            <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-            Назад
-          </button>
-        )}
-        <span className="app-header-title">{title}</span>
-      </header>
+                setOrganizationOpen(false);
+              }}
+            >
+              <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
+              Назад
+            </button>
+          )}
+          <span className="app-header-title">{title}</span>
+        </header>
       )}
       <main className={composerTitle !== null || ownChrome ? "app-content app-content--flush" : "app-content"}>
         <div hidden={manage !== null || organizationOpen || statsOpen}>
@@ -353,21 +340,21 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
         )}
       </main>
       {!hideTabs && (
-      <OrganizerTabBar
-        section={section}
-        onSection={(next) => {
-          setManage(null);
-          setManageScreen("hub");
-          setOrganizationOpen(false);
-          setStatsOpen(false);
-          if (next !== "promo") {
-            setPromoIntent(null);
-            setPromoEventId(null);
-          }
-          if (next !== "events") setCreateEvent(false);
-          setSection(next);
-        }}
-      />
+        <OrganizerTabBar
+          section={section}
+          onSection={(next) => {
+            setManage(null);
+            setManageScreen("hub");
+            setOrganizationOpen(false);
+            setStatsOpen(false);
+            if (next !== "promo") {
+              setPromoIntent(null);
+              setPromoEventId(null);
+            }
+            if (next !== "events") setCreateEvent(false);
+            setSection(next);
+          }}
+        />
       )}
     </OrganizerOnboardingGate>
   );

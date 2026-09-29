@@ -74,11 +74,7 @@ export class FeedService {
     const events = eventIds.length === 0 ? [] : await this.events.find({ where: { id: In(eventIds), published: true } });
     const eventById = new Map(events.filter((row) => row.startsAt instanceof Date).map((row) => [row.id, row]));
     const placeIds = [...new Set([...events.map((row) => row.placeId), ...posts.map((post) => post.placeId ?? null)].filter((id): id is string => id !== null))];
-    const [placeDtos, waitlists, parts] = await Promise.all([
-      this.places.findByIds(placeIds),
-      eventIds.length === 0 ? Promise.resolve(new Map<string, number>()) : this.waitlist.queueCountsByEventIds(eventIds),
-      eventIds.length === 0 ? Promise.resolve([] as ParticipationEntity[]) : this.participations.find({ where: { eventId: In(eventIds) } }),
-    ]);
+    const [placeDtos, waitlists, parts] = await Promise.all([this.places.findByIds(placeIds), eventIds.length === 0 ? Promise.resolve(new Map<string, number>()) : this.waitlist.queueCountsByEventIds(eventIds), eventIds.length === 0 ? Promise.resolve([] as ParticipationEntity[]) : this.participations.find({ where: { eventId: In(eventIds) } })]);
     const placeById = new Map(placeDtos.map((place) => [place.id, place]));
     const counts = countParticipations(parts, viewerId);
     const rowById = new Map(rows.map((row) => [row.id, row]));

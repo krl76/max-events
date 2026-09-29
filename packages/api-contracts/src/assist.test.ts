@@ -117,7 +117,10 @@ describe("AssistChatWriteSchema", () => {
     const eventId = event.id;
     const parsed = AssistChatWriteSchema.parse({
       message: "берём второй",
-      transcript: [{ role: "user", text: "вечером" }, { role: "assistant", text: "Два варианта." }],
+      transcript: [
+        { role: "user", text: "вечером" },
+        { role: "assistant", text: "Два варианта." },
+      ],
       offeredEventIds: [eventId, eventId],
     });
     expect(parsed.transcript).toHaveLength(2);

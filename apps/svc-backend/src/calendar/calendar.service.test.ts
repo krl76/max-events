@@ -99,16 +99,7 @@ function createService(bookings: BookingEntity[], events: EventEntity[], places:
   };
   const empty = emptyRepo();
   const friends = { friendIds: async () => new Set<string>() };
-  const service = new CalendarService(
-    bookingsRepo as unknown as Repository<BookingEntity>,
-    eventsRepo as unknown as Repository<EventEntity>,
-    placesRepo as unknown as Repository<PlaceEntity>,
-    empty as never,
-    empty as never,
-    empty as never,
-    empty as never,
-    friends as never,
-  );
+  const service = new CalendarService(bookingsRepo as unknown as Repository<BookingEntity>, eventsRepo as unknown as Repository<EventEntity>, placesRepo as unknown as Repository<PlaceEntity>, empty as never, empty as never, empty as never, empty as never, friends as never);
   return { service, queries };
 }
 
@@ -147,10 +138,7 @@ describe("CalendarService", () => {
   });
 
   it("keeps only bookings whose event start sits inside from/to", async () => {
-    const { service } = createService(
-      [booking("b-early", "e-early"), booking("b-in", "e-in"), booking("b-late", "e-late")],
-      [event("e-early", "2026-09-10T16:00:00Z"), event("e-in", "2026-09-20T16:00:00Z"), event("e-late", "2026-09-30T16:00:00Z")],
-    );
+    const { service } = createService([booking("b-early", "e-early"), booking("b-in", "e-in"), booking("b-late", "e-late")], [event("e-early", "2026-09-10T16:00:00Z"), event("e-in", "2026-09-20T16:00:00Z"), event("e-late", "2026-09-30T16:00:00Z")]);
     const calendar = await service.list(userId, now, { from: new Date("2026-09-15T00:00:00Z"), to: new Date("2026-09-25T00:00:00Z") });
     expect(calendar.upcoming.map((entry) => entry.booking.id)).toEqual(["b-in"]);
     expect(calendar.past).toEqual([]);

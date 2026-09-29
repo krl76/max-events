@@ -103,11 +103,13 @@ export class PlacesService {
       order: { title: "ASC", id: "ASC" },
     });
     const seen = new Set<string>();
-    return rows.filter((row) => {
-      if (seen.has(row.id)) return false;
-      seen.add(row.id);
-      return true;
-    }).map(toPlaceDto);
+    return rows
+      .filter((row) => {
+        if (seen.has(row.id)) return false;
+        seen.add(row.id);
+        return true;
+      })
+      .map(toPlaceDto);
   }
 
   async publish(id: string, actorId: string): Promise<Place> {
@@ -132,7 +134,12 @@ export class PlacesService {
     if (query.category) whereBase.category = query.category;
     const like = query.q ? containsPattern(query.q) : null;
     if (query.q && like === null) return [];
-    const where = like ? [{ ...whereBase, title: ILike(like) }, { ...whereBase, address: ILike(like) }] : whereBase;
+    const where = like
+      ? [
+          { ...whereBase, title: ILike(like) },
+          { ...whereBase, address: ILike(like) },
+        ]
+      : whereBase;
     const rows = await this.places.find({
       where,
       skip: query.offset,
@@ -160,7 +167,10 @@ export function toPlaceDto(place: PlaceEntity): Place {
 }
 
 function containsPattern(q: string): string | null {
-  const compact = q.replace(/[%_\\]/g, " ").replace(/\s+/g, " ").trim();
+  const compact = q
+    .replace(/[%_\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return compact.length === 0 ? null : `%${compact}%`;
 }
 

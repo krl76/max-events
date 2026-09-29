@@ -167,7 +167,22 @@ export function OrganizerPromotion() {
   };
 
   if (tool !== null) {
-    return <ToolForm tool={tool} draft={draft} block={block} onChange={(patch) => { setDraft((current) => ({ ...current, ...patch })); setBlock(null); }} onSubmit={submit} onBack={() => { setTool(null); setBlock(null); }} />;
+    return (
+      <ToolForm
+        tool={tool}
+        draft={draft}
+        block={block}
+        onChange={(patch) => {
+          setDraft((current) => ({ ...current, ...patch }));
+          setBlock(null);
+        }}
+        onSubmit={submit}
+        onBack={() => {
+          setTool(null);
+          setBlock(null);
+        }}
+      />
+    );
   }
 
   return (
@@ -197,7 +212,14 @@ export function OrganizerPromotion() {
               </span>
               <h3 className="app-cab-tool-title">{card.title}</h3>
               <p className="app-cab-tool-text">{card.text}</p>
-              <button type="button" className="app-cab-tool-action" onClick={() => { setBlock(null); setTool(card.id); }}>
+              <button
+                type="button"
+                className="app-cab-tool-action"
+                onClick={() => {
+                  setBlock(null);
+                  setTool(card.id);
+                }}
+              >
                 {card.action}
               </button>
             </article>

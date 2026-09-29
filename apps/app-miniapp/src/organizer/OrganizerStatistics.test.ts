@@ -24,7 +24,12 @@ describe("cabinetStats", () => {
 
     expect(october.incomeRub).not.toBe(september.incomeRub);
     expect(october.rows.some((row) => row.title === "Концерт в зале «Зарядье»")).toBe(true);
-    expect(chartPeak([{ label: "23.09", value: 8_000 }, { label: "27.09", value: 32_400 }])).toEqual({ label: "27.09", value: 32_400 });
+    expect(
+      chartPeak([
+        { label: "23.09", value: 8_000 },
+        { label: "27.09", value: 32_400 },
+      ]),
+    ).toEqual({ label: "27.09", value: 32_400 });
     expect(periodCaption(30)).toBe("Последние 30 дней");
   });
 });

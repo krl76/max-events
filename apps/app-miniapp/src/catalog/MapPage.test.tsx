@@ -94,11 +94,7 @@ async function mount(node: ReactElement): Promise<{ host: HTMLDivElement; root: 
 
 describe("walk stops on the existing map", () => {
   it("turns two stops into two numbered markers and drops a point without coordinates", () => {
-    const markers = walkStopMarkers([
-      STOP,
-      { ...STOP, order: 2, title: "Набережная", latitude: 54.21, longitude: 37.61, placeId: null },
-      { ...STOP, order: 3, title: "Пусто", latitude: Number.NaN, longitude: 37.6 },
-    ]);
+    const markers = walkStopMarkers([STOP, { ...STOP, order: 2, title: "Набережная", latitude: 54.21, longitude: 37.61, placeId: null }, { ...STOP, order: 3, title: "Пусто", latitude: Number.NaN, longitude: 37.6 }]);
 
     expect(markers.map((marker) => marker.badge)).toEqual([1, 2]);
     expect(markers.map((marker) => marker.title)).toEqual(["Кремль", "Набережная"]);

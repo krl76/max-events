@@ -4,7 +4,11 @@ import { CreateCalendarShares20260919190000 } from "../database/migrations/20260
 describe("CreateCalendarShares", () => {
   it("creates shares, invites and goings and drops them on revert", async () => {
     const queries: string[] = [];
-    const runner = { query: async (sql: string) => { queries.push(sql); } };
+    const runner = {
+      query: async (sql: string) => {
+        queries.push(sql);
+      },
+    };
     const migration = new CreateCalendarShares20260919190000();
     await migration.up(runner as never);
     expect(queries[0]).toContain('CREATE TABLE "calendar_shares"');

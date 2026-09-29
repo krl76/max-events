@@ -22,15 +22,7 @@ function stopCountLabel(count: number): string {
   return `${count} ${pluralRu(count, "остановка", "остановки", "остановок")}`;
 }
 
-export function SavedWalkList({
-  walks,
-  onOpen,
-  onBack,
-}: {
-  readonly walks: readonly CityWalk[];
-  readonly onOpen: (id: string) => void;
-  readonly onBack: () => void;
-}) {
+export function SavedWalkList({ walks, onOpen, onBack }: { readonly walks: readonly CityWalk[]; readonly onOpen: (id: string) => void; readonly onBack: () => void }) {
   const rows = sortWalksNewest(walks);
   return (
     <section className="app-walk">
@@ -59,17 +51,7 @@ export function SavedWalkList({
   );
 }
 
-export function SavedWalkView({
-  walk,
-  onBack,
-  onToggle,
-  onMap,
-}: {
-  readonly walk: CityWalk;
-  readonly onBack: () => void;
-  readonly onToggle: (order: number, done: boolean) => void;
-  readonly onMap?: () => void;
-}) {
+export function SavedWalkView({ walk, onBack, onToggle, onMap }: { readonly walk: CityWalk; readonly onBack: () => void; readonly onToggle: (order: number, done: boolean) => void; readonly onMap?: () => void }) {
   return (
     <section className="app-walk">
       <WalkBack onBack={onBack} />
@@ -105,11 +87,7 @@ function markStop(walk: CityWalk, order: number, done: boolean): CityWalk {
   return { ...walk, stops: walk.stops.map((stop) => (stop.order === order ? { ...stop, done } : stop)) };
 }
 
-export function WalkListPage({
-  list = () => apiClient.listCityWalks(),
-}: {
-  readonly list?: () => Promise<readonly CityWalk[]>;
-}) {
+export function WalkListPage({ list = () => apiClient.listCityWalks() }: { readonly list?: () => Promise<readonly CityWalk[]> }) {
   const { back, navigate } = useRoute();
   const [walks, setWalks] = useState<readonly CityWalk[]>([]);
   const [failed, setFailed] = useState(false);
@@ -134,15 +112,7 @@ export function WalkListPage({
   );
 }
 
-export function SavedWalkPage({
-  id,
-  load = (walkId) => apiClient.getCityWalk(walkId),
-  setDone = (walkId, order, done) => apiClient.setCityWalkStopDone(walkId, order, done),
-}: {
-  readonly id: string;
-  readonly load?: (id: string) => Promise<CityWalk>;
-  readonly setDone?: (id: string, order: number, done: boolean) => Promise<CityWalk>;
-}) {
+export function SavedWalkPage({ id, load = (walkId) => apiClient.getCityWalk(walkId), setDone = (walkId, order, done) => apiClient.setCityWalkStopDone(walkId, order, done) }: { readonly id: string; readonly load?: (id: string) => Promise<CityWalk>; readonly setDone?: (id: string, order: number, done: boolean) => Promise<CityWalk> }) {
   const { back, navigate } = useRoute();
   const [walk, setWalk] = useState<CityWalk | null>(null);
   const [missing, setMissing] = useState(false);

@@ -94,15 +94,7 @@ export class StatsService {
   }
 
   exportCsv(summary: OrganizerSummary): string {
-    const lines = [
-      "metric,value",
-      `bookings,${summary.bookings}`,
-      `bookingsDeltaPercent,${summary.bookingsDeltaPercent ?? ""}`,
-      `attendedPercent,${summary.attendedPercent ?? ""}`,
-      `cancelledPercent,${summary.cancelledPercent ?? ""}`,
-      ...summary.byWeekday.map((count, index) => `weekday_${index + 1},${count}`),
-      ...summary.sources.map((row) => `source_${row.source}_percent,${row.percent}`),
-    ];
+    const lines = ["metric,value", `bookings,${summary.bookings}`, `bookingsDeltaPercent,${summary.bookingsDeltaPercent ?? ""}`, `attendedPercent,${summary.attendedPercent ?? ""}`, `cancelledPercent,${summary.cancelledPercent ?? ""}`, ...summary.byWeekday.map((count, index) => `weekday_${index + 1},${count}`), ...summary.sources.map((row) => `source_${row.source}_percent,${row.percent}`)];
     return `${lines.join("\n")}\n`;
   }
 }

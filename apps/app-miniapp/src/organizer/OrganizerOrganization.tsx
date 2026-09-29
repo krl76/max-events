@@ -56,9 +56,7 @@ export function OrganizerOrganization({ organizationId, organizationName, onLogo
       {setup === null && !failed && <AppState>Загрузка…</AppState>}
       {setup !== null && (
         <>
-          <p className="app-gathering-hint">
-            {setup.venue.title === "" ? "Площадка ещё не названа" : `${setup.venue.title}${setup.venue.city === "" ? "" : ` · ${setup.venue.city}`}`}
-          </p>
+          <p className="app-gathering-hint">{setup.venue.title === "" ? "Площадка ещё не названа" : `${setup.venue.title}${setup.venue.city === "" ? "" : ` · ${setup.venue.city}`}`}</p>
           <p className="app-org-group-title">Чем занимаетесь</p>
           <div className="app-org-setup-chips" role="group" aria-label="Чем занимаетесь">
             {ORGANIZER_ACTIVITY_OPTIONS.map((option) => {
@@ -96,14 +94,7 @@ export function OrganizerOrganization({ organizationId, organizationName, onLogo
           </label>
           <label className="app-org-field">
             <span className="app-org-field-label">Контакт для покупателя</span>
-            <input
-              className="app-profile-input"
-              type="text"
-              placeholder="Почта или телефон"
-              value={setup.payouts.contacts ?? ""}
-              onChange={(change) => setSetup({ ...setup, payouts: { ...setup.payouts, contacts: change.target.value } })}
-              onBlur={(change) => save({ payouts: { contacts: change.target.value.trim() === "" ? null : change.target.value.trim() } })}
-            />
+            <input className="app-profile-input" type="text" placeholder="Почта или телефон" value={setup.payouts.contacts ?? ""} onChange={(change) => setSetup({ ...setup, payouts: { ...setup.payouts, contacts: change.target.value } })} onBlur={(change) => save({ payouts: { contacts: change.target.value.trim() === "" ? null : change.target.value.trim() } })} />
           </label>
           {saveFailed && <AppState error>Не удалось сохранить. Ссылка должна начинаться с https://</AppState>}
         </>

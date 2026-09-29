@@ -438,7 +438,6 @@ export function PromotionSection({ eventId }: { eventId: string }) {
           ))}
           {form === null ? (
             <AppButton
-             
               stretched
               onClick={() => {
                 setErrors([]);
@@ -576,7 +575,6 @@ export function PromoCodeSection({ eventId }: { eventId: string }) {
           ))}
           {form === null ? (
             <AppButton
-             
               stretched
               onClick={() => {
                 setErrors([]);
@@ -714,7 +712,6 @@ export function CampaignSection({ eventId }: { eventId: string }) {
           ))}
           {form === null ? (
             <AppButton
-             
               stretched
               onClick={() => {
                 setErrors([]);

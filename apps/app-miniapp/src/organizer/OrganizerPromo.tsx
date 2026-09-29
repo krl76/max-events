@@ -111,7 +111,6 @@ export function campaignRows(promotions: PromotionCampaign[], campaigns: PromoCa
   return rows;
 }
 
-
 export function OrganizerPromo(_props: { organizationName: string; intent: OrganizerPromoIntent | null; eventId: string | null; onOpenEvent: (eventId: string) => void }) {
   return <OrganizerPromotion />;
 }

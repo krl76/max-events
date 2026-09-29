@@ -51,11 +51,7 @@ export async function writeInbox(notices: Repository<NotificationEntity> | undef
   return true;
 }
 
-export async function deliverInvite(
-  bot: MaxBotClient,
-  notices: Repository<NotificationEntity> | undefined,
-  input: InboxWrite & { maxUserId: string },
-): Promise<void> {
+export async function deliverInvite(bot: MaxBotClient, notices: Repository<NotificationEntity> | undefined, input: InboxWrite & { maxUserId: string }): Promise<void> {
   await writeInbox(notices, input);
   await bot.sendMessage(input.maxUserId, input.body);
 }

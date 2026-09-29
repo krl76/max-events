@@ -46,43 +46,7 @@ function writeMedia(organizationId: string, media: OrgMedia) {
   localStorage.setItem(MEDIA_KEY + organizationId, JSON.stringify(media));
 }
 
-export function OrganizerProfileView({
-  name,
-  about,
-  avatarUrl,
-  coverUrl,
-  events,
-  places,
-  subscriptions,
-  followers,
-  tab,
-  list,
-  failed,
-  onTab,
-  onList,
-  onOpenEvent,
-  onSettings,
-  onPickAvatar,
-  onPickCover,
-}: {
-  name: string;
-  about: string;
-  avatarUrl: string | null;
-  coverUrl: string | null;
-  events: OrganizerEvent[];
-  places: OrganizerPlace[];
-  subscriptions: Subscription[] | null;
-  followers: Friend[] | null;
-  tab: OrganizerProfileTab;
-  list: OrganizerProfileList;
-  failed: boolean;
-  onTab: (tab: OrganizerProfileTab) => void;
-  onList: (list: OrganizerProfileList) => void;
-  onOpenEvent: (event: OrganizerEvent) => void;
-  onSettings: () => void;
-  onPickAvatar: () => void;
-  onPickCover: () => void;
-}) {
+export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events, places, subscriptions, followers, tab, list, failed, onTab, onList, onOpenEvent, onSettings, onPickAvatar, onPickCover }: { name: string; about: string; avatarUrl: string | null; coverUrl: string | null; events: OrganizerEvent[]; places: OrganizerPlace[]; subscriptions: Subscription[] | null; followers: Friend[] | null; tab: OrganizerProfileTab; list: OrganizerProfileList; failed: boolean; onTab: (tab: OrganizerProfileTab) => void; onList: (list: OrganizerProfileList) => void; onOpenEvent: (event: OrganizerEvent) => void; onSettings: () => void; onPickAvatar: () => void; onPickCover: () => void }) {
   const published = events.filter((item) => !item.draft);
   const initial = name.trim().slice(0, 1).toUpperCase() || "О";
   return (
@@ -260,15 +224,18 @@ export function OrganizerProfile({ organizationId, organizationName, onOpenEvent
 
   const savePhoto = (kind: "avatar" | "cover", file: File | undefined) => {
     if (file === undefined) return;
-    readFeedPhoto(file).then((dataUrl) => {
-      if (dataUrl === null) return;
-      const apply = (url: string) => {
-        const next = { ...readMedia(organizationId), [kind === "avatar" ? "avatarUrl" : "coverUrl"]: url };
-        writeMedia(organizationId, next);
-        setMedia(next);
-      };
-      apiClient.storeImage(dataUrl, "cover").then(apply, () => apply(dataUrl));
-    }, () => {});
+    readFeedPhoto(file).then(
+      (dataUrl) => {
+        if (dataUrl === null) return;
+        const apply = (url: string) => {
+          const next = { ...readMedia(organizationId), [kind === "avatar" ? "avatarUrl" : "coverUrl"]: url };
+          writeMedia(organizationId, next);
+          setMedia(next);
+        };
+        apiClient.storeImage(dataUrl, "cover").then(apply, () => apply(dataUrl));
+      },
+      () => {},
+    );
   };
 
   return (

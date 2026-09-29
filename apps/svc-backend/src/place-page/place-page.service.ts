@@ -134,9 +134,7 @@ export function occupancyFrom(rows: CheckInEntity[], now: Date): { occupancy: Pl
   }
   if (hours.size === 0) return { occupancy: [], occupancyNowHour: null };
   const max = Math.max(...hours.values());
-  const occupancy = [...hours.entries()]
-    .sort((left, right) => left[0] - right[0])
-    .map(([hour, count]) => ({ hour, load: count / max }));
+  const occupancy = [...hours.entries()].sort((left, right) => left[0] - right[0]).map(([hour, count]) => ({ hour, load: count / max }));
   return { occupancy, occupancyNowHour: moscowHour(now) };
 }
 

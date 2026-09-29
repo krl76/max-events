@@ -83,11 +83,7 @@ export const MOCK_ORGANIZER_PAID_EVENT_ID = "c00000f2-0000-4000-8000-0000000000f
 
 function seedMockOrganizer(): { events: MockOrganizerEvent[]; places: MockOrganizerPlace[] } {
   return {
-    events: [
-      { ...event({ id: "c00000f1-0000-4000-8000-0000000000f1", title: "Акустический вечер в «Депо»", category: "afisha", city: "Москва", startsAt: "2026-10-11T19:00:00+03:00", isPaid: false, priceRub: null, capacity: 40 }), published: false },
-      { ...event({ id: MOCK_ORGANIZER_PAID_EVENT_ID, title: "Квиз «Мозгобойня»", category: "afisha", city: "Москва", startsAt: "2026-09-06T19:00:00+03:00", isPaid: true, priceRub: 500, paymentUrl: "https://tickets.example.com/mozgoboynya", capacity: 60 }), published: true },
-      ...CABINET_EVENTS.map((item) => ({ ...event({ id: item.id, title: item.title, description: item.description, category: item.category, city: item.city, startsAt: item.startsAt, endsAt: item.endsAt, isPaid: item.isPaid, priceRub: item.priceRub, paymentUrl: item.isPaid ? "https://afisha.moscow/pay" : null, capacity: item.capacity }), published: !item.draft })),
-    ],
+    events: [{ ...event({ id: "c00000f1-0000-4000-8000-0000000000f1", title: "Акустический вечер в «Депо»", category: "afisha", city: "Москва", startsAt: "2026-10-11T19:00:00+03:00", isPaid: false, priceRub: null, capacity: 40 }), published: false }, { ...event({ id: MOCK_ORGANIZER_PAID_EVENT_ID, title: "Квиз «Мозгобойня»", category: "afisha", city: "Москва", startsAt: "2026-09-06T19:00:00+03:00", isPaid: true, priceRub: 500, paymentUrl: "https://tickets.example.com/mozgoboynya", capacity: 60 }), published: true }, ...CABINET_EVENTS.map((item) => ({ ...event({ id: item.id, title: item.title, description: item.description, category: item.category, city: item.city, startsAt: item.startsAt, endsAt: item.endsAt, isPaid: item.isPaid, priceRub: item.priceRub, paymentUrl: item.isPaid ? "https://afisha.moscow/pay" : null, capacity: item.capacity }), published: !item.draft }))],
     places: [{ ...place({ id: "b00000f1-0000-4000-8000-0000000000f1", title: "Лофт на Бауманской", address: "ул. Бауманская, 5", city: "Москва", category: "other", latitude: 55.7717, longitude: 37.6879 }), published: false }],
   };
 }

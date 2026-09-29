@@ -70,11 +70,7 @@ describe("RatingService.forEvent", () => {
     const orgId = "00000000-0000-4000-8000-0000000000c1";
     const orgUser = "00000000-0000-4000-8000-00000000000a";
     const events = createStoreRepo<EventEntity>([{ id: eventId, organizerOrganizationId: orgId, organizerUserId: orgUser, published: true, startsAt: now } as EventEntity]);
-    const reviews = createStoreRepo<ReviewEntity>([
-      { stars: 5, wouldGoAgain: true, eventId } as ReviewEntity,
-      { stars: 5, wouldGoAgain: true, eventId } as ReviewEntity,
-      { stars: 4, wouldGoAgain: false, eventId } as ReviewEntity,
-    ]);
+    const reviews = createStoreRepo<ReviewEntity>([{ stars: 5, wouldGoAgain: true, eventId } as ReviewEntity, { stars: 5, wouldGoAgain: true, eventId } as ReviewEntity, { stars: 4, wouldGoAgain: false, eventId } as ReviewEntity]);
     const organizations = {
       findById: async (id: string) => (id === orgId ? { id: orgId, organizerUserId: orgUser } : null),
       organizerUserIdOf: async () => null,

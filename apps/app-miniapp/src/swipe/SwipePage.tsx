@@ -146,8 +146,7 @@ export function SwipeCard({ candidate, dx, settling = false, leaving = null, ges
       </span>
       {progress > 0.12 && (
         <span className="app-swipe-fly app-swipe-fly--like" style={{ opacity: Math.min(1, progress * 1.5), transform: `translate(-50%, ${-20 - progress * 36}%) scale(${0.55 + Math.min(progress, 1) * 0.55})` }}>
-          <ActionIcon name="heart" size={36} />
-          В избранное
+          <ActionIcon name="heart" size={36} />В избранное
         </span>
       )}
       {progress < -0.12 && (
