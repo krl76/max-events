@@ -2,6 +2,8 @@ import type { CityWalk, CityWalkStop } from "@max-events/api-contracts";
 import { pluralRu } from "../catalog/format";
 import { ApiError } from "../api/endpoints/transport";
 import { AppButton } from "../ui/primitives";
+import { ActionIcon } from "../ui/icons";
+import { WalkBack } from "./WalkWizard";
 
 const DWELL_MINUTES = 20;
 
@@ -56,7 +58,7 @@ function StopTitle({ stop, onPlace }: { readonly stop: CityWalkStop; readonly on
   const placeId = stop.placeId;
   if (placeId === null) return <h3>{stop.title}</h3>;
   return (
-    <button type="button" className="app-walk-back" onClick={() => onPlace(placeId)}>
+    <button type="button" className="app-walk-place" onClick={() => onPlace(placeId)}>
       {stop.title}
     </button>
   );
@@ -85,10 +87,11 @@ export function WalkResult({
   const travel = walk.legs.reduce((sum, leg) => sum + leg.travelMinutes, 0);
   return (
     <section className="app-walk">
-      <button type="button" className="app-walk-back" onClick={onBack}>
-        Назад
-      </button>
-      <h1 className="app-walk-title">Прогулка: {city}</h1>
+      <WalkBack onBack={onBack} />
+      <header className="app-walk-head">
+        <p className="app-walk-kicker">Пеший маршрут</p>
+        <h1 className="app-walk-title">Прогулка: {city}</h1>
+      </header>
       {walk.sourceLabel === "catalog" ? <p className="app-walk-note">Маршрут из каталога</p> : null}
       <ul className="app-walk-stats">
         <li className="app-walk-stat">
@@ -121,19 +124,23 @@ export function WalkResult({
           );
         })}
       </ol>
-      <AppButton className="app-walk-another" stretched onClick={onAnother}>
-        Хочу новую прогулку
-      </AppButton>
-      {onSaved !== undefined ? (
-        <button type="button" className="app-walk-back" onClick={onSaved}>
-          Мои прогулки
-        </button>
-      ) : null}
-      {onMap !== undefined ? (
-        <button type="button" className="app-walk-back" onClick={onMap}>
-          На карте
-        </button>
-      ) : null}
+      <div className="app-walk-actions">
+        <AppButton className="app-walk-another" stretched onClick={onAnother}>
+          Хочу новую прогулку
+        </AppButton>
+        {onSaved !== undefined ? (
+          <button type="button" className="app-walk-saved" onClick={onSaved}>
+            <span>Мои прогулки</span>
+            <ActionIcon name="chevron" size={18} />
+          </button>
+        ) : null}
+        {onMap !== undefined ? (
+          <button type="button" className="app-walk-saved" onClick={onMap}>
+            <span>На карте</span>
+            <ActionIcon name="pin" size={18} />
+          </button>
+        ) : null}
+      </div>
     </section>
   );
 }

@@ -1,4 +1,5 @@
 import type { WalkBudgetMode, WalkInterest } from "@max-events/api-contracts";
+import { ActionIcon } from "../ui/icons";
 import { AppChip } from "../ui/primitives";
 
 export type WalkChoice = {
@@ -49,8 +50,8 @@ export function selectWalkBudget(choice: WalkChoice, mode: WalkBudgetMode, budge
 }
 
 export function toggleWalkInterest(choice: WalkChoice, id: WalkInterest): WalkChoice {
-  const has = choice.interests.includes(id);
-  return { ...choice, interests: has ? choice.interests.filter((item) => item !== id) : [...choice.interests, id] };
+const has = choice.interests.includes(id);
+return { ...choice, interests: has ? choice.interests.filter((item) => item !== id) : [...choice.interests, id] };
 }
 
 function walkStep(choice: WalkChoice): "time" | "budget" | "interests" {
@@ -58,6 +59,39 @@ function walkStep(choice: WalkChoice): "time" | "budget" | "interests" {
   if (choice.budgetMode === null || (choice.budgetMode === "custom" && choice.budgetRub === null)) return "budget";
   return "interests";
 }
+
+const PROGRESS: readonly { readonly id: "time" | "budget" | "interests"; readonly label: string }[] = [
+  { id: "time", label: "Время" },
+  { id: "budget", label: "Бюджет" },
+  { id: "interests", label: "Интересы" },
+];
+
+export function WalkBack({ onBack }: { readonly onBack: () => void }) {
+  return (
+    <button type="button" className="app-walk-back" onClick={onBack}>
+      <ActionIcon name="chevron" size={16} />
+      Назад
+    </button>
+  );
+}
+
+function WalkProgress({ step }: { readonly step: "time" | "budget" | "interests" }) {
+  const current = PROGRESS.findIndex((item) => item.id === step);
+  return (
+    <ol className="app-walk-progress" aria-label="Шаги">
+      {PROGRESS.map((item, index) => {
+        const state = index === current ? "on" : index < current ? "done" : "idle";
+        return (
+          <li key={item.id} className={`app-walk-progress-item app-walk-progress-item--${state}`}>
+            <span className="app-walk-progress-dot" />
+            <span>{item.label}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 
 export function WalkWizard({
   city,
@@ -79,20 +113,23 @@ export function WalkWizard({
   const step = walkStep(choice);
   return (
     <section className="app-walk">
-      <button type="button" className="app-walk-back" onClick={onBack}>
-        Назад
-      </button>
-      <h1 className="app-walk-title">Прогулка: {city}</h1>
+      <WalkBack onBack={onBack} />
+      <header className="app-walk-head">
+        <p className="app-walk-kicker">Пеший маршрут</p>
+        <h1 className="app-walk-title">Прогулка: {city}</h1>
+      </header>
+      <WalkProgress step={step} />
       {step === "time" ? <TimeStep choice={choice} onChange={onChange} /> : null}
       {step === "budget" ? <BudgetStep choice={choice} onChange={onChange} /> : null}
       {step === "interests" ? <InterestStep choice={choice} onChange={onChange} /> : null}
-      {notice != null && notice !== "" ? <p className="app-walk-note">{notice}</p> : null}
+      {notice != null && notice !== "" ? <p className="app-walk-alert">{notice}</p> : null}
       <button type="button" className="app-walk-compose" disabled={!walkComposeReady(choice)} onClick={onCompose}>
         Собрать прогулку
       </button>
       {onSaved !== undefined ? (
         <button type="button" className="app-walk-saved" onClick={onSaved}>
-          Мои прогулки
+          <span>Мои прогулки</span>
+          <ActionIcon name="chevron" size={18} />
         </button>
       ) : null}
     </section>
@@ -101,8 +138,9 @@ export function WalkWizard({
 
 function TimeStep({ choice, onChange }: { readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void }) {
   return (
-    <fieldset className="app-walk-step">
+    <fieldset className="app-walk-step app-walk-rise">
       <legend>Сколько времени</legend>
+      <p className="app-walk-hint">От часа до полдня — или свои минуты</p>
       <div className="app-walk-choices">
         {TIME_OPTIONS.map((option) => (
           <AppChip key={option.minutes} pressed={choice.durationMinutes === option.minutes} onClick={() => onChange(selectWalkTime(choice, option.minutes))}>
@@ -111,7 +149,8 @@ function TimeStep({ choice, onChange }: { readonly choice: WalkChoice; readonly 
         ))}
       </div>
       <label className="app-walk-custom">
-        Своё
+<span>
+Своё</span>
         <input
           type="number"
           min={30}
@@ -131,8 +170,9 @@ function TimeStep({ choice, onChange }: { readonly choice: WalkChoice; readonly 
 
 function BudgetStep({ choice, onChange }: { readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void }) {
   return (
-    <fieldset className="app-walk-step">
+    <fieldset className="app-walk-step app-walk-rise">
       <legend>Бюджет</legend>
+      <p className="app-walk-hint">Только прогулка, без билетов и кафе</p>
       <div className="app-walk-choices">
         <AppChip pressed={choice.budgetMode === "free"} onClick={() => onChange(selectWalkBudget(choice, "free"))}>
           Бесплатно
@@ -146,7 +186,8 @@ function BudgetStep({ choice, onChange }: { readonly choice: WalkChoice; readonl
       </div>
       {choice.budgetMode === "custom" ? (
         <label className="app-walk-custom">
-          Рубли
+<span>
+Рубли</span>
           <input
             type="number"
             min={0}
@@ -166,8 +207,9 @@ function BudgetStep({ choice, onChange }: { readonly choice: WalkChoice; readonl
 
 function InterestStep({ choice, onChange }: { readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void }) {
   return (
-    <fieldset className="app-walk-step">
+    <fieldset className="app-walk-step app-walk-rise">
       <legend>Интересы</legend>
+      <p className="app-walk-hint">Можно несколько — соберём маршрут под них</p>
       <div className="app-walk-choices">
         {INTEREST_OPTIONS.map((option) => (
           <AppChip key={option.id} pressed={choice.interests.includes(option.id)} onClick={() => onChange(toggleWalkInterest(choice, option.id))}>

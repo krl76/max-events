@@ -4,6 +4,9 @@ import { apiClient } from "../api/client";
 import { ApiError } from "../api/endpoints/transport";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
+import { ActionIcon } from "../ui/icons";
+import { AppChip } from "../ui/primitives";
+import { WalkBack } from "./WalkWizard";
 
 export function sortWalksNewest(walks: readonly CityWalk[]): CityWalk[] {
   return [...walks].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
@@ -31,19 +34,23 @@ export function SavedWalkList({
   const rows = sortWalksNewest(walks);
   return (
     <section className="app-walk">
-      <button type="button" className="app-walk-back" onClick={onBack}>
-        Назад
-      </button>
-      <h1 className="app-walk-title">Мои прогулки</h1>
+      <WalkBack onBack={onBack} />
+      <header className="app-walk-head">
+        <p className="app-walk-kicker">Сохранённые</p>
+        <h1 className="app-walk-title">Мои прогулки</h1>
+      </header>
       {rows.length === 0 ? <p className="app-walk-note">Сохранённых прогулок пока нет.</p> : null}
       <ol className="app-walk-stops">
         {rows.map((walk) => (
-          <li key={walk.id} className="app-walk-stop">
-            <button type="button" className="app-walk-back" onClick={() => onOpen(walk.id)}>
-              <strong>{walk.city}</strong>
-              <span className="app-walk-meta">
-                {walkCreatedLabel(walk.createdAt)} · {stopCountLabel(walk.stops.length)}
+          <li key={walk.id}>
+            <button type="button" className="app-walk-saved" onClick={() => onOpen(walk.id)}>
+              <span>
+                <strong>{walk.city}</strong>
+                <span className="app-walk-meta">
+                  {walkCreatedLabel(walk.createdAt)} · {stopCountLabel(walk.stops.length)}
+                </span>
               </span>
+              <ActionIcon name="chevron" size={18} />
             </button>
           </li>
         ))}
@@ -65,10 +72,11 @@ export function SavedWalkView({
 }) {
   return (
     <section className="app-walk">
-      <button type="button" className="app-walk-back" onClick={onBack}>
-        Назад
-      </button>
-      <h1 className="app-walk-title">{walk.city}</h1>
+      <WalkBack onBack={onBack} />
+      <header className="app-walk-head">
+        <p className="app-walk-kicker">Сохранённая</p>
+        <h1 className="app-walk-title">{walk.city}</h1>
+      </header>
       <ol className="app-walk-stops">
         {walk.stops.map((stop) => (
           <li key={stop.sourceUrl} className="app-walk-stop">
@@ -76,16 +84,17 @@ export function SavedWalkView({
             <div>
               <h3>{stop.title}</h3>
               <p className="app-walk-note">{stop.description}</p>
-              <button type="button" aria-pressed={stop.done} onClick={() => onToggle(stop.order, !stop.done)}>
+              <AppChip pressed={stop.done} onClick={() => onToggle(stop.order, !stop.done)}>
                 Пройдено
-              </button>
+              </AppChip>
             </div>
           </li>
         ))}
       </ol>
       {onMap !== undefined ? (
-        <button type="button" className="app-walk-back" onClick={onMap}>
-          На карте
+        <button type="button" className="app-walk-saved" onClick={onMap}>
+          <span>На карте</span>
+          <ActionIcon name="pin" size={18} />
         </button>
       ) : null}
     </section>
@@ -170,9 +179,7 @@ export function SavedWalkPage({
   if (missing) {
     return (
       <section className="app-walk">
-        <button type="button" className="app-walk-back" onClick={back}>
-          Назад
-        </button>
+        <WalkBack onBack={back} />
         <p className="app-walk-note">Прогулка не найдена.</p>
       </section>
     );

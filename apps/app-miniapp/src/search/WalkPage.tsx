@@ -4,8 +4,10 @@ import { apiClient } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { AppButton, AppState } from "../ui/primitives";
-import { EMPTY_WALK_CHOICE, walkComposeReady, WalkWizard, type WalkChoice } from "./WalkWizard";
+import { EMPTY_WALK_CHOICE, walkComposeReady, WalkBack, WalkWizard, type WalkChoice } from "./WalkWizard";
 import { WalkResult, walkErrorText, walkStopKeys, walkWaitLine } from "./WalkResult";
+
+const WAIT_STEPS: readonly (0 | 1 | 2)[] = [0, 1, 2];
 
 export function cityWalkAsk(city: string): string {
   return `Собери пеший маршрут по достопримечательностям города ${city}: 4–6 остановок по порядку, время между точками и где поесть рядом.`;
@@ -51,9 +53,7 @@ export type WalkState = { status: "loading" } | { status: "error" } | { status: 
 export function WalkView({ city, state, onBack, onAnother }: { readonly city: string; readonly state: WalkState; readonly onBack: () => void; readonly onAnother: () => void }) {
   return (
     <section className="app-walk">
-      <button type="button" className="app-walk-back" onClick={onBack}>
-        Назад
-      </button>
+      <WalkBack onBack={onBack} />
       <h1 className="app-walk-title">Маршрут выходного дня: {city}</h1>
       {state.status === "loading" && <AppState>Собираем прогулку по достопримечательностям.</AppState>}
       {state.status === "error" && <AppState error>Не удалось собрать прогулку.</AppState>}
@@ -188,11 +188,21 @@ export function WalkPage({
   if (phase === "wait") {
     return (
       <section className="app-walk">
-        <button type="button" className="app-walk-back" onClick={back}>
-          Назад
-        </button>
-        <h1 className="app-walk-title">Прогулка: {city}</h1>
-        <p className="app-walk-note">{walkWaitLine(city, waitStep)}</p>
+        <WalkBack onBack={back} />
+        <header className="app-walk-head">
+          <p className="app-walk-kicker">Пеший маршрут</p>
+          <h1 className="app-walk-title">Прогулка: {city}</h1>
+        </header>
+        <ol className="app-walk-wait" aria-live="polite">
+          {WAIT_STEPS.map((item) => {
+            const state = item === waitStep ? "on" : item < waitStep ? "done" : "idle";
+            return (
+              <li key={item} className={`app-walk-wait-line app-walk-wait-line--${state}`}>
+                {walkWaitLine(city, item)}
+              </li>
+            );
+          })}
+        </ol>
       </section>
     );
   }
