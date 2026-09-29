@@ -26918,6 +26918,613 @@ html:not([data-theme="dark"]) .app-when-sheet {
   width: 100%;
 }
 
+/* Экран 36. Лист наезжает на обложку, разделы — карточками, каждая ведёт в одно место.
+ * Чужой профиль эти карточки не рисует. Организатор остаётся на прежних .app-me-* . */
+.app-me--user .app-me-hero {
+  height: 156px;
+}
+
+.app-me--user .app-me-hero-actions,
+.app-me--user .app-me-hero-edits {
+  z-index: 2;
+}
+
+.app-me--user .app-me-hero-action {
+  backdrop-filter: blur(10px);
+  background: rgba(6, 7, 8, 0.45);
+  height: 40px;
+  min-width: 40px;
+  padding: 0;
+  width: 40px;
+}
+
+.app-me--user .app-me-hero-edits {
+  align-items: flex-start;
+  bottom: 46px;
+  left: var(--app-space-l);
+  right: auto;
+}
+
+.app-me--user .app-me-hero-edit {
+  backdrop-filter: blur(10px);
+  background: rgba(6, 7, 8, 0.45);
+  height: 36px;
+}
+
+.app-me--user .app-me-sheet {
+  background: var(--app-canvas);
+  border-radius: 28px 28px 0 0;
+  margin: -32px calc(-1 * var(--app-space-screen)) 0;
+  padding: 0 var(--app-space-screen) 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.app-me--user .app-me-avatar-ring {
+  box-shadow: 0 0 0 4px var(--app-canvas);
+  height: 92px;
+  margin: -50px auto 0;
+  width: 92px;
+}
+
+.app-me--user .app-me-name {
+  font-size: 1.375rem;
+  margin-top: 8px;
+}
+
+.app-me--user .app-me-follows {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+  justify-content: center;
+  margin: 4px 0 0;
+}
+
+.app-me--user .app-me-follows-item {
+  align-items: center;
+  display: inline-flex;
+}
+
+.app-me--user .app-me-follow {
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: 32px;
+  padding: 4px 0;
+}
+
+.app-me--user .app-me-follow-value {
+  color: var(--app-text);
+  font-weight: 800;
+}
+
+.app-me--user .app-me-follow-sep {
+  color: var(--app-text-tertiary);
+  margin: 0 8px;
+}
+
+.app-me--user .app-me-follow:active,
+.app-me--user .app-me-text-btn:active,
+.app-me--user .app-me-community-act:active {
+  opacity: 0.65;
+}
+
+.app-me--user .app-me-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 16px;
+}
+
+.app-me--user .app-me-pair {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.app-me--user .app-me-card {
+  background: var(--app-card);
+  border: var(--app-hairline);
+  border-radius: 22px;
+  box-shadow: 0 8px 24px rgba(6, 7, 8, 0.05);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  width: 100%;
+}
+
+.app-me--user button.app-me-card,
+.app-me--user .app-me-plan-open,
+.app-me--user .app-me-cta,
+.app-me--user .app-me-text-btn,
+.app-me--user .app-me-community-act,
+.app-me--user .app-me-book-all,
+.app-me--user .app-me-book-hit {
+  font: inherit;
+}
+
+.app-me--user button.app-me-card {
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.app-me--user .app-me-card-head {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.app-me--user .app-me-card-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.app-me--user .app-me-card-head svg {
+  color: var(--app-text-tertiary);
+  flex: none;
+}
+
+.app-me--user .app-me-plan {
+  height: 100%;
+}
+
+.app-me--user .app-me-plan-open {
+  align-items: stretch;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.app-me--user .app-me-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-me--user .app-me-mini-week,
+.app-me--user .app-me-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.app-me--user .app-me-mini-week {
+  color: var(--app-text-tertiary);
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.app-me--user .app-me-mini-day {
+  align-items: center;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  color: var(--app-text);
+  display: flex;
+  font-size: 10px;
+  font-weight: 700;
+  justify-content: center;
+  margin: 1px auto;
+  width: min(18px, 100%);
+}
+
+.app-me--user .app-me-mini-day--out {
+  color: var(--app-text-tertiary);
+}
+
+.app-me--user .app-me-mini-day--today {
+  box-shadow: inset 0 0 0 1.5px var(--app-accent);
+  color: var(--app-accent-text);
+}
+
+.app-me--user .app-me-mini-day--busy {
+  background: var(--app-accent);
+  box-shadow: none;
+  color: var(--brand-white);
+}
+
+.app-me--user .app-me-cta {
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 36px;
+  padding: 0 8px;
+  width: 100%;
+}
+
+.app-me--user .app-me-cta:active {
+  background: var(--app-accent-press);
+}
+
+.app-me--user .app-me-text-btn {
+  background: none;
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-accent-text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 32px;
+  padding: 0 8px;
+  width: 100%;
+}
+
+.app-me--user .app-me-book {
+  background: var(--app-gradient-dark);
+  border: none;
+  color: var(--brand-white);
+  justify-content: flex-end;
+  min-height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-me--user .app-me-book-hit {
+  background: none;
+  border: none;
+  cursor: pointer;
+  inset: 0;
+  padding: 0;
+  position: absolute;
+  z-index: 0;
+}
+
+.app-me--user .app-me-book-photo {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-me--user .app-me-book-shade {
+  background: linear-gradient(180deg, rgba(13, 0, 26, 0.62), rgba(13, 0, 26, 0.12) 42%, rgba(13, 0, 26, 0.78));
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+}
+
+.app-me--user .app-me-book-kicker,
+.app-me--user .app-me-book-copy {
+  pointer-events: none;
+  position: relative;
+  z-index: 1;
+}
+
+.app-me--user .app-me-book-kicker {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.app-me--user .app-me-book-copy {
+  margin-bottom: 8px;
+  margin-top: auto;
+}
+
+.app-me--user .app-me-book-name {
+  -webkit-box-orient: vertical;
+  display: -webkit-box;
+  font-size: 14px;
+  font-weight: 800;
+  -webkit-line-clamp: 2;
+  line-height: 1.25;
+  overflow: hidden;
+}
+
+.app-me--user .app-me-book-when {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 2px;
+  opacity: 0.92;
+}
+
+.app-me--user .app-me-book-all {
+  background: var(--brand-white);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-ink);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 36px;
+  position: relative;
+  width: 100%;
+  z-index: 2;
+}
+
+.app-me--user .app-me-book-all:active {
+  background: #e7e8ea;
+}
+
+.app-me--user .app-me-ach {
+  gap: 10px;
+  height: 100%;
+}
+
+.app-me--user .app-me-ach-body {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.app-me--user .app-me-ach-body--solo {
+  flex: 1;
+  justify-content: center;
+}
+
+.app-me--user .app-me-ach-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.app-me--user .app-me-ach-hint {
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.app-me--user .app-me-ach-track {
+  background: rgba(0, 122, 255, 0.16);
+  border-radius: var(--app-radius-pill);
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.app-me--user .app-me-ach-fill {
+  background: var(--app-accent);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+}
+
+.app-me--user .app-me-seal {
+  align-items: center;
+  color: var(--app-accent);
+  display: flex;
+  flex: none;
+  justify-content: center;
+  position: relative;
+}
+
+.app-me--user .app-me-seal-ring {
+  height: 100%;
+  inset: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.app-me--user .app-me-seal-ring circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+}
+
+.app-me--user .app-me-seal-ring circle:first-child {
+  opacity: 0.22;
+}
+
+.app-me--user .app-me-seal-ring circle:last-child {
+  stroke-linecap: round;
+}
+
+.app-me--user .app-me-seal > svg:last-child {
+  position: relative;
+}
+
+.app-me--user .app-me-community-actions {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.app-me--user .app-me-community-act {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 72px;
+  padding: 2px;
+}
+
+.app-me--user .app-me-faces {
+  display: flex;
+  justify-content: center;
+}
+
+.app-me--user .app-me-face {
+  align-items: center;
+  border: 2px solid var(--app-card);
+  border-radius: 50%;
+  color: var(--brand-white);
+  display: flex;
+  flex: none;
+  font-size: 11px;
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  margin-left: -8px;
+  width: 28px;
+}
+
+.app-me--user .app-me-face:first-child {
+  margin-left: 0;
+}
+
+.app-me--user .app-me-face--0 {
+  background: var(--brand-blue);
+}
+
+.app-me--user .app-me-face--1 {
+  background: var(--brand-purple);
+}
+
+.app-me--user .app-me-face--2 {
+  background: var(--brand-blue-pressed);
+}
+
+.app-me--user .app-me-face--3 {
+  background: #471aff;
+}
+
+.app-me--user .app-me-friends-mark {
+  align-items: center;
+  color: var(--app-accent-text);
+  display: flex;
+  font-size: 20px;
+  font-weight: 800;
+  gap: 4px;
+  justify-content: center;
+  min-height: 28px;
+}
+
+.app-me--user .app-me-community-label {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.app-me--user .app-me-subhint {
+  color: var(--app-text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.app-me--user .app-me-tabs {
+  background: transparent;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 0;
+}
+
+.app-me--user .app-me-tab {
+  background: rgba(var(--app-scheme-neutral), 0.06);
+  border: 1px solid transparent;
+  border-radius: 16px;
+  flex-direction: column;
+  font-size: 11px;
+  gap: 2px;
+  line-height: 1.15;
+  min-height: 52px;
+  padding: 8px 4px;
+}
+
+.app-me--user .app-me-tab--active {
+  background: var(--app-card);
+  border: var(--app-hairline);
+  box-shadow: 0 6px 16px rgba(6, 7, 8, 0.08);
+  color: var(--app-text);
+}
+
+.app-me--user .app-me-posts {
+  display: flex;
+  gap: 10px;
+  grid-template-columns: none;
+  overflow-x: auto;
+  padding: 14px 0 8px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.app-me--user .app-me-post,
+.app-me--user .app-me-post-skeleton {
+  aspect-ratio: 4 / 3;
+  background: var(--app-gradient-dark);
+  border-radius: 20px;
+  flex: 0 0 86%;
+  scroll-snap-align: start;
+  width: auto;
+}
+
+.app-me--user .app-me-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  padding-bottom: 8px;
+}
+
+.app-me--user .app-me-dot {
+  background: rgba(var(--app-scheme-neutral), 0.22);
+  border-radius: var(--app-radius-pill);
+  height: 6px;
+  width: 6px;
+}
+
+.app-me--user .app-me-dot--on {
+  background: var(--app-accent);
+  width: 16px;
+}
+
+.app-me--user .app-me-cell {
+  border-radius: 20px;
+}
+
+.app-me--user button:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}
+
+[data-theme="dark"] .app-me--user .app-me-card,
+.app-root[data-theme="dark"] .app-me--user .app-me-card {
+  box-shadow: none;
+}
+
+[data-theme="dark"] .app-me--user .app-me-tab--active,
+.app-root[data-theme="dark"] .app-me--user .app-me-tab--active {
+  box-shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .app-me--user .app-me-card,
+  html:not([data-theme]) .app-me--user .app-me-tab--active {
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-me--user .app-me-dot,
+  .app-me--user .app-me-tab {
+    transition: none;
+  }
+}
+
 .app-feed-caption,
 .app-post-caption {
   max-width: none;

@@ -140,7 +140,7 @@ function Routed() {
   if (route.name === "profile")
     return (
       <>
-        {/* Экран 36 несёт свои входы строками, отдельные плитки над ним больше не нужны */}
+        {/* Экран 36 несёт свои входы карточками, отдельные плитки над ним больше не нужны */}
         <ProfilePage />
         {/* Its own boundary: the tile is lazy and renders nothing for most viewers, so it must not
             hold the profile behind the page skeleton while its chunk loads. */}

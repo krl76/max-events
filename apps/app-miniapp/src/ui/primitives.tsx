@@ -28,7 +28,7 @@
 // - AppMedia - media placeholder: category-fixed MAX gradient + category icon (neutral gradient without a category)
 // END_MODULE_MAP
 
-import { isValidElement, type ComponentProps, type ReactNode } from "react";
+import { isValidElement, useState, type ComponentProps, type ReactNode } from "react";
 import { IonAvatar, IonButton } from "@ionic/react";
 import type { EventCategory } from "@max-events/api-contracts";
 import { ActionIcon, type ActionIconName } from "./icons";
@@ -217,11 +217,13 @@ export const CATEGORY_MEDIA_ICON: Record<EventCategory, ActionIconName> = {
 };
 
 export function AppMedia({ category, className, src }: { category?: EventCategory; className?: string; src?: string | null }) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const mediaClass = ["app-card-media", category !== undefined ? `app-media--${category}` : "", className ?? ""].filter(Boolean).join(" ");
-  if (src) {
+  // Обложка, которая не загрузилась, не картинка: остаётся градиент категории, без значка битого файла.
+  if (src && failedSrc !== src) {
     return (
       <div className={mediaClass}>
-        <img alt="" className="app-card-media-img" src={src} />
+        <img alt="" className="app-card-media-img" src={src} onError={() => setFailedSrc(src)} />
       </div>
     );
   }

@@ -92,7 +92,9 @@ function renderProfileView(overrides: Partial<Parameters<typeof ProfileView>[0]>
       onShare: noop,
       onLists: noop,
       onPlans: noop,
+      onCreatePlan: noop,
       onBookings: noop,
+      onOpenBooking: noop,
       onCalendar: noop,
       onSubscriptions: noop,
       onFollowers: noop,
@@ -258,6 +260,9 @@ describe("ProfileView", () => {
     expect(html).toContain("Позвать");
     expect(html).not.toContain("Настройки");
     expect(html).not.toContain("Планы");
+    expect(html).not.toContain("Календарь планов");
+    expect(html).not.toContain("Все брони");
+    expect(html).not.toContain("Моё сообщество");
     expect(html).not.toContain("Фото профиля");
     expect(html).not.toContain("Шапка профиля");
     expect(html).not.toContain("Удалить");
@@ -278,17 +283,20 @@ describe("ProfileView", () => {
   it("carries the profile sections and leaves a row without its counter until the count arrives", () => {
     const html = renderProfileView();
 
-    expect(html.match(/class="app-me-row"/g)).toHaveLength(6);
-    expect(html).toContain("Планы");
-    expect(html).toContain("Мои брони");
-    expect(html).toContain("Календарь");
+    expect(html).toContain("Календарь планов");
+    expect(html).toContain("Создать план");
+    expect(html).toContain("Все планы");
+    expect(html).toContain("Будущие бронирования");
+    expect(html).toContain("Все брони");
     expect(html).not.toContain("Маршрут на день");
     expect(html).not.toContain("Микрособытия");
     expect(html).toContain("Достижения");
-    expect(html).toContain("Мы · группы");
+    expect(html).toContain("Моё сообщество");
+    expect(html).toContain("Группы");
     expect(html).toContain("Друзья");
     expect(html).toContain("Сохранённое");
-    expect(html).not.toContain("app-me-row-hint");
+    expect(html).not.toContain("app-me-row");
+    expect(html).not.toContain("app-me-avatar-plus");
   });
 
   it("puts posts and the two follow counters in the header as the clickable numbers", () => {
@@ -298,8 +306,8 @@ describe("ProfileView", () => {
     expect(html).not.toContain(">поста<");
     expect(html).toContain("подписки");
     expect(html).toContain("подписчика");
-    expect(html.match(/app-me-metric app-me-metric--link/g)).toHaveLength(2);
-    expect(html.match(/app-me-metrics-row/g)).toHaveLength(1);
+    expect(html.match(/class="app-me-follow"/g)).toHaveLength(2);
+    expect(html).not.toContain("app-me-metrics-row");
     expect(html).not.toContain("событий");
     expect(html).not.toMatch(/app-me-row-title">Подписки/);
   });
@@ -442,7 +450,7 @@ describe("the post grid", () => {
   it("holds the height of the grid with placeholders while the posts are on their way", () => {
     const html = renderProfileView({ posts: null });
 
-    expect(html.match(/app-me-post-skeleton/g)).toHaveLength(6);
+    expect(html.match(/app-me-post-skeleton/g)).toHaveLength(2);
     expect(html).toContain('aria-label="Загружаем посты"');
     // Счётчик в ярлыке вкладки не выдумывает ноль, пока считать нечего
     expect(html).toContain(">Посты</button>");
