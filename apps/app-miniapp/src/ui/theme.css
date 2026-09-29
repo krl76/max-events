@@ -392,35 +392,31 @@ html[data-theme="dark"] #root {
 /* Переходы экранов: направление задаёт роутер (push/pop/tab); без exit-анимаций (старый экран не удерживается) */
 @keyframes app-screen-push {
   from {
-    opacity: 0;
     transform: translateX(24px);
   }
 
   to {
-    opacity: 1;
     transform: none;
   }
 }
 
 @keyframes app-screen-pop {
   from {
-    opacity: 0;
     transform: translateX(-24px);
   }
 
   to {
-    opacity: 1;
     transform: none;
   }
 }
 
 @keyframes app-screen-tab {
   from {
-    opacity: 0;
+    transform: none;
   }
 
   to {
-    opacity: 1;
+    transform: none;
   }
 }
 
@@ -25075,7 +25071,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
   --color: #ffffff;
 }
 
-:is(.app-feed-whereto-start, .app-feed-going, .app-feed-chip--slot, .app-feed-slot, .app-micro-new, .app-story-publish, .app-story-plus, .app-post-compose-publish, .app-map16-route, .app-map16-routebar button, .app-swipe-action--like, .app-plan-repeat-option--on, .app-when-day--on, .app-when-tick--on, .app-gathering-response .app-btn[aria-pressed], .app-gathering-friend[aria-pressed="true"], .app-story-poll-option--on, .app-me-action--primary, .app-ach-next-cta, .app-after-save, .app-lists-create, .app-we-create, .app-we-form-submit, .app-poll-launch, .app-froute-repeat, .app-dayroute-chip, .app-cal-peer-chip--on, .app-cal-cta-main, .app-place-plan, .app-slots-day--on, .app-slots-book, .app-book-action--primary, .app-org-topbar-action, .app-ev-bar-cta, .app-evb-cta:not(.app-evb-cta--booked), .app-evc-gather, .app-evc-pick--on, .app-evc-invite, .app-wt-bar-cta, .app-nb-plan, .app-follower-act) {
+:is(.app-feed-whereto-start, .app-feed-going:not(.app-feed-going--on), .app-feed-chip--slot, .app-feed-slot, .app-micro-new, .app-story-publish, .app-story-plus, .app-post-compose-publish, .app-map16-route, .app-map16-routebar button, .app-swipe-action--like, .app-plan-repeat-option--on, .app-when-day--on, .app-when-tick--on, .app-gathering-response .app-btn[aria-pressed], .app-gathering-friend[aria-pressed="true"], .app-story-poll-option--on, .app-me-action--primary, .app-ach-next-cta, .app-after-save, .app-lists-create, .app-we-create, .app-we-form-submit, .app-poll-launch, .app-froute-repeat, .app-dayroute-chip, .app-cal-peer-chip--on, .app-cal-cta-main, .app-place-plan, .app-slots-day--on, .app-slots-book, .app-book-action--primary, .app-org-topbar-action, .app-ev-bar-cta, .app-evb-cta:not(.app-evb-cta--booked), .app-evc-gather, .app-evc-pick--on, .app-evc-invite, .app-wt-bar-cta, .app-nb-plan, .app-follower-act) {
   background: var(--app-accent);
   color: #ffffff;
 }
@@ -25087,8 +25083,9 @@ html:not([data-theme="dark"]) .app-when-sheet {
 
 .app-feed-going.app-feed-going--on,
 .app-feed-going.app-feed-going--on:active {
-  background: var(--app-confirm);
-  color: var(--app-confirm-contrast);
+  background: var(--app-surface);
+  border: 1px solid var(--app-divider);
+  color: var(--app-text);
 }
 
 .app-today-date--chip {

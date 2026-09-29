@@ -29,7 +29,7 @@
 // - FeedScreen - экран 03 container: stories rail, «Куда пойдём?», cards with their writes
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { Event, Friend, ParticipationStatus } from "@max-events/api-contracts";
 import { apiClient, type FeedCard, type FeedCardCounts, type FeedComment, type FeedFriendCard, type FeedPlaceCard } from "../api/client";
@@ -91,6 +91,7 @@ export function formatFeedTravel(travelMinutes: number | null, distanceKm: numbe
 /** «Сегодня · 20:00» while the event is today, «Завтра · 10:00» tomorrow, otherwise «Сб, 19 сент. · 14:00». */
 export function formatFeedWhen(startsAt: string, now: Date): string {
   const date = new Date(startsAt);
+  if (Number.isNaN(date.getTime())) return "";
   const time = date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
   const days = Math.round((startOfDay(date) - startOfDay(now)) / DAY_MS);
   if (days === 0) return `Сегодня · ${time}`;
@@ -134,7 +135,9 @@ export function formatFeedAgo(publishedAt: string, now: Date): string {
   const days = Math.floor(hours / 24);
   if (days === 1) return "вчера";
   if (days < 7) return `${days} ${pluralRu(days, "день", "дня", "дней")} назад`;
-  return new Date(publishedAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+  const published = new Date(publishedAt);
+  if (Number.isNaN(published.getTime())) return "";
+  return published.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
 
 /** «Дима: буду к трём · ещё 2 комментария»; the count is the whole thread, the list only its head. */
@@ -290,6 +293,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onShare
           {/* aria-pressed, not two labels alone: «Иду» is the same control in its on state, not another button. */}
           {card.event !== null && (
             <button type="button" className={going ? "app-feed-going app-feed-going--on" : "app-feed-going"} aria-pressed={going} onClick={onToggleGoing}>
+              {going ? <ActionIcon name="check" size={16} /> : null}
               {going ? "Я иду" : "Я пойду"}
             </button>
           )}
@@ -556,33 +560,46 @@ export interface FeedCardHandlers {
   onDelete?: (card: FeedFriendCard) => void;
 }
 
+class FeedCardBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
 export function FeedCardList({ cards, now, handlers, storyAuthors }: { cards: FeedCard[]; now: Date; handlers: FeedCardHandlers; storyAuthors?: ReadonlySet<string> }) {
   return (
     <div className="app-feed-posts">
-      {cards.map((card) =>
-        card.kind === "friend" ? (
-          <FeedFriendPost
-            key={card.id}
-            card={card}
-            now={now}
-            onToggleLike={() => handlers.onToggleLike(card)}
-            onToggleGoing={() => handlers.onToggleGoing(card)}
-            onOpenComments={() => handlers.onOpenComments(card)}
-            onShare={() => handlers.onShare(card)}
-            onOpenPerson={handlers.onOpenAuthor}
-            onOpenEvent={() => {
-              if (card.event) handlers.onOpenEvent(card.event.id);
-            }}
-            onOpenAuthor={() => handlers.onOpenAuthor(card.author.id)}
-            onDelete={handlers.onDelete ? () => handlers.onDelete?.(card) : undefined}
-            onOpenMark={handlers.onOpenMark ? () => handlers.onOpenMark?.(card) : undefined}
-            userId={handlers.userId}
-            hasStory={storyAuthors?.has(card.author.id) === true}
-          />
-        ) : (
-          <FeedPlacePost key={card.id} card={card} now={now} userId={handlers.userId} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onToggleLike={() => handlers.onPlaceLike(card)} onShowOnMap={handlers.onOpenPlaceMap ? () => handlers.onOpenPlaceMap?.(card) : undefined} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} onOpenUser={handlers.onOpenAuthor} />
-        ),
-      )}
+      {cards.map((card) => (
+        <FeedCardBoundary key={card.id}>
+          {card.kind === "friend" ? (
+            <FeedFriendPost
+              card={card}
+              now={now}
+              onToggleLike={() => handlers.onToggleLike(card)}
+              onToggleGoing={() => handlers.onToggleGoing(card)}
+              onOpenComments={() => handlers.onOpenComments(card)}
+              onShare={() => handlers.onShare(card)}
+              onOpenPerson={handlers.onOpenAuthor}
+              onOpenEvent={() => {
+                if (card.event) handlers.onOpenEvent(card.event.id);
+              }}
+              onOpenAuthor={() => handlers.onOpenAuthor(card.author.id)}
+              onDelete={handlers.onDelete ? () => handlers.onDelete?.(card) : undefined}
+              onOpenMark={handlers.onOpenMark ? () => handlers.onOpenMark?.(card) : undefined}
+              userId={handlers.userId}
+              hasStory={storyAuthors?.has(card.author.id) === true}
+            />
+          ) : (
+            <FeedPlacePost card={card} now={now} userId={handlers.userId} onOpenPlace={handlers.onOpenPlace} onOpenPost={() => handlers.onOpenPost(card.id)} onToggleLike={() => handlers.onPlaceLike(card)} onShowOnMap={handlers.onOpenPlaceMap ? () => handlers.onOpenPlaceMap?.(card) : undefined} onStatus={(status) => handlers.onPlaceStatus(card, status)} onSlots={() => handlers.onSlots(card)} onGather={() => handlers.onGather(card)} onOpenUser={handlers.onOpenAuthor} />
+          )}
+        </FeedCardBoundary>
+      ))}
     </div>
   );
 }

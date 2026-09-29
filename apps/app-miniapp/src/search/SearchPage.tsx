@@ -517,7 +517,7 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
   const [fold, setFold] = useState<"today" | "hot">("hot");
   const inCity = props.distancesFromViewer !== false;
   const todayCards = props.state.status === "ready" ? props.state.cards : [];
-  const hotCards = [...(props.popular ?? [])].sort((left, right) => (right.rating ?? 0) - (left.rating ?? 0) || (right.event.bookedCount ?? 0) - (left.event.bookedCount ?? 0)).slice(0, 12);
+  const hotCards = [...(props.popular ?? [])].sort((left, right) => (right.rating ?? 0) * 1000 + (right.event.popularity ?? 0) + (right.event.bookedCount ?? 0) - ((left.rating ?? 0) * 1000 + (left.event.popularity ?? 0) + (left.event.bookedCount ?? 0))).slice(0, 12);
   const openFold = (next: "today" | "hot") => setFold(next);
   const shown = fold === "today" ? todayCards : fold === "hot" ? hotCards : [];
   return (

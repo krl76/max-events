@@ -298,7 +298,7 @@ export class EventsService {
   private async orderCatalog(rows: EventEntity[], query: EventListQuery, now: Date): Promise<EventEntity[]> {
     if (query.sort === "rating") {
       const averages = await this.reviews.averagesByEventIds(rows.map((row) => row.id));
-      return [...rows].sort((a, b) => compareRating(averages.get(a.id), averages.get(b.id)) || (b.popularity ?? 0) - (a.popularity ?? 0) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+      return [...rows].sort((a, b) => popularScore(averages.get(b.id), b) - popularScore(averages.get(a.id), a) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
     }
     if (query.sort === "near" && query.latitude !== undefined && query.longitude !== undefined) {
       const placeIds = [...new Set(rows.map((row) => row.placeId).filter((id): id is string => id !== null))];
@@ -406,11 +406,9 @@ function containsPattern(q: string): string | null {
   return compact.length === 0 ? null : `%${compact}%`;
 }
 
-function compareRating(left: number | undefined, right: number | undefined): number {
-  if (left === undefined && right === undefined) return 0;
-  if (left === undefined) return 1;
-  if (right === undefined) return -1;
-  return right - left;
+/** A review is worth a lot, and a public-catalog favorite count can still outrank a quiet local event. */
+function popularScore(average: number | undefined, event: EventEntity): number {
+  return (average ?? 0) * 1000 + (event.popularity ?? 0) + (event.bookedCount ?? 0);
 }
 
 function startWindow(query: EventListQuery): FindOperator<Date> | undefined {

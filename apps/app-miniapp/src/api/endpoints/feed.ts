@@ -358,7 +358,7 @@ const FeedCardsSchema: ZodSchema<FeedCard[]> = {
       if (typeof item !== "object" || item === null) return { success: false as const, error: "invalid feed card" };
       const raw = item as Record<string, unknown>;
       const card = raw.kind === "friend" ? parseFriendCard(raw) : raw.kind === "place" ? parsePlaceCard(raw) : null;
-      if (card === null) return { success: false as const, error: "invalid feed card" };
+      if (card === null) continue;
       cards.push(card);
     }
     return { success: true as const, data: cards };

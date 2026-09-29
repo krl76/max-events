@@ -58,6 +58,8 @@ const EventObjectSchema = z.object({
   weather: EventWeatherSchema.nullable().default(null),
   coverUrl: CoverUrlSchema.nullable().default(null),
   bookedCount: z.number().int().nonnegative().optional(),
+  /** Favorites from a public catalog, or zero on an event created here. */
+  popularity: z.number().int().nonnegative().optional(),
   remainingSeats: z.number().int().nonnegative().nullable().optional(),
   hitOfTheWeek: z.boolean().optional(),
   distanceKm: z.number().nonnegative().nullable().optional(),

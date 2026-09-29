@@ -128,12 +128,11 @@ describe("FeedFriendPost", () => {
     expect(html).not.toContain("app-feed-counts");
   });
 
-  it("shows the author photo and a story ring only when they have a story", () => {
+  it("shows the author photo without a story ring", () => {
     expect(post()).toContain(`src="${mockFriends[0].avatarUrl}"`);
-    expect(post()).not.toContain("app-tg-ring");
-    expect(post()).not.toContain("app-feed-ring-inner");
     const withStory = renderToStaticMarkup(createElement(FeedFriendPost, { card: friendCard, now: NOW, onToggleLike: noop, onToggleGoing: noop, onOpenComments: noop, onShare: noop, onOpenEvent: noop, onOpenAuthor: noop, userId: "u1", hasStory: true }));
-    expect(withStory).toContain("app-tg-ring--new");
+    expect(withStory).not.toContain("app-tg-ring");
+    expect(withStory).toContain(`src="${mockFriends[0].avatarUrl}"`);
   });
 
   it("pages several photos instead of tiling them", () => {

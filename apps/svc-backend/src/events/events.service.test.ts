@@ -153,6 +153,9 @@ describe("EventsService", () => {
     await writer.create(CreateEventSchema.parse({ ...payload, title: "Без отзывов", startsAt: "2026-09-13T19:00:00+03:00" }));
     const rated = createService({ store: repo.store, placeIds: [placeId, farPlaceId], averages: { [jazz.id]: 3, [later.id]: 5 } }).service;
     expect((await rated.list({ sort: "rating" })).map((item) => item.title)).toEqual(["Позже", "Джаз в парке", "Без отзывов"]);
+    const plain = repo.store.find((row) => row.title === "Без отзывов");
+    if (plain) plain.popularity = 8000;
+    expect((await rated.list({ sort: "rating" })).map((item) => item.title)).toEqual(["Без отзывов", "Позже", "Джаз в парке"]);
     expect((await rated.list({ sort: "soon" })).map((item) => item.title)).toEqual(["Джаз в парке", "Без отзывов", "Позже"]);
     expect((await rated.list({ sort: "near", latitude: 56.75, longitude: 37.62 })).map((item) => item.title)).toEqual(["Позже", "Джаз в парке", "Без отзывов"]);
     const boosted = createService({

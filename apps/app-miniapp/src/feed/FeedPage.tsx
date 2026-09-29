@@ -268,17 +268,11 @@ export function CommentSheet({ comments, parents, liked, replyTo, reveal, draft,
   );
 }
 
-export function PostAuthorAvatar({ friend, hasStory = false, size = 36 }: { friend: Friend; hasStory?: boolean; size?: number }) {
-  const avatar = (
+export function PostAuthorAvatar({ friend, hasStory: _hasStory = false, size = 36 }: { friend: Friend; hasStory?: boolean; size?: number }) {
+  return (
     <AppAvatar src={friend.avatarUrl} size={size}>
       {friend.name[0]}
     </AppAvatar>
-  );
-  if (!hasStory) return avatar;
-  return (
-    <StoryRing total={1} unseen={1} label="Есть история">
-      {avatar}
-    </StoryRing>
   );
 }
 

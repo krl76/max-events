@@ -122,7 +122,7 @@ describe("FeedPostCard", () => {
     expect(withPhoto).toContain('src="https://cdn.example.com/anna.jpg"');
     expect(withPhoto).not.toContain("app-tg-ring");
     const withStory = renderToStaticMarkup(createElement(FeedPostCard, { post: { ...post, author: { ...post.author, avatarUrl: "https://cdn.example.com/anna.jpg" } }, eventTitle: mockEvents[0].title, userId: DEMO_USER_ID, onToggleLike: noop, onAddComment: noop, hasStory: true }));
-    expect(withStory).toContain("app-tg-ring--new");
+    expect(withStory).not.toContain("app-tg-ring");
     expect(withStory).toContain('src="https://cdn.example.com/anna.jpg"');
   });
 

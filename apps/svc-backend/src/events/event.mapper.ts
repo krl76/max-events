@@ -34,6 +34,7 @@ export function toEventDto(event: EventEntity, options?: { promoted?: boolean })
     weather: null,
     coverUrl: publicCoverUrl(event.coverUrl),
     bookedCount: event.bookedCount,
+    popularity: event.popularity ?? 0,
     remainingSeats: event.capacity === null ? null : Math.max(0, event.capacity - event.bookedCount),
     hitOfTheWeek: options?.promoted === true,
   };
