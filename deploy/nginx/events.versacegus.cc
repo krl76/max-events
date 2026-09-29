@@ -34,7 +34,7 @@ server {
     }
 
     # Own map basemap (DEPLOY.md «Own basemap»): one PMTiles archive read by Range requests plus the
-    # font glyphs. Shared with the dev-kku vhost and outside the static root: the miniapp rsync runs with --delete.
+    # font glyphs. Shared with the staging vhost and outside the static root: the miniapp rsync runs with --delete.
     location /tiles/ {
         alias /var/www/max-events-tiles/;
         types {

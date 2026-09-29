@@ -17,7 +17,7 @@ docker compose -p "$COMPOSE_PROJECT_NAME" -f docker-compose.prod.yml up -d --bui
 echo "==> Migrations"
 docker compose -p "$COMPOSE_PROJECT_NAME" -f docker-compose.prod.yml exec -T backend bun run migration:run
 
-# Стенд без контура MAX (ветка dev-kku) наполняется демо-данными: он существует ради ручной проверки,
+# Стенд без контура MAX (ветка dev-events) наполняется демо-данными: он существует ради ручной проверки,
 # и пустая база делает эту проверку бессмысленной. Генератор детерминированный (fakerRU, seed 42) и
 # пропускает то, что уже вставлено, поэтому повторный деплой ничего не дублирует.
 if [ "${SEED_DEMO:-}" = "1" ]; then

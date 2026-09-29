@@ -1,8 +1,8 @@
 name: Deploy events.versacegus.cc
 
 # Auto-deploy:
-#   push to dev     -> https://events.versacegus.cc      (prod stack)
-#   push to dev-kku -> https://dev.events.versacegus.cc  (isolated stack)
+#   push to main       -> https://events.versacegus.cc      (prod stack)
+#   push to dev-events -> https://dev.events.versacegus.cc  (isolated stack)
 #
 # GitHub secrets (Settings -> Secrets and variables -> Actions):
 #   SSH_HOST = 2.27.41.96
@@ -13,7 +13,7 @@ name: Deploy events.versacegus.cc
 
 on:
   push:
-    branches: [dev, dev-kku]
+    branches: [main, dev-events]
   workflow_dispatch:
     inputs:
       reset_demo:
@@ -35,7 +35,7 @@ jobs:
         id: env
         run: |
           case "${{ github.ref_name }}" in
-            dev-kku)
+            dev-events)
               echo "root=/opt/max-events-kku" >> "$GITHUB_OUTPUT"
               echo "www=/var/www/max-events-kku" >> "$GITHUB_OUTPUT"
               echo "port=3101" >> "$GITHUB_OUTPUT"
@@ -43,7 +43,7 @@ jobs:
               echo "slug=max-events-kku" >> "$GITHUB_OUTPUT"
               echo "host=dev.events.versacegus.cc" >> "$GITHUB_OUTPUT"
               ;;
-            dev)
+            main)
               echo "root=/opt/max-events" >> "$GITHUB_OUTPUT"
               echo "www=/var/www/max-events" >> "$GITHUB_OUTPUT"
               echo "port=3100" >> "$GITHUB_OUTPUT"
@@ -63,7 +63,7 @@ jobs:
 
       - name: Install and build miniapp
         env:
-          VITE_BROWSER_AUTH: ${{ github.ref_name == 'dev-kku' && '1' || '' }}
+          VITE_BROWSER_AUTH: ${{ github.ref_name == 'dev-events' && '1' || '' }}
         run: |
           bun install --frozen-lockfile
           bun --filter @max-events/api-contracts build
@@ -111,7 +111,7 @@ jobs:
           COMPOSE_PROJECT_NAME: ${{ steps.env.outputs.project }}
           # Стенд без контура MAX наполняется демо-данными. На events.versacegus.cc сид
           # запускается только вручную, с reset_demo: старые строки стираются один раз.
-          SEED_DEMO: ${{ (github.event.inputs.reset_demo == 'true' || github.ref_name == 'dev-kku') && '1' || '' }}
+          SEED_DEMO: ${{ (github.event.inputs.reset_demo == 'true' || github.ref_name == 'dev-events') && '1' || '' }}
           SEED_DEMO_RESET: ${{ github.event.inputs.reset_demo == 'true' && '1' || '' }}
           SEED_DEMO_SCALE: ${{ github.event.inputs.reset_demo == 'true' && 'big' || '' }}
         run: |

@@ -2,12 +2,12 @@
 
 Two isolated stacks on work-vps (`2.27.41.96`). HTTPS via host nginx. Each stack has its own Postgres, Redis, backend port, and `.env`.
 
-| Branch    | URL                              | Root                  | Static                    | Port |
-| --------- | -------------------------------- | --------------------- | ------------------------- | ---- |
-| `dev`     | https://events.versacegus.cc     | `/opt/max-events`     | `/var/www/max-events`     | 3100 |
-| `dev-kku` | https://dev.events.versacegus.cc | `/opt/max-events-kku` | `/var/www/max-events-kku` | 3101 |
+| Branch        | URL                              | Root                  | Static                    | Port |
+| ------------- | -------------------------------- | --------------------- | ------------------------- | ---- |
+| `main`        | https://events.versacegus.cc     | `/opt/max-events`     | `/var/www/max-events`     | 3100 |
+| `dev-events` | https://dev.events.versacegus.cc | `/opt/max-events-kku` | `/var/www/max-events-kku` | 3101 |
 
-`events.versacegus.cc` (`dev`): login screen «Войти через MAX». `dev.events.versacegus.cc` (`dev-kku`): no login screen, `VITE_BROWSER_AUTH=1`.
+`events.versacegus.cc` (`main`): login screen «Войти через MAX». `dev.events.versacegus.cc` (`dev-events`): no login screen, `VITE_BROWSER_AUTH=1`.
 
 ## First-time server setup
 
@@ -27,7 +27,7 @@ MAX AI reads `MODEL_API_KEY`, `MODEL_API_URL`, and `MODEL_API_MODELS` from that 
 
 ## GitHub Actions
 
-`.github/workflows/deploy.yml` runs on push to `dev` or `dev-kku`, and on `workflow_dispatch`.
+`.github/workflows/deploy.yml` runs on push to `main` or `dev-events`, and on `workflow_dispatch`.
 
 Secrets (Settings → Secrets and variables → Actions) — names must match exactly:
 
@@ -134,5 +134,5 @@ Attribution «© OpenStreetMap · © OpenMapTiles» is printed by the app under 
 - `https://dev.events.versacegus.cc/tiles/fonts/Noto%20Sans%20Regular/0-255.pbf` — 200, `application/x-protobuf`; a `Range: bytes=0-16383` request to `/tiles/moscow.pmtiles` — 206
 - `.../api/health/live` — `{"status":"ok"}`
 - MAX login needs `MAX_BOT_TOKEN` in that stack's `.env` (same value used by `bun tools/dev-initdata.mjs`)
-- `dev.events.versacegus.cc` (`dev-kku`): no MAX client. Server `.env` must have `AUTH_ALLOW_BROWSER=true` and `MAX_BOT_TOKEN`. CI builds the miniapp with `VITE_BROWSER_AUTH=1`. Opening the site mints HMAC initData for the owner account. Own MAX user: `bun tools/dev-initdata.mjs --url https://dev.events.versacegus.cc --user '{...}'`. Catalog from seed, not `VITE_USE_MOCK`. Empty catalog: `docker compose … exec -T backend bun src/database/seed-cli.ts`.
-- `events.versacegus.cc` (`dev`): no `VITE_BROWSER_AUTH`; browser shows «Войти через MAX». Real MAX clients use Bridge initData and skip the gate. Leave `AUTH_ALLOW_BROWSER` unset on this stack.
+- `dev.events.versacegus.cc` (`dev-events`): no MAX client. Server `.env` must have `AUTH_ALLOW_BROWSER=true` and `MAX_BOT_TOKEN`. CI builds the miniapp with `VITE_BROWSER_AUTH=1`. Opening the site mints HMAC initData for the owner account. Own MAX user: `bun tools/dev-initdata.mjs --url https://dev.events.versacegus.cc --user '{...}'`. Catalog from seed, not `VITE_USE_MOCK`. Empty catalog: `docker compose … exec -T backend bun src/database/seed-cli.ts`.
+- `events.versacegus.cc` (`main`): no `VITE_BROWSER_AUTH`; browser shows «Войти через MAX». Real MAX clients use Bridge initData and skip the gate. Leave `AUTH_ALLOW_BROWSER` unset on this stack.

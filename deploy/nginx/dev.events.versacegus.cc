@@ -1,4 +1,4 @@
-# MAX Events staging (dev-kku): miniapp static + reverse proxy to Nest :3101
+# MAX Events staging (dev-events): miniapp static + reverse proxy to Nest :3101
 # DNS: A dev.events.versacegus.cc -> 2.27.41.96
 # Cert: certbot --nginx -d dev.events.versacegus.cc
 
