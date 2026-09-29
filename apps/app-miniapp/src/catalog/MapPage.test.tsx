@@ -1,8 +1,11 @@
+// @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { createElement } from "react";
+import { act, createElement, type ReactElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { mockEvents } from "../api/mock";
-import { MapPageView } from "./MapPage";
+import { walkStopMarkers } from "./mapMarkers";
+import { MapPage, MapPageView } from "./MapPage";
 
 const noop = () => {};
 
@@ -34,6 +37,74 @@ describe("MapPageView", () => {
     expect(html).toContain("Поиск");
     expect(html).not.toContain("Спросить");
     expect(html).not.toContain(">Поиск<");
+  });
+});
+
+const STOP = {
+  order: 1,
+  title: "Кремль",
+  address: "Кремль, Тула",
+  latitude: 54.2,
+  longitude: 37.6,
+  placeId: "11111111-1111-4111-8111-111111111111",
+};
+
+async function mount(node: ReactElement): Promise<{ host: HTMLDivElement; root: Root }> {
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  await act(async () => {
+    root.render(node);
+  });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return { host, root };
+
+}
+
+describe("walk stops on the existing map", () => {
+  it("turns two stops into two numbered markers and drops a point without coordinates", () => {
+    const markers = walkStopMarkers([
+      STOP,
+      { ...STOP, order: 2, title: "Набережная", latitude: 54.21, longitude: 37.61, placeId: null },
+      { ...STOP, order: 3, title: "Пусто", latitude: Number.NaN, longitude: 37.6 },
+    ]);
+
+    expect(markers.map((marker) => marker.badge)).toEqual([1, 2]);
+    expect(markers.map((marker) => marker.title)).toEqual(["Кремль", "Набережная"]);
+    expect(markers.some((marker) => marker.lat === 0 || marker.lng === 0)).toBe(false);
+  });
+
+  it("keeps the map open when the walk fails and does not invent a point", () => {
+    const html = renderToStaticMarkup(createElement(MapPageView, { state: { status: "ready", events: [] }, onOpenEvent: noop, onOpenPlace: noop, walkFailed: true }));
+
+    expect(html).toContain('aria-label="Карта событий и мест"');
+    expect(html).toContain("Объекты не загрузились");
+    expect(html).not.toContain("app-state--error");
+    expect(html).not.toContain("54.2");
+  });
+
+  it("asks for the saved walk by id", async () => {
+    const calls: string[] = [];
+    const { host, root } = await mount(
+      createElement(MapPage, {
+        walkId: "w1",
+        loadEvents: () => Promise.resolve([]),
+        loadWalk: (id: string) => {
+          calls.push(id);
+          return Promise.reject(new Error("missing"));
+        },
+      }),
+    );
+
+    expect(calls).toEqual(["w1"]);
+    expect(host.querySelector('[aria-label="Карта событий и мест"]')).not.toBeNull();
+    expect(host.textContent).toContain("Объекты не загрузились");
+    await act(async () => {
+      root.unmount();
+    });
+    host.remove();
   });
 });
 

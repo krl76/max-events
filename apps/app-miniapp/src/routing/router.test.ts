@@ -231,4 +231,9 @@ describe("routeFromHistoryState", () => {
     expect(routeFromHistoryState({ route: { name: "walk-saved", id: "w1" }, idx: 2 })).toEqual({ route: { name: "walk-saved", id: "w1" }, idx: 2 });
     expect(routeFromHistoryState({ route: { name: "walk-saved" }, idx: 1 })).toBeNull();
   });
+
+  it("keeps a walk id on the existing map route", () => {
+    expect(routeFromHistoryState({ route: { name: "map", walkId: "w1" }, idx: 1 })).toEqual({ route: { name: "map", walkId: "w1" }, idx: 1 });
+    expect(routeFromHistoryState({ route: { name: "map", walkId: "" }, idx: 0 })).toEqual({ route: { name: "map" }, idx: 0 });
+  });
 });

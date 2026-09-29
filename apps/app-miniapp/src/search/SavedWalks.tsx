@@ -56,10 +56,12 @@ export function SavedWalkView({
   walk,
   onBack,
   onToggle,
+  onMap,
 }: {
   readonly walk: CityWalk;
   readonly onBack: () => void;
   readonly onToggle: (order: number, done: boolean) => void;
+  readonly onMap?: () => void;
 }) {
   return (
     <section className="app-walk">
@@ -81,6 +83,11 @@ export function SavedWalkView({
           </li>
         ))}
       </ol>
+      {onMap !== undefined ? (
+        <button type="button" className="app-walk-back" onClick={onMap}>
+          На карте
+        </button>
+      ) : null}
     </section>
   );
 }
@@ -127,7 +134,7 @@ export function SavedWalkPage({
   readonly load?: (id: string) => Promise<CityWalk>;
   readonly setDone?: (id: string, order: number, done: boolean) => Promise<CityWalk>;
 }) {
-  const { back } = useRoute();
+  const { back, navigate } = useRoute();
   const [walk, setWalk] = useState<CityWalk | null>(null);
   const [missing, setMissing] = useState(false);
   const live = useRef(true);
@@ -171,5 +178,5 @@ export function SavedWalkPage({
     );
   }
   if (walk === null) return <p className="app-walk-note">Открываем прогулку.</p>;
-  return <SavedWalkView walk={walk} onBack={back} onToggle={(order, done) => void onToggle(order, done)} />;
+  return <SavedWalkView walk={walk} onBack={back} onToggle={(order, done) => void onToggle(order, done)} onMap={() => navigate({ name: "map", walkId: id })} />;
 }

@@ -42,6 +42,8 @@ export interface MapMarker {
   subtitle: string;
   lat: number;
   lng: number;
+  /** Порядок остановки прогулки. Обычные пины каталога его не несут. */
+  badge?: number;
 }
 
 /**
@@ -181,6 +183,28 @@ export function buildMapMarkers(events: Event[], places: Place[], friendVisits: 
     const place = visit.place;
     if (!hasMapPoint(place.latitude, place.longitude)) continue;
     markers.push({ key: `friends-${place.id}`, eventId: null, placeId: place.id, promoted: false, friends: true, glyph: placePinGlyph(place.category), title: place.title, subtitle: friendsWereHereSubtitle(visit), lat: place.latitude, lng: place.longitude });
+  }
+  return markers;
+}
+
+/** Остановки прогулки на той же карте. Точка без координат не становится меткой и не подменяется выдуманной. */
+export function walkStopMarkers(stops: readonly { readonly order: number; readonly title: string; readonly address: string; readonly latitude: number; readonly longitude: number; readonly placeId: string | null }[]): MapMarker[] {
+  const markers: MapMarker[] = [];
+  for (const stop of stops) {
+    if (!hasMapPoint(stop.latitude, stop.longitude)) continue;
+    markers.push({
+      key: `walk-${stop.order}`,
+      eventId: null,
+      placeId: stop.placeId,
+      promoted: false,
+      friends: false,
+      glyph: "place",
+      title: stop.title,
+      subtitle: stop.address,
+      lat: stop.latitude,
+      lng: stop.longitude,
+      badge: stop.order,
+    });
   }
   return markers;
 }

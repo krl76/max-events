@@ -39,7 +39,7 @@ export type Route =
   | { name: "browse"; list: BrowseList; query?: string; city?: string; date?: string }
   | { name: "swipe" }
   | { name: "create" }
-  | { name: "map"; pin?: { lat: number; lng: number }; placeId?: string; drawRoute?: boolean }
+  | { name: "map"; pin?: { lat: number; lng: number }; placeId?: string; drawRoute?: boolean; walkId?: string }
   | { name: "event"; id: string }
   | { name: "place"; id: string }
   | { name: "friends" }
@@ -173,16 +173,17 @@ function toRoute(value: unknown): Route | null {
     case "create":
       return { name };
     case "map": {
-      const raw = value as { pin?: unknown; placeId?: unknown; drawRoute?: unknown };
+      const raw = value as { pin?: unknown; placeId?: unknown; drawRoute?: unknown; walkId?: unknown };
       const pin = raw.pin;
       const point = typeof pin === "object" && pin !== null ? (pin as { lat?: unknown; lng?: unknown }) : null;
       const lat = point?.lat;
       const lng = point?.lng;
       const placeId = typeof raw.placeId === "string" && raw.placeId !== "" ? raw.placeId : undefined;
+      const walkId = typeof raw.walkId === "string" && raw.walkId !== "" ? raw.walkId : undefined;
       const drawRoute = raw.drawRoute === true;
       const dropped = typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : undefined;
-      if (!dropped && placeId === undefined && !drawRoute) return { name };
-      return { name, ...(dropped ? { pin: dropped } : {}), ...(placeId ? { placeId } : {}), ...(drawRoute ? { drawRoute: true } : {}) };
+      if (!dropped && placeId === undefined && walkId === undefined && !drawRoute) return { name };
+      return { name, ...(dropped ? { pin: dropped } : {}), ...(placeId ? { placeId } : {}), ...(walkId ? { walkId } : {}), ...(drawRoute ? { drawRoute: true } : {}) };
     }
     case "friends":
     case "profile":

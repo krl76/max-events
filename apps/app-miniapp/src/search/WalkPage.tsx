@@ -198,7 +198,7 @@ export function WalkPage({
   }
 
   if (phase === "ready" && walk !== null) {
-    return <WalkResult city={city} walk={walk} now={now} onBack={back} onAnother={onAnother} onPlace={(id) => navigate({ name: "place", id })} onSaved={() => navigate({ name: "walks" })} />;
+    return <WalkResult city={city} walk={walk} now={now} onBack={back} onAnother={onAnother} onPlace={(id) => navigate({ name: "place", id })} onSaved={() => navigate({ name: "walks" })} onMap={() => navigate({ name: "map", walkId: walk.id })} />;
   }
 
   return (

@@ -70,7 +70,8 @@ export function WalkResult({
   onAnother,
   onPlace,
   onSaved,
-}: {
+  onMap,
+ }: {
   readonly city: string;
   readonly walk: CityWalk;
   readonly now: number;
@@ -78,6 +79,7 @@ export function WalkResult({
   readonly onAnother: () => void;
   readonly onPlace: (id: string) => void;
   readonly onSaved?: () => void;
+  readonly onMap?: () => void;
 }) {
   const count = walk.stops.length;
   const travel = walk.legs.reduce((sum, leg) => sum + leg.travelMinutes, 0);
@@ -125,6 +127,11 @@ export function WalkResult({
       {onSaved !== undefined ? (
         <button type="button" className="app-walk-back" onClick={onSaved}>
           Мои прогулки
+        </button>
+      ) : null}
+      {onMap !== undefined ? (
+        <button type="button" className="app-walk-back" onClick={onMap}>
+          На карте
         </button>
       ) : null}
     </section>
