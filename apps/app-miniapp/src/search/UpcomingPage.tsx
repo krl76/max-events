@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { apiClient, type CatalogCard } from "../api/client";
 import { useRoute } from "../routing/router";
 import { dayKey } from "../today/TodaySection";
+import { BackToTop } from "../ui/BackToTop";
 import { AppSkeleton, AppState } from "../ui/primitives";
 import { EventPoster } from "./EventPoster";
 
@@ -41,6 +42,7 @@ export function UpcomingPage({ city }: { readonly city: string }) {
   return (
     <section className="app-upcoming" aria-label="Ближайшие события">
       {failed ? <AppState error>Не удалось загрузить события.</AppState> : cards === null ? <AppSkeleton /> : cards.length === 0 ? <p className="app-upcoming-empty">Ближайших событий пока нет.</p> : cards.map((card) => <EventPoster key={card.event.id} card={card} onOpen={(id) => navigate({ name: "event", id })} />)}
+      <BackToTop />
     </section>
   );
 }

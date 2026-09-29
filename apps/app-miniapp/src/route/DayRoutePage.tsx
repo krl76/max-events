@@ -25,9 +25,12 @@ import type { DayRoute, OptimizeRoute, RouteLeg, RouteStopWrite } from "@max-eve
 import { apiClient } from "../api/client";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { useProfileCityPoint } from "../geo/profile-city";
-import { useRoute } from "../routing/router";
-import { ActionIcon } from "../ui/icons";
+import { BackToTop } from "../ui/BackToTop";
+import { ActionIcon, type ActionIconName } from "../ui/icons";
+import { pictured } from "../ui/photos";
 import { AppButton, AppState } from "../ui/primitives";
+import { ScrollRail } from "../ui/ScrollRail";
+import { dayRouteKey, readSavedDayRoutes, rememberDayRoute, type SavedDayRoute } from "./savedDayRoutes";
 
 export const MIN_ROUTE_STOPS = 2;
 export const MAX_ROUTE_STOPS = 8;
@@ -36,15 +39,44 @@ export interface RouteStopOption {
   key: string;
   title: string;
   hint: string | null;
+  placeTitle?: string | null;
+  imageUrl?: string | null;
   stop: RouteStopWrite;
 }
 
+export function routeDurationLabel(minutes: number): string {
+  if (minutes < 60) return `${minutes} мин`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (rest === 0) return `${hours} ч`;
+  return `${hours} ч ${rest} мин`;
+}
+
+export function routeBuildLabel(count: number): string {
+  const missing = MIN_ROUTE_STOPS - count;
+  if (missing >= 2) return "Выбери ещё 2 места";
+  if (missing === 1) return "Выбери ещё 1 место";
+  return "Готово";
+}
+
+function legModeLabel(mode: RouteLeg["mode"]): string {
+  if (mode === "taxi") return "на такси";
+  if (mode === "metro") return "на метро";
+  return "пешком";
+}
+
+function legIcon(mode: RouteLeg["mode"]): ActionIconName {
+  if (mode === "taxi") return "car";
+  if (mode === "metro") return "metro";
+  return "walk";
+}
+
 export function formatLeg(leg: RouteLeg): string {
-  return `${leg.travelMinutes} мин / ${leg.distanceKm.toFixed(1)} км`;
+  return `${routeDurationLabel(leg.travelMinutes)} ${legModeLabel(leg.mode)} · ${leg.distanceKm.toFixed(1)} км`;
 }
 
 export function routeTotalsLabel(route: DayRoute): string {
-  return `Итого: ${route.totalMinutes} мин · ${route.totalKm.toFixed(1)} км`;
+  return `Итого: ${routeDurationLabel(route.totalMinutes)} · ${route.totalKm.toFixed(1)} км`;
 }
 
 export function savingsLabel(result: OptimizeRoute): string {
@@ -59,16 +91,27 @@ export type OptimizeState = { status: "idle" } | { status: "loading" } | { statu
 
 export function RouteTimeline({ route }: { route: DayRoute }) {
   return (
-    <ol className="app-plan-participants">
-      {route.points.map((point, index) => (
-        <li key={index} className="app-plan-participant">
-          <span>
-            {point.title}
-            {point.at !== null ? ` · ${formatStartsAt(point.at)}` : ""}
-          </span>
-          {index < route.legs.length && <span>↓ {formatLeg(route.legs[index])}</span>}
-        </li>
-      ))}
+    <ol className="app-dayroute-line">
+      {route.points.map((point, index) => {
+        const leg = route.legs[index];
+        return (
+          <li key={`${point.title}-${index}`}>
+            <div className="app-dayroute-stop">
+              <span className="app-dayroute-stop-n">{index + 1}</span>
+              <span className="app-dayroute-stop-copy">
+                <strong>{point.title}</strong>
+                {point.at !== null ? <span>{formatStartsAt(point.at)}</span> : null}
+              </span>
+            </div>
+            {leg !== undefined ? (
+              <p className="app-dayroute-leg">
+                <ActionIcon name={legIcon(leg.mode)} size={16} />
+                <span>{formatLeg(leg)}</span>
+              </p>
+            ) : null}
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -83,14 +126,27 @@ interface DayRouteViewProps {
   built: DayRouteBuildState;
   optimize: OptimizeState;
   onOptimize: () => void;
-  onClose: () => void;
   onReset: () => void;
+  saved?: readonly SavedDayRoute[];
+  onSave?: () => void;
+  onOpenSaved?: (id: string) => void;
+  preview?: DayRoute | null;
 }
 
-export function DayRouteView({ options, selected, query, onQuery, onToggle, onBuild, built, optimize, onOptimize, onClose, onReset }: DayRouteViewProps) {
+function StopPhoto({ option }: { option: RouteStopOption }) {
+  if (option.imageUrl) return <img className="app-dayroute-photo" alt="" src={option.imageUrl} />;
+  return (
+    <span className="app-dayroute-photo app-dayroute-photo--empty" aria-hidden="true">
+      <ActionIcon name="pin" size={18} />
+    </span>
+  );
+}
+
+export function DayRouteView({ options, selected, query, onQuery, onToggle, onBuild, built, optimize, onOptimize, onReset, saved = [], onSave, onOpenSaved, preview = null }: DayRouteViewProps) {
   const selectedSet = new Set(selected);
   const limitReached = selected.length >= MAX_ROUTE_STOPS;
-  const displayRoute = built.status === "ready" ? (optimize.status === "ready" ? optimize.result.optimized : built.route) : null;
+  const liveRoute = built.status === "ready" ? (optimize.status === "ready" ? optimize.result.optimized : built.route) : null;
+  const displayRoute = preview ?? liveRoute;
   const ready = options.status === "ready" ? options.options : [];
   const picked = ready.filter((option) => selectedSet.has(option.key));
   const needle = query.trim().toLowerCase();
@@ -98,22 +154,19 @@ export function DayRouteView({ options, selected, query, onQuery, onToggle, onBu
   const events = visible.filter((option) => option.stop.eventId != null);
   const places = visible.filter((option) => option.stop.placeId != null);
   const canBuild = selected.length >= MIN_ROUTE_STOPS && built.status !== "loading";
+  const savedAlready = displayRoute !== null && saved.some((item) => dayRouteKey(item.route) === dayRouteKey(displayRoute));
   return (
     <section className="app-dayroute" aria-label="Маршрут на день">
       <header className="app-dayroute-top">
-        <button type="button" className="app-dayroute-close" aria-label="Закрыть" onClick={onClose}>
-          <ActionIcon name="close" size={16} strokeWidth={2.6} />
-          Закрыть
-        </button>
         <div className="app-dayroute-heading">
           <h1 className="app-dayroute-title">Маршрут на день</h1>
           <p className="app-dayroute-sub">
-            {selected.length} из {MAX_ROUTE_STOPS} · минимум {MIN_ROUTE_STOPS}
+            {selected.length} из {MAX_ROUTE_STOPS}
           </p>
         </div>
       </header>
 
-      {picked.length > 0 && (
+      {picked.length > 0 && preview === null && (
         <div className="app-dayroute-picked" aria-label="Выбранные точки">
           {picked.map((option, index) => (
             <button key={option.key} type="button" className="app-dayroute-chip" onClick={() => onToggle(option.key)}>
@@ -128,11 +181,11 @@ export function DayRouteView({ options, selected, query, onQuery, onToggle, onBu
       {displayRoute !== null ? (
         <div className="app-dayroute-result">
           <RouteTimeline route={displayRoute} />
-          <p className="app-dayroute-totals">{routeTotalsLabel(displayRoute)}</p>
-          {optimize.status === "ready" && <p className="app-dayroute-save">{savingsLabel(optimize.result)}</p>}
-          <AppButton onClick={onOptimize} tone="secondary" stretched disabled={optimize.status === "loading"}>
-            Оптимизировать порядок
-          </AppButton>
+          <p className="app-dayroute-totals">
+            <ActionIcon name="clock" size={16} />
+            {routeTotalsLabel(displayRoute)}
+          </p>
+          {optimize.status === "ready" && preview === null && <p className="app-dayroute-save">{savingsLabel(optimize.result)}</p>}
           {optimize.status === "loading" && <AppState>Оптимизируем…</AppState>}
           {optimize.status === "error" && <AppState error>Не удалось оптимизировать маршрут.</AppState>}
         </div>
@@ -142,6 +195,34 @@ export function DayRouteView({ options, selected, query, onQuery, onToggle, onBu
           {options.status === "error" && <AppState error>Не удалось загрузить точки маршрута.</AppState>}
           {options.status === "ready" && (
             <>
+              {saved.length > 0 && (
+                <div className="app-dayroute-group">
+                  <h2 className="app-dayroute-label">Мои маршруты</h2>
+                  <ul className="app-dayroute-list" aria-label="Мои маршруты">
+                    {saved.map((item) => {
+                      const first = item.route.points[0]?.title ?? "Маршрут";
+                      const last = item.route.points[item.route.points.length - 1]?.title ?? first;
+                      return (
+                        <li key={item.id}>
+                          <button type="button" className="app-dayroute-row" onClick={() => onOpenSaved?.(item.id)}>
+                            <span className="app-dayroute-photo app-dayroute-photo--empty" aria-hidden="true">
+                              <ActionIcon name="navigation" size={18} />
+                            </span>
+                            <span className="app-dayroute-row-body">
+                              <span className="app-dayroute-row-title">
+                                {first} → {last}
+                              </span>
+                              <span className="app-dayroute-row-hint">
+                                {routeDurationLabel(item.route.totalMinutes)} · {item.route.totalKm.toFixed(1)} км
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
               <input className="app-filters-input" type="search" value={query} placeholder="Найти событие или место" aria-label="Поиск точек" onChange={(event) => onQuery(event.target.value)} />
               {visible.length === 0 && <AppState>Ничего не нашлось по запросу.</AppState>}
               {events.length > 0 && (
@@ -151,12 +232,14 @@ export function DayRouteView({ options, selected, query, onQuery, onToggle, onBu
                     {events.map((option) => (
                       <li key={option.key}>
                         <button type="button" className={selectedSet.has(option.key) ? "app-dayroute-row app-dayroute-row--on" : "app-dayroute-row"} disabled={!selectedSet.has(option.key) && limitReached} onClick={() => onToggle(option.key)}>
-                          <span className="app-dayroute-check" aria-hidden="true">
-                            {selectedSet.has(option.key) ? "✓" : ""}
-                          </span>
+                          <StopPhoto option={option} />
                           <span className="app-dayroute-row-body">
                             <span className="app-dayroute-row-title">{option.title}</span>
                             {option.hint !== null && <span className="app-dayroute-row-hint">{option.hint}</span>}
+                            {option.placeTitle ? <span className="app-dayroute-row-hint">{option.placeTitle}</span> : null}
+                          </span>
+                          <span className={selectedSet.has(option.key) ? "app-dayroute-check app-dayroute-check--on" : "app-dayroute-check"} aria-hidden="true">
+                            {selectedSet.has(option.key) ? "✓" : ""}
                           </span>
                         </button>
                       </li>
@@ -171,11 +254,13 @@ export function DayRouteView({ options, selected, query, onQuery, onToggle, onBu
                     {places.map((option) => (
                       <li key={option.key}>
                         <button type="button" className={selectedSet.has(option.key) ? "app-dayroute-row app-dayroute-row--on" : "app-dayroute-row"} disabled={!selectedSet.has(option.key) && limitReached} onClick={() => onToggle(option.key)}>
-                          <span className="app-dayroute-check" aria-hidden="true">
-                            {selectedSet.has(option.key) ? "✓" : ""}
-                          </span>
+                          <StopPhoto option={option} />
                           <span className="app-dayroute-row-body">
                             <span className="app-dayroute-row-title">{option.title}</span>
+                            {option.hint !== null && <span className="app-dayroute-row-hint">{option.hint}</span>}
+                          </span>
+                          <span className={selectedSet.has(option.key) ? "app-dayroute-check app-dayroute-check--on" : "app-dayroute-check"} aria-hidden="true">
+                            {selectedSet.has(option.key) ? "✓" : ""}
                           </span>
                         </button>
                       </li>
@@ -192,37 +277,64 @@ export function DayRouteView({ options, selected, query, onQuery, onToggle, onBu
 
       <div className="app-dayroute-cta">
         {displayRoute !== null ? (
-          <AppButton tone="secondary" stretched onClick={onReset}>
-            Изменить точки
-          </AppButton>
+          <>
+            {onSave !== undefined && preview === null ? (
+              <AppButton className="app-key-cta" stretched disabled={savedAlready} onClick={onSave}>
+                {savedAlready ? "Сохранено в мои маршруты" : "Сохранить в мои маршруты"}
+              </AppButton>
+            ) : null}
+            {preview === null ? (
+              <AppButton className="app-key-cta" tone="secondary" stretched disabled={optimize.status === "loading"} onClick={onOptimize}>
+                Оптимизировать порядок
+              </AppButton>
+            ) : null}
+            <AppButton className="app-key-cta" tone="secondary" stretched onClick={onReset}>
+              {preview === null ? "Изменить точки" : "К выбору точек"}
+            </AppButton>
+          </>
         ) : (
-          <AppButton onClick={onBuild} disabled={!canBuild} stretched>
-            Готово
+          <AppButton className="app-key-cta" onClick={onBuild} disabled={!canBuild} stretched>
+            {routeBuildLabel(selected.length)}
           </AppButton>
         )}
-        {selected.length < MIN_ROUTE_STOPS && displayRoute === null && <p className="app-dayroute-hint">Выберите минимум {MIN_ROUTE_STOPS} точки — и нажмите «Готово».</p>}
       </div>
+      <BackToTop place={displayRoute === null ? "dock" : "result"} />
+      <ScrollRail />
     </section>
   );
 }
 
 export function DayRoutePage() {
   const point = useProfileCityPoint();
-  const { back } = useRoute();
   const [options, setOptions] = useState<RouteOptionsState>({ status: "loading" });
   const [selected, setSelected] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [built, setBuilt] = useState<DayRouteBuildState>({ status: "idle" });
   const [optimize, setOptimize] = useState<OptimizeState>({ status: "idle" });
+  const [saved, setSaved] = useState<SavedDayRoute[]>([]);
+  const [preview, setPreview] = useState<DayRoute | null>(null);
+
+  useEffect(() => {
+    setSaved(readSavedDayRoutes());
+  }, []);
 
   useEffect(() => {
     let alive = true;
     Promise.all([apiClient.listEvents(), apiClient.listPlaces()]).then(
       ([events, places]) => {
         if (!alive) return;
+        const placeById = new Map(places.map((place) => [place.id, place]));
         setOptions({
           status: "ready",
-          options: [...events.filter((event) => event.placeId !== null).map((event) => ({ key: `event:${event.id}`, title: event.title, hint: formatStartsAt(event.startsAt), stop: { eventId: event.id } })), ...places.map((place) => ({ key: `place:${place.id}`, title: place.title, hint: null, stop: { placeId: place.id } }))],
+          options: [
+            ...events
+              .filter((event) => event.placeId !== null)
+              .map((event) => {
+                const place = event.placeId === null ? undefined : placeById.get(event.placeId);
+                return { key: `event:${event.id}`, title: event.title, hint: formatStartsAt(event.startsAt), placeTitle: place?.title ?? null, imageUrl: pictured(event.id, event.coverUrl), stop: { eventId: event.id } };
+              }),
+            ...places.map((place) => ({ key: `place:${place.id}`, title: place.title, hint: place.address, imageUrl: null, stop: { placeId: place.id } })),
+          ],
         });
       },
       () => {
@@ -235,6 +347,7 @@ export function DayRoutePage() {
   }, []);
 
   const toggle = (key: string) => {
+    setPreview(null);
     setSelected((current) => (current.includes(key) ? current.filter((item) => item !== key) : current.length >= MAX_ROUTE_STOPS ? current : [...current, key]));
     setBuilt({ status: "idle" });
     setOptimize({ status: "idle" });
@@ -251,6 +364,7 @@ export function DayRoutePage() {
 
   const build = () => {
     if (selected.length < MIN_ROUTE_STOPS) return;
+    setPreview(null);
     setBuilt({ status: "loading" });
     setOptimize({ status: "idle" });
     apiClient.createDayRoute(selectedStops(), point.latitude, point.longitude).then(
@@ -278,10 +392,24 @@ export function DayRoutePage() {
       built={built}
       optimize={optimize}
       onOptimize={runOptimize}
-      onClose={back}
       onReset={() => {
+        setPreview(null);
         setBuilt({ status: "idle" });
         setOptimize({ status: "idle" });
+      }}
+      saved={saved}
+      preview={preview}
+      onSave={() => {
+        if (built.status !== "ready") return;
+        const route = optimize.status === "ready" ? optimize.result.optimized : built.route;
+        setSaved(rememberDayRoute(route));
+      }}
+      onOpenSaved={(id) => {
+        const item = saved.find((row) => row.id === id);
+        if (item === undefined) return;
+        setBuilt({ status: "idle" });
+        setOptimize({ status: "idle" });
+        setPreview(item.route);
       }}
     />
   );

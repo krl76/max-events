@@ -116,8 +116,8 @@ export function useHeaderTitle(title: string | null): void {
   }, [setTitle, title]);
 }
 
-/** Прогулка полноэкранная, но «Назад» у неё — кнопка клиента MAX, не вторая кнопка внутри экрана. */
-const NATIVE_BACK_FULLSCREEN: ReadonlySet<Route["name"]> = new Set(["walk", "walks", "walk-saved"]);
+/** Полноэкранные экраны, у которых «Назад» — кнопка клиента MAX и ведёт на предыдущий экран. */
+const NATIVE_BACK_FULLSCREEN: ReadonlySet<Route["name"]> = new Set(["walk", "walks", "walk-saved", "day-route", "assist"]);
 
 export function routeHasBack(route: Route): boolean {
   if (NATIVE_BACK_FULLSCREEN.has(route.name)) return true;

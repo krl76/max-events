@@ -112,6 +112,8 @@ describe("routeHasBack", () => {
     expect(routeHasBack({ name: "walks" })).toBe(true);
     expect(routeHasBack({ name: "walk-saved", id: "w1" })).toBe(true);
     expect(routeHasBack({ name: "upcoming", city: "Москва" })).toBe(true);
+    expect(routeHasBack({ name: "day-route" })).toBe(true);
+    expect(routeHasBack({ name: "assist", ask: null })).toBe(true);
   });
 
   it("hides the native back button on fullscreen screens, which draw their own close", () => {

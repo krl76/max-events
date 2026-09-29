@@ -35,6 +35,7 @@ import { countsForCards } from "./BrowsePage";
 import { toggleEventLike, useEventLiked } from "../ui/event-likes";
 import { eventFillLabel, pictured } from "../ui/photos";
 import { afishaDayChip, dayKey, formatPickDistance, formatPickPrice, SearchDayButton, type DistanceVoice, type TodayState } from "../today/TodaySection";
+import { BackToTop } from "../ui/BackToTop";
 import { ActionIcon } from "../ui/icons";
 import { AppChip, AppSkeleton, AppState } from "../ui/primitives";
 
@@ -495,32 +496,6 @@ function BillStack({ photos, count }: { photos: string[]; count: number }) {
   );
 }
 
-function SearchBackToTop() {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    const el = document.querySelector(".app-content");
-    if (!(el instanceof HTMLElement)) return;
-    const onScroll = () => setShow(el.scrollTop > 280);
-    onScroll();
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
-  if (!show) return null;
-  return (
-    <button
-      type="button"
-      className="app-search-topbtn"
-      aria-label="К категориям"
-      onClick={() => {
-        const el = document.querySelector(".app-content");
-        if (el instanceof HTMLElement) el.scrollTo({ top: 0, behavior: "smooth" });
-      }}
-    >
-      <ActionIcon name="up" size={22} />
-    </button>
-  );
-}
-
 export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] }) {
   const [fold, setFold] = useState<"today" | "hot">("hot");
   const inCity = props.distancesFromViewer !== false;
@@ -569,7 +544,7 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
         <p className="app-search-feed-kicker">{fold === "today" ? `Афиша · ${afishaDayChip(new Date(`${props.day}T12:00:00`))}` : "Популярное"}</p>
         {shown.length === 0 ? <p className="app-today-quiet">По этим фильтрам событий нет</p> : shown.map((card) => <EventPoster key={card.event.id} card={card} onOpen={props.onOpenEvent} />)}
       </div>
-      <SearchBackToTop />
+      <BackToTop label="К категориям" />
     </div>
   );
 }

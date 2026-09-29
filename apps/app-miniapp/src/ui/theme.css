@@ -4013,6 +4013,36 @@ html[data-theme="dark"] #root {
   z-index: 30;
 }
 
+.app-search-topbtn--dock {
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+
+.app-search-topbtn--result {
+  bottom: calc(220px + env(safe-area-inset-bottom, 0px));
+}
+
+.app-scroll-rail {
+  bottom: 0;
+  pointer-events: none;
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 28px;
+  z-index: 40;
+}
+
+.app-scroll-rail-thumb {
+  background: rgba(6, 7, 8, 0.38);
+  border-radius: 999px;
+  cursor: grab;
+  display: block;
+  margin-left: auto;
+  margin-right: 4px;
+  pointer-events: auto;
+  touch-action: none;
+  width: 8px;
+}
+
 @keyframes app-create-in {
   from {
     opacity: 0;
@@ -13842,20 +13872,6 @@ button.app-poll-result {
   padding-top: max(var(--app-space-s), env(safe-area-inset-top, 0px));
 }
 
-.app-dayroute-close {
-  align-items: center;
-  background: var(--app-surface);
-  border: none;
-  border-radius: 50%;
-  color: var(--app-text);
-  cursor: pointer;
-  display: flex;
-  flex: none;
-  height: 40px;
-  justify-content: center;
-  width: 40px;
-}
-
 .app-dayroute-heading {
   display: flex;
   flex: 1;
@@ -13968,6 +13984,28 @@ button.app-poll-result {
   width: 22px;
 }
 
+.app-dayroute-check--on {
+  background: var(--app-accent);
+  color: #ffffff;
+}
+
+.app-dayroute-photo {
+  background: var(--app-surface);
+  border-radius: 12px;
+  display: block;
+  flex: none;
+  height: 64px;
+  object-fit: cover;
+  width: 64px;
+}
+
+.app-dayroute-photo--empty {
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  justify-content: center;
+}
+
 .app-dayroute-row-body {
   display: flex;
   flex: 1;
@@ -13992,6 +14030,67 @@ button.app-poll-result {
   gap: var(--app-space-m);
 }
 
+.app-dayroute-line {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-dayroute-stop {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.app-dayroute-stop-n {
+  align-items: center;
+  background: var(--app-accent);
+  border-radius: 50%;
+  color: #ffffff;
+  display: flex;
+  flex: none;
+  font-size: 13px;
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.app-dayroute-stop-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-dayroute-stop-copy strong {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.app-dayroute-stop-copy span,
+.app-dayroute-leg {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.app-dayroute-leg {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin: 6px 0 14px 40px;
+}
+
+.app-dayroute-totals {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
 .app-dayroute-cta {
   background: var(--app-card);
   border-top: var(--app-hairline);
@@ -14004,6 +14103,31 @@ button.app-poll-result {
   padding: var(--app-space-m) var(--app-space-screen) calc(var(--app-space-m) + env(safe-area-inset-bottom, 0px));
   position: sticky;
   z-index: 5;
+}
+
+.app-dayroute-cta .app-key-cta.app-btn {
+  --border-radius: var(--app-radius-pill);
+  font-size: 16px;
+  font-weight: 800;
+  height: 52px;
+  margin: 0;
+}
+
+.app-dayroute-cta .app-key-cta.app-btn::part(native) {
+  border-radius: var(--app-radius-pill);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.app-dayroute-cta .app-key-cta.app-btn--primary {
+  --background: var(--app-accent);
+  --color: #ffffff;
+}
+
+.app-dayroute-cta .app-key-cta.app-btn--primary[disabled] {
+  --background: var(--app-surface);
+  --color: var(--app-text-secondary);
+  opacity: 1;
 }
 
 .app-assist-input {
@@ -23439,7 +23563,6 @@ button.app-story-viewer-author {
 .app-assist-hero-close,
 .app-after-close,
 .app-cal-close,
-.app-dayroute-close,
 .app-fpick-close {
   border-radius: var(--app-radius-pill);
   font: inherit;
