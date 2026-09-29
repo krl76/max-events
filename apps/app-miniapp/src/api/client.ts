@@ -15,7 +15,7 @@
 // - CreateCheckIn - check-in payload (user + exactly one of event/place)
 // - CreateFeedPost - impression publication payload (author, event, text, optional photo, plus the place/friends/audience/join fields of макет, экран 06 that the backend still strips, #502); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
 // - CreateGathering - gathering launch payload (event + friend ids + proposed meeting time)
-// - CreateMicroEvent - micro-event creation payload (author, what/when/where, limit)
+// - CreateMicroEvent - micro-event creation payload (author, what/when/where, optional note, public listing, limit)
 // - CreateReport - report submission payload (user + exactly one of event/place/feed post + reason); the userId field is a mock-only convenience ignored by the real backend (identity comes from the init-data token)
 // - CreateReview - review submission payload (user + event + scores)
 // - EVENT_SORTS - the catalog orderings экран 08 may ask for (#497)

@@ -7,7 +7,7 @@ import { joinMockMicroEvent, microEvents, mockDemoUser, mockPlaces, resetMockMic
 const events = microEvents();
 const noop = () => {};
 
-const readyDraft: MicroDraft = { title: "Играем в баскетбол", when: "2026-09-19T19:00", where: "Стритбол-площадка", limit: "6" };
+const readyDraft: MicroDraft = { title: "Играем в баскетбол", when: "2026-09-19T19:00", where: "Стритбол-площадка", limit: "6", description: "", listed: false };
 
 describe("microWhere", () => {
   it("prefers locationText and falls back to the picked place title", () => {
@@ -58,25 +58,27 @@ describe("microDraftReady", () => {
 });
 
 describe("MicroEventCreateView", () => {
-  const view = (over: { draft?: MicroDraft; submitting?: boolean; failed?: boolean } = {}) => renderToStaticMarkup(createElement(MicroEventCreateView, { draft: over.draft ?? { title: "", when: "", where: "", limit: "6" }, places: mockPlaces, submitting: over.submitting ?? false, failed: over.failed ?? false, onChange: noop, onSubmit: noop }));
+  const view = (over: { draft?: MicroDraft; submitting?: boolean; failed?: boolean } = {}) => renderToStaticMarkup(createElement(MicroEventCreateView, { draft: over.draft ?? { title: "", when: "", where: "", limit: "6", description: "", listed: false }, places: mockPlaces, submitting: over.submitting ?? false, failed: over.failed ?? false, onChange: noop, onSubmit: noop }));
 
-  it("renders exactly four inputs and offers mock places in the datalist", () => {
+  it("renders the meeting fields, the optional limit and the public switch", () => {
     const html = view();
 
-    expect(html).toContain("Что делаем");
-    expect(html).toContain("Когда");
-    expect(html).toContain("Где");
-    expect(html).toContain("Лимит участников");
-    expect(html).toContain("Адрес или карта");
-    expect(html).toContain("Пригласить друзей");
+    expect(html).toContain("Название события");
+    expect(html).toContain("Дата и время");
+    expect(html).toContain("Место проведения");
+    expect(html).toContain("Описание");
+    expect(html).toContain("Ограничить участников");
+    expect(html).toContain("Адрес");
+    expect(html).toContain("Карта");
+    expect(html).toContain("Сделать публичным в MAX");
     expect(html).not.toContain('type="datetime-local"');
   });
 
   it("keeps publish disabled until the draft is ready and shows submitting and failure states", () => {
-    expect(view()).toContain("Создать микрособытие");
+    expect(view()).toContain("Создать событие");
     expect(view()).toContain("disabled");
-    expect(view({ draft: readyDraft })).toContain("Создать микрособытие");
-    expect(view({ draft: readyDraft, submitting: true })).toContain("Публикуем…");
+    expect(view({ draft: readyDraft })).toContain("Создать событие");
+    expect(view({ draft: readyDraft, submitting: true })).toContain("Создаём…");
     expect(view({ draft: readyDraft, failed: true })).toContain("Не удалось опубликовать микро-событие.");
   });
 });

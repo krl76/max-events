@@ -11,8 +11,8 @@ export interface PlaceChoice {
   longitude?: number;
 }
 
-/** Address first: a known place, words you type, or a map pin turned into a street. */
-export function PlaceSheet({ title, places, onConfirm, onClose }: { title: string; places: readonly Place[]; onConfirm: (choice: PlaceChoice) => void; onClose: () => void }) {
+/** Address first: a known place, words you type, or a map pin turned into a street. `map` opens the pin picker on its own. */
+export function PlaceSheet({ title, places, mode = "address", onConfirm, onClose }: { title: string; places: readonly Place[]; mode?: "address" | "map"; onConfirm: (choice: PlaceChoice) => void; onClose: () => void }) {
   const swipe = useSheetSwipe(onClose);
   const [query, setQuery] = useState("");
   const [mapOpen, setMapOpen] = useState(false);
@@ -22,6 +22,10 @@ export function PlaceSheet({ title, places, onConfirm, onClose }: { title: strin
     return ranked.slice(0, 6);
   }, [needle, places]);
   const exact = matches.some((place) => place.title.toLocaleLowerCase("ru") === needle || place.address.toLocaleLowerCase("ru") === needle);
+
+  if (mode === "map") {
+    return <PinPicker title={title} places={places} onConfirm={(choice) => onConfirm({ label: choice.address, placeId: null, latitude: choice.latitude, longitude: choice.longitude })} onClose={onClose} />;
+  }
 
   return (
     <div className="app-picker app-place-layer" role="dialog" aria-modal="true" aria-label={title}>

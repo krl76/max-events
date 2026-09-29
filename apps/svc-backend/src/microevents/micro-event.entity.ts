@@ -34,6 +34,13 @@ export class MicroEventEntity {
   @Column({ type: "uuid", nullable: true })
   placeId!: string | null;
 
+  @Column({ type: "varchar", length: 2000, default: "" })
+  description!: string;
+
+  /** Public list. A moderator takedown still uses `published`, which is a different switch. */
+  @Column({ type: "boolean", default: true })
+  listed!: boolean;
+
   @Column({ type: "int", nullable: true })
   participantsLimit!: number | null;
 

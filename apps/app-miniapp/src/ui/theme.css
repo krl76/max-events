@@ -12772,6 +12772,14 @@ button.app-poll-result {
   margin: var(--app-space-l) 0 0;
 }
 
+.app-micro-note {
+  color: var(--app-text-secondary);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 8px 0 0;
+}
+
 .app-micro-meta {
   display: flex;
   flex-direction: column;
@@ -23262,7 +23270,8 @@ button.app-story-viewer-author {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 8px 16px 24px;
+  min-height: 100%;
+  padding: 8px 0 16px;
 }
 
 .app-plan-kicker {
@@ -23406,27 +23415,6 @@ button.app-story-viewer-author {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.app-plan-repeat-option {
-  background: var(--app-card);
-  border: 1px solid var(--app-divider);
-  border-radius: 16px;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  font-size: 16px;
-  font-weight: 800;
-  min-height: 52px;
-  padding: 0 16px;
-  text-align: left;
-  width: 100%;
-}
-
-.app-plan-repeat-option--on {
-  background: #007aff;
-  border-color: transparent;
-  color: #ffffff;
 }
 
 .app-plan-repeat-line,
@@ -25900,7 +25888,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
   --color: #ffffff;
 }
 
-:is(.app-feed-whereto-start, .app-feed-going:not(.app-feed-going--on), .app-feed-chip--slot, .app-feed-slot, .app-micro-new, .app-story-publish, .app-story-plus, .app-post-compose-publish, .app-map16-route, .app-map16-routebar button, .app-swipe-action--like, .app-plan-repeat-option--on, .app-when-day--on, .app-when-tick--on, .app-gathering-response .app-btn[aria-pressed], .app-gathering-friend[aria-pressed="true"], .app-story-poll-option--on, .app-me-action--primary, .app-ach-next-cta, .app-after-save, .app-lists-create, .app-we-create, .app-we-form-submit, .app-poll-launch, .app-froute-repeat, .app-dayroute-chip, .app-cal-peer-chip--on, .app-cal-cta-main, .app-place-plan, .app-slots-day--on, .app-slots-book, .app-book-action--primary, .app-org-topbar-action, .app-ev-bar-cta, .app-evb-cta:not(.app-evb-cta--booked), .app-evc-gather, .app-evc-pick--on, .app-evc-invite, .app-wt-bar-cta, .app-nb-plan, .app-follower-act) {
+:is(.app-feed-whereto-start, .app-feed-going:not(.app-feed-going--on), .app-feed-chip--slot, .app-feed-slot, .app-micro-new, .app-story-publish, .app-story-plus, .app-post-compose-publish, .app-map16-route, .app-map16-routebar button, .app-swipe-action--like, .app-when-day--on, .app-when-tick--on, .app-gathering-response .app-btn[aria-pressed], .app-gathering-friend[aria-pressed="true"], .app-story-poll-option--on, .app-me-action--primary, .app-ach-next-cta, .app-after-save, .app-lists-create, .app-we-create, .app-we-form-submit, .app-poll-launch, .app-froute-repeat, .app-dayroute-chip, .app-cal-peer-chip--on, .app-cal-cta-main, .app-place-plan, .app-slots-day--on, .app-slots-book, .app-book-action--primary, .app-org-topbar-action, .app-ev-bar-cta, .app-evb-cta:not(.app-evb-cta--booked), .app-evc-gather, .app-evc-pick--on, .app-evc-invite, .app-wt-bar-cta, .app-nb-plan, .app-follower-act) {
   background: var(--app-accent);
   color: #ffffff;
 }
@@ -27186,114 +27174,276 @@ html:not([data-theme="dark"]) .app-when-sheet {
   margin-top: 8px;
 }
 
-.app-choose {
+.app-field {
+  align-items: center;
   background: var(--app-card);
   border: 1px solid var(--app-divider);
-  border-radius: 18px;
+  border-radius: 22px;
   color: inherit;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
   font: inherit;
-  gap: 4px;
+  gap: 12px;
   min-height: 76px;
   padding: 14px 16px;
   text-align: left;
   width: 100%;
 }
 
-.app-choose--static {
+div.app-field {
   cursor: default;
 }
 
-.app-choose--cover {
-  background-color: var(--brand-void);
-  background-position: center;
-  background-size: cover;
-  border: none;
-  color: #ffffff;
-  justify-content: flex-end;
-  min-height: 188px;
-  overflow: hidden;
-  padding: 0;
+label.app-field {
+  cursor: text;
 }
 
-.app-choose-veil {
-  background: linear-gradient(180deg, transparent 0%, rgba(6, 7, 8, 0.78) 72%);
+.app-field--tall {
+  align-items: stretch;
+  min-height: 132px;
+}
+
+.app-field-copy {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 4px;
-  padding: 64px 16px 16px;
-  width: 100%;
+  min-width: 0;
 }
 
-.app-choose-k {
+.app-field-k {
+  align-items: center;
   color: var(--app-text-secondary);
+  display: flex;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
+  gap: 6px;
 }
 
-.app-choose--cover .app-choose-k,
-.app-choose--cover .app-choose-v {
-  color: #ffffff;
-}
-
-.app-choose-v {
-  font-size: 18px;
+.app-field-v,
+.app-field-input,
+.app-field-text {
+  color: inherit;
+  font-size: 17px;
   font-weight: 800;
   line-height: 1.25;
 }
 
-.app-choose-v--empty {
+.app-field-v--empty {
   color: var(--app-text-secondary);
 }
 
-.app-choose-group {
+.app-field-input,
+.app-field-text {
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  outline: none;
+  padding: 0;
+  resize: none;
+  width: 100%;
+}
+
+.app-field-text {
+  min-height: 72px;
+}
+
+.app-field-input::placeholder,
+.app-field-text::placeholder {
+  color: var(--app-text-secondary);
+  font-weight: 700;
+}
+
+.app-field .app-when,
+.app-field .app-when-open {
+  background: none;
+  border: none;
+  border-radius: 0;
+  font-size: 17px;
+  font-weight: 800;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.app-field .app-when-open--empty {
+  color: var(--app-text-secondary);
+}
+
+.app-field-side {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+
+.app-field-action {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 16px;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 2px;
+  height: 56px;
+  justify-content: center;
+  width: 56px;
+}
+
+.app-switch-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 52px;
+}
+
+.app-switch-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-switch-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.app-switch-sub {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-switch {
+  background: rgba(var(--app-scheme-neutral), 0.18);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  cursor: pointer;
+  flex: none;
+  height: 31px;
+  padding: 2px;
+  width: 51px;
+}
+
+.app-switch--on {
+  background: var(--app-accent);
+}
+
+.app-switch-knob {
+  background: #ffffff;
+  border-radius: 50%;
+  display: block;
+  height: 27px;
+  transition: transform var(--app-duration-fast) var(--app-ease-out);
+  width: 27px;
+}
+
+.app-switch--on .app-switch-knob {
+  transform: translateX(20px);
+}
+
+.app-limit {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.app-stepper {
+  align-items: center;
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-pill);
+  display: flex;
+  height: 44px;
+}
+
+.app-stepper-btn {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.app-stepper-n {
+  font-size: 17px;
+  font-weight: 800;
+  min-width: 28px;
+  text-align: center;
+}
+
+.app-limit-chip {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  height: 44px;
+  min-width: 44px;
+  padding: 0 16px;
+}
+
+.app-freq-block {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.app-choose-input {
-  background: none;
+.app-freq-label {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.app-freq {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-pill);
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+.app-freq-opt {
+  background: transparent;
   border: none;
+  border-radius: var(--app-radius-pill);
   color: inherit;
+  cursor: pointer;
+  flex: 1;
   font: inherit;
-  font-size: 22px;
+  font-size: 13px;
   font-weight: 800;
-  outline: none;
-  padding: 0;
-  width: 100%;
+  min-height: 44px;
+  padding: 8px 4px;
+  white-space: nowrap;
 }
 
-.app-choose-input::placeholder {
-  color: var(--app-text-tertiary);
-  font-weight: 800;
-}
-
-.app-choose-input--limit {
-  background: var(--app-card);
-  border: 1px solid var(--app-divider);
-  border-radius: 16px;
-  font-size: 18px;
-  min-height: 52px;
-  padding: 0 16px;
-}
-
-.app-choose .app-when-open {
-  background: none;
-  border: none;
-  font-size: 18px;
-  font-weight: 800;
-  padding: 0;
-  text-align: left;
+.app-limit-chip--on,
+.app-freq-opt--on {
+  background: var(--app-accent);
+  color: #ffffff;
 }
 
 .app-choose-go {
   align-items: center;
   background: var(--app-accent);
   border: none;
-  border-radius: 16px;
+  border-radius: var(--app-radius-pill);
   color: #ffffff;
   cursor: pointer;
   display: flex;
@@ -27302,7 +27452,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
   font-weight: 800;
   height: 52px;
   justify-content: center;
-  margin-top: 4px;
+  margin-top: auto;
   width: 100%;
 }
 
@@ -27386,31 +27536,6 @@ html:not([data-theme="dark"]) .app-when-sheet {
   font-weight: 800;
   padding: 0;
   text-align: right;
-}
-
-.app-make .app-plan-repeat {
-  flex-direction: row;
-  gap: 4px;
-}
-
-.app-make .app-plan-repeat-option {
-  flex: 1;
-  font-size: 13px;
-  min-height: 44px;
-  padding: 8px 6px;
-  text-align: center;
-}
-
-.app-make-link {
-  background: none;
-  border: none;
-  color: var(--app-text-secondary);
-  cursor: pointer;
-  font: inherit;
-  font-weight: 800;
-  min-height: 44px;
-  padding: 0;
-  text-align: left;
 }
 
 /* Лента выходит из полей экрана целиком: overflow на .app-feed обрезал отрицательный отступ поста, и по бокам оставалась белая полоса. */

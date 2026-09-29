@@ -580,10 +580,10 @@ export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
   const microEvents: MicroEventEntity[] = [];
   const microEventParticipants: MicroEventParticipantEntity[] = [];
   const ownedMicroId = uuid();
-  microEvents.push({ id: ownedMicroId, authorId: viewerId, title: "Забег по аллее Сокольников", startsAt: shiftDays(now, int(2, 9), 9), locationText: null, placeId: places.find((item) => item.title === "Сокольники")?.id ?? null, participantsLimit: int(4, 10), status: "open" as MicroEventStatus, published: true, createdAt: shiftDays(now, -3, 12) });
+  microEvents.push({ id: ownedMicroId, authorId: viewerId, title: "Забег по аллее Сокольников", startsAt: shiftDays(now, int(2, 9), 9), locationText: null, placeId: places.find((item) => item.title === "Сокольники")?.id ?? null, description: "", listed: true, participantsLimit: int(4, 10), status: "open" as MicroEventStatus, published: true, createdAt: shiftDays(now, -3, 12) });
   microEventParticipants.push({ id: uuid(), microEventId: ownedMicroId, userId: friend(0).id }, { id: uuid(), microEventId: ownedMicroId, userId: friend(1).id });
   const joinedMicroId = uuid();
-  microEvents.push({ id: joinedMicroId, authorId: friend(2).id, title: "Час в залах Третьяковки", startsAt: shiftDays(now, int(3, 12), 15), locationText: null, placeId: places.find((item) => item.title === "Третьяковская галерея")?.id ?? null, participantsLimit: int(4, 10), status: "open" as MicroEventStatus, published: true, createdAt: shiftDays(now, -5, 12) });
+  microEvents.push({ id: joinedMicroId, authorId: friend(2).id, title: "Час в залах Третьяковки", startsAt: shiftDays(now, int(3, 12), 15), locationText: null, placeId: places.find((item) => item.title === "Третьяковская галерея")?.id ?? null, description: "", listed: true, participantsLimit: int(4, 10), status: "open" as MicroEventStatus, published: true, createdAt: shiftDays(now, -5, 12) });
   microEventParticipants.push({ id: uuid(), microEventId: joinedMicroId, userId: viewerId }, { id: uuid(), microEventId: joinedMicroId, userId: friend(3).id });
 
   // Подписки (41): организаторы, места и интересы — все три вида, которые различает домен.
@@ -1112,6 +1112,8 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       startsAt: shiftDays(now, int(1, 14), int(10, 20)),
       locationText: null,
       placeId: places.find((item) => item.title === spot.place)?.id ?? null,
+      description: "",
+      listed: true,
       // Каждая пятая запись набрана под завязку: экран должен показывать и «мест нет».
       participantsLimit: i % 5 === 2 ? Math.max(3, participantIds.size) : Math.max(3, participantIds.size + int(1, 8)),
       status: "open" as MicroEventStatus,

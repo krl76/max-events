@@ -83,7 +83,7 @@ export class MicroEventsService implements OnModuleInit {
       for (const item of SHOWCASE_MICRO_EVENTS) {
         const startsAt = new Date(now.getTime() + item.days * 24 * 60 * 60 * 1000);
         startsAt.setHours(item.hour, 0, 0, 0);
-        await this.events.save(this.events.create({ authorId: author.id, title: item.title, startsAt, locationText: item.where, placeId: null, participantsLimit: item.limit, status: "open", published: true }));
+        await this.events.save(this.events.create({ authorId: author.id, title: item.title, startsAt, locationText: item.where, placeId: null, description: "", listed: true, participantsLimit: item.limit, status: "open", published: true }));
       }
     } catch {
       // A database that is still migrating must boot. The home block stays empty until the next start.
@@ -103,7 +103,7 @@ export class MicroEventsService implements OnModuleInit {
   }
 
   async list(): Promise<MicroEvent[]> {
-    const rows = (await this.events.find({ where: { published: true, status: "open" } })).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+    const rows = (await this.events.find({ where: { published: true, listed: true, status: "open" } })).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
     if (rows.length === 0) return [];
     // One batch for the whole page instead of a participant query per row.
     const participants = await this.participants.find({ where: { microEventId: In(rows.map((row) => row.id)) } });
@@ -126,6 +126,8 @@ export class MicroEventsService implements OnModuleInit {
         startsAt: new Date(payload.startsAt),
         locationText: payload.locationText ?? null,
         placeId: payload.placeId ?? null,
+        description: payload.description?.trim() ?? "",
+        listed: payload.listed ?? true,
         participantsLimit: payload.participantsLimit ?? null,
         status: "open",
         published: true,
@@ -242,6 +244,8 @@ export function toMicroEventDto(row: MicroEventEntity, participantIds: string[],
     startsAt: row.startsAt.toISOString(),
     locationText: row.locationText,
     placeId: row.placeId,
+    description: row.description ?? "",
+    listed: row.listed ?? true,
     participantsLimit: row.participantsLimit,
     participantsCount: ids.length,
     participantIds: ids,

@@ -7,7 +7,7 @@
 //
 // START_MODULE_MAP
 // - CreateGathering - gathering launch payload (event + friend ids + proposed meeting time)
-// - CreateMicroEvent - micro-event creation payload (author, what/when/where, limit)
+// - CreateMicroEvent - micro-event creation payload (author, what/when/where, optional note, public listing, limit)
 // - FriendSuggestion - one person of the onboarding friends step: friend + the hint line under the name + whether the viewer follows them
 // - FriendsSync - when the MAX contacts of the viewer were last synchronised (макет, экран 26)
 // - MicroParticipant - one participant of a micro-event card: the person and whether they are the author who called it
@@ -32,13 +32,16 @@ export interface CreateGathering {
   proposedMeetingAt: string;
 }
 
-/** Micro-event creation payload: the author plus what/when/where (exactly one of locationText/placeId) and the participant limit. */
+/** Micro-event creation payload: the author plus what/when/where (exactly one of locationText/placeId), an optional note, whether it is public, and the participant limit. */
 export interface CreateMicroEvent {
   userId: string;
   title: string;
   startsAt: string;
   locationText?: string;
   placeId?: string;
+  description?: string;
+  /** False keeps the gathering off the public list. Omitted means listed. */
+  listed?: boolean;
   participantsLimit?: number | null;
   inviteeIds?: string[];
 }

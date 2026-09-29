@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - MicroEventStatusSchema - closed micro-event status enum (open/cancelled)
 // - MicroEventStatus - micro-event status type
-// - MicroEventSchema - micro-event entity (title, startsAt, text or place location, limit/count/participantIds, author)
+// - MicroEventSchema - micro-event entity (title, startsAt, text or place location, optional note, public listing, limit/count/participantIds, author)
 // - MicroEvent - micro-event type
 // - CreateMicroEventWriteSchema - create payload
 // - CreateMicroEventWrite - create payload type
@@ -30,6 +30,9 @@ export const MicroEventSchema = z
     startsAt: TimestampSchema,
     locationText: z.string().min(1).max(300).nullable().default(null),
     placeId: IdSchema.nullable().default(null),
+    description: z.string().max(2000).optional(),
+    /** False keeps the gathering off the public list. Omitted rows stay listed. */
+    listed: z.boolean().optional(),
     participantsLimit: z.number().int().min(1).nullable(),
     participantsCount: z.number().int().min(0).default(0),
     // Who is in, so a client can tell whether the current user joined instead of guessing.
@@ -58,6 +61,8 @@ export const CreateMicroEventWriteSchema = z
     startsAt: TimestampSchema,
     locationText: z.string().min(1).max(300).nullable().optional(),
     placeId: IdSchema.nullable().optional(),
+    description: z.string().max(2000).optional(),
+    listed: z.boolean().optional(),
     participantsLimit: z.number().int().min(1).nullable().optional(),
     inviteeIds: z.array(IdSchema).max(30).optional(),
   })

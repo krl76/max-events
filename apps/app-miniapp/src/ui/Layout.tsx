@@ -76,7 +76,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   list: "Список",
   achievements: "Достижения",
   "after-event": "После события",
-  "micro-new": "Новое микро-событие",
+  "micro-new": "Новое событие",
   "story-new": "Новая история",
   "feed-new": "Новое впечатление",
   organizer: "Панель организатора",

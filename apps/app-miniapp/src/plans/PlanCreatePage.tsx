@@ -24,7 +24,7 @@ import { ApiError, apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
 import { EventPicker } from "../ui/EventPicker";
 import { FriendPicker } from "../ui/FriendPicker";
-import { pictured } from "../ui/photos";
+import { ActionIcon } from "../ui/icons";
 import { PlaceSheet } from "../ui/PlaceSheet";
 import { placePinTitle } from "../ui/pin-label";
 import { AppState } from "../ui/primitives";
@@ -132,41 +132,52 @@ export function PlanCreateView({ draft, events, places, friends, submitting = fa
   const [pickingFriends, setPickingFriends] = useState(false);
   const [pickingPlace, setPickingPlace] = useState(false);
   const [pickingEvent, setPickingEvent] = useState(false);
-  const chosen = draft.eventId === undefined ? events.find((event) => event.title === draft.event.trim()) : events.find((event) => event.id === draft.eventId);
+  const eventEmpty = draft.event.trim() === "";
   const placeEmpty = draft.meetingPoint.trim() === "";
   const peopleEmpty = draft.participantIds.length === 0;
   return (
     <section className="app-plan-build" aria-label="Свой план">
       <p className="app-make-lead">Событие из афиши. Время и место встречи.</p>
-      <button type="button" className={chosen ? "app-choose app-choose--cover" : "app-choose"} style={chosen ? { backgroundImage: `url("${pictured(chosen.id, chosen.coverUrl)}")` } : undefined} onClick={() => setPickingEvent(true)}>
-        {chosen ? (
-          <span className="app-choose-veil">
-            <span className="app-choose-k">Событие</span>
-            <span className="app-choose-v">{draft.event}</span>
+      <button type="button" className="app-field" onClick={() => setPickingEvent(true)}>
+        <span className="app-field-copy">
+          <span className="app-field-k">
+            <ActionIcon name="ticket" size={16} strokeWidth={2.2} />
+            Событие
           </span>
-        ) : (
-          <>
-            <span className="app-choose-k">Событие</span>
-            <span className={draft.event.trim() === "" ? "app-choose-v app-choose-v--empty" : "app-choose-v"}>{draft.event.trim() === "" ? "Выбрать из афиши" : draft.event}</span>
-          </>
-        )}
+          <span className={eventEmpty ? "app-field-v app-field-v--empty" : "app-field-v"}>{eventEmpty ? "Выбрать из афиши" : draft.event}</span>
+        </span>
       </button>
       {eventsFailed && (
         <button type="button" className="app-field-hint" onClick={onRetryEvents}>
           Афиша не загрузилась. Нажмите, чтобы повторить.
         </button>
       )}
-      <div className="app-choose app-choose--static">
-        <span className="app-choose-k">Когда встречаемся</span>
-        <WhenField title="Когда встречаемся" label="Выбрать" value={draft.meetingAt} onChange={(meetingAt) => onDraft({ meetingAt })} />
+      <div className="app-field">
+        <span className="app-field-copy">
+          <span className="app-field-k">
+            <ActionIcon name="calendar" size={16} strokeWidth={2.2} />
+            Когда встречаемся
+          </span>
+          <WhenField title="Когда встречаемся" label="Выбрать" value={draft.meetingAt} onChange={(meetingAt) => onDraft({ meetingAt })} />
+        </span>
       </div>
-      <button type="button" className="app-choose" onClick={() => setPickingPlace(true)}>
-        <span className="app-choose-k">Где встречаемся</span>
-        <span className={placeEmpty ? "app-choose-v app-choose-v--empty" : "app-choose-v"}>{placeEmpty ? "Адрес или карта" : placePinTitle(draft.meetingPoint)}</span>
+      <button type="button" className="app-field" onClick={() => setPickingPlace(true)}>
+        <span className="app-field-copy">
+          <span className="app-field-k">
+            <ActionIcon name="pin" size={16} strokeWidth={2.2} />
+            Где встречаемся
+          </span>
+          <span className={placeEmpty ? "app-field-v app-field-v--empty" : "app-field-v"}>{placeEmpty ? "Адрес или карта" : placePinTitle(draft.meetingPoint)}</span>
+        </span>
       </button>
-      <button type="button" className="app-choose" onClick={() => setPickingFriends(true)}>
-        <span className="app-choose-k">Кто</span>
-        <span className={peopleEmpty ? "app-choose-v app-choose-v--empty" : "app-choose-v"}>{invitedLine(draft.participantIds, friends)}</span>
+      <button type="button" className="app-field" onClick={() => setPickingFriends(true)}>
+        <span className="app-field-copy">
+          <span className="app-field-k">
+            <ActionIcon name="users" size={16} strokeWidth={2.2} />
+            Кто
+          </span>
+          <span className={peopleEmpty ? "app-field-v app-field-v--empty" : "app-field-v"}>{invitedLine(draft.participantIds, friends)}</span>
+        </span>
       </button>
       {pickingFriends && (
         <FriendPicker
@@ -206,9 +217,9 @@ export function PlanCreateView({ draft, events, places, friends, submitting = fa
           onClose={() => setPickingPlace(false)}
         />
       )}
-      <div className="app-choose-group">
-        <span className="app-choose-k">Как часто</span>
-        <div className="app-plan-repeat" role="radiogroup" aria-label="Повторение">
+      <div className="app-freq-block">
+        <span className="app-freq-label">Как часто</span>
+        <div className="app-freq" role="radiogroup" aria-label="Повторение">
           {(
             [
               ["none", "Один раз"],
@@ -216,7 +227,7 @@ export function PlanCreateView({ draft, events, places, friends, submitting = fa
               ["monthly", "Раз в месяц"],
             ] as const
           ).map(([mode, label]) => (
-            <button key={mode} type="button" role="radio" aria-checked={draft.repeat === mode} className={draft.repeat === mode ? "app-plan-repeat-option app-plan-repeat-option--on" : "app-plan-repeat-option"} onClick={() => onDraft({ repeat: mode })}>
+            <button key={mode} type="button" role="radio" aria-checked={draft.repeat === mode} className={draft.repeat === mode ? "app-freq-opt app-freq-opt--on" : "app-freq-opt"} onClick={() => onDraft({ repeat: mode })}>
               {label}
             </button>
           ))}

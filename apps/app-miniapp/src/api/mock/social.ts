@@ -318,7 +318,7 @@ export function resetMockMicroEvents(): void {
 
 /** Open micro events soonest first. */
 export function microEvents(): MicroEvent[] {
-  return [...mockMicroEvents].filter((item) => item.status === "open").sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  return [...mockMicroEvents].filter((item) => item.status === "open" && item.listed !== false).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
 /** Creates a micro event from the UGC form; the author counts as the first participant; "no_place"/"invalid" map to 404/400 in the interceptor. */
@@ -334,6 +334,8 @@ export function createMockMicroEvent(payload: CreateMicroEvent): MicroEvent | "n
     startsAt: payload.startsAt,
     locationText: payload.locationText ?? null,
     placeId,
+    ...(payload.description?.trim() ? { description: payload.description.trim() } : {}),
+    listed: payload.listed ?? true,
     participantsLimit: payload.participantsLimit ?? null,
     participantsCount: 1,
     participantIds: [payload.userId],

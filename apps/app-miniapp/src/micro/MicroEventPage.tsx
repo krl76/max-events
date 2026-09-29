@@ -119,6 +119,7 @@ export function MicroEventView({ state, viewerId, busy = false, now = new Date()
       {card !== null && (
         <>
           <h2 className="app-micro-card-title">{card.event.title}</h2>
+          {card.event.description?.trim() ? <p className="app-micro-note">{card.event.description}</p> : null}
           <div className="app-micro-meta">
             <span className="app-micro-meta-row">
               <ActionIcon name="clock" size={20} strokeWidth={2.2} />
