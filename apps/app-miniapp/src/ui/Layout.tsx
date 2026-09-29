@@ -11,7 +11,7 @@
 // - TABS - tabbar definitions with per-tab active predicate; the map is its own tab, and plans, saved lists, bookings and the calendar open from the profile
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
 // - routeTitle - header title for the current route
-// - routeHasBack - back button shown on non-tab routes; fullscreen screens draw their own close, so the native one would be a second control
+// - routeHasBack - back button shown on non-tab routes and on fullscreen screens whose back is the MAX client button (walk, walks, walk-saved, day-route, assist, story-new); other fullscreen screens draw their own close
 // - routeHasHeader - header hidden wherever the screen draws its own chrome: the search/plans/profile tabs (profile renders its own gradient hero), the map and the swipe deck, which draw over the content, «После события», whose hero carries a close button instead of a back arrow, the two list screens (экраны 37 и 39), the we-groups and the votes (экраны 30-33), the micro-event feed and card (экраны 24 и 25), the friends list with its counter (экран 26) and the friend route (экран 28), the plan with its date, party size and «MAX СОБРАЛ» badge (экран 15), the assistant with its gradient hero (экран 10), and the fullscreen composers
 // - routeIsFullscreen - composers/place/calendar/assist/day-route own the viewport: no shell header, no tabbar
 // - routeIsFlush - map canvas and screens that already set their own 20px fields (story, post, place, slots, notifications)
@@ -117,7 +117,7 @@ export function useHeaderTitle(title: string | null): void {
 }
 
 /** Полноэкранные экраны, у которых «Назад» — кнопка клиента MAX и ведёт на предыдущий экран. */
-const NATIVE_BACK_FULLSCREEN: ReadonlySet<Route["name"]> = new Set(["walk", "walks", "walk-saved", "day-route", "assist"]);
+const NATIVE_BACK_FULLSCREEN: ReadonlySet<Route["name"]> = new Set(["walk", "walks", "walk-saved", "day-route", "assist", "story-new"]);
 
 export function routeHasBack(route: Route): boolean {
   if (NATIVE_BACK_FULLSCREEN.has(route.name)) return true;

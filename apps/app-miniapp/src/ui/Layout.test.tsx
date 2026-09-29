@@ -114,11 +114,11 @@ describe("routeHasBack", () => {
     expect(routeHasBack({ name: "upcoming", city: "Москва" })).toBe(true);
     expect(routeHasBack({ name: "day-route" })).toBe(true);
     expect(routeHasBack({ name: "assist", ask: null })).toBe(true);
+    expect(routeHasBack({ name: "story-new" })).toBe(true);
   });
 
   it("hides the native back button on fullscreen screens, which draw their own close", () => {
     expect(routeHasBack({ name: "place", id: "p1" })).toBe(false);
-    expect(routeHasBack({ name: "story-new" })).toBe(false);
     expect(routeHasBack({ name: "notifications" })).toBe(false);
     expect(routeHasBack({ name: "calendar" })).toBe(false);
     expect(routeHasBack({ name: "slot-ticket", id: "b1" })).toBe(false);
