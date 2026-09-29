@@ -78,7 +78,18 @@ export function App() {
 export function UserShell({ children, onExit }: { children: ReactNode; onExit: () => void }) {
   const auth = useAuth();
   if (auth.status === "loading") return <AppState>Загрузка…</AppState>;
-  if (auth.status === "unavailable" || auth.status === "error") {
+  if (auth.status === "error") {
+    return (
+      <section className="app-entry">
+        <p className="app-entry-tagline">Не удалось войти. Проверьте соединение и попробуйте снова.</p>
+        <AppButton onClick={auth.retry}>Повторить</AppButton>
+        <AppButton tone="ghost" onClick={onExit}>
+          Назад
+        </AppButton>
+      </section>
+    );
+  }
+  if (auth.status === "unavailable") {
     return (
       <section className="app-entry">
         <p className="app-entry-tagline">Откройте MAX Events в мессенджере MAX</p>

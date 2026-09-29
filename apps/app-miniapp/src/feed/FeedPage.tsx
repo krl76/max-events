@@ -41,6 +41,7 @@ import { AppAvatar, AppButton, AppEmptyState, AppIconButton, AppState, AppSkelet
 import { ActionIcon } from "../ui/icons";
 import { parsePinLabel, placePinTitle } from "../ui/pin-label";
 import { useSheetSwipe } from "../ui/sheet";
+import { ConfirmSheet } from "../ui/ConfirmSheet";
 import { pluralRu } from "../catalog/format";
 import { LikeFaces, PostText } from "./post-body";
 
@@ -617,24 +618,7 @@ export function FeedSection({ eventId, placeId, onCreate }: { eventId?: string; 
 }
 
 function DeletePostSheet({ onConfirm, onClose }: { onConfirm: () => void; onClose: () => void }) {
-  const swipe = useSheetSwipe(onClose);
-  return (
-    <div className="app-save-sheet" role="dialog" aria-modal="true" aria-label="Удалить пост">
-      <button type="button" className="app-save-sheet-backdrop" aria-label="Закрыть" onClick={onClose} />
-      <section className="app-save-sheet-card" style={swipe.style}>
-        <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
-        <h2 className="app-save-sheet-title">Удалить пост?</h2>
-        <div className="app-post-delete-actions">
-          <button type="button" className="app-post-delete-keep" onClick={onClose}>
-            Оставить
-          </button>
-          <button type="button" className="app-post-delete-confirm" onClick={onConfirm}>
-            Удалить
-          </button>
-        </div>
-      </section>
-    </div>
-  );
+  return <ConfirmSheet title="Удалить пост?" confirmLabel="Удалить" onConfirm={onConfirm} onClose={onClose} />;
 }
 
 /** Непросмотренное кольцо — фирменный градиент, просмотренное — нейтральная тонкая обводка; другого отличия у историй нет. */

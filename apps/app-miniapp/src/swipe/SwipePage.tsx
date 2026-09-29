@@ -207,6 +207,7 @@ interface SwipeViewProps {
   index: number;
   dx: number;
   category: SwipeCategory;
+  notice?: string | null;
   onCategory: (category: SwipeCategory) => void;
   onDecide: (decision: SwipeDecision) => void;
   onUndo: () => void;
@@ -279,6 +280,11 @@ export function SwipeView(props: SwipeViewProps) {
           <ActionIcon name="users" size={20} />
         </button>
       </div>
+      {props.notice !== null && props.notice !== undefined && (
+        <p className="app-cal-reminder" role="status">
+          {props.notice}
+        </p>
+      )}
     </div>
   );
 }
@@ -290,6 +296,7 @@ export function SwipePage() {
   const [category, setCategory] = useState<SwipeCategory>("all");
   const [state, setState] = useState<SwipeState>({ status: "loading" });
   const [index, setIndex] = useState(0);
+  const [undoNotice, setUndoNotice] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [leaving, setLeaving] = useState<SwipeLeaving | null>(null);
   // Последнее смещение под пальцем: хук обнуляет своё до того, как сообщит о жесте, а улёт должен
@@ -297,6 +304,12 @@ export function SwipePage() {
   const lastOffset = useRef(0);
   const top = state.status === "ready" ? state.candidates[index] : undefined;
   const point = useMemo(() => (homeCity === null ? origin : browsedCityOrigin(origin, homeCity)), [origin, homeCity]);
+
+  useEffect(() => {
+    if (!undoNotice) return;
+    const timer = window.setTimeout(() => setUndoNotice(false), 2800);
+    return () => window.clearTimeout(timer);
+  }, [undoNotice]);
 
   useEffect(() => {
     let alive = true;
@@ -364,6 +377,7 @@ export function SwipePage() {
       leaving={leaving}
       onLeft={() => setLeaving(null)}
       category={category}
+      notice={undoNotice ? "Карточка возвращена для просмотра — решение уже учтено" : null}
       onCategory={setCategory}
       onDecide={(decision) => decide(decision)}
       // Undo steps the deck back locally: the swipe is already recorded, and unsaying it needs an endpoint that does not exist (#498).
@@ -371,6 +385,7 @@ export function SwipePage() {
       onUndo={() => {
         setLeaving(null);
         setIndex((current) => Math.max(0, current - 1));
+        setUndoNotice(true);
       }}
       onGather={() => navigate({ name: "plan-new" })}
       onOpen={(id) => navigate({ name: "place", id })}

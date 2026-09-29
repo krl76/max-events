@@ -122,6 +122,7 @@ interface NotificationsViewProps {
   quietHours: NotificationsQuietHours | null;
   now?: Date;
   busy?: boolean;
+  actionError?: string | null;
   onClose: () => void;
   onRetry: () => void;
   onAct: (notification: AppNotification, action: NotificationAction) => void;
@@ -129,7 +130,7 @@ interface NotificationsViewProps {
   onToggleQuietHours: () => void;
 }
 
-export function NotificationsView({ state, quietHours, now = new Date(), busy = false, onRetry, onAct, onOpen, onToggleQuietHours }: NotificationsViewProps) {
+export function NotificationsView({ state, quietHours, now = new Date(), busy = false, actionError = null, onRetry, onAct, onOpen, onToggleQuietHours }: NotificationsViewProps) {
   const groups = state.status === "ready" ? groupNotifications(state.notifications, now) : null;
   const empty = groups !== null && groups.pending.length === 0 && groups.earlier.length === 0;
 
@@ -143,6 +144,11 @@ export function NotificationsView({ state, quietHours, now = new Date(), busy = 
         <span aria-hidden="true" />
       </header>
       <div className="app-notify-body">
+        {actionError !== null && (
+          <p className="app-cal-reminder" role="alert">
+            {actionError}
+          </p>
+        )}
         {state.status === "loading" && <AppSkeletonList rows={3} />}
         {state.status === "error" && (
           <AppState error action={{ label: "Повторить", onClick: onRetry }}>
@@ -192,6 +198,7 @@ export function NotificationsPage() {
   const [state, setState] = useState<NotificationsState>({ status: "loading" });
   const [quietHours, setQuietHours] = useState<NotificationsQuietHours | null>(null);
   const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
 
   const load = useCallback(() => {
@@ -245,22 +252,18 @@ export function NotificationsPage() {
     (notification: AppNotification, action: NotificationAction) => {
       if (viewerId === null) return;
       setBusy(true);
+      setActionError(null);
       const answered = apiClient.answerNotification(notification.id, { userId: viewerId, actionId: action.id });
       const route = notificationRoute(action.link);
-      if (route !== null) {
-        void answered.catch(() => {});
-        setBusy(false);
-        navigate(route);
-        return;
-      }
       answered.then(
         () => {
           setBusy(false);
-          load();
+          if (route !== null) navigate(route);
+          else load();
         },
         () => {
           setBusy(false);
-          load();
+          setActionError("Не удалось ответить. Попробуйте ещё раз.");
         },
       );
     },
@@ -285,5 +288,5 @@ export function NotificationsPage() {
     );
   }, [viewerId, quietHours]);
 
-  return <NotificationsView state={state} quietHours={quietHours} now={now} busy={busy} onClose={back} onRetry={load} onAct={onAct} onOpen={onOpen} onToggleQuietHours={onToggleQuietHours} />;
+  return <NotificationsView state={state} quietHours={quietHours} now={now} busy={busy} actionError={actionError} onClose={back} onRetry={load} onAct={onAct} onOpen={onOpen} onToggleQuietHours={onToggleQuietHours} />;
 }

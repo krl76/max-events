@@ -265,13 +265,14 @@ interface MicroEventsViewProps {
   people: Friend[];
   viewerId: string | null;
   now?: Date;
+  notice?: string | null;
   onCreate: () => void;
   onOpen: (id: string) => void;
   onJoin?: (id: string) => void;
   onRetry: () => void;
 }
 
-export function MicroEventsView({ state, places, people, viewerId, now = new Date(), onCreate, onOpen, onJoin, onRetry }: MicroEventsViewProps) {
+export function MicroEventsView({ state, places, people, viewerId, now = new Date(), notice = null, onCreate, onOpen, onJoin, onRetry }: MicroEventsViewProps) {
   const events = state.status === "ready" ? state.events : [];
   const days = microDays(events, now);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -287,6 +288,11 @@ export function MicroEventsView({ state, places, people, viewerId, now = new Dat
         </button>
       </div>
       <p className="app-micro-lead">Зовут соседи и такие же пользователи. Без билетов и организаторов — только время и место.</p>
+      {notice !== null && (
+        <p className="app-cal-reminder" role="status">
+          {notice}
+        </p>
+      )}
       {state.status === "loading" && <AppSkeletonList rows={3} />}
       {state.status === "error" && (
         <AppState error action={{ label: "Повторить", onClick: onRetry }}>
@@ -325,6 +331,7 @@ export function MicroEventsPage() {
   const [state, setState] = useState<MicroEventsState>({ status: "loading" });
   const [places, setPlaces] = useState<Place[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setState({ status: "loading" });
@@ -362,8 +369,14 @@ export function MicroEventsPage() {
 
   const join = (id: string) => {
     if (viewer === null) return;
-    void apiClient.joinMicroEvent(id, viewer.id).then(load, load);
+    apiClient.joinMicroEvent(id, viewer.id).then(
+      () => {
+        setNotice(null);
+        load();
+      },
+      () => setNotice("Не удалось вступить. Попробуйте ещё раз."),
+    );
   };
 
-  return <MicroEventsView state={state} places={places} people={people} viewerId={viewer?.id ?? null} onCreate={() => navigate({ name: "micro-new" })} onOpen={(id) => navigate({ name: "micro-event", id })} onJoin={join} onRetry={load} />;
+  return <MicroEventsView state={state} places={places} people={people} viewerId={viewer?.id ?? null} notice={notice} onCreate={() => navigate({ name: "micro-new" })} onOpen={(id) => navigate({ name: "micro-event", id })} onJoin={join} onRetry={load} />;
 }

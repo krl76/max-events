@@ -117,11 +117,11 @@ describe("routeHasBack", () => {
     expect(routeHasBack({ name: "story-new" })).toBe(true);
   });
 
-  it("hides the native back button on fullscreen screens, which draw their own close", () => {
-    expect(routeHasBack({ name: "place", id: "p1" })).toBe(false);
-    expect(routeHasBack({ name: "notifications" })).toBe(false);
-    expect(routeHasBack({ name: "calendar" })).toBe(false);
-    expect(routeHasBack({ name: "slot-ticket", id: "b1" })).toBe(false);
+  it("keeps the native back on fullscreen screens: their declared header props are never rendered, the native button is the only way out", () => {
+    expect(routeHasBack({ name: "place", id: "p1" })).toBe(true);
+    expect(routeHasBack({ name: "notifications" })).toBe(true);
+    expect(routeHasBack({ name: "calendar" })).toBe(true);
+    expect(routeHasBack({ name: "slot-ticket", id: "b1" })).toBe(true);
   });
 });
 

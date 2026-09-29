@@ -112,6 +112,20 @@ describe("CatalogView", () => {
     expect(html).toContain("Не удалось загрузить события");
   });
 
+  it("offers a retry on a failed load instead of blaming the filters", () => {
+    const html = renderToStaticMarkup(createElement(CatalogView, { state: { status: "error" }, filters: {}, onFilters: () => {}, onRetry: () => {} }));
+
+    expect(html).toContain("Повторить");
+    expect(html).toContain("Проверьте соединение");
+    expect(html).not.toContain("изменить фильтры");
+  });
+
+  it("keeps the retry out of a bare error state without the handler", () => {
+    const html = renderToStaticMarkup(createElement(CatalogView, { state: { status: "error" }, filters: {}, onFilters: () => {} }));
+
+    expect(html).not.toContain("Повторить");
+  });
+
   it("marks exactly the active category chip", () => {
     const html = renderToStaticMarkup(createElement(CatalogView, { state: { status: "loading" }, filters: { category: "sport" }, onFilters: () => {} }));
 

@@ -35,6 +35,7 @@ import { WaitlistSection } from "./WaitlistSection";
 import { PaymentSection } from "./PaymentSection";
 import { AutoPlanSection } from "../plans/AutoPlanSection";
 import { BookingSheet } from "./BookingSheet";
+import { ConfirmSheet } from "../ui/ConfirmSheet";
 import { EventBookingBar, EventForecastCard, EventHero, EventInviteSheet, EventMoodTags, EventNearbyList, EventOrganizerCard, EventRouteCard, EventWhenRow, EventWhoGoesRow, formatDayLine, formatTimeRange } from "./EventScreen";
 
 export type EventDetailsState = { status: "loading" } | { status: "error" } | { status: "ready"; details: EventDetails };
@@ -214,6 +215,7 @@ export function EventPage({ id }: { id: string }) {
   // bookingId of the failed pay attempt — the error dies with its booking (cancel/re-book resets it)
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
 
@@ -269,6 +271,7 @@ export function EventPage({ id }: { id: string }) {
   const cancel = useCallback(() => {
     if (state.status !== "ready" || state.details.activeBookingId === null) return;
     apiClient.cancelBooking(state.details.activeBookingId).then(refetch, refetch);
+    setConfirmingCancel(false);
     setSheetOpen(false);
   }, [state, refetch]);
 
@@ -295,7 +298,12 @@ export function EventPage({ id }: { id: string }) {
   }, [state]);
 
   if (state.status === "loading" || userId === null) return <AppState>Загрузка…</AppState>;
-  if (state.status === "error") return <AppState error>Не удалось загрузить событие.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={{ label: "Повторить", onClick: refetch }}>
+        Не удалось загрузить событие.
+      </AppState>
+    );
   const { details } = state;
   const { event, place } = details;
   const currentPayment = payment !== null && payment.bookingId === details.activeBookingId ? payment.value : null;
@@ -336,7 +344,8 @@ export function EventPage({ id }: { id: string }) {
         <EventExtras details={details} eventId={id} userId={userId} payment={currentPayment} paymentBusy={paymentBusy} paymentFailed={paymentError !== null && paymentError === details.activeBookingId} onPay={pay} onChanged={refetch} onCreatePost={() => navigate({ name: "feed-new", eventId: id })} />
       </details>
       <EventBookingBar details={details} chatLink={event.chatLink} onChat={() => event.chatLink !== null && openChatLink(event.chatLink)} onBook={() => setSheetOpen(true)} />
-      {sheetOpen && <BookingSheet details={details} offer={offer} organizerName={organizerName} promo={promo} waitlist={details.remainingSeats === 0 && details.activeBookingId === null ? { ahead: offer?.waitlistAhead ?? 0, joined: queued, onJoin: joinWaitlist } : null} onClose={() => setSheetOpen(false)} onBook={book} onCancel={cancel} />}
+      {sheetOpen && <BookingSheet details={details} offer={offer} organizerName={organizerName} promo={promo} waitlist={details.remainingSeats === 0 && details.activeBookingId === null ? { ahead: offer?.waitlistAhead ?? 0, joined: queued, onJoin: joinWaitlist } : null} onClose={() => setSheetOpen(false)} onBook={book} onCancel={() => setConfirmingCancel(true)} />}
+      {confirmingCancel && <ConfirmSheet title="Отменить запись?" confirmLabel="Отменить запись" onConfirm={cancel} onClose={() => setConfirmingCancel(false)} />}
       {inviteOpen && (
         <EventInviteSheet
           onPick={() => {

@@ -119,12 +119,13 @@ describe("SwipeCard", () => {
 });
 
 describe("SwipeView", () => {
-  const view = (over: { state?: SwipeState; index?: number; leaving?: SwipeLeaving } = {}) =>
+  const view = (over: { state?: SwipeState; index?: number; leaving?: SwipeLeaving; notice?: string | null } = {}) =>
     renderToStaticMarkup(
       createElement(SwipeView, {
         state: over.state ?? READY,
         index: over.index ?? 0,
         leaving: over.leaving ?? null,
+        notice: over.notice ?? null,
         dx: 0,
         category: "all",
         onCategory: noop,
@@ -156,6 +157,14 @@ describe("SwipeView", () => {
 
     expect(spent).toContain("Места в этой подборке кончились");
     expect((spent.match(/disabled=""/g) ?? []).length).toBe(3);
+  });
+
+  it("says plainly that undo only returns the card — the verdict is already recorded (#498)", () => {
+    const html = view({ notice: "Карточка возвращена для просмотра — решение уже учтено" });
+
+    expect(html).toContain('role="status"');
+    expect(html).toContain("решение уже учтено");
+    expect(view()).not.toContain("решение уже учтено");
   });
 
   it("renders the loading and error states of the deck", () => {

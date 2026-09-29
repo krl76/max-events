@@ -169,7 +169,7 @@ describe("MicroRow", () => {
 });
 
 describe("MicroEventsView", () => {
-  const view = (state: MicroEventsState) => renderToStaticMarkup(createElement(MicroEventsView, { state, places: mockPlaces, people: mockFriends, viewerId: null, now: NOW, onCreate: noop, onOpen: noop, onRetry: noop }));
+  const view = (state: MicroEventsState, notice: string | null = null) => renderToStaticMarkup(createElement(MicroEventsView, { state, places: mockPlaces, people: mockFriends, viewerId: null, now: NOW, notice, onCreate: noop, onOpen: noop, onRetry: noop }));
 
   it("keeps the topbar, the «Собрать» pill and the lead-in line of the design", () => {
     const html = view({ status: "ready", events: microEvents() });
@@ -177,6 +177,14 @@ describe("MicroEventsView", () => {
     expect(html).toContain("Микро-события");
     expect(html).toContain("Собрать");
     expect(html).toContain("Зовут соседи и такие же пользователи. Без билетов и организаторов — только время и место.");
+  });
+
+  it("tells the viewer when joining failed instead of silently reloading", () => {
+    const html = view({ status: "ready", events: microEvents() }, "Не удалось вступить. Попробуйте ещё раз.");
+
+    expect(html).toContain('role="status"');
+    expect(html).toContain("Не удалось вступить. Попробуйте ещё раз.");
+    expect(view({ status: "ready", events: microEvents() })).not.toContain("Не удалось вступить");
   });
 
   it("renders the seeded gatherings of the chosen day under the day strip", () => {
