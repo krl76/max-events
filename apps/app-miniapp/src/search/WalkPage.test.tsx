@@ -70,6 +70,9 @@ describe("walk wizard", () => {
     expect(html).toContain("1 час");
     expect(html).toContain("2 часа");
     expect(html).toContain("Полдня");
+    expect(html).toContain("кофе и одна точка");
+    expect(html).toContain("не спеша, с фото");
+    expect(html).toContain('aria-pressed="false"');
     expect(html).toContain("Своё");
     expect(html).toContain("disabled");
     expect(html).not.toContain("Собираем прогулку");
@@ -88,9 +91,9 @@ describe("walk wizard", () => {
     expect(html).toContain("Культурные");
     expect(html).toContain("Собрать прогулку");
     expect(html).not.toContain("disabled");
+    expect(html).toContain('aria-pressed="false"');
   });
- });
-
+});
 
 const PLACE_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -148,7 +151,8 @@ async function mount(node: ReactElement): Promise<{ host: HTMLDivElement; root: 
 }
 
 function clickText(host: HTMLElement, text: string): void {
-  const button = [...host.querySelectorAll("button, ion-button")].find((item) => item.textContent?.trim() === text);
+  const buttons = [...host.querySelectorAll("button, ion-button")];
+  const button = buttons.find((item) => item.textContent?.trim() === text) ?? buttons.find((item) => (item.textContent ?? "").includes(text) && (item.className ?? "").includes("app-walk-tile"));
   if (button === undefined) throw new Error(`missing button ${text}`);
   if (button instanceof HTMLElement) button.click();
 }
@@ -176,7 +180,7 @@ describe("composed walk", () => {
     expect(walkErrorText(new Error("later"))).toBe("Не удалось собрать прогулку.");
   });
 
-  it("shows the first wait sentence, then the stop title, and does not call assistDay", async () => {
+  it("shows the trail wait screen, then the stop title, and does not call assistDay", async () => {
     let release: (walk: CityWalk) => void = () => {};
     const pending = new Promise<CityWalk>((resolve) => {
       release = resolve;
@@ -185,7 +189,8 @@ describe("composed walk", () => {
     await act(async () => {
       clickText(host, "Собрать прогулку");
     });
-    expect(host.textContent).toContain("Ищем места в Тула");
+    expect(host.textContent).toContain("Прокладываю маршрут по Тула");
+    expect(host.textContent).toContain("проверяю реальные места и расстояния");
     await act(async () => {
       release(sampleWalk());
       await pending;

@@ -5,9 +5,9 @@ import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { AppButton, AppState } from "../ui/primitives";
 import { EMPTY_WALK_CHOICE, walkComposeReady, WalkBack, WalkWizard, type WalkChoice } from "./WalkWizard";
-import { WalkResult, walkErrorText, walkStopKeys, walkWaitLine } from "./WalkResult";
+import { WalkResult, walkErrorText, walkStopKeys } from "./WalkResult";
 
-const WAIT_STEPS: readonly (0 | 1 | 2)[] = [0, 1, 2];
+const WAIT_SKELETONS: readonly number[] = [0, 1, 2, 3];
 
 export function cityWalkAsk(city: string): string {
   return `Собери пеший маршрут по достопримечательностям города ${city}: 4–6 остановок по порядку, время между точками и где поесть рядом.`;
@@ -46,6 +46,14 @@ export function walkClock(at: string): string {
   const parsed = Date.parse(at);
   if (!Number.isFinite(parsed)) return at;
   return new Date(parsed).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}
+
+export function walkWaitTitle(city: string): string {
+  return `Прокладываю маршрут по ${city}`;
+}
+
+export function walkWaitSubtitle(durationMinutes: number): string {
+  return `${walkSpanLabel(durationMinutes)} · проверяю реальные места и расстояния`;
 }
 
 export type WalkState = { status: "loading" } | { status: "error" } | { status: "ready"; day: AssistDayResponse };
@@ -105,56 +113,29 @@ function WalkDraft({ day, onAnother }: { readonly day: AssistDayResponse; readon
   );
 }
 
-export function WalkPage({
-  city,
-  compose = (body) => apiClient.composeCityWalk(body),
-  initialChoice = EMPTY_WALK_CHOICE,
-}: {
-  readonly city: string;
-  readonly compose?: (body: ComposeCityWalkWrite) => Promise<CityWalk>;
-  readonly initialChoice?: WalkChoice;
-}) {
+export function WalkPage({ city, compose = (body) => apiClient.composeCityWalk(body), initialChoice = EMPTY_WALK_CHOICE }: { readonly city: string; readonly compose?: (body: ComposeCityWalkWrite) => Promise<CityWalk>; readonly initialChoice?: WalkChoice }) {
   const { back, navigate } = useRoute();
   const [choice, setChoice] = useState(initialChoice);
   const [excludeKeys, setExcludeKeys] = useState<readonly string[]>([]);
   const [phase, setPhase] = useState<"form" | "wait" | "ready">("form");
-  const [waitStep, setWaitStep] = useState<0 | 1 | 2>(0);
   const [walk, setWalk] = useState<CityWalk | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(0);
   const live = useRef(true);
-  const timers = useRef<number[]>([]);
 
   useEffect(() => {
     live.current = true;
     return () => {
       live.current = false;
-      for (const id of timers.current) window.clearTimeout(id);
-      timers.current = [];
     };
   }, []);
-
-  function clearTimers(): void {
-    for (const id of timers.current) window.clearTimeout(id);
-    timers.current = [];
-  }
 
   async function onCompose(): Promise<void> {
     if (choice.durationMinutes === null || choice.budgetMode === null || !walkComposeReady(choice)) return;
     const durationMinutes = choice.durationMinutes;
     const budgetMode = choice.budgetMode;
-    clearTimers();
     setError(null);
-    setWaitStep(0);
     setPhase("wait");
-    timers.current = [
-      window.setTimeout(() => {
-        if (live.current) setWaitStep(1);
-      }, 1200),
-      window.setTimeout(() => {
-        if (live.current) setWaitStep(2);
-      }, 2400),
-    ];
     try {
       const result = await compose({
         city,
@@ -173,7 +154,7 @@ export function WalkPage({
       setError(walkErrorText(caught));
       setPhase("form");
     } finally {
-      clearTimers();
+      // Wait screen is pure CSS animation — no timers to clean up.
     }
   }
 
@@ -193,16 +174,29 @@ export function WalkPage({
           <p className="app-walk-kicker">Пеший маршрут</p>
           <h1 className="app-walk-title">Прогулка: {city}</h1>
         </header>
-        <ol className="app-walk-wait" aria-live="polite">
-          {WAIT_STEPS.map((item) => {
-            const state = item === waitStep ? "on" : item < waitStep ? "done" : "idle";
-            return (
-              <li key={item} className={`app-walk-wait-line app-walk-wait-line--${state}`}>
-                {walkWaitLine(city, item)}
-              </li>
-            );
-          })}
-        </ol>
+        <div className="app-walk-wait" aria-live="polite">
+          <div className="app-walk-trail" aria-hidden="true">
+            <svg viewBox="0 0 240 90" width="240" height="90" fill="none">
+              <path className="app-walk-trail-path" d="M12 70 C 50 18, 95 86, 140 38 S 200 14, 228 32" stroke="var(--app-accent)" stroke-width="2.5" stroke-linecap="round" />
+              <circle className="app-walk-trail-pin" cx="12" cy="70" r="7" fill="var(--app-text)" />
+              <circle className="app-walk-trail-pin" cx="140" cy="38" r="7" fill="var(--app-text)" />
+              <circle className="app-walk-trail-pin" cx="228" cy="32" r="7" fill="var(--app-accent)" />
+            </svg>
+          </div>
+          <h2 className="app-walk-wait-title">{walkWaitTitle(city)}</h2>
+          {choice.durationMinutes !== null ? <p className="app-walk-hint">{walkWaitSubtitle(choice.durationMinutes)}</p> : null}
+          <div className="app-walk-wait-skeletons">
+            {WAIT_SKELETONS.map((item) => (
+              <div key={item} className="app-walk-wait-sk">
+                <span className="app-walk-wait-sk-num" />
+                <div>
+                  <span className="app-walk-wait-sk-line" />
+                  <span className="app-walk-wait-sk-line app-walk-wait-sk-line--short" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
     );
   }

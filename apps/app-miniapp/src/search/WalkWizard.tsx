@@ -17,10 +17,10 @@ export const EMPTY_WALK_CHOICE: WalkChoice = {
 };
 
 const TIME_OPTIONS = [
-  { minutes: 60, label: "1 час" },
-  { minutes: 120, label: "2 часа" },
-  { minutes: 180, label: "3 часа" },
-  { minutes: 240, label: "Полдня" },
+  { minutes: 60, label: "1 час", glyph: "☕", mood: "кофе и одна точка" },
+  { minutes: 120, label: "2 часа", glyph: "🏛", mood: "пара достопримечательностей" },
+  { minutes: 180, label: "3 часа", glyph: "📸", mood: "не спеша, с фото" },
+  { minutes: 240, label: "Полдня", glyph: "🌇", mood: "с обедом и закатом" },
 ] as const;
 
 const INTEREST_OPTIONS: readonly { readonly id: WalkInterest; readonly label: string }[] = [
@@ -50,8 +50,8 @@ export function selectWalkBudget(choice: WalkChoice, mode: WalkBudgetMode, budge
 }
 
 export function toggleWalkInterest(choice: WalkChoice, id: WalkInterest): WalkChoice {
-const has = choice.interests.includes(id);
-return { ...choice, interests: has ? choice.interests.filter((item) => item !== id) : [...choice.interests, id] };
+  const has = choice.interests.includes(id);
+  return { ...choice, interests: has ? choice.interests.filter((item) => item !== id) : [...choice.interests, id] };
 }
 
 function walkStep(choice: WalkChoice): "time" | "budget" | "interests" {
@@ -92,24 +92,7 @@ function WalkProgress({ step }: { readonly step: "time" | "budget" | "interests"
   );
 }
 
-
-export function WalkWizard({
-  city,
-  choice,
-  onChange,
-  onBack,
-  onCompose,
-  onSaved,
-  notice,
-}: {
-  readonly city: string;
-  readonly choice: WalkChoice;
-  readonly onChange: (choice: WalkChoice) => void;
-  readonly onBack: () => void;
-  readonly onCompose?: () => void;
-  readonly onSaved?: () => void;
-  readonly notice?: string | null;
-}) {
+export function WalkWizard({ city, choice, onChange, onBack, onCompose, onSaved, notice }: { readonly city: string; readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void; readonly onBack: () => void; readonly onCompose?: () => void; readonly onSaved?: () => void; readonly notice?: string | null }) {
   const step = walkStep(choice);
   return (
     <section className="app-walk">
@@ -137,20 +120,24 @@ export function WalkWizard({
 }
 
 function TimeStep({ choice, onChange }: { readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void }) {
+  const custom = choice.durationMinutes !== null && !TIME_OPTIONS.some((option) => option.minutes === choice.durationMinutes);
   return (
     <fieldset className="app-walk-step app-walk-rise">
       <legend>Сколько времени</legend>
       <p className="app-walk-hint">От часа до полдня — или свои минуты</p>
-      <div className="app-walk-choices">
+      <div className="app-walk-choices app-walk-choices--tiles">
         {TIME_OPTIONS.map((option) => (
-          <AppChip key={option.minutes} pressed={choice.durationMinutes === option.minutes} onClick={() => onChange(selectWalkTime(choice, option.minutes))}>
-            {option.label}
-          </AppChip>
+          <button key={option.minutes} type="button" className={choice.durationMinutes === option.minutes ? "app-walk-tile app-walk-tile--on" : "app-walk-tile"} aria-pressed={choice.durationMinutes === option.minutes} onClick={() => onChange(selectWalkTime(choice, option.minutes))}>
+            <span className="app-walk-tile-glyph" aria-hidden="true">
+              {option.glyph}
+            </span>
+            <span className="app-walk-tile-label">{option.label}</span>
+            <span className="app-walk-tile-mood">{option.mood}</span>
+          </button>
         ))}
       </div>
       <label className="app-walk-custom">
-<span>
-Своё</span>
+        <span>{custom ? "Своё · выбрано" : "Своё"}</span>
         <input
           type="number"
           min={30}
@@ -186,8 +173,7 @@ function BudgetStep({ choice, onChange }: { readonly choice: WalkChoice; readonl
       </div>
       {choice.budgetMode === "custom" ? (
         <label className="app-walk-custom">
-<span>
-Рубли</span>
+          <span>Рубли</span>
           <input
             type="number"
             min={0}
