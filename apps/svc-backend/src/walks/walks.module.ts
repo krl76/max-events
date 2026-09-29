@@ -11,5 +11,5 @@ import { fetchWikidataCandidates } from "./wikidata-client";
   imports: [TypeOrmModule.forFeature([CityWalkEntity]), PlacesModule, AssistModule],
   controllers: [WalksController],
   providers: [WalksService, { provide: WIKIDATA_LOOKUP, useValue: fetchWikidataCandidates }],
-}
+})
 export class WalksModule {}

@@ -118,5 +118,6 @@ import { UploadsModule } from "./uploads/uploads.module";
     AssistModule,
     StoriesModule,
     WalksModule,
+  ],
 })
 export class AppModule {}
