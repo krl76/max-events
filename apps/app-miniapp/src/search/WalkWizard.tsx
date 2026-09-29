@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import type { WalkBudgetMode, WalkInterest } from "@max-events/api-contracts";
 import { ActionIcon } from "../ui/icons";
-import { AppChip } from "../ui/primitives";
 
 export type WalkChoice = {
   readonly durationMinutes: number | null;
@@ -24,6 +23,11 @@ const TIME_OPTIONS = [
   { minutes: 240, label: "Полдня", mood: "с обедом и закатом" },
 ] as const;
 
+const BUDGET_OPTIONS = [
+  { id: "free", title: "Бесплатно", desc: "Парки, набережные, архитектура" },
+  { id: "any", title: "Любой", desc: "С музеями и смотровыми площадками" },
+  { id: "custom", title: "Свой лимит", desc: "Задать сумму на одного человека" },
+] as const;
 
 const INTEREST_OPTIONS: readonly { readonly id: WalkInterest; readonly label: string }[] = [
   { id: "cultural", label: "Культурные" },
@@ -87,8 +91,8 @@ const PROGRESS: readonly { readonly id: "time" | "budget" | "interests"; readonl
 export function WalkBack({ onBack }: { readonly onBack: () => void }) {
   return (
     <button type="button" className="app-walk-back" onClick={onBack}>
-      <ActionIcon name="chevron" size={16} />
-      Назад
+      <ActionIcon name="chevron" size={15} />
+      <span>Назад</span>
     </button>
   );
 }
@@ -98,12 +102,14 @@ function WalkProgress({ step, onSelectStep }: { readonly step: "time" | "budget"
   return (
     <ol className="app-walk-progress" aria-label="Шаги">
       {PROGRESS.map((item, index) => {
-        const state = index === current ? "on" : index < current ? "done" : "idle";
+        const isCurrent = item.id === step;
+        const isDone = index < current;
+        const stateClass = isCurrent ? "app-walk-tab--active" : isDone ? "app-walk-tab--done" : "";
         return (
-          <li key={item.id} className={`app-walk-progress-item app-walk-progress-item--${state}`}>
-            <button type="button" className="app-walk-progress-btn" onClick={() => onSelectStep(item.id)}>
-              <span className="app-walk-progress-dot" />
-              <span>{item.label}</span>
+          <li key={item.id} className="app-walk-progress-item">
+            <button type="button" className={`app-walk-tab ${stateClass}`} onClick={() => onSelectStep(item.id)}>
+              <span className="app-walk-tab-bar" />
+              <span className="app-walk-tab-label">{item.label}</span>
             </button>
           </li>
         );
@@ -155,25 +161,37 @@ export function WalkWizard({ city, choice, onChange, onBack, onCompose, onSaved,
 
   return (
     <section className="app-walk">
-      <WalkBack onBack={handleBack} />
+      <div className="app-walk-top">
+        <WalkBack onBack={handleBack} />
+        <div className="app-walk-city-chip">
+          <ActionIcon name="pin" size={12} />
+          <span>{city}</span>
+        </div>
+      </div>
+
       <header className="app-walk-head">
         <p className="app-walk-kicker">Пеший маршрут</p>
         <h1 className="app-walk-title">Прогулка: {city}</h1>
       </header>
+
       <WalkProgress step={step} onSelectStep={(next) => setUserStep(next)} />
+
       {step === "time" ? <TimeStep choice={choice} onChange={onChange} onSelect={() => setUserStep("budget")} /> : null}
       {step === "budget" ? <BudgetStep choice={choice} onChange={onChange} onSelect={() => setUserStep("interests")} /> : null}
       {step === "interests" ? <InterestStep choice={choice} onChange={onChange} /> : null}
+
       {notice != null && notice !== "" ? <p className="app-walk-alert">{notice}</p> : null}
+
       <footer className="app-walk-footer">
-        {step !== "time" && <p className="app-walk-summary">{walkChoiceSummary(choice)}</p>}
-        <button type="button" className="app-walk-compose" disabled={!canAdvance} onClick={handleNext}>
-          {buttonLabel}
+        {step !== "time" && <p className="app-walk-summary-text">{walkChoiceSummary(choice)}</p>}
+        <button type="button" className="app-walk-btn-primary" disabled={!canAdvance} onClick={handleNext}>
+          <span>{buttonLabel}</span>
+          <ActionIcon name="chevron" size={16} />
         </button>
         {onSaved !== undefined ? (
-          <button type="button" className="app-walk-saved" onClick={onSaved}>
-            <span>Мои прогулки</span>
-            <ActionIcon name="chevron" size={18} />
+          <button type="button" className="app-walk-btn-secondary" onClick={onSaved}>
+            <span>Мои сохранённые прогулки</span>
+            <ActionIcon name="chevron" size={15} />
           </button>
         ) : null}
       </footer>
@@ -184,39 +202,49 @@ export function WalkWizard({ city, choice, onChange, onBack, onCompose, onSaved,
 function TimeStep({ choice, onChange, onSelect }: { readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void; readonly onSelect: () => void }) {
   const custom = choice.durationMinutes !== null && !TIME_OPTIONS.some((option) => option.minutes === choice.durationMinutes);
   return (
-    <fieldset className="app-walk-step app-walk-rise">
-      <legend>Сколько времени</legend>
-      <p className="app-walk-hint">От часа до полдня — или свои минуты</p>
-      <div className="app-walk-choices app-walk-choices--tiles">
-        {TIME_OPTIONS.map((option) => (
-          <button
-            key={option.minutes}
-            type="button"
-            className={choice.durationMinutes === option.minutes ? "app-walk-tile app-walk-tile--on" : "app-walk-tile"}
-            aria-pressed={choice.durationMinutes === option.minutes}
-            onClick={() => {
-              onChange(selectWalkTime(choice, option.minutes));
-              onSelect();
-            }}
-          >
-            <span className="app-walk-tile-label">{option.label}</span>
-            <span className="app-walk-tile-mood">{option.mood}</span>
-          </button>
-        ))}
+    <div className="app-walk-step-card app-walk-rise">
+      <div className="app-walk-step-header">
+        <h2 className="app-walk-step-title">Сколько времени</h2>
+        <p className="app-walk-step-hint">От часа до полдня или точное время</p>
       </div>
-      <div className={custom ? "app-walk-custom app-walk-custom--on" : "app-walk-custom"}>
-        <div className="app-walk-custom-copy">
-          <span className="app-walk-custom-title">{custom ? "Своё · выбрано" : "Своё"}</span>
+
+      <div className="app-walk-time-grid">
+        {TIME_OPTIONS.map((option) => {
+          const isSelected = choice.durationMinutes === option.minutes;
+          return (
+            <button
+              key={option.minutes}
+              type="button"
+              className={isSelected ? "app-walk-tile app-walk-tile--selected" : "app-walk-tile"}
+              aria-pressed={isSelected}
+              onClick={() => {
+                onChange(selectWalkTime(choice, option.minutes));
+                onSelect();
+              }}
+            >
+              <div className="app-walk-tile-head">
+                <span className="app-walk-tile-val">{option.label}</span>
+              </div>
+              <span className="app-walk-tile-desc">{option.mood}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className={custom ? "app-walk-custom-row app-walk-custom-row--active" : "app-walk-custom-row"}>
+        <div className="app-walk-custom-info">
+          <span className="app-walk-custom-title">{custom ? "Своё · выбрано" : "Своё время"}</span>
           <span className="app-walk-custom-hint">от 30 до 480 минут</span>
         </div>
-        <div className="app-walk-custom-input-wrap">
+        <div className="app-walk-custom-pill">
           <input
             type="number"
+            className="app-walk-custom-input"
+            placeholder="90"
             min={30}
             max={480}
             inputMode="numeric"
             aria-label="Своё"
-            placeholder="мин"
             value={custom ? choice.durationMinutes ?? "" : ""}
             onChange={(event) => {
               const minutes = Number(event.target.value);
@@ -228,97 +256,98 @@ function TimeStep({ choice, onChange, onSelect }: { readonly choice: WalkChoice;
           <span className="app-walk-custom-unit">мин</span>
         </div>
       </div>
-    </fieldset>
+    </div>
   );
 }
 
 function BudgetStep({ choice, onChange, onSelect }: { readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void; readonly onSelect: () => void }) {
   return (
-    <fieldset className="app-walk-step app-walk-rise">
-      <legend>Бюджет</legend>
-      <p className="app-walk-hint">
-        {choice.budgetMode === "free"
-          ? "Только открытые локации, без билетов"
-          : choice.budgetMode === "any"
-            ? "Включая выставки, музеи и смотровые"
-            : choice.budgetMode === "custom"
-              ? "Ограничить сумму на человека"
-              : "Только прогулка, без билетов и кафе"}
-      </p>
-      <div className="app-walk-choices">
-        <AppChip
-          pressed={choice.budgetMode === "free"}
-          onClick={() => {
-            onChange(selectWalkBudget(choice, "free"));
-            onSelect();
-          }}
-        >
-          Бесплатно
-        </AppChip>
-        <AppChip
-          pressed={choice.budgetMode === "any"}
-          onClick={() => {
-            onChange(selectWalkBudget(choice, "any"));
-            onSelect();
-          }}
-        >
-          Любой
-        </AppChip>
-        <AppChip
-          pressed={choice.budgetMode === "custom"}
-          onClick={() => {
-            onChange(selectWalkBudget(choice, "custom", choice.budgetRub));
-          }}
-        >
-          Свой
-        </AppChip>
+    <div className="app-walk-step-card app-walk-rise">
+      <div className="app-walk-step-header">
+        <h2 className="app-walk-step-title">Бюджет маршрута</h2>
+        <p className="app-walk-step-hint">Билеты в музеи и платные места</p>
       </div>
-      {choice.budgetMode === "custom" ? (
-        <div className="app-walk-custom app-walk-custom--budget app-walk-rise">
-          <div className="app-walk-custom-copy">
-            <span className="app-walk-custom-title">Максимум на прогулку</span>
-            <span className="app-walk-custom-hint">рубли на одного человека</span>
-          </div>
-          <div className="app-walk-custom-input-wrap">
-            <input
-              type="number"
-              min={0}
-              max={100000}
-              inputMode="numeric"
-              aria-label="Свой бюджет"
-              placeholder="1000"
-              value={choice.budgetRub ?? ""}
-              onChange={(event) => {
-                const rub = Number(event.target.value);
-                if (Number.isInteger(rub) && rub >= 0 && rub <= 100000) {
-                  onChange(selectWalkBudget(choice, "custom", rub));
+
+      <div className="app-walk-budget-stack">
+        {BUDGET_OPTIONS.map((item) => {
+          const isSelected = choice.budgetMode === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={isSelected ? "app-walk-budget-card app-walk-tile app-walk-budget-card--selected" : "app-walk-budget-card app-walk-tile"}
+              aria-pressed={isSelected}
+              onClick={() => {
+                if (item.id === "custom") {
+                  onChange(selectWalkBudget(choice, "custom", choice.budgetRub));
+                } else {
+                  onChange(selectWalkBudget(choice, item.id));
+                  onSelect();
                 }
               }}
-            />
-            <span className="app-walk-custom-unit">₽</span>
-          </div>
+            >
+              <div className="app-walk-budget-content">
+                <span className="app-walk-budget-title">{item.title}</span>
+                <span className="app-walk-budget-desc">{item.desc}</span>
+              </div>
+              <div className="app-walk-budget-radio" />
+            </button>
+          );
+        })}
+      </div>
+
+      {choice.budgetMode === "custom" ? (
+        <div className="app-walk-budget-custom app-walk-rise">
+          <input
+            type="number"
+            placeholder="1000"
+            min={0}
+            max={100000}
+            inputMode="numeric"
+            aria-label="Свой бюджет"
+            value={choice.budgetRub ?? ""}
+            onChange={(event) => {
+              const rub = Number(event.target.value);
+              if (Number.isInteger(rub) && rub >= 0 && rub <= 100000) {
+                onChange(selectWalkBudget(choice, "custom", rub));
+              }
+            }}
+          />
+          <span className="app-walk-custom-unit">₽ на человека</span>
         </div>
       ) : null}
-    </fieldset>
+    </div>
   );
 }
 
 function InterestStep({ choice, onChange }: { readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void }) {
   const count = choice.interests.length;
   return (
-    <fieldset className="app-walk-step app-walk-rise">
-      <div className="app-walk-step-head">
-        <legend>Интересы</legend>
-        {count > 0 ? <span className="app-walk-badge">Выбрано: {count}</span> : null}
+    <div className="app-walk-step-card app-walk-rise">
+      <div className="app-walk-step-header">
+        <div className="app-walk-step-title">
+          <span>Интересы</span>
+          {count > 0 ? <span className="app-walk-badge">Выбрано: {count}</span> : null}
+        </div>
+        <p className="app-walk-step-hint">Выберите темы для персонализации точек маршрута</p>
       </div>
-      <p className="app-walk-hint">Можно несколько — соберём маршрут под них</p>
-      <div className="app-walk-choices">
-        {INTEREST_OPTIONS.map((option) => (
-          <AppChip key={option.id} pressed={choice.interests.includes(option.id)} onClick={() => onChange(toggleWalkInterest(choice, option.id))}>
-            {option.label}
-          </AppChip>
-        ))}
+
+      <div className="app-walk-interests-grid">
+        {INTEREST_OPTIONS.map((option) => {
+          const isSelected = choice.interests.includes(option.id);
+          return (
+            <button
+              key={option.id}
+              type="button"
+              className={isSelected ? "app-walk-interest-chip app-walk-interest-chip--selected" : "app-walk-interest-chip"}
+              aria-pressed={isSelected}
+              onClick={() => onChange(toggleWalkInterest(choice, option.id))}
+            >
+              <span>{option.label}</span>
+            </button>
+          );
+        })}
       </div>
-    </fieldset>
+    </div>
   );
 }
