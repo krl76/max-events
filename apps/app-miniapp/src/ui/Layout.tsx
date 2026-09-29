@@ -11,7 +11,7 @@
 // - TABS - tabbar definitions with per-tab active predicate; the map is its own tab, and plans, saved lists, bookings and the calendar open from the profile
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
 // - routeTitle - header title for the current route
-// - routeHasBack - back button shown on every non-tab route, the map included
+// - routeHasBack - back button shown on non-tab routes; fullscreen screens draw their own close, so the native one would be a second control
 // - routeHasHeader - header hidden wherever the screen draws its own chrome: the search/plans/profile tabs (profile renders its own gradient hero), the map and the swipe deck, which draw over the content, «После события», whose hero carries a close button instead of a back arrow, the two list screens (экраны 37 и 39), the we-groups and the votes (экраны 30-33), the micro-event feed and card (экраны 24 и 25), the friends list with its counter (экран 26) and the friend route (экран 28), the plan with its date, party size and «MAX СОБРАЛ» badge (экран 15), the assistant with its gradient hero (экран 10), and the fullscreen composers
 // - routeIsFullscreen - composers/place/calendar/assist/day-route own the viewport: no shell header, no tabbar
 // - routeIsFlush - map canvas and screens that already set their own 20px fields (story, post, place, slots, notifications)
@@ -39,7 +39,7 @@ export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string)
     icon: "profile",
     label: "Профиль",
     route: "profile",
-    active: (name) => name === "profile" || name === "user" || name === "friends" || name === "subscriptions" || name === "followers" || name === "discovery" || name === "people" || name === "friend-route" || name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "lists" || name === "list" || name === "bookings" || name === "slot-ticket" || name === "micro",
+    active: (name) => name === "profile" || name === "user" || name === "friends" || name === "subscriptions" || name === "followers" || name === "discovery" || name === "people" || name === "friend-route" || name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "lists" || name === "list" || name === "bookings" || name === "slot-ticket",
   },
 ];
 
@@ -116,7 +116,8 @@ export function useHeaderTitle(title: string | null): void {
 }
 
 export function routeHasBack(route: Route): boolean {
-  return !isTabRoute(route.name);
+  // Полноэкранные экраны рисуют собственный крест/назад — нативная кнопка MAX стала бы второй.
+  return !isTabRoute(route.name) && !routeIsFullscreen(route);
 }
 
 // Экраны 08, 16 и 09 рисуют собственную шапку: карта — плавающую пилюлю «Поиск» поверх полотна,
@@ -251,8 +252,8 @@ export function Layout({ children }: { children: ReactNode }) {
     if (route.name === "onboarding") return;
     const onNativeBack = () => back();
     button.onClick(onNativeBack);
-    if (isTabRoute(route.name)) button.hide();
-    else button.show();
+    if (routeHasBack(route)) button.show();
+    else button.hide();
     return () => {
       button.offClick(onNativeBack);
       button.hide();

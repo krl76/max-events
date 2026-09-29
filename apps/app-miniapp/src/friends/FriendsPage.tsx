@@ -1,21 +1,20 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 26 «Друзья»: the MAX contact list with the sync as an explicit action, the short «сейчас что-то делают» group and every friend below it.
-// SCOPE: Data via apiClient.listFriends + getFriendsActivity + getFriendsSync, resync via apiClient.syncFriends (POST /friends/sync exists; only its timestamp is mock); entries to экран 27 and экран 29; a row opens the friend's route (экран 28), which answers with the closed-access state when the friend hid it.
+// PURPOSE: Экран 26 «Друзья»: the MAX contact list, the short «сейчас что-то делают» group and every friend below it.
+// SCOPE: Data via apiClient.listFriends + getFriendsActivity; entries to экран 27 and экран 29; a row opens the friend's route (экран 28), which answers with the closed-access state when the friend hid it. Resync is not offered here: the graph syncs on every authenticated request server-side, so a manual button would promise an action that changes nothing.
 // DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (Friend, FriendActivityByFriend), ./avatar.js, ./friends-empty.js, ../auth/AuthContext.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - initials - "Анна Соколова" -> "АС" for the two-letter initials avatar
-// - syncLabel - «Синхронизировано 2 часа назад» from the stamp, «Контакты ещё не синхронизированы» without one
 // - friendNowLine - what a friend is up to, from the participation status and the start of their soonest event
 // - activeFriends - friends with something on today or tomorrow, soonest first — the «сейчас что-то делают» group
 // - FriendsState - union of the screen fetch states (loading / error / ready)
 // - FriendsView - presentational экран 26: counter topbar, contacts row, the active group and the full list
-// - FriendsPage - route container: loads friends, their activity and the sync stamp, wires resync and navigation
+// - FriendsPage - route container: loads friends and their activity, wires navigation
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Friend, FriendActivityByFriend } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -41,24 +40,7 @@ export function initials(name: string): string {
     .toUpperCase();
 }
 
-const MINUTE_MS = 60 * 1000;
-const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
-
-/** «Синхронизировано 2 часа назад» — the design writes the age, not the date, so a stale graph is obvious. */
-export function syncLabel(syncedAt: string | null, now: Date = new Date()): string {
-  if (syncedAt === null) return "Контакты ещё не синхронизированы";
-  const age = now.getTime() - Date.parse(syncedAt);
-  if (!Number.isFinite(age) || age < 2 * MINUTE_MS) return "Синхронизировано только что";
-  if (age < HOUR_MS) return `Синхронизировано ${Math.round(age / MINUTE_MS)} мин назад`;
-  if (age < DAY_MS) {
-    const hours = Math.round(age / HOUR_MS);
-    const plural = hours % 10 === 1 && hours % 100 !== 11 ? "час" : hours % 10 >= 2 && hours % 10 <= 4 && (hours % 100 < 12 || hours % 100 > 14) ? "часа" : "часов";
-    return `Синхронизировано ${hours} ${plural} назад`;
-  }
-  const days = Math.floor(age / DAY_MS);
-  return days === 1 ? "Синхронизировано вчера" : `Синхронизировано ${days} дн назад`;
-}
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function dayKey(date: Date): string {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
@@ -99,7 +81,7 @@ export function activeFriends(groups: FriendActivityByFriend[], now: Date = new 
     .slice(0, FRIENDS_NOW_LIMIT);
 }
 
-export type FriendsState = { status: "loading" } | { status: "error" } | { status: "ready"; friends: Friend[]; groups: FriendActivityByFriend[]; syncedAt: string | null };
+export type FriendsState = { status: "loading" } | { status: "error" } | { status: "ready"; friends: Friend[]; groups: FriendActivityByFriend[] };
 
 function FriendRow({ friend, line, onOpen }: { friend: Friend; line?: string | null; onOpen: () => void }) {
   return (
@@ -116,9 +98,7 @@ function FriendRow({ friend, line, onOpen }: { friend: Friend; line?: string | n
 
 interface FriendsViewProps {
   state: FriendsState;
-  syncing?: boolean;
   now?: Date;
-  onSync: () => void;
   onOpenFriend: (userId: string) => void;
   onOpenDiscovery: () => void;
   onOpenPeople: () => void;
@@ -195,18 +175,16 @@ export function FriendsPage() {
   const { navigate } = useRoute();
   const point = useProfileCityPoint();
   const [state, setState] = useState<FriendsState>({ status: "loading" });
-  const [syncing, setSyncing] = useState(false);
   const [reloads, setReloads] = useState(0);
 
   useEffect(() => {
     if (userId === null) return;
     let alive = true;
     setState({ status: "loading" });
-    // Only the friend list is load-bearing: without activity the screen still lists everyone, and
-    // without the stamp it says so in words instead of blanking.
-    Promise.all([apiClient.listFriends(), apiClient.getFriendsActivity(userId).catch(() => [] as FriendActivityByFriend[]), apiClient.getFriendsSync().catch(() => ({ syncedAt: null }))]).then(
-      ([friends, groups, sync]) => {
-        if (alive) setState({ status: "ready", friends, groups, syncedAt: sync.syncedAt });
+    // Only the friend list is load-bearing: without activity the screen still lists everyone.
+    Promise.all([apiClient.listFriends(), apiClient.getFriendsActivity(userId).catch(() => [] as FriendActivityByFriend[])]).then(
+      ([friends, groups]) => {
+        if (alive) setState({ status: "ready", friends, groups });
       },
       () => {
         if (alive) setState({ status: "error" });
@@ -217,19 +195,5 @@ export function FriendsPage() {
     };
   }, [userId, reloads]);
 
-  const sync = useCallback(() => {
-    setSyncing(true);
-    apiClient.syncFriends().then(
-      () => {
-        setSyncing(false);
-        setReloads((value) => value + 1);
-      },
-      () => {
-        setSyncing(false);
-        setReloads((value) => value + 1);
-      },
-    );
-  }, []);
-
-  return <FriendsView state={state} syncing={syncing} peopleInCity={point.settled && point.fromViewer} onSync={sync} onOpenFriend={(id) => navigate({ name: "user", id })} onOpenDiscovery={() => navigate({ name: "discovery" })} onOpenPeople={() => navigate({ name: "people" })} onRetry={() => setReloads((value) => value + 1)} />;
+  return <FriendsView state={state} peopleInCity={point.settled && point.fromViewer} onOpenFriend={(id) => navigate({ name: "user", id })} onOpenDiscovery={() => navigate({ name: "discovery" })} onOpenPeople={() => navigate({ name: "people" })} onRetry={() => setReloads((value) => value + 1)} />;
 }

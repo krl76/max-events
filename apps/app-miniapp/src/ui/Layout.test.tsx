@@ -54,6 +54,11 @@ describe("Layout tabbar active predicates", () => {
     }
   });
 
+  it("highlights exactly one tab on the micro-event screens", () => {
+    expect(TABS.filter((tab) => tab.active("micro")).map((tab) => tab.route)).toEqual(["home"]);
+    expect(TABS.filter((tab) => tab.active("micro-event")).map((tab) => tab.route)).toEqual(["home"]);
+  });
+
   it("keeps other screens off the Map tab", () => {
     expect(TABS.find((tab) => tab.route === "map")?.active("home")).toBe(false);
     expect(TABS.find((tab) => tab.route === "map")?.active("search")).toBe(false);
@@ -100,6 +105,14 @@ describe("routeHasBack", () => {
 
   it("hides the back button on the map, which is a tab", () => {
     expect(routeHasBack({ name: "map" })).toBe(false);
+  });
+
+  it("hides the native back button on fullscreen screens, which draw their own close", () => {
+    expect(routeHasBack({ name: "place", id: "p1" })).toBe(false);
+    expect(routeHasBack({ name: "story-new" })).toBe(false);
+    expect(routeHasBack({ name: "notifications" })).toBe(false);
+    expect(routeHasBack({ name: "calendar" })).toBe(false);
+    expect(routeHasBack({ name: "slot-ticket", id: "b1" })).toBe(false);
   });
 });
 

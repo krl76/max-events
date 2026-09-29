@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { FriendActivityByFriend } from "@max-events/api-contracts";
-import { activeFriends, friendNowLine, friendsPeopleLabel, initials, syncLabel, FriendsView, type FriendsState } from "./FriendsPage";
+import { activeFriends, friendNowLine, friendsPeopleLabel, initials, FriendsView, type FriendsState } from "./FriendsPage";
 import { personGradient, personLetter } from "./avatar";
 import { friendActivityByFriend, mockEvents, mockFriends } from "../api/mock";
 
@@ -15,7 +15,7 @@ function group(startsAt: string, participationStatus: FriendActivityByFriend["ev
 }
 
 function state(over: Partial<Extract<FriendsState, { status: "ready" }>> = {}): FriendsState {
-  return { status: "ready", friends: mockFriends, groups: friendActivityByFriend(), syncedAt: new Date(NOW.getTime() - 2 * HOUR).toISOString(), ...over };
+  return { status: "ready", friends: mockFriends, groups: friendActivityByFriend(), ...over };
 }
 
 describe("initials and the avatar disc", () => {
@@ -27,21 +27,6 @@ describe("initials and the avatar disc", () => {
   it("keeps a colour attached to the person, not to their place in a list", () => {
     expect(personGradient(mockFriends[0].id)).toBe(personGradient(mockFriends[0].id));
     expect(personGradient(mockFriends[0].id)).toBeLessThan(5);
-  });
-});
-
-describe("syncLabel", () => {
-  it("writes the age of the sync, the way the design does", () => {
-    expect(syncLabel(new Date(NOW.getTime() - 2 * HOUR).toISOString(), NOW)).toBe("Синхронизировано 2 часа назад");
-    expect(syncLabel(new Date(NOW.getTime() - 30 * 1000).toISOString(), NOW)).toBe("Синхронизировано только что");
-    expect(syncLabel(new Date(NOW.getTime() - 20 * 60 * 1000).toISOString(), NOW)).toBe("Синхронизировано 20 мин назад");
-    expect(syncLabel(new Date(NOW.getTime() - 5 * HOUR).toISOString(), NOW)).toBe("Синхронизировано 5 часов назад");
-    expect(syncLabel(new Date(NOW.getTime() - 26 * HOUR).toISOString(), NOW)).toBe("Синхронизировано вчера");
-    expect(syncLabel(new Date(NOW.getTime() - 5 * 24 * HOUR).toISOString(), NOW)).toBe("Синхронизировано 5 дн назад");
-  });
-
-  it("says outright that the contacts were never pulled in", () => {
-    expect(syncLabel(null, NOW)).toBe("Контакты ещё не синхронизированы");
   });
 });
 
@@ -78,7 +63,7 @@ describe("activeFriends", () => {
 });
 
 describe("FriendsView", () => {
-  const view = (value: FriendsState) => renderToStaticMarkup(createElement(FriendsView, { state: value, now: NOW, onSync: noop, onOpenFriend: noop, onOpenDiscovery: noop, onOpenPeople: noop, onRetry: noop }));
+  const view = (value: FriendsState) => renderToStaticMarkup(createElement(FriendsView, { state: value, now: NOW, onOpenFriend: noop, onOpenDiscovery: noop, onOpenPeople: noop, onRetry: noop }));
 
   it("renders the counter topbar without a contacts sync row", () => {
     const html = view(state());
