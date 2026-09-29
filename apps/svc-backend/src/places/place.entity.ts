@@ -49,6 +49,12 @@ export class PlaceEntity {
   @Column({ type: "varchar", nullable: true })
   logoUrl?: string | null;
 
+  @Column({ type: "varchar", nullable: true })
+  source?: string | null;
+
+  @Column({ type: "varchar", nullable: true })
+  externalId?: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

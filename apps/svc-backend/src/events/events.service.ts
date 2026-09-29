@@ -256,13 +256,8 @@ export class EventsService {
     const like = query.q ? containsPattern(query.q) : null;
     if (query.q && like === null) return [];
     const hinted = query.category === undefined && query.q ? categoryHintFromQuery(query.q) : null;
-    const where = like
-      ? [
-          { ...whereBase, title: ILike(like) },
-          { ...whereBase, description: ILike(like) },
-          ...(hinted === null ? [] : [{ ...whereBase, category: hinted }]),
-        ]
-      : whereBase;
+    const matched = like ? [{ ...whereBase, title: ILike(like) }, { ...whereBase, description: ILike(like) }, ...(hinted === null ? [] : [{ ...whereBase, category: hinted }])] : whereBase;
+    const where = query.date ? withDayOverlap(matched, query.date) : matched;
     const pageOffset = query.offset ?? 0;
     const pageTake = Math.min(query.limit ?? EVENT_LIST_MAX_LIMIT, EVENT_LIST_MAX_LIMIT);
     const hasOrigin = query.latitude !== undefined && query.longitude !== undefined;
@@ -303,7 +298,7 @@ export class EventsService {
   private async orderCatalog(rows: EventEntity[], query: EventListQuery, now: Date): Promise<EventEntity[]> {
     if (query.sort === "rating") {
       const averages = await this.reviews.averagesByEventIds(rows.map((row) => row.id));
-      return [...rows].sort((a, b) => compareRating(averages.get(a.id), averages.get(b.id)) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
+      return [...rows].sort((a, b) => compareRating(averages.get(a.id), averages.get(b.id)) || (b.popularity ?? 0) - (a.popularity ?? 0) || a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
     }
     if (query.sort === "near" && query.latitude !== undefined && query.longitude !== undefined) {
       const placeIds = [...new Set(rows.map((row) => row.placeId).filter((id): id is string => id !== null))];
@@ -420,14 +415,21 @@ function compareRating(left: number | undefined, right: number | undefined): num
 
 function startWindow(query: EventListQuery): FindOperator<Date> | undefined {
   const bounds: FindOperator<Date>[] = [];
-  if (query.date) {
-    const from = new Date(`${query.date}T00:00:00.000Z`);
-    bounds.push(MoreThanOrEqual(from), LessThan(new Date(from.getTime() + DAY_MS)));
-  }
   if (query.dateFrom) bounds.push(MoreThanOrEqual(query.dateFrom));
   if (query.dateTo) bounds.push(LessThanOrEqual(query.dateTo));
   if (bounds.length === 0) return undefined;
   return bounds.length === 1 ? bounds[0] : And(...bounds);
+}
+
+/** A day bill includes a showing that starts that day and one that is already open and has not ended. */
+function withDayOverlap(where: object | object[], day: string): object[] {
+  const from = new Date(`${day}T00:00:00.000Z`);
+  const to = new Date(from.getTime() + DAY_MS);
+  const branches = Array.isArray(where) ? where : [where];
+  return branches.flatMap((branch) => [
+    { ...branch, startsAt: And(MoreThanOrEqual(from), LessThan(to)) },
+    { ...branch, startsAt: LessThan(to), endsAt: MoreThanOrEqual(from) },
+  ]);
 }
 
 async function attachChatLink(events: Repository<EventEntity>, bot: MaxBotClient, saved: EventEntity): Promise<EventEntity> {

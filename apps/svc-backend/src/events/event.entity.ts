@@ -75,6 +75,17 @@ export class EventEntity {
   @Column({ type: "varchar", nullable: true })
   coverUrl?: string | null;
 
+  /** Public catalog id, for example kudago. Null on events created in the mini app. */
+  @Column({ type: "varchar", nullable: true })
+  source?: string | null;
+
+  @Column({ type: "varchar", nullable: true })
+  externalId?: string | null;
+
+  /** Favorites from the public catalog. Review rating still wins in «Популярное». */
+  @Column({ type: "int", default: 0 })
+  popularity?: number;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

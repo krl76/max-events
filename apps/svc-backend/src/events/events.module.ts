@@ -34,6 +34,9 @@ import { CitiesService } from "./cities.service";
 import { EventBookingOfferService } from "./event-booking-offer.service";
 import { EventCompanionsService } from "./event-companions.service";
 import { EventDetailsService } from "./event-details.service";
+import { PlaceEntity } from "../places/place.entity";
+import { AfishaImportScheduler } from "./afisha-import.scheduler";
+import { AfishaImportService } from "./afisha-import.service";
 import { EventEntity } from "./event.entity";
 import { EventsController } from "./events.controller";
 import { EventWeatherService } from "./event-weather.service";
@@ -42,9 +45,9 @@ import { WeatherController } from "./weather.controller";
 import { WeatherClient } from "../smart-alerts/weather.client";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([EventEntity, BookingEntity, CheckInEntity, ParticipationEntity, UserEntity, FriendshipEntity, ProfileEntity, GatheringEntity, GatheringInviteeEntity, WaitlistEntryEntity]), PlacesModule, MaxBotModule, SubscriptionsModule, UsersModule, WaitlistModule, PromotionModule, ReviewsModule, OrganizationsModule],
+  imports: [TypeOrmModule.forFeature([EventEntity, PlaceEntity, BookingEntity, CheckInEntity, ParticipationEntity, UserEntity, FriendshipEntity, ProfileEntity, GatheringEntity, GatheringInviteeEntity, WaitlistEntryEntity]), PlacesModule, MaxBotModule, SubscriptionsModule, UsersModule, WaitlistModule, PromotionModule, ReviewsModule, OrganizationsModule],
   controllers: [EventsController, WeatherController, CitiesController],
-  providers: [WeatherClient, EventWeatherService, EventsService, EventDetailsService, EventCompanionsService, EventBookingOfferService, EventChatScheduler, CitiesService],
+  providers: [WeatherClient, EventWeatherService, EventsService, EventDetailsService, EventCompanionsService, EventBookingOfferService, EventChatScheduler, CitiesService, AfishaImportService, AfishaImportScheduler],
   exports: [EventsService],
 })
 export class EventsModule {}

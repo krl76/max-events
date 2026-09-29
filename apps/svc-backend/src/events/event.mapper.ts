@@ -11,6 +11,7 @@
 
 import type { Event } from "@max-events/api-contracts";
 import type { EventEntity } from "./event.entity";
+import { publicCoverUrl } from "./kudago";
 
 export function toEventDto(event: EventEntity, options?: { promoted?: boolean }): Event {
   return {
@@ -31,7 +32,7 @@ export function toEventDto(event: EventEntity, options?: { promoted?: boolean })
     published: event.published,
     bookingOpensAt: event.bookingOpensAt ? event.bookingOpensAt.toISOString() : null,
     weather: null,
-    coverUrl: event.coverUrl ?? null,
+    coverUrl: publicCoverUrl(event.coverUrl),
     bookedCount: event.bookedCount,
     remainingSeats: event.capacity === null ? null : Math.max(0, event.capacity - event.bookedCount),
     hitOfTheWeek: options?.promoted === true,

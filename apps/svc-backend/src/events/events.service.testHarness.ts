@@ -82,6 +82,8 @@ function matchesEventWhere(row: EventEntity, clause: Record<string, unknown>): b
   if (chatLink?.type === "isNull" && row.chatLink !== null) return false;
   const startsAt = clause.startsAt as FindOperator<Date> | undefined;
   if (startsAt && !matchesDateOperator(row.startsAt, startsAt)) return false;
+  const endsAt = clause.endsAt as FindOperator<Date> | undefined;
+  if (endsAt && (row.endsAt == null || !matchesDateOperator(row.endsAt, endsAt))) return false;
   return true;
 }
 
