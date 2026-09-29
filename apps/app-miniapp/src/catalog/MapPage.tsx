@@ -35,7 +35,14 @@ export function MapPageView({ state, onOpenEvent, onOpenPlace, onDiscuss, pin = 
   return <MapScreen events={state.status === "ready" ? state.events : NO_EVENTS} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} onDiscuss={onDiscuss} eventsFailed={state.status === "error"} eventsLoading={state.status === "loading"} pin={pin} focusPlaceId={focusPlaceId} drawRoute={drawRoute} extraMarkers={walkMarkers} walkFailed={walkFailed} focusPoint={focusPoint} />;
 }
 
-export function MapPage({ loadEvents = defaultLoadEvents, loadWalk = defaultLoadWalk, walkId: forcedWalkId }: { readonly loadEvents?: () => Promise<Event[]>; readonly loadWalk?: (id: string) => Promise<CityWalk>; readonly walkId?: string | null } = {}) {
+export type MapPageProps = {
+  readonly loadEvents?: () => Promise<Event[]>;
+  readonly loadWalk?: (id: string) => Promise<CityWalk>;
+  readonly walkId?: string | null;
+};
+
+export function MapPage(props: MapPageProps = {}) {
+  const { loadEvents = defaultLoadEvents, loadWalk = defaultLoadWalk, walkId: forcedWalkId } = props;
   const { route, navigate } = useRoute();
   const pin = route.name === "map" ? (route.pin ?? null) : null;
   const focusPlaceId = route.name === "map" ? (route.placeId ?? null) : null;

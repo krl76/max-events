@@ -23400,6 +23400,21 @@ button.app-story-viewer-author {
   font-weight: 700;
   gap: 6px;
 }
+.app-walk-progress-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+  padding: 0;
+  text-align: left;
+}
 .app-walk-progress-dot {
   background: var(--app-divider);
   border-radius: 999px;
@@ -23523,22 +23538,92 @@ button.app-story-viewer-author {
   flex-wrap: wrap;
   gap: 8px;
 }
+.app-walk-step-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+.app-walk-badge {
+  background: var(--app-surface);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 10px;
+}
 .app-walk-custom {
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-m);
   color: var(--app-text-secondary);
   display: flex;
-  flex-direction: column;
-  font-size: var(--app-font-size-description);
-  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  transition: border-color var(--app-duration-fast) var(--app-ease-out), box-shadow var(--app-duration-fast) var(--app-ease-out);
 }
-.app-walk-custom input {
-  background: var(--app-canvas);
-  border: var(--app-hairline);
-  border-radius: var(--app-radius-m);
+.app-walk-custom-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.app-walk-custom-title {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 800;
+}
+.app-walk-custom-hint {
+  color: var(--app-text-secondary);
+  font-size: 11px;
+}
+.app-walk-custom-input-wrap {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: var(--app-radius-s);
+  display: flex;
+  gap: 6px;
+  padding: 4px 10px;
+}
+.app-walk-custom-input-wrap input {
+  background: transparent;
+  border: 0;
   color: var(--app-text);
   font: inherit;
-  height: 48px;
-  padding: 0 14px;
-  width: 100%;
+  font-size: 15px;
+  font-weight: 800;
+  height: 32px;
+  outline: none;
+  padding: 0;
+  text-align: right;
+  width: 60px;
+}
+.app-walk-custom-unit {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+.app-walk-custom--on {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 1px var(--app-accent);
+}
+.app-walk-custom--budget .app-walk-custom-input-wrap input {
+  width: 80px;
+}
+.app-walk-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
+  margin-top: auto;
+  padding-top: var(--app-space-s);
+}
+.app-walk-summary {
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0;
+  min-height: 18px;
+  text-align: center;
 }
 .app-walk-compose {
   background: var(--app-accent);
@@ -23556,8 +23641,7 @@ button.app-story-viewer-author {
   opacity: 0.4;
 }
 
-/* Шаг времени — карточки-настроения (C-WALK-WIZARD-REDESIGN): сетка 2×2, активная —
- * инверсная заливка как у app-chip--on, чтобы не плодить третью форму выбора. */
+/* Шаг времени — карточки без эмодзи/иконок */
 .app-walk-choices--tiles {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -23572,13 +23656,10 @@ button.app-story-viewer-author {
   display: flex;
   flex-direction: column;
   font: inherit;
-  font-size: 15px;
-  font-weight: 700;
-  gap: 3px;
-  justify-content: flex-end;
-  min-height: 76px;
-  padding: 12px;
-  position: relative;
+  gap: 6px;
+  justify-content: space-between;
+  min-height: 84px;
+  padding: 14px 12px;
   text-align: left;
   transition:
     background-color var(--app-duration-fast) var(--app-ease-out),
@@ -23591,22 +23672,18 @@ button.app-story-viewer-author {
   transform: scale(0.96);
 }
 
-.app-walk-tile-glyph {
-  font-size: 16px;
-  left: 12px;
-  opacity: 0.8;
-  position: absolute;
-  top: 10px;
-}
-
 .app-walk-tile-label {
   color: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .app-walk-tile-mood {
-  color: var(--app-text-tertiary);
-  font-size: 11px;
+  color: var(--app-text-secondary);
+  font-size: 12px;
   font-weight: 500;
+  line-height: 1.3;
 }
 
 .app-walk-tile--on {
@@ -23617,8 +23694,9 @@ button.app-story-viewer-author {
 
 .app-walk-tile--on .app-walk-tile-mood {
   color: inherit;
-  opacity: 0.6;
+  opacity: 0.7;
 }
+
 .app-walk-saved {
   align-items: center;
   background: var(--app-card);

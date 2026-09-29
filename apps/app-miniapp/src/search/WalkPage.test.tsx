@@ -248,4 +248,47 @@ describe("composed walk", () => {
     root.unmount();
     host.remove();
   });
+
+  it("navigates between wizard steps via Back button and progress tabs without emojis", async () => {
+    let backCalled = false;
+    const { host, root } = await mount(
+      createElement(WalkWizard, {
+        city: "Тула",
+        choice: readyChoice(),
+        onChange: () => {},
+        onBack: () => {
+          backCalled = true;
+        },
+      }),
+    );
+    expect(host.textContent).toContain("Интересы");
+    expect(host.textContent).toContain("Выбрано: 1");
+    expect(host.textContent).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
+
+    await act(async () => {
+      clickText(host, "Назад");
+    });
+    expect(host.textContent).toContain("Бюджет");
+    expect(host.textContent).toContain("Любой");
+
+    await act(async () => {
+      clickText(host, "Назад");
+    });
+    expect(host.textContent).toContain("Сколько времени");
+    expect(host.textContent).toContain("1 час");
+
+    await act(async () => {
+      clickText(host, "Назад");
+    });
+    expect(backCalled).toBe(true);
+
+    await act(async () => {
+      clickText(host, "Интересы");
+    });
+    expect(host.textContent).toContain("Интересы");
+
+    root.unmount();
+    host.remove();
+  });
 });
+

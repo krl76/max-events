@@ -113,14 +113,14 @@ describe("walk stops on the existing map", () => {
   it("asks for the saved walk by id", async () => {
     const calls: string[] = [];
     const { host, root } = await mount(
-      createElement(MapPage, {
-        walkId: "w1",
-        loadEvents: () => Promise.resolve([]),
-        loadWalk: (id: string) => {
+      <MapPage
+        walkId="w1"
+        loadEvents={() => Promise.resolve([])}
+        loadWalk={(id: string) => {
           calls.push(id);
           return Promise.reject(new Error("missing"));
-        },
-      }),
+        }}
+      />,
     );
 
     expect(calls).toEqual(["w1"]);

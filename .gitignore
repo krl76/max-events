@@ -56,3 +56,4 @@ backups/
 # Кеш хука impeccable: локальный артефакт инструмента, в репозитории ему не место
 .impeccable/
 /.omo
+/.antigravitycli
