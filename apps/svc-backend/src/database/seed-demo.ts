@@ -92,9 +92,9 @@ export type DemoCounts = {
 };
 
 export const DEMO_COUNTS: Record<DemoScale, DemoCounts> = {
-  small: { users: 10, places: 10, events: 24, stories: 5, feedPosts: 12, reviews: 15, checkIns: 18, bookings: 10, participations: 20, plans: 3, votes: 2, weGroups: 1, gatherings: 1, microEvents: 4, subscriptions: 5, pageViews: 60, feedLikes: 20, feedComments: 8, waitlistEntries: 4, reports: 3 },
-  normal: { users: 48, places: 40, events: 160, stories: 36, feedPosts: 80, reviews: 90, checkIns: 100, bookings: 50, participations: 100, plans: 18, votes: 8, weGroups: 5, gatherings: 6, microEvents: 18, subscriptions: 24, pageViews: 320, feedLikes: 120, feedComments: 48, waitlistEntries: 16, reports: 10 },
-  big: { users: 75, places: 60, events: 200, stories: 40, feedPosts: 100, reviews: 120, checkIns: 150, bookings: 75, participations: 150, plans: 25, votes: 12, weGroups: 7, gatherings: 7, microEvents: 25, subscriptions: 40, pageViews: 500, feedLikes: 180, feedComments: 60, waitlistEntries: 25, reports: 20 },
+  small: { users: 10, places: 26, events: 12, stories: 8, feedPosts: 8, reviews: 8, checkIns: 18, bookings: 10, participations: 20, plans: 3, votes: 2, weGroups: 1, gatherings: 1, microEvents: 4, subscriptions: 5, pageViews: 60, feedLikes: 20, feedComments: 8, waitlistEntries: 4, reports: 3 },
+  normal: { users: 48, places: 26, events: 12, stories: 8, feedPosts: 8, reviews: 8, checkIns: 100, bookings: 50, participations: 100, plans: 18, votes: 8, weGroups: 5, gatherings: 6, microEvents: 18, subscriptions: 24, pageViews: 320, feedLikes: 120, feedComments: 48, waitlistEntries: 16, reports: 10 },
+  big: { users: 75, places: 26, events: 12, stories: 8, feedPosts: 8, reviews: 8, checkIns: 150, bookings: 75, participations: 150, plans: 25, votes: 12, weGroups: 7, gatherings: 7, microEvents: 25, subscriptions: 40, pageViews: 500, feedLikes: 180, feedComments: 60, waitlistEntries: 25, reports: 20 },
 };
 
 export function parseDemoScale(raw: string | undefined): DemoScale {
@@ -136,6 +136,7 @@ const PLACE_POOL: ReadonlyArray<{ title: string; address: string; category: Plac
   { title: "ВДНХ", address: "пр-т Мира, 119, стр. 1", category: "park", latitude: 55.8263, longitude: 37.6377 },
   { title: "Парк «Зарядье»", address: "ул. Варварка, 6с1", category: "park", latitude: 55.752, longitude: 37.6232 },
   { title: "Коломенское", address: "пр-т Андропова, 39", category: "park", latitude: 55.6675, longitude: 37.671 },
+  { title: "Царицыно", address: "ул. Дольская, 1", category: "park", latitude: 55.6156, longitude: 37.6824 },
   { title: "Кусково", address: "ул. Юности, 2", category: "park", latitude: 55.746, longitude: 37.819 },
   { title: "Аптекарский огород", address: "пр-т Мира, 26с1", category: "park", latitude: 55.7786, longitude: 37.6327 },
   { title: "Измайловский парк", address: "ул. Городская, 1", category: "park", latitude: 55.7795, longitude: 37.734 },
@@ -158,26 +159,41 @@ const PLACE_POOL: ReadonlyArray<{ title: string; address: string; category: Plac
   { title: "Кинотеатр «Иллюзион»", address: "Котельническая наб., 1/15", category: "other", latitude: 55.747, longitude: 37.641 },
 ];
 
-const EVENT_CATEGORIES = ["afisha", "volunteering", "tourism", "sport"] as const satisfies readonly EventCategory[];
+/** Одно событие — одна площадка и два снимка: афиша места и кадр, где человек сам в кадре. */
+const SCENES: ReadonlyArray<{
+  title: string;
+  category: EventCategory;
+  place: string;
+  description: string;
+  cover: string;
+  visit: string;
+  post: string;
+  review: string;
+  paid: boolean;
+  price: number | null;
+  past: boolean;
+}> = [
+  { title: "Утренняя йога у арки", category: "sport", place: "Парк Горького", description: "Встречаемся у главной арки Парка Горького за десять минут до старта. Коврики свои, занятие на лужайке сразу за воротами.", cover: "/onboarding/gorky.jpg", visit: "/covers/visits/gorky-me.jpg", post: "Встретились у арки Парка Горького и сразу снялись. Йога началась через десять минут.", review: "В Парке Горького удобно: арка видна сразу, на лужайке хватило места всем коврикам.", paid: false, price: null, past: true },
+  { title: "Экскурсия по Царицыну", category: "tourism", place: "Царицыно", description: "Сбор у Большого дворца Царицына, со стороны пруда. Полтора часа по парку, без спешки и без билета в сам дворец.", cover: "/covers/visits/tsaritsyno.jpg", visit: "/covers/visits/tsaritsyno-me.jpg", post: "Экскурсия по Царицыну. Я у пруда, дворец за спиной — так и хотела снять.", review: "В Царицыне гид держал группу у пруда, дворец всё время был в кадре. Никуда не бежали.", paid: false, price: null, past: true },
+  { title: "Джаз в Нескучном саду", category: "afisha", place: "Нескучный сад", description: "Трио играет у летней площадки Нескучного сада. Вход свободный, стулья занимают кто пришёл раньше.", cover: "/covers/jazz.jpg", visit: "/covers/jazz.jpg", post: "Джаз в Нескучном саду. Трио играло у столиков, я сняла их почти в упор.", review: "В Нескучном саду трио было близко, без сцены и без опоздания. Час пролетел незаметно.", paid: false, price: null, past: true },
+  { title: "Авторская песня в «Циферблате»", category: "afisha", place: "Антикафе «Циферблат»", description: "Гитара и несколько песен в зале антикафе «Циферблат» на Маросейке. Чай берём на месте.", cover: "/covers/concert.jpg", visit: "/covers/concert.jpg", post: "Авторская песня в «Циферблате». Гитара на нашем столе, я в кадре с бокалом.", review: "В «Циферблате» слышно каждое слово, зал маленький. Начало ровно в заявленное время.", paid: true, price: 400, past: true },
+  { title: "Лекция в Третьяковке", category: "afisha", place: "Третьяковская галерея", description: "Час в залах Третьяковской галереи на Лаврушинском: как смотреть на большое полотно, не пробегая мимо.", cover: "/covers/visits/museum.jpg", visit: "/covers/visits/museum.jpg", post: "После лекции в Третьяковке осталась в зале. Сняла, как стою у большого полотна.", review: "В Третьяковке группа была небольшой, у картины удалось постоять, а не только пройти мимо.", paid: true, price: 700, past: true },
+  { title: "Пять километров в Сокольниках", category: "sport", place: "Сокольники", description: "Лёгкий темп по главной аллее Сокольников. Сбор у входа со стороны 5-го Лучевого просека.", cover: "/covers/visits/run.jpg", visit: "/covers/visits/run.jpg", post: "Пять километров в Сокольниках. Снялся на аллее, ещё не отдышался.", review: "В Сокольниках трасса ровная, темп и правда лёгкий. Воду лучше взять с собой.", paid: false, price: null, past: true },
+  { title: "Субботник в Измайловском парке", category: "volunteering", place: "Измайловский парк", description: "Час вдоль дорожек Измайловского парка. Перчатки выдадут на месте, мешки тоже.", cover: "/covers/visits/cleanup.jpg", visit: "/covers/visits/cleanup.jpg", post: "Субботник в Измайловском парке. Мешок собрали вдвоём и сразу сфотографировались.", review: "В Измайловском парке всё организовали просто: перчатки, мешок, час работы и чай.", paid: false, price: null, past: true },
+  { title: "Разговорный клуб в «Даблби»", category: "afisha", place: "Кофейня «Даблби»", description: "Час английского за столом у окна в «Даблби» на Мясницкой. Напиток каждый берёт сам.", cover: "/covers/visits/cafe.jpg", visit: "/covers/visits/cafe.jpg", post: "После клуба осталась в «Даблби» на Мясницкой. Кофе у окна, я в кадре.", review: "В «Даблби» на Мясницкой было тихо достаточно, чтобы слышать друг друга. Стол у окна — удача.", paid: false, price: null, past: true },
+  { title: "Экскурсия по Коломенскому", category: "tourism", place: "Коломенское", description: "Сбор у деревянного дворца в Коломенском. Идём к церкви, без захода в платные палаты.", cover: "/covers/kolomenskoe.jpg", visit: "/covers/kolomenskoe.jpg", post: "В Коломенском дошли по дорожке до деревянного дворца и церкви. Сняла именно этот вид.", review: "В Коломенском маршрут короткий и понятный: дворец, дорожка, церковь. Обувь удобная пригодилась.", paid: false, price: null, past: false },
+  { title: "Прогулка по дворам Замоскворечья", category: "tourism", place: "Третьяковская галерея", description: "Выходим от Третьяковской галереи и час ходим по ближайшим дворам. Это не залы музея, билет не нужен.", cover: "/covers/tour.jpg", visit: "/covers/tour.jpg", post: "Ушли от Третьяковки во дворы Замоскворечья. Жёлтый дом с зелёной аркой — мой кадр с прогулки.", review: "Маршрут от Третьяковки по дворам спокойный, без толпы. Зелёная арка и правда на месте.", paid: false, price: null, past: false },
+  { title: "Субботник у арки Парка Горького", category: "volunteering", place: "Парк Горького", description: "Собираемся у главной арки Парка Горького. Час на площади перед входом, мешки выдают.", cover: "/onboarding/gorky.jpg", visit: "/covers/visits/gorky-me.jpg", post: "До субботника у арки Парка Горького успели сняться. Площадь перед входом уже наша.", review: "У арки Парка Горького легко найти группу. Час прошёл быстро, площадь стала заметно чище.", paid: false, price: null, past: false },
+  { title: "Камерный вечер в ДК «Москва»", category: "afisha", place: "ДК «Москва»", description: "Небольшой зал ДК «Москва» на Ленинской Слободе. Гитара и два отделения, без танцпола.", cover: "/covers/concert.jpg", visit: "/covers/concert.jpg", post: "Камерный вечер в ДК «Москва». Сидели близко, гитара была на расстоянии вытянутой руки.", review: "В ДК «Москва» зал маленький, слышно без микрофона на весь крик. Места лучше занять заранее.", paid: true, price: 900, past: false },
+];
 
-const EVENT_TITLES: Record<EventCategory, string[]> = {
-  afisha: ["Лекция «Города будущего»", "Концерт инди-группы «Сирень»", "Вечер авторской песни", "Открытый показ документального кино", "Литературный вечер в библиотеке", "Джазовый вечер", "Выставка современного фотоискусства", "Кинопоказ под открытым небом", "Лекция «Как смотреть на искусство»", "Концерт камерного оркестра", "Творческая встреча с художником", "Вечер настольных игр в антикафе"],
-  volunteering: ["Субботник в парке", "Помощь приюту для животных", "Сбор гуманитарной помощи", "Эко-патруль у реки", "Благоустройство школьного двора", "Помощь пожилым соседям", "Раздача еды нуждающимся", "Выставка-ярмарка добрых дел", "Ликвидация незаконных свалок", "Помощь конному приюту", "Озеленение дворов", "Волонтёрский интенсив для новичков"],
-  tourism: ["Пешая экскурсия по центру Москвы", "Веломаршрут по набережным", "Экскурсия в Коломенское", "Поход выходного дня", "Обзорная экскурсия по Замоскворечью", "Ночная фотопрогулка по городу", "Экскурсия на ВДНХ", "Загородная поездка в усадьбу Абрамцево", "Прогулка на кораблике по Москве-реке", "Экскурсия «Тайны старых переулков»", "Гастрономический тур по Мясницкой", "Однодневная поездка в Сергиев Посад"],
-  sport: ["Утренняя йога в парке", "Пробежка 5 км с клубом", "Открытая тренировка по ОФП", "Турнир по настольному теннису", "Скандинавская ходьба для начинающих", "Велопарад по вечерней Москве", "Тренировка по воркауту", "Матч любительской лиги по футболу", "Соревнования по ориентированию", "Кроссфит на открытом воздухе", "Плавание в открытом бассейне", "Чемпионат по стритболу"],
-};
-
-const EVENT_DESCRIPTIONS = ["Вход по предварительной регистрации, приходите за 15 минут до начала.", "Место сбора — главный вход. Возьмите с собой воду и удобную обувь.", "Программа подойдёт и новичкам, и опытным участникам.", "Организаторы ответят на вопросы после основной части.", "Количество мест ограничено, не опаздывайте.", "С собой можно брать друзей — вход свободный."];
-
-const FEED_TEXTS = ["Отличное мероприятие, советую всем!", "Была вчера — восторг!", "Кто идёт? Пишите в чат.", "Собираем компанию на выходные.", "Впечатлений море, обязательно повторим.", "Лучшая суббота за месяц.", "Только вернулись — до сих пор под впечатлением.", "Спасибо организаторам!", "Идём с друзьями, присоединяйтесь.", "Место легко найти, вход свободный."];
-
-const REVIEW_TEXTS = ["Всё прошло отлично, вернёмся ещё.", "Организация на высоте.", "Начало задержали на 15 минут, но в целом неплохо.", "Атмосфера супер, народу немного.", "Понравилось, в следующий раз возьму друзей.", "Событие оправдало ожидания."];
+function sceneByTitle(title: string): (typeof SCENES)[number] {
+  const scene = SCENES.find((item) => item.title === title);
+  if (!scene) throw new Error(`Нет сцены для события «${title}»`);
+  return scene;
+}
 
 const MEETING_POINTS = ["У входа в метро «Парк культуры»", "У центрального фонтана", "У билетных касс", "У главного входа в парк", "У фудкорта", "У сцены"];
-
-const MICRO_EVENT_TITLES = ["Бегаем 5 км в парке", "Ищу компанию на настолки", "Прогулка с фотографом по центру", "Кофе и разговорный английский", "Велопрокат и прогулка по набережной", "Пикник в Зарядье", "Настолки в антикафе", "Утренняя медитация в парке", "Ищу компанию в кино", "Пешая прогулка по Бульварному кольцу"];
-
-const MICRO_LOCATIONS = ["У входа в метро", "У центрального входа в парк", "В антикафе на Покровке", "У фудкорта", "У фонтана"];
 
 const INTEREST_POOL = ["Спорт", "Музыка", "Искусство", "Гастрономия", "Путешествия", "Настольные игры", "Волонтёрство", "Театр", "Кино", "Фотография", "Бег", "Лекции"];
 
@@ -200,7 +216,6 @@ const REPORT_TARGET_TYPES = ["event", "place", "feed_post", "micro_event"] as co
 // «про меня» читались как чей-то живой аккаунт, а не как чужая витрина.
 const VIEWER_CUSTOM_LIST_TITLE = "Мой маршрут на осень";
 const VIEWER_WE_GROUP_TITLES = ["Мы: субботние вылазки", "Мы: музейный клуб", "Мы: летние поездки"] as const;
-const VIEWER_MICRO_EVENT_TITLES = ["Зову на утренний забег", "Ищу компанию в музей"] as const;
 
 // --- Pure generation ---------------------------------------------------------
 
@@ -264,9 +279,7 @@ function chance(likelihood: number): boolean {
   return fakerRU.datatype.boolean(likelihood);
 }
 
-function picsum(slug: string): string {
-  return `https://picsum.photos/seed/${slug}/600/400`;
-}
+
 
 function shiftDays(base: Date, days: number, hourUtc: number): Date {
   return new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate() + days, hourUtc, int(0, 45)));
@@ -569,10 +582,10 @@ export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
   const microEvents: MicroEventEntity[] = [];
   const microEventParticipants: MicroEventParticipantEntity[] = [];
   const ownedMicroId = uuid();
-  microEvents.push({ id: ownedMicroId, authorId: viewerId, title: VIEWER_MICRO_EVENT_TITLES[0], startsAt: shiftDays(now, int(2, 9), 9), locationText: null, placeId: pick(places).id, participantsLimit: int(4, 10), status: "open" as MicroEventStatus, published: true, createdAt: shiftDays(now, -3, 12) });
+  microEvents.push({ id: ownedMicroId, authorId: viewerId, title: "Забег по аллее Сокольников", startsAt: shiftDays(now, int(2, 9), 9), locationText: null, placeId: places.find((item) => item.title === "Сокольники")?.id ?? null, participantsLimit: int(4, 10), status: "open" as MicroEventStatus, published: true, createdAt: shiftDays(now, -3, 12) });
   microEventParticipants.push({ id: uuid(), microEventId: ownedMicroId, userId: friend(0).id }, { id: uuid(), microEventId: ownedMicroId, userId: friend(1).id });
   const joinedMicroId = uuid();
-  microEvents.push({ id: joinedMicroId, authorId: friend(2).id, title: VIEWER_MICRO_EVENT_TITLES[1], startsAt: shiftDays(now, int(3, 12), 15), locationText: pick(MICRO_LOCATIONS), placeId: null, participantsLimit: int(4, 10), status: "open" as MicroEventStatus, published: true, createdAt: shiftDays(now, -5, 12) });
+  microEvents.push({ id: joinedMicroId, authorId: friend(2).id, title: "Час в залах Третьяковки", startsAt: shiftDays(now, int(3, 12), 15), locationText: null, placeId: places.find((item) => item.title === "Третьяковская галерея")?.id ?? null, participantsLimit: int(4, 10), status: "open" as MicroEventStatus, published: true, createdAt: shiftDays(now, -5, 12) });
   microEventParticipants.push({ id: uuid(), microEventId: joinedMicroId, userId: viewerId }, { id: uuid(), microEventId: joinedMicroId, userId: friend(3).id });
 
   // Подписки (41): организаторы, места и интересы — все три вида, которые различает домен.
@@ -603,9 +616,10 @@ export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
   visitedEvents.forEach((event) => checkIns.push({ id: uuid(), userId: viewerId, eventId: event.id, placeId: null, visitDate: null, checkedInAt: new Date(event.startsAt.getTime() + 30 * 60_000) }));
 
   const reviews: ReviewEntity[] = [];
-  [groupPastEvent, ...afishaVisits.slice(0, 2)].forEach((event, i) => {
+  [groupPastEvent, ...afishaVisits.slice(0, 2)].forEach((event) => {
     if (reviews.some((row) => row.eventId === event.id)) return;
-    reviews.push({ id: uuid(), userId: viewerId, eventId: event.id, stars: int(4, 5), categoryScores: { atmosphere: int(4, 5), organization: int(3, 5), price: int(3, 5), place: int(4, 5) }, wouldGoAgain: true, photoUrls: i === 0 ? [picsum("demo-viewer-review-1"), picsum("demo-viewer-review-2")] : [], factTags: [], text: pick(REVIEW_TEXTS), createdAt: new Date(event.startsAt.getTime() + int(2, 30) * HOUR_MS) });
+    const scene = sceneByTitle(event.title);
+    reviews.push({ id: uuid(), userId: viewerId, eventId: event.id, stars: int(4, 5), categoryScores: { atmosphere: int(4, 5), organization: int(3, 5), price: int(3, 5), place: int(4, 5) }, wouldGoAgain: true, photoUrls: [scene.visit], factTags: [], text: scene.review, createdAt: new Date(event.startsAt.getTime() + int(2, 30) * HOUR_MS) });
   });
 
   const participations: ParticipationEntity[] = [];
@@ -622,7 +636,11 @@ export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
     participations.push({ id: uuid(), userId: viewerId, eventId: event.id, status, createdAt, updatedAt: createdAt });
   }
 
-  const feedPosts: FeedPostEntity[] = [groupPastEvent, hostedPlanEvent].map((event, i) => ({ id: uuid(), authorUserId: viewerId, eventId: event.id, text: FEED_TEXTS[i % FEED_TEXTS.length]!, photoUrl: picsum(`demo-viewer-post-${i}`), published: true, createdAt: new Date(now.getTime() - int(2, 90) * HOUR_MS) }));
+  const feedPosts: FeedPostEntity[] = [groupPastEvent, hostedPlanEvent].map((event) => {
+    const scene = sceneByTitle(event.title);
+    const happened = event.startsAt.getTime() < now.getTime();
+    return { id: uuid(), authorUserId: viewerId, eventId: event.id, text: happened ? scene.post : `Собираемся: ${scene.title}. ${scene.description}`, photoUrl: happened ? scene.visit : scene.cover, published: true, createdAt: new Date(now.getTime() - int(2, 90) * HOUR_MS) };
+  });
 
   return { lists, listItems, plans, planParticipants, planExpenses, votes, voteOptions, voteParticipants, voteBallots, weGroups, weGroupMembers, weGroupItems, gatherings, gatheringInvitees, microEvents, microEventParticipants, subscriptions, bookings, checkIns, reviews, participations, feedPosts };
 }
@@ -675,7 +693,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       firstName: fakerRU.person.firstName(),
       lastName: fakerRU.person.lastName(),
       username: i % 3 === 0 ? fakerRU.internet.username() : null,
-      avatarUrl: i % 2 === 1 ? picsum(`demo-user-${i}`) : null,
+      avatarUrl: null,
       avatarCustom: false,
       bannedFromPublishing: false,
       friendsSyncedAt: null,
@@ -693,7 +711,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     privacy: DEFAULT_PRIVACY,
     recommendationsEnabled: chance(0.9),
     bio: i % 4 === 0 ? "Ищу компанию на концерты и прогулки по городу." : "",
-    coverUrl: i % 5 === 0 ? picsum(`demo-cover-${i}`) : null,
+    coverUrl: null,
     updatedAt: user.createdAt,
   }));
 
@@ -717,62 +735,55 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     if (i % 3 === 0) addFriendship(devUserId, user.id);
   });
 
-  // places
-  const places: PlaceEntity[] = [];
-  for (let i = 0; i < c.places; i += 1) {
-    const base = PLACE_POOL[i % PLACE_POOL.length]!;
-    const repeat = Math.floor(i / PLACE_POOL.length);
+  // places: each real venue once, at its own coordinates. No «№2» copies.
+  const places: PlaceEntity[] = PLACE_POOL.map((base, i) => {
     const createdAt = shiftDays(now, -int(60, 200), 12);
-    places.push({
+    return {
       id: uuid(),
-      title: repeat === 0 ? base.title : `${base.title} №${repeat + 1}`,
+      title: base.title,
       address: base.address,
       city: DEMO_CITY,
       category: base.category,
-      latitude: base.latitude + repeat * 0.003,
+      latitude: base.latitude,
       longitude: base.longitude,
       organizerUserId: i < 6 ? organizers[i % 2].id : null,
       published: true,
       createdAt,
       updatedAt: shiftDays(now, -int(1, 30), 12),
-    });
-  }
+    };
+  });
 
-  // events: i < 10 belong to the two organizers, i < 20 to random users; 40% are in the past
-  const events: EventEntity[] = [];
-  for (let i = 0; i < c.events; i += 1) {
-    const category = EVENT_CATEGORIES[i % EVENT_CATEGORIES.length]!;
-    const place = chance(0.7) ? pick(places) : null;
-    const past = i % 5 < 2;
-    const dayOffset = past ? -int(1, 7) : int(1, 30);
-    const startsAt = shiftDays(now, dayOffset, int(10, 20));
-    const isPaid = i < 10 ? i % 2 === 0 : chance(0.4);
-    const capacity = chance(0.5) ? int(20, 200) : null;
-    const organizerUserId = i < 10 ? organizers[i % 2].id : i < 20 ? pick(users).id : null;
+  // events: each scene stays on its own place, with the photo of that place or that evening
+  const events: EventEntity[] = SCENES.slice(0, c.events).map((scene, i) => {
+    const place = places.find((item) => item.title === scene.place);
+    if (!place) throw new Error(`Нет площадки «${scene.place}»`);
+    const startsAt = shiftDays(now, scene.past ? -int(1, 6) : int(2, 21), int(10, 19));
     const createdAt = new Date(startsAt.getTime() - int(3, 21) * 24 * HOUR_MS);
-    events.push({
+    const organizerUserId = i < 4 ? organizers[i % 2].id : null;
+    return {
       id: uuid(),
-      title: pick(EVENT_TITLES[category]),
-      description: pick(EVENT_DESCRIPTIONS),
-      category,
-      city: place?.city ?? DEMO_CITY,
-      placeId: place?.id ?? null,
+      title: scene.title,
+      description: scene.description,
+      category: scene.category,
+      city: place.city,
+      placeId: place.id,
       organizerUserId,
       startsAt,
-      endsAt: chance(0.75) ? new Date(startsAt.getTime() + int(1, 3) * HOUR_MS) : null,
-      isPaid,
-      priceRub: isPaid ? int(6, 60) * 50 : null,
-      paymentUrl: isPaid ? `https://demo-pay.max-events.local/event-${i}` : null,
-      capacity,
-      bookedCount: capacity !== null ? int(0, Math.floor(capacity * 0.6)) : int(0, 40),
+      endsAt: new Date(startsAt.getTime() + 2 * HOUR_MS),
+      isPaid: scene.paid,
+      priceRub: scene.paid ? scene.price : null,
+      paymentUrl: scene.paid ? `https://demo-pay.max-events.local/${encodeURIComponent(scene.title)}` : null,
+      capacity: scene.paid ? 40 : null,
+      bookedCount: scene.paid ? int(4, 18) : int(0, 12),
       published: true,
       bookingOpensAt: null,
       chatLink: null,
       chatSyncPending: true,
+      coverUrl: scene.cover,
       createdAt,
       updatedAt: createdAt,
-    });
-  }
+    };
+  });
   const pastEvents = events.filter((event) => event.startsAt.getTime() < now.getTime());
   const futureEvents = events.filter((event) => event.startsAt.getTime() > now.getTime());
 
@@ -911,18 +922,21 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
   const stories: StoryEntity[] = Array.from({ length: c.stories }, (_, i) => ({
     id: uuid(),
     userId: (storyAuthorIds.length > 0 ? storyAuthorIds[i % storyAuthorIds.length] : pick(users).id)!,
-    imageUrl: picsum(`demo-story-${i}`),
+    imageUrl: SCENES[i % SCENES.length]!.visit,
     createdAt: new Date(now.getTime() - ((i % 8) + 1) * HOUR_MS),
   }));
-  const feedPosts: FeedPostEntity[] = Array.from({ length: c.feedPosts }, (_, i) => ({
-    id: uuid(),
-    authorUserId: pick(users).id,
-    eventId: pick(events).id,
-    text: pick(FEED_TEXTS),
-    photoUrl: chance(0.7) ? picsum(`demo-post-${i}`) : null,
-    published: true,
-    createdAt: new Date(now.getTime() - int(1, 168) * HOUR_MS),
-  }));
+  const feedPosts: FeedPostEntity[] = pastEvents.slice(0, c.feedPosts).map((event) => {
+    const scene = sceneByTitle(event.title);
+    return {
+      id: uuid(),
+      authorUserId: pick(users).id,
+      eventId: event.id,
+      text: scene.post,
+      photoUrl: scene.visit,
+      published: true,
+      createdAt: new Date(event.startsAt.getTime() + 3 * HOUR_MS),
+    };
+  });
 
   // reviews on past events, unique user+event pairs
   const reviews: ReviewEntity[] = [];
@@ -940,9 +954,9 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       stars: int(3, 5),
       categoryScores: { atmosphere: int(3, 5), organization: int(3, 5), price: int(3, 5), place: int(3, 5) },
       wouldGoAgain: chance(0.8),
-      photoUrls: chance(0.3) ? [picsum(`demo-review-${reviews.length}`)] : [],
+      photoUrls: [sceneByTitle(event.title).visit],
       factTags: [],
-      text: chance(0.6) ? pick(REVIEW_TEXTS) : null,
+      text: sceneByTitle(event.title).review,
       createdAt: new Date(event.startsAt.getTime() + int(1, 48) * HOUR_MS),
     });
   }
@@ -1080,7 +1094,13 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
   for (let i = 0; i < c.microEvents; i += 1) {
     const author = pick(users);
     const microEventId = uuid();
-    const usePlace = chance(0.5);
+    const spot = [
+      { title: "Забег по аллее Сокольников", place: "Сокольники" },
+      { title: "Йога у арки Парка Горького", place: "Парк Горького" },
+      { title: "Кофе в «Даблби» на Мясницкой", place: "Кофейня «Даблби»" },
+      { title: "Прогулка по Коломенскому", place: "Коломенское" },
+      { title: "Субботник в Измайловском парке", place: "Измайловский парк" },
+    ][i % 5]!;
     const participantIds = new Set<string>();
     if (i % 5 < 3) {
       fakerRU.helpers.arrayElements(users, Math.min(4, users.length)).forEach((user) => {
@@ -1090,10 +1110,10 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     microEvents.push({
       id: microEventId,
       authorId: author.id,
-      title: MICRO_EVENT_TITLES[i % MICRO_EVENT_TITLES.length]!,
+      title: spot.title,
       startsAt: shiftDays(now, int(1, 14), int(10, 20)),
-      locationText: usePlace ? null : pick(MICRO_LOCATIONS),
-      placeId: usePlace ? pick(places).id : null,
+      locationText: null,
+      placeId: places.find((item) => item.title === spot.place)?.id ?? null,
       // Каждая пятая запись набрана под завязку: экран должен показывать и «мест нет».
       participantsLimit: i % 5 === 2 ? Math.max(3, participantIds.size) : Math.max(3, participantIds.size + int(1, 8)),
       status: "open" as MicroEventStatus,

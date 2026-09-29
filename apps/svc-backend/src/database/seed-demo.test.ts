@@ -183,13 +183,23 @@ describe("buildDemoData", () => {
 
     for (const story of data.stories) {
       expect(userIds.has(story.userId)).toBe(true);
-      expect(story.imageUrl).toMatch(/^https:\/\/picsum\.photos\/seed\//);
+      expect(story.imageUrl.startsWith("/covers/") || story.imageUrl.startsWith("/onboarding/")).toBe(true);
     }
     for (const post of data.feedPosts) {
       expect(userIds.has(post.authorUserId)).toBe(true);
       expect(post.eventId !== null && eventIds.has(post.eventId)).toBe(true);
+      const event = data.events.find((item) => item.id === post.eventId);
+      const place = data.places.find((item) => item.id === event?.placeId);
+      expect(place).toBeDefined();
       expect(post.text.length).toBeGreaterThan(0);
+      expect(post.photoUrl?.startsWith("/covers/") || post.photoUrl?.startsWith("/onboarding/")).toBe(true);
+      expect(event?.coverUrl?.startsWith("/covers/") || event?.coverUrl?.startsWith("/onboarding/")).toBe(true);
     }
+    const tsaritsyno = data.events.find((event) => event.title === "Экскурсия по Царицыну");
+    const tsaritsynoPost = data.feedPosts.find((post) => post.eventId === tsaritsyno?.id);
+    expect(tsaritsynoPost?.text).toContain("Царицын");
+    expect(tsaritsynoPost?.photoUrl).toBe("/covers/visits/tsaritsyno-me.jpg");
+    expect(tsaritsyno?.coverUrl).toBe("/covers/visits/tsaritsyno.jpg");
     for (const review of data.reviews) {
       expect(userIds.has(review.userId)).toBe(true);
       expect(pastEventIds.has(review.eventId)).toBe(true);
